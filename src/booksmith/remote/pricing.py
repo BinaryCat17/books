@@ -69,10 +69,13 @@ def rank(offers: list[dict], image_gb: float, minutes: float, **kw) -> list[dict
 
 def describe(offer: dict) -> str:
     e = offer["_est"]
+    # .get(k, 0) не спасает: ключ есть, а значение None — формат падает.
+    down = float(offer.get("inet_down") or 0)
+    disk = float(offer.get("disk_bw") or 0)
     return (f"#{offer['id']}  ${offer['dph_total']:.3f}/час  "
-            f"{offer.get('inet_down', 0):.0f} Мбит  "
-            f"{offer.get('disk_bw', 0):.0f} МБ/с диск  "
-            f"${offer.get('internet_down_cost_per_tb') or 0:.1f}/ТБ  "
+            f"{down:.0f} Мбит  "
+            f"{disk:.0f} МБ/с диск  "
+            f"${float(offer.get('internet_down_cost_per_tb') or 0):.1f}/ТБ  "
             f"старт~{e.setup_s/60:.1f}мин  "
             f"=> ${e.total_usd:.3f} (аренда {e.rent_usd:.3f} + трафик {e.traffic_usd:.3f})  "
             f"машина {offer.get('machine_id')}")

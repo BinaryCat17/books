@@ -44,13 +44,28 @@ class Budget:
                 f"{self.seconds/60:.0f} мин")
 
 
-def _watchdog(vast: Vast, iid: int, budget: Budget, done: threading.Event):
-    """Убить инстанс по истечении бюджета, что бы ни делал основной поток."""
+def _watchdog(vast: Vast, get_iid, budget: Budget, done: threading.Event):
+    """Убить инстанс по истечении бюджета, что бы ни делал основной поток.
+
+    Тело обёрнуто целиком: исключение здесь убивало бы поток молча, а это
+    последний рубеж — основной поток в этот момент может висеть в ssh.
+    И одной попытки мало: если уничтожить не вышло, надо пробовать снова.
+    """
+    fired = False
     while not done.wait(15):
-        if time.time() > budget.deadline:
-            log(f"!!! БЮДЖЕТ ИСЧЕРПАН (${budget.spent:.3f}) — уничтожаю {iid}")
-            vast.destroy(iid)
-            return
+        try:
+            if not fired and time.time() <= budget.deadline:
+                continue
+            iid = get_iid()
+            if not iid:
+                continue
+            if not fired:
+                log(f"!!! БЮДЖЕТ ИСЧЕРПАН (${budget.spent:.3f}) — уничтожаю {iid}")
+                fired = True
+            if vast.destroy(int(iid)):
+                return
+        except Exception as e:                     # noqa: BLE001 — рубеж падать не вправе
+            log(f"  сторож: {type(e).__name__}: {e}")
 
 
 class _Interrupted(Exception):
@@ -77,6 +92,20 @@ def _restore_signals(old):
     for s, h in old.items():
         try:
             signal.signal(s, h)
+        except ValueError:
+            pass
+
+
+def _ignore_signals():
+    """Отключить обработчик на время уборки.
+
+    Второй Ctrl-C — рефлекс, когда первый выглядит зависшим.  Раньше он
+    прилетал прямо в `destroy` (пять попыток по 4с) и уносил процесс мимо
+    уничтожения: инстанс оставался жив и продолжал биллиться.
+    """
+    for s in (signal.SIGINT, signal.SIGTERM):
+        try:
+            signal.signal(s, signal.SIG_IGN)
         except ValueError:
             pass
 
@@ -129,13 +158,19 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
                      image_gb=spec.image_gb)
     old_signals = _install_signals()
     t0 = time.time()
-    iid, offer, box, done = reuse, None, None, threading.Event()
+    # id держим в изменяемой ячейке: сторож и блок уборки должны видеть его
+    # сразу после создания инстанса, а не после возврата из create().
+    state = {"iid": reuse}
+    offer, done = None, threading.Event()
 
-    if dry_run and not reuse:
-        warm = ledger.warm_machines(spec.image)
-        offer = vast.pick(spec.host, spec.image_gb, spec.minutes, warm)
-        log(f"проверочный запуск — снял бы #{offer['id']} "
-            f"за ${float(offer['dph_total']):.3f}/час")
+    if dry_run:
+        if reuse:
+            log(f"проверочный запуск: считал бы на инстансе {reuse}")
+        else:
+            warm = ledger.warm_machines(spec.image)
+            offer = vast.pick(spec.host, spec.image_gb, spec.minutes, warm)
+            log(f"проверочный запуск — снял бы #{offer['id']} "
+                f"за ${float(offer['dph_total']):.3f}/час")
         _restore_signals(old_signals)
         return 0
 
@@ -152,19 +187,32 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
             dph = float(offer["dph_total"])
             rec.offer_id = int(offer["id"])
             rec.machine_id = offer.get("machine_id")
-            rec.dph = dph
             rec.per_tb = float(offer.get("internet_down_cost_per_tb") or 0)
             rec.inet_down_adv = float(offer.get("inet_down") or 0)
             rec.disk_bw = float(offer.get("disk_bw") or 0)
             log(f"снимаю #{offer['id']} за ${dph:.3f}/час, диск {spec.host.disk_gb} ГБ")
-            iid = vast.create(int(offer["id"]), spec, ssh_key)
-            rec.instance_id = iid
 
+            budget_pre = Budget(spec, dph)
+            threading.Thread(target=_watchdog,
+                             args=(vast, lambda: state["iid"], budget_pre, done),
+                             daemon=True).start()
+
+            def _remember(new_id: int):
+                state["iid"] = new_id
+                rec.instance_id = new_id
+
+            vast.create(int(offer["id"]), spec, on_created=_remember)
+            if ssh_key:
+                vast.attach_key(state["iid"], ssh_key)
+
+        iid = state["iid"]
         budget = Budget(spec, dph)
         rec.dph = dph
         log(budget.describe())
-        threading.Thread(target=_watchdog, args=(vast, iid, budget, done),
-                         daemon=True).start()
+        if reuse:
+            threading.Thread(target=_watchdog,
+                             args=(vast, lambda: state["iid"], budget, done),
+                             daemon=True).start()
 
         log("жду выкачивания образа и старта контейнера...")
         box = connect(vast, iid, spec, ssh_key)
@@ -190,7 +238,9 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
         rec.note = f"{type(e).__name__}: {e}"
         raise
     finally:
+        _ignore_signals()          # первым делом: уборку нельзя прерывать
         done.set()
+        iid = state["iid"]
         elapsed = time.time() - t0
         rec.total_s = elapsed
         rec.cost_usd = rec.dph * elapsed / 3600 + rec.per_tb * spec.image_gb / 1024

@@ -68,6 +68,7 @@ jobs:
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE }}:${{ inputs.tag }}
           build-args: |
+            TORCH_VERSION=2.13.0
             PADDLE_PKG=${{ steps.paddle.outputs.pkg }}
             PADDLE_INDEX=${{ steps.paddle.outputs.index }}
             BAKE_WEIGHTS=${{ inputs.bake_weights && '1' || '0' }}

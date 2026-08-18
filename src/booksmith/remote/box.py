@@ -6,6 +6,8 @@ rsync, а не scp с tar в конце, ровно по одной причин
 по ходу работы, и упавший прогон оставляет то, что успел посчитать.
 """
 import os
+import select
+import shlex
 import subprocess
 import threading
 import time
@@ -46,8 +48,16 @@ class Box:
     def wait_ready(self, timeout: float = 420) -> None:
         t0, err = time.time(), ""
         while time.time() - t0 < timeout:
-            p = subprocess.run(self._ssh + [self._addr, "true"],
-                               capture_output=True, text=True, timeout=45)
+            try:
+                p = subprocess.run(self._ssh + [self._addr, "true"],
+                                   capture_output=True, text=True, timeout=45)
+            except subprocess.TimeoutExpired:
+                # Пока контейнер поднимается, порт часто просто не отвечает, и
+                # ssh висит.  Это нормальное состояние, а не отказ: раньше
+                # первая же такая попытка роняла прогон — уже после того, как
+                # образ выкачан и оплачен.
+                err = "ssh не ответил за 45с"
+                continue
             if p.returncode == 0:
                 log(f"  ssh готов через {time.time()-t0:.0f}с")
                 return
@@ -67,23 +77,42 @@ class Box:
         if not stream:
             p = subprocess.run(full, capture_output=True, text=True)
             return p.returncode, p.stdout + p.stderr
+
         p = subprocess.Popen(full, stdout=subprocess.PIPE,
                              stderr=subprocess.STDOUT, text=True, bufsize=1)
+        # Читать через `for line in p.stdout` нельзя: строка блокирует до
+        # следующего вывода, а задача молчит минутами (vLLM грузит модель,
+        # пайплайн инициализируется).  Проверка дедлайна в таком цикле
+        # недостижима ровно тогда, когда она нужнее всего.
         try:
-            for line in p.stdout:
-                print("    " + line.rstrip(), flush=True)
+            while True:
+                ready, _, _ = select.select([p.stdout], [], [], 5.0)
+                if ready:
+                    line = p.stdout.readline()
+                    if not line:
+                        break                      # EOF: процесс закончился
+                    print("    " + line.rstrip(), flush=True)
+                elif p.poll() is not None:
+                    break
                 if deadline and time.time() > deadline:
                     log("!!! бюджет/таймаут исчерпан — снимаю задачу")
                     p.kill()
+                    p.wait(timeout=10)
                     return 124, ""
         finally:
             if p.poll() is None:
-                p.kill()
+                # Нормальный конец: ssh уже закрыл stdout, но ещё не пожат.
+                # Убивать здесь сразу — значит превратить успешный прогон в -9.
+                try:
+                    p.wait(timeout=15)
+                except subprocess.TimeoutExpired:
+                    p.kill()
         return p.wait(), ""
 
     # --------------------------------------------------------------- файлы
     def _rsync(self, src: str, dst: str, extra: list[str] | None = None) -> int:
-        rsh = " ".join(["ssh", "-p", self.port] + SSH_OPTS +
+        rsh = " ".join(shlex.quote(x) for x in
+                       ["ssh", "-p", self.port] + SSH_OPTS +
                        (["-i", self.key] if self.key else []))
         cmd = ["rsync", "-az", "--partial", "-e", rsh] + (extra or []) + [src, dst]
         p = subprocess.run(cmd, capture_output=True, text=True)
@@ -126,7 +155,15 @@ class Box:
         log(f"  фоновая синхронизация {remote_rel} -> {local_dir} каждые {every:.0f}с")
 
     def stop_sync(self) -> None:
+        """Дождаться фоновой выкачки прежде, чем начинать финальную.
+
+        Иначе два rsync пишут в один каталог одновременно, а ссылку на поток
+        мы теряем.
+        """
         self._stop_sync.set()
         if self._sync_thread:
-            self._sync_thread.join(timeout=5)
+            self._sync_thread.join(timeout=180)
+            if self._sync_thread.is_alive():
+                log("  фоновая синхронизация всё ещё идёт, жду ещё")
+                self._sync_thread.join(timeout=180)
             self._sync_thread = None

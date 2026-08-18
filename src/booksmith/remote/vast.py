@@ -61,7 +61,14 @@ class Vast:
         return ranked[0]
 
     # ---------------------------------------------------------------- аренда
-    def create(self, offer_id: int, spec: JobSpec, ssh_key: str | None) -> int:
+    def create(self, offer_id: int, spec: JobSpec,
+               on_created=None) -> int:
+        """Создать инстанс и СРАЗУ отдать его id наружу.
+
+        Раньше сюда же входила привязка ssh-ключа с пятью повторами по 4с.
+        Всё это время инстанс уже существовал и брал деньги, а вызывающий код
+        его id ещё не знал: Ctrl-C в этом окне — и уничтожать было нечего.
+        """
         res = self.v.create_instance(
             id=int(offer_id),
             image=spec.image,
@@ -78,8 +85,8 @@ class Vast:
         if not iid:
             raise SystemExit(f"создать инстанс не удалось: {res}")
         log(f"инстанс {iid} создан")
-        if ssh_key:
-            self.attach_key(iid, ssh_key)
+        if on_created:
+            on_created(int(iid))       # до всего остального: он уже биллится
         return int(iid)
 
     def attach_key(self, iid: int, key_path: str) -> bool:
@@ -150,7 +157,7 @@ class Vast:
             rows = self.v.show_instances()
         except Exception:
             return True          # не смогли проверить -> считаем, что жив
-        return any(int(i.get("id", -1)) == int(iid) for i in rows)
+        return any(str(i.get("id")) == str(iid) for i in rows)
 
     def destroy(self, iid: int) -> bool:
         for attempt in range(5):

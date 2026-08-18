@@ -38,8 +38,11 @@ class HostReq:
             f"cuda_vers>={self.cuda_min}",
         ]
         if self.machine_id:
+            # Привязка к прогретой машине снимает фильтры по каналу и диску —
+            # они уже не важны, образ на месте.  Но потолок цены снимать
+            # нельзя: иначе прогретая машина арендуется по любой цене.
             q = [f"machine_id={self.machine_id}", f"num_gpus={self.num_gpus}",
-                 "rentable=true"]
+                 "rentable=true", f"dph_total<{self.max_dph}"]
         if self.region:
             q.append(f"geolocation={self.region}")
         return " ".join(q)

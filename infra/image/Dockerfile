@@ -12,7 +12,10 @@
 # не превышал примерно гигабайта. После первой сборки проверить фактическую
 # раскладку: docker history --no-trunc <образ>
 
-ARG CUDA_TAG=12.9.1-base-ubuntu24.04
+# CUDA 13: torch 2.13 несёт колёса nvidia-*-cu13, база должна совпадать.
+# Требует драйвер 580+, поэтому офферы под этот образ фильтруются
+# по cuda_vers>=13.0 (см. jobs/paddleocr).
+ARG CUDA_TAG=13.0.1-base-ubuntu24.04
 FROM nvidia/cuda:${CUDA_TAG}
 
 # Колёса torch и paddle несут свои библиотеки CUDA, поэтому базовым берётся
@@ -40,15 +43,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 # --- слой 3: библиотеки CUDA отдельно от torch (~1.5 ГБ) ------------------
-# Ставим их своей командой, чтобы они не слиплись с torch в один кусок.
+# Именно этот набор объявлен зависимостями torch 2.13.0 (сверено с метаданными
+# PyPI).  Ставим их своей командой, чтобы они не слиплись с torch в один кусок;
+# ошибиться в именах нельзя — лишние колёса осели бы в образе навсегда.
+ARG TORCH_VERSION=2.13.0
 RUN uv pip install --break-system-packages \
-        nvidia-cublas-cu12 nvidia-cudnn-cu12 nvidia-cuda-runtime-cu12 \
-        nvidia-cufft-cu12 nvidia-curand-cu12 nvidia-cusolver-cu12 \
-        nvidia-cusparse-cu12 nvidia-nccl-cu12
+        nvidia-cudnn-cu13 nvidia-cusparselt-cu13 \
+        nvidia-nccl-cu13 nvidia-nvshmem-cu13
 
 # --- слой 4: torch (~1 ГБ поверх уже поставленных библиотек) --------------
-ARG TORCH_BACKEND=auto
-RUN uv pip install --break-system-packages --torch-backend=${TORCH_BACKEND} torch
+# БЕЗ --torch-backend: `auto` определяет CUDA по драйверу СБОРОЧНОЙ машины, а у
+# раннера GitHub видеокарты нет, и он молча ставит сборку +cpu — то есть образ
+# уезжает без поддержки GPU, ради которой всё и затевалось.  Колесо torch с
+# PyPI и так собрано с CUDA.
+RUN uv pip install --break-system-packages "torch==${TORCH_VERSION}"
 
 # --- слой 5: vLLM (~0.5 ГБ) ----------------------------------------------
 # PaddleOCR-VL поддержан в vLLM нативно начиная с 0.11.1; отдельный
@@ -86,8 +94,12 @@ RUN if [ "${BAKE_WEIGHTS}" = "1" ]; then \
       hf download ${LAYOUT_MODEL} --local-dir /models/layout; \
     fi
 
+# PADDLE_PDX_MODEL_SOURCE переключает paddlex на Hugging Face, чтобы он нашёл
+# уже скачанные веса в HF_HOME, а не тянул их со своего CDN при первом запуске.
+# ПРОВЕРИТЬ на первом же прогоне: в логе не должно быть загрузок моделей.
 ENV VL_MODEL_DIR=/models/vl \
     LAYOUT_MODEL_DIR=/models/layout \
+    PADDLE_PDX_MODEL_SOURCE=huggingface \
     PATH=/usr/local/bin:$PATH
 
 WORKDIR /root

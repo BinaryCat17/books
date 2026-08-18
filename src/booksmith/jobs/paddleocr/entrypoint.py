@@ -40,6 +40,25 @@ def _slice_pdf(pdf: str, first: int, last: int, out: str) -> str | None:
     return out
 
 
+def _concat_pages(pages_dir: str, dst: str) -> int:
+    """Собрать книгу из уже записанных страниц, по порядку.
+
+    Запасной путь: без сшивки таблиц через разрыв, но полный и честный —
+    в отличие от склейки по страницам одного прогона.
+    """
+    files = []
+    for root, _dirs, names in os.walk(pages_dir):
+        for n in names:
+            if n.endswith(".md"):
+                files.append(os.path.join(root, n))
+    files.sort()
+    with open(dst, "w") as out:
+        for f in files:
+            out.write(open(f, encoding="utf-8", errors="replace").read())
+            out.write("\n\n")
+    return len(files)
+
+
 def _done_pages(pages_dir: str) -> set[int]:
     if not os.path.isdir(pages_dir):
         return set()
@@ -131,21 +150,31 @@ def main():
 
     # Склейка таблиц и абзацев через разрыв страницы — то, что для
     # pymupdf-конвейера писалось руками.
-    try:
-        joined = pipeline.restructure_pages(pages, merge_tables=True,
-                                            concatenate_pages=True)
-        _log("restructure_pages: таблицы склеены, страницы сшиты")
-    except (AttributeError, TypeError) as e:
-        _log(f"restructure_pages недоступен ({e}) — оставляю постранично")
-        joined = pages
-
+    #
+    # ВАЖНО: `pages` содержит только страницы ЭТОГО прогона.  При возобновлении
+    # склеивать по ним нельзя — получилась бы книга из одного хвоста, и молча.
     book_dir = os.path.join(out, "book")
     os.makedirs(book_dir, exist_ok=True)
-    for res in joined:
+    if offset:
+        _log(f"прогон был возобновлён с {offset+1}-й страницы — "
+             f"сшиваю книгу из файлов, без restructure_pages")
+        _concat_pages(pages_dir, os.path.join(book_dir, "book.md"))
+    else:
         try:
-            res.save_to_markdown(save_path=book_dir)
-        except Exception as e:
-            _log(f"  склейка: {e}")
+            joined = pipeline.restructure_pages(pages, merge_tables=True,
+                                                concatenate_pages=True)
+            _log("restructure_pages: таблицы склеены, страницы сшиты")
+        except (AttributeError, TypeError) as e:
+            _log(f"restructure_pages недоступен ({e}) — сшиваю из файлов")
+            joined = None
+        if joined is None:
+            _concat_pages(pages_dir, os.path.join(book_dir, "book.md"))
+        else:
+            for res in joined:
+                try:
+                    res.save_to_markdown(save_path=book_dir)
+                except Exception as e:
+                    _log(f"  склейка: {e}")
 
     with open(os.path.join(out, "run.json"), "w") as f:
         json.dump({"pages": offset + n, "seconds": round(dt, 1),

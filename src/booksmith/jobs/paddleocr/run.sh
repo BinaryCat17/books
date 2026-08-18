@@ -33,7 +33,10 @@ SRV=""; SERVER_UP=0
 if python -c "import vllm" 2>/dev/null; then
   log "=== поднимаю vLLM ($MODEL) ==="
   log "модель для vLLM: $SERVE_MODEL"
+  # --served-model-name обязателен: без него модель регистрируется под своим
+  # путём (/models/vl), а клиент спрашивает по имени и получает 404.
   nohup vllm serve "$SERVE_MODEL" --trust-remote-code \
+        --served-model-name "$MODEL" \
         --host 127.0.0.1 --port "$PORT" \
         --max-num-batched-tokens 16384 \
         --no-enable-prefix-caching --mm-processor-cache-gb 0 \

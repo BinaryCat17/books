@@ -10,7 +10,10 @@ import os
 import time
 from dataclasses import dataclass, asdict, field
 
-LEDGER = os.environ.get("BOOKSMITH_LEDGER", "runs/ledger.jsonl")
+# Относительный путь молча терял бы всю историю при запуске из другого
+# каталога, а вместе с ней и подбор прогретых машин.
+_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+LEDGER = os.environ.get("BOOKSMITH_LEDGER", os.path.join(_ROOT, "runs", "ledger.jsonl"))
 
 
 @dataclass
