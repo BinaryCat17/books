@@ -8,10 +8,10 @@ on:
   workflow_dispatch:
     inputs:
       paddle:
-        description: "paddle: cpu (образ ~5 ГБ) или gpu (~9 ГБ)"
-        default: cpu
+        description: "paddle: gpu (~9 ГБ, нужен для детекции макета) или cpu (~5 ГБ, детекция 7.6 с/стр — не брать)"
+        default: gpu
         type: choice
-        options: [cpu, gpu]
+        options: [gpu, cpu]
       tag:
         description: "тег образа"
         default: latest
