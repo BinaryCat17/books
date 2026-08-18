@@ -64,34 +64,41 @@ RUN uv pip install --break-system-packages "torch==${TORCH_VERSION}"
 ARG VLLM_VERSION=0.27.1
 RUN uv pip install --break-system-packages "vllm==${VLLM_VERSION}"
 
-# --- слой 6: paddle (~3.7 ГБ) ---------------------------------------------
-# По умолчанию GPU, и это ЗАМЕРЕНО, а не выбрано по осторожности.
-# paddle нужен только детекции макета (PP-DocLayoutV2), сам VLM считает vLLM,
-# поэтому напрашивался CPU-вариант: колесо 186 МБ против 3.69 ГБ. Замер на
-# 16 ядрах, 150 dpi, реальные страницы книги:
+# --- слой 6: движок детекции макета (~0.4 ГБ) -----------------------------
+# Здесь стояла GPU-сборка paddle на 3.69 ГБ, и вот почему её больше нет.
 #
-#   по умолчанию          7.59 с/стр  ->  539 страниц = 68 мин
-#   MKLDNN + 16 потоков   9.71 с/стр  ->  87 мин   (многопоточность ХУЖЕ)
-#   MKLDNN + 8 потоков    8.26 с/стр  ->  74 мин
+# paddle нужен только детекции макета (PP-DocLayoutV2) — сам VLM считает vLLM.
+# Замерено на реальных страницах книги, 5 страниц, 82 рамки:
 #
-# Против ~8 минут работы самого VLM на карте. В деньгах: CPU-сборка выходит
-# $0.449 за книгу против $0.097 у GPU-сборки — экономия четырёх гигабайт
-# образа оборачивается лишним часом аренды.
+#   paddle (CPU)        8.59 с/стр
+#   ONNX Runtime (CPU)  2.45 с/стр      втрое быстрее на том же процессоре
+#   совпадение выхода:  82/82 рамок, IoU 1.0000, расхождение координат 0.00 px
 #
-# Цена решения: paddlepaddle-gpu собран под cu126, а torch несёт cu13, то есть
-# в контейнере уживаются два поколения CUDA. Каждый несёт свои библиотеки,
-# связующее звено — драйвер 580+, поэтому офферы фильтруются по cuda_vers>=13.0
-# (проверено: рынок это не сужает, 29 офферов и так, и так).
+# Совпадение точное, а не «в пределах погрешности»: это перезапись графа, а не
+# пересчёт весов. Официальные ONNX-веса весят 204.1 МБ против 203.9 МБ у
+# paddle-версии — размер совпадает, значит конвертация без квантования.
+# Квантованные версии на HF есть (uint8) — их брать нельзя.
 #
-# Версия 3.2.1 взята из официального образа Baidu, где она проверена в паре с
-# paddleocr. Если paddleocr 3.7 потребует новее — поднять до 3.3.1, если она
-# есть на индексе (проверить из сети, где paddlepaddle.org.cn доступен).
-ARG PADDLE_PKG=paddlepaddle-gpu==3.2.1
-ARG PADDLE_INDEX=https://www.paddlepaddle.org.cn/packages/stable/cu126/
+# Два следствия помимо размера:
+#   * onnxruntime-gpu 1.29 зависит от nvidia-cuda-runtime~=13.0 и
+#     nvidia-cudnn-cu13 — ТОТ ЖЕ стек CUDA, что приносит torch. Уходит
+#     сожительство cu126 и cu13 в одном контейнере;
+#   * ONNX — приоритетный путь самого вендора для малых моделей: у PaddlePaddle
+#     37 официальных ONNX-репозиториев (макет, ориентация, PP-OCRv5/v6,
+#     формулы). Для самой VL-модели ONNX нет вовсе — там GGUF и vLLM.
+#
+# paddlepaddle CPU остаётся как каркас paddlex: сам вывод идёт через ORT.
+# Откат на прежний вариант — сменой двух ARG, см. LAYOUT_ENGINE в workflow.
+ARG PADDLE_PKG=paddlepaddle==3.3.1
+ARG PADDLE_INDEX=
+ARG ORT_PKG=onnxruntime-gpu==1.29.0
 RUN if [ -n "${PADDLE_INDEX}" ]; then \
         uv pip install --break-system-packages "${PADDLE_PKG}" -i "${PADDLE_INDEX}"; \
     else \
         uv pip install --break-system-packages "${PADDLE_PKG}"; \
+    fi
+RUN if [ -n "${ORT_PKG}" ]; then \
+        uv pip install --break-system-packages "${ORT_PKG}"; \
     fi
 
 # --- слой 7: PaddleOCR (~0.1 ГБ) -----------------------------------------
@@ -104,7 +111,8 @@ RUN uv pip install --break-system-packages \
 # с ним. HF_HUB_ENABLE_HF_TRANSFER больше не работает — всё идёт через Xet.
 ARG BAKE_WEIGHTS=1
 ARG VL_MODEL=PaddlePaddle/PaddleOCR-VL-1.6
-ARG LAYOUT_MODEL=PaddlePaddle/PP-DocLayoutV2
+# ONNX-веса детекции макета — официальные, от самой PaddlePaddle.
+ARG LAYOUT_MODEL=PaddlePaddle/PP-DocLayoutV2_onnx
 RUN if [ "${BAKE_WEIGHTS}" = "1" ]; then \
       uv pip install --break-system-packages "huggingface_hub>=1.28" && \
       hf download ${VL_MODEL}     --local-dir /models/vl && \

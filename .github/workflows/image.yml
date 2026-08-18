@@ -7,11 +7,11 @@ name: build ocr image
 on:
   workflow_dispatch:
     inputs:
-      paddle:
-        description: "paddle: gpu (~9 ГБ, нужен для детекции макета) или cpu (~5 ГБ, детекция 7.6 с/стр — не брать)"
-        default: gpu
+      layout_engine:
+        description: "движок детекции макета: onnx (~6 ГБ, выход совпадает точно) или paddle-gpu (~9 ГБ, запасной)"
+        default: onnx
         type: choice
-        options: [gpu, cpu]
+        options: [onnx, paddle-gpu]
       tag:
         description: "тег образа"
         default: latest
@@ -51,15 +51,21 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: параметры paddle
+      - name: параметры движка детекции
         id: paddle
         run: |
-          if [ "${{ inputs.paddle }}" = "gpu" ]; then
+          if [ "${{ inputs.layout_engine }}" = "paddle-gpu" ]; then
+            # Запасной путь: детекция на paddle-GPU. Тянет 3.69 ГБ и сводит в
+            # одном контейнере cu126 с cu13 — брать только если ORT подведёт.
             echo "pkg=paddlepaddle-gpu==3.2.1" >> $GITHUB_OUTPUT
             echo "index=https://www.paddlepaddle.org.cn/packages/stable/cu126/" >> $GITHUB_OUTPUT
+            echo "ort=" >> $GITHUB_OUTPUT
+            echo "layout=PaddlePaddle/PP-DocLayoutV2" >> $GITHUB_OUTPUT
           else
             echo "pkg=paddlepaddle==3.3.1" >> $GITHUB_OUTPUT
             echo "index=" >> $GITHUB_OUTPUT
+            echo "ort=onnxruntime-gpu==1.29.0" >> $GITHUB_OUTPUT
+            echo "layout=PaddlePaddle/PP-DocLayoutV2_onnx" >> $GITHUB_OUTPUT
           fi
 
       - uses: docker/build-push-action@v6
@@ -71,6 +77,8 @@ jobs:
             TORCH_VERSION=2.13.0
             PADDLE_PKG=${{ steps.paddle.outputs.pkg }}
             PADDLE_INDEX=${{ steps.paddle.outputs.index }}
+            ORT_PKG=${{ steps.paddle.outputs.ort }}
+            LAYOUT_MODEL=${{ steps.paddle.outputs.layout }}
             BAKE_WEIGHTS=${{ inputs.bake_weights && '1' || '0' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
