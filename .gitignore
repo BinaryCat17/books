@@ -1,0 +1,23 @@
+# секреты — раньше всего остального
+.env
+*.env
+!.env.example
+
+# окружения
+venv/
+tools/venv/
+.venv/
+__pycache__/
+*.py[cod]
+.uv/
+
+# данные: оригиналы и результаты не версионируем, они большие и воспроизводимы
+raw/
+processed/
+bench/paddleocr/
+runs/
+
+# рабочее
+*.log
+out.tgz
+.DS_Store
