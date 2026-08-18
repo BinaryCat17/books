@@ -21,3 +21,6 @@ runs/
 *.log
 out.tgz
 .DS_Store
+*.egg-info/
+build/
+dist/

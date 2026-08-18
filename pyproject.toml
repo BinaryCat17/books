@@ -1,0 +1,21 @@
+[project]
+name = "booksmith"
+version = "0.2.0"
+description = "Сканы технических книг -> Markdown, локально и на арендованных GPU"
+requires-python = ">=3.10"
+dependencies = [
+    "pymupdf>=1.24",
+    "requests>=2.31",
+    "pillow>=10.0",
+    "vastai>=1.5.5",
+]
+
+[project.scripts]
+books = "booksmith.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
