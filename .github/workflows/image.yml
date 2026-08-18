@@ -22,7 +22,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE: ${{ github.repository_owner }}/paddleocr-vl-vllm
 
 jobs:
   build:
@@ -33,15 +32,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # У раннера свободно около 14 ГБ, а образ в распакованном виде заметно
-      # больше. Без этой уборки сборка падает на "no space left on device".
-      - name: освободить место
+      # ghcr.io не принимает заглавные буквы в имени репозитория, а логин на
+      # GitHub может быть в любом регистре. Приводим здесь, один раз.
+      - name: имя образа
+        id: img
         run: |
-          echo "до:"; df -h / | tail -1
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
-                      /usr/local/share/boost "$AGENT_TOOLSDIRECTORY"
-          sudo docker image prune -af
-          echo "после:"; df -h / | tail -1
+          OWNER=$(echo "${{ github.repository_owner }}" | tr 'A-Z' 'a-z')
+          echo "ref=ghcr.io/$OWNER/paddleocr-vl-vllm:${{ inputs.tag }}" >> $GITHUB_OUTPUT
 
       - uses: docker/setup-buildx-action@v3
 
@@ -72,7 +69,7 @@ jobs:
         with:
           context: infra/image
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE }}:${{ inputs.tag }}
+          tags: ${{ steps.img.outputs.ref }}
           build-args: |
             TORCH_VERSION=2.13.0
             PADDLE_PKG=${{ steps.paddle.outputs.pkg }}
@@ -89,7 +86,7 @@ jobs:
       # Поэтому она печатается в лог сборки, чтобы регресс был заметен сразу.
       - name: раскладка слоёв
         run: |
-          IMG=${{ env.REGISTRY }}/${{ env.IMAGE }}:${{ inputs.tag }}
+          IMG=${{ steps.img.outputs.ref }}
           docker buildx imagetools inspect "$IMG" --raw > /tmp/m.json || true
           python3 - <<'PY'
           import json
