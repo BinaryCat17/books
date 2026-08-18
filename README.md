@@ -49,6 +49,7 @@ ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_vast -N ''
 ## Запуск
 
 ```bash
+books doctor                              проверить всё ДО того, как пойдут деньги
 books offers                              посмотреть рынок, ничего не арендуя
 books ocr bench/test25.pdf bench/paddleocr
 books ocr raw/книга.pdf processed/книга --keep     оставить машину

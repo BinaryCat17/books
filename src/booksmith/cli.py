@@ -95,6 +95,44 @@ def cmd_reap(_a):
     return 0
 
 
+def cmd_doctor(_a):
+    """Проверить всё, что может сорвать прогон, ДО того как деньги пойдут."""
+    import shutil
+    ok = True
+
+    def check(name, good, hint=""):
+        nonlocal ok
+        log(f"  [{'ок  ' if good else 'нет '}] {name}" + ("" if good else f" — {hint}"))
+        ok = ok and good
+
+    log("проверка окружения:")
+    check("rsync локально", shutil.which("rsync") is not None,
+          "нужен для инкрементальной выкачки: apt install rsync")
+    check("ssh локально", shutil.which("ssh") is not None, "apt install openssh-client")
+    key = config.ssh_key()
+    check(f"ssh-ключ {config.DEFAULT_SSH_KEY}", key is not None,
+          "ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_vast -N ''")
+    check("публичная часть ключа", bool(key) and os.path.exists(key + ".pub"),
+          "без неё ключ не привязать к инстансу")
+    check(".env в корне", os.path.exists(config.ENV_FILE),
+          f"скопируй .env.example в {config.ENV_FILE}")
+
+    try:
+        v = Vast()
+        bal = v.balance()
+        check(f"ключ vast.ai (баланс ${bal:.3f})", True)
+        check("баланса хватит хотя бы на прогон", bal > 0.20,
+              "пополни: console.vast.ai/billing")
+        rows = v.v.show_instances()
+        check(f"нет забытых инстансов (сейчас {len(rows)})", not rows,
+              "books ls, затем books reap")
+    except Exception as e:
+        check("ключ vast.ai", False, f"vastai set api-key <КЛЮЧ> ({e})")
+
+    log("всё в порядке" if ok else "есть проблемы — см. выше")
+    return 0 if ok else 1
+
+
 def cmd_ledger(_a):
     rows = ledger_mod.read()
     if not rows:
@@ -161,6 +199,9 @@ def main(argv=None):
 
     p = sub.add_parser("reap", help="уничтожить всё, что оставили наши прогоны")
     p.set_defaults(fn=cmd_reap)
+
+    p = sub.add_parser("doctor", help="проверить окружение до того, как тратить деньги")
+    p.set_defaults(fn=cmd_doctor)
 
     p = sub.add_parser("ledger", help="журнал прогонов и оценки по нему")
     p.set_defaults(fn=cmd_ledger)
