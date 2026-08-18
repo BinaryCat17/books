@@ -50,6 +50,28 @@ def cmd_ocr(a):
                    keep=a.keep, reuse=a.reuse, dry_run=a.dry_run)
 
 
+def cmd_local(a):
+    return _run_module("booksmith.engines.pdf_layer", [a.pdf] + list(a.rest))
+
+
+def cmd_mistral(a):
+    return _run_module("booksmith.engines.mistral", [a.pdf, a.outdir])
+
+
+def _run_module(mod: str, argv: list[str]) -> int:
+    """Движки написаны как самостоятельные скрипты; зовём их как скрипты."""
+    import runpy
+    old = sys.argv
+    sys.argv = [mod] + argv
+    try:
+        runpy.run_module(mod, run_name="__main__")
+        return 0
+    except SystemExit as e:
+        return int(e.code or 0)
+    finally:
+        sys.argv = old
+
+
 def cmd_ls(_a):
     v = Vast()
     rows = v.v.show_instances()
@@ -119,6 +141,16 @@ def main(argv=None):
                    help="считать на уже поднятой машине, без холодного старта")
     p.add_argument("--dry-run", action="store_true")
     p.set_defaults(fn=cmd_ocr)
+
+    p = sub.add_parser("local", help="разобрать PDF по его же OCR-слою, без GPU")
+    p.add_argument("pdf")
+    p.add_argument("rest", nargs=argparse.REMAINDER)
+    p.set_defaults(fn=cmd_local)
+
+    p = sub.add_parser("mistral", help="разобрать PDF через Mistral OCR API")
+    p.add_argument("pdf")
+    p.add_argument("outdir")
+    p.set_defaults(fn=cmd_mistral)
 
     p = sub.add_parser("ls", help="что сейчас арендовано")
     p.set_defaults(fn=cmd_ls)

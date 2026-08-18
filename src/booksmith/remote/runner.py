@@ -124,7 +124,6 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
     """Полный прогон.  Возвращает код возврата задачи."""
     vast = Vast()
     outdir = os.path.abspath(outdir)
-    os.makedirs(outdir, exist_ok=True)
 
     rec = ledger.Run(job=spec.name, image=spec.image, gpu=spec.host.gpu,
                      image_gb=spec.image_gb)
@@ -140,6 +139,7 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
         _restore_signals(old_signals)
         return 0
 
+    os.makedirs(outdir, exist_ok=True)
     try:
         if reuse:
             log(f"переиспользую инстанс {reuse} — холодного старта нет")

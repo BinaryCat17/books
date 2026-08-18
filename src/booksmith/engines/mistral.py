@@ -3,7 +3,7 @@
 
     ./mistral_ocr.py some.pdf out_dir/ [--model mistral-ocr-latest]
 
-Reads MISTRAL_API_KEY from tools/.env (or the environment).  Uploads the file,
+Reads MISTRAL_API_KEY from .env at the project root (or the environment).  Uploads the file,
 asks for OCR with embedded images, then writes:
 
     out_dir/<stem>.md        markdown, image links rewritten to local files
@@ -24,15 +24,9 @@ API = "https://api.mistral.ai/v1"
 
 
 def load_key():
-    key = os.environ.get("MISTRAL_API_KEY")
-    if key:
-        return key
-    env = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
-    if os.path.exists(env):
-        for line in open(env):
-            if line.startswith("MISTRAL_API_KEY="):
-                return line.split("=", 1)[1].strip()
-    sys.exit("MISTRAL_API_KEY not found (env or tools/.env)")
+    """Ключ читается из .env в корне проекта — см. booksmith.config."""
+    from booksmith.config import require
+    return require("MISTRAL_API_KEY")["MISTRAL_API_KEY"]
 
 
 def upload(key, path):
