@@ -71,7 +71,6 @@ jobs:
           push: true
           tags: ${{ steps.img.outputs.ref }}
           build-args: |
-            TORCH_VERSION=2.13.0
             PADDLE_PKG=${{ steps.paddle.outputs.pkg }}
             PADDLE_INDEX=${{ steps.paddle.outputs.index }}
             ORT_PKG=${{ steps.paddle.outputs.ort }}
@@ -101,7 +100,10 @@ jobs:
           print(f"{len(ls)} слоёв, всего {tot/2**30:.2f} ГБ")
           for l in sorted(ls, key=lambda x: -x['size']):
               print(f"  {l['size']/2**30:6.2f} ГБ  {100*l['size']/tot:5.1f}%")
+          # Порог не произвольный: docker тянет три слоя параллельно, но внутри
+          # слоя — один поток. Пока крупнейший слой больше трети объёма, он и
+          # есть узкое место, и дробить остальное бесполезно.
           big = max(l['size'] for l in ls) / tot
-          print(f"крупнейший слой: {100*big:.1f}% объёма"
-                + ("  <-- ПЛОХО, тянуть будет в один поток" if big > 0.35 else "  ок"))
+          print(f"крупнейший слой: {100*big:.1f}% объёма, порог 33.3%"
+                + ("  <-- ПЛОХО, он и будет узким местом" if big > 1/3 else "  ок"))
           PY
