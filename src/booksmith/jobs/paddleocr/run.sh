@@ -77,7 +77,11 @@ if python -c "import vllm" 2>/dev/null; then
   SRV=$!
   for i in $(seq 1 600); do
       if curl -sf "http://127.0.0.1:$PORT/v1/models" -o /dev/null 2>/dev/null; then
-          SERVER_UP=1; log "vLLM поднялся за ${i}с"; break
+          SERVER_UP=1; log "vLLM поднялся за ${i}с"
+          # В журнал прогонов: по этому числу подгоняется модель выбора
+          # машины, потому что прогрев упирается в процессор хоста.
+          echo "{\"vllm_startup_s\": $i}" > "$OUT/vllm.json"
+          break
       fi
       if ! kill -0 "$SRV" 2>/dev/null; then
           log "vLLM упал на старте, хвост лога:"; tail -40 "$OUT/vllm.log"; break

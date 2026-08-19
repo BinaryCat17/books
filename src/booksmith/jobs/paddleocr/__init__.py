@@ -18,6 +18,9 @@ IMAGE_GB = 0.06
 # Колёса плюс веса, как они едут по сети: 9.0 ГБ окружения на диске приезжают
 # сжатыми колёсами, веса (2.2 ГБ) не сжимаются вовсе.  Замер: 82 секунды.
 PAYLOAD_GB = 7.2
+# Подъём vLLM на процессоре в 5 ГГц.  Это не карта: импорты, torch.compile
+# и прогрев модели.  На более медленном хосте вырастало до 374 с.
+WARMUP_S = 65.0
 
 # Отдельного образа под Blackwell (sm_120) больше не нужно: раньше он был
 # из-за колёс paddlepaddle-gpu под cu126, а детекция уехала на ONNX Runtime.
@@ -46,6 +49,7 @@ def spec(pdf: str, gpu: str = "RTX_4090", image: str | None = None,
         host=host,
         image_gb=IMAGE_GB,
         payload_gb=PAYLOAD_GB,
+        warmup_s=WARMUP_S,
         minutes=minutes,
         budget_usd=budget_usd,
     )

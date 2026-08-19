@@ -35,6 +35,20 @@ PAYLOAD_EFFICIENCY = 0.85
 
 BOOT_SECONDS = 95.0            # аренда -> ssh: vast достраивает образ своим ssh
 
+# ----------------------------------------------------------------- прогрев
+# Поднять vLLM — это импорты, torch.compile и прогрев модели, то есть работа
+# процессора, а не карты.  Разброс между хостами шестикратный: 65 с на Ryzen
+# 7800X3D (5.0 ГГц) против 374 с на машине, где частота была ниже.  Ни канал,
+# ни диск этого не объясняют — оба замера сняты на RTX 4090.
+#
+# Модель нарочно грубая, обратно пропорциональная частоте, и опирается пока
+# на одну надёжную точку.  Её место — в ранжировании, а не в фильтре: это
+# размен (более быстрый процессор дороже примерно на $0.06/час, а экономит
+# до пяти минут старта), и решать его должен расчёт полной стоимости.
+# Время старта пишется в журнал, чтобы коэффициент можно было подогнать.
+WARMUP_REF_S = 65.0            # замерено
+WARMUP_REF_GHZ = 5.0           # на этой частоте
+
 
 @dataclass
 class Estimate:
@@ -53,7 +67,7 @@ class Estimate:
 
 
 def estimate(offer: dict, image_gb: float, minutes: float,
-             payload_gb: float = 0.0,
+             payload_gb: float = 0.0, warmup_s: float = 0.0,
              docker_efficiency: float = DOCKER_EFFICIENCY,
              payload_efficiency: float = PAYLOAD_EFFICIENCY) -> Estimate:
     down = max(float(offer.get("inet_down") or 100), 50.0)
@@ -62,7 +76,10 @@ def estimate(offer: dict, image_gb: float, minutes: float,
     image_s = image_gb * 8 * 1024 / img_mbps + image_gb * 1024 / UNPACK_MBPS
     payload_s = payload_gb * 8 * 1024 / (down * payload_efficiency)
 
-    setup_s = BOOT_SECONDS + image_s + payload_s
+    ghz = float(offer.get("cpu_ghz") or 0) or WARMUP_REF_GHZ
+    warm_s = warmup_s * WARMUP_REF_GHZ / max(ghz, 1.5)
+
+    setup_s = BOOT_SECONDS + image_s + payload_s + warm_s
     compute_s = minutes * 60
     rent = float(offer["dph_total"]) * (setup_s + compute_s) / 3600
 
@@ -73,11 +90,11 @@ def estimate(offer: dict, image_gb: float, minutes: float,
 
 
 def rank(offers: list[dict], image_gb: float, minutes: float,
-         payload_gb: float = 0.0, **kw) -> list[dict]:
+         payload_gb: float = 0.0, warmup_s: float = 0.0, **kw) -> list[dict]:
     """Офферы по возрастанию полной стоимости прогона, с полем `_est`."""
     out = []
     for o in offers:
-        e = estimate(o, image_gb, minutes, payload_gb, **kw)
+        e = estimate(o, image_gb, minutes, payload_gb, warmup_s, **kw)
         out.append({**o, "_est": e})
     return sorted(out, key=lambda o: o["_est"].total_usd)
 
@@ -90,6 +107,7 @@ def describe(offer: dict) -> str:
     return (f"#{offer['id']}  ${offer['dph_total']:.3f}/час  "
             f"{down:.0f} Мбит  "
             f"{disk:.0f} МБ/с диск  "
+            f"{float(offer.get('cpu_ghz') or 0):.1f}ГГц  "
             f"${float(offer.get('internet_down_cost_per_tb') or 0):.1f}/ТБ  "
             f"старт~{e.setup_s/60:.1f}мин  "
             f"=> ${e.total_usd:.3f} (аренда {e.rent_usd:.3f} + трафик {e.traffic_usd:.3f})  "

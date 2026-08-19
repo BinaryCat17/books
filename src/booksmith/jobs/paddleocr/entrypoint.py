@@ -12,6 +12,8 @@
   outputs/book.md                    склейка через restructure_pages, в конце
 """
 import argparse
+import collections
+import glob
 import json
 import os
 import sys
@@ -122,6 +124,50 @@ def _layout_on_onnx(layout_dir):
     })
 
 
+
+def _strip_running_headers(pages_dir, *targets):
+    """Убрать колонтитулы — по повторяемости, а не по метке.
+
+    Название главы и колонтитул несут одну и ту же метку `header`, поэтому
+    отличить их можно только по одному признаку: колонтитул стоит на многих
+    страницах, название главы — на одной.  Порог с запасом: не меньше трёх
+    страниц и не меньше трети книги.
+
+    Возвращает то, что убрано, — чтобы это было видно в логе, а не молча.
+    """
+    seen = collections.Counter()
+    npages = 0
+    for f in sorted(glob.glob(os.path.join(pages_dir, "*.json"))):
+        npages += 1
+        try:
+            d = json.load(open(f))
+        except Exception:
+            continue
+        for r in d.get("parsing_res_list") or []:
+            if r.get("block_label") == "header":
+                t = (r.get("block_content") or "").strip()
+                if t:
+                    seen[t] += 1
+
+    limit = max(3, npages // 3)
+    running = {t for t, c in seen.items() if c >= limit}
+    if not running:
+        return []
+
+    # Блок может занимать несколько строк — сравниваем построчно.
+    lines = {ln.strip() for t in running for ln in t.splitlines() if ln.strip()}
+    for target in targets:
+        for f in glob.glob(os.path.join(target, "*.md")):
+            try:
+                src = open(f).read().splitlines(keepends=True)
+            except Exception:
+                continue
+            kept = [ln for ln in src if ln.strip() not in lines]
+            if len(kept) != len(src):
+                open(f, "w").writelines(kept)
+    return sorted(running)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--pdf", required=True)
@@ -174,6 +220,20 @@ def main():
         _log(f"детекция макета: ONNX Runtime, веса из {layout_dir}")
     elif layout_dir:
         _log(f"в {layout_dir} нет inference.onnx — детекция остаётся на paddle")
+    # Умолчание paddlex выбрасывает из markdown семь меток, и среди них
+    # `header` — а в книгах это не только колонтитул, но и название главы.
+    # Замер на 25 страницах: в `header` попало семь блоков, и все семь —
+    # настоящий текст ("Chapter 28", "THE VERTICAL MILLING MACHINE", ...),
+    # ни одного колонтитула.  Их отбрасывание — потеря содержания.
+    #
+    # Колонтитулы всё равно надо убирать, но по факту, а не по метке: они
+    # повторяются из страницы в страницу, и это видно после прогона
+    # (см. _strip_running_headers).  `number` остаётся в списке — это
+    # номера страниц, все 24 из 25.
+    kwargs["markdown_ignore_labels"] = [
+        "number", "header_image", "footer", "footer_image", "aside_text",
+    ]
+
     if a.server:
         # Одного адреса мало: без backend пайплайн всё равно строит локальную
         # модель и падает на gpu:0, потому что paddle у нас CPU-сборки.
@@ -250,6 +310,11 @@ def main():
                     res.save_to_markdown(save_path=book_dir)
                 except Exception as e:
                     _log(f"  склейка: {e}")
+
+    dropped = _strip_running_headers(pages_dir, pages_dir, book_dir)
+    if dropped:
+        _log(f"убраны колонтитулы ({len(dropped)}): "
+             + "; ".join(x.replace(chr(10), " ")[:40] for x in dropped[:5]))
 
     with open(os.path.join(out, "run.json"), "w") as f:
         json.dump({"pages": offset + n, "seconds": round(dt, 1),

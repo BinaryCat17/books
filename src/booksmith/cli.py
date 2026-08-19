@@ -36,7 +36,7 @@ def cmd_offers(a):
     if warm:
         log(f"прогретые машины из журнала: {warm[:5]}")
     v.pick(host, paddleocr.IMAGE_GB, a.minutes, warm, show=8,
-           payload_gb=paddleocr.PAYLOAD_GB)
+           payload_gb=paddleocr.PAYLOAD_GB, warmup_s=paddleocr.WARMUP_S)
     return 0
 
 

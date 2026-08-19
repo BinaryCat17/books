@@ -5,6 +5,7 @@
 выполнится) и сторожевой поток по бюджету (на случай, если основной поток
 залип в ssh, который не отвечает).
 """
+import json
 import os
 import signal
 import threading
@@ -110,6 +111,25 @@ def _ignore_signals():
             pass
 
 
+def _run_facts(outdir: str) -> dict:
+    """Что задача сама сообщила о прогоне — в журнал, для подгонки модели.
+
+    Раннер про OCR ничего не знает и знать не должен: он просто подбирает
+    небольшие json-файлы, которые задача оставила в каталоге результата.
+    """
+    facts = {}
+    for name in ("run.json", "vllm.json", "progress.json"):
+        path = os.path.join(outdir, name)
+        try:
+            with open(path) as f:
+                d = json.load(f)
+            if isinstance(d, dict):
+                facts.update(d)
+        except Exception:
+            pass
+    return facts
+
+
 def _warm(spec: JobSpec) -> list[int]:
     """Машины, где образ уже в кеше docker.
 
@@ -190,7 +210,8 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
         else:
             warm = _warm(spec)
             offer = vast.pick(spec.host, spec.image_gb, spec.minutes, warm,
-                              payload_gb=spec.payload_gb)
+                              payload_gb=spec.payload_gb,
+                              warmup_s=spec.warmup_s)
             log(f"проверочный запуск — снял бы #{offer['id']} "
                 f"за ${float(offer['dph_total']):.3f}/час")
         _restore_signals(old_signals)
@@ -206,7 +227,8 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
         else:
             warm = _warm(spec)
             offer = vast.pick(spec.host, spec.image_gb, spec.minutes, warm,
-                              payload_gb=spec.payload_gb)
+                              payload_gb=spec.payload_gb,
+                              warmup_s=spec.warmup_s)
             dph = float(offer["dph_total"])
             rec.offer_id = int(offer["id"])
             rec.machine_id = offer.get("machine_id")
@@ -249,6 +271,7 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
         t1 = time.time()
         rc = execute(box, spec, outdir, deadline=budget.deadline)
         rec.run_s = time.time() - t1
+        rec.extra.update(_run_facts(outdir))
         rec.ok = rc == 0
         if rc != 0:
             rec.note = f"задача вернула {rc}"
