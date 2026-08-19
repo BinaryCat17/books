@@ -117,17 +117,14 @@ def _prefer_tables_over_text():
     from copy import deepcopy
 
     from paddlex.inference.pipelines.paddleocr_vl import pipeline as _p
+    from paddlex.inference.pipelines.paddleocr_vl.uilts import (
+        calculate_polygon_overlap_ratio,
+    )
 
     orig = _p.filter_overlap_boxes
     hard = ("table", "image", "seal", "chart")
 
     def patched(layout_det_res, layout_shape_mode):
-        # Многоугольники не разбираем — уточнение перекрытия по ним живёт
-        # внутри paddlex.  У нас рамки прямоугольные; если однажды станут
-        # другими, честнее отдать всё штатной функции, чем угадывать.
-        if layout_shape_mode != "rect":
-            return orig(layout_det_res, layout_shape_mode)
-
         res = deepcopy(layout_det_res)
         boxes = [b for b in res["boxes"] if b["label"] != "reference"]
 
@@ -164,6 +161,17 @@ def _prefer_tables_over_text():
                         continue
                 if ratio <= 0.7:
                     continue
+                # Уточнение по многоугольникам — как в paddlex.  Режим по
+                # умолчанию "auto", а вовсе не "rect": первая версия этой
+                # правки отдавала всё неправильному режиму штатной функции и
+                # была молчаливой пустышкой — лог печатался, поведение не
+                # менялось.  Рамки у нас прямоугольные, ключа polygon_points
+                # в них нет, но полагаться на это незачем.
+                if layout_shape_mode != "rect" and "polygon_points" in boxes[i]:
+                    if calculate_polygon_overlap_ratio(
+                            boxes[i]["polygon_points"],
+                            boxes[j]["polygon_points"], "small") < 0.7:
+                        continue
                 labels = {li, lj}
                 if labels & set(hard) and len(labels) > 1:
                     if "table" not in labels or labels <= set(hard):
