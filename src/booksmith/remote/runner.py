@@ -125,6 +125,14 @@ def _warm(spec: JobSpec) -> list[int]:
 
 def connect(vast: Vast, iid: int, spec: JobSpec, ssh_key: str | None) -> Box:
     vast.wait_running(iid)
+    # Привязка ключа сразу после создания инстанса — гонка: контейнера ещё
+    # нет, и vast достраивает его своим слоем с ssh минуты по три.  Ключ,
+    # привязанный до этого, до authorized_keys иногда не доезжает, и мы
+    # получаем `Permission denied (publickey)` уже после того, как заплатили
+    # за старт.  Повторяем, когда контейнер точно существует; привязка
+    # идемпотентна, лишний вызов ничего не портит.
+    if ssh_key:
+        vast.attach_key(iid, ssh_key)
     user, host, port = vast.ssh_target(iid)
     log(f"ssh {user}@{host}:{port}")
     box = Box(user, host, port, ssh_key, spec.workdir)

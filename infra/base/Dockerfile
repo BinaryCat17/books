@@ -24,6 +24,18 @@ RUN apt-get update -qq \
       ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 
+# vast сам ставит в достроенный образ openssh и сам кладёт туда ключ — но
+# кладёт его файлом, открытым на запись всем, и sshd такой authorized_keys
+# отвергает: "bad ownership or modes for file /root/.ssh/authorized_keys",
+# то есть Permission denied (publickey) при верном ключе.  В образах самого
+# vast это чем-то компенсируется, в чистом Debian — нет.
+#
+# Снимаем проверку прав вместо того, чтобы гоняться за правами: машина
+# арендована на одну задачу, других пользователей на ней нет, а починка
+# должна работать независимо от того, когда именно vast запишет файл.
+RUN mkdir -p /etc/ssh/sshd_config.d \
+ && printf 'StrictModes no\n' > /etc/ssh/sshd_config.d/10-vast-keys.conf
+
 # uv ставит и сам python, и все колёса — так в образе не нужен даже python.
 COPY --from=ghcr.io/astral-sh/uv:0.9.7 /uv /uvx /usr/local/bin/
 
