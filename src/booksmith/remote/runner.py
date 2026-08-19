@@ -207,6 +207,12 @@ def execute(box: Box, spec: JobSpec, outdir: str,
 # не быстрых от медленных, а работающих от сломанных, а между ними два
 # порядка: 7 Мбит/с против 0.06.
 MIN_LINK_MBPS = 2.0
+
+# А это — сколько машина должна вытягивать из мира.  По этому каналу едут
+# семь гигабайт колёс и весов, и он важнее пути до нас.  Замеры: здоровые
+# машины дают 600-1100 Мбит/с, патологическая давала 58 и ставила колёса
+# одиннадцать минут вместо сорока секунд.  Порог с большим запасом вниз.
+MIN_DOWNLOAD_MBPS = 150.0
 MAX_ATTEMPTS = 5
 
 # Сколько ждать контейнера, прежде чем взять другую машину.
@@ -272,18 +278,24 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
             box = connect(vast, state["iid"], spec, ssh_key,
                           boot_limit=BOOT_LIMIT_S)
             link = box.probe()
+            down = box.probe_download() if link >= MIN_LINK_MBPS else 0.0
         except (RuntimeError, OSError) as e:
             log(f"машина не поднялась за {BOOT_LIMIT_S/60:.0f} мин — беру другую")
-            link = 0.0
+            link = down = 0.0
         rec.link_mbps = link
-        if link >= MIN_LINK_MBPS:
-            log(f"канал до машины: {link:.0f} Мбит/с")
+        rec.download_mbps = down
+        if link >= MIN_LINK_MBPS and down >= MIN_DOWNLOAD_MBPS:
+            log(f"канал: до нас {link:.0f}, из мира {down:.0f} Мбит/с")
             return box, dph, budget
 
-        if link:
-            log(f"канал до машины всего {link:.0f} Мбит/с "
+        if link and link < MIN_LINK_MBPS:
+            log(f"канал до нас всего {link:.0f} Мбит/с "
                 f"(нужно от {MIN_LINK_MBPS:.0f}) — беру другую")
-            ledger.mark_bad(offer.get("machine_id"), f"канал {link:.0f} Мбит/с")
+            ledger.mark_bad(offer.get("machine_id"), f"канал до нас {link:.0f} Мбит/с")
+        elif link:
+            log(f"машина тянет из мира всего {down:.0f} Мбит/с "
+                f"(нужно от {MIN_DOWNLOAD_MBPS:.0f}) — беру другую")
+            ledger.mark_bad(offer.get("machine_id"), f"тянет из мира {down:.0f} Мбит/с")
         vast.destroy(int(state["iid"]))
         state["iid"] = None
         guard.set()

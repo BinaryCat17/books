@@ -242,6 +242,17 @@ def main():
     #
     # use_queues ставит между ними очереди и отдельные потоки, так что
     # детекция следующей страницы идёт, пока считается текущая.
+    # Порог детекции таблиц — отдельной ручкой, потому что именно он решает
+    # судьбу таблиц без линеек.  RT-DETR предлагает для одной области
+    # несколько кандидатов с разными классами; на странице 307 книги три
+    # одинаковых блока "RECOMMENDED STANDARDS" получили table 0.70, text 0.78
+    # и text 0.61 — то есть таблица проиграла тексту по уверенности, а не
+    # осталась незамеченной.  В PP-DocLayoutV2 table — класс 21.
+    thr = os.environ.get("LAYOUT_TABLE_THRESHOLD", "")
+    if thr:
+        kwargs["layout_threshold"] = {21: float(thr)}
+        _log(f"порог таблиц опущен до {thr}")
+
     kwargs["use_queues"] = True
     kwargs["markdown_ignore_labels"] = [
         "number", "header_image", "footer", "footer_image", "aside_text",

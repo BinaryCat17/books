@@ -137,6 +137,28 @@ class Box:
             return 0.0
         return got * 8 / 1e6 / dt
 
+    def probe_download(self, mb: int = 8, timeout: float = 30.0) -> float:
+        """Сколько Мбит/с машина вытягивает С PyPI — не с нас, а из мира.
+
+        Проверять только путь до себя мало: по нему едут входной файл и
+        результат, а окружение (семь гигабайт колёс и весов) машина тянет
+        сама.  Замер: хост с каналом 7 Мбит/с до нас прошёл проверку и потом
+        одиннадцать минут ставил колёса, потому что с PyPI у него было тоже
+        плохо.  Здоровые машины дают тут 600-1100 Мбит/с.
+
+        Берём кусок реального колеса — те же серверы, что и при работе.
+        """
+        url = ("https://files.pythonhosted.org/packages/source/n/numpy/"
+               "numpy-2.2.0.tar.gz")
+        cmd = (f"curl -sS -o /dev/null --max-time {int(timeout)} "
+               f"-r 0-{mb * 1024 * 1024 - 1} -w '%{{speed_download}}' {url}")
+        rc, out = self.run(cmd, stream=False,
+                           deadline=time.time() + timeout + 15)
+        try:
+            return float(out.strip().splitlines()[-1]) * 8 / 1e6
+        except Exception:
+            return 0.0
+
     def _rsync(self, src: str, dst: str, extra: list[str] | None = None) -> int:
         rsh = " ".join(shlex.quote(x) for x in
                        ["ssh", "-p", self.port] + SSH_OPTS +

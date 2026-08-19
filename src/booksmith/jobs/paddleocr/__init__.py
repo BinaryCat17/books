@@ -28,7 +28,8 @@ WARMUP_S = 65.0
 def spec(pdf: str, gpu: str = "RTX_4090", image: str | None = None,
          minutes: float = 20.0, budget_usd: float = 1.0,
          disk_gb: int = 60, max_dph: float = 0.60,
-         machine_id: int | None = None) -> JobSpec:
+         machine_id: int | None = None,
+         table_threshold: float | None = None) -> JobSpec:
     host = HostReq(gpu=gpu, disk_gb=disk_gb, max_dph=max_dph,
                    machine_id=machine_id)
     # Колёса torch — под CUDA 13, а значит нужен драйвер 580+.
@@ -46,6 +47,8 @@ def spec(pdf: str, gpu: str = "RTX_4090", image: str | None = None,
             os.path.join(HERE, "entrypoint.py"): "entrypoint.py",
         },
         outputs="outputs",
+        env=({"LAYOUT_TABLE_THRESHOLD": str(table_threshold)}
+             if table_threshold else {}),
         host=host,
         image_gb=IMAGE_GB,
         payload_gb=PAYLOAD_GB,

@@ -44,7 +44,7 @@ def cmd_ocr(a):
     spec = paddleocr.spec(
         os.path.abspath(a.pdf), gpu=a.gpu, image=a.image, minutes=a.minutes,
         budget_usd=a.budget, disk_gb=a.disk, max_dph=a.max_dph,
-        machine_id=a.machine)
+        machine_id=a.machine, table_threshold=a.table_threshold)
     spec.timeout_minutes = a.timeout
     if not os.path.exists(a.pdf):
         raise SystemExit(f"нет файла: {a.pdf}")
@@ -174,6 +174,9 @@ def main(argv=None):
     p.add_argument("--budget", type=float, default=1.00,
                    help="жёсткий потолок в долларах; при достижении машина гибнет")
     p.add_argument("--timeout", type=float, default=90.0, help="потолок в минутах")
+    p.add_argument("--table-threshold", type=float, default=None,
+                   help="опустить порог детекции таблиц (класс 21); "
+                        "таблицы без линеек проигрывают тексту по уверенности")
     p.add_argument("--ssh-key", default=None)
     p.add_argument("--keep", action="store_true",
                    help="оставить машину для --reuse (ДЕНЬГИ ПРОДОЛЖАЮТ ИДТИ)")

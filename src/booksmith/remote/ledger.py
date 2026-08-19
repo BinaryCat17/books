@@ -35,6 +35,7 @@ class Run:
     cpu_cores: float = 0.0
     cpu_ghz: float = 0.0
     link_mbps: float = 0.0         # ЗАМЕРЕННЫЙ канал до нас, не заявленный
+    download_mbps: float = 0.0     # и ЗАМЕРЕННАЯ скорость машины из мира
     image_gb: float = 0.0
 
     started: float = field(default_factory=time.time)
