@@ -85,7 +85,7 @@ def _deep_update(base, extra):
     return base
 
 
-def _pipeline_config(layout_dir):
+def _pipeline_config(layout_dir, table_threshold=0.05):
     """Конфигурация пайплайна: детекция на ONNX Runtime и пачки страниц.
 
     Ключ `engine` внутри подмодуля имеет наивысший приоритет (paddlex
@@ -107,18 +107,22 @@ def _pipeline_config(layout_dir):
     if cfg is None:
         raise SystemExit("не нашлась конфигурация пайплайна PaddleOCR-VL")
 
+    # Порог детекции.  В конфигурации пайплайна он стоит числом 0.3, но
+    # postprocess при словаре берёт для незаданных классов 0.5 — то есть
+    # словарь с одним классом молча ухудшил бы все остальные.  Поэтому
+    # задаём все 25 меток явно.
+    thr = {i: 0.3 for i in range(25)}
+    thr[21] = table_threshold          # table
+
     return _deep_update(cfg, {
-        # Страницы подаются пачками, а не по одной: чем больше пачка, тем
-        # больше блоков уходит к vLLM одновременно и тем плотнее он их
-        # батчит.  Умолчание — 1, и карта простаивает между страницами.
-        "batch_size": 4,
         "SubModules": {
             "LayoutDetection": {
                 "module_name": "layout_detection",
                 "model_name": os.environ.get("LAYOUT_MODEL_NAME",
-                                             "PP-DocLayoutV2"),
+                                             "PP-DocLayoutV3"),
                 "model_dir": layout_dir,
                 "engine": "onnxruntime",
+                "threshold": thr,
                 # Восьмёрка требовала 430 МБ единым буфером и не влезала
                 # рядом с vLLM; четвёрка вдвое дешевле по памяти, а
                 # детекция всё равно не узкое место.
@@ -220,8 +224,11 @@ def main():
         # self._paddlex_config`, то есть подмена целиком.  Передать один
         # подмодуль нельзя — пайплайн остаётся без `pipeline_name` и падает
         # с KeyError.  Поэтому берём конфигурацию сами и сливаем в неё.
-        kwargs["paddlex_config"] = _pipeline_config(layout_dir)
-        _log(f"детекция макета: ONNX Runtime, веса из {layout_dir}")
+        kwargs["paddlex_config"] = _pipeline_config(
+            layout_dir, float(os.environ.get("LAYOUT_TABLE_THRESHOLD") or 0.05))
+        _log(f"детекция макета: {os.environ.get('LAYOUT_MODEL_NAME','PP-DocLayoutV3')}"
+             f" на ONNX Runtime, порог таблиц "
+             f"{os.environ.get('LAYOUT_TABLE_THRESHOLD') or 0.05}, веса из {layout_dir}")
     elif layout_dir:
         _log(f"в {layout_dir} нет inference.onnx — детекция остаётся на paddle")
     # Умолчание paddlex выбрасывает из markdown семь меток, и среди них
@@ -248,11 +255,6 @@ def main():
     # одинаковых блока "RECOMMENDED STANDARDS" получили table 0.70, text 0.78
     # и text 0.61 — то есть таблица проиграла тексту по уверенности, а не
     # осталась незамеченной.  В PP-DocLayoutV2 table — класс 21.
-    thr = os.environ.get("LAYOUT_TABLE_THRESHOLD", "")
-    if thr:
-        kwargs["layout_threshold"] = {21: float(thr)}
-        _log(f"порог таблиц опущен до {thr}")
-
     kwargs["use_queues"] = True
     kwargs["markdown_ignore_labels"] = [
         "number", "header_image", "footer", "footer_image", "aside_text",
