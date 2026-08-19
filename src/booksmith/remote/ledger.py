@@ -77,17 +77,55 @@ def read(path: str = LEDGER) -> list[dict]:
 
 
 def warm_machines(image: str, path: str = LEDGER) -> list[int]:
-    """Машины, на которых этот образ уже скачивали, свежие первыми.
+    """Машины, где этот образ уже поднимался, свежие первыми.
 
-    Кеш docker живёт на физической машине, поэтому повторная аренда там же
-    убирает почти весь холодный старт (замерено: 14 мин -> 0.9 мин).
+    Кеш docker живёт на физической машине, и там же остаётся достройка vast
+    со своим ssh — а она дороже самого образа: индекс Debian и под сотню
+    пакетов.  Замерено: 34 секунды на прогретой машине против шести минут.
+
+    Признак прогретости — что мы дошли до ssh (setup_s), а не что задача
+    удалась: машина прогрелась и в том прогоне, который упал на нашей же
+    ошибке в коде задачи.
     """
     seen: dict[int, float] = {}
     for r in read(path):
-        if r.get("image") == image and r.get("ok") and r.get("machine_id"):
+        if (r.get("image") == image and r.get("machine_id")
+                and float(r.get("setup_s") or 0) > 0):
             mid = int(r["machine_id"])
             seen[mid] = max(seen.get(mid, 0), r.get("started", 0))
     return [m for m, _ in sorted(seen.items(), key=lambda kv: -kv[1])]
+
+
+BAD = os.path.join(os.path.dirname(LEDGER), "bad-machines.json")
+
+
+def mark_bad(machine_id: int, reason: str, path: str = BAD) -> None:
+    """Запомнить машину, которая не годится, — навсегда, а не на прогон.
+
+    Без этого предпочтение прогретых машин ведёт прямо на грабли: машина,
+    где мы однажды дошли до ssh, считается прогретой, даже если канал до неё
+    62 кбит/с.  Ровно так и вышло — и стоило пятнадцати минут аренды.
+    """
+    data = {}
+    try:
+        with open(path) as f:
+            data = json.load(f)
+    except Exception:
+        pass
+    data[str(int(machine_id))] = {"reason": reason, "ts": time.time()}
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(data, f, ensure_ascii=False, indent=1)
+    os.replace(tmp, path)
+
+
+def bad_machines(path: str = BAD) -> list[int]:
+    try:
+        with open(path) as f:
+            return [int(k) for k in json.load(f)]
+    except Exception:
+        return []
 
 
 def fit(path: str = LEDGER) -> dict:
