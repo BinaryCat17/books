@@ -36,8 +36,14 @@ step "окружение" uv venv "$ENVDIR" --python 3.12
 export VIRTUAL_ENV="$ENVDIR"
 export PATH="$ENVDIR/bin:$PATH"
 
-# --torch-backend=cu130 выбирает колёса CUDA 13 по драйверу машины.
-step "колёса" uv pip install -r "$HERE/requirements.in" --torch-backend=cu130
+# Ставится constraints.txt — закреплённое дерево целиком, а не верхний
+# уровень: иначе разрешение зависимостей идёт здесь, на арендованной карте,
+# и новый релиз любой транзитивной зависимости роняет книгу на середине.
+# requirements.in остаётся входом для пересборки этого файла, см. его шапку.
+#
+# --torch-backend=cu130 нужен и здесь: версия закреплена как 2.13.0+cu130,
+# а такой на PyPI нет — она лежит в индексе pytorch.
+step "колёса" uv pip install -r "$HERE/constraints.txt" --torch-backend=cu130
 
 step "веса VL" hf download PaddlePaddle/PaddleOCR-VL --local-dir "$MODELS/vl"
 step "веса детектора" hf download PaddlePaddle/PP-DocLayoutV2_onnx \
