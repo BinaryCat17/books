@@ -85,6 +85,68 @@ def _deep_update(base, extra):
     return base
 
 
+def _prefer_tables_over_text():
+    """Не отдавать таблицу текстовой рамке при их перекрытии.
+
+    Это правка чужого кода на месте, и вот чем она оправдана.  Детектор
+    предлагает для блока сразу несколько классов, и у таблиц без линеек
+    текстовый кандидат почти всегда увереннее: на странице 307 три блока
+    "RECOMMENDED STANDARDS" получили table 0.70 против text 0.78.  Понижение
+    порога делает рамку table доступной — но дальше её убивает
+    `filter_overlap_boxes` из paddlex: при перекрытии больше 0.7 пара
+    {table, text} проваливается мимо всех защит и побеждает та рамка, что
+    больше по площади.  Текстовая рамка накрывает блок целиком и потому
+    больше почти всегда.
+
+    Замерено на двадцати страницах: детектор даёт 20 рамок table, фильтр
+    съедает 6 из них — и каждый раз победителем оказывается text, крупнее
+    таблицы в 1.4–4.5 раза.
+
+    Меняем ровно одно: в паре {table, text} побеждает таблица независимо от
+    площади.  Текст при этом не теряется — область всё равно уезжает в VLM,
+    просто с табличной подсказкой.
+    """
+    from paddlex.inference.pipelines.paddleocr_vl import pipeline as _p
+
+    orig = _p.filter_overlap_boxes
+
+    def patched(layout_det_res, layout_shape_mode):
+        res = orig(layout_det_res, layout_shape_mode)
+        kept = res["boxes"]
+        tables = [b for b in layout_det_res["boxes"] if b["label"] == "table"]
+        if not tables:
+            return res
+
+        def ident(b):
+            return (b["label"], tuple(b["coordinate"]))
+
+        alive = {ident(b) for b in kept}
+        lost = [t for t in tables if ident(t) not in alive]
+        if not lost:
+            return res
+
+        def overlap_small(a, b):
+            x0 = max(a[0], b[0]); y0 = max(a[1], b[1])
+            x1 = min(a[2], b[2]); y1 = min(a[3], b[3])
+            i = max(0.0, x1 - x0) * max(0.0, y1 - y0)
+            sa = max(0.0, a[2] - a[0]) * max(0.0, a[3] - a[1])
+            sb = max(0.0, b[2] - b[0]) * max(0.0, b[3] - b[1])
+            small = min(sa, sb)
+            return i / small if small else 0.0
+
+        for t in lost:
+            # Съевшую текстовую рамку убираем: иначе одна и та же область
+            # уедет в VLM дважды и попадёт в markdown и текстом, и таблицей.
+            kept = [b for b in kept
+                    if not (b["label"] not in ("table", "image", "seal", "chart")
+                            and overlap_small(t["coordinate"], b["coordinate"]) > 0.7)]
+            kept.append(t)
+        res["boxes"] = kept
+        return res
+
+    _p.filter_overlap_boxes = patched
+
+
 def _pipeline_config(layout_dir, table_threshold=0.05):
     """Конфигурация пайплайна: детекция на ONNX Runtime и пачки страниц.
 
@@ -264,6 +326,9 @@ def main():
     # и text 0.61 — то есть таблица проиграла тексту по уверенности, а не
     # осталась незамеченной.  В PP-DocLayoutV2 table — класс 21.
     kwargs["use_queues"] = True
+    if os.environ.get("PREFER_TABLES", "1") == "1":
+        _prefer_tables_over_text()
+        _log("таблица важнее текстовой рамки при перекрытии")
     kwargs["markdown_ignore_labels"] = [
         "number", "header_image", "footer", "footer_image", "aside_text",
     ]

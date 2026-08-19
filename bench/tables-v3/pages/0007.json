@@ -1,0 +1,1069 @@
+{
+    "input_path": "input.pdf",
+    "page_index": 7,
+    "page_count": 20,
+    "width": 1012,
+    "height": 1466,
+    "model_settings": {
+        "use_doc_preprocessor": false,
+        "use_layout_detection": true,
+        "use_chart_recognition": false,
+        "use_seal_recognition": false,
+        "use_ocr_for_image_block": false,
+        "format_block_content": false,
+        "merge_layout_blocks": true,
+        "markdown_ignore_labels": [
+            "number",
+            "header_image",
+            "footer",
+            "footer_image",
+            "aside_text"
+        ],
+        "return_layout_polygon_points": true
+    },
+    "parsing_res_list": [
+        {
+            "block_label": "image",
+            "block_content": "",
+            "block_bbox": [
+                108,
+                96,
+                478,
+                226
+            ],
+            "block_id": 0,
+            "block_order": null,
+            "group_id": 0,
+            "block_polygon_points": [
+                [
+                    108.0,
+                    96.0
+                ],
+                [
+                    478.0,
+                    96.0
+                ],
+                [
+                    478.0,
+                    226.0
+                ],
+                [
+                    108.0,
+                    226.0
+                ]
+            ]
+        },
+        {
+            "block_label": "figure_title",
+            "block_content": "Fig. 26.60 Alignment of head stock spindle in horizontal plane.",
+            "block_bbox": [
+                103,
+                247,
+                456,
+                286
+            ],
+            "block_id": 1,
+            "block_order": null,
+            "group_id": 1,
+            "block_polygon_points": [
+                [
+                    103.0,
+                    247.0
+                ],
+                [
+                    456.0,
+                    247.0
+                ],
+                [
+                    456.0,
+                    286.0
+                ],
+                [
+                    103.0,
+                    286.0
+                ]
+            ]
+        },
+        {
+            "block_label": "paragraph_title",
+            "block_content": "RECOMMENDED STANDARDS",
+            "block_bbox": [
+                171,
+                300,
+                404,
+                317
+            ],
+            "block_id": 2,
+            "block_order": 1,
+            "group_id": 2,
+            "block_polygon_points": [
+                [
+                    171.0,
+                    300.0
+                ],
+                [
+                    403.0,
+                    300.0
+                ],
+                [
+                    403.0,
+                    316.0
+                ],
+                [
+                    171.0,
+                    316.0
+                ]
+            ]
+        },
+        {
+            "block_label": "text",
+            "block_content": "Tool Room 12\" to 18\" inc. 20\" to 36\" inc.\nLathe Engine Lathe* Engine Lathe\n0 to (±).0003\" 0 to (±).0005\" 0 to (±).0008\"\n(At end of 12 inch test bar)",
+            "block_bbox": [
+                111,
+                320,
+                491,
+                413
+            ],
+            "block_id": 3,
+            "block_order": 2,
+            "group_id": 3,
+            "block_polygon_points": [
+                [
+                    111.0,
+                    320.0
+                ],
+                [
+                    491.0,
+                    320.0
+                ],
+                [
+                    491.0,
+                    413.0
+                ],
+                [
+                    111.0,
+                    413.0
+                ]
+            ]
+        },
+        {
+            "block_label": "text",
+            "block_content": "placed on the horizontal diameter of the test bar, as shown in Fig. 26.61. The carriage is now moved so that the buttonslides from end to end of the bar. At the same time the tailstock top is set-over on its transverse way until a reading close to zero-zero is attained. We say “close” because at this stage we would not obtain an identical calibration in traversing the test bar from end to end due to the fact that the axis of the headstock spindle is higher than the axis of the tailstock spindle. The reason, as previously stated, is that no scraping has yet been done on the slides of the headstock. Consequently, the DIAL INDICATOR button would ride up or down from the horizontal axis of the test bar as the carriage is moved along the bed ways.",
+            "block_bbox": [
+                96,
+                429,
+                508,
+                832
+            ],
+            "block_id": 4,
+            "block_order": 3,
+            "group_id": 4,
+            "block_polygon_points": [
+                [
+                    96.0,
+                    429.0
+                ],
+                [
+                    508.0,
+                    429.0
+                ],
+                [
+                    508.0,
+                    832.0
+                ],
+                [
+                    96.0,
+                    832.0
+                ]
+            ]
+        },
+        {
+            "block_label": "text",
+            "block_content": "Having adjusted the bar closely, we can proceed to check the vertical alignment. To this end the DIAL INDICATOR is positioned on the vertical diameter of the test bar, as shown in Fig. 26.62. Readings are now taken as the carriage is moved along the bed. The results of this test indicate approximately how much metal must be scraped from the bearing surfaces of the headstock to obtain correct alignment and satisfy OBJECTIVE NO. 2.",
+            "block_bbox": [
+                99,
+                831,
+                504,
+                1076
+            ],
+            "block_id": 5,
+            "block_order": 4,
+            "group_id": 5,
+            "block_polygon_points": [
+                [
+                    99.0,
+                    831.0
+                ],
+                [
+                    504.0,
+                    831.0
+                ],
+                [
+                    504.0,
+                    1076.0
+                ],
+                [
+                    99.0,
+                    1076.0
+                ]
+            ]
+        },
+        {
+            "block_label": "text",
+            "block_content": "After the approximate amount of re\\-quired correction is learned from this series of tests, spotting and scraping",
+            "block_bbox": [
+                101,
+                1075,
+                475,
+                1143
+            ],
+            "block_id": 6,
+            "block_order": 5,
+            "group_id": 6,
+            "block_polygon_points": [
+                [
+                    101.0,
+                    1075.0
+                ],
+                [
+                    475.0,
+                    1075.0
+                ],
+                [
+                    475.0,
+                    1143.0
+                ],
+                [
+                    101.0,
+                    1143.0
+                ]
+            ]
+        },
+        {
+            "block_label": "image",
+            "block_content": "",
+            "block_bbox": [
+                117,
+                1165,
+                495,
+                1287
+            ],
+            "block_id": 7,
+            "block_order": null,
+            "group_id": 7,
+            "block_polygon_points": [
+                [
+                    117.0,
+                    1165.0
+                ],
+                [
+                    495.0,
+                    1165.0
+                ],
+                [
+                    495.0,
+                    1287.0
+                ],
+                [
+                    117.0,
+                    1287.0
+                ]
+            ]
+        },
+        {
+            "block_label": "figure_title",
+            "block_content": "Fig. 25.61 Set up utilized to adjust headstock and tailstock centers in horizontal plane.",
+            "block_bbox": [
+                113,
+                1296,
+                491,
+                1335
+            ],
+            "block_id": 8,
+            "block_order": null,
+            "group_id": 8,
+            "block_polygon_points": [
+                [
+                    113.0,
+                    1296.0
+                ],
+                [
+                    491.0,
+                    1296.0
+                ],
+                [
+                    491.0,
+                    1335.0
+                ],
+                [
+                    113.0,
+                    1335.0
+                ]
+            ]
+        },
+        {
+            "block_label": "text",
+            "block_content": "operations can be initiated. The head-stock is placed carefully on that portion of the bed ways previously coated with marking compound. Then after spotting, the member is removed from the bed and laid on a work bench where it is scraped. Since it is unlikely that a single cycle of spotting and scraping will accomplish the alignments specified in OBJECTIVES NO. 1 and NO. 2, it will be necessary to repeat the foregoing series of tests a number of times. As the alignment approaches the required accuracy, the adjustment of the tailstock in the horizontal plane will be progressively smaller. The need for it will end when the DIAL INDICATOR reading nears zero-zero on both the horizontal and vertical diameters.",
+            "block_bbox": [
+                516,
+                79,
+                926,
+                478
+            ],
+            "block_id": 9,
+            "block_order": 6,
+            "group_id": 9,
+            "block_polygon_points": [
+                [
+                    516.0,
+                    79.0
+                ],
+                [
+                    926.0,
+                    79.0
+                ],
+                [
+                    926.0,
+                    478.0
+                ],
+                [
+                    516.0,
+                    478.0
+                ]
+            ]
+        },
+        {
+            "block_label": "text",
+            "block_content": "When the tests disclose that the correct alignment is imminent, the desired bearing quality is worked into the headstock V-slide and flat slide, to satisfy OBJECTIVE NO. 3. Refer to Sec. 23.25. Simultaneous Achievement of Bearing Quality.",
+            "block_bbox": [
+                520,
+                478,
+                924,
+                611
+            ],
+            "block_id": 10,
+            "block_order": 7,
+            "group_id": 10,
+            "block_polygon_points": [
+                [
+                    520.0,
+                    478.0
+                ],
+                [
+                    924.0,
+                    478.0
+                ],
+                [
+                    924.0,
+                    611.0
+                ],
+                [
+                    520.0,
+                    611.0
+                ]
+            ]
+        },
+        {
+            "block_label": "text",
+            "block_content": "If the tolerances indicated in the tests above mentioned, are not exceeded in the final alignment of the headstock spindle, then the three OBJECTIVES are satisfied and the headstock member is considered completed. However, if during the course of trying to obtain the OBJECTIVES, the scraper should remove too much metal from the slides, thus lowering the axis of the headstock spindle below the axis of the tailstock spindle, it is obvious that OBJECTIVE NO. 2 cannot be satisfied.",
+            "block_bbox": [
+                519,
+                610,
+                923,
+                876
+            ],
+            "block_id": 11,
+            "block_order": 8,
+            "group_id": 11,
+            "block_polygon_points": [
+                [
+                    519.0,
+                    610.0
+                ],
+                [
+                    923.0,
+                    610.0
+                ],
+                [
+                    923.0,
+                    876.0
+                ],
+                [
+                    519.0,
+                    876.0
+                ]
+            ]
+        },
+        {
+            "block_label": "text",
+            "block_content": "Faced with this dilemma, the scraper should continue scraping until OBJECTIVES NO. 1 and NO. 3 are achieved at which moment the headstock is adjudged completed. OBJECTIVE NO. 2 is disregarded.",
+            "block_bbox": [
+                521,
+                876,
+                937,
+                988
+            ],
+            "block_id": 12,
+            "block_order": 9,
+            "group_id": 12,
+            "block_polygon_points": [
+                [
+                    521.0,
+                    876.0
+                ],
+                [
+                    937.0,
+                    876.0
+                ],
+                [
+                    937.0,
+                    988.0
+                ],
+                [
+                    521.0,
+                    988.0
+                ]
+            ]
+        },
+        {
+            "block_label": "text",
+            "block_content": "The matter of the vertical alignment cannot, however, be dismissed. Rectification, in such cases, is obtained by returning to the tailstock. The slides of this member must be reworked, to satisfy all the OBJECTIVES listed in Sec. 26.55, plus this additional one, viz:",
+            "block_bbox": [
+                522,
+                987,
+                925,
+                1141
+            ],
+            "block_id": 13,
+            "block_order": 10,
+            "group_id": 13,
+            "block_polygon_points": [
+                [
+                    522.0,
+                    987.0
+                ],
+                [
+                    925.0,
+                    987.0
+                ],
+                [
+                    925.0,
+                    1141.0
+                ],
+                [
+                    522.0,
+                    1141.0
+                ]
+            ]
+        },
+        {
+            "block_label": "text",
+            "block_content": "“Axis of tailstock spindle to be aligned to axis of headstock spindle in the vertical plane.”",
+            "block_bbox": [
+                549,
+                1140,
+                920,
+                1207
+            ],
+            "block_id": 14,
+            "block_order": 11,
+            "group_id": 14,
+            "block_polygon_points": [
+                [
+                    549.0,
+                    1140.0
+                ],
+                [
+                    920.0,
+                    1140.0
+                ],
+                [
+                    920.0,
+                    1207.0
+                ],
+                [
+                    549.0,
+                    1207.0
+                ]
+            ]
+        },
+        {
+            "block_label": "text",
+            "block_content": "When these objectives are satisfied then both of the members are correctly aligned, to each other and to the bed ways. Thus the accuracy of the lathe is in nowise impaired by failure or inability to achieve alignment by means of the headstock.",
+            "block_bbox": [
+                522,
+                1205,
+                925,
+                1341
+            ],
+            "block_id": 15,
+            "block_order": 12,
+            "group_id": 15,
+            "block_polygon_points": [
+                [
+                    522.0,
+                    1205.0
+                ],
+                [
+                    925.0,
+                    1205.0
+                ],
+                [
+                    925.0,
+                    1341.0
+                ],
+                [
+                    522.0,
+                    1341.0
+                ]
+            ]
+        },
+        {
+            "block_label": "number",
+            "block_content": "303",
+            "block_bbox": [
+                497,
+                1349,
+                531,
+                1367
+            ],
+            "block_id": 16,
+            "block_order": null,
+            "group_id": 16,
+            "block_polygon_points": [
+                [
+                    497.0,
+                    1349.0
+                ],
+                [
+                    530.0,
+                    1349.0
+                ],
+                [
+                    530.0,
+                    1366.0
+                ],
+                [
+                    497.0,
+                    1366.0
+                ]
+            ]
+        }
+    ],
+    "layout_det_res": {
+        "input_path": null,
+        "page_index": null,
+        "boxes": [
+            {
+                "cls_id": 14,
+                "label": "image",
+                "score": 0.9260130524635315,
+                "coordinate": [
+                    108,
+                    96,
+                    478,
+                    226
+                ],
+                "order": null,
+                "polygon_points": [
+                    [
+                        108.0,
+                        96.0
+                    ],
+                    [
+                        478.0,
+                        96.0
+                    ],
+                    [
+                        478.0,
+                        226.0
+                    ],
+                    [
+                        108.0,
+                        226.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 7,
+                "label": "figure_title",
+                "score": 0.8719944953918457,
+                "coordinate": [
+                    103,
+                    247,
+                    456,
+                    286
+                ],
+                "order": null,
+                "polygon_points": [
+                    [
+                        103.0,
+                        247.0
+                    ],
+                    [
+                        456.0,
+                        247.0
+                    ],
+                    [
+                        456.0,
+                        286.0
+                    ],
+                    [
+                        103.0,
+                        286.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 17,
+                "label": "paragraph_title",
+                "score": 0.4511159062385559,
+                "coordinate": [
+                    171,
+                    300,
+                    404,
+                    317
+                ],
+                "order": 1,
+                "polygon_points": [
+                    [
+                        171.0,
+                        300.0
+                    ],
+                    [
+                        403.0,
+                        300.0
+                    ],
+                    [
+                        403.0,
+                        316.0
+                    ],
+                    [
+                        171.0,
+                        316.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.4441196322441101,
+                "coordinate": [
+                    111,
+                    320,
+                    491,
+                    413
+                ],
+                "order": 2,
+                "polygon_points": [
+                    [
+                        111.0,
+                        320.0
+                    ],
+                    [
+                        491.0,
+                        320.0
+                    ],
+                    [
+                        491.0,
+                        413.0
+                    ],
+                    [
+                        111.0,
+                        413.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9586983919143677,
+                "coordinate": [
+                    96,
+                    429,
+                    508,
+                    832
+                ],
+                "order": 3,
+                "polygon_points": [
+                    [
+                        96.0,
+                        429.0
+                    ],
+                    [
+                        508.0,
+                        429.0
+                    ],
+                    [
+                        508.0,
+                        832.0
+                    ],
+                    [
+                        96.0,
+                        832.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9545108675956726,
+                "coordinate": [
+                    99,
+                    831,
+                    504,
+                    1076
+                ],
+                "order": 4,
+                "polygon_points": [
+                    [
+                        99.0,
+                        831.0
+                    ],
+                    [
+                        504.0,
+                        831.0
+                    ],
+                    [
+                        504.0,
+                        1076.0
+                    ],
+                    [
+                        99.0,
+                        1076.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.912070095539093,
+                "coordinate": [
+                    101,
+                    1075,
+                    475,
+                    1143
+                ],
+                "order": 5,
+                "polygon_points": [
+                    [
+                        101.0,
+                        1075.0
+                    ],
+                    [
+                        475.0,
+                        1075.0
+                    ],
+                    [
+                        475.0,
+                        1143.0
+                    ],
+                    [
+                        101.0,
+                        1143.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 14,
+                "label": "image",
+                "score": 0.9232954382896423,
+                "coordinate": [
+                    117,
+                    1165,
+                    495,
+                    1287
+                ],
+                "order": null,
+                "polygon_points": [
+                    [
+                        117.0,
+                        1165.0
+                    ],
+                    [
+                        495.0,
+                        1165.0
+                    ],
+                    [
+                        495.0,
+                        1287.0
+                    ],
+                    [
+                        117.0,
+                        1287.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 7,
+                "label": "figure_title",
+                "score": 0.8876324892044067,
+                "coordinate": [
+                    113,
+                    1296,
+                    491,
+                    1335
+                ],
+                "order": null,
+                "polygon_points": [
+                    [
+                        113.0,
+                        1296.0
+                    ],
+                    [
+                        491.0,
+                        1296.0
+                    ],
+                    [
+                        491.0,
+                        1335.0
+                    ],
+                    [
+                        113.0,
+                        1335.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9608154892921448,
+                "coordinate": [
+                    516,
+                    79,
+                    926,
+                    478
+                ],
+                "order": 6,
+                "polygon_points": [
+                    [
+                        516.0,
+                        79.0
+                    ],
+                    [
+                        926.0,
+                        79.0
+                    ],
+                    [
+                        926.0,
+                        478.0
+                    ],
+                    [
+                        516.0,
+                        478.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9428301453590393,
+                "coordinate": [
+                    520,
+                    478,
+                    924,
+                    611
+                ],
+                "order": 7,
+                "polygon_points": [
+                    [
+                        520.0,
+                        478.0
+                    ],
+                    [
+                        924.0,
+                        478.0
+                    ],
+                    [
+                        924.0,
+                        611.0
+                    ],
+                    [
+                        520.0,
+                        611.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9584346413612366,
+                "coordinate": [
+                    519,
+                    610,
+                    923,
+                    876
+                ],
+                "order": 8,
+                "polygon_points": [
+                    [
+                        519.0,
+                        610.0
+                    ],
+                    [
+                        923.0,
+                        610.0
+                    ],
+                    [
+                        923.0,
+                        876.0
+                    ],
+                    [
+                        519.0,
+                        876.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9410635828971863,
+                "coordinate": [
+                    521,
+                    876,
+                    937,
+                    988
+                ],
+                "order": 9,
+                "polygon_points": [
+                    [
+                        521.0,
+                        876.0
+                    ],
+                    [
+                        937.0,
+                        876.0
+                    ],
+                    [
+                        937.0,
+                        988.0
+                    ],
+                    [
+                        521.0,
+                        988.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9470106363296509,
+                "coordinate": [
+                    522,
+                    987,
+                    925,
+                    1141
+                ],
+                "order": 10,
+                "polygon_points": [
+                    [
+                        522.0,
+                        987.0
+                    ],
+                    [
+                        925.0,
+                        987.0
+                    ],
+                    [
+                        925.0,
+                        1141.0
+                    ],
+                    [
+                        522.0,
+                        1141.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9137300848960876,
+                "coordinate": [
+                    549,
+                    1140,
+                    920,
+                    1207
+                ],
+                "order": 11,
+                "polygon_points": [
+                    [
+                        549.0,
+                        1140.0
+                    ],
+                    [
+                        920.0,
+                        1140.0
+                    ],
+                    [
+                        920.0,
+                        1207.0
+                    ],
+                    [
+                        549.0,
+                        1207.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9461557269096375,
+                "coordinate": [
+                    522,
+                    1205,
+                    925,
+                    1341
+                ],
+                "order": 12,
+                "polygon_points": [
+                    [
+                        522.0,
+                        1205.0
+                    ],
+                    [
+                        925.0,
+                        1205.0
+                    ],
+                    [
+                        925.0,
+                        1341.0
+                    ],
+                    [
+                        522.0,
+                        1341.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 16,
+                "label": "number",
+                "score": 0.7497650384902954,
+                "coordinate": [
+                    497,
+                    1349,
+                    531,
+                    1367
+                ],
+                "order": 13,
+                "polygon_points": [
+                    [
+                        497.0,
+                        1349.0
+                    ],
+                    [
+                        530.0,
+                        1349.0
+                    ],
+                    [
+                        530.0,
+                        1366.0
+                    ],
+                    [
+                        497.0,
+                        1366.0
+                    ]
+                ]
+            }
+        ]
+    }
+}
