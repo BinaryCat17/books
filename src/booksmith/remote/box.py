@@ -34,6 +34,8 @@ class Box:
         self.key, self.workdir = key, workdir
         self._stop_sync = threading.Event()
         self._sync_thread: threading.Thread | None = None
+        self._stop_hb = threading.Event()
+        self._hb_thread: threading.Thread | None = None
 
     # ------------------------------------------------------------- примитивы
     @property
@@ -201,6 +203,34 @@ class Box:
         if rc != 0 and not quiet:
             log(f"  не удалось забрать {remote_rel} (код {rc})")
         return rc
+
+    # ------------------------------------------------------------ пульс
+    def start_heartbeat(self, every: float = 30) -> None:
+        """Показывать машине, что оператор жив.
+
+        На той стороне за этим файлом следит дозор мертвеца из ONSTART: не
+        обновлялся дольше положенного — инстанс уничтожает себя сам.  Без
+        пульса выключатель был только у нас, и падение локального процесса
+        оставляло машину биллиться в никуда.
+
+        Ошибки касания намеренно проглатываются: одна пропущенная попытка
+        ничего не решает (срок — минуты), а ронять из-за неё прогон, который
+        считается на машине нормально, было бы глупо.
+        """
+        def loop():
+            while not self._stop_hb.wait(every):
+                try:
+                    subprocess.run(self._ssh + [self._addr, "touch /root/.alive"],
+                                   capture_output=True, timeout=30)
+                except Exception:
+                    pass
+        self._stop_hb.clear()
+        self._hb_thread = threading.Thread(target=loop, daemon=True)
+        self._hb_thread.start()
+
+    def set_deadman(self, seconds: int) -> None:
+        """Переставить срок дозора — например, перед --keep."""
+        self.run(f"echo {int(seconds)} > /root/.alive.grace", stream=False)
 
     # ------------------------------------------------- фоновая синхронизация
     def start_sync(self, remote_rel: str, local_dir: str, every: float = 20) -> None:

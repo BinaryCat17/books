@@ -160,6 +160,9 @@ def connect(vast: Vast, iid: int, spec: JobSpec, ssh_key: str | None,
     log(f"ssh {user}@{host}:{port}")
     box = Box(user, host, port, ssh_key, spec.workdir)
     box.wait_ready()
+    # Пульс — сразу после ssh: с этого момента машина знает, что оператор
+    # жив, и уничтожит себя сама, если он замолчит.  См. ONSTART в vast.py.
+    box.start_heartbeat()
     return box
 
 
@@ -230,6 +233,11 @@ MAX_ATTEMPTS = 5
 # достройка на ней доберётся до конца и в следующий раз машина поднимется
 # за полминуты.  В вечный список идут только те, у кого сломан канал.
 BOOT_LIMIT_S = 120.0
+
+# Срок дозора мертвеца при --keep: машина оставлена нарочно, но не навсегда.
+# Четыре часа — столько, чтобы вернуться к прогретой машине в тот же вечер,
+# и не столько, чтобы забытый инстанс проел бюджет за ночь.
+KEEP_GRACE_S = 4 * 3600
 
 
 def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
@@ -388,6 +396,17 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
         if iid and not keep:
             vast.destroy(int(iid))
         elif iid:
+            # Оператор уходит нарочно, но дозор мертвеца на машине об этом не
+            # знает и через свои 15 минут уничтожит инстанс.  Даём ему срок
+            # побольше: --keep нужен, чтобы вернуться к машине следующим
+            # прогоном, а не чтобы платить за неё сутками.
+            try:
+                box.set_deadman(KEEP_GRACE_S)
+                log(f"дозор мертвеца на машине переставлен на "
+                    f"{KEEP_GRACE_S // 3600} ч без прогонов")
+            except Exception as e:
+                log(f"не смог переставить дозор мертвеца ({e}) — "
+                    f"инстанс уничтожит себя через 15 минут")
             log(f"--keep: инстанс {iid} ОСТАВЛЕН И БИЛЛИТСЯ. "
                 f"Следующий прогон: --reuse {iid}; убить: books remote down {iid}")
         ledger.append(rec)

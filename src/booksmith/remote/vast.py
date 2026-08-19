@@ -27,9 +27,43 @@ from .spec import HostReq, JobSpec
 # В образе то же самое снято через StrictModes no, но полагаться на это
 # нельзя: vast кеширует достроенный образ по имени с тегом, и на машине
 # может лежать сборка от старой версии базы.  Здесь чинится всегда.
+#
+# ------------------------------------------------------------ дозор мертвеца
+# Уничтожение инстанса до сих пор держалось на живом локальном процессе:
+# блок `finally` в run_job и сторож в его же потоке.  Стоило перезапуститься
+# машине оператора — и инстанс остался жить и биллиться, а задача на нём при
+# этом умерла вместе с ssh.  Проверено на себе: инстанс 48131402, семь минут
+# впустую.
+#
+# Поэтому выключатель переносится НА арендованную машину и от нас не зависит.
+# vast кладёт в контейнер CONTAINER_API_KEY и CONTAINER_ID — ключ, которым
+# инстанс имеет право уничтожить сам себя.  Фоновый цикл смотрит на возраст
+# /root/.alive: пока оператор жив, он трогает файл каждые 30 секунд (см.
+# Box.start_heartbeat).  Пропало касание дольше, чем на DEADMAN_GRACE_S, —
+# машина уничтожает себя сама.
+#
+# Срок лежит в /root/.alive.grace отдельным файлом, а не зашит в цикл: при
+# --keep инстанс нарочно остаётся без оператора, и туда пишется другое число.
+DEADMAN_GRACE_S = 900
+
 ONSTART = (
     "touch /root/.no_auto_tmux; "
     "mkdir -p {workdir}; "
+    "touch /root/.alive; echo {grace} > /root/.alive.grace; "
+    "(K=$CONTAINER_API_KEY; I=$CONTAINER_ID; "
+    " E=/proc/1/environ; "
+    " if [ -z \"$K\" ]; then "
+    "   K=$(tr '\\0' '\\n' < $E | sed -n 's/^CONTAINER_API_KEY=//p' | head -1); fi; "
+    " if [ -z \"$I\" ]; then "
+    "   I=$(tr '\\0' '\\n' < $E | sed -n 's/^CONTAINER_ID=//p' | head -1); fi; "
+    " while sleep 30; do "
+    "   G=$(cat /root/.alive.grace 2>/dev/null || echo {grace}); "
+    "   A=$(stat -c %Y /root/.alive 2>/dev/null || echo 0); "
+    "   if [ $(( $(date +%s) - A )) -gt $G ]; then "
+    "     curl -s -X DELETE -H \"Authorization: Bearer $K\" "
+    "          https://console.vast.ai/api/v0/instances/$I/ ; "
+    "   fi; "
+    " done) >/root/deadman.log 2>&1 & "
     "(for i in $(seq 1 90); do "
     "   chmod 700 /root/.ssh 2>/dev/null; "
     "   chmod 600 /root/.ssh/authorized_keys 2>/dev/null; "
@@ -97,7 +131,8 @@ class Vast:
             label=spec.label(),
             env=spec.env or {},
             runtype="ssh_direc ssh_proxy",
-            onstart_cmd=ONSTART.format(workdir=spec.workdir),
+            onstart_cmd=ONSTART.format(workdir=spec.workdir,
+                                       grace=DEADMAN_GRACE_S),
             # Без этого неудачное размещение молча создаёт ОСТАНОВЛЕННЫЙ
             # инстанс, который продолжает брать деньги за диск.
             cancel_unavail=True,
