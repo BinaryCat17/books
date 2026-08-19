@@ -57,10 +57,21 @@ if python -c "import vllm" 2>/dev/null; then
   log "модель для vLLM: $SERVE_MODEL"
   # --served-model-name обязателен: без него модель регистрируется под своим
   # путём (/models/vl), а клиент спрашивает по имени и получает 404.
+  # flashinfer компилирует сэмплер на месте, и сборка не проходит: колесо
+  # nvidia-cuda-nvcc приезжает 13.3, torch собран под CUDA 13.0, а заголовки
+  # cccl внутри flashinfer это ловят — "CUDA compiler and CUDA toolkit
+  # headers are incompatible".  Чинить совместимость версий незачем: сэмплер
+  # нужен обычный, а заодно уходит компиляция ядер из времени старта.
+  export VLLM_USE_FLASHINFER_SAMPLER=0
+  # По умолчанию vLLM забирает 90% видеопамяти, и детекции макета не
+  # остаётся: ONNX Runtime падает на "Failed to allocate memory for
+  # requested buffer of size 430080000".  Модель на 0.9B и в 0.75 от 24 ГБ
+  # помещается с огромным запасом по KV-кешу.
   nohup vllm serve "$SERVE_MODEL" --trust-remote-code \
         --served-model-name "$MODEL" \
         --host 127.0.0.1 --port "$PORT" \
         --max-num-batched-tokens 16384 \
+        --gpu-memory-utilization 0.75 \
         --no-enable-prefix-caching --mm-processor-cache-gb 0 \
         > "$OUT/vllm.log" 2>&1 &
   SRV=$!

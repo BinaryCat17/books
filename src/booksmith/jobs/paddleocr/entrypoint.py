@@ -113,7 +113,10 @@ def _layout_on_onnx(layout_dir):
                                              "PP-DocLayoutV2"),
                 "model_dir": layout_dir,
                 "engine": "onnxruntime",
-                "batch_size": 8,
+                # Восьмёрка требовала 430 МБ единым буфером и не влезала
+                # рядом с vLLM; четвёрка вдвое дешевле по памяти, а
+                # детекция всё равно не узкое место.
+                "batch_size": 4,
             }
         }
     })
@@ -172,8 +175,14 @@ def main():
     elif layout_dir:
         _log(f"в {layout_dir} нет inference.onnx — детекция остаётся на paddle")
     if a.server:
-        kwargs.update(vl_rec_server_url=a.server, vl_rec_api_model_name=a.model)
-        _log(f"VLM через сервис {a.server}")
+        # Одного адреса мало: без backend пайплайн всё равно строит локальную
+        # модель и падает на gpu:0, потому что paddle у нас CPU-сборки.
+        # Переключатель — SubModules.VLRecognition.genai_config.backend,
+        # снаружи это vl_rec_backend (см. paddleocr/_pipelines/paddleocr_vl.py).
+        kwargs.update(vl_rec_backend="vllm-server",
+                      vl_rec_server_url=a.server,
+                      vl_rec_api_model_name=a.model)
+        _log(f"VLM через сервис {a.server} (backend vllm-server)")
     else:
         _log(f"VLM в процессе, устройство {a.device}")
 
