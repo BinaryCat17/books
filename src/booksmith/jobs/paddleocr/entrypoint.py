@@ -189,6 +189,173 @@ def _prefer_tables_over_text():
     _p.filter_overlap_boxes = patched
 
 
+def _multiview_layout(overlap=0.12, merge=0.55, thr=0.30):
+    """Один детектор, двенадцать взглядов на страницу, объединение рамок таблиц.
+
+    Причина в устройстве самого детектора, а не в наших настройках.  В
+    inference.yml весов PP-DocLayoutV2 стоит `Resize target_size [800, 800]`
+    при `keep_ratio: false`, а вход ONNX-графа жёстко объявлен как
+    [N, 3, 800, 800]; обе доступные модели перечислены в
+    STATIC_SHAPE_MODEL_LIST, так что размер входа не настраивается в
+    принципе.  Страница 1012x1466 сжимается по горизонтали в 0.79, а по
+    вертикали в 0.55 — и межстрочный интервал, единственный признак, по
+    которому строка таблицы без линеек отличается от строки абзаца, страдает
+    сильнее всего.
+
+    Отсюда лечение: показывать детектору меньше бумаги за раз.  Замер на
+    bench/tables20.pdf, максимальная уверенность класса table:
+
+        стр 4:  вся страница 0.055 -> четверть   0.489
+        стр 9:  вся страница 0.176 -> четверть   0.612
+        стр 6:  вся страница 0.197 -> зеркало-в  0.419
+        стр 5:  вся страница 0.196 -> зеркало-г  0.348
+        стр 15: вся страница 0.389 -> низ        0.809
+
+    Ни один взгляд не выигрывает у остальных — они вытаскивают разные
+    страницы, поэтому берётся объединение.  Отражения работают потому, что
+    детектор судит о табличности по геометрии белого, а не по чтению текста:
+    страница вверх ногами ему не мешает, а сдвиг пиксельной сетки
+    перебрасывает пограничный случай через порог.
+
+    Полный проход остаётся якорем: остальные взгляды только ДОБАВЛЯЮТ рамки
+    класса table и не трогают ни текст, ни порядок чтения.  Замер на тех же
+    20 страницах: 12 таблиц против 19, ложных срабатываний на четырёх пустых
+    страницах — ноль, а рамки перестали быть обрезанными (страница 311: было
+    86 пикселей ширины, стало 373) и межколоночными (страница 307: рамка в
+    801 пиксель через обе колонки исчезла, вместо неё три по 377).
+    """
+    import numpy as np
+    from paddlex.inference.models.layout_analysis.predictor import (
+        LayoutAnalysisRunnerPredictor as _L,
+    )
+
+    orig = _L.__call__
+
+    def _views(img):
+        """(картинка, обратное отображение рамки в координаты страницы)."""
+        h, w = img.shape[:2]
+        s = max(w, h)
+        pad = np.full((s, s, 3), 255, dtype=img.dtype)
+        ox, oy = (s - w) // 2, (s - h) // 2
+        pad[oy:oy + h, ox:ox + w] = img
+        yield pad, lambda b: [b[0] - ox, b[1] - oy, b[2] - ox, b[3] - oy]
+        yield img[:, ::-1], lambda b: [w - b[2], b[1], w - b[0], b[3]]
+        yield img[::-1, :], lambda b: [b[0], h - b[3], b[2], h - b[1]]
+
+        dx, dy = int(w * overlap), int(h * overlap)
+        cuts = [(0, 0, w, h // 2 + dy), (0, h // 2 - dy, w, h),
+                (0, 0, w // 2 + dx, h), (w // 2 - dx, 0, w, h)]
+        for ny in (0, 1):
+            for nx in (0, 1):
+                cuts.append((max(0, nx * w // 2 - dx), max(0, ny * h // 2 - dy),
+                             min(w, (nx + 1) * w // 2 + dx),
+                             min(h, (ny + 1) * h // 2 + dy)))
+        for x0, y0, x1, y1 in cuts:
+            yield (img[y0:y1, x0:x1],
+                   lambda b, x0=x0, y0=y0: [b[0] + x0, b[1] + y0,
+                                            b[2] + x0, b[3] + y0])
+
+    def _overlap_small(a, b):
+        ix = max(0.0, min(a[2], b[2]) - max(a[0], b[0]))
+        iy = max(0.0, min(a[3], b[3]) - max(a[1], b[1]))
+        inter = ix * iy
+        if inter <= 0:
+            return 0.0
+        sa = max(0.0, a[2] - a[0]) * max(0.0, a[3] - a[1])
+        sb = max(0.0, b[2] - b[0]) * max(0.0, b[3] - b[1])
+        small = min(sa, sb)
+        return inter / small if small else 0.0
+
+    def _key(box, mid):
+        """Ключ порядка чтения: сначала колонка, потом высота."""
+        c = box["coordinate"]
+        return (0 if (c[0] + c[2]) / 2 < mid else 1, c[1])
+
+    def patched(self, input, **kw):
+        # Пачку исчерпываем целиком до того, как звать предиктор снова:
+        # sampler у него один на экземпляр, и вложенный вход в него посреди
+        # внешней итерации портит его состояние.
+        results = list(orig(self, input, **kw))
+        for res in results:
+            try:
+                img = res["input_img"]
+                boxes = res["boxes"]
+                h, w = img.shape[:2]
+                extra = []
+                # На фрагменте отключаем уборку вложенных рамок.  Правило
+                # paddlex: рамка, лежащая на 90% внутри рамки класса chart,
+                # display_formula, doc_title, inline_formula или
+                # paragraph_title, молча удаляется (is_contained, iou>=0.9).
+                # На целой странице это разумно, а на куске заголовок занимает
+                # бо́льшую долю площади и съедает таблицу целиком: первый
+                # прогон дал 0 кандидатов там, где локальный замер без этого
+                # правила давал 19 рамок.
+                # И NMS: он гасит рамку ДРУГОГО класса при перекрытии 0.98,
+                # а текстовая рамка поверх таблицы без линеек перекрывается
+                # ровно настолько.  То есть кандидат гибнет внутри прохода, и
+                # наша правка "таблица важнее текста" до него не доживает.
+                vkw = dict(kw, layout_merge_bboxes_mode="union", layout_nms=False)
+                for view, back in _views(img):
+                    for r in orig(self, [view], **vkw):
+                        for b in r["boxes"]:
+                            if b["label"] != "table" or b["score"] < thr:
+                                continue
+                            c = back(b["coordinate"])
+                            c = [max(0, min(w, c[0])), max(0, min(h, c[1])),
+                                 max(0, min(w, c[2])), max(0, min(h, c[3]))]
+                            if c[2] - c[0] < 40 or c[3] - c[1] < 25:
+                                continue
+                            extra.append({"cls_id": b["cls_id"], "label": "table",
+                                          "score": b["score"], "coordinate": c})
+                extra.sort(key=lambda b: -b["score"])
+
+                added = 0
+                for cand in extra:
+                    hit = None
+                    for b in boxes:
+                        if b["label"] != "table":
+                            continue
+                        if _overlap_small(cand["coordinate"], b["coordinate"]) > merge:
+                            hit = b
+                            break
+                    if hit is not None:
+                        # Берём ту рамку, что больше по площади, но НЕ их
+                        # объединение: объединение выдумывает геометрию,
+                        # которой не предлагал ни один детектор, раздувает
+                        # рамку на соседний текст и стоило 8 ячеек в прогоне
+                        # tables-mv2.  Так лечится страница 311, где рамка
+                        # шириной 86 пикселей уступает найденной в 373.
+                        a, c = hit["coordinate"], cand["coordinate"]
+                        if ((c[2]-c[0]) * (c[3]-c[1])) > ((a[2]-a[0]) * (a[3]-a[1])):
+                            hit["coordinate"] = c
+                        hit["score"] = max(hit["score"], cand["score"])
+                        continue
+                    # Место в списке — это порядок чтения, а он влияет и на
+                    # markdown, и на склейку таблиц между страницами.  В конец
+                    # добавлять нельзя: таблица уедет под низ страницы.
+                    mid = w / 2
+                    k = _key(cand, mid)
+                    pos = len(boxes)
+                    for i, b in enumerate(boxes):
+                        if _key(b, mid) > k:
+                            pos = i
+                            break
+                    cand["order"] = pos + 1
+                    boxes.insert(pos, cand)
+                    added += 1
+                # Печатаем всегда, даже нули.  Одна из прошлых правок была
+                # молчаливой пустышкой: лог о включении печатался, а сама
+                # функция не делала ничего, и это стоило целого прогона.
+                _log(f"взгляды: кандидатов {len(extra)}, новых рамок {added}")
+            except Exception as exc:                      # noqa: BLE001
+                # Детекция важнее прибавки: при любой поломке отдаём
+                # штатный результат, а не роняем прогон целиком.
+                _log(f"многовзглядовая детекция пропущена: {exc}")
+        return iter(results)
+
+    _L.__call__ = patched
+
+
 def _pipeline_config(layout_dir, table_threshold=0.05):
     """Конфигурация пайплайна: детекция на ONNX Runtime и пачки страниц.
 
@@ -371,6 +538,9 @@ def main():
     if os.environ.get("PREFER_TABLES", "1") == "1":
         _prefer_tables_over_text()
         _log("таблица важнее текстовой рамки при перекрытии")
+    if os.environ.get("MULTIVIEW", "1") == "1":
+        _multiview_layout()
+        _log("детекция макета в двенадцать взглядов")
     kwargs["markdown_ignore_labels"] = [
         "number", "header_image", "footer", "footer_image", "aside_text",
     ]
