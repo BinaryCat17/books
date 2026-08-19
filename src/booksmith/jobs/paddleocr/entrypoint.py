@@ -115,6 +115,14 @@ def _pipeline_config(layout_dir, table_threshold=0.05):
     thr[21] = table_threshold          # table
 
     return _deep_update(cfg, {
+        # Пачка страниц.  Умолчание пайплайна — 64, и оно не влезает: 64
+        # страницы разом идут в детектор, арена ONNX Runtime раздувается до
+        # 5.4 ГБ и вместе с 18 ГБ vLLM упирается в 23.5 ГБ карты — прогон
+        # падает на "CUDA out of memory. Tried to allocate 76.00 MiB".
+        # Замерено: с четвёркой те же 20 страниц считаются с запасом по
+        # памяти на скорости 4 стр/с.  Это ограничение по памяти, а не по
+        # скорости, и снимать его можно только вместе с долей vLLM.
+        "batch_size": 4,
         "SubModules": {
             "LayoutDetection": {
                 "module_name": "layout_detection",
