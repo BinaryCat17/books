@@ -150,7 +150,9 @@ class Box:
         """
         url = ("https://files.pythonhosted.org/packages/source/n/numpy/"
                "numpy-2.2.0.tar.gz")
-        cmd = (f"curl -sS -o /dev/null --max-time {int(timeout)} "
+        # -L обязателен: pythonhosted отвечает 302 на этот путь, и без него
+        # curl молча скачивает ноль байт, а машина выглядит сломанной.
+        cmd = (f"curl -sSL -o /dev/null --max-time {int(timeout)} "
                f"-r 0-{mb * 1024 * 1024 - 1} -w '%{{speed_download}}' {url}")
         rc, out = self.run(cmd, stream=False,
                            deadline=time.time() + timeout + 15)
