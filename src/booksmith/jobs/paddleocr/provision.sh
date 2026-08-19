@@ -50,8 +50,12 @@ export PATH="$ENVDIR/bin:$PATH"
 step "колёса" uv pip install -r "$HERE/constraints.txt" --torch-backend=cu130
 
 step "веса VL" hf download PaddlePaddle/PaddleOCR-VL --local-dir "$MODELS/vl"
-# V3, а не V2: именно он стоит в конфигурации пайплайна PaddleOCR-VL-1.6
-# по умолчанию.  Набор классов у них совпадает до метки (25 штук, table=21),
-# так что это замена без переходников, и V3 вдвое легче: 124 МБ против 204.
-step "веса детектора" hf download PaddlePaddle/PP-DocLayoutV3_onnx \
+# V2, хотя штатный для PaddleOCR-VL-1.6 — V3.  Замерено на двадцати
+# страницах с таблицами без линеек: V2 предлагает 20 рамок table, V3 — 18, и
+# промахи у них разные.  Решает то, что V3 на части блоков не выдаёт рамку
+# table ВООБЩЕ: страницу 296 он разбирает как figure_title 0.44 плюс text
+# 0.45, тогда как V2 даёт там table 0.47.  Понижать порог в таком случае
+# нечему.  Набор классов совпадает до метки (25 штук, table=21), так что это
+# замена без переходников; V2 тяжелее — 204 МБ против 124.
+step "веса детектора" hf download PaddlePaddle/PP-DocLayoutV2_onnx \
     --local-dir "$MODELS/layout"

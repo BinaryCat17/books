@@ -408,7 +408,7 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
                 log(f"не смог переставить дозор мертвеца ({e}) — "
                     f"инстанс уничтожит себя через 15 минут")
             log(f"--keep: инстанс {iid} ОСТАВЛЕН И БИЛЛИТСЯ. "
-                f"Следующий прогон: --reuse {iid}; убить: books remote down {iid}")
+                f"Следующий прогон: --reuse {iid}; убить: books down {iid}")
         ledger.append(rec)
         log(f"итого {elapsed/60:.1f} мин ≈ ${rec.cost_usd:.3f}; "
             f"журнал: {ledger.LEDGER}")

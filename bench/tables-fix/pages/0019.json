@@ -1,0 +1,886 @@
+{
+    "input_path": "input.pdf",
+    "page_index": 19,
+    "page_count": 20,
+    "width": 1012,
+    "height": 1466,
+    "model_settings": {
+        "use_doc_preprocessor": false,
+        "use_layout_detection": true,
+        "use_chart_recognition": false,
+        "use_seal_recognition": false,
+        "use_ocr_for_image_block": false,
+        "format_block_content": false,
+        "merge_layout_blocks": true,
+        "markdown_ignore_labels": [
+            "number",
+            "header_image",
+            "footer",
+            "footer_image",
+            "aside_text"
+        ],
+        "return_layout_polygon_points": true
+    },
+    "parsing_res_list": [
+        {
+            "block_label": "text",
+            "block_content": "Sec. 26.80\nFace Plate Run Out",
+            "block_bbox": [
+                83,
+                90,
+                272,
+                133
+            ],
+            "block_id": 0,
+            "block_order": 1,
+            "group_id": 0,
+            "block_polygon_points": [
+                [
+                    83.0,
+                    90.0
+                ],
+                [
+                    272.0,
+                    90.0
+                ],
+                [
+                    272.0,
+                    133.0
+                ],
+                [
+                    83.0,
+                    133.0
+                ]
+            ]
+        },
+        {
+            "block_label": "paragraph_title",
+            "block_content": "PROCEDURE:",
+            "block_bbox": [
+                84,
+                155,
+                222,
+                177
+            ],
+            "block_id": 1,
+            "block_order": 2,
+            "group_id": 1,
+            "block_polygon_points": [
+                [
+                    84.0,
+                    155.0
+                ],
+                [
+                    221.0,
+                    155.0
+                ],
+                [
+                    221.0,
+                    176.0
+                ],
+                [
+                    84.0,
+                    176.0
+                ]
+            ]
+        },
+        {
+            "block_label": "text",
+            "block_content": "The accompanying Fig. 26.76 furnishes the accuracy standard for face plates.",
+            "block_bbox": [
+                82,
+                200,
+                483,
+                245
+            ],
+            "block_id": 2,
+            "block_order": 3,
+            "group_id": 2,
+            "block_polygon_points": [
+                [
+                    82.0,
+                    200.0
+                ],
+                [
+                    483.0,
+                    200.0
+                ],
+                [
+                    483.0,
+                    245.0
+                ],
+                [
+                    82.0,
+                    245.0
+                ]
+            ]
+        },
+        {
+            "block_label": "image",
+            "block_content": "",
+            "block_bbox": [
+                102,
+                281,
+                472,
+                422
+            ],
+            "block_id": 3,
+            "block_order": null,
+            "group_id": 3,
+            "block_polygon_points": [
+                [
+                    102.0,
+                    281.0
+                ],
+                [
+                    472.0,
+                    281.0
+                ],
+                [
+                    472.0,
+                    422.0
+                ],
+                [
+                    102.0,
+                    422.0
+                ]
+            ]
+        },
+        {
+            "block_label": "figure_title",
+            "block_content": "Fig. 26.76 Face Plate run out.",
+            "block_bbox": [
+                91,
+                455,
+                333,
+                473
+            ],
+            "block_id": 4,
+            "block_order": null,
+            "group_id": 4,
+            "block_polygon_points": [
+                [
+                    91.0,
+                    455.0
+                ],
+                [
+                    332.0,
+                    455.0
+                ],
+                [
+                    332.0,
+                    472.0
+                ],
+                [
+                    91.0,
+                    472.0
+                ]
+            ]
+        },
+        {
+            "block_label": "paragraph_title",
+            "block_content": "RECOMMENDED STANDARDS",
+            "block_bbox": [
+                158,
+                489,
+                393,
+                507
+            ],
+            "block_id": 5,
+            "block_order": 4,
+            "group_id": 5,
+            "block_polygon_points": [
+                [
+                    158.0,
+                    489.0
+                ],
+                [
+                    392.0,
+                    489.0
+                ],
+                [
+                    392.0,
+                    506.0
+                ],
+                [
+                    158.0,
+                    506.0
+                ]
+            ]
+        },
+        {
+            "block_label": "text",
+            "block_content": "Recommended Standards\nTool Room 12\" to 18\" inc. 20\" to 36\" inc.\nLathes Engine Lathes Engine Lathe\n0 to .0005\" 0 to .001\" 0 to .0015\"\n(on diameter)\n0 to .001\" 0 to .0015\" 0 to .002\"\n(on face at nominal diameter)",
+            "block_bbox": [
+                101,
+                498,
+                479,
+                642
+            ],
+            "block_id": 6,
+            "block_order": 5,
+            "group_id": 6,
+            "block_polygon_points": [
+                [
+                    101.0,
+                    498.0
+                ],
+                [
+                    479.0,
+                    498.0
+                ],
+                [
+                    479.0,
+                    642.0
+                ],
+                [
+                    101.0,
+                    642.0
+                ]
+            ]
+        },
+        {
+            "block_label": "text",
+            "block_content": "Sec. 26.81\nEffects of Inaccurate Leveling",
+            "block_bbox": [
+                83,
+                666,
+                383,
+                712
+            ],
+            "block_id": 7,
+            "block_order": 6,
+            "group_id": 7,
+            "block_polygon_points": [
+                [
+                    83.0,
+                    666.0
+                ],
+                [
+                    383.0,
+                    666.0
+                ],
+                [
+                    383.0,
+                    712.0
+                ],
+                [
+                    83.0,
+                    712.0
+                ]
+            ]
+        },
+        {
+            "block_label": "text",
+            "block_content": "Although the lathe was leveled prior to scraping, this procedure must be repeated again if the machine is moved to another place for permanent erection. Any relocation of the bed necessitates the exercise of due care on the part of the user. If the machine is placed in operation when the lathe bed is not level, serious trouble will be experienced. The ways of the bed become twisted thereby initiating a whole series of unfortunate consequences. For example, when the ways of the bed are twisted due to faulty leveling the carriage slides cannot fit properly. Operated in this condition, chatter marks will be generated on the work piece.",
+            "block_bbox": [
+                82,
+                733,
+                487,
+                824
+            ],
+            "block_id": 8,
+            "block_order": 7,
+            "group_id": 8,
+            "block_polygon_points": [
+                [
+                    82.0,
+                    733.0
+                ],
+                [
+                    487.0,
+                    733.0
+                ],
+                [
+                    487.0,
+                    824.0
+                ],
+                [
+                    82.0,
+                    824.0
+                ]
+            ]
+        },
+        {
+            "block_label": "text",
+            "block_content": "",
+            "block_bbox": [
+                508,
+                88,
+                912,
+                355
+            ],
+            "block_id": 9,
+            "block_order": 8,
+            "group_id": 8,
+            "block_polygon_points": [
+                [
+                    508.0,
+                    88.0
+                ],
+                [
+                    912.0,
+                    88.0
+                ],
+                [
+                    912.0,
+                    355.0
+                ],
+                [
+                    508.0,
+                    355.0
+                ]
+            ]
+        },
+        {
+            "block_label": "text",
+            "block_content": "A “wind” in the bed ways, attributable to improper leveling, will also twist the headstock out of line. This binds the spindle in its bearings. The bearings may score and deterioration is accelerated. Chatter marks are formed on the work piece by this cause also.",
+            "block_bbox": [
+                510,
+                355,
+                915,
+                511
+            ],
+            "block_id": 10,
+            "block_order": 9,
+            "group_id": 10,
+            "block_polygon_points": [
+                [
+                    510.0,
+                    355.0
+                ],
+                [
+                    915.0,
+                    355.0
+                ],
+                [
+                    915.0,
+                    511.0
+                ],
+                [
+                    510.0,
+                    511.0
+                ]
+            ]
+        },
+        {
+            "block_label": "text",
+            "block_content": "Improper leveling, besides impairing surface quality, likewise affects the accuracy of the work output in the following manner. Work held in a chuck cannot be turned straight, nor can a hole be bored which will not taper. It is also impossible to turn work straight when held between centers.",
+            "block_bbox": [
+                510,
+                512,
+                915,
+                688
+            ],
+            "block_id": 11,
+            "block_order": 10,
+            "group_id": 11,
+            "block_polygon_points": [
+                [
+                    510.0,
+                    512.0
+                ],
+                [
+                    915.0,
+                    512.0
+                ],
+                [
+                    915.0,
+                    688.0
+                ],
+                [
+                    510.0,
+                    688.0
+                ]
+            ]
+        },
+        {
+            "block_label": "text",
+            "block_content": "To function accurately, a lathe regardless of size, or weight must be perfectly level before being placed in use. It is the purpose of the leveling process to relieve strains and distortion and restore the bed to the plane in which it was scraped.",
+            "block_bbox": [
+                510,
+                689,
+                912,
+                824
+            ],
+            "block_id": 12,
+            "block_order": 11,
+            "group_id": 12,
+            "block_polygon_points": [
+                [
+                    510.0,
+                    689.0
+                ],
+                [
+                    912.0,
+                    689.0
+                ],
+                [
+                    912.0,
+                    824.0
+                ],
+                [
+                    510.0,
+                    824.0
+                ]
+            ]
+        },
+        {
+            "block_label": "number",
+            "block_content": "315",
+            "block_bbox": [
+                482,
+                1368,
+                518,
+                1389
+            ],
+            "block_id": 13,
+            "block_order": null,
+            "group_id": 13,
+            "block_polygon_points": [
+                [
+                    482.0,
+                    1368.0
+                ],
+                [
+                    517.0,
+                    1368.0
+                ],
+                [
+                    517.0,
+                    1388.0
+                ],
+                [
+                    482.0,
+                    1388.0
+                ]
+            ]
+        }
+    ],
+    "layout_det_res": {
+        "input_path": null,
+        "page_index": null,
+        "boxes": [
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.5604133605957031,
+                "coordinate": [
+                    83,
+                    90,
+                    272,
+                    133
+                ],
+                "order": 1,
+                "polygon_points": [
+                    [
+                        83.0,
+                        90.0
+                    ],
+                    [
+                        272.0,
+                        90.0
+                    ],
+                    [
+                        272.0,
+                        133.0
+                    ],
+                    [
+                        83.0,
+                        133.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 17,
+                "label": "paragraph_title",
+                "score": 0.5571325421333313,
+                "coordinate": [
+                    84,
+                    155,
+                    222,
+                    177
+                ],
+                "order": 2,
+                "polygon_points": [
+                    [
+                        84.0,
+                        155.0
+                    ],
+                    [
+                        221.0,
+                        155.0
+                    ],
+                    [
+                        221.0,
+                        176.0
+                    ],
+                    [
+                        84.0,
+                        176.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.8900375962257385,
+                "coordinate": [
+                    82,
+                    200,
+                    483,
+                    245
+                ],
+                "order": 3,
+                "polygon_points": [
+                    [
+                        82.0,
+                        200.0
+                    ],
+                    [
+                        483.0,
+                        200.0
+                    ],
+                    [
+                        483.0,
+                        245.0
+                    ],
+                    [
+                        82.0,
+                        245.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 14,
+                "label": "image",
+                "score": 0.9247378706932068,
+                "coordinate": [
+                    102,
+                    281,
+                    472,
+                    422
+                ],
+                "order": null,
+                "polygon_points": [
+                    [
+                        102.0,
+                        281.0
+                    ],
+                    [
+                        472.0,
+                        281.0
+                    ],
+                    [
+                        472.0,
+                        422.0
+                    ],
+                    [
+                        102.0,
+                        422.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 7,
+                "label": "figure_title",
+                "score": 0.7973465323448181,
+                "coordinate": [
+                    91,
+                    455,
+                    333,
+                    473
+                ],
+                "order": null,
+                "polygon_points": [
+                    [
+                        91.0,
+                        455.0
+                    ],
+                    [
+                        332.0,
+                        455.0
+                    ],
+                    [
+                        332.0,
+                        472.0
+                    ],
+                    [
+                        91.0,
+                        472.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 17,
+                "label": "paragraph_title",
+                "score": 0.42188823223114014,
+                "coordinate": [
+                    158,
+                    489,
+                    393,
+                    507
+                ],
+                "order": 4,
+                "polygon_points": [
+                    [
+                        158.0,
+                        489.0
+                    ],
+                    [
+                        392.0,
+                        489.0
+                    ],
+                    [
+                        392.0,
+                        506.0
+                    ],
+                    [
+                        158.0,
+                        506.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.492203950881958,
+                "coordinate": [
+                    101,
+                    498,
+                    479,
+                    642
+                ],
+                "order": 5,
+                "polygon_points": [
+                    [
+                        101.0,
+                        498.0
+                    ],
+                    [
+                        479.0,
+                        498.0
+                    ],
+                    [
+                        479.0,
+                        642.0
+                    ],
+                    [
+                        101.0,
+                        642.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.49207836389541626,
+                "coordinate": [
+                    83,
+                    666,
+                    383,
+                    712
+                ],
+                "order": 6,
+                "polygon_points": [
+                    [
+                        83.0,
+                        666.0
+                    ],
+                    [
+                        383.0,
+                        666.0
+                    ],
+                    [
+                        383.0,
+                        712.0
+                    ],
+                    [
+                        83.0,
+                        712.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9349246621131897,
+                "coordinate": [
+                    82,
+                    733,
+                    487,
+                    824
+                ],
+                "order": 7,
+                "polygon_points": [
+                    [
+                        82.0,
+                        733.0
+                    ],
+                    [
+                        487.0,
+                        733.0
+                    ],
+                    [
+                        487.0,
+                        824.0
+                    ],
+                    [
+                        82.0,
+                        824.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9617330431938171,
+                "coordinate": [
+                    508,
+                    88,
+                    912,
+                    355
+                ],
+                "order": 8,
+                "polygon_points": [
+                    [
+                        508.0,
+                        88.0
+                    ],
+                    [
+                        912.0,
+                        88.0
+                    ],
+                    [
+                        912.0,
+                        355.0
+                    ],
+                    [
+                        508.0,
+                        355.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9510387778282166,
+                "coordinate": [
+                    510,
+                    355,
+                    915,
+                    511
+                ],
+                "order": 9,
+                "polygon_points": [
+                    [
+                        510.0,
+                        355.0
+                    ],
+                    [
+                        915.0,
+                        355.0
+                    ],
+                    [
+                        915.0,
+                        511.0
+                    ],
+                    [
+                        510.0,
+                        511.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9554964303970337,
+                "coordinate": [
+                    510,
+                    512,
+                    915,
+                    688
+                ],
+                "order": 10,
+                "polygon_points": [
+                    [
+                        510.0,
+                        512.0
+                    ],
+                    [
+                        915.0,
+                        512.0
+                    ],
+                    [
+                        915.0,
+                        688.0
+                    ],
+                    [
+                        510.0,
+                        688.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9511004686355591,
+                "coordinate": [
+                    510,
+                    689,
+                    912,
+                    824
+                ],
+                "order": 11,
+                "polygon_points": [
+                    [
+                        510.0,
+                        689.0
+                    ],
+                    [
+                        912.0,
+                        689.0
+                    ],
+                    [
+                        912.0,
+                        824.0
+                    ],
+                    [
+                        510.0,
+                        824.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 16,
+                "label": "number",
+                "score": 0.7562272548675537,
+                "coordinate": [
+                    482,
+                    1368,
+                    518,
+                    1389
+                ],
+                "order": 12,
+                "polygon_points": [
+                    [
+                        482.0,
+                        1368.0
+                    ],
+                    [
+                        517.0,
+                        1368.0
+                    ],
+                    [
+                        517.0,
+                        1388.0
+                    ],
+                    [
+                        482.0,
+                        1388.0
+                    ]
+                ]
+            }
+        ]
+    }
+}

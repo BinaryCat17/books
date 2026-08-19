@@ -134,7 +134,17 @@ def _prefer_tables_over_text():
             small = min(sa, sb)
             return i / small if small else 0.0
 
-        for t in lost:
+        # Возвращать всё подряд нельзя: штатный фильтр давит и перекрытие
+        # таблицы с таблицей, а RT-DETR выдаёт на один блок несколько
+        # почти совпадающих рамок.  Без этой проверки страница 11 дала пять
+        # таблиц вместо трёх — две из них обрубки первых двух.
+        # Поэтому идём от уверенных к неуверенным и пропускаем те, что
+        # накладываются на уже принятую таблицу.
+        for t in sorted(lost, key=lambda b: -float(b.get("score") or 0)):
+            if any(b["label"] == "table"
+                   and overlap_small(t["coordinate"], b["coordinate"]) > 0.7
+                   for b in kept):
+                continue
             # Съевшую текстовую рамку убираем: иначе одна и та же область
             # уедет в VLM дважды и попадёт в markdown и текстом, и таблицей.
             kept = [b for b in kept
@@ -189,7 +199,7 @@ def _pipeline_config(layout_dir, table_threshold=0.05):
             "LayoutDetection": {
                 "module_name": "layout_detection",
                 "model_name": os.environ.get("LAYOUT_MODEL_NAME",
-                                             "PP-DocLayoutV3"),
+                                             "PP-DocLayoutV2"),
                 "model_dir": layout_dir,
                 "engine": "onnxruntime",
                 "threshold": thr,
@@ -296,7 +306,7 @@ def main():
         # с KeyError.  Поэтому берём конфигурацию сами и сливаем в неё.
         kwargs["paddlex_config"] = _pipeline_config(
             layout_dir, float(os.environ.get("LAYOUT_TABLE_THRESHOLD") or 0.05))
-        _log(f"детекция макета: {os.environ.get('LAYOUT_MODEL_NAME','PP-DocLayoutV3')}"
+        _log(f"детекция макета: {os.environ.get('LAYOUT_MODEL_NAME','PP-DocLayoutV2')}"
              f" на ONNX Runtime, порог таблиц "
              f"{os.environ.get('LAYOUT_TABLE_THRESHOLD') or 0.05}, веса из {layout_dir}")
     elif layout_dir:

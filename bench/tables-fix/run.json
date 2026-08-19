@@ -1,0 +1,8 @@
+{
+ "pages": 20,
+ "seconds": 24.1,
+ "pages_per_sec": 0.831,
+ "server": true,
+ "model": "PaddleOCR-VL-1.6-0.9B",
+ "device": "gpu:0"
+}

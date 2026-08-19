@@ -1,0 +1,1160 @@
+{
+    "input_path": "input.pdf",
+    "page_index": 4,
+    "page_count": 20,
+    "width": 1012,
+    "height": 1466,
+    "model_settings": {
+        "use_doc_preprocessor": false,
+        "use_layout_detection": true,
+        "use_chart_recognition": false,
+        "use_seal_recognition": false,
+        "use_ocr_for_image_block": false,
+        "format_block_content": false,
+        "merge_layout_blocks": true,
+        "markdown_ignore_labels": [
+            "number",
+            "header_image",
+            "footer",
+            "footer_image",
+            "aside_text"
+        ],
+        "return_layout_polygon_points": true
+    },
+    "parsing_res_list": [
+        {
+            "block_label": "image",
+            "block_content": "",
+            "block_bbox": [
+                104,
+                69,
+                458,
+                348
+            ],
+            "block_id": 0,
+            "block_order": null,
+            "group_id": 0,
+            "block_polygon_points": [
+                [
+                    104.0,
+                    69.0
+                ],
+                [
+                    458.0,
+                    69.0
+                ],
+                [
+                    458.0,
+                    348.0
+                ],
+                [
+                    104.0,
+                    348.0
+                ]
+            ]
+        },
+        {
+            "block_label": "figure_title",
+            "block_content": "PLATE 32. Inspector testing alignment of headstock spindle with test bar inserted in tapered hole. Readings are taken from DIAL INDICATOR mounted in lathe tool post. (Courtesy - South Bend Lathe Works.)",
+            "block_bbox": [
+                87,
+                377,
+                486,
+                469
+            ],
+            "block_id": 1,
+            "block_order": null,
+            "group_id": 1,
+            "block_polygon_points": [
+                [
+                    87.0,
+                    377.0
+                ],
+                [
+                    486.0,
+                    377.0
+                ],
+                [
+                    486.0,
+                    469.0
+                ],
+                [
+                    87.0,
+                    469.0
+                ]
+            ]
+        },
+        {
+            "block_label": "paragraph_title",
+            "block_content": "Sec. 26.62\nSpindle Taper Runout (4th test)",
+            "block_bbox": [
+                86,
+                534,
+                383,
+                583
+            ],
+            "block_id": 2,
+            "block_order": 1,
+            "group_id": 2,
+            "block_polygon_points": [
+                [
+                    86.0,
+                    534.0
+                ],
+                [
+                    383.0,
+                    534.0
+                ],
+                [
+                    383.0,
+                    583.0
+                ],
+                [
+                    86.0,
+                    583.0
+                ]
+            ]
+        },
+        {
+            "block_label": "text",
+            "block_content": "There is a double purpose in conducting this test, namely:",
+            "block_bbox": [
+                88,
+                602,
+                476,
+                650
+            ],
+            "block_id": 3,
+            "block_order": 2,
+            "group_id": 3,
+            "block_polygon_points": [
+                [
+                    88.0,
+                    602.0
+                ],
+                [
+                    476.0,
+                    602.0
+                ],
+                [
+                    476.0,
+                    650.0
+                ],
+                [
+                    88.0,
+                    650.0
+                ]
+            ]
+        },
+        {
+            "block_label": "text",
+            "block_content": "1. To assure that the test bar is properly seated in the tapered hole of the spindle. It is necessary to know this so that readings obtained subsequently in aligning the headstock may be depended upon. In other words, the operator must be certain that the test bar when seated contributes no error to the readings which is not accounted for. (See Sec. 15.7 Sag in Test Bars)",
+            "block_bbox": [
+                88,
+                669,
+                500,
+                892
+            ],
+            "block_id": 4,
+            "block_order": 3,
+            "group_id": 4,
+            "block_polygon_points": [
+                [
+                    88.0,
+                    669.0
+                ],
+                [
+                    500.0,
+                    669.0
+                ],
+                [
+                    500.0,
+                    892.0
+                ],
+                [
+                    88.0,
+                    892.0
+                ]
+            ]
+        },
+        {
+            "block_label": "text",
+            "block_content": "2. To check the concentricity of the taper hole with the spindle axis. Incidentally, the concentricity is more accurately gaged by this set-up than by the test for Spindle Center Runout, due to the greater extension of the test bar.",
+            "block_bbox": [
+                90,
+                892,
+                496,
+                1026
+            ],
+            "block_id": 5,
+            "block_order": 4,
+            "group_id": 5,
+            "block_polygon_points": [
+                [
+                    90.0,
+                    892.0
+                ],
+                [
+                    496.0,
+                    892.0
+                ],
+                [
+                    496.0,
+                    1026.0
+                ],
+                [
+                    90.0,
+                    1026.0
+                ]
+            ]
+        },
+        {
+            "block_label": "text",
+            "block_content": "We will now prepare the necessary ap\\-paratus for checking these two conditions.",
+            "block_bbox": [
+                90,
+                1046,
+                489,
+                1092
+            ],
+            "block_id": 6,
+            "block_order": 5,
+            "group_id": 6,
+            "block_polygon_points": [
+                [
+                    90.0,
+                    1046.0
+                ],
+                [
+                    489.0,
+                    1046.0
+                ],
+                [
+                    489.0,
+                    1092.0
+                ],
+                [
+                    90.0,
+                    1092.0
+                ]
+            ]
+        },
+        {
+            "block_label": "text",
+            "block_content": "A test bar is made up with a taper on one end to fit the tapered hole in the spindle. In making the bar, the straight portion should be proportioned to the size of the lathe and therefore will vary in length and diameter.",
+            "block_bbox": [
+                90,
+                1093,
+                489,
+                1224
+            ],
+            "block_id": 7,
+            "block_order": 6,
+            "group_id": 7,
+            "block_polygon_points": [
+                [
+                    90.0,
+                    1093.0
+                ],
+                [
+                    489.0,
+                    1093.0
+                ],
+                [
+                    489.0,
+                    1224.0
+                ],
+                [
+                    90.0,
+                    1224.0
+                ]
+            ]
+        },
+        {
+            "block_label": "text",
+            "block_content": "Before the bar is to be used its accuracy should be verified by mounting between centers and testing for concentricity. (See Sec. 15.1)\nNext the bar is inserted into the tapered hole of the spindle. After mounting a DIAL INDICATOR on the carriage, the button is brought to bear against the test bar at say the vertical diameter. As the spindle is slowly revolved, readings are taken at both ends of the bar in turn. The readings obtained must be within the limits permitted, as indicated in Fig. 26.58. If this is accomplished, the test bar is known to be accurately seated in the spindle tapered hole.",
+            "block_bbox": [
+                92,
+                1225,
+                502,
+                1315
+            ],
+            "block_id": 8,
+            "block_order": 7,
+            "group_id": 8,
+            "block_polygon_points": [
+                [
+                    92.0,
+                    1225.0
+                ],
+                [
+                    502.0,
+                    1225.0
+                ],
+                [
+                    502.0,
+                    1315.0
+                ],
+                [
+                    92.0,
+                    1315.0
+                ]
+            ]
+        },
+        {
+            "block_label": "text",
+            "block_content": "",
+            "block_bbox": [
+                512,
+                67,
+                922,
+                337
+            ],
+            "block_id": 9,
+            "block_order": 8,
+            "group_id": 8,
+            "block_polygon_points": [
+                [
+                    512.0,
+                    67.0
+                ],
+                [
+                    922.0,
+                    67.0
+                ],
+                [
+                    922.0,
+                    337.0
+                ],
+                [
+                    512.0,
+                    337.0
+                ]
+            ]
+        },
+        {
+            "block_label": "image",
+            "block_content": "",
+            "block_bbox": [
+                521,
+                435,
+                892,
+                568
+            ],
+            "block_id": 10,
+            "block_order": null,
+            "group_id": 10,
+            "block_polygon_points": [
+                [
+                    521.0,
+                    435.0
+                ],
+                [
+                    892.0,
+                    435.0
+                ],
+                [
+                    892.0,
+                    568.0
+                ],
+                [
+                    521.0,
+                    568.0
+                ]
+            ]
+        },
+        {
+            "block_label": "figure_title",
+            "block_content": "Fig. 26.57 Cam action of spindle",
+            "block_bbox": [
+                515,
+                617,
+                773,
+                637
+            ],
+            "block_id": 11,
+            "block_order": null,
+            "group_id": 11,
+            "block_polygon_points": [
+                [
+                    515.0,
+                    617.0
+                ],
+                [
+                    772.0,
+                    617.0
+                ],
+                [
+                    772.0,
+                    636.0
+                ],
+                [
+                    515.0,
+                    636.0
+                ]
+            ]
+        },
+        {
+            "block_label": "figure_title",
+            "block_content": "RECOMMENDED STANDARDS",
+            "block_bbox": [
+                583,
+                650,
+                815,
+                670
+            ],
+            "block_id": 12,
+            "block_order": null,
+            "group_id": 12,
+            "block_polygon_points": [
+                [
+                    583.0,
+                    650.0
+                ],
+                [
+                    814.0,
+                    650.0
+                ],
+                [
+                    814.0,
+                    669.0
+                ],
+                [
+                    583.0,
+                    669.0
+                ]
+            ]
+        },
+        {
+            "block_label": "text",
+            "block_content": "Difficulty in accomplishing a zero-zero reading may be traced to grit or dust particles adhering to the surfaces. The safe practice is to clean the tapered hole with a cloth and stick. Never insert a finger in a revolving spindle.",
+            "block_bbox": [
+                514,
+                823,
+                919,
+                956
+            ],
+            "block_id": 13,
+            "block_order": 9,
+            "group_id": 13,
+            "block_polygon_points": [
+                [
+                    514.0,
+                    823.0
+                ],
+                [
+                    919.0,
+                    823.0
+                ],
+                [
+                    919.0,
+                    956.0
+                ],
+                [
+                    514.0,
+                    956.0
+                ]
+            ]
+        },
+        {
+            "block_label": "text",
+            "block_content": "As to the second consideration, the tapered hole must also be concentric with the axis of the spindle, within the tolerance indicated in Fig. 26.58. If the tolerance is exceeded there are several possible causes therefor.",
+            "block_bbox": [
+                513,
+                956,
+                913,
+                1088
+            ],
+            "block_id": 14,
+            "block_order": 10,
+            "group_id": 14,
+            "block_polygon_points": [
+                [
+                    513.0,
+                    956.0
+                ],
+                [
+                    913.0,
+                    956.0
+                ],
+                [
+                    913.0,
+                    1088.0
+                ],
+                [
+                    513.0,
+                    1088.0
+                ]
+            ]
+        },
+        {
+            "block_label": "text",
+            "block_content": "To fix responsibility, the tapered section of the test bar should be examined to determine if the taper matches the spindle hole. This operation is easily performed by spreading a thin film of marking compound in a narrow streak, lengthwise on the tapered portion of the bar. By inserting the bar in the spindle hole and wringing it, some of the compound is transferred. Examination of the bar after",
+            "block_bbox": [
+                515,
+                1089,
+                918,
+                1311
+            ],
+            "block_id": 15,
+            "block_order": 11,
+            "group_id": 15,
+            "block_polygon_points": [
+                [
+                    515.0,
+                    1089.0
+                ],
+                [
+                    918.0,
+                    1089.0
+                ],
+                [
+                    918.0,
+                    1311.0
+                ],
+                [
+                    515.0,
+                    1311.0
+                ]
+            ]
+        },
+        {
+            "block_label": "number",
+            "block_content": "300",
+            "block_bbox": [
+                493,
+                1342,
+                527,
+                1361
+            ],
+            "block_id": 16,
+            "block_order": null,
+            "group_id": 16,
+            "block_polygon_points": [
+                [
+                    493.0,
+                    1342.0
+                ],
+                [
+                    526.0,
+                    1342.0
+                ],
+                [
+                    526.0,
+                    1360.0
+                ],
+                [
+                    493.0,
+                    1360.0
+                ]
+            ]
+        },
+        {
+            "block_label": "table",
+            "block_content": "<table><tr><td>0 to .0003&quot;</td><td>0 to .0005&quot;</td><td>0 to .00075&quot;</td></tr></table>",
+            "block_bbox": [
+                533,
+                763,
+                897,
+                786
+            ],
+            "block_id": 17,
+            "block_order": null,
+            "group_id": 17,
+            "block_polygon_points": [
+                [
+                    533.0,
+                    763.0
+                ],
+                [
+                    897.0,
+                    763.0
+                ],
+                [
+                    897.0,
+                    786.0
+                ],
+                [
+                    533.0,
+                    786.0
+                ]
+            ]
+        }
+    ],
+    "layout_det_res": {
+        "input_path": null,
+        "page_index": null,
+        "boxes": [
+            {
+                "cls_id": 14,
+                "label": "image",
+                "score": 0.9464568495750427,
+                "coordinate": [
+                    104,
+                    69,
+                    458,
+                    348
+                ],
+                "order": null,
+                "polygon_points": [
+                    [
+                        104.0,
+                        69.0
+                    ],
+                    [
+                        458.0,
+                        69.0
+                    ],
+                    [
+                        458.0,
+                        348.0
+                    ],
+                    [
+                        104.0,
+                        348.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 7,
+                "label": "figure_title",
+                "score": 0.8879383206367493,
+                "coordinate": [
+                    87,
+                    377,
+                    486,
+                    469
+                ],
+                "order": null,
+                "polygon_points": [
+                    [
+                        87.0,
+                        377.0
+                    ],
+                    [
+                        486.0,
+                        377.0
+                    ],
+                    [
+                        486.0,
+                        469.0
+                    ],
+                    [
+                        87.0,
+                        469.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 17,
+                "label": "paragraph_title",
+                "score": 0.31616419553756714,
+                "coordinate": [
+                    86,
+                    534,
+                    383,
+                    583
+                ],
+                "order": 1,
+                "polygon_points": [
+                    [
+                        86.0,
+                        534.0
+                    ],
+                    [
+                        383.0,
+                        534.0
+                    ],
+                    [
+                        383.0,
+                        583.0
+                    ],
+                    [
+                        86.0,
+                        583.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.8925643563270569,
+                "coordinate": [
+                    88,
+                    602,
+                    476,
+                    650
+                ],
+                "order": 2,
+                "polygon_points": [
+                    [
+                        88.0,
+                        602.0
+                    ],
+                    [
+                        476.0,
+                        602.0
+                    ],
+                    [
+                        476.0,
+                        650.0
+                    ],
+                    [
+                        88.0,
+                        650.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9512638449668884,
+                "coordinate": [
+                    88,
+                    669,
+                    500,
+                    892
+                ],
+                "order": 3,
+                "polygon_points": [
+                    [
+                        88.0,
+                        669.0
+                    ],
+                    [
+                        500.0,
+                        669.0
+                    ],
+                    [
+                        500.0,
+                        892.0
+                    ],
+                    [
+                        88.0,
+                        892.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9402297735214233,
+                "coordinate": [
+                    90,
+                    892,
+                    496,
+                    1026
+                ],
+                "order": 4,
+                "polygon_points": [
+                    [
+                        90.0,
+                        892.0
+                    ],
+                    [
+                        496.0,
+                        892.0
+                    ],
+                    [
+                        496.0,
+                        1026.0
+                    ],
+                    [
+                        90.0,
+                        1026.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.8822876214981079,
+                "coordinate": [
+                    90,
+                    1046,
+                    489,
+                    1092
+                ],
+                "order": 5,
+                "polygon_points": [
+                    [
+                        90.0,
+                        1046.0
+                    ],
+                    [
+                        489.0,
+                        1046.0
+                    ],
+                    [
+                        489.0,
+                        1092.0
+                    ],
+                    [
+                        90.0,
+                        1092.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9302341938018799,
+                "coordinate": [
+                    90,
+                    1093,
+                    489,
+                    1224
+                ],
+                "order": 6,
+                "polygon_points": [
+                    [
+                        90.0,
+                        1093.0
+                    ],
+                    [
+                        489.0,
+                        1093.0
+                    ],
+                    [
+                        489.0,
+                        1224.0
+                    ],
+                    [
+                        90.0,
+                        1224.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9223910570144653,
+                "coordinate": [
+                    92,
+                    1225,
+                    502,
+                    1315
+                ],
+                "order": 7,
+                "polygon_points": [
+                    [
+                        92.0,
+                        1225.0
+                    ],
+                    [
+                        502.0,
+                        1225.0
+                    ],
+                    [
+                        502.0,
+                        1315.0
+                    ],
+                    [
+                        92.0,
+                        1315.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.951507568359375,
+                "coordinate": [
+                    512,
+                    67,
+                    922,
+                    337
+                ],
+                "order": 8,
+                "polygon_points": [
+                    [
+                        512.0,
+                        67.0
+                    ],
+                    [
+                        922.0,
+                        67.0
+                    ],
+                    [
+                        922.0,
+                        337.0
+                    ],
+                    [
+                        512.0,
+                        337.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 14,
+                "label": "image",
+                "score": 0.9231431484222412,
+                "coordinate": [
+                    521,
+                    435,
+                    892,
+                    568
+                ],
+                "order": null,
+                "polygon_points": [
+                    [
+                        521.0,
+                        435.0
+                    ],
+                    [
+                        892.0,
+                        435.0
+                    ],
+                    [
+                        892.0,
+                        568.0
+                    ],
+                    [
+                        521.0,
+                        568.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 7,
+                "label": "figure_title",
+                "score": 0.6650944352149963,
+                "coordinate": [
+                    515,
+                    617,
+                    773,
+                    637
+                ],
+                "order": null,
+                "polygon_points": [
+                    [
+                        515.0,
+                        617.0
+                    ],
+                    [
+                        772.0,
+                        617.0
+                    ],
+                    [
+                        772.0,
+                        636.0
+                    ],
+                    [
+                        515.0,
+                        636.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 7,
+                "label": "figure_title",
+                "score": 0.45919477939605713,
+                "coordinate": [
+                    583,
+                    650,
+                    815,
+                    670
+                ],
+                "order": null,
+                "polygon_points": [
+                    [
+                        583.0,
+                        650.0
+                    ],
+                    [
+                        814.0,
+                        650.0
+                    ],
+                    [
+                        814.0,
+                        669.0
+                    ],
+                    [
+                        583.0,
+                        669.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.5156001448631287,
+                "coordinate": [
+                    526,
+                    676,
+                    902,
+                    788
+                ],
+                "order": 9,
+                "polygon_points": [
+                    [
+                        526.0,
+                        676.0
+                    ],
+                    [
+                        902.0,
+                        676.0
+                    ],
+                    [
+                        902.0,
+                        788.0
+                    ],
+                    [
+                        526.0,
+                        788.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 21,
+                "label": "table",
+                "score": 0.08097976446151733,
+                "coordinate": [
+                    533,
+                    763,
+                    897,
+                    786
+                ],
+                "order": null,
+                "polygon_points": [
+                    [
+                        533.0,
+                        763.0
+                    ],
+                    [
+                        897.0,
+                        763.0
+                    ],
+                    [
+                        897.0,
+                        786.0
+                    ],
+                    [
+                        533.0,
+                        786.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9432045817375183,
+                "coordinate": [
+                    514,
+                    823,
+                    919,
+                    956
+                ],
+                "order": 10,
+                "polygon_points": [
+                    [
+                        514.0,
+                        823.0
+                    ],
+                    [
+                        919.0,
+                        823.0
+                    ],
+                    [
+                        919.0,
+                        956.0
+                    ],
+                    [
+                        514.0,
+                        956.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9472207427024841,
+                "coordinate": [
+                    513,
+                    956,
+                    913,
+                    1088
+                ],
+                "order": 11,
+                "polygon_points": [
+                    [
+                        513.0,
+                        956.0
+                    ],
+                    [
+                        913.0,
+                        956.0
+                    ],
+                    [
+                        913.0,
+                        1088.0
+                    ],
+                    [
+                        513.0,
+                        1088.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9573456048965454,
+                "coordinate": [
+                    515,
+                    1089,
+                    918,
+                    1311
+                ],
+                "order": 12,
+                "polygon_points": [
+                    [
+                        515.0,
+                        1089.0
+                    ],
+                    [
+                        918.0,
+                        1089.0
+                    ],
+                    [
+                        918.0,
+                        1311.0
+                    ],
+                    [
+                        515.0,
+                        1311.0
+                    ]
+                ]
+            },
+            {
+                "cls_id": 16,
+                "label": "number",
+                "score": 0.7814051508903503,
+                "coordinate": [
+                    493,
+                    1342,
+                    527,
+                    1361
+                ],
+                "order": 13,
+                "polygon_points": [
+                    [
+                        493.0,
+                        1342.0
+                    ],
+                    [
+                        526.0,
+                        1342.0
+                    ],
+                    [
+                        526.0,
+                        1360.0
+                    ],
+                    [
+                        493.0,
+                        1360.0
+                    ]
+                ]
+            }
+        ]
+    }
+}
