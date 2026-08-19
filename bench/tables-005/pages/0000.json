@@ -1,0 +1,357 @@
+{
+    "input_path": "input.pdf",
+    "page_index": 0,
+    "page_count": 20,
+    "width": 1012,
+    "height": 1466,
+    "model_settings": {
+        "use_doc_preprocessor": false,
+        "use_layout_detection": true,
+        "use_chart_recognition": false,
+        "use_seal_recognition": false,
+        "use_ocr_for_image_block": false,
+        "format_block_content": false,
+        "merge_layout_blocks": true,
+        "markdown_ignore_labels": [
+            "number",
+            "header_image",
+            "footer",
+            "footer_image",
+            "aside_text"
+        ],
+        "return_layout_polygon_points": true
+    },
+    "parsing_res_list": [
+        {
+            "block_label": "image",
+            "block_content": "",
+            "block_bbox": [
+                97,
+                93,
+                473,
+                221
+            ],
+            "block_id": 0,
+            "block_order": null,
+            "group_id": 0
+        },
+        {
+            "block_label": "figure_title",
+            "block_content": "Fig. 26.50 Final alignment of tailstock spindle to bed ways in horizontal plane.",
+            "block_bbox": [
+                89,
+                278,
+                468,
+                317
+            ],
+            "block_id": 1,
+            "block_order": null,
+            "group_id": 1
+        },
+        {
+            "block_label": "table",
+            "block_content": "<table><tr><td colspan=\"3\">RECOMMENDED STANDARDS</td></tr><tr><td>Tool Room</td><td>12&quot; to 18&quot; inc.</td><td>20&quot; to 36&quot; inc.</td></tr><tr><td>lathes</td><td>Engine Lathes</td><td>Engine Lathes</td></tr><tr><td>0 to .0005&quot;</td><td>0 to .0005&quot;</td><td>0 to .0005&quot;</td></tr><tr><td colspan=\"3\">(Forward at end of spindle when fully extended)</td></tr></table>",
+            "block_bbox": [
+                92,
+                331,
+                484,
+                441
+            ],
+            "block_id": 2,
+            "block_order": null,
+            "group_id": 2
+        },
+        {
+            "block_label": "text",
+            "block_content": "It makes no difference where the tail-stock is placed on the ways for these operations, since the bed should now be in perfect condition. Ordinarily, one part of the bed ways is used as the position from which to conduct the alignment tests. Another portion is coated with compound and utilized as a spotting template. This practice increases speed because much clean up time is eliminated.",
+            "block_bbox": [
+                92,
+                503,
+                492,
+                726
+            ],
+            "block_id": 3,
+            "block_order": 1,
+            "group_id": 3
+        },
+        {
+            "block_label": "text",
+            "block_content": "Two consecutive tests are conducted in attaining OBJECTIVE NO. 1. Both utilize the line of travel of the carriage along the bed ways as the medium whereby the axis of the tailstock spindle is tested for parallelism with the outer inverted V-ways of the bed.",
+            "block_bbox": [
+                95,
+                725,
+                493,
+                881
+            ],
+            "block_id": 4,
+            "block_order": 2,
+            "group_id": 4
+        },
+        {
+            "block_label": "text",
+            "block_content": "To expedite the work, the apron is attached to the carriage. It takes but a few minutes, and then the handwheel may be used to move the member. This procedure is preferable to pushing the carriage by hand, because both the speed of traverse and the stopping point are more accurately controlled. (It is unnecessary to mount the lead screw to attach the apron.)",
+            "block_bbox": [
+                97,
+                880,
+                497,
+                1079
+            ],
+            "block_id": 5,
+            "block_order": 3,
+            "group_id": 5
+        },
+        {
+            "block_label": "text",
+            "block_content": "The first test consists of checking whether the axis of the fully extended tail-stock spindle is parallel to the outside inverted V-ways of the bed in the horizontal plane. To conduct the survey a DIAL INDICATOR is mounted on the carriage, or more specifically, on the compound slide rest because this member is provided with a T-slot to which a suitable fixture may be conveniently bolted. The DIAL INDICATOR is positioned to bear against the near side of the extended spindle at the horizon-",
+            "block_bbox": [
+                100,
+                1080,
+                510,
+                1346
+            ],
+            "block_id": 6,
+            "block_order": 4,
+            "group_id": 6
+        },
+        {
+            "block_label": "text",
+            "block_content": "tal diameter. (The tailstock spindle is clamped in the fully extended position.) To obtain a reading, the carriage is moved along the bed ways. The alignment of the tailstock spindle in the horizontal plane is considered acceptable if the unilateral tolerance indicated in Fig. 26.51 is not exceeded.",
+            "block_bbox": [
+                510,
+                78,
+                918,
+                256
+            ],
+            "block_id": 7,
+            "block_order": 5,
+            "group_id": 7
+        },
+        {
+            "block_label": "text",
+            "block_content": "The second test consists of checking whether the axis of the fully extended tailstock spindle is parallel to the outer inverted V-ways of the bed, in the vertical plane. The spindle remains in the same fully extended position occupied for the previous test, but now the DIAL INDICATOR is adjusted so as to ride the top of the spindle at the vertical diameter. By moving the carriage on the inverted V-ways of the bed another reading can be taken. The alignment of the tailstock spindle in the vertical plane is acceptable if the unilateral tolerance shown in Fig. 26.51 is not exceeded.",
+            "block_bbox": [
+                512,
+                255,
+                911,
+                587
+            ],
+            "block_id": 8,
+            "block_order": 6,
+            "group_id": 8
+        },
+        {
+            "block_label": "text",
+            "block_content": "In the recommended standards of both tests, working pressure is a factor. For example, in testing horizontally, it is the pressure of the tool against the work during a cut which must be taken into account. When testing vertically, it is the weight of the work piece for which allowance is made. If the unilateral tolerance is exceeded in either test, then the V-slide (1) and the flat slide (2) of the tailstock shown in Fig. 26.44 must be scraped so that the new alignment will conform to the tolerances given.",
+            "block_bbox": [
+                516,
+                586,
+                922,
+                875
+            ],
+            "block_id": 9,
+            "block_order": 7,
+            "group_id": 9
+        },
+        {
+            "block_label": "text",
+            "block_content": "After determining the amount of error and its direction, the tailstock is removed to the portion of the bed ways reserved for spotting purposes. In doing this, the member must not be slid. Instead, it should be lifted and then placed carefully on the coated portion of the ways. Transfer of the film is made in the usual manner.",
+            "block_bbox": [
+                519,
+                875,
+                931,
+                1051
+            ],
+            "block_id": 10,
+            "block_order": 8,
+            "group_id": 10
+        },
+        {
+            "block_label": "text",
+            "block_content": "Scraping is most efficiently performed at a work bench. Before beginning this operation, a little reflection should enable the operator to determine how to scrape the tailstock V-slide so as to 'throw' the axis of the spindle in the proper direction, thereby correcting the error disclosed in the two tests. The amount of metal to be removed from the tailstock slides at this time should be slight, since all the OBJECTIVES, previously prescribed for these surfaces, have been designed so that only a light touching up would be necessary during the Final Alignment.",
+            "block_bbox": [
+                521,
+                1052,
+                935,
+                1362
+            ],
+            "block_id": 11,
+            "block_order": 9,
+            "group_id": 11
+        },
+        {
+            "block_label": "number",
+            "block_content": "296",
+            "block_bbox": [
+                496,
+                1367,
+                532,
+                1386
+            ],
+            "block_id": 12,
+            "block_order": null,
+            "group_id": 12
+        }
+    ],
+    "layout_det_res": {
+        "input_path": null,
+        "page_index": null,
+        "boxes": [
+            {
+                "cls_id": 14,
+                "label": "image",
+                "score": 0.9578800797462463,
+                "coordinate": [
+                    97,
+                    93,
+                    473,
+                    221
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 7,
+                "label": "figure_title",
+                "score": 0.686832845211029,
+                "coordinate": [
+                    89,
+                    278,
+                    468,
+                    317
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 21,
+                "label": "table",
+                "score": 0.46840494871139526,
+                "coordinate": [
+                    92,
+                    331,
+                    484,
+                    441
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.987779438495636,
+                "coordinate": [
+                    92,
+                    503,
+                    492,
+                    726
+                ],
+                "order": 1
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.986524224281311,
+                "coordinate": [
+                    95,
+                    725,
+                    493,
+                    881
+                ],
+                "order": 2
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9867348670959473,
+                "coordinate": [
+                    97,
+                    880,
+                    497,
+                    1079
+                ],
+                "order": 3
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9866325259208679,
+                "coordinate": [
+                    100,
+                    1080,
+                    510,
+                    1346
+                ],
+                "order": 4
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9865561723709106,
+                "coordinate": [
+                    510,
+                    78,
+                    918,
+                    256
+                ],
+                "order": 5
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.98823082447052,
+                "coordinate": [
+                    512,
+                    255,
+                    911,
+                    587
+                ],
+                "order": 6
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9880728125572205,
+                "coordinate": [
+                    516,
+                    586,
+                    922,
+                    875
+                ],
+                "order": 7
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9860352277755737,
+                "coordinate": [
+                    519,
+                    875,
+                    931,
+                    1051
+                ],
+                "order": 8
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9872404932975769,
+                "coordinate": [
+                    521,
+                    1052,
+                    935,
+                    1362
+                ],
+                "order": 9
+            },
+            {
+                "cls_id": 16,
+                "label": "number",
+                "score": 0.9085129499435425,
+                "coordinate": [
+                    496,
+                    1367,
+                    532,
+                    1386
+                ],
+                "order": 10
+            }
+        ]
+    }
+}

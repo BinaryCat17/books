@@ -22,6 +22,19 @@ PAYLOAD_GB = 7.2
 # и прогрев модели.  На более медленном хосте вырастало до 374 с.
 WARMUP_S = 65.0
 
+# Порог детекции таблиц.  Умолчание paddlex — 0.5, и на нём теряется
+# большинство таблиц без линеек: RT-DETR предлагает для одной области
+# несколько кандидатов, и таблица проигрывает тексту по уверенности.
+# Замер на двадцати страницах книги, где такие таблицы есть:
+#
+#   порог 0.5   3 таблицы,  31 ячейка
+#   порог 0.2   6 таблиц,   65 ячеек
+#   порог 0.05  9 таблиц,  127 ячеек
+#
+# Все новые таблицы проверены вручную — настоящие, единицы верные, ложных
+# нет.  Текст при этом не изменился: -114 знаков из 46 тысяч, то есть шум.
+TABLE_THRESHOLD = 0.05
+
 # Отдельного образа под Blackwell (sm_120) больше не нужно: раньше он был
 # из-за колёс paddlepaddle-gpu под cu126, а детекция уехала на ONNX Runtime.
 
@@ -30,6 +43,8 @@ def spec(pdf: str, gpu: str = "RTX_4090", image: str | None = None,
          disk_gb: int = 60, max_dph: float = 0.60,
          machine_id: int | None = None,
          table_threshold: float | None = None) -> JobSpec:
+    if table_threshold is None:
+        table_threshold = TABLE_THRESHOLD
     host = HostReq(gpu=gpu, disk_gb=disk_gb, max_dph=max_dph,
                    machine_id=machine_id)
     # Колёса torch — под CUDA 13, а значит нужен драйвер 580+.
