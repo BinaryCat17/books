@@ -159,10 +159,25 @@ class Vast:
         raise RuntimeError(f"инстанс {iid} не поднялся за {timeout:.0f}с")
 
     def ssh_target(self, iid: int) -> tuple[str, str, str]:
+        """Адрес машины: сначала прямой, прокси — запасной.
+
+        `ssh_url` отдаёт прокси sshN.vast.ai, и он подводит: туннель до
+        контейнера иногда не поднимается вовсе — "remote port forwarding
+        failed for listen port", притом что прямой порт при этом отвечает.
+        Прямой ещё и быстрее: rsync с результатом не идёт через ретранслятор.
+        """
+        inst = self.instance(iid) or {}
+        ip = inst.get("public_ipaddr")
+        mapped = (inst.get("ports") or {}).get("22/tcp") or []
+        port = mapped[0].get("HostPort") if mapped else None
+        if ip and port:
+            return "root", str(ip).strip(), str(port)
+
         url = str(self.v.ssh_url(id=int(iid))).strip()
         m = re.match(r"ssh://(\w+)@([\w\.\-]+):(\d+)", url)
         if not m:
             raise RuntimeError(f"не разбирается ssh-url: {url!r}")
+        log("  прямого адреса нет — иду через прокси vast")
         return m.groups()  # user, host, port
 
     # ------------------------------------------------------------ уничтожение

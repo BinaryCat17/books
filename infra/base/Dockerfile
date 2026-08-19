@@ -16,12 +16,21 @@ FROM debian:12-slim
 # rsync нужен транспорту результатов, zstd — распаковке доставленного.
 # Ставим здесь, а не в onstart: apt по сети при каждом старте — те же
 # полминуты, которые мы и пытаемся сэкономить.
+#
+# libgl1 и libglib2.0-0 — для opencv, который тянет за собой paddlex:
+# колесо cv2 линкуется на системный libGL, и без него импорт paddleocr
+# падает с "ImportError: libGL.so.1". В прежнем образе на Ubuntu эти
+# библиотеки были заодно с CUDA, в чистом Debian их нет.
+# libgomp1 — OpenMP, на него линкуются numpy и paddle.
 RUN apt-get update -qq \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
       rsync \
       zstd \
       curl \
       ca-certificates \
+      libgl1 \
+      libglib2.0-0 \
+      libgomp1 \
  && rm -rf /var/lib/apt/lists/*
 
 # vast сам ставит в достроенный образ openssh и сам кладёт туда ключ — но
