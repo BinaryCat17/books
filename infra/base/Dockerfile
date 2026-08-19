@@ -22,6 +22,8 @@ FROM debian:12-slim
 # падает с "ImportError: libGL.so.1". В прежнем образе на Ubuntu эти
 # библиотеки были заодно с CUDA, в чистом Debian их нет.
 # libgomp1 — OpenMP, на него линкуются numpy и paddle.
+# gcc с libc6-dev — для triton: он компилирует ядра на лету, и без
+# компилятора vLLM не стартует вовсе ("Failed to find C compiler").
 RUN apt-get update -qq \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
       rsync \
@@ -31,6 +33,8 @@ RUN apt-get update -qq \
       libgl1 \
       libglib2.0-0 \
       libgomp1 \
+      gcc \
+      libc6-dev \
  && rm -rf /var/lib/apt/lists/*
 
 # vast сам ставит в достроенный образ openssh и сам кладёт туда ключ — но

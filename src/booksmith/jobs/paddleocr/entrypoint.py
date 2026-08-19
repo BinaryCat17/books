@@ -74,6 +74,51 @@ def _done_pages(pages_dir: str) -> set[int]:
     return got
 
 
+def _deep_update(base, extra):
+    for k, v in extra.items():
+        if isinstance(v, dict) and isinstance(base.get(k), dict):
+            _deep_update(base[k], v)
+        else:
+            base[k] = v
+    return base
+
+
+def _layout_on_onnx(layout_dir):
+    """Конфигурация пайплайна с детекцией макета на ONNX Runtime.
+
+    Ключ `engine` внутри подмодуля имеет наивысший приоритет (paddlex
+    resolve_child_engine), а выход совпадает с paddle побитово: замер на 82
+    рамках дал IoU 1.0000 и расхождение координат 0.00 пикселя при втрое
+    большей скорости.  Заодно из окружения уходит GPU-сборка paddle на
+    3.69 ГБ.
+    """
+    from paddlex.inference import load_pipeline_config
+
+    # Имя конфигурации зависит от версии пайплайна; у paddleocr 3.7 по
+    # умолчанию v1.6.  Если однажды переименуют — откатываемся на v1.
+    for name in ("PaddleOCR-VL-1.6", "PaddleOCR-VL"):
+        try:
+            cfg = load_pipeline_config(name)
+            break
+        except Exception:
+            cfg = None
+    if cfg is None:
+        raise SystemExit("не нашлась конфигурация пайплайна PaddleOCR-VL")
+
+    return _deep_update(cfg, {
+        "SubModules": {
+            "LayoutDetection": {
+                "module_name": "layout_detection",
+                "model_name": os.environ.get("LAYOUT_MODEL_NAME",
+                                             "PP-DocLayoutV2"),
+                "model_dir": layout_dir,
+                "engine": "onnxruntime",
+                "batch_size": 8,
+            }
+        }
+    })
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--pdf", required=True)
@@ -117,18 +162,12 @@ def main():
     # скорости. Заодно из образа уходит GPU-сборка paddle на 3.69 ГБ.
     layout_dir = os.environ.get("LAYOUT_MODEL_DIR", "")
     if layout_dir and _is_onnx_dir(layout_dir):
-        kwargs["paddlex_config"] = {
-            "SubModules": {
-                "LayoutDetection": {
-                    "module_name": "layout_detection",
-                    "model_name": os.environ.get("LAYOUT_MODEL_NAME",
-                                                 "PP-DocLayoutV2"),
-                    "model_dir": layout_dir,
-                    "engine": "onnxruntime",
-                    "batch_size": 8,
-                }
-            }
-        }
+        # paddlex_config словарём НЕ сливается с конфигурацией по умолчанию:
+        # в paddleocr/_pipelines/base.py это буквально `config =
+        # self._paddlex_config`, то есть подмена целиком.  Передать один
+        # подмодуль нельзя — пайплайн остаётся без `pipeline_name` и падает
+        # с KeyError.  Поэтому берём конфигурацию сами и сливаем в неё.
+        kwargs["paddlex_config"] = _layout_on_onnx(layout_dir)
         _log(f"детекция макета: ONNX Runtime, веса из {layout_dir}")
     elif layout_dir:
         _log(f"в {layout_dir} нет inference.onnx — детекция остаётся на paddle")
