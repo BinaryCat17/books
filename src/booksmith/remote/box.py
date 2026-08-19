@@ -137,27 +137,35 @@ class Box:
             return 0.0
         return got * 8 / 1e6 / dt
 
-    def probe_download(self, mb: int = 8, timeout: float = 30.0) -> float:
-        """Сколько Мбит/с машина вытягивает С PyPI — не с нас, а из мира.
+    def probe_download(self, mb: int = 12, streams: int = 6,
+                       timeout: float = 40.0) -> float:
+        """Сколько Мбит/с машина вытягивает из мира, В НЕСКОЛЬКО ПОТОКОВ.
 
-        Проверять только путь до себя мало: по нему едут входной файл и
-        результат, а окружение (семь гигабайт колёс и весов) машина тянет
-        сама.  Замер: хост с каналом 7 Мбит/с до нас прошёл проверку и потом
-        одиннадцать минут ставил колёса, потому что с PyPI у него было тоже
-        плохо.  Здоровые машины дают тут 600-1100 Мбит/с.
+        Потоков несколько намеренно: uv качает колёса в десятки соединений,
+        и однопоточный замер с этим не связан вовсе.  Первая версия зонда
+        мерила один поток на 8 МБ — почти сплошной разгон TCP — и дала
+        обратную зависимость: 154 Мбит/с на машине, где колёса встали за
+        104 с, и 307 на машине, где те же колёса заняли 277 с.
 
-        Берём кусок реального колеса — те же серверы, что и при работе.
+        Число пока только записывается в журнал.  Порог для отбраковки
+        поставим, когда наберётся достаточно пар «зонд — время колёс»:
+        ставить его по двум точкам — это ровно та ошибка, что уже была.
         """
         url = ("https://files.pythonhosted.org/packages/source/n/numpy/"
                "numpy-2.2.0.tar.gz")
+        chunk = mb * 1024 * 1024
         # -L обязателен: pythonhosted отвечает 302 на этот путь, и без него
         # curl молча скачивает ноль байт, а машина выглядит сломанной.
-        cmd = (f"curl -sSL -o /dev/null --max-time {int(timeout)} "
-               f"-r 0-{mb * 1024 * 1024 - 1} -w '%{{speed_download}}' {url}")
+        parts = " ".join(
+            f"curl -sSL -o /dev/null --max-time {int(timeout)} "
+            f"-r {i * chunk}-{(i + 1) * chunk - 1} {url} &"
+            for i in range(streams))
+        cmd = (f"S=$(date +%s%N); {parts} wait; E=$(date +%s%N); "
+               f"echo $(( {chunk * streams} * 8000 / (E - S) ))")
         rc, out = self.run(cmd, stream=False,
-                           deadline=time.time() + timeout + 15)
+                           deadline=time.time() + timeout + 20)
         try:
-            return float(out.strip().splitlines()[-1]) * 8 / 1e6
+            return float(out.strip().splitlines()[-1])
         except Exception:
             return 0.0
 
