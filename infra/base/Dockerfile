@@ -22,8 +22,9 @@ FROM debian:12-slim
 # падает с "ImportError: libGL.so.1". В прежнем образе на Ubuntu эти
 # библиотеки были заодно с CUDA, в чистом Debian их нет.
 # libgomp1 — OpenMP, на него линкуются numpy и paddle.
-# gcc с libc6-dev — для triton: он компилирует ядра на лету, и без
-# компилятора vLLM не стартует вовсе ("Failed to find C compiler").
+# gcc, g++ и libc6-dev — для triton и flashinfer: оба компилируют ядра на
+# лету.  Одного gcc мало, ядра на C++: nvcc зовёт хост-компилятор и падает
+# на "cannot execute cc1plus".
 RUN apt-get update -qq \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
       rsync \
@@ -34,6 +35,7 @@ RUN apt-get update -qq \
       libglib2.0-0 \
       libgomp1 \
       gcc \
+      g++ \
       libc6-dev \
  && rm -rf /var/lib/apt/lists/*
 

@@ -27,6 +27,20 @@ export PADDLE_PDX_MODEL_SOURCE=huggingface
 # Веса лежат распакованным каталогом, поэтому vLLM получает путь, а не имя.
 SERVE_MODEL="${VL_MODEL_DIR:-$MODEL}"
 
+# flashinfer компилирует ядра на лету и ищет CUDA по CUDA_HOME, иначе по
+# /usr/local/cuda — которого у нас нет, CUDA приезжает колёсами.  Без этого
+# vLLM не стартует: "Could not find nvcc and default cuda_home ... doesn't
+# exist".  Ищем nvcc на месте, а не прописываем путь: раскладка колёс NVIDIA
+# уже менялась (сейчас это nvidia/cu13/bin/nvcc).
+NVCC=$(find /opt/env -type f -name nvcc -perm -u+x 2>/dev/null | head -1)
+if [ -n "$NVCC" ]; then
+  export CUDA_HOME="$(dirname "$(dirname "$NVCC")")"
+  export PATH="$CUDA_HOME/bin:$PATH"
+  log "CUDA_HOME=$CUDA_HOME"
+else
+  log "nvcc не найден — flashinfer, скорее всего, не соберёт ядра"
+fi
+
 log "=== окружение ==="
 nvidia-smi --query-gpu=name,memory.total,driver_version,compute_cap \
            --format=csv,noheader || log "nvidia-smi недоступен"
@@ -60,9 +74,18 @@ if python -c "import vllm" 2>/dev/null; then
       sleep 1
   done
 else
-  log "vllm в образе нет -> считаю в процессе (медленно)"
+  log "vllm не установился -> считать нечем"
 fi
-[ "$SERVER_UP" = 0 ] && log "работаю без сервиса vLLM"
+
+# Раньше здесь был откат на счёт VLM в процессе.  Он невозможен: paddle у нас
+# CPU-сборки (GPU-сборка тянет 3.69 ГБ и не нужна, детекция ушла на ONNX), а
+# doc_vlm требует gpu:0 и падает с "PaddlePaddle is not compiled with CUDA".
+# Лучше сказать честно и сразу, чем считать 25 страниц ради этой же ошибки.
+if [ "$SERVER_UP" = 0 ]; then
+  log "vLLM не поднялся — считать нечем, выхожу"
+  log "=== хвост vllm.log ==="; tail -60 "$OUT/vllm.log" 2>/dev/null
+  exit 1
+fi
 
 SERVER_URL=""
 [ "$SERVER_UP" = 1 ] && SERVER_URL="http://127.0.0.1:$PORT/v1"   # /v1 обязателен
