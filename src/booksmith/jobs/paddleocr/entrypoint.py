@@ -86,44 +86,54 @@ def _deep_update(base, extra):
 
 
 def _prefer_tables_over_text():
-    """Не отдавать таблицу текстовой рамке при их перекрытии.
+    """В паре {таблица, текст} побеждает таблица, а не рамка побольше.
 
     Это правка чужого кода на месте, и вот чем она оправдана.  Детектор
-    предлагает для блока сразу несколько классов, и у таблиц без линеек
+    предлагает для блока несколько классов сразу, и у таблиц без линеек
     текстовый кандидат почти всегда увереннее: на странице 307 три блока
     "RECOMMENDED STANDARDS" получили table 0.70 против text 0.78.  Понижение
     порога делает рамку table доступной — но дальше её убивает
-    `filter_overlap_boxes` из paddlex: при перекрытии больше 0.7 пара
-    {table, text} проваливается мимо всех защит и побеждает та рамка, что
-    больше по площади.  Текстовая рамка накрывает блок целиком и потому
-    больше почти всегда.
+    `filter_overlap_boxes` из paddlex.  Там при перекрытии больше 0.7 есть
+    защиты для пар вроде {table, image}, а пара {table, text} проваливается
+    мимо них, и побеждает рамка с большей площадью.  Текстовая накрывает
+    блок целиком и потому больше почти всегда.
 
-    Замерено на двадцати страницах: детектор даёт 20 рамок table, фильтр
-    съедает 6 из них — и каждый раз победителем оказывается text, крупнее
-    таблицы в 1.4–4.5 раза.
+    Замер на двадцати страницах: детектор даёт 20 рамок table, штатный
+    фильтр оставляет 10, в markdown доезжает 9.
 
-    Меняем ровно одно: в паре {table, text} побеждает таблица независимо от
-    площади.  Текст при этом не теряется — область всё равно уезжает в VLM,
-    просто с табличной подсказкой.
+    Меняется ровно одна ветка: если в паре есть таблица, а вторая рамка не
+    из {image, seal, chart}, выбывает вторая — независимо от площади.
+    Побочный эффект тут желанный: убрав текстовую рамку, мы иногда спасаем и
+    те рамки, которые она давила сама.  Всё остальное — включая разбор таблицы с
+    таблицей по площади — остаётся как в paddlex.  Первая версия правки была
+    хитрее: она возвращала все съеденные рамки скопом, а потом пыталась
+    отсеять дубли по перекрытию.  Обе половины ошиблись — без отсева
+    страница 307 дала пять таблиц вместо трёх (две обрубки), с отсевом две
+    соседние таблицы слиплись в одну.  Поэтому правка минимальная.
+
+    Текст при этом не теряется: область всё равно уезжает в VLM, просто с
+    табличной подсказкой.
     """
+    from copy import deepcopy
+
     from paddlex.inference.pipelines.paddleocr_vl import pipeline as _p
 
     orig = _p.filter_overlap_boxes
+    hard = ("table", "image", "seal", "chart")
 
     def patched(layout_det_res, layout_shape_mode):
-        res = orig(layout_det_res, layout_shape_mode)
-        kept = res["boxes"]
-        tables = [b for b in layout_det_res["boxes"] if b["label"] == "table"]
-        if not tables:
-            return res
+        # Многоугольники не разбираем — уточнение перекрытия по ним живёт
+        # внутри paddlex.  У нас рамки прямоугольные; если однажды станут
+        # другими, честнее отдать всё штатной функции, чем угадывать.
+        if layout_shape_mode != "rect":
+            return orig(layout_det_res, layout_shape_mode)
 
-        def ident(b):
-            return (b["label"], tuple(b["coordinate"]))
+        res = deepcopy(layout_det_res)
+        boxes = [b for b in res["boxes"] if b["label"] != "reference"]
 
-        alive = {ident(b) for b in kept}
-        lost = [t for t in tables if ident(t) not in alive]
-        if not lost:
-            return res
+        def wh(b):
+            c = b["coordinate"]
+            return c[2] - c[0], c[3] - c[1]
 
         def overlap_small(a, b):
             x0 = max(a[0], b[0]); y0 = max(a[1], b[1])
@@ -132,26 +142,40 @@ def _prefer_tables_over_text():
             sa = max(0.0, a[2] - a[0]) * max(0.0, a[3] - a[1])
             sb = max(0.0, b[2] - b[0]) * max(0.0, b[3] - b[1])
             small = min(sa, sb)
-            return i / small if small else 0.0
+            return (i / small if small else 0.0), sa, sb
 
-        # Возвращать всё подряд нельзя: штатный фильтр давит и перекрытие
-        # таблицы с таблицей, а RT-DETR выдаёт на один блок несколько
-        # почти совпадающих рамок.  Без этой проверки страница 11 дала пять
-        # таблиц вместо трёх — две из них обрубки первых двух.
-        # Поэтому идём от уверенных к неуверенным и пропускаем те, что
-        # накладываются на уже принятую таблицу.
-        for t in sorted(lost, key=lambda b: -float(b.get("score") or 0)):
-            if any(b["label"] == "table"
-                   and overlap_small(t["coordinate"], b["coordinate"]) > 0.7
-                   for b in kept):
-                continue
-            # Съевшую текстовую рамку убираем: иначе одна и та же область
-            # уедет в VLM дважды и попадёт в markdown и текстом, и таблицей.
-            kept = [b for b in kept
-                    if not (b["label"] not in ("table", "image", "seal", "chart")
-                            and overlap_small(t["coordinate"], b["coordinate"]) > 0.7)]
-            kept.append(t)
-        res["boxes"] = kept
+        dropped = set()
+        for i in range(len(boxes)):
+            w, h = wh(boxes[i])
+            if w < 6 or h < 6:
+                dropped.add(i)
+            for j in range(i + 1, len(boxes)):
+                if i in dropped or j in dropped:
+                    continue
+                ratio, ai, aj = overlap_small(boxes[i]["coordinate"],
+                                              boxes[j]["coordinate"])
+                li, lj = boxes[i]["label"], boxes[j]["label"]
+                if "inline_formula" in (li, lj):
+                    if ratio > 0.5:
+                        if li == "inline_formula":
+                            dropped.add(i)
+                        if lj == "inline_formula":
+                            dropped.add(j)
+                        continue
+                if ratio <= 0.7:
+                    continue
+                labels = {li, lj}
+                if labels & set(hard) and len(labels) > 1:
+                    if "table" not in labels or labels <= set(hard):
+                        continue          # как в paddlex: обе рамки живут
+                    # Ровно наша правка: таблица против любой рамки, кроме
+                    # image/seal/chart — то есть против text, figure_title,
+                    # algorithm и прочих.  Площадь больше не решает.
+                    dropped.add(j if li == "table" else i)
+                    continue
+                dropped.add(j if ai >= aj else i)
+
+        res["boxes"] = [b for k, b in enumerate(boxes) if k not in dropped]
         return res
 
     _p.filter_overlap_boxes = patched
