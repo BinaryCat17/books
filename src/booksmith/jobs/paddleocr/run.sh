@@ -64,14 +64,19 @@ if python -c "import vllm" 2>/dev/null; then
   # нужен обычный, а заодно уходит компиляция ядер из времени старта.
   export VLLM_USE_FLASHINFER_SAMPLER=0
   # По умолчанию vLLM забирает 90% видеопамяти, и детекции макета не
-  # остаётся: ONNX Runtime падает на "Failed to allocate memory for
-  # requested buffer of size 430080000".  Модель на 0.9B и в 0.75 от 24 ГБ
-  # помещается с огромным запасом по KV-кешу.
+  # остаётся.  Но и 0.75 мало: ONNX Runtime держит арену в 5.41 ГБ (замерено
+  # дважды, с батчем детектора 4 и 64 — цифра одна и та же, арена растёт
+  # жадно и от батча почти не зависит), vLLM берёт 18.02 ГБ, вместе это
+  # 23.43 из 23.52 ГБ карты, и падает уже сам vLLM:
+  #   torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 134.00 MiB
+  # С PP-DocLayoutV2 те же 0.75 проходили — арена V3 просто больше.
+  # 0.60 оставляет детекции 9 ГБ.  KV-кеш при этом ~11 ГБ на модель в 0.9B —
+  # всё ещё несуразно много, узким местом он не станет.
   nohup vllm serve "$SERVE_MODEL" --trust-remote-code \
         --served-model-name "$MODEL" \
         --host 127.0.0.1 --port "$PORT" \
         --max-num-batched-tokens 16384 \
-        --gpu-memory-utilization 0.75 \
+        --gpu-memory-utilization 0.60 \
         --no-enable-prefix-caching --mm-processor-cache-gb 0 \
         > "$OUT/vllm.log" 2>&1 &
   SRV=$!
