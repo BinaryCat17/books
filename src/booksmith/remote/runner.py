@@ -213,6 +213,8 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
             rec.per_tb = float(offer.get("internet_down_cost_per_tb") or 0)
             rec.inet_down_adv = float(offer.get("inet_down") or 0)
             rec.disk_bw = float(offer.get("disk_bw") or 0)
+            rec.cpu_cores = float(offer.get("cpu_cores_effective") or 0)
+            rec.cpu_ghz = float(offer.get("cpu_ghz") or 0)
             log(f"снимаю #{offer['id']} за ${dph:.3f}/час, диск {spec.host.disk_gb} ГБ")
 
             budget_pre = Budget(spec, dph)
