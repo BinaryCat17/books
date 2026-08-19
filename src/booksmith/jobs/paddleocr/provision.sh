@@ -31,7 +31,11 @@ step() {
 }
 
 step "python" uv python install 3.12
-step "окружение" uv venv "$ENVDIR" --python 3.12
+# --allow-existing обязателен: на прогретой машине (--reuse, или та же
+# машина под тем же тегом) каталог уже есть, и uv без этого флага падает с
+# "A virtual environment already exists at: /opt/env", то есть ровно на том
+# сценарии, ради которого скрипт и писался идемпотентным.
+step "окружение" uv venv "$ENVDIR" --python 3.12 --allow-existing
 
 export VIRTUAL_ENV="$ENVDIR"
 export PATH="$ENVDIR/bin:$PATH"
