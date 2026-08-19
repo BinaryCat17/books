@@ -85,8 +85,8 @@ def _deep_update(base, extra):
     return base
 
 
-def _layout_on_onnx(layout_dir):
-    """Конфигурация пайплайна с детекцией макета на ONNX Runtime.
+def _pipeline_config(layout_dir):
+    """Конфигурация пайплайна: детекция на ONNX Runtime и пачки страниц.
 
     Ключ `engine` внутри подмодуля имеет наивысший приоритет (paddlex
     resolve_child_engine), а выход совпадает с paddle побитово: замер на 82
@@ -108,6 +108,10 @@ def _layout_on_onnx(layout_dir):
         raise SystemExit("не нашлась конфигурация пайплайна PaddleOCR-VL")
 
     return _deep_update(cfg, {
+        # Страницы подаются пачками, а не по одной: чем больше пачка, тем
+        # больше блоков уходит к vLLM одновременно и тем плотнее он их
+        # батчит.  Умолчание — 1, и карта простаивает между страницами.
+        "batch_size": 4,
         "SubModules": {
             "LayoutDetection": {
                 "module_name": "layout_detection",
@@ -216,7 +220,7 @@ def main():
         # self._paddlex_config`, то есть подмена целиком.  Передать один
         # подмодуль нельзя — пайплайн остаётся без `pipeline_name` и падает
         # с KeyError.  Поэтому берём конфигурацию сами и сливаем в неё.
-        kwargs["paddlex_config"] = _layout_on_onnx(layout_dir)
+        kwargs["paddlex_config"] = _pipeline_config(layout_dir)
         _log(f"детекция макета: ONNX Runtime, веса из {layout_dir}")
     elif layout_dir:
         _log(f"в {layout_dir} нет inference.onnx — детекция остаётся на paddle")
@@ -230,6 +234,15 @@ def main():
     # повторяются из страницы в страницу, и это видно после прогона
     # (см. _strip_running_headers).  `number` остаётся в списке — это
     # номера страниц, все 24 из 25.
+    # Конвейер вместо последовательности.  Замер: 25 страниц за 98 с при
+    # 409 запросах к vLLM (по одному на распознанный блок, 16 на страницу),
+    # причём карта между ними простаивала — в статистике vLLM `Running: 0
+    # reqs` и KV-кеш 0.0%.  Узкое место не карта, а то, что чтение страницы,
+    # детекция макета и VLM шли строго по очереди.
+    #
+    # use_queues ставит между ними очереди и отдельные потоки, так что
+    # детекция следующей страницы идёт, пока считается текущая.
+    kwargs["use_queues"] = True
     kwargs["markdown_ignore_labels"] = [
         "number", "header_image", "footer", "footer_image", "aside_text",
     ]

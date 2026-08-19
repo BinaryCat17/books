@@ -34,6 +34,7 @@ class Run:
     # Пишем его, чтобы выбирать по замеру, а не по догадке.
     cpu_cores: float = 0.0
     cpu_ghz: float = 0.0
+    link_mbps: float = 0.0         # ЗАМЕРЕННЫЙ канал до нас, не заявленный
     image_gb: float = 0.0
 
     started: float = field(default_factory=time.time)

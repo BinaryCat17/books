@@ -188,6 +188,75 @@ def execute(box: Box, spec: JobSpec, outdir: str,
     return rc
 
 
+# Ниже этого машина непригодна: заявленные хостом мегабиты — про его
+# собственный доступ в интернет, а не про путь до нас.  Замер: машина с
+# обещанными 1188 Мбит/с приняла 3.5 МБ входного файла за семь с половиной
+# минут, то есть 62 кбит/с.  Пятнадцать минут аренды ушли впустую.
+MIN_LINK_MBPS = 25.0
+MAX_ATTEMPTS = 3
+
+
+def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
+          rec, guards: list, t0: float):
+    """Снять машину, дождаться ssh и проверить канал до неё.
+
+    Плохая машина отсеивается здесь за двадцать секунд, а не через пятнадцать
+    минут на заливке входных файлов.  У каждой попытки свой сторож: сторож от
+    брошенной попытки нельзя оставлять живым, иначе он дождётся своего
+    дедлайна и уничтожит уже следующую, чужую машину.
+    """
+    avoid: list[int] = []
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        offer = vast.pick(spec.host, spec.image_gb, spec.minutes, _warm(spec),
+                          payload_gb=spec.payload_gb, warmup_s=spec.warmup_s,
+                          avoid=avoid)
+        dph = float(offer["dph_total"])
+        rec.offer_id = int(offer["id"])
+        rec.machine_id = offer.get("machine_id")
+        rec.per_tb = float(offer.get("internet_down_cost_per_tb") or 0)
+        rec.inet_down_adv = float(offer.get("inet_down") or 0)
+        rec.disk_bw = float(offer.get("disk_bw") or 0)
+        rec.cpu_cores = float(offer.get("cpu_cores_effective") or 0)
+        rec.cpu_ghz = float(offer.get("cpu_ghz") or 0)
+        log(f"снимаю #{offer['id']} за ${dph:.3f}/час, диск {spec.host.disk_gb} ГБ"
+            + (f" (попытка {attempt})" if attempt > 1 else ""))
+
+        guard = threading.Event()
+        guards.append(guard)
+        budget = Budget(spec, dph)
+        threading.Thread(target=_watchdog,
+                         args=(vast, lambda: state["iid"], budget, guard),
+                         daemon=True).start()
+
+        def _remember(new_id: int):
+            state["iid"] = new_id
+            rec.instance_id = new_id
+
+        vast.create(int(offer["id"]), spec, on_created=_remember)
+        if ssh_key:
+            vast.attach_key(state["iid"], ssh_key)
+
+        log(budget.describe())
+        log("жду выкачивания образа и старта контейнера...")
+        box = connect(vast, state["iid"], spec, ssh_key)
+
+        link = box.probe()
+        rec.link_mbps = link
+        if link >= MIN_LINK_MBPS:
+            log(f"канал до машины: {link:.0f} Мбит/с")
+            return box, dph, budget
+
+        log(f"канал до машины всего {link:.0f} Мбит/с "
+            f"(нужно от {MIN_LINK_MBPS:.0f}) — беру другую")
+        vast.destroy(int(state["iid"]))
+        state["iid"] = None
+        guard.set()
+        avoid.append(offer.get("machine_id"))
+
+    raise RuntimeError(f"за {MAX_ATTEMPTS} попытки не нашлось машины "
+                       f"с каналом от {MIN_LINK_MBPS:.0f} Мбит/с")
+
+
 def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
             keep: bool = False, reuse: int | None = None,
             dry_run: bool = False) -> int:
@@ -218,55 +287,28 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
         return 0
 
     os.makedirs(outdir, exist_ok=True)
+    guards: list[threading.Event] = []
     try:
         if reuse:
             log(f"переиспользую инстанс {reuse} — холодного старта нет")
             inst = vast.instance(reuse) or {}
             dph = float(inst.get("dph_total") or 0.5)
             rec.instance_id, rec.machine_id = reuse, inst.get("machine_id")
-        else:
-            warm = _warm(spec)
-            offer = vast.pick(spec.host, spec.image_gb, spec.minutes, warm,
-                              payload_gb=spec.payload_gb,
-                              warmup_s=spec.warmup_s)
-            dph = float(offer["dph_total"])
-            rec.offer_id = int(offer["id"])
-            rec.machine_id = offer.get("machine_id")
-            rec.per_tb = float(offer.get("internet_down_cost_per_tb") or 0)
-            rec.inet_down_adv = float(offer.get("inet_down") or 0)
-            rec.disk_bw = float(offer.get("disk_bw") or 0)
-            rec.cpu_cores = float(offer.get("cpu_cores_effective") or 0)
-            rec.cpu_ghz = float(offer.get("cpu_ghz") or 0)
-            log(f"снимаю #{offer['id']} за ${dph:.3f}/час, диск {spec.host.disk_gb} ГБ")
-
-            budget_pre = Budget(spec, dph)
-            threading.Thread(target=_watchdog,
-                             args=(vast, lambda: state["iid"], budget_pre, done),
-                             daemon=True).start()
-
-            def _remember(new_id: int):
-                state["iid"] = new_id
-                rec.instance_id = new_id
-
-            vast.create(int(offer["id"]), spec, on_created=_remember)
-            if ssh_key:
-                vast.attach_key(state["iid"], ssh_key)
-
-        iid = state["iid"]
-        budget = Budget(spec, dph)
-        rec.dph = dph
-        log(budget.describe())
-        if reuse:
+            budget = Budget(spec, dph)
+            guards.append(done)
             threading.Thread(target=_watchdog,
                              args=(vast, lambda: state["iid"], budget, done),
                              daemon=True).start()
+            log(budget.describe())
+            log("жду выкачивания образа и старта контейнера...")
+            box = connect(vast, reuse, spec, ssh_key)
+        else:
+            box, dph, budget = _rent(vast, spec, ssh_key, state, rec,
+                                     guards, t0)
 
-        log("жду выкачивания образа и старта контейнера...")
-        box = connect(vast, iid, spec, ssh_key)
+        rec.dph = dph
         rec.setup_s = time.time() - t0
-        mbps = rec.observed_mbps
-        log(f"готово за {rec.setup_s/60:.1f} мин"
-            + (f" (~{mbps:.0f} Мбит/с по образу)" if mbps else ""))
+        log(f"готово за {rec.setup_s/60:.1f} мин")
 
         t1 = time.time()
         rc = execute(box, spec, outdir, deadline=budget.deadline)
@@ -288,6 +330,8 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
     finally:
         _ignore_signals()          # первым делом: уборку нельзя прерывать
         done.set()
+        for g in guards:           # сторожа всех попыток, включая брошенные
+            g.set()
         iid = state["iid"]
         elapsed = time.time() - t0
         rec.total_s = elapsed

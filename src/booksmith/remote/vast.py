@@ -63,8 +63,14 @@ class Vast:
 
     def pick(self, host: HostReq, image_gb: float, minutes: float,
              prefer_machines: list[int] | None = None, show: int = 5,
-             payload_gb: float = 0.0, warmup_s: float = 0.0) -> dict:
+             payload_gb: float = 0.0, warmup_s: float = 0.0,
+             avoid: list[int] | None = None) -> dict:
         ranked = self.offers(host, image_gb, minutes, payload_gb, warmup_s)
+        if avoid:
+            ranked = [o for o in ranked if o.get("machine_id") not in avoid]
+            if not ranked:
+                raise SystemExit("годных офферов не осталось: все проверенные "
+                                 "машины отсеяны по каналу")
         if prefer_machines:
             warm = [o for o in ranked if o.get("machine_id") in prefer_machines]
             if warm:

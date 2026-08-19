@@ -110,6 +110,33 @@ class Box:
         return p.wait(), ""
 
     # --------------------------------------------------------------- файлы
+    def probe(self, mb: int = 4, timeout: float = 25.0) -> float:
+        """Сколько Мбит/с реально даёт канал до этой машины.
+
+        Заявленные хостом мегабиты — про его собственный доступ в интернет, а
+        не про путь до нас.  Разница бывает катастрофической: машина с
+        обещанными 1188 Мбит/с приняла 3.5 МБ входного файла за семь с
+        половиной минут (62 кбит/с), причём с PyPI качала нормально.
+        Пятнадцать минут и деньги ушли впустую, и узнали мы это только когда
+        задача не начиналась.
+
+        Двадцать секунд здесь отсеивают такую машину до того, как на неё
+        что-то зальют.  Данные берём из /dev/urandom — нули сжались бы в
+        транспорте ssh и дали бы красивую неправду.
+        """
+        cmd = self._ssh + [self._addr, f"head -c {mb * 1024 * 1024} /dev/urandom"]
+        t0 = time.time()
+        try:
+            p = subprocess.run(cmd, stdout=subprocess.PIPE,
+                               stderr=subprocess.DEVNULL, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            return 0.0
+        dt = max(time.time() - t0, 1e-6)
+        got = len(p.stdout)
+        if p.returncode != 0 or got < mb * 1024 * 1024 // 2:
+            return 0.0
+        return got * 8 / 1e6 / dt
+
     def _rsync(self, src: str, dst: str, extra: list[str] | None = None) -> int:
         rsh = " ".join(shlex.quote(x) for x in
                        ["ssh", "-p", self.port] + SSH_OPTS +
