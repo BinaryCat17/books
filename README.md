@@ -7,7 +7,8 @@
 books/
 ├── src/booksmith/
 │   ├── remote/          аренда и запуск ЧЕГО УГОДНО на арендованной машине
-│   ├── jobs/paddleocr/  конкретная задача: PDF -> Markdown
+│   ├── jobs/paddleocr/  конкретная задача: PDF -> Markdown (PaddleOCR-VL)
+│   ├── jobs/olmocr/     она же моделью olmOCR-2-7B, для сравнения
 │   ├── engines/         локальные движки (OCR-слой из PDF, Mistral)
 │   └── cli.py           books <команда>
 ├── infra/base/          Dockerfile образа-прихожей (сборка в GitHub Actions)
@@ -52,6 +53,7 @@ ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_vast -N ''
 books doctor                              проверить всё ДО того, как пойдут деньги
 books offers                              посмотреть рынок, ничего не арендуя
 books ocr bench/test25.pdf bench/paddleocr
+books olmocr bench/tables20.pdf bench/olmocr    та же книга моделью olmOCR-2-7B
 books ocr raw/книга.pdf processed/книга --keep     оставить машину
 books ocr raw/книга.pdf processed/книга --reuse 12345
 books ls                                  что арендовано прямо сейчас

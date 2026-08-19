@@ -2,6 +2,7 @@
 
     books offers                        посмотреть рынок, ничего не арендуя
     books ocr книга.pdf выход/          снять карту, разобрать, забрать, убить
+    books olmocr книга.pdf выход/       то же самое, но моделью olmOCR-2-7B
     books ocr книга.pdf выход/ --keep   оставить машину для следующего прогона
     books ocr книга.pdf выход/ --reuse 12345
     books ls | books down 12345 | books reap
@@ -12,7 +13,7 @@ import os
 import sys
 
 from . import config
-from .jobs import paddleocr
+from .jobs import olmocr, paddleocr
 from .remote import ledger as ledger_mod
 from .remote.runner import run_job
 from .remote.spec import HostReq
@@ -45,6 +46,25 @@ def cmd_ocr(a):
         os.path.abspath(a.pdf), gpu=a.gpu, image=a.image, minutes=a.minutes,
         budget_usd=a.budget, disk_gb=a.disk, max_dph=a.max_dph,
         machine_id=a.machine, table_threshold=a.table_threshold)
+    spec.timeout_minutes = a.timeout
+    if not os.path.exists(a.pdf):
+        raise SystemExit(f"нет файла: {a.pdf}")
+    return run_job(spec, a.outdir, ssh_key=config.ssh_key(a.ssh_key),
+                   keep=a.keep, reuse=a.reuse, dry_run=a.dry_run)
+
+
+def cmd_olmocr(a):
+    """То же самое, но моделью olmOCR-2-7B.
+
+    Отдельная команда, а не флаг у `ocr`: у задач разные веса, разное дерево
+    пакетов и разное поведение при нехватке памяти, и общий код свёлся бы к
+    ветвлению в каждой строке.
+    """
+    spec = olmocr.spec(
+        os.path.abspath(a.pdf), gpu=a.gpu, image=a.image, minutes=a.minutes,
+        budget_usd=a.budget, disk_gb=a.disk, max_dph=a.max_dph,
+        machine_id=a.machine, model_repo=a.model_repo,
+        concurrency=a.concurrency)
     spec.timeout_minutes = a.timeout
     if not os.path.exists(a.pdf):
         raise SystemExit(f"нет файла: {a.pdf}")
@@ -184,6 +204,28 @@ def main(argv=None):
                    help="считать на уже поднятой машине, без холодного старта")
     p.add_argument("--dry-run", action="store_true")
     p.set_defaults(fn=cmd_ocr)
+
+    p = sub.add_parser("olmocr", help="разобрать PDF моделью olmOCR-2-7B")
+    p.add_argument("pdf")
+    p.add_argument("outdir")
+    _host_args(p)
+    p.add_argument("--minutes", type=float, default=20.0,
+                   help="ожидаемое время счёта, влияет на выбор оффера")
+    p.add_argument("--budget", type=float, default=1.00,
+                   help="жёсткий потолок в долларах; при достижении машина гибнет")
+    p.add_argument("--timeout", type=float, default=90.0, help="потолок в минутах")
+    p.add_argument("--model-repo", default=None,
+                   help="веса: по умолчанию allenai/olmOCR-2-7B-1025 (bf16); "
+                        "на 4090 можно ...-1025-FP8 — вдвое меньше памяти")
+    p.add_argument("--concurrency", type=int, default=None,
+                   help="страниц в полёте одновременно (по умолчанию 8)")
+    p.add_argument("--ssh-key", default=None)
+    p.add_argument("--keep", action="store_true",
+                   help="оставить машину для --reuse (ДЕНЬГИ ПРОДОЛЖАЮТ ИДТИ)")
+    p.add_argument("--reuse", type=int, metavar="ID",
+                   help="считать на уже поднятой машине, без холодного старта")
+    p.add_argument("--dry-run", action="store_true")
+    p.set_defaults(fn=cmd_olmocr)
 
     p = sub.add_parser("local", help="разобрать PDF по его же OCR-слою, без GPU")
     p.add_argument("pdf")
