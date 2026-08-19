@@ -1,0 +1,506 @@
+{
+    "input_path": "input.pdf",
+    "page_index": 8,
+    "page_count": 20,
+    "width": 1012,
+    "height": 1466,
+    "model_settings": {
+        "use_doc_preprocessor": false,
+        "use_layout_detection": true,
+        "use_chart_recognition": false,
+        "use_seal_recognition": false,
+        "use_ocr_for_image_block": false,
+        "format_block_content": false,
+        "merge_layout_blocks": true,
+        "markdown_ignore_labels": [
+            "number",
+            "header_image",
+            "footer",
+            "footer_image",
+            "aside_text"
+        ],
+        "return_layout_polygon_points": true
+    },
+    "parsing_res_list": [
+        {
+            "block_label": "text",
+            "block_content": "The correct alignment can still be obtained by reworking the slides of the tailstock.",
+            "block_bbox": [
+                102,
+                58,
+                513,
+                102
+            ],
+            "block_id": 0,
+            "block_order": 1,
+            "group_id": 0
+        },
+        {
+            "block_label": "text",
+            "block_content": "There is an alternative method of checking the alignment of the axis of headstock spindle to axis of tailstock spindle in vertical plane, as specified in OBJECTIVE NO. 2. The principal advantage of this system is that alignment of the axes of the two centers in the horizontal plane is not required. Another advantage in substituting it is that checking the alignment after each scraping cycle can be done more speedily. A further advantage of the method is that the exact degree of misalignment can be ascertained, not just the approximate amount.",
+            "block_bbox": [
+                100,
+                103,
+                516,
+                412
+            ],
+            "block_id": 1,
+            "block_order": 2,
+            "group_id": 1
+        },
+        {
+            "block_label": "text",
+            "block_content": "The necessary apparatus for applying the method includes a DIAL INDICATOR mounted on the cross-slide on the carriage. Two precision ground test bars of identical diameter and length are also used. One is inserted in the spindle of headstock, the other is inserted in spindle of tailstock. Both bars are given their usual tests for proper seating, runout etc. Then the button of the DIAL is adjusted to the vertical diameter of each bar at the free end in turn. This can be done without changing the setting of the instrument by moving the cross-slide out and in. Readings are taken which, if within the tolerance allowed, signify that the axis of both spindles are truly aligned in the vertical plane.",
+            "block_bbox": [
+                97,
+                413,
+                500,
+                814
+            ],
+            "block_id": 2,
+            "block_order": 3,
+            "group_id": 2
+        },
+        {
+            "block_label": "paragraph_title",
+            "block_content": "NOTE:",
+            "block_bbox": [
+                97,
+                833,
+                167,
+                854
+            ],
+            "block_id": 3,
+            "block_order": 4,
+            "group_id": 3
+        },
+        {
+            "block_label": "text",
+            "block_content": "During the course of aligning other components of the lathe, the movable members will many times be slid back and forth on the ways of the bed. This causes isolated high spots which previously escaped notice to become sharply defined. Therefore, when all alignments have been completed on the other members, it is good practice to give the bed ways a final touching up to improve the wearing quality, that is, to make it more lasting. (Refer to Sec. 19.12)",
+            "block_bbox": [
+                111,
+                855,
+                495,
+                1147
+            ],
+            "block_id": 4,
+            "block_order": 5,
+            "group_id": 4
+        },
+        {
+            "block_label": "text",
+            "block_content": "Bronze Bearings in Spindles",
+            "block_bbox": [
+                94,
+                1168,
+                366,
+                1189
+            ],
+            "block_id": 5,
+            "block_order": 6,
+            "group_id": 5
+        },
+        {
+            "block_label": "text",
+            "block_content": "As a general rule, the slides of the lathe headstock do not wear or warp since the member is bolted solidly to the bed. Consequently, treatment of these surfaces is necessary only for alignment purposes. That is, as the discussion in Sec. 26.63 and Sec. 26.64 has shown, the axis of the headstock spindle must be parallel horizontally and vertically to the bed ways and in-line with the axis of the tailstock.",
+            "block_bbox": [
+                92,
+                1191,
+                494,
+                1326
+            ],
+            "block_id": 6,
+            "block_order": 7,
+            "group_id": 6
+        },
+        {
+            "block_label": "text",
+            "block_content": "",
+            "block_bbox": [
+                526,
+                57,
+                913,
+                144
+            ],
+            "block_id": 7,
+            "block_order": 8,
+            "group_id": 6
+        },
+        {
+            "block_label": "text",
+            "block_content": "If the headstock spindle has bronze bearings it is practicable to secure these essential alignments by scraping the round bronze bearing instead of the flat slides. This operation is performed with the head stock bolted to the bed ways. Scraping is done with a round-scraper. The several alignment tests are executed periodically.",
+            "block_bbox": [
+                526,
+                146,
+                929,
+                325
+            ],
+            "block_id": 8,
+            "block_order": 9,
+            "group_id": 8
+        },
+        {
+            "block_label": "text",
+            "block_content": "Sec. 26.65\nFinal Alignment of the Carriage Ways",
+            "block_bbox": [
+                526,
+                344,
+                886,
+                391
+            ],
+            "block_id": 9,
+            "block_order": 10,
+            "group_id": 9
+        },
+        {
+            "block_label": "text",
+            "block_content": "The OBJECTIVES which were sought in scraping the compound slide rest and the carriage were designed so that the member would be correctly aligned to the headstock spindle. How exactly the work was done will be determined by the following alignment test.",
+            "block_bbox": [
+                524,
+                410,
+                929,
+                568
+            ],
+            "block_id": 10,
+            "block_order": 11,
+            "group_id": 10
+        },
+        {
+            "block_label": "image",
+            "block_content": "",
+            "block_bbox": [
+                541,
+                582,
+                890,
+                865
+            ],
+            "block_id": 11,
+            "block_order": null,
+            "group_id": 11
+        },
+        {
+            "block_label": "vision_footnote",
+            "block_content": "PLATE 35. Close-up of lathe carriage and headstock showing how the units are aligned on the lathe bed by inverted V-ways which are hand scraped straight and parallel. Note taper attachment at right side of illustration. (Courtesy South Bend Lathe Works.)",
+            "block_bbox": [
+                518,
+                904,
+                909,
+                1011
+            ],
+            "block_id": 12,
+            "block_order": null,
+            "group_id": 12
+        },
+        {
+            "block_label": "paragraph_title",
+            "block_content": "OBJECTIVES: The FINAL ALIGNMENT of the CARRIAGE WAYS to the AXIS of HEADSTOCK SPINDLE.",
+            "block_bbox": [
+                522,
+                1054,
+                933,
+                1144
+            ],
+            "block_id": 13,
+            "block_order": 12,
+            "group_id": 13
+        },
+        {
+            "block_label": "text",
+            "block_content": "1. Cross slide movement to be square with axis of headstock spindle.",
+            "block_bbox": [
+                523,
+                1166,
+                889,
+                1210
+            ],
+            "block_id": 14,
+            "block_order": 13,
+            "group_id": 14
+        },
+        {
+            "block_label": "text",
+            "block_content": "2. Flat ways to be level, longitudinally and transversely.",
+            "block_bbox": [
+                522,
+                1211,
+                891,
+                1254
+            ],
+            "block_id": 15,
+            "block_order": 14,
+            "group_id": 15
+        },
+        {
+            "block_label": "text",
+            "block_content": "3. Carriage V-slides to be fitted to bed ways with a surface quality of 10 - 15 bearing spots per square inch.",
+            "block_bbox": [
+                522,
+                1256,
+                908,
+                1324
+            ],
+            "block_id": 16,
+            "block_order": 15,
+            "group_id": 16
+        },
+        {
+            "block_label": "number",
+            "block_content": "304",
+            "block_bbox": [
+                492,
+                1333,
+                526,
+                1352
+            ],
+            "block_id": 17,
+            "block_order": null,
+            "group_id": 17
+        }
+    ],
+    "layout_det_res": {
+        "input_path": null,
+        "page_index": null,
+        "boxes": [
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9692837595939636,
+                "coordinate": [
+                    102,
+                    58,
+                    513,
+                    102
+                ],
+                "order": 1
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9879939556121826,
+                "coordinate": [
+                    100,
+                    103,
+                    516,
+                    412
+                ],
+                "order": 2
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9878756999969482,
+                "coordinate": [
+                    97,
+                    413,
+                    500,
+                    814
+                ],
+                "order": 3
+            },
+            {
+                "cls_id": 17,
+                "label": "paragraph_title",
+                "score": 0.8207665681838989,
+                "coordinate": [
+                    97,
+                    833,
+                    167,
+                    854
+                ],
+                "order": 4
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9781609773635864,
+                "coordinate": [
+                    111,
+                    855,
+                    495,
+                    1147
+                ],
+                "order": 5
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.8206468820571899,
+                "coordinate": [
+                    94,
+                    1168,
+                    366,
+                    1189
+                ],
+                "order": 6
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9766814112663269,
+                "coordinate": [
+                    92,
+                    1191,
+                    494,
+                    1326
+                ],
+                "order": 7
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9818653464317322,
+                "coordinate": [
+                    526,
+                    57,
+                    913,
+                    144
+                ],
+                "order": 8
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9831127524375916,
+                "coordinate": [
+                    526,
+                    146,
+                    929,
+                    325
+                ],
+                "order": 9
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.5902644991874695,
+                "coordinate": [
+                    527,
+                    344,
+                    628,
+                    365
+                ],
+                "order": 10
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.5010983943939209,
+                "coordinate": [
+                    526,
+                    344,
+                    886,
+                    391
+                ],
+                "order": 11
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.6850688457489014,
+                "coordinate": [
+                    527,
+                    366,
+                    886,
+                    390
+                ],
+                "order": 12
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9856590628623962,
+                "coordinate": [
+                    524,
+                    410,
+                    929,
+                    568
+                ],
+                "order": 13
+            },
+            {
+                "cls_id": 14,
+                "label": "image",
+                "score": 0.9859888553619385,
+                "coordinate": [
+                    541,
+                    582,
+                    890,
+                    865
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 24,
+                "label": "vision_footnote",
+                "score": 0.5495967268943787,
+                "coordinate": [
+                    518,
+                    904,
+                    909,
+                    1011
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 17,
+                "label": "paragraph_title",
+                "score": 0.7677523493766785,
+                "coordinate": [
+                    522,
+                    1054,
+                    933,
+                    1144
+                ],
+                "order": 14
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9574208855628967,
+                "coordinate": [
+                    523,
+                    1166,
+                    889,
+                    1210
+                ],
+                "order": 15
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.960163950920105,
+                "coordinate": [
+                    522,
+                    1211,
+                    891,
+                    1254
+                ],
+                "order": 16
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9703443050384521,
+                "coordinate": [
+                    522,
+                    1256,
+                    908,
+                    1324
+                ],
+                "order": 17
+            },
+            {
+                "cls_id": 16,
+                "label": "number",
+                "score": 0.9014664888381958,
+                "coordinate": [
+                    492,
+                    1333,
+                    526,
+                    1352
+                ],
+                "order": 18
+            }
+        ]
+    }
+}

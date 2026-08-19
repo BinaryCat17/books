@@ -1,0 +1,667 @@
+{
+    "input_path": "input.pdf",
+    "page_index": 12,
+    "page_count": 20,
+    "width": 1012,
+    "height": 1466,
+    "model_settings": {
+        "use_doc_preprocessor": false,
+        "use_layout_detection": true,
+        "use_chart_recognition": false,
+        "use_seal_recognition": false,
+        "use_ocr_for_image_block": false,
+        "format_block_content": false,
+        "merge_layout_blocks": true,
+        "markdown_ignore_labels": [
+            "number",
+            "header_image",
+            "footer",
+            "footer_image",
+            "aside_text"
+        ],
+        "return_layout_polygon_points": true
+    },
+    "parsing_res_list": [
+        {
+            "block_label": "table",
+            "block_content": "<table><tr><td colspan=\"3\">RECOMMENDED STANDARDS</td></tr><tr><td>Tool Room</td><td>12&quot; to 18&quot; in.c.</td><td>20&quot; to 36&quot; inc.</td></tr><tr><td>Lathe</td><td>Engine Lathe</td><td>Engine Lathe</td></tr><tr><td>(±) .001&quot;</td><td>(±) .0015&quot;</td><td>(±) .002&quot;</td></tr><tr><td colspan=\"3\">(lead per foot)</td></tr><tr><td>(±) .0004&quot;</td><td>(±) .0005&quot;</td><td>(±) .0007&quot;</td></tr><tr><td colspan=\"3\">(lead in any 4&quot;)</td></tr></table>",
+            "block_bbox": [
+                109,
+                274,
+                485,
+                436
+            ],
+            "block_id": 0,
+            "block_order": null,
+            "group_id": 0
+        },
+        {
+            "block_label": "header",
+            "block_content": "Sec. 26.71\nThe Accuracy of Lead Screws",
+            "block_bbox": [
+                96,
+                69,
+                381,
+                113
+            ],
+            "block_id": 1,
+            "block_order": null,
+            "group_id": 1
+        },
+        {
+            "block_label": "text",
+            "block_content": "The accuracy of lead screws should meet the recommended standards shown in the accompanying chart Fig. 26.69. In",
+            "block_bbox": [
+                96,
+                133,
+                486,
+                203
+            ],
+            "block_id": 2,
+            "block_order": 1,
+            "group_id": 2
+        },
+        {
+            "block_label": "paragraph_title",
+            "block_content": "Fig. 26.69 Accuracy of lead screw",
+            "block_bbox": [
+                106,
+                245,
+                379,
+                267
+            ],
+            "block_id": 3,
+            "block_order": 2,
+            "group_id": 3
+        },
+        {
+            "block_label": "text",
+            "block_content": "reality, this is a manufacturer's test and most shops would not be concerned with this phase. Several methods of testing the pitch error in lead screws will be provided, though, for the benefit of those interested.",
+            "block_bbox": [
+                99,
+                488,
+                500,
+                622
+            ],
+            "block_id": 4,
+            "block_order": 3,
+            "group_id": 4
+        },
+        {
+            "block_label": "text",
+            "block_content": "One application utilizes center point combinations. In this operation PRECI-SION GAGE BLOCKS, mounted in a holder, provide an accurate method for checking the pitch of the lead screw threads.",
+            "block_bbox": [
+                100,
+                623,
+                505,
+                733
+            ],
+            "block_id": 5,
+            "block_order": 4,
+            "group_id": 5
+        },
+        {
+            "block_label": "text",
+            "block_content": "Another method employs optical instruments for comparative testing of the lead screw against a precision test bar.",
+            "block_bbox": [
+                101,
+                733,
+                506,
+                800
+            ],
+            "block_id": 6,
+            "block_order": 5,
+            "group_id": 6
+        },
+        {
+            "block_label": "text",
+            "block_content": "A third procedure uses the travel of the carriage to test the pitch error. This method will be discussed at some length because it can be performed with equipment readily available in the average shop.",
+            "block_bbox": [
+                101,
+                800,
+                507,
+                913
+            ],
+            "block_id": 7,
+            "block_order": 6,
+            "group_id": 7
+        },
+        {
+            "block_label": "text",
+            "block_content": "Sec. 26.72",
+            "block_bbox": [
+                103,
+                933,
+                206,
+                954
+            ],
+            "block_id": 8,
+            "block_order": 7,
+            "group_id": 8
+        },
+        {
+            "block_label": "text",
+            "block_content": "Pitch Error in Lead Screws",
+            "block_bbox": [
+                104,
+                954,
+                371,
+                976
+            ],
+            "block_id": 9,
+            "block_order": 8,
+            "group_id": 9
+        },
+        {
+            "block_label": "text",
+            "block_content": "Pitch Error in Leach Screws\n(The accuracy tests of lead screws is based on a reference length of 12\" with a further subdivision of 1/3 or 4\".)",
+            "block_bbox": [
+                108,
+                963,
+                490,
+                1069
+            ],
+            "block_id": 10,
+            "block_order": 9,
+            "group_id": 10
+        },
+        {
+            "block_label": "paragraph_title",
+            "block_content": "PROCEDURE:",
+            "block_bbox": [
+                105,
+                1089,
+                243,
+                1111
+            ],
+            "block_id": 11,
+            "block_order": 10,
+            "group_id": 11
+        },
+        {
+            "block_label": "text",
+            "block_content": "This procedure involves taking the measurements over a distance of 12\". Starting at any distance from the headstock, the half nut is closed on the lead screw. Then the carriage is moved along the bed by turning the lathe spindle by hand. A count is made of the total number of revolutions which theoretically should advance the carriage the standard 12\".\nTwo measurements are executed. The first, is made in conjunction with a fixed type end gage, as shown in Fig. 26.70a. This determines the starting position.",
+            "block_bbox": [
+                104,
+                1133,
+                509,
+                1335
+            ],
+            "block_id": 12,
+            "block_order": 11,
+            "group_id": 12
+        },
+        {
+            "block_label": "text",
+            "block_content": "",
+            "block_bbox": [
+                520,
+                63,
+                919,
+                152
+            ],
+            "block_id": 13,
+            "block_order": 12,
+            "group_id": 12
+        },
+        {
+            "block_label": "text",
+            "block_content": "The second measurement is performed without the fixed type end gage, as shown in Fig. 26.70b. This is the stop position.",
+            "block_bbox": [
+                521,
+                153,
+                922,
+                220
+            ],
+            "block_id": 14,
+            "block_order": 13,
+            "group_id": 14
+        },
+        {
+            "block_label": "text",
+            "block_content": "Since the figures are nearly self-explanatory we shall call attention here to only a few salient features. The set up is arranged as follows:",
+            "block_bbox": [
+                521,
+                220,
+                910,
+                308
+            ],
+            "block_id": 15,
+            "block_order": 14,
+            "group_id": 15
+        },
+        {
+            "block_label": "text",
+            "block_content": "A ground stud (1) is bolted to the face plate. A sleeve (2) having a close sliding fit is slipped over the stud. Next a bar (3) is clamped to the top of the lathe bed. To the bar is fastened a DIAL INDICATOR (4). The DIAL button should be placed in contact with the sleeve. Some discretion is required when choosing the contact position, so that when the sleeve is removed, the stud will clear the DIAL INDICATOR as the lathe spindle is turned.",
+            "block_bbox": [
+                523,
+                308,
+                930,
+                552
+            ],
+            "block_id": 16,
+            "block_order": 15,
+            "group_id": 16
+        },
+        {
+            "block_label": "text",
+            "block_content": "The lathe carriage is stationed on the bed at the point where the lead screw is to be tested. Another DIAL INDICATOR (5) is attached to the carriage. A stop (6) is clamped approximately 12\" from the INDICATOR (5). A fixed type end gage (7) is made up to exactly 12\" in length. It is positioned in a PRECISION V-BLOCK (8) laid on the inverted V-way.",
+            "block_bbox": [
+                525,
+                553,
+                927,
+                753
+            ],
+            "block_id": 17,
+            "block_order": 16,
+            "group_id": 17
+        },
+        {
+            "block_label": "text",
+            "block_content": "After closing the half nuts all slack is taken up in the driving mechanism by turning the spindle until the button of the DIAL INDICATOR (5) is in contact with the fixed end gage (7). This INDICATOR reading is jotted down for later reference.",
+            "block_bbox": [
+                527,
+                753,
+                928,
+                887
+            ],
+            "block_id": 18,
+            "block_order": 17,
+            "group_id": 18
+        },
+        {
+            "block_label": "text",
+            "block_content": "The DIAL INDICATOR (4) is now positioned against the sleeve (2) with sufficient pressure to register on the DIAL, and this reading, too, is noted. The sleeve (2), the end gage (7), and the PRECISION V-BLOCK (8) are removed. Following this, the spindle is turned the exact number of times which mathematical calculations show would traverse the carriage 12\". The actual variation over or under represents the Pitch Error.",
+            "block_bbox": [
+                527,
+                887,
+                932,
+                1131
+            ],
+            "block_id": 19,
+            "block_order": 18,
+            "group_id": 19
+        },
+        {
+            "block_label": "text",
+            "block_content": "To illustrate this procedure let us assume an imaginary example:",
+            "block_bbox": [
+                529,
+                1132,
+                884,
+                1176
+            ],
+            "block_id": 20,
+            "block_order": 19,
+            "group_id": 20
+        },
+        {
+            "block_label": "text",
+            "block_content": "Assuming the lead screw has eight threads per inch, the pitch of thread would then be 1/8\". Therefore, the spindle must be revolved eight times to move the carriage one inch, or ninety six times to traverse the carriage the required 12\". The actual travel of the carriage will",
+            "block_bbox": [
+                529,
+                1176,
+                928,
+                1333
+            ],
+            "block_id": 21,
+            "block_order": 20,
+            "group_id": 21
+        },
+        {
+            "block_label": "number",
+            "block_content": "308",
+            "block_bbox": [
+                503,
+                1343,
+                539,
+                1362
+            ],
+            "block_id": 22,
+            "block_order": null,
+            "group_id": 22
+        }
+    ],
+    "layout_det_res": {
+        "input_path": null,
+        "page_index": null,
+        "boxes": [
+            {
+                "cls_id": 21,
+                "label": "table",
+                "score": 0.12968313694000244,
+                "coordinate": [
+                    109,
+                    274,
+                    485,
+                    436
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 21,
+                "label": "table",
+                "score": 0.13056069612503052,
+                "coordinate": [
+                    116,
+                    306,
+                    480,
+                    390
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 12,
+                "label": "header",
+                "score": 0.3491886258125305,
+                "coordinate": [
+                    97,
+                    69,
+                    195,
+                    89
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 12,
+                "label": "header",
+                "score": 0.7508679628372192,
+                "coordinate": [
+                    96,
+                    69,
+                    381,
+                    113
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.965108335018158,
+                "coordinate": [
+                    96,
+                    133,
+                    486,
+                    203
+                ],
+                "order": 1
+            },
+            {
+                "cls_id": 17,
+                "label": "paragraph_title",
+                "score": 0.8224763870239258,
+                "coordinate": [
+                    106,
+                    245,
+                    379,
+                    267
+                ],
+                "order": 2
+            },
+            {
+                "cls_id": 17,
+                "label": "paragraph_title",
+                "score": 0.589016318321228,
+                "coordinate": [
+                    169,
+                    280,
+                    404,
+                    299
+                ],
+                "order": 3
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.5304360389709473,
+                "coordinate": [
+                    114,
+                    303,
+                    481,
+                    433
+                ],
+                "order": 4
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.415710985660553,
+                "coordinate": [
+                    118,
+                    393,
+                    458,
+                    432
+                ],
+                "order": 5
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9847552180290222,
+                "coordinate": [
+                    99,
+                    488,
+                    500,
+                    622
+                ],
+                "order": 6
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9843424558639526,
+                "coordinate": [
+                    100,
+                    623,
+                    505,
+                    733
+                ],
+                "order": 7
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9754449129104614,
+                "coordinate": [
+                    101,
+                    733,
+                    506,
+                    800
+                ],
+                "order": 8
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9772652983665466,
+                "coordinate": [
+                    101,
+                    800,
+                    507,
+                    913
+                ],
+                "order": 9
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.5242491364479065,
+                "coordinate": [
+                    103,
+                    933,
+                    206,
+                    954
+                ],
+                "order": 10
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.6878931522369385,
+                "coordinate": [
+                    104,
+                    954,
+                    371,
+                    976
+                ],
+                "order": 11
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.7817466855049133,
+                "coordinate": [
+                    108,
+                    963,
+                    490,
+                    1069
+                ],
+                "order": 12
+            },
+            {
+                "cls_id": 17,
+                "label": "paragraph_title",
+                "score": 0.8945145606994629,
+                "coordinate": [
+                    105,
+                    1089,
+                    243,
+                    1111
+                ],
+                "order": 13
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9855697751045227,
+                "coordinate": [
+                    104,
+                    1133,
+                    509,
+                    1335
+                ],
+                "order": 14
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9788203835487366,
+                "coordinate": [
+                    520,
+                    63,
+                    919,
+                    152
+                ],
+                "order": 15
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9725788235664368,
+                "coordinate": [
+                    521,
+                    153,
+                    922,
+                    220
+                ],
+                "order": 16
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9740170836448669,
+                "coordinate": [
+                    521,
+                    220,
+                    910,
+                    308
+                ],
+                "order": 17
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9869339466094971,
+                "coordinate": [
+                    523,
+                    308,
+                    930,
+                    552
+                ],
+                "order": 18
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9866605997085571,
+                "coordinate": [
+                    525,
+                    553,
+                    927,
+                    753
+                ],
+                "order": 19
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9834485054016113,
+                "coordinate": [
+                    527,
+                    753,
+                    928,
+                    887
+                ],
+                "order": 20
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9867091178894043,
+                "coordinate": [
+                    527,
+                    887,
+                    932,
+                    1131
+                ],
+                "order": 21
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9638765454292297,
+                "coordinate": [
+                    529,
+                    1132,
+                    884,
+                    1176
+                ],
+                "order": 22
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9840806126594543,
+                "coordinate": [
+                    529,
+                    1176,
+                    928,
+                    1333
+                ],
+                "order": 23
+            },
+            {
+                "cls_id": 16,
+                "label": "number",
+                "score": 0.9087789058685303,
+                "coordinate": [
+                    503,
+                    1343,
+                    539,
+                    1362
+                ],
+                "order": 24
+            }
+        ]
+    }
+}
