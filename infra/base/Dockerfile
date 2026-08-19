@@ -52,7 +52,12 @@ RUN mkdir -p /etc/ssh/sshd_config.d \
  && printf 'StrictModes no\n' > /etc/ssh/sshd_config.d/10-vast-keys.conf
 
 # uv ставит и сам python, и все колёса — так в образе не нужен даже python.
-COPY --from=ghcr.io/astral-sh/uv:0.9.7 /uv /uvx /usr/local/bin/
+#
+# Версия закреплена и обязана совпадать с той, которой собран constraints.txt.
+# Иначе бывает так: список собран uv 0.12.5, а ставит его uv 0.9.7, который
+# про torchcodec в индексе pytorch ещё не знает, — и прогон падает на
+# "no version of torchcodec==0.16.0+cu130", хотя колесо в индексе лежит.
+COPY --from=ghcr.io/astral-sh/uv:0.12.5 /uv /uvx /usr/local/bin/
 
 ENV UV_LINK_MODE=copy \
     UV_HTTP_TIMEOUT=180
