@@ -29,12 +29,14 @@ def _host_args(ap):
 
 def cmd_offers(a):
     host = HostReq(gpu=a.gpu, max_dph=a.max_dph, disk_gb=a.disk, machine_id=a.machine)
+    host.cuda_min = "13.0"          # колёса torch — под CUDA 13, как и в задаче
     v = Vast()
     log(f"баланс: ${v.balance():.3f}")
-    warm = ledger_mod.warm_machines(a.image or paddleocr.IMAGES["mirror"])
+    warm = ledger_mod.warm_machines(a.image or paddleocr.BASE_IMAGE)
     if warm:
         log(f"прогретые машины из журнала: {warm[:5]}")
-    v.pick(host, paddleocr.IMAGE_GB, a.minutes, warm, show=8)
+    v.pick(host, paddleocr.IMAGE_GB, a.minutes, warm, show=8,
+           payload_gb=paddleocr.PAYLOAD_GB)
     return 0
 
 

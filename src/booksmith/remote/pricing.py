@@ -1,25 +1,39 @@
 """Сколько на самом деле стоит прогон, и какой оффер выбрать.
 
-Ранжировать по $/час неправильно сразу по двум причинам, и обе измерены,
-а не выведены из общих соображений:
+Ранжировать по $/час неправильно, и обе причины измерены, а не выведены из
+общих соображений:
 
-1. Холодный старт — это не только скачивание, но и распаковка образа.
-   Хост с медленным диском стопорится после "Download complete".
+1. **Холодный старт стоит денег.** Он идёт по двум разным каналам, и они
+   отличаются на порядок: образ едет через docker, всё остальное — мимо.
 2. **Трафик стоит денег.** Проверено по 41 офферу RTX 4090: цена входящего
    трафика ненулевая у всех, от $0.4 до $29.3 за ТБ при медиане $2.7.
-   Один pull образа на 5.9 ГБ — это от $0.002 до $0.17.  На дорогом хосте
-   скачивание образа стоит больше, чем весь счёт за работу.
+   На дорогом хосте доставка окружения стоит больше, чем сам счёт за работу.
 """
 from dataclasses import dataclass
 
-# docker тянет слои по три, но внутри слоя — одно HTTP-соединение.  В нашем
-# образе один слой на 3.69 ГБ (62%) и второй на 1.54 ГБ (26%), то есть реально
-# работают два потока, а не три.  Одиночный поток упирается не в полосу, а в
-# RTT: заявленные Мбит/с реализуются процентов на десять.  Отсюда и потолок.
-LINK_EFFICIENCY = 0.10
-LINK_CEILING_MBPS = 2400.0     # быстрее одиночного потока не бывает
-UNPACK_RATIO = 3.0             # 5.9 ГБ сжатого -> ~18 ГБ на диске
-BOOT_SECONDS = 90.0            # sshd, инициализация контейнера vast
+# --------------------------------------------------------------- через docker
+# Три слоя одновременно, внутри слоя одно HTTP-соединение, и реестр режет
+# соединение до ~25 Мбит/с.  Замер: 6.02 ГБ ехали 10.7 минуты на машине с
+# каналом 1518 Мбит/с — 76 Мбит/с, пять процентов линка.
+DOCKER_EFFICIENCY = 0.05
+DOCKER_CEILING_MBPS = 120.0
+
+# Распаковка: gzip внутри слоя однопоточный, и слои накладываются строго по
+# одному, поверх предыдущего.  Замер на том же образе: после "Download
+# complete" прошло ещё девять минут, то есть 11 МБ/с по сжатому входу.  Диск
+# (8166 МБ/с NVMe) тут ни при чём — упирается в единственный поток gzip.
+UNPACK_MBPS = 11.0
+
+# ------------------------------------------------------------- мимо docker
+# uv и hf открывают десятки соединений и насыщают канал целиком.  Замер:
+# машина с заявленными 639 Мбит/с приняла ~7 ГБ за 82 с ≈ 700 Мбит/с.
+# Ставим 0.85 — с запасом на машины, где заявленное завышено.
+#
+# Распаковка колёс здесь отдельно не считается: uv разжимает их на всех
+# ядрах параллельно с выкачиванием, и в те же 82 секунды она уложилась.
+PAYLOAD_EFFICIENCY = 0.85
+
+BOOT_SECONDS = 95.0            # аренда -> ssh: vast достраивает образ своим ssh
 
 
 @dataclass
@@ -39,30 +53,31 @@ class Estimate:
 
 
 def estimate(offer: dict, image_gb: float, minutes: float,
-             link_efficiency: float = LINK_EFFICIENCY,
-             unpack_ratio: float = UNPACK_RATIO) -> Estimate:
+             payload_gb: float = 0.0,
+             docker_efficiency: float = DOCKER_EFFICIENCY,
+             payload_efficiency: float = PAYLOAD_EFFICIENCY) -> Estimate:
     down = max(float(offer.get("inet_down") or 100), 50.0)
-    effective = min(down * link_efficiency, LINK_CEILING_MBPS)
-    dl_s = image_gb * 8 * 1024 / effective
 
-    disk = max(float(offer.get("disk_bw") or 500), 100.0)
-    unpack_s = image_gb * unpack_ratio * 1024 / disk * 60
+    img_mbps = min(down * docker_efficiency, DOCKER_CEILING_MBPS)
+    image_s = image_gb * 8 * 1024 / img_mbps + image_gb * 1024 / UNPACK_MBPS
+    payload_s = payload_gb * 8 * 1024 / (down * payload_efficiency)
 
-    setup_s = dl_s + unpack_s + BOOT_SECONDS
+    setup_s = BOOT_SECONDS + image_s + payload_s
     compute_s = minutes * 60
     rent = float(offer["dph_total"]) * (setup_s + compute_s) / 3600
 
-    # `internet_down_cost_per_tb` — цена за терабайт; образ считаем один раз.
+    # `internet_down_cost_per_tb` — цена за терабайт; байты едут один раз.
     per_tb = float(offer.get("internet_down_cost_per_tb") or 0)
-    traffic = image_gb / 1024 * per_tb
+    traffic = (image_gb + payload_gb) / 1024 * per_tb
     return Estimate(setup_s, compute_s, rent, traffic)
 
 
-def rank(offers: list[dict], image_gb: float, minutes: float, **kw) -> list[dict]:
+def rank(offers: list[dict], image_gb: float, minutes: float,
+         payload_gb: float = 0.0, **kw) -> list[dict]:
     """Офферы по возрастанию полной стоимости прогона, с полем `_est`."""
     out = []
     for o in offers:
-        e = estimate(o, image_gb, minutes, **kw)
+        e = estimate(o, image_gb, minutes, payload_gb, **kw)
         out.append({**o, "_est": e})
     return sorted(out, key=lambda o: o["_est"].total_usd)
 

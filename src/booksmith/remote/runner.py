@@ -110,6 +110,19 @@ def _ignore_signals():
             pass
 
 
+def _warm(spec: JobSpec) -> list[int]:
+    """Машины, где образ уже в кеше docker.
+
+    Смысл в этом есть, только пока образ большой.  Прихожая на 54 МБ едет
+    шесть секунд, и ради этих секунд брать оффер дороже — прямой убыток;
+    а окружение всё равно живёт внутри контейнера и умирает вместе с ним.
+    Предпочтение вернётся, если окружение переедет на том vast.
+    """
+    if spec.image_gb < 1.0:
+        return []
+    return ledger.warm_machines(spec.image)
+
+
 def connect(vast: Vast, iid: int, spec: JobSpec, ssh_key: str | None) -> Box:
     vast.wait_running(iid)
     user, host, port = vast.ssh_target(iid)
@@ -167,8 +180,9 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
         if reuse:
             log(f"проверочный запуск: считал бы на инстансе {reuse}")
         else:
-            warm = ledger.warm_machines(spec.image)
-            offer = vast.pick(spec.host, spec.image_gb, spec.minutes, warm)
+            warm = _warm(spec)
+            offer = vast.pick(spec.host, spec.image_gb, spec.minutes, warm,
+                              payload_gb=spec.payload_gb)
             log(f"проверочный запуск — снял бы #{offer['id']} "
                 f"за ${float(offer['dph_total']):.3f}/час")
         _restore_signals(old_signals)
@@ -182,8 +196,9 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
             dph = float(inst.get("dph_total") or 0.5)
             rec.instance_id, rec.machine_id = reuse, inst.get("machine_id")
         else:
-            warm = ledger.warm_machines(spec.image)
-            offer = vast.pick(spec.host, spec.image_gb, spec.minutes, warm)
+            warm = _warm(spec)
+            offer = vast.pick(spec.host, spec.image_gb, spec.minutes, warm,
+                              payload_gb=spec.payload_gb)
             dph = float(offer["dph_total"])
             rec.offer_id = int(offer["id"])
             rec.machine_id = offer.get("machine_id")

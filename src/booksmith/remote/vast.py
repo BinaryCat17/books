@@ -37,7 +37,8 @@ class Vast:
         self.v = VastAI(api_key) if api_key else VastAI()
 
     # ---------------------------------------------------------------- выбор
-    def offers(self, host: HostReq, image_gb: float, minutes: float) -> list[dict]:
+    def offers(self, host: HostReq, image_gb: float, minutes: float,
+               payload_gb: float = 0.0) -> list[dict]:
         q = host.query()
         log(f"поиск: {q}")
         found = self.v.search_offers(q, order="dph_total")
@@ -45,15 +46,16 @@ class Vast:
             raise SystemExit(
                 f"нет офферов под {host.gpu} дешевле ${host.max_dph}/час.\n"
                 "Ослабь --max-dph / --min-down или возьми другую карту.")
-        return pricing.rank(found, image_gb, minutes)
+        return pricing.rank(found, image_gb, minutes, payload_gb)
 
     def pick(self, host: HostReq, image_gb: float, minutes: float,
-             prefer_machines: list[int] | None = None, show: int = 5) -> dict:
-        ranked = self.offers(host, image_gb, minutes)
+             prefer_machines: list[int] | None = None, show: int = 5,
+             payload_gb: float = 0.0) -> dict:
+        ranked = self.offers(host, image_gb, minutes, payload_gb)
         if prefer_machines:
             warm = [o for o in ranked if o.get("machine_id") in prefer_machines]
             if warm:
-                log(f"на машине {warm[0]['machine_id']} образ уже был — берём её")
+                log(f"на машине {warm[0]['machine_id']} окружение уже было — берём её")
                 return warm[0]
         log("офферы по полной стоимости прогона:")
         for o in ranked[:show]:

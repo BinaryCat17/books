@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Исполняется НА арендованной машине.  Поднимает vLLM, если он в образе есть,
-# и зовёт entrypoint.py.  Веса в *-offline образах вшиты, ничего не качается.
+# Исполняется НА арендованной машине: разворачивает окружение, поднимает vLLM
+# и зовёт entrypoint.py.
 #
 #   bash run.sh input.pdf outputs
 set -uo pipefail
@@ -9,15 +9,23 @@ WORK="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PDF="${1:-$WORK/input.pdf}"
 OUT="${2:-$WORK/outputs}"
 MODEL="${MODEL_NAME:-PaddleOCR-VL-1.6-0.9B}"
-# В нашем образе веса лежат распакованными каталогами, в образе Baidu — внутри
-# ~/.paddlex под своим именем. Один скрипт должен работать в обоих.
-SERVE_MODEL="${VL_MODEL_DIR:-$MODEL}"
 PORT="${PORT:-8118}"
 RESUME="${RESUME:-1}"
 
 mkdir -p "$OUT"
 exec > >(tee -a "$OUT/job.log") 2>&1
 log() { echo "[$(date +%H:%M:%S)] $*"; }
+
+log "=== разворачиваю окружение ==="
+bash "$WORK/provision.sh" || { log "разворачивание не удалось"; exit 1; }
+
+export VIRTUAL_ENV=/opt/env
+export PATH="/opt/env/bin:$PATH"
+export VL_MODEL_DIR=/models/vl
+export LAYOUT_MODEL_DIR=/models/layout
+export PADDLE_PDX_MODEL_SOURCE=huggingface
+# Веса лежат распакованным каталогом, поэтому vLLM получает путь, а не имя.
+SERVE_MODEL="${VL_MODEL_DIR:-$MODEL}"
 
 log "=== окружение ==="
 nvidia-smi --query-gpu=name,memory.total,driver_version,compute_cap \
@@ -26,9 +34,9 @@ python -c "import paddleocr; print('paddleocr', paddleocr.__version__)" 2>/dev/n
   || log "пакет paddleocr не импортируется"
 
 # ------------------------------------------------------------------ vLLM
-# Считать VLM в процессе на порядок медленнее, чем через vLLM.  В образе
-# пайплайна vllm нет вовсе (проверено по истории слоёв: там только
-# paddlepaddle-gpu), поэтому запуск идёт только если он действительно есть.
+# Считать VLM в процессе на порядок медленнее, чем через vLLM.  Теперь он
+# всегда ставится разворачиванием, но проверка остаётся: она отличает
+# «vllm не установился» от «vllm упал на старте», а это разные починки.
 SRV=""; SERVER_UP=0
 if python -c "import vllm" 2>/dev/null; then
   log "=== поднимаю vLLM ($MODEL) ==="
