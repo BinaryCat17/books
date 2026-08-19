@@ -143,8 +143,9 @@ def _warm(spec: JobSpec) -> list[int]:
     return ledger.warm_machines(spec.image)
 
 
-def connect(vast: Vast, iid: int, spec: JobSpec, ssh_key: str | None) -> Box:
-    vast.wait_running(iid)
+def connect(vast: Vast, iid: int, spec: JobSpec, ssh_key: str | None,
+            boot_limit: float = 2100) -> Box:
+    vast.wait_running(iid, timeout=boot_limit)
     # Привязка ключа сразу после создания инстанса — гонка: контейнера ещё
     # нет, и vast достраивает его своим слоем с ssh минуты по три.  Ключ,
     # привязанный до этого, до authorized_keys иногда не доезжает, и мы
@@ -195,6 +196,12 @@ def execute(box: Box, spec: JobSpec, outdir: str,
 MIN_LINK_MBPS = 25.0
 MAX_ATTEMPTS = 3
 
+# Сколько ждать контейнера, прежде чем считать машину негодной.  Образ теперь
+# 54 МБ — на здоровой машине он приезжает за секунды, дальше vast минуты две
+# достраивает свой слой с ssh.  Семь минут — это уже не «медленно», а «канал
+# наружу не работает»: один прогон завис на "Pulling fs layer" на пять минут.
+BOOT_LIMIT_S = 420.0
+
 
 def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
           rec, guards: list, t0: float):
@@ -238,16 +245,21 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
 
         log(budget.describe())
         log("жду выкачивания образа и старта контейнера...")
-        box = connect(vast, state["iid"], spec, ssh_key)
-
-        link = box.probe()
+        try:
+            box = connect(vast, state["iid"], spec, ssh_key,
+                          boot_limit=BOOT_LIMIT_S)
+            link = box.probe()
+        except (RuntimeError, OSError) as e:
+            log(f"машина не поднялась ({e}) — беру другую")
+            link = 0.0
         rec.link_mbps = link
         if link >= MIN_LINK_MBPS:
             log(f"канал до машины: {link:.0f} Мбит/с")
             return box, dph, budget
 
-        log(f"канал до машины всего {link:.0f} Мбит/с "
-            f"(нужно от {MIN_LINK_MBPS:.0f}) — беру другую")
+        if link:
+            log(f"канал до машины всего {link:.0f} Мбит/с "
+                f"(нужно от {MIN_LINK_MBPS:.0f}) — беру другую")
         vast.destroy(int(state["iid"]))
         state["iid"] = None
         guard.set()
