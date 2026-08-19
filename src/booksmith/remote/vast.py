@@ -19,14 +19,22 @@ from .spec import HostReq, JobSpec
 # ssh на инстансе vast перехватывает вход и загоняет его в tmux; `ssh host 'cmd'`
 # при этом печатает "no sessions" и НИЧЕГО не выполняет.  Лечится этим файлом.
 # rsync ставим сразу: без него выкачивание результатов было бы неинкрементальным.
-# Права на authorized_keys чинятся и здесь тоже — на случай, если vast
-# перезапишет файл после старта sshd.  Основная починка в образе
-# (StrictModes no), эта — страховка, стоит она полсекунды.
+# Права на authorized_keys чинятся в фоне, а не разово: vast записывает файл
+# с открытой всем маской, и момент записи не определён — он бывает и позже
+# нашего onstart.  sshd читает authorized_keys на каждое подключение, так
+# что достаточно починить права до первой удачной попытки.
+#
+# В образе то же самое снято через StrictModes no, но полагаться на это
+# нельзя: vast кеширует достроенный образ по имени с тегом, и на машине
+# может лежать сборка от старой версии базы.  Здесь чинится всегда.
 ONSTART = (
     "touch /root/.no_auto_tmux; "
     "mkdir -p {workdir}; "
-    "chmod 700 /root/.ssh 2>/dev/null; "
-    "chmod 600 /root/.ssh/authorized_keys 2>/dev/null; "
+    "(for i in $(seq 1 90); do "
+    "   chmod 700 /root/.ssh 2>/dev/null; "
+    "   chmod 600 /root/.ssh/authorized_keys 2>/dev/null; "
+    "   sleep 2; "
+    " done) >/dev/null 2>&1 & "
     "(command -v rsync >/dev/null || "
     " (apt-get update -qq && apt-get install -y -qq rsync)) >/tmp/onstart.log 2>&1; "
     "sleep infinity"

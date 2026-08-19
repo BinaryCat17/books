@@ -8,8 +8,8 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "тег образа"
-        default: latest
+        description: "тег образа; по умолчанию — короткий SHA коммита"
+        default: ""
 
 env:
   REGISTRY: ghcr.io
@@ -23,11 +23,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Тег обязан меняться с каждой сборкой: vast достраивает наш образ своим
+      # слоем с ssh и кеширует результат на машине под именем <образ>/ssh.
+      # При неизменном `latest` на машине остаётся достройка от старой базы,
+      # и правки в образе просто не доезжают.
       - name: имя образа
         id: img
         run: |
           OWNER=$(echo "${{ github.repository_owner }}" | tr 'A-Z' 'a-z')
-          echo "ref=ghcr.io/$OWNER/vast-base:${{ inputs.tag }}" >> $GITHUB_OUTPUT
+          TAG="${{ inputs.tag }}"
+          [ -n "$TAG" ] || TAG=$(git rev-parse --short HEAD)
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "ref=ghcr.io/$OWNER/vast-base:$TAG" >> $GITHUB_OUTPUT
 
       - uses: docker/setup-buildx-action@v3
 
@@ -64,3 +71,8 @@ jobs:
           print(f"выкачивание на vast ~{tot*8/2**20/76:.0f} с")
           assert tot < 150*2**20, "прихожая распухла — что-то попало в образ зря"
           PY
+
+      - name: что прописать в задаче
+        run: |
+          echo "BASE_IMAGE = \"${{ steps.img.outputs.ref }}\""
+          echo "  (src/booksmith/jobs/paddleocr/__init__.py)"
