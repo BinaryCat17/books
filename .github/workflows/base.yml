@@ -1,0 +1,66 @@
+name: build base image
+
+# Образ-прихожая: sshd и ничего больше.  Меняется примерно никогда, поэтому
+# собирается отдельно от полезной нагрузки — и поэтому же на большинстве
+# машин vast он уже лежит в кеше docker к моменту аренды.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "тег образа"
+        default: latest
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: имя образа
+        id: img
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr 'A-Z' 'a-z')
+          echo "ref=ghcr.io/$OWNER/vast-base:${{ inputs.tag }}" >> $GITHUB_OUTPUT
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: infra/base
+          push: true
+          tags: ${{ steps.img.outputs.ref }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+
+      # Смысл этого образа — быть маленьким.  Если он однажды распухнет,
+      # это должно быть видно в логе сборки, а не на арендованной машине.
+      - name: размер
+        run: |
+          IMG=${{ steps.img.outputs.ref }}
+          docker buildx imagetools inspect "$IMG" --raw > /tmp/m.json
+          python3 - <<'PY'
+          import json
+          m = json.load(open('/tmp/m.json'))
+          ls = m['layers']
+          tot = sum(l['size'] for l in ls)
+          for l in ls:
+              print(f"  {l['size']/2**20:7.1f} МБ")
+          print(f"{len(ls)} слоёв, всего {tot/2**20:.0f} МБ")
+          # Три потока по ~25 Мбит/с = 76 Мбит/с; 150 МБ по ним едут ~16 с.
+          print(f"выкачивание на vast ~{tot*8/2**20/76:.0f} с")
+          assert tot < 150*2**20, "прихожая распухла — что-то попало в образ зря"
+          PY
