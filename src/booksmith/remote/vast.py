@@ -106,10 +106,18 @@ class Vast:
                 raise SystemExit("годных офферов не осталось: все проверенные "
                                  "машины отсеяны по каналу")
         if prefer_machines:
-            warm = [o for o in ranked if o.get("machine_id") in prefer_machines]
-            if warm:
-                log(f"на машине {warm[0]['machine_id']} окружение уже было — берём её")
-                return warm[0]
+            # Список приоритетный, а не множество: первым идёт тот, кто у нас
+            # быстрее всех считал.  Раньше здесь бралось `ranked[0]` из
+            # пересечения, то есть самый дешёвый из знакомых, — а дешёвый и
+            # быстрый это разные машины.
+            by_machine = {}
+            for o in ranked:
+                by_machine.setdefault(o.get("machine_id"), o)
+            for pos, mid in enumerate(prefer_machines, 1):
+                if mid in by_machine:
+                    log(f"машина {mid} знакома и быстра (место {pos} в списке)"
+                        f" — берём её")
+                    return by_machine[mid]
         log("офферы по полной стоимости прогона:")
         for o in ranked[:show]:
             log("  " + pricing.describe(o))

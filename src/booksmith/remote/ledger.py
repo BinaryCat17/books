@@ -97,6 +97,57 @@ def warm_machines(image: str, path: str = LEDGER) -> list[int]:
     return [m for m, _ in sorted(seen.items(), key=lambda kv: -kv[1])]
 
 
+def fast_machines(image: str, path: str = LEDGER) -> list[int]:
+    """Машины, отсортированные по замеренной скорости, самые быстрые первыми.
+
+    Мерить надо не рекламу, а машину.  Отбор офферов идёт по заявленному
+    `inet_down>500`, и это именно реклама: прогон, снявший машину 110506 с
+    обещанием больше 500, получил 96 Мбит/с и считал 909 секунд вместо 300.
+
+    Считается медиана, а не максимум: машина 18857 однажды дала 1140 Мбит/с,
+    но её шесть замеров это 33, 104, 154, 307, 319, 1140 — по максимуму она
+    попала бы в лучшие, по медиане стоит там, где заслуживает.
+
+    Оговорка честная: сам зонд предсказывает время прогона слабо, корреляция
+    по журналу всего -0.42.  Поэтому машины с наблюдённым временем счёта
+    ранжируются по нему, а зонд остаётся запасной мерой для тех, кого мы
+    видели один раз.
+    """
+    probes: dict[int, list[float]] = {}
+    times: dict[int, list[float]] = {}
+    bad = set(bad_machines())
+    for r in read(path):
+        mid = r.get("machine_id")
+        if r.get("image") != image or not mid or int(mid) in bad:
+            continue
+        mid = int(mid)
+        if r.get("download_mbps"):
+            probes.setdefault(mid, []).append(float(r["download_mbps"]))
+        # Время счёта сравнимо только внутри одной задачи: у olmocr веса
+        # вчетверо тяжелее, и машина, видевшая только его, выглядела бы
+        # медленной ни за что.
+        if r.get("ok") and r.get("run_s") and r.get("job", "").startswith("tables"):
+            times.setdefault(mid, []).append(float(r["run_s"]))
+
+    def med(v):
+        v = sorted(v)
+        n = len(v)
+        return v[n // 2] if n % 2 else (v[n // 2 - 1] + v[n // 2]) / 2
+
+    seen = set(probes) | set(times)
+    # Сначала те, кого мы видели за работой — по времени, меньше значит лучше.
+    # Затем остальные — по зонду, больше значит лучше.
+    ranked = sorted((m for m in seen if m in times), key=lambda m: med(times[m]))
+    # Машину, которая вдвое медленнее лучшей, предпочитать незнакомой нельзя:
+    # 110506 считала 909 секунд там, где 136645 укладывается в 212.
+    if ranked:
+        limit = 2 * med(times[ranked[0]])
+        ranked = [m for m in ranked if med(times[m]) <= limit]
+    ranked += sorted((m for m in seen if m not in times),
+                     key=lambda m: -med(probes[m]))
+    return ranked
+
+
 BAD = os.path.join(os.path.dirname(LEDGER), "bad-machines.json")
 
 

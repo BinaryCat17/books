@@ -142,7 +142,13 @@ def _warm(spec: JobSpec) -> list[int]:
     не нужно, — и ошибся: дорого не выкачивание образа, дорога достройка.
     """
     bad = set(ledger.bad_machines())
-    return [m for m in ledger.warm_machines(spec.image) if m not in bad]
+    # Порядок важен: сначала те, кого мы видели быстрыми, по возрастанию
+    # времени счёта; потом остальные прогретые, свежие первыми.  Заявленная
+    # скорость оффера — реклама, и по журналу она врёт втрое.
+    fast = [m for m in ledger.fast_machines(spec.image) if m not in bad]
+    warm = [m for m in ledger.warm_machines(spec.image)
+            if m not in bad and m not in fast]
+    return fast + warm
 
 
 def connect(vast: Vast, iid: int, spec: JobSpec, ssh_key: str | None,
