@@ -629,6 +629,73 @@ def _mark_uncertain(*dirs, mark="⚠"):
     return n_cell, n_span
 
 
+def _probe_hallucination(server, model, pdf, page=2, scale=4.0,
+                         box=(258, 2435, 1005, 2642), tries=5):
+    """Читает ли модель картинку — или достраивает по языковому навыку.
+
+    Повод: на стр. 304 модель выдала `.0005` там, где на скане `.0015`, и
+    выдала уверенно.  Для сети в 0.9B это странно: у неё нет тех знаний о
+    мире, которыми большая модель могла бы «додумать смысл числа».  Значит,
+    достраивает она не смысл, а узор — две одинаковые ячейки слева.
+
+    Проверяется четырьмя подачами одного и того же промпта:
+
+    - как есть — то, что видит конвейер;
+    - пустой лист того же размера — если ответ всё равно похож на таблицу,
+      картинка не читается вовсе, и это чистый языковой навык;
+    - только правая треть — исчезает узор `.0005 | .0005` слева, и если
+      значение меняется, оно бралось из соседей, а не со скана;
+    - левые две трети — если третье значение всё равно появится, оно
+      выдумано целиком.
+    """
+    import base64, io
+    from openai import OpenAI
+    import pypdfium2 as pdfium
+    from PIL import Image
+
+    scale = float(os.environ.get("PROBE_SCALE", scale))
+    k = scale / 4.0                      # рамка снята при scale=4
+    box = tuple(int(v * k) for v in box)
+    cli = OpenAI(base_url=server, api_key="null")
+    crop = pdfium.PdfDocument(pdf)[page].render(scale=scale).to_pil().crop(box)
+    _log(f"проба на масштабе {scale} ({int(scale*72)} dpi), кроп {crop.size}")
+    w, h = crop.size
+    cases = {
+        "как есть": crop,
+        "пустой лист": Image.new("RGB", (w, h), "white"),
+        "только правая треть": crop.crop((int(w * 0.62), 0, w, h)),
+        "левые две трети": crop.crop((0, 0, int(w * 0.70), h)),
+    }
+
+    def ask(im, temp):
+        buf = io.BytesIO()
+        im.convert("RGB").save(buf, "JPEG", quality=90)
+        url = "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()
+        r = cli.chat.completions.create(
+            model=model, temperature=temp, max_tokens=512, logprobs=True,
+            messages=[{"role": "user", "content": [
+                {"type": "image_url", "image_url": {"url": url}},
+                {"type": "text", "text": "Table Recognition:"}]}])
+        ch = r.choices[0]
+        toks = getattr(ch.logprobs, "content", None) or []
+        worst = min((t.logprob for t in toks), default=0.0)
+        return ch.message.content, worst
+
+    _log("=== проба на выдумывание ===")
+    for name, im in cases.items():
+        txt, worst = ask(im, 0.0)
+        _log(f"[{name}] жадно, худший logprob {worst:.2f}:")
+        _log("    " + (txt or "").replace(chr(10), " ")[:300])
+        seen = collections.Counter()
+        for _ in range(tries):
+            t, _w = ask(im, 0.6)
+            seen[(t or "").replace(chr(10), " ")[:300]] += 1
+        _log(f"    при температуре 0.6 из {tries} попыток различных ответов "
+             f"{len(seen)}:")
+        for t, n in seen.most_common(3):
+            _log(f"      x{n}: {t[:220]}")
+
+
 def _pipeline_config(layout_dir, table_threshold=0.05):
     """Конфигурация пайплайна: детекция на ONNX Runtime и пачки страниц.
 
@@ -835,6 +902,10 @@ def main():
         _log(f"VLM через сервис {a.server} (backend vllm-server)")
     else:
         _log(f"VLM в процессе, устройство {a.device}")
+
+    if os.environ.get("PROBE") == "1" and a.server:
+        _probe_hallucination(a.server, a.model, pdf)
+        return 0
 
     t0 = time.time()
     try:

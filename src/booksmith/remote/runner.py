@@ -358,6 +358,15 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
     os.makedirs(outdir, exist_ok=True)
     guards: list[threading.Event] = []
     try:
+        # Оставленная машина живёт не вечно: дозор мертвеца гасит её через
+        # KEEP_GRACE_S.  Без этой проверки --reuse на погибший инстанс уходил
+        # ждать его появления до boot_limit, то есть тридцать пять минут в
+        # никуда, повторяя "статус=None".
+        if reuse and not vast.instance(reuse):
+            log(f"инстанс {reuse} уже не существует — снимаю новую машину")
+            reuse = None
+            state["iid"] = None
+
         if reuse:
             log(f"переиспользую инстанс {reuse} — холодного старта нет")
             inst = vast.instance(reuse) or {}
