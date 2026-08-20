@@ -72,17 +72,19 @@ if python -c "import vllm" 2>/dev/null; then
   # С PP-DocLayoutV2 те же 0.75 проходили — арена V3 просто больше.
   # 0.60 оставляет детекции 9 ГБ.  KV-кеш при этом ~11 ГБ на модель в 0.9B —
   # всё ещё несуразно много, узким местом он не станет.
-  # Порт мог остаться занят движком прошлого прогона: vLLM порождает
-  # дочерние процессы, и SIGTERM родителю их не забирает.  При --reuse таких
-  # сирот накапливается по одной за прогон, каждая держит 60% видеопамяти —
-  # на тринадцатом прогоне карта кончилась, запросы повисли, и разбор встал,
-  # ничего не написав.  Причём health-check проходил: сирота отвечала на
-  # /v1/models, и мы считали, что подняли сервер сами.
-  if command -v fuser >/dev/null 2>&1; then
-    fuser -k "$PORT/tcp" 2>/dev/null && { log "порт $PORT был занят — прибрал"; sleep 3; }
+# Порт мог остаться занят движком прошлого прогона.  fuser и ss в образе
+  # отсутствуют (Dockerfile ставит только rsync, zstd, curl и библиотеки), так
+  # что искать держателя порта нечем — бьём по имени процесса.  Своей оболочки
+  # это не касается: в её командной строке нет ни "vllm serve", ни "VLLM::".
+  STALE=$(pgrep -f "vllm serve" 2>/dev/null | tr '\n' ' ')
+  if [ -n "$STALE" ]; then
+    log "на машине остались процессы vLLM ($STALE) — прибираю"
+    pkill -f "vllm serve" 2>/dev/null; pkill -f "VLLM::" 2>/dev/null
+    sleep 3
+    pkill -9 -f "vllm serve" 2>/dev/null; pkill -9 -f "VLLM::" 2>/dev/null
+    sleep 2
   else
-    OLD=$(ss -lptn "sport = :$PORT" 2>/dev/null | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u)
-    [ -n "$OLD" ] && { log "порт $PORT держали процессы $OLD — прибираю"; kill -9 $OLD 2>/dev/null; sleep 3; }
+    log "чужих процессов vLLM на машине нет"
   fi
 
   # setsid даёт vLLM собственную группу процессов.  Без этого группа общая
@@ -96,7 +98,40 @@ if python -c "import vllm" 2>/dev/null; then
         --no-enable-prefix-caching --mm-processor-cache-gb 0 \
         > "$OUT/vllm.log" 2>&1 &
   SRV=$!
+
+  # Уборка вынесена в ловушку, а не стоит в конце: до конца скрипт доходит не
+  # всегда.  Путь `exit 1` при неподнявшемся сервере уборку проходил мимо, а
+  # снятие по таймауту не даёт выполнить ни строки — box.run() убивает
+  # локальный ssh-клиент, и здесь всё умирает по SIGPIPE на tee.
+  #
+  # Это стало важнее после setsid: раньше разрыв ssh мог снести сервер по
+  # SIGHUP, теперь он от сессии отвязан намеренно, и сирота была бы
+  # гарантирована, а не случайна.
+  _cleaned=0
+  cleanup() {
+    [ "$_cleaned" = 1 ] && return; _cleaned=1
+    if [ -n "${SRV:-}" ]; then
+      # После setsid PID совпадает с идентификатором группы, так что бьём по
+      # группе и забираем APIServer с EngineCore вместе с родителем.
+      kill -- "-$SRV" 2>/dev/null || kill "$SRV" 2>/dev/null
+      sleep 2
+      kill -9 -- "-$SRV" 2>/dev/null
+    fi
+    # Подчистка на случай, если группа не забрала всех: EngineCore не держит
+    # сокет порта и переживал и родителя, и освобождение порта.  Своей оболочки
+    # это не касается — в её командной строке нет ни "vllm serve", ни "VLLM::".
+    pkill -9 -f "vllm serve" 2>/dev/null
+    pkill -9 -f "VLLM::" 2>/dev/null
+    return 0
+  }
+  trap cleanup EXIT INT TERM HUP
+
   for i in $(seq 1 600); do
+      # Живость проверяем ДО curl: иначе на первой же итерации ответить может
+      # ЧУЖОЙ сервер, и мы решим, что подняли свой.
+      if ! kill -0 "$SRV" 2>/dev/null; then
+          log "vLLM упал на старте, хвост лога:"; tail -40 "$OUT/vllm.log"; break
+      fi
       if curl -sf "http://127.0.0.1:$PORT/v1/models" -o /dev/null 2>/dev/null; then
           SERVER_UP=1; log "vLLM поднялся за ${i}с"
           # В журнал прогонов: по этому числу подгоняется модель выбора
@@ -135,18 +170,7 @@ python "$WORK/entrypoint.py" --pdf "$PDF" --out "$OUT" \
 RC=$?
 log "разбор завершён с кодом $RC за $(( $(date +%s) - START ))с"
 
-# Убиваем всю группу, а не один процесс: vLLM порождает APIServer и
-# EngineCore отдельными процессами, и SIGTERM родителю оставляет их жить —
-# вместе с занятым портом и видеопамятью.  `pkill -f` здесь нельзя: он
-# однажды поймал собственную оболочку этого скрипта и уронил её с кодом 144,
-# поэтому бьём по группе именно нашего PID.
-if [ -n "$SRV" ]; then
-  # После setsid PID процесса совпадает с идентификатором его группы, так
-  # что бьём по группе и забираем APIServer с EngineCore вместе с ним.
-  kill -- "-$SRV" 2>/dev/null || kill "$SRV" 2>/dev/null
-  sleep 3
-  kill -9 -- "-$SRV" 2>/dev/null
-fi
+cleanup
 
 [ "$RC" != 0 ] && { log "=== хвост vllm.log ==="; tail -60 "$OUT/vllm.log" 2>/dev/null; }
 log "=== выход ==="; du -sh "$OUT" 2>/dev/null

@@ -228,6 +228,20 @@ class Box:
         self._hb_thread = threading.Thread(target=loop, daemon=True)
         self._hb_thread.start()
 
+    def stop_heartbeat(self) -> None:
+        """Прекратить пульс — обязательно перед тем, как бросить машину.
+
+        Без этого дозор мертвеца выключен ровно там, где он нужнее всего:
+        отбракованная по каналу машина, которую не удалось уничтожить,
+        продолжала получать пульс от нашего же потока и потому не убивала
+        себя сама.  Плюс за пять попыток аренды накапливалось пять потоков,
+        четыре из них стучались в мёртвые хосты.
+        """
+        self._stop_hb.set()
+        t = getattr(self, "_hb_thread", None)
+        if t is not None and t.is_alive():
+            t.join(timeout=2)
+
     def set_deadman(self, seconds: int) -> None:
         """Переставить срок дозора — например, перед --keep."""
         self.run(f"echo {int(seconds)} > /root/.alive.grace", stream=False)

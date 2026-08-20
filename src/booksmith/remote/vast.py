@@ -177,10 +177,15 @@ class Vast:
 
     # ---------------------------------------------------------------- статус
     def instance(self, iid: int) -> dict | None:
-        try:
-            rows = self.v.show_instance(id=int(iid))
-        except Exception:
-            return None
+        """Описание инстанса; None — если его точно нет.
+
+        При ошибке обращения бросаем, а не возвращаем None: вызывающий код
+        отличает «ответили, что машины нет» от «не смогли спросить».  Раньше
+        любая пятисотка или таймаут выглядели как «инстанса нет», и --reuse
+        снимал ВТОРУЮ карту, оставив первую биллиться до своего дозора.
+        Полярность здесь та же, что в alive(): неизвестность — не смерть.
+        """
+        rows = self.v.show_instance(id=int(iid))
         return rows[0] if isinstance(rows, list) and rows else (
             rows if isinstance(rows, dict) else None)
 

@@ -203,7 +203,13 @@ def execute(box: Box, spec: JobSpec, outdir: str,
     finally:
         box.stop_sync()
         log("забираю результат целиком...")
-        box.pull(spec.outputs, outdir)
+        if box.pull(spec.outputs, outdir) != 0 and rc == 0:
+            # Задача отработала, а результат не доехал — это не успех.
+            # Раньше такой прогон возвращал 0, и оператор получал неполный
+            # разбор как готовый; вместе с нечищенным каталогом это было
+            # неотличимо от нормы.
+            log("ВНИМАНИЕ: результат выкачался не полностью")
+            rc = 75
     return rc
 
 
@@ -254,7 +260,7 @@ KEEP_GRACE_S = 4 * 3600
 
 
 def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
-          rec, guards: list, t0: float):
+          rec, guards: list, t0: float, undead: list | None = None):
     """Снять машину, дождаться ssh и проверить канал до неё.
 
     Плохая машина отсеивается здесь за двадцать секунд, а не через пятнадцать
@@ -265,6 +271,7 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
     # Отбракованные машины исключаются навсегда, а не на один прогон: без
     # этого предпочтение прогретых ведёт обратно на ту же грабли.
     avoid: list[int] = list(ledger.bad_machines())
+    undead = undead if undead is not None else []
     for attempt in range(1, MAX_ATTEMPTS + 1):
         offer = vast.pick(spec.host, spec.image_gb, spec.minutes, _warm(spec),
                           payload_gb=spec.payload_gb, warmup_s=spec.warmup_s,
@@ -318,10 +325,25 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
         elif link:
             log(f"машина тянет из мира всего {down:.0f} Мбит/с "
                 f"(нужно от {MIN_DOWNLOAD_MBPS:.0f}) — беру другую")
-        vast.destroy(int(state["iid"]))
-        state["iid"] = None
-        guard.set()
-        avoid.append(offer.get("machine_id"))
+        # Пульс надо остановить ДО того, как бросить машину: иначе наш же
+        # поток продолжит её оживлять, и дозор мертвеца не сработает.
+        try:
+            box.stop_heartbeat()
+        except Exception:
+            pass
+        # Результат уничтожения не выбрасываем: при неудаче машина жива, и
+        # обнулять её id нельзя — блок finally её уже не тронет, а сторожа
+        # мы бы погасили. Такой инстанс остаётся вообще без присмотра.
+        if vast.destroy(int(state["iid"])):
+            state["iid"] = None
+            guard.set()
+        else:
+            log(f"инстанс {state['iid']} уничтожить не удалось — "
+                f"оставляю сторожа и добью в конце")
+            undead.append(int(state["iid"]))
+        mid = offer.get("machine_id")
+        if mid is not None:
+            avoid.append(mid)
 
     raise RuntimeError(f"за {MAX_ATTEMPTS} попытки не нашлось машины "
                        f"с каналом от {MIN_LINK_MBPS:.0f} Мбит/с")
@@ -356,17 +378,38 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
         _restore_signals(old_signals)
         return 0
 
+    # Локальный каталог тоже надо чистить, а не только удалённый: rsync идёт
+    # без --delete, и страницы прошлого прогона оставались лежать вперемешку
+    # с новыми.  Хуже того, _run_facts подхватывал старые run.json и
+    # progress.json и писал их в журнал как данные нового прогона — то есть
+    # подделывались ещё и числа, по которым выбирается машина.
+    if not spec.resume and os.path.isdir(outdir) and os.listdir(outdir):
+        import shutil
+        shutil.rmtree(outdir)
+        log(f"локальный каталог {outdir} очищен от прошлого прогона")
     os.makedirs(outdir, exist_ok=True)
     guards: list[threading.Event] = []
+    # Машины, которые пришлось бросить, но уничтожить не удалось: добиваем в
+    # конце, иначе они биллятся до своего дозора мертвеца.
+    undead: list[int] = []
     try:
         # Оставленная машина живёт не вечно: дозор мертвеца гасит её через
         # KEEP_GRACE_S.  Без этой проверки --reuse на погибший инстанс уходил
         # ждать его появления до boot_limit, то есть тридцать пять минут в
         # никуда, повторяя "статус=None".
-        if reuse and not vast.instance(reuse):
-            log(f"инстанс {reuse} уже не существует — снимаю новую машину")
-            reuse = None
-            state["iid"] = None
+        if reuse:
+            try:
+                gone = vast.instance(reuse) is None
+            except Exception as exc:
+                # Не смогли спросить — считаем, что машина жива.  Иначе мы
+                # снимем вторую карту, а первая продолжит биллиться.
+                log(f"не удалось проверить инстанс {reuse} ({exc}) — "
+                    f"считаю, что он жив")
+                gone = False
+            if gone:
+                log(f"инстанс {reuse} уже не существует — снимаю новую машину")
+                reuse = None
+                state["iid"] = None
 
         if reuse:
             log(f"переиспользую инстанс {reuse} — холодного старта нет")
@@ -383,7 +426,7 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
             box = connect(vast, reuse, spec, ssh_key)
         else:
             box, dph, budget = _rent(vast, spec, ssh_key, state, rec,
-                                     guards, t0)
+                                     guards, t0, undead)
 
         rec.dph = dph
         rec.setup_s = time.time() - t0
@@ -411,10 +454,20 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
         done.set()
         for g in guards:           # сторожа всех попыток, включая брошенные
             g.set()
+        for dead in undead:
+            if vast.destroy(int(dead)):
+                log(f"брошенный инстанс {dead} добит")
+            else:
+                log(f"ВНИМАНИЕ: инстанс {dead} не уничтожен и продолжает "
+                    f"биллиться — убейте вручную: books down {dead}")
         iid = state["iid"]
         elapsed = time.time() - t0
         rec.total_s = elapsed
-        rec.cost_usd = rec.dph * elapsed / 3600 + rec.per_tb * spec.image_gb / 1024
+        # Трафик считаем с полезной нагрузкой, а не с одним образом: колёса и
+        # веса это 7.2 ГБ против 0.06, и без них цифра в журнале занижалась
+        # примерно в сто раз.  Оценщик в pricing.py считает так же.
+        rec.cost_usd = (rec.dph * elapsed / 3600
+                        + rec.per_tb * (spec.image_gb + spec.payload_gb) / 1024)
         if iid and not keep:
             vast.destroy(int(iid))
         elif iid:

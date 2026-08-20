@@ -87,7 +87,24 @@ MAX_LEN="${OLMOCR_MAX_MODEL_LEN:-16384}"
 # Кеш предобработки мультимодалки отключён: каждая страница уникальна, кешу
 # в нём нечего ловить, а память он забирает.  Префиксный кеш тоже: общего
 # префикса у страниц ровно 90 токенов текста промпта, дальше идёт картинка.
-nohup vllm serve "$MODEL_DIR" \
+# Порт мог остаться занят движком прошлого прогона.  fuser и ss в образе
+# отсутствуют, так что искать держателя порта нечем — бьём по имени процесса.
+# Своей оболочки это не касается: в её командной строке нет ни "vllm serve",
+# ни "VLLM::".
+STALE=$(pgrep -f "vllm serve" 2>/dev/null | tr '\n' ' ')
+if [ -n "$STALE" ]; then
+  log "на машине остались процессы vLLM ($STALE) — прибираю"
+  pkill -f "vllm serve" 2>/dev/null; pkill -f "VLLM::" 2>/dev/null
+  sleep 3
+  pkill -9 -f "vllm serve" 2>/dev/null; pkill -9 -f "VLLM::" 2>/dev/null
+  sleep 2
+else
+  log "чужих процессов vLLM на машине нет"
+fi
+
+# setsid даёт vLLM собственную группу процессов, иначе группа общая со
+# скриптом и убийство группы прибило бы сам скрипт.
+setsid nohup vllm serve "$MODEL_DIR" \
       --served-model-name "$MODEL" \
       --host 127.0.0.1 --port "$PORT" \
       --max-model-len "$MAX_LEN" \
@@ -96,11 +113,40 @@ nohup vllm serve "$MODEL_DIR" \
       --no-enable-prefix-caching --mm-processor-cache-gb 0 \
       > "$OUT/vllm.log" 2>&1 &
 SRV=$!
+
+# Уборка вынесена в ловушку, а не стоит в конце: до конца скрипт доходит не
+# всегда.  Путь `exit 1` при неподнявшемся сервере уборку проходил мимо, а
+# снятие по таймауту не даёт выполнить ни строки — box.run() убивает
+# локальный ssh-клиент, и здесь всё умирает по SIGPIPE на tee.
+#
+# Это стало важнее после setsid: раньше разрыв ssh мог снести сервер по
+# SIGHUP, теперь он от сессии отвязан намеренно, и сирота была бы
+# гарантирована, а не случайна.  У этой задачи цена сироты выше: модель 7B
+# при --gpu-memory-utilization 0.90 занимает почти всю карту, а порт 8118
+# общий с paddleocr — сирота ломает и её прогоны тоже.
+_cleaned=0
+cleanup() {
+  [ "$_cleaned" = 1 ] && return; _cleaned=1
+  if [ -n "${SRV:-}" ]; then
+    kill -- "-$SRV" 2>/dev/null || kill "$SRV" 2>/dev/null
+    sleep 2
+    kill -9 -- "-$SRV" 2>/dev/null
+  fi
+  pkill -9 -f "vllm serve" 2>/dev/null
+  pkill -9 -f "VLLM::" 2>/dev/null
+  return 0
+}
+trap cleanup EXIT INT TERM HUP
 SERVER_UP=0
 # Ждём дольше, чем у paddleocr: там модель 0.9 ГБ, здесь 15.5 ГиБ весов
 # читаются с диска и раскладываются по карте.  600 с — с запасом, но это
 # потолок, а не ожидание: обычно укладывается в две-три минуты.
 for i in $(seq 1 600); do
+    # Живость проверяем ДО curl: иначе ответить может ЧУЖОЙ сервер, и мы
+    # решим, что подняли свой.
+    if ! kill -0 "$SRV" 2>/dev/null; then
+        log "vLLM упал на старте, хвост лога:"; tail -40 "$OUT/vllm.log"; break
+    fi
     if curl -sf "http://127.0.0.1:$PORT/v1/models" -o /dev/null 2>/dev/null; then
         SERVER_UP=1; log "vLLM поднялся за ${i}с"
         # В журнал прогонов: по этому числу подгоняется модель выбора
@@ -133,9 +179,7 @@ python "$WORK/entrypoint.py" --pdf "$PDF" --out "$OUT" \
 RC=$?
 log "разбор завершён с кодом $RC за $(( $(date +%s) - START ))с"
 
-# Убиваем именно наш процесс: `pkill -f` однажды поймал собственную оболочку
-# этого скрипта и уронил его с кодом 144.
-[ -n "$SRV" ] && kill "$SRV" 2>/dev/null
+cleanup
 
 [ "$RC" != 0 ] && { log "=== хвост vllm.log ==="; tail -60 "$OUT/vllm.log" 2>/dev/null; }
 log "=== выход ==="; du -sh "$OUT" 2>/dev/null
