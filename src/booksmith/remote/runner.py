@@ -274,7 +274,7 @@ ATTEMPT_LIMIT_S = 300.0
 KEEP_GRACE_S = 4 * 3600
 
 
-def _our_downlink_mbps(timeout: float = 12.0) -> float:
+def _our_downlink_mbps(timeout: float = 20.0, mb: int = 1) -> float:
     """Скорость НАШЕГО канала вниз, чтобы не винить в ней машины.
 
     Зонд канала меряет путь от машины к нам и потому упирается в нас же.
@@ -288,9 +288,15 @@ def _our_downlink_mbps(timeout: float = 12.0) -> float:
     import urllib.request
     try:
         t0 = time.time()
-        with urllib.request.urlopen(
-                "https://speed.cloudflare.com/__down?bytes=3000000",
-                timeout=timeout) as r:
+        # Мегабайта достаточно и он укладывается даже в узкий канал: три
+        # мегабайта на 2.3 Мбит/с не влезали в срок, и замер возвращал ноль —
+        # то есть страховка от узкого канала сама им же и ломалась.
+        # Заголовок обязателен: без него Cloudflare отвечает 403, замер
+        # возвращает ноль, и страховка от узкого канала молча выключается.
+        req = urllib.request.Request(
+            f"https://speed.cloudflare.com/__down?bytes={mb * 1000000}",
+            headers={"User-Agent": "booksmith/1.0"})
+        with urllib.request.urlopen(req, timeout=timeout) as r:
             n = len(r.read())
         dt = max(time.time() - t0, 1e-6)
         return n * 8 / dt / 1e6
