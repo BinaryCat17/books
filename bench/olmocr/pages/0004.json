@@ -1,0 +1,13 @@
+{
+ "page": 4,
+ "attempts": 1,
+ "rotation_applied": 0,
+ "fallback": false,
+ "input_tokens": 1602,
+ "output_tokens": 808,
+ "primary_language": "en",
+ "is_rotation_valid": true,
+ "rotation_correction": 0,
+ "is_table": false,
+ "is_diagram": false
+}
