@@ -676,7 +676,7 @@ def main():
     if os.environ.get("PREFER_TABLES", "1") == "1":
         _prefer_tables_over_text()
         _log("таблица важнее текстовой рамки при перекрытии")
-    if os.environ.get("MULTIVIEW", "0") == "1":
+    if os.environ.get("MULTIVIEW", "1") == "1":
         _multiview_layout()
         _log("детекция макета в двенадцать взглядов")
     if os.environ.get("REASK", "1") == "1":
