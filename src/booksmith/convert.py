@@ -45,6 +45,16 @@ def _report(name, src, got):
     _log(f"  {name}: " + ", ".join(parts))
 
 
+def _pandoc_ge3():
+    """У pandoc 3 ключ --split-level, у второго — --epub-chapter-level."""
+    try:
+        out = subprocess.run(["pandoc", "--version"], capture_output=True,
+                             text=True).stdout
+        return int(out.split()[1].split(".")[0]) >= 3
+    except Exception:
+        return False
+
+
 def _pandoc(args, cwd=None):
     r = subprocess.run(["pandoc"] + args, cwd=cwd,
                        capture_output=True, text=True)
@@ -77,8 +87,15 @@ def convert(outdir: str, formats=("epub", "fb2"), title: str | None = None) -> i
     if "epub" in formats:
         dst = os.path.join(book_dir, "book.epub")
         try:
+            # Резать по заголовкам ВТОРОГО уровня.  По умолчанию pandoc
+            # режет по первому, а их в разборе почти нет: вся книга уезжала в
+            # один ch001.xhtml на 1.5 МБ с 577 картинками и всеми сорока
+            # таблицами, и читалки на таком спотыкаются.
+            split = ("--split-level=2" if _pandoc_ge3()
+                     else "--epub-chapter-level=2")
             _pandoc(["book.md", "-f", READ, "-t", "epub3", "--resource-path=.",
-                     "--toc", "--toc-depth=2", *meta, "-o", dst], cwd=book_dir)
+                     "--toc", "--toc-depth=3", split, *meta, "-o", dst],
+                    cwd=book_dir)
             import zipfile
             with zipfile.ZipFile(dst) as z:
                 inside = "".join(
