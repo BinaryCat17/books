@@ -1,0 +1,167 @@
+{
+ "The first test, diagrammed in Fig. 26.52 determines if the axis of the tapered hole in the spindle is ‘in-line’ with the axis of the tailstock spindle in the horizontal plane. A DIAL INDICATOR is mounted on the carriage arm adjusted against the near side of the test bar at the horizontal diameter. A reading is taken, as the carriage is moved forward. If the plus or minus tolerance shown in the Figure is not exceeded, the axis of the tapered hole in the spindle, is correctly aligned to the axis of the spindle in the horizontal plane.": [
+  [
+   101,
+   103,
+   -1.16
+  ]
+ ],
+ "RECOMMENDATION STANDARDS": [
+  [
+   9,
+   14,
+   -1.79
+  ]
+ ],
+ "Fig. 26.53 Alignment of taper no. of tarsock in vertical plane.": [
+  [
+   36,
+   38,
+   -2.34
+  ],
+  [
+   38,
+   41,
+   -2.25
+  ],
+  [
+   41,
+   44,
+   -1.0
+  ]
+ ],
+ "\\[\\begin{array}{cccc}Teoi Room&12^{\\circ}to 18^{\\circ}me.&20^{\\circ}to 34^{\\circ}to\\\\Laths&Eng\\\\to,0005^{\\circ}&0to,0005^{\\circ}&0^{\\circ}to,0010^{\\circ}\\\\\\end{array}\\]": [
+  [
+   21,
+   23,
+   -1.36
+  ],
+  [
+   23,
+   25,
+   -1.19
+  ],
+  [
+   45,
+   46,
+   -1.05
+  ],
+  [
+   54,
+   56,
+   -1.58
+  ],
+  [
+   81,
+   83,
+   -1.92
+  ],
+  [
+   86,
+   89,
+   -1.6
+  ],
+  [
+   89,
+   90,
+   -1.33
+  ],
+  [
+   94,
+   96,
+   -2.03
+  ],
+  [
+   96,
+   98,
+   -1.23
+  ],
+  [
+   98,
+   99,
+   -1.21
+  ]
+ ],
+ "(high at end of 12 mch test bar)\nAll spotting of this member is performed using the bed ways as a template. However, before any scraping or alignment is attempted, the spindle of the head stock must be given a series of accuracy tests.": [
+  [
+   18,
+   20,
+   -1.28
+  ]
+ ],
+ "Four accuracy tests are made on the spindle and will be described briefly. Obviously, they are not all of the examinations which the spindle would undergo during a manufacturing process, but they do constitute the indispensable ones which the scraping operator can perform correctly and in a short time. The checks may be conducted with the headstock placed either on the lathe bed, or perhaps on a work bench.": [
+  [
+   272,
+   282,
+   -1.69
+  ]
+ ],
+ "A test bar is made up with a taper on one end to fit the tapered hole in the spindle. In making the bar, the straight portion should be proportioned to the size of the lathe and therefore will vary in length and diameter.": [
+  [
+   167,
+   171,
+   -1.7
+  ]
+ ],
+ "<fcel>RECOMMENDED STANDARDS<lcel><lcel><nl><fcel>Tool Room<fcel>12\" to 18\" inc.<fcel>20\" to 36\" inc.<nl><fcel>Lathe<fcel>Engine Lathe \\({}^{*}\\)<fcel>Engine Lathe<nl><fcel>0 to (±) .0003\"<fcel>0 to (±) .0005\"<fcel>0 to (±) .0008\"<nl><fcel>(At end of 12 inch test bar)<lcel><lcel><nl>": [
+  [
+   133,
+   135,
+   -1.67
+  ]
+ ],
+ "placed on the horizontal diameter of the test bar, as shown in Fig. 26.61. The carriage is now moved so that the buttonslides from end to end of the bar. At the same time the tailstock top is set-over on its transverse way until a reading close to zero-zero is attained. We say “close” because at this stage we would not obtain an identical calibration in traversing the test bar from end to end due to the fact that the axis of the headstock spindle is higher than the axis of the tailstock spindle. The reason, as previously stated, is that no scraping has yet been done on the slides of the headstock. Consequently, the DIAL INDICATOR button would ride up or down from the horizontal axis of the test bar as the carriage is moved along the bed ways.": [
+  [
+   277,
+   279,
+   -1.12
+  ]
+ ],
+ "<fcel>The surface quality required by CBI-JECTIVE NO. 3 should be produced simultaneously.<nl>": [
+  [
+   39,
+   41,
+   -2.19
+  ],
+  [
+   41,
+   42,
+   -1.24
+  ]
+ ],
+ "<fcel>RECOMMENDED STANDARDS<lcel><lcel><nl><fcel>Tool Room<fcel>12\" to 18\" in.c.<fcel>20\" to 36\" inc.<nl><fcel>Lathe<fcel>Engine Lathe<fcel>Engine Lathe<nl><fcel>(±) .001\"<fcel>(±) .0015\"<fcel>(±) .002\"<nl><fcel>(lead per foot)<lcel><lcel><nl><fcel>(±) .0004\"<fcel>(±) .0005\"<fcel>(±) .0007\"<nl><fcel>(lead in any 4\")<lcel><lcel><nl>": [
+  [
+   74,
+   77,
+   -1.07
+  ]
+ ],
+ "<fcel>Pitch Error in Leach Screws (The accuracy tests of lead screws is based on a reference length of 12\" with a further subdivision of 1/3 or 4\".)<nl>": [
+  [
+   23,
+   26,
+   -1.15
+  ]
+ ],
+ "It is always good practice to run in the machine under power for about one hour. During this warming-up period, the various members are repeatedly tested for quietness and smoothness of movement. When the machine attains a constant, normal, operating temperature the Final Tests under Working Conditions may be performed.": [
+  [
+   33,
+   36,
+   -1.02
+  ]
+ ],
+ "<fcel>.003\"<fcel>.003\"<nl><fcel>(Bar test 3\" from end of jaw. Bar diameter same as hole)<lcel><nl>": [
+  [
+   61,
+   65,
+   -1.13
+  ]
+ ],
+ "<fcel>Recommended Standards<lcel><lcel><lcel><nl><fcel>Tool Room<fcel>12\" to 18\" inc.<fcel>20\" to 36\" inc.<ecel><nl><fcel>Lathes<fcel>Engine Lathes<fcel>Engine Lathe<ecel><nl><fcel>0 to .0005\"<fcel>0 to .001\"<fcel>0 to .0015\"<ecel><nl><fcel>(on diameter)<lcel><lcel><lcel><nl><fcel>0 to .001\"<fcel>0 to .0015\"<fcel>0 to .002\"<ecel><nl><fcel>(on face at nominal diameter)<lcel><lcel><lcel><nl>": [
+  [
+   6,
+   8,
+   -1.48
+  ]
+ ]
+}

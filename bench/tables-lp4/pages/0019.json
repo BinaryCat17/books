@@ -1,0 +1,431 @@
+{
+    "input_path": "input.pdf",
+    "page_index": 19,
+    "page_count": 20,
+    "width": 2024,
+    "height": 2932,
+    "model_settings": {
+        "use_doc_preprocessor": false,
+        "use_layout_detection": true,
+        "use_chart_recognition": false,
+        "use_seal_recognition": false,
+        "use_ocr_for_image_block": false,
+        "format_block_content": false,
+        "merge_layout_blocks": true,
+        "markdown_ignore_labels": [
+            "number",
+            "header_image",
+            "footer",
+            "footer_image",
+            "aside_text"
+        ],
+        "return_layout_polygon_points": true
+    },
+    "parsing_res_list": [
+        {
+            "block_label": "figure_title",
+            "block_content": "RECOMMENDED STANDARDS",
+            "block_bbox": [
+                315,
+                978,
+                783,
+                1014
+            ],
+            "block_id": 0,
+            "block_order": null,
+            "group_id": 0
+        },
+        {
+            "block_label": "header",
+            "block_content": "Sec. 26.80\nFace Plate Run Out",
+            "block_bbox": [
+                166,
+                178,
+                544,
+                266
+            ],
+            "block_id": 1,
+            "block_order": null,
+            "group_id": 1
+        },
+        {
+            "block_label": "text",
+            "block_content": "PROCEDURE:",
+            "block_bbox": [
+                168,
+                309,
+                445,
+                353
+            ],
+            "block_id": 2,
+            "block_order": 1,
+            "group_id": 2
+        },
+        {
+            "block_label": "text",
+            "block_content": "The accompanying Fig. 26.76 furnishes the accuracy standard for face plates.",
+            "block_bbox": [
+                165,
+                398,
+                965,
+                489
+            ],
+            "block_id": 3,
+            "block_order": 2,
+            "group_id": 3
+        },
+        {
+            "block_label": "image",
+            "block_content": "",
+            "block_bbox": [
+                204,
+                556,
+                943,
+                845
+            ],
+            "block_id": 4,
+            "block_order": null,
+            "group_id": 4
+        },
+        {
+            "block_label": "figure_title",
+            "block_content": "Fig. 26.76 Face Plate run out.",
+            "block_bbox": [
+                180,
+                908,
+                665,
+                946
+            ],
+            "block_id": 5,
+            "block_order": null,
+            "group_id": 5
+        },
+        {
+            "block_label": "table",
+            "block_content": "<table><tr><td>Tool Room</td><td>12&quot; to 18&quot; inc.</td><td>20&quot; to 36&quot; inc.</td></tr><tr><td>Lathes</td><td>Engine Lathes</td><td>Engine Lathe</td></tr><tr><td>0 to .0005&quot;</td><td>0 to .001&quot;</td><td>0 to .0015&quot;</td></tr><tr><td colspan=\"3\">(on diameter)</td></tr><tr><td>0 to .001&quot;</td><td>0 to .0015&quot;</td><td>0 to .002&quot;</td></tr><tr><td colspan=\"3\">(on face at nominal diameter)</td></tr></table>",
+            "block_bbox": [
+                199,
+                1004,
+                960,
+                1286
+            ],
+            "block_id": 6,
+            "block_order": null,
+            "group_id": 6
+        },
+        {
+            "block_label": "text",
+            "block_content": "Sec. 26.81",
+            "block_bbox": [
+                168,
+                1330,
+                366,
+                1372
+            ],
+            "block_id": 7,
+            "block_order": 3,
+            "group_id": 7
+        },
+        {
+            "block_label": "text",
+            "block_content": "Effects of Inaccurate Leveling",
+            "block_bbox": [
+                168,
+                1375,
+                762,
+                1421
+            ],
+            "block_id": 8,
+            "block_order": 4,
+            "group_id": 8
+        },
+        {
+            "block_label": "text",
+            "block_content": "Although the lathe was leveled prior to scraping, this procedure must be repeated again if the machine is moved to another place for permanent erection. Any relocation of the bed necessitates the exercise of due care on the part of the user. If the machine is placed in operation when the lathe bed is not level, serious trouble will be experienced. The ways of the bed become twisted thereby initiating a whole series of unfortunate consequences. For example, when the ways of the bed are twisted due to faulty leveling the carriage slides cannot fit properly. Operated in this condition, chatter marks will be generated on the work piece.",
+            "block_bbox": [
+                165,
+                1465,
+                973,
+                1647
+            ],
+            "block_id": 9,
+            "block_order": 5,
+            "group_id": 9
+        },
+        {
+            "block_label": "text",
+            "block_content": "",
+            "block_bbox": [
+                1016,
+                176,
+                1827,
+                708
+            ],
+            "block_id": 10,
+            "block_order": 6,
+            "group_id": 9
+        },
+        {
+            "block_label": "text",
+            "block_content": "A “wind” in the bed ways, attributable to improper leveling, will also twist the headstock out of line. This binds the spindle in its bearings. The bearings may score and deterioration is accelerated. Chatter marks are formed on the work piece by this cause also.",
+            "block_bbox": [
+                1019,
+                709,
+                1829,
+                1022
+            ],
+            "block_id": 11,
+            "block_order": 7,
+            "group_id": 11
+        },
+        {
+            "block_label": "text",
+            "block_content": "Improper leveling, besides impairing surface quality, likewise affects the accuracy of the work output in the following manner. Work held in a chuck cannot be turned straight, nor can a hole be bored which will not taper. It is also impossible to turn work straight when held between centers.",
+            "block_bbox": [
+                1019,
+                1023,
+                1830,
+                1374
+            ],
+            "block_id": 12,
+            "block_order": 8,
+            "group_id": 12
+        },
+        {
+            "block_label": "text",
+            "block_content": "To function accurately, a lathe regardless of size, or weight must be perfectly level before being placed in use. It is the purpose of the leveling process to relieve strains and distortion and restore the bed to the plane in which it was scraped.",
+            "block_bbox": [
+                1020,
+                1377,
+                1826,
+                1647
+            ],
+            "block_id": 13,
+            "block_order": 9,
+            "group_id": 13
+        },
+        {
+            "block_label": "number",
+            "block_content": "315",
+            "block_bbox": [
+                964,
+                2734,
+                1035,
+                2777
+            ],
+            "block_id": 14,
+            "block_order": null,
+            "group_id": 14
+        }
+    ],
+    "layout_det_res": {
+        "input_path": null,
+        "page_index": null,
+        "boxes": [
+            {
+                "cls_id": 12,
+                "label": "header",
+                "score": 0.3136861324310303,
+                "coordinate": [
+                    167,
+                    179,
+                    370,
+                    219
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.30229008197784424,
+                "coordinate": [
+                    169,
+                    224,
+                    543,
+                    265
+                ],
+                "order": 1
+            },
+            {
+                "cls_id": 7,
+                "label": "figure_title",
+                "score": 0.44120365381240845,
+                "coordinate": [
+                    315,
+                    978,
+                    783,
+                    1014
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 12,
+                "label": "header",
+                "score": 0.6189326047897339,
+                "coordinate": [
+                    166,
+                    178,
+                    544,
+                    266
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.649264395236969,
+                "coordinate": [
+                    168,
+                    309,
+                    445,
+                    353
+                ],
+                "order": 2
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9577160477638245,
+                "coordinate": [
+                    165,
+                    398,
+                    965,
+                    489
+                ],
+                "order": 3
+            },
+            {
+                "cls_id": 14,
+                "label": "image",
+                "score": 0.9707331657409668,
+                "coordinate": [
+                    204,
+                    556,
+                    943,
+                    845
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 7,
+                "label": "figure_title",
+                "score": 0.810117244720459,
+                "coordinate": [
+                    180,
+                    908,
+                    665,
+                    946
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.5348527431488037,
+                "coordinate": [
+                    199,
+                    1004,
+                    960,
+                    1286
+                ],
+                "order": 4
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.4718461036682129,
+                "coordinate": [
+                    168,
+                    1330,
+                    366,
+                    1372
+                ],
+                "order": 5
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.6737149357795715,
+                "coordinate": [
+                    168,
+                    1375,
+                    762,
+                    1421
+                ],
+                "order": 6
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9746665358543396,
+                "coordinate": [
+                    165,
+                    1465,
+                    973,
+                    1647
+                ],
+                "order": 7
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9883837103843689,
+                "coordinate": [
+                    1016,
+                    176,
+                    1827,
+                    708
+                ],
+                "order": 8
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9855565428733826,
+                "coordinate": [
+                    1019,
+                    709,
+                    1829,
+                    1022
+                ],
+                "order": 9
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9862985014915466,
+                "coordinate": [
+                    1019,
+                    1023,
+                    1830,
+                    1374
+                ],
+                "order": 10
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.982606053352356,
+                "coordinate": [
+                    1020,
+                    1377,
+                    1826,
+                    1647
+                ],
+                "order": 11
+            },
+            {
+                "cls_id": 16,
+                "label": "number",
+                "score": 0.8993924260139465,
+                "coordinate": [
+                    964,
+                    2734,
+                    1035,
+                    2777
+                ],
+                "order": 12
+            }
+        ]
+    }
+}

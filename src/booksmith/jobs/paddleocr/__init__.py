@@ -41,7 +41,8 @@ TABLE_THRESHOLD = 0.05
 # Ручки, которыми правится поведение разбора, пробрасываются с моей машины
 # как есть: они нужны, чтобы сравнивать прогоны между собой, и держать под
 # каждую отдельный флаг в CLI было бы шумом.
-_PASS = ("MULTIVIEW", "PREFER_TABLES", "REASK", "PADDLE_PDX_PDF_RENDER_SCALE")
+_PASS = ("MULTIVIEW", "PREFER_TABLES", "REASK", "LOGPROBS", "LOGPROB_THR",
+         "VLM_TEMPERATURE", "PADDLE_PDX_PDF_RENDER_SCALE")
 
 
 def _env(table_threshold):

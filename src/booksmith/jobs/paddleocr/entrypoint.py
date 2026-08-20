@@ -502,6 +502,133 @@ def _unwrap_degenerate_tables(*dirs):
     return n
 
 
+# Ответ VLM -> куски текста, которые она выдала неуверенно.
+# Заполняется _capture_logprobs, читается _mark_uncertain.
+_LOW: dict = {}
+
+
+def _capture_logprobs(thr=-1.0):
+    """Просить у vLLM вероятность каждого токена и запоминать слабые места.
+
+    Наш порок не в том, что модель ошибается, а в том, что она молчит об этом:
+    на выцветшем скане (стр. 304) она дописала третий столбец по образцу первых
+    двух и выдала `.0005` вместо `.0015` с тем же видом уверенности.  Модель,
+    обученная предсказывать следующий токен, обязана что-то выдать и не умеет
+    сказать «не разбираю».
+
+    Но само знание у неё есть — в вероятностях.  Обученного заново детектора
+    для этого не нужно: vLLM отдаёт logprob каждого токена, если попросить.
+
+    Порог -1.0 в логарифме это примерно 37% вероятности: ниже — модель
+    выбирала почти наугад.
+    """
+    from paddlex.inference.models.common.genai import GenAIClient
+    from paddlex.inference.models.doc_vlm.predictor import (
+        DocVLMGenAIClientPredictor as _P,
+    )
+
+    call = GenAIClient.create_chat_completion
+
+    def patched_call(self, messages, *, return_future=False, **kw):
+        kw.setdefault("logprobs", True)
+        return call(self, messages, return_future=return_future, **kw)
+
+    GenAIClient.create_chat_completion = patched_call
+
+    collect = _P._doc_vlm_genai_collect_responses
+
+    def patched_collect(self, futures):
+        out = []
+        for future in futures:
+            res = future.result()
+            ch = res.choices[0]
+            text = ch.message.content
+            out.append(text)
+            try:
+                toks = ch.logprobs.content or []
+            except AttributeError:
+                toks = []
+            spans, pos = [], 0
+            for t in toks:
+                n = len(t.token)
+                if t.logprob < thr:
+                    spans.append((pos, pos + n, round(t.logprob, 2)))
+                pos += n
+            if spans:
+                _LOW[text] = spans
+        return out
+
+    _P._doc_vlm_genai_collect_responses = patched_collect
+
+
+def _mark_uncertain(*dirs, mark="⚠"):
+    """Пометить в разметке места, которые модель выдала неуверенно.
+
+    Две пометки, потому что случаи разные.  В таблице помечается ячейка
+    целиком: читателю (и модели, что будет пересказывать) важно «этому числу
+    не верь», а не какая цифра сомнительна.  В прозе помечается сам кусок,
+    завёрнутый в <mark> — так видно, где именно modель гадала, и разметка
+    остаётся читаемой.
+
+    Молчаливая ошибка становится видимой — это всё, чего мы тут добиваемся.
+    Проверено на замере: в неуверенные места попали `RECOMMENDATION STANDARDS`
+    вместо RECOMMENDED и `tarsock` вместо tailstock, то есть настоящие промахи,
+    а не случайные ячейки.
+    """
+    cell_re = re.compile(r"(<t[dh][^>]*>)(.*?)(</t[dh]>)", re.I | re.S)
+    table_re = re.compile(r"<table\b.*?</table>", re.I | re.S)
+    tag_re = re.compile(r"<[^>]+>")
+    n_cell = n_span = 0
+
+    def suspicious(txt):
+        plain = html.unescape(tag_re.sub("", txt)).strip()
+        if not plain:
+            return False
+        for src, spans in _LOW.items():
+            i = src.find(plain)
+            while i >= 0:
+                for a, b, _ in spans:
+                    if a < i + len(plain) and b > i:
+                        return True
+                i = src.find(plain, i + 1)
+        return False
+
+    def cell(m):
+        nonlocal n_cell
+        if suspicious(m.group(2)):
+            n_cell += 1
+            return m.group(1) + m.group(2) + f" {mark}" + m.group(3)
+        return m.group(0)
+
+    for d in dict.fromkeys(dirs):
+        for f in glob.glob(os.path.join(d, "*.md")):
+            src_md = open(f, encoding="utf-8").read()
+            out = cell_re.sub(cell, src_md)
+
+            # Проза: заворачиваем сам сомнительный кусок, но не трогаем то,
+            # что уже внутри таблицы — там пометка своя, на всю ячейку.
+            safe = [(m.start(), m.end()) for m in table_re.finditer(out)]
+            edits = []
+            for resp, spans in _LOW.items():
+                base = out.find(resp)
+                if base < 0:
+                    continue
+                if any(a <= base < b for a, b in safe):
+                    continue
+                for a, b, _ in spans:
+                    edits.append((base + a, base + b))
+            for a, b in sorted(set(edits), reverse=True):
+                if out[a:b].strip():
+                    out = (out[:a] + f'<mark title="модель не уверена">'
+                           + out[a:b] + "</mark>" + out[b:])
+                    n_span += 1
+
+            if out != src_md:
+                with open(f, "w", encoding="utf-8") as fh:
+                    fh.write(out)
+    return n_cell, n_span
+
+
 def _pipeline_config(layout_dir, table_threshold=0.05):
     """Конфигурация пайплайна: детекция на ONNX Runtime и пачки страниц.
 
@@ -690,6 +817,9 @@ def main():
     if os.environ.get("REASK", "1") == "1":
         _reask_text_as_table()
         _log("блоки text, похожие на таблицу, идут на переспрос")
+    if os.environ.get("LOGPROBS", "1") == "1" and a.server:
+        _capture_logprobs(thr=float(os.environ.get("LOGPROB_THR", "-1.0")))
+        _log("вероятности токенов будут запрошены у vLLM")
     kwargs["markdown_ignore_labels"] = [
         "number", "header_image", "footer", "footer_image", "aside_text",
     ]
@@ -717,7 +847,16 @@ def main():
 
     t1 = time.time()
     pages, n = [], 0
-    for res in pipeline.predict(pdf):
+    # Ненулевая температура — для опыта на самосогласованность: тот же кроп
+    # читается несколько раз, и разошедшиеся ячейки помечаются как ненадёжные.
+    # По умолчанию 0, то есть жадный разбор, как и был.
+    pkw = {}
+    _temp = float(os.environ.get("VLM_TEMPERATURE", "0") or 0)
+    if _temp > 0:
+        pkw["temperature"] = _temp
+        _log(f"температура VLM {_temp} — разбор будет невоспроизводимым нарочно")
+
+    for res in pipeline.predict(pdf, **pkw):
         idx = offset + n
         n += 1
         pages.append(res)
@@ -770,6 +909,14 @@ def main():
                     res.save_to_markdown(save_path=book_dir)
                 except Exception as e:
                     _log(f"  склейка: {e}")
+
+    if _LOW:
+        with open(os.path.join(out, "logprobs.json"), "w") as f:
+            json.dump({k: v for k, v in list(_LOW.items())[:400]}, f,
+                      ensure_ascii=False, indent=1)
+        n_cell, n_span = _mark_uncertain(pages_dir, book_dir)
+        _log(f"ответов с неуверенными местами {len(_LOW)}: "
+             f"помечено ячеек {n_cell}, кусков прозы {n_span}")
 
     unwrapped = _unwrap_degenerate_tables(pages_dir, book_dir)
     if unwrapped:

@@ -186,6 +186,12 @@ def execute(box: Box, spec: JobSpec, outdir: str,
         box.push(local, remote_rel)
         log(f"  {os.path.basename(local)} -> {remote_rel}")
 
+    # На прогретой машине от прошлого прогона остаётся каталог с результатом,
+    # и задача считает работу сделанной: возобновление видит 20 готовых страниц
+    # и досчитывает одну.  Прогон при этом выглядит успешным и стоит денег.
+    # Поэтому чистим — кроме случая, когда возобновление и задумано.
+    if not spec.resume:
+        box.run(f"rm -rf {spec.workdir}/{spec.outputs}", stream=False)
     box.run(f"mkdir -p {spec.workdir}/{spec.outputs}", stream=False)
     box.start_sync(spec.outputs, outdir)
     try:

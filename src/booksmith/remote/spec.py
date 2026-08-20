@@ -90,6 +90,10 @@ class JobSpec:
 
     # Пути на боксе.  У образов PaddleOCR нет /workspace, поэтому свой каталог.
     workdir: str = "/root/ocrjob"
+    # Продолжать ли работу прошлого прогона на этой же машине.  По умолчанию
+    # нет: с --reuse одинаковое имя каталога иначе выдаёт чужой результат за
+    # свой.
+    resume: bool = False
 
     def label(self) -> str:
         return f"bs-{self.name[:28]}"
