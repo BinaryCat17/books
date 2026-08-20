@@ -1,0 +1,332 @@
+{
+    "input_path": "input.pdf",
+    "page_index": 19,
+    "page_count": 20,
+    "width": 1012,
+    "height": 1466,
+    "model_settings": {
+        "use_doc_preprocessor": false,
+        "use_layout_detection": true,
+        "use_chart_recognition": false,
+        "use_seal_recognition": false,
+        "use_ocr_for_image_block": false,
+        "format_block_content": false,
+        "merge_layout_blocks": true,
+        "markdown_ignore_labels": [
+            "number",
+            "header_image",
+            "footer",
+            "footer_image",
+            "aside_text"
+        ],
+        "return_layout_polygon_points": true
+    },
+    "parsing_res_list": [
+        {
+            "block_label": "image",
+            "block_content": "",
+            "block_bbox": [
+                117,
+                76,
+                903,
+                670
+            ],
+            "block_id": 0,
+            "block_order": null,
+            "group_id": 0
+        },
+        {
+            "block_label": "figure_title",
+            "block_content": "Fig. 29.1 The Cylindrical Grinding Machine.",
+            "block_bbox": [
+                265,
+                680,
+                608,
+                700
+            ],
+            "block_id": 1,
+            "block_order": null,
+            "group_id": 1
+        },
+        {
+            "block_label": "vision_footnote",
+            "block_content": "(1) bed (2) work table (3) swivel plate (4) wheel head (5) work head (6) footstock",
+            "block_bbox": [
+                286,
+                705,
+                764,
+                745
+            ],
+            "block_id": 2,
+            "block_order": null,
+            "group_id": 2
+        },
+        {
+            "block_label": "text",
+            "block_content": "components. The bed is constructed with two sets of ways. The longitudinal ways guide the work-table; and the transverse ways support the wheelhead.",
+            "block_bbox": [
+                129,
+                852,
+                506,
+                940
+            ],
+            "block_id": 3,
+            "block_order": 1,
+            "group_id": 3
+        },
+        {
+            "block_label": "table",
+            "block_content": "<table><tr><td>2. The Work-Table. (Comprising two parts, the table proper and the swivel plate)</td></tr></table>",
+            "block_bbox": [
+                101,
+                940,
+                502,
+                1006
+            ],
+            "block_id": 4,
+            "block_order": null,
+            "group_id": 4
+        },
+        {
+            "block_label": "table",
+            "block_content": "<table><tr><td>a) The Table (2) is a long, relatively thin, rectangular casting ribbed for strength. It has two groups of bearing surfaces. Underneath are the slides which bear on the bed ways, permitting longitudinal movement. The top surface of the table supports the swivel plate.</td></tr></table>",
+            "block_bbox": [
+                129,
+                1006,
+                504,
+                1184
+            ],
+            "block_id": 5,
+            "block_order": null,
+            "group_id": 5
+        },
+        {
+            "block_label": "text",
+            "block_content": "b) The Swivel Plate (3) rests on the table. It is a long, thin, rectangular casting machined all over. This member has two groups of bearing surfaces. The top bearing surface is distinguished by a T-slot extending longitudinally through the center of the casting. Both the workhead and footstock clamp to the T-slot. A guiding way is incorporated in the top surface and aligns these members. The lower surface has a stud that inserts in a corresponding hole in the table top. The swivel plate pivots around this central stud.",
+            "block_bbox": [
+                130,
+                1185,
+                504,
+                1342
+            ],
+            "block_id": 6,
+            "block_order": 2,
+            "group_id": 6
+        },
+        {
+            "block_label": "text",
+            "block_content": "",
+            "block_bbox": [
+                585,
+                850,
+                935,
+                1027
+            ],
+            "block_id": 7,
+            "block_order": 3,
+            "group_id": 6
+        },
+        {
+            "block_label": "table",
+            "block_content": "3. The Wheelhead (4). This member is guided by the transverse ways of the bed. It mounts the grinding wheel and an electric motor to drive the wheel.",
+            "block_bbox": [
+                533,
+                1028,
+                930,
+                1116
+            ],
+            "block_id": 8,
+            "block_order": null,
+            "group_id": 8
+        },
+        {
+            "block_label": "text",
+            "block_content": "4. The Workhead or Headstock (5). This member supports one end of a work piece. It m�ts an electric motor which drives the work piece by a combination of V-belts, silent chains etc. An integral part of the workhead is a rotating spindle to which a chuck may be attached. The spindle is built to perform two functions:",
+            "block_bbox": [
+                532,
+                1117,
+                927,
+                1316
+            ],
+            "block_id": 9,
+            "block_order": 4,
+            "group_id": 9
+        },
+        {
+            "block_label": "text",
+            "block_content": "(1) To operate as a live center head",
+            "block_bbox": [
+                561,
+                1316,
+                898,
+                1339
+            ],
+            "block_id": 10,
+            "block_order": 5,
+            "group_id": 10
+        },
+        {
+            "block_label": "number",
+            "block_content": "444",
+            "block_bbox": [
+                496,
+                1350,
+                530,
+                1369
+            ],
+            "block_id": 11,
+            "block_order": null,
+            "group_id": 11
+        }
+    ],
+    "layout_det_res": {
+        "input_path": null,
+        "page_index": null,
+        "boxes": [
+            {
+                "cls_id": 14,
+                "label": "image",
+                "score": 0.9836772680282593,
+                "coordinate": [
+                    117,
+                    76,
+                    903,
+                    670
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 7,
+                "label": "figure_title",
+                "score": 0.9375878572463989,
+                "coordinate": [
+                    265,
+                    680,
+                    608,
+                    700
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 24,
+                "label": "vision_footnote",
+                "score": 0.6679858565330505,
+                "coordinate": [
+                    286,
+                    705,
+                    764,
+                    745
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9819592833518982,
+                "coordinate": [
+                    129,
+                    852,
+                    506,
+                    940
+                ],
+                "order": 1
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9631235003471375,
+                "coordinate": [
+                    101,
+                    940,
+                    502,
+                    1006
+                ],
+                "order": 2
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.98564213514328,
+                "coordinate": [
+                    129,
+                    1006,
+                    504,
+                    1184
+                ],
+                "order": 3
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9864111542701721,
+                "coordinate": [
+                    130,
+                    1185,
+                    504,
+                    1342
+                ],
+                "order": 4
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9868479371070862,
+                "coordinate": [
+                    585,
+                    850,
+                    935,
+                    1027
+                ],
+                "order": 5
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9794057011604309,
+                "coordinate": [
+                    533,
+                    1028,
+                    930,
+                    1116
+                ],
+                "order": 6
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9813172221183777,
+                "coordinate": [
+                    532,
+                    1117,
+                    927,
+                    1316
+                ],
+                "order": 7
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9343645572662354,
+                "coordinate": [
+                    561,
+                    1316,
+                    898,
+                    1339
+                ],
+                "order": 8
+            },
+            {
+                "cls_id": 16,
+                "label": "number",
+                "score": 0.9098606109619141,
+                "coordinate": [
+                    496,
+                    1350,
+                    530,
+                    1369
+                ],
+                "order": 9
+            }
+        ]
+    }
+}

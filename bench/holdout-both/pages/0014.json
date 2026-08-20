@@ -1,0 +1,532 @@
+{
+    "input_path": "input.pdf",
+    "page_index": 14,
+    "page_count": 20,
+    "width": 1012,
+    "height": 1466,
+    "model_settings": {
+        "use_doc_preprocessor": false,
+        "use_layout_detection": true,
+        "use_chart_recognition": false,
+        "use_seal_recognition": false,
+        "use_ocr_for_image_block": false,
+        "format_block_content": false,
+        "merge_layout_blocks": true,
+        "markdown_ignore_labels": [
+            "number",
+            "header_image",
+            "footer",
+            "footer_image",
+            "aside_text"
+        ],
+        "return_layout_polygon_points": true
+    },
+    "parsing_res_list": [
+        {
+            "block_label": "text",
+            "block_content": "Sec. 28.74",
+            "block_bbox": [
+                111,
+                79,
+                212,
+                100
+            ],
+            "block_id": 0,
+            "block_order": 1,
+            "group_id": 0
+        },
+        {
+            "block_label": "text",
+            "block_content": "STATIC ALIGNMENT TEST NO. 12",
+            "block_bbox": [
+                111,
+                102,
+                448,
+                124
+            ],
+            "block_id": 1,
+            "block_order": 2,
+            "group_id": 1
+        },
+        {
+            "block_label": "text",
+            "block_content": "Rise and Fall of Table in Cross Movement",
+            "block_bbox": [
+                111,
+                134,
+                478,
+                178
+            ],
+            "block_id": 2,
+            "block_order": 3,
+            "group_id": 2
+        },
+        {
+            "block_label": "text",
+            "block_content": "PROCEDURE:",
+            "block_bbox": [
+                112,
+                188,
+                250,
+                210
+            ],
+            "block_id": 3,
+            "block_order": 4,
+            "group_id": 3
+        },
+        {
+            "block_label": "text",
+            "block_content": "A stub arbor is inserted into the spindle and a DIAL INDICATOR is attached. The button of the DIAL, as in the previous test, touches the table top, as represented in Fig. 28.56. By moving the table transversely towards the column, the DIAL is actuated.",
+            "block_bbox": [
+                110,
+                212,
+                505,
+                369
+            ],
+            "block_id": 4,
+            "block_order": 5,
+            "group_id": 4
+        },
+        {
+            "block_label": "image",
+            "block_content": "",
+            "block_bbox": [
+                190,
+                404,
+                406,
+                671
+            ],
+            "block_id": 5,
+            "block_order": null,
+            "group_id": 5
+        },
+        {
+            "block_label": "figure_title",
+            "block_content": "Fig. 28.56 Rise and fall of table in cross movement. Tolerance max. .001\" in 12\".",
+            "block_bbox": [
+                115,
+                693,
+                484,
+                730
+            ],
+            "block_id": 6,
+            "block_order": null,
+            "group_id": 6
+        },
+        {
+            "block_label": "text",
+            "block_content": "Incidentally, only sufficient pressure should be applied to the DIAL mechanism to obtain a reading. This precaution has for its purpose the protection of the delicate works of the instrument from shock damage as the button drops into the T-slots passing beneath. If instead of positioning the DIAL button directly upon the top of table, a steel PARALLEL is interposed, this danger is eliminated.",
+            "block_bbox": [
+                108,
+                767,
+                505,
+                989
+            ],
+            "block_id": 7,
+            "block_order": 6,
+            "group_id": 7
+        },
+        {
+            "block_label": "text",
+            "block_content": "In case the tolerance is exceeded, it denotes that the table flat slides were not scraped parallel with the table top as required by the OBJECTIVES given in Sec. 27.87 (measuring transversely.) To correct the misalignment it will be necessary to remove the table and rescrape the flat slides.",
+            "block_bbox": [
+                108,
+                989,
+                508,
+                1167
+            ],
+            "block_id": 8,
+            "block_order": 7,
+            "group_id": 8
+        },
+        {
+            "block_label": "text",
+            "block_content": "This procedure presupposes that any lack of parallelism is exclusively the fault of the table. But we should not lose sight of the fact that the fault now discernible, may have had its inception when the saddle was dealt with. For example, the scraping tolerance of the saddle may have been exceeded. In such cases, the table would not be responsible for the present difficulty, or only partiy so. To discover the origin of the misalignment it will be necessary to remove the table then repeat the test on the flat ways of the saddle. Usually no one member is wholly responsible but rather each contributes something to the deficiency.",
+            "block_bbox": [
+                107,
+                1169,
+                504,
+                1347
+            ],
+            "block_id": 9,
+            "block_order": 8,
+            "group_id": 9
+        },
+        {
+            "block_label": "text",
+            "block_content": "",
+            "block_bbox": [
+                524,
+                79,
+                929,
+                259
+            ],
+            "block_id": 10,
+            "block_order": 9,
+            "group_id": 9
+        },
+        {
+            "block_label": "text",
+            "block_content": "Sec. 28.75",
+            "block_bbox": [
+                525,
+                279,
+                627,
+                301
+            ],
+            "block_id": 11,
+            "block_order": 10,
+            "group_id": 11
+        },
+        {
+            "block_label": "text",
+            "block_content": "STATIC ALIGNMENT TEST NO. 13",
+            "block_bbox": [
+                524,
+                300,
+                863,
+                324
+            ],
+            "block_id": 12,
+            "block_order": 11,
+            "group_id": 12
+        },
+        {
+            "block_label": "text",
+            "block_content": "Center T-Slot Parallel with Table Movement",
+            "block_bbox": [
+                525,
+                334,
+                914,
+                380
+            ],
+            "block_id": 13,
+            "block_order": 12,
+            "group_id": 13
+        },
+        {
+            "block_label": "text",
+            "block_content": "PROCEDURE:",
+            "block_bbox": [
+                526,
+                390,
+                664,
+                412
+            ],
+            "block_id": 14,
+            "block_order": 13,
+            "group_id": 14
+        },
+        {
+            "block_label": "text",
+            "block_content": "A stub arbor is inserted into the spindle and a DIAL INDICATOR is attached. The button of the DIAL is positioned against one side of the throat of the T-slot. After moving the table the maximum distance, longitudinally, any change in the reading is noted. This operation is then repeated with the DIAL button in contact with the other side of the throat. Should the tolerance shown in Fig. 28.57 be exceeded in either case it signifies that the guided slide of the table was not scraped parallel with the center T-slot as required by the OBJECTIVES in Sec. 27.88 (Table of Horizontal Milling Machine).",
+            "block_bbox": [
+                523,
+                413,
+                928,
+                748
+            ],
+            "block_id": 15,
+            "block_order": 14,
+            "group_id": 15
+        },
+        {
+            "block_label": "image",
+            "block_content": "",
+            "block_bbox": [
+                614,
+                779,
+                839,
+                964
+            ],
+            "block_id": 16,
+            "block_order": null,
+            "group_id": 16
+        },
+        {
+            "block_label": "figure_title",
+            "block_content": "Fig. 28.57 Center T-slot parallel with table movement. Tolerance max. .001\" in 18\".",
+            "block_bbox": [
+                527,
+                981,
+                918,
+                1018
+            ],
+            "block_id": 17,
+            "block_order": null,
+            "group_id": 17
+        },
+        {
+            "block_label": "text",
+            "block_content": "Since the center T-spot was selected as the check point for various surfaces of the table member, as discussed in Sec. 27.85, it will be necessary to remove the table and rescrape the angular guided slide to correct this misalignment. As a consequence, the angular gibbed slide of the table must also be rescraped parallel with the guided slide. Furthermore, the gib piece may need to be refitted, provided templates were not used to obtain a definite angular value for the gibbed slide.",
+            "block_bbox": [
+                522,
+                1055,
+                921,
+                1344
+            ],
+            "block_id": 18,
+            "block_order": 15,
+            "group_id": 18
+        },
+        {
+            "block_label": "number",
+            "block_content": "439",
+            "block_bbox": [
+                493,
+                1356,
+                529,
+                1375
+            ],
+            "block_id": 19,
+            "block_order": null,
+            "group_id": 19
+        }
+    ],
+    "layout_det_res": {
+        "input_path": null,
+        "page_index": null,
+        "boxes": [
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.5862268805503845,
+                "coordinate": [
+                    111,
+                    79,
+                    212,
+                    100
+                ],
+                "order": 1
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.829977810382843,
+                "coordinate": [
+                    111,
+                    102,
+                    448,
+                    124
+                ],
+                "order": 2
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9527406692504883,
+                "coordinate": [
+                    111,
+                    134,
+                    478,
+                    178
+                ],
+                "order": 3
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.8915246725082397,
+                "coordinate": [
+                    112,
+                    188,
+                    250,
+                    210
+                ],
+                "order": 4
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9822791814804077,
+                "coordinate": [
+                    110,
+                    212,
+                    505,
+                    369
+                ],
+                "order": 5
+            },
+            {
+                "cls_id": 14,
+                "label": "image",
+                "score": 0.9833617806434631,
+                "coordinate": [
+                    190,
+                    404,
+                    406,
+                    671
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 7,
+                "label": "figure_title",
+                "score": 0.9656652808189392,
+                "coordinate": [
+                    115,
+                    693,
+                    484,
+                    730
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9880788922309875,
+                "coordinate": [
+                    108,
+                    767,
+                    505,
+                    989
+                ],
+                "order": 6
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.987151026725769,
+                "coordinate": [
+                    108,
+                    989,
+                    508,
+                    1167
+                ],
+                "order": 7
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9857944250106812,
+                "coordinate": [
+                    107,
+                    1169,
+                    504,
+                    1347
+                ],
+                "order": 8
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9854759573936462,
+                "coordinate": [
+                    524,
+                    79,
+                    929,
+                    259
+                ],
+                "order": 9
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.7572372555732727,
+                "coordinate": [
+                    525,
+                    279,
+                    627,
+                    301
+                ],
+                "order": 10
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.80007404088974,
+                "coordinate": [
+                    524,
+                    300,
+                    863,
+                    324
+                ],
+                "order": 11
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9526192545890808,
+                "coordinate": [
+                    525,
+                    334,
+                    914,
+                    380
+                ],
+                "order": 12
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.8620603680610657,
+                "coordinate": [
+                    526,
+                    390,
+                    664,
+                    412
+                ],
+                "order": 13
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9873079657554626,
+                "coordinate": [
+                    523,
+                    413,
+                    928,
+                    748
+                ],
+                "order": 14
+            },
+            {
+                "cls_id": 14,
+                "label": "image",
+                "score": 0.9810301065444946,
+                "coordinate": [
+                    614,
+                    779,
+                    839,
+                    964
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 7,
+                "label": "figure_title",
+                "score": 0.9651691913604736,
+                "coordinate": [
+                    527,
+                    981,
+                    918,
+                    1018
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.987765908241272,
+                "coordinate": [
+                    522,
+                    1055,
+                    921,
+                    1344
+                ],
+                "order": 15
+            },
+            {
+                "cls_id": 16,
+                "label": "number",
+                "score": 0.9090033173561096,
+                "coordinate": [
+                    493,
+                    1356,
+                    529,
+                    1375
+                ],
+                "order": 16
+            }
+        ]
+    }
+}

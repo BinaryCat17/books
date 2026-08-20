@@ -10,6 +10,8 @@ import json, re, sys, os
 
 REF = "processed/book-mistral/raw.json"
 FIRST, N = 302, 20  # bench/tables20.pdf — это страницы 302..321 книги
+# Отложенная выборка собрана из несмежных страниц; их список лежит рядом с PDF.
+PAGES_JSON = os.environ.get("TABCMP_PAGES")
 
 
 def cells(md: str) -> tuple[int, int]:
@@ -48,8 +50,13 @@ def read_run(d: str) -> list[str]:
     return [open(f"{d}/pages/{f}").read() for f in pages]
 
 
-ref = json.load(open(REF))["pages"][FIRST:FIRST + N]
-ref = [cells(p["markdown"]) for p in ref]
+_all = json.load(open(REF))["pages"]
+if PAGES_JSON:
+    idx = json.load(open(PAGES_JSON))
+else:
+    idx = list(range(FIRST, FIRST + N))
+N = len(idx)
+ref = [cells(_all[i]["markdown"]) for i in idx]
 
 runs = sys.argv[1:]
 data = {}
@@ -65,8 +72,9 @@ tot = {d: [0, 0] for d in data}
 tref = [0, 0]
 for i in range(N):
     rt, rc = ref[i]
+    pg = idx[i]
     tref[0] += rt; tref[1] += rc
-    row = f"{FIRST+i:4}| {rt:2}т {rc:3}я | "
+    row = f"{pg:4}| {rt:2}т {rc:3}я | "
     for d in data:
         t, c = data[d][i] if i < len(data[d]) else (0, 0)
         tot[d][0] += t; tot[d][1] += c

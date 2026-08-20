@@ -1,0 +1,456 @@
+{
+    "input_path": "input.pdf",
+    "page_index": 3,
+    "page_count": 20,
+    "width": 1012,
+    "height": 1466,
+    "model_settings": {
+        "use_doc_preprocessor": false,
+        "use_layout_detection": true,
+        "use_chart_recognition": false,
+        "use_seal_recognition": false,
+        "use_ocr_for_image_block": false,
+        "format_block_content": false,
+        "merge_layout_blocks": true,
+        "markdown_ignore_labels": [
+            "number",
+            "header_image",
+            "footer",
+            "footer_image",
+            "aside_text"
+        ],
+        "return_layout_polygon_points": true
+    },
+    "parsing_res_list": [
+        {
+            "block_label": "figure_title",
+            "block_content": "Fig. 26.33 Testing alignment of inside ways of bed.\nRECOMMENDED STANDARDS",
+            "block_bbox": [
+                522,
+                388,
+                919,
+                443
+            ],
+            "block_id": 0,
+            "block_order": null,
+            "group_id": 0
+        },
+        {
+            "block_label": "image",
+            "block_content": "",
+            "block_bbox": [
+                148,
+                56,
+                464,
+                439
+            ],
+            "block_id": 1,
+            "block_order": null,
+            "group_id": 1
+        },
+        {
+            "block_label": "vision_footnote",
+            "block_content": "PLATE 29. Close-up of hand scraping the ways on a lathe bed. (Courtesy - South Bend Lathe Works.)",
+            "block_bbox": [
+                101,
+                488,
+                503,
+                526
+            ],
+            "block_id": 2,
+            "block_order": null,
+            "group_id": 2
+        },
+        {
+            "block_label": "text",
+            "block_content": "markings cannot be produced except by spreading the compound on the work surface.) The tail stock is moved by hand, back-and-forth a few times, the full length of the bed ways. After removing the tail-stock the inside ways of the bed are scraped in accordance with the markings produced by the spotting action of the template.",
+            "block_bbox": [
+                100,
+                555,
+                516,
+                734
+            ],
+            "block_id": 3,
+            "block_order": 1,
+            "group_id": 3
+        },
+        {
+            "block_label": "text",
+            "block_content": "This lengthy movement, while counter to the usual spotting practice is justified in the present application. It is not anticipated that the spotting action with this small template will indicate straightness of the ways from end to end. Rather the primary purpose is to disclose the angular value being developed in the inverted V-way and to show how intimately the slides of the tail stock match the mating ways of the bed i.e. area contact. A STRAIGHT EDGE of appropriate length is applied alternately to develop flatness and straightness over an extended area.",
+            "block_bbox": [
+                101,
+                735,
+                510,
+                1044
+            ],
+            "block_id": 4,
+            "block_order": 2,
+            "group_id": 4
+        },
+        {
+            "block_label": "text",
+            "block_content": "OBJECTIVE NO. 1 is attained when the markings on the flat way and both sides of the inverted V-way have uniform coloration and distribution the entire length of the bed when produced by the spotting action of the tailstock base.",
+            "block_bbox": [
+                101,
+                1044,
+                504,
+                1179
+            ],
+            "block_id": 5,
+            "block_order": 3,
+            "group_id": 5
+        },
+        {
+            "block_label": "text",
+            "block_content": "The set up to check OBJECTIVE NO. 2 requires mounting the carriage on the bed ways and attaching a DIAL INDICATOR to the carriage. The contact button of the DIAL is adjusted to touch one sloping side of the inverted V-way being tested. Then the carriage is moved the entire length of the bed meanwhile noting any change in the reading of the DIAL. Next the other inclined side of the inverted V-way is tested in the same manner. Finally, the flat way is checked. The tolerance shown in Fig. 26.33 must not be exceeded in any case.",
+            "block_bbox": [
+                100,
+                1178,
+                505,
+                1315
+            ],
+            "block_id": 6,
+            "block_order": 4,
+            "group_id": 6
+        },
+        {
+            "block_label": "text",
+            "block_content": "",
+            "block_bbox": [
+                527,
+                574,
+                927,
+                751
+            ],
+            "block_id": 7,
+            "block_order": 5,
+            "group_id": 6
+        },
+        {
+            "block_label": "image",
+            "block_content": "",
+            "block_bbox": [
+                526,
+                52,
+                911,
+                346
+            ],
+            "block_id": 8,
+            "block_order": null,
+            "group_id": 8
+        },
+        {
+            "block_label": "table",
+            "block_content": "<table><tr><td>Tool Room</td><td>12&quot; to 18&quot; inc.</td><td>20&quot; to 36&quot; inc.</td></tr><tr><td>lathes</td><td>Engine lathes</td><td>Engine lathes</td></tr><tr><td>.0005&quot; in 48&quot;</td><td>.00075&quot; in 48&quot;</td><td>.001&quot; in 48&quot;</td></tr><tr><td colspan=\"3\">(Maximum reading along length of bed)</td></tr></table>",
+            "block_bbox": [
+                533,
+                447,
+                911,
+                532
+            ],
+            "block_id": 9,
+            "block_order": null,
+            "group_id": 9
+        },
+        {
+            "block_label": "text",
+            "block_content": "Additionally, the PRECISION LEVEL is set crosswise from time to time, on the bed flat way. It is desirable to keep this surface horizontal so that when the machine is placed in operation, wear will be uniform on both ways.",
+            "block_bbox": [
+                527,
+                751,
+                924,
+                884
+            ],
+            "block_id": 10,
+            "block_order": 6,
+            "group_id": 10
+        },
+        {
+            "block_label": "text",
+            "block_content": "Scraping is continued until all OBJECTIVES are satisfied.",
+            "block_bbox": [
+                529,
+                884,
+                923,
+                930
+            ],
+            "block_id": 11,
+            "block_order": 7,
+            "group_id": 11
+        },
+        {
+            "block_label": "text",
+            "block_content": "Sec. 26.44",
+            "block_bbox": [
+                529,
+                951,
+                631,
+                973
+            ],
+            "block_id": 12,
+            "block_order": 8,
+            "group_id": 12
+        },
+        {
+            "block_label": "text",
+            "block_content": "The Rear Carriage Gib Way of the Bed.",
+            "block_bbox": [
+                529,
+                973,
+                902,
+                997
+            ],
+            "block_id": 13,
+            "block_order": 9,
+            "group_id": 13
+        },
+        {
+            "block_label": "text",
+            "block_content": "The major bearing surfaces of the lathe bed have now been completed and we can turn our attention to the rear carriage gib way of the bed, shown as (5) in Fig. 26.34. This surface is used as a hold-down bearing surface for the carriage and is situated directly under the rear inverted V-way of the bed. On some lathes the rear carriage gib way of the bed is in direct bearing contact with the gib bracket (7) boiled to the rear carriage gib bracket bearing represented by (6) in Fig. 26.39. This clamping strip (gib",
+            "block_bbox": [
+                527,
+                1018,
+                928,
+                1311
+            ],
+            "block_id": 14,
+            "block_order": 10,
+            "group_id": 14
+        },
+        {
+            "block_label": "number",
+            "block_content": "286",
+            "block_bbox": [
+                499,
+                1330,
+                535,
+                1350
+            ],
+            "block_id": 15,
+            "block_order": null,
+            "group_id": 15
+        }
+    ],
+    "layout_det_res": {
+        "input_path": null,
+        "page_index": null,
+        "boxes": [
+            {
+                "cls_id": 7,
+                "label": "figure_title",
+                "score": 0.3202823996543884,
+                "coordinate": [
+                    522,
+                    388,
+                    919,
+                    443
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 14,
+                "label": "image",
+                "score": 0.9836398959159851,
+                "coordinate": [
+                    148,
+                    56,
+                    464,
+                    439
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 24,
+                "label": "vision_footnote",
+                "score": 0.8088418245315552,
+                "coordinate": [
+                    101,
+                    488,
+                    503,
+                    526
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9871841073036194,
+                "coordinate": [
+                    100,
+                    555,
+                    516,
+                    734
+                ],
+                "order": 1
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9884356260299683,
+                "coordinate": [
+                    101,
+                    735,
+                    510,
+                    1044
+                ],
+                "order": 2
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9865147471427917,
+                "coordinate": [
+                    101,
+                    1044,
+                    504,
+                    1179
+                ],
+                "order": 3
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9840342998504639,
+                "coordinate": [
+                    100,
+                    1178,
+                    505,
+                    1315
+                ],
+                "order": 4
+            },
+            {
+                "cls_id": 14,
+                "label": "image",
+                "score": 0.9620607495307922,
+                "coordinate": [
+                    526,
+                    52,
+                    911,
+                    346
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 7,
+                "label": "figure_title",
+                "score": 0.9133034348487854,
+                "coordinate": [
+                    522,
+                    387,
+                    918,
+                    410
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 7,
+                "label": "figure_title",
+                "score": 0.5576716065406799,
+                "coordinate": [
+                    585,
+                    422,
+                    824,
+                    443
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9372985363006592,
+                "coordinate": [
+                    533,
+                    447,
+                    911,
+                    532
+                ],
+                "order": 5
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9874606728553772,
+                "coordinate": [
+                    527,
+                    574,
+                    927,
+                    751
+                ],
+                "order": 6
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.985126256942749,
+                "coordinate": [
+                    527,
+                    751,
+                    924,
+                    884
+                ],
+                "order": 7
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9631302356719971,
+                "coordinate": [
+                    529,
+                    884,
+                    923,
+                    930
+                ],
+                "order": 8
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.8329737782478333,
+                "coordinate": [
+                    529,
+                    951,
+                    631,
+                    973
+                ],
+                "order": 9
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9003399610519409,
+                "coordinate": [
+                    529,
+                    973,
+                    902,
+                    997
+                ],
+                "order": 10
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9885396361351013,
+                "coordinate": [
+                    527,
+                    1018,
+                    928,
+                    1311
+                ],
+                "order": 11
+            },
+            {
+                "cls_id": 16,
+                "label": "number",
+                "score": 0.918096661567688,
+                "coordinate": [
+                    499,
+                    1330,
+                    535,
+                    1350
+                ],
+                "order": 12
+            }
+        ]
+    }
+}

@@ -1,0 +1,82 @@
+{
+    "input_path": "input.pdf",
+    "page_index": 0,
+    "page_count": 20,
+    "width": 1012,
+    "height": 1466,
+    "model_settings": {
+        "use_doc_preprocessor": false,
+        "use_layout_detection": true,
+        "use_chart_recognition": false,
+        "use_seal_recognition": false,
+        "use_ocr_for_image_block": false,
+        "format_block_content": false,
+        "merge_layout_blocks": true,
+        "markdown_ignore_labels": [
+            "number",
+            "header_image",
+            "footer",
+            "footer_image",
+            "aside_text"
+        ],
+        "return_layout_polygon_points": true
+    },
+    "parsing_res_list": [
+        {
+            "block_label": "paragraph_title",
+            "block_content": "TABLE OF CONTENTS",
+            "block_bbox": [
+                389,
+                176,
+                612,
+                199
+            ],
+            "block_id": 0,
+            "block_order": 1,
+            "group_id": 0
+        },
+        {
+            "block_label": "content",
+            "block_content": "Preface\n1. The Art of Scraping ..... 1\n2. Personal Requirements ..... 6\n3. Characteristics of Metal ..... 8\n4. Tools ..... 11\n5. The Hand Scraper ..... 18\n6. Manipulating the Scraping Tool ..... 28\n7. Bench Oilstones ..... 38\n8. The Surface Plate ..... 41\n9. The Straight Edge ..... 49\n10. Marking Mediums ..... 62\n11. Markings ..... 73\n12. Other Spotting Tools ..... 80\n13. Squares ..... 94\n14. Levels and Leveling ..... 99\n15. Test Bars ..... 109\n16. The Dial Indicator ..... 117\n17. Gibbs: Function, Construction and Adjustment ..... 129\n18. Grooves ..... 150\n19. Hints on Routine ..... 157\n20. Frosting Techniques ..... 164\n21. Automatic Generation of Gages ..... 175\n22. Standard Tests ..... 185\n23. Factors in Reconditioning ..... 199\n24. The Surface Bearing Requirements of the Slices and Ways of Precision Grinders ..... 226\n25. Problems in Alignments ..... 229\n26. The Engine Lathe ..... 256\n27. The Horizontal Milling Machine ..... 316\n28. The Vertical Milling Machine ..... 393\n29. The Cylindrical Grinding Machine ..... 442\n30. The Surface Grinding Machine ..... 482\nGlossary ..... 519\nIndex ..... 527",
+            "block_bbox": [
+                157,
+                225,
+                842,
+                1335
+            ],
+            "block_id": 1,
+            "block_order": 2,
+            "group_id": 1
+        }
+    ],
+    "layout_det_res": {
+        "input_path": null,
+        "page_index": null,
+        "boxes": [
+            {
+                "cls_id": 17,
+                "label": "paragraph_title",
+                "score": 0.8274025917053223,
+                "coordinate": [
+                    389,
+                    176,
+                    612,
+                    199
+                ],
+                "order": 1
+            },
+            {
+                "cls_id": 4,
+                "label": "content",
+                "score": 0.9900156855583191,
+                "coordinate": [
+                    157,
+                    225,
+                    842,
+                    1335
+                ],
+                "order": 2
+            }
+        ]
+    }
+}

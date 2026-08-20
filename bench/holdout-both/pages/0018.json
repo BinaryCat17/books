@@ -1,0 +1,406 @@
+{
+    "input_path": "input.pdf",
+    "page_index": 18,
+    "page_count": 20,
+    "width": 1012,
+    "height": 1466,
+    "model_settings": {
+        "use_doc_preprocessor": false,
+        "use_layout_detection": true,
+        "use_chart_recognition": false,
+        "use_seal_recognition": false,
+        "use_ocr_for_image_block": false,
+        "format_block_content": false,
+        "merge_layout_blocks": true,
+        "markdown_ignore_labels": [
+            "number",
+            "header_image",
+            "footer",
+            "footer_image",
+            "aside_text"
+        ],
+        "return_layout_polygon_points": true
+    },
+    "parsing_res_list": [
+        {
+            "block_label": "text",
+            "block_content": "traces of irregular table motion and is required for machines such as thread grinders or roll grinders. The wheel head slides and dressing tool slides of thread grinders may also be mounted on rollers.",
+            "block_bbox": [
+                86,
+                61,
+                474,
+                193
+            ],
+            "block_id": 0,
+            "block_order": 1,
+            "group_id": 0
+        },
+        {
+            "block_label": "text",
+            "block_content": "On some machines the rollers bear directly on cast iron surfaces. On other machines, the rollers bear against hardened, steel inserts, fastened to the iron surfaces. These surfaces must always be scraped flat and true upon reconditioning if the slightest warp is present. New and straight inserts are then attached.",
+            "block_bbox": [
+                87,
+                194,
+                489,
+                371
+            ],
+            "block_id": 1,
+            "block_order": 2,
+            "group_id": 1
+        },
+        {
+            "block_label": "text",
+            "block_content": "Circular ways designed to carry the load of horizontal rotary tables are also made. These ways are usually flat since the alignment of the table is controlled by a central spindle.",
+            "block_bbox": [
+                88,
+                371,
+                488,
+                482
+            ],
+            "block_id": 2,
+            "block_order": 3,
+            "group_id": 2
+        },
+        {
+            "block_label": "text",
+            "block_content": "The kinds of jobs performed on precision grinders is not a proper subject for this book. However, it may be interesting to point out that grinding, to maintain tolerances of plus or minus .0005\" is common in everyday production. For very special work, designers have produced modern grinding machines that can achieve an accuracy so exact, that to express it, a new term \"micro-inch\" (one millionth part of an inch) has been coined. This measurement is now familiar in some industries where special devices for testing have been developed.",
+            "block_bbox": [
+                88,
+                483,
+                501,
+                795
+            ],
+            "block_id": 3,
+            "block_order": 4,
+            "group_id": 3
+        },
+        {
+            "block_label": "text",
+            "block_content": "To produce this extreme accuracy, grinders are being made heavier to absorb vibration, and more strongly ribbed to give increased rigidity to the machine. Every part that turns or slides receives the most exacting attention so that when these machines are completed at the factory they are the ultimate in accuracy and perfection. The ways and slides of these machines are as flat and as parallel as it is possible to make them. This perfection is of special interest to the scraping operator because it is his problem, in reconditioning the machine, to restore the bearing surfaces to their original accuracy.",
+            "block_bbox": [
+                92,
+                796,
+                498,
+                1152
+            ],
+            "block_id": 4,
+            "block_order": 5,
+            "group_id": 4
+        },
+        {
+            "block_label": "text",
+            "block_content": "Besides the worn flat bearings there are other factors involved in the reconditioning process which if not corrected could aggravate existing defects or even induce new errors. These include worn or defective gearing, feed screws, spindle, spindle bearings etc. The specific treatment required to restore these components to their original accuracy is beyond the scope of this book and therefore will not be treated except in the briefest manner when special circumstances warrant it.",
+            "block_bbox": [
+                94,
+                1152,
+                505,
+                1332
+            ],
+            "block_id": 5,
+            "block_order": 6,
+            "group_id": 5
+        },
+        {
+            "block_label": "text",
+            "block_content": "",
+            "block_bbox": [
+                514,
+                60,
+                912,
+                171
+            ],
+            "block_id": 6,
+            "block_order": 7,
+            "group_id": 5
+        },
+        {
+            "block_label": "text",
+            "block_content": "The varieties of grinding machines are so numerous that it would require several volumes to describe separately, the reconditioning processes on each type. They are separable, however, into two general classifications according as to whether they grind cylindrical surfaces, or grind flat surfaces.",
+            "block_bbox": [
+                515,
+                172,
+                930,
+                351
+            ],
+            "block_id": 7,
+            "block_order": 8,
+            "group_id": 7
+        },
+        {
+            "block_label": "text",
+            "block_content": "To explain the scraping and aligning procedure on the general group of cylindrical grinders, we have selected a Cylindrical Grinder with Universal Workhead as typical of the class. This choice was made because it is a well known, widely used machine. For this demonstration, as in previous ones, an elementary form will again be used.",
+            "block_bbox": [
+                517,
+                351,
+                920,
+                550
+            ],
+            "block_id": 8,
+            "block_order": 9,
+            "group_id": 8
+        },
+        {
+            "block_label": "text",
+            "block_content": "In order to have the scraping procedure in harmony with conditions as they are found in most shops, we will use the few-est possible number of spotting or testing gages. Reliance will be placed in the few standard tools found in average shops, and when practicable, in the components of the machine employed as Templates.",
+            "block_bbox": [
+                520,
+                551,
+                929,
+                730
+            ],
+            "block_id": 9,
+            "block_order": 10,
+            "group_id": 9
+        },
+        {
+            "block_label": "text",
+            "block_content": "Sec. 29.1\nThe Cylindrical Grinder: Components",
+            "block_bbox": [
+                521,
+                749,
+                887,
+                796
+            ],
+            "block_id": 10,
+            "block_order": 11,
+            "group_id": 10
+        },
+        {
+            "block_label": "text",
+            "block_content": "The cylindrical grinder, illustrated in Fig. 29.1, consists of five members which are the prime concern of the scraping operator. In addition to the fundamental components enumerated below, the grinding machine is often equipped with special attachments which greatly increase the versatility of the machine. The methods of reconditioning these minor parts will not be discussed. When such work is called for, it is thought that the principles and practices recommended for treatment of the various standard parts will, if thoroughly understood, be entirely adequate to cope with this auxiliary equipment.",
+            "block_bbox": [
+                523,
+                815,
+                927,
+                1176
+            ],
+            "block_id": 11,
+            "block_order": 12,
+            "group_id": 11
+        },
+        {
+            "block_label": "text",
+            "block_content": "1. The Bed (1). The main casting of the cylindrical grinder is called the bed. It is a large, heavy casting made of a good grade of cast iron or semi-steel. It is substantially ribbed to provide a rigid foundation for the other",
+            "block_bbox": [
+                526,
+                1194,
+                921,
+                1331
+            ],
+            "block_id": 12,
+            "block_order": 13,
+            "group_id": 12
+        },
+        {
+            "block_label": "number",
+            "block_content": "443",
+            "block_bbox": [
+                490,
+                1340,
+                526,
+                1360
+            ],
+            "block_id": 13,
+            "block_order": null,
+            "group_id": 13
+        }
+    ],
+    "layout_det_res": {
+        "input_path": null,
+        "page_index": null,
+        "boxes": [
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9834233522415161,
+                "coordinate": [
+                    86,
+                    61,
+                    474,
+                    193
+                ],
+                "order": 1
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9859945774078369,
+                "coordinate": [
+                    87,
+                    194,
+                    489,
+                    371
+                ],
+                "order": 2
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9807105660438538,
+                "coordinate": [
+                    88,
+                    371,
+                    488,
+                    482
+                ],
+                "order": 3
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9865427017211914,
+                "coordinate": [
+                    88,
+                    483,
+                    501,
+                    795
+                ],
+                "order": 4
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9870898127555847,
+                "coordinate": [
+                    92,
+                    796,
+                    498,
+                    1152
+                ],
+                "order": 5
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9830270409584045,
+                "coordinate": [
+                    94,
+                    1152,
+                    505,
+                    1332
+                ],
+                "order": 6
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9815245270729065,
+                "coordinate": [
+                    514,
+                    60,
+                    912,
+                    171
+                ],
+                "order": 7
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9848700761795044,
+                "coordinate": [
+                    515,
+                    172,
+                    930,
+                    351
+                ],
+                "order": 8
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9849696159362793,
+                "coordinate": [
+                    517,
+                    351,
+                    920,
+                    550
+                ],
+                "order": 9
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9824765920639038,
+                "coordinate": [
+                    520,
+                    551,
+                    929,
+                    730
+                ],
+                "order": 10
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.5454387068748474,
+                "coordinate": [
+                    522,
+                    749,
+                    613,
+                    771
+                ],
+                "order": 11
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.5083518624305725,
+                "coordinate": [
+                    521,
+                    749,
+                    887,
+                    796
+                ],
+                "order": 12
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.5894302129745483,
+                "coordinate": [
+                    522,
+                    771,
+                    886,
+                    795
+                ],
+                "order": 13
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9870621562004089,
+                "coordinate": [
+                    523,
+                    815,
+                    927,
+                    1176
+                ],
+                "order": 14
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9758871793746948,
+                "coordinate": [
+                    526,
+                    1194,
+                    921,
+                    1331
+                ],
+                "order": 15
+            },
+            {
+                "cls_id": 16,
+                "label": "number",
+                "score": 0.8886604309082031,
+                "coordinate": [
+                    490,
+                    1340,
+                    526,
+                    1360
+                ],
+                "order": 16
+            }
+        ]
+    }
+}
