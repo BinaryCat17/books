@@ -153,7 +153,7 @@ def _warm(spec: JobSpec) -> list[int]:
 
 
 def connect(vast: Vast, iid: int, spec: JobSpec, ssh_key: str | None,
-            boot_limit: float = 2100) -> Box:
+            boot_limit: float = 2100, attempt_limit: float | None = None) -> Box:
     """Дождаться машины и ssh.  boot_limit — общий срок, а не только на запуск.
 
     Раньше он уходил только в wait_running, а wait_ready ждал по своему
@@ -161,7 +161,7 @@ def connect(vast: Vast, iid: int, spec: JobSpec, ssh_key: str | None,
     стоила до десяти минут аренды, а лог при этом писал «не поднялась за
     2 мин».  Замер этого вечера: пять попыток съели пятнадцать минут.
     """
-    t_end = time.time() + boot_limit
+    t_end = time.time() + (attempt_limit or boot_limit)
     vast.wait_running(iid, timeout=boot_limit)
     # Привязка ключа сразу после создания инстанса — гонка: контейнера ещё
     # нет, и vast достраивает его своим слоем с ssh минуты по три.  Ключ,
@@ -174,7 +174,7 @@ def connect(vast: Vast, iid: int, spec: JobSpec, ssh_key: str | None,
     user, host, port = vast.ssh_target(iid)
     log(f"ssh {user}@{host}:{port}")
     box = Box(user, host, port, ssh_key, spec.workdir)
-    box.wait_ready(timeout=max(20.0, t_end - time.time()))
+    box.wait_ready(timeout=max(60.0, t_end - time.time()))
     # Пульс — сразу после ssh: с этого момента машина знает, что оператор
     # жив, и уничтожит себя сама, если он замолчит.  См. ONSTART в vast.py.
     box.start_heartbeat()
@@ -261,6 +261,13 @@ MAX_ATTEMPTS = 5
 # за полминуты.  В вечный список идут только те, у кого сломан канал.
 BOOT_LIMIT_S = 120.0
 
+# Общий потолок одной попытки: запуск контейнера ПЛЮС ssh.  Раньше в connect
+# уходил только BOOT_LIMIT_S, а wait_ready ждал по своим 420 с, и негодная
+# попытка стоила до десяти минут.  Но и сжать всё в 120 с нельзя: vast
+# достраивает образ своим слоем ssh минуты по три, и такой срок отбраковывает
+# годные машины — проверено, два прогона подряд не нашли ни одной из десяти.
+ATTEMPT_LIMIT_S = 300.0
+
 # Срок дозора мертвеца при --keep: машина оставлена нарочно, но не навсегда.
 # Четыре часа — столько, чтобы вернуться к прогретой машине в тот же вечер,
 # и не столько, чтобы забытый инстанс проел бюджет за ночь.
@@ -314,11 +321,13 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
         log("жду выкачивания образа и старта контейнера...")
         try:
             box = connect(vast, state["iid"], spec, ssh_key,
-                          boot_limit=BOOT_LIMIT_S)
+                          boot_limit=BOOT_LIMIT_S,
+                          attempt_limit=ATTEMPT_LIMIT_S)
             link = box.probe()
             down = box.probe_download() if link >= MIN_LINK_MBPS else 0.0
         except (RuntimeError, OSError) as e:
-            log(f"машина не поднялась за {BOOT_LIMIT_S/60:.0f} мин — беру другую")
+            log(f"машина не дошла до ssh за {ATTEMPT_LIMIT_S/60:.0f} мин "
+                f"({e}) — беру другую")
             link = down = 0.0
         rec.link_mbps = link
         rec.download_mbps = down
@@ -326,10 +335,19 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
             log(f"канал: до нас {link:.0f}, из мира {down:.0f} Мбит/с")
             return box, dph, budget
 
-        if link and link < MIN_LINK_MBPS:
-            log(f"канал до нас всего {link:.0f} Мбит/с "
-                f"(нужно от {MIN_LINK_MBPS:.0f}) — беру другую")
-            ledger.mark_bad(offer.get("machine_id"), f"канал до нас {link:.0f} Мбит/с")
+        if not link:
+            # Ноль — это тайм-аут зонда, а не «неизвестно».  Раньше при нуле
+            # обе ветки ниже были ложны, и машина уничтожалась молча: в
+            # журнале ssh готов за 5 с, дальше пусто, а через полминуты
+            # «УНИЧТОЖЕН». Пять таких подряд выглядели как «рынок плохой».
+            log(f"зонд канала не уложился в срок (0 Мбит/с) — беру другую. "
+                f"Если так подряд у всех машин, дело может быть в НАШЕМ "
+                f"канале, а не в них")
+        elif link < MIN_LINK_MBPS:
+            log(f"канал до нас всего {link:.2f} Мбит/с "
+                f"(нужно от {MIN_LINK_MBPS:.1f}) — беру другую")
+            ledger.mark_bad(offer.get("machine_id"),
+                            f"канал до нас {link:.2f} Мбит/с")
         elif link:
             log(f"машина тянет из мира всего {down:.0f} Мбит/с "
                 f"(нужно от {MIN_DOWNLOAD_MBPS:.0f}) — беру другую")
