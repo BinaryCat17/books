@@ -778,6 +778,13 @@ def _capture_logprobs(thr=-1.0):
     _P._doc_vlm_genai_collect_responses = patched_collect
 
 
+# Ниже этих порогов пометка в прозе только шумит: ответ короче MARK_MIN_RESP
+# нельзя привязать к месту на странице, а кусок короче MARK_MIN_SPAN ничего не
+# говорит читателю.  Ячейки таблиц помечаются целиком и под пороги не подпадают.
+MARK_MIN_RESP = 24
+MARK_MIN_SPAN = 3
+
+
 def _mark_uncertain(*dirs, mark="⚠"):
     """Пометить в разметке места, которые модель выдала неуверенно.
 
@@ -827,12 +834,21 @@ def _mark_uncertain(*dirs, mark="⚠"):
             safe = [(m.start(), m.end()) for m in table_re.finditer(out)]
             edits = []
             for resp, spans in _LOW.items():
-                base = out.find(resp)
-                if base < 0:
+                # Короткий ответ найти на странице однозначно нельзя: строка
+                # вроде "4" встречается всюду, и пометка садится на случайное
+                # совпадение.  На двадцати страницах такие ответы не
+                # набирались, на пятистах их оказалось 173 — и 1365 пометок
+                # из 1457 пришлись на одиночные символы.
+                if len(resp) < MARK_MIN_RESP:
                     continue
+                base = out.find(resp)
+                if base < 0 or out.find(resp, base + 1) >= 0:
+                    continue      # нет вовсе либо встречается дважды
                 if any(a <= base < b for a, b in safe):
                     continue
                 for a, b, _ in spans:
+                    if b - a < MARK_MIN_SPAN:
+                        continue  # одиночный символ помечать бессмысленно
                     edits.append((base + a, base + b))
             # Наложения надо слить ДО вставки: два соседних неуверенных
             # места, вставленные по отдельности, режут друг другу тег, и в
