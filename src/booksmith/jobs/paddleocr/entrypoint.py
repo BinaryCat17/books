@@ -358,6 +358,112 @@ def _multiview_layout(overlap=0.12, merge=0.55, thr=0.30):
     _L.__call__ = patched
 
 
+# Эти блоки к колонкам не относятся и вёрстку не размечают: номер страницы
+# лежит ровно посреди низа и своим телом закрывает межколонник.
+_NOT_COLUMN = ("number", "header", "footer", "header_image", "footer_image")
+
+
+def _column_gutter(boxes, w, need_side=2, min_gap=6):
+    """Середина межколонника — или None, если двух колонок на странице нет.
+
+    Ищется не по пустому просвету (его закрывает первый же случайный блок,
+    и на нашей книге его закрывал номер страницы), а по кластерам левых краёв.
+    В двухколонной вёрстке левые края собираются у двух значений; между
+    правым краем левой колонки и левым краем правой и лежит межколонник.
+
+    Признаётся он только если по обе стороны есть хотя бы по need_side
+    блоков.  На одноколонной книге кластер один, и функция вернёт None —
+    разрез не тронет ничего.
+    """
+    cols = [b for b in boxes
+            if b["label"] != "table" and b["label"] not in _NOT_COLUMN]
+    if len(cols) < 2 * need_side:
+        return None
+    lefts = sorted(b["coordinate"][0] for b in cols)
+    # самый большой разрыв в упорядоченных левых краях — граница кластеров
+    gap, at = 0, None
+    for a, b in zip(lefts, lefts[1:]):
+        if b - a > gap:
+            gap, at = b - a, (a + b) / 2
+    if at is None or gap < w * 0.15:
+        return None
+    left = [b for b in cols if b["coordinate"][0] < at]
+    right = [b for b in cols if b["coordinate"][0] >= at]
+    if len(left) < need_side or len(right) < need_side:
+        return None
+    edge_l = max(b["coordinate"][2] for b in left)
+    edge_r = min(b["coordinate"][0] for b in right)
+    if edge_r - edge_l < min_gap:
+        return None
+    return int((edge_l + edge_r) // 2)
+
+
+def _split_cross_column_tables(min_gutter=12, margin=4, min_half=120):
+    """Разрезать табличную рамку, легшую поперёк межколонника.
+
+    Худший из оставшихся дефектов, и худший он именно для машины-читателя.
+    На стр. 313 детектор выдал рамку шириной 801 px на странице в 1012, и две
+    разные таблицы склеились в одну сетку на десять столбцов: «Engine Lathe»
+    оказался в столбце значений.  Человек, взглянув на такую сетку, сразу
+    увидит бессмыслицу; модель-пересказчик уверенно перескажет её как факт.
+
+    Одного пересечения мало: бывает и настоящая таблица во всю ширину полосы.
+    Поэтому проверяются чернила — если внутри рамки на месте межколонника
+    идёт сквозной просвет, это две таблицы; если текст пересекает его, это
+    одна, и её не трогаем.  Разрез делается здесь, а не в фильтре рамок,
+    именно ради доступа к картинке.
+    """
+    from paddlex.inference.pipelines.components.common.crop_image_regions import (
+        CropByBoxes as _C,
+    )
+    import numpy as np
+
+    orig = _C.__call__
+
+    def clear_corridor(img, box, mid, half=8):
+        """Пуст ли столбец шириной 2*half на месте межколонника внутри рамки."""
+        x0, y0, x1, y1 = [int(v) for v in box]
+        a, b = max(x0, mid - half), min(x1, mid + half)
+        if b - a < 3 or y1 - y0 < 3:
+            return False
+        strip = img[max(0, y0):y1, a:b]
+        if strip.size == 0:
+            return False
+        g = strip if strip.ndim == 2 else strip.mean(2)
+        return bool((g < max(128, g.mean() - 25)).sum() < 0.005 * g.size)
+
+    def patched(self, img, boxes, layout_shape_mode="auto"):
+        try:
+            w = img.shape[1]
+            mid = _column_gutter(boxes, w + 1)
+            if mid is not None:
+                out, cut, kept = [], 0, 0
+                for b in boxes:
+                    c = b["coordinate"]
+                    wide = (b.get("label") == "table"
+                            and c[0] < mid - min_gutter and c[2] > mid + min_gutter
+                            and (mid - c[0]) > min_half and (c[2] - mid) > min_half)
+                    if wide and clear_corridor(img, c, mid):
+                        left, right = dict(b), dict(b)
+                        left["coordinate"] = [c[0], c[1], mid - margin, c[3]]
+                        right["coordinate"] = [mid + margin, c[1], c[2], c[3]]
+                        out += [left, right]
+                        cut += 1
+                    else:
+                        if wide:
+                            kept += 1
+                        out.append(b)
+                if cut or kept:
+                    _log(f"межколонник x={mid}: разрезано рамок {cut}, "
+                         f"оставлено сплошными {kept}")
+                boxes = out
+        except Exception as exc:
+            _log(f"разрез по межколоннику пропущен: {exc}")
+        return orig(self, img, boxes, layout_shape_mode)
+
+    _C.__call__ = patched
+
+
 def _looks_tabular(img, min_lines=2, max_lines=8, gap_per_line=0.7,
                    min_gaps=2, frac=0.6):
     """Похож ли кроп на таблицу по просветам между столбцами.
@@ -881,6 +987,9 @@ def main():
     if os.environ.get("MULTIVIEW", "1") == "1":
         _multiview_layout()
         _log("детекция макета в двенадцать взглядов")
+    if os.environ.get("SPLIT_COLUMNS", "1") == "1":
+        _split_cross_column_tables()
+        _log("таблицы поперёк межколонника будут разрезаны")
     if os.environ.get("REASK", "1") == "1":
         _reask_text_as_table()
         _log("блоки text, похожие на таблицу, идут на переспрос")
