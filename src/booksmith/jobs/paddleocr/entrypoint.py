@@ -723,9 +723,18 @@ def _mark_uncertain(*dirs, mark="⚠"):
                     continue
                 for a, b, _ in spans:
                     edits.append((base + a, base + b))
-            for a, b in sorted(set(edits), reverse=True):
-                if out[a:b].strip():
-                    out = (out[:a] + f'<mark title="модель не уверена">'
+            # Наложения надо слить ДО вставки: два соседних неуверенных
+            # места, вставленные по отдельности, режут друг другу тег, и в
+            # разметке остаётся `1mark title="..."` без угловой скобки.
+            merged = []
+            for a, b in sorted(set(edits)):
+                if merged and a <= merged[-1][1]:
+                    merged[-1] = (merged[-1][0], max(merged[-1][1], b))
+                else:
+                    merged.append((a, b))
+            for a, b in reversed(merged):
+                if out[a:b].strip() and "<" not in out[a:b]:
+                    out = (out[:a] + '<mark title="модель не уверена">'
                            + out[a:b] + "</mark>" + out[b:])
                     n_span += 1
 
@@ -1031,6 +1040,16 @@ def main():
     # читается несколько раз, и разошедшиеся ячейки помечаются как ненадёжные.
     # По умолчанию 0, то есть жадный разбор, как и был.
     pkw = {}
+    # Текст внутри рисунков: буквенные выноски A/B на схемах, размерные
+    # подписи.  По умолчанию paddlex их не читает вовсе — блок `image`
+    # вырезается картинкой, и внутрь никто не заглядывает.  А в тексте рядом
+    # сказано «кнопка в точке A перемещается к B», и без выносок абзац
+    # теряет смысл.  Сама картинка при этом сохраняется как была:
+    # vis_image_labels в paddlex отдельный от image_labels.
+    if os.environ.get("OCR_IN_IMAGES", "0") == "1":
+        pkw["use_ocr_for_image_block"] = True
+        _log("текст внутри рисунков будет прочитан")
+
     _temp = float(os.environ.get("VLM_TEMPERATURE", "0") or 0)
     if _temp > 0:
         pkw["temperature"] = _temp
