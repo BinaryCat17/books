@@ -123,6 +123,22 @@ def _prefer_tables_over_text():
         calculate_polygon_overlap_ratio,
     )
 
+    # Такой же фильтр стоит ВТОРЫМ экземпляром внутри самого предиктора
+    # (layout_analysis/processors.py: filter_boxes), и отрабатывает он РАНЬШЕ.
+    # То есть к нашей правке табличная рамка, перекрытая текстовой большей
+    # площади, уже удалена, и спасать нечего.  Гасим внутренний: наша
+    # подмена — его полная переделка с одной изменённой веткой, так что
+    # ничего, кроме дублирования, не теряется.
+    try:
+        from paddlex.inference.models.layout_analysis import processors as _pr
+
+        _inner = _pr.filter_boxes
+        _pr.filter_boxes = lambda src_boxes, mode: [
+            b for b in src_boxes if b.get("label") != "reference"]
+        _log("внутренний фильтр рамок отключён — работает наш")
+    except Exception as exc:
+        _log(f"внутренний фильтр рамок оставлен как есть: {exc}")
+
     orig = _p.filter_overlap_boxes
     hard = ("table", "image", "seal", "chart")
 
@@ -273,6 +289,8 @@ def _multiview_layout(overlap=0.12, merge=0.55, thr=0.30):
         c = box["coordinate"]
         return (0 if (c[0] + c[2]) / 2 < mid else 1, c[1])
 
+    _k = _render_scale()
+
     def patched(self, input, **kw):
         # Пачку исчерпываем целиком до того, как звать предиктор снова:
         # sampler у него один на экземпляр, и вложенный вход в него посреди
@@ -296,19 +314,34 @@ def _multiview_layout(overlap=0.12, merge=0.55, thr=0.30):
                 # а текстовая рамка поверх таблицы без линеек перекрывается
                 # ровно настолько.  То есть кандидат гибнет внутри прохода, и
                 # наша правка "таблица важнее текста" до него не доживает.
-                vkw = dict(kw, layout_merge_bboxes_mode="union", layout_nms=False)
-                for view, back in _views(img):
-                    for r in orig(self, [view], **vkw):
-                        for b in r["boxes"]:
-                            if b["label"] != "table" or b["score"] < thr:
-                                continue
-                            c = back(b["coordinate"])
-                            c = [max(0, min(w, c[0])), max(0, min(h, c[1])),
-                                 max(0, min(w, c[2])), max(0, min(h, c[3]))]
-                            if c[2] - c[0] < 40 or c[3] - c[1] < 25:
-                                continue
-                            extra.append({"cls_id": b["cls_id"], "label": "table",
-                                          "score": b["score"], "coordinate": c})
+                # layout_nms=False здесь БЕСПОЛЕЗЕН: в paddlex стоит
+                # `layout_nms or self.layout_nms`, а в конфиге True, то есть
+                # False or True == True.  Флаг был инертен, и вывод «NMS ни
+                # при чём», сделанный по такому замеру, ничего не проверял.
+                # Гасим на самом предикторе, вернув значение после прохода.
+                vkw = dict(kw, layout_merge_bboxes_mode="union")
+                was_nms = getattr(self, "layout_nms", None)
+                self.layout_nms = False
+                try:
+                    for view, back in _views(img):
+                        for r in orig(self, [view], **vkw):
+                            for b in r["boxes"]:
+                                if b["label"] != "table" or b["score"] < thr:
+                                    continue
+                                c = back(b["coordinate"])
+                                c = [max(0, min(w, c[0])), max(0, min(h, c[1])),
+                                     max(0, min(w, c[2])), max(0, min(h, c[3]))]
+                                if c[2] - c[0] < 40 * _k or c[3] - c[1] < 25 * _k:
+                                    continue
+                                extra.append({"cls_id": b["cls_id"],
+                                              "label": "table",
+                                              "score": b["score"],
+                                              "coordinate": c})
+                finally:
+                    # Значение возвращаем в любом случае: иначе первая же
+                    # ошибка оставила бы NMS выключенным на весь прогон.
+                    if was_nms is not None:
+                        self.layout_nms = was_nms
                 extra.sort(key=lambda b: -b["score"])
 
                 added = 0
@@ -363,7 +396,7 @@ def _multiview_layout(overlap=0.12, merge=0.55, thr=0.30):
 _NOT_COLUMN = ("number", "header", "footer", "header_image", "footer_image")
 
 
-def _column_gutter(boxes, w, need_side=2, min_gap=6):
+def _column_gutter(boxes, w, need_side=2, min_gap=None):
     """Середина межколонника — или None, если двух колонок на странице нет.
 
     Ищется не по пустому просвету (его закрывает первый же случайный блок,
@@ -375,6 +408,7 @@ def _column_gutter(boxes, w, need_side=2, min_gap=6):
     блоков.  На одноколонной книге кластер один, и функция вернёт None —
     разрез не тронет ничего.
     """
+    min_gap = int(6 * _render_scale()) if min_gap is None else min_gap
     cols = [b for b in boxes
             if b["label"] != "table" and b["label"] not in _NOT_COLUMN]
     if len(cols) < 2 * need_side:
@@ -398,6 +432,20 @@ def _column_gutter(boxes, w, need_side=2, min_gap=6):
     return int((edge_l + edge_r) // 2)
 
 
+def _render_scale():
+    """Во сколько раз страница крупнее базовых 144 dpi.
+
+    Пиксельные пороги без этого множителя молча разъезжаются при смене
+    разрешения — так уже случилось с воротами переспроса, где порог 12 px на
+    288 dpi стал вдвое мягче и отправил на переспрос 103 блока вместо
+    четырёх.  Те же грабли лежали ещё в четырёх местах.
+    """
+    try:
+        return max(1.0, float(os.environ.get("PADDLE_PDX_PDF_RENDER_SCALE", 2.0)) / 2.0)
+    except ValueError:
+        return 1.0
+
+
 def _split_cross_column_tables(min_gutter=12, margin=4, min_half=120):
     """Разрезать табличную рамку, легшую поперёк межколонника.
 
@@ -418,10 +466,15 @@ def _split_cross_column_tables(min_gutter=12, margin=4, min_half=120):
     )
     import numpy as np
 
+    k = _render_scale()
+    min_gutter = int(min_gutter * k)
+    margin = int(margin * k)
+    min_half = int(min_half * k)
     orig = _C.__call__
 
-    def clear_corridor(img, box, mid, half=8):
-        """Пуст ли столбец шириной 2*half на месте межколонника внутри рамки."""
+    def clear_corridor(img, box, mid, half=None):
+        half = int(8 * k) if half is None else half
+        # Пуст ли столбец шириной 2*half на месте межколонника внутри рамки.
         x0, y0, x1, y1 = [int(v) for v in box]
         a, b = max(x0, mid - half), min(x1, mid + half)
         if b - a < 3 or y1 - y0 < 3:
@@ -445,6 +498,12 @@ def _split_cross_column_tables(min_gutter=12, margin=4, min_half=120):
                             and (mid - c[0]) > min_half and (c[2] - mid) > min_half)
                     if wide and clear_corridor(img, c, mid):
                         left, right = dict(b), dict(b)
+                        # Многоугольник целой рамки половинкам не годится:
+                        # CropByBoxes строит по нему маску и заливает всё вне
+                        # её белым, так что правая половина ушла бы в VLM
+                        # почти пустым листом.  Прямоугольника достаточно.
+                        left.pop("polygon_points", None)
+                        right.pop("polygon_points", None)
                         left["coordinate"] = [c[0], c[1], mid - margin, c[3]]
                         right["coordinate"] = [mid + margin, c[1], c[2], c[3]]
                         out += [left, right]
@@ -561,8 +620,11 @@ def _reask_text_as_table():
                     blk["label"] = "table"
                     n += 1
             except Exception as exc:
-                _log(f"ворота переспроса пропущены: {exc}")
-                break
+                # continue, а не break: одна кривая картинка выключала ворота
+                # для всех оставшихся блоков страницы, а лог печатал
+                # уменьшенное число и выглядел рабочим.
+                _log(f"ворота переспроса, блок пропущен: {exc}")
+                continue
         if n:
             _log(f"переспрос: блоков text отправлено как таблицы {n}")
         return out
@@ -594,6 +656,7 @@ def _link_table_crops(pdf, pages_dir, book_dir, scale=None):
     tag_re = re.compile(r"<[^>]+>")
     cell_re = re.compile(r"<t[dh][^>]*>(.*?)</t[dh]>", re.I | re.S)
     total = skipped = 0
+    all_signs: dict = {}        # подпись таблицы -> имена вырезанных сканов
 
     def sign(table_html):
         """Подпись таблицы — её ячейки подряд, без разметки и пробелов.
@@ -611,6 +674,10 @@ def _link_table_crops(pdf, pages_dir, book_dir, scale=None):
                  for c in cell_re.findall(table_html)]
         return "\x1f".join(c for c in cells if c)
 
+    # Книжный файл обходится вместе с постраничными: раньше `book_dir`
+    # служил только местом для imgs/, и главный результат ссылок не получал
+    # вовсе, хотя лог рапортовал «проставлено N».
+    book_md = [f for f in glob.glob(os.path.join(book_dir, "*.md"))]
     for jf in sorted(glob.glob(os.path.join(pages_dir, "*.json"))):
         mf = jf[:-5] + ".md"
         if not os.path.exists(mf):
@@ -655,17 +722,46 @@ def _link_table_crops(pdf, pages_dir, book_dir, scale=None):
                     except OSError:
                         import shutil as _sh
                         _sh.copyfile(path, twin)
+                all_signs.setdefault(sign(m.group(0)), []).append(name)
                 out.append(md[prev:m.start()])
                 out.append(f"<!-- скан таблицы: imgs/{name} -->\n")
                 prev = m.start()
                 total += 1
             skipped += miss
-            if prev:
+            if out:
+                # Не `if prev:` — таблица может начинаться с нулевого
+                # смещения, и тогда правка терялась, а счётчик её уже учёл.
                 out.append(md[prev:])
                 with open(mf, "w", encoding="utf-8") as fh:
                     fh.write("".join(out))
         except Exception as exc:
             _log(f"ссылки на сканы таблиц, {os.path.basename(jf)}: {exc}")
+
+    # Книжный файл — тот же обход, но по общей карте подписей: страницы уже
+    # прошли, кропы вырезаны, остаётся вставить комментарии.
+    for bf in book_md:
+        try:
+            md = open(bf, encoding="utf-8").read()
+            if "<table" not in md.lower():
+                continue
+            pool = {k: list(v) for k, v in all_signs.items()}
+            out, prev, added = [], 0, 0
+            for m in re.finditer(r"<table\b.*?</table>", md, re.I | re.S):
+                names = pool.get(sign(m.group(0)))
+                if not names:
+                    continue
+                out.append(md[prev:m.start()])
+                out.append(f"<!-- скан таблицы: imgs/{names.pop(0)} -->\n")
+                prev = m.start()
+                added += 1
+            if out:
+                out.append(md[prev:])
+                with open(bf, "w", encoding="utf-8") as fh:
+                    fh.write("".join(out))
+                total += added
+        except Exception as exc:
+            _log(f"ссылки на сканы таблиц, {os.path.basename(bf)}: {exc}")
+
     return total, skipped
 
 
@@ -682,10 +778,14 @@ def _drop_orphan_crops(book_dir, *dirs):
             used.update(re.findall(r"скан таблицы: imgs/(\S+?) -->",
                                    open(f, encoding="utf-8").read()))
     gone = 0
-    for f in glob.glob(os.path.join(book_dir, "imgs", "tbl_*.jpg")):
-        if os.path.basename(f) not in used:
-            os.remove(f)
-            gone += 1
+    # Чистим оба каталога: близнец рядом со страницами — жёсткая ссылка, и
+    # без его удаления место не освобождается вовсе, а осиротевший скан
+    # остаётся лежать.
+    for d in dict.fromkeys(dirs + (book_dir,)):
+        for f in glob.glob(os.path.join(d, "imgs", "tbl_*.jpg")):
+            if os.path.basename(f) not in used:
+                os.remove(f)
+                gone += 1
     return gone
 
 
@@ -815,12 +915,25 @@ def _mark_uncertain(*dirs, mark="⚠"):
     table_re = re.compile(r"<table\b.*?</table>", re.I | re.S)
     tag_re = re.compile(r"<[^>]+>")
     n_cell = n_span = 0
+    local: list = []          # ответы VLM, относящиеся к текущей странице
 
     def suspicious(txt):
+        """Попал ли текст ячейки в неуверенное место ответа ЭТОЙ страницы.
+
+        Две поправки против прежней версии, и обе по одной причине — ячейка
+        помечалась чужой неуверенностью:
+
+        - ищем только среди ответов, встречающихся на этой странице, а не по
+          всей книге.  Раньше ячейка `12" to 18" in.c.` совпадала с куском
+          ` in` из ответа, принадлежащего другой таблице на другой странице.
+        - короткий текст не ищем вовсе: `4` или `.001` найдётся внутри почти
+          любого слабого места.  Это тот же порог, что уже стоял в прозе, —
+          в ячейках его просто забыли.
+        """
         plain = html.unescape(tag_re.sub("", txt)).strip()
-        if not plain:
+        if len(plain) < MARK_MIN_SPAN:
             return False
-        for src, spans in _LOW.items():
+        for src, spans in local:
             i = src.find(plain)
             while i >= 0:
                 for a, b, _ in spans:
@@ -839,6 +952,11 @@ def _mark_uncertain(*dirs, mark="⚠"):
     for d in dict.fromkeys(dirs):
         for f in glob.glob(os.path.join(d, "*.md")):
             src_md = open(f, encoding="utf-8").read()
+            # Отбор ответов этой страницы делается ОДИН раз на файл.  Раньше
+            # он шёл заново на каждую ячейку, и на книге это давало сотни
+            # миллионов подстрочных поисков.
+            local = [(src, spans) for src, spans in _LOW.items()
+                     if src in src_md]
             out = cell_re.sub(cell, src_md)
 
             # Проза: заворачиваем сам сомнительный кусок, но не трогаем то,
@@ -1021,7 +1139,7 @@ def _strip_running_headers(pages_dir, *targets):
     for f in sorted(glob.glob(os.path.join(pages_dir, "*.json"))):
         npages += 1
         try:
-            d = json.load(open(f))
+            d = json.load(open(f, encoding="utf-8"))
         except Exception:
             continue
         for r in d.get("parsing_res_list") or []:
@@ -1030,7 +1148,10 @@ def _strip_running_headers(pages_dir, *targets):
                 if t:
                     seen[t] += 1
 
-    limit = max(3, npages // 3)
+    # Треть книги — порог, годный для брошюры и бессмысленный для тома: на
+    # 539 страницах он равен 179, и колонтитул главы (30-40 страниц) не
+    # пройдёт его никогда.  Берём меньшее из трети и двадцати повторов.
+    limit = max(3, min(20, npages // 3))
     running = {t for t, c in seen.items() if c >= limit}
     if not running:
         return []
@@ -1040,12 +1161,12 @@ def _strip_running_headers(pages_dir, *targets):
     for target in targets:
         for f in glob.glob(os.path.join(target, "*.md")):
             try:
-                src = open(f).read().splitlines(keepends=True)
+                src = open(f, encoding="utf-8").read().splitlines(keepends=True)
             except Exception:
                 continue
             kept = [ln for ln in src if ln.strip() not in lines]
             if len(kept) != len(src):
-                open(f, "w").writelines(kept)
+                open(f, "w", encoding="utf-8").writelines(kept)
     return sorted(running)
 
 
@@ -1068,11 +1189,20 @@ def main():
     os.makedirs(pages_dir, exist_ok=True)
 
     pdf = a.pdf
+    full_pdf = pdf                  # исходник до подмены на срез возобновления
     offset = 0
     if a.resume:
         done = _done_pages(pages_dir)
         if done:
-            first = max(done)          # последнюю пересчитываем: могла оборваться
+            # Первая дыра, а не максимум: если страница в середине не
+            # записалась (save_to_markdown падает, ошибка проглатывается и
+            # логируется), при max она не пересчитается НИКОГДА, а run.json
+            # покажет полное число страниц, будто всё на месте.
+            first = next((i for i in range(max(done) + 1) if i not in done),
+                         max(done))
+            if first < max(done):
+                _log(f"в разборе дыра начиная со страницы {first+1} — "
+                     f"считаю с неё, а не с конца")
             sliced = _slice_pdf(pdf, first, 10 ** 6,
                                 os.path.join(out, "_resume.pdf"))
             if sliced:
@@ -1208,6 +1338,21 @@ def main():
         except Exception as e:
             _log(f"  страница {idx}: json не сохранился: {e}")
 
+        # Отдав страницу на диск, отпускаем самое тяжёлое: отрисованную
+        # страницу и её же копию из предобработки.  Список `pages` нужен
+        # только для склейки таблиц через разрыв, а держал он всю книгу
+        # целиком — на 539 страницах при 288 dpi это гигабайты на машине,
+        # где 18 ГБ уже отданы vLLM.
+        for key in ("layout_det_res", "doc_preprocessor_res"):
+            try:
+                sub = res[key]
+                if isinstance(sub, dict):
+                    sub.pop("input_img", None)
+                elif hasattr(sub, "pop"):
+                    sub.pop("input_img", None)
+            except Exception:
+                pass
+
         dt = time.time() - t1
         with open(os.path.join(out, "progress.json"), "w") as f:
             json.dump({"pages_done": idx + 1, "this_run": n,
@@ -1236,8 +1381,16 @@ def main():
             joined = pipeline.restructure_pages(pages, merge_tables=True,
                                                 concatenate_pages=True)
             _log("restructure_pages: таблицы склеены, страницы сшиты")
-        except (AttributeError, TypeError) as e:
-            _log(f"restructure_pages недоступен ({e}) — сшиваю из файлов")
+        except Exception as e:
+            # Ловим шире: раньше сюда не попадали ни нехватка памяти, ни любая
+            # другая беда внутри склейки, и прогон падал в самом конце, уже
+            # посчитав всю книгу.
+            _log(f"restructure_pages не отработал ({e}) — сшиваю из файлов")
+            joined = None
+        if joined is not None and not joined:
+            # Пустой список, а не None: цикл ниже не делал ничего, book_dir
+            # оставался пустым, а лог рапортовал «таблицы склеены».
+            _log("restructure_pages вернул пусто — сшиваю из файлов")
             joined = None
         if joined is None:
             _concat_pages(pages_dir, os.path.join(book_dir, "book.md"))
@@ -1249,14 +1402,22 @@ def main():
                     _log(f"  склейка: {e}")
 
     if _LOW:
-        with open(os.path.join(out, "logprobs.json"), "w") as f:
-            json.dump({k: v for k, v in list(_LOW.items())[:400]}, f,
-                      ensure_ascii=False, indent=1)
+        with open(os.path.join(out, "logprobs.json"), "w",
+                  encoding="utf-8") as f:
+            keep = list(_LOW.items())[:400]
+            json.dump({"всего": len(_LOW), "сохранено": len(keep),
+                       "места": dict(keep)}, f, ensure_ascii=False, indent=1)
+        if len(_LOW) > 400:
+            _log(f"в logprobs.json сохранены первые 400 мест из {len(_LOW)}")
         n_cell, n_span = _mark_uncertain(pages_dir, book_dir)
         _log(f"ответов с неуверенными местами {len(_LOW)}: "
              f"помечено ячеек {n_cell}, кусков прозы {n_span}")
 
-    linked, skipped = _link_table_crops(pdf, pages_dir, book_dir)
+    # Сканы режем из ПОЛНОЙ книги, а не из обрезка: при возобновлении `pdf`
+    # подменён на срез, а page_index в старых json остались абсолютными, и
+    # doc[page_index] вырезал бы кусок чужой страницы — молча, с правильным
+    # именем файла.
+    linked, skipped = _link_table_crops(full_pdf, pages_dir, book_dir)
     if linked or skipped:
         _log(f"ссылок на сканы таблиц проставлено {linked}"
              + (f"; страниц пропущено из-за несовпадения счёта {skipped}"
