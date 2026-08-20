@@ -1,0 +1,344 @@
+{
+    "input_path": "input.pdf",
+    "page_index": 13,
+    "page_count": 20,
+    "width": 2024,
+    "height": 2932,
+    "model_settings": {
+        "use_doc_preprocessor": false,
+        "use_layout_detection": true,
+        "use_chart_recognition": false,
+        "use_seal_recognition": false,
+        "use_ocr_for_image_block": false,
+        "format_block_content": false,
+        "merge_layout_blocks": true,
+        "markdown_ignore_labels": [
+            "number",
+            "header_image",
+            "footer",
+            "footer_image",
+            "aside_text"
+        ],
+        "return_layout_polygon_points": true
+    },
+    "parsing_res_list": [
+        {
+            "block_label": "image",
+            "block_content": "",
+            "block_bbox": [
+                163,
+                134,
+                1779,
+                1340
+            ],
+            "block_id": 0,
+            "block_order": null,
+            "group_id": 0
+        },
+        {
+            "block_label": "figure_title",
+            "block_content": "Fig. 26.70(a) Testing pitch error in Lead Screw by comparison with End Gage. 1st phase Starting Position.",
+            "block_bbox": [
+                431,
+                1415,
+                1538,
+                1494
+            ],
+            "block_id": 1,
+            "block_order": null,
+            "group_id": 1
+        },
+        {
+            "block_label": "vision_footnote",
+            "block_content": "(1) ground stud (2) sleeve (3) parallel bar (4) DIAL INDICATOR (5) DIAL INDICATOR (6) parallel bar (7) end gage (8) precision V-block.",
+            "block_bbox": [
+                475,
+                1502,
+                1462,
+                1616
+            ],
+            "block_id": 2,
+            "block_order": null,
+            "group_id": 2
+        },
+        {
+            "block_label": "table",
+            "block_content": "<table><tr><td>be either more or less than 12&quot; and this difference when measured will be the pitch error.</td></tr></table>",
+            "block_bbox": [
+                166,
+                1692,
+                942,
+                1829
+            ],
+            "block_id": 3,
+            "block_order": null,
+            "group_id": 3
+        },
+        {
+            "block_label": "text",
+            "block_content": "In practice, the spindle is revolved ninety five times and as the last turn begins, the sleeve is inserted on the stud. The ninety sixth revolution is completed when the reading on the INDICATOR (4) attains the same value as previously recorded. At that point further movement should be stopped.",
+            "block_bbox": [
+                167,
+                1829,
+                948,
+                2185
+            ],
+            "block_id": 4,
+            "block_order": 1,
+            "group_id": 4
+        },
+        {
+            "block_label": "table",
+            "block_content": "<table><tr><td>We now turn to the INDICATOR (5). The button of this DIAL should be in contact with the stop (6). What ever the difference between the first reading which was jotted down and the present reading will constitute the pitch error of the lead screw in thousandths of an inch per foot, either plus or minus.</td></tr></table>",
+            "block_bbox": [
+                167,
+                2184,
+                957,
+                2548
+            ],
+            "block_id": 5,
+            "block_order": null,
+            "group_id": 5
+        },
+        {
+            "block_label": "paragraph_title",
+            "block_content": "Sec. 26.73",
+            "block_bbox": [
+                1020,
+                1686,
+                1221,
+                1729
+            ],
+            "block_id": 6,
+            "block_order": 2,
+            "group_id": 6
+        },
+        {
+            "block_label": "table",
+            "block_content": "<table><tr><td>Limitations Affecting the Accuracy of Static Alignment Tests.</td></tr></table>",
+            "block_bbox": [
+                1018,
+                1729,
+                1735,
+                1826
+            ],
+            "block_id": 7,
+            "block_order": null,
+            "group_id": 7
+        },
+        {
+            "block_label": "text",
+            "block_content": "With the lathe completely assembled it is well to try the lathe under actual operating conditions. Up to this point we have depended principally upon a DIAL INDICATOR to inform us as to the accuracy of our alignments. Furthermore, no working pressure has been applied to the bearing surfaces. However, we may feel reasonably certain that the machine will produce accurate work, provided the following conditions were fulfilled, namely:",
+            "block_bbox": [
+                1017,
+                1864,
+                1842,
+                2364
+            ],
+            "block_id": 8,
+            "block_order": 3,
+            "group_id": 8
+        },
+        {
+            "block_label": "table",
+            "block_content": "<table><tr><td>1. If an accurate, sensitive DIAL INDICATOR was used.</td></tr></table>",
+            "block_bbox": [
+                1022,
+                2400,
+                1827,
+                2491
+            ],
+            "block_id": 9,
+            "block_order": null,
+            "group_id": 9
+        },
+        {
+            "block_label": "text",
+            "block_content": "2. If testing set-ups were made accurately.",
+            "block_bbox": [
+                1024,
+                2492,
+                1821,
+                2540
+            ],
+            "block_id": 10,
+            "block_order": 4,
+            "group_id": 10
+        },
+        {
+            "block_label": "number",
+            "block_content": "309",
+            "block_bbox": [
+                970,
+                2699,
+                1042,
+                2739
+            ],
+            "block_id": 11,
+            "block_order": null,
+            "group_id": 11
+        }
+    ],
+    "layout_det_res": {
+        "input_path": null,
+        "page_index": null,
+        "boxes": [
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.3976840376853943,
+                "coordinate": [
+                    700,
+                    1692,
+                    769,
+                    1733
+                ],
+                "order": 1
+            },
+            {
+                "cls_id": 14,
+                "label": "image",
+                "score": 0.9827988743782043,
+                "coordinate": [
+                    163,
+                    134,
+                    1779,
+                    1340
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 7,
+                "label": "figure_title",
+                "score": 0.9252757430076599,
+                "coordinate": [
+                    431,
+                    1415,
+                    1538,
+                    1494
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 24,
+                "label": "vision_footnote",
+                "score": 0.7985618710517883,
+                "coordinate": [
+                    475,
+                    1502,
+                    1462,
+                    1616
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9778410792350769,
+                "coordinate": [
+                    166,
+                    1692,
+                    942,
+                    1829
+                ],
+                "order": 2
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9880256056785583,
+                "coordinate": [
+                    167,
+                    1829,
+                    948,
+                    2185
+                ],
+                "order": 3
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9872362017631531,
+                "coordinate": [
+                    167,
+                    2184,
+                    957,
+                    2548
+                ],
+                "order": 4
+            },
+            {
+                "cls_id": 17,
+                "label": "paragraph_title",
+                "score": 0.6356759071350098,
+                "coordinate": [
+                    1020,
+                    1686,
+                    1221,
+                    1729
+                ],
+                "order": 5
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9289631843566895,
+                "coordinate": [
+                    1018,
+                    1729,
+                    1735,
+                    1826
+                ],
+                "order": 6
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9877356886863708,
+                "coordinate": [
+                    1017,
+                    1864,
+                    1842,
+                    2364
+                ],
+                "order": 7
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9684420228004456,
+                "coordinate": [
+                    1022,
+                    2400,
+                    1827,
+                    2491
+                ],
+                "order": 8
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9420516490936279,
+                "coordinate": [
+                    1024,
+                    2492,
+                    1821,
+                    2540
+                ],
+                "order": 9
+            },
+            {
+                "cls_id": 16,
+                "label": "number",
+                "score": 0.9143486022949219,
+                "coordinate": [
+                    970,
+                    2699,
+                    1042,
+                    2739
+                ],
+                "order": 10
+            }
+        ]
+    }
+}

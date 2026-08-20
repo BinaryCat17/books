@@ -1,0 +1,555 @@
+{
+    "input_path": "input.pdf",
+    "page_index": 2,
+    "page_count": 20,
+    "width": 2024,
+    "height": 2932,
+    "model_settings": {
+        "use_doc_preprocessor": false,
+        "use_layout_detection": true,
+        "use_chart_recognition": false,
+        "use_seal_recognition": false,
+        "use_ocr_for_image_block": false,
+        "format_block_content": false,
+        "merge_layout_blocks": true,
+        "markdown_ignore_labels": [
+            "number",
+            "header_image",
+            "footer",
+            "footer_image",
+            "aside_text"
+        ],
+        "return_layout_polygon_points": true
+    },
+    "parsing_res_list": [
+        {
+            "block_label": "table",
+            "block_content": "1. The V-slide\n2. The flat slide",
+            "block_bbox": [
+                1031,
+                105,
+                1349,
+                194
+            ],
+            "block_id": 0,
+            "block_order": null,
+            "group_id": 0
+        },
+        {
+            "block_label": "figure_title",
+            "block_content": "RECOMMENDATION STANDARDS",
+            "block_bbox": [
+                373,
+                2402,
+                839,
+                2439
+            ],
+            "block_id": 1,
+            "block_order": null,
+            "group_id": 1
+        },
+        {
+            "block_label": "table",
+            "block_content": "<table><tr><td>Tool Room</td><td>12&quot; to 18&quot; (m.c.</td><td>20&quot; to 31&quot; (m.c.</td></tr><tr><td>Laths</td><td>Engine, Laths</td><td>Engine, Laths</td></tr><tr><td>0 to .0005&quot;</td><td>0 to .0005&quot;</td><td>0 to .0005&quot;</td></tr><tr><td colspan=\"3\">(High at end of 12 mch test bar)</td></tr></table>",
+            "block_bbox": [
+                258,
+                2435,
+                1005,
+                2642
+            ],
+            "block_id": 2,
+            "block_order": null,
+            "group_id": 2
+        },
+        {
+            "block_label": "text",
+            "block_content": "tapered hole in the spindle is “in-line” with the axis of the spindle in the vertical plane. The only change required for the set up in this test from the previous one, is to locate the DIAL button at the top of the test bar at the vertical diameter. A reading is taken as the carriage is traversed. If the unilateral tolerance indicated in the recommended standards is not exceeded, then the axis of the tapered hole is “in-line” with the axis of the spindle in the vertical plane.",
+            "block_bbox": [
+                186,
+                114,
+                1011,
+                648
+            ],
+            "block_id": 3,
+            "block_order": 1,
+            "group_id": 3
+        },
+        {
+            "block_label": "text",
+            "block_content": "In case the two tests show that the tapered hole is inaccurate and exceeds the limits allowed, the spindle must be removed from the tailstock. It must then be replaced with a new and accurate spindle. In lieu of this, the tapered hole of the defective spindle can be reworked. However, since this matter pertains to machine shop practice it will not be further discussed.",
+            "block_bbox": [
+                194,
+                646,
+                1019,
+                1048
+            ],
+            "block_id": 4,
+            "block_order": 2,
+            "group_id": 4
+        },
+        {
+            "block_label": "text",
+            "block_content": "To reassure the critical reader, it will be emphasized that, finding a tailstock spindle with a defective tapered hole will not affect the alignment of the previously scraped bearing surfaces of the tailstock. Replacement of the spindle or reboring the taper hole will, however, be called for.",
+            "block_bbox": [
+                199,
+                1046,
+                1015,
+                1365
+            ],
+            "block_id": 5,
+            "block_order": 3,
+            "group_id": 5
+        },
+        {
+            "block_label": "text",
+            "block_content": "Sec. 26.57",
+            "block_bbox": [
+                206,
+                1405,
+                413,
+                1450
+            ],
+            "block_id": 6,
+            "block_order": 4,
+            "group_id": 6
+        },
+        {
+            "block_label": "text",
+            "block_content": "The Head Stock of the Lathe",
+            "block_bbox": [
+                206,
+                1446,
+                742,
+                1495
+            ],
+            "block_id": 7,
+            "block_order": 5,
+            "group_id": 7
+        },
+        {
+            "block_label": "table",
+            "block_content": "<table><tr><td>The fixed member of the lathe which carries the work spindle supporting the live center, and the necessary mechanism to drive the work, is called the head stock. It is a solid one piece casting, as shown in Fig. 26.54. The member has two bearing surfaces which are scraped, namely:</td></tr></table>",
+            "block_bbox": [
+                207,
+                1533,
+                1024,
+                1854
+            ],
+            "block_id": 8,
+            "block_order": null,
+            "group_id": 8
+        },
+        {
+            "block_label": "image",
+            "block_content": "",
+            "block_bbox": [
+                226,
+                1951,
+                1007,
+                2250
+            ],
+            "block_id": 9,
+            "block_order": null,
+            "group_id": 9
+        },
+        {
+            "block_label": "figure_title",
+            "block_content": "Fig. 26.53 Alignment of taper no. of tarsock in vertical plane.",
+            "block_bbox": [
+                236,
+                2296,
+                998,
+                2373
+            ],
+            "block_id": 10,
+            "block_order": null,
+            "group_id": 10
+        },
+        {
+            "block_label": "image",
+            "block_content": "",
+            "block_bbox": [
+                1077,
+                305,
+                1795,
+                875
+            ],
+            "block_id": 11,
+            "block_order": null,
+            "group_id": 11
+        },
+        {
+            "block_label": "table",
+            "block_content": "<table><tr><td>PLATE 31. Close-up of lathe headstock mounted on ways of bed. (Courtesy - South Bend Lathe Works.)</td></tr></table>",
+            "block_bbox": [
+                1065,
+                929,
+                1815,
+                1046
+            ],
+            "block_id": 12,
+            "block_order": null,
+            "group_id": 12
+        },
+        {
+            "block_label": "table",
+            "block_content": "<table><tr><td>All spotting of this member is performed using the bed ways as a template. However, before any scraping or alignment is attempted, the spindle of the head stock must be given a series of accuracy tests.</td></tr></table>",
+            "block_bbox": [
+                1049,
+                1083,
+                1845,
+                1356
+            ],
+            "block_id": 13,
+            "block_order": null,
+            "group_id": 13
+        },
+        {
+            "block_label": "text",
+            "block_content": "Sec. 26.58",
+            "block_bbox": [
+                1054,
+                1398,
+                1259,
+                1443
+            ],
+            "block_id": 14,
+            "block_order": 6,
+            "group_id": 14
+        },
+        {
+            "block_label": "text",
+            "block_content": "Accuracy Tests on the Headstock Spindle",
+            "block_bbox": [
+                1054,
+                1439,
+                1835,
+                1491
+            ],
+            "block_id": 15,
+            "block_order": 7,
+            "group_id": 15
+        },
+        {
+            "block_label": "text",
+            "block_content": "These tests are designed to learn the condition of certain important features of the headstock spindle. Strictly speaking, the check-ups are not the duty or concern of the scraping operator, but for his own information and protection, he should conduct them. It is very possible that, if the spindle cannot pass one or more of these accuracy tests, it is so inaccurate that consistent readings could not be obtained, if the actual alignment procedures, accompanying the scraping operations, were to be executed.",
+            "block_bbox": [
+                1057,
+                1531,
+                1866,
+                2112
+            ],
+            "block_id": 16,
+            "block_order": 8,
+            "group_id": 16
+        },
+        {
+            "block_label": "text",
+            "block_content": "Four accuracy tests are made on the spindle and will be described briefly. Obviously, they are not all of the examinations which the spindle would undergo during a manufacturing process, but they do constitute the indispensable ones which the scraping operator can perform verily and in a short time. The checks may be conducted with the headstock placed either on the lathe bed, or perhaps on a work bench.",
+            "block_bbox": [
+                1062,
+                2113,
+                1882,
+                2609
+            ],
+            "block_id": 17,
+            "block_order": 9,
+            "group_id": 17
+        },
+        {
+            "block_label": "number",
+            "block_content": "298",
+            "block_bbox": [
+                1028,
+                2665,
+                1099,
+                2703
+            ],
+            "block_id": 18,
+            "block_order": null,
+            "group_id": 18
+        }
+    ],
+    "layout_det_res": {
+        "input_path": null,
+        "page_index": null,
+        "boxes": [
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.3282783031463623,
+                "coordinate": [
+                    1031,
+                    105,
+                    1349,
+                    194
+                ],
+                "order": 1
+            },
+            {
+                "cls_id": 7,
+                "label": "figure_title",
+                "score": 0.46378862857818604,
+                "coordinate": [
+                    373,
+                    2402,
+                    839,
+                    2439
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 21,
+                "label": "table",
+                "score": 0.0618402361869812,
+                "coordinate": [
+                    258,
+                    2435,
+                    1005,
+                    2642
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.987390398979187,
+                "coordinate": [
+                    186,
+                    114,
+                    1011,
+                    648
+                ],
+                "order": 2
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9874371290206909,
+                "coordinate": [
+                    194,
+                    646,
+                    1019,
+                    1048
+                ],
+                "order": 3
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9820101857185364,
+                "coordinate": [
+                    199,
+                    1046,
+                    1015,
+                    1365
+                ],
+                "order": 4
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.7287653684616089,
+                "coordinate": [
+                    206,
+                    1405,
+                    413,
+                    1450
+                ],
+                "order": 5
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.7994258999824524,
+                "coordinate": [
+                    206,
+                    1446,
+                    742,
+                    1495
+                ],
+                "order": 6
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9839609861373901,
+                "coordinate": [
+                    207,
+                    1533,
+                    1024,
+                    1854
+                ],
+                "order": 7
+            },
+            {
+                "cls_id": 14,
+                "label": "image",
+                "score": 0.9694380760192871,
+                "coordinate": [
+                    226,
+                    1951,
+                    1007,
+                    2250
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 7,
+                "label": "figure_title",
+                "score": 0.9579069018363953,
+                "coordinate": [
+                    236,
+                    2296,
+                    998,
+                    2373
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 5,
+                "label": "display_formula",
+                "score": 0.6952562928199768,
+                "coordinate": [
+                    259,
+                    2446,
+                    1003,
+                    2586
+                ],
+                "order": 8
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.5481240153312683,
+                "coordinate": [
+                    356,
+                    2595,
+                    847,
+                    2639
+                ],
+                "order": 9
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.757739782333374,
+                "coordinate": [
+                    1031,
+                    105,
+                    1323,
+                    149
+                ],
+                "order": 10
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.7661522626876831,
+                "coordinate": [
+                    1031,
+                    152,
+                    1347,
+                    194
+                ],
+                "order": 11
+            },
+            {
+                "cls_id": 14,
+                "label": "image",
+                "score": 0.9851498603820801,
+                "coordinate": [
+                    1077,
+                    305,
+                    1795,
+                    875
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.6452455520629883,
+                "coordinate": [
+                    1065,
+                    929,
+                    1815,
+                    1046
+                ],
+                "order": 12
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9826985001564026,
+                "coordinate": [
+                    1049,
+                    1083,
+                    1845,
+                    1356
+                ],
+                "order": 13
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.7190348505973816,
+                "coordinate": [
+                    1054,
+                    1398,
+                    1259,
+                    1443
+                ],
+                "order": 14
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.8191783428192139,
+                "coordinate": [
+                    1054,
+                    1439,
+                    1835,
+                    1491
+                ],
+                "order": 15
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9882253408432007,
+                "coordinate": [
+                    1057,
+                    1531,
+                    1866,
+                    2112
+                ],
+                "order": 16
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9867503046989441,
+                "coordinate": [
+                    1062,
+                    2113,
+                    1882,
+                    2609
+                ],
+                "order": 17
+            },
+            {
+                "cls_id": 16,
+                "label": "number",
+                "score": 0.9064883589744568,
+                "coordinate": [
+                    1028,
+                    2665,
+                    1099,
+                    2703
+                ],
+                "order": 18
+            }
+        ]
+    }
+}

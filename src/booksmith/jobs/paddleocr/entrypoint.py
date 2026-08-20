@@ -358,7 +358,7 @@ def _multiview_layout(overlap=0.12, merge=0.55, thr=0.30):
     _L.__call__ = patched
 
 
-def _looks_tabular(img, min_lines=2, max_lines=8, min_gap_px=12,
+def _looks_tabular(img, min_lines=2, max_lines=8, gap_per_line=0.7,
                    min_gaps=2, frac=0.6):
     """Похож ли кроп на таблицу по просветам между столбцами.
 
@@ -375,6 +375,12 @@ def _looks_tabular(img, min_lines=2, max_lines=8, min_gap_px=12,
     Просвет засчитывается, если он чист в большинстве строк, а не во всех:
     у здешних таблиц последняя строка — примечание вроде "(At end of 12 inch
     test bar)", растянутое на все столбцы, и оно закрывало бы любой просвет.
+
+    Ширина просвета меряется в долях высоты строки, а не в пикселях.  Первая
+    версия держала порог в 12 px и молча разъезжалась при смене разрешения:
+    на 288 dpi просветы вдвое шире, порог стал вдвое мягче, и на переспрос
+    ушло 103 блока вместо четырёх.  Разворот их вернул, но 99 вызовов VLM
+    были потрачены впустую.
     """
     import cv2
     import numpy as np
@@ -395,6 +401,8 @@ def _looks_tabular(img, min_lines=2, max_lines=8, min_gap_px=12,
         lines.append((start, len(rows)))
     if not min_lines <= len(lines) <= max_lines:
         return False
+    heights = sorted(b - a for a, b in lines)
+    min_gap_px = max(6, int(gap_per_line * heights[len(heights) // 2]))
     nz = np.flatnonzero(ink.any(0))
     if nz.size == 0:
         return False

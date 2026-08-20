@@ -1,0 +1,755 @@
+{
+    "input_path": "input.pdf",
+    "page_index": 10,
+    "page_count": 20,
+    "width": 2024,
+    "height": 2932,
+    "model_settings": {
+        "use_doc_preprocessor": false,
+        "use_layout_detection": true,
+        "use_chart_recognition": false,
+        "use_seal_recognition": false,
+        "use_ocr_for_image_block": false,
+        "format_block_content": false,
+        "merge_layout_blocks": true,
+        "markdown_ignore_labels": [
+            "number",
+            "header_image",
+            "footer",
+            "footer_image",
+            "aside_text"
+        ],
+        "return_layout_polygon_points": true
+    },
+    "parsing_res_list": [
+        {
+            "block_label": "text",
+            "block_content": "to a correct alignment with the rear carriage gib way of the bed. Obviously, the gib piece will also be affected by this change and may require extensive rescraping depending upon the amount of error disclosed.",
+            "block_bbox": [
+                208,
+                158,
+                969,
+                430
+            ],
+            "block_id": 0,
+            "block_order": 1,
+            "group_id": 0
+        },
+        {
+            "block_label": "text",
+            "block_content": "Sec. 26.66",
+            "block_bbox": [
+                159,
+                473,
+                363,
+                516
+            ],
+            "block_id": 1,
+            "block_order": 2,
+            "group_id": 1
+        },
+        {
+            "block_label": "table",
+            "block_content": "<table><tr><td colspan=\"2\">OBJECTIVES: Final Alignment Test of Compound Rest Top.</td></tr></table>",
+            "block_bbox": [
+                159,
+                508,
+                916,
+                602
+            ],
+            "block_id": 2,
+            "block_order": null,
+            "group_id": 2
+        },
+        {
+            "block_label": "table",
+            "block_content": "1. Movement of compound rest top to be parallel to headstock spindle in vertical plane.",
+            "block_bbox": [
+                163,
+                645,
+                980,
+                785
+            ],
+            "block_id": 3,
+            "block_order": null,
+            "group_id": 3
+        },
+        {
+            "block_label": "paragraph_title",
+            "block_content": "PROCEDURE:",
+            "block_bbox": [
+                165,
+                805,
+                445,
+                850
+            ],
+            "block_id": 4,
+            "block_order": 3,
+            "group_id": 4
+        },
+        {
+            "block_label": "text",
+            "block_content": "The compound rest is used for machining or boring a steep taper and unless the tool is exactly on-center throughout its entire travel, a true taper will not be generated. In short, the surface lines of the work piece will be hyperbolic instead of straight and tapered. It is to ensure this condition that we make a final test on the compound rest top, after the carriage V-slides have been scraped so as to correctly align the movement of the cross slide.",
+            "block_bbox": [
+                166,
+                864,
+                977,
+                1397
+            ],
+            "block_id": 5,
+            "block_order": 4,
+            "group_id": 5
+        },
+        {
+            "block_label": "text",
+            "block_content": "Returning to the procedure, the test bar is inserted into the headstock spindle and, after the customary runout is performed, revolved to place the mean position of eccentricity error in the vertical plane. A DIAL INDICATOR mounted on the compound rest top should be adjusted to permit the INDICATOR button to touch the test bar at the vertical diameter.",
+            "block_bbox": [
+                173,
+                1395,
+                992,
+                1797
+            ],
+            "block_id": 6,
+            "block_order": 5,
+            "group_id": 6
+        },
+        {
+            "block_label": "text",
+            "block_content": "The compound rest is swiveled so that the movement of the compound rest top parallels the bed ways. By turning the feed screw, the compound rest traverses, sliding the button along the test bar.",
+            "block_bbox": [
+                180,
+                1795,
+                977,
+                2024
+            ],
+            "block_id": 7,
+            "block_order": 6,
+            "group_id": 7
+        },
+        {
+            "block_label": "image",
+            "block_content": "",
+            "block_bbox": [
+                207,
+                2050,
+                977,
+                2333
+            ],
+            "block_id": 8,
+            "block_order": null,
+            "group_id": 8
+        },
+        {
+            "block_label": "figure_title",
+            "block_content": "Fig. 26.64 Testing alignment of cross slide movement to axis of headstock.",
+            "block_bbox": [
+                201,
+                2362,
+                984,
+                2437
+            ],
+            "block_id": 9,
+            "block_order": null,
+            "group_id": 9
+        },
+        {
+            "block_label": "figure_title",
+            "block_content": "RECOMMENDED STANDARDS",
+            "block_bbox": [
+                336,
+                2450,
+                806,
+                2487
+            ],
+            "block_id": 10,
+            "block_order": null,
+            "group_id": 10
+        },
+        {
+            "block_label": "table",
+            "block_content": "<table><tr><td>Tool Room</td><td>12&quot; to 18&quot; inc.</td><td>20&quot; to 36&quot; inc.</td></tr><tr><td>Lathes</td><td>Engine Lathes</td><td>Engine Lathes</td></tr><tr><td>0 to .0005&quot;</td><td>0 to .001&quot;</td><td>0 to .001&quot;</td></tr><tr><td colspan=\"3\">(To face hollow or concave only on 12&quot; diameter)</td></tr></table>",
+            "block_bbox": [
+                226,
+                2496,
+                983,
+                2684
+            ],
+            "block_id": 11,
+            "block_order": null,
+            "group_id": 11
+        },
+        {
+            "block_label": "text",
+            "block_content": "The tolerance allowed is shown in Fig. 26.65. If this is exceeded, one possibility could be that the flat ways of the compound rest swivel were not scraped parallel with the swivel slide. Sec. 26.20 discusses a method of dealing with this.",
+            "block_bbox": [
+                1011,
+                148,
+                1816,
+                415
+            ],
+            "block_id": 12,
+            "block_order": 7,
+            "group_id": 12
+        },
+        {
+            "block_label": "table",
+            "block_content": "<table><tr><td>This completes all scraping operations on the lathe. The feed screws of the cross slide and compound rest may now be checked.</td></tr></table>",
+            "block_bbox": [
+                1013,
+                415,
+                1829,
+                597
+            ],
+            "block_id": 13,
+            "block_order": null,
+            "group_id": 13
+        },
+        {
+            "block_label": "text",
+            "block_content": "Sec. 26.67",
+            "block_bbox": [
+                1019,
+                639,
+                1223,
+                682
+            ],
+            "block_id": 14,
+            "block_order": 8,
+            "group_id": 14
+        },
+        {
+            "block_label": "text",
+            "block_content": "Back Lash on Feed Screws",
+            "block_bbox": [
+                1018,
+                683,
+                1535,
+                728
+            ],
+            "block_id": 15,
+            "block_order": 9,
+            "group_id": 15
+        },
+        {
+            "block_label": "paragraph_title",
+            "block_content": "PROCEDURE:",
+            "block_bbox": [
+                1020,
+                765,
+                1298,
+                811
+            ],
+            "block_id": 16,
+            "block_order": 10,
+            "group_id": 16
+        },
+        {
+            "block_label": "text",
+            "block_content": "The accompanying chart Fig. 26.66, discloses the recommended standards for the back lash on the cross feed screw and on the compound rest feed screw.",
+            "block_bbox": [
+                1021,
+                849,
+                1817,
+                1029
+            ],
+            "block_id": 17,
+            "block_order": 11,
+            "group_id": 17
+        },
+        {
+            "block_label": "table",
+            "block_content": "The feed screws are tested for back lash, while threaded into their respective nuts.",
+            "block_bbox": [
+                1024,
+                1029,
+                1811,
+                1165
+            ],
+            "block_id": 18,
+            "block_order": null,
+            "group_id": 18
+        },
+        {
+            "block_label": "image",
+            "block_content": "",
+            "block_bbox": [
+                1027,
+                1183,
+                1823,
+                1521
+            ],
+            "block_id": 19,
+            "block_order": null,
+            "group_id": 19
+        },
+        {
+            "block_label": "figure_title",
+            "block_content": "Fig. 26.65 Final alignment of compound rest top. Movement of slide parallel with work spindle in vertical plane. Tol. max. .0035\" per foot.",
+            "block_bbox": [
+                1035,
+                1543,
+                1805,
+                1656
+            ],
+            "block_id": 20,
+            "block_order": null,
+            "group_id": 20
+        },
+        {
+            "block_label": "table",
+            "block_content": "If the tolerance is exceeded, the nut should be replaced or, if of the compensating kind, adjusted to take up for wear.",
+            "block_bbox": [
+                1033,
+                1692,
+                1814,
+                1827
+            ],
+            "block_id": 21,
+            "block_order": null,
+            "group_id": 21
+        },
+        {
+            "block_label": "text",
+            "block_content": "Now that the alignments of the lathe members are finished, the next operation is the assembly of miscellaneous unattached parts. Strictly speaking, this is not scraping work, but it may nonetheless be the responsibility of the operator.",
+            "block_bbox": [
+                1034,
+                1826,
+                1831,
+                2098
+            ],
+            "block_id": 22,
+            "block_order": 12,
+            "group_id": 22
+        },
+        {
+            "block_label": "paragraph_title",
+            "block_content": "Sec. 26.68",
+            "block_bbox": [
+                1039,
+                2140,
+                1244,
+                2184
+            ],
+            "block_id": 23,
+            "block_order": 13,
+            "group_id": 23
+        },
+        {
+            "block_label": "text",
+            "block_content": "Assembly of Lead Screw and Apron",
+            "block_bbox": [
+                1039,
+                2181,
+                1717,
+                2231
+            ],
+            "block_id": 24,
+            "block_order": 14,
+            "group_id": 24
+        },
+        {
+            "block_label": "text",
+            "block_content": "In assembling the lead screw and apron, one point to watch is the adjustment that may be required between the lead screw bearings and the half nut to accommodate them to each other under the new and changed conditions. Since more or less metal has been scraped from both the bed ways and the carriage slides, it is obvious that the present position of the half nuts",
+            "block_bbox": [
+                1039,
+                2270,
+                1861,
+                2673
+            ],
+            "block_id": 25,
+            "block_order": 15,
+            "group_id": 25
+        },
+        {
+            "block_label": "number",
+            "block_content": "306",
+            "block_bbox": [
+                987,
+                2700,
+                1058,
+                2738
+            ],
+            "block_id": 26,
+            "block_order": null,
+            "group_id": 26
+        }
+    ],
+    "layout_det_res": {
+        "input_path": null,
+        "page_index": null,
+        "boxes": [
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.3040119409561157,
+                "coordinate": [
+                    582,
+                    2591,
+                    654,
+                    2628
+                ],
+                "order": 1
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9817885756492615,
+                "coordinate": [
+                    208,
+                    158,
+                    969,
+                    430
+                ],
+                "order": 2
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.42798912525177,
+                "coordinate": [
+                    159,
+                    473,
+                    363,
+                    516
+                ],
+                "order": 3
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9290517568588257,
+                "coordinate": [
+                    159,
+                    508,
+                    916,
+                    602
+                ],
+                "order": 4
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9722870588302612,
+                "coordinate": [
+                    163,
+                    645,
+                    980,
+                    785
+                ],
+                "order": 5
+            },
+            {
+                "cls_id": 17,
+                "label": "paragraph_title",
+                "score": 0.6471357941627502,
+                "coordinate": [
+                    165,
+                    805,
+                    445,
+                    850
+                ],
+                "order": 6
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9880498051643372,
+                "coordinate": [
+                    166,
+                    864,
+                    977,
+                    1397
+                ],
+                "order": 7
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.988359808921814,
+                "coordinate": [
+                    173,
+                    1395,
+                    992,
+                    1797
+                ],
+                "order": 8
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.984140157699585,
+                "coordinate": [
+                    180,
+                    1795,
+                    977,
+                    2024
+                ],
+                "order": 9
+            },
+            {
+                "cls_id": 14,
+                "label": "image",
+                "score": 0.9809990525245667,
+                "coordinate": [
+                    207,
+                    2050,
+                    977,
+                    2333
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 7,
+                "label": "figure_title",
+                "score": 0.9648132920265198,
+                "coordinate": [
+                    201,
+                    2362,
+                    984,
+                    2437
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 7,
+                "label": "figure_title",
+                "score": 0.787676990032196,
+                "coordinate": [
+                    336,
+                    2450,
+                    806,
+                    2487
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.6043384671211243,
+                "coordinate": [
+                    225,
+                    2498,
+                    974,
+                    2633
+                ],
+                "order": 10
+            },
+            {
+                "cls_id": 21,
+                "label": "table",
+                "score": 0.13555794954299927,
+                "coordinate": [
+                    226,
+                    2496,
+                    983,
+                    2684
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.5362130403518677,
+                "coordinate": [
+                    236,
+                    2640,
+                    983,
+                    2685
+                ],
+                "order": 11
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.45424944162368774,
+                "coordinate": [
+                    769,
+                    2640,
+                    822,
+                    2677
+                ],
+                "order": 12
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9832664728164673,
+                "coordinate": [
+                    1011,
+                    148,
+                    1816,
+                    415
+                ],
+                "order": 13
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9800575971603394,
+                "coordinate": [
+                    1013,
+                    415,
+                    1829,
+                    597
+                ],
+                "order": 14
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.7634016275405884,
+                "coordinate": [
+                    1019,
+                    639,
+                    1223,
+                    682
+                ],
+                "order": 15
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.881764829158783,
+                "coordinate": [
+                    1018,
+                    683,
+                    1535,
+                    728
+                ],
+                "order": 16
+            },
+            {
+                "cls_id": 17,
+                "label": "paragraph_title",
+                "score": 0.7687637805938721,
+                "coordinate": [
+                    1020,
+                    765,
+                    1298,
+                    811
+                ],
+                "order": 17
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9814062118530273,
+                "coordinate": [
+                    1021,
+                    849,
+                    1817,
+                    1029
+                ],
+                "order": 18
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9760735034942627,
+                "coordinate": [
+                    1024,
+                    1029,
+                    1811,
+                    1165
+                ],
+                "order": 19
+            },
+            {
+                "cls_id": 14,
+                "label": "image",
+                "score": 0.9809050559997559,
+                "coordinate": [
+                    1027,
+                    1183,
+                    1823,
+                    1521
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 7,
+                "label": "figure_title",
+                "score": 0.96904057264328,
+                "coordinate": [
+                    1035,
+                    1543,
+                    1805,
+                    1656
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9757421016693115,
+                "coordinate": [
+                    1033,
+                    1692,
+                    1814,
+                    1827
+                ],
+                "order": 20
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9838887453079224,
+                "coordinate": [
+                    1034,
+                    1826,
+                    1831,
+                    2098
+                ],
+                "order": 21
+            },
+            {
+                "cls_id": 17,
+                "label": "paragraph_title",
+                "score": 0.8107647895812988,
+                "coordinate": [
+                    1039,
+                    2140,
+                    1244,
+                    2184
+                ],
+                "order": 22
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.6297231316566467,
+                "coordinate": [
+                    1039,
+                    2181,
+                    1717,
+                    2231
+                ],
+                "order": 23
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9869059920310974,
+                "coordinate": [
+                    1039,
+                    2270,
+                    1861,
+                    2673
+                ],
+                "order": 24
+            },
+            {
+                "cls_id": 16,
+                "label": "number",
+                "score": 0.918144702911377,
+                "coordinate": [
+                    987,
+                    2700,
+                    1058,
+                    2738
+                ],
+                "order": 25
+            }
+        ]
+    }
+}
