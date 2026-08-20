@@ -77,6 +77,13 @@ def cmd_olmocr(a):
                    keep=a.keep, reuse=a.reuse, dry_run=a.dry_run)
 
 
+def cmd_convert(a):
+    """Разбор -> EPUB и FB2 рядом с book.md."""
+    from . import convert
+    return convert.convert(a.outdir, formats=tuple(a.formats.split(",")),
+                           title=a.title)
+
+
 def cmd_local(a):
     return _run_module("booksmith.engines.pdf_layer", [a.pdf] + list(a.rest))
 
@@ -234,6 +241,13 @@ def main(argv=None):
                    help="считать на уже поднятой машине, без холодного старта")
     p.add_argument("--dry-run", action="store_true")
     p.set_defaults(fn=cmd_olmocr)
+
+    p = sub.add_parser("convert", help="собрать EPUB и FB2 из готового разбора")
+    p.add_argument("outdir", help="каталог разбора, внутри которого лежит book/book.md")
+    p.add_argument("--formats", default="epub,fb2",
+                   help="через запятую: epub, fb2 (по умолчанию оба)")
+    p.add_argument("--title", default=None, help="заголовок книги")
+    p.set_defaults(fn=cmd_convert)
 
     p = sub.add_parser("local", help="разобрать PDF по его же OCR-слою, без GPU")
     p.add_argument("pdf")
