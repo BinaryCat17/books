@@ -274,6 +274,30 @@ ATTEMPT_LIMIT_S = 300.0
 KEEP_GRACE_S = 4 * 3600
 
 
+def _our_downlink_mbps(timeout: float = 12.0) -> float:
+    """Скорость НАШЕГО канала вниз, чтобы не винить в ней машины.
+
+    Зонд канала меряет путь от машины к нам и потому упирается в нас же.
+    Отличить «машина плохая» от «мы медленные» он не может, а порог стоял
+    ровно на нашем потолке: вечером 20 августа наш канал просел до 2.3 Мбит,
+    и две попытки аренды подряд по пять машин каждая были отбракованы —
+    молча, и выглядело это как «плохой рынок».
+
+    Ноль означает «не смогли измерить»; тогда порог остаётся прежним.
+    """
+    import urllib.request
+    try:
+        t0 = time.time()
+        with urllib.request.urlopen(
+                "https://speed.cloudflare.com/__down?bytes=3000000",
+                timeout=timeout) as r:
+            n = len(r.read())
+        dt = max(time.time() - t0, 1e-6)
+        return n * 8 / dt / 1e6
+    except Exception:
+        return 0.0
+
+
 def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
           rec, guards: list, t0: float, undead: list | None = None):
     """Снять машину, дождаться ssh и проверить канал до неё.
@@ -285,6 +309,17 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
     """
     # Отбракованные машины исключаются навсегда, а не на один прогон: без
     # этого предпочтение прогретых ведёт обратно на ту же грабли.
+    ours = _our_downlink_mbps()
+    floor = MIN_LINK_MBPS
+    if ours:
+        # Машина не может отдать нам быстрее, чем мы принимаем.  Требовать с
+        # неё больше половины нашего же канала — предел разумного.
+        floor = min(MIN_LINK_MBPS, 0.5 * ours)
+        log(f"наш канал вниз ≈ {ours:.1f} Мбит/с, "
+            f"порог отбраковки машин {floor:.2f} Мбит/с")
+        if ours < 2 * MIN_LINK_MBPS:
+            log("ВНИМАНИЕ: наш канал узкий — выкачивание результата будет долгим")
+
     avoid: list[int] = list(ledger.bad_machines())
     undead = undead if undead is not None else []
     for attempt in range(1, MAX_ATTEMPTS + 1):
@@ -331,7 +366,7 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
             link = down = 0.0
         rec.link_mbps = link
         rec.download_mbps = down
-        if link >= MIN_LINK_MBPS and down >= MIN_DOWNLOAD_MBPS:
+        if link >= floor and down >= MIN_DOWNLOAD_MBPS:
             log(f"канал: до нас {link:.0f}, из мира {down:.0f} Мбит/с")
             return box, dph, budget
 
@@ -343,9 +378,9 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
             log(f"зонд канала не уложился в срок (0 Мбит/с) — беру другую. "
                 f"Если так подряд у всех машин, дело может быть в НАШЕМ "
                 f"канале, а не в них")
-        elif link < MIN_LINK_MBPS:
+        elif link < floor:
             log(f"канал до нас всего {link:.2f} Мбит/с "
-                f"(нужно от {MIN_LINK_MBPS:.1f}) — беру другую")
+                f"(нужно от {floor:.2f}) — беру другую")
             ledger.mark_bad(offer.get("machine_id"),
                             f"канал до нас {link:.2f} Мбит/с")
         elif link:
@@ -371,8 +406,11 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
         if mid is not None:
             avoid.append(mid)
 
-    raise RuntimeError(f"за {MAX_ATTEMPTS} попытки не нашлось машины "
-                       f"с каналом от {MIN_LINK_MBPS:.0f} Мбит/с")
+    raise RuntimeError(
+        f"за {MAX_ATTEMPTS} попытки не нашлось машины с каналом от "
+        f"{floor:.2f} Мбит/с"
+        + (f"; наш собственный канал при этом {ours:.1f} Мбит/с — "
+           f"возможно, дело в нём" if ours else ""))
 
 
 def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
