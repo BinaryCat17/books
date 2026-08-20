@@ -643,6 +643,18 @@ def _link_table_crops(pdf, pages_dir, book_dir, scale=None):
                         img = doc[page_idx].render(scale=scale).to_pil()
                     img.crop((x0, y0, x1, y1)).convert("RGB").save(
                         path, "JPEG", quality=88)
+                # Тот же скан нужен и рядом со страницей: постраничные файлы
+                # ссылаются на свой каталог imgs, а не на книжный, и без этой
+                # копии ссылка вела в никуда — 26 страниц из 539.
+                near = os.path.join(pages_dir, "imgs")
+                os.makedirs(near, exist_ok=True)
+                twin = os.path.join(near, name)
+                if not os.path.exists(twin):
+                    try:
+                        os.link(path, twin)
+                    except OSError:
+                        import shutil as _sh
+                        _sh.copyfile(path, twin)
                 out.append(md[prev:m.start()])
                 out.append(f"<!-- скан таблицы: imgs/{name} -->\n")
                 prev = m.start()
