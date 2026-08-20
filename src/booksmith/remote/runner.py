@@ -154,6 +154,14 @@ def _warm(spec: JobSpec) -> list[int]:
 
 def connect(vast: Vast, iid: int, spec: JobSpec, ssh_key: str | None,
             boot_limit: float = 2100) -> Box:
+    """Дождаться машины и ssh.  boot_limit — общий срок, а не только на запуск.
+
+    Раньше он уходил только в wait_running, а wait_ready ждал по своему
+    умолчанию в 420 с, плюс привязка ключа и зонды.  Одна негодная попытка
+    стоила до десяти минут аренды, а лог при этом писал «не поднялась за
+    2 мин».  Замер этого вечера: пять попыток съели пятнадцать минут.
+    """
+    t_end = time.time() + boot_limit
     vast.wait_running(iid, timeout=boot_limit)
     # Привязка ключа сразу после создания инстанса — гонка: контейнера ещё
     # нет, и vast достраивает его своим слоем с ssh минуты по три.  Ключ,
@@ -166,7 +174,7 @@ def connect(vast: Vast, iid: int, spec: JobSpec, ssh_key: str | None,
     user, host, port = vast.ssh_target(iid)
     log(f"ssh {user}@{host}:{port}")
     box = Box(user, host, port, ssh_key, spec.workdir)
-    box.wait_ready()
+    box.wait_ready(timeout=max(20.0, t_end - time.time()))
     # Пульс — сразу после ssh: с этого момента машина знает, что оператор
     # жив, и уничтожит себя сама, если он замолчит.  См. ONSTART в vast.py.
     box.start_heartbeat()
