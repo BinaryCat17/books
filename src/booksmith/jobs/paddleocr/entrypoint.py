@@ -14,8 +14,10 @@
 import argparse
 import collections
 import glob
+import html
 import json
 import os
+import re
 import sys
 import time
 
@@ -356,6 +358,142 @@ def _multiview_layout(overlap=0.12, merge=0.55, thr=0.30):
     _L.__call__ = patched
 
 
+def _looks_tabular(img, min_lines=2, max_lines=8, min_gap_px=12,
+                   min_gaps=2, frac=0.6):
+    """Похож ли кроп на таблицу по просветам между столбцами.
+
+    Детектор макета судит о «табличности» по геометрии пробелов, но видит
+    страницу сжатой до 800x800 — по вертикали втрое (см. docs/ocr-notes.md).
+    Здесь тот же признак меряется на кропе в родном разрешении, где он цел.
+
+    Это не приговор, а только отбор кандидатов на переспрос: замер на двадцати
+    страницах показал, что ширины просветов у настоящих таблиц (22..110 px) и у
+    обычных абзацев (20..35 px) перекрываются, чистого порога нет.  Поэтому
+    правило намеренно щедрое, а решает дальше сама VLM — и её ошибка обратима
+    (см. _unwrap_degenerate_tables).
+
+    Просвет засчитывается, если он чист в большинстве строк, а не во всех:
+    у здешних таблиц последняя строка — примечание вроде "(At end of 12 inch
+    test bar)", растянутое на все столбцы, и оно закрывало бы любой просвет.
+    """
+    import cv2
+    import numpy as np
+    if img is None or img.size == 0 or img.shape[0] < 20 or img.shape[1] < 60:
+        return False
+    g = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) if img.ndim == 3 else img
+    ink = (g < max(128, int(g.mean()) - 25))
+    rows = ink.any(1)
+    lines, start = [], None
+    for y, v in enumerate(rows):
+        if v and start is None:
+            start = y
+        elif not v and start is not None:
+            if y - start >= 4:
+                lines.append((start, y))
+            start = None
+    if start is not None and len(rows) - start >= 4:
+        lines.append((start, len(rows)))
+    if not min_lines <= len(lines) <= max_lines:
+        return False
+    nz = np.flatnonzero(ink.any(0))
+    if nz.size == 0:
+        return False
+    # поля слева и справа есть у любого абзаца — считаем только внутренние
+    blank = np.array([~ink[a:b, nz[0]:nz[-1] + 1].any(0) for a, b in lines])
+    keep = blank.mean(0) >= frac
+    found, run = 0, 0
+    for v in keep:
+        if v:
+            run += 1
+        else:
+            if run >= min_gap_px:
+                found += 1
+            run = 0
+    if run >= min_gap_px:
+        found += 1
+    return found >= min_gaps
+
+
+def _reask_text_as_table():
+    """Переспросить VLM по блокам `text`, похожим на таблицу.
+
+    Главный вывод замеров: содержимое таблиц никогда не терялось.  Детектор
+    ставит рамку правильно, но с ярлыком `text`, и VLM, получив промпт "OCR:",
+    честно читает строки вместо того, чтобы построить сетку.  Ломается не
+    детекция, а одно решение о разметке в самом конце.
+
+    Поэтому здесь не добавляется ни одна новая модель: кандидату просто
+    меняется ярлык, и дальше пайплайн сам отправляет тот же кроп в ту же VLM
+    с промптом "Table Recognition:".
+
+    Хук — сразу после нарезки кропов и до склейки соседних блоков: у merge_blocks
+    в non_merge_labels есть "table", так что переименованный кандидат перестаёт
+    приклеиваться к абзацу сверху.  Ярлык меняется на месте, поэтому и разметку
+    страницы рисует уже как таблицу.
+    """
+    from paddlex.inference.pipelines.components.common.crop_image_regions import (
+        CropByBoxes as _C,
+    )
+    orig = _C.__call__
+
+    def patched(self, img, boxes, layout_shape_mode="auto"):
+        out = orig(self, img, boxes, layout_shape_mode)
+        n = 0
+        for blk in out:
+            if blk.get("label") != "text":
+                continue
+            try:
+                if _looks_tabular(blk["img"]):
+                    blk["label"] = "table"
+                    n += 1
+            except Exception as exc:
+                _log(f"ворота переспроса пропущены: {exc}")
+                break
+        if n:
+            _log(f"переспрос: блоков text отправлено как таблицы {n}")
+        return out
+
+    _C.__call__ = patched
+
+
+def _unwrap_degenerate_tables(*dirs):
+    """Развернуть обратно в текст таблицы, оказавшиеся не таблицами.
+
+    Обратная сторона щедрых ворот: абзац, отправленный на переспрос, вернётся
+    сеткой в один столбец или в одну строку.  Текст при этом цел — он лежит по
+    ячейкам, — так что ошибка стоит только разметки и снимается разбором HTML.
+    Настоящую таблицу (два столбца и две строки минимум) не трогаем.
+    """
+    rows_re = re.compile(r"<tr[^>]*>(.*?)</tr>", re.I | re.S)
+    cell_re = re.compile(r"<t[dh][^>]*>(.*?)</t[dh]>", re.I | re.S)
+    tag_re = re.compile(r"<[^>]+>")
+    n = 0
+
+    def one(m):
+        nonlocal n
+        rows = [cell_re.findall(r) for r in rows_re.findall(m.group(0))]
+        if not rows:
+            return m.group(0)
+        if len(rows) >= 2 and max(len(r) for r in rows) >= 2:
+            return m.group(0)
+        n += 1
+        out = []
+        for r in rows:
+            line = " ".join(html.unescape(tag_re.sub("", c)).strip() for c in r)
+            if line.strip():
+                out.append(line.strip())
+        return "\n\n".join(out)
+
+    for d in dict.fromkeys(dirs):
+        for f in glob.glob(os.path.join(d, "*.md")):
+            src = open(f, encoding="utf-8").read()
+            dst = re.sub(r"<table\b.*?</table>", one, src, flags=re.I | re.S)
+            if dst != src:
+                with open(f, "w", encoding="utf-8") as fh:
+                    fh.write(dst)
+    return n
+
+
 def _pipeline_config(layout_dir, table_threshold=0.05):
     """Конфигурация пайплайна: детекция на ONNX Runtime и пачки страниц.
 
@@ -538,9 +676,12 @@ def main():
     if os.environ.get("PREFER_TABLES", "1") == "1":
         _prefer_tables_over_text()
         _log("таблица важнее текстовой рамки при перекрытии")
-    if os.environ.get("MULTIVIEW", "1") == "1":
+    if os.environ.get("MULTIVIEW", "0") == "1":
         _multiview_layout()
         _log("детекция макета в двенадцать взглядов")
+    if os.environ.get("REASK", "1") == "1":
+        _reask_text_as_table()
+        _log("блоки text, похожие на таблицу, идут на переспрос")
     kwargs["markdown_ignore_labels"] = [
         "number", "header_image", "footer", "footer_image", "aside_text",
     ]
@@ -621,6 +762,10 @@ def main():
                     res.save_to_markdown(save_path=book_dir)
                 except Exception as e:
                     _log(f"  склейка: {e}")
+
+    unwrapped = _unwrap_degenerate_tables(pages_dir, book_dir)
+    if unwrapped:
+        _log(f"переспрос не подтвердился, развёрнуто обратно в текст: {unwrapped}")
 
     dropped = _strip_running_headers(pages_dir, pages_dir, book_dir)
     if dropped:

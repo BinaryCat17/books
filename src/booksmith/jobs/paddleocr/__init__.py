@@ -38,6 +38,19 @@ TABLE_THRESHOLD = 0.05
 # Отдельного образа под Blackwell (sm_120) больше не нужно: раньше он был
 # из-за колёс paddlepaddle-gpu под cu126, а детекция уехала на ONNX Runtime.
 
+# Ручки, которыми правится поведение разбора, пробрасываются с моей машины
+# как есть: они нужны, чтобы сравнивать прогоны между собой, и держать под
+# каждую отдельный флаг в CLI было бы шумом.
+_PASS = ("MULTIVIEW", "PREFER_TABLES", "REASK")
+
+
+def _env(table_threshold):
+    env = ({"LAYOUT_TABLE_THRESHOLD": str(table_threshold)}
+           if table_threshold else {})
+    env.update({k: os.environ[k] for k in _PASS if k in os.environ})
+    return env
+
+
 def spec(pdf: str, gpu: str = "RTX_4090", image: str | None = None,
          minutes: float = 20.0, budget_usd: float = 1.0,
          disk_gb: int = 60, max_dph: float = 0.60,
@@ -62,8 +75,7 @@ def spec(pdf: str, gpu: str = "RTX_4090", image: str | None = None,
             os.path.join(HERE, "entrypoint.py"): "entrypoint.py",
         },
         outputs="outputs",
-        env=({"LAYOUT_TABLE_THRESHOLD": str(table_threshold)}
-             if table_threshold else {}),
+        env=_env(table_threshold),
         host=host,
         image_gb=IMAGE_GB,
         payload_gb=PAYLOAD_GB,
