@@ -115,8 +115,8 @@ class Vast:
                 by_machine.setdefault(o.get("machine_id"), o)
             for pos, mid in enumerate(prefer_machines, 1):
                 if mid in by_machine:
-                    log(f"машина {mid} знакома и быстра (место {pos} в списке)"
-                        f" — берём её")
+                    log(f"машина {mid}: место {pos} в списке предпочтения "
+                        f"(по журналу) — берём её")
                     return by_machine[mid]
         log("офферы по полной стоимости прогона:")
         for o in ranked[:show]:

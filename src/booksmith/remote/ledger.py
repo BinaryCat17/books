@@ -97,6 +97,25 @@ def warm_machines(image: str, path: str = LEDGER) -> list[int]:
     return [m for m, _ in sorted(seen.items(), key=lambda kv: -kv[1])]
 
 
+def slow_machines(image: str, path: str = LEDGER) -> list[int]:
+    """Машины, которые по журналу вдвое медленнее лучшей.
+
+    Отдельная функция, потому что предпочтение прогретых машин иначе сводит
+    отбор на нет: fast_machines выбрасывает медленную, а список прогретых
+    возвращает её следом, и она снимается как ни в чём не бывало.  Так
+    вернулась 110506 со своими 909 секундами — шестым номером после пяти
+    быстрых.
+    """
+    fast = set(fast_machines(image, path))
+    seen = set()
+    for r in read(path):
+        mid = r.get("machine_id")
+        if (r.get("image") == image and mid and r.get("ok") and r.get("run_s")
+                and r.get("job", "").startswith("tables")):
+            seen.add(int(mid))
+    return sorted(seen - fast)
+
+
 def fast_machines(image: str, path: str = LEDGER) -> list[int]:
     """Машины, отсортированные по замеренной скорости, самые быстрые первыми.
 

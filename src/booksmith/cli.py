@@ -46,6 +46,11 @@ def cmd_ocr(a):
         os.path.abspath(a.pdf), gpu=a.gpu, image=a.image, minutes=a.minutes,
         budget_usd=a.budget, disk_gb=a.disk, max_dph=a.max_dph,
         machine_id=a.machine, table_threshold=a.table_threshold)
+    # Длинный прогон надо уметь продолжить: на 539 страницах падение на
+    # четырёхсотой иначе означает полный пересчёт.  По умолчанию каталог с
+    # результатом на машине чистится — иначе --reuse выдавал бы чужой
+    # результат за свой.
+    spec.resume = bool(getattr(a, "resume", False))
     spec.timeout_minutes = a.timeout
     if not os.path.exists(a.pdf):
         raise SystemExit(f"нет файла: {a.pdf}")
@@ -203,6 +208,9 @@ def main(argv=None):
     p.add_argument("--reuse", type=int, metavar="ID",
                    help="считать на уже поднятой машине, без холодного старта")
     p.add_argument("--dry-run", action="store_true")
+    p.add_argument("--resume", action="store_true",
+                   help="продолжить прерванный прогон на той же машине, "
+                        "не стирая уже посчитанные страницы")
     p.set_defaults(fn=cmd_ocr)
 
     p = sub.add_parser("olmocr", help="разобрать PDF моделью olmOCR-2-7B")
