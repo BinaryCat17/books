@@ -1,0 +1,644 @@
+{
+    "input_path": "input.pdf",
+    "page_index": 16,
+    "page_count": 20,
+    "width": 2024,
+    "height": 2932,
+    "model_settings": {
+        "use_doc_preprocessor": false,
+        "use_layout_detection": true,
+        "use_chart_recognition": false,
+        "use_seal_recognition": false,
+        "use_ocr_for_image_block": false,
+        "format_block_content": false,
+        "merge_layout_blocks": true,
+        "markdown_ignore_labels": [
+            "number",
+            "header_image",
+            "footer",
+            "footer_image",
+            "aside_text"
+        ],
+        "return_layout_polygon_points": true
+    },
+    "parsing_res_list": [
+        {
+            "block_label": "table",
+            "block_content": "<table><tr><td>Tool Room</td><td>12&quot; to 18&quot; inc.</td><td>20&quot; to 36&quot; inc.</td></tr><tr><td>Lathe</td><td>Engine Lathes</td><td>Engine Lathe</td></tr><tr><td>.0004&quot;</td><td>.0008&quot;</td><td>.001&quot;</td></tr></table>",
+            "block_bbox": [
+                1032,
+                2084,
+                1780,
+                2221
+            ],
+            "block_id": 0,
+            "block_order": null,
+            "group_id": 0
+        },
+        {
+            "block_label": "text",
+            "block_content": "There are several possible causes if a taper is in evidence, namely:",
+            "block_bbox": [
+                175,
+                149,
+                935,
+                240
+            ],
+            "block_id": 1,
+            "block_order": 1,
+            "group_id": 1
+        },
+        {
+            "block_label": "table",
+            "block_content": "<table><tr><td>1. The lathe is no longer level. This is an unlikely possibility if the lathe has not been moved from the location where it was reconditioned. It is, however, a simple matter to check the levelness of the lathe to make certain that the shims have not shifted.</td></tr></table>",
+            "block_bbox": [
+                172,
+                280,
+                985,
+                587
+            ],
+            "block_id": 2,
+            "block_order": null,
+            "group_id": 2
+        },
+        {
+            "block_label": "text",
+            "block_content": "2. The ways have a “wind”. If the outer inverted V-ways of the bed were scraped in a slipshod manner it is possible they are not straight. They must be checked to determine their accuracy. Pertinent tests would include, the Microscope & Taut Wire System, Water Level System.",
+            "block_bbox": [
+                170,
+                589,
+                1000,
+                894
+            ],
+            "block_id": 3,
+            "block_order": 2,
+            "group_id": 3
+        },
+        {
+            "block_label": "text",
+            "block_content": "3. The headstock is misaligned. This means that the headstock spindle may not be parallel to the DATUM PLANE. Repeating tests given in Sec. 26.63 and shown in Fig. 26.59 and Fig. 26.60 will determine if the error can be charged to this component. In order to correct any misalignment discovered, the entire scraping and testing procedure commencing with Sec. 26.63 must be repeated because related members were dependent upon the alignment of the headstock spindle and they will now be out of true.",
+            "block_bbox": [
+                169,
+                896,
+                969,
+                1523
+            ],
+            "block_id": 4,
+            "block_order": 3,
+            "group_id": 4
+        },
+        {
+            "block_label": "text",
+            "block_content": "(As an alternative to machining two collars, the accuracy of alignment of the headstock spindle may be determined by boring a hole with the work piece held in the chuck. If a taper develops, the source of error may be located in one of the possibilities outlined above.)",
+            "block_bbox": [
+                221,
+                1562,
+                958,
+                1918
+            ],
+            "block_id": 5,
+            "block_order": 4,
+            "group_id": 5
+        },
+        {
+            "block_label": "paragraph_title",
+            "block_content": "Sec. 26.76",
+            "block_bbox": [
+                160,
+                1958,
+                365,
+                2001
+            ],
+            "block_id": 6,
+            "block_order": 5,
+            "group_id": 6
+        },
+        {
+            "block_label": "text",
+            "block_content": "Lathe must turn cylindrical with the Work mounted between centers.",
+            "block_bbox": [
+                158,
+                2002,
+                959,
+                2094
+            ],
+            "block_id": 7,
+            "block_order": 6,
+            "group_id": 7
+        },
+        {
+            "block_label": "paragraph_title",
+            "block_content": "PROCEDURE:",
+            "block_bbox": [
+                160,
+                2137,
+                436,
+                2182
+            ],
+            "block_id": 8,
+            "block_order": 7,
+            "group_id": 8
+        },
+        {
+            "block_label": "text",
+            "block_content": "A length of cylindrical bar stock of appropriate diameter is centered at both ends and placed between the lathe centers. Using a light cut and fine feed, two collars of the same or random diameter are machined on the bar. One of the collars is formed near the headstock center and the other adjacent to the tailstock center. Certain measurements will now be made on these collars to prove that the lathe can turn out accurate work as specified above.",
+            "block_bbox": [
+                152,
+                2227,
+                985,
+                2677
+            ],
+            "block_id": 9,
+            "block_order": 8,
+            "group_id": 9
+        },
+        {
+            "block_label": "text",
+            "block_content": "",
+            "block_bbox": [
+                1016,
+                153,
+                1817,
+                199
+            ],
+            "block_id": 10,
+            "block_order": 9,
+            "group_id": 9
+        },
+        {
+            "block_label": "paragraph_title",
+            "block_content": "1. To determine roundness.",
+            "block_bbox": [
+                1018,
+                239,
+                1556,
+                284
+            ],
+            "block_id": 11,
+            "block_order": 10,
+            "group_id": 11
+        },
+        {
+            "block_label": "text",
+            "block_content": "The collar at the headstock end, in particular, should be “miked” because there the error, if any, will be most pronounced. The collar is measured on the vertical and horizontal diameters and at intermediate points. If out-of-roundness is apparent the error may be attributed to the following sources:",
+            "block_bbox": [
+                1013,
+                328,
+                1796,
+                684
+            ],
+            "block_id": 12,
+            "block_order": 11,
+            "group_id": 12
+        },
+        {
+            "block_label": "text",
+            "block_content": "(a) Inaccurate spindle or spindle bearings. Refer to Sec. 26.74.",
+            "block_bbox": [
+                1069,
+                725,
+                1809,
+                813
+            ],
+            "block_id": 13,
+            "block_order": 12,
+            "group_id": 13
+        },
+        {
+            "block_label": "text",
+            "block_content": "(b) Spindle center run out. Refer to Sec. 26.59 and see Fig. 26.55.",
+            "block_bbox": [
+                1070,
+                814,
+                1758,
+                906
+            ],
+            "block_id": 14,
+            "block_order": 13,
+            "group_id": 14
+        },
+        {
+            "block_label": "text",
+            "block_content": "These causes of out-of-roundness should be investigated and the fault corrected before searching for other possible errors.",
+            "block_bbox": [
+                1009,
+                947,
+                1815,
+                1126
+            ],
+            "block_id": 15,
+            "block_order": 14,
+            "group_id": 15
+        },
+        {
+            "block_label": "paragraph_title",
+            "block_content": "2. To determine cylindricity:",
+            "block_bbox": [
+                1010,
+                1167,
+                1571,
+                1214
+            ],
+            "block_id": 16,
+            "block_order": 15,
+            "group_id": 16
+        },
+        {
+            "block_label": "text",
+            "block_content": "Next a very light finishing cut is taken across both collars without changing the setting of the tool. Then the diameter of each collar is “miked” at several places. The tolerance allowed is shown in Fig. 26.73. The measurements of one collar",
+            "block_bbox": [
+                1006,
+                1257,
+                1803,
+                1527
+            ],
+            "block_id": 17,
+            "block_order": 16,
+            "group_id": 17
+        },
+        {
+            "block_label": "image",
+            "block_content": "",
+            "block_bbox": [
+                1053,
+                1603,
+                1753,
+                1888
+            ],
+            "block_id": 18,
+            "block_order": null,
+            "group_id": 18
+        },
+        {
+            "block_label": "figure_title",
+            "block_content": "Fig. 26.73 Lathe must turn cylindrical with the work mounted between centers.",
+            "block_bbox": [
+                1015,
+                1929,
+                1743,
+                2003
+            ],
+            "block_id": 19,
+            "block_order": null,
+            "group_id": 19
+        },
+        {
+            "block_label": "figure_title",
+            "block_content": "RECOMMENDED STANDARDS",
+            "block_bbox": [
+                1152,
+                2035,
+                1616,
+                2071
+            ],
+            "block_id": 20,
+            "block_order": null,
+            "group_id": 20
+        },
+        {
+            "block_label": "text",
+            "block_content": "must correspond to the measurements of the second, otherwise a taper is indicated. A taper may be due to the following reasons:",
+            "block_bbox": [
+                1000,
+                2271,
+                1837,
+                2410
+            ],
+            "block_id": 21,
+            "block_order": 17,
+            "group_id": 21
+        },
+        {
+            "block_label": "table",
+            "block_content": "<table><tr><td>(a) The bed is not level. To dispose of this possibility, repeat the level-ing checks described in Sec. 26.38. The tolerance is given in Fig. 26.29a and Fig. 26.29b.</td></tr></table>",
+            "block_bbox": [
+                1056,
+                2447,
+                1804,
+                2673
+            ],
+            "block_id": 22,
+            "block_order": null,
+            "group_id": 22
+        },
+        {
+            "block_label": "number",
+            "block_content": "312",
+            "block_bbox": [
+                947,
+                2695,
+                1019,
+                2736
+            ],
+            "block_id": 23,
+            "block_order": null,
+            "group_id": 23
+        }
+    ],
+    "layout_det_res": {
+        "input_path": null,
+        "page_index": null,
+        "boxes": [
+            {
+                "cls_id": 21,
+                "label": "table",
+                "score": 0.8840826153755188,
+                "coordinate": [
+                    1032,
+                    2084,
+                    1780,
+                    2221
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.969290018081665,
+                "coordinate": [
+                    175,
+                    149,
+                    935,
+                    240
+                ],
+                "order": 1
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9868043661117554,
+                "coordinate": [
+                    172,
+                    280,
+                    985,
+                    587
+                ],
+                "order": 2
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9857699871063232,
+                "coordinate": [
+                    170,
+                    589,
+                    1000,
+                    894
+                ],
+                "order": 3
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.987098753452301,
+                "coordinate": [
+                    169,
+                    896,
+                    969,
+                    1523
+                ],
+                "order": 4
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9864308834075928,
+                "coordinate": [
+                    221,
+                    1562,
+                    958,
+                    1918
+                ],
+                "order": 5
+            },
+            {
+                "cls_id": 17,
+                "label": "paragraph_title",
+                "score": 0.8469109535217285,
+                "coordinate": [
+                    160,
+                    1958,
+                    365,
+                    2001
+                ],
+                "order": 6
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9626087546348572,
+                "coordinate": [
+                    158,
+                    2002,
+                    959,
+                    2094
+                ],
+                "order": 7
+            },
+            {
+                "cls_id": 17,
+                "label": "paragraph_title",
+                "score": 0.9327346682548523,
+                "coordinate": [
+                    160,
+                    2137,
+                    436,
+                    2182
+                ],
+                "order": 8
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9879347085952759,
+                "coordinate": [
+                    152,
+                    2227,
+                    985,
+                    2677
+                ],
+                "order": 9
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9442021250724792,
+                "coordinate": [
+                    1016,
+                    153,
+                    1817,
+                    199
+                ],
+                "order": 10
+            },
+            {
+                "cls_id": 17,
+                "label": "paragraph_title",
+                "score": 0.9397284388542175,
+                "coordinate": [
+                    1018,
+                    239,
+                    1556,
+                    284
+                ],
+                "order": 11
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9872829914093018,
+                "coordinate": [
+                    1013,
+                    328,
+                    1796,
+                    684
+                ],
+                "order": 12
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9680140018463135,
+                "coordinate": [
+                    1069,
+                    725,
+                    1809,
+                    813
+                ],
+                "order": 13
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9635795950889587,
+                "coordinate": [
+                    1070,
+                    814,
+                    1758,
+                    906
+                ],
+                "order": 14
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9794729351997375,
+                "coordinate": [
+                    1009,
+                    947,
+                    1815,
+                    1126
+                ],
+                "order": 15
+            },
+            {
+                "cls_id": 17,
+                "label": "paragraph_title",
+                "score": 0.9474275708198547,
+                "coordinate": [
+                    1010,
+                    1167,
+                    1571,
+                    1214
+                ],
+                "order": 16
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.984720766544342,
+                "coordinate": [
+                    1006,
+                    1257,
+                    1803,
+                    1527
+                ],
+                "order": 17
+            },
+            {
+                "cls_id": 14,
+                "label": "image",
+                "score": 0.9768615365028381,
+                "coordinate": [
+                    1053,
+                    1603,
+                    1753,
+                    1888
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 7,
+                "label": "figure_title",
+                "score": 0.9620321989059448,
+                "coordinate": [
+                    1015,
+                    1929,
+                    1743,
+                    2003
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 7,
+                "label": "figure_title",
+                "score": 0.8712018132209778,
+                "coordinate": [
+                    1152,
+                    2035,
+                    1616,
+                    2071
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 21,
+                "label": "table",
+                "score": 0.7795919179916382,
+                "coordinate": [
+                    1033,
+                    2084,
+                    1778,
+                    2216
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9753336906433105,
+                "coordinate": [
+                    1000,
+                    2271,
+                    1837,
+                    2410
+                ],
+                "order": 18
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9812830686569214,
+                "coordinate": [
+                    1056,
+                    2447,
+                    1804,
+                    2673
+                ],
+                "order": 19
+            },
+            {
+                "cls_id": 16,
+                "label": "number",
+                "score": 0.9181951284408569,
+                "coordinate": [
+                    947,
+                    2695,
+                    1019,
+                    2736
+                ],
+                "order": 20
+            }
+        ]
+    }
+}

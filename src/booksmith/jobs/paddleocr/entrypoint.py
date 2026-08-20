@@ -570,6 +570,113 @@ def _reask_text_as_table():
     _C.__call__ = patched
 
 
+def _link_table_crops(pdf, pages_dir, book_dir, scale=None):
+    """Положить рядом с каждой таблицей ссылку на её же скан.
+
+    Ради этого всё и делалось: сетку, вызывающую сомнение, дальше можно
+    сверить с картинкой — глазом или мультимодальной моделью.  Молчаливую
+    ошибку мы уже умеем помечать, а теперь её можно и проверить.
+
+    Ссылка кладётся HTML-комментарием перед таблицей: в отрисованном виде он
+    невидим, а модели, читающей исходный markdown, виден полностью.
+
+    Рамки берутся из parsing_res_list, где у каждого блока есть и ярлык, и
+    координаты; таблицы в разметке идут в том же порядке чтения.  Если числа
+    не сходятся, ничего не трогаем и говорим об этом: подписать чужой скан
+    хуже, чем не подписать никакого.
+    """
+    import pypdfium2 as pdfium
+
+    scale = float(scale or os.environ.get("PADDLE_PDX_PDF_RENDER_SCALE", 2.0))
+    imgs = os.path.join(book_dir, "imgs")
+    os.makedirs(imgs, exist_ok=True)
+    doc = pdfium.PdfDocument(pdf)
+    tag_re = re.compile(r"<[^>]+>")
+    cell_re = re.compile(r"<t[dh][^>]*>(.*?)</t[dh]>", re.I | re.S)
+    total = skipped = 0
+
+    def sign(table_html):
+        """Подпись таблицы — её ячейки подряд, без разметки и пробелов.
+
+        Сопоставлять по порядку нельзя: часть табличных рамок возвращает
+        пустой OTSL и в разметку не попадает вовсе, счёт разъезжается.
+        А ячейки у рамки и у готовой таблицы одни и те же, отличается только
+        обвязка тегов.
+        """
+        # Маркер неуверенности снимается: _mark_uncertain дописывает его в
+        # ячейки раньше, чем считается подпись, и без этого рамка перестаёт
+        # узнавать собственную таблицу.
+        cells = [re.sub(r"\s+", "",
+                        html.unescape(tag_re.sub("", c)).replace("⚠", ""))
+                 for c in cell_re.findall(table_html)]
+        return "\x1f".join(c for c in cells if c)
+
+    for jf in sorted(glob.glob(os.path.join(pages_dir, "*.json"))):
+        mf = jf[:-5] + ".md"
+        if not os.path.exists(mf):
+            continue
+        try:
+            data = json.load(open(jf, encoding="utf-8"))
+            blocks = [b for b in data.get("parsing_res_list", [])
+                      if b.get("block_label") == "table"
+                      and b.get("block_content")]
+            if not blocks:
+                continue
+            by_sign = {}
+            for b in blocks:
+                by_sign.setdefault(sign(str(b["block_content"])), []).append(b)
+            md = open(mf, encoding="utf-8").read()
+            page_idx = int(data.get("page_index") or 0)
+            img = None
+            out, prev, miss = [], 0, 0
+            for m in re.finditer(r"<table\b.*?</table>", md, re.I | re.S):
+                same = by_sign.get(sign(m.group(0)))
+                if not same:
+                    miss += 1
+                    continue
+                b = same.pop(0)
+                x0, y0, x1, y1 = [int(v) for v in b["block_bbox"]]
+                name = f"tbl_p{page_idx:04d}_{x0}_{y0}_{x1}_{y1}.jpg"
+                path = os.path.join(imgs, name)
+                if not os.path.exists(path):
+                    if img is None:
+                        img = doc[page_idx].render(scale=scale).to_pil()
+                    img.crop((x0, y0, x1, y1)).convert("RGB").save(
+                        path, "JPEG", quality=88)
+                out.append(md[prev:m.start()])
+                out.append(f"<!-- скан таблицы: imgs/{name} -->\n")
+                prev = m.start()
+                total += 1
+            skipped += miss
+            if prev:
+                out.append(md[prev:])
+                with open(mf, "w", encoding="utf-8") as fh:
+                    fh.write("".join(out))
+        except Exception as exc:
+            _log(f"ссылки на сканы таблиц, {os.path.basename(jf)}: {exc}")
+    return total, skipped
+
+
+def _drop_orphan_crops(book_dir, *dirs):
+    """Убрать сканы таблиц, на которые в разметке уже никто не ссылается.
+
+    Развёрнутая обратно таблица уносит свой комментарий, а вырезанный скан
+    остаётся лежать.  На двадцати страницах таких десять из тридцати трёх; на
+    книге это сотни файлов, которые выглядят частью разбора и ею не являются.
+    """
+    used = set()
+    for d in dict.fromkeys(dirs):
+        for f in glob.glob(os.path.join(d, "*.md")):
+            used.update(re.findall(r"скан таблицы: imgs/(\S+?) -->",
+                                   open(f, encoding="utf-8").read()))
+    gone = 0
+    for f in glob.glob(os.path.join(book_dir, "imgs", "tbl_*.jpg")):
+        if os.path.basename(f) not in used:
+            os.remove(f)
+            gone += 1
+    return gone
+
+
 def _unwrap_degenerate_tables(*dirs):
     """Развернуть обратно в текст таблицы, оказавшиеся не таблицами.
 
@@ -601,7 +708,11 @@ def _unwrap_degenerate_tables(*dirs):
     for d in dict.fromkeys(dirs):
         for f in glob.glob(os.path.join(d, "*.md")):
             src = open(f, encoding="utf-8").read()
-            dst = re.sub(r"<table\b.*?</table>", one, src, flags=re.I | re.S)
+            # Комментарий со ссылкой на скан снимается вместе с таблицей:
+            # осиротевшая ссылка указывала бы на картинку, которой в тексте
+            # больше нет.
+            dst = re.sub(r"(?:<!-- скан таблицы: [^>]*-->\n)?<table\b.*?</table>",
+                         one, src, flags=re.I | re.S)
             if dst != src:
                 with open(f, "w", encoding="utf-8") as fh:
                     fh.write(dst)
@@ -1117,7 +1228,16 @@ def main():
         _log(f"ответов с неуверенными местами {len(_LOW)}: "
              f"помечено ячеек {n_cell}, кусков прозы {n_span}")
 
+    linked, skipped = _link_table_crops(pdf, pages_dir, book_dir)
+    if linked or skipped:
+        _log(f"ссылок на сканы таблиц проставлено {linked}"
+             + (f"; страниц пропущено из-за несовпадения счёта {skipped}"
+                if skipped else ""))
+
     unwrapped = _unwrap_degenerate_tables(pages_dir, book_dir)
+    orphans = _drop_orphan_crops(book_dir, pages_dir, book_dir)
+    if orphans:
+        _log(f"сканов таблиц без ссылки удалено {orphans}")
     if unwrapped:
         _log(f"переспрос не подтвердился, развёрнуто обратно в текст: {unwrapped}")
 

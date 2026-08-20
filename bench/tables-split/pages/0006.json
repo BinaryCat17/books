@@ -1,0 +1,456 @@
+{
+    "input_path": "input.pdf",
+    "page_index": 6,
+    "page_count": 20,
+    "width": 2024,
+    "height": 2932,
+    "model_settings": {
+        "use_doc_preprocessor": false,
+        "use_layout_detection": true,
+        "use_chart_recognition": false,
+        "use_seal_recognition": false,
+        "use_ocr_for_image_block": false,
+        "format_block_content": false,
+        "merge_layout_blocks": true,
+        "markdown_ignore_labels": [
+            "number",
+            "header_image",
+            "footer",
+            "footer_image",
+            "aside_text"
+        ],
+        "return_layout_polygon_points": true
+    },
+    "parsing_res_list": [
+        {
+            "block_label": "text",
+            "block_content": "spindle taper runout test is conducted. This requires the test bar to be inserted into the headstock spindle. Incidentally, a runout test must be performed each and every time the test bar is removed and re-inserted to prove the truth of the seating. To nullify the effect of eccentricity error, the mean position is located at the vertical diameter for this portion of the test.",
+            "block_bbox": [
+                187,
+                131,
+                1011,
+                528
+            ],
+            "block_id": 0,
+            "block_order": 1,
+            "group_id": 0
+        },
+        {
+            "block_label": "text",
+            "block_content": "Now returning to the alignment we will mount a DIAL INDICATOR on the carriage. The button of the instrument is placed at the vertical diameter of the test bar. Next the carriage is moved and a reading is taken between the spindle nose and the free end of the test bar. The amount of misalignment of the spindle to the bed ways in the vertical plane is thereby noted. This information relates to the first portion of OBJECTIVE NO. 1.",
+            "block_bbox": [
+                189,
+                530,
+                1015,
+                1016
+            ],
+            "block_id": 1,
+            "block_order": 2,
+            "group_id": 1
+        },
+        {
+            "block_label": "text",
+            "block_content": "A similar preliminary check for OBJECTIVE NO. 1 in the horizontal plane is also necessary. This requires finding the mean position of the test bar and turning it to the horizontal plane. Then the button of the instrument is set at the near side of the test bar i.e. the horizontal diameter, as shown in Fig. 26.60. Again the carriage is traversed and the reading is recorded.",
+            "block_bbox": [
+                188,
+                1018,
+                1011,
+                1422
+            ],
+            "block_id": 2,
+            "block_order": 3,
+            "group_id": 2
+        },
+        {
+            "block_label": "image",
+            "block_content": "",
+            "block_bbox": [
+                225,
+                1474,
+                953,
+                1808
+            ],
+            "block_id": 3,
+            "block_order": null,
+            "group_id": 3
+        },
+        {
+            "block_label": "figure_title",
+            "block_content": "Fig. 26.59 Alignment of head stock spindle in vertical plane.",
+            "block_bbox": [
+                214,
+                1846,
+                920,
+                1919
+            ],
+            "block_id": 4,
+            "block_order": null,
+            "group_id": 4
+        },
+        {
+            "block_label": "table",
+            "block_content": "<table><tr><td colspan=\"3\">RECOMMENDED STANDARDS</td></tr><tr><td>Tool Room</td><td>12&quot; to 18&quot; inc.</td><td>20&quot; to 36&quot; inc.</td></tr><tr><td>Lathe</td><td>Engine Lathe</td><td>Engine Lathe</td></tr><tr><td>0 to .0005&quot;</td><td>0 to .001&quot;</td><td>0 to .001&quot;</td></tr><tr><td colspan=\"3\">(high at end of 12&quot; test bar)</td></tr></table>",
+            "block_bbox": [
+                233,
+                1949,
+                976,
+                2185
+            ],
+            "block_id": 5,
+            "block_order": null,
+            "group_id": 5
+        },
+        {
+            "block_label": "text",
+            "block_content": "These two tests will provide necessary information as to the degree of misalignment now existent in the headstock spindle with respect to the DATUM PLANE i.e. the outside inverted V-ways of the bed. This data refers only to OBJECTIVE NO.1.",
+            "block_bbox": [
+                187,
+                2217,
+                1009,
+                2482
+            ],
+            "block_id": 6,
+            "block_order": 4,
+            "group_id": 6
+        },
+        {
+            "block_label": "text",
+            "block_content": "Inasmuch as all three OBJECTIVES must be attained simultaneously, it is important to know at this stage, before any scraping is attempted on the headstock slides, the approximate misalignment in the vertical plane of the headstock spindle with respect to the axis of the tailstock spindle. Since the headstock surfaces have not as yet been treated, it is obvious that the axis of the headstock spindle is higher from the bed ways than the axis of the tailstock spindle, which member has been scrape-finished. We determine approximately how much metal to remove from the headstock V-slide and flat slide by executing the following procedure:",
+            "block_bbox": [
+                187,
+                2483,
+                997,
+                2662
+            ],
+            "block_id": 7,
+            "block_order": 5,
+            "group_id": 7
+        },
+        {
+            "block_label": "text",
+            "block_content": "",
+            "block_bbox": [
+                1048,
+                128,
+                1849,
+                663
+            ],
+            "block_id": 8,
+            "block_order": 6,
+            "group_id": 7
+        },
+        {
+            "block_label": "text",
+            "block_content": "Sec. 26.64\nVertical Alignment of HEAD &TAIL\nCENTERS",
+            "block_bbox": [
+                1049,
+                702,
+                1731,
+                838
+            ],
+            "block_id": 9,
+            "block_order": 7,
+            "group_id": 9
+        },
+        {
+            "block_label": "text",
+            "block_content": "The necessary equipment for this operation includes a test bar of a different type than those previously used. A hard-ended steel cylinder of suitable length, centered at both ends and then accurately ground to one appropriate overall diameter will be required. It will be mounted between the lathe centers during the test.",
+            "block_bbox": [
+                1047,
+                881,
+                1871,
+                1240
+            ],
+            "block_id": 10,
+            "block_order": 8,
+            "group_id": 10
+        },
+        {
+            "block_label": "image",
+            "block_content": "",
+            "block_bbox": [
+                1055,
+                1285,
+                1803,
+                1911
+            ],
+            "block_id": 11,
+            "block_order": null,
+            "group_id": 11
+        },
+        {
+            "block_label": "figure_title",
+            "block_content": "PLATE 34. Close-up of headstock with spindle bearing cap removed to show how surface of headstock and bearing cap are hand scraped and fitted together. (Courtesy - South Bend Lathe Works.)",
+            "block_bbox": [
+                1045,
+                1986,
+                1808,
+                2163
+            ],
+            "block_id": 12,
+            "block_order": null,
+            "group_id": 12
+        },
+        {
+            "block_label": "text",
+            "block_content": "To facilitate the test for vertical alignment it is necessary to adjust, as closely as possible, the axis of the tail-stock spindle in-line with the axis of the headstock spindle in the horizontal plane. The preliminary adjustment is accomplished by the following set up:",
+            "block_bbox": [
+                1043,
+                2259,
+                1827,
+                2570
+            ],
+            "block_id": 13,
+            "block_order": 9,
+            "group_id": 13
+        },
+        {
+            "block_label": "text",
+            "block_content": "After fastening a DIAL INDICATOR to the carriage the contact button is",
+            "block_bbox": [
+                1045,
+                2572,
+                1774,
+                2660
+            ],
+            "block_id": 14,
+            "block_order": 10,
+            "group_id": 14
+        },
+        {
+            "block_label": "number",
+            "block_content": "302",
+            "block_bbox": [
+                977,
+                2680,
+                1049,
+                2718
+            ],
+            "block_id": 15,
+            "block_order": null,
+            "group_id": 15
+        }
+    ],
+    "layout_det_res": {
+        "input_path": null,
+        "page_index": null,
+        "boxes": [
+            {
+                "cls_id": 7,
+                "label": "figure_title",
+                "score": 0.3019701838493347,
+                "coordinate": [
+                    342,
+                    1949,
+                    809,
+                    1985
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9869128465652466,
+                "coordinate": [
+                    187,
+                    131,
+                    1011,
+                    528
+                ],
+                "order": 1
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9867640137672424,
+                "coordinate": [
+                    189,
+                    530,
+                    1015,
+                    1016
+                ],
+                "order": 2
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9865638017654419,
+                "coordinate": [
+                    188,
+                    1018,
+                    1011,
+                    1422
+                ],
+                "order": 3
+            },
+            {
+                "cls_id": 14,
+                "label": "image",
+                "score": 0.9775251746177673,
+                "coordinate": [
+                    225,
+                    1474,
+                    953,
+                    1808
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 7,
+                "label": "figure_title",
+                "score": 0.9535454511642456,
+                "coordinate": [
+                    214,
+                    1846,
+                    920,
+                    1919
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 21,
+                "label": "table",
+                "score": 0.47768348455429077,
+                "coordinate": [
+                    233,
+                    1949,
+                    976,
+                    2185
+                ],
+                "order": 7
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.7467277646064758,
+                "coordinate": [
+                    234,
+                    1992,
+                    975,
+                    2185
+                ],
+                "order": 4
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9823231101036072,
+                "coordinate": [
+                    187,
+                    2217,
+                    1009,
+                    2482
+                ],
+                "order": 5
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9681211113929749,
+                "coordinate": [
+                    187,
+                    2483,
+                    997,
+                    2662
+                ],
+                "order": 6
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9874876737594604,
+                "coordinate": [
+                    1048,
+                    128,
+                    1849,
+                    663
+                ],
+                "order": 7
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9419552683830261,
+                "coordinate": [
+                    1049,
+                    702,
+                    1731,
+                    838
+                ],
+                "order": 8
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9847046136856079,
+                "coordinate": [
+                    1047,
+                    881,
+                    1871,
+                    1240
+                ],
+                "order": 9
+            },
+            {
+                "cls_id": 14,
+                "label": "image",
+                "score": 0.9818881154060364,
+                "coordinate": [
+                    1055,
+                    1285,
+                    1803,
+                    1911
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 7,
+                "label": "figure_title",
+                "score": 0.8699353337287903,
+                "coordinate": [
+                    1045,
+                    1986,
+                    1808,
+                    2163
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9844116568565369,
+                "coordinate": [
+                    1043,
+                    2259,
+                    1827,
+                    2570
+                ],
+                "order": 10
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9630786776542664,
+                "coordinate": [
+                    1045,
+                    2572,
+                    1774,
+                    2660
+                ],
+                "order": 11
+            },
+            {
+                "cls_id": 16,
+                "label": "number",
+                "score": 0.8995546698570251,
+                "coordinate": [
+                    977,
+                    2680,
+                    1049,
+                    2718
+                ],
+                "order": 12
+            }
+        ]
+    }
+}

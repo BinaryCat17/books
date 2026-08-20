@@ -1,0 +1,432 @@
+{
+    "input_path": "input.pdf",
+    "page_index": 7,
+    "page_count": 20,
+    "width": 2024,
+    "height": 2932,
+    "model_settings": {
+        "use_doc_preprocessor": false,
+        "use_layout_detection": true,
+        "use_chart_recognition": false,
+        "use_seal_recognition": false,
+        "use_ocr_for_image_block": false,
+        "format_block_content": false,
+        "merge_layout_blocks": true,
+        "markdown_ignore_labels": [
+            "number",
+            "header_image",
+            "footer",
+            "footer_image",
+            "aside_text"
+        ],
+        "return_layout_polygon_points": true
+    },
+    "parsing_res_list": [
+        {
+            "block_label": "image",
+            "block_content": "",
+            "block_bbox": [
+                215,
+                188,
+                957,
+                448
+            ],
+            "block_id": 0,
+            "block_order": null,
+            "group_id": 0
+        },
+        {
+            "block_label": "figure_title",
+            "block_content": "Fig. 26.60 Alignment of head stock spindle in horizontal plane.",
+            "block_bbox": [
+                205,
+                494,
+                911,
+                569
+            ],
+            "block_id": 1,
+            "block_order": null,
+            "group_id": 1
+        },
+        {
+            "block_label": "table",
+            "block_content": "<table><tr><td colspan=\"4\">RECOMMENDED STANDARDS</td></tr><tr><td>Tool Room</td><td>12&quot; to 18&quot; inc.</td><td>20&quot; to 36&quot; inc.</td><td></td></tr><tr><td>Lathe</td><td>Engine Lathe *</td><td>Engine Lathe</td><td></td></tr><tr><td>0 to (±) .0003&quot;</td><td>0 to (±) .0005&quot;</td><td>0 to (±) .0008&quot;</td><td></td></tr><tr><td colspan=\"4\">(At end of 12 inch test bar)</td></tr></table>",
+            "block_bbox": [
+                220,
+                599,
+                982,
+                832
+            ],
+            "block_id": 2,
+            "block_order": null,
+            "group_id": 2
+        },
+        {
+            "block_label": "text",
+            "block_content": "placed on the horizontal diameter of the test bar, as shown in Fig. 26.61. The carriage is now moved so that the button slides from end to end of the bar. At the same time the tailstock top is set-over on its transverse way until a reading close to zero-zero is attained. We say “close” because at this stage we would not obtain an identical calibration in traversing the test bar from end to end due to the fact that the axis of the headstock spindle is higher than the axis of the tailstock spindle. The reason, as previously stated, is that no scraping has yet been done on the slides of the headstock. Consequently, the DIAL INDICATOR button would ride up or down from the horizontal axis of the test bar as the carriage is moved along the bed ways.",
+            "block_bbox": [
+                192,
+                861,
+                1014,
+                1661
+            ],
+            "block_id": 3,
+            "block_order": 1,
+            "group_id": 3
+        },
+        {
+            "block_label": "text",
+            "block_content": "Having adjusted the bar closely, we can proceed to check the vertical alignment. To this end the DIAL INDICATOR is positioned on the vertical diameter of the test bar, as shown in Fig. 26.62. Readings are now taken as the carriage is moved along the bed. The results of this test indicate approximately how much metal must be scraped from the bearing surfaces of the headstock to obtain correct alignment and satisfy OBJECTIVE NO. 2.",
+            "block_bbox": [
+                198,
+                1665,
+                1009,
+                2150
+            ],
+            "block_id": 4,
+            "block_order": 2,
+            "group_id": 4
+        },
+        {
+            "block_label": "text",
+            "block_content": "After the approximate amount of re-\nquired correction is learned from this\nseries of tests, spotting and scraping",
+            "block_bbox": [
+                203,
+                2151,
+                956,
+                2286
+            ],
+            "block_id": 5,
+            "block_order": 3,
+            "group_id": 5
+        },
+        {
+            "block_label": "image",
+            "block_content": "",
+            "block_bbox": [
+                235,
+                2329,
+                988,
+                2575
+            ],
+            "block_id": 6,
+            "block_order": null,
+            "group_id": 6
+        },
+        {
+            "block_label": "figure_title",
+            "block_content": "Fig. 25.61 Set up utilized to adjust headstock and tailstock centers in horizontal plane.",
+            "block_bbox": [
+                227,
+                2594,
+                983,
+                2668
+            ],
+            "block_id": 7,
+            "block_order": null,
+            "group_id": 7
+        },
+        {
+            "block_label": "text",
+            "block_content": "operations can be initiated. The head-stock is placed carefully on that portion of the bed ways previously coated with marking compound. Then after spotting, the member is removed from the bed and laid on a work bench where it is scraped. Since it is unlikely that a single cycle of spotting and scraping will accomplish the alignments specified in OBJECTIVES NO. 1 and NO. 2, it will be necessary to repeat the foregoing series of tests a number of times. As the alignment approaches the required accuracy, the adjustment of the tailstock in the horizontal plane will be progressively smaller. The need for it will end when the DIAL INDICATOR reading nears zero-zero on both the horizontal and vertical diameters.",
+            "block_bbox": [
+                1036,
+                161,
+                1852,
+                956
+            ],
+            "block_id": 8,
+            "block_order": 4,
+            "group_id": 8
+        },
+        {
+            "block_label": "text",
+            "block_content": "When the tests disclose that the correct alignment is imminent, the desired bearing quality is worked into the headstock V-slide and flat slide, to satisfy OBJEC-TIVE NO. 3. Refer to Sec. 23.25. Simultaneous Achievement of Bearing Quality.",
+            "block_bbox": [
+                1040,
+                956,
+                1848,
+                1220
+            ],
+            "block_id": 9,
+            "block_order": 5,
+            "group_id": 9
+        },
+        {
+            "block_label": "text",
+            "block_content": "If the tolerances indicated in the tests above mentioned, are not exceeded in the final alignment of the headstock spindle, then the three OBJECTIVES are satisfied and the headstock member is considered completed. However, if during the course of trying to obtain the OBJECTIVES, the scraper should remove too much metal from the slides, thus lowering the axis of the headstock spindle below the axis of the tailstock spindle, it is obvious that OBJECTIVE NO. 2 cannot be satisfied.",
+            "block_bbox": [
+                1040,
+                1222,
+                1838,
+                1750
+            ],
+            "block_id": 10,
+            "block_order": 6,
+            "group_id": 10
+        },
+        {
+            "block_label": "text",
+            "block_content": "Faced with this dilemma, the scraper should continue scraping until OBJECTIVES NO. 1 and NO. 3 are achieved at which moment the headstock is adjudged completed. OBJECTIVE NO. 2 is disregarded.\nThe matter of the vertical alignment cannot, however, be dismissed. Rectification, in such cases, is obtained by returning to the tailstock. The slides of this member must be reworked, to satisfy all the OBJECTIVES listed in Sec. 26.55, plus this additional one, viz:",
+            "block_bbox": [
+                1043,
+                1754,
+                1872,
+                1974
+            ],
+            "block_id": 11,
+            "block_order": 7,
+            "group_id": 11
+        },
+        {
+            "block_label": "text",
+            "block_content": "",
+            "block_bbox": [
+                1043,
+                1975,
+                1850,
+                2281
+            ],
+            "block_id": 12,
+            "block_order": 8,
+            "group_id": 11
+        },
+        {
+            "block_label": "table",
+            "block_content": "<table><tr><td>“Axis of tailstock spindle to be aligned to axis of headstock spindle in the vertical plane.”</td></tr></table>",
+            "block_bbox": [
+                1099,
+                2280,
+                1839,
+                2411
+            ],
+            "block_id": 13,
+            "block_order": null,
+            "group_id": 13
+        },
+        {
+            "block_label": "text",
+            "block_content": "When these objectives are satisfied then both of the members are correctly aligned, to each other and to the bed ways. Thus the accuracy of the lathe is in nowise impaired by failure or inability to achieve alignment by means of the headstock.",
+            "block_bbox": [
+                1045,
+                2413,
+                1850,
+                2679
+            ],
+            "block_id": 14,
+            "block_order": 9,
+            "group_id": 14
+        },
+        {
+            "block_label": "number",
+            "block_content": "303",
+            "block_bbox": [
+                993,
+                2698,
+                1062,
+                2734
+            ],
+            "block_id": 15,
+            "block_order": null,
+            "group_id": 15
+        }
+    ],
+    "layout_det_res": {
+        "input_path": null,
+        "page_index": null,
+        "boxes": [
+            {
+                "cls_id": 14,
+                "label": "image",
+                "score": 0.9774242639541626,
+                "coordinate": [
+                    215,
+                    188,
+                    957,
+                    448
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 7,
+                "label": "figure_title",
+                "score": 0.9607240557670593,
+                "coordinate": [
+                    205,
+                    494,
+                    911,
+                    569
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.5198443531990051,
+                "coordinate": [
+                    220,
+                    599,
+                    982,
+                    832
+                ],
+                "order": 1
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9887891411781311,
+                "coordinate": [
+                    192,
+                    861,
+                    1014,
+                    1661
+                ],
+                "order": 2
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9884176850318909,
+                "coordinate": [
+                    198,
+                    1665,
+                    1009,
+                    2150
+                ],
+                "order": 3
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.966478168964386,
+                "coordinate": [
+                    203,
+                    2151,
+                    956,
+                    2286
+                ],
+                "order": 4
+            },
+            {
+                "cls_id": 14,
+                "label": "image",
+                "score": 0.9817675948143005,
+                "coordinate": [
+                    235,
+                    2329,
+                    988,
+                    2575
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 7,
+                "label": "figure_title",
+                "score": 0.9688934683799744,
+                "coordinate": [
+                    227,
+                    2594,
+                    983,
+                    2668
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9887825846672058,
+                "coordinate": [
+                    1036,
+                    161,
+                    1852,
+                    956
+                ],
+                "order": 5
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9859355688095093,
+                "coordinate": [
+                    1040,
+                    956,
+                    1848,
+                    1220
+                ],
+                "order": 6
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9869571924209595,
+                "coordinate": [
+                    1040,
+                    1222,
+                    1838,
+                    1750
+                ],
+                "order": 7
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9834549427032471,
+                "coordinate": [
+                    1043,
+                    1754,
+                    1872,
+                    1974
+                ],
+                "order": 8
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9855226278305054,
+                "coordinate": [
+                    1043,
+                    1975,
+                    1850,
+                    2281
+                ],
+                "order": 9
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9700304269790649,
+                "coordinate": [
+                    1099,
+                    2280,
+                    1839,
+                    2411
+                ],
+                "order": 10
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9844687581062317,
+                "coordinate": [
+                    1045,
+                    2413,
+                    1850,
+                    2679
+                ],
+                "order": 11
+            },
+            {
+                "cls_id": 16,
+                "label": "number",
+                "score": 0.9105246663093567,
+                "coordinate": [
+                    993,
+                    2698,
+                    1062,
+                    2734
+                ],
+                "order": 12
+            }
+        ]
+    }
+}
