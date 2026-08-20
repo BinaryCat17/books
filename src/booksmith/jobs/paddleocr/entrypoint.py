@@ -129,15 +129,19 @@ def _prefer_tables_over_text():
     # площади, уже удалена, и спасать нечего.  Гасим внутренний: наша
     # подмена — его полная переделка с одной изменённой веткой, так что
     # ничего, кроме дублирования, не теряется.
-    try:
-        from paddlex.inference.models.layout_analysis import processors as _pr
+    if os.environ.get("KEEP_INNER_FILTER", "0") == "1":
+        _log("внутренний фильтр рамок ОСТАВЛЕН включённым (для сравнения)")
+    else:
+        try:
+            from paddlex.inference.models.layout_analysis import (
+                processors as _pr,
+            )
 
-        _inner = _pr.filter_boxes
-        _pr.filter_boxes = lambda src_boxes, mode: [
-            b for b in src_boxes if b.get("label") != "reference"]
-        _log("внутренний фильтр рамок отключён — работает наш")
-    except Exception as exc:
-        _log(f"внутренний фильтр рамок оставлен как есть: {exc}")
+            _pr.filter_boxes = lambda src_boxes, mode: [
+                b for b in src_boxes if b.get("label") != "reference"]
+            _log("внутренний фильтр рамок отключён — работает наш")
+        except Exception as exc:
+            _log(f"внутренний фильтр рамок оставлен как есть: {exc}")
 
     orig = _p.filter_overlap_boxes
     hard = ("table", "image", "seal", "chart")
@@ -321,7 +325,8 @@ def _multiview_layout(overlap=0.12, merge=0.55, thr=0.30):
                 # Гасим на самом предикторе, вернув значение после прохода.
                 vkw = dict(kw, layout_merge_bboxes_mode="union")
                 was_nms = getattr(self, "layout_nms", None)
-                self.layout_nms = False
+                if os.environ.get("VIEW_NMS", "0") != "1":
+                    self.layout_nms = False
                 try:
                     for view, back in _views(img):
                         for r in orig(self, [view], **vkw):
