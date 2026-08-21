@@ -504,6 +504,21 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
 
         t1 = time.time()
         rc = execute(box, spec, outdir, deadline=budget.deadline)
+        if rc != 0:
+            # Смотрим в журнал vLLM: «CUDA unknown error» — это сломанная
+            # карта на хосте, а не наша беда, и такая машина вернётся снова.
+            # Канал у неё при этом хороший, так что зонд её пропускает.
+            try:
+                vl = os.path.join(outdir, "vllm.log")
+                if os.path.exists(vl):
+                    tail = open(vl, encoding="utf-8", errors="replace").read()
+                    if "CUDA unknown error" in tail or "no CUDA-capable device" in tail:
+                        ledger.mark_bad(rec.machine_id,
+                                        "карта не инициализируется (CUDA)")
+                        log(f"машина {rec.machine_id} записана в чёрный "
+                            f"список: карта не инициализируется")
+            except Exception:
+                pass
         rec.run_s = time.time() - t1
         rec.extra.update(_run_facts(outdir))
         rec.ok = rc == 0
