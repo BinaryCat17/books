@@ -19,8 +19,17 @@ import shutil
 import subprocess
 import tempfile
 
+# `-markdown_in_html_blocks` обязателен, и вот почему.  Таблицы у нас лежат в
+# markdown сырым HTML, и pandoc по умолчанию разбирает их СОДЕРЖИМОЕ как
+# markdown.  Ячейка, начинающаяся с `(a) .004"`, становится нумерованным
+# списком: `<td><ol><li>` открывается внутри ячейки, проглатывает остаток
+# таблицы и закрывается уже после `</table>`.  Разметка ломается, и писатель
+# fb2 такую таблицу выбрасывает молча — так пропадали 2 таблицы из 41 и 2
+# пометки внутри них.  Отключение одного лишь `fancy_lists` не спасает:
+# список делают и другие образцы.
 READ = ("markdown+raw_html-tex_math_dollars"
-        "-tex_math_single_backslash-tex_math_double_backslash")
+        "-tex_math_single_backslash-tex_math_double_backslash"
+        "-markdown_in_html_blocks")
 
 CSS = """
 body { max-width: 46em; margin: 2em auto; padding: 0 1em;
