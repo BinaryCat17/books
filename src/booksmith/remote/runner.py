@@ -430,8 +430,13 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
 
 def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
             keep: bool = False, reuse: int | None = None,
-            dry_run: bool = False) -> int:
-    """Полный прогон.  Возвращает код возврата задачи."""
+            dry_run: bool = False, report: dict | None = None) -> int:
+    """Полный прогон.  Возвращает код возврата задачи.
+
+    `report` — необязательный словарь, куда кладётся `instance_id` снятой
+    машины.  Нужен для многопроходного разбора: второй и третий проходы
+    должны попасть на ту же машину, иначе каждый платит холодный старт.
+    """
     vast = Vast()
     outdir = os.path.abspath(outdir)
 
@@ -578,6 +583,8 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
                     f"инстанс уничтожит себя через 15 минут")
             log(f"--keep: инстанс {iid} ОСТАВЛЕН И БИЛЛИТСЯ. "
                 f"Следующий прогон: --reuse {iid}; убить: books down {iid}")
+        if report is not None:
+            report["instance_id"] = state["iid"]
         ledger.append(rec)
         log(f"итого {elapsed/60:.1f} мин ≈ ${rec.cost_usd:.3f}; "
             f"журнал: {ledger.LEDGER}")

@@ -42,6 +42,63 @@ def cmd_offers(a):
 
 
 def cmd_ocr(a):
+    if getattr(a, "passes", 1) > 1:
+        return _multipass(a)
+    return _one_pass(a)
+
+
+def _multipass(a):
+    """Несколько проходов подряд и свод в одну книгу с пометками.
+
+    Первый проход жадный — он и станет основным разбором.  Остальные идут
+    при ненулевой температуре и служат свидетелями: ячейка, прочитанная
+    всеми одинаково, надёжна; разошедшаяся помечается `≠`.
+
+    Проходы кладутся в отдельные каталоги-соседи, а не подкаталоги: у
+    каждого свои вырезанные сканы таблиц, и набор выживших таблиц разный —
+    свалив их вместе, мы получили бы одинаковые имена при разном
+    содержимом.
+
+    Второй и третий проходы идут на той же машине через --reuse: холодный
+    старт стоит от полутора до пятнадцати минут, счёт — три.
+    """
+    import copy
+
+    if a.dry_run:
+        # Проверочный запуск: показываем, что сняли бы, и уходим.  Сводить
+        # нечего — каталогов проходов не существует.
+        print(f"проверочный запуск: сделал бы {a.passes} прохода "
+              f"в {a.outdir}-pass1..{a.passes} и свёл бы в {a.outdir}")
+        one = copy.copy(a)
+        one.outdir = f"{os.path.abspath(a.outdir)}-pass1"
+        return _one_pass(one)
+
+    base = os.path.abspath(a.outdir)
+    dirs, iid = [], a.reuse
+    for i in range(1, a.passes + 1):
+        d = f"{base}-pass{i}"
+        one = copy.copy(a)
+        one.outdir, one.reuse = d, iid
+        # Последний проход тоже с --keep, если оператор просил: гасить машину
+        # решает он, а не число проходов.
+        one.keep = True if i < a.passes else a.keep
+        if i > 1:
+            os.environ["VLM_TEMPERATURE"] = str(a.temperature)
+        report = {}
+        print(f"=== проход {i} из {a.passes} -> {os.path.relpath(d)}")
+        rc = _one_pass(one, report=report)
+        if rc != 0:
+            print(f"проход {i} завершился с кодом {rc} — свод не делаю")
+            return rc
+        dirs.append(d)
+        iid = iid or report.get("instance_id")
+    os.environ.pop("VLM_TEMPERATURE", None)
+
+    from . import merge
+    return merge.merge(dirs, base)
+
+
+def _one_pass(a, report=None):
     spec = paddleocr.spec(
         os.path.abspath(a.pdf), gpu=a.gpu, image=a.image, minutes=a.minutes,
         budget_usd=a.budget, disk_gb=a.disk, max_dph=a.max_dph,
@@ -55,7 +112,8 @@ def cmd_ocr(a):
     if not os.path.exists(a.pdf):
         raise SystemExit(f"нет файла: {a.pdf}")
     return run_job(spec, a.outdir, ssh_key=config.ssh_key(a.ssh_key),
-                   keep=a.keep, reuse=a.reuse, dry_run=a.dry_run)
+                   keep=a.keep, reuse=a.reuse, dry_run=a.dry_run,
+                   report=report)
 
 
 def cmd_olmocr(a):
@@ -218,6 +276,12 @@ def main(argv=None):
     p.add_argument("--resume", action="store_true",
                    help="продолжить прерванный прогон на той же машине, "
                         "не стирая уже посчитанные страницы")
+    p.add_argument("--passes", type=int, default=1, metavar="N",
+                   help="прочитать книгу N раз и свести в одну с пометками: "
+                        "первый проход жадный, остальные при температуре, "
+                        "разошедшиеся ячейки помечаются знаком ≠")
+    p.add_argument("--temperature", type=float, default=0.4,
+                   help="температура VLM для проходов со второго (при --passes)")
     p.set_defaults(fn=cmd_ocr)
 
     p = sub.add_parser("olmocr", help="разобрать PDF моделью olmOCR-2-7B")
