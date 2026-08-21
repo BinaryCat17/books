@@ -57,7 +57,8 @@ books olmocr bench/tables20.pdf bench/olmocr    та же книга модел�
 books ocr raw/книга.pdf processed/книга --keep     оставить машину
 books ocr raw/книга.pdf processed/книга --reuse 12345
 books ocr raw/книга.pdf processed/книга --passes 3   три чтения и свод
-books convert processed/книга             EPUB и FB2 рядом с book.md
+books convert processed/книга             HTML, EPUB, FB2 рядом с book.md
+books convert processed/книга --formats pdf      ещё и PDF (нужен weasyprint)
 books ls                                  что арендовано прямо сейчас
 books down 12345 | books reap             убить инстанс / прибрать всё
 books ledger                              журнал прогонов и оценки по нему
