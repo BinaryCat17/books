@@ -73,12 +73,49 @@ def merge(dirs, dst):
         with open(f, "w", encoding="utf-8") as fh:
             fh.write("".join(out))
 
+    # Книжный файл размечаем на месте, а не пересобираем из страниц: в нём
+    # склеены таблицы, разорванные разрывом страницы, и пересборка это
+    # теряла.  Счётчики здесь по всей книге, а не по странице — границ
+    # страниц в нём уже нет.  Огрубление безопасное: оно может лишь не
+    # заметить расхождение, но не выдумать его.
     book = os.path.join(dst, "book", "book.md")
     os.makedirs(os.path.dirname(book), exist_ok=True)
-    with open(book, "w", encoding="utf-8") as out:
-        for f in pages:
-            out.write(open(f, encoding="utf-8").read())
-            out.write("\n\n")
+    if os.path.exists(book):
+        whole = [collections.Counter() for _ in others]
+        for o, acc in zip(others, whole):
+            bf = os.path.join(o, "book", "book.md")
+            if os.path.exists(bf):
+                acc.update(cells_of(bf))
+            else:
+                for f in sorted(glob.glob(os.path.join(o, "pages", "*.md"))):
+                    acc.update(cells_of(f))
+        src = open(book, encoding="utf-8").read()
+        seen = collections.Counter()
+
+        def book_cell(m):
+            v = plain(m.group(2))
+            if not v:
+                return m.group(0)
+            seen[v] += 1
+            k = seen[v]
+            if all(w[v] >= k for w in whole):
+                return m.group(0)
+            return m.group(1) + m.group(2) + " ≠" + m.group(3)
+
+        out = []
+        prev = 0
+        for t in TABLE.finditer(src):
+            out.append(src[prev:t.start()])
+            out.append(CELL.sub(book_cell, t.group(0)))
+            prev = t.end()
+        out.append(src[prev:])
+        with open(book, "w", encoding="utf-8") as fh:
+            fh.write("".join(out))
+    else:
+        with open(book, "w", encoding="utf-8") as out:
+            for f in pages:
+                out.write(open(f, encoding="utf-8").read())
+                out.write("\n\n")
     print(f"ячеек в таблицах {total}, помечено неустойчивыми {marked} "
           f"({marked/max(total,1):.0%})")
     print(f"книга собрана: {book}")

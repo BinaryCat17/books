@@ -1417,6 +1417,16 @@ def main():
                     res.save_to_markdown(save_path=book_dir)
                 except Exception as e:
                     _log(f"  склейка: {e}")
+            # paddlex называет файл по имени входного PDF, а мы заливаем его
+            # как input.pdf — получался `input.md`, имя без смысла, да ещё и
+            # второй книжный файл рядом с book.md.  Приводим к одному имени:
+            # содержимое здесь лучше (таблицы склеены через разрыв страницы),
+            # поэтому оно и становится book.md.
+            for f in glob.glob(os.path.join(book_dir, "*.md")):
+                if os.path.basename(f) != "book.md":
+                    os.replace(f, os.path.join(book_dir, "book.md"))
+                    _log(f"книга: {os.path.basename(f)} -> book.md")
+                    break
 
     if _LOW:
         with open(os.path.join(out, "logprobs.json"), "w",
