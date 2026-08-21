@@ -308,8 +308,9 @@ def main(argv=None):
 
     p = sub.add_parser("convert", help="собрать EPUB и FB2 из готового разбора")
     p.add_argument("outdir", help="каталог разбора, внутри которого лежит book/book.md")
-    p.add_argument("--formats", default="epub,fb2",
-                   help="через запятую: epub, fb2 (по умолчанию оба)")
+    p.add_argument("--formats", default="html,epub,fb2",
+                   help="через запятую: html, pdf, epub, fb2 "
+                        "(по умолчанию html, epub и fb2; pdf требует weasyprint)")
     p.add_argument("--title", default=None, help="заголовок книги")
     p.set_defaults(fn=cmd_convert)
 

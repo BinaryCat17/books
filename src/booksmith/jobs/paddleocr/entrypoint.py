@@ -800,6 +800,38 @@ def _drop_orphan_crops(book_dir, *dirs):
     return gone
 
 
+def _fix_broken_img_tags(*dirs):
+    """Переписать теги картинок начисто, взяв из них только src.
+
+    paddleocr для картинок ВНУТРИ таблиц пишет `alt="Image""` — с лишней
+    кавычкой.  Разметка от этого невалидна, и разборщик pandoc такой тег
+    молча выбрасывает: две картинки из 686 не доезжали ни в html, ни в epub,
+    ни в fb2.  Причину искали долго, потому что ссылки разрешались, файлы
+    были на месте и все различались по содержимому — ломался не файл, а
+    кавычка рядом с ним.
+
+    Чиним не заплатой на кавычку, а переписыванием: две попытки поправить
+    кавычки по отдельности сделали хуже, оставив то незакрытый атрибут, то
+    мусор в alt.  Из тега нужен только src, остальное — украшение.
+    """
+    tag = re.compile(r'<img\b[^>]*?src\s*=\s*"([^"]+)"[^>]*?/?>', re.I)
+    fixed = 0
+    for d in dict.fromkeys(dirs):
+        for f in glob.glob(os.path.join(d, "*.md")):
+            src = open(f, encoding="utf-8").read()
+
+            def one(m):
+                canon = f'<img src="{m.group(1)}" alt="Image" />'
+                return canon if m.group(0) != canon else m.group(0)
+
+            dst = tag.sub(one, src)
+            if dst != src:
+                with open(f, "w", encoding="utf-8") as fh:
+                    fh.write(dst)
+                fixed += 1
+    return fixed
+
+
 def _unwrap_degenerate_tables(*dirs):
     """Развернуть обратно в текст таблицы, оказавшиеся не таблицами.
 
@@ -1444,6 +1476,10 @@ def main():
     # подменён на срез, а page_index в старых json остались абсолютными, и
     # doc[page_index] вырезал бы кусок чужой страницы — молча, с правильным
     # именем файла.
+    broken = _fix_broken_img_tags(pages_dir, book_dir)
+    if broken:
+        _log(f"переписано начисто тегов картинок в файлах: {broken}")
+
     linked, skipped = _link_table_crops(full_pdf, pages_dir, book_dir)
     if linked or skipped:
         _log(f"ссылок на сканы таблиц проставлено {linked}"
