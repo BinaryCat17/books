@@ -39,6 +39,47 @@ td:has-text, td { }
 
 
 
+def _plain_math(md: str) -> str:
+    """Перевести простой LaTeX в читаемый текст.
+
+    Математики в книге 172 куска, и она почти вся тривиальна: 82 знака
+    градуса, 23 штриха, немного \\mathrm.  Настоящая формула одна — массив,
+    и именно на нём pandoc падает с ошибкой, унося за собой ВСЮ математику:
+    приходилось отключать её разбор целиком, и читатель видел `$ 90^{\\circ} $`
+    вместо «90°».
+
+    Поэтому переводим сами.  Правится только то, что идёт в html, epub, pdf и
+    fb2; в `book.md` LaTeX остаётся — модели-пересказчику он понятнее текста.
+    """
+    def army(m):
+        # Массив -> строки через перевод строки, без обвязки.
+        body = m.group(1)
+        rows = [r for r in body.split(r"\\") if r.strip()]
+        out = []
+        for r in rows:
+            cells = [c.strip(" {}") for c in r.split("&") if c.strip(" {}")]
+            if cells:
+                out.append("  ".join(cells))
+        return " ".join(out)
+
+    md = re.sub(r"\\begin\{array\}\{[^}]*\}(.*?)\\end\{array\}", army, md,
+                flags=re.S)
+    reps = [
+        (r"\^\{\\circ\}", "°"), (r"\^\{\\prime\\prime\}", "″"),
+        (r"\^\{\\prime\}", "′"), (r"\\mathrm\{~?([^{}]*?)~?\}", r"\1"),
+        (r"\\mathbf\{([^{}]*?)\}", r"\1"), (r"\\mathit\{([^{}]*?)\}", r"\1"),
+        (r"\\frac\{([^{}]*)\}\{([^{}]*)\}", r"(\1)/(\2)"),
+        (r"\\quad|\\,|\\;", " "), (r"\\pm", "±"), (r"\\times", "×"),
+        (r"\\prime", "′"), (r"\\circ", "°"), (r"''", "″"), (r"~", " "),
+    ]
+    for a, b in reps:
+        md = re.sub(a, b, md)
+    # Снимаем обёртку $…$ и $$…$$, схлопываем пробелы внутри.
+    md = re.sub(r"\${1,2}\s*(.*?)\s*\${1,2}",
+                lambda m: re.sub(r"\s+", " ", m.group(1)), md, flags=re.S)
+    return md
+
+
 def _log(msg):
     print(msg, flush=True)
 
@@ -94,6 +135,12 @@ def convert(outdir: str, formats=("html", "epub", "fb2"),
 
     text = open(src, encoding="utf-8").read()
     want = _counts(text)
+    # Собираем из копии с переведённым LaTeX: сама book.md остаётся с
+    # формулами, они полезнее модели-пересказчику.  Копия лежит рядом,
+    # чтобы ссылки на imgs/ разрешались.
+    build = os.path.join(book_dir, "_build.md")
+    open(build, "w", encoding="utf-8").write(_plain_math(text))
+    SRC = "_build.md"
     _log(f"исходник: {os.path.relpath(src)}, "
          + ", ".join(f"{k} {v}" for k, v in want.items()))
 
@@ -110,7 +157,7 @@ def convert(outdir: str, formats=("html", "epub", "fb2"),
             # таблицами, и читалки на таком спотыкаются.
             split = ("--split-level=2" if _pandoc_ge3()
                      else "--epub-chapter-level=2")
-            _pandoc(["book.md", "-f", READ, "-t", "epub3", "--resource-path=.",
+            _pandoc([SRC, "-f", READ, "-t", "epub3", "--resource-path=.",
                      "--toc", "--toc-depth=3", split, *meta, "-o", dst],
                     cwd=book_dir)
             import zipfile
@@ -139,7 +186,7 @@ def convert(outdir: str, formats=("html", "epub", "fb2"),
                                              delete=False) as h:
                 h.write(f"<style>{CSS}</style>")
                 head = h.name
-            _pandoc(["book.md", "-f", READ, "-t", "html5", "--standalone",
+            _pandoc([SRC, "-f", READ, "-t", "html5", "--standalone",
                      "--toc", "--toc-depth=3", "--resource-path=.",
                      "-H", head, *meta, "-o", html_path], cwd=book_dir)
             os.unlink(head)
@@ -174,7 +221,7 @@ def convert(outdir: str, formats=("html", "epub", "fb2"),
         try:
             with tempfile.TemporaryDirectory() as tmp:
                 mid = os.path.join(tmp, "mid.html")
-                _pandoc(["book.md", "-f", READ, "-t", "html5",
+                _pandoc([SRC, "-f", READ, "-t", "html5",
                          "--resource-path=.", "-o", mid], cwd=book_dir)
                 _pandoc([mid, "-f", "html", "-t", "fb2",
                          f"--resource-path={book_dir}", *meta, "-o", dst])
@@ -185,4 +232,8 @@ def convert(outdir: str, formats=("html", "epub", "fb2"),
             _log(f"  fb2 не собрался: {exc}")
             rc = 1
 
+    try:
+        os.unlink(build)
+    except OSError:
+        pass
     return rc
