@@ -12,7 +12,10 @@ VAL = re.compile(r'\.\d{3,5}|\d+/\d+')
 
 
 def norm(c):
-    c = html.unescape(tag.sub('', c)).strip()
+    # Пометки достоверности снимаем: иначе помеченная ячейка перестаёт
+    # совпадать с эталоном, и свод трёх проходов выглядит хуже одного —
+    # 66 % против 86 %, хотя содержимое то же самое.
+    c = html.unescape(tag.sub('', c)).replace('⚠', '').replace('≠', '').strip()
     return re.sub(r'\s+', '', c.replace('”', '"').replace('’', '"')
                   .replace("'", '"'))
 
