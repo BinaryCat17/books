@@ -961,6 +961,12 @@ def _mark_uncertain(*dirs, mark="⚠"):
     table_re = re.compile(r"<table\b.*?</table>", re.I | re.S)
     tag_re = re.compile(r"<[^>]+>")
     n_cell = n_span = 0
+    # Считаем по каталогам ВРОЗЬ.  Прежде счётчик складывал проходы по
+    # `pages/` и по `book/`, то есть считал одну и ту же пометку дважды: в
+    # журнале стояло «помечено ячеек 98, кусков прозы 178», а в книге их 49 и
+    # 89.  Доля помеченных мест — первое число, по которому судят, насколько
+    # плох скан у новой книги, и оно было завышено вдвое.
+    per: dict = {}
     local: list = []          # ответы VLM, относящиеся к текущей странице
 
     def suspicious(txt):
@@ -999,6 +1005,7 @@ def _mark_uncertain(*dirs, mark="⚠"):
         return m.group(0)
 
     for d in dict.fromkeys(dirs):
+        c0, s0 = n_cell, n_span
         for f in glob.glob(os.path.join(d, "*.md")):
             src_md = open(f, encoding="utf-8").read()
             # Отбор ответов этой страницы делается ОДИН раз на файл.  Раньше
@@ -1047,7 +1054,8 @@ def _mark_uncertain(*dirs, mark="⚠"):
             if out != src_md:
                 with open(f, "w", encoding="utf-8") as fh:
                     fh.write(out)
-    return n_cell, n_span
+        per[d] = (n_cell - c0, n_span - s0)
+    return per
 
 
 def _probe_hallucination(server, model, pdf, page=2, scale=4.0,
@@ -1476,9 +1484,12 @@ def main():
                        "места": dict(keep)}, f, ensure_ascii=False, indent=1)
         if len(_LOW) > 400:
             _log(f"в logprobs.json сохранены первые 400 мест из {len(_LOW)}")
-        n_cell, n_span = _mark_uncertain(pages_dir, book_dir)
+        per = _mark_uncertain(pages_dir, book_dir)
+        n_cell, n_span = per.get(book_dir, (0, 0))
         _log(f"ответов с неуверенными местами {len(_LOW)}: "
-             f"помечено ячеек {n_cell}, кусков прозы {n_span}")
+             f"помечено в книге ячеек {n_cell}, кусков прозы {n_span}"
+             + "".join(f"; постранично {c}/{sp}"
+                       for d, (c, sp) in per.items() if d != book_dir))
 
     # Сканы режем из ПОЛНОЙ книги, а не из обрезка: при возобновлении `pdf`
     # подменён на срез, а page_index в старых json остались абсолютными, и
