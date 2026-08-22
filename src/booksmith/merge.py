@@ -41,6 +41,12 @@ def cells_of(path):
 # «Sec.» прилипает к номеру раздела, и `Sec. 27.35` против `Sec.27.35`
 # объявляется расхождением чисел, хотя различие в пробеле.
 NUM = re.compile(r"(?<![^\W\d_])\.?\d+(?:[.,]\d+)*")
+# Формулы LaTeX: внутрь них не заходим вовсе.  Замер на курсе физики: токены
+# формул расходятся между чтениями на 38-40%, то есть почти всегда, а пометка
+# внутри `$…$` вдобавок ломает саму формулу — `\sqrt{<mark>0.0049</mark>…}`
+# перестаёт быть формулой.  Расхождения в математике надо ловить иначе, и это
+# отдельная работа.
+MATH = re.compile(r"\$\$.*?\$\$|\$[^$\n]*\$", re.S)
 PROSE_MARK = "чтения разошлись"
 
 
@@ -62,11 +68,14 @@ def _key(p):
 def _same_number(a, b):
     """Одно ли это число, записанное по-разному.
 
-    `.001` и `0.001` — одно и то же; `.001` и `.0001` — разное.  Без этой
-    поправки свод объявлял бы расхождением смену написания, а таких у
-    распознавателя много.
+    `.001` и `0.001` — одно и то же; `.001` и `.0001` — разное.  Запятая и
+    точка тоже одно: в русской книге распознаватель пишет разделитель то так,
+    то этак, и без этой поправки на курсе физики семь пометок из двадцати были
+    мнимыми — ровно смена написания.
     """
-    n = lambda x: x.lstrip("0") if x[:2] == "0." else x
+    def n(x):
+        x = x.replace(",", ".")      # `0,5` и `0.5` — одно число
+        return x.lstrip("0") if x[:2] == "0." else x
     return n(a) == n(b)
 
 
@@ -77,9 +86,17 @@ def _numbers(text):
     во всей странице, и все они к содержанию отношения не имеют.
     """
     holes = [(m.start(), m.end()) for m in TAG.finditer(text)]
+    holes += [(m.start(), m.end()) for m in MATH.finditer(text)]
     out = []
     for m in NUM.finditer(text):
         if any(a <= m.start() < b for a, b in holes):
+            continue
+        # Числа, липнущие к знакам LaTeX, пропускаем даже вне `$…$`:
+        # надстрочник `10^{14}` распадается у одного чтения в `1014`, у
+        # другого в `10` и `14`, и свод объявляет расхождением развал
+        # разметки, а не расхождение величины.
+        near = text[max(0, m.start() - 1):m.start()] + text[m.end():m.end() + 1]
+        if set(near) & set("^_{}\\"):
             continue
         val = m.group(0).rstrip(".,")
         out.append((m.start(), m.start() + len(val), val))
@@ -152,6 +169,13 @@ def mark_prose(base_md, witness_mds):
             continue
         bn = _numbers(part)
         if not bn:
+            # База чисел не видит, а свидетель видит — число пропало при
+            # чтении.  Это ровно та потеря, которую иначе не заметить: искать
+            # нечего, потому что искомого в тексте нет.
+            if i in aligned and any(_numbers(w[p[i]])
+                                    for w, p in zip(wits, pairs)):
+                out[i] = part.rstrip() + " ≠"
+                marked += 1
             continue
         if i not in aligned:
             # Абзац не сошёлся ни с одним свидетелем — числа в нём не
@@ -162,28 +186,49 @@ def mark_prose(base_md, witness_mds):
         if any(len(x) != len(bn) for x in wn):
             # Состав чисел разошёлся — метим абзац целиком, поштучно тут
             # сопоставлять уже нечем.
-            out[i] = part.rstrip() + f" <!-- {PROSE_MARK}: состав чисел -->"
+            # Видимая пометка, а не HTML-комментарий.  Первая редакция ставила
+            # комментарий, и в нём тонули три четверти всех пометок: в html,
+            # epub и pdf он не виден вовсе, а среди спрятанного были настоящие
+            # расхождения цифр.  `≠` — тот же знак, что и в ячейках таблиц, и
+            # он уже описан в work_instruction.md.
+            out[i] = part.rstrip() + " ≠"
             marked += 1
             continue
         new = part
+        decayed = False
         for k in range(len(bn) - 1, -1, -1):
             a, b, val = bn[k]
             alt = sorted({x[k][2] for x in wn
                           if not _same_number(x[k][2], val)})
             if not alt:
                 continue
+            # Развал разметки не выдаём за расхождение величины.  Надстрочник
+            # `10^{14}` у одного чтения слипается в `1014`, у другого
+            # рассыпается на `10` и `14`; называть это «прочли 1014 против 10»
+            # значит врать читателю.  Признак: одно число — начало другого, и
+            # длина разошлась больше чем на знак.  Абзац пометку всё равно
+            # получит, но по составу чисел, а не поимённо.
+            if all((val.startswith(x) or x.startswith(val))
+                   and abs(len(val) - len(x)) >= 2 for x in alt):
+                decayed = True
+                continue
             new = (new[:a] + f'<mark title="{PROSE_MARK}: {", ".join(alt)}">'
                    + new[a:b] + "</mark>" + new[b:])
+            marked += 1
+        if decayed and new is part:
+            new = part.rstrip() + " ≠"
             marked += 1
         out[i] = new
 
     if not marked:
         return base_md, 0, blind
-    # Собираем обратно, вернув таблицы на место.
-    tables = TABLE.findall(base_md)
-    res = "".join(out)
-    for t in tables:
-        res = res.replace("\x00", t, 1)
+    # Собираем обратно, вернув таблицы на место — по порядку, а не поиском
+    # первого NUL: если такой символ попадётся в самом тексте, поиск подставит
+    # таблицу в середину абзаца и оставит голый NUL на её месте.  Байт этот в
+    # разборах не встречался ни разу, но тихая порча книги дороже одной строки.
+    tables = iter(TABLE.findall(base_md))
+    res = re.sub("\x00", lambda _: next(tables).replace("\\", "\\\\"),
+                 "".join(out))
     return res, marked, blind
 
 
@@ -204,9 +249,16 @@ def merge(dirs, dst):
         # свидетелем 130 страниц прошли без единой пометки там, где при целом
         # свидетеле их стояло 47.  Хуже того, перехват накрывал ВЕСЬ список
         # свидетелей — нехватка у одного отменяла проверку по остальным.
-        if not all(os.path.exists(p) for p in paths):
+        have = [p for p in paths if os.path.exists(p)]
+        if len(have) < len(paths):
+            # Считаем неполные страницы, но проверку по уцелевшим свидетелям НЕ
+            # отменяем.  Прежний `except FileNotFoundError: continue` накрывал
+            # весь список: нехватка у одного отменяла сверку по всем, и
+            # страница выглядела проверенной, не будучи ею.
             missing += 1
-            continue
+            if not have:
+                continue
+        paths = have
         src = open(f, encoding="utf-8").read()
         changed = False
 
@@ -266,6 +318,17 @@ def merge(dirs, dst):
                 for f in sorted(glob.glob(os.path.join(o, "pages", "*.md"))):
                     acc.update(cells_of(f))
         src = open(book, encoding="utf-8").read()
+        # Проза книжного файла размечается отдельно: `book.md` собирается
+        # склейкой страниц с починкой таблиц через разрыв, и постраничные
+        # пометки в него не переносятся.  А читают именно его — CLAUDE.md
+        # называет его единственным готовым текстом.
+        wb = [os.path.join(o, "book", "book.md") for o in others]
+        wb = [x for x in wb if os.path.exists(x)]
+        if wb:
+            src, bp, _ = mark_prose(src, [open(x, encoding="utf-8").read()
+                                          for x in wb])
+            if bp:
+                print(f"в книжном файле помечено чисел прозы: {bp}")
         seen = collections.Counter()
 
         def book_cell(m):
