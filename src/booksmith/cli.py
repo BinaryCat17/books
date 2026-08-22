@@ -51,6 +51,11 @@ def cmd_ocr(a):
     return _one_pass(a)
 
 
+# Меньше этого остатка проход начинать бессмысленно: уйдёт на подключение и
+# подъём модели, а считать будет нечего.
+MIN_PASS_MIN = 4.0
+
+
 def _multipass(a):
     """Несколько проходов подряд и свод в одну книгу с пометками.
 
@@ -87,56 +92,87 @@ def _multipass(a):
     # три.  Оператор, набравший «не больше доллара и не дольше часа»,
     # покупал три доллара и три часа — молча.
     chain_started = time.time()
+    chain_deadline = chain_started + a.timeout * 60
     spent = 0.0
     truncated = False
-    for i in range(1, a.passes + 1):
-        left_min = a.timeout - (time.time() - chain_started) / 60
-        left_usd = a.budget - spent
-        if left_min <= 1 or left_usd <= 0.01:
-            print(f"цепочка исчерпала предел ({a.timeout} мин, ${a.budget:.2f}): "
-                  f"осталось {left_min:.1f} мин и ${left_usd:.3f} — "
-                  f"проход {i} не начинаю, свожу что есть")
-            truncated = True
-            # Машину гасим здесь и сами.  Предыдущий проход оставил её нарочно,
-            # ради следующего, — а следующего не будет.  Раньше такого случая
-            # не существовало вовсе: цикл всегда доходил до последнего прохода,
-            # и гасил машину он.  Без этого инстанс жил бы до укороченного
-            # дозора мертвеца — уже не ночь, но и не даром.
-            if iid:
-                try:
-                    Vast().destroy(int(iid))
-                    log(f"инстанс {iid} уничтожен: цепочка оборвана по пределу")
-                except Exception as e:
-                    log(f"не смог уничтожить инстанс {iid} ({e}) — "
-                        f"погаси сам: books down {iid}")
-            break
-        d = f"{base}-pass{i}"
-        one = copy.copy(a)
-        one.outdir, one.reuse = d, iid
-        one.timeout, one.budget = left_min, left_usd
-        # Последний проход тоже с --keep, если оператор просил: гасить машину
-        # решает он, а не число проходов.
-        one.keep = True if i < a.passes else a.keep
-        if i > 1:
-            os.environ["VLM_TEMPERATURE"] = str(a.temperature)
-        report = {}
-        log(f"=== проход {i} из {a.passes} -> {os.path.relpath(d)} "
-            f"(цепочке осталось {left_min:.0f} мин, ${left_usd:.2f})")
-        # Между проходами машина остаётся нарочно, но если наш процесс упадёт
-        # в промежутке, гасить её будет только дозор мертвеца.  Его умолчание —
-        # четыре часа, рассчитанные на «вернусь вечером»; здесь это означало бы
-        # ночь оплаченного простоя.  Даём столько, сколько осталось цепочке,
-        # плюс десять минут на пересменку.
-        rc = _one_pass(one, report=report,
-                       keep_grace=left_min * 60 + 600 if i < a.passes else None)
-        spent += float(report.get("cost_usd") or 0.0)
-        if rc != 0:
-            print(f"проход {i} завершился с кодом {rc} — свод не делаю")
-            return rc
-        dirs.append(d)
-        iid = iid or report.get("instance_id")
+    done = False
+    def _drop_machine(why):
+        """Погасить машину, оставленную ради следующего прохода.
+
+        Промежуточные проходы идут с `--keep`, потому что следующий придёт на
+        ту же машину.  Если следующего не будет — по исчерпанию предела, по
+        ошибке прохода, по Ctrl-C, — гасить её некому: раньше это всегда делал
+        последний проход, а теперь последнего может не случиться.  Замер
+        показал цену: обрыв на втором проходе оставлял машину жить до дозора,
+        и `--timeout 90 --budget 1.00` оборачивался 189 минутами биллинга.
+        """
+        if not iid:
+            return
+        try:
+            Vast().destroy(int(iid))
+            log(f"инстанс {iid} уничтожен: {why}")
+        except Exception as e:
+            log(f"не смог уничтожить инстанс {iid} ({e}) — "
+                f"погаси сам: books down {iid}")
+
+    try:
+        for i in range(1, a.passes + 1):
+            left_min = a.timeout - (time.time() - chain_started) / 60
+            left_usd = a.budget - spent
+            # Порог не в одну минуту: за минуту не успевает даже подключение к
+            # машине и подъём сервера (замер: 11 с + 66 с на повторном проходе, и
+            # от полутора до пятнадцати минут на холодном старте).  Проход, снятый
+            # под полторы минуты счёта, — это оплаченный старт без результата.
+            if left_min <= MIN_PASS_MIN or left_usd <= 0.02:
+                print(f"цепочка исчерпала предел ({a.timeout} мин, ${a.budget:.2f}): "
+                      f"осталось {left_min:.1f} мин и ${left_usd:.3f} — "
+                      f"проход {i} не начинаю, свожу что есть")
+                truncated = True
+                break
+            d = f"{base}-pass{i}"
+            one = copy.copy(a)
+            one.outdir, one.reuse = d, iid
+            one.timeout, one.budget = left_min, left_usd
+            # Последний проход тоже с --keep, если оператор просил: гасить машину
+            # решает он, а не число проходов.
+            one.keep = True if i < a.passes else a.keep
+            if i > 1:
+                os.environ["VLM_TEMPERATURE"] = str(a.temperature)
+            report = {}
+            log(f"=== проход {i} из {a.passes} -> {os.path.relpath(d)} "
+                f"(цепочке осталось {left_min:.0f} мин, ${left_usd:.2f})")
+            # Между проходами машина остаётся нарочно, но если наш процесс упадёт
+            # в промежутке, гасить её будет только дозор мертвеца.  Его умолчание —
+            # четыре часа, рассчитанные на «вернусь вечером»; здесь это означало бы
+            # ночь оплаченного простоя.  Даём столько, сколько осталось цепочке,
+            # плюс десять минут на пересменку.
+            rc = _one_pass(one, report=report,
+                           keep_until=chain_deadline if i < a.passes else None,
+                           keep_usd=left_usd if i < a.passes else None)
+            # Отсутствие числа — не «денег не потрачено».  Если проход не сказал,
+            # сколько стоил, считаем по цене машины и по времени: иначе денежная
+            # половина ограничителя выключалась целиком и молча.
+            cost = report.get("cost_usd")
+            if cost is None:
+                dph = float(report.get("dph") or a.max_dph)
+                cost = dph * (time.time() - chain_started) / 3600 - spent
+            spent += max(0.0, float(cost))
+            if rc != 0:
+                print(f"проход {i} завершился с кодом {rc} — свод не делаю")
+                _drop_machine(f"проход {i} завершился с кодом {rc}")
+                return rc
+            dirs.append(d)
+            iid = iid or report.get("instance_id")
+    except BaseException:
+        # Ctrl-C и любая иная беда: машина оставлена промежуточным проходом
+        # ради следующего, которого уже не будет.
+        _drop_machine("прогон прерван")
+        raise
     if not dirs:
+        _drop_machine("ни один проход не выполнен")
         raise SystemExit("ни один проход не выполнен")
+    if truncated:
+        _drop_machine("цепочка оборвана по пределу")
     os.environ.pop("VLM_TEMPERATURE", None)
 
     from . import merge
@@ -171,7 +207,7 @@ def _restructure_after(outdir):
         return 0
 
 
-def _one_pass(a, report=None, keep_grace=None):
+def _one_pass(a, report=None, keep_until=None, keep_usd=None):
     spec = paddleocr.spec(
         os.path.abspath(a.pdf), gpu=a.gpu, image=a.image, minutes=a.minutes,
         budget_usd=a.budget, disk_gb=a.disk, max_dph=a.max_dph,
@@ -186,7 +222,7 @@ def _one_pass(a, report=None, keep_grace=None):
         raise SystemExit(f"нет файла: {a.pdf}")
     rc = run_job(spec, a.outdir, ssh_key=config.ssh_key(a.ssh_key),
                  keep=a.keep, reuse=a.reuse, dry_run=a.dry_run,
-                 report=report, keep_grace=keep_grace)
+                 report=report, keep_until=keep_until, keep_usd=keep_usd)
     # Промежуточные проходы свод разметит сам; структуру собираем один раз, в
     # конце, и только когда прогон был одиночным.
     if rc == 0 and not a.dry_run and report is None:
