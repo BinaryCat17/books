@@ -54,6 +54,11 @@ def cmd_ocr(a):
     было знать про обе.
     """
     _open_log(a)
+    # djvu разворачиваем ДО аренды: местно, бесплатно и проверяемо глазами.
+    # На карте эта же ошибка стоила бы денег и обнаружилась бы только в тексте.
+    from . import djvu
+    a.source = os.path.basename(a.pdf)
+    a.pdf = djvu.ensure_pdf(a.pdf, log=log)
     return _multipass(a)
 
 
@@ -221,8 +226,11 @@ def _multipass(a):
     os.environ.pop("VLM_TEMPERATURE", None)
 
     from . import merge
-    layout.remember(base, source=os.path.basename(a.pdf),
-                    stem=layout.clean_stem(a.pdf), passes=len(dirs),
+    # Имя книги — по ИСХОДНОМУ файлу: для djvu это он, а не PDF, в который
+    # мы его развернули.  Иначе книга называлась бы по побочному продукту.
+    src_name = getattr(a, "source", None) or os.path.basename(a.pdf)
+    layout.remember(base, source=src_name,
+                    stem=layout.clean_stem(src_name), passes=len(dirs),
                     cost_usd=round(spent, 4))
     rc = merge.assemble(base)
     rc = rc or _restructure_after(base)
@@ -346,6 +354,19 @@ def cmd_merge(a):
     layout.remember(a.outdir, passes=len(p.passes))
     rc = merge.assemble(a.outdir)
     return rc or _restructure_after(a.outdir)
+
+
+def cmd_prepare(a):
+    """Развернуть djvu в PDF, разрезав развороты. Местно и бесплатно.
+
+    Отдельной командой, а не только внутри `books ocr`: развороты надо
+    посмотреть глазами до того, как платить за карту.  Две из трёх добавленных
+    книг лежали разворотами, и распознаватель прочитал бы две страницы как одну.
+    """
+    from . import djvu
+    out = djvu.to_pdf(a.file, dst=a.out, split=a.split)
+    print(out)
+    return 0
 
 
 def cmd_tidy(a):
@@ -905,6 +926,14 @@ def main(argv=None):
                        help="собрать книгу из скачанных проходов, без GPU")
     p.add_argument("outdir", help="каталог книги (processed/<имя>)")
     p.set_defaults(fn=cmd_merge)
+
+    p = sub.add_parser("prepare",
+                       help="развернуть djvu в PDF, разрезав развороты")
+    p.add_argument("file", help="файл .djvu")
+    p.add_argument("--out", help="куда положить PDF (по умолчанию рядом)")
+    p.add_argument("--split", choices=("auto", "yes", "no"), default="auto",
+                   help="резать ли развороты: auto — решать по книге")
+    p.set_defaults(fn=cmd_prepare)
 
     p = sub.add_parser("tidy",
                        help="перевести старый разбор в нынешнюю раскладку")
