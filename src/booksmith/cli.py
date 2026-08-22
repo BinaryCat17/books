@@ -79,23 +79,50 @@ def _multipass(a):
 
     base = os.path.abspath(a.outdir)
     dirs, iid = [], a.reuse
+    # Бюджет и срок — на всю цепочку, а не на каждый проход.
+    #
+    # До этого каждый проход строил свой `Budget` от нуля, и `--passes 3
+    # --timeout 90` означало не полтора часа, а четыре с половиной: три
+    # независимых сторожа по 90 минут.  Денежный потолок так же умножался на
+    # три.  Оператор, набравший «не больше доллара и не дольше часа»,
+    # покупал три доллара и три часа — молча.
+    chain_started = time.time()
+    spent = 0.0
     for i in range(1, a.passes + 1):
+        left_min = a.timeout - (time.time() - chain_started) / 60
+        left_usd = a.budget - spent
+        if left_min <= 1 or left_usd <= 0.01:
+            print(f"цепочка исчерпала предел ({a.timeout} мин, ${a.budget:.2f}): "
+                  f"осталось {left_min:.1f} мин и ${left_usd:.3f} — "
+                  f"проход {i} не начинаю, свожу что есть")
+            break
         d = f"{base}-pass{i}"
         one = copy.copy(a)
         one.outdir, one.reuse = d, iid
+        one.timeout, one.budget = left_min, left_usd
         # Последний проход тоже с --keep, если оператор просил: гасить машину
         # решает он, а не число проходов.
         one.keep = True if i < a.passes else a.keep
         if i > 1:
             os.environ["VLM_TEMPERATURE"] = str(a.temperature)
         report = {}
-        log(f"=== проход {i} из {a.passes} -> {os.path.relpath(d)}")
-        rc = _one_pass(one, report=report)
+        log(f"=== проход {i} из {a.passes} -> {os.path.relpath(d)} "
+            f"(цепочке осталось {left_min:.0f} мин, ${left_usd:.2f})")
+        # Между проходами машина остаётся нарочно, но если наш процесс упадёт
+        # в промежутке, гасить её будет только дозор мертвеца.  Его умолчание —
+        # четыре часа, рассчитанные на «вернусь вечером»; здесь это означало бы
+        # ночь оплаченного простоя.  Даём столько, сколько осталось цепочке,
+        # плюс десять минут на пересменку.
+        rc = _one_pass(one, report=report,
+                       keep_grace=left_min * 60 + 600 if i < a.passes else None)
+        spent += float(report.get("cost_usd") or 0.0)
         if rc != 0:
             print(f"проход {i} завершился с кодом {rc} — свод не делаю")
             return rc
         dirs.append(d)
         iid = iid or report.get("instance_id")
+    if not dirs:
+        raise SystemExit("ни один проход не выполнен")
     os.environ.pop("VLM_TEMPERATURE", None)
 
     from . import merge
@@ -121,7 +148,7 @@ def _restructure_after(outdir):
         return 0
 
 
-def _one_pass(a, report=None):
+def _one_pass(a, report=None, keep_grace=None):
     spec = paddleocr.spec(
         os.path.abspath(a.pdf), gpu=a.gpu, image=a.image, minutes=a.minutes,
         budget_usd=a.budget, disk_gb=a.disk, max_dph=a.max_dph,
@@ -136,7 +163,7 @@ def _one_pass(a, report=None):
         raise SystemExit(f"нет файла: {a.pdf}")
     rc = run_job(spec, a.outdir, ssh_key=config.ssh_key(a.ssh_key),
                  keep=a.keep, reuse=a.reuse, dry_run=a.dry_run,
-                 report=report)
+                 report=report, keep_grace=keep_grace)
     # Промежуточные проходы свод разметит сам; структуру собираем один раз, в
     # конце, и только когда прогон был одиночным.
     if rc == 0 and not a.dry_run and report is None:

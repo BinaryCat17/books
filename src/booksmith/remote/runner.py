@@ -430,12 +430,20 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
 
 def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
             keep: bool = False, reuse: int | None = None,
-            dry_run: bool = False, report: dict | None = None) -> int:
+            dry_run: bool = False, report: dict | None = None,
+            keep_grace: float | None = None) -> int:
     """Полный прогон.  Возвращает код возврата задачи.
 
     `report` — необязательный словарь, куда кладётся `instance_id` снятой
-    машины.  Нужен для многопроходного разбора: второй и третий проходы
-    должны попасть на ту же машину, иначе каждый платит холодный старт.
+    машины, её цена в час и потраченное.  Идентификатор нужен, чтобы второй и
+    третий проходы попали на ту же машину; цена и трата — чтобы цепочка
+    проходов знала, сколько бюджета осталось, и не заводила себе новый на
+    каждом проходе.
+
+    `keep_grace` — срок дозора мертвеца при `--keep`, секунды.  Умолчание в
+    четыре часа рассчитано на «вернусь к прогретой машине вечером».  Между
+    проходами одной команды это слишком много: если наш процесс упадёт в
+    промежутке, карта будет биллиться до утра.
     """
     vast = Vast()
     outdir = os.path.abspath(outdir)
@@ -574,10 +582,12 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
             # знает и через свои 15 минут уничтожит инстанс.  Даём ему срок
             # побольше: --keep нужен, чтобы вернуться к машине следующим
             # прогоном, а не чтобы платить за неё сутками.
+            grace = KEEP_GRACE_S if keep_grace is None else max(300.0,
+                                                                 keep_grace)
             try:
-                box.set_deadman(KEEP_GRACE_S)
+                box.set_deadman(grace)
                 log(f"дозор мертвеца на машине переставлен на "
-                    f"{KEEP_GRACE_S // 3600} ч без прогонов")
+                    f"{grace/60:.0f} мин без прогонов")
             except Exception as e:
                 log(f"не смог переставить дозор мертвеца ({e}) — "
                     f"инстанс уничтожит себя через 15 минут")
@@ -585,6 +595,8 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
                 f"Следующий прогон: --reuse {iid}; убить: books down {iid}")
         if report is not None:
             report["instance_id"] = state["iid"]
+            report["dph"] = rec.dph
+            report["cost_usd"] = rec.cost_usd
         ledger.append(rec)
         log(f"итого {elapsed/60:.1f} мин ≈ ${rec.cost_usd:.3f}; "
             f"журнал: {ledger.LEDGER}")
