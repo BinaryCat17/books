@@ -95,7 +95,26 @@ def _multipass(a):
     os.environ.pop("VLM_TEMPERATURE", None)
 
     from . import merge
-    return merge.merge(dirs, base)
+    rc = merge.merge(dirs, base)
+    return rc or _restructure_after(base)
+
+
+def _restructure_after(outdir):
+    """Сборка структуры в конце прогона.
+
+    Шагом руками её делать нельзя: забудется ровно один раз и молча — книга
+    будет выглядеть готовой, а заголовков в ней не будет.  Ошибку здесь не
+    поднимаем: разбор уже оплачен и лежит на диске, и терять его из-за
+    неудавшейся расстановки заголовков незачем — шаг повторяем командой
+    `books restructure`.
+    """
+    from . import structure
+    try:
+        return structure.restructure(outdir)
+    except Exception as e:
+        print(f"структура не собралась ({e}); разбор цел, "
+              f"повторить: books restructure {outdir}")
+        return 0
 
 
 def _one_pass(a, report=None):
@@ -111,9 +130,14 @@ def _one_pass(a, report=None):
     spec.timeout_minutes = a.timeout
     if not os.path.exists(a.pdf):
         raise SystemExit(f"нет файла: {a.pdf}")
-    return run_job(spec, a.outdir, ssh_key=config.ssh_key(a.ssh_key),
-                   keep=a.keep, reuse=a.reuse, dry_run=a.dry_run,
-                   report=report)
+    rc = run_job(spec, a.outdir, ssh_key=config.ssh_key(a.ssh_key),
+                 keep=a.keep, reuse=a.reuse, dry_run=a.dry_run,
+                 report=report)
+    # Промежуточные проходы свод разметит сам; структуру собираем один раз, в
+    # конце, и только когда прогон был одиночным.
+    if rc == 0 and not a.dry_run and report is None:
+        rc = _restructure_after(a.outdir)
+    return rc
 
 
 def cmd_olmocr(a):
@@ -140,6 +164,18 @@ def cmd_convert(a):
     from . import convert
     return convert.convert(a.outdir, formats=tuple(a.formats.split(",")),
                            title=a.title)
+
+
+def cmd_restructure(a):
+    """Собрать книжную структуру в готовом разборе.
+
+    Шаг местный и без карты: он ничего не читает со скана, только раскладывает
+    уже разобранное по меткам из `pages/*.json`.  Поэтому он и вынесен из
+    задачи распознавателя — иначе поправить его можно было бы только новым
+    платным прогоном.
+    """
+    from . import structure
+    return structure.restructure(a.outdir)
 
 
 def cmd_local(a):
@@ -313,6 +349,11 @@ def main(argv=None):
                         "(по умолчанию html, epub и fb2; pdf требует weasyprint)")
     p.add_argument("--title", default=None, help="заголовок книги")
     p.set_defaults(fn=cmd_convert)
+
+    p = sub.add_parser("restructure",
+                       help="собрать заголовки, оглавление и отчёт в book.md")
+    p.add_argument("outdir", help="каталог разбора (processed/<имя>)")
+    p.set_defaults(fn=cmd_restructure)
 
     p = sub.add_parser("local", help="разобрать PDF по его же OCR-слою, без GPU")
     p.add_argument("pdf")

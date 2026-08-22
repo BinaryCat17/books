@@ -1,0 +1,674 @@
+"""Возврат книжной структуры в `book.md` по меткам, которые уже есть в json.
+
+Главное, что нужно знать про этот шаг: **распознаватель структуру видит**.
+Детектор макета размечает каждый блок страницы, и в `pages/*.json` лежит:
+
+    doc_title         4    заглавие книги
+    header           88    "Chapter 1", "THE ART OF SCRAPING", "PREFACE"
+    paragraph_title 462    "Sec. 1.1\\nDefinition of Scraping"
+    figure_title    695    "Fig. 4.2 A turn-table having means for tilting."
+    content           1    страница оглавления
+    vision_footnote  56    выноски с чертежей, "(1) Column (2) Elevating screw"
+
+Теряется это при сборке markdown.  Рендер paddlex кладёт `paragraph_title`
+одним куском вместе с переводом строки внутри — и `Sec. 1.1\\nDefinition of
+Scraping` превращается в заголовок `#### Sec. 1.1` и отдельный абзац с
+названием.  `header` он вообще не делает заголовком, поэтому названия глав
+идут прозой.  `figure_title` становится обычным абзацем и теряет связь с
+картинкой.  То есть беда не в чтении, а в том, что метку выбрасывают на
+последнем шаге.
+
+Отсюда способ починки: не угадывать структуру по виду текста, а взять метку
+из json и разложить абзацы `book.md` по ней.  Соответствие ставится в один
+проход по порядку — блоки json и абзацы книги идут в одном порядке, расходясь
+лишь там, где `restructure_pages` склеил абзац через разрыв страницы.  Замер
+на `book-new`: `doc_title` 4 из 4, `header` 83 из 88, `paragraph_title` 424 из
+462, `figure_title` 603 из 695.
+
+Работаем только с `book.md`.  `pages/*.md` — промежуточный черновик: в них нет
+ни склейки таблиц через разрыв страницы, ни сшивки абзацев, и приводить их к
+книжному виду значит делать вид, что ими можно пользоваться.
+
+ЧЕГО ЭТОТ МОДУЛЬ НЕ ДЕЛАЕТ, И ЭТО НЕ НЕДОРАБОТКА:
+
+  * не трогает содержимое `<table>` — там числа и пометки `⚠`/`≠`;
+  * не восстанавливает номера страниц оригинала.  Номер страницы — число, в
+    разборе его нет (колонтитулы срезаны намеренно), и подставить
+    правдоподобный значит соврать ровно тем способом, против которого написан
+    весь `work_instruction.md`;
+  * не переставляет блоки местами.  Порядок чтения ломается там, где макет
+    сложный; починка требует смысла, а не метки.  Такие места пересчитываются
+    и попадают в отчёт — это очередь на глаза человеку.
+
+Каждая правка возвращает счётчик, и счётчик печатается вместе с ожидаемым:
+«готово» здесь бесполезно, потому что беда выглядит как успех — файл записан,
+книга собрана, а заголовков в ней нет.
+"""
+import collections
+import glob
+import json
+import os
+import re
+
+# Внутрь таблиц не заходим ни одной правкой: там числа и пометки.
+TABLE = re.compile(r"<table\b.*?</table>", re.I | re.S)
+DOTS = re.compile(r"[.…](?:\s*[.…]){3,}")
+# Опознавательный кусок примечания к недочитанному оглавлению: по нему шаг
+# узнаёт собственную приписку и не делает её второй раз.
+TOC_NOTE = "Страница оглавления прочиталась не полностью"
+# Слово «глава» на языках, на которых нам попадались книги.  Список — не
+# попытка объять все языки, а место, куда добавить своё, когда попадётся:
+# всё остальное в модуле от языка не зависит, а вот это зависит.
+CHAPTER_WORDS = ("Chapter", "Глава", "Kapitel", "Chapitre", "Capitolo",
+                 "Capítulo", "Capitulo", "Hoofdstuk", "Rozdział")
+_CW = "|".join(CHAPTER_WORDS)
+CHAPTER = re.compile(rf"^({_CW})\s+(\d+)\s*\.?$", re.I)
+# Номер главы и её название иногда приезжают одним блоком, а не двумя.
+CHAPTER_FULL = re.compile(rf"^({_CW})\s+(\d+)[.\s]+(\S.*)$", re.I)
+# Буква любого алфавита: `[A-Za-z]` молча выключил бы кириллицу целиком.
+LET = r"[^\W\d_]"
+LIST_HEAD = re.compile(r"^#{1,6}\s+(\d+)\.\s+(\S.*)$")
+
+TITLES = ("doc_title", "header", "paragraph_title")
+# Насколько далеко вперёд ищем блок при выравнивании.  `restructure_pages`
+# склеивает абзацы через разрыв страницы, поэтому счёт абзацев книги и блоков
+# json расходится — но локально, на единицы, а не на десятки.
+WINDOW = 30
+
+
+def _key(s):
+    r"""Ключ для сличения абзаца с блоком: только буквы и цифры, без регистра.
+
+    Классы пишутся через `\W`, а не перечислением латиницы: `[^0-9a-zA-Z]`
+    вычищал бы кириллицу подчистую, ключи русской книги выходили бы пустыми,
+    и разложить её по меткам не удалось бы ни разу — молча, с бодрым «0 из
+    462» в логе.
+    """
+    s = re.sub(r"<[^>]+>", " ", s or "")
+    return re.sub(r"[\W_]+", " ", s, flags=re.UNICODE).strip().casefold()
+
+
+def blocks(outdir):
+    """Блоки всех страниц в порядке чтения: (метка, текст)."""
+    out = []
+    for f in sorted(glob.glob(os.path.join(outdir, "pages", "*.json"))):
+        try:
+            d = json.load(open(f, encoding="utf-8"))
+        except Exception:
+            continue
+        for r in d.get("parsing_res_list") or []:
+            c = (r.get("block_content") or "").strip()
+            if c:
+                out.append((r.get("block_label") or "text", c))
+    return out
+
+
+def _protect(text):
+    """Вынуть таблицы, вернув текст с заглушками и список вырезанного."""
+    kept = []
+
+    def take(m):
+        kept.append(m.group(0))
+        return f"\x00T{len(kept)-1}\x00"
+
+    return TABLE.sub(take, text), kept
+
+
+def _restore(text, kept):
+    return re.sub(r"\x00T(\d+)\x00", lambda m: kept[int(m.group(1))], text)
+
+
+def join_hyphens(text):
+    """Склеить перенос: `техно-` + `логический`.
+
+    Два вида.  Внутри строки распознаватель ставит экранированный дефис
+    (`im\\-posed`) — это всегда мягкий перенос, замер на `book-new`: 26
+    вхождений, все 26 посреди слова.  На стыке строк остаётся обычный дефис,
+    и вот тут нужна осторожность: `Two-` в конце абзаца дефис настоящий.
+    Признак переноса один и надёжный — следующая непустая строка начинается
+    со строчной буквы.  Замер: 113 случаев из 142 таковы, остальные 29
+    оставляем как есть и считаем в отчёт.
+
+    Пометка `<mark>` может стоять ровно на разрыве (`Da</mark>\\-tum`),
+    поэтому теги между половинами слова переживают склейку.
+
+    Склейка идёт до неподвижности: приклеенный кусок сам может кончаться
+    переносом.  Без этого шаг переставал быть идемпотентным — второй
+    `books restructure` находил ещё девять переносов, то есть первый
+    отработал не до конца.
+    """
+    n = 0
+
+    def soft(m):
+        nonlocal n
+        n += 1
+        return m.group(1) + m.group(2) + m.group(3)
+
+    text = re.sub(rf"({LET})((?:</?\w[^>]*>)*)\\-({LET})", soft, text)
+
+    while True:
+        lines = text.split("\n")
+        out, i, hit = [], 0, 0
+        while i < len(lines):
+            cur = lines[i]
+            if re.search(rf"{LET}{{2}}-$", cur):
+                j = i + 1
+                while j < len(lines) and not lines[j].strip():
+                    j += 1
+                if j < len(lines) and lines[j].lstrip()[:1].islower():
+                    out.append(cur[:-1] + lines[j].lstrip())
+                    hit += 1
+                    i = j + 1
+                    continue
+            out.append(cur)
+            i += 1
+        text = "\n".join(out)
+        n += hit
+        if not hit:
+            return text, n
+
+
+def strip_leaders(text):
+    """Убрать точечные выноски оглавления.
+
+    В `book-new` они дали строку в 8192 знака — ровно потолок длины ответа, то
+    есть выноски вытеснили собой и названия, и номера страниц.  Сами по себе
+    они не несут ничего, а токенов стоят как небольшая глава: 4086 «слов» из
+    одних точек.
+    """
+    n = len(DOTS.findall(text))
+    return DOTS.sub(" ", text), n
+
+
+def unlist_headings(text):
+    """Вернуть пункты перечня из заголовков в перечень.
+
+    `## 1. The flat scraper` — не заголовок, а первый пункт списка, поднятый
+    туда потому, что в книге он набран с отступом.  Опознаётся по соседству:
+    рядом стоит такой же пункт со следующим или предыдущим номером.  Одиночный
+    `## 1.` не трогаем — он может быть настоящим.
+    """
+    lines = text.split("\n")
+    nums = {i: int(m.group(1)) for i, l in enumerate(lines)
+            if (m := LIST_HEAD.match(l))}
+    n = 0
+    for i, k in nums.items():
+        near = []
+        for p in range(i + 1, min(len(lines), i + 4)):
+            if lines[p].strip():
+                near.append(lines[p].strip())
+                break
+        for p in range(i - 1, max(-1, i - 4), -1):
+            if lines[p].strip():
+                near.append(lines[p].strip())
+                break
+        if any(re.match(rf"^#{{0,6}}\s*{k+d}\.\s+\S", x)
+               for x in near for d in (1, -1)):
+            lines[i] = LIST_HEAD.sub(r"\1. \2", lines[i])
+            n += 1
+    return "\n".join(lines), n
+
+
+def _toc_intact(content, expect):
+    """Похоже ли, что страница оглавления прочиталась целиком.
+
+    Судим не по доле точек — у нормального оглавления с выносками она тоже
+    велика, — а сравнением с книгой: записей в оглавлении должно быть хотя бы
+    вполовину столько, сколько в книге глав.  На `book-new` вышло 1 против 30,
+    и это ни с чем не спутаешь; на книге, где оглавление прочиталось, счёт
+    сходится, и блок остаётся нетронутым.
+
+    Не с чем сравнивать — не трогаем: молчаливое удаление хуже лишней строки.
+    """
+    if not expect:
+        return True
+    entries = [x for x in (DOTS.sub(" ", ln).strip()
+                           for ln in content.split("\n")) if len(x) > 3]
+    return len(entries) >= max(2, expect // 2)
+
+
+def _split(text):
+    """Разбить на абзацы, сохранив разделители."""
+    parts = re.split(r"(\n\s*\n)", text)
+    paras, seps = parts[0::2], parts[1::2] + [""]
+    return paras, seps
+
+
+def relabel(text, blks):
+    """Переложить абзацы книги по меткам json.
+
+    Выравнивание в один проход: указатель по блокам идёт только вперёд.  Это
+    важнее точности совпадения — словарь «текст -> метка» задваивал бы
+    повторяющиеся подписи (`OUT OUR WAY` встречается на многих страницах) и
+    насчитал бы 1297 подписей к рисункам при 695 существующих.
+
+    Многострочный блок-заголовок собирается обратно в одну строку: `Sec.
+    1.1\\nDefinition of Scraping` — это ОДИН заголовок, разорванный рендером
+    на заголовок и абзац.
+    """
+    paras, seps = _split(text)
+    out = []
+    counts = collections.Counter()
+    # Сколько глав ждать: считаем по блокам-заголовкам, а не по уже
+    # собранному тексту — этого числа ещё нет, когда оно нужно.
+    expect = len({int((CHAPTER.match(c.strip()) or CHAPTER_FULL.match(
+        c.strip())).group(2))
+        for lb, c in blks if lb in ("header", "doc_title")
+        and (CHAPTER.match(c.strip()) or CHAPTER_FULL.match(c.strip()))})
+    b = 0
+    i = 0
+    n_img = 0
+    while i < len(paras):
+        p = paras[i]
+        body = p.strip()
+        if not body:
+            out.append(p)
+            i += 1
+            continue
+        k = _key(body.lstrip("#").strip())
+        hit = None
+        if k:
+            for j in range(b, min(len(blks), b + WINDOW)):
+                kb = _key(blks[j][1])
+                # Совпадение по началу нужно с обеих сторон, но они разные.
+                # `kb.startswith(k)` — блок длиннее абзаца: так опознаётся
+                # многострочный заголовок, разорванный рендером.
+                # `k.startswith(kb)` — абзац длиннее блока: так опознаётся
+                # абзац, склеенный `restructure_pages` из нескольких блоков.
+                # Второе без ограничения длины опасно: заголовок главы
+                # `THE SURFACE PLATE` оказывается началом абзаца `The SURFACE
+                # PLATE is a precision tool…`, и абзац прозы уезжал в `##`.
+                # Замер: шесть абзацев на книгу, и все шесть — при повторном
+                # запуске, то есть беда пряталась ещё и от первого прогона.
+                if kb == k or (len(k) >= 8 and kb.startswith(k)) \
+                        or (len(kb) >= 8 and k.startswith(kb)
+                            and len(k) <= len(kb) * 2 + 40):
+                    hit = j
+                    break
+        if hit is None:
+            out.append(p)
+            i += 1
+            continue
+
+        label, content = blks[hit]
+        b = hit + 1
+        lines = [x.strip() for x in content.split("\n") if x.strip()]
+        # Хвост блока, уехавший в следующие абзацы, забираем сюда же.
+        used = 1
+        if len(lines) > 1 and _key(lines[0]) == k:
+            j = i + 1
+            for tail in lines[1:]:
+                while j < len(paras) and not paras[j].strip():
+                    j += 1
+                if j < len(paras) and _key(paras[j].strip()) == _key(tail):
+                    j += 1
+                else:
+                    break
+            used = max(1, j - i)
+        joined = " ".join(lines)
+
+        # Название главы приезжает то с меткой `header`, то с `doc_title` —
+        # детектор не различает заглавие книги и заглавие главы, они набраны
+        # одинаково.  Поэтому главу опознаём по слову «Chapter», а метку
+        # используем только чтобы понять, что это вообще заголовок.
+        # Про «Chapter N» в тексте: сюда попадают только блоки, которые
+        # детектор пометил заголовком.  Фраза «as discussed in Chapter 21»
+        # живёт в блоке `text` и не проходит даже до этой строки — замер на
+        # `book-new`: семь таких упоминаний, все в `text`, а из блоков
+        # `header`/`doc_title` со слова «Chapter» начинается ровно 31, по
+        # числу глав.  Метка и есть защита; длина — запас на случай, когда
+        # заголовком помечена целая фраза.
+        chapter = (label in ("header", "doc_title") and len(joined) <= 120
+                   and CHAPTER_FULL.match(joined))
+        if not chapter and label == "header" and CHAPTER.match(joined):
+            # Номер главы и её название — два соседних блока.  Абзац с
+            # названием, если он идёт следом, поглощаем сюда же.
+            for j in range(b, min(len(blks), b + 3)):
+                if blks[j][0] in ("header", "doc_title"):
+                    title = " ".join(x.strip() for x in blks[j][1].split("\n")
+                                     if x.strip())
+                    q = i + used
+                    while q < len(paras) and not paras[q].strip():
+                        q += 1
+                    if q < len(paras) and _key(paras[q]) == _key(title):
+                        used = q - i + 1
+                        b = j + 1
+                        chapter = True
+                    elif _key(title) and _key(title) in _key(p):
+                        # Название уже втянуто в этот же абзац — так выглядит
+                        # заголовок, собранный прошлым запуском.  Блок надо
+                        # всё равно закрыть: иначе он остаётся висеть, и
+                        # ниже его подберёт первый же абзац прозы, который
+                        # начинается с тех же слов («THE SURFACE PLATE» —
+                        # «The SURFACE PLATE is a precision tool…»), и абзац
+                        # уедет в заголовок.  Ровно так шаг и переставал быть
+                        # идемпотентным: шесть абзацев со второго запуска.
+                        b = j + 1
+                        chapter = True
+                    break
+
+        # Текст берём из КНИГИ, а не из json.  Разница не косметическая:
+        # пометки `<mark title="модель не уверена">` дописаны в markdown уже
+        # после разбора, в json их нет, и подстановка блока json стирала их
+        # молча — на `book-new` пропадало одиннадцать пометок из восьмидесяти
+        # девяти.  json решает, ЧТО это за абзац; чем он написан, решает
+        # книга.
+        orig = " ".join(" ".join(paras[x].strip().lstrip("#").strip().split())
+                        for x in range(i, i + used) if paras[x].strip())
+
+        if chapter:
+            m = CHAPTER_FULL.match(orig)
+            if m:
+                # Слово берём из книги, а не подставляем "Chapter": в русской
+                # книге стоит "Глава", и переписывать её по-английски значит
+                # переводить книгу молча, в шаге сборки структуры.
+                out.append(f"## {m.group(1)} {int(m.group(2))}. "
+                           + m.group(3).strip(" ."))
+            else:
+                out.append("## " + orig)
+            counts["глава"] += 1
+            counts["_глава из " + label] += 1
+        elif label == "doc_title":
+            out.append("# " + orig)
+            counts["заглавие"] += 1
+        elif label == "header":
+            out.append("## " + orig)
+            counts["раздел верхнего уровня"] += 1
+        elif label == "paragraph_title":
+            out.append("### " + orig)
+            counts["заголовок раздела"] += 1
+        elif label == "figure_title":
+            # Подпись к рисунку только пересчитываем, текст оставляем как
+            # есть.  Оборачивать её в `*…*` было ошибкой сразу по двум
+            # причинам: подпись и так завёрнута в центрирующий `<div>`, а
+            # звёздочки наслаивались при повторном запуске — `**<div>…`,
+            # `***<div>…`.  Сшивать же картинку с подписью в `<figure>` мы не
+            # станем: разметка картинок в этом конвейере далась дорого (см.
+            # историю с `alt="Image""` в docs/ocr-notes.md), и трогать её
+            # ради курсива не стоит.  Знание, что подпись есть и стоит у
+            # своей картинки, живёт в отчёте.
+            prev = next((x for x in reversed(out) if x.strip()), "")
+            if "<img" in prev:
+                counts["подпись у своей картинки"] += 1
+            else:
+                counts["подпись без картинки рядом"] += 1
+            out.append(p)
+        elif label == "content":
+            # Страницу оглавления НЕ выбрасываем по метке.  Первая редакция
+            # выбрасывала, и это была ошибка обобщения с одной книги: на
+            # book-new блок выродился в строку точек, но у другой книги он
+            # прочитается нормально, и удалять его значит терять содержание
+            # из-за чужой беды.  Решаем сравнением: сколько записей осталось
+            # в оглавлении против того, сколько в книге глав.
+            out.append(p)
+            if _toc_intact(content, expect):
+                counts["оглавление прочитано"] += 1
+            else:
+                nxt = next((paras[x] for x in range(i + used, len(paras))
+                            if paras[x].strip()), "")
+                if TOC_NOTE not in nxt:
+                    out.append(
+                        f"<!-- {TOC_NOTE}: записей\n     в ней меньше, чем "
+                        "глав в книге. Названия и номера страниц\n     "
+                        "потеряны при разборе. Оглавление, собранное по "
+                        "заголовкам\n     самой книги, лежит в toc.md. -->")
+                counts["оглавление не дочитано"] += 1
+        else:
+            out.append(p)
+            counts["без изменений"] += 1
+            i += 1
+            continue
+
+        for _ in range(used - 1):
+            out.append("")
+        i += used
+    # Разделители склеились неровно там, где абзацы поглощались; собираем по
+    # пустым строкам заново, это безопаснее, чем тянуть исходные.
+    res = "\n\n".join(x for x in out if x.strip() or x == "")
+    res = re.sub(r"\n{3,}", "\n\n", res)
+    counts.pop("без изменений", None)
+    return res, counts
+
+
+def _measure(text):
+    """Числа для отчёта — то, что человек иначе считает руками."""
+    lines = text.split("\n")
+    body = TABLE.sub("", text)
+    secs = [(int(a), int(b)) for a, b in
+            re.findall(r"^#{0,6}\s*Sec\.\s*(\d+)\.(\d+)", body, re.M)]
+    disorder = sum(1 for x, y in zip(secs, secs[1:]) if y < x)
+    return {
+        "слов": len(re.sub(r"<[^>]+>", " ", body).split()),
+        "глав": len(re.findall(rf"^## (?:{_CW})\s+\d+\.", body, re.M)),
+        "заголовков разделов": len(re.findall(r"^### ", body, re.M)),
+        "номеров разделов найдено": len(secs),
+        "нарушений порядка разделов": disorder,
+        "таблиц": len(TABLE.findall(text)),
+        "ссылок на сканы таблиц": text.count("скан таблицы:"),
+        "картинок": text.count("<img"),
+        "подписей к рисункам": len(re.findall(r"^\*Fig\.", body, re.M))
+                               + len(re.findall(r"^Fig\.", body, re.M)),
+        "ссылок на рисунки в тексте":
+            len(set(re.findall(r"Fig\.\s*\d+\.\d+[a-z]?", body))),
+        "⚠": text.count("⚠"),
+        "≠": text.count("≠"),
+        "<mark>": text.count("<mark"),
+        "переносов не склеено": sum(
+            1 for l in lines if re.search(rf"{LET}{{2}}-$", l)),
+    }
+
+
+def toc(text):
+    """Оглавление, собранное из тела книги, со строками `book.md`.
+
+    Именно из тела, а не со страницы оглавления: та не пережила разбора.
+    Номеров страниц оригинала здесь нет и быть не может — см. заголовок
+    модуля.  Вместо них номера строк `book.md`: по ним главу можно прочитать
+    куском, не читая всю книгу.
+    """
+    lines = text.split("\n")
+    rows = []
+    marks = []           # (номер строки, уровень, текст)
+    chap = 0
+    prev = (0, 0)
+    for i, l in enumerate(lines, 1):
+        if re.match(rf"^## (?:{_CW})\s+\d+\.", l):
+            chap = int(re.search(rf"(?:{_CW})\s+(\d+)", l).group(1))
+            prev = (chap, 0)
+            marks.append((i, 1, l[3:].strip(), False))
+        elif l.startswith("### "):
+            m = re.search(r"Sec\.\s*(\d+)\.(\d+)", l)
+            bad = False
+            if m:
+                num = (int(m.group(1)), int(m.group(2)))
+                # Раздел, вставший до своей главы или после большего номера, —
+                # след сломанного порядка чтения.  Пометка не украшение: без
+                # неё оглавление выглядит стройным ровно там, где книга не
+                # стройна, и читатель пойдёт искать текст не туда.
+                bad = num[0] != chap or num < prev
+                prev = max(prev, num)
+            marks.append((i, 2, l[4:].strip(), bad))
+    for n, (i, lvl, t, bad) in enumerate(marks):
+        end = marks[n + 1][0] - 1 if n + 1 < len(marks) else len(lines)
+        pad = "" if lvl == 1 else "    "
+        rows.append(f"{pad}- {t}  — строки {i}–{end}"
+                    + ("   <!-- порядок нарушен -->" if bad else ""))
+    return ("<!-- Оглавление собрано из заголовков книги, а не прочитано со\n"
+            "     страницы оглавления: она при разборе выродилась в строку\n"
+            "     точек.  Номеров страниц оригинала здесь нет намеренно —\n"
+            "     их в разборе не существует.  Числа справа — строки\n"
+            "     book.md, чтобы главу можно было прочитать куском.\n"
+            "     «Порядок нарушен» значит, что раздел встал не на своё\n"
+            "     место при разборе; текст его ищи по соседству. -->\n\n"
+            "# Оглавление\n\n" + "\n".join(rows) + "\n")
+
+
+def report(outdir, before, after, counts, cover):
+    """Отчёт о том, что в ЭТОЙ книге надёжно, а что нет.
+
+    Смысл файла — снять с промта обязанность утверждать про структуру.
+    Утверждение «вёрстка развёрнута правильно» верно для одной книги и ложно
+    для другой, а промт один; значит, книжные факты должны приезжать с
+    книгой, а правила — из промта.
+    """
+    lines = [
+        "# Что известно про этот разбор",
+        "",
+        "Файл собран `books restructure` по самому разбору, а не по скану.",
+        "Он говорит, где разбор заведомо неполон; он НЕ говорит, что",
+        "остальное верно.",
+        "",
+        "## Величины",
+        "",
+        "| | до сборки структуры | после |",
+        "|---|---|---|",
+    ]
+    for k in after:
+        lines.append(f"| {k} | {before.get(k, '')} | {after[k]} |")
+    lines += ["", "## Что сделано", ""]
+    for k, v in counts.items():
+        lines.append(f"- {k}: {v}")
+    lines += [
+        "",
+        "## Сколько структуры удалось разложить по меткам",
+        "",
+        "| метка в json | блоков | найдено в book.md |",
+        "|---|---|---|",
+    ]
+    for k, (found, total) in cover.items():
+        lines.append(f"| {k} | {total} | {found} ({found/max(total,1):.0%}) |")
+    lines += [
+        "",
+        "## Очередь на глаза человеку",
+        "",
+        f"- **Порядок чтения нарушен в {after['нарушений порядка разделов']} "
+        "местах.** Номер раздела идёт после большего. Автоматически это не "
+        "чинится: перестановка блоков требует смысла. Работая с такой "
+        "страницей, ищи текст раздела выше или ниже по тексту. Места "
+        "перечислены в `toc.md` пометкой «порядок нарушен».",
+        f"- **Подписи к рисункам привязаны не все.** Ссылок на рисунки в "
+        f"тексте {after['ссылок на рисунки в тексте']}, картинок "
+        f"{after['картинок']}. Подпись, стоящая не у своей картинки, "
+        "оставлена подписью без привязки — выдуманная связь хуже "
+        "отсутствующей.",
+        f"- **Переносов не склеено {after['переносов не склеено']}.** "
+        "Следующая строка начиналась не со строчной буквы, и склейка была бы "
+        "догадкой.",
+        "- **Номеров страниц оригинала нет нигде** — ни в оглавлении, ни в "
+        "тексте: колонтитулы срезаны при разборе. Ссылаться на страницы "
+        "оригинала не на что; ссылайся на разделы.",
+        "",
+        "## Чего в отчёте нет",
+        "",
+        "Ничего про верность чисел. Пометки `⚠` и `≠` показывают, где скан "
+        "плох; уверенная выдумка пометки не получает. Правила обращения с "
+        "числами — в `work_instruction.md`, и этот отчёт их не смягчает.",
+        "",
+    ]
+    path = os.path.join(outdir, "book", "report.md")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    open(path, "w", encoding="utf-8").write("\n".join(lines))
+    return path
+
+
+def restructure(outdir):
+    """Собрать структуру в `book.md`, написать оглавление и отчёт.
+
+    Повторный запуск ничего не меняет: правки идемпотентны, и во второй раз
+    счётчики выходят нулевыми.  Это не украшение, а условие — шаг должен
+    переживать `books restructure` на уже собранной книге.
+    """
+    book = os.path.join(outdir, "book", "book.md")
+    if not os.path.exists(book):
+        raise SystemExit(f"нет разбора: {book}")
+
+    src = open(book, encoding="utf-8").read()
+    before = _measure(src)
+    blks = blocks(outdir)
+    if not blks:
+        raise SystemExit(f"нет json страниц в {outdir}/pages — "
+                         f"структуру брать неоткуда")
+
+    body, kept = _protect(src)
+    counts = {}
+    body, counts["склеено переносов"] = join_hyphens(body)
+    body, counts["убрано точечных выносок"] = strip_leaders(body)
+    body, lab = relabel(body, blks)
+    counts.update(lab)
+    body, counts["пунктов перечня возвращено из заголовков"] = \
+        unlist_headings(body)
+    dst = _restore(body, kept)
+    open(book, "w", encoding="utf-8").write(dst)
+    after = _measure(dst)
+
+    total = collections.Counter(l for l, _ in blks)
+    cover = {}
+    for l in TITLES + ("figure_title", "content"):
+        if total[l]:
+            key = {"заглавие": "doc_title"}.get(l, l)
+            cover[key] = (lab.get({"doc_title": "заглавие",
+                                   "header": "глава",
+                                   "paragraph_title": "заголовок раздела",
+                                   "figure_title": "подпись у своей картинки",
+                                   "content": "оглавление прочитано"}[l], 0),
+                          total[l])
+    # `header` — это и главы, и разделы верхнего уровня, причём на каждую
+    # главу уходит ДВА блока: номер и название.  Без этого покрытие выглядит
+    # вдвое хуже, чем есть, и число не с чем сравнить.
+    if "header" in cover:
+        cover["header"] = (lab.get("глава", 0) * 2
+                           + lab.get("раздел верхнего уровня", 0),
+                           total["header"])
+    # Часть глав приехала с меткой `doc_title`: детектор не отличает заглавие
+    # книги от заглавия главы.  Не зачтя их, покрытие показало бы 50% там, где
+    # потеряно ноль.
+    if "doc_title" in cover:
+        cover["doc_title"] = (lab.get("заглавие", 0)
+                              + lab.get("_глава из doc_title", 0),
+                              total["doc_title"])
+    if "content" in cover:
+        cover["content"] = (lab.get("оглавление прочитано", 0)
+                            + lab.get("оглавление не дочитано", 0),
+                            total["content"])
+    if "figure_title" in cover:
+        cover["figure_title"] = (lab.get("подпись у своей картинки", 0)
+                                 + lab.get("подпись без картинки рядом", 0),
+                                 total["figure_title"])
+
+    toc_path = os.path.join(outdir, "book", "toc.md")
+    open(toc_path, "w", encoding="utf-8").write(toc(dst))
+
+    # Служебные счётчики (с подчёркиванием) нужны только для сведения
+    # покрытия и в отчёт не идут.
+    counts = {k: v for k, v in counts.items() if not k.startswith("_")}
+    for k, v in counts.items():
+        print(f"  {k}: {v}")
+    for k, (found, tot) in cover.items():
+        print(f"  метка {k}: {found} из {tot} ({found/max(tot,1):.0%})")
+    # Главы обязаны идти подряд от первой до последней.  Дыра в этом ряду —
+    # единственный дешёвый способ заметить, что заголовок не собрался: сам по
+    # себе «глав 28» выглядит как успех, пока не сравнить с 30.
+    got = {int(m) for m in re.findall(rf"^## (?:{_CW})\s+(\d+)\.", dst, re.M)}
+    seen = {int(m) for m in re.findall(rf"(?:{_CW})\s+(\d+)", dst)}
+    gap = sorted((set(range(1, max(seen or [0]) + 1)) - got)) if seen else []
+    print(f"  глав {after['глав']} из {max(seen or [0])}"
+          + (f", НЕ СОБРАНЫ: {gap}" if gap else "")
+          + f", заголовков разделов {after['заголовков разделов']}"
+          + f", порядок нарушен в {after['нарушений порядка разделов']} местах")
+    after["глав не собрано"] = len(gap)
+    print(f"оглавление: {toc_path}")
+    print(f"отчёт: {report(outdir, before, after, counts, cover)}")
+    return 0
+
+
+def main(argv=None):
+    import argparse
+    ap = argparse.ArgumentParser(
+        description="собрать книжную структуру в готовом разборе")
+    ap.add_argument("outdir", help="каталог разбора (processed/<имя>)")
+    a = ap.parse_args(argv)
+    return restructure(a.outdir)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
