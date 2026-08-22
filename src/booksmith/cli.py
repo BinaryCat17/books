@@ -9,8 +9,11 @@
     books ledger
 """
 import argparse
+import glob
 import os
+import re
 import sys
+import time
 
 from . import config
 from .jobs import olmocr, paddleocr
@@ -42,6 +45,7 @@ def cmd_offers(a):
 
 
 def cmd_ocr(a):
+    _open_log(a)
     if getattr(a, "passes", 1) > 1:
         return _multipass(a)
     return _one_pass(a)
@@ -147,6 +151,7 @@ def cmd_olmocr(a):
     пакетов и разное поведение при нехватке памяти, и общий код свёлся бы к
     ветвлению в каждой строке.
     """
+    _open_log(a)
     spec = olmocr.spec(
         os.path.abspath(a.pdf), gpu=a.gpu, image=a.image, minutes=a.minutes,
         budget_usd=a.budget, disk_gb=a.disk, max_dph=a.max_dph,
@@ -261,6 +266,148 @@ def cmd_doctor(_a):
     return 0 if ok else 1
 
 
+class _Tee:
+    """Пишет и на экран, и в файл.
+
+    Журнал прогона нужен дважды: живым — чтобы видеть, где сейчас счёт, — и
+    потом, чтобы понять, почему вышло так.  До сих пор он существовал, только
+    если оператор сам додумался перенаправить вывод; каталог `runs/` полон
+    таких файлов с именами вроде `mv3-run.log`, то есть привычка была, а опоры
+    под ней не было.
+    """
+
+    def __init__(self, path):
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        self.f = open(path, "a", encoding="utf-8", buffering=1)
+        self.out = sys.stdout
+
+    def write(self, s):
+        self.out.write(s)
+        self.f.write(s)
+        return len(s)
+
+    def flush(self):
+        self.out.flush()
+        self.f.flush()
+
+    def isatty(self):
+        return self.out.isatty()
+
+
+def _open_log(a):
+    """Включить запись журнала, если попросили. Возвращает путь или None."""
+    path = getattr(a, "log", None)
+    if path is None:
+        return None
+    if path == "":            # `--log` без значения — имя по каталогу разбора
+        path = os.path.join("runs", os.path.basename(a.outdir.rstrip("/"))
+                            + ".log")
+    tee = _Tee(path)
+    sys.stdout = tee
+    sys.stderr = tee
+    log(f"журнал прогона: {path} (смотреть: books progress {path})")
+    return path
+
+
+# Строки, по которым читается ход прогона.  Разбираем журнал, а не состояние
+# машины: журнал есть всегда, в том числе после того, как машина уничтожена.
+_P_PASS = re.compile(r"=== проход (\d+) из (\d+)")
+_P_RENT = re.compile(r"снимаю #(\d+) за \$([\d.]+)/час")
+_P_PAGES = re.compile(r"^\s*\[[\d:]+\]\s+(\d+) страниц, ([\d.]+) стр/с")
+_P_DONE = re.compile(r"посчитано (\d+) страниц за (\d+)с \(([\d.]+) стр/с\)")
+_P_TIME = re.compile(r"\[(\d\d):(\d\d):(\d\d)\]")
+
+
+def cmd_progress(a):
+    """Где сейчас прогон: коротко, по журналу.
+
+    Смысл команды — не показать больше строк, а показать меньше: журнал за
+    прогон разрастается до тысяч строк, из которых важны десять.  Печатается
+    то, что нужно решить «идёт как надо / встало / пора смотреть».
+    """
+    path = a.path
+    if not path:
+        logs = sorted(glob.glob(os.path.join("runs", "*.log")),
+                      key=os.path.getmtime)
+        if not logs:
+            raise SystemExit("в runs/ нет журналов; запусти с --log")
+        path = logs[-1]
+    if not os.path.exists(path):
+        raise SystemExit(f"нет журнала: {path}")
+
+    lines = open(path, encoding="utf-8", errors="replace").read().splitlines()
+    if not lines:
+        raise SystemExit(f"журнал пуст: {path}")
+
+    cur = tot = 0
+    rent = None
+    pages = done = None
+    warn, bad = [], []
+    struct = []
+    for l in lines:
+        m = _P_PASS.search(l)
+        if m:
+            cur, tot = int(m.group(1)), int(m.group(2))
+            pages = None
+        m = _P_RENT.search(l)
+        if m:
+            rent = (m.group(1), float(m.group(2)))
+        m = _P_PAGES.search(l)
+        if m:
+            pages = (int(m.group(1)), float(m.group(2)))
+        m = _P_DONE.search(l)
+        if m:
+            done = (int(m.group(1)), int(m.group(2)), float(m.group(3)))
+        if "ВНИМАНИЕ" in l:
+            warn.append(l.strip())
+        if re.search(r"Traceback|завершился с кодом|не удалось|ошибка", l):
+            bad.append(l.strip())
+        if re.search(r"глав \d+ из|оглавление:|отчёт:|слепок до сборки", l):
+            struct.append(l.strip())
+
+    stamps = [m for l in lines for m in _P_TIME.findall(l)]
+    started = ":".join(stamps[0]) if stamps else "?"
+    last_ts = ":".join(stamps[-1]) if stamps else "?"
+    elapsed = 0
+    if len(stamps) > 1:
+        def _sec(t):
+            return int(t[0]) * 3600 + int(t[1]) * 60 + int(t[2])
+        elapsed = _sec(stamps[-1]) - _sec(stamps[0])
+        if elapsed < 0:           # прогон перевалил за полночь
+            elapsed += 24 * 3600
+    quiet = (time.time() - os.path.getmtime(path)) / 60
+
+    print(f"журнал: {path}")
+    print(f"начат {started}, последняя запись {last_ts}"
+          + (f", молчит {quiet:.0f} мин" if quiet >= 2 else ""))
+    if rent:
+        # Время берём из самих отметок журнала, а не из времён файла: у файла,
+        # в который дописывают, `ctime` равен `mtime`, и «набежало» выходило
+        # ровно $0.00 при часе аренды.  Оценка всё равно сверху и по журналу —
+        # обращаться к бирже ради неё незачем.
+        print(f"машина #{rent[0]}, ${rent[1]:.3f}/час"
+              + (f" — набежало примерно ${rent[1] * elapsed / 3600:.2f}"
+                 if elapsed else ""))
+    if tot:
+        print(f"проход {cur} из {tot}")
+    if done:
+        print(f"  счёт закончен: {done[0]} страниц за {done[1]}с "
+              f"({done[2]:.2f} стр/с)")
+    elif pages:
+        print(f"  идёт счёт: {pages[0]} страниц, {pages[1]:.2f} стр/с")
+    else:
+        print("  счёт ещё не начался — идёт установка окружения")
+    for s in struct[-4:]:
+        print(f"  {s}")
+    for w in warn[-3:]:
+        print(f"  ! {w}")
+    for b in bad[-3:]:
+        print(f"  !! {b}")
+    if not bad:
+        print("последняя строка: " + lines[-1].strip()[:100])
+    return 0
+
+
 def cmd_ledger(_a):
     rows = ledger_mod.read()
     if not rows:
@@ -309,6 +456,10 @@ def main(argv=None):
     p.add_argument("--reuse", type=int, metavar="ID",
                    help="считать на уже поднятой машине, без холодного старта")
     p.add_argument("--dry-run", action="store_true")
+    p.add_argument("--log", nargs="?", const="", default=None,
+                   metavar="PATH",
+                   help="писать журнал прогона в файл (без значения — "
+                        "runs/<имя каталога>.log); смотреть его: books progress")
     p.add_argument("--resume", action="store_true",
                    help="продолжить прерванный прогон на той же машине, "
                         "не стирая уже посчитанные страницы")
@@ -340,6 +491,10 @@ def main(argv=None):
     p.add_argument("--reuse", type=int, metavar="ID",
                    help="считать на уже поднятой машине, без холодного старта")
     p.add_argument("--dry-run", action="store_true")
+    p.add_argument("--log", nargs="?", const="", default=None,
+                   metavar="PATH",
+                   help="писать журнал прогона в файл (без значения — "
+                        "runs/<имя каталога>.log); смотреть его: books progress")
     p.set_defaults(fn=cmd_olmocr)
 
     p = sub.add_parser("convert", help="собрать EPUB и FB2 из готового разбора")
@@ -377,6 +532,12 @@ def main(argv=None):
 
     p = sub.add_parser("doctor", help="проверить окружение до того, как тратить деньги")
     p.set_defaults(fn=cmd_doctor)
+
+    p = sub.add_parser("progress",
+                       help="где сейчас прогон: коротко, по его журналу")
+    p.add_argument("path", nargs="?", default=None,
+                   help="путь к журналу; без него берётся свежий из runs/")
+    p.set_defaults(fn=cmd_progress)
 
     p = sub.add_parser("ledger", help="журнал прогонов и оценки по нему")
     p.set_defaults(fn=cmd_ledger)
