@@ -222,6 +222,10 @@ def _restore(text, kept):
     return re.sub(r"\x00T(\d+)\x00", lambda m: kept[int(m.group(1))], text)
 
 
+# Абзацная пометка свода: `≠` в самом конце абзаца, возможно не одна.
+PROSE_TAIL = re.compile(r"(?:\s*≠)+$")
+
+
 def join_hyphens(text):
     """Склеить перенос: `техно-` + `логический`.
 
@@ -240,6 +244,13 @@ def join_hyphens(text):
     переносом.  Без этого шаг переставал быть идемпотентным — второй
     `books restructure` находил ещё девять переносов, то есть первый
     отработал не до конца.
+
+    Абзацное `≠` свод дописывает В КОНЕЦ абзаца, и если абзац обрывается
+    переносом, дефис перестаёт быть последним знаком: строка кончается на
+    `яд- ≠`, признак не срабатывает, и слово остаётся разорванным пополам в
+    читаемом тексте.  Замер на Фейнмане: склеек 48 без пометок и 47 с ними.
+    Поэтому пометка снимается перед проверкой и возвращается в конец
+    склеенного абзаца — она про абзац, а не про место разрыва.
     """
     n = 0
 
@@ -255,12 +266,17 @@ def join_hyphens(text):
         out, i, hit = [], 0, 0
         while i < len(lines):
             cur = lines[i]
-            if re.search(rf"{LET}{{2}}-$", cur):
+            m = PROSE_TAIL.search(cur)
+            head = cur[:m.start()] if m else cur
+            if re.search(rf"{LET}{{2}}-$", head):
                 j = i + 1
                 while j < len(lines) and not lines[j].strip():
                     j += 1
                 if j < len(lines) and lines[j].lstrip()[:1].islower():
-                    out.append(cur[:-1] + lines[j].lstrip())
+                    glued = head[:-1] + lines[j].lstrip()
+                    if m and not PROSE_TAIL.search(glued):
+                        glued += " ≠"
+                    out.append(glued)
                     hit += 1
                     i = j + 1
                     continue

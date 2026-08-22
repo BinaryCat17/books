@@ -295,6 +295,38 @@ def cmd_restructure(a):
     return structure.restructure(a.outdir)
 
 
+def cmd_merge(a):
+    """Свести уже скачанные проходы заново, не арендуя карту.
+
+    Свод был доступен только изнутри платного прогона, и это стоило книге
+    проверки: сличение прозы дописали в `merge.py` позже, чем собрали обе
+    книги, и обе остались сверенными только по ячейкам таблиц — ноль пометок
+    `чтения разошлись` при живых каталогах проходов на диске.  Правка свода,
+    которую нельзя применить к уже оплаченному разбору, применяется к нему
+    никогда.
+
+    Шаг местный: свидетели уже скачаны, GPU не нужен.  Замер: Фейнман 8 с,
+    справочник 3.5 мин — почти всё время уходит на копирование основы.
+
+    Каталог назначения свод СНОСИТ целиком (`shutil.rmtree`), поэтому по
+    умолчанию требуем, чтобы его не было: собранные форматы (epub, fb2, pdf)
+    восстанавливаются только `books convert`, и потерять их молча нельзя.
+    """
+    from . import merge
+    dirs = list(a.dirs)
+    missing = [d for d in dirs if not os.path.isdir(os.path.join(d, "pages"))]
+    if missing:
+        raise SystemExit("нет постраничного вывода в: " + ", ".join(missing))
+    if len(dirs) < 2:
+        print("ВНИМАНИЕ: свидетелей нет — сверять будет не с чем")
+    if os.path.exists(a.out) and not a.force:
+        raise SystemExit(
+            f"{a.out} уже есть, а свод сносит каталог назначения целиком. "
+            f"Либо задайте другой --out, либо --force, если он не нужен.")
+    rc = merge.merge(dirs, a.out)
+    return rc or _restructure_after(a.out)
+
+
 def cmd_local(a):
     return _run_module("booksmith.engines.pdf_layer", [a.pdf] + list(a.rest))
 
@@ -687,6 +719,15 @@ def main(argv=None):
                        help="собрать заголовки, оглавление и отчёт в book.md")
     p.add_argument("outdir", help="каталог разбора (processed/<имя>)")
     p.set_defaults(fn=cmd_restructure)
+
+    p = sub.add_parser("merge",
+                       help="свести скачанные проходы заново, без GPU")
+    p.add_argument("dirs", nargs="+",
+                   help="каталоги проходов; первый — основа, остальные свидетели")
+    p.add_argument("--out", required=True, help="куда положить сведённый разбор")
+    p.add_argument("--force", action="store_true",
+                   help="снести каталог назначения, если он уже есть")
+    p.set_defaults(fn=cmd_merge)
 
     p = sub.add_parser("local", help="разобрать PDF по его же OCR-слою, без GPU")
     p.add_argument("pdf")
