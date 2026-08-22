@@ -19,6 +19,8 @@ import shutil
 import subprocess
 import tempfile
 
+from . import layout
+
 # `-markdown_in_html_blocks` обязателен, и вот почему.  Таблицы у нас лежат в
 # markdown сырым HTML, и pandoc по умолчанию разбирает их СОДЕРЖИМОЕ как
 # markdown.  Ячейка, начинающаяся с `(a) .004"`, становится нумерованным
@@ -136,8 +138,10 @@ def convert(outdir: str, formats=("html", "epub", "fb2"),
         _log("нет pandoc — поставьте его: apt install pandoc")
         return 1
 
-    book_dir = os.path.join(os.path.abspath(outdir), "book")
-    src = os.path.join(book_dir, "book.md")
+    paths = layout.Paths(outdir)
+    src = paths.book
+    book_dir = os.path.dirname(src)
+    stem = paths.stem
     if not os.path.exists(src):
         _log(f"нет {src} — сначала разберите книгу")
         return 1
@@ -153,12 +157,15 @@ def convert(outdir: str, formats=("html", "epub", "fb2"),
     _log(f"исходник: {os.path.relpath(src)}, "
          + ", ".join(f"{k} {v}" for k, v in want.items()))
 
-    title = title or os.path.basename(os.path.abspath(outdir)).replace("-", " ")
+    # Заглавие — из имени исходника, а не из имени каталога: каталог оператор
+    # называет наспех («book-new»), и это имя уезжало в метаданные epub.
+    title = (title or layout.facts(paths.outdir).get("source")
+             or stem).rsplit(".", 1)[0].replace("_", " ")
     meta = ["-M", f"title={title}"]
     rc = 0
 
     if "epub" in formats:
-        dst = os.path.join(book_dir, "book.epub")
+        dst = os.path.join(book_dir, stem + ".epub")
         try:
             # Резать по заголовкам ВТОРОГО уровня.  По умолчанию pandoc
             # режет по первому, а их в разборе почти нет: вся книга уезжала в
@@ -184,7 +191,7 @@ def convert(outdir: str, formats=("html", "epub", "fb2"),
             _log(f"  epub не собрался: {exc}")
             rc = 1
 
-    html_path = os.path.join(book_dir, "book.html")
+    html_path = os.path.join(book_dir, stem + ".html")
     if {"html", "pdf"} & set(formats):
         # HTML собирается один раз и служит двум целям: он и сам хороший
         # способ читать (браузер кладёт таблицы лучше любой читалки), и
@@ -209,7 +216,7 @@ def convert(outdir: str, formats=("html", "epub", "fb2"),
             rc = 1
 
     if "pdf" in formats:
-        dst = os.path.join(book_dir, "book.pdf")
+        dst = os.path.join(book_dir, stem + ".pdf")
         try:
             from weasyprint import HTML
         except ImportError:
@@ -226,7 +233,7 @@ def convert(outdir: str, formats=("html", "epub", "fb2"),
                 rc = 1
 
     if "fb2" in formats:
-        dst = os.path.join(book_dir, "book.fb2")
+        dst = os.path.join(book_dir, stem + ".fb2")
         try:
             with tempfile.TemporaryDirectory() as tmp:
                 mid = os.path.join(tmp, "mid.html")

@@ -9,7 +9,9 @@
   ≠  чтения разошлись (модель гадала, но уверенно).
 Первый признак ловит искажённый текст, второй — правдоподобную выдумку.
 """
-import collections, difflib, glob, html, os, re, shutil, sys
+import collections, difflib, glob, html, os, re, shutil
+
+from . import layout
 
 TAG = re.compile(r"<[^>]+>")
 CELL = re.compile(r"(<t[dh][^>]*>)(.*?)(</t[dh]>)", re.I | re.S)
@@ -21,7 +23,10 @@ def plain(c):
 
 
 def cells_of(path):
-    md = open(path, encoding="utf-8").read()
+    return cells_of_text(open(path, encoding="utf-8").read())
+
+
+def cells_of_text(md):
     out = collections.Counter()
     for t in TABLE.finditer(md):
         for _, body, _ in CELL.findall(t.group(0)):
@@ -256,149 +261,118 @@ def mark_prose(base_md, witness_mds):
     return res, marked, blind
 
 
-def merge(dirs, dst):
-    base, others = dirs[0], dirs[1:]
-    if os.path.isdir(dst):
-        shutil.rmtree(dst)
-    shutil.copytree(base, dst)
-    pages = sorted(glob.glob(os.path.join(dst, "pages", "*.md")))
+def mark_cells(text, witnesses):
+    """Пометить `≠` ячейки, которых нет у всех свидетелей.
+
+    Счёт по всей книге, а не по странице: в книжном файле границ страниц уже
+    нет, а таблицы, разорванные разрывом страницы, склеены — пересборка из
+    страниц это теряла.  Огрубление безопасное: оно может лишь НЕ заметить
+    расхождение, но не выдумать его.
+    """
+    whole = [cells_of_text(w) for w in witnesses]
+    seen = collections.Counter()
     marked = total = 0
-    prose_marked = prose_blind = missing = 0
-    for f in pages:
-        stem = os.path.basename(f)
-        paths = [os.path.join(o, "pages", stem) for o in others]
-        # Нехватку страницы у свидетеля считаем и называем.  Прежде она уходила
-        # через `except FileNotFoundError: continue`, и страница выглядела
-        # проверенной, хотя не проверялась вовсе: на опыте с усечённым
-        # свидетелем 130 страниц прошли без единой пометки там, где при целом
-        # свидетеле их стояло 47.  Хуже того, перехват накрывал ВЕСЬ список
-        # свидетелей — нехватка у одного отменяла проверку по остальным.
-        have = [p for p in paths if os.path.exists(p)]
-        if len(have) < len(paths):
-            # Считаем неполные страницы, но проверку по уцелевшим свидетелям НЕ
-            # отменяем.  Прежний `except FileNotFoundError: continue` накрывал
-            # весь список: нехватка у одного отменяла сверку по всем, и
-            # страница выглядела проверенной, не будучи ею.
-            missing += 1
-            if not have:
-                continue
-        paths = have
-        src = open(f, encoding="utf-8").read()
-        changed = False
 
-        # Проза — на каждой странице, а не только там, где есть таблица.
-        # Прежде страница без таблицы даже не читалась.
-        src, pm, pb = mark_prose(src, [open(p, encoding="utf-8").read()
-                                       for p in paths])
-        prose_marked += pm
-        prose_blind += pb
-        changed = changed or bool(pm)
+    def one(m):
+        nonlocal marked, total
+        v = plain(m.group(2))
+        if not v:
+            return m.group(0)
+        total += 1
+        seen[v] += 1
+        k = seen[v]
+        if all(w[v] >= k for w in whole):
+            return m.group(0)
+        marked += 1
+        return m.group(1) + m.group(2) + " ≠" + m.group(3)
 
-        if "<table" not in src.lower():
-            if changed:
-                with open(f, "w", encoding="utf-8") as fh:
-                    fh.write(src)
-            continue
-        witness = [cells_of(p) for p in paths]
-        seen = collections.Counter()
+    out, prev = [], 0
+    for t in TABLE.finditer(text):
+        out.append(text[prev:t.start()])
+        out.append(CELL.sub(one, t.group(0)))
+        prev = t.end()
+    out.append(text[prev:])
+    return "".join(out), marked, total
 
-        def one(m):
-            nonlocal marked, total
-            v = plain(m.group(2))
-            if not v:
-                return m.group(0)
-            total += 1
-            seen[v] += 1
-            k = seen[v]
-            if all(w[v] >= k for w in witness):
-                return m.group(0)          # подтверждена обоими свидетелями
-            marked += 1
-            return m.group(1) + m.group(2) + " ≠" + m.group(3)
 
-        out = []
-        prev = 0
-        for t in TABLE.finditer(src):
-            out.append(src[prev:t.start()])
-            out.append(CELL.sub(one, t.group(0)))
-            prev = t.end()
-        out.append(src[prev:])
-        with open(f, "w", encoding="utf-8") as fh:
-            fh.write("".join(out))
+def assemble(outdir):
+    """Собрать готовую книгу из проходов, ничего не разрушая.
 
-    # Книжный файл размечаем на месте, а не пересобираем из страниц: в нём
-    # склеены таблицы, разорванные разрывом страницы, и пересборка это
-    # теряла.  Счётчики здесь по всей книге, а не по странице — границ
-    # страниц в нём уже нет.  Огрубление безопасное: оно может лишь не
-    # заметить расхождение, но не выдумать его.
-    book = os.path.join(dst, "book", "book.md")
-    os.makedirs(os.path.dirname(book), exist_ok=True)
-    if os.path.exists(book):
-        whole = [collections.Counter() for _ in others]
-        for o, acc in zip(others, whole):
-            bf = os.path.join(o, "book", "book.md")
-            if os.path.exists(bf):
-                acc.update(cells_of(bf))
+    Прежний свод начинался с `shutil.rmtree(dst)` и копирования основы — и это
+    было опасно вдвойне.  Во-первых, 177 МБ страниц и картинок лежали на диске
+    дважды.  Во-вторых, проверка показала настоящую беду: `--out`, указанный на
+    каталог прохода, СНОСИЛ оплаченный проход, а свод после этого сличал основу
+    сам с собой и печатал «помечено 0 (0%)» с кодом возврата 0.  Книга
+    выглядела полностью сверенной именно там, где сверять стало нечем.
+
+    Теперь сборка ничего не сносит и не копирует: она читает черновики
+    проходов, а пишет ровно два файла наверху — книгу и слепок до сборки
+    структуры.  Картинки ПЕРЕЕЗЖАЮТ из первого прохода наверх один раз;
+    ссылки в тексте (`imgs/…`) от переезда не меняются.
+
+    Слепок пишем здесь, а не в `restructure`: он обязан быть состоянием ДО
+    расстановки заголовков, но ПОСЛЕ пометок свода, иначе отчёт сравнивает
+    книгу с текстом, которого в ней никогда не было.
+    """
+    p = layout.Paths(outdir)
+    if not p.new:
+        raise SystemExit(f"нет проходов в {outdir}/passes — собирать не из чего")
+    base, others = p.passes[0], p.passes[1:]
+
+    draft = layout.draft_of(base)
+    if not os.path.exists(draft):
+        raise SystemExit(f"нет черновика основы: {draft}")
+    text = open(draft, encoding="utf-8").read()
+
+    wit = []
+    for o in others:
+        d = layout.draft_of(o)
+        if os.path.exists(d):
+            wit.append(open(d, encoding="utf-8").read())
+        else:
+            # Запасной путь: свидетеля не докачали книжным файлом, но страницы
+            # есть.  Склейка грубее (таблицы через разрыв не сшиты), однако
+            # молчаливо считать страницу сверенной нельзя.
+            pg = sorted(glob.glob(os.path.join(o, "pages", "*.md")))
+            if pg:
+                wit.append("\n\n".join(open(x, encoding="utf-8").read()
+                                        for x in pg))
             else:
-                for f in sorted(glob.glob(os.path.join(o, "pages", "*.md"))):
-                    acc.update(cells_of(f))
-        src = open(book, encoding="utf-8").read()
-        # Проза книжного файла размечается отдельно: `book.md` собирается
-        # склейкой страниц с починкой таблиц через разрыв, и постраничные
-        # пометки в него не переносятся.  А читают именно его — CLAUDE.md
-        # называет его единственным готовым текстом.
-        wb = [os.path.join(o, "book", "book.md") for o in others]
-        wb = [x for x in wb if os.path.exists(x)]
-        if wb:
-            src, bp, _ = mark_prose(src, [open(x, encoding="utf-8").read()
-                                          for x in wb])
-            if bp:
-                print(f"в книжном файле помечено чисел прозы: {bp}")
-        seen = collections.Counter()
+                print(f"ВНИМАНИЕ: у прохода {os.path.relpath(o)} нет ни книги, "
+                      f"ни страниц — свидетелем он не станет")
 
-        def book_cell(m):
-            v = plain(m.group(2))
-            if not v:
-                return m.group(0)
-            seen[v] += 1
-            k = seen[v]
-            if all(w[v] >= k for w in whole):
-                return m.group(0)
-            return m.group(1) + m.group(2) + " ≠" + m.group(3)
-
-        out = []
-        prev = 0
-        for t in TABLE.finditer(src):
-            out.append(src[prev:t.start()])
-            out.append(CELL.sub(book_cell, t.group(0)))
-            prev = t.end()
-        out.append(src[prev:])
-        with open(book, "w", encoding="utf-8") as fh:
-            fh.write("".join(out))
-    else:
-        with open(book, "w", encoding="utf-8") as out:
-            for f in pages:
-                out.write(open(f, encoding="utf-8").read())
-                out.write("\n\n")
-    # Число свидетелей — первое, что надо знать про пометки: при одном
-    # проходе ноль пометок значит «никто не сверял», а читается как «все
-    # чтения сошлись».  Разница между этими двумя ровно та, ради которой
-    # многопроходность и заведена.
-    if not others:
+    if not wit:
         print("ВНИМАНИЕ: свидетелей нет — сверять было не с чем. "
               "Отсутствие пометок ≠ здесь не значит, что чтения сошлись.")
     else:
-        print(f"свидетелей: {len(others)}")
+        print(f"свидетелей: {len(wit)}")
+
+    text, prose, blind = mark_prose(text, wit)
+    text, marked, total = mark_cells(text, wit)
+
+    os.makedirs(os.path.dirname(p.book), exist_ok=True)
+    with open(p.book, "w", encoding="utf-8") as fh:
+        fh.write(text)
+    with open(p.snapshot, "w", encoding="utf-8") as fh:
+        fh.write(text)
+
+    # Картинки переезжают, а не копируются: книга ими владеет.  Если наверху
+    # уже есть свои — не трогаем ничего, повторная сборка не должна зависеть
+    # от того, остались ли картинки в проходе.
+    src_imgs = os.path.join(base, "book", "imgs")
+    if os.path.isdir(src_imgs) and not os.path.isdir(p.imgs):
+        shutil.move(src_imgs, p.imgs)
+        print(f"картинки переехали наверх: {len(os.listdir(p.imgs))} шт.")
+
+    pages = len(glob.glob(os.path.join(base, "pages", "*.md")))
+    thin = [os.path.relpath(o) for o in others
+            if len(glob.glob(os.path.join(o, "pages", "*.md"))) < pages]
     print(f"ячеек в таблицах {total}, помечено неустойчивыми {marked} "
           f"({marked/max(total,1):.0%})")
-    print(f"чисел в прозе помечено {prose_marked}; абзацев с числами, не "
-          f"сошедшихся ни с одним свидетелем и потому не сверенных: "
-          f"{prose_blind}")
-    if missing:
-        # Число, а не молчание: страница без свидетеля НЕ проверена, и это
-        # надо видеть, а не выводить из тишины.
-        print(f"ВНИМАНИЕ: у свидетелей не хватает {missing} страниц — "
-              f"они не сверены ничем")
-    print(f"книга собрана: {book}")
-
-
-
+    print(f"чисел в прозе помечено {prose}; абзацев с числами, не сошедшихся "
+          f"ни с одним свидетелем и потому не сверенных: {blind}")
+    if thin:
+        print(f"ВНИМАНИЕ: у свидетелей меньше страниц, чем у основы "
+              f"({pages}): {', '.join(thin)}")
+    print(f"книга собрана: {p.book}")
+    return 0

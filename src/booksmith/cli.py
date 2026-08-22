@@ -12,10 +12,11 @@ import argparse
 import glob
 import os
 import re
+import shutil
 import sys
 import time
 
-from . import config
+from . import config, layout
 from .jobs import olmocr, paddleocr
 from .remote import ledger as ledger_mod
 from .remote.runner import run_job
@@ -45,10 +46,15 @@ def cmd_offers(a):
 
 
 def cmd_ocr(a):
+    """Разобрать книгу: N проходов в `passes/`, готовый текст наверху.
+
+    Одиночный прогон идёт по той же дороге, что и цепочка, — тоже в
+    `passes/1`, тоже со сборкой.  Отдельного случая нет нарочно: пока он был,
+    одиночный прогон давал другую раскладку, и всё, что читает разбор, обязано
+    было знать про обе.
+    """
     _open_log(a)
-    if getattr(a, "passes", 1) > 1:
-        return _multipass(a)
-    return _one_pass(a)
+    return _multipass(a)
 
 
 # Меньше этого остатка проход начинать бессмысленно: уйдёт на подключение и
@@ -77,9 +83,9 @@ def _multipass(a):
         # Проверочный запуск: показываем, что сняли бы, и уходим.  Сводить
         # нечего — каталогов проходов не существует.
         print(f"проверочный запуск: сделал бы {a.passes} прохода "
-              f"в {a.outdir}-pass1..{a.passes} и свёл бы в {a.outdir}")
+              f"в {a.outdir}/passes/1..{a.passes} и собрал бы наверху")
         one = copy.copy(a)
-        one.outdir = f"{os.path.abspath(a.outdir)}-pass1"
+        one.outdir = layout.pass_dir(os.path.abspath(a.outdir), 1)
         return _one_pass(one)
 
     base = os.path.abspath(a.outdir)
@@ -108,6 +114,14 @@ def _multipass(a):
         """
         if not iid:
             return
+        if a.keep:
+            # Оператор просил машину оставить — оставляем и при обрыве.  Иначе
+            # `--keep` молча отменялся ровно там, где он нужнее всего: разобрать
+            # упавший прогон и продолжить его `--resume` на прогретой машине,
+            # не платя за холодный старт (от полутора до пятнадцати минут).
+            log(f"инстанс {iid} ОСТАВЛЕН по --keep, хотя {why}. "
+                f"Убить: books down {iid}")
+            return
         try:
             Vast().destroy(int(iid))
             log(f"инстанс {iid} уничтожен: {why}")
@@ -129,7 +143,7 @@ def _multipass(a):
                       f"проход {i} не начинаю, свожу что есть")
                 truncated = True
                 break
-            d = f"{base}-pass{i}"
+            d = layout.pass_dir(base, i)
             one = copy.copy(a)
             one.outdir, one.reuse = d, iid
             one.timeout, one.budget = left_min, left_usd
@@ -155,9 +169,17 @@ def _multipass(a):
             # четыре часа, рассчитанные на «вернусь вечером»; здесь это означало бы
             # ночь оплаченного простоя.  Даём столько, сколько осталось цепочке,
             # плюс десять минут на пересменку.
-            rc = _one_pass(one, report=report,
-                           keep_until=chain_deadline if i < a.passes else None,
-                           keep_usd=left_usd if i < a.passes else None)
+            try:
+                rc = _one_pass(one, report=report,
+                               keep_until=chain_deadline if i < a.passes else None,
+                               keep_usd=left_usd if i < a.passes else None)
+            finally:
+                # И на пути исключения тоже.  Проверка показала: если
+                # `run_job` бросает (например «за N попыток не нашлось
+                # машины»), строка ниже не выполняется, и `except
+                # BaseException` гасит СТАРЫЙ номер, а живая машина,
+                # снятая взамен умершей, остаётся брошенной.
+                iid = report.get("instance_id") or iid
             # Отсутствие числа — не «денег не потрачено».  Если проход не сказал,
             # сколько стоил, считаем по цене машины и по времени: иначе денежная
             # половина ограничителя выключалась целиком и молча.
@@ -182,7 +204,6 @@ def _multipass(a):
             #    оставался старым.  Дальше гасили несуществующую, следующий
             #    проход шёл с `--reuse` на мертвеца и снимал третью, а живая
             #    вторая оставалась брошенной и неучтённой.
-            iid = report.get("instance_id") or iid
             if rc != 0:
                 print(f"проход {i} завершился с кодом {rc} — свод не делаю")
                 _drop_machine(f"проход {i} завершился с кодом {rc}")
@@ -201,7 +222,10 @@ def _multipass(a):
     os.environ.pop("VLM_TEMPERATURE", None)
 
     from . import merge
-    rc = merge.merge(dirs, base)
+    layout.remember(base, source=os.path.basename(a.pdf),
+                    stem=layout.clean_stem(a.pdf), passes=len(dirs),
+                    cost_usd=round(spent, 4))
+    rc = merge.assemble(base)
     rc = rc or _restructure_after(base)
     if truncated and not rc:
         # Усечённый свод не должен выглядеть выполненной работой: попросили N
@@ -296,35 +320,119 @@ def cmd_restructure(a):
 
 
 def cmd_merge(a):
-    """Свести уже скачанные проходы заново, не арендуя карту.
+    """Собрать книгу из уже скачанных проходов, не арендуя карту.
 
     Свод был доступен только изнутри платного прогона, и это стоило книге
     проверки: сличение прозы дописали в `merge.py` позже, чем собрали обе
     книги, и обе остались сверенными только по ячейкам таблиц — ноль пометок
-    `чтения разошлись` при живых каталогах проходов на диске.  Правка свода,
-    которую нельзя применить к уже оплаченному разбору, применяется к нему
+    `чтения разошлись` при живых каталогах проходов на диске.  Правку свода,
+    которую нельзя применить к уже оплаченному разбору, применяют к нему
     никогда.
 
-    Шаг местный: свидетели уже скачаны, GPU не нужен.  Замер: Фейнман 8 с,
-    справочник 3.5 мин — почти всё время уходит на копирование основы.
-
-    Каталог назначения свод СНОСИТ целиком (`shutil.rmtree`), поэтому по
-    умолчанию требуем, чтобы его не было: собранные форматы (epub, fb2, pdf)
-    восстанавливаются только `books convert`, и потерять их молча нельзя.
+    Шаг местный, карта не нужна.  Ничего не сносит и не копирует: читает
+    черновики проходов, пишет книгу и слепок.
     """
     from . import merge
-    dirs = list(a.dirs)
-    missing = [d for d in dirs if not os.path.isdir(os.path.join(d, "pages"))]
-    if missing:
-        raise SystemExit("нет постраничного вывода в: " + ", ".join(missing))
-    if len(dirs) < 2:
-        print("ВНИМАНИЕ: свидетелей нет — сверять будет не с чем")
-    if os.path.exists(a.out) and not a.force:
+    p = layout.Paths(a.outdir)
+    if not p.new:
         raise SystemExit(
-            f"{a.out} уже есть, а свод сносит каталог назначения целиком. "
-            f"Либо задайте другой --out, либо --force, если он не нужен.")
-    rc = merge.merge(dirs, a.out)
-    return rc or _restructure_after(a.out)
+            f"нет {a.outdir}/passes — это не каталог книги. "
+            f"Разбор старой раскладки переводится командой books tidy.")
+    thin = [os.path.relpath(d) for d in p.passes
+            if not glob.glob(os.path.join(d, "pages", "*.md"))]
+    if thin:
+        # Пустой `pages/` прежде проходил проверку на существование каталога, и
+        # свод писал пустую книгу с кодом 0.  Считаем файлы, а не каталоги.
+        raise SystemExit("в проходах нет ни одной страницы: " + ", ".join(thin))
+    rc = merge.assemble(a.outdir)
+    return rc or _restructure_after(a.outdir)
+
+
+def cmd_tidy(a):
+    """Перевести старый разбор в нынешнюю раскладку.
+
+    Старая раскладка держала проходы каталогами-соседями (`<имя>-pass1..3`), а
+    в самом `<имя>` лежала копия первого прохода — 177 МБ страниц и картинок
+    на диске дважды.  Связь между каталогами держалась на совпадении имён, и
+    ни один из них не сообщал, из какого pdf сделан.
+
+    Шаг переносит проходы внутрь, выбрасывает копию и пересобирает книгу.
+    Ничего не удаляется до того, как проходы окажутся на месте: сначала
+    переезд, потом уборка, потом сборка.
+    """
+    from . import merge
+    out = os.path.abspath(a.outdir)
+    if not os.path.isdir(out):
+        raise SystemExit(f"нет каталога {a.outdir}")
+    if layout.assembled(out) and not a.force:
+        print(f"{a.outdir} уже в нынешней раскладке "
+              f"(проходов {len(layout.pass_dirs(out))})")
+        return 0
+
+    # 1. Проходы внутрь.  Соседи `<имя>-passN` — обычный случай; каталог,
+    #    разобранный одним проходом, становится собственным проходом 1.
+    moved = []
+    sib = sorted(glob.glob(out + "-pass*"))
+    if sib:
+        for d in sib:
+            m = re.search(r"-pass(\d+)$", d)
+            if not m:
+                continue
+            dst = layout.pass_dir(out, int(m.group(1)))
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            shutil.move(d, dst)
+            moved.append(f"{os.path.basename(d)} -> passes/{m.group(1)}")
+    elif os.path.isdir(os.path.join(out, "pages")):
+        dst = layout.pass_dir(out, 1)
+        os.makedirs(dst, exist_ok=True)
+        for name in ("pages", "book", "job.log", "run.json", "logprobs.json",
+                     "vllm.json", "progress.json"):
+            src = os.path.join(out, name)
+            if os.path.exists(src):
+                shutil.move(src, os.path.join(dst, name))
+        moved.append("сам каталог -> passes/1")
+    if not moved:
+        raise SystemExit(f"в {a.outdir} не нашлось ни проходов-соседей, "
+                         f"ни собственного pages/ — переводить нечего")
+    for m in moved:
+        print(f"  {m}")
+
+    # 2. Уборка копии.  Только теперь, когда проходы на месте: до этого
+    #    удалять нечего и опасно.
+    for name in ("pages", "book"):
+        d = os.path.join(out, name)
+        if os.path.isdir(d):
+            shutil.rmtree(d)
+            print(f"  убрана копия первого прохода: {name}/")
+    for f in glob.glob(os.path.join(out, "*.md")) + \
+             glob.glob(os.path.join(out, "*.before-restructure")):
+        os.unlink(f)
+    # Служебные файлы прохода наверху — след того же копирования.  Если такой
+    # же лежит в проходе, наверху он лишний; если не лежит — переносим, а не
+    # выбрасываем: по ним ведётся журнал и разбирается лента этапов.
+    first = layout.pass_dir(out, 1)
+    for name in ("job.log", "vllm.log", "logprobs.json", "vllm.json",
+                 "progress.json"):
+        top = os.path.join(out, name)
+        if not os.path.exists(top):
+            continue
+        if os.path.exists(os.path.join(first, name)):
+            os.unlink(top)
+        else:
+            shutil.move(top, os.path.join(first, name))
+
+    pdf = a.pdf or layout.facts(out).get("source")
+    if not pdf:
+        raise SystemExit(
+            f"не знаю, из какого pdf сделан {a.outdir} — старый run.json "
+            f"этого не записывал. Укажите: books tidy {a.outdir} --pdf <файл>")
+    layout.remember(out, source=os.path.basename(pdf),
+                    stem=layout.clean_stem(pdf),
+                    passes=len(layout.pass_dirs(out)))
+    print(f"  книга: {layout.stem(out)}")
+
+    rc = merge.assemble(out)
+    return rc or _restructure_after(out)
 
 
 def cmd_local(a):
@@ -721,13 +829,17 @@ def main(argv=None):
     p.set_defaults(fn=cmd_restructure)
 
     p = sub.add_parser("merge",
-                       help="свести скачанные проходы заново, без GPU")
-    p.add_argument("dirs", nargs="+",
-                   help="каталоги проходов; первый — основа, остальные свидетели")
-    p.add_argument("--out", required=True, help="куда положить сведённый разбор")
-    p.add_argument("--force", action="store_true",
-                   help="снести каталог назначения, если он уже есть")
+                       help="собрать книгу из скачанных проходов, без GPU")
+    p.add_argument("outdir", help="каталог книги (processed/<имя>)")
     p.set_defaults(fn=cmd_merge)
+
+    p = sub.add_parser("tidy",
+                       help="перевести старый разбор в нынешнюю раскладку")
+    p.add_argument("outdir", help="каталог разбора (processed/<имя>)")
+    p.add_argument("--pdf", help="исходник, если старый run.json его не помнит")
+    p.add_argument("--force", action="store_true",
+                   help="пересобрать, даже если раскладка уже нынешняя")
+    p.set_defaults(fn=cmd_tidy)
 
     p = sub.add_parser("local", help="разобрать PDF по его же OCR-слою, без GPU")
     p.add_argument("pdf")

@@ -54,6 +54,8 @@ import json
 import os
 import re
 
+from . import layout
+
 # Внутрь таблиц не заходим ни одной правкой: там числа и пометки.
 TABLE = re.compile(r"<table\b.*?</table>", re.I | re.S)
 DOTS = re.compile(r"[.…](?:\s*[.…]){3,}")
@@ -191,10 +193,10 @@ def _key(s):
 # стройный, замер — против; поэтому `skip` по умолчанию пуст.
 
 
-def blocks(outdir, skip=()):
+def blocks(pages_dir, skip=()):
     """Блоки всех страниц в порядке чтения: (метка, текст)."""
     out = []
-    for f in sorted(glob.glob(os.path.join(outdir, "pages", "*.json"))):
+    for f in sorted(glob.glob(os.path.join(pages_dir, "*.json"))):
         try:
             d = json.load(open(f, encoding="utf-8"))
         except Exception:
@@ -884,7 +886,7 @@ def toc(text):
             "# Оглавление\n\n" + "\n".join(rows) + "\n")
 
 
-def report(outdir, before, after, counts, cover, text):
+def report(path, before, after, counts, cover, text):
     """Отчёт о том, что в ЭТОЙ книге надёжно, а что нет.
 
     Смысл файла — снять с промта обязанность утверждать про структуру.
@@ -995,7 +997,6 @@ def report(outdir, before, after, counts, cover, text):
         else:
             lines.append("")
 
-    path = os.path.join(outdir, "book", "report.md")
     os.makedirs(os.path.dirname(path), exist_ok=True)
     open(path, "w", encoding="utf-8").write("\n".join(lines))
     return path
@@ -1008,7 +1009,8 @@ def restructure(outdir):
     счётчики выходят нулевыми.  Это не украшение, а условие — шаг должен
     переживать `books restructure` на уже собранной книге.
     """
-    book = os.path.join(outdir, "book", "book.md")
+    p = layout.Paths(outdir)
+    book = p.book
     if not os.path.exists(book):
         raise SystemExit(f"нет разбора: {book}")
 
@@ -1021,14 +1023,14 @@ def restructure(outdir):
     # надо с исходным разбором, а не с предыдущим запуском — иначе на
     # повторном прогоне все величины сравниваются сами с собой и отчёт
     # рапортует «склеено переносов 0» там, где склеено 139.
-    snap = book + ".before-restructure"
+    snap = p.snapshot
     if not os.path.exists(snap):
         open(snap, "w", encoding="utf-8").write(src)
         print(f"  слепок до сборки: {os.path.basename(snap)}")
     before = _measure(open(snap, encoding="utf-8").read())
-    blks = blocks(outdir)
+    blks = blocks(p.pages)
     if not blks:
-        raise SystemExit(f"нет json страниц в {outdir}/pages — "
+        raise SystemExit(f"нет json страниц в {p.pages} — "
                          f"структуру брать неоткуда")
 
     body, kept = _protect(src)
@@ -1077,7 +1079,7 @@ def restructure(outdir):
                                  + lab.get("подпись без картинки рядом", 0),
                                  total["figure_title"])
 
-    toc_path = os.path.join(outdir, "book", "toc.md")
+    toc_path = p.toc
     open(toc_path, "w", encoding="utf-8").write(toc(dst))
 
     # Служебные счётчики (с подчёркиванием) нужны только для сведения
@@ -1130,7 +1132,7 @@ def restructure(outdir):
           + f", порядок нарушен в {after['нарушений порядка разделов']} местах")
     after["глав не собрано"] = len(gap)
     print(f"оглавление: {toc_path}")
-    print(f"отчёт: {report(outdir, before, after, counts, cover, dst)}")
+    print(f"отчёт: {report(p.report, before, after, counts, cover, dst)}")
     return 0
 
 
