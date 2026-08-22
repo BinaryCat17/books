@@ -9,7 +9,7 @@
   ≠  чтения разошлись (модель гадала, но уверенно).
 Первый признак ловит искажённый текст, второй — правдоподобную выдумку.
 """
-import collections, glob, html, os, re, shutil, sys
+import collections, difflib, glob, html, os, re, shutil, sys
 
 TAG = re.compile(r"<[^>]+>")
 CELL = re.compile(r"(<t[dh][^>]*>)(.*?)(</t[dh]>)", re.I | re.S)
@@ -31,6 +31,162 @@ def cells_of(path):
     return out
 
 
+# Число целиком, вместе с ведущей точкой: в этой предметной области `.0005`
+# пишут и так, и как `0.0005`, и без ведущей точки шаблон превращал одно
+# написание в другое в мнимое расхождение — из 41 первой пометки таких было
+# больше половины.  Хвостовая пунктуация в число не входит: `26.30,` — это
+# число и запятая, а не число с запятой.
+#
+# Ведущая точка засчитывается, только если перед ней НЕ буква: иначе точка от
+# «Sec.» прилипает к номеру раздела, и `Sec. 27.35` против `Sec.27.35`
+# объявляется расхождением чисел, хотя различие в пробеле.
+NUM = re.compile(r"(?<![^\W\d_])\.?\d+(?:[.,]\d+)*")
+PROSE_MARK = "чтения разошлись"
+
+
+def _paragraphs(md):
+    """Абзацы страницы без таблиц.
+
+    Таблицы вырезаются целиком: их ячейки сличаются отдельно и точнее, по
+    содержимому, а не по месту.
+    """
+    body = TABLE.sub(lambda m: "\x00", md)
+    return re.split(r"(\n\s*\n)", body)
+
+
+def _key(p):
+    """Ключ абзаца для сопоставления: только буквы и цифры, без регистра."""
+    return re.sub(r"[\W_]+", " ", TAG.sub(" ", p), flags=re.UNICODE).strip().casefold()
+
+
+def _same_number(a, b):
+    """Одно ли это число, записанное по-разному.
+
+    `.001` и `0.001` — одно и то же; `.001` и `.0001` — разное.  Без этой
+    поправки свод объявлял бы расхождением смену написания, а таких у
+    распознавателя много.
+    """
+    n = lambda x: x.lstrip("0") if x[:2] == "0." else x
+    return n(a) == n(b)
+
+
+def _numbers(text):
+    """Числа в тексте — со смещениями, минуя разметку.
+
+    Внутрь тегов не заходим: в `<img src="...0091_1011...">` цифр больше, чем
+    во всей странице, и все они к содержанию отношения не имеют.
+    """
+    holes = [(m.start(), m.end()) for m in TAG.finditer(text)]
+    out = []
+    for m in NUM.finditer(text):
+        if any(a <= m.start() < b for a, b in holes):
+            continue
+        val = m.group(0).rstrip(".,")
+        out.append((m.start(), m.start() + len(val), val))
+    return out
+
+
+def mark_prose(base_md, witness_mds):
+    """Пометить числа прозы, в которых чтения разошлись.
+
+    Зачем это вообще: до сих пор свод сличал ТОЛЬКО ячейки таблиц, а проза
+    первого прохода копировалась в итог побайтово.  Замер показал цену такой
+    экономии — в справочнике по станкам 0.29% знаков книги лежит в ячейках, то
+    есть проверялось три сотых доли текста, а в прозе оставались 69
+    неподтверждённых чисел на сорока страницах: допуски вида `.001` против
+    `.0001` и ссылки `Sec. 18.7` против `13.7`.  Ровно та правдоподобная
+    выдумка, которую вероятности токенов не ловят по определению — модель в
+    ней уверена.
+
+    Сличаются ЧИСЛА, а не слова.  Пословное сличение годится для прозы
+    справочника (0.29% помеченных слов, медиана ноль на страницу), но на книге
+    с формулами превращается в шум: у Фейнмана расходится 6.9% слов, а токены
+    LaTeX — на 38-40%.  Числа же дают 69 и 90 пометок на всю книгу
+    соответственно, без шума вовсе, и это именно то, чего нельзя чинить на
+    глаз.
+
+    В подпись пометки кладутся варианты свидетелей.  Это улика, а не подсказка
+    к исправлению: правило «числа только помечать, никогда не восстанавливать»
+    остаётся, но человеку, идущему сверять со сканом, полезно знать, что
+    прочли другие проходы.
+    """
+    base = _paragraphs(base_md)
+    wits = [_paragraphs(w) for w in witness_mds]
+    if not wits:
+        return base_md, 0, 1
+
+    # Абзацы сопоставляем, а не приравниваем по номеру.  Требование «одинаковое
+    # число абзацев» оставляло несверенными 117 страниц из 539: проходы делят
+    # текст по-разному (на стр. 0002 первый дал 35 абзацев, второй 19), и это
+    # не разметка, а настоящее расхождение дробления.  Сличаем только те
+    # абзацы, которые сошлись у ВСЕХ свидетелей однозначно; остальные считаем
+    # несверенными и говорим об этом числом.
+    def _pair(a, b):
+        ka = [_key(x) for x in a]
+        kb = [_key(x) for x in b]
+        out = {}
+        for op, i1, i2, j1, j2 in difflib.SequenceMatcher(
+                None, ka, kb, autojunk=False).get_opcodes():
+            # `equal` — якоря, `replace` равной длины — то, ради чего всё и
+            # затевалось: абзацы соответствуют друг другу, но ОТЛИЧАЮТСЯ.
+            #
+            # Первая редакция брала только `equal`, и это была ошибка по
+            # существу: сопоставление по равенству исключает ровно те абзацы,
+            # где чтения разошлись.  Замер поймал сразу — пометок стало 2
+            # вместо 30.
+            if op == "equal" or (op == "replace" and i2 - i1 == j2 - j1):
+                for d in range(i2 - i1):
+                    out[i1 + d] = j1 + d
+        return out
+
+    pairs = [_pair(base, w) for w in wits]
+    aligned = set(pairs[0])
+    for p in pairs[1:]:
+        aligned &= set(p)
+
+    marked = 0
+    blind = 0
+    out = list(base)
+    for i, part in enumerate(base):
+        if i % 2 or "\x00" in part or not part.strip():
+            continue
+        bn = _numbers(part)
+        if not bn:
+            continue
+        if i not in aligned:
+            # Абзац не сошёлся ни с одним свидетелем — числа в нём не
+            # проверены никем, и это надо назвать, а не замолчать.
+            blind += 1
+            continue
+        wn = [_numbers(w[p[i]]) for w, p in zip(wits, pairs)]
+        if any(len(x) != len(bn) for x in wn):
+            # Состав чисел разошёлся — метим абзац целиком, поштучно тут
+            # сопоставлять уже нечем.
+            out[i] = part.rstrip() + f" <!-- {PROSE_MARK}: состав чисел -->"
+            marked += 1
+            continue
+        new = part
+        for k in range(len(bn) - 1, -1, -1):
+            a, b, val = bn[k]
+            alt = sorted({x[k][2] for x in wn
+                          if not _same_number(x[k][2], val)})
+            if not alt:
+                continue
+            new = (new[:a] + f'<mark title="{PROSE_MARK}: {", ".join(alt)}">'
+                   + new[a:b] + "</mark>" + new[b:])
+            marked += 1
+        out[i] = new
+
+    if not marked:
+        return base_md, 0, blind
+    # Собираем обратно, вернув таблицы на место.
+    tables = TABLE.findall(base_md)
+    res = "".join(out)
+    for t in tables:
+        res = res.replace("\x00", t, 1)
+    return res, marked, blind
+
+
 def merge(dirs, dst):
     base, others = dirs[0], dirs[1:]
     if os.path.isdir(dst):
@@ -38,16 +194,36 @@ def merge(dirs, dst):
     shutil.copytree(base, dst)
     pages = sorted(glob.glob(os.path.join(dst, "pages", "*.md")))
     marked = total = 0
+    prose_marked = prose_blind = missing = 0
     for f in pages:
         stem = os.path.basename(f)
-        try:
-            witness = [cells_of(os.path.join(o, "pages", stem))
-                       for o in others]
-        except FileNotFoundError:
+        paths = [os.path.join(o, "pages", stem) for o in others]
+        # Нехватку страницы у свидетеля считаем и называем.  Прежде она уходила
+        # через `except FileNotFoundError: continue`, и страница выглядела
+        # проверенной, хотя не проверялась вовсе: на опыте с усечённым
+        # свидетелем 130 страниц прошли без единой пометки там, где при целом
+        # свидетеле их стояло 47.  Хуже того, перехват накрывал ВЕСЬ список
+        # свидетелей — нехватка у одного отменяла проверку по остальным.
+        if not all(os.path.exists(p) for p in paths):
+            missing += 1
             continue
         src = open(f, encoding="utf-8").read()
+        changed = False
+
+        # Проза — на каждой странице, а не только там, где есть таблица.
+        # Прежде страница без таблицы даже не читалась.
+        src, pm, pb = mark_prose(src, [open(p, encoding="utf-8").read()
+                                       for p in paths])
+        prose_marked += pm
+        prose_blind += pb
+        changed = changed or bool(pm)
+
         if "<table" not in src.lower():
+            if changed:
+                with open(f, "w", encoding="utf-8") as fh:
+                    fh.write(src)
             continue
+        witness = [cells_of(p) for p in paths]
         seen = collections.Counter()
 
         def one(m):
@@ -118,6 +294,14 @@ def merge(dirs, dst):
                 out.write("\n\n")
     print(f"ячеек в таблицах {total}, помечено неустойчивыми {marked} "
           f"({marked/max(total,1):.0%})")
+    print(f"чисел в прозе помечено {prose_marked}; абзацев с числами, не "
+          f"сошедшихся ни с одним свидетелем и потому не сверенных: "
+          f"{prose_blind}")
+    if missing:
+        # Число, а не молчание: страница без свидетеля НЕ проверена, и это
+        # надо видеть, а не выводить из тишины.
+        print(f"ВНИМАНИЕ: у свидетелей не хватает {missing} страниц — "
+              f"они не сверены ничем")
     print(f"книга собрана: {book}")
 
 

@@ -88,6 +88,7 @@ def _multipass(a):
     # покупал три доллара и три часа — молча.
     chain_started = time.time()
     spent = 0.0
+    truncated = False
     for i in range(1, a.passes + 1):
         left_min = a.timeout - (time.time() - chain_started) / 60
         left_usd = a.budget - spent
@@ -95,6 +96,19 @@ def _multipass(a):
             print(f"цепочка исчерпала предел ({a.timeout} мин, ${a.budget:.2f}): "
                   f"осталось {left_min:.1f} мин и ${left_usd:.3f} — "
                   f"проход {i} не начинаю, свожу что есть")
+            truncated = True
+            # Машину гасим здесь и сами.  Предыдущий проход оставил её нарочно,
+            # ради следующего, — а следующего не будет.  Раньше такого случая
+            # не существовало вовсе: цикл всегда доходил до последнего прохода,
+            # и гасил машину он.  Без этого инстанс жил бы до укороченного
+            # дозора мертвеца — уже не ночь, но и не даром.
+            if iid:
+                try:
+                    Vast().destroy(int(iid))
+                    log(f"инстанс {iid} уничтожен: цепочка оборвана по пределу")
+                except Exception as e:
+                    log(f"не смог уничтожить инстанс {iid} ({e}) — "
+                        f"погаси сам: books down {iid}")
             break
         d = f"{base}-pass{i}"
         one = copy.copy(a)
@@ -127,7 +141,16 @@ def _multipass(a):
 
     from . import merge
     rc = merge.merge(dirs, base)
-    return rc or _restructure_after(base)
+    rc = rc or _restructure_after(base)
+    if truncated and not rc:
+        # Усечённый свод не должен выглядеть выполненной работой: попросили N
+        # проходов, сделали меньше, и свидетелей у книги меньше обещанного.
+        # Книга при этом собрана и лежит на месте — об этом сказано рядом.
+        print(f"ВНИМАНИЕ: просили {a.passes} прохода, выполнено {len(dirs)}. "
+              f"Книга собрана в {base}, но свидетелей у неё меньше, чем "
+              f"заказано, и пометок расхождения будет меньше.")
+        return 2
+    return rc
 
 
 def _restructure_after(outdir):
