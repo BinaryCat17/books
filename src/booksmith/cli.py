@@ -89,7 +89,7 @@ def _multipass(a):
         if i > 1:
             os.environ["VLM_TEMPERATURE"] = str(a.temperature)
         report = {}
-        print(f"=== проход {i} из {a.passes} -> {os.path.relpath(d)}")
+        log(f"=== проход {i} из {a.passes} -> {os.path.relpath(d)}")
         rc = _one_pass(one, report=report)
         if rc != 0:
             print(f"проход {i} завершился с кодом {rc} — свод не делаю")
@@ -309,102 +309,156 @@ def _open_log(a):
     return path
 
 
-# Строки, по которым читается ход прогона.  Разбираем журнал, а не состояние
-# машины: журнал есть всегда, в том числе после того, как машина уничтожена.
-_P_PASS = re.compile(r"=== проход (\d+) из (\d+)")
+# Этапы прогона: по какой строке начинается, по какой кончается, как назвать.
+# Порядок важен — по нему лента и строится.
+_STAGES = [
+    ("выкачивание образа, старт контейнера",
+     r"жду выкачивания образа", r"статус=running|ssh готов"),
+    ("заливка входных файлов",
+     r"заливаю входные файлы", r"запускаю задачу"),
+    ("установка окружения (python, torch, веса)",
+     r"=== разворачиваю окружение ===", r"=== окружение ===|поднимаю vLLM"),
+    ("подъём модели vLLM",
+     r"=== поднимаю vLLM", r"пайплайн готов|=== разбираю"),
+    ("счёт страниц",
+     r"=== разбираю ", r"посчитано \d+ страниц"),
+    ("выкачивание результата",
+     r"забираю результат", r"итого [\d.]+ мин|готово за [\d.]+ мин"),
+]
 _P_RENT = re.compile(r"снимаю #(\d+) за \$([\d.]+)/час")
-_P_PAGES = re.compile(r"^\s*\[[\d:]+\]\s+(\d+) страниц, ([\d.]+) стр/с")
+_P_PASS = re.compile(r"=== проход (\d+) из (\d+)")
 _P_DONE = re.compile(r"посчитано (\d+) страниц за (\d+)с \(([\d.]+) стр/с\)")
+_P_PAGES = re.compile(r"\s(\d+) страниц, ([\d.]+) стр/с")
+_P_TOTAL = re.compile(r"итого ([\d.]+) мин ≈ \$([\d.]+)")
 _P_TIME = re.compile(r"\[(\d\d):(\d\d):(\d\d)\]")
 
 
-def cmd_progress(a):
-    """Где сейчас прогон: коротко, по журналу.
+def _hms(sec):
+    sec %= 24 * 3600
+    return f"{sec // 3600:02d}:{sec % 3600 // 60:02d}:{sec % 60:02d}"
 
-    Смысл команды — не показать больше строк, а показать меньше: журнал за
-    прогон разрастается до тысяч строк, из которых важны десять.  Печатается
-    то, что нужно решить «идёт как надо / встало / пора смотреть».
+
+def _dur(sec):
+    return f"{sec / 60:.1f} мин" if sec >= 60 else f"{sec} с"
+
+
+def _events(lines):
+    """Строки журнала со временем, приведённым к нашим часам.
+
+    Часы у нас и у арендованной машины разные, и в журнале они идут вперемешку:
+    наши строки без отступа, машинные — с отступом.  Пока их не свести, лента
+    выглядит бредом — этап «кончился» на три часа раньше, чем начался.
+    Сдвиг берём один раз, по первой машинной строке и последней нашей перед
+    ней: они пишутся почти одновременно, потому что вывод идёт потоком.
+    """
+    out, last_local, shift = [], None, None
+    for l in lines:
+        m = _P_TIME.search(l)
+        if not m:
+            # Строка без отметки времени всё равно может быть вехой (в старых
+            # журналах «=== проход N из M» печатался обычным print).  Даём ей
+            # последнее известное время, иначе лента теряет границы проходов.
+            if last_local is not None and _P_PASS.search(l):
+                out.append((last_local, l.strip()))
+            continue
+        sec = int(m.group(1)) * 3600 + int(m.group(2)) * 60 + int(m.group(3))
+        remote = l[:1].isspace()
+        if not remote:
+            last_local = sec
+        elif shift is None and last_local is not None:
+            shift = last_local - sec
+        if remote:
+            sec += shift or 0
+        out.append((sec, l.strip()))
+    return out
+
+
+def cmd_progress(a):
+    """Ход прогона лентой: что когда началось, когда кончилось, сколько шло.
+
+    Первая редакция печатала сводку — «проход 2 из 3, счёт закончен» — и это
+    оказалось не тем: по сводке не видно, что сейчас делается и не встало ли
+    оно.  Нужна лента ключевых этапов, а не итог.
     """
     path = a.path
     if not path:
         logs = sorted(glob.glob(os.path.join("runs", "*.log")),
                       key=os.path.getmtime)
         if not logs:
-            raise SystemExit("в runs/ нет журналов; запусти с --log")
+            raise SystemExit("в runs/ нет журналов; запускай с --log")
         path = logs[-1]
     if not os.path.exists(path):
         raise SystemExit(f"нет журнала: {path}")
-
     lines = open(path, encoding="utf-8", errors="replace").read().splitlines()
-    if not lines:
-        raise SystemExit(f"журнал пуст: {path}")
+    ev = _events(lines)
+    if not ev:
+        raise SystemExit(f"в журнале нет отметок времени: {path}")
 
-    cur = tot = 0
-    rent = None
-    pages = done = None
-    warn, bad = [], []
-    struct = []
-    for l in lines:
-        m = _P_PASS.search(l)
-        if m:
-            cur, tot = int(m.group(1)), int(m.group(2))
-            pages = None
-        m = _P_RENT.search(l)
-        if m:
-            rent = (m.group(1), float(m.group(2)))
-        m = _P_PAGES.search(l)
-        if m:
-            pages = (int(m.group(1)), float(m.group(2)))
-        m = _P_DONE.search(l)
-        if m:
-            done = (int(m.group(1)), int(m.group(2)), float(m.group(3)))
-        if "ВНИМАНИЕ" in l:
-            warn.append(l.strip())
-        if re.search(r"Traceback|завершился с кодом|не удалось|ошибка", l):
-            bad.append(l.strip())
-        if re.search(r"глав \d+ из|оглавление:|отчёт:|слепок до сборки", l):
-            struct.append(l.strip())
-
-    stamps = [m for l in lines for m in _P_TIME.findall(l)]
-    started = ":".join(stamps[0]) if stamps else "?"
-    last_ts = ":".join(stamps[-1]) if stamps else "?"
-    elapsed = 0
-    if len(stamps) > 1:
-        def _sec(t):
-            return int(t[0]) * 3600 + int(t[1]) * 60 + int(t[2])
-        elapsed = _sec(stamps[-1]) - _sec(stamps[0])
-        if elapsed < 0:           # прогон перевалил за полночь
-            elapsed += 24 * 3600
+    now = time.localtime()
+    now_sec = now.tm_hour * 3600 + now.tm_min * 60 + now.tm_sec
     quiet = (time.time() - os.path.getmtime(path)) / 60
+    live = quiet < 3
 
     print(f"журнал: {path}")
-    print(f"начат {started}, последняя запись {last_ts}"
-          + (f", молчит {quiet:.0f} мин" if quiet >= 2 else ""))
+    if not live:
+        print(f"прогон не идёт: последняя запись {_hms(ev[-1][0])}, "
+              f"{quiet / 60:.1f} ч назад" if quiet > 90 else
+              f"прогон не идёт: последняя запись {_hms(ev[-1][0])}, "
+              f"{quiet:.0f} мин назад")
+
+    rent = next((_P_RENT.search(t) for _, t in ev if _P_RENT.search(t)), None)
     if rent:
-        # Время берём из самих отметок журнала, а не из времён файла: у файла,
-        # в который дописывают, `ctime` равен `mtime`, и «набежало» выходило
-        # ровно $0.00 при часе аренды.  Оценка всё равно сверху и по журналу —
-        # обращаться к бирже ради неё незачем.
-        print(f"машина #{rent[0]}, ${rent[1]:.3f}/час"
-              + (f" — набежало примерно ${rent[1] * elapsed / 3600:.2f}"
-                 if elapsed else ""))
-    if tot:
-        print(f"проход {cur} из {tot}")
-    if done:
-        print(f"  счёт закончен: {done[0]} страниц за {done[1]}с "
-              f"({done[2]:.2f} стр/с)")
-    elif pages:
-        print(f"  идёт счёт: {pages[0]} страниц, {pages[1]:.2f} стр/с")
+        print(f"машина #{rent.group(1)}, ${float(rent.group(2)):.3f}/час")
+
+    # Границы проходов; всё, что до первого прохода, — общая подготовка.
+    marks = [(i, _P_PASS.search(t)) for i, (_, t) in enumerate(ev)
+             if _P_PASS.search(t)]
+    chunks = []
+    if marks:
+        for n, (i, m) in enumerate(marks):
+            end = marks[n + 1][0] if n + 1 < len(marks) else len(ev)
+            chunks.append((f"проход {m.group(1)} из {m.group(2)}",
+                           ev[i:end]))
+        if marks[0][0]:
+            chunks.insert(0, ("подготовка", ev[:marks[0][0]]))
     else:
-        print("  счёт ещё не начался — идёт установка окружения")
-    for s in struct[-4:]:
-        print(f"  {s}")
-    for w in warn[-3:]:
-        print(f"  ! {w}")
-    for b in bad[-3:]:
-        print(f"  !! {b}")
-    if not bad:
-        print("последняя строка: " + lines[-1].strip()[:100])
+        chunks = [("", ev)]
+
+    for title, part in chunks:
+        if title:
+            print(f"\n{title}")
+        for name, beg_re, end_re in _STAGES:
+            b = next((s for s, t in part if re.search(beg_re, t)), None)
+            if b is None:
+                continue
+            e = next((s for s, t in part
+                      if s >= b and re.search(end_re, t)), None)
+            if e is None:
+                print(f"  {_hms(b)} → идёт {_dur(max(now_sec - b, 0))}"
+                      f"   {name}")
+            else:
+                print(f"  {_hms(b)} → {_hms(e)}  {_dur(e - b):>9}   {name}")
+        d = next((_P_DONE.search(t) for s, t in part if _P_DONE.search(t)),
+                 None)
+        if d:
+            print(f"       {d.group(1)} страниц, {d.group(3)} стр/с")
+        elif not live:
+            pass
+        else:
+            g = [_P_PAGES.search(t) for s, t in part if _P_PAGES.search(t)]
+            if g:
+                print(f"       сейчас {g[-1].group(1)} страниц, "
+                      f"{g[-1].group(2)} стр/с")
+
+    tot = [_P_TOTAL.search(t) for _, t in ev if _P_TOTAL.search(t)]
+    if tot:
+        mins = sum(float(m.group(1)) for m in tot)
+        usd = sum(float(m.group(2)) for m in tot)
+        print(f"\nвсего по журналу: {mins:.1f} мин ≈ ${usd:.2f}")
+    bad = [t for _, t in ev
+           if re.search(r"Traceback|завершился с кодом|не удалось", t)]
+    for x in bad[-3:]:
+        print(f"  !! {x[:100]}")
     return 0
 
 
