@@ -644,11 +644,29 @@ def cmd_progress(a):
     """
     path = a.path
     if not path:
+        # Самый свежий ПРОГОН, а не самый свежий файл.  Прежде бралось
+        # последнее по времени изменения, и лента показывала то отладочный
+        # журнал недельной давности, то пустышку от проверочного запуска —
+        # оба «свежее» настоящего прогона, потому что их трогали позже.
+        # Журнал без единого этапа прогоном не считается.
         logs = sorted(glob.glob(os.path.join("runs", "*.log")),
-                      key=os.path.getmtime)
+                      key=os.path.getmtime, reverse=True)
         if not logs:
             raise SystemExit("в runs/ нет журналов; запускай с --log")
-        path = logs[-1]
+        skipped = []
+        for cand in logs:
+            head = open(cand, encoding="utf-8", errors="replace").read()
+            if any(re.search(st[1], head, re.M) for st in _STAGES):
+                path = cand
+                break
+            skipped.append(os.path.basename(cand))
+        if not path:
+            raise SystemExit(
+                "ни в одном журнале runs/ нет этапов прогона "
+                f"({len(logs)} шт.) — укажите путь явно")
+        if skipped:
+            print(f"пропущено журналов без этапов: {len(skipped)} "
+                  f"({', '.join(skipped[:3])}{'…' if len(skipped) > 3 else ''})")
     if not os.path.exists(path):
         raise SystemExit(f"нет журнала: {path}")
     lines = open(path, encoding="utf-8", errors="replace").read().splitlines()
