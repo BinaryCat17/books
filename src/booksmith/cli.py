@@ -229,6 +229,10 @@ def _multipass(a):
     # Имя книги — по ИСХОДНОМУ файлу: для djvu это он, а не PDF, в который
     # мы его развернули.  Иначе книга называлась бы по побочному продукту.
     src_name = getattr(a, "source", None) or os.path.basename(a.pdf)
+    # Сведения распознавателя (страниц, модель, скорость) лежат в run.json
+    # ПРОХОДА.  Наверх они не поднимались, и свежий разбор не знал даже, из
+    # скольких страниц он сделан: сводка по книгам печатала «стр ?».
+    layout.remember(base, **layout.facts(dirs[0]))
     layout.remember(base, source=src_name,
                     stem=layout.clean_stem(src_name), passes=len(dirs),
                     cost_usd=round(spent, 4))
