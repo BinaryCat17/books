@@ -9,6 +9,7 @@ import os
 import select
 import shlex
 import subprocess
+import tempfile
 import threading
 import time
 
@@ -17,12 +18,38 @@ import time
 # стоит столько же, сколько 4.4 МБ.  За трёхпроходный прогон набегает 21
 # рукопожатие.  Мультиплексирование сводит их к одному на машину.
 #
-# Сокет в /tmp, а не в ~/.ssh: длина пути к юникс-сокету ограничена сотней с
-# небольшим байтов, и домашний каталог с длинным именем её выбирает.
+# Сокет лежит в СВОЁМ каталоге, а не прямо в /tmp, и это не гигиена, а защита
+# от отказа, роняющего оплаченный прогон.  Проверено запуском: если файл на
+# пути сокета принадлежит другому пользователю, ssh НЕ переходит тихо на
+# обычное соединение, а валит его целиком:
+#
+#     unix_listener: cannot bind to path /tmp/.booksmith-… Permission denied
+#     rc=255
+#
+# В общем /tmp с липким битом это ровно случай «однажды запустили под sudo»:
+# все последующие прогоны падали бы уже ПОСЛЕ съёма машины, то есть на
+# тарифицируемой карте.  Своим каталогом с режимом 0700 закрывается заодно и
+# подставной сокет: ssh не проверяет ни владельца, ни права уже существующего
+# сокета, а имя пути угадывается снаружи, и сокет, который принимает и молчит,
+# вешает ssh без всякого таймаута.
+#
+# Длина пути к юникс-сокету ограничена 108 байтами (проверено `bind()`);
+# худший реальный случай с числовым адресом и портом — 42 байта, запас
+# двукратный.
+_SOCK_DIR = os.path.join(tempfile.gettempdir(), f".booksmith-{os.getuid()}")
+try:
+    os.makedirs(_SOCK_DIR, mode=0o700, exist_ok=True)
+except OSError:
+    _SOCK_DIR = tempfile.gettempdir()
+
 SSH_OPTS = [
     "-o", "ControlMaster=auto",
-    "-o", "ControlPath=/tmp/.booksmith-%r@%h:%p",
+    "-o", f"ControlPath={_SOCK_DIR}/%r@%h:%p",
     "-o", "ControlPersist=180",
+    # Без этого ssh к замолчавшей машине висит бесконечно — проверено и с
+    # мультиплексированием, и без него.  Мультиплексирование не создаёт
+    # зависание, но удлиняет его почти на полторы минуты.
+    "-o", "ConnectTimeout=15",
     "-o", "StrictHostKeyChecking=no",
     "-o", "UserKnownHostsFile=/dev/null",
     "-o", "LogLevel=ERROR",
@@ -181,12 +208,28 @@ class Box:
         except Exception:
             return 0.0
 
-    def _rsync(self, src: str, dst: str, extra: list[str] | None = None) -> int:
+    # Потолок на одну передачу.  Полчаса с запасом покрывают худшее из
+    # виденного: 180 МБ картинок при канале 2.9 Мбит/с — это около шестнадцати
+    # минут.  Раньше потолка не было вовсе, и зависший rsync висел вечно:
+    # поток фоновой синхронизации не выходил, `stop_sync` жёг свои триста
+    # секунд впустую, а финальная выкачка не кончалась никогда.
+    RSYNC_TIMEOUT_S = 1800
+
+    def _rsync(self, src: str, dst: str, extra: list[str] | None = None,
+               timeout: float | None = None) -> int:
         rsh = " ".join(shlex.quote(x) for x in
                        ["ssh", "-p", self.port] + SSH_OPTS +
                        (["-i", self.key] if self.key else []))
         cmd = ["rsync", "-az", "--partial", "-e", rsh] + (extra or []) + [src, dst]
-        p = subprocess.run(cmd, capture_output=True, text=True)
+        try:
+            p = subprocess.run(cmd, capture_output=True, text=True,
+                               timeout=timeout or self.RSYNC_TIMEOUT_S)
+        except subprocess.TimeoutExpired:
+            # `--partial` оставляет недокачанное на месте, так что следующая
+            # попытка продолжит, а не начнёт заново.
+            log(f"  rsync не уложился в "
+                f"{(timeout or self.RSYNC_TIMEOUT_S)/60:.0f} мин — прерван")
+            return 124
         if p.returncode != 0:
             log(f"  rsync: {p.stderr.strip()[:200]}")
         return p.returncode
@@ -207,7 +250,7 @@ class Box:
                 raise RuntimeError(f"заливка {local} не удалась: {p.stderr.strip()}")
 
     def pull(self, remote_rel: str, local_dir: str, quiet: bool = False,
-             exclude: tuple[str, ...] = ()) -> int:
+             exclude: tuple[str, ...] = (), timeout: float | None = None) -> int:
         """Забрать результат.  `exclude` — что не тянуть вовсе.
 
         Нужно для свидетелей многопроходного разбора: своду от них требуются
@@ -219,7 +262,8 @@ class Box:
         os.makedirs(local_dir, exist_ok=True)
         src = f"{self._addr}:{self.workdir}/{remote_rel}/"
         extra = [f"--exclude={x}" for x in exclude]
-        rc = self._rsync(src, local_dir.rstrip("/") + "/", extra or None)
+        rc = self._rsync(src, local_dir.rstrip("/") + "/", extra or None,
+                         timeout=timeout)
         if rc != 0 and not quiet:
             log(f"  не удалось забрать {remote_rel} (код {rc})")
         return rc
@@ -272,7 +316,10 @@ class Box:
         """Тянуть результаты по ходу работы, а не только в конце."""
         def loop():
             while not self._stop_sync.wait(every):
-                self.pull(remote_rel, local_dir, quiet=True, exclude=exclude)
+                # Фоновой выкачке потолок короче: она всё равно повторится
+                # через двадцать секунд, а висеть полчаса ей незачем.
+                self.pull(remote_rel, local_dir, quiet=True, exclude=exclude,
+                          timeout=300)
         self._stop_sync.clear()
         self._sync_thread = threading.Thread(target=loop, daemon=True)
         self._sync_thread.start()
