@@ -68,12 +68,41 @@ CHAPTER_FULL = re.compile(rf"^({_CW})\s+(\d+)[.\s]+(\S.*)$", re.I)
 # Буква любого алфавита: `[A-Za-z]` молча выключил бы кириллицу целиком.
 LET = r"[^\W\d_]"
 LIST_HEAD = re.compile(r"^#{1,6}\s+(\d+)\.\s+(\S.*)$")
+# Начало строки вида «Sec. 10.5», «§ 3.4», «1.2» — номер раздела с любым
+# словом-приставкой или без него.  Служит признаком заголовка (см.
+# `_looks_heading`), а не разбором нумерации.
+SEC_NUM = re.compile(r"^[^\w\d]*(?:\w{1,6}\.?\s+)?\d+\.\d+")
 
 TITLES = ("doc_title", "header", "paragraph_title")
 # Насколько далеко вперёд ищем блок при выравнивании.  `restructure_pages`
 # склеивает абзацы через разрыв страницы, поэтому счёт абзацев книги и блоков
 # json расходится — но локально, на единицы, а не на десятки.
 WINDOW = 30
+
+
+def _looks_heading(text):
+    """Набран ли кусок как заголовок, а не как проза.
+
+    Нужно там, где метка блока говорит «заголовок», а глаз говорит обратное:
+    детектор макета ошибается меткой, и без этой проверки шаг честно исполняет
+    чужую ошибку, поднимая прозу — вместе с числами внутри — в название
+    раздела.
+
+    Три признака, любого достаточно: набран без строчных букв; начинается с
+    номера раздела; совпал с шаблоном главы.
+
+    ОБЛАСТЬ ДЕЙСТВИЯ — только метка `header`.  Тот же признак, приложенный к
+    `paragraph_title`, забракует 65 настоящих заголовков этой книги
+    (`Scraping Burrs`, `The Body Power Stroke` — обычный регистр, без номера).
+    Признак «нет строчных» типографский и книгозависимый; языконезависим в нём
+    только отказ строке, начатой со строчной буквы.
+    """
+    t = (text or "").strip()
+    if not t:
+        return False
+    if CHAPTER.match(t) or CHAPTER_FULL.match(t) or SEC_NUM.match(t):
+        return True
+    return not any(c.islower() for c in t)
 
 
 def _key(s):
@@ -280,9 +309,21 @@ def relabel(text, blks):
                 # PLATE is a precision tool…`, и абзац прозы уезжал в `##`.
                 # Замер: шесть абзацев на книгу, и все шесть — при повторном
                 # запуске, то есть беда пряталась ещё и от первого прогона.
+                # `kb and` — не украшение.  Для пустого ключа `k.startswith("")`
+                # истинно всегда, и блок становится диким шаблоном: в книге три
+                # таких блока (`aside_text ';'` дважды и `paragraph_title
+                # '***'`).  Замер без этой проверки: один из них съел абзац,
+                # потеряно 15 совпадений, а заголовок `1. Adding Metal Strips:`
+                # упал с уровня раздела на уровень главы.
+                #
+                # Запас на длину тем строже, чем короче ключ.  Прежний порог
+                # `len(kb) >= 8` отсекал ключи «глава 3» и «sec 1 1» (по семь
+                # знаков) целиком: короткие заголовки не склеивались с названием
+                # никогда, а на русской книге шаг терял идемпотентность —
+                # непогашенный блок подбирал следующий абзац прозы.
+                slack = len(kb) * 2 + 40 if len(kb) >= 8 else len(kb) + 2
                 if kb == k or (len(k) >= 8 and kb.startswith(k)) \
-                        or (len(kb) >= 8 and k.startswith(kb)
-                            and len(k) <= len(kb) * 2 + 40):
+                        or (kb and k.startswith(kb) and len(k) <= slack):
                     hit = j
                     break
         if hit is None:
@@ -372,8 +413,26 @@ def relabel(text, blks):
             out.append("# " + orig)
             counts["заглавие"] += 1
         elif label == "header":
-            out.append("## " + orig)
-            counts["раздел верхнего уровня"] += 1
+            if _looks_heading(orig):
+                out.append("## " + orig)
+                counts["раздел верхнего уровня"] += 1
+            else:
+                # Детектор ошибся меткой: пометил заголовком прозу.  В этой
+                # книге так вышли две строки — `For example:` и хвост
+                # оборванной фразы `by OBJECTIVE NO. 1. A tolerance of .0004"
+                # in 6" is permissible.`, то есть числовое утверждение в виде
+                # названия раздела.  Обе совпали по точному равенству, а не по
+                # началу, поэтому порогом длины (см. `slack`) они не лечатся.
+                #
+                # Блок при этом всё равно закрывается (`b` уже сдвинут выше):
+                # оставив его непогашенным, мы потеряли бы идемпотентность —
+                # на следующем прогоне его подобрал бы соседний абзац.
+                for x in range(i, i + used):
+                    if paras[x].strip():
+                        out.append(paras[x])
+                counts["блок header оставлен прозой"] += 1
+                i += used
+                continue
         elif label == "paragraph_title":
             out.append("### " + orig)
             counts["заголовок раздела"] += 1
@@ -439,7 +498,7 @@ def _measure(text):
     disorder = sum(1 for x, y in zip(secs, secs[1:]) if y < x)
     return {
         "слов": len(re.sub(r"<[^>]+>", " ", body).split()),
-        "глав": len(re.findall(rf"^## (?:{_CW})\s+\d+\.", body, re.M)),
+        "глав": len(re.findall(rf"^## (?:{_CW})\s+\d+\.", body, re.M | re.I)),
         "заголовков разделов": len(re.findall(r"^### ", body, re.M)),
         "номеров разделов найдено": len(secs),
         "нарушений порядка разделов": disorder,
@@ -472,8 +531,8 @@ def toc(text):
     chap = 0
     prev = (0, 0)
     for i, l in enumerate(lines, 1):
-        if re.match(rf"^## (?:{_CW})\s+\d+\.", l):
-            chap = int(re.search(rf"(?:{_CW})\s+(\d+)", l).group(1))
+        if re.match(rf"^## (?:{_CW})\s+\d+\.", l, re.I):
+            chap = int(re.search(rf"(?:{_CW})\s+(\d+)", l, re.I).group(1))
             prev = (chap, 0)
             marks.append((i, 1, l[3:].strip(), False))
         elif l.startswith("### "):
@@ -648,8 +707,8 @@ def restructure(outdir):
     # Главы обязаны идти подряд от первой до последней.  Дыра в этом ряду —
     # единственный дешёвый способ заметить, что заголовок не собрался: сам по
     # себе «глав 28» выглядит как успех, пока не сравнить с 30.
-    got = {int(m) for m in re.findall(rf"^## (?:{_CW})\s+(\d+)\.", dst, re.M)}
-    seen = {int(m) for m in re.findall(rf"(?:{_CW})\s+(\d+)", dst)}
+    got = {int(m) for m in re.findall(rf"^## (?:{_CW})\s+(\d+)\.", dst, re.M | re.I)}
+    seen = {int(m) for m in re.findall(rf"(?:{_CW})\s+(\d+)", dst, re.I)}
     gap = sorted((set(range(1, max(seen or [0]) + 1)) - got)) if seen else []
     print(f"  глав {after['глав']} из {max(seen or [0])}"
           + (f", НЕ СОБРАНЫ: {gap}" if gap else "")
