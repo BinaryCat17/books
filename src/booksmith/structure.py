@@ -741,6 +741,54 @@ def _disorder(hs):
     return bad
 
 
+def chapter_map(text):
+    """По главам: сколько слов и сколько мест, требующих сверки.
+
+    Числа по книге целиком мало что дают переводчику: повреждения
+    распределены крайне неровно.  В этой книге три главы держат большую часть
+    таблиц и пометок, а полтора десятка глав не содержат ни одной таблицы и ни
+    одной пометки — их переводят, не открывая ни одной картинки.  Эта разбивка
+    и есть ответ на вопрос «с какой главы начинать и где понадобится скан».
+    """
+    lines = text.split("\n")
+    hs = _headings(text)
+    ends = _ranges(text, hs)
+    out = []
+    for i, role, t, num, depth in hs:
+        if role != "chapter":
+            continue
+        chunk = "\n".join(lines[i - 1:ends[i]])
+        body = TABLE.sub("", chunk)
+        out.append({
+            "глава": t,
+            "строки": (i, ends[i]),
+            "слов": len(re.sub(r"<[^>]+>", " ", body).split()),
+            "таблиц": len(TABLE.findall(chunk)),
+            "⚠": chunk.count("⚠"),
+            "≠": chunk.count("≠"),
+            "<mark>": chunk.count("<mark"),
+        })
+    return out
+
+
+def tables_index(text):
+    """Строки, где стоят таблицы, и путь к вырезке скана рядом с каждой.
+
+    Очередь на сверку чисел собиралась грепом: слова «таблица» не было ни в
+    оглавлении, ни в отчёте.
+    """
+    out = []
+    scan = None
+    for n, l in enumerate(text.split("\n"), 1):
+        m = re.search(r"скан таблицы:\s*(\S+)", l)
+        if m:
+            scan = m.group(1)
+        if "<table" in l:
+            out.append((n, scan))
+            scan = None
+    return out
+
+
 def toc(text):
     """Оглавление, собранное из тела книги, со строками `book.md`.
 
@@ -787,7 +835,7 @@ def toc(text):
             "# Оглавление\n\n" + "\n".join(rows) + "\n")
 
 
-def report(outdir, before, after, counts, cover):
+def report(outdir, before, after, counts, cover, text):
     """Отчёт о том, что в ЭТОЙ книге надёжно, а что нет.
 
     Смысл файла — снять с промта обязанность утверждать про структуру.
@@ -809,7 +857,10 @@ def report(outdir, before, after, counts, cover):
     ]
     for k in after:
         lines.append(f"| {k} | {before.get(k, '')} | {after[k]} |")
-    lines += ["", "## Что сделано", ""]
+    lines += ["", "## Что сделал последний запуск", "",
+              "Величины выше — про книгу; эти — про действие. На повторном",
+              "запуске они нулевые, и это значит «нечего было делать», а не",
+              "«не сработало».", ""]
     for k, v in counts.items():
         lines.append(f"- {k}: {v}")
     lines += [
@@ -854,6 +905,47 @@ def report(outdir, before, after, counts, cover):
         "числами — в `work_instruction.md`, и этот отчёт их не смягчает.",
         "",
     ]
+    # Разбивка по главам: где понадобится скан, а где нет.
+    cm = chapter_map(text)
+    if cm:
+        lines += [
+            "",
+            "## Где какая глава и где понадобится сверка",
+            "",
+            "Повреждения распределены неровно: главу без таблиц и пометок",
+            "переводят, не открывая ни одной картинки.",
+            "",
+            "| глава | строки | слов | таблиц | ⚠ | ≠ | `<mark>` |",
+            "|---|---|---|---|---|---|---|",
+        ]
+        for c in cm:
+            a, b = c["строки"]
+            lines.append(f"| {c['глава']} | {a}–{b} | {c['слов']} | "
+                         f"{c['таблиц']} | {c['⚠']} | {c['≠']} | {c['<mark>']} |")
+        clean = [c["глава"] for c in cm
+                 if not (c["таблиц"] or c["⚠"] or c["≠"] or c["<mark>"])]
+        lines += ["", f"Глав без единой таблицы и пометки: {len(clean)}.", ""]
+
+    ti = tables_index(text)
+    if ti:
+        lines += [
+            "## Таблицы: очередь на сверку со сканом",
+            "",
+            f"Всего {len(ti)}. Число в таблице проверяется только глазами по",
+            "вырезке скана; всё остальное — не проверка.",
+            "",
+            "| строка book.md | вырезка |",
+            "|---|---|",
+        ]
+        for n, scan in ti:
+            lines.append(f"| {n} | {scan or '—'} |")
+        lost = sum(1 for _, sc in ti if not sc)
+        if lost:
+            lines += ["", f"Таблиц без вырезки скана: {lost}. Их сверить не с "
+                          "чем — значения из них считай непроверенными.", ""]
+        else:
+            lines.append("")
+
     path = os.path.join(outdir, "book", "report.md")
     os.makedirs(os.path.dirname(path), exist_ok=True)
     open(path, "w", encoding="utf-8").write("\n".join(lines))
@@ -872,7 +964,19 @@ def restructure(outdir):
         raise SystemExit(f"нет разбора: {book}")
 
     src = open(book, encoding="utf-8").read()
-    before = _measure(src)
+
+    # Слепок до сборки структуры пишем сами и один раз.  До сих пор он
+    # существовал только потому, что его сняли руками, и это было чистой
+    # удачей: шаг переписывает `book.md` на месте, а разбор стоит денег и
+    # точно не воспроизводится.  Заодно он даёт отчёту опору: сравнивать
+    # надо с исходным разбором, а не с предыдущим запуском — иначе на
+    # повторном прогоне все величины сравниваются сами с собой и отчёт
+    # рапортует «склеено переносов 0» там, где склеено 139.
+    snap = book + ".before-restructure"
+    if not os.path.exists(snap):
+        open(snap, "w", encoding="utf-8").write(src)
+        print(f"  слепок до сборки: {os.path.basename(snap)}")
+    before = _measure(open(snap, encoding="utf-8").read())
     blks = blocks(outdir)
     if not blks:
         raise SystemExit(f"нет json страниц в {outdir}/pages — "
@@ -956,7 +1060,7 @@ def restructure(outdir):
           + f", порядок нарушен в {after['нарушений порядка разделов']} местах")
     after["глав не собрано"] = len(gap)
     print(f"оглавление: {toc_path}")
-    print(f"отчёт: {report(outdir, before, after, counts, cover)}")
+    print(f"отчёт: {report(outdir, before, after, counts, cover, dst)}")
     return 0
 
 
