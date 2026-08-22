@@ -133,6 +133,13 @@ def _multipass(a):
             one = copy.copy(a)
             one.outdir, one.reuse = d, iid
             one.timeout, one.budget = left_min, left_usd
+        # Свидетелю картинки не нужны: свод читает у него только страницы и
+        # книжный файл.  Первый проход — основа разбора, ему нужно всё.
+        # Не `*.json`: в корне выходного каталога лежат run.json, vllm.json и
+        # progress.json, по которым ведётся журнал прогонов и подбирается
+        # машина.  Исключив их, мы бы молча ухудшили выбор машины ради
+        # экономии килобайтов.
+        one.pull_exclude = () if i == 1 else ("imgs/", "pages/*.json")
             # Последний проход тоже с --keep, если оператор просил: гасить машину
             # решает он, а не число проходов.
             one.keep = True if i < a.passes else a.keep
@@ -217,6 +224,7 @@ def _one_pass(a, report=None, keep_until=None, keep_usd=None):
     # результатом на машине чистится — иначе --reuse выдавал бы чужой
     # результат за свой.
     spec.resume = bool(getattr(a, "resume", False))
+    spec.pull_exclude = tuple(getattr(a, "pull_exclude", ()) or ())
     spec.timeout_minutes = a.timeout
     if not os.path.exists(a.pdf):
         raise SystemExit(f"нет файла: {a.pdf}")

@@ -68,6 +68,10 @@ class JobSpec:
     command: str
     inputs: dict[str, str] = field(default_factory=dict)
     outputs: str = "outputs"
+    # Что не тянуть с машины вовсе.  Свидетелям многопроходного разбора
+    # картинки не нужны: своду от них требуются только `pages/*.md` и
+    # `book/book.md`, а картинки — 167 МБ из 179 в каталоге прохода.
+    pull_exclude: tuple[str, ...] = ()
     env: dict[str, str] = field(default_factory=dict)
     host: HostReq = field(default_factory=HostReq)
 

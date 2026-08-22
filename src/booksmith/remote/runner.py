@@ -202,7 +202,7 @@ def execute(box: Box, spec: JobSpec, outdir: str,
     if not spec.resume:
         box.run(f"rm -rf {spec.workdir}/{spec.outputs}", stream=False)
     box.run(f"mkdir -p {spec.workdir}/{spec.outputs}", stream=False)
-    box.start_sync(spec.outputs, outdir)
+    box.start_sync(spec.outputs, outdir, exclude=spec.pull_exclude)
     try:
         log("запускаю задачу...")
         env = " ".join(f"{k}={v}" for k, v in spec.env.items())
@@ -211,7 +211,8 @@ def execute(box: Box, spec: JobSpec, outdir: str,
     finally:
         box.stop_sync()
         log("забираю результат целиком...")
-        if box.pull(spec.outputs, outdir) != 0 and rc == 0:
+        if box.pull(spec.outputs, outdir,
+                    exclude=spec.pull_exclude) != 0 and rc == 0:
             # Задача отработала, а результат не доехал — это не успех.
             # Раньше такой прогон возвращал 0, и оператор получал неполный
             # разбор как готовый; вместе с нечищенным каталогом это было

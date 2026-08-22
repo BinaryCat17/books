@@ -12,7 +12,17 @@ import subprocess
 import threading
 import time
 
+# Одно соединение на все обращения к машине.  Замер: заливка пяти файлов — это
+# пять отдельных rsync, то есть пять рукопожатий по 4-5 секунд, и файл в 10 КБ
+# стоит столько же, сколько 4.4 МБ.  За трёхпроходный прогон набегает 21
+# рукопожатие.  Мультиплексирование сводит их к одному на машину.
+#
+# Сокет в /tmp, а не в ~/.ssh: длина пути к юникс-сокету ограничена сотней с
+# небольшим байтов, и домашний каталог с длинным именем её выбирает.
 SSH_OPTS = [
+    "-o", "ControlMaster=auto",
+    "-o", "ControlPath=/tmp/.booksmith-%r@%h:%p",
+    "-o", "ControlPersist=180",
     "-o", "StrictHostKeyChecking=no",
     "-o", "UserKnownHostsFile=/dev/null",
     "-o", "LogLevel=ERROR",
@@ -196,10 +206,20 @@ class Box:
             if p.returncode != 0:
                 raise RuntimeError(f"заливка {local} не удалась: {p.stderr.strip()}")
 
-    def pull(self, remote_rel: str, local_dir: str, quiet: bool = False) -> int:
+    def pull(self, remote_rel: str, local_dir: str, quiet: bool = False,
+             exclude: tuple[str, ...] = ()) -> int:
+        """Забрать результат.  `exclude` — что не тянуть вовсе.
+
+        Нужно для свидетелей многопроходного разбора: своду от них требуются
+        только `pages/*.md` и `book/book.md`, а каталог прохода весит 179 МБ,
+        из которых 167 — картинки.  На двух свидетелей это 352 МБ лишнего; при
+        канале, какой был в замере (2.9 Мбит/с), — шестнадцать минут передачи
+        ни за чем.
+        """
         os.makedirs(local_dir, exist_ok=True)
         src = f"{self._addr}:{self.workdir}/{remote_rel}/"
-        rc = self._rsync(src, local_dir.rstrip("/") + "/")
+        extra = [f"--exclude={x}" for x in exclude]
+        rc = self._rsync(src, local_dir.rstrip("/") + "/", extra or None)
         if rc != 0 and not quiet:
             log(f"  не удалось забрать {remote_rel} (код {rc})")
         return rc
@@ -247,11 +267,12 @@ class Box:
         self.run(f"echo {int(seconds)} > /root/.alive.grace", stream=False)
 
     # ------------------------------------------------- фоновая синхронизация
-    def start_sync(self, remote_rel: str, local_dir: str, every: float = 20) -> None:
+    def start_sync(self, remote_rel: str, local_dir: str, every: float = 20,
+                   exclude: tuple[str, ...] = ()) -> None:
         """Тянуть результаты по ходу работы, а не только в конце."""
         def loop():
             while not self._stop_sync.wait(every):
-                self.pull(remote_rel, local_dir, quiet=True)
+                self.pull(remote_rel, local_dir, quiet=True, exclude=exclude)
         self._stop_sync.clear()
         self._sync_thread = threading.Thread(target=loop, daemon=True)
         self._sync_thread.start()
