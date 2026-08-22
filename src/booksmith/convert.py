@@ -1,4 +1,4 @@
-"""Разбор -> EPUB и FB2, рядом с book.md.
+"""Разбор -> EPUB и FB2, рядом с книгой.
 
 Обе конвертации идут через pandoc, но по-разному, и это не прихоть.
 
@@ -133,7 +133,7 @@ def _pandoc(args, cwd=None):
 
 def convert(outdir: str, formats=("html", "epub", "fb2"),
             title: str | None = None) -> int:
-    """Собрать книгу в EPUB и FB2 рядом с book.md."""
+    """Собрать книгу в EPUB и FB2 рядом с её текстом."""
     if not shutil.which("pandoc"):
         _log("нет pandoc — поставьте его: apt install pandoc")
         return 1
@@ -148,7 +148,7 @@ def convert(outdir: str, formats=("html", "epub", "fb2"),
 
     text = open(src, encoding="utf-8").read()
     want = _counts(text)
-    # Собираем из копии с переведённым LaTeX: сама book.md остаётся с
+    # Собираем из копии с переведённым LaTeX: сам текст остаётся с
     # формулами, они полезнее модели-пересказчику.  Копия лежит рядом,
     # чтобы ссылки на imgs/ разрешались.
     build = os.path.join(book_dir, "_build.md")
@@ -159,8 +159,14 @@ def convert(outdir: str, formats=("html", "epub", "fb2"),
 
     # Заглавие — из имени исходника, а не из имени каталога: каталог оператор
     # называет наспех («book-new»), и это имя уезжало в метаданные epub.
-    title = (title or layout.facts(paths.outdir).get("source")
-             or stem).rsplit(".", 1)[0].replace("_", " ")
+    if not title:
+        # Из имени исходника, а не из имени каталога: каталог оператор
+        # называет наспех («book-new»), и это имя уезжало в метаданные epub.
+        # Хвост режем только у имени файла — заданный оператором заголовок
+        # трогать нельзя: скобка вокруг всего выражения превращала
+        # `--title "Том 2. Механика"` в «Том 2».
+        src_name = layout.facts(paths.outdir).get("source") or stem
+        title = os.path.splitext(src_name)[0].replace("_", " ")
     meta = ["-M", f"title={title}"]
     rc = 0
 

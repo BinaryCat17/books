@@ -34,9 +34,12 @@
 книга должна называться книгой.  Пробелы заменяются подчёркиваниями — иначе
 каждое обращение из оболочки требует кавычек.
 
-Старая раскладка (`book/book.md` + `pages/` в корне) продолжает читаться: в
-ней лежит каждый отдельный проход, и `books restructure` на проходе — законный
-способ посмотреть, что дал именно он.
+Старая раскладка (`book/book.md` + `pages/` в корне) продолжает ЧИТАТЬСЯ: в
+ней лежит каждый отдельный проход.  Но писать в проход нельзя: `restructure`
+переписывает `book.md` на месте, а это черновик, из которого собирается книга.
+Проверка показала цену: после `books restructure passes/1` пересборка дала на
+семь абзацев больше несверенных — склейка переносов разошлась с текстом
+свидетелей.  Поэтому шаг на проход не пускает.
 """
 import glob
 import json
@@ -45,6 +48,15 @@ import re
 
 PASSES = "passes"
 DRAFT = "book.md"          # как книжный файл зовётся внутри прохода
+# Имена, которые в корне разбора занимает конвейер.  Книга, названная так же,
+# затирается своим же отчётом: `report.pdf` давал `report.md`, отчёт писался
+# поверх собранной книги, и код возврата был нулевой.
+RESERVED = ("report", "run")
+# Предел имени файла — 255 БАЙТ, а не знаков: кириллический заголовок в 120
+# знаков это 240 байт, и с хвостом `.md.before-restructure` выходит 262.
+# Падало это в `assemble`, то есть после того, как проходы уже оплачены.
+NAME_BYTES = 255
+LONGEST_SUFFIX = ".md.before-restructure"
 
 
 def clean_stem(name):
@@ -55,11 +67,26 @@ def clean_stem(name):
     точки и подчёркивания оставляем как есть — имя должно оставаться узнаваемым
     в списке файлов, а не превращаться в транслитерированный огрызок.
     """
-    stem = os.path.splitext(os.path.basename(str(name)))[0]
-    stem = re.sub(r"[\s]+", "_", stem.strip())
+    return safe_name(os.path.splitext(os.path.basename(str(name)))[0])
+
+
+def safe_name(stem):
+    """Обезвредить готовое имя, НЕ снимая с него расширения.
+
+    Отдельно от `clean_stem` не для красоты: `Фейнмановские_лекции_по_физике._1`
+    — законное имя книги, и `splitext` откусывает у него `._1` как расширение.
+    Прогнав хранимое имя через `clean_stem`, мы теряли том.
+    """
+    stem = re.sub(r"[\s]+", "_", str(stem).strip())
     stem = re.sub(r"[/\\\x00-\x1f]+", "_", stem)
     stem = stem.strip("._") or "book"
-    return stem[:120]
+    if stem.casefold() in RESERVED:
+        stem += "_книга"
+    limit = NAME_BYTES - len(LONGEST_SUFFIX.encode())
+    b = stem.encode("utf-8")
+    if len(b) > limit:
+        stem = b[:limit].decode("utf-8", "ignore")
+    return stem
 
 
 def facts(outdir):
@@ -92,7 +119,10 @@ def stem(outdir):
     """
     s = facts(outdir).get("stem")
     if s:
-        return s
+        # Чистим и прочитанное: модуль объявлен единственным, кто знает
+        # раскладку, и он не должен позволять писать за пределы каталога
+        # только потому, что кто-то правил run.json руками.
+        return safe_name(s)
     tops = [os.path.basename(p)[:-3] for p in glob.glob(os.path.join(outdir, "*.md"))]
     tops = [t for t in tops if t not in ("report", "README")
             and not t.endswith(".toc")]

@@ -101,7 +101,6 @@ def _multipass(a):
     chain_deadline = chain_started + a.timeout * 60
     spent = 0.0
     truncated = False
-    done = False
     def _drop_machine(why):
         """Погасить машину, оставленную ради следующего прохода.
 
@@ -273,10 +272,6 @@ def _one_pass(a, report=None, keep_until=None, keep_usd=None):
     rc = run_job(spec, a.outdir, ssh_key=config.ssh_key(a.ssh_key),
                  keep=a.keep, reuse=a.reuse, dry_run=a.dry_run,
                  report=report, keep_until=keep_until, keep_usd=keep_usd)
-    # Промежуточные проходы свод разметит сам; структуру собираем один раз, в
-    # конце, и только когда прогон был одиночным.
-    if rc == 0 and not a.dry_run and report is None:
-        rc = _restructure_after(a.outdir)
     return rc
 
 
@@ -344,6 +339,11 @@ def cmd_merge(a):
         # Пустой `pages/` прежде проходил проверку на существование каталога, и
         # свод писал пустую книгу с кодом 0.  Считаем файлы, а не каталоги.
         raise SystemExit("в проходах нет ни одной страницы: " + ", ".join(thin))
+    # Число свидетелей — в run.json, а не только в stdout прогона.  Читатель
+    # книги stdout не видел: он открывает report.md, и если там `≠ 0` в каждой
+    # строке, это читается как «всё сошлось», а значит может означать «сверять
+    # было не с чем».  Разница между ними и есть смысл многопроходности.
+    layout.remember(a.outdir, passes=len(p.passes))
     rc = merge.assemble(a.outdir)
     return rc or _restructure_after(a.outdir)
 
@@ -356,9 +356,17 @@ def cmd_tidy(a):
     на диске дважды.  Связь между каталогами держалась на совпадении имён, и
     ни один из них не сообщал, из какого pdf сделан.
 
-    Шаг переносит проходы внутрь, выбрасывает копию и пересобирает книгу.
-    Ничего не удаляется до того, как проходы окажутся на месте: сначала
-    переезд, потом уборка, потом сборка.
+    Правило шага: **удаляем только то, что сами и сделали**.  Первая редакция
+    сносила `book/` целиком и все `*.md` в корне — и проверка показала, что
+    вместе с копией прохода гибли собранные epub, fb2 и pdf, а заодно любой
+    файл человека, положенный рядом: `перевод.md`, `ЗАМЕТКИ.md`.  Молча.  Тот
+    же запрет прежний свод формулировал в своём докстринге вслух — «форматы
+    восстанавливает только `books convert`, и потерять их молча нельзя», — а
+    перенеся опасность сюда, мы его потеряли вместе с докстрингом.
+
+    Порядок тоже важен: сначала выясняем имя книги, потом двигаем.  Проверка
+    `--pdf` стояла в конце, и каталог оставался переведённым наполовину, а
+    совет из сообщения об ошибке не работал ни в одном из двух видов.
     """
     from . import merge
     out = os.path.abspath(a.outdir)
@@ -369,48 +377,105 @@ def cmd_tidy(a):
               f"(проходов {len(layout.pass_dirs(out))})")
         return 0
 
+    # Имя книги — ДО первого перемещения.  `run.json` через минуту уедет в
+    # проход, и прочитать его оттуда шаг уже не догадается.
+    was = layout.facts(out)          # до переезда: через минуту он уедет
+    pdf = a.pdf or was.get("source")
+    sib = sorted(glob.glob(out + "-pass*"))
+    own = os.path.isdir(os.path.join(out, "pages"))
+    if not sib and not own and not layout.assembled(out):
+        raise SystemExit(f"в {a.outdir} не нашлось ни проходов-соседей, "
+                         f"ни собственного pages/ — переводить нечего")
+    if not pdf:
+        raise SystemExit(
+            f"не знаю, из какого pdf сделан {a.outdir} — старый run.json "
+            f"этого не записывал. Укажите: books tidy {a.outdir} --pdf <файл>")
+
     # 1. Проходы внутрь.  Соседи `<имя>-passN` — обычный случай; каталог,
     #    разобранный одним проходом, становится собственным проходом 1.
     moved = []
-    sib = sorted(glob.glob(out + "-pass*"))
-    if sib:
-        for d in sib:
-            m = re.search(r"-pass(\d+)$", d)
-            if not m:
-                continue
-            dst = layout.pass_dir(out, int(m.group(1)))
-            os.makedirs(os.path.dirname(dst), exist_ok=True)
-            shutil.move(d, dst)
-            moved.append(f"{os.path.basename(d)} -> passes/{m.group(1)}")
-    elif os.path.isdir(os.path.join(out, "pages")):
+    for d in sib:
+        m = re.search(r"-pass(\d+)$", d)
+        if not m:
+            continue
+        dst = layout.pass_dir(out, int(m.group(1)))
+        if os.path.exists(dst):
+            # `shutil.move` в существующий каталог кладёт источник ВНУТРЬ
+            # него: проход хоронился в проходе, а журнал писал, что перенёс.
+            raise SystemExit(f"{dst} уже есть — не стану класть {d} внутрь "
+                             f"него. Разберите вручную.")
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        shutil.move(d, dst)
+        moved.append(f"{os.path.basename(d)} -> passes/{m.group(1)}")
+    if not moved and own:
         dst = layout.pass_dir(out, 1)
+        if os.path.exists(dst):
+            raise SystemExit(f"{dst} уже есть — переводить некуда")
         os.makedirs(dst, exist_ok=True)
         for name in ("pages", "book", "job.log", "run.json", "logprobs.json",
-                     "vllm.json", "progress.json"):
+                     "vllm.json", "vllm.log", "progress.json"):
             src = os.path.join(out, name)
             if os.path.exists(src):
                 shutil.move(src, os.path.join(dst, name))
         moved.append("сам каталог -> passes/1")
-    if not moved:
-        raise SystemExit(f"в {a.outdir} не нашлось ни проходов-соседей, "
-                         f"ни собственного pages/ — переводить нечего")
     for m in moved:
         print(f"  {m}")
 
-    # 2. Уборка копии.  Только теперь, когда проходы на месте: до этого
-    #    удалять нечего и опасно.
-    for name in ("pages", "book"):
-        d = os.path.join(out, name)
-        if os.path.isdir(d):
-            shutil.rmtree(d)
-            print(f"  убрана копия первого прохода: {name}/")
-    for f in glob.glob(os.path.join(out, "*.md")) + \
-             glob.glob(os.path.join(out, "*.before-restructure")):
-        os.unlink(f)
-    # Служебные файлы прохода наверху — след того же копирования.  Если такой
-    # же лежит в проходе, наверху он лишний; если не лежит — переносим, а не
-    # выбрасываем: по ним ведётся журнал и разбирается лента этапов.
+    stem = layout.clean_stem(pdf)
+    # Прежние сведения (страниц, модель, скорость) переносим: их писал
+    # распознаватель, и терять их при переезде незачем.
+    layout.remember(out, **was)
+    layout.remember(out, source=os.path.basename(pdf), stem=stem,
+                    passes=len(layout.pass_dirs(out)))
+    print(f"  книга: {stem}")
+
+    # 2. Уборка — только своего.  Всё, чего мы не узнаём, поднимаем наверх, а
+    #    не выбрасываем: собранные форматы, заметки, что угодно.
+    DRAFTS = ("book.md", "toc.md", "report.md", "book.md.before-restructure")
     first = layout.pass_dir(out, 1)
+    # Форматы поднимаем и из `book/` наверху (сведённый разбор), и из
+    # `passes/1/book/` — туда они уезжают вместе с каталогом, когда переводится
+    # разбор, сделанный одним проходом.  Собрать их заново стоит минуты, а
+    # найти потом внутри прохода — не догадаться.
+    for old in (os.path.join(out, "book"), os.path.join(first, "book")):
+        if not os.path.isdir(old):
+            continue
+        drop_drafts = old == os.path.join(out, "book")
+        for name in sorted(os.listdir(old)):
+            src = os.path.join(old, name)
+            if name in DRAFTS or name == "imgs":
+                if not drop_drafts:
+                    continue            # в проходе это его законный черновик
+                if name == "imgs":
+                    shutil.rmtree(src)  # свои же, переедут из прохода
+                else:
+                    os.unlink(src)
+            else:
+                # Собранный формат: `book.epub` -> `<книга>.epub`.
+                keep = (stem + name[len("book"):]
+                        if name.startswith("book.") else name)
+                dst = os.path.join(out, keep)
+                if os.path.exists(dst):
+                    print(f"  наверху уже есть {keep} — {name} оставлен "
+                          f"в book/")
+                    continue
+                shutil.move(src, dst)
+                print(f"  поднято наверх: {name} -> {keep}")
+        rest = os.listdir(old)
+        if drop_drafts:
+            if rest:
+                print(f"  book/ не убран: в нём осталось {len(rest)} файлов")
+            else:
+                os.rmdir(old)
+                print("  убрана копия первого прохода: book/")
+    d = os.path.join(out, "pages")
+    if os.path.isdir(d):
+        shutil.rmtree(d)
+        print("  убрана копия первого прохода: pages/")
+    for name in DRAFTS:
+        f = os.path.join(out, name)
+        if os.path.exists(f):
+            os.unlink(f)
     for name in ("job.log", "vllm.log", "logprobs.json", "vllm.json",
                  "progress.json"):
         top = os.path.join(out, name)
@@ -420,16 +485,6 @@ def cmd_tidy(a):
             os.unlink(top)
         else:
             shutil.move(top, os.path.join(first, name))
-
-    pdf = a.pdf or layout.facts(out).get("source")
-    if not pdf:
-        raise SystemExit(
-            f"не знаю, из какого pdf сделан {a.outdir} — старый run.json "
-            f"этого не записывал. Укажите: books tidy {a.outdir} --pdf <файл>")
-    layout.remember(out, source=os.path.basename(pdf),
-                    stem=layout.clean_stem(pdf),
-                    passes=len(layout.pass_dirs(out)))
-    print(f"  книга: {layout.stem(out)}")
 
     rc = merge.assemble(out)
     return rc or _restructure_after(out)
@@ -834,7 +889,7 @@ def main(argv=None):
     p.set_defaults(fn=cmd_olmocr)
 
     p = sub.add_parser("convert", help="собрать EPUB и FB2 из готового разбора")
-    p.add_argument("outdir", help="каталог разбора, внутри которого лежит book/book.md")
+    p.add_argument("outdir", help="каталог книги (processed/<имя>)")
     p.add_argument("--formats", default="html,epub,fb2",
                    help="через запятую: html, pdf, epub, fb2 "
                         "(по умолчанию html, epub и fb2; pdf требует weasyprint)")

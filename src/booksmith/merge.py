@@ -22,10 +22,6 @@ def plain(c):
     return html.unescape(TAG.sub("", c)).replace("⚠", "").replace("≠", "").strip()
 
 
-def cells_of(path):
-    return cells_of_text(open(path, encoding="utf-8").read())
-
-
 def cells_of_text(md):
     out = collections.Counter()
     for t in TABLE.finditer(md):
@@ -360,9 +356,28 @@ def assemble(outdir):
     # уже есть свои — не трогаем ничего, повторная сборка не должна зависеть
     # от того, остались ли картинки в проходе.
     src_imgs = os.path.join(base, "book", "imgs")
-    if os.path.isdir(src_imgs) and not os.path.isdir(p.imgs):
-        shutil.move(src_imgs, p.imgs)
-        print(f"картинки переехали наверх: {len(os.listdir(p.imgs))} шт.")
+    if os.path.isdir(src_imgs):
+        if not os.path.isdir(p.imgs):
+            shutil.move(src_imgs, p.imgs)
+            print(f"картинки переехали наверх: {len(os.listdir(p.imgs))} шт.")
+        else:
+            # Наверху уже что-то есть.  Молча пропускать переезд нельзя: набор
+            # выживших вырезок у каждого прохода СВОЙ, и книга, собранная из
+            # нового прохода поверх старых картинок, ссылается на файлы,
+            # которых наверху нет.  Проверка нашла ровно это: повторный
+            # `books ocr` в тот же каталог штатно давал битые ссылки.
+            add = [n for n in os.listdir(src_imgs)
+                   if not os.path.exists(os.path.join(p.imgs, n))]
+            for n in add:
+                shutil.move(os.path.join(src_imgs, n),
+                            os.path.join(p.imgs, n))
+            print(f"картинки наверху уже были; добавлено недостающих: "
+                  f"{len(add)}")
+    lost = [m.group(1) for m in re.finditer(r'src="(imgs/[^"]+)"', text)
+            if not os.path.exists(os.path.join(p.outdir, m.group(1)))]
+    if lost:
+        print(f"ВНИМАНИЕ: текст ссылается на {len(lost)} картинок, которых "
+              f"наверху нет (первая: {lost[0]})")
 
     pages = len(glob.glob(os.path.join(base, "pages", "*.md")))
     thin = [os.path.relpath(o) for o in others
