@@ -296,7 +296,11 @@ class _Tee:
 
 def _open_log(a):
     """Включить запись журнала, если попросили. Возвращает путь или None."""
-    path = getattr(a, "log", None)
+    # Журнал пишется ВСЕГДА, если не запретили явно.  Ключ, который надо
+    # помнить включить, — это ключ, который забудут: прогон Фейнмана так и
+    # прошёл мимо `runs/`, и `books progress` показала вместо него трёхдневный
+    # отладочный журнал, потому что он оказался там самым свежим.
+    path = getattr(a, "log", "")
     if path is None:
         return None
     if path == "":            # `--log` без значения — имя по каталогу разбора
@@ -510,10 +514,11 @@ def main(argv=None):
     p.add_argument("--reuse", type=int, metavar="ID",
                    help="считать на уже поднятой машине, без холодного старта")
     p.add_argument("--dry-run", action="store_true")
-    p.add_argument("--log", nargs="?", const="", default=None,
-                   metavar="PATH",
-                   help="писать журнал прогона в файл (без значения — "
-                        "runs/<имя каталога>.log); смотреть его: books progress")
+    p.add_argument("--log", nargs="?", const="", default="", metavar="PATH",
+                   help="куда писать журнал прогона; по умолчанию "
+                        "runs/<имя каталога>.log. Смотреть: books progress")
+    p.add_argument("--no-log", dest="log", action="store_const", const=None,
+                   help="не писать журнал прогона в файл")
     p.add_argument("--resume", action="store_true",
                    help="продолжить прерванный прогон на той же машине, "
                         "не стирая уже посчитанные страницы")
@@ -545,10 +550,11 @@ def main(argv=None):
     p.add_argument("--reuse", type=int, metavar="ID",
                    help="считать на уже поднятой машине, без холодного старта")
     p.add_argument("--dry-run", action="store_true")
-    p.add_argument("--log", nargs="?", const="", default=None,
-                   metavar="PATH",
-                   help="писать журнал прогона в файл (без значения — "
-                        "runs/<имя каталога>.log); смотреть его: books progress")
+    p.add_argument("--log", nargs="?", const="", default="", metavar="PATH",
+                   help="куда писать журнал прогона; по умолчанию "
+                        "runs/<имя каталога>.log. Смотреть: books progress")
+    p.add_argument("--no-log", dest="log", action="store_const", const=None,
+                   help="не писать журнал прогона в файл")
     p.set_defaults(fn=cmd_olmocr)
 
     p = sub.add_parser("convert", help="собрать EPUB и FB2 из готового разбора")
