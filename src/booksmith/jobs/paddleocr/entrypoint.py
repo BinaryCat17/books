@@ -1227,6 +1227,45 @@ def _strip_running_headers(pages_dir, *targets):
     return sorted(running)
 
 
+def _report_ignored(pages_dir, ignored):
+    """Сказать, сколько блоков выброшено по метке и что в них было.
+
+    Список `markdown_ignore_labels` собран по одной книге, где в этих метках
+    лежал мусор: на справочнике по станкам `aside_text` дал четыре блока, все
+    обрывки вроде `;` и `4`.  На второй же книге — русском курсе физики —
+    детектор положил в `footer` подписи к рисункам, а в `aside_text` заголовки
+    разделов `§ N`, и всё это исчезло из markdown молча, без единой строки в
+    журнале.
+
+    Менять список вслепую нельзя: на первой книге он полезен.  Но выброшенное
+    обязано быть посчитано, иначе следующая книга потеряет содержание так же
+    тихо.  Печатаем число и образец — по ним видно, мусор это или текст.
+    """
+    if not ignored:
+        return {}
+    seen = collections.defaultdict(list)
+    for f in sorted(glob.glob(os.path.join(pages_dir, "*.json"))):
+        try:
+            d = json.load(open(f, encoding="utf-8"))
+        except Exception:
+            continue
+        for r in d.get("parsing_res_list") or []:
+            lb = r.get("block_label")
+            if lb in ignored:
+                c = (r.get("block_content") or "").strip()
+                if c:
+                    seen[lb].append(c)
+    for lb in ignored:
+        v = seen.get(lb) or []
+        if not v:
+            continue
+        long = [x for x in v if len(x) > 20]
+        ex = (long or v)[0].replace("\n", " ")[:50]
+        _log(f"  выброшено по метке {lb}: {len(v)} блоков, из них длиннее "
+             f"20 знаков {len(long)}; образец: {ex!r}")
+    return {k: len(v) for k, v in seen.items()}
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--pdf", required=True)
@@ -1516,6 +1555,8 @@ def main():
     if dropped:
         _log(f"убраны колонтитулы ({len(dropped)}): "
              + "; ".join(x.replace(chr(10), " ")[:40] for x in dropped[:5]))
+
+    _report_ignored(pages_dir, kwargs.get("markdown_ignore_labels") or [])
 
     with open(os.path.join(out, "run.json"), "w") as f:
         json.dump({"pages": offset + n, "seconds": round(dt, 1),
