@@ -66,11 +66,62 @@ TOC_NOTE = "Страница оглавления прочиталась не п
 # попытка объять все языки, а место, куда добавить своё, когда попадётся:
 # всё остальное в модуле от языка не зависит, а вот это зависит.
 CHAPTER_WORDS = ("Chapter", "Глава", "Kapitel", "Chapitre", "Capitolo",
-                 "Capítulo", "Capitulo", "Hoofdstuk", "Rozdział")
+                 "Capítulo", "Capitulo", "Hoofdstuk", "Rozdział", "Раздел",
+                 "Часть", "Rozdzial")
 _CW = "|".join(CHAPTER_WORDS)
-CHAPTER = re.compile(rf"^({_CW})\s+(\d+)\s*\.?$", re.I)
+
+# Номер главы бывает римским, и это не редкость, а норма для русских книг
+# середины века: из четырёх разобранных за раз книг главы были во всех
+# четырёх и ни одна не опозналась, потому что шаблон требовал арабских цифр.
+# Отчёт при этом честно писал «глав 0» — и это читалось как «глав в книге
+# нет», а не «я их не узнал».
+#
+# Две ловушки, обе взяты из настоящих книг:
+#   * `ГЛАВА Х.` у Стрелова набрана КИРИЛЛИЧЕСКОЙ Х, а `ГЛАВА У` — кириллической
+#     У.  На глаз неотличимо, для регулярки — разные буквы;
+#   * `ГЛАВА III,` — запятая вместо точки.
+ROMAN_LETTERS = "IVXLCDMХУСВМІ"          # латиница + кириллические двойники
+_RN = f"[{ROMAN_LETTERS}]+"
+_NUM = rf"(?:{_RN}|\d+)"
+CHAPTER = re.compile(rf"^({_CW})\s+({_NUM})\s*[.,]?$", re.I)
 # Номер главы и её название иногда приезжают одним блоком, а не двумя.
-CHAPTER_FULL = re.compile(rf"^({_CW})\s+(\d+)[.\s]+(\S.*)$", re.I)
+CHAPTER_FULL = re.compile(rf"^({_CW})\s+({_NUM})[.,\s]+(\S.*)$", re.I)
+
+_ROMAN_FIX = str.maketrans("ХУСВМІ", "XYCBMI")
+_ROMAN_VAL = {"I": 1, "V": 5, "X": 10, "L": 50, "C": 100, "D": 500, "M": 1000}
+
+
+def chapter_number(text):
+    """Номер главы числом: `12` -> 12, `XIII` -> 13, `Х` (кириллическая) -> 10.
+
+    Возвращает `None`, если это не номер.  Римская запись проверяется на
+    осмысленность: `ХВОСТ` состоит из подходящих букв, но числом не является,
+    и без проверки любое слово прописными стало бы главой.
+    """
+    t = (text or "").strip().translate(_ROMAN_FIX).upper()
+    if t.isdigit():
+        return int(t)
+    if not t or any(c not in _ROMAN_VAL for c in t):
+        return None
+    total, prev = 0, 0
+    for c in reversed(t):
+        v = _ROMAN_VAL[c]
+        total += -v if v < prev else v
+        prev = max(prev, v)
+    # Обратная сверка: правильная римская запись восстанавливается однозначно.
+    return total if total and _to_roman(total) == t else None
+
+
+def _to_roman(n):
+    pairs = ((1000, "M"), (900, "CM"), (500, "D"), (400, "CD"), (100, "C"),
+             (90, "XC"), (50, "L"), (40, "XL"), (10, "X"), (9, "IX"),
+             (5, "V"), (4, "IV"), (1, "I"))
+    out = []
+    for v, s in pairs:
+        while n >= v:
+            out.append(s)
+            n -= v
+    return "".join(out)
 # Буква любого алфавита: `[A-Za-z]` молча выключил бы кириллицу целиком.
 LET = r"[^\W\d_]"
 LIST_HEAD = re.compile(r"^#{1,6}\s+(\d+)\.\s+(\S.*)$")
@@ -97,7 +148,9 @@ def _chapter_numbers(blks):
             continue
         m = CHAPTER.match(c.strip()) or CHAPTER_FULL.match(c.strip())
         if m:
-            out.add(int(m.group(2)))
+            n = chapter_number(m.group(2))
+            if n is not None:
+                out.add(n)
     return out
 
 
@@ -473,11 +526,28 @@ def relabel(text, blks):
         # заголовком помечена целая фраза.
         chapter = (label in ("header", "doc_title") and len(joined) <= 120
                    and CHAPTER_FULL.match(joined))
-        if not chapter and label == "header" and CHAPTER.match(joined):
+        # Метка `text` сюда допущена НАРОЧНО и только здесь, где `CHAPTER`
+        # требует, чтобы ВЕСЬ блок был ровно «Глава N» и ничем больше.
+        # Причина: детектор пометил главы «Кристаллизации» как `text` — 13 из
+        # 13, при этом сами блоки безупречны («Глава VII» и ни знака сверх).
+        # Довериться метке значило отдать книгу без единой главы; довериться
+        # виду текста в общем случае нельзя, а вот точному совпадению всего
+        # блока — можно: прозаическое «как сказано в главе VII» живёт в блоке
+        # вместе с остатком фразы и якорям `^…$` не удовлетворяет.
+        #
+        # Замер: на шести книгах эта поблажка добавила 13 глав «Кристаллизации»
+        # и ноль ложных — `book-new` и Фейнман собираются байт в байт как были.
+        if not chapter and label in ("header", "text") \
+                and CHAPTER.match(joined):
             # Номер главы и её название — два соседних блока.  Абзац с
             # названием, если он идёт следом, поглощаем сюда же.
             for j in range(b, min(len(blks), b + 3)):
-                if blks[j][0] in ("header", "doc_title"):
+                # Если номер главы приехал блоком `text`, названием тоже будет
+                # `text` — детектор не разделяет их по меткам, он их обоих не
+                # узнал.  Проверку это не ослабляет: ниже название всё равно
+                # обязано совпасть со следующим абзацем КНИГИ, иначе догадка
+                # не принимается.
+                if blks[j][0] in ("header", "doc_title") or label == "text":
                     title = " ".join(x.strip() for x in blks[j][1].split("\n")
                                      if x.strip())
                     q = i + used
@@ -532,7 +602,11 @@ def relabel(text, blks):
                 # Слово берём из книги, а не подставляем "Chapter": в русской
                 # книге стоит "Глава", и переписывать её по-английски значит
                 # переводить книгу молча, в шаге сборки структуры.
-                out.append(f"## {m.group(1)} {int(m.group(2))}. "
+                # Номер печатаем ТАК, КАК ОН В КНИГЕ: `Глава XIII`, а не
+                # `Глава 13`.  Переписать римский номер арабским — это тихая
+                # правка книги в шаге сборки структуры, и ссылки «см. гл. XIII»
+                # после неё перестают совпадать с заголовком.
+                out.append(f"## {m.group(1)} {m.group(2).strip()}. "
                            + m.group(3).strip(" ."))
             else:
                 out.append("## " + orig)
@@ -713,9 +787,10 @@ def _headings(text):
         m = HEAD_LINE.match(l)
         if not m:
             continue
-        c = re.match(rf"^(?:{_CW})\s+(\d+)\.", m.group(2), re.I)
-        out.append((i, "chapter" if c else "sub", m.group(2).strip(),
-                    int(c.group(1)) if c else None, len(m.group(1))))
+        c = re.match(rf"^(?:{_CW})\s+({_NUM})[.,]", m.group(2), re.I)
+        n = chapter_number(c.group(1)) if c else None
+        out.append((i, "chapter" if n is not None else "sub",
+                    m.group(2).strip(), n, len(m.group(1))))
     return out
 
 
@@ -1115,7 +1190,8 @@ def restructure(outdir):
     # Главы обязаны идти подряд от первой до последней.  Дыра в этом ряду —
     # единственный дешёвый способ заметить, что заголовок не собрался: сам по
     # себе «глав 28» выглядит как успех, пока не сравнить с 30.
-    got = {int(m) for m in re.findall(rf"^## (?:{_CW})\s+(\d+)\.", dst, re.M | re.I)}
+    got = {n for m in re.findall(rf"^#+ (?:{_CW})\s+({_NUM})[.,]", dst, re.M | re.I)
+           for n in [chapter_number(m)] if n is not None}
     seen = _chapter_numbers(blks)
     gap = sorted((set(range(1, max(seen or [0]) + 1)) - got)) if seen else []
     if not after["глав"] and after["заголовков всего"]:
@@ -1134,10 +1210,10 @@ def restructure(outdir):
         # `_chapter_numbers` для этого не годится — она нарочно смотрит только
         # заголовочные метки, чтобы прозаическое упоминание «см. главу 40» не
         # рисовало несобранных глав.
-        marked = {int((CHAPTER.match(c.strip()) or CHAPTER_FULL.match(
-            c.strip())).group(2))
-            for _, c in blks
-            if CHAPTER.match(c.strip()) or CHAPTER_FULL.match(c.strip())}
+        marked = {n for _, c in blks
+                  for m in [CHAPTER.match(c.strip())
+                            or CHAPTER_FULL.match(c.strip())] if m
+                  for n in [chapter_number(m.group(2))] if n is not None}
         if marked:
             print(f"  ВНИМАНИЕ: заголовков {after['заголовков всего']}, глав в "
                   f"разметке {len(marked)}, а собрано ни одной. Слово «глава» "
