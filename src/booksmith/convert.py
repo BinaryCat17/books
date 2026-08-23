@@ -73,8 +73,12 @@ def _plain_math(md: str) -> str:
                 out.append("  ".join(cells))
         return " ".join(out)
 
-    md = re.sub(r"\\begin\{array\}\{[^}]*\}(.*?)\\end\{array\}", army, md,
-                flags=re.S)
+    # Та же граница, что и у долларов, и по той же причине: непарный
+    # `\begin{array}` с `re.S` проглатывал всё до следующего `\end` через весь
+    # документ.  Замер на «Технологии огнеупоров»: 17 картинок из 115.
+    md = re.sub(r"\\begin\{array\}\{[^}]*\}"
+                r"((?:(?!\\end\{array\})(?!\n[ \t]*\n).)*)"
+                r"\\end\{array\}", army, md, flags=re.S)
     reps = [
         (r"\^\{\\circ\}", "°"), (r"\^\{\\prime\\prime\}", "″"),
         (r"\^\{\\prime\}", "′"), (r"\\mathrm\{~?([^{}]*?)~?\}", r"\1"),
@@ -86,8 +90,27 @@ def _plain_math(md: str) -> str:
     for a, b in reps:
         md = re.sub(a, b, md)
     # Снимаем обёртку $…$ и $$…$$, схлопываем пробелы внутри.
-    md = re.sub(r"\${1,2}\s*(.*?)\s*\${1,2}",
-                lambda m: re.sub(r"\s+", " ", m.group(1)), md, flags=re.S)
+    #
+    # Раньше здесь стоял один шаблон `\${1,2}(.*?)\${1,2}` с `re.S`, и он
+    # СЪЕДАЛ КНИГУ.  Знак доллара в разборе иногда остаётся непарным, и тогда
+    # закрывающий доллар одной формулы склеивался с открывающим следующей, а
+    # `re.S` позволял этому куску перепрыгивать через пустые строки.  Всё
+    # между ними — абзацы, картинки, разрывы — схлопывалось в одну строку.
+    #
+    # Замер на четырёх русских книгах: у «Технологии огнеупоров» пропадали три
+    # картинки из 115 и 22 632 знака, у «Справочника по литью» — 35 160.  На
+    # английских книгах не срабатывало: там долларов 352 против 6762, и все
+    # парные.  Догадка про эту беду была записана в план как «не выстрелило,
+    # но выстрелит»; выстрелило.
+    #
+    # Теперь формула не может пересечь пустую строку, а строчная — вообще
+    # перевод строки.  Непарный доллар остаётся в тексте как есть: лишний
+    # знак виден и безобиден, а съеденный абзац — нет.
+    def unwrap(m):
+        return re.sub(r"\s+", " ", m.group(1)).strip()
+
+    md = re.sub(r"\$\$((?:(?!\$\$)(?!\n[ \t]*\n).)*)\$\$", unwrap, md, flags=re.S)
+    md = re.sub(r"\$([^$\n]+)\$", unwrap, md)
     return md
 
 
@@ -105,12 +128,22 @@ def _counts(text):
 
 
 def _report(name, src, got):
-    """Сверяем, что доехало, с тем, что было — числом, а не словом «готово»."""
-    parts = []
+    """Сверяем, что доехало, с тем, что было — числом, а не словом «готово».
+
+    Возвращает `True`, если всё доехало.  Прежде функция ничего не
+    возвращала, восклицательный знак уходил в строку — и команда завершалась
+    нулём при любой потере.  Проверка без последствий не проверка: она нашла
+    у «Технологии огнеупоров» семь пропавших таблиц и пять картинок, и никто
+    бы этого не заметил, потому что `books convert` отчитался успехом.
+    """
+    parts, ok = [], True
     for k, want in src.items():
         have = got.get(k, 0)
+        if have < want:
+            ok = False
         parts.append(f"{k} {have}/{want}" + ("" if have >= want else " !"))
     _log(f"  {name}: " + ", ".join(parts))
+    return ok
 
 
 def _pandoc_ge3():
@@ -191,8 +224,9 @@ def convert(outdir: str, formats=("html", "epub", "fb2"),
                 got["картинок"] = sum(
                     1 for n in z.namelist() if n.lower().endswith(
                         (".jpg", ".jpeg", ".png")))
-            _report(f"{os.path.relpath(dst)} "
-                    f"({os.path.getsize(dst) // 1024 // 1024} МБ)", want, got)
+            rc = rc or (0 if _report(f"{os.path.relpath(dst)} "
+                              f"({os.path.getsize(dst) // 1024 // 1024} МБ)",
+                              want, got) else 1)
         except Exception as exc:
             _log(f"  epub не собрался: {exc}")
             rc = 1
@@ -214,9 +248,9 @@ def convert(outdir: str, formats=("html", "epub", "fb2"),
             os.unlink(head)
             got = _counts(open(html_path, encoding="utf-8",
                                errors="replace").read())
-            _report(f"{os.path.relpath(html_path)} "
-                    f"({os.path.getsize(html_path) // 1024} КБ + imgs/)",
-                    want, got)
+            rc = rc or (0 if _report(f"{os.path.relpath(html_path)} "
+                              f"({os.path.getsize(html_path) // 1024} КБ + imgs/)",
+                              want, got) else 1)
         except Exception as exc:
             _log(f"  html не собрался: {exc}")
             rc = 1
@@ -248,8 +282,9 @@ def convert(outdir: str, formats=("html", "epub", "fb2"),
                 _pandoc([mid, "-f", "html", "-t", "fb2",
                          f"--resource-path={book_dir}", *meta, "-o", dst])
             got = _counts(open(dst, encoding="utf-8", errors="replace").read())
-            _report(f"{os.path.relpath(dst)} "
-                    f"({os.path.getsize(dst) // 1024 // 1024} МБ)", want, got)
+            rc = rc or (0 if _report(f"{os.path.relpath(dst)} "
+                              f"({os.path.getsize(dst) // 1024 // 1024} МБ)",
+                              want, got) else 1)
         except Exception as exc:
             _log(f"  fb2 не собрался: {exc}")
             rc = 1
