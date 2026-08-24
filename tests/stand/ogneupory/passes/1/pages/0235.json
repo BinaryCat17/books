@@ -1,0 +1,368 @@
+{
+    "input_path": "input.pdf",
+    "page_index": 235,
+    "page_count": 378,
+    "width": 666,
+    "height": 1104,
+    "model_settings": {
+        "use_doc_preprocessor": false,
+        "use_layout_detection": true,
+        "use_chart_recognition": false,
+        "use_seal_recognition": false,
+        "use_ocr_for_image_block": false,
+        "format_block_content": false,
+        "merge_layout_blocks": true,
+        "markdown_ignore_labels": [
+            "number",
+            "header_image",
+            "footer",
+            "footer_image",
+            "aside_text"
+        ],
+        "return_layout_polygon_points": true
+    },
+    "parsing_res_list": [
+        {
+            "block_label": "table",
+            "block_content": "<table><tr><td></td><td>I</td><td>II</td></tr><tr><td>Общая . . . .</td><td>18—20</td><td>23—28</td></tr><tr><td>Закрытая . . .</td><td>1—2</td><td>2—4</td></tr><tr><td>Капильярная . . .</td><td>20</td><td>15</td></tr><tr><td>Канальная . . .</td><td>8—14</td><td>4—7</td></tr></table>",
+            "block_bbox": [
+                103,
+                292,
+                459,
+                395
+            ],
+            "block_id": 0,
+            "block_order": null,
+            "group_id": 0
+        },
+        {
+            "block_label": "doc_title",
+            "block_content": "§ 6. ОСНОВНЫЕ СВОЙСТВА ШАМОТНЫХ, ПОЛУКИСЛЫХ И КАОЛИНОВЫХ ИЗДЕЛИЙ",
+            "block_bbox": [
+                0,
+                72,
+                501,
+                129
+            ],
+            "block_id": 1,
+            "block_order": 1,
+            "group_id": 1
+        },
+        {
+            "block_label": "paragraph_title",
+            "block_content": "1. ТЕКСТУРА ИЗДЕЛИЙ",
+            "block_bbox": [
+                2,
+                149,
+                223,
+                173
+            ],
+            "block_id": 2,
+            "block_order": 2,
+            "group_id": 2
+        },
+        {
+            "block_label": "text",
+            "block_content": "Текстура изделий зависит в основном от способа производства.",
+            "block_bbox": [
+                2,
+                183,
+                566,
+                231
+            ],
+            "block_id": 3,
+            "block_order": 3,
+            "group_id": 3
+        },
+        {
+            "block_label": "text",
+            "block_content": "Ниже приведена пористость шамотных изделий, %, при полусухом прессовании (1) и пластичном формова-нии (II):",
+            "block_bbox": [
+                1,
+                225,
+                567,
+                298
+            ],
+            "block_id": 4,
+            "block_order": 4,
+            "group_id": 4
+        },
+        {
+            "block_label": "text",
+            "block_content": "Размер канальных пор 5—25 мкм. Распределение пор по размерам:",
+            "block_bbox": [
+                5,
+                403,
+                569,
+                456
+            ],
+            "block_id": 5,
+            "block_order": 5,
+            "group_id": 5
+        },
+        {
+            "block_label": "table",
+            "block_content": "<table><tr><td>4,</td><td>MKM</td><td>(объем), %</td><td>&lt;5</td><td>1—5</td><td>0,1—1</td><td>&lt;0,1</td></tr><tr><td>Количество (объем), %</td><td>35—64</td><td>0,5—45</td><td>2—50</td><td>0—8</td><td></td><td></td></tr></table>",
+            "block_bbox": [
+                5,
+                456,
+                560,
+                504
+            ],
+            "block_id": 6,
+            "block_order": null,
+            "group_id": 6
+        },
+        {
+            "block_label": "text",
+            "block_content": "Удельная поверхность (БЭТ) 2600 см²/см³. Структура пор бидисперсна: на кривой распределения пор имеется два максимума при 10 мкм и 100 Å.",
+            "block_bbox": [
+                5,
+                519,
+                571,
+                598
+            ],
+            "block_id": 7,
+            "block_order": 6,
+            "group_id": 7
+        },
+        {
+            "block_label": "text",
+            "block_content": "После повторных недлительных обжигов общая по-\nристость мало меняется, а закрытая возрастает за счет\nоткрытой. При резких теплосменах открытая пористость\nвозрастает за счет закрытой, а общая пористость измен\nяется мало. При длительном нагревании в шамотных\nизделиях увеличивается количество стекловидной фазы\nв результате растворения зерен кварца, что сопровож-\nдается уменьшением пористости.",
+            "block_bbox": [
+                5,
+                595,
+                574,
+                773
+            ],
+            "block_id": 8,
+            "block_order": 7,
+            "group_id": 8
+        },
+        {
+            "block_label": "paragraph_title",
+            "block_content": "2. ОГНЕУПОРНОСТЬ И ХИМИЧЕСКИЙ СОСТАВ",
+            "block_bbox": [
+                7,
+                796,
+                439,
+                820
+            ],
+            "block_id": 9,
+            "block_order": 8,
+            "group_id": 9
+        },
+        {
+            "block_label": "text",
+            "block_content": "Огнеупорность шамотных, каолиновых и полукислых изделий находится в пределах 1580—1770°C, она обусловливается химическим составом применяемого сырья и фазовым составом получаемых изделий. Шамотные изделия в зависимости от огнеупорности подразделяют на четыре класса (по стандарту США шамотные огнеупоры подразделяются на группы в зависимости от температуры применения, а не огнеупорности; в каждой группе выделяют классы термостойких и шлакоустойчивых из-",
+            "block_bbox": [
+                8,
+                834,
+                577,
+                1030
+            ],
+            "block_id": 10,
+            "block_order": 9,
+            "group_id": 10
+        },
+        {
+            "block_label": "number",
+            "block_content": "235",
+            "block_bbox": [
+                544,
+                1038,
+                576,
+                1058
+            ],
+            "block_id": 11,
+            "block_order": null,
+            "group_id": 11
+        }
+    ],
+    "layout_det_res": {
+        "input_path": null,
+        "page_index": null,
+        "boxes": [
+            {
+                "cls_id": 21,
+                "label": "table",
+                "score": 0.9694610834121704,
+                "coordinate": [
+                    103,
+                    292,
+                    459,
+                    395
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 6,
+                "label": "doc_title",
+                "score": 0.9409104585647583,
+                "coordinate": [
+                    0,
+                    72,
+                    501,
+                    129
+                ],
+                "order": 1
+            },
+            {
+                "cls_id": 17,
+                "label": "paragraph_title",
+                "score": 0.9340017437934875,
+                "coordinate": [
+                    2,
+                    149,
+                    223,
+                    173
+                ],
+                "order": 2
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9744898080825806,
+                "coordinate": [
+                    2,
+                    183,
+                    566,
+                    231
+                ],
+                "order": 3
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9748013019561768,
+                "coordinate": [
+                    1,
+                    225,
+                    567,
+                    298
+                ],
+                "order": 4
+            },
+            {
+                "cls_id": 21,
+                "label": "table",
+                "score": 0.9460564851760864,
+                "coordinate": [
+                    103,
+                    291,
+                    458,
+                    392
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9708471894264221,
+                "coordinate": [
+                    5,
+                    403,
+                    569,
+                    456
+                ],
+                "order": 5
+            },
+            {
+                "cls_id": 5,
+                "label": "display_formula",
+                "score": 0.769757091999054,
+                "coordinate": [
+                    4,
+                    456,
+                    559,
+                    503
+                ],
+                "order": 6
+            },
+            {
+                "cls_id": 21,
+                "label": "table",
+                "score": 0.7181516885757446,
+                "coordinate": [
+                    5,
+                    456,
+                    560,
+                    504
+                ],
+                "order": 9
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9823806285858154,
+                "coordinate": [
+                    5,
+                    519,
+                    571,
+                    598
+                ],
+                "order": 7
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.988114595413208,
+                "coordinate": [
+                    5,
+                    595,
+                    574,
+                    773
+                ],
+                "order": 8
+            },
+            {
+                "cls_id": 17,
+                "label": "paragraph_title",
+                "score": 0.9464957118034363,
+                "coordinate": [
+                    7,
+                    796,
+                    439,
+                    820
+                ],
+                "order": 9
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.4259769320487976,
+                "coordinate": [
+                    328,
+                    851,
+                    462,
+                    875
+                ],
+                "order": 10
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9877534508705139,
+                "coordinate": [
+                    8,
+                    834,
+                    577,
+                    1030
+                ],
+                "order": 11
+            },
+            {
+                "cls_id": 16,
+                "label": "number",
+                "score": 0.9209514856338501,
+                "coordinate": [
+                    544,
+                    1038,
+                    576,
+                    1058
+                ],
+                "order": 12
+            }
+        ]
+    }
+}

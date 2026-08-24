@@ -1,0 +1,434 @@
+{
+    "input_path": "input.pdf",
+    "page_index": 234,
+    "page_count": 378,
+    "width": 749,
+    "height": 1104,
+    "model_settings": {
+        "use_doc_preprocessor": false,
+        "use_layout_detection": true,
+        "use_chart_recognition": false,
+        "use_seal_recognition": false,
+        "use_ocr_for_image_block": false,
+        "format_block_content": false,
+        "merge_layout_blocks": true,
+        "markdown_ignore_labels": [
+            "number",
+            "header_image",
+            "footer",
+            "footer_image",
+            "aside_text"
+        ],
+        "return_layout_polygon_points": true
+    },
+    "parsing_res_list": [
+        {
+            "block_label": "table",
+            "block_content": "<table><tr><td>Общее количество глины на складе 23600 + 71000 = 94600 т/год.\nРасход глины на 1 т готовой продукции 94600:60000 = 1,57 т.</td></tr></table>",
+            "block_bbox": [
+                138,
+                929,
+                470,
+                1031
+            ],
+            "block_id": 0,
+            "block_order": null,
+            "group_id": 0
+        },
+        {
+            "block_label": "table",
+            "block_content": "<table><tr><td>Производительность вращающейся печиВыход шамота из вращающейся печи 45700 — (1000 + 300) = 44400 т/год,где (1000 + 300) — брак изделий в обжиге и сушке.Подача глины во вращающуюся печь (с учетом п. п. п., влажности и пылеюноса):в абсолютно сухой массе (без пылеюноса) 44400·100:(100 — 13) = 51000 т/год;глины с влажностью 22% (без пылеюноса) 51000·100:(100 — 22) = 65400 т/год;с учетом уноса пыли 65400·100:(100 — 8) = 71000 т/год.Сводная ведомость производственностью Таблица VI.9Совдия ведомость производственностиГрубое дробление глины-связки.Грубое дробление глины на шамот.Обжиг во вращающейся печи.Дробление шамота.Сушка в сушильном барабане.Помол глины.Смешение.Прессование.Сушка.Обжиг.Обжиг.Позвонение.Поз</td></tr></table>",
+            "block_bbox": [
+                106,
+                69,
+                702,
+                761
+            ],
+            "block_id": 1,
+            "block_order": null,
+            "group_id": 1
+        },
+        {
+            "block_label": "text",
+            "block_content": "Исходи из этого количества (71000 т/год), определяют производительность помольных машин и транспортных средств.",
+            "block_bbox": [
+                107,
+                794,
+                673,
+                832
+            ],
+            "block_id": 2,
+            "block_order": 1,
+            "group_id": 2
+        },
+        {
+            "block_label": "text",
+            "block_content": "Табл. VI.9 представляет собой сводную ведомость производства по отдельным переделам.",
+            "block_bbox": [
+                107,
+                829,
+                673,
+                867
+            ],
+            "block_id": 3,
+            "block_order": 2,
+            "group_id": 3
+        },
+        {
+            "block_label": "text",
+            "block_content": "Расходный коэффициент",
+            "block_bbox": [
+                108,
+                895,
+                311,
+                918
+            ],
+            "block_id": 4,
+            "block_order": 3,
+            "group_id": 4
+        },
+        {
+            "block_label": "number",
+            "block_content": "234",
+            "block_bbox": [
+                108,
+                1042,
+                139,
+                1063
+            ],
+            "block_id": 5,
+            "block_order": null,
+            "group_id": 5
+        }
+    ],
+    "layout_det_res": {
+        "input_path": null,
+        "page_index": null,
+        "boxes": [
+            {
+                "cls_id": 21,
+                "label": "table",
+                "score": 0.07377117872238159,
+                "coordinate": [
+                    138,
+                    929,
+                    470,
+                    1031
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 21,
+                "label": "table",
+                "score": 0.964219331741333,
+                "coordinate": [
+                    106,
+                    69,
+                    702,
+                    761
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 21,
+                "label": "table",
+                "score": 0.08403342962265015,
+                "coordinate": [
+                    104,
+                    73,
+                    707,
+                    411
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 21,
+                "label": "table",
+                "score": 0.06154334545135498,
+                "coordinate": [
+                    111,
+                    107,
+                    701,
+                    264
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.3239332437515259,
+                "coordinate": [
+                    110,
+                    160,
+                    699,
+                    263
+                ],
+                "order": 1
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.6786075234413147,
+                "coordinate": [
+                    111,
+                    74,
+                    438,
+                    98
+                ],
+                "order": 2
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.6575996279716492,
+                "coordinate": [
+                    145,
+                    109,
+                    451,
+                    132
+                ],
+                "order": 3
+            },
+            {
+                "cls_id": 5,
+                "label": "display_formula",
+                "score": 0.5058385133743286,
+                "coordinate": [
+                    144,
+                    134,
+                    443,
+                    158
+                ],
+                "order": 4
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.4479735493659973,
+                "coordinate": [
+                    111,
+                    161,
+                    526,
+                    184
+                ],
+                "order": 5
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.5722216367721558,
+                "coordinate": [
+                    111,
+                    161,
+                    698,
+                    221
+                ],
+                "order": 6
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.6149246692657471,
+                "coordinate": [
+                    144,
+                    215,
+                    484,
+                    237
+                ],
+                "order": 7
+            },
+            {
+                "cls_id": 5,
+                "label": "display_formula",
+                "score": 0.5478697419166565,
+                "coordinate": [
+                    143,
+                    238,
+                    443,
+                    262
+                ],
+                "order": 8
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.7489117383956909,
+                "coordinate": [
+                    110,
+                    274,
+                    453,
+                    297
+                ],
+                "order": 9
+            },
+            {
+                "cls_id": 5,
+                "label": "display_formula",
+                "score": 0.5221761465072632,
+                "coordinate": [
+                    142,
+                    299,
+                    441,
+                    323
+                ],
+                "order": 10
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.8325698375701904,
+                "coordinate": [
+                    108,
+                    327,
+                    283,
+                    348
+                ],
+                "order": 11
+            },
+            {
+                "cls_id": 5,
+                "label": "display_formula",
+                "score": 0.5372037887573242,
+                "coordinate": [
+                    141,
+                    351,
+                    433,
+                    375
+                ],
+                "order": 12
+            },
+            {
+                "cls_id": 7,
+                "label": "figure_title",
+                "score": 0.6246211528778076,
+                "coordinate": [
+                    110,
+                    405,
+                    432,
+                    426
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.7144951820373535,
+                "coordinate": [
+                    532,
+                    388,
+                    681,
+                    411
+                ],
+                "order": 13
+            },
+            {
+                "cls_id": 21,
+                "label": "table",
+                "score": 0.9448314905166626,
+                "coordinate": [
+                    107,
+                    424,
+                    692,
+                    751
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.7798512578010559,
+                "coordinate": [
+                    107,
+                    794,
+                    673,
+                    832
+                ],
+                "order": 14
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.7265761494636536,
+                "coordinate": [
+                    107,
+                    829,
+                    673,
+                    867
+                ],
+                "order": 15
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.7611331939697266,
+                "coordinate": [
+                    108,
+                    895,
+                    311,
+                    918
+                ],
+                "order": 16
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.7456663250923157,
+                "coordinate": [
+                    141,
+                    931,
+                    430,
+                    953
+                ],
+                "order": 17
+            },
+            {
+                "cls_id": 5,
+                "label": "display_formula",
+                "score": 0.543617844581604,
+                "coordinate": [
+                    142,
+                    954,
+                    386,
+                    978
+                ],
+                "order": 18
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.7971137762069702,
+                "coordinate": [
+                    141,
+                    981,
+                    469,
+                    1005
+                ],
+                "order": 19
+            },
+            {
+                "cls_id": 5,
+                "label": "display_formula",
+                "score": 0.5364742875099182,
+                "coordinate": [
+                    137,
+                    1006,
+                    325,
+                    1029
+                ],
+                "order": 20
+            },
+            {
+                "cls_id": 16,
+                "label": "number",
+                "score": 0.9231381416320801,
+                "coordinate": [
+                    108,
+                    1042,
+                    139,
+                    1063
+                ],
+                "order": 21
+            }
+        ]
+    }
+}

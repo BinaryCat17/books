@@ -210,6 +210,16 @@ def execute(box: Box, spec: JobSpec, outdir: str,
         rc, _ = box.run(cmd, deadline=deadline)
     finally:
         box.stop_sync()
+        # Сколько стоит каждое исключение — ДО того, как оно сработает, и
+        # числом.  Прежде исключения стояли молча, и «экономия» в 0.8%
+        # выгрузки, стоившая четырём книгам постраничной разметки
+        # свидетелей, ни разу не была названа вслух.  Замер вхолостую, ноль
+        # переданных байт.
+        if spec.pull_exclude:
+            try:
+                box.weigh_exclude(spec.outputs, spec.pull_exclude, outdir)
+            except Exception as e:
+                log(f"  вес исключений не измерен ({e}) — выгрузка идёт как есть")
         log("забираю результат целиком...")
         if box.pull(spec.outputs, outdir,
                     exclude=spec.pull_exclude) != 0 and rc == 0:

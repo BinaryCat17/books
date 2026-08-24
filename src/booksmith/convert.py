@@ -29,9 +29,38 @@ from . import layout
 # fb2 такую таблицу выбрасывает молча — так пропадали 2 таблицы из 41 и 2
 # пометки внутри них.  Отключение одного лишь `fancy_lists` не спасает:
 # список делают и другие образцы.
+#
+# `-raw_tex`.  При включённом расширении pandoc, увидев `\cmd{`, читает вперёд
+# до баланса скобок — через абзацы, картинки и таблицы — и отдаёт всё куском
+# raw latex, который писатель html молча выбрасывает.  Одной незакрытой скобки
+# в ячейке хватает, чтобы съесть половину книги.  Контропыт на восьми строках:
+# с `raw_tex` доезжает 1 абзац из 4, без него — все 4, таблица и картинка.
+# Замерено на «Справочнике» (после Э2): таблиц 184 -> 470, тегов картинок
+# 237 -> 1434.  Своей математики у нас нет: `_plain_math` переводит её в текст
+# до pandoc, так что терять нечего.
+#
+# `-superscript-subscript`.  Расширение делает `^` и `~` разметкой.  У нас это
+# знаки из формул и OCR, а не разметка: получаются ложные `<sup>`, а главное —
+# открытый `^…` слипается с соседним `<mark>` и рвёт вложенность тегов.
+#
+# `-native_divs`.  Самое дорогое.  При включённом расширении pandoc разбирает
+# каждый `<div>` в свой Div и перебирает содержимое как markdown; на книге с
+# полутора тысячами `<div style="text-align: center;">` расход растёт
+# сверхлинейно.  Замер на «Биохимии» (2.5 МБ разметки, 1590 div):
+# с `native_divs` — пик RSS 4.7 ГБ и 129 с, без него — 279 МБ и 6.5 с.
+# Именно это, а не только WeasyPrint, роняло машину: шесть книг подряд стоят
+# 10.9 ГБ, а машины всего 7.9.
+#
+# Видимый текст при этом СОВПАДАЕТ знак в знак (проверено на курсе физики:
+# 82 062 слова с обеих сторон).  Отличается только обвязка, и в лучшую
+# сторону: с `native_divs` pandoc заворачивает содержимое div в абзац и
+# закрывает его НЕ ТАМ — `<p>подпись</div>`, 166 таких мест на одной книге.
+# Отсюда и битый XHTML в epub: файлов, не разбирающихся как XML, было
+# 147 из 223 по шести книгам, стало 6 из 263.
 READ = ("markdown+raw_html-tex_math_dollars"
         "-tex_math_single_backslash-tex_math_double_backslash"
-        "-markdown_in_html_blocks")
+        "-markdown_in_html_blocks"
+        "-raw_tex-superscript-subscript-native_divs")
 
 CSS = """
 body { max-width: 46em; margin: 2em auto; padding: 0 1em;
@@ -48,6 +77,136 @@ td:has-text, td { }
                 h2 { page-break-before: auto; } table, img { page-break-inside: avoid; } }
 """
 
+
+
+def _unbrace(cell):
+    r"""Снять с ячейки массива ТОЛЬКО парную обёртку `{…}`.
+
+    Прежде здесь стояло `c.strip(" {}")`, и на ячейке `\mathrm{Fe}` оно
+    срывало закрывающую скобку: получалось `\mathrm{Fe` — незакрытая команда,
+    которую pandoc с `raw_tex` дочитывал до следующей `}` через полкниги.
+    Снимаем скобки, только если первая закрывается именно последней.
+    """
+    c = cell.strip()
+    while len(c) >= 2 and c[0] == "{" and c[-1] == "}":
+        depth = 0
+        for i, ch in enumerate(c):
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    break
+        if i != len(c) - 1:
+            break          # первая скобка закрылась раньше конца — не обёртка
+        c = c[1:-1].strip()
+    return c
+
+
+# Тег `<mark>` целиком, с уважением к кавычкам в атрибутах: Э3 кладёт в
+# `title` варианты свидетелей, и `[^>]*` на них однажды остановится не там.
+MARK_TAG = re.compile(r"</?mark\b(?:\"[^\"]*\"|'[^']*'|[^>\"'])*>")
+# Нечётная серия обратных слэшей перед тегом.  Чётная — правильный текст:
+# `\\` в markdown это литеральный слэш, и трогать его нельзя.
+MARK_SLASH = re.compile(
+    r"(?<!\\)((?:\\\\)*)\\(</?mark\b(?:\"[^\"]*\"|'[^']*'|[^>\"'])*>)")
+BLANK = re.compile(r"(\n[ \t]*\n)")
+
+
+def _fix_marks(md: str) -> tuple[str, dict]:
+    r"""Починить пометки достоверности, разрезанные разметкой.
+
+    Пометки ставит свод, ничего не зная о markdown, и попадает в четыре беды.
+
+    (а) Закрывающий тег съеден слэшем: `<mark …> $\</mark>Phi` — markdown
+        читает `\<` как экранированный знак «меньше», тег становится текстом,
+        пометка не закрывается, и дальше едет открытый `<mark>`.
+    (б) Открывающий тег съеден так же: `$t_{\<mark …>lambda</mark>}$` — свод
+        разрезал команду `\lambda` пополам.
+    (в) Пометка пересекает границу абзаца: pandoc закрывает абзац раньше тега
+        и падает с `TagClose "p"`, унося ВЕСЬ fb2.
+    (г) Перехлёст с `superscript` — снимается отключением расширения в READ.
+
+    Лечим (а) и (б) переносом непарного слэша ЧЕРЕЗ тег вправо: слэш снова
+    прирастает к имени команды (`\Phi`, `\lambda`), а помеченный кусок
+    сдвигается на один знак — цена, которой не видно.  Чётность серии
+    обязательна: `\\</mark>` остаётся как есть.
+
+    (в) лечим не выбрасыванием, а перевыставлением: пометка закрывается в
+    конце абзаца и открывается тем же тегом в начале следующего.  Помеченный
+    кусок сохраняется целиком, вложенность тегов становится законной.
+    """
+    stat = {"слэш снят с тега": len(MARK_SLASH.findall(md)),
+            "пометка перевыставлена через абзац": 0,
+            "лишний закрывающий выброшен": 0}
+    md = MARK_SLASH.sub(r"\1\2\\", md)
+
+    out, pending = [], None
+    for part in BLANK.split(md):
+        if BLANK.fullmatch(part):
+            out.append(part)
+            continue
+        buf, pos = [], 0
+        if pending:
+            buf.append(pending)
+        for m in MARK_TAG.finditer(part):
+            buf.append(part[pos:m.start()])
+            pos = m.end()
+            if m.group(0).startswith("</"):
+                if pending:
+                    buf.append("</mark>")
+                    pending = None
+                else:
+                    # лишний закрывающий без пары — выбрасываем: иначе он
+                    # доедет до читателя видимым мусором
+                    stat["лишний закрывающий выброшен"] += 1
+            else:
+                if pending:
+                    buf.append("</mark>")   # вложенности у нас не бывает
+                buf.append(m.group(0))
+                pending = m.group(0)
+        buf.append(part[pos:])
+        if pending:
+            buf.append("</mark>")
+            stat["пометка перевыставлена через абзац"] += 1
+        out.append("".join(buf))
+    return "".join(out), stat
+
+
+# `\cmd{`, у которой в пределах абзаца нет закрывающей скобки.
+CMD_OPEN = re.compile(r"\\[A-Za-z]+\{|[{}]")
+# Дописываем скобку только в абзаце, где есть команда со скобкой: одинокая
+# `{` в прозе — это просто знак, и дописанная к ней `}` была бы мусором.
+HAS_CMD = re.compile(r"\\[A-Za-z]+\{")
+
+
+def _close_commands(md: str) -> tuple[str, int]:
+    r"""Дописать недостающие `}` в конце абзаца — и вернуть, сколько дописано.
+
+    Незакрытая `\mathrm{Fe` приезжает из распознавания и из ячеек массива.
+    С `raw_tex` она съедала книгу; без него она хотя бы видна, но читатель
+    видит `\mathrm{Fe` вместо «Fe».  Закрыв скобку, мы отдаём кусок правилам
+    ниже (`\mathrm{…}` -> `…`), и он превращается в текст.
+
+    Граница — абзац, и по той же причине, что у долларов: беда, которой
+    позволено ходить через пустую строку, съедает книгу целиком.
+    """
+    fixed = 0
+    out = []
+    for part in BLANK.split(md):
+        if BLANK.fullmatch(part) or not HAS_CMD.search(part):
+            out.append(part)
+            continue
+        depth = 0
+        for m in CMD_OPEN.finditer(part):
+            depth += 1 if m.group(0).endswith("{") else -1
+            if depth < 0:
+                depth = 0        # лишняя `}` безобидна: она просто текст
+        if depth > 0:
+            part = part + "}" * depth
+            fixed += depth
+        out.append(part)
+    return "".join(out), fixed
 
 
 def _plain_math(md: str) -> str:
@@ -68,7 +227,7 @@ def _plain_math(md: str) -> str:
         rows = [r for r in body.split(r"\\") if r.strip()]
         out = []
         for r in rows:
-            cells = [c.strip(" {}") for c in r.split("&") if c.strip(" {}")]
+            cells = [x for x in (_unbrace(c) for c in r.split("&")) if x]
             if cells:
                 out.append("  ".join(cells))
         return " ".join(out)
@@ -114,20 +273,73 @@ def _plain_math(md: str) -> str:
     return md
 
 
+def _prepare(md: str) -> tuple[str, dict]:
+    r"""Всё, что делаем с текстом до pandoc, и числа об этом.
+
+    Порядок обязателен.  Сперва закрываем висячие скобки: только тогда
+    `_plain_math` увидит `\mathrm{Fe}` целиком и переведёт его в «Fe».
+    Пометки чиним последними — закрытие скобок и перевод формул сдвигают
+    текст, и чинить границы тегов до этого бессмысленно.
+    """
+    md, braces = _close_commands(md)
+    md = _plain_math(md)
+    md, stat = _fix_marks(md)
+    stat["дописано скобок"] = braces
+    return md, stat
+
+
 def _log(msg):
     print(msg, flush=True)
+
+
+def _srcs(text):
+    """Пути картинок, на которые ссылается разметка."""
+    return re.findall(r"<img\b[^>]*?src=[\"']([^\"']+)[\"']", text, re.I)
 
 
 def _counts(text):
     return {
         "таблиц": len(re.findall(r"<table", text, re.I)),
+        "ячеек": len(re.findall(r"<td\b", text, re.I)),
         "картинок": len(re.findall(r"<img |<binary ", text, re.I)),
         "⚠": text.count("⚠"),
         "≠": text.count("≠"),
     }
 
 
-def _report(name, src, got):
+def _tables(text):
+    """Отпечаток каждой таблицы: первые 60 знаков её текста.
+
+    Нужен, чтобы сказать не «таблиц 184 из 470», а КАКИХ именно не хватает и
+    подряд ли они. Разрыв подряд — это одна проглоченная область, а не 286
+    независимых бед, и чинится он одной правкой.
+    """
+    out = []
+    for m in re.finditer(r"<table\b.*?(?:</table>|\Z)", text, re.I | re.S):
+        body = re.sub(r"<[^>]*>", " ", m.group(0))
+        body = re.sub(r"[\s\u00a0]+", " ", body).strip()
+        out.append((m.start(), body[:60]))
+    return out
+
+
+def _gap(src_text, got_text):
+    """Самый длинный кусок таблиц, который есть в исходнике и пропал в выводе.
+
+    Возвращает (сколько, номер строки первой пропавшей, её отпечаток).
+    """
+    import difflib
+    a = _tables(src_text)
+    b = [t for _, t in _tables(got_text)]
+    sm = difflib.SequenceMatcher(None, [t for _, t in a], b, autojunk=False)
+    best = (0, None, "")
+    for tag, i1, i2, _j1, _j2 in sm.get_opcodes():
+        if tag == "delete" and i2 - i1 > best[0]:
+            pos = a[i1][0]
+            best = (i2 - i1, src_text.count("\n", 0, pos) + 1, a[i1][1])
+    return best
+
+
+def _report(name, src, got, gap=None):
     """Сверяем, что доехало, с тем, что было — числом, а не словом «готово».
 
     Возвращает `True`, если всё доехало.  Прежде функция ничего не
@@ -143,6 +355,11 @@ def _report(name, src, got):
             ok = False
         parts.append(f"{k} {have}/{want}" + ("" if have >= want else " !"))
     _log(f"  {name}: " + ", ".join(parts))
+    if got.get("таблиц", 0) < src.get("таблиц", 0) and gap is not None:
+        n, line, head = gap
+        if n:
+            _log(f"    пропало подряд {n} таблиц, начиная со строки {line}"
+                 f" книги: «{head}…»")
     return ok
 
 
@@ -180,15 +397,27 @@ def convert(outdir: str, formats=("html", "epub", "fb2"),
         return 1
 
     text = open(src, encoding="utf-8").read()
-    want = _counts(text)
     # Собираем из копии с переведённым LaTeX: сам текст остаётся с
     # формулами, они полезнее модели-пересказчику.  Копия лежит рядом,
     # чтобы ссылки на imgs/ разрешались.
+    prepared, repairs = _prepare(text)
+    # Сверяемся с ПОДГОТОВЛЕННЫМ текстом, а не с книгой: `_prepare` чинит
+    # пометки и может изменить их число, и сверка обязана мерить то, что
+    # мы отдали pandoc, иначе она ловит собственную починку как потерю.
+    want = _counts(prepared)
+    # Картинок в «Справочнике» 1434 тега на 620 файлов — одна вырезка стоит
+    # в тексте по нескольку раз.  epub кладёт файл ОДИН раз, поэтому его
+    # сверять надо по уникальным путям, иначе она кричит всегда и на всём.
+    want_files = len(set(_srcs(prepared)))
     build = os.path.join(book_dir, "_build.md")
-    open(build, "w", encoding="utf-8").write(_plain_math(text))
+    open(build, "w", encoding="utf-8").write(prepared)
     SRC = "_build.md"
     _log(f"исходник: {os.path.relpath(src)}, "
-         + ", ".join(f"{k} {v}" for k, v in want.items()))
+         + ", ".join(f"{k} {v}" for k, v in want.items())
+         + f", файлов картинок {want_files}")
+    if any(repairs.values()):
+        _log("  перед сборкой: "
+             + ", ".join(f"{k} {v}" for k, v in repairs.items() if v))
 
     # Заглавие — из имени исходника, а не из имени каталога: каталог оператор
     # называет наспех («book-new»), и это имя уезжало в метаданные epub.
@@ -224,9 +453,11 @@ def convert(outdir: str, formats=("html", "epub", "fb2"),
                 got["картинок"] = sum(
                     1 for n in z.namelist() if n.lower().endswith(
                         (".jpg", ".jpeg", ".png")))
-            rc = rc or (0 if _report(f"{os.path.relpath(dst)} "
-                              f"({os.path.getsize(dst) // 1024 // 1024} МБ)",
-                              want, got) else 1)
+            want_epub = dict(want, картинок=want_files)
+            if not _report(f"{os.path.relpath(dst)} "
+                           f"({os.path.getsize(dst) // 1024 // 1024} МБ)",
+                           want_epub, got, _gap(prepared, inside)):
+                rc = 1
         except Exception as exc:
             _log(f"  epub не собрался: {exc}")
             rc = 1
@@ -246,11 +477,12 @@ def convert(outdir: str, formats=("html", "epub", "fb2"),
                      "--toc", "--toc-depth=3", "--resource-path=.",
                      "-H", head, *meta, "-o", html_path], cwd=book_dir)
             os.unlink(head)
-            got = _counts(open(html_path, encoding="utf-8",
-                               errors="replace").read())
-            rc = rc or (0 if _report(f"{os.path.relpath(html_path)} "
-                              f"({os.path.getsize(html_path) // 1024} КБ + imgs/)",
-                              want, got) else 1)
+            body = open(html_path, encoding="utf-8", errors="replace").read()
+            got = _counts(body)
+            if not _report(f"{os.path.relpath(html_path)} "
+                           f"({os.path.getsize(html_path) // 1024} КБ + imgs/)",
+                           want, got, _gap(prepared, body)):
+                rc = 1
         except Exception as exc:
             _log(f"  html не собрался: {exc}")
             rc = 1
@@ -281,10 +513,15 @@ def convert(outdir: str, formats=("html", "epub", "fb2"),
                          "--resource-path=.", "-o", mid], cwd=book_dir)
                 _pandoc([mid, "-f", "html", "-t", "fb2",
                          f"--resource-path={book_dir}", *meta, "-o", dst])
-            got = _counts(open(dst, encoding="utf-8", errors="replace").read())
-            rc = rc or (0 if _report(f"{os.path.relpath(dst)} "
-                              f"({os.path.getsize(dst) // 1024 // 1024} МБ)",
-                              want, got) else 1)
+            body = open(dst, encoding="utf-8", errors="replace").read()
+            got = _counts(body)
+            # fb2 кладёт картинку как `<binary>` — по одной на файл, а
+            # ссылок `<image>` столько же, сколько было тегов.  Считаем
+            # `_counts` обе формы разом, поэтому сверяем с числом тегов.
+            if not _report(f"{os.path.relpath(dst)} "
+                           f"({os.path.getsize(dst) // 1024 // 1024} МБ)",
+                           want, got, _gap(prepared, body)):
+                rc = 1
         except Exception as exc:
             _log(f"  fb2 не собрался: {exc}")
             rc = 1

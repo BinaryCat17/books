@@ -1,0 +1,369 @@
+{
+    "input_path": "input.pdf",
+    "page_index": 230,
+    "page_count": 378,
+    "width": 753,
+    "height": 1104,
+    "model_settings": {
+        "use_doc_preprocessor": false,
+        "use_layout_detection": true,
+        "use_chart_recognition": false,
+        "use_seal_recognition": false,
+        "use_ocr_for_image_block": false,
+        "format_block_content": false,
+        "merge_layout_blocks": true,
+        "markdown_ignore_labels": [
+            "number",
+            "header_image",
+            "footer",
+            "footer_image",
+            "aside_text"
+        ],
+        "return_layout_polygon_points": true
+    },
+    "parsing_res_list": [
+        {
+            "block_label": "table",
+            "block_content": "<table><tr><td rowspan=\"2\">Операция</td><td colspan=\"3\">Вид сырья</td></tr><tr><td>глина и каолины</td><td>магнезит</td><td>доломит</td></tr><tr><td>Разгрузка сырья . .</td><td></td><td></td><td></td></tr></table>",
+            "block_bbox": [
+                104,
+                789,
+                674,
+                1032
+            ],
+            "block_id": 0,
+            "block_order": null,
+            "group_id": 0
+        },
+        {
+            "block_label": "text",
+            "block_content": "При обжиге шамотных изделий образуются характernные поры размером 0,1—1,0 мм в результате отрыва глины от шамота вследствие ее усадки. Такие поры не появляются при применении низкожженого шамота, так как в этом случае шамот и глина имеют примерно одинаковую усадку. Изделия на низкожженом шамоте, естественно, более плотные. Каолиновые изделия характеризуются более крупными порами.",
+            "block_bbox": [
+                109,
+                76,
+                680,
+                251
+            ],
+            "block_id": 1,
+            "block_order": 1,
+            "group_id": 1
+        },
+        {
+            "block_label": "text",
+            "block_content": "Шамотные, полукислые и каолиновые изделия, кро-\nме полусухого и пластического прессования, получают\nтакже методом термопластического прессования, шли-\nкерного литья, гидростатического прессования и др.",
+            "block_bbox": [
+                108,
+                251,
+                680,
+                340
+            ],
+            "block_id": 2,
+            "block_order": 2,
+            "group_id": 2
+        },
+        {
+            "block_label": "paragraph_title",
+            "block_content": "§ 5. МАТЕРИАЛЬНЫЙ БАЛАНС ПРОИЗВОДСТВА",
+            "block_bbox": [
+                109,
+                369,
+                660,
+                394
+            ],
+            "block_id": 3,
+            "block_order": 3,
+            "group_id": 3
+        },
+        {
+            "block_label": "text",
+            "block_content": "Материальным балансом производства называется расчетное равенство количеств сырья и вспомогательных материалов, поступающих на предприятие, с готовой продукцией, отгружаемой потребителю, с учетом химических превращений и механических потерь на всех стадиях технологического процесса.",
+            "block_bbox": [
+                107,
+                408,
+                677,
+                498
+            ],
+            "block_id": 4,
+            "block_order": 4,
+            "group_id": 4
+        },
+        {
+            "block_label": "text",
+            "block_content": "Результаты материального баланса по переделам и предприятню в целом служат исходными данными для подбора основного и вспомогательного технологического оборудования, расчета необходимых складских площадей для приема сырьевых и вспомогательных материалов, готовых изделий и тары, определения емкости промежуточных и отгрузочных бункеров, а также расходных коэффициентов сырья и материалов на единицу товарной продукции.",
+            "block_bbox": [
+                106,
+                498,
+                676,
+                620
+            ],
+            "block_id": 5,
+            "block_order": 5,
+            "group_id": 5
+        },
+        {
+            "block_label": "text",
+            "block_content": "Для составления материального баланса необходимы следующне исходные данные:",
+            "block_bbox": [
+                106,
+                619,
+                674,
+                653
+            ],
+            "block_id": 6,
+            "block_order": 6,
+            "group_id": 6
+        },
+        {
+            "block_label": "text",
+            "block_content": "годовая производительность предпрнятня по готовой продукции (в ассортименте и в целом);",
+            "block_bbox": [
+                108,
+                653,
+                674,
+                687
+            ],
+            "block_id": 7,
+            "block_order": 7,
+            "group_id": 7
+        },
+        {
+            "block_label": "table",
+            "block_content": "<table><tr><td>химический состав исходного сырья н вспомогательных матер-</td></tr><tr><td>рналов;</td></tr></table>",
+            "block_bbox": [
+                106,
+                687,
+                674,
+                723
+            ],
+            "block_id": 8,
+            "block_order": null,
+            "group_id": 8
+        },
+        {
+            "block_label": "text",
+            "block_content": "Таблнца VI.7",
+            "block_bbox": [
+                502,
+                733,
+                674,
+                755
+            ],
+            "block_id": 9,
+            "block_order": 8,
+            "group_id": 9
+        },
+        {
+            "block_label": "text",
+            "block_content": "Норма механических потерь при обжнге огнеупорного сырья, %",
+            "block_bbox": [
+                108,
+                757,
+                673,
+                781
+            ],
+            "block_id": 10,
+            "block_order": 9,
+            "group_id": 10
+        },
+        {
+            "block_label": "aside_text",
+            "block_content": " $ ^{1} $",
+            "block_bbox": [
+                678,
+                390,
+                697,
+                449
+            ],
+            "block_id": 11,
+            "block_order": null,
+            "group_id": 11
+        },
+        {
+            "block_label": "number",
+            "block_content": "230",
+            "block_bbox": [
+                105,
+                1044,
+                137,
+                1061
+            ],
+            "block_id": 12,
+            "block_order": null,
+            "group_id": 12
+        }
+    ],
+    "layout_det_res": {
+        "input_path": null,
+        "page_index": null,
+        "boxes": [
+            {
+                "cls_id": 21,
+                "label": "table",
+                "score": 0.987722635269165,
+                "coordinate": [
+                    104,
+                    789,
+                    674,
+                    1032
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9882737398147583,
+                "coordinate": [
+                    109,
+                    76,
+                    680,
+                    251
+                ],
+                "order": 1
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9831243753433228,
+                "coordinate": [
+                    108,
+                    251,
+                    680,
+                    340
+                ],
+                "order": 2
+            },
+            {
+                "cls_id": 17,
+                "label": "paragraph_title",
+                "score": 0.9523990750312805,
+                "coordinate": [
+                    109,
+                    369,
+                    660,
+                    394
+                ],
+                "order": 3
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.981810986995697,
+                "coordinate": [
+                    107,
+                    408,
+                    677,
+                    498
+                ],
+                "order": 4
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9875730276107788,
+                "coordinate": [
+                    106,
+                    498,
+                    676,
+                    620
+                ],
+                "order": 5
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9697086215019226,
+                "coordinate": [
+                    106,
+                    619,
+                    674,
+                    653
+                ],
+                "order": 6
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9705369472503662,
+                "coordinate": [
+                    108,
+                    653,
+                    674,
+                    687
+                ],
+                "order": 7
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9665124416351318,
+                "coordinate": [
+                    106,
+                    687,
+                    674,
+                    723
+                ],
+                "order": 8
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.7122043371200562,
+                "coordinate": [
+                    502,
+                    733,
+                    674,
+                    755
+                ],
+                "order": 9
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.6411756873130798,
+                "coordinate": [
+                    108,
+                    757,
+                    673,
+                    781
+                ],
+                "order": 10
+            },
+            {
+                "cls_id": 21,
+                "label": "table",
+                "score": 0.9850366711616516,
+                "coordinate": [
+                    105,
+                    785,
+                    672,
+                    1028
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 2,
+                "label": "aside_text",
+                "score": 0.561874508857727,
+                "coordinate": [
+                    678,
+                    390,
+                    697,
+                    449
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 16,
+                "label": "number",
+                "score": 0.9147722721099854,
+                "coordinate": [
+                    105,
+                    1044,
+                    137,
+                    1061
+                ],
+                "order": 11
+            }
+        ]
+    }
+}

@@ -151,15 +151,29 @@ def _multipass(a):
             one = copy.copy(a)
             one.outdir, one.reuse = d, iid
             one.timeout, one.budget = left_min, left_usd
-            # Свидетелю картинки не нужны: свод читает у него только
-            # страницы и книжный файл.  Первый проход — основа разбора, ему
-            # нужно всё.
+            # Свидетелю не нужны КАРТИНКИ — и только они.  Постраничный
+            # json нужен, и вот чем это доказано.
+            #
+            # Замер веса (`Box.weigh_exclude`, тем же rsync, вхолостую):
+            # json на проводе — 6.55 МБ на всю библиотеку из 822, то есть
+            # 0.8% выгрузки.  Он такой лёгкий не случайно: rsync жмёт json в
+            # 6.9 раза (45.5 МБ на диске -> 6.55 МБ по проводу), а картинки —
+            # в 1.04, и потому 98.7% всякой выгрузки это картинки.
+            #
+            # Что покупалось за эти 0.8%.  У четырёх книг из шести свидетели
+            # приехали без `pages/*.json`, а json — единственное место, где
+            # лежат метки структуры и рамки блоков.  Из-за этого `structure.py`
+            # берёт метки у прохода 1 даже для страницы, взятой у прохода 2
+            # (Э2), и возвращает как «потерянные» блоки, которые не потеряны,
+            # а прочитаны другими словами: 362 блока вместо 78, из них 284
+            # задвоения.  Тот же json — единственный источник геометрии для
+            # правила про рамку, накрывающую чужой текст (Э8: 56 таблиц из
+            # 2 212, 19% всех дефектов выборки).
             #
             # Не `*.json`: в корне выходного каталога лежат run.json,
             # vllm.json и progress.json, по которым ведётся журнал прогонов и
-            # подбирается машина.  Исключив их, мы бы молча ухудшили выбор
-            # машины ради экономии килобайтов.
-            one.pull_exclude = () if i == 1 else ("imgs/", "pages/*.json")
+            # подбирается машина.
+            one.pull_exclude = () if i == 1 else ("imgs/",)
             # Последний проход тоже с --keep, если оператор просил: гасить машину
             # решает он, а не число проходов.
             one.keep = True if i < a.passes else a.keep
@@ -236,8 +250,20 @@ def _multipass(a):
     layout.remember(base, source=src_name,
                     stem=layout.clean_stem(src_name), passes=len(dirs),
                     cost_usd=round(spent, 4))
-    rc = merge.assemble(base)
+    # Коммит кода, которым считали.  Снимается ЗДЕСЬ, а не в задаче: на
+    # арендованной машине репозитория нет — туда уезжает один файл.  Без
+    # коммита слепок входа неполон по построению, и `books replay --check`
+    # это и говорит.
+    layout.remember(base, **{"коммит": _git_commit()})
+    rc = layout.record_stage(base, "свод", merge.assemble(base))
     rc = rc or _restructure_after(base)
+    # Сборка форматов — часть прогона, а не отдельное упражнение.  Прежде
+    # `books ocr` не звал `convert` вовсе: книга собиралась, html/epub/fb2 не
+    # собирались, код возврата был 0, и оператор узнавал об этом, когда
+    # открывал каталог.  Ошибку сборки форматов не поднимаем по той же
+    # причине, что и ошибку структуры: разбор уже оплачен и лежит на диске.
+    # Но код её записываем и наверх отдаём.
+    rc = rc or _convert_after(base)
     if truncated and not rc:
         # Усечённый свод не должен выглядеть выполненной работой: попросили N
         # проходов, сделали меньше, и свидетелей у книги меньше обещанного.
@@ -249,22 +275,69 @@ def _multipass(a):
     return rc
 
 
+def _git_commit():
+    """Коммит booksmith, которым считали, или None.
+
+    `--dirty` дописывается нарочно: «считали коммитом abc123 с правками в
+    рабочем каталоге» — это другой прогон, чем «считали коммитом abc123», и
+    молчать об этом нельзя.
+    """
+    import subprocess
+    root = os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))))
+    try:
+        p = subprocess.run(["git", "-C", root, "describe", "--always",
+                            "--dirty", "--abbrev=40"],
+                           capture_output=True, text=True, timeout=20)
+        return p.stdout.strip() or None
+    except Exception:
+        return None
+
+
 def _restructure_after(outdir):
     """Сборка структуры в конце прогона.
 
     Шагом руками её делать нельзя: забудется ровно один раз и молча — книга
     будет выглядеть готовой, а заголовков в ней не будет.  Ошибку здесь не
-    поднимаем: разбор уже оплачен и лежит на диске, и терять его из-за
+    ПОДНИМАЕМ: разбор уже оплачен и лежит на диске, и терять его из-за
     неудавшейся расстановки заголовков незачем — шаг повторяем командой
     `books restructure`.
+
+    Но и НЕ ГЛОТАЕМ.  Прежняя редакция ловила исключение и возвращала 0
+    явно, с припиской «разбор цел».  Разбор действительно цел, а книга — нет:
+    без структуры в ней нет ни заголовков, ни оглавления, ни отчёта, и
+    отличить её от готовой можно только открыв.  Код возврата 3 и запись в
+    `run.json` — то, что делает эту разницу видимой машине, а не человеку с
+    хорошей памятью.
     """
     from . import structure
     try:
-        return structure.restructure(outdir)
+        rc = structure.restructure(outdir)
     except Exception as e:
         print(f"структура не собралась ({e}); разбор цел, "
               f"повторить: books restructure {outdir}")
-        return 0
+        layout.record_stage(outdir, "структура", 3, str(e)[:200])
+        return 3
+    return layout.record_stage(outdir, "структура", rc)
+
+
+def _convert_after(outdir):
+    """Сборка форматов в конце прогона — html, epub, fb2.
+
+    PDF намеренно НЕ входит: WeasyPrint держит весь документ в памяти, и на
+    «Справочнике» (448 таблиц, 1424 картинки) это доводило Vmmem до 7.8 ГБ и
+    роняло машину — дважды, вместе с готовыми правками во временном каталоге.
+    Кому нужен pdf, зовёт `books convert --formats pdf` осознанно.
+    """
+    from . import convert
+    try:
+        rc = convert.convert(outdir, formats=("html", "epub", "fb2"))
+    except Exception as e:
+        print(f"форматы не собрались ({e}); книга цела, "
+              f"повторить: books convert {outdir}")
+        layout.record_stage(outdir, "форматы", 4, str(e)[:200])
+        return 4
+    return layout.record_stage(outdir, "форматы", rc or 0)
 
 
 def _one_pass(a, report=None, keep_until=None, keep_usd=None):
@@ -310,8 +383,9 @@ def cmd_olmocr(a):
 def cmd_convert(a):
     """Разбор -> EPUB и FB2 рядом с book.md."""
     from . import convert
-    return convert.convert(a.outdir, formats=tuple(a.formats.split(",")),
-                           title=a.title)
+    rc = convert.convert(a.outdir, formats=tuple(a.formats.split(",")),
+                         title=a.title)
+    return layout.record_stage(a.outdir, "форматы", rc or 0)
 
 
 def cmd_restructure(a):
@@ -322,8 +396,7 @@ def cmd_restructure(a):
     задачи распознавателя — иначе поправить его можно было бы только новым
     платным прогоном.
     """
-    from . import structure
-    return structure.restructure(a.outdir)
+    return _restructure_after(a.outdir)
 
 
 def cmd_merge(a):
@@ -356,7 +429,7 @@ def cmd_merge(a):
     # строке, это читается как «всё сошлось», а значит может означать «сверять
     # было не с чем».  Разница между ними и есть смысл многопроходности.
     layout.remember(a.outdir, passes=len(p.passes))
-    rc = merge.assemble(a.outdir)
+    rc = layout.record_stage(a.outdir, "свод", merge.assemble(a.outdir))
     return rc or _restructure_after(a.outdir)
 
 
@@ -815,11 +888,35 @@ def cmd_progress(a):
         mins = sum(float(m.group(1)) for m in tot)
         usd = sum(float(m.group(2)) for m in tot)
         print(f"\nвсего по журналу: {mins:.1f} мин ≈ ${usd:.2f}")
+    # Шаблон был `завершился с кодом` — и не ловил СВОЮ ЖЕ главную строку:
+    # задача на машине пишет «разбор завершён с кодом 1» (run.sh), другое
+    # окончание глагола.  Заодно она пишет «завершён с кодом 0» на успехе, а
+    # это не беда, — поэтому нулевой код исключён явно.  Подставка
+    # `test_stage_rc.py` ловит и то, и другое.
     bad = [t for _, t in ev
-           if re.search(r"Traceback|завершился с кодом|не удалось", t)]
+           if re.search(r"Traceback|заверш\w+ с кодом (?!0\b)\d+|не удалось", t)]
     for x in bad[-3:]:
         print(f"  !! {x[:100]}")
+    # Код возврата, а не только звёздочки в ленте.  `books progress` зовут из
+    # оболочки и из дозора; пока он всегда возвращал 0, ни то, ни другое не
+    # могло на беду отреагировать, и «!! разбор завершился с кодом 1» было
+    # ровно такой же строкой, как «7 минут, 25 страниц».
+    if bad:
+        print(f"\nв журнале {len(bad)} строк о беде — код возврата 1")
+        return 1
     return 0
+
+
+def cmd_replay(a):
+    """Слепок входа: полон ли он и чем повторить прогон."""
+    from . import replay
+    return replay.cmd_replay(a)
+
+
+def cmd_calibrate(a):
+    """Нанести порчу нарочно и померить, метит ли её свод."""
+    from . import calibrate
+    return calibrate.cmd_calibrate(a)
 
 
 def cmd_ledger(_a):
@@ -975,6 +1072,31 @@ def main(argv=None):
     p.add_argument("path", nargs="?", default=None,
                    help="путь к журналу; без него берётся свежий из runs/")
     p.set_defaults(fn=cmd_progress)
+
+    p = sub.add_parser("replay",
+                       help="слепок входа: чем повторить прогон и чего в нём нет")
+    p.add_argument("outdir", nargs="+", help="каталог книги (processed/<имя>)")
+    p.add_argument("--check", action="store_true",
+                   help="проверить полноту слепка; код возврата 1, "
+                        "пока список недостающего непуст")
+    p.set_defaults(fn=cmd_replay)
+
+    p = sub.add_parser("calibrate",
+                       help="нанести порчу нарочно и померить, метит ли её свод")
+    p.add_argument("outdir", nargs="+", help="каталог книги (processed/<имя>)")
+    p.add_argument("--cells", type=int, default=200,
+                   help="сколько ячеек портить на книгу (по умолчанию 200)")
+    p.add_argument("--seed", default="20260823",
+                   help="зерно отбора ячеек; замер должен повторяться")
+    p.add_argument("--repeats", type=int, default=5,
+                   help="сколько раз повторить с разными зёрнами: у лифта "
+                        "против сдвига строки разброс шире, чем расстояние "
+                        "до единицы, и одно зерно ничего не доказывает")
+    p.add_argument("--errors", default=None,
+                   help="ручная разметка ошибок (Э8, errors.tsv) — "
+                        "свести лифт пометки с нею")
+    p.add_argument("--json", default=None, help="куда положить числа")
+    p.set_defaults(fn=cmd_calibrate)
 
     p = sub.add_parser("ledger", help="журнал прогонов и оценки по нему")
     p.set_defaults(fn=cmd_ledger)

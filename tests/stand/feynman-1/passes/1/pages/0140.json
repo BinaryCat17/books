@@ -1,0 +1,307 @@
+{
+    "input_path": "input.pdf",
+    "page_index": 140,
+    "page_count": 260,
+    "width": 672,
+    "height": 1081,
+    "model_settings": {
+        "use_doc_preprocessor": false,
+        "use_layout_detection": true,
+        "use_chart_recognition": false,
+        "use_seal_recognition": false,
+        "use_ocr_for_image_block": false,
+        "format_block_content": false,
+        "merge_layout_blocks": true,
+        "markdown_ignore_labels": [
+            "number",
+            "header_image",
+            "footer",
+            "footer_image",
+            "aside_text"
+        ],
+        "return_layout_polygon_points": true
+    },
+    "parsing_res_list": [
+        {
+            "block_label": "chart",
+            "block_content": "",
+            "block_bbox": [
+                37,
+                7,
+                364,
+                271
+            ],
+            "block_id": 0,
+            "block_order": null,
+            "group_id": 0
+        },
+        {
+            "block_label": "figure_title",
+            "block_content": "Ф и г. 8.1. График зависимости расстояния, пройденного маши-\nной, от времени.",
+            "block_bbox": [
+                374,
+                84,
+                649,
+                140
+            ],
+            "block_id": 1,
+            "block_order": null,
+            "group_id": 1
+        },
+        {
+            "block_label": "text",
+            "block_content": "a затем все быстрее и быстрее. В районе четырех минут происходит замедление, а затем расстояние опять увеличивается в течение нескольких минут, и, наконец, на девятой минуте машина останавливается. Все эти сведения можно получить прямо из графика, не используя таблицы. Конечно, для построения нашего графика необходимо знать, где находится автомобиль не только каждую минуту, но и каждые полминуты, а может быть, и еще точнее. Кроме того, мы предиолагаем, что машина где-то находится в любой момент времени.",
+            "block_bbox": [
+                29,
+                286,
+                651,
+                477
+            ],
+            "block_id": 2,
+            "block_order": 1,
+            "group_id": 2
+        },
+        {
+            "block_label": "text",
+            "block_content": "Так что движение автомобиля выглядит все же сложно. Давайте рассмотрим что-нибудь попроще, с более простым законом движения: например, падающий шар. В табл. 8.2 даны значения",
+            "block_bbox": [
+                29,
+                477,
+                651,
+                544
+            ],
+            "block_id": 3,
+            "block_order": 2,
+            "group_id": 3
+        },
+        {
+            "block_label": "figure_title",
+            "block_content": "Таблица 8.2 ☐ РАСПИСАНИЕ ДВИЖЕНИЯ ПАДАЮЩЕГО ШАРА",
+            "block_bbox": [
+                63,
+                555,
+                651,
+                577
+            ],
+            "block_id": 4,
+            "block_order": null,
+            "group_id": 4
+        },
+        {
+            "block_label": "table",
+            "block_content": "<table><tr><td>t, cεκ</td><td>s, m</td></tr><tr><td>0</td><td>0</td></tr><tr><td>1</td><td>5</td></tr><tr><td>2</td><td>20</td></tr><tr><td>3</td><td>45</td></tr><tr><td>4</td><td>80</td></tr><tr><td>5</td><td>125</td></tr><tr><td>6</td><td>180</td></tr></table>",
+            "block_bbox": [
+                77,
+                580,
+                637,
+                779
+            ],
+            "block_id": 5,
+            "block_order": null,
+            "group_id": 5
+        },
+        {
+            "block_label": "text",
+            "block_content": "времени в секундах и расстояния в метрах. За нулевой момент выберем момент начала падения. Через 1 сек после начала падения шарик пролетает 5 м, через 2 сек — 20 м, через 3 сек—45 м. Если отложить эти числа на графике, то получим параболическую криву зависимости расстояния от времени для падающего тела (фиг. 8.2), которая описывается формулой",
+            "block_bbox": [
+                30,
+                807,
+                652,
+                936
+            ],
+            "block_id": 6,
+            "block_order": 3,
+            "group_id": 6
+        },
+        {
+            "block_label": "display_formula",
+            "block_content": " $$ s=5t^{2}. $$ ",
+            "block_bbox": [
+                304,
+                943,
+                378,
+                967
+            ],
+            "block_id": 7,
+            "block_order": 4,
+            "group_id": 7
+        },
+        {
+            "block_label": "formula_number",
+            "block_content": "(8.1)",
+            "block_bbox": [
+                603,
+                944,
+                648,
+                969
+            ],
+            "block_id": 8,
+            "block_order": 5,
+            "group_id": 8
+        },
+        {
+            "block_label": "text",
+            "block_content": "Эта формула позволяет вычислить расстояние для любого момента времени. Вы скажете, что для первого графика",
+            "block_bbox": [
+                31,
+                976,
+                652,
+                1020
+            ],
+            "block_id": 9,
+            "block_order": 6,
+            "group_id": 9
+        },
+        {
+            "block_label": "number",
+            "block_content": "142",
+            "block_bbox": [
+                30,
+                1030,
+                62,
+                1048
+            ],
+            "block_id": 10,
+            "block_order": null,
+            "group_id": 10
+        }
+    ],
+    "layout_det_res": {
+        "input_path": null,
+        "page_index": null,
+        "boxes": [
+            {
+                "cls_id": 3,
+                "label": "chart",
+                "score": 0.979051947593689,
+                "coordinate": [
+                    37,
+                    7,
+                    364,
+                    271
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 7,
+                "label": "figure_title",
+                "score": 0.8064062595367432,
+                "coordinate": [
+                    374,
+                    84,
+                    649,
+                    140
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9738451838493347,
+                "coordinate": [
+                    29,
+                    286,
+                    651,
+                    477
+                ],
+                "order": 1
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9683948159217834,
+                "coordinate": [
+                    29,
+                    477,
+                    651,
+                    544
+                ],
+                "order": 2
+            },
+            {
+                "cls_id": 7,
+                "label": "figure_title",
+                "score": 0.7065774202346802,
+                "coordinate": [
+                    63,
+                    555,
+                    651,
+                    577
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 21,
+                "label": "table",
+                "score": 0.9808006882667542,
+                "coordinate": [
+                    77,
+                    580,
+                    637,
+                    779
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9832735061645508,
+                "coordinate": [
+                    30,
+                    807,
+                    652,
+                    936
+                ],
+                "order": 3
+            },
+            {
+                "cls_id": 5,
+                "label": "display_formula",
+                "score": 0.929417073726654,
+                "coordinate": [
+                    304,
+                    943,
+                    378,
+                    967
+                ],
+                "order": 4
+            },
+            {
+                "cls_id": 11,
+                "label": "formula_number",
+                "score": 0.9329333305358887,
+                "coordinate": [
+                    603,
+                    944,
+                    648,
+                    969
+                ],
+                "order": 5
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9580506086349487,
+                "coordinate": [
+                    31,
+                    976,
+                    652,
+                    1020
+                ],
+                "order": 6
+            },
+            {
+                "cls_id": 16,
+                "label": "number",
+                "score": 0.908953070640564,
+                "coordinate": [
+                    30,
+                    1030,
+                    62,
+                    1048
+                ],
+                "order": 7
+            }
+        ]
+    }
+}

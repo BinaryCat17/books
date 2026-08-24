@@ -1,0 +1,438 @@
+{
+    "input_path": "input.pdf",
+    "page_index": 149,
+    "page_count": 260,
+    "width": 667,
+    "height": 1095,
+    "model_settings": {
+        "use_doc_preprocessor": false,
+        "use_layout_detection": true,
+        "use_chart_recognition": false,
+        "use_seal_recognition": false,
+        "use_ocr_for_image_block": false,
+        "format_block_content": false,
+        "merge_layout_blocks": true,
+        "markdown_ignore_labels": [
+            "number",
+            "header_image",
+            "footer",
+            "footer_image",
+            "aside_text"
+        ],
+        "return_layout_polygon_points": true
+    },
+    "parsing_res_list": [
+        {
+            "block_label": "table",
+            "block_content": "<table><tr><td>Таблица 8.4</td><td>●</td><td>СКОРОСТЬ ПАЗ</td></tr><tr><td></td><td>t, cк</td><td></td></tr><tr><td></td><td>0</td><td></td></tr><tr><td></td><td>1</td><td></td></tr><tr><td></td><td>2</td><td></td></tr><tr><td></td><td>3</td><td></td></tr><tr><td></td><td>4</td><td></td></tr></table>",
+            "block_bbox": [
+                101,
+                210,
+                413,
+                398
+            ],
+            "block_id": 0,
+            "block_order": null,
+            "group_id": 0
+        },
+        {
+            "block_label": "paragraph_title",
+            "block_content": "§ 4. Расстояние как интеграл",
+            "block_bbox": [
+                23,
+                35,
+                405,
+                58
+            ],
+            "block_id": 1,
+            "block_order": 1,
+            "group_id": 1
+        },
+        {
+            "block_label": "text",
+            "block_content": "Обсудим теперь обратную проблему. Пусть вместо таблицы расстояний нам дана таблица скоростей в различные моменты времени, начиная с нуля. В табл. 8.4 представлена зависимость скорости падающего шара от времени. Аналогичную таблицу можно составить и для машины, если записывать показания спидометра через каждую минуту или полминуты. Но можно",
+            "block_bbox": [
+                21,
+                67,
+                647,
+                199
+            ],
+            "block_id": 2,
+            "block_order": 2,
+            "group_id": 2
+        },
+        {
+            "block_label": "figure_title",
+            "block_content": "Таблица 8.4 ☐ СКОРОСТЬ ПАДАЮЩЕГО ШАРА",
+            "block_bbox": [
+                100,
+                212,
+                553,
+                234
+            ],
+            "block_id": 3,
+            "block_order": null,
+            "group_id": 3
+        },
+        {
+            "block_label": "table",
+            "block_content": "<table><tr><td>t, cεκ</td><td>v, m iεκ</td></tr><tr><td>0</td><td>0</td></tr><tr><td>1</td><td>10</td></tr><tr><td>2</td><td>20</td></tr><tr><td>3</td><td>30</td></tr><tr><td>4</td><td>40</td></tr></table>",
+            "block_bbox": [
+                234,
+                240,
+                568,
+                399
+            ],
+            "block_id": 4,
+            "block_order": null,
+            "group_id": 4
+        },
+        {
+            "block_label": "text",
+            "block_content": "ли, зная скорость машины в любой момент времени, вычислить расстояние, которое ею было пройдено? Эта задача обратна той, которую мы только что рассмотрели. Как же решить ее, если скорость машины непостоянна, если она то ускоряется до 90 км/час, то замедляется, затем где-то останавливается у светофора и т.д.? Сделать это нетрудно. Нужно использовать ту же идею и выражать полное расстояние через бесконечно малые его части. Пусть в первую секунду скорость будет  $ v_{1} $, тогда по формуле  $ \\Delta s = v_{1}\\Delta t $ можно вычислить расстояние, пройденное за эту секунду. В следующую секунду скорость будет несколько другой, хотя, может быть, и близкой к первоначальной, а расстояние, пройденное машиной за вторую секунду, будет равно новой скорости, умноженной на интервал времени (1 сек). Этот процесс можно продолжить дальше, до самого конца пути. В результате мы получи много маленьких отреков, которые в сумме дадут весь путь. Таким образом, путь является суммой скоростей, умноженных на отдельные интервалы времени, или  $ s = \\sum v \\Delta t $, где греческая буква  $ \\sum (\\sqrt{2} \\sigma^{2}) $ означает суммирование. Точнее, это будет сумма скоростей в некоторые моменты времени, скажем  $ t_{i} $, умноженные на  $ \\Delta t $:",
+            "block_bbox": [
+                22,
+                427,
+                646,
+                852
+            ],
+            "block_id": 5,
+            "block_order": 3,
+            "group_id": 5
+        },
+        {
+            "block_label": "display_formula",
+            "block_content": " $$ s=\\sum_{i}v\\left(t_{i}\\right)\\Delta t, $$ ",
+            "block_bbox": [
+                261,
+                855,
+                403,
+                894
+            ],
+            "block_id": 6,
+            "block_order": 4,
+            "group_id": 6
+        },
+        {
+            "block_label": "formula_number",
+            "block_content": "(8.6)",
+            "block_bbox": [
+                593,
+                855,
+                642,
+                880
+            ],
+            "block_id": 7,
+            "block_order": 5,
+            "group_id": 7
+        },
+        {
+            "block_label": "text",
+            "block_content": "причем каждый последующий момент  $ t_{i+1} $ находится по правилу  $ t_{i+1}=t_{i}+\\Delta t $. Но расстояние, полученное этим методом, не будет точным, поскольку скорость за время  $ \\Delta t $ все же изменяется. Выход из этого положения заключается в том, чтобы брать все меньшие и меньшие интервалы  $ \\Delta t $, т. е. разбивать время движения на все большее число все меньших отрезков. В конце",
+            "block_bbox": [
+                21,
+                905,
+                646,
+                1034
+            ],
+            "block_id": 8,
+            "block_order": 6,
+            "group_id": 8
+        },
+        {
+            "block_label": "number",
+            "block_content": "151",
+            "block_bbox": [
+                613,
+                1047,
+                643,
+                1065
+            ],
+            "block_id": 9,
+            "block_order": null,
+            "group_id": 9
+        }
+    ],
+    "layout_det_res": {
+        "input_path": null,
+        "page_index": null,
+        "boxes": [
+            {
+                "cls_id": 21,
+                "label": "table",
+                "score": 0.5279289484024048,
+                "coordinate": [
+                    101,
+                    210,
+                    413,
+                    398
+                ],
+                "order": 1
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.31100279092788696,
+                "coordinate": [
+                    233,
+                    639,
+                    280,
+                    659
+                ],
+                "order": 1
+            },
+            {
+                "cls_id": 7,
+                "label": "figure_title",
+                "score": 0.3041189908981323,
+                "coordinate": [
+                    287,
+                    212,
+                    552,
+                    232
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.33955860137939453,
+                "coordinate": [
+                    55,
+                    512,
+                    121,
+                    532
+                ],
+                "order": 2
+            },
+            {
+                "cls_id": 17,
+                "label": "paragraph_title",
+                "score": 0.9440287947654724,
+                "coordinate": [
+                    23,
+                    35,
+                    405,
+                    58
+                ],
+                "order": 3
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.986352801322937,
+                "coordinate": [
+                    21,
+                    67,
+                    647,
+                    199
+                ],
+                "order": 4
+            },
+            {
+                "cls_id": 7,
+                "label": "figure_title",
+                "score": 0.9055372476577759,
+                "coordinate": [
+                    100,
+                    212,
+                    553,
+                    234
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 21,
+                "label": "table",
+                "score": 0.9775915145874023,
+                "coordinate": [
+                    234,
+                    240,
+                    568,
+                    399
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9872429370880127,
+                "coordinate": [
+                    22,
+                    427,
+                    646,
+                    852
+                ],
+                "order": 5
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.9132658243179321,
+                "coordinate": [
+                    115,
+                    597,
+                    206,
+                    616
+                ],
+                "order": 6
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.7640812397003174,
+                "coordinate": [
+                    527,
+                    578,
+                    548,
+                    596
+                ],
+                "order": 7
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.626287579536438,
+                "coordinate": [
+                    25,
+                    786,
+                    125,
+                    810
+                ],
+                "order": 8
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.680570662021637,
+                "coordinate": [
+                    367,
+                    784,
+                    393,
+                    810
+                ],
+                "order": 9
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.8313767313957214,
+                "coordinate": [
+                    268,
+                    831,
+                    287,
+                    852
+                ],
+                "order": 10
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.5740811228752136,
+                "coordinate": [
+                    459,
+                    829,
+                    486,
+                    848
+                ],
+                "order": 11
+            },
+            {
+                "cls_id": 5,
+                "label": "display_formula",
+                "score": 0.9528070092201233,
+                "coordinate": [
+                    261,
+                    855,
+                    403,
+                    894
+                ],
+                "order": 12
+            },
+            {
+                "cls_id": 11,
+                "label": "formula_number",
+                "score": 0.9296742677688599,
+                "coordinate": [
+                    593,
+                    855,
+                    642,
+                    880
+                ],
+                "order": 13
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.8914451003074646,
+                "coordinate": [
+                    412,
+                    906,
+                    447,
+                    927
+                ],
+                "order": 14
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.916573166847229,
+                "coordinate": [
+                    77,
+                    926,
+                    195,
+                    949
+                ],
+                "order": 15
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9852896332740784,
+                "coordinate": [
+                    21,
+                    905,
+                    646,
+                    1034
+                ],
+                "order": 16
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.5309737324714661,
+                "coordinate": [
+                    449,
+                    946,
+                    475,
+                    966
+                ],
+                "order": 17
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.6127702593803406,
+                "coordinate": [
+                    357,
+                    988,
+                    385,
+                    1009
+                ],
+                "order": 18
+            },
+            {
+                "cls_id": 16,
+                "label": "number",
+                "score": 0.9080178737640381,
+                "coordinate": [
+                    613,
+                    1047,
+                    643,
+                    1065
+                ],
+                "order": 19
+            }
+        ]
+    }
+}

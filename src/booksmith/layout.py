@@ -110,6 +110,41 @@ def remember(outdir, **kw):
     return d
 
 
+def record_stage(outdir, name, rc, note=None):
+    """Записать, чем кончился этап прогона.
+
+    Код возврата — единственное, что связывает этапы между собой, и терялся
+    он в трёх местах сразу: `books ocr` не звал `convert` вовсе, поле под код
+    этапа в `run.json` отсутствовало, а `_restructure_after` ловил исключение
+    и возвращал ноль явно.  В сумме это давало книгу, которая не собралась,
+    с кодом возврата 0 и без единого следа — оператор узнавал об этом,
+    открыв книгу.
+
+    Пишем в `run.json`, а не только в stdout: stdout прогона видит один
+    человек один раз, а `run.json` читают и `books replay`, и отчёт, и
+    следующий разбор.
+    """
+    d = facts(outdir)
+    st = d.get("этапы")
+    if not isinstance(st, dict):
+        st = {}
+    st[name] = {"код": int(rc), "заметка": note}
+    remember(outdir, **{"этапы": st})
+    return rc
+
+
+def stages(outdir):
+    """Этапы и их коды; пусто, если прогон их не записывал."""
+    st = facts(outdir).get("этапы")
+    return st if isinstance(st, dict) else {}
+
+
+def failed_stages(outdir):
+    """Этапы с ненулевым кодом — по ним книга и называет себя неготовой."""
+    return {k: v for k, v in stages(outdir).items()
+            if isinstance(v, dict) and v.get("код")}
+
+
 def stem(outdir):
     """Как зовут книгу в этом каталоге.
 

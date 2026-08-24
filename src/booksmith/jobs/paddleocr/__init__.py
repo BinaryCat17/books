@@ -41,14 +41,30 @@ TABLE_THRESHOLD = 0.05
 # Ручки, которыми правится поведение разбора, пробрасываются с моей машины
 # как есть: они нужны, чтобы сравнивать прогоны между собой, и держать под
 # каждую отдельный флаг в CLI было бы шумом.
-_PASS = ("MULTIVIEW", "PREFER_TABLES", "REASK", "SPLIT_COLUMNS",
-         "LOGPROBS", "LOGPROB_THR", "VLM_TEMPERATURE",
-         "PROBE", "PROBE_SCALE", "OCR_IN_IMAGES",
-         "KEEP_INNER_FILTER", "VIEW_NMS",
-         "PADDLE_PDX_PDF_RENDER_SCALE")
+#
+# Список СТРОИТСЯ ИЗ РЕЕСТРА, а не пишется руками.  Руками он и разошёлся:
+# в нём было 13 имён из 17, и четыре ручки — LAYOUT_MODEL_NAME,
+# LAYOUT_MODEL_DIR, LAYOUT_TABLE_THRESHOLD, VL_MODEL_DIR — на машину не
+# уезжали вовсе, хотя решают, какие веса поднимутся и с каким порогом.
+# Список, который надо помнить в двух местах, помнится в одном.
+#
+# Импорт `entrypoint` здесь безопасен: на верхнем уровне у него только
+# стандартная библиотека, ни paddle, ни torch.  Тот же файл уезжает на
+# машину и запускается там как отдельный скрипт — от того, что мы читаем из
+# него реестр, он про booksmith не узнаёт.
+from .entrypoint import KNOBS
+
+_PASS = tuple(k.name for k in KNOBS)
 
 
 def _env(table_threshold):
+    """Окружение задачи: порог таблиц плюс ручки, заданные на моей машине.
+
+    Пробрасывается только то, что оператор ЗАДАЛ.  Умолчания не подставляем:
+    у них одно место жительства — реестр `KNOBS` в `entrypoint.py`, и второй
+    их экземпляр здесь означал бы, что смена умолчания в коде не доезжает до
+    машины, пока кто-нибудь не вспомнит про этот файл.
+    """
     env = ({"LAYOUT_TABLE_THRESHOLD": str(table_threshold)}
            if table_threshold else {})
     env.update({k: os.environ[k] for k in _PASS if k in os.environ})

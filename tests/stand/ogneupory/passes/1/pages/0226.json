@@ -1,0 +1,476 @@
+{
+    "input_path": "input.pdf",
+    "page_index": 226,
+    "page_count": 378,
+    "width": 754,
+    "height": 1115,
+    "model_settings": {
+        "use_doc_preprocessor": false,
+        "use_layout_detection": true,
+        "use_chart_recognition": false,
+        "use_seal_recognition": false,
+        "use_ocr_for_image_block": false,
+        "format_block_content": false,
+        "merge_layout_blocks": true,
+        "markdown_ignore_labels": [
+            "number",
+            "header_image",
+            "footer",
+            "footer_image",
+            "aside_text"
+        ],
+        "return_layout_polygon_points": true
+    },
+    "parsing_res_list": [
+        {
+            "block_label": "text",
+            "block_content": "1100°С начинается спекание изделий. В этом темпера-\nтурном интервале возможно образование трещин.",
+            "block_bbox": [
+                137,
+                79,
+                707,
+                130
+            ],
+            "block_id": 0,
+            "block_order": 1,
+            "group_id": 0
+        },
+        {
+            "block_label": "text",
+            "block_content": "Объемные изменения при обжиге рассчитываются по уравнению",
+            "block_bbox": [
+                135,
+                129,
+                707,
+                173
+            ],
+            "block_id": 1,
+            "block_order": 2,
+            "group_id": 1
+        },
+        {
+            "block_label": "display_formula",
+            "block_content": " $$ \\boldsymbol{\\mathfrak{B}}=[\\rho_{0}(1-\\varepsilon_{0})]/[\\rho_{1}(1-\\varepsilon_{1})], $$ ",
+            "block_bbox": [
+                174,
+                181,
+                449,
+                210
+            ],
+            "block_id": 2,
+            "block_order": 3,
+            "group_id": 2
+        },
+        {
+            "block_label": "formula_number",
+            "block_content": "(VI.6)",
+            "block_bbox": [
+                648,
+                184,
+                704,
+                211
+            ],
+            "block_id": 3,
+            "block_order": 4,
+            "group_id": 3
+        },
+        {
+            "block_label": "text",
+            "block_content": "где β — объемная усадка, доли единицы; ε₀, ε₁ — истинная пористость до и после обжига, доли единицы; ρ₀, ρ₁ — плотность до и после обжига.",
+            "block_bbox": [
+                133,
+                219,
+                705,
+                285
+            ],
+            "block_id": 4,
+            "block_order": 5,
+            "group_id": 4
+        },
+        {
+            "block_label": "text",
+            "block_content": "Уравнение (VI.6) может быть представлено также в виде",
+            "block_bbox": [
+                133,
+                284,
+                705,
+                328
+            ],
+            "block_id": 5,
+            "block_order": 6,
+            "group_id": 5
+        },
+        {
+            "block_label": "display_formula",
+            "block_content": " $$ \\boldsymbol{\\upbeta}=1-(V_{\\uppi}+V_{\\upmu}), $$ ",
+            "block_bbox": [
+                172,
+                333,
+                359,
+                361
+            ],
+            "block_id": 6,
+            "block_order": 7,
+            "group_id": 6
+        },
+        {
+            "block_label": "formula_number",
+            "block_content": "(VI.7)",
+            "block_bbox": [
+                646,
+                335,
+                702,
+                362
+            ],
+            "block_id": 7,
+            "block_order": 8,
+            "group_id": 7
+        },
+        {
+            "block_label": "table",
+            "block_content": "<table><tr><td>где  $ V_{\\mathrm{n}} $,  $ V_{\\mathrm{m}} $ — объемы пор и материала после обжига, рассчитанные из условия, что их сумма до обжига равна единице.</td></tr></table>",
+            "block_bbox": [
+                131,
+                369,
+                703,
+                436
+            ],
+            "block_id": 8,
+            "block_order": null,
+            "group_id": 8
+        },
+        {
+            "block_label": "text",
+            "block_content": "Использование высокожженого шамота, многоша-\nмотных масс, совместного помола глины и шамота и\nприменение высоких давлений при прессовании умень-\nшают усадку при обжиге.",
+            "block_bbox": [
+                130,
+                437,
+                703,
+                524
+            ],
+            "block_id": 9,
+            "block_order": 9,
+            "group_id": 9
+        },
+        {
+            "block_label": "text",
+            "block_content": "Допустимая скорость повышения температуры при обжиге в интервале 1000—1300°C зависит в основном от соотношения количества глины и шамота в массе и температуры обжига последнего. Чем больше шамота в массе и чем при более высокой температуре он обожжен, тем выше может быть скорость роста температуры в печи для изделий одинакового типоразмера. Обжиг шамотных изделий завершают обычно при температуре, превышающей на 100—150°C температуру полного скепания связующей глины. При коротком температурном интервале скепания связующей глины температуру обжига принимают на 50—100°C выше температуры скепания связи. Конечная температура обжига изделий, изготовленных из каолинитовых глин, богатых глиноземом, составляет 1350—1400°C. Дальнейшее повышение ее до 1430—1450°C способствует более полному спеканию и снижению дополнительной усадки. Однако наступающее при этом размягчение материала вызывает деформацию изделий, особенно в нижних нагруженных рядах садки, а чрезмерное уплотнение изделий при потере зернистой структуры материала приводит к снижению термостойкости. Каолиновые изделия обжигают при 1450—1500°C. При использовании низкоспекающихся огнеупорных глин может возникать пере-",
+            "block_bbox": [
+                125,
+                524,
+                701,
+                1044
+            ],
+            "block_id": 10,
+            "block_order": 10,
+            "group_id": 10
+        },
+        {
+            "block_label": "number",
+            "block_content": "226",
+            "block_bbox": [
+                125,
+                1055,
+                158,
+                1074
+            ],
+            "block_id": 11,
+            "block_order": null,
+            "group_id": 11
+        }
+    ],
+    "layout_det_res": {
+        "input_path": null,
+        "page_index": null,
+        "boxes": [
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.34990817308425903,
+                "coordinate": [
+                    137,
+                    264,
+                    288,
+                    284
+                ],
+                "order": 1
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.39445674419403076,
+                "coordinate": [
+                    557,
+                    223,
+                    701,
+                    243
+                ],
+                "order": 2
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.4624112844467163,
+                "coordinate": [
+                    143,
+                    79,
+                    214,
+                    105
+                ],
+                "order": 3
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9645941853523254,
+                "coordinate": [
+                    137,
+                    79,
+                    707,
+                    130
+                ],
+                "order": 4
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9694594740867615,
+                "coordinate": [
+                    135,
+                    129,
+                    707,
+                    173
+                ],
+                "order": 5
+            },
+            {
+                "cls_id": 5,
+                "label": "display_formula",
+                "score": 0.9488745331764221,
+                "coordinate": [
+                    174,
+                    181,
+                    449,
+                    210
+                ],
+                "order": 6
+            },
+            {
+                "cls_id": 11,
+                "label": "formula_number",
+                "score": 0.9313504099845886,
+                "coordinate": [
+                    648,
+                    184,
+                    704,
+                    211
+                ],
+                "order": 7
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.4911854863166809,
+                "coordinate": [
+                    177,
+                    218,
+                    317,
+                    242
+                ],
+                "order": 8
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9752809405326843,
+                "coordinate": [
+                    133,
+                    219,
+                    705,
+                    285
+                ],
+                "order": 9
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9604296684265137,
+                "coordinate": [
+                    133,
+                    284,
+                    705,
+                    328
+                ],
+                "order": 10
+            },
+            {
+                "cls_id": 5,
+                "label": "display_formula",
+                "score": 0.9433607459068298,
+                "coordinate": [
+                    172,
+                    333,
+                    359,
+                    361
+                ],
+                "order": 11
+            },
+            {
+                "cls_id": 11,
+                "label": "formula_number",
+                "score": 0.9273787140846252,
+                "coordinate": [
+                    646,
+                    335,
+                    702,
+                    362
+                ],
+                "order": 12
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.7111051082611084,
+                "coordinate": [
+                    176,
+                    369,
+                    352,
+                    393
+                ],
+                "order": 13
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.977101743221283,
+                "coordinate": [
+                    131,
+                    369,
+                    703,
+                    436
+                ],
+                "order": 14
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9821134209632874,
+                "coordinate": [
+                    130,
+                    437,
+                    703,
+                    524
+                ],
+                "order": 15
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.6447625160217285,
+                "coordinate": [
+                    345,
+                    542,
+                    482,
+                    565
+                ],
+                "order": 16
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.7517039775848389,
+                "coordinate": [
+                    361,
+                    693,
+                    476,
+                    716
+                ],
+                "order": 17
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9874940514564514,
+                "coordinate": [
+                    125,
+                    524,
+                    701,
+                    1044
+                ],
+                "order": 18
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.752865195274353,
+                "coordinate": [
+                    368,
+                    758,
+                    474,
+                    780
+                ],
+                "order": 19
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.6792722940444946,
+                "coordinate": [
+                    376,
+                    823,
+                    513,
+                    845
+                ],
+                "order": 20
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.6325522661209106,
+                "coordinate": [
+                    289,
+                    844,
+                    425,
+                    867
+                ],
+                "order": 21
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.5531207323074341,
+                "coordinate": [
+                    641,
+                    934,
+                    693,
+                    954
+                ],
+                "order": 22
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.6511631608009338,
+                "coordinate": [
+                    280,
+                    995,
+                    415,
+                    1018
+                ],
+                "order": 23
+            },
+            {
+                "cls_id": 16,
+                "label": "number",
+                "score": 0.9148362874984741,
+                "coordinate": [
+                    125,
+                    1055,
+                    158,
+                    1074
+                ],
+                "order": 24
+            }
+        ]
+    }
+}

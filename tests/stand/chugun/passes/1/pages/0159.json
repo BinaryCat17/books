@@ -1,0 +1,893 @@
+{
+    "input_path": "input.pdf",
+    "page_index": 159,
+    "page_count": 760,
+    "width": 1474,
+    "height": 2393,
+    "model_settings": {
+        "use_doc_preprocessor": false,
+        "use_layout_detection": true,
+        "use_chart_recognition": false,
+        "use_seal_recognition": false,
+        "use_ocr_for_image_block": false,
+        "format_block_content": false,
+        "merge_layout_blocks": true,
+        "markdown_ignore_labels": [
+            "number",
+            "header_image",
+            "footer",
+            "footer_image",
+            "aside_text"
+        ],
+        "return_layout_polygon_points": true
+    },
+    "parsing_res_list": [
+        {
+            "block_label": "display_formula",
+            "block_content": " $$ \\mathrm{CO}+0.5\\mathrm{O}_{2}=\\mathrm{CO}_{2}+67.640\\mathrm{~k a l}(283200\\mathrm{~D}_{\\mathrm{K}}); $$ ",
+            "block_bbox": [
+                428,
+                149,
+                1190,
+                199
+            ],
+            "block_id": 0,
+            "block_order": 1,
+            "group_id": 0
+        },
+        {
+            "block_label": "formula_number",
+            "block_content": "(11.3)",
+            "block_bbox": [
+                1372,
+                154,
+                1465,
+                199
+            ],
+            "block_id": 1,
+            "block_order": 2,
+            "group_id": 1
+        },
+        {
+            "block_label": "display_formula",
+            "block_content": " $$ \\mathrm{C O_{2}+C=2C O\\xrightarrow{}41220\\kappa a l(172600\\Delta\\kappa).} $$ ",
+            "block_bbox": [
+                456,
+                204,
+                1173,
+                251
+            ],
+            "block_id": 2,
+            "block_order": 3,
+            "group_id": 2
+        },
+        {
+            "block_label": "formula_number",
+            "block_content": "(II.4)",
+            "block_bbox": [
+                1372,
+                211,
+                1465,
+                253
+            ],
+            "block_id": 3,
+            "block_order": 4,
+            "group_id": 3
+        },
+        {
+            "block_label": "text",
+            "block_content": "Содержание СО и СО₂ в отходящих газах колеблется в широких пределах в зависимости от качества и расхода кокса, температуры, количества дутья и ряда других причин (табл. II.23).",
+            "block_bbox": [
+                175,
+                259,
+                1468,
+                369
+            ],
+            "block_id": 4,
+            "block_order": 5,
+            "group_id": 4
+        },
+        {
+            "block_label": "text",
+            "block_content": "Основным продуктом реакций в кислородной зоне является  $ CO_{2} $. В редукционной зоне преимущественно идет реакция (II.4). Высота кислородной зоны при холодном дутье равна 6—8 диаметрам кусков кокса, а при подогреве воздуха до 500°C — 4—6 диаметрам. Изменение расхода дутья не оказывает заметного",
+            "block_bbox": [
+                172,
+                367,
+                1470,
+                508
+            ],
+            "block_id": 5,
+            "block_order": 6,
+            "group_id": 5
+        },
+        {
+            "block_label": "text",
+            "block_content": "влияния на высоту зоны. Температурный режим иллюстрируется рис. II.1.",
+            "block_bbox": [
+                175,
+                505,
+                878,
+                543
+            ],
+            "block_id": 6,
+            "block_order": 7,
+            "group_id": 6
+        },
+        {
+            "block_label": "text",
+            "block_content": "",
+            "block_bbox": [
+                890,
+                508,
+                1468,
+                544
+            ],
+            "block_id": 7,
+            "block_order": 8,
+            "group_id": 6
+        },
+        {
+            "block_label": "chart",
+            "block_content": "",
+            "block_bbox": [
+                179,
+                554,
+                862,
+                1216
+            ],
+            "block_id": 8,
+            "block_order": null,
+            "group_id": 8
+        },
+        {
+            "block_label": "text",
+            "block_content": "В связи с интенсивным отбором тепла от газов на плавление и перегрев чугуна реакция восстановления CO₂ идет неполностью и практически прекращается при температуре газов около 1000°C в так называемой третьей, подготовительной зоне.",
+            "block_bbox": [
+                889,
+                540,
+                1470,
+                817
+            ],
+            "block_id": 9,
+            "block_order": 9,
+            "group_id": 9
+        },
+        {
+            "block_label": "figure_title",
+            "block_content": "Рис. II.1. Изменение температуры (——) и содержания  $ CO_{2} $ (— — —) в газах по высоте вагранки (температура дутья 450°C):",
+            "block_bbox": [
+                168,
+                1232,
+                845,
+                1346
+            ],
+            "block_id": 10,
+            "block_order": null,
+            "group_id": 10
+        },
+        {
+            "block_label": "text",
+            "block_content": "В соответствии с теплотехническими процессами вся шахта вагранки может быть разделена на зоны: нагрева шахты до температуры плавления; плавления; перегрева жидкого металла; охлаждения металла (горн). Как показали исследования [15], температура металла находится в прямой зависимости от высоты расположения h зоны плавления и при подогреве дутья, например, до 450° С рассчитывается по уравнению",
+            "block_bbox": [
+                887,
+                820,
+                1467,
+                1271
+            ],
+            "block_id": 11,
+            "block_order": 10,
+            "group_id": 11
+        },
+        {
+            "block_label": "vision_footnote",
+            "block_content": "1 — расход кокса 10%; 2 — расход кокса 14%;\n3 — слой горящего кокса без металлозавалки; 4 — температура поверхности горящего кокса",
+            "block_bbox": [
+                169,
+                1354,
+                846,
+                1467
+            ],
+            "block_id": 12,
+            "block_order": null,
+            "group_id": 12
+        },
+        {
+            "block_label": "display_formula",
+            "block_content": " $$ t_{M e}=1380+0,215(h-200),\\atop(I I.5) $$ ",
+            "block_bbox": [
+                929,
+                1278,
+                1461,
+                1360
+            ],
+            "block_id": 13,
+            "block_order": 11,
+            "group_id": 13
+        },
+        {
+            "block_label": "text",
+            "block_content": "которое справедливо для $h=200\\div$ ÷ 600 мм, причем $h$ зависит от условий теплообмена в зоне нагрева и интенсивности снижения темпе-",
+            "block_bbox": [
+                885,
+                1370,
+                1462,
+                1508
+            ],
+            "block_id": 14,
+            "block_order": 12,
+            "group_id": 14
+        },
+        {
+            "block_label": "text",
+            "block_content": "ратуры газов в нижней части вагранки главным образом за счет реакции вос-\nстановления  $ CO_{2} $.",
+            "block_bbox": [
+                165,
+                1505,
+                1460,
+                1574
+            ],
+            "block_id": 15,
+            "block_order": 13,
+            "group_id": 15
+        },
+        {
+            "block_label": "text",
+            "block_content": "Из факторов, влияющих на температура металла  $ (t_{\\mathrm{Me}}) $ при плавке в вагранке, основными являются: количество и температура подогрева дутья, степень обо-",
+            "block_bbox": [
+                164,
+                1573,
+                1464,
+                1650
+            ],
+            "block_id": 16,
+            "block_order": 14,
+            "group_id": 16
+        },
+        {
+            "block_label": "text",
+            "block_content": "Таблица II.23",
+            "block_bbox": [
+                1224,
+                1679,
+                1460,
+                1722
+            ],
+            "block_id": 17,
+            "block_order": 15,
+            "group_id": 17
+        },
+        {
+            "block_label": "figure_title",
+            "block_content": "Состав отходящих газов коксовой вагранки",
+            "block_bbox": [
+                458,
+                1728,
+                1170,
+                1769
+            ],
+            "block_id": 18,
+            "block_order": null,
+            "group_id": 18
+        },
+        {
+            "block_label": "table",
+            "block_content": "<table><tr><td rowspan=\"3\">Расход кокса, %</td><td colspan=\"6\">Состав отходящих газов, %</td></tr><tr><td colspan=\"3\">при холодном дутье</td><td colspan=\"3\">при горячем дутье</td></tr><tr><td>. CO</td><td>CO2</td><td>CO2·100 CO+CO2</td><td>CO</td><td>CO2</td><td>CO2·100 CO+CO2</td></tr><tr><td>8</td><td>—</td><td>—</td><td>—</td><td>8,0—12,0</td><td>12,5—15,0</td><td>50—65</td></tr><tr><td>10</td><td>8,0—12,0</td><td>12,5—15,0</td><td>50—65</td><td>10,0—16,0</td><td>10,0—14,0</td><td>39—60</td></tr><tr><td>12</td><td>10,0—14,0</td><td>11,5—14,0</td><td>46—60</td><td>14,0—20,0</td><td>7,5—11,0</td><td>27—44</td></tr><tr><td>14</td><td>12,0—18,0</td><td>9,0—12,5</td><td>33—50</td><td>16,0—24,0</td><td>5,5—10,0</td><td>18—39</td></tr></table>",
+            "block_bbox": [
+                171,
+                1781,
+                1449,
+                2219
+            ],
+            "block_id": 19,
+            "block_order": null,
+            "group_id": 19
+        },
+        {
+            "block_label": "number",
+            "block_content": "160",
+            "block_bbox": [
+                168,
+                2242,
+                227,
+                2278
+            ],
+            "block_id": 20,
+            "block_order": null,
+            "group_id": 20
+        }
+    ],
+    "layout_det_res": {
+        "input_path": null,
+        "page_index": null,
+        "boxes": [
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.33047598600387573,
+                "coordinate": [
+                    713,
+                    1952,
+                    847,
+                    1988
+                ],
+                "order": 1
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.3370364308357239,
+                "coordinate": [
+                    1193,
+                    1407,
+                    1221,
+                    1439
+                ],
+                "order": 2
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.39327454566955566,
+                "coordinate": [
+                    1035,
+                    1798,
+                    1068,
+                    1834
+                ],
+                "order": 3
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.316295862197876,
+                "coordinate": [
+                    769,
+                    1358,
+                    831,
+                    1389
+                ],
+                "order": 4
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.3028111457824707,
+                "coordinate": [
+                    196,
+                    1882,
+                    257,
+                    1944
+                ],
+                "order": 5
+            },
+            {
+                "cls_id": 5,
+                "label": "display_formula",
+                "score": 0.9526152610778809,
+                "coordinate": [
+                    428,
+                    149,
+                    1190,
+                    199
+                ],
+                "order": 6
+            },
+            {
+                "cls_id": 11,
+                "label": "formula_number",
+                "score": 0.9354049563407898,
+                "coordinate": [
+                    1372,
+                    154,
+                    1465,
+                    199
+                ],
+                "order": 7
+            },
+            {
+                "cls_id": 5,
+                "label": "display_formula",
+                "score": 0.9453802108764648,
+                "coordinate": [
+                    456,
+                    204,
+                    1173,
+                    251
+                ],
+                "order": 8
+            },
+            {
+                "cls_id": 11,
+                "label": "formula_number",
+                "score": 0.9299482107162476,
+                "coordinate": [
+                    1372,
+                    211,
+                    1465,
+                    253
+                ],
+                "order": 9
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.8721503615379333,
+                "coordinate": [
+                    546,
+                    260,
+                    614,
+                    298
+                ],
+                "order": 10
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9808197617530823,
+                "coordinate": [
+                    175,
+                    259,
+                    1468,
+                    369
+                ],
+                "order": 11
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.8828959465026855,
+                "coordinate": [
+                    1225,
+                    367,
+                    1298,
+                    406
+                ],
+                "order": 12
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9731175303459167,
+                "coordinate": [
+                    172,
+                    367,
+                    1470,
+                    508
+                ],
+                "order": 13
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.8716732859611511,
+                "coordinate": [
+                    229,
+                    466,
+                    461,
+                    502
+                ],
+                "order": 14
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.49730557203292847,
+                "coordinate": [
+                    597,
+                    433,
+                    675,
+                    468
+                ],
+                "order": 15
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.7202433347702026,
+                "coordinate": [
+                    175,
+                    505,
+                    878,
+                    543
+                ],
+                "order": 16
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.725472092628479,
+                "coordinate": [
+                    890,
+                    508,
+                    1468,
+                    544
+                ],
+                "order": 17
+            },
+            {
+                "cls_id": 3,
+                "label": "chart",
+                "score": 0.9804657697677612,
+                "coordinate": [
+                    179,
+                    554,
+                    862,
+                    1216
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9803736209869385,
+                "coordinate": [
+                    889,
+                    540,
+                    1470,
+                    817
+                ],
+                "order": 18
+            },
+            {
+                "cls_id": 7,
+                "label": "figure_title",
+                "score": 0.8837114572525024,
+                "coordinate": [
+                    168,
+                    1232,
+                    845,
+                    1346
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9858697652816772,
+                "coordinate": [
+                    887,
+                    820,
+                    1467,
+                    1271
+                ],
+                "order": 19
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.8355801701545715,
+                "coordinate": [
+                    965,
+                    643,
+                    1033,
+                    682
+                ],
+                "order": 20
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.7125492095947266,
+                "coordinate": [
+                    394,
+                    1268,
+                    615,
+                    1308
+                ],
+                "order": 21
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.8577039837837219,
+                "coordinate": [
+                    1186,
+                    714,
+                    1307,
+                    750
+                ],
+                "order": 22
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.5009976625442505,
+                "coordinate": [
+                    713,
+                    1237,
+                    839,
+                    1275
+                ],
+                "order": 23
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.8684685230255127,
+                "coordinate": [
+                    718,
+                    1304,
+                    827,
+                    1342
+                ],
+                "order": 24
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.40921586751937866,
+                "coordinate": [
+                    173,
+                    1354,
+                    340,
+                    1408
+                ],
+                "order": 25
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.8184667229652405,
+                "coordinate": [
+                    1229,
+                    1196,
+                    1332,
+                    1235
+                ],
+                "order": 26
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.5811622142791748,
+                "coordinate": [
+                    431,
+                    1355,
+                    570,
+                    1386
+                ],
+                "order": 27
+            },
+            {
+                "cls_id": 24,
+                "label": "vision_footnote",
+                "score": 0.7415421605110168,
+                "coordinate": [
+                    169,
+                    1354,
+                    846,
+                    1467
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 5,
+                "label": "display_formula",
+                "score": 0.9475061297416687,
+                "coordinate": [
+                    929,
+                    1278,
+                    1461,
+                    1360
+                ],
+                "order": 28
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.5307532548904419,
+                "coordinate": [
+                    893,
+                    1402,
+                    991,
+                    1437
+                ],
+                "order": 29
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.4113506078720093,
+                "coordinate": [
+                    1230,
+                    1375,
+                    1293,
+                    1408
+                ],
+                "order": 30
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.6902341246604919,
+                "coordinate": [
+                    1302,
+                    1371,
+                    1455,
+                    1406
+                ],
+                "order": 31
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9743396043777466,
+                "coordinate": [
+                    885,
+                    1370,
+                    1462,
+                    1508
+                ],
+                "order": 32
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.8447839021682739,
+                "coordinate": [
+                    396,
+                    1537,
+                    465,
+                    1573
+                ],
+                "order": 33
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9556779861450195,
+                "coordinate": [
+                    165,
+                    1505,
+                    1460,
+                    1574
+                ],
+                "order": 34
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.9524940848350525,
+                "coordinate": [
+                    164,
+                    1573,
+                    1464,
+                    1650
+                ],
+                "order": 35
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.8962763547897339,
+                "coordinate": [
+                    1012,
+                    1576,
+                    1088,
+                    1614
+                ],
+                "order": 36
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.45868754386901855,
+                "coordinate": [
+                    1138,
+                    1616,
+                    1236,
+                    1650
+                ],
+                "order": 37
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.8209415078163147,
+                "coordinate": [
+                    1224,
+                    1679,
+                    1460,
+                    1722
+                ],
+                "order": 38
+            },
+            {
+                "cls_id": 7,
+                "label": "figure_title",
+                "score": 0.9475564360618591,
+                "coordinate": [
+                    458,
+                    1728,
+                    1170,
+                    1769
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 21,
+                "label": "table",
+                "score": 0.9876805543899536,
+                "coordinate": [
+                    171,
+                    1781,
+                    1449,
+                    2219
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.8264679312705994,
+                "coordinate": [
+                    560,
+                    1932,
+                    623,
+                    1968
+                ],
+                "order": 39
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.7561856508255005,
+                "coordinate": [
+                    718,
+                    1915,
+                    842,
+                    1950
+                ],
+                "order": 40
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.696247398853302,
+                "coordinate": [
+                    1149,
+                    1937,
+                    1212,
+                    1972
+                ],
+                "order": 41
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.7748768925666809,
+                "coordinate": [
+                    1306,
+                    1919,
+                    1429,
+                    1953
+                ],
+                "order": 42
+            },
+            {
+                "cls_id": 15,
+                "label": "inline_formula",
+                "score": 0.7746338248252869,
+                "coordinate": [
+                    1302,
+                    1953,
+                    1433,
+                    1990
+                ],
+                "order": 43
+            },
+            {
+                "cls_id": 16,
+                "label": "number",
+                "score": 0.9108034372329712,
+                "coordinate": [
+                    168,
+                    2242,
+                    227,
+                    2278
+                ],
+                "order": 44
+            }
+        ]
+    }
+}

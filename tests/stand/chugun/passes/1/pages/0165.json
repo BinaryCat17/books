@@ -1,0 +1,131 @@
+{
+    "input_path": "input.pdf",
+    "page_index": 165,
+    "page_count": 760,
+    "width": 1486,
+    "height": 2393,
+    "model_settings": {
+        "use_doc_preprocessor": false,
+        "use_layout_detection": true,
+        "use_chart_recognition": false,
+        "use_seal_recognition": false,
+        "use_ocr_for_image_block": false,
+        "format_block_content": false,
+        "merge_layout_blocks": true,
+        "markdown_ignore_labels": [
+            "number",
+            "header_image",
+            "footer",
+            "footer_image",
+            "aside_text"
+        ],
+        "return_layout_polygon_points": true
+    },
+    "parsing_res_list": [
+        {
+            "block_label": "table",
+            "block_content": "\nРис. II, 6. Конструкция вагранки института Гипростанок:\n1 — узел герметизации загрузки шахты; 2 — узел отбора ваграночных газов; 3\nводоохлаждаемая шахта вагранки; 4 — фурменная коробка; 5 — сифонный ш\nкоотделитель; 6 — опорная часть; 7 — фурменный прибор с водоохлаждаемой м\nной фурмой",
+            "block_bbox": [
+                206,
+                173,
+                1402,
+                2160
+            ],
+            "block_id": 0,
+            "block_order": null,
+            "group_id": 0
+        },
+        {
+            "block_label": "image",
+            "block_content": "",
+            "block_bbox": [
+                404,
+                169,
+                1274,
+                1941
+            ],
+            "block_id": 1,
+            "block_order": null,
+            "group_id": 1
+        },
+        {
+            "block_label": "number",
+            "block_content": "166",
+            "block_bbox": [
+                194,
+                2209,
+                253,
+                2249
+            ],
+            "block_id": 2,
+            "block_order": null,
+            "group_id": 2
+        }
+    ],
+    "layout_det_res": {
+        "input_path": null,
+        "page_index": null,
+        "boxes": [
+            {
+                "cls_id": 21,
+                "label": "table",
+                "score": 0.1407802700996399,
+                "coordinate": [
+                    206,
+                    173,
+                    1402,
+                    2160
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 14,
+                "label": "image",
+                "score": 0.9694198369979858,
+                "coordinate": [
+                    404,
+                    169,
+                    1274,
+                    1941
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 7,
+                "label": "figure_title",
+                "score": 0.8295217156410217,
+                "coordinate": [
+                    345,
+                    1964,
+                    1311,
+                    2013
+                ],
+                "order": null
+            },
+            {
+                "cls_id": 22,
+                "label": "text",
+                "score": 0.5324901938438416,
+                "coordinate": [
+                    213,
+                    2019,
+                    1449,
+                    2136
+                ],
+                "order": 1
+            },
+            {
+                "cls_id": 16,
+                "label": "number",
+                "score": 0.877703845500946,
+                "coordinate": [
+                    194,
+                    2209,
+                    253,
+                    2249
+                ],
+                "order": 2
+            }
+        ]
+    }
+}

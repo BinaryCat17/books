@@ -6,6 +6,7 @@ rsync, а не scp с tar в конце, ровно по одной причин
 по ходу работы, и упавший прогон оставляет то, что успел посчитать.
 """
 import os
+import re
 import select
 import shlex
 import subprocess
@@ -233,6 +234,77 @@ class Box:
         if p.returncode != 0:
             log(f"  rsync: {p.stderr.strip()[:200]}")
         return p.returncode
+
+    _STAT_SIZE = re.compile(r"Total transferred file size:\s*([\d,]+)")
+    _STAT_FILES = re.compile(r"Number of files:\s*[\d,]+\s*\(reg:\s*([\d,]+)")
+
+    def _dry_stats(self, src: str, dst: str, exclude=()):
+        """Сколько байт и файлов уехало бы. Считает сам rsync, вхолостую."""
+        extra = ["--dry-run", "--stats"] + [f"--exclude={x}" for x in exclude]
+        rsh = " ".join(shlex.quote(x) for x in
+                       ["ssh", "-p", self.port] + SSH_OPTS +
+                       (["-i", self.key] if self.key else []))
+        cmd = ["rsync", "-az", "--partial", "-e", rsh] + extra + [src, dst]
+        try:
+            p = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+        except subprocess.TimeoutExpired:
+            return None
+        if p.returncode != 0:
+            return None
+        m1 = self._STAT_SIZE.search(p.stdout)
+        m2 = self._STAT_FILES.search(p.stdout)
+        if not m1:
+            return None
+        return (int(m1.group(1).replace(",", "")),
+                int(m2.group(1).replace(",", "")) if m2 else -1)
+
+    def weigh_exclude(self, remote_rel: str, exclude: tuple, local_dir: str):
+        """Вес каждого исключения в байтах — замер, а не догадка.
+
+        Меряем САМИМ rsync и вхолостую: `--dry-run --stats` без исключений и
+        с ними, разница и есть вес.  Не `du` и не `find` по тому же шаблону —
+        и вот почему.  Шаблон толкует rsync, и толкует по-своему:
+        `pages/*.json` у него не то же, что `pages/**.json`, а `imgs/` не то
+        же, что `imgs`.  Мерить одним толкованием, а выгружать другим значит
+        получить в журнале красивое число, не имеющее отношения к тому, что
+        на самом деле не приехало.  Замер вхолостую стоит одного обхода
+        каталога и ноль байт передачи.
+
+        Ради этого всё и затевалось.  `cli.py` исключал у свидетелей
+        `pages/*.json` вместе с `imgs/`, и это выглядело разумной экономией,
+        пока никто не назвал цену.  Названная цена: json на проводе — 6.55 МБ
+        из 822, то есть 0.8% выгрузки, потому что rsync жмёт json в 6.9 раза,
+        а картинки в 1.04.  За эти 0.8% четыре книги из шести остались без
+        постраничной разметки свидетелей — то есть без единственного способа
+        узнать, у какого прохода взята страница и где стояли рамки блоков.
+
+        Возвращает список `(шаблон, байт, файлов)` плюс строку «всего».
+        """
+        src = f"{self._addr}:{self.workdir}/{remote_rel}/"
+        dst = local_dir.rstrip("/") + "/"
+        full = self._dry_stats(src, dst)
+        if full is None:
+            log("  вес исключений измерить не удалось — rsync не ответил")
+            return []
+        rows = []
+        for pat in exclude:
+            got = self._dry_stats(src, dst, exclude=(pat,))
+            if got is None:
+                rows.append((pat, None, None))
+                continue
+            rows.append((pat, full[0] - got[0], max(full[1] - got[1], 0)))
+        kept = self._dry_stats(src, dst, exclude=tuple(exclude)) if exclude else full
+        log(f"  выгрузка {remote_rel}: всего {full[0]/1e6:.1f} МБ "
+            f"в {full[1]} файлах")
+        for pat, b, f in rows:
+            if b is None:
+                log(f"  исключение {pat}: измерить не удалось")
+            else:
+                log(f"  исключение {pat}: {b/1e6:.1f} МБ, {f} файлов "
+                    f"({100.0*b/max(full[0],1):.1f}% выгрузки) — НЕ ПРИЕДЕТ")
+        if kept:
+            log(f"  приедет {kept[0]/1e6:.1f} МБ в {kept[1]} файлах")
+        return rows
 
     def push(self, local: str, remote_rel: str) -> None:
         dst = f"{self._addr}:{self.workdir}/{remote_rel}"

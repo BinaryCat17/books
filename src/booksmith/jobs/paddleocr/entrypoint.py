@@ -22,6 +22,99 @@ import sys
 import time
 
 
+
+# ------------------------------------------------------------- реестр ручек
+#
+# Ручка — величина, которой правится поведение разбора и которая приезжает из
+# окружения.  Реестр заведён не ради порядка, а ради слепка: полным слепок
+# входа сделать нельзя, пока ручки читаются россыпью по коду.  Замер на уже
+# оплаченных разборах: в `run.json` шести книг не хватало 35 величин, нужных,
+# чтобы прогон повторить, и все 17 ручек были среди них.
+#
+# Два правила, оба жёсткие:
+#
+#   * `os.environ` в этом файле не встречается больше НИГДЕ, кроме `knob()`.
+#     Проверка `test_knobs_registry.py` разбирает исходник деревом и падает на
+#     первом чтении окружения мимо реестра.  Она же читает `run.sh` и требует,
+#     чтобы всё, что тот экспортирует в наше окружение, тоже стояло в реестре:
+#     в прошлый раз этим и поймался `VL_MODEL_DIR` — ручка, решающая, какие
+#     веса поднимет vLLM, и пропущенная автором реестра именно потому, что в
+#     entrypoint.py её не видно.
+#
+#   * у `knob()` НЕТ параметра `default`.  Стоит его добавить — умолчаний
+#     становится два: одно в реестре, другое в вызове.  Пока они совпадают,
+#     разницы не видно; когда разойдутся, слепок начнёт врать, и врать он
+#     будет про уже оплаченный прогон, который не переспросишь.
+class Knob:
+    """Одна ручка: имя, умолчание и зачем она.
+
+    Умолчание хранится СТРОКОЙ — ровно в том виде, в каком оно приезжало бы
+    из окружения.  Иначе слепок пишет `2.0` там, где прогон видел `"2"`, и
+    сверка двух прогонов спотыкается на типе, а не на значении.
+    """
+    __slots__ = ("name", "default", "what")
+
+    def __init__(self, name, default, what):
+        self.name, self.default, self.what = name, default, what
+
+
+KNOBS = (
+    Knob("MULTIVIEW", "1", "детекция макета в двенадцать взглядов"),
+    Knob("VIEW_NMS", "0", "давить перекрытия между взглядами"),
+    Knob("PREFER_TABLES", "1", "таблица важнее текстовой рамки при перекрытии"),
+    Knob("SPLIT_COLUMNS", "1", "резать таблицы поперёк межколонника"),
+    Knob("REASK", "1", "блоки text, похожие на таблицу, идут на переспрос"),
+    Knob("KEEP_INNER_FILTER", "1", "оставить внутренний фильтр рамок paddlex"),
+    Knob("OCR_IN_IMAGES", "0", "читать текст внутри блоков image"),
+    Knob("LOGPROBS", "1", "спрашивать у vLLM вероятности токенов"),
+    Knob("LOGPROB_THR", "-1.0", "порог логвероятности, ниже — место неуверенное"),
+    Knob("LOGPROB_KEEP", "0", "сколько неуверенных мест класть в logprobs.json; "
+                              "0 — все"),
+    Knob("VLM_TEMPERATURE", "0", "температура VLM; >0 делает разбор "
+                                 "невоспроизводимым нарочно"),
+    Knob("PROBE", "0", "вместо разбора прогнать пробу на выдумывание"),
+    Knob("PROBE_SCALE", "", "масштаб растра для пробы; пусто — как у прогона"),
+    Knob("PADDLE_PDX_PDF_RENDER_SCALE", "2.0", "масштаб растра: dpi = 72*scale"),
+    Knob("LAYOUT_TABLE_THRESHOLD", "0.05", "порог детекции таблиц (класс 21)"),
+    Knob("LAYOUT_MODEL_NAME", "PP-DocLayoutV2", "имя модели детекции макета"),
+    Knob("LAYOUT_MODEL_DIR", "", "каталог весов детекции макета"),
+    Knob("VL_MODEL_DIR", "", "каталог весов VLM; ставит run.sh, читает vLLM"),
+    Knob("PADDLE_PDX_MODEL_SOURCE", "", "откуда paddlex тянет веса"),
+    Knob("VLLM_USE_FLASHINFER_SAMPLER", "", "сэмплер flashinfer в vLLM"),
+    # Три ручки самой оболочки.  В entrypoint.py их не видно ни одной, и
+    # именно поэтому они здесь: проверка реестра читает run.sh и требует их
+    # так же, как потребовала VL_MODEL_DIR.  PORT на разбор не влияет — и это
+    # не повод его не записывать: «не влияет» решает читатель слепка, а не
+    # автор реестра, а нерассказанная ручка стоит целого прогона.
+    Knob("MODEL_NAME", "PaddleOCR-VL-1.6-0.9B", "имя модели для vLLM и клиента"),
+    Knob("PORT", "8118", "порт сервиса vLLM на машине"),
+    Knob("RESUME", "1", "продолжать ли прерванный прогон"),
+)
+KNOB = {k.name: k for k in KNOBS}
+
+
+def knob(name):
+    """Значение ручки: из окружения, иначе умолчание из реестра.
+
+    Незнакомое имя — ошибка, а не пустая строка: ручка, которой нет в реестре,
+    не попадёт и в слепок, а значит прогон станет неповторимым молча.
+    """
+    try:
+        k = KNOB[name]
+    except KeyError:
+        raise KeyError(f"ручка {name} не объявлена в KNOBS: объяви её там, "
+                       f"а не читай окружение мимо реестра") from None
+    v = os.environ.get(k.name)
+    return k.default if v is None else v
+
+
+def knobs_snapshot():
+    """Все ручки разом: что стояло, что было бы по умолчанию, задавали ли."""
+    return {k.name: {"значение": knob(k.name), "умолчание": k.default,
+                     "задано снаружи": k.name in os.environ, "что": k.what}
+            for k in KNOBS}
+
+
 def _log(msg):
     print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
 
@@ -68,12 +161,27 @@ def _concat_pages(pages_dir: str, dst: str) -> int:
 
 
 def _done_pages(pages_dir: str) -> set[int]:
+    """Готовые страницы — те, у которых есть `.md`, а не любой файл.
+
+    Страница пишется двумя вызовами: `save_to_markdown`, потом
+    `save_to_json`, и каждый обёрнут своим `try`.  Первый может упасть
+    (замер на «Справочнике»: 3 страницы из 760 остались без `.md` при живом
+    `.json`), и тогда на диске лежит файл `0005.json` без текста.  Прежний
+    счёт брал ЛЮБОЙ файл с числовым именем и объявлял такую страницу
+    готовой; `--resume` её не пересчитывал никогда, а `run.json` показывал
+    полное число страниц, будто всё на месте.  Дыра при этом видна в книге
+    только тем, что абзац кончается на полуслове.
+
+    Считаем по тому файлу, ради которого прогон и делается.  Ошибка теперь
+    в безопасную сторону: страница с `.json`, но без `.md`, считается
+    несделанной и пересчитывается — это стоит секунды карты, а не главы.
+    """
     if not os.path.isdir(pages_dir):
         return set()
     got = set()
-    for n in os.listdir(pages_dir):
-        stem = os.path.splitext(n)[0]
-        if stem.isdigit():
+    for name in os.listdir(pages_dir):
+        stem, ext = os.path.splitext(name)
+        if ext == ".md" and stem.isdigit():
             got.add(int(stem))
     return got
 
@@ -135,7 +243,7 @@ def _prefer_tables_over_text():
     # значений (25 из 29 и с ним, и без него).  Раз пользы нет, а отклонение
     # от поведения библиотеки есть — не отклоняемся.  Выключатель оставлен,
     # чтобы можно было перемерить на другой книге.
-    if os.environ.get("KEEP_INNER_FILTER", "1") == "1":
+    if knob("KEEP_INNER_FILTER") == "1":
         _log("внутренний фильтр рамок ОСТАВЛЕН включённым (для сравнения)")
     else:
         try:
@@ -331,7 +439,7 @@ def _multiview_layout(overlap=0.12, merge=0.55, thr=0.30):
                 # Гасим на самом предикторе, вернув значение после прохода.
                 vkw = dict(kw, layout_merge_bboxes_mode="union")
                 was_nms = getattr(self, "layout_nms", None)
-                if os.environ.get("VIEW_NMS", "0") != "1":
+                if knob("VIEW_NMS") != "1":
                     self.layout_nms = False
                 try:
                     for view, back in _views(img):
@@ -452,7 +560,7 @@ def _render_scale():
     четырёх.  Те же грабли лежали ещё в четырёх местах.
     """
     try:
-        return max(1.0, float(os.environ.get("PADDLE_PDX_PDF_RENDER_SCALE", 2.0)) / 2.0)
+        return max(1.0, float(knob("PADDLE_PDX_PDF_RENDER_SCALE")) / 2.0)
     except ValueError:
         return 1.0
 
@@ -660,7 +768,7 @@ def _link_table_crops(pdf, pages_dir, book_dir, scale=None):
     """
     import pypdfium2 as pdfium
 
-    scale = float(scale or os.environ.get("PADDLE_PDX_PDF_RENDER_SCALE", 2.0))
+    scale = float(scale or knob("PADDLE_PDX_PDF_RENDER_SCALE"))
     imgs = os.path.join(book_dir, "imgs")
     os.makedirs(imgs, exist_ok=True)
     doc = pdfium.PdfDocument(pdf)
@@ -1046,6 +1154,25 @@ def _mark_uncertain(*dirs, mark="⚠"):
                 else:
                     merged.append((a, b))
             for a, b in reversed(merged):
+                # Граница пометки не должна резать команду LaTeX пополам.
+                # `\lambda`, разрезанная после слэша, даёт
+                # `\<mark …>lambda</mark>`: markdown читает `\<` как
+                # экранированный знак «меньше», тег становится видимым
+                # текстом, пометка не закрывается — и дальше по книге едет
+                # открытый `<mark>`.  То же с концом: `…\</mark>`.
+                # Замер на шести книгах: 63 таких места, все отсюда.
+                # Чётность обязательна: `\\` — это законный литеральный
+                # слэш, и двигать границу из-за него не надо.
+                while a > 0 and _slash_run(out, a) % 2:
+                    a -= 1          # слэш забираем внутрь: `<mark>\lambda`
+                while b > a and _slash_run(out, b) % 2:
+                    b -= 1          # слэш оставляем снаружи: `</mark>\Phi`
+                if b - a < MARK_MIN_SPAN:
+                    continue
+                # Пометка через пустую строку рвёт абзац: pandoc закрывает
+                # `<p>` раньше тега и роняет ВЕСЬ fb2 с `TagClose "p"`.
+                if "\n\n" in out[a:b]:
+                    continue
                 if out[a:b].strip() and "<" not in out[a:b]:
                     out = (out[:a] + '<mark title="модель не уверена">'
                            + out[a:b] + "</mark>" + out[b:])
@@ -1056,6 +1183,14 @@ def _mark_uncertain(*dirs, mark="⚠"):
                     fh.write(out)
         per[d] = (n_cell - c0, n_span - s0)
     return per
+
+
+def _slash_run(s, i):
+    """Длина серии обратных слэшей, кончающейся прямо перед `i`."""
+    n = 0
+    while i - n - 1 >= 0 and s[i - n - 1] == "\\":
+        n += 1
+    return n
 
 
 def _probe_hallucination(server, model, pdf, page=2, scale=4.0,
@@ -1082,7 +1217,7 @@ def _probe_hallucination(server, model, pdf, page=2, scale=4.0,
     import pypdfium2 as pdfium
     from PIL import Image
 
-    scale = float(os.environ.get("PROBE_SCALE", scale))
+    scale = float(knob("PROBE_SCALE") or scale)
     k = scale / 4.0                      # рамка снята при scale=4
     box = tuple(int(v * k) for v in box)
     cli = OpenAI(base_url=server, api_key="null")
@@ -1166,8 +1301,7 @@ def _pipeline_config(layout_dir, table_threshold=0.05):
         "SubModules": {
             "LayoutDetection": {
                 "module_name": "layout_detection",
-                "model_name": os.environ.get("LAYOUT_MODEL_NAME",
-                                             "PP-DocLayoutV2"),
+                "model_name": knob("LAYOUT_MODEL_NAME"),
                 "model_dir": layout_dir,
                 "engine": "onnxruntime",
                 "threshold": thr,
@@ -1266,6 +1400,221 @@ def _report_ignored(pages_dir, ignored):
     return {k: len(v) for k, v in seen.items()}
 
 
+
+# ------------------------------------------------------------- слепок входа
+#
+# Зачем.  Прогон стоит денег и невоспроизводим: карта арендована на двадцать
+# минут и погашена, промт живёт в чужой библиотеке, веса лежат на машине,
+# которой больше нет.  Единственный след — `run.json`, а в нём до этой правки
+# стояло десять полей: страниц, секунд, стр/с, модель, устройство, server.
+# Ни одной ручки, ни промта, ни версии пакета, ни отпечатка весов.  Вопрос
+# «почему у этой книги 817 иероглифов на миллион знаков, а у той 8» на таком
+# слепке не имеет ответа в принципе: неизвестно, чем они отличались.
+#
+# Правило: слепок НЕ ИМЕЕТ ПРАВА уронить прогон.  Всё, что ниже, обёрнуто в
+# `try`, и любой отказ стоит одной строки в журнале.  Карта уже оплачена; за
+# неснятый отпечаток весов терять книгу нельзя.
+#
+# Пишется он ДВАЖДЫ.  Первый раз — сразу после снятия ручек, с пометкой
+# `неполный: true`: если прогон упадёт на середине (а на 539 страницах он
+# падал), от него останется хотя бы вход.  Второй раз — в конце, с
+# измеренными величинами и без пометки.
+
+
+def _sha256(path, cap=None):
+    """sha256 файла; `cap` — сколько байт с начала и с конца, если файл велик.
+
+    Веса VLM — 2.2 ГБ, и считать по ним полный хеш на арендованной карте
+    значит платить за минуту чтения диска.  Начало и конец плюс размер
+    отличают одни веса от других надёжно, а подмену с сохранением обоих
+    концов и длины никто не устраивает.
+    """
+    import hashlib
+    h = hashlib.sha256()
+    try:
+        size = os.path.getsize(path)
+        with open(path, "rb") as f:
+            if cap is None or size <= 2 * cap:
+                for chunk in iter(lambda: f.read(1 << 20), b""):
+                    h.update(chunk)
+            else:
+                h.update(f.read(cap))
+                f.seek(size - cap)
+                h.update(f.read(cap))
+        return {"sha256": h.hexdigest(), "байт": size,
+                "по концам": bool(cap and size > 2 * cap)}
+    except OSError as e:
+        return {"ошибка": str(e)}
+
+
+def _prompts():
+    """Промты VLM побайтово — как их шлёт paddlex, а не как мы их помним.
+
+    В нашем коде промта нет вовсе: его строит библиотека.  В отчётах он жил
+    цитатой из комментария (`OCR:`, `Table Recognition:`), а цитата не слепок
+    — она не меняется, когда меняется библиотека.  Поэтому промт снимается с
+    установленного пакета: константы модуля, потом, если не нашлось, разбор
+    исходника.  Рядом кладём путь и отпечаток файла, чтобы «нет системного
+    сообщения» отличалось от «не смогли посмотреть».
+    """
+    import inspect, re as _re
+    # Ключей `ocr`/`table`/`system` в ответе НЕТ, пока мы не посмотрели.  Это
+    # различие держит вся проверка полноты: `null` означает «посмотрели, нет
+    # такого» (системного сообщения у нас правда нет), а отсутствие ключа —
+    # «не смогли посмотреть».  Если их проставлять заранее, `books replay
+    # --check` объявит слепок полным на машине, где paddlex не поднялся, —
+    # то есть ровно там, где промт неизвестен.
+    out = {"файл": None, "отпечаток файла": None, "как снят": None}
+    try:
+        from paddlex.inference.pipelines.paddleocr_vl import pipeline as _p
+    except Exception as e:
+        out["как снят"] = f"paddlex не импортируется: {e}"
+        return out
+    out["файл"] = getattr(_p, "__file__", None)
+    if out["файл"]:
+        out["отпечаток файла"] = _sha256(out["файл"])
+    found = {}
+    for name, val in vars(_p).items():
+        for v in ([val] if isinstance(val, str) else
+                  list(val.values()) if isinstance(val, dict) else []):
+            if not isinstance(v, str):
+                continue
+            if "OCR:" in v and "ocr" not in found:
+                found["ocr"] = (name, v)
+            if "Table Recognition" in v and "table" not in found:
+                found["table"] = (name, v)
+    if found:
+        out["как снят"] = "константы модуля"
+    else:
+        try:
+            src = inspect.getsource(_p)
+            for key, pat in (("ocr", r"OCR:"), ("table", r"Table Recognition:")):
+                m = _re.search(r"""(['"])((?:(?!\1).)*""" + pat + r"""(?:(?!\1).)*)\1""",
+                               src, _re.S)
+                if m:
+                    found[key] = ("исходник", m.group(2))
+            out["как снят"] = "разбор исходника"
+        except Exception as e:
+            out["как снят"] = f"исходник не читается: {e}"
+    # Посмотрели — значит ключи ставим все три.  Системного сообщения у нас
+    # нет вовсе, и `null` здесь — ЗНАЧЕНИЕ: «смотрели, не нашли».
+    out["ocr"] = out["table"] = out["system"] = None
+    for key, (where, v) in found.items():
+        out[key] = {"откуда": where, "байты": v.encode("utf-8").hex(),
+                    "как есть": v}
+    return out
+
+
+def _packages():
+    """Версии всего, что решает, как прочитается страница."""
+    import platform
+    out = {"python": platform.python_version(),
+           "платформа": platform.platform()}
+    try:
+        from importlib import metadata
+    except Exception as e:
+        out["ошибка"] = str(e)
+        return out
+    for name in ("paddleocr", "paddlex", "paddlepaddle", "vllm", "torch",
+                 "transformers", "onnxruntime", "onnxruntime-gpu", "numpy",
+                 "pillow", "pypdfium2", "pymupdf", "openai", "flashinfer-python"):
+        try:
+            out[name] = metadata.version(name)
+        except Exception:
+            out[name] = None
+    return out
+
+
+def _weights(path):
+    """Отпечаток каталога весов: имена, размеры, хеши по концам.
+
+    Имя модели не отпечаток: `PaddleOCR-VL-1.6-0.9B` называется так и до, и
+    после того, как автор перевыложит веса.
+    """
+    if not path or not os.path.isdir(path):
+        return {"каталог": path or None, "есть": False}
+    got = {"каталог": path, "есть": True, "файлы": {}}
+    names = sorted(os.listdir(path))
+    for name in names:
+        p = os.path.join(path, name)
+        if not os.path.isfile(p):
+            continue
+        # Мелкие файлы (config.json, токенайзер) — целиком: они и решают,
+        # как модель разбирает вход.  Крупные — по концам.
+        got["файлы"][name] = _sha256(p, cap=None if os.path.getsize(p) < (1 << 22)
+                                     else (1 << 20))
+    return got
+
+
+def _replay_line(a, pdf_name):
+    """Готовая строка повтора: скопировал — повторил.
+
+    Все ручки выписаны явно, даже те, что стоят по умолчанию.  Иначе строка
+    повторяет прогон только до первой смены умолчания в коде — то есть
+    ровно до того дня, когда повтор понадобится.
+    """
+    import shlex
+    env = " ".join(f"{k.name}={shlex.quote(knob(k.name))}" for k in KNOBS)
+    cmd = ["python", "entrypoint.py", "--pdf", pdf_name, "--out", "outputs",
+           "--model", a.model, "--device", a.device]
+    if a.server:
+        cmd += ["--server", a.server]
+    if a.resume:
+        cmd += ["--resume"]
+    return f"env {env} " + " ".join(shlex.quote(x) for x in cmd)
+
+
+def _write_snapshot(out, a, full_pdf, extra=None, partial=False):
+    """Записать слепок в `outputs/run.json`, ничего не уронив.
+
+    `extra` дописывается поверх, чтобы измеренные величины (страниц, секунд)
+    не приходилось тащить сюда аргументами.
+    """
+    try:
+        scale = float(knob("PADDLE_PDX_PDF_RENDER_SCALE"))
+    except Exception:
+        scale = None
+    snap = {}
+    try:
+        snap = {
+            "неполный": True if partial else None,
+            "ручки": knobs_snapshot(),
+            "растр": {"scale": scale,
+                      "dpi": int(scale * 72) if scale else None},
+            "аргументы": {"pdf": a.pdf, "out": a.out, "model": a.model,
+                          "server": a.server, "device": a.device,
+                          "resume": bool(a.resume),
+                          "командная строка": sys.argv},
+            "исходник": _sha256(full_pdf),
+            "entrypoint.py": _sha256(os.path.abspath(__file__)),
+            "промт": _prompts(),
+            "порождение": {
+                # Ни один параметр порождения сегодня не задаётся — это
+                # ЗНАЧЕНИЕ слепка, а не пропуск в нём.  Потолок 4096 приезжает
+                # от paddlex, и в него уже упирались девять блоков.
+                "temperature": float(knob("VLM_TEMPERATURE") or 0),
+                "max_tokens": None, "top_p": None, "top_k": None,
+                "seed": None, "repetition_penalty": None,
+                "чем задано": "ничем, кроме temperature; потолок 4096 от paddlex",
+            },
+            "пакеты": _packages(),
+            "веса": {"vl": _weights(knob("VL_MODEL_DIR")),
+                     "layout": _weights(knob("LAYOUT_MODEL_DIR"))},
+            "повтор": _replay_line(a, os.path.basename(full_pdf)),
+        }
+        snap = {k: v for k, v in snap.items() if v is not None}
+    except Exception as e:                       # pragma: no cover
+        _log(f"слепок входа снялся не полностью ({e}) — прогон продолжается")
+    try:
+        snap.update(extra or {})
+        with open(os.path.join(out, "run.json"), "w", encoding="utf-8") as f:
+            json.dump(snap, f, ensure_ascii=False, indent=1, sort_keys=True)
+        _log("слепок входа записан в run.json"
+             + (" (неполный: прогон только начался)" if partial else ""))
+    except Exception as e:                       # pragma: no cover
+        _log(f"слепок входа не записался ({e}) — прогон продолжается")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--pdf", required=True)
@@ -1287,6 +1636,13 @@ def main():
     pdf = a.pdf
     full_pdf = pdf                  # исходник до подмены на срез возобновления
     offset = 0
+
+    # Слепок номер один: вход снят, счёт ещё не начат.  Прогон, упавший на
+    # четырёхсотой странице из 539, оставит после себя хотя бы то, чем его
+    # запускали.  Промт и веса сюда попадут не всегда (paddlex ещё не
+    # импортирован, каталог весов может быть не смонтирован) — второй слепок
+    # в конце их добирает.
+    _write_snapshot(out, a, full_pdf, partial=True)
     if a.resume:
         done = _done_pages(pages_dir)
         if done:
@@ -1316,7 +1672,7 @@ def main():
     # resolve_child_engine), а сам выход побитово тот же: замер на 82 рамках
     # дал IoU 1.0000 и расхождение координат 0.00 пикселя при втрое большей
     # скорости. Заодно из образа уходит GPU-сборка paddle на 3.69 ГБ.
-    layout_dir = os.environ.get("LAYOUT_MODEL_DIR", "")
+    layout_dir = knob("LAYOUT_MODEL_DIR")
     if layout_dir and _is_onnx_dir(layout_dir):
         # paddlex_config словарём НЕ сливается с конфигурацией по умолчанию:
         # в paddleocr/_pipelines/base.py это буквально `config =
@@ -1324,10 +1680,10 @@ def main():
         # подмодуль нельзя — пайплайн остаётся без `pipeline_name` и падает
         # с KeyError.  Поэтому берём конфигурацию сами и сливаем в неё.
         kwargs["paddlex_config"] = _pipeline_config(
-            layout_dir, float(os.environ.get("LAYOUT_TABLE_THRESHOLD") or 0.05))
-        _log(f"детекция макета: {os.environ.get('LAYOUT_MODEL_NAME','PP-DocLayoutV2')}"
+            layout_dir, float(knob("LAYOUT_TABLE_THRESHOLD")))
+        _log(f"детекция макета: {knob('LAYOUT_MODEL_NAME')}"
              f" на ONNX Runtime, порог таблиц "
-             f"{os.environ.get('LAYOUT_TABLE_THRESHOLD') or 0.05}, веса из {layout_dir}")
+             f"{knob('LAYOUT_TABLE_THRESHOLD')}, веса из {layout_dir}")
     elif layout_dir:
         _log(f"в {layout_dir} нет inference.onnx — детекция остаётся на paddle")
     # Умолчание paddlex выбрасывает из markdown семь меток, и среди них
@@ -1355,20 +1711,20 @@ def main():
     # и text 0.61 — то есть таблица проиграла тексту по уверенности, а не
     # осталась незамеченной.  В PP-DocLayoutV2 table — класс 21.
     kwargs["use_queues"] = True
-    if os.environ.get("PREFER_TABLES", "1") == "1":
+    if knob("PREFER_TABLES") == "1":
         _prefer_tables_over_text()
         _log("таблица важнее текстовой рамки при перекрытии")
-    if os.environ.get("MULTIVIEW", "1") == "1":
+    if knob("MULTIVIEW") == "1":
         _multiview_layout()
         _log("детекция макета в двенадцать взглядов")
-    if os.environ.get("SPLIT_COLUMNS", "1") == "1":
+    if knob("SPLIT_COLUMNS") == "1":
         _split_cross_column_tables()
         _log("таблицы поперёк межколонника будут разрезаны")
-    if os.environ.get("REASK", "1") == "1":
+    if knob("REASK") == "1":
         _reask_text_as_table()
         _log("блоки text, похожие на таблицу, идут на переспрос")
-    if os.environ.get("LOGPROBS", "1") == "1" and a.server:
-        _capture_logprobs(thr=float(os.environ.get("LOGPROB_THR", "-1.0")))
+    if knob("LOGPROBS") == "1" and a.server:
+        _capture_logprobs(thr=float(knob("LOGPROB_THR")))
         _log("вероятности токенов будут запрошены у vLLM")
     # `content` (страница оглавления) в этот список НЕ входит, хотя соблазн
     # был: на book-new блок вышел в 8200 знаков, из них 49.8% — точки выносок,
@@ -1394,7 +1750,7 @@ def main():
     else:
         _log(f"VLM в процессе, устройство {a.device}")
 
-    if os.environ.get("PROBE") == "1" and a.server:
+    if knob("PROBE") == "1" and a.server:
         _probe_hallucination(a.server, a.model, pdf)
         return 0
 
@@ -1419,11 +1775,11 @@ def main():
     # сказано «кнопка в точке A перемещается к B», и без выносок абзац
     # теряет смысл.  Сама картинка при этом сохраняется как была:
     # vis_image_labels в paddlex отдельный от image_labels.
-    if os.environ.get("OCR_IN_IMAGES", "0") == "1":
+    if knob("OCR_IN_IMAGES") == "1":
         pkw["use_ocr_for_image_block"] = True
         _log("текст внутри рисунков будет прочитан")
 
-    _temp = float(os.environ.get("VLM_TEMPERATURE", "0") or 0)
+    _temp = float(knob("VLM_TEMPERATURE") or 0)
     if _temp > 0:
         pkw["temperature"] = _temp
         _log(f"температура VLM {_temp} — разбор будет невоспроизводимым нарочно")
@@ -1516,13 +1872,30 @@ def main():
                     break
 
     if _LOW:
+        # Улики сохраняются ВСЕ.  Прежняя обрезка на 400 местах выбрасывала
+        # 20 713 мест из 27 679 на шести книгах — три четверти того, ради чего
+        # логвероятности вообще запрашивались.  И выбрасывала не худшие, а
+        # первые попавшиеся: `list(_LOW.items())[:400]` — это порядок
+        # появления, то есть первые страницы книги.  Всё, что модель не знала
+        # во второй половине «Справочника», уезжало в никуда.
+        #
+        # Цена снятия замерена: полный слепок на всю библиотеку — 24.7 МБ
+        # против 6.2 МБ сегодня, прибавка 18.5 МБ на `passes/` в 947 МБ, то
+        # есть 1.9% диска.  Улика, стоящая 1.9% диска и оплаченная картой,
+        # выбрасывается только по прямому распоряжению — ручкой LOGPROB_KEEP.
+        keep_n = int(knob("LOGPROB_KEEP") or 0)
+        items = list(_LOW.items())
+        keep = items if keep_n <= 0 else items[:keep_n]
         with open(os.path.join(out, "logprobs.json"), "w",
                   encoding="utf-8") as f:
-            keep = list(_LOW.items())[:400]
             json.dump({"всего": len(_LOW), "сохранено": len(keep),
+                       "обрезано ручкой LOGPROB_KEEP": keep_n or None,
                        "места": dict(keep)}, f, ensure_ascii=False, indent=1)
-        if len(_LOW) > 400:
-            _log(f"в logprobs.json сохранены первые 400 мест из {len(_LOW)}")
+        if len(keep) < len(_LOW):
+            _log(f"в logprobs.json сохранены первые {len(keep)} мест из "
+                 f"{len(_LOW)}: обрезано ручкой LOGPROB_KEEP={keep_n}")
+        else:
+            _log(f"в logprobs.json сохранены все {len(_LOW)} мест")
         per = _mark_uncertain(pages_dir, book_dir)
         n_cell, n_span = per.get(book_dir, (0, 0))
         _log(f"ответов с неуверенными местами {len(_LOW)}: "
@@ -1558,11 +1931,15 @@ def main():
 
     _report_ignored(pages_dir, kwargs.get("markdown_ignore_labels") or [])
 
-    with open(os.path.join(out, "run.json"), "w") as f:
-        json.dump({"pages": offset + n, "seconds": round(dt, 1),
-                   "pages_per_sec": round(n / max(dt, 1e-6), 3),
-                   "server": bool(a.server), "model": a.model,
-                   "device": a.device}, f, indent=1)
+    # Слепок номер два: тот же вход плюс измеренное.  Прежние шесть полей
+    # остаются на своих местах и под теми же именами — по ним читает
+    # `layout.facts`, журнал прогонов и подбор машины.
+    _write_snapshot(out, a, full_pdf, extra={
+        "pages": offset + n, "seconds": round(dt, 1),
+        "pages_per_sec": round(n / max(dt, 1e-6), 3),
+        "server": bool(a.server), "model": a.model, "device": a.device,
+        "мест неуверенности": len(_LOW),
+    })
     _log(f"готово: {out}")
     return 0
 
