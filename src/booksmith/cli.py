@@ -104,8 +104,13 @@ def cmd_doctor(_a):
           "ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_vast -N ''")
     check("публичная часть ключа", bool(key) and os.path.exists(key + ".pub"),
           "без неё ключ не привязать к инстансу")
-    check(".env в корне", os.path.exists(config.ENV_FILE),
-          f"скопируй .env.example в {config.ENV_FILE}")
+    # Не через `check`: `.env` держит только GHCR-креды для сборки образа в
+    # CI, локальному прогону он не нужен, а ключ vast живёт отдельно в
+    # ~/.config/vastai. Проваливать приёмку из-за него — ложная тревога, а
+    # ложная тревога учит не смотреть на приёмку вовсе.
+    if not os.path.exists(config.ENV_FILE):
+        log(f"  [ – ] .env в корне — нет, и это не беда: он нужен только "
+            f"сборке образа (GHCR). Образец: .env.example")
 
     try:
         v = Vast()
