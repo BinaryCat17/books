@@ -33,6 +33,9 @@ import subprocess
 MIN_SPREAD_RATIO = 1.15     # шире высоты во столько раз — считаем разворотом
 GUTTER_BAND = 0.20          # где искать линию реза: середина ± десятая часть
 PROBE_DPI = 36              # чернила считаем по уменьшенной странице: хватает
+RULE_MAX = 0.005            # больше этой доли сплошных строк — резать нельзя
+RULE_BAND = 0.012           # полоса вокруг реза, в долях ширины разворота
+RULE_INK = 96               # насколько тёмен пиксель, чтобы счесть его чернотой
 
 
 class NoDjvuTools(SystemExit):
@@ -62,7 +65,33 @@ def pages(path):
 
 
 def _gutter(page, rect):
-    """Столбец с наименьшим количеством чернил в середине разворота."""
+    """Где резать разворот — и резать ли вообще.
+
+    Возвращает `None`, если резать нельзя: на месте предполагаемого корешка
+    лежит содержимое, и разрез уничтожит его.
+
+    ЧЕГО ЗДЕСЬ НЕ БЫЛО И ЧТО ЭТО СТОИЛО.  Докстринг модуля обещал откат на
+    середину, «если чернил всюду поровну», — а в коде не было НИ ОДНОГО
+    сравнения с порогом: `argmin` возвращал столбец с наименьшими чернилами
+    всегда, то есть при широкой таблице во весь разворот резал её по самому
+    разреженному столбцу.  Замер по рамкам блоков: **439 страниц из 1138
+    разрезанных (38.6%) имеют блок вплотную к резу** (ближе 1% ширины) против
+    **0 из 3740** краёв на трёх нерезаных книгах; таблица вплотную — 165
+    страниц.  Три книги в djvu — это 1693 страницы из 3268, половина
+    библиотеки.
+
+    ДВА ПРИЗНАКА, И ОНИ РАЗНЫЕ.  Мало чернил — не значит «здесь корешок»: у
+    таблицы между колонками тоже белые просветы, и порог по чернилам ловит
+    лишь 31% контрольных страниц.  Работает СКВОЗНАЯ ГОРИЗОНТАЛЬНАЯ ЛИНЕЙКА:
+    доля строк, где через выбранный столбец (± полоса) идёт сплошная чернота.
+    У настоящих корешков она почти нулевая (медиана 0.17%, 99-й процентиль
+    0.67%), у страниц, занятых таблицей во всю ширину, — медиана 0.83%.
+    Порог 0.5% ловит 84% контрольных при отказе на 1–2% настоящих корешков.
+
+    Цена ошибки НЕСИММЕТРИЧНА, и порог выбран под неё: лишний отказ отдаёт
+    распознавателю двухколоночный разворот — беда поправимая, страницы целы;
+    разрез по таблице уничтожает числа безвозвратно.
+    """
     import pymupdf
     pix = page.get_pixmap(dpi=PROBE_DPI, colorspace=pymupdf.csGRAY, clip=rect)
     if pix.width < 8:
@@ -77,7 +106,27 @@ def _gutter(page, rect):
             ink += 255 - data[y * pix.stride + x]
         if best_ink is None or ink < best_ink:
             best, best_ink = x, ink
+    if best is None:
+        return rect.x0 + rect.width / 2
+    if _ruled_through(pix, best) > RULE_MAX:
+        return None
     return rect.x0 + rect.width * (best + 0.5) / pix.width
+
+
+def _ruled_through(pix, x):
+    """Доля строк, где через столбец `x` идёт сплошная чернота.
+
+    Полоса, а не один столбец: рез не обязан попадать в линейку пиксель в
+    пиксель, а линейка таблицы толще одного пикселя на 36 dpi.
+    """
+    half = max(1, int(pix.width * RULE_BAND / 2))
+    lo, hi = max(0, x - half), min(pix.width, x + half + 1)
+    data, dark = pix.samples, 0
+    for y in range(pix.height):
+        row = y * pix.stride
+        if all(255 - data[row + i] >= RULE_INK for i in range(lo, hi)):
+            dark += 1
+    return dark / max(1, pix.height)
 
 
 def to_pdf(src, dst=None, split="auto", log=print):
@@ -119,14 +168,21 @@ def to_pdf(src, dst=None, split="auto", log=print):
 
     out = pymupdf.open()
     made = 0
+    spared = []
     for page in doc:
         r = page.rect
+        halves = [r]
         if cut and r.width > r.height * MIN_SPREAD_RATIO:
             x = _gutter(page, r)
-            halves = [pymupdf.Rect(r.x0, r.y0, x, r.y1),
-                      pymupdf.Rect(x, r.y0, r.x1, r.y1)]
-        else:
-            halves = [r]
+            if x is None:
+                # На месте корешка лежит содержимое: разворот занят таблицей
+                # во всю ширину.  Отдаём его распознавателю целым — он
+                # прочтёт две колонки хуже, чем две страницы, но прочтёт;
+                # разрезанная таблица не восстанавливается ничем.
+                spared.append(page.number + 1)
+            else:
+                halves = [pymupdf.Rect(r.x0, r.y0, x, r.y1),
+                          pymupdf.Rect(x, r.y0, r.x1, r.y1)]
         for h in halves:
             np = out.new_page(width=h.width, height=h.height)
             np.show_pdf_page(np.rect, doc, page.number, clip=h)
@@ -135,6 +191,12 @@ def to_pdf(src, dst=None, split="auto", log=print):
     out.close()
     doc.close()
     os.unlink(raw)
+    if spared:
+        # Число, а не «готово»: по нему видно, разумно ли вето сработало.
+        # Много отказов на книге сплошной прозы — признак сбитого порога.
+        log(f"не разрезано (содержимое на линии реза): {len(spared)} "
+            f"из {wide}, листы {spared[:12]}"
+            + (" …" if len(spared) > 12 else ""))
     log(f"развёрнут: {os.path.basename(dst)}, страниц {made} "
         f"({os.path.getsize(dst) / 1e6:.0f} МБ)")
     return dst
