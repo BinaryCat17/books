@@ -8,10 +8,10 @@
 # собранный 0.12.5.
 #
 # Пересобрать (драйвер не нужен, cu130 задан явно):
-#   uv pip compile src/booksmith/jobs/paddleocr/requirements.in \
+#   uv pip compile src/booksmith/models/paddleocr_vl/requirements.in \
 #       --torch-backend=cu130 --python-version 3.12 \
 #       --python-platform x86_64-unknown-linux-gnu \
-#       -o src/booksmith/jobs/paddleocr/constraints.txt
+#       -o src/booksmith/models/paddleocr_vl/constraints.txt
 aiohappyeyeballs==2.7.1
     # via aiohttp
 aiohttp==3.14.3
@@ -229,7 +229,7 @@ httpx2==2.12.0
     #   openai
 huggingface-hub==1.28.0
     # via
-    #   -r src/booksmith/jobs/paddleocr/requirements.in
+    #   -r src/booksmith/models/paddleocr_vl/requirements.in
     #   paddlex
     #   tokenizers
     #   transformers
@@ -445,7 +445,7 @@ nvidia-nvvm==13.3.73
 nvtx==0.2.15
     # via vllm
 onnxruntime-gpu==1.29.0
-    # via -r src/booksmith/jobs/paddleocr/requirements.in
+    # via -r src/booksmith/models/paddleocr_vl/requirements.in
 openai==3.3.0
     # via
     #   paddlex
@@ -510,9 +510,9 @@ packaging==26.3
     #   paddlex
     #   transformers
 paddleocr==3.7.0
-    # via -r src/booksmith/jobs/paddleocr/requirements.in
+    # via -r src/booksmith/models/paddleocr_vl/requirements.in
 paddlepaddle==3.3.1
-    # via -r src/booksmith/jobs/paddleocr/requirements.in
+    # via -r src/booksmith/models/paddleocr_vl/requirements.in
 paddlex==3.7.2
     # via paddleocr
 pandas==3.0.5
@@ -605,7 +605,7 @@ pygments==2.21.0
 pyjwt==2.13.0
     # via mcp
 pymupdf==1.28.2
-    # via -r src/booksmith/jobs/paddleocr/requirements.in
+    # via -r src/booksmith/models/paddleocr_vl/requirements.in
 pynvvideocodec==2.0.4
     # via vllm
 pypdfium2==5.13.0
@@ -757,7 +757,7 @@ tokenspeed-triton==3.8.10.post20260721
     # via tokenspeed-mla
 torch==2.13.0+cu130
     # via
-    #   -r src/booksmith/jobs/paddleocr/requirements.in
+    #   -r src/booksmith/models/paddleocr_vl/requirements.in
     #   compressed-tensors
     #   flashinfer-python
     #   humming-kernels
@@ -872,7 +872,7 @@ uvicorn==0.52.4
 uvloop==0.22.1
     # via uvicorn
 vllm==0.27.1
-    # via -r src/booksmith/jobs/paddleocr/requirements.in
+    # via -r src/booksmith/models/paddleocr_vl/requirements.in
 watchfiles==1.2.0
     # via
     #   uvicorn

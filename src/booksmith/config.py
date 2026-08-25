@@ -17,7 +17,11 @@ def env(name: str, default: str | None = None) -> str | None:
     """Значение из окружения, иначе из .env, иначе default."""
     if os.environ.get(name):
         return os.environ[name]
-    for path in (ENV_FILE, os.path.join(ROOT, "tools", ".env")):
+    # Один путь, а не два. Запасной `tools/.env` держал в живых расхождение
+    # трёх мест: образец учил класть в `tools/.env`, шапка этого файла
+    # говорила «в корне», сообщение `require()` печатало третье. Пока
+    # запасной путь работал, расхождение никого не било и потому не чинилось.
+    for path in (ENV_FILE,):
         if os.path.exists(path):
             for line in open(path):
                 line = line.strip()

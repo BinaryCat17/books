@@ -1,12 +1,15 @@
 [project]
 name = "booksmith"
 version = "0.2.0"
-description = "Сканы технических книг -> Markdown, локально и на арендованных GPU"
+description = "Сканы технических книг -> HTML, локально и на арендованных GPU"
 requires-python = ">=3.10"
 dependencies = [
+    # pymupdf — растр страницы и разрез разворотов (djvu.py).
+    # vastai — единственный клиент аренды (remote/vast.py).
+    # requests и pillow сняты: приехали с движками Mistral и pdf_layer,
+    # после их удаления не импортируются нигде; HTTP в живом коде идёт
+    # через urllib из стандартной поставки.
     "pymupdf>=1.24",
-    "requests>=2.31",
-    "pillow>=10.0",
     "vastai>=1.5.5",
 ]
 
