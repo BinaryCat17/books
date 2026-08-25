@@ -145,8 +145,9 @@ def _warm(spec: JobSpec) -> list[int]:
     # Порядок важен: сначала те, кого мы видели быстрыми, по возрастанию
     # времени счёта; потом остальные прогретые, свежие первыми.  Заявленная
     # скорость оффера — реклама, и по журналу она врёт втрое.
-    fast = [m for m in ledger.fast_machines(spec.image) if m not in bad]
-    slow = set(ledger.slow_machines(spec.image))
+    fast = [m for m in ledger.fast_machines(spec.image, job=spec.name)
+            if m not in bad]
+    slow = set(ledger.slow_machines(spec.image, job=spec.name))
     warm = [m for m in ledger.warm_machines(spec.image)
             if m not in bad and m not in fast and m not in slow]
     return fast + warm

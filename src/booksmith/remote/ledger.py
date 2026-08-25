@@ -97,7 +97,8 @@ def warm_machines(image: str, path: str = LEDGER) -> list[int]:
     return [m for m, _ in sorted(seen.items(), key=lambda kv: -kv[1])]
 
 
-def slow_machines(image: str, path: str = LEDGER) -> list[int]:
+def slow_machines(image: str, path: str = LEDGER,
+                  job: str | None = None) -> list[int]:
     """Машины, которые по журналу вдвое медленнее лучшей.
 
     Отдельная функция, потому что предпочтение прогретых машин иначе сводит
@@ -105,18 +106,22 @@ def slow_machines(image: str, path: str = LEDGER) -> list[int]:
     возвращает её следом, и она снимается как ни в чём не бывало.  Так
     вернулась 110506 со своими 909 секундами — шестым номером после пяти
     быстрых.
+
+    `job` — та же оговорка, что у `fast_machines`: без имени задачи времена
+    несравнимы, и медленных не выделяется ни одной.
     """
-    fast = set(fast_machines(image, path))
+    fast = set(fast_machines(image, path, job))
     seen = set()
     for r in read(path):
         mid = r.get("machine_id")
         if (r.get("image") == image and mid and r.get("ok") and r.get("run_s")
-                and r.get("job", "").startswith("tables")):
+                and (job is None or r.get("job") == job)):
             seen.add(int(mid))
     return sorted(seen - fast)
 
 
-def fast_machines(image: str, path: str = LEDGER) -> list[int]:
+def fast_machines(image: str, path: str = LEDGER,
+                  job: str | None = None) -> list[int]:
     """Машины, отсортированные по замеренной скорости, самые быстрые первыми.
 
     Мерить надо не рекламу, а машину.  Отбор офферов идёт по заявленному
@@ -131,6 +136,14 @@ def fast_machines(image: str, path: str = LEDGER) -> list[int]:
     по журналу всего -0.42.  Поэтому машины с наблюдённым временем счёта
     ранжируются по нему, а зонд остаётся запасной мерой для тех, кого мы
     видели один раз.
+
+    Какую задачу считать сравнимой, решает вызывающий: `job` — имя задания,
+    ровно то, что попадёт в запись журнала.  Прежде здесь стояло
+    `job.startswith("tables")` — имя стенда из двадцати страниц, по которому
+    тогда мерили.  Стенда больше нет, и хардкод выбирал бы ноль записей
+    молча, ничего не сообщая: список машин просто стал бы пустым, а причину
+    никто бы не увидел.  Без `job` времена не используются вовсе — сравнивать
+    нечего с чем, и зонд честнее выдуманного порядка.
     """
     probes: dict[int, list[float]] = {}
     times: dict[int, list[float]] = {}
@@ -142,10 +155,10 @@ def fast_machines(image: str, path: str = LEDGER) -> list[int]:
         mid = int(mid)
         if r.get("download_mbps"):
             probes.setdefault(mid, []).append(float(r["download_mbps"]))
-        # Время счёта сравнимо только внутри одной задачи: у olmocr веса
-        # вчетверо тяжелее, и машина, видевшая только его, выглядела бы
-        # медленной ни за что.
-        if r.get("ok") and r.get("run_s") and r.get("job", "").startswith("tables"):
+        # Время счёта сравнимо только внутри одной задачи: у модели с
+        # вчетверо более тяжёлыми весами машина, видевшая только её,
+        # выглядела бы медленной ни за что.
+        if job and r.get("ok") and r.get("run_s") and r.get("job") == job:
             times.setdefault(mid, []).append(float(r["run_s"]))
 
     def med(v):

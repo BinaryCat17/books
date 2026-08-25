@@ -1,1 +1,0 @@
-<table><tr><td>4,0</td><td>40</td></tr><tr><td>8,1</td><td>81</td></tr><tr><td>5,5</td><td>55</td></tr><tr><td>1,0</td><td>10</td></tr><tr><td>2,2</td><td>22</td></tr><tr><td>3,0</td><td>30</td></tr><tr><td>1,4</td><td>14</td></tr><tr><td>2,8</td><td>28</td></tr></table>
