@@ -31,11 +31,21 @@ bash "$WORK/provision.sh" || { log "разворачивание не удало
 
 export VIRTUAL_ENV=/opt/env
 export PATH="/opt/env/bin:$PATH"
-export VL_MODEL_DIR=/models/vl
-export LAYOUT_MODEL_DIR=/models/layout
-export PADDLE_PDX_MODEL_SOURCE=huggingface
+# Форма `${X:-…}`, а не безусловное присваивание.  Прежде эти три строки
+# затирали то, что оператор задал у себя и что приехало сюда через
+# `knobs.passthrough()`: слепок записал бы одно, прогон отработал бы на
+# другом.  Ровно этой болезнью и был знаменит `VL_MODEL_DIR` — ручка,
+# решающая, какие веса поднимет vLLM, и невидимая в коде задания.
+#
+# Умолчания всё ещё стоят здесь вторым экземпляром, и это временно: когда
+# появится `spec()`, он будет слать на машину ВЕСЬ слепок реестра, а не
+# только заданное, и правые части отсюда уйдут.
+export VL_MODEL_DIR="${VL_MODEL_DIR:-/models/vl}"
+export LAYOUT_MODEL_DIR="${LAYOUT_MODEL_DIR:-/models/layout}"
+export PADDLE_PDX_MODEL_SOURCE="${PADDLE_PDX_MODEL_SOURCE:-huggingface}"
 # Веса лежат распакованным каталогом, поэтому vLLM получает путь, а не имя.
-SERVE_MODEL="${VL_MODEL_DIR:-$MODEL}"
+# VL_MODEL_DIR к этому месту непуст всегда, ветка `:-` недостижима.
+SERVE_MODEL="$VL_MODEL_DIR"
 
 # flashinfer компилирует ядра на лету и ищет CUDA по CUDA_HOME, иначе по
 # /usr/local/cuda — которого у нас нет, CUDA приезжает колёсами.  Без этого
@@ -72,7 +82,7 @@ if python -c "import vllm" 2>/dev/null; then
   # cccl внутри flashinfer это ловят — "CUDA compiler and CUDA toolkit
   # headers are incompatible".  Чинить совместимость версий незачем: сэмплер
   # нужен обычный, а заодно уходит компиляция ядер из времени старта.
-  export VLLM_USE_FLASHINFER_SAMPLER=0
+  export VLLM_USE_FLASHINFER_SAMPLER="${VLLM_USE_FLASHINFER_SAMPLER:-0}"
   # По умолчанию vLLM забирает 90% видеопамяти, и детекции макета не
   # остаётся.  Но и 0.75 мало: ONNX Runtime держит арену в 5.41 ГБ (замерено
   # дважды, с батчем детектора 4 и 64 — цифра одна и та же, арена растёт

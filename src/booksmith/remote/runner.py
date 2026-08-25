@@ -150,6 +150,15 @@ def _warm(spec: JobSpec) -> list[int]:
     slow = set(ledger.slow_machines(spec.image, job=spec.name))
     warm = [m for m in ledger.warm_machines(spec.image)
             if m not in bad and m not in fast and m not in slow]
+    # Число, а не молчание.  Отбраковка по времени работает только внутри
+    # одной задачи, и у первого прогона новой книги истории нет — тогда `slow`
+    # пуст не потому, что все машины хороши.  Прежде здесь стоял хардкод по
+    # имени стенда, и он молча выбирал ноль записей ровно так же; разница в
+    # том, что теперь это видно.
+    log(f"предпочтение машин: быстрых {len(fast)}, прогретых {len(warm)}, "
+        f"отбраковано медленных {len(slow)}"
+        + ("" if slow else f" (истории по задаче «{spec.name}» нет — "
+                           f"по времени не отбраковано ничего)"))
     return fast + warm
 
 

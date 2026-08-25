@@ -77,13 +77,19 @@ class Page:
     meta: dict = field(default_factory=dict)
 
     def to_json(self) -> dict:
-        d = asdict(self)
-        d["blocks"] = [asdict(b) for b in self.blocks]
-        return d
+        # `asdict` раскрывает вложенные датаклассы сам — прежняя строка
+        # `d["blocks"] = [asdict(b) …]` делала то же самое второй раз.
+        return asdict(self)
 
     @staticmethod
     def from_json(d: dict) -> "Page":
-        blocks = [Block(**b) for b in d.get("blocks", [])]
+        # `box` обязан вернуться КОРТЕЖЕМ.  json отдаёт список, и без этой
+        # строки блок, записанный на диск и прочитанный обратно, не равен
+        # своему исходнику: `(1,2,3,4) != [1,2,3,4]`.  Для слоя, чья
+        # объявленная задача — делать два прогона сравнимыми, это по существу;
+        # рядом в `run/knobs.py` о том же сказано про умолчания-строки.
+        blocks = [Block(**{**b, "box": tuple(b["box"])})
+                  for b in d.get("blocks", [])]
         return Page(index=d["index"], width=d["width"], height=d["height"],
                     dpi=d["dpi"], blocks=blocks, raw=d.get("raw"),
                     meta=d.get("meta", {}))

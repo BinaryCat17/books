@@ -26,34 +26,6 @@ from .remote.vast import Vast, log
 from .run import replay as replay_mod
 
 
-class Tee:
-    """Пишет и на экран, и в файл.
-
-    Журнал прогона нужен дважды: живым — чтобы видеть, где сейчас счёт, — и
-    потом, чтобы понять, почему вышло так. До сих пор он существовал, только
-    если оператор сам додумался перенаправить вывод; каталог `runs/` полон
-    таких файлов с именами вроде `mv3-run.log`, то есть привычка была, а
-    опоры под ней не было.
-    """
-
-    def __init__(self, path):
-        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-        self.f = open(path, "a", encoding="utf-8", buffering=1)
-        self.out = sys.stdout
-
-    def write(self, s):
-        self.out.write(s)
-        self.f.write(s)
-        return len(s)
-
-    def flush(self):
-        self.out.flush()
-        self.f.flush()
-
-    def isatty(self):
-        return self.out.isatty()
-
-
 def _host_args(ap):
     ap.add_argument("--gpu", default="RTX_4090",
                     help="RTX_4090 / RTX_5090 / A100_PCIE ...")
@@ -208,7 +180,10 @@ def main(argv=None):
     p.set_defaults(fn=cmd_ledger)
 
     p = sub.add_parser("replay", help="полон ли слепок входа для повтора")
-    p.add_argument("outdir", nargs="*")
+    # nargs="+", а не "*": проверка, весь смысл которой в коде возврата,
+    # при пустом списке молча одобряла бы — `books replay --check` без
+    # каталога возвращал 0 и не печатал ни строки.
+    p.add_argument("outdir", nargs="+", help="каталог разбора")
     p.add_argument("--check", action="store_true",
                    help="печатать недостающее и вернуть 1, если оно есть")
     p.set_defaults(fn=replay_mod.cmd_replay)
