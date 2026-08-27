@@ -124,6 +124,45 @@ def check(outdir, verbose=True):
     return miss
 
 
+def selfcheck(outdir, log=print) -> int:
+    """Умеет ли проверка провалиться. Возвращает число НЕ пойманных пропаж.
+
+    Зачем. Правило присутствия — «ключ существует», а 28 требований из 36
+    пишет код, который ставит их безусловно: двадцать ключей выкладывает
+    `knobs.snapshot()` (он по построению перечисляет весь реестр), ещё восемь
+    — литералы прямо в `detect.py` и `doc/html.py`. То есть на выводе САМОГО
+    проекта `check` не может вернуть 1 ни при каком входе, и её способность
+    провалиться не была показана ни разу — при том, что правило проекта
+    требует ровно этого.
+
+    Здесь мы выбиваем каждый требуемый ключ по очереди и убеждаемся, что
+    `missing` его хватился. Ловится и обратная беда: путь, которого в слепке
+    не было изначально, выбить нельзя, и он назван отдельно.
+    """
+    snap = facts(outdir)
+    req = required()
+    if not snap:
+        log(f"{os.path.relpath(outdir)}: run.json не читается — проверять нечего")
+        return len(req)
+    absent = [p for p, _ in req if not _dig(snap, p)[0]]
+    bad = 0
+    for path, what in req:
+        if path in absent:
+            continue
+        cut = json.loads(json.dumps(snap))
+        cur = cut
+        for k in path[:-1]:
+            cur = cur[k]
+        del cur[path[-1]]
+        if not any(p == path for p, _ in missing(cut, req)):
+            log(f"  НЕ ПОЙМАНО: {'/'.join(map(str, path))} — {what}")
+            bad += 1
+    log(f"{os.path.relpath(outdir)}: выбито {len(req) - len(absent)} ключей из "
+        f"{len(req)}, не пойманных пропаж {bad}"
+        + (f"; изначально отсутствуют {len(absent)}" if absent else ""))
+    return bad + len(absent)
+
+
 def line(outdir):
     """Готовая строка повтора, если она записана."""
     v = facts(outdir).get("повтор")
@@ -141,7 +180,10 @@ def cmd_replay(a):
     dirs = a.outdir or []
     rc = 0
     for d in dirs:
-        if a.check:
+        if getattr(a, "selfcheck", False):
+            if selfcheck(d):
+                rc = 1
+        elif a.check:
             if check(d):
                 rc = 1
         else:

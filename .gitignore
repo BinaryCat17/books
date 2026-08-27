@@ -23,3 +23,11 @@ out.tgz
 *.egg-info/
 build/
 dist/
+
+# синтетические книги стенда: собираются одной командой, до 62 МБ каждая
+bench/spravochnik/
+bench/slovar/
+bench/matematika/
+bench/atlas/
+bench/katalog/
+bench/zhurnal/

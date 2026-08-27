@@ -3,16 +3,25 @@
     books doctor                 проверить всё ДО того, как пойдут деньги
     books offers                 посмотреть рынок, ничего не арендуя
     books prepare книга.djvu     развернуть djvu в PDF, разрезав развороты
+    books detect книга.pdf       контуры первого уровня, местно и бесплатно
+    books html книга.detect/     собрать HTML: текст + артефакты картинками
+    books feed книга.detect/     что уехало бы в VLM: кроп или страница с дырами
+    books synth                  синтетический стенд: страницы с точной истиной
+    books score истина/ рамки/   метрики контуров; --selfcheck — батарея мутаций
+    books overlay книга.pdf …    рамки поверх страниц, чтобы посмотреть глазами
     books ls | books down 12345 | books reap
     books ledger                 журнал прогонов и оценки по нему
     books replay --check выход/  полон ли слепок входа
 
-РАЗБОРА ЗДЕСЬ ПОКА НЕТ, и это не упущение. Прежний `books ocr` звал модель
-через слой из десятка заплаток поверх чужого пайплайна и собирал книгу
+РАЗБОРА ЦЕЛИКОМ ЗДЕСЬ ПОКА НЕТ, и это не упущение. Прежний `books ocr` звал
+модель через слой из десятка заплаток поверх чужого пайплайна и собирал книгу
 эвристиками; всё это удалено вместе с замерами, которыми оправдывалось, —
 они считались против вывода другой модели, а не против известного текста.
-Команда вернётся, когда появится стенд, способный её судить, и метрика,
-способная провалиться.
+
+Что есть — `books detect`: первая половина первого уровня, контуры без единой
+заплатки. Она местная и бесплатная нарочно: метрику контуров надо проверять
+на выводе настоящей модели, а не на выдуманных данных, и упереться в это
+раньше, чем в деньги.
 """
 import argparse
 import os
@@ -40,6 +49,8 @@ def cmd_offers(a):
     """Показать рынок так, как его видит ранжирование. Ничего не арендует."""
     host = HostReq(gpu=a.gpu, disk_gb=a.disk, max_dph=a.max_dph,
                    machine_id=a.machine)
+    # Требование к CUDA приходит ОТ МОДЕЛИ, а не из слоя аренды: у `HostReq`
+    # умолчания нет нарочно. Кто строит задание — тот и называет версию.
     host.cuda_min = paddleocr_vl.CUDA_MIN
     v = Vast()
     warm = ledger_mod.warm_machines(a.image or paddleocr_vl.BASE_IMAGE)
@@ -58,6 +69,106 @@ def cmd_prepare(a):
     from . import djvu
     print(djvu.to_pdf(a.file, dst=a.out, split=a.split))
     return 0
+
+
+def cmd_detect(a):
+    """Контуры первого уровня по страницам PDF. Ни VLM, ни аренды, ни денег."""
+    import shlex
+    from . import detect
+    out = a.out or os.path.splitext(a.file)[0] + ".detect"
+    detect.run(a.file, out, a.pages, log=log)
+    # Экранируем: в raw/ пять файлов из девяти несут пробелы и скобки, и
+    # подсказка, которую нельзя вставить в оболочку, — не подсказка.
+    log(f"проверить полноту слепка: books replay --check {shlex.quote(out)}")
+    return 0
+
+
+def cmd_html(a):
+    """Продукт первого уровня: текст разметкой, артефакты картинками."""
+    from .doc import html as html_mod
+    out = a.out or os.path.join(a.dir, "html")
+    html_mod.build(a.dir, out, log=log)
+    return 0
+
+
+def cmd_feed(a):
+    """Приготовить то, что уехало бы в VLM. Ни одного обращения к модели."""
+    import glob
+    import json as _json
+    import pymupdf
+    from .doc import feed
+    from .models.base import Page
+
+    with open(os.path.join(a.dir, "run.json"), encoding="utf-8") as f:
+        snap = _json.load(f)
+    doc = pymupdf.open(snap["исходник"]["путь"])
+    out = a.out or os.path.join(a.dir, "feed")
+    page_dpi = float(snap["растр"]["dpi"])
+    p = feed.params()
+    log(f"подача {p['подача']}, вырезка {p['dpi вырезки']:.0f} dpi, "
+        f"страница {p['dpi страницы']:.0f} dpi, "
+        f"заливка дыр {p['заливка дыр']}")
+    res, asked, arts = [], 0, 0
+    for fp in sorted(glob.glob(os.path.join(a.dir, "pages", "*.json"))):
+        with open(fp, encoding="utf-8") as f:
+            page = Page.from_json(_json.load(f))
+        r = feed.prepare(doc, page, out, page_dpi, log=log)
+        asked += r["запросов"]
+        arts += r.get("артефактов замазано", r.get("артефактов не послано", 0))
+        res.append(r)
+    doc.close()
+    path = feed.dump({"ручки": p, "страницы": res}, out)
+    # Число, а не «готово»: по нему и выбирают подачу.
+    log(f"страниц {len(res)}, запросов в VLM {asked} "
+        f"({asked/max(len(res),1):.1f} на страницу), артефактов мимо VLM {arts}")
+    log(f"{path}; картинки подачи в {out}")
+    return 0
+
+
+def cmd_overlay(a):
+    """Рамки поверх страниц: истина сплошной, догадка модели пунктиром."""
+    from . import overlay
+    marks = [(a.truth, "И")] if a.truth else []
+    if a.detect:
+        marks.append((a.detect, "М"))
+    if not marks:
+        raise SystemExit("нечего рисовать: задайте --truth и/или --detect")
+    out = a.out or os.path.splitext(a.pdf)[0] + ".overlay.pdf"
+    only = None
+    if a.pages:
+        only = [int(x) for x in a.pages.replace(",", " ").split()]
+    overlay.build(a.pdf, out, marks, only=only, log=log)
+    return 0
+
+
+def cmd_score(a):
+    """Метрики контуров: истина против вывода модели."""
+    from . import metrics
+    if a.selfcheck:
+        return 1 if metrics.mutations(a.truth, a.detect, log=log) else 0
+    metrics.report(metrics.compare(a.truth, a.detect), log=log)
+    return 0
+
+
+def cmd_synth(a):
+    """Сложить синтетическую книгу с точной истиной. Местно и бесплатно."""
+    from . import synth
+    from .run import knobs
+    out = a.out or f"bench/{a.book}"
+    cases = a.cases.split(",") if a.cases else None
+    from .books import load
+    log(f"книга {a.book}: случаев {len(cases or load(a.book).CASES)}, "
+        f"старение {knobs.knob('SYNTH_AGING')}, зерно {knobs.knob('SYNTH_SEED')}")
+    synth.build(out, cases, int(knobs.knob("SYNTH_SEED")),
+                knobs.knob("SYNTH_AGING"), book=a.book, log=log)
+    log(f"дальше: books detect {shlex_quote(out)}/{a.book}.pdf "
+        f"--out {shlex_quote(out)}/detect")
+    return 0
+
+
+def shlex_quote(s):
+    import shlex
+    return shlex.quote(s)
 
 
 def cmd_ls(_a):
@@ -124,6 +235,31 @@ def cmd_doctor(_a):
     except Exception as e:
         check("ключ vast.ai", False, f"vastai set api-key <КЛЮЧ> ({e})")
 
+    # Отдельным блоком и НЕ через `check`: детекция ставится необязательным
+    # набором (`pip install -e ".[detect]"`), и тому, кто только арендует, она
+    # не нужна. Валить приёмку из-за неё — ложная тревога, а ложная тревога
+    # учит не смотреть на приёмку вовсе. Но и молчать нельзя: `books detect` —
+    # первая работающая команда разбора, и её беда должна быть видна здесь, а
+    # не в середине книги.
+    log("детекция макета (books detect, необязательный набор):")
+    missing = []
+    for mod, why in (("onnxruntime", "счёт детектора"), ("cv2", "растр"),
+                     ("yaml", "чтение inference.yml")):
+        try:
+            __import__(mod)
+        except ImportError:
+            missing.append(f"{mod} ({why})")
+    if missing:
+        log(f"  [ – ] нет пакетов: {', '.join(missing)} — "
+            f'поставьте: pip install -e ".[detect]"')
+    else:
+        from .models import doclayout
+        d = doclayout.weights_dir()
+        have = os.path.exists(os.path.join(d, "inference.onnx"))
+        log(f"  [{'ок  ' if have else ' – '}] веса {d}"
+            + ("" if have else " — нет; задайте LAYOUT_MODEL_DIR или "
+                              "положите веса paddlex"))
+
     log("всё в порядке" if ok else "есть проблемы — см. выше")
     return 0 if ok else 1
 
@@ -167,6 +303,45 @@ def main(argv=None):
                    help="резать ли развороты")
     p.set_defaults(fn=cmd_prepare)
 
+    p = sub.add_parser("detect", help="контуры первого уровня, местно")
+    p.add_argument("file", help="PDF (djvu разверните через books prepare)")
+    p.add_argument("--out", help="куда положить pages/ и run.json")
+    p.add_argument("--pages", help="какие страницы: 1,4,7-9; по умолчанию все")
+    p.set_defaults(fn=cmd_detect)
+
+    p = sub.add_parser("html", help="собрать HTML из каталога books detect")
+    p.add_argument("dir", help="каталог, куда писал books detect")
+    p.add_argument("--out", help="куда положить book.html и blocks/")
+    p.set_defaults(fn=cmd_html)
+
+    p = sub.add_parser("feed", help="что уехало бы в VLM, без обращения к ней")
+    p.add_argument("dir", help="каталог, куда писал books detect")
+    p.add_argument("--out", help="куда положить картинки подачи")
+    p.set_defaults(fn=cmd_feed)
+
+    p = sub.add_parser("score", help="метрики контуров против истины стенда")
+    p.add_argument("truth", help="каталог истины (bench/synth/truth)")
+    p.add_argument("detect", help="каталог вывода модели (…/detect/pages)")
+    p.add_argument("--selfcheck", action="store_true",
+                   help="батарея мутаций: умеет ли число падать (код 1, если нет)")
+    p.set_defaults(fn=cmd_score)
+
+    p = sub.add_parser("overlay", help="рамки поверх страниц, чтобы посмотреть глазами")
+    p.add_argument("pdf", help="страницы, поверх которых рисовать")
+    p.add_argument("--truth", help="каталог истины (bench/synth/truth)")
+    p.add_argument("--detect", help="каталог вывода модели (…/detect/pages)")
+    p.add_argument("--out", help="куда положить pdf с рамками")
+    p.add_argument("--pages", help="только эти страницы, через запятую")
+    p.set_defaults(fn=cmd_overlay)
+
+    p = sub.add_parser("synth", help="синтетический стенд с точной истиной")
+    p.add_argument("--book", default="spravochnik",
+                   help="какая книга стенда: spravochnik|slovar|matematika|"
+                        "atlas|katalog|zhurnal")
+    p.add_argument("--out", help="куда положить <книга>.pdf и truth/")
+    p.add_argument("--cases", help="какие случаи, через запятую; по умолчанию все")
+    p.set_defaults(fn=cmd_synth)
+
     p = sub.add_parser("ls", help="что сейчас арендовано")
     p.set_defaults(fn=cmd_ls)
 
@@ -189,6 +364,8 @@ def main(argv=None):
     # при пустом списке молча одобряла бы — `books replay --check` без
     # каталога возвращал 0 и не печатал ни строки.
     p.add_argument("outdir", nargs="+", help="каталог разбора")
+    p.add_argument("--selfcheck", action="store_true",
+                   help="умеет ли сама проверка провалиться (код 1, если нет)")
     p.add_argument("--check", action="store_true",
                    help="печатать недостающее и вернуть 1, если оно есть")
     p.set_defaults(fn=replay_mod.cmd_replay)

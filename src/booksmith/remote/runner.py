@@ -24,11 +24,26 @@ class Budget:
     $1.00 на карте за $0.34/час — это 2.9 часа, на карте за $2 — 30 минут.
     """
 
-    def __init__(self, spec: JobSpec, dph: float):
-        by_money = spec.budget_usd / max(dph, 1e-6) * 3600
-        by_time = spec.timeout_minutes * 60
-        self.seconds = min(by_money, by_time)
+    def __init__(self, spec: JobSpec, dph: float, t0: float | None = None):
         self.started = time.time()
+        # Время отсчитывается от начала ПРОГОНА (`t0`), а не от начала
+        # попытки.  Прежде `Budget` заводился внутри цикла попыток, и каждая
+        # отбракованная машина дарила прогону ещё один полный срок: четыре
+        # попытки по 480 с сдвигали потолок на 32 минуты.  Деньги, наоборот,
+        # считаются по ЭТОЙ машине — уничтоженная больше не берёт.
+        self.t0 = self.started if t0 is None else t0
+        self.eaten = self.started - self.t0
+        by_money = spec.budget_usd / max(dph, 1e-6) * 3600
+        by_time = spec.timeout_minutes * 60 - self.eaten
+        # Отрицательный остаток — не «нулевой бюджет», а беда выше по течению:
+        # мы уже сняли машину, на которую времени нет.  Молчать нельзя, иначе
+        # сторож просто убьёт её и всё будет выглядеть как плохой рынок.
+        if by_time <= 0:
+            raise SystemExit(
+                f"бюджет времени исчерпан ДО начала счёта: на попытки ушло "
+                f"{self.eaten/60:.1f} мин при потолке "
+                f"{spec.timeout_minutes:.0f} мин")
+        self.seconds = min(by_money, by_time)
         self.dph = dph
         self.limited_by = "деньгам" if by_money < by_time else "времени"
 
@@ -41,8 +56,12 @@ class Budget:
         return self.dph * (time.time() - self.started) / 3600
 
     def describe(self) -> str:
+        # Число, а не «готово»: по съеденному на попытки видно, почему
+        # потолок оказался короче объявленного.
         return (f"бюджет: ${self.dph:.3f}/час, потолок по {self.limited_by} — "
-                f"{self.seconds/60:.0f} мин")
+                f"{self.seconds/60:.0f} мин"
+                + (f" (на попытки уже ушло {self.eaten/60:.0f} мин)"
+                   if self.eaten >= 60 else ""))
 
 
 def _watchdog(vast: Vast, get_iid, budget: Budget, done: threading.Event):
@@ -172,7 +191,12 @@ def connect(vast: Vast, iid: int, spec: JobSpec, ssh_key: str | None,
     2 мин».  Замер этого вечера: пять попыток съели пятнадцать минут.
     """
     t_end = time.time() + (attempt_limit or boot_limit)
-    vast.wait_running(iid, timeout=boot_limit)
+    # Ожидание запуска тоже внутри общего срока.  Прежде сюда уходил
+    # `boot_limit` целиком, и `attempt_limit` не ограничивал ничего: попытка,
+    # объявленная восьмиминутной, могла простоять тридцать пять минут на уже
+    # биллящейся машине.
+    vast.wait_running(iid, timeout=max(30.0, min(boot_limit,
+                                                 t_end - time.time())))
     # Привязка ключа сразу после создания инстанса — гонка: контейнера ещё
     # нет, и vast достраивает его своим слоем с ssh минуты по три.  Ключ,
     # привязанный до этого, до authorized_keys иногда не доезжает, и мы
@@ -210,8 +234,20 @@ def execute(box: Box, spec: JobSpec, outdir: str,
     # и досчитывает одну.  Прогон при этом выглядит успешным и стоит денег.
     # Поэтому чистим — кроме случая, когда возобновление и задумано.
     if not spec.resume:
-        box.run(f"rm -rf {spec.workdir}/{spec.outputs}", stream=False)
-    box.run(f"mkdir -p {spec.workdir}/{spec.outputs}", stream=False)
+        # Со сроком и С ПРОВЕРКОЙ.  Незамеченная неудача здесь означает, что
+        # результат прошлого прогона остался на месте, а `--resume` его
+        # засчитает: прогон выглядит успешным, страницы чужие.
+        rc, out = box.run(f"rm -rf {spec.workdir}/{spec.outputs}",
+                          stream=False, deadline=deadline)
+        if rc != 0:
+            raise RuntimeError(
+                f"не удалось очистить {spec.workdir}/{spec.outputs} "
+                f"(rc={rc}): {out.strip()[:200]}")
+    rc, out = box.run(f"mkdir -p {spec.workdir}/{spec.outputs}", stream=False,
+                      deadline=deadline)
+    if rc != 0:
+        raise RuntimeError(f"не создаётся каталог результата (rc={rc}): "
+                           f"{out.strip()[:200]}")
     box.start_sync(spec.outputs, outdir, exclude=spec.pull_exclude)
     try:
         log("запускаю задачу...")
@@ -222,9 +258,8 @@ def execute(box: Box, spec: JobSpec, outdir: str,
         box.stop_sync()
         # Сколько стоит каждое исключение — ДО того, как оно сработает, и
         # числом.  Прежде исключения стояли молча, и «экономия» в 0.8%
-        # выгрузки, стоившая четырём книгам постраничной разметки
-        # свидетелей, ни разу не была названа вслух.  Замер вхолостую, ноль
-        # переданных байт.
+        # выгрузки, стоившая четырём книгам постраничной разметки, ни разу не
+        # была названа вслух.  Замер вхолостую, ноль переданных байт.
         if spec.pull_exclude:
             try:
                 box.weigh_exclude(spec.outputs, spec.pull_exclude, outdir)
@@ -355,6 +390,22 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
     avoid: list[int] = list(ledger.bad_machines())
     undead = undead if undead is not None else []
     for attempt in range(1, MAX_ATTEMPTS + 1):
+        # Не снимать машину, на которую не осталось времени.  Внесено вместе
+        # с отсчётом бюджета от `t0` и ловит его же изнанку: при коротком
+        # `timeout_minutes` остаток уходил в минус, `Budget` отдавал дедлайн
+        # В ПРОШЛОМ, и сторож уничтожал свежеснятую машину через 15 секунд.
+        # Замер: timeout_minutes=30, попытки по 480 с — на пятой потолок
+        # −2 мин.  Платить за машину, которую сами же убьём, хуже, чем
+        # сказать вслух, что времени нет.
+        left = spec.timeout_minutes * 60 - (time.time() - t0)
+        if left <= ATTEMPT_LIMIT_S:
+            raise SystemExit(
+                f"на попытку не осталось времени: до потолка "
+                f"{left/60:.1f} мин, а одна попытка берёт до "
+                f"{ATTEMPT_LIMIT_S/60:.0f} мин "
+                f"(попыток сделано {attempt - 1}). "
+                f"Поднимите timeout_minutes или разберитесь, почему "
+                f"машины отбраковываются.")
         offer = vast.pick(spec.host, spec.image_gb, spec.minutes, _warm(spec),
                           payload_gb=spec.payload_gb, warmup_s=spec.warmup_s,
                           avoid=avoid)
@@ -371,13 +422,27 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
 
         guard = threading.Event()
         guards.append(guard)
-        budget = Budget(spec, dph)
+        budget = Budget(spec, dph, t0)
+        # Своя ячейка на попытку, а не общий `state`.  Сторож брошенной
+        # попытки переживает её намеренно — когда `destroy` не удался, ветка
+        # ниже оставляет его добивать машину.  Но `state["iid"]` к тому
+        # времени уже указывал на СЛЕДУЮЩУЮ машину, и, дождавшись своего
+        # дедлайна, старый сторож уничтожал её посреди работы — ровно то, что
+        # запрещает докстринг этой функции.
+        #
+        # `m=mine` не украшение: замыкание в цикле держит ПЕРЕМЕННУЮ, а не
+        # значение, и без привязки по умолчанию все сторожа смотрели бы в
+        # ячейку последней попытки — та же беда, только тише.
+        mine: dict = {"iid": None}
         threading.Thread(target=_watchdog,
-                         args=(vast, lambda: state["iid"], budget, guard),
+                         args=(vast, lambda m=mine: m["iid"], budget, guard),
                          daemon=True).start()
 
-        def _remember(new_id: int):
-            state["iid"] = new_id
+        def _remember(new_id: int, m=mine):
+            state["iid"] = m["iid"] = new_id
+            # Момент СОЗДАНИЯ удавшейся машины: от него, а не от начала
+            # прогона, считается setup_s.
+            state["t_create"] = time.time()
             rec.instance_id = new_id
 
         vast.create(int(offer["id"]), spec, on_created=_remember)
@@ -432,7 +497,7 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
         # обнулять её id нельзя — блок finally её уже не тронет, а сторожа
         # мы бы погасили. Такой инстанс остаётся вообще без присмотра.
         if vast.destroy(int(state["iid"])):
-            state["iid"] = None
+            state["iid"] = mine["iid"] = None
             guard.set()
         else:
             log(f"инстанс {state['iid']} уничтожить не удалось — "
@@ -535,23 +600,49 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
         if reuse:
             log(f"переиспользую инстанс {reuse} — холодного старта нет")
             inst = vast.instance(reuse) or {}
-            dph = float(inst.get("dph_total") or 0.5)
+            # Цену не выдумываем.  Прежде стояло `or 0.5`, и из выдуманного
+            # числа строился ПОТОЛОК.  Замер при умолчаниях JobSpec
+            # (budget_usd=1.00, timeout_minutes=90): карта за $2.00/час
+            # получала 90 минут вместо 30 — втрое больше объявленного, и
+            # только потому, что срок упирался в таймаут; без него было бы
+            # вчетверо.  А `or` вдобавок глотал законный 0.0.  Ноль от
+            # непонимания не должен молча становиться замером.
+            raw_dph = inst.get("dph_total")
+            if raw_dph is None:
+                raise SystemExit(
+                    f"инстанс {reuse} не сообщает цену (dph_total) — "
+                    f"считать бюджет не из чего. Посмотрите: books ls")
+            dph = float(raw_dph)
             rec.instance_id, rec.machine_id = reuse, inst.get("machine_id")
-            budget = Budget(spec, dph)
+            budget = Budget(spec, dph, t0)
             guards.append(done)
             threading.Thread(target=_watchdog,
                              args=(vast, lambda: state["iid"], budget, done),
                              daemon=True).start()
             log(budget.describe())
             log("жду выкачивания образа и старта контейнера...")
-            box = connect(vast, reuse, spec, ssh_key)
+            # Тот же потолок попытки, что и в ветке аренды.  Без него сюда
+            # уходил `boot_limit` = 2100 с: тридцать пять минут ожидания на
+            # машине, которая уже биллится.
+            box = connect(vast, reuse, spec, ssh_key,
+                          attempt_limit=ATTEMPT_LIMIT_S)
         else:
             box, dph, budget = _rent(vast, spec, ssh_key, state, rec,
                                      guards, t0, undead)
 
         rec.dph = dph
-        rec.setup_s = time.time() - t0
-        log(f"готово за {rec.setup_s/60:.1f} мин")
+        # setup_s — от СОЗДАНИЯ удавшейся машины до готового ssh, как и
+        # объявлено полем в журнале. Прежняя редакция мерила весь разбег
+        # прогона: замер нашего канала, все отбракованные попытки, каждый
+        # поиск предложений и оба зонда. Оценка `fit()` делила на это
+        # постоянные 0.06 ГБ образа и печатала «эффективность канала 0.0052»
+        # против константы 0.05 — расхождение в десять раз, целиком
+        # арифметическое. Время на отбраковку теперь отдельным числом.
+        t_create = state.get("t_create") or t0
+        rec.setup_s = time.time() - t_create
+        rec.reject_s = t_create - t0
+        log(f"готово за {rec.setup_s/60:.1f} мин "
+            f"(на отбраковку ушло {rec.reject_s/60:.1f} мин)")
 
         t1 = time.time()
         rc = execute(box, spec, outdir, deadline=budget.deadline)
@@ -582,7 +673,11 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
         rec.note = f"прервано: {e}"
         log(f"прервано ({e}) — прибираю за собой")
         return 130
-    except Exception as e:
+    except (Exception, SystemExit) as e:
+        # SystemExit ловим НАРОЧНО.  Он BaseException, мимо `except Exception`
+        # проходил насквозь, и авария — «нет офферов», «цены нет», «времени не
+        # осталось» — уезжала в журнал с пустой пометкой и нулевой ценой, то
+        # есть выглядела как бесплатный успех.  Ноль от непонимания.
         rec.note = f"{type(e).__name__}: {e}"
         raise
     finally:
@@ -604,8 +699,28 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
         # примерно в сто раз.  Оценщик в pricing.py считает так же.
         rec.cost_usd = (rec.dph * elapsed / 3600
                         + rec.per_tb * (spec.image_gb + spec.payload_gb) / 1024)
+        # Пульс гасим ПЕРВЫМ делом уборки. Дозор мертвеца на самой карте —
+        # единственный из четырёх способов гашения, который не ходит ни через
+        # наш ключ, ни через наш процесс. Пока наш поток стучит `touch
+        # /root/.alive` каждые 30 секунд, дозор выключен — и именно в тот
+        # момент, когда остальные три уже сдались (сторожа погашены, повторы
+        # destroy израсходованы), независимого способа не остаётся вовсе.
+        # Вызов `stop_heartbeat` был во всём проекте ровно один, и не здесь.
+        try:
+            if box is not None:
+                box.stop_heartbeat()
+        except Exception as e:
+            log(f"пульс не погашен: {e}")
         if iid and not keep:
-            vast.destroy(int(iid))
+            # Результат разбирается, как и везде.  Это был единственный
+            # `destroy` во всём файле без проверки: пять неудачных попыток
+            # печатали «НЕ СМОГ УНИЧТОЖИТЬ», а строкой ниже прогон рапортовал
+            # «итого N мин» и возвращал 0 — при живой биллящейся машине.
+            if not vast.destroy(int(iid)):
+                log(f"ВНИМАНИЕ: инстанс {iid} НЕ УНИЧТОЖЕН и продолжает "
+                    f"биллиться — убейте вручную: books down {iid}")
+                rec.note = ((rec.note + "; ") if rec.note else "") + \
+                    f"инстанс {iid} не уничтожен, ${rec.dph:.3f}/час"
         elif iid:
             # Оператор уходит нарочно, но дозор мертвеца на машине об этом не
             # знает и через свои 15 минут уничтожит инстанс.  Даём ему срок

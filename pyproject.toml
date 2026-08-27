@@ -13,6 +13,18 @@ dependencies = [
     "vastai>=1.5.5",
 ]
 
+# Детекция макета местно, на процессоре: `books detect`.  Отдельным набором,
+# а не в основных зависимостях, потому что аренде и `books prepare` они не
+# нужны, а onnxruntime с opencv весят под полгигабайта.
+#   pip install -e ".[detect]"
+[project.optional-dependencies]
+detect = [
+    "onnxruntime>=1.20",
+    "numpy>=1.26",
+    "opencv-python-headless>=4.9",
+    "pyyaml>=6.0",
+]
+
 [project.scripts]
 books = "booksmith.cli:main"
 

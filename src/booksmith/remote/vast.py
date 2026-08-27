@@ -57,7 +57,12 @@ ONSTART = (
     " if [ -z \"$I\" ]; then "
     "   I=$(tr '\\0' '\\n' < $E | sed -n 's/^CONTAINER_ID=//p' | head -1); fi; "
     " while sleep 30; do "
-    "   G=$(cat /root/.alive.grace 2>/dev/null || echo {grace}); "
+    # `|| echo` ловил только ОТСУТСТВИЕ файла.  Пустой файл (оборванная
+    # запись) давал пустой G, `[ N -gt ]` — синтаксическую ошибку, то есть
+    # ложь: машина не убивала себя никогда и молча писала ошибки в
+    # /root/deadman.log, которого мы не забираем.
+    "   G=$(cat /root/.alive.grace 2>/dev/null); "
+    "   case \"$G\" in \'\'|0|*[!0-9]*) G={grace};; esac; "
     "   A=$(stat -c %Y /root/.alive 2>/dev/null || echo 0); "
     "   if [ $(( $(date +%s) - A )) -gt $G ]; then "
     "     curl -s -X DELETE -H \"Authorization: Bearer $K\" "

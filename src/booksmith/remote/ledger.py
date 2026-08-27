@@ -10,10 +10,16 @@ import os
 import time
 from dataclasses import dataclass, asdict, field
 
+from ..run import knobs
+
 # Относительный путь молча терял бы всю историю при запуске из другого
 # каталога, а вместе с ней и подбор прогретых машин.
 _ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-LEDGER = os.environ.get("BOOKSMITH_LEDGER", os.path.join(_ROOT, "runs", "ledger.jsonl"))
+# Ручка объявлена в реестре: `books replay --check` иначе не увидит, что
+# журнал и ЧЁРНЫЙ СПИСОК машин уехали в другой каталог. Чтение окружения мимо
+# реестра было здесь единственным во всём проекте — и уводило за собой
+# `bad-machines.json`, после чего отбракованные машины снова шли в аренду.
+LEDGER = knobs.knob("BOOKSMITH_LEDGER") or os.path.join(_ROOT, "runs", "ledger.jsonl")
 
 
 @dataclass
@@ -39,7 +45,8 @@ class Run:
     image_gb: float = 0.0
 
     started: float = field(default_factory=time.time)
-    setup_s: float = 0.0           # от create до готового ssh
+    setup_s: float = 0.0           # от create УДАВШЕЙСЯ машины до готового ssh
+    reject_s: float = 0.0          # сколько до неё ушло на отбракованные
     run_s: float = 0.0             # сама задача
     total_s: float = 0.0
     cost_usd: float = 0.0
@@ -232,16 +239,46 @@ def bad_machines(path: str = BAD) -> list[int]:
 def fit(path: str = LEDGER) -> dict:
     """Оценить LINK_EFFICIENCY по фактическим прогонам.
 
-    Возвращает пустой словарь, пока данных мало — лучше пользоваться
-    пессимистичной константой, чем средним по двум точкам.
+    ОТКАЗЫВАЕТСЯ СЧИТАТЬ, когда считать не из чего, и говорит почему.
+
+    Оценка делит `image_gb * 8 * 1024 / setup_s` на объявленный канал. У неё
+    два условия, и оба нарушались молча:
+
+    * **числитель должен меняться.** Во всех записях нынешнего журнала
+      `image_gb` равен 0.06 — одна и та же константа. Делить константу на
+      меняющийся знаменатель значит мерить знаменатель, а не эффективность
+      канала.
+    * **знаменатель должен мерить доставку.** До правки `setup_s` мерил весь
+      разбег прогона: замер нашего канала, ВСЕ отбракованные попытки, каждый
+      поиск предложений и оба зонда. Отсюда медиана 0.0052 против константы
+      0.05, которую эта оценка и должна была подтвердить, — расхождение в
+      десять раз, целиком арифметическое, печаталось как здоровое число.
+
+    Записи со старым устройством `setup_s` отличаются отсутствием поля
+    `reject_s`; они в оценку не идут.
     """
-    eff = []
+    eff, gbs, old_shape = [], set(), 0
     for r in read(path):
         adv, setup, gb = r.get("inet_down_adv"), r.get("setup_s"), r.get("image_gb")
-        if adv and setup and gb and setup > 0:
-            eff.append((gb * 8 * 1024 / setup) / adv)
+        if not (adv and setup and gb and setup > 0):
+            continue
+        if "reject_s" not in r:
+            old_shape += 1
+            continue
+        gbs.add(round(float(gb), 3))
+        eff.append((gb * 8 * 1024 / setup) / adv)
+    if old_shape:
+        return {"samples": 0, "почему нет оценки":
+                f"{old_shape} записей со старым setup_s (он мерил весь разбег "
+                f"прогона, а не доставку образа) — по ним считать нельзя"}
+    if len(gbs) < 2:
+        return {"samples": len(eff), "почему нет оценки":
+                f"размер образа во всех записях один ({sorted(gbs) or '—'}): "
+                f"числитель постоянен, и деление мерило бы знаменатель"}
     if len(eff) < 5:
-        return {"samples": len(eff)}
+        return {"samples": len(eff), "почему нет оценки":
+                "меньше пяти пригодных записей"}
     eff.sort()
-    return {"samples": len(eff), "link_efficiency_median": eff[len(eff) // 2],
+    return {"samples": len(eff), "разных размеров образа": len(gbs),
+            "link_efficiency_median": eff[len(eff) // 2],
             "link_efficiency_p25": eff[len(eff) // 4]}
