@@ -101,20 +101,45 @@ def _pages(d: str) -> dict:
 def _pair(truth, model):
     """Сопоставить рамки одной страницы. Возвращает (пары, лишние_истины,
     лишние_модели). Совпадение — то же, чем меряет `books score`: иначе лист
-    показывал бы одно, а число говорило другое."""
-    from .metrics import matches, iou
-    used, pairs, lost = set(), [], []
-    for b in sorted(truth, key=lambda z: -(z["box"][2] - z["box"][0])
-                    * (z["box"][3] - z["box"][1])):
-        cand = [(iou(b["box"], x["box"]), j) for j, x in enumerate(model)
-                if j not in used and matches(b["box"], x["box"])]
-        if not cand:
-            lost.append(b)
-            continue
-        j = max(cand)[1]
-        used.add(j)
-        pairs.append((b, model[j]))
-    extra = [x for j, x in enumerate(model) if j not in used]
+    показывал бы одно, а число говорило другое.
+
+    СОПОСТАВЛЯЕМ АРТЕФАКТ С АРТЕФАКТОМ, а не всё подряд. `books score` ищет
+    артефакт истины только среди АРТЕФАКТНЫХ рамок модели (проход А), а слепой
+    к ярлыку проход у него служит порядку чтения и тексту, а не итоговой доле.
+    Слепое сопоставление здесь рисовало таблицу, накрытую рамкой `text`, тонким
+    серым «совпало», считало её совпавшей в итоговой строке и не заносило
+    страницу в расхождения — ровно там, где число звало её потерянной: 51
+    артефакт на девяти стендах (33 на annopage, 14 на hard, 2 на matematika, по
+    одному на atlas и hard36), из них 31 таблица, съеденная текстовой рамкой
+    (table->text 17, table->content 13, table->reference 1).
+
+    Сторона считается тем же `label in arte`, что и в `compare_pages`, а не
+    через `policy.role`: ярлык, политикой не описанный, обязан вести себя тут
+    ТАК ЖЕ, как в score, иначе лист и число опять разойдутся — теперь на
+    исключении.
+    """
+    from .metrics import _pick, _area
+    from . import policy
+    arte = set(policy.artefacts())
+    pairs, lost, extra = [], [], []
+    for side in (True, False):
+        t = [b for b in truth if (b["label"] in arte) == side]
+        m = [x for x in model if (x["label"] in arte) == side]
+        # Порядок жадности взят у той же стороны `books score`: артефакты — в
+        # порядке разметки, как в проходе А, остальное — от крупных к мелким,
+        # как в проходе Б. При одном правиле совпадения, но другом порядке
+        # пары расходились бы на спорных местах.
+        if not side:
+            t = sorted(t, key=lambda z: -_area(z["box"]))
+        used = set()
+        for b in t:
+            j = _pick(b, m, used)
+            if j is None:
+                lost.append(b)
+                continue
+            used.add(j)
+            pairs.append((b, m[j]))
+        extra += [x for j, x in enumerate(m) if j not in used]
     return pairs, lost, extra
 
 
@@ -137,36 +162,67 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
 
     `marks` — список пар (каталог, метка). Две разметки сличаются; одна
     рисуется целиком, потому что сличать не с чем.
+
+    ЧЕГО ИСТИНА НЕ РАЗМЕЧАЕТ, ТО НЕ «ЛИШНЕЕ». Истина объявляет это сама —
+    полем meta «текст размечен»; нет поля — считаем, что размечает. Рамки
+    неразмечаемых разрядов рисуются синим волоском без подписи (синий здесь
+    значит то же, что и у одиночной разметки: сравнивать не с чем) и идут
+    отдельной величиной, а не в «лишних».
+
+    ПРО ЭТО ГОВОРИТСЯ ВСЕГДА, а не только когда такие рамки нашлись. «Вне
+    разметки 0» бывает двух видов: истина текст размечает и лишнего нет —
+    и истина текста не размечает, а модель его не выдала. Молчание здесь
+    выдавало бы второе за первое, то есть ноль от непонимания за ноль от
+    проверки.
     """
+    from . import policy
+
+    def role(label: str) -> str:
+        # Неизвестный политике ярлык не прячем: пусть остаётся кричащим.
+        try:
+            return policy.role(label)
+        except policy.UnknownLabel:
+            return "артефакт"
+
+    def die(msg: str):
+        """Закрыть документ и упасть СВОИМ сообщением.
+
+        Сообщение собирается на стороне вызова — то есть ДО того, как сюда
+        зашли и закрыли документ. Прежде каждая защита писала `doc.close()`
+        строкой выше, чем `raise OverlayError(... doc.page_count ...)`, а
+        pymupdf 1.28.2 обращение к закрытому документу роняет: `page_count`
+        даёт ValueError «document closed», `page.rotation` — AssertionError
+        «page is None». Наружу вылетало это, а не объяснение, и вылетало
+        голым следом стека: в cli.py `overlay.build` ничем не обёрнут.
+        Проверено на всех четырёх защитах, где после close читался документ.
+        """
+        doc.close()
+        raise OverlayError(msg)
+
     note = _same_book(pdf, marks)
     sets = [(_pages(d), tag) for d, tag in marks]
     doc = pymupdf.open(pdf)
     if not os.path.exists(FONT):
-        doc.close()
-        raise OverlayError(f"нет шрифта {FONT}: подписи выйдут пустыми")
+        die(f"нет шрифта {FONT}: подписи выйдут пустыми")
     if only is not None:
         bad = [i for i in only if not 0 <= i < doc.page_count]
         if bad:
-            doc.close()
-            raise OverlayError(
-                f"в {pdf} нет страниц {bad}: всего {doc.page_count}")
+            die(f"в {pdf} нет страниц {bad}: всего {doc.page_count}")
     for pages, tag in sets:
         lost = sorted(i for i in pages if not 0 <= i < doc.page_count)
         if lost:
-            doc.close()
-            raise OverlayError(
-                f"у разметки «{tag}» есть страницы {lost[:5]}, которых нет в "
+            die(f"у разметки «{tag}» есть страницы {lost[:5]}, которых нет в "
                 f"{pdf} ({doc.page_count} страниц): они исчезли бы без счёта.")
 
-    counts = {"совпало": 0, "не нашла": 0, "лишних": 0, "страницы": []}
+    counts = {"совпало": 0, "не нашла": 0, "лишних": 0, "вне разметки": 0,
+              "страниц без разметки текста": 0, "сличено страниц": 0,
+              "страницы": []}
     drawn = 0
     for i, page in enumerate(doc):
         if only is not None and i not in only:
             continue
         if page.rotation:
-            doc.close()
-            raise OverlayError(
-                f"страница {i} повёрнута атрибутом PDF ({page.rotation}°): "
+            die(f"страница {i} повёрнута атрибутом PDF ({page.rotation}°): "
                 f"рамки лягут поперёк. Разверни PDF до наложения.")
         page.insert_font(fontname="L", fontfile=FONT)
         p0 = sets[0][0].get(i)
@@ -175,9 +231,7 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
         k = page.rect.width / p0["width"]
         kh = page.rect.height / p0["height"]
         if abs(k - kh) > 1e-3:
-            doc.close()
-            raise OverlayError(
-                f"страница {i}: растр разметки {p0['width']}x{p0['height']} "
+            die(f"страница {i}: растр разметки {p0['width']}x{p0['height']} "
                 f"не той пропорции, что лист — рамки лягут растянутыми.")
         if len(sets) == 1:
             for b in p0["blocks"]:
@@ -188,11 +242,32 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
         p1 = sets[1][0].get(i)
         if p1 is None:
             continue
+        # Масштаб у КАЖДОЙ разметки свой. Прежде брался коэффициент первой и
+        # молча применялся ко второй: если растр вывода модели отличается от
+        # растра истины хоть на пиксель, рамки ложатся смещёнными, а лист
+        # выглядит убедительно.
+        if (p1["width"], p1["height"]) != (p0["width"], p0["height"]):
+            die(f"страница {i}: растр истины {p0['width']}x{p0['height']}, "
+                f"растр модели {p1['width']}x{p1['height']} — рамки лягут "
+                f"в разных системах координат.")
         pairs, lost, extra = _pair(p0["blocks"], p1["blocks"])
+        # Признак берётся у ИСТИНЫ и у каждой страницы свой; нет поля —
+        # размечает, и всё остаётся как было. Своё на каждой странице он не
+        # от педантизма: на стенде hard36 текст размечен на одной странице
+        # из тридцати шести, и признак «на весь стенд» соврал бы про обе
+        # половины сразу.
+        marked = bool((p0.get("meta") or {}).get("текст размечен", True))
+        counts["сличено страниц"] += 1
+        counts["страниц без разметки текста"] += 0 if marked else 1
+        loud, quiet = [], []
+        for x in extra:
+            (loud if marked or role(x["label"]) == "артефакт"
+             else quiet).append(x)
         counts["совпало"] += len(pairs)
         counts["не нашла"] += len(lost)
-        counts["лишних"] += len(extra)
-        if lost or extra:
+        counts["лишних"] += len(loud)
+        counts["вне разметки"] += len(quiet)
+        if lost or loud:
             counts["страницы"].append(i)
         for b, x in pairs:
             # Совпавшую пару рисуем ОДНОЙ тонкой рамкой и без подписи: две
@@ -208,7 +283,13 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
             _rect(page, b["box"], k, НЕ_НАШЛА, 1.6)
             _label(page, b["box"], k, НЕ_НАШЛА, f"НЕ НАШЛА  {b['label']}")
             drawn += 1
-        for x in extra:
+        for x in quiet:
+            # Тонко, синим и без подписи. Совсем не рисовать нельзя: лист
+            # тогда молчал бы о том, что модель вообще что-то нашла, — и это
+            # был бы ноль от непонимания, выданный за чистую страницу.
+            _rect(page, x["box"], k, ОДНА, 0.5, dashes="[1 2] 0")
+            drawn += 1
+        for x in loud:
             _rect(page, x["box"], k, ЛИШНЯЯ, 1.6, dashes="[3 3] 0")
             s = f" {x['score']:.2f}" if x.get("score") is not None else ""
             _label(page, x["box"], k, ЛИШНЯЯ, f"ЛИШНЯЯ  {x['label']}{s}",
@@ -216,9 +297,7 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
             drawn += 1
 
     if not drawn:
-        doc.close()
-        raise OverlayError(
-            f"ни одна страница разметки не легла на {pdf}: в PDF "
+        die(f"ни одна страница разметки не легла на {pdf}: в PDF "
             f"{doc.page_count} страниц, а индексы разметки другие")
     n = doc.page_count
     doc.save(out, garbage=3, deflate=True)
@@ -227,4 +306,14 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
     log(f"{out}: листов {n}, совпало {counts['совпало']}, "
         f"НЕ НАШЛА {counts['не нашла']}, ЛИШНИХ {counts['лишних']}; "
         f"расхождения на {len(counts['страницы'])} страницах")
+    # Величина, а не молчание, и говорится всегда, когда есть неразмечающие
+    # страницы: «ЛИШНИХ 508» без этой строки читалось бы как «весь лист
+    # сверен», хотя текст на этих страницах не сверялся вовсе.
+    if counts["страниц без разметки текста"]:
+        log(f"  текста истина НЕ размечает на "
+            f"{counts['страниц без разметки текста']} страницах из "
+            f"{counts['сличено страниц']} (meta «текст размечен»: false): "
+            f"{counts['вне разметки']} рамок модели этих разрядов "
+            f"нарисованы волоском и в «лишних» НЕ считаны — это не ноль "
+            f"лишних, это «сверять было нечем»")
     return counts
