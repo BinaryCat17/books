@@ -1,0 +1,214 @@
+[13:56:31] === разворачиваю окружение ===
+Downloading cpython-3.12.14-linux-x86_64-gnu (download) (32.6MiB)
+ Downloaded cpython-3.12.14-linux-x86_64-gnu (download)
+Installed Python 3.12.14 in 2.77s
+ + cpython-3.12.14-linux-x86_64-gnu (python3.12)
+warning: `/root/.local/bin` is not on your PATH. To use installed Python executables, run `export PATH="/root/.local/bin:$PATH"` or `uv python update-shell`.
+== python              3с
+Using CPython 3.12.14
+Creating virtual environment at: /opt/env
+Activate with: source /opt/env/bin/activate
+== окружение    0с
+Using Python 3.12.14 environment at: /opt/env
+Resolved 27 packages in 1.74s
+Downloading pillow (6.6MiB)
+Downloading networkx (2.0MiB)
+Downloading numpy (15.9MiB)
+Downloading nvidia-nccl-cu12 (179.9MiB)
+Downloading sympy (5.9MiB)
+Downloading setuptools (1.2MiB)
+Downloading triton (158.9MiB)
+Downloading nvidia-cudnn-cu12 (634.0MiB)
+Downloading torchvision (6.9MiB)
+Downloading torch (732.8MiB)
+Downloading nvidia-cufft-cu12 (201.7MiB)
+ Downloaded setuptools
+Downloading nvidia-cuda-nvrtc-cu12 (23.5MiB)
+Downloading nvidia-cublas-cu12 (346.6MiB)
+Downloading nvidia-cuda-cupti-cu12 (13.2MiB)
+Downloading nvidia-cusolver-cu12 (122.0MiB)
+Downloading nvidia-cusparse-cu12 (197.8MiB)
+Downloading nvidia-cusparselt-cu12 (143.1MiB)
+Downloading nvidia-nvjitlink-cu12 (20.1MiB)
+Downloading nvidia-curand-cu12 (53.7MiB)
+ Downloaded torchvision
+ Downloaded pillow
+ Downloaded networkx
+ Downloaded numpy
+ Downloaded nvidia-cuda-cupti-cu12
+ Downloaded sympy
+ Downloaded nvidia-cuda-nvrtc-cu12
+ Downloaded nvidia-nvjitlink-cu12
+ Downloaded triton
+ Downloaded nvidia-curand-cu12
+ Downloaded nvidia-nccl-cu12
+ Downloaded nvidia-cufft-cu12
+ Downloaded nvidia-cusolver-cu12
+ Downloaded nvidia-cusparselt-cu12
+ Downloaded nvidia-cusparse-cu12
+ Downloaded nvidia-cudnn-cu12
+ Downloaded nvidia-cublas-cu12
+ Downloaded torch
+Prepared 27 packages in 38.67s
+Installed 27 packages in 2.86s
+ + filelock==3.32.3
+ + fsspec==2026.7.0
+ + jinja2==3.1.6
+ + markupsafe==3.0.3
+ + mpmath==1.3.0
+ + networkx==3.6.1
+ + numpy==2.5.2
+ + nvidia-cublas-cu12==12.4.5.8
+ + nvidia-cuda-cupti-cu12==12.4.127
+ + nvidia-cuda-nvrtc-cu12==12.4.127
+ + nvidia-cuda-runtime-cu12==12.4.127
+ + nvidia-cudnn-cu12==9.1.0.70
+ + nvidia-cufft-cu12==11.2.1.3
+ + nvidia-curand-cu12==10.3.5.147
+ + nvidia-cusolver-cu12==11.6.1.9
+ + nvidia-cusparse-cu12==12.3.1.170
+ + nvidia-cusparselt-cu12==0.6.2
+ + nvidia-nccl-cu12==2.21.5
+ + nvidia-nvjitlink-cu12==12.4.127
+ + nvidia-nvtx-cu12==12.4.127
+ + pillow==12.3.0
+ + setuptools==78.1.0
+ + sympy==1.13.1
+ + torch==2.6.0+cu124
+ + torchvision==0.21.0+cu124
+ + triton==3.2.0
+ + typing-extensions==4.16.0
+== torch              43с
+Using Python 3.12.14 environment at: /opt/env
+Resolved 46 packages in 1.03s
+Downloading hf-xet (4.3MiB)
+Downloading tokenizers (3.0MiB)
+Downloading pymupdf (24.6MiB)
+Downloading av (34.1MiB)
+Downloading transformers (9.9MiB)
+ Downloaded tokenizers
+ Downloaded hf-xet
+ Downloaded transformers
+ Downloaded pymupdf
+ Downloaded av
+Prepared 20 packages in 2.05s
+Installed 20 packages in 733ms
+ + accelerate==1.14.0
+ + av==18.1.0
+ + certifi==2026.7.22
+ + charset-normalizer==3.5.1
+ + einops==0.8.2
+ + hf-xet==1.6.0
+ + huggingface-hub==0.36.2
+ + idna==3.19
+ + packaging==26.3
+ + psutil==7.2.2
+ + pymupdf==1.28.2
+ + pyyaml==6.0.3
+ + qwen-vl-utils==0.0.14
+ + regex==2026.7.19
+ + requests==2.34.2
+ + safetensors==0.8.0
+ + tokenizers==0.21.4
+ + tqdm==4.70.0
+ + transformers==4.51.3
+ + urllib3==2.7.0
+== колёса        4с
+веса в /models/DotsOCR
+== веса           34с
+torch 2.6.0+cu124 cuda True NVIDIA GeForce RTX 4090
+[13:58:00] === счёт: input.pdf -> outputs, повторов 1, страницы - ===
+[13:58:09] гружу модель
+Sliding Window Attention is enabled but not implemented for `sdpa`; unexpected results may be encountered.
+Using a slow image processor as `use_fast` is unset and a slow processor was saved with this model. `use_fast=True` will be the default behavior in v4.52, even if the model was saved with a slow processor. This will result in minor differences in outputs. You'll still be able to use a slow processor with `use_fast=False`.
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+flash attention not available! fallback to eager implementation 
+[13:58:12] потолок подачи 1003520 пикселей (1.00 Мпикс)
+[13:58:12] модель поднята за 3 с
+[13:58:12] страниц в файле 36, считаю 36, проходов 1
+[13:58:13]   процессор отдал ключи: ['attention_mask', 'image_grid_thw', 'input_ids', 'pixel_values']
+Setting `pad_token_id` to `eos_token_id`:151643 for open-end generation.
+/opt/env/lib/python3.12/site-packages/transformers/utils/generic.py:965: FutureWarning: Both `num_logits_to_keep` and `logits_to_keep` are set for `DotsOCRForCausalLM.forward`. Using `logits_to_keep=1` and ignoring deprecated `num_logits_to_keep=None`.
+  output = func(self, *args, **kwargs)
+Setting `pad_token_id` to `eos_token_id`:151643 for open-end generation.
+Setting `pad_token_id` to `eos_token_id`:151643 for open-end generation.
+Setting `pad_token_id` to `eos_token_id`:151643 for open-end generation.
+Setting `pad_token_id` to `eos_token_id`:151643 for open-end generation.
+Setting `pad_token_id` to `eos_token_id`:151643 for open-end generation.
+Setting `pad_token_id` to `eos_token_id`:151643 for open-end generation.
+Setting `pad_token_id` to `eos_token_id`:151643 for open-end generation.
+Setting `pad_token_id` to `eos_token_id`:151643 for open-end generation.
+Setting `pad_token_id` to `eos_token_id`:151643 for open-end generation.
+[14:01:22]   проход 0: 10/36, неразобранных 10, 191 с
+Setting `pad_token_id` to `eos_token_id`:151643 for open-end generation.
+Setting `pad_token_id` to `eos_token_id`:151643 for open-end generation.
+Setting `pad_token_id` to `eos_token_id`:151643 for open-end generation.
+Setting `pad_token_id` to `eos_token_id`:151643 for open-end generation.
+Setting `pad_token_id` to `eos_token_id`:151643 for open-end generation.
+Setting `pad_token_id` to `eos_token_id`:151643 for open-end generation.
+Setting `pad_token_id` to `eos_token_id`:151643 for open-end generation.
+Setting `pad_token_id` to `eos_token_id`:151643 for open-end generation.
+Setting `pad_token_id` to `eos_token_id`:151643 for open-end generation.
+Setting `pad_token_id` to `eos_token_id`:151643 for open-end generation.
+[14:05:00]   проход 0: 20/36, неразобранных 20, 408 с
+Setting `pad_token_id` to `eos_token_id`:151643 for open-end generation.
+Setting `pad_token_id` to `eos_token_id`:151643 for open-end generation.
+Setting `pad_token_id` to `eos_token_id`:151643 for open-end generation.
+Setting `pad_token_id` to `eos_token_id`:151643 for open-end generation.
+Setting `pad_token_id` to `eos_token_id`:151643 for open-end generation.
+Setting `pad_token_id` to `eos_token_id`:151643 for open-end generation.
+Setting `pad_token_id` to `eos_token_id`:151643 for open-end generation.
+Setting `pad_token_id` to `eos_token_id`:151643 for open-end generation.
+Setting `pad_token_id` to `eos_token_id`:151643 for open-end generation.
+Setting `pad_token_id` to `eos_token_id`:151643 for open-end generation.
+[14:08:23]   проход 0: 30/36, неразобранных 30, 611 с
+Setting `pad_token_id` to `eos_token_id`:151643 for open-end generation.
+Setting `pad_token_id` to `eos_token_id`:151643 for open-end generation.
+Setting `pad_token_id` to `eos_token_id`:151643 for open-end generation.
+Setting `pad_token_id` to `eos_token_id`:151643 for open-end generation.
+Setting `pad_token_id` to `eos_token_id`:151643 for open-end generation.
+Setting `pad_token_id` to `eos_token_id`:151643 for open-end generation.
+[14:10:37]   проход 0: 36/36, неразобранных 36, 746 с
+[14:10:37] проход 0 кончился: 36 страниц, неразобранных 36, 746 с (20.71 с/страница)
+[14:10:37] НИ ОДНА страница не разобралась — это отказ, а не пустая книга
+[14:10:39] === счёт кончился, код 3 ===
