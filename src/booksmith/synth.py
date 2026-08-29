@@ -20,10 +20,27 @@
 есть стенд воспроизводит подпись дефекта, диагностированного на настоящей
 книге. Чистая страница мерила бы не ту задачу.
 
+ИСТИНА ЗНАКОВ, А НЕ ТОЛЬКО РАМОК. Стенд рисует текст сам и знает его
+побуквенно — и до сих пор его выбрасывал: `content` был `None` у всех блоков
+всех шести книг. Теперь у блока разряда «текст»/«служебное» заполнено
+`content` (93 страницы, 1211 блоков, 393 847 знаков, 73 863 слова), а у
+таблицы — строки, столбцы и текст каждой ячейки (52 таблицы, 7743 ячейки) в
+`meta["истина артефактов"]` по номеру блока. Это единственное место проекта,
+где текст известен не со слов другой модели: прежние числа качества чтения
+аннулированы ровно за то, что мерились против вывода Mistral OCR.
+
+У АРТЕФАКТА `content` ОСТАЁТСЯ null, И ЭТО ЗНАЧЕНИЕ. Рисунок, график,
+фотография, печать и выключная формула в VLM текстом не уезжают НИ В ОДНОМ
+режиме подачи (`doc/feed.py`: `crop` шлёт картинку, `masked_page` замазывает),
+их знаки — ответ ВТОРОГО уровня, и эталон к ним лежит сбоку, а не в теле
+блока.
+
 ЧЕГО СТЕНД НЕ ДАЁТ, И ЭТО НАДО ЗНАТЬ. Он не воспроизводит высокую печать
 пятидесятых по пожелтевшей бумаге — ту, на которой читается `Laths` вместо
-`Lathes`. Он про ГЕОМЕТРИЮ и ЯРЛЫКИ, а не про чтение знаков. Для второго
-нужен золотой стенд, размеченный руками по настоящим страницам.
+`Lathes`. Знаки на нём чистые и наши, поэтому мерить им можно ВЕРНОСТЬ
+СБОРКИ (что доехало, куда встало, не потерялась ли ячейка), но не стойкость
+чтения к типографскому браку. Для второго нужен золотой стенд, размеченный
+руками по настоящим страницам.
 """
 import hashlib
 import json
@@ -59,11 +76,97 @@ class SynthError(RuntimeError):
     """Страница нарисована не так, как задумано. Роняем, а не выдаём пустую."""
 
 
+# ---------------------------------------------------------- истина ЗНАКОВ
+# Стенд сам рисует текст и знает его побуквенно — и до сих пор выбрасывал:
+# `content` был `None` у всех 4984 блоков всех шести книг. Синтетика при этом
+# ЕДИНСТВЕННОЕ место проекта, где текст известен не со слов другой модели;
+# прежние числа качества чтения аннулированы ровно за то, что мерились против
+# вывода Mistral OCR.
+#
+# ПОЧЕМУ ОТДЕЛЬНЫЙ СЛОВАРЬ, А НЕ ШЕСТОЙ ЭЛЕМЕНТ КОРТЕЖА. `truth.append((...))`
+# стоит в стенде 62 раза (37 в `synth.py`, 25 в `books/*.py`), а мест, где
+# пятёрку разбирают и пересобирают, — пять, и они РАЗНЫЕ ПО ПОВЕДЕНИЮ:
+#   молча теряют шестой  — `_measure` (собирает новую пятёрку `out.append`),
+#                          поворот `(*_rot90_box(b[:4]), b[4])` и перекос
+#                          `(*_clip_box(_xform_box(b[:4]), …), b[4])`;
+#   упали бы на распаковке — `for x0, y0, x1, y1, lab in boxes` в `_measure`
+#                          и перевод пунктов в пиксели в `build`.
+# То есть в трёх местах из пяти истина знаков исчезла бы БЕЗ ЕДИНОГО СЛОВА —
+# ровно тем способом, которым этот файл уже четырежды соврал числами,
+# выглядевшими здоровыми. Ключ — НОМЕР блока, тот же `block_id`, что в
+# `models/base.py`: «всё наблюдённое живёт сбоку и связано с блоком по его
+# номеру».
+#
+# Словарь заполняется во время отрисовки страницы и снимается сразу после неё
+# (`build` зовёт `_said_reset()` перед каждым случаем). Порядок в `truth`
+# сохраняют все четыре преобразования, поэтому номер блока = его место в
+# списке истины.
+_SAID: dict[int, dict] = {}
+
+
+def _said_reset() -> None:
+    _SAID.clear()
+
+
+def _said_take() -> dict[int, dict]:
+    out = dict(_SAID)
+    _SAID.clear()
+    return out
+
+
+def _say(truth, text=None, *, cells=None, spans=None, add=False):
+    """Записать истину знаков ПОСЛЕДНЕМУ добавленному блоку истины.
+
+    Зовётся вплотную за `truth.append((...))` — тогда номер блока это
+    `len(truth) - 1`, и связь не зависит ни от чего больше. Разрыв этой
+    вплотности и есть единственный способ соврать здесь, поэтому повторная
+    запись в тот же номер без `add=True` падает: молча затёртая истина знаков
+    неотличима от её отсутствия.
+    """
+    if not truth:
+        raise SynthError("_say позван раньше, чем добавлена рамка истины")
+    i = len(truth) - 1
+    rec = _SAID.get(i)
+    if rec is not None and not add:
+        raise SynthError(
+            f"истина знаков блока {i} ({truth[i][4]}) переписывается второй "
+            f"раз: было {rec!r}, стало {text!r}. Либо `_say` отстал от "
+            f"`append` на блок, либо надо add=True")
+    if rec is None:
+        rec = {}
+        _SAID[i] = rec
+    if text is not None:
+        t = " ".join(str(text).split())
+        rec["текст"] = (rec["текст"] + " " + t).strip() if add and "текст" in rec else t
+    if cells is not None:
+        rec["строк"] = len(cells)
+        rec["столбцов"] = max((len(r) for r in cells), default=0)
+        rec["ячейки"] = [[" ".join(str(c).split()) for c in row] for row in cells]
+    if spans is not None:
+        rec["объединения"] = spans
+    return rec
+
+
 def _fill(pg, rect, text, size, font="F"):
-    """Наполнить рамку прозой ДО ОТКАЗА и убедиться, что она нарисована.
+    """Наполнить рамку прозой ДО ОТКАЗА и вернуть НАРИСОВАННОЕ.
 
     Проверка кода возврата здесь не педантизм: без неё рамка остаётся пустой
     молча, и стенд меряет чистую бумагу, считая, что меряет прозу.
+
+    Возвращается ТЕЛО, а не остаток высоты: остаток не читал никто (проверено
+    по всем десяти вызовам), а тело — единственный способ узнать, что именно
+    легло в рамку, и записать это истиной знаков.
+
+    ЧТО ЗДЕСЬ ЗНАТЬ ПРО ТЕКСТОВЫЙ СЛОЙ. Заходов рисующих БОЛЬШЕ ОДНОГО: при
+    `rc > size*1.4` тело удлиняется и `insert_textbox` зовётся снова, поверх
+    уже нарисованного. Замер на одной рамке 210x80 пт: два рисующих захода,
+    108 слов в теле и 175 слов в текстовом слое PDF. Совпадающая часть ложится
+    знак в знак (разбивка строк у продолженного текста та же), расходится
+    только последняя строка каждого промежуточного захода — её выключка
+    меняется, когда ниже появляется ещё строка. Для растра это смазанная
+    строка, для текстового слоя — призраки. Поэтому сверка истины с
+    `page.get_text()` считает призраков ОТДЕЛЬНЫМ числом и не прячет их в
+    расхождение.
     """
     import pymupdf
     body = text
@@ -78,15 +181,16 @@ def _fill(pg, rect, text, size, font="F"):
         if rc > size * 1.4 and len(body) < len(text) * 12:
             body = body + text
             continue
-        return rc
+        return body
     raise SynthError(f"не сошлось наполнение рамки {rect}")
 
 
 def _columns(pg, truth, x, y, width, heights, prose, size=6.6):
     for n in heights:
         r = _rect(x, y, x + width, y + n)
-        _fill(pg, r, prose, size)
+        body = _fill(pg, r, prose, size)
         truth.append((x, y, x + width, y + n, "text"))
+        _say(truth, body)
         y += n + 7
     return y
 
@@ -105,13 +209,17 @@ def _table(pg, truth, x, y, cols, rows, size=6.4, label="table",
     встречаются, и разница между ними обязана быть видна числом, а не
     предполагаться.
     """
+    grid = [[c for c, _cx in cols]]
     for c, cx in cols:
         pg.insert_text((cx, y), c, fontname="F", fontsize=size)
     for r in range(rows):
+        row = []
         for j, (_c, cx) in enumerate(cols):
-            pg.insert_text((cx, y + 10 + r * step),
-                           f"0 to .00{(r + j) % 7 + 2}\"",
+            cell = f"0 to .00{(r + j) % 7 + 2}\""
+            pg.insert_text((cx, y + 10 + r * step), cell,
                            fontname="F", fontsize=size)
+            row.append(cell)
+        grid.append(row)
     x1 = cols[-1][1] + colw
     y1 = y + 10 + (rows - 1) * step + 4
     if ruled:
@@ -123,6 +231,9 @@ def _table(pg, truth, x, y, cols, rows, size=6.4, label="table",
                          _rect(cx - 8, y - 8, cx - 8, y1).bl,
                          color=(0, 0, 0), width=0.4)
     truth.append((x - 6, y - 8, x1, y1, label))
+    # Шапка ПЕРВОЙ строкой сетки: в HTML она станет `th`, и без неё второй
+    # уровень нечем поймать на потере шапки — самой частой порче таблицы.
+    _say(truth, cells=grid)
     return y1 + 6
 
 
@@ -147,6 +258,12 @@ def _chart(pg, truth, x, y, w, h, caption="Fig. 9  Hardness vs carbon"):
     for i in range(6):
         pg.insert_text((x - 12, y + h - i * h / 5.0), str(i * 20),
                        fontname="F", fontsize=5.2)
+    # Числа на оси нарисованы ВНУТРИ рамки графика и своей рамки не имеют:
+    # график уезжает во второй уровень картинкой целиком (`doc/feed.py`:
+    # артефакт не уходит в VLM текстом ни в режиме `crop`, ни в
+    # `masked_page`), и знаки на нём — его собственное содержимое, а не текст
+    # страницы. Поэтому `content` у него остаётся null, и это ЗНАЧЕНИЕ, а не
+    # пропуск: истина знаков графика — задача второго уровня.
     truth.append((x - 14, y - 4, x + w + 4, y + h + 6, "chart"))
     _caption(pg, truth, x + 10, y + h + 18, caption)
     return y + h + 24
@@ -197,6 +314,8 @@ def _figure(pg, truth, x, y, w, h, caption="Fig. 26.67  General arrangement"):
         pg.draw_line(pymupdf.Point(sx, yd), pymupdf.Point(sx + 4 * d, yd + 2),
                      color=(0, 0, 0), width=0.4)
     pg.insert_text((cx - 8, yd - 3), "A-A", fontname="F", fontsize=5.0)
+    # «A-A» на чертеже — его собственная надпись, не текст страницы: рисунок
+    # едет во второй уровень картинкой, `content` у него null по существу.
     truth.append((x, y, x + w, y + h, "image"))
     _caption(pg, truth, x + 10, y + h + 12, caption)
     return y + h + 16
@@ -220,6 +339,7 @@ def _caption(pg, truth, x, y, text, size=6.2, label="figure_title"):
     pg.insert_text((x, y), text, fontname="F", fontsize=size)
     truth.append((x - 2, y - size - 1, x + _text_w(text, size) + 2, y + 2,
                   label))
+    _say(truth, text)
     return y + size + 2
 
 
@@ -264,6 +384,10 @@ def _stamp(pg, truth, x, y, r=34.0):
     pg.insert_text((x - r * 0.42, y + 11), "No. 4187", fontname="F",
                    fontsize=5.0, color=(0.25, 0.25, 0.25))
     truth.append((R.x0, R.y0, R.x1, R.y1, "seal"))
+    # Печать — артефакт (уезжает картинкой), поэтому её знаки не в `content`,
+    # а в истине артефактов сбоку: второй уровень обязан прочесть их с
+    # картинки, и без записанного эталона проверить это нечем.
+    _say(truth, "BIBLIOTEKA No. 4187")
     return R.y1
 
 
@@ -273,13 +397,21 @@ def _leader_table(pg, truth, x, y, rows, w=230.0, size=6.4, label="table"):
     Ровно то, чем оглавление отличается от таблицы ОДНИМ признаком, и модель
     на этом путается. Здесь это ТАБЛИЦА, в `contents_dots` — оглавление.
     """
+    grid = []
     for i in range(rows):
         yy = y + i * 9.4
         name = f"Bearing bronze {i + 3}"
         pg.insert_text((x, yy), name + " " + "." * 28, fontname="F", fontsize=size)
         pg.insert_text((x + w - 26, yy), f"{12 + i * 3}.{i % 9}", fontname="F",
                        fontsize=size)
+        # ТОЧКИ ВЫНОСКИ В ЯЧЕЙКУ НЕ ВХОДЯТ, и это решение, а не небрежность:
+        # выноска — типографская линейка, набранная точкой, она стоит МЕЖДУ
+        # двумя ячейками и не принадлежит ни одной. Записав её в ячейку, мы
+        # обязали бы второй уровень выдать двадцать восемь точек, чтобы
+        # «совпасть», то есть штрафовали бы за верный ответ.
+        grid.append([name, f"{12 + i * 3}.{i % 9}"])
     truth.append((x - 4, y - 8, x + w, y + (rows - 1) * 9.4 + 4, label))
+    _say(truth, cells=grid)
     return y + (rows - 1) * 9.4 + 10
 
 
@@ -287,6 +419,7 @@ def _span_header_table(pg, truth, x, y, groups, rows, colw=54.0, size=6.2):
     """Шапка в два яруса со сквозной ячейкой над группой столбцов."""
     cols = []
     cx = x
+    top, second, spans = [], [], []
     for name, n in groups:
         span = n * colw
         pg.insert_text((cx + span / 2 - len(name) * 1.6, y), name,
@@ -294,17 +427,31 @@ def _span_header_table(pg, truth, x, y, groups, rows, colw=54.0, size=6.2):
         pg.draw_line(_rect(cx, y + 3, cx + span - 8, y + 3).tl,
                      _rect(cx, y + 3, cx + span - 8, y + 3).tr,
                      color=(0, 0, 0), width=0.4)
+        # Сквозная ячейка выражается ПАРОЙ: имя в первой клетке группы, пустые
+        # в остальных, и отдельная запись «строка 0, столбец c, ширина n».
+        # Одной сеткой это не выразить, а без второй записи двухъярусная шапка
+        # неотличима от обычной — то есть главная порча этого случая
+        # («шапка сплющена в одну строку») не ловится вовсе.
+        spans.append({"строка": 0, "столбец": len(cols), "столбцов": n})
         for j in range(n):
             cols.append(cx + j * colw)
+            top.append(name if j == 0 else "")
+            second.append(f"d{j + 1}")
             pg.insert_text((cx + j * colw, y + 13), f"d{j + 1}", fontname="F",
                            fontsize=size)
         cx += span
+    grid = [top, second]
     for r in range(rows):
+        row = []
         for j, ccx in enumerate(cols):
-            pg.insert_text((ccx, y + 25 + r * 9.0), f"{(r * 3 + j) % 90 + 10}.{j}",
+            cell = f"{(r * 3 + j) % 90 + 10}.{j}"
+            pg.insert_text((ccx, y + 25 + r * 9.0), cell,
                            fontname="F", fontsize=size)
+            row.append(cell)
+        grid.append(row)
     y1 = y + 25 + (rows - 1) * 9.0 + 4
     truth.append((x - 5, y - 9, cols[-1] + colw - 8, y1, "table"))
+    _say(truth, cells=grid, spans=spans)
     return y1 + 6
 
 
@@ -381,6 +528,7 @@ def _entries(pg, truth, x, y, y_end, w, sheet_w, words, size=5.8,
         if y + step * len(lines) > y_end:
             break
         y0 = y
+        drawn = []
         for k, ln in enumerate(lines):
             xx = x + (hang if k else 0)
             if k == 0 and bold_head:
@@ -388,12 +536,19 @@ def _entries(pg, truth, x, y, y_end, w, sheet_w, words, size=5.8,
                 # выделяем гнездо разрядкой — она видна и не требует шрифта.
                 sp = " ".join(head)
                 wl = _put(pg, xx, y, sp, size, sheet_w=sheet_w)
-                _put(pg, xx + wl + 2, y, ln[len(head):].lstrip(), size,
-                     sheet_w=sheet_w)
+                rest = ln[len(head):].lstrip()
+                _put(pg, xx + wl + 2, y, rest, size, sheet_w=sheet_w)
+                # Истина — то, что НАРИСОВАНО, побуквенно: разрядка «A b u t»
+                # так и записывается. Записать сюда логическое «Abutment»
+                # значило бы объявить расхождение с бумагой нормой, а тогда
+                # сверка с текстовым слоем перестаёт быть проверкой.
+                drawn.append(sp + " " + rest)
             else:
                 _put(pg, xx, y, ln, size, sheet_w=sheet_w)
+                drawn.append(ln)
             y += step
         truth.append((x - 1, y0 - size, x + w, y - step + 2, label))
+        _say(truth, " ".join(drawn))
         y += step * 0.55
         n += 1
     return y
@@ -409,14 +564,17 @@ def _running_head(pg, truth, x0, x1, y, left, right, page_no, size=5.6,
     # гранулярности.
     wl = _put(pg, x0, y, left, size, sheet_w=x1 + 40)
     truth.append((x0 - 2, y - size - 1, x0 + wl + 2, y + 2, "header"))
+    _say(truth, left)
     wr = _put(pg, 0, y, right, size, right=x1, sheet_w=x1 + 40)
     truth.append((x1 - wr - 2, y - size - 1, x1 + 2, y + 2, "header"))
+    _say(truth, right)
     if rule:
         _line(pg, x0, y + 4, x1, y + 4, 0.6)
     w = _put(pg, (x0 + x1) / 2 - 6, y + 16, str(page_no), size,
              sheet_w=x1 + 40)
     truth.append(((x0 + x1) / 2 - 8, y + 16 - size - 1,
                   (x0 + x1) / 2 - 6 + w + 2, y + 18, "number"))
+    _say(truth, str(page_no))
 
 
 def _formula(pg, truth, x, y, text, size=8.5, number=None, right=None,
@@ -429,10 +587,15 @@ def _formula(pg, truth, x, y, text, size=8.5, number=None, right=None,
             f"стенд померит квадратики вместо формулы")
     w = _put(pg, x, y, text, size, font="M", sheet_w=sheet_w)
     truth.append((x - 3, y - size - 1, x + w + 3, y + 3, "display_formula"))
+    # Выключная формула по политике АРТЕФАКТ (вырезается картинкой), поэтому
+    # её знаки живут не в `content`, а в истине артефактов: `content` у
+    # артефакта null во всех книгах, и это одно правило без исключений.
+    _say(truth, text)
     if number is not None and right is not None:
         nw = _put(pg, 0, y, number, size - 2, right=right, sheet_w=sheet_w)
         truth.append((right - nw - 2, y - size + 1, right + 2, y + 2,
                       "formula_number"))
+        _say(truth, number)
     return y + size * 1.9
 
 
@@ -441,10 +604,14 @@ def _matrix(pg, truth, x, y, rows, cols, size=6.6, kind="matrix",
     """Матрица или определитель в скобках: главная ловушка ярлыка
     `display_formula` против `table` — на глаз это сетка чисел."""
     step, colw = size * 1.55, size * 3.4
+    drawn = []
     for r in range(rows):
+        row = []
         for c in range(cols):
             _put(pg, x + 10 + c * colw, y + r * step,
                  f"a{r + 1}{c + 1}", size, font="M", sheet_w=sheet_w)
+            row.append(f"a{r + 1}{c + 1}")
+        drawn.append(" ".join(row))
     x1 = x + 10 + (cols - 1) * colw + _text_w("a11", size, "M") + 8
     y1 = y + (rows - 1) * step + 3
     if kind == "matrix":                      # круглые скобки штрихами
@@ -456,6 +623,11 @@ def _matrix(pg, truth, x, y, rows, cols, size=6.6, kind="matrix",
         _line(pg, x + 4, y - size, x + 4, y1, 0.7)
         _line(pg, x1, y - size, x1, y1, 0.7)
     truth.append((x, y - size - 4, x1 + 5, y1 + 4, "display_formula"))
+    # Сетка чисел записана СТРОКАМИ, а не ячейками: это ловушка ярлыка, и
+    # истина обязана говорить «одна формула», а не «таблица rows x cols». Если
+    # записать её сеткой, стенд сам подскажет второму уровню тот ответ,
+    # ошибочность которого он и должен ловить.
+    _say(truth, " ; ".join(drawn))
     return y1 + size * 1.4
 
 
@@ -464,8 +636,9 @@ def _box_insert(pg, truth, x, y, w, h, prose, size=5.8, title="ВРЕЗКА"):
     import pymupdf
     pg.draw_rect(pymupdf.Rect(x, y, x + w, y + h), color=(0, 0, 0), width=0.8)
     _put(pg, x + 8, y + 12, title, size + 1, sheet_w=x + w)
-    _fill(pg, _rect(x + 8, y + 18, x + w - 8, y + h - 6), prose, size)
+    body = _fill(pg, _rect(x + 8, y + 18, x + w - 8, y + h - 6), prose, size)
     truth.append((x, y, x + w, y + h, "text"))
+    _say(truth, title + " " + body)
     return y + h + 8
 
 
@@ -474,15 +647,18 @@ def _refs(pg, truth, x, y, y_end, w, sheet_w, size=5.6, start=1):
     step = size * 1.3
     n = start
     y0 = y
+    drawn = []
     while y < y_end - step:
         ln = (f"[{n}] Ivanov A. B. Machine tool design, vol. {n}. "
               f"Moscow, {1950 + n}, p. {40 + n * 7}.")
         while _text_w(ln, size) > w:
             ln = ln[:-2]
         _put(pg, x, y, ln, size, sheet_w=sheet_w)
+        drawn.append(ln)
         y += step
         n += 1
     truth.append((x - 2, y0 - size, x + w, y - step + 2, "reference_content"))
+    _say(truth, " ".join(drawn))
     return y
 
 
@@ -512,6 +688,11 @@ def _frame_stamp(pg, truth, x0, y0, x1, y1, title="GENERAL ARRANGEMENT",
          sheet_w=x1)
     _put(pg, sx + sw * 0.62 + 4, sy + 11 + 2 * sh / 3, "1953", 5.2, sheet_w=x1)
     truth.append((sx, sy, sx + sw, sy + sh, "table"))
+    # Основная надпись — сетка 3x2 без шапки: в ней нет строки заголовков,
+    # и записать первую строку как шапку значило бы соврать структурой.
+    _say(truth, cells=[[title[:22], f"No. {no}"],
+                       ["Scale 1:2", "Drawn A.B."],
+                       ["Sheet 1 of 3", "1953"]])
     return sx, sy
 
 
@@ -598,8 +779,9 @@ def _flow(pg, t, x, y, y_end, prose, w=COLW, size=6.6, gap=8.0):
     n = 0
     while y < y_end - 24:
         h = min(y_end - y, 34 + (n * 17) % 62)
-        _fill(pg, _rect(x, y, x + w, y + h), prose, size)
+        body = _fill(pg, _rect(x, y, x + w, y + h), prose, size)
         t.append((x, y, x + w, y + h, "text"))
+        _say(t, body)
         y += h + gap
         n += 1
     return y
@@ -618,6 +800,7 @@ def c_two_columns(doc, rng):
     _flow(pg, t, COL_X[1], y2 + 132, BOT, PROSE_EN)
     pg.insert_text((PW / 2 - 8, BOT + 18), "307", fontname="F", fontsize=6.4)
     t.append((PW / 2 - 10, BOT + 11, PW / 2 + 10, BOT + 20, "number"))
+    _say(t, "307")
     return pg, t
 
 
@@ -647,6 +830,7 @@ def c_three_column_table(doc, rng):
     for i, x in enumerate((MARGIN + 6, MARGIN + 158, MARGIN + 310)):
         pg.insert_text((x, 214), f"TABLE {i + 1}", fontname="F", fontsize=6.0)
         t.append((x - 4, 206, x + 46, 217, "paragraph_title"))
+        _say(t, f"TABLE {i + 1}")
         _table(pg, t, x, 236, [(f"Col {i+1}", x), ("inc.", x + 46)], 9,
                colw=46)
     _flow(pg, t, MARGIN, 380, BOT, PROSE_EN, w=2 * COLW + GUT)
@@ -657,9 +841,11 @@ def c_formula_next_to_table(doc, rng):
     """Формула блоком рядом с таблицей: ошибка ЯРЛЫКА при верной рамке (стр. 40)."""
     pg = _page(doc); t = []
     _flow(pg, t, MARGIN, TOP, 180, PROSE_EN, w=2 * COLW + GUT)
-    for i, s in enumerate(("s = (a + b) / 2c", "R = 4 s^2 / (h - k)")):
+    lines = ("s = (a + b) / 2c", "R = 4 s^2 / (h - k)")
+    for i, s in enumerate(lines):
         pg.insert_text((160, 210 + i * 16), s, fontname="M", fontsize=8.5)
     t.append((156, 198, 340, 230, "display_formula"))
+    _say(t, " ; ".join(lines))
     _table(pg, t, MARGIN + 6, 260, [("d, mm", MARGIN + 6), ("R, MPa", MARGIN + 90),
                                     ("K", MARGIN + 174)], 6)
     _flow(pg, t, MARGIN, 380, BOT, PROSE_EN, w=2 * COLW + GUT)
@@ -671,15 +857,21 @@ def c_contents_dots(doc, rng):
     pg = _page(doc); t = []
     pg.insert_text((PW / 2 - 30, TOP + 14), "CONTENTS", fontname="F", fontsize=12)
     t.append((PW / 2 - 34, TOP + 2, PW / 2 + 34, TOP + 18, "doc_title"))
+    _say(t, "CONTENTS")
     y = TOP + 40
+    drawn = []
     while y < BOT:
         name = f"Sec. 26.{int(y)}  Lead Screw Alignment and Bed Ways"
         pg.insert_text((MARGIN + 6, y), name + " " + "." * 46,
                        fontname="F", fontsize=6.6)
         pg.insert_text((PW - MARGIN - 26, y), str(100 + int(y) % 400),
                        fontname="F", fontsize=6.6)
+        # Точки выноски — та же типографская линейка, что в `_leader_table`, и
+        # в истину знаков не идут по той же причине.
+        drawn.append(f"{name} {100 + int(y) % 400}")
         y += 10.5
     t.append((MARGIN + 2, TOP + 32, PW - MARGIN, y - 4, "content"))
+    _say(t, " ".join(drawn))
     return pg, t
 
 
@@ -741,6 +933,7 @@ def _half(pg, t, x0, rng, kind):
         _flow(pg, t, cx[1], y2 + 132, BOT, PROSE_EN)
     pg.insert_text((x0 + PW / 2 - 8, BOT + 18), "307", fontname="F", fontsize=6.4)
     t.append((x0 + PW / 2 - 10, BOT + 11, x0 + PW / 2 + 10, BOT + 20, "number"))
+    _say(t, "307")
 
 
 def c_spread(doc, rng):
@@ -770,6 +963,7 @@ def c_spread_rotated(doc, rng):
            [(f"Col {i}", MARGIN + 6 + i * 118) for i in range(8)], 34)
     pg.insert_text((PW - 20, BOT + 18), "308-309", fontname="F", fontsize=6.4)
     t.append((PW - 24, BOT + 11, PW + 20, BOT + 20, "number"))
+    _say(t, "308-309")
     return pg, t
 
 
@@ -899,6 +1093,7 @@ def c_table_two_side_by_side(doc, rng):
     for k, x0 in enumerate((MARGIN + 6, PW / 2 + 24)):
         pg.insert_text((x0, 272), f"TABLE {k + 1}", fontname="F", fontsize=7.4)
         t.append((x0 - 3, 264, x0 + 44, 276, "paragraph_title"))
+        _say(t, f"TABLE {k + 1}")
         _table(pg, t, x0, 292, _grid(x0, 2, colw=64), 14, colw=64)
     _flow(pg, t, MARGIN, 460, BOT, PROSE_EN, w=2 * COLW + GUT)
     return pg, t
@@ -913,6 +1108,7 @@ def c_table_two_stacked(doc, rng):
         pg.insert_text((MARGIN + 6, y), f"TABLE {k + 4}.  Shaft fits",
                        fontname="F", fontsize=7.0)
         t.append((MARGIN + 3, y - 8, MARGIN + 3 + 96, y + 4, "paragraph_title"))
+        _say(t, f"TABLE {k + 4}.  Shaft fits")
         y = _table(pg, t, MARGIN + 6, y + 22, _grid(MARGIN + 6, 5, colw=84), 11,
                    colw=84) + 26
     _flow(pg, t, MARGIN, y, BOT, PROSE_EN, w=2 * COLW + GUT)
@@ -991,13 +1187,17 @@ def c_marginalia(doc, rng):
     pg = _page(doc); t = []
     for y0, y1 in ((TOP, 300), (320, 560), (580, BOT)):
         r = _rect(MARGIN, y0, MARGIN + COLW + GUT + 30, y1)
-        _fill(pg, r, PROSE_EN, 6.6)
+        body = _fill(pg, r, PROSE_EN, 6.6)
         t.append((MARGIN, y0, MARGIN + COLW + GUT + 30, y1, "text"))
+        _say(t, body)
     xm = MARGIN + COLW + GUT + 46
     for k, y0 in enumerate((TOP + 20, 260, 470, 640)):
         r = _rect(xm, y0, PW - MARGIN, y0 + 60)
-        _fill(pg, r, "Note. See Sec. 26 for the tolerance grades used here. ", 5.6)
+        body = _fill(pg, r,
+                     "Note. See Sec. 26 for the tolerance grades used here. ",
+                     5.6)
         t.append((xm, y0, PW - MARGIN, y0 + 60, "aside_text"))
+        _say(t, body)
     return pg, t
 
 
@@ -1010,11 +1210,15 @@ def c_footnotes_rule(doc, rng):
                  color=(0, 0, 0), width=0.5)
     for k in range(3):
         r = _rect(MARGIN, 598 + k * 26, MARGIN + 2 * COLW + GUT, 620 + k * 26)
-        _fill(pg, r, f"{k + 1} Trans. A.S.M.E., vol. 61, p. {120 + k * 7}. ", 5.6)
+        body = _fill(pg, r,
+                     f"{k + 1} Trans. A.S.M.E., vol. 61, p. {120 + k * 7}. ",
+                     5.6)
         t.append((MARGIN, 598 + k * 26, MARGIN + 2 * COLW + GUT, 620 + k * 26,
                   "footnote"))
+        _say(t, body)
     pg.insert_text((PW / 2 - 6, BOT + 14), "417", fontname="F", fontsize=6.4)
     t.append((PW / 2 - 8, BOT + 6, PW / 2 + 12, BOT + 17, "number"))
+    _say(t, "417")
     return pg, t
 
 
@@ -1346,6 +1550,107 @@ def _measure(img, boxes, case: str):
     return out
 
 
+def _text_check(words, boxes, said, case: str):
+    """Сверить истину знаков с ТЕКСТОВЫМ СЛОЕМ PDF по той же странице.
+
+    Зачем вообще возможна такая сверка. Синтетические страницы РИСУЮТСЯ, а не
+    сканируются, поэтому у чистой страницы есть текстовый слой, и он — второй,
+    независимый от нашего учёта свидетель: `_say` пишет то, что мы СОБИРАЛИСЬ
+    нарисовать, `page.get_text("words")` отдаёт то, что в страницу реально
+    легло. Прежде такого свидетеля не было ни у чего: `_measure` держит только
+    одну сторону («рамка без чернил падает»), а знаков не проверял никто, их
+    и не было.
+
+    ЧЕТЫРЕ ЧИСЛА, И ОНИ РАЗНЫЕ ПО СМЫСЛУ — это то же правило, что «ноль от
+    проверки и ноль от непонимания разные нули», применённое к знакам:
+
+    `нет в слое` — истина объявляет слово, которого на бумаге нет. Единственная
+    настоящая тревога: так выглядит рамка, объявленная богаче нарисованного.
+
+    `вне истины` — слово нарисовано, но не накрыто НИ ОДНОЙ рамкой истины.
+    Часть таких слов нарочна (номера строк каталога стоят левее рамки таблицы),
+    поэтому число печатается, а не запрещается: молчащий счётчик здесь врал бы
+    тем же способом, которым «глав 0» врало про четыре книги сразу.
+
+    `призраков` — слово в рамке, повторяющее уже объявленное. Источник известен
+    и померен: `insert_textbox` зовётся по нескольку раз на одну рамку (30
+    рисующих заходов на 20 рамок страницы `no_artefacts`), и в текстовом слое
+    лежат ВСЕ черновики. Проверено прямо: множество слов слоя совпало с
+    множеством слов всех черновиков ровно, 2198 против 2198, необъяснённых 0.
+
+    `необъяснённых` — слово в рамке, которого в истине нет вовсе и повтором оно
+    не объясняется. Ноль — норма, ненулевое обязано быть НАЗВАНО, и потому
+    примеры печатаются рядом с числом. Один такой уже найден и стоит того,
+    чтобы его знать: `marginalia` несёт на бумаге обрывок `sc`. Это `_fill`
+    обрезал тело по `len*0.9` посреди слова `screw`, черновик с обрывком
+    НАРИСОВАЛСЯ, а следующий заход дописал текст встык — обрывок остался на
+    бумаге, в истине его нет, и до этой сверки его не видел никто.
+
+    ЧЕГО ЭТИ ЧИСЛА НЕ ЛОВЯТ, И ЭТО НАДО ЗНАТЬ. Потерянное истиной слово,
+    которое в блоке ВСТРЕЧАЕТСЯ ЕЩЁ РАЗ, уходит в `призраков`, а не в
+    `необъяснённых`: замер мутацией показал 8 из 16 отброшенных последних слов
+    именно там. На прозе, где слова повторяются, слепое пятно тем шире, чем
+    длиннее блок.
+
+    Сверяются ТОЛЬКО блоки разряда «текст» и «служебное»: у артефакта знаков в
+    `content` нет по построению — он уезжает во второй уровень картинкой.
+    """
+    from collections import Counter
+    from . import policy
+
+    inside = [[] for _ in boxes]
+    outside = []
+    for x0, y0, x1, y1, w in words:
+        cx, cy = (x0 + x1) / 2.0, (y0 + y1) / 2.0
+        # Из накрывающих берётся САМАЯ МЕЛКАЯ: рамки вкладываются (основная
+        # надпись внутри поля чертежа, подпись рядом с рисунком), и «первая по
+        # списку» отдала бы слово внешней рамке, то есть считала бы не то.
+        best, area = None, None
+        for j, b in enumerate(boxes):
+            if b[0] <= cx <= b[2] and b[1] <= cy <= b[3]:
+                a = (b[2] - b[0]) * (b[3] - b[1])
+                if area is None or a < area:
+                    best, area = j, a
+        if best is None:
+            outside.append(w)
+        else:
+            inside[best].append(w)
+
+    miss = ghost = unknown = leaders = 0
+    примеры = []
+    for j, b in enumerate(boxes):
+        if policy.role(b[4]) == "артефакт":
+            continue
+        have = Counter(inside[j])
+        want = Counter((said.get(j, {}).get("текст") or "").split())
+        m = want - have
+        e = have - want
+        miss += sum(m.values())
+        for w, n in e.items():
+            if w in want:
+                ghost += n
+            elif len(w) >= 4 and set(w) == {"."}:
+                # ТОЧЕЧНАЯ ВЫНОСКА — не слово. Сплошной ряд точек между именем
+                # и номером страницы это типографская линейка, набранная
+                # точкой; в ячейку и в текст она не входит (см. решение в
+                # `_leader_table`). Своим числом, а не в «необъяснённых»:
+                # иначе шестьдесят выносок оглавления навсегда держали бы
+                # тревожный счётчик ненулевым и прятали бы в себе настоящую
+                # находку.
+                leaders += n
+            else:
+                unknown += n
+                if len(примеры) < 4:
+                    примеры.append(f"{b[4]}#{j}: {w!r}")
+        if m and len(примеры) < 4:
+            примеры.append(f"{b[4]}#{j}: нет в слое {list(m)[:3]}")
+    return {"слов в слое": len(words), "нет в слое": miss,
+            "вне истины": len(outside), "призраков": ghost,
+            "выносок": leaders, "необъяснённых": unknown,
+            "слова вне истины": sorted(set(outside))[:8],
+            "примеры расхождений": примеры}
+
+
 def build(out_dir: str, cases=None, seed: int = 1, aging: str = "old",
           book: str = "spravochnik", log=print) -> dict:
     """Сложить синтетическую книгу: PDF плюс точная истина к каждой странице.
@@ -1392,7 +1697,21 @@ def build(out_dir: str, cases=None, seed: int = 1, aging: str = "old",
         page_seed = seed ^ (int.from_bytes(
             hashlib.blake2b(f"{book}/{name}".encode(), digest_size=4).digest(),
             "big") & 0x7FFFFFFF)
+        _said_reset()
         pg, t = B_CASES[name](doc, np.random.default_rng(page_seed))
+        said = _said_take()
+        # Текстовый слой берётся с ЧИСТОЙ страницы и до `doc.close()`: после
+        # растеризации и старения его уже нет, страница становится картинкой.
+        # Координаты в пунктах — переводим тем же k, что и рамки истины.
+        raw_words = [(w[0] * DPI / 72.0, w[1] * DPI / 72.0,
+                      w[2] * DPI / 72.0, w[3] * DPI / 72.0, w[4])
+                     for w in pg.get_text("words")]
+        bad_id = [j for j in said if j >= len(t)]
+        if bad_id:
+            raise SynthError(
+                f"{name}: истина знаков записана блокам {bad_id}, а рамок "
+                f"истины всего {len(t)}. `_say` отстал от `truth.append` — "
+                f"связь по номеру блока порвана, и знаки уехали бы не туда")
         pix = pg.get_pixmap(dpi=int(DPI))
         img = cv2.cvtColor(
             np.frombuffer(pix.samples, np.uint8)
@@ -1405,6 +1724,57 @@ def build(out_dir: str, cases=None, seed: int = 1, aging: str = "old",
         k = DPI / 72.0
         boxes = [(x0 * k, y0 * k, x1 * k, y1 * k, lab) for x0, y0, x1, y1, lab in t]
         boxes = _measure(img, boxes, name)
+        if len(boxes) != len(t):
+            raise SynthError(
+                f"{name}: `_measure` вернул {len(boxes)} рамок против {len(t)} "
+                f"объявленных — номера блоков поехали, и истина знаков легла "
+                f"бы на чужие рамки")
+        # Сверка по ЧИСТОЙ странице и по ИЗМЕРЕННЫМ рамкам: старение сюда не
+        # входит (текстового слоя после растеризации нет вовсе), поворот тоже
+        # (он ниже, и слова пришлось бы вертеть теми же двумя матрицами без
+        # всякой пользы для числа).
+        сверка = _text_check(raw_words, boxes, said, name)
+
+        # ВТОРАЯ СТОРОНА ТОЙ ЖЕ ПРОВЕРКИ: чернила БЕЗ рамки истины.
+        # `_measure` держит одну сторону — рамки истины без чернил под ними
+        # нет, и она роняет сборку. Обратной стороны не держало НИЧТО: что
+        # нарисовано и не объявлено, стенд молчал об этом, а число выходило
+        # здоровым на вид. Так и вышло: `contents_dots` объявлял под словом
+        # «CONTENTS» рамку 68 пт при ширине слова 73 пт, и последняя литера
+        # оставалась вне истины (пятно 13x18 px = 93 px). Это та же
+        # «константа, набранная на глаз», что уже стоила ложного обвинения
+        # модели на `formula_next_to_table`; рамка там теперь кладётся по мере
+        # (`_text_w`, как в `_caption`), и число упало 93 -> 0.
+        #
+        # ЧИСЛО, А НЕ ЗАПРЕТ, И НЕ АМНИСТИЯ. Часть чернил вне истины
+        # нарисована НАРОЧНО: рамка чертежа по краю листа (17030 px на трёх
+        # страницах атласа), линейка под колонтитулом, линейка над сносками,
+        # межколонные линейки словаря. Поля «вне замера», как у annopage, тут
+        # нет и не будет: там амнистию задаёт ЧУЖАЯ разметка библиотекаря,
+        # категорию которой не выражает наш словарь, а здесь рисовали мы —
+        # прощать модели свою же рамку значило бы решать за неё, где ей
+        # позволено ошибиться. Замер и показывает, что прощать нечего: рамка
+        # во весь лист съедает и поле чертежа, и основную надпись, а такую
+        # `metrics` не милует ни при какой разметке (счётчик «на объекте вне
+        # замера» требует, чтобы рамка накрыла меньше двух артефактов истины).
+        # Поэтому здесь считается ВЕЛИЧИНА и печатается в журнал: пятно,
+        # выросшее без объявления, видно с первой же сборки.
+        left = (cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) < INK).astype(np.uint8)
+        for bx in boxes:
+            left[max(0, int(bx[1])):int(round(bx[3])),
+                 max(0, int(bx[0])):int(round(bx[2]))] = 0
+        n_spots, _lbl, stats, _ctr = cv2.connectedComponentsWithStats(left, 8)
+        spot = max((stats[j] for j in range(1, n_spots)),
+                   key=lambda r: r[cv2.CC_STAT_AREA], default=None)
+        undecl = {"пикселей": int(left.sum()), "крупнейшее пятно": None}
+        spot_box = None
+        if spot is not None:
+            sx, sy = int(spot[cv2.CC_STAT_LEFT]), int(spot[cv2.CC_STAT_TOP])
+            sw, sh = int(spot[cv2.CC_STAT_WIDTH]), int(spot[cv2.CC_STAT_HEIGHT])
+            undecl["крупнейшее пятно"] = {
+                "площадь": int(spot[cv2.CC_STAT_AREA]),
+                "размер на чистом растре": [sw, sh], "рамка": None}
+            spot_box = (sx, sy, sx + sw, sy + sh)
 
         # Тень переплёта — ДО поворота. Корешок делит РАЗВОРОТ пополам, а не
         # растр: у повёрнутой на 90° страницы он идёт поперёк листа. Прежняя
@@ -1419,6 +1789,16 @@ def build(out_dir: str, cases=None, seed: int = 1, aging: str = "old",
             src_h = img.shape[0]
             img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
             boxes = [(*_rot90_box(b[:4], src_h), b[4]) for b in boxes]
+            # Пятно едет теми же двумя преобразованиями, что и рамки истины.
+            # Считается оно по ЧИСТОМУ растру (иначе мерило бы крап старения),
+            # но лежать обязано в координатах ТОЙ страницы, рядом с которой
+            # записано: непреобразованная рамка на `atl_rotated_plate` давала
+            # x=1421 при ширине листа 1012, то есть указывала за край листа.
+            # Это ровно та беда, которой стоил «корешок», названный не в тех
+            # координатах, — и там она чинилась порядком действий, а не
+            # оговоркой в комментарии.
+            if spot_box is not None:
+                spot_box = _rot90_box(spot_box, src_h)
             if gutter is not None:
                 gutter = None       # после поворота это уже не координата x
 
@@ -1427,6 +1807,10 @@ def build(out_dir: str, cases=None, seed: int = 1, aging: str = "old",
         if M is not None:
             boxes = [(*_clip_box(_xform_box(b[:4], M), w, h), b[4])
                      for b in boxes]
+            if spot_box is not None:
+                spot_box = _clip_box(_xform_box(spot_box, M), w, h)
+        if spot_box is not None:
+            undecl["крупнейшее пятно"]["рамка"] = [round(v, 1) for v in spot_box]
         thin = [b for b in boxes if b[2] - b[0] < 2 or b[3] - b[1] < 2]
         if thin:
             raise SynthError(
@@ -1436,12 +1820,48 @@ def build(out_dir: str, cases=None, seed: int = 1, aging: str = "old",
         ok, enc = cv2.imencode(".png", img)
         page.insert_image(page.rect, stream=enc.tobytes())
 
-        blocks = [{"block_id": j, "box": [round(v, 1) for v in b[:4]],
+        # ЗНАКИ ЛОЖАТСЯ В БЛОК ПО РАЗРЯДУ ЯРЛЫКА, А НЕ ПО ЯРЛЫКУ.
+        # `content` заполняется только у разрядов «текст» и «служебное» — у
+        # них знаки И ЕСТЬ продукт первого уровня. У АРТЕФАКТА `content`
+        # остаётся null, и это ЗНАЧЕНИЕ, а не пропуск: артефакт в VLM не
+        # уезжает текстом ни в одном режиме подачи (`doc/feed.py`: и `crop`, и
+        # `masked_page` шлют его картинкой либо не шлют вовсе), его знаки —
+        # ответ ВТОРОГО уровня, и эталон к ним лежит сбоку, в
+        # `meta["истина артефактов"]`, связанный с блоком по его номеру.
+        # Схему `Block` это не трогает: у блока нет своего `meta`, и дописать
+        # шестое поле в словарь блока значило бы уронить `Page.from_json`.
+        from . import policy
+        blocks, art_truth = [], {}
+        нет_знаков = []
+        for j, b in enumerate(boxes):
+            rec = said.get(j, {})
+            роль = policy.role(b[4])
+            blk = {"block_id": j, "box": [round(v, 1) for v in b[:4]],
                    "label": b[4], "score": None, "order": j,
                    "content": None, "kind": "none"}
-                  for j, b in enumerate(boxes)]
+            if роль == "артефакт":
+                if rec:
+                    art_truth[str(j)] = rec
+            else:
+                txt = rec.get("текст")
+                if txt:
+                    blk["content"] = txt
+                    blk["kind"] = "text"
+                else:
+                    нет_знаков.append(f"{b[4]}#{j}")
+            blocks.append(blk)
         for b in blocks:
             counts[b["label"]] = counts.get(b["label"], 0) + 1
+        знаков = sum(len(b["content"]) for b in blocks if b["content"])
+        слов = sum(len(b["content"].split()) for b in blocks if b["content"])
+        с_текстом = sum(1 for b in blocks if b["content"])
+        знаки = {"знаков": знаков, "слов": слов, "блоков с текстом": с_текстом,
+                 "текстовых блоков без знаков": len(нет_знаков),
+                 "какие без знаков": нет_знаков[:6],
+                 "таблиц с сеткой": sum(1 for v in art_truth.values()
+                                        if "ячейки" in v),
+                 "ячеек": sum(v["строк"] * v["столбцов"]
+                              for v in art_truth.values() if "ячейки" in v)}
         with open(os.path.join(truth_dir, f"{i:04d}.json"), "w",
                   encoding="utf-8") as f:
             json.dump({"index": i, "width": w, "height": h, "dpi": DPI,
@@ -1449,13 +1869,65 @@ def build(out_dir: str, cases=None, seed: int = 1, aging: str = "old",
                        "meta": {"случай": name, "книга": book,
                                 "старение": aging,
                                 "зерно": page_seed, "поворот": rot,
-                                "корешок": gutter}}, f, ensure_ascii=False)
+                                "корешок": gutter,
+                                # Пикселей — по ЧИСТОМУ растру, до старения и
+                                # поворота: старение сыплет крап, и по нему
+                                # число мерило бы шум, а не забытую рамку.
+                                # Размер пятна — там же, на чистом растре,
+                                # чтобы число не менялось от перекоса; рамка —
+                                # уже в координатах ЭТОЙ страницы, чтобы по
+                                # ней можно было пятно найти глазом.
+                                "чернил вне истины": undecl,
+                                # ПРИЗНАК, А НЕ ДОГАДКА. `subset.py` и
+                                # `books score` читают `текст размечен`
+                                # тремя ответами: «да», «нет», «не сказано»,
+                                # и последнее — не то же, что «нет». До сих
+                                # пор синтетика не говорила НИЧЕГО, и метрика
+                                # по знакам обязана была молчать. Ставится по
+                                # ФАКТУ: «да» только когда знаки есть у всех
+                                # блоков разряда «текст» и «служебное»; одна
+                                # молчащая дыра — и признак честно «нет».
+                                "текст размечен": not нет_знаков,
+                                "истина знаков": знаки,
+                                "сверка с текстовым слоем": сверка,
+                                # Истина АРТЕФАКТА — сбоку и по номеру блока.
+                                # Для таблицы это строки, столбцы и текст
+                                # каждой ячейки: без них второй уровень
+                                # (таблица -> HTML) проверить нечем вовсе, а
+                                # «обвёл верно» про таблицу не говорит ничего.
+                                "истина артефактов": art_truth}},
+                      f, ensure_ascii=False)
         pages.append({"случай": name, "страница": i, "размер": [w, h],
                       "блоков": len(blocks), "поворот": rot,
-                      "разворот": name in B_SPREADS})
+                      "разворот": name in B_SPREADS,
+                      "чернил вне истины": undecl,
+                      "истина знаков": знаки,
+                      "сверка с текстовым слоем": сверка})
+        big = undecl["крупнейшее пятно"]
         log(f"  {i:2d} {name:22s} {w}x{h}, блоков {len(blocks)}"
             + ("  (разворот)" if name in B_SPREADS else "")
-            + (f"  (повёрнут {rot}°)" if rot else ""))
+            + (f"  (повёрнут {rot}°)" if rot else "")
+            + f", вне истины {undecl['пикселей']} px"
+            + (f" (пятно {big['размер на чистом растре'][0]}"
+               f"x{big['размер на чистом растре'][1]}"
+               f" = {big['площадь']} px)" if big else "")
+            + f"; знаков {знаки['знаков']}, слов {знаки['слов']} "
+              f"в {знаки['блоков с текстом']} блоках"
+            + (f", БЕЗ ЗНАКОВ {знаки['текстовых блоков без знаков']} "
+               f"({', '.join(знаки['какие без знаков'])})"
+               if нет_знаков else "")
+            + (f", ячеек {знаки['ячеек']} в {знаки['таблиц с сеткой']} табл."
+               if знаки["таблиц с сеткой"] else "")
+            + f"; слов вне истины {сверка['вне истины']}"
+            + (f" {сверка['слова вне истины']}" if сверка["вне истины"] else "")
+            + (f", НЕТ В СЛОЕ {сверка['нет в слое']}"
+               if сверка["нет в слое"] else "")
+            + (f", НЕОБЪЯСНЁННЫХ {сверка['необъяснённых']}"
+               if сверка["необъяснённых"] else "")
+            + (f" {сверка['примеры расхождений']}"
+               if сверка["примеры расхождений"] else "")
+            + f", призраков {сверка['призраков']}"
+            + (f", выносок {сверка['выносок']}" if сверка["выносок"] else ""))
 
     # Имя по КНИГЕ, а не «synth.pdf» во всех каталогах разом: шесть книг с
     # одинаковым именем файла путаются при первом же взгляде на каталог.
@@ -1467,6 +1939,23 @@ def build(out_dir: str, cases=None, seed: int = 1, aging: str = "old",
     # и вчерашнее число становится несравнимым с сегодняшним, не сказав об
     # этом ни слова. `books score` сверяет по нему, что истина и вывод модели
     # про один PDF; здесь дополнительно записано, ЧЕМ эта истина построена.
+    def сумма(ключ, поле):
+        return sum(pp[ключ][поле] for pp in pages)
+    итог = {"знаков": сумма("истина знаков", "знаков"),
+            "слов": сумма("истина знаков", "слов"),
+            "блоков с текстом": сумма("истина знаков", "блоков с текстом"),
+            "текстовых блоков без знаков":
+                сумма("истина знаков", "текстовых блоков без знаков"),
+            "таблиц с сеткой": сумма("истина знаков", "таблиц с сеткой"),
+            "ячеек": сумма("истина знаков", "ячеек"),
+            "слов вне истины": сумма("сверка с текстовым слоем", "вне истины"),
+            "нет в слое": сумма("сверка с текстовым слоем", "нет в слое"),
+            "необъяснённых": сумма("сверка с текстовым слоем", "необъяснённых"),
+            "призраков": сумма("сверка с текстовым слоем", "призраков"),
+            "выносок": сумма("сверка с текстовым слоем", "выносок"),
+            "слов в текстовом слое": сумма("сверка с текстовым слоем",
+                                           "слов в слое")}
+
     src = os.path.join(os.path.dirname(os.path.abspath(__file__)), "synth.py")
     man = {"книга": book, "о книге": getattr(mod, "ABOUT", ""),
            "страниц": len(pages), "зерно": seed, "старение": aging,
@@ -1481,11 +1970,30 @@ def build(out_dir: str, cases=None, seed: int = 1, aging: str = "old",
            "шрифты": {os.path.basename(FONT): _sha256(FONT),
                       os.path.basename(FONT_MONO): _sha256(FONT_MONO)},
            "pdf": os.path.basename(pdf), "sha256 pdf": _sha256(pdf),
-           "блоков по ярлыкам": counts, "страницы": pages}
+           "блоков по ярлыкам": counts, "истина знаков": итог,
+           "страницы": pages}
     with open(os.path.join(out_dir, "manifest.json"), "w",
               encoding="utf-8") as f:
         json.dump(man, f, ensure_ascii=False, indent=1)
     log(f"страниц {len(pages)}, блоков истины {sum(counts.values())} "
         f"({', '.join(f'{k} {v}' for k, v in sorted(counts.items()))})")
+    # ВЕЛИЧИНА, А НЕ СЛОВО «ГОТОВО». Каждое из этих чисел уже ловило беду,
+    # которую слово «готово» пропустило бы: «блоков с текстом» меньше числа
+    # текстовых блоков значит молчащую дыру в истине; «нет в слое» больше нуля
+    # значит истину богаче бумаги; «слов вне истины» больше нуля значит кусок
+    # страницы, не объявленный вовсе (номера строк каталога — как раз он).
+    log(f"истина знаков: {итог['знаков']} знаков, {итог['слов']} слов "
+        f"в {итог['блоков с текстом']} блоках"
+        + (f"; БЕЗ ЗНАКОВ текстовых блоков {итог['текстовых блоков без знаков']}"
+           if итог["текстовых блоков без знаков"] else "")
+        + f"; таблиц с сеткой {итог['таблиц с сеткой']}, "
+          f"ячеек {итог['ячеек']}")
+    log(f"слов, нарисованных вне всякой рамки истины: "
+        f"{итог['слов вне истины']} из {итог['слов в текстовом слое']} "
+        f"в текстовом слое")
+    log(f"сверка с текстовым слоем: нет в слое {итог['нет в слое']}, "
+        f"необъяснённых {итог['необъяснённых']}, "
+        f"призраков повторной заливки {итог['призраков']}, "
+        f"точечных выносок {итог['выносок']}")
     log(f"{pdf} ({os.path.getsize(pdf)/1e6:.1f} МБ), истина в {truth_dir}")
     return man

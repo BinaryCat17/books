@@ -15,7 +15,7 @@
 Страница вышла бы с квадратиками, а числа здоровыми.
 """
 from ..synth import (PROSE_EN, SynthError, _fill, _flow, _formula, _grid,
-                     _line, _matrix, _page, _put, _rect, _refs, _table,
+                     _line, _matrix, _page, _put, _rect, _refs, _say, _table,
                      _text_w)
 
 SHEET = (936, 1324)
@@ -121,6 +121,7 @@ def c_mat_system(doc, rng):
     _line(pg, x, y + 15, x + 6, y + 15, 0.7)
     w = max(_text_w(l, 8.0, "M") for l in lines)
     t.append((x - 2, y - 12, x + 14 + w + 4, y + 2 * 15 + 9, "display_formula"))
+    _say(t, " ; ".join(lines))
     _flow(pg, t, MARGIN, y + 60, BOT_Y, PROSE_EN, w=COLW)
     return pg, t
 
@@ -133,9 +134,11 @@ def c_mat_theorem(doc, rng):
         w = _put(pg, MARGIN + 24, y + 18, title, 7.0, sheet_w=PW)
         t.append((MARGIN + 22, y + 18 - 7, MARGIN + 24 + w + 2, y + 20,
                   "paragraph_title"))
+        _say(t, title)
         r = _rect(MARGIN + 24, y + 24, PW - MARGIN - 24, y + 110)
-        _fill(pg, r, PROSE_EN, 6.4)
+        body = _fill(pg, r, PROSE_EN, 6.4)
         t.append((MARGIN + 24, y + 24, PW - MARGIN - 24, y + 110, "text"))
+        _say(t, body)
         y += 120
     _flow(pg, t, MARGIN, y + 10, BOT_Y, PROSE_EN, w=COLW)
     return pg, t
@@ -155,6 +158,7 @@ def c_mat_numbered_list(doc, rng):
         _put(pg, MARGIN + 34, y, ln, 6.6, sheet_w=PW)
         t.append((MARGIN + 14, y - 6.6, MARGIN + 34 + _text_w(ln, 6.6) + 2,
                   y + 2, "text"))
+        _say(t, f"{k + 1}. {ln}")
         y += 13.0
     _flow(pg, t, MARGIN, y + 12, BOT_Y, PROSE_EN, w=COLW)
     return pg, t
@@ -166,6 +170,7 @@ def c_mat_references(doc, rng):
     y = _flow(pg, t, MARGIN, TOP, 300, PROSE_EN, w=COLW)
     w = _put(pg, MARGIN, y + 22, "REFERENCES", 8.0, sheet_w=PW)
     t.append((MARGIN - 2, y + 22 - 8, MARGIN + w + 2, y + 25, "paragraph_title"))
+    _say(t, "REFERENCES")
     _refs(pg, t, MARGIN, y + 40, BOT_Y, COLW, PW)
     return pg, t
 
@@ -176,10 +181,17 @@ def c_mat_inline(doc, rng):
     y = TOP
     while y < BOT_Y - 40:
         r = _rect(MARGIN, y, PW - MARGIN, y + 74)
-        _fill(pg, r, PROSE_EN, 6.6)
+        body = _fill(pg, r, PROSE_EN, 6.6)
         t.append((MARGIN, y, PW - MARGIN, y + 74, "text"))
+        _say(t, body)
         # формула в строку поверх строки абзаца
         _put(pg, MARGIN + 120, y + 30, "(a + b)/2c", 6.6, font="M", sheet_w=PW)
+        # Строчная формула нарисована ПОВЕРХ абзаца и своей рамки не имеет —
+        # так задуман случай. Значит её знаки принадлежат этому же блоку, и
+        # без `add=True` они оказались бы нарисованными, но не объявленными:
+        # сверка с текстовым слоем показала бы расхождение там, где стенд
+        # ведёт себя ровно как задумано.
+        _say(t, "(a + b)/2c", add=True)
         y += 84
     return pg, t
 
@@ -199,6 +211,7 @@ def c_mat_tall_fraction(doc, rng):
         _put(pg, x + (wt - _text_w(bot, 7.6, "M")) / 2, y + 16, bot, 7.6,
              font="M", sheet_w=PW)
         t.append((x - 6, y - 9, x + wt + 6, y + 20, "display_formula"))
+        _say(t, f"{top} / {bot}")
         y += 40
     _flow(pg, t, MARGIN, y + 8, BOT_Y, PROSE_EN, w=COLW)
     return pg, t

@@ -14,8 +14,8 @@
 подряд».
 """
 from ..synth import (PROSE_EN, _callouts, _caption, _flow, _frame_stamp,
-                     _grid, _halftone, _line, _page, _plate, _put, _table,
-                     _text_w)
+                     _grid, _halftone, _line, _page, _plate, _put, _say,
+                     _table, _text_w)
 
 SHEET = (1440, 1012)                 # альбомный: 720 x 506 пунктов
 PT = 0.5
@@ -133,6 +133,7 @@ def c_atl_sparse(doc, rng):
     _put(pg, PW / 2 - 8, PH - 24, "48", 6.4, sheet_w=PW)
     t.append((PW / 2 - 10, PH - 24 - 6.4, PW / 2 - 8 + _text_w("48", 6.4) + 2,
               PH - 22, "number"))
+    _say(t, "48")
     return pg, t
 
 

@@ -18,7 +18,7 @@
 пара и стоит.
 """
 from ..synth import (ENTRY_EN, ENTRY_RU, SynthError, _entries, _figure,
-                     _grid, _line, _page, _put, _running_head, _table,
+                     _grid, _line, _page, _put, _running_head, _say, _table,
                      _text_w)
 
 # Карманный формат: лист уже и ниже справочника, аспект 0.588 против 0.690.
@@ -113,8 +113,10 @@ def c_slov_index_numbers(doc, rng):
             letter = "ABCDEFGHIJKL"[(n // 7) % 12]
             lw = _put(pg, x, y, letter, 7.0, sheet_w=PW)
             t.append((x - 1, y - 7.0, x + lw + 1, y + 2, "paragraph_title"))
+            _say(t, letter)
             y += 10.0
             y0 = y
+            drawn = []
             for _ in range(7):
                 if y > BOT_Y - 8:
                     break
@@ -125,9 +127,11 @@ def c_slov_index_numbers(doc, rng):
                 while _text_w(ln, 5.4) > w:
                     ln = ln.rsplit(",", 1)[0]
                 _put(pg, x, y, ln, 5.4, sheet_w=PW)
+                drawn.append(ln)
                 y += 7.6
                 n += 1
             t.append((x - 1, y0 - 5.4, x + w, y - 7.6 + 1.5, "text"))
+            _say(t, " ".join(drawn))
             y += 5.0
     return pg, t
 
@@ -139,6 +143,7 @@ def c_slov_abbrev_table(doc, rng):
     _put(pg, MARGIN, TOP, "TABLE OF ABBREVIATIONS", 7.0, sheet_w=PW)
     t.append((MARGIN - 2, TOP - 8, MARGIN + _text_w("TABLE OF ABBREVIATIONS", 7.0) + 2,
               TOP + 2, "paragraph_title"))
+    _say(t, "TABLE OF ABBREVIATIONS")
     cols = _grid(MARGIN + 4, 4, colw=68.0, gap=6.0)
     _table(pg, t, MARGIN + 4, TOP + 24, cols, 52, size=5.2, colw=68.0, step=9.6)
     return pg, t
@@ -158,6 +163,7 @@ def c_slov_parallel(doc, rng):
         y0, yy = y, y
         for x, lang in zip(xs, ("en", "ru")):
             yy = y0
+            drawn = []
             for j in range(5):
                 src = WORDS_EN if lang == "en" else WORDS_RU
                 tail = ("the part that carries the load in the assembly"
@@ -167,8 +173,10 @@ def c_slov_parallel(doc, rng):
                 while _text_w(ln, 5.4) > w:
                     ln = ln[:-2]
                 _put(pg, x, yy, ln, 5.4, sheet_w=PW)
+                drawn.append(ln)
                 yy += 8.2
             t.append((x - 1, y0 - 5.4, x + w, yy - 8.2 + 1.5, "text"))
+            _say(t, " ".join(drawn))
         y = yy + 9.0
         k += 5
     return pg, t
@@ -225,6 +233,7 @@ def c_slov_letter_divider(doc, rng):
     _line(pg, MARGIN, 256, PW - MARGIN, 256, 1.2)
     ww = _put(pg, PW / 2 - 6, 274, "B", 13.0, sheet_w=PW)
     t.append((PW / 2 - 8, 274 - 13, PW / 2 - 6 + ww + 2, 277, "doc_title"))
+    _say(t, "B")
     _line(pg, MARGIN, 284, PW - MARGIN, 284, 1.2)
     for x in xs:
         _entries(pg, t, x, 300, BOT_Y, w, PW, WORDS_EN[7:], size=5.6)

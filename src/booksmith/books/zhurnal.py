@@ -14,7 +14,7 @@
 """
 from ..synth import (PROSE_EN, _box_insert, _caption, _chart, _fill, _figure,
                      _flow, _grid, _halftone, _line, _page, _put, _rect,
-                     _refs, _running_head, _table, _text_w)
+                     _refs, _running_head, _say, _table, _text_w)
 
 SHEET = (1080, 1520)
 PT = 0.5
@@ -34,6 +34,7 @@ def _sheet(doc):
 def _colon(pg, t, page_no):
     w = _put(pg, PW / 2 - 6, PH - 26, str(page_no), 6.2, sheet_w=PW)
     t.append((PW / 2 - 8, PH - 26 - 6.2, PW / 2 - 6 + w + 2, PH - 24, "number"))
+    _say(t, str(page_no))
 
 
 def c_zh_two_col_plain(doc, rng):
@@ -51,12 +52,15 @@ def c_zh_article_head(doc, rng):
     title = "ALIGNMENT OF THE LEAD SCREW IN HEAVY LATHES"
     w = _put(pg, MARGIN + 10, TOP + 14, title, 11.0, sheet_w=PW)
     t.append((MARGIN + 8, TOP + 2, MARGIN + 10 + w + 2, TOP + 18, "doc_title"))
+    _say(t, title)
     au = "A. B. Ivanov and C. D. Petrov"
     wa = _put(pg, MARGIN + 10, TOP + 32, au, 7.0, sheet_w=PW)
     t.append((MARGIN + 8, TOP + 24, MARGIN + 10 + wa + 2, TOP + 35, "text"))
+    _say(t, au)
     r = _rect(MARGIN + 40, TOP + 46, PW - MARGIN - 40, TOP + 110)
-    _fill(pg, r, PROSE_EN, 6.0)
+    body = _fill(pg, r, PROSE_EN, 6.0)
     t.append((MARGIN + 40, TOP + 46, PW - MARGIN - 40, TOP + 110, "abstract"))
+    _say(t, body)
     for x in COL_X:
         _flow(pg, t, x, TOP + 128, BOT_Y, PROSE_EN, w=COLW)
     _colon(pg, t, 62)
@@ -123,6 +127,7 @@ def c_zh_footnotes(doc, rng):
             _put(pg, x, 618 + k * 10, ln, 5.4, sheet_w=PW)
             t.append((x - 1, 618 + k * 10 - 5.4, x + _text_w(ln, 5.4) + 1,
                       620 + k * 10, "footnote"))
+            _say(t, ln)
     _colon(pg, t, 67)
     return pg, t
 
@@ -133,6 +138,7 @@ def c_zh_references(doc, rng):
     w = _put(pg, MARGIN + 10, TOP + 12, "REFERENCES", 9.0, sheet_w=PW)
     t.append((MARGIN + 8, TOP + 2, MARGIN + 10 + w + 2, TOP + 15,
               "paragraph_title"))
+    _say(t, "REFERENCES")
     for k, x in enumerate(COL_X):
         _refs(pg, t, x, TOP + 34, BOT_Y, COLW, PW, start=1 + k * 20)
     _colon(pg, t, 68)
@@ -145,9 +151,11 @@ def c_zh_pull_quote(doc, rng):
     _flow(pg, t, COL_X[0], TOP, 250, PROSE_EN, w=COLW)
     _line(pg, COL_X[0], 268, COL_X[0] + COLW, 268, 1.1)
     r = _rect(COL_X[0], 278, COL_X[0] + COLW, 350)
-    _fill(pg, r, "A simple indicating jig is then made up and the carriage "
+    body = _fill(pg, r,
+                 "A simple indicating jig is then made up and the carriage "
                  "is placed at the mid-point on the bed ways. ", 8.4)
     t.append((COL_X[0], 278, COL_X[0] + COLW, 350, "aside_text"))
+    _say(t, body)
     _line(pg, COL_X[0], 360, COL_X[0] + COLW, 360, 1.1)
     _flow(pg, t, COL_X[0], 374, BOT_Y, PROSE_EN, w=COLW)
     _flow(pg, t, COL_X[1], TOP, BOT_Y, PROSE_EN, w=COLW)
@@ -173,6 +181,7 @@ def c_zh_mixed(doc, rng):
         ln = "1 See Table 21 for the corresponding grades."
         _put(pg, x, 628, ln, 5.4, sheet_w=PW)
         t.append((x - 1, 628 - 5.4, x + _text_w(ln, 5.4) + 1, 630, "footnote"))
+        _say(t, ln)
     return pg, t
 
 

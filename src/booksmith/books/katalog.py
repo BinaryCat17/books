@@ -16,7 +16,7 @@
 безокружении, а не в самой книге.
 """
 from ..synth import (PROSE_EN, _flow, _grid, _line, _page, _put,
-                     _running_head, _table, _text_w)
+                     _running_head, _say, _table, _text_w)
 
 SHEET = (1012, 1466)
 PT = 0.5
@@ -40,6 +40,13 @@ def _cat_table(pg, t, x, y, n_cols, rows, colw=52.0, step=9.6, size=5.8,
     cols = _grid(x, n_cols, colw=colw, gap=6.0)
     y1 = _table(pg, t, x, y, cols, rows, size=size, colw=colw, step=step)
     if numbered:
+        # НОМЕРА СТРОК РИСУЮТСЯ ЛЕВЕЕ РАМКИ ТАБЛИЦЫ (x-20 против x-6) И СВОЕЙ
+        # РАМКИ НЕ ИМЕЮТ — так и задан случай `kat_row_numbers`: вопрос в том,
+        # возьмёт ли модель их отдельной рамкой или втянет в таблицу. Значит
+        # это чернила и слова ВНЕ всякой рамки истины, и стенд обязан их
+        # НАЗВАТЬ числом, а не спрятать: счётчик «слов вне истины» в `build`
+        # ловит ровно их, и его ненулевое значение здесь — не дефект, а
+        # объявленное свойство страницы.
         for r in range(rows):
             _put(pg, x - 20, y + 10 + r * step, f"{r + 1}", size, sheet_w=PW)
     return y1
@@ -61,6 +68,7 @@ def c_kat_continued(doc, rng):
              sheet_w=PW)
     t.append((MARGIN + 6, TOP + 30 - 6.6, MARGIN + 8 + w + 2, TOP + 33,
               "paragraph_title"))
+    _say(t, "Continuation of Table 7")
     _cat_table(pg, t, MARGIN + 8, TOP + 58, 7, 58, colw=58.0, step=10.2)
     return pg, t
 
@@ -105,6 +113,7 @@ def c_kat_footnote_under(doc, rng):
         t.append((MARGIN + 6, y + 26 + k * 10 - 5.4,
                   MARGIN + 8 + _text_w(ln, 5.4) + 2, y + 28 + k * 10,
                   "footnote"))
+        _say(t, ln)
     return pg, t
 
 
@@ -118,6 +127,7 @@ def c_kat_two_stacked(doc, rng):
                  sheet_w=PW)
         t.append((MARGIN + 6, y - 6.6, MARGIN + 8 + w + 2, y + 3,
                   "paragraph_title"))
+        _say(t, f"Table {21 + k}.  Bore tolerances")
         y = _cat_table(pg, t, MARGIN + 8, y + 26, 6, 26, colw=62.0,
                        step=10.2) + 30
     return pg, t
@@ -161,6 +171,7 @@ def c_kat_sparse_tail(doc, rng):
              sheet_w=PW)
     t.append((MARGIN + 6, TOP + 30 - 6.6, MARGIN + 8 + w + 2, TOP + 33,
               "paragraph_title"))
+    _say(t, "Continuation of Table 7")
     _cat_table(pg, t, MARGIN + 8, TOP + 58, 7, 4, colw=58.0, step=10.2)
     _flow(pg, t, MARGIN, TOP + 130, BOT_Y, PROSE_EN, w=PW - 2 * MARGIN)
     return pg, t
