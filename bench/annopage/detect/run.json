@@ -1,0 +1,423 @@
+{
+ "когда": "2026-08-28T08:15:02+0300",
+ "ручки": {
+  "PAGE_DPI": {
+   "значение": "144",
+   "умолчание": "144",
+   "задано снаружи": false,
+   "что": "разрешение, с которым страница РЕНДЕРИТСЯ в растр. Детектор жмёт его до 800x800 сам, поэтому на его вход ручка влияет только через резкость исходного растра; на координаты рамок — влияет прямо"
+  },
+  "MODEL_NAME": {
+   "значение": "PaddleOCR-VL-1.6-0.9B",
+   "умолчание": "PaddleOCR-VL-1.6-0.9B",
+   "задано снаружи": false,
+   "что": "имя модели для vLLM и клиента"
+  },
+  "VL_MODEL_DIR": {
+   "значение": "",
+   "умолчание": "",
+   "задано снаружи": false,
+   "что": "каталог весов VLM; ставит run.sh, читает vLLM"
+  },
+  "LAYOUT_ADAPTER": {
+   "значение": "doclayout",
+   "умолчание": "doclayout",
+   "задано снаружи": false,
+   "что": "какой адаптер детекции звать: doclayout (PaddleOCR PP-DocLayout*) или docling (IBM heron/egret). Разные словари ярлыков и разные политики — сравнивать их можно только слепо к ярлыку"
+  },
+  "LAYOUT_MODEL_NAME": {
+   "значение": "PP-DocLayoutV2",
+   "умолчание": "PP-DocLayoutV2",
+   "задано снаружи": false,
+   "что": "имя модели детекции макета"
+  },
+  "LAYOUT_MODEL_DIR": {
+   "значение": "",
+   "умолчание": "",
+   "задано снаружи": false,
+   "что": "каталог весов детекции макета"
+  },
+  "LAYOUT_SCORE_THRESHOLD": {
+   "значение": "0.5",
+   "умолчание": "0.5",
+   "задано снаружи": false,
+   "что": "порог детекции для 24 классов макета, КРОМЕ table; родной у весов"
+  },
+  "LAYOUT_TABLE_THRESHOLD": {
+   "значение": "0.5",
+   "умолчание": "0.5",
+   "задано снаружи": false,
+   "что": "родной порог детекции таблиц"
+  },
+  "PADDLE_PDX_MODEL_SOURCE": {
+   "значение": "",
+   "умолчание": "",
+   "задано снаружи": false,
+   "что": "откуда paddlex тянет веса"
+  },
+  "CROP_DPI": {
+   "значение": "",
+   "умолчание": "",
+   "задано снаружи": false,
+   "что": "резкость вырезки артефакта; пусто = как PAGE_DPI"
+  },
+  "CROP_MARGIN": {
+   "значение": "0",
+   "умолчание": "0",
+   "задано снаружи": false,
+   "что": "поле вокруг рамки при вырезке, в долях рамки"
+  },
+  "VLM_INPUT": {
+   "значение": "crop",
+   "умолчание": "crop",
+   "задано снаружи": false,
+   "что": "что подавать VLM: crop | masked_page"
+  },
+  "MASK_FILL": {
+   "значение": "white",
+   "умолчание": "white",
+   "задано снаружи": false,
+   "что": "заливка дыр при masked_page: white|gray|black"
+  },
+  "BOOKSMITH_LEDGER": {
+   "значение": "",
+   "умолчание": "",
+   "задано снаружи": false,
+   "что": "куда писать журнал прогонов; пусто = runs/ledger.jsonl. Рядом с журналом живёт и чёрный список машин"
+  },
+  "FEED_DPI": {
+   "значение": "",
+   "умолчание": "",
+   "задано снаружи": false,
+   "что": "разрешение страницы, уезжающей в VLM; пусто = как PAGE_DPI"
+  },
+  "SYNTH_SEED": {
+   "значение": "1",
+   "умолчание": "1",
+   "задано снаружи": false,
+   "что": "зерно синтетического стенда"
+  },
+  "SYNTH_AGING": {
+   "значение": "old",
+   "умолчание": "old",
+   "задано снаружи": false,
+   "что": "профиль старения стенда: clean|scan|old|ветхий"
+  },
+  "VLM_TEMPERATURE": {
+   "значение": "0",
+   "умолчание": "0",
+   "задано снаружи": false,
+   "что": "температура VLM; >0 делает разбор невоспроизводимым нарочно"
+  },
+  "PASSES": {
+   "значение": "1",
+   "умолчание": "1",
+   "задано снаружи": false,
+   "что": "сколько раз читать; свод — задача раннера, не модели"
+  },
+  "LOGPROBS": {
+   "значение": "1",
+   "умолчание": "1",
+   "задано снаружи": false,
+   "что": "записать вероятности токенов рядом со страницей"
+  },
+  "PORT": {
+   "значение": "8118",
+   "умолчание": "8118",
+   "задано снаружи": false,
+   "что": "порт сервиса vLLM на машине"
+  },
+  "RESUME": {
+   "значение": "1",
+   "умолчание": "1",
+   "задано снаружи": false,
+   "что": "продолжать ли прерванный прогон"
+  },
+  "VLLM_USE_FLASHINFER_SAMPLER": {
+   "значение": "0",
+   "умолчание": "0",
+   "задано снаружи": false,
+   "что": "сэмплер flashinfer в vLLM"
+  }
+ },
+ "растр": {
+  "scale": 2.0,
+  "dpi": 144.0,
+  "PAGE_DPI как задан": "144"
+ },
+ "аргументы": {
+  "pdf": "/home/smirn/books/bench/annopage/annopage.pdf",
+  "pages": null,
+  "out": "/home/smirn/books/bench/annopage/detect"
+ },
+ "коммит": "807614f72e15ee3ca9e58afd1477d80da691971e+грязное дерево",
+ "исходник": {
+  "путь": "/home/smirn/books/bench/annopage/annopage.pdf",
+  "sha256": "94cf0349275bcffad6480eba71c9c3acbef6e2004eb1d77af4825ec7bf36a4f0"
+ },
+ "адаптер": {
+  "имя": "doclayout-onnx",
+  "sha256": "1f3ac82a139ea653eb5708abde17bd9506df5642cb52b895183de12f6fb89474",
+  "sha256 команды": "609fa184097a0b8ce4c2c38aeef2c386380db5ada72b5c9c8600052fde8709d5"
+ },
+ "политика": {
+  "разряды": [
+   "текст",
+   "артефакт",
+   "служебное"
+  ],
+  "словари": [
+   "DocLayNet",
+   "Docling",
+   "PP-DocLayoutV2"
+  ],
+  "по ярлыкам": {
+   "Caption": "текст",
+   "Footnote": "служебное",
+   "Formula": "артефакт",
+   "List-item": "текст",
+   "Page-footer": "служебное",
+   "Page-header": "служебное",
+   "Picture": "артефакт",
+   "Section-header": "текст",
+   "Table": "артефакт",
+   "Text": "текст",
+   "Title": "текст",
+   "abstract": "текст",
+   "algorithm": "текст",
+   "aside_text": "текст",
+   "caption": "текст",
+   "chart": "артефакт",
+   "checkbox_selected": "текст",
+   "checkbox_unselected": "текст",
+   "code": "артефакт",
+   "content": "текст",
+   "display_formula": "артефакт",
+   "doc_title": "текст",
+   "document_index": "текст",
+   "figure_title": "текст",
+   "footer": "служебное",
+   "footer_image": "артефакт",
+   "footnote": "служебное",
+   "form": "текст",
+   "formula": "артефакт",
+   "formula_number": "текст",
+   "header": "служебное",
+   "header_image": "артефакт",
+   "image": "артефакт",
+   "inline_formula": "текст",
+   "key_value_region": "текст",
+   "list_item": "текст",
+   "number": "служебное",
+   "page_footer": "служебное",
+   "page_header": "служебное",
+   "paragraph_title": "текст",
+   "picture": "артефакт",
+   "reference": "текст",
+   "reference_content": "текст",
+   "seal": "артефакт",
+   "section_header": "текст",
+   "table": "артефакт",
+   "text": "текст",
+   "title": "текст",
+   "vertical_text": "текст",
+   "vision_footnote": "служебное"
+  }
+ },
+ "промты": {},
+ "порождение": {
+  "temperature": null,
+  "max_tokens": null,
+  "top_p": null,
+  "seed": null
+ },
+ "пакеты": {
+  "onnxruntime": "1.29.0",
+  "numpy": "2.5.2",
+  "cv2": "5.0.0",
+  "pymupdf": "1.28.2",
+  "yaml": "6.0.3",
+  "python": "3.13.13"
+ },
+ "веса": {
+  "vl": null,
+  "layout": "cd540dc296ff3115fe78efa65b68501e6a8dc74b198acc9834a725ffaa095aac"
+ },
+ "отпечаток": {
+  "имя": "doclayout-onnx",
+  "модель": "PP-DocLayoutV2",
+  "каталог весов": "/home/smirn/.paddlex/official_models/PP-DocLayoutV2_onnx",
+  "sha256 весов": "cd540dc296ff3115fe78efa65b68501e6a8dc74b198acc9834a725ffaa095aac",
+  "onnxruntime": "1.29.0",
+  "исполнители": [
+   "CPUExecutionProvider"
+  ],
+  "вход": {
+   "высота": 800,
+   "ширина": 800,
+   "keep_ratio": false,
+   "interp": 2,
+   "порядок каналов": "rgb",
+   "нормализация": {
+    "тип": "none",
+    "делить на 255": true,
+    "mean": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "std": [
+     1.0,
+     1.0,
+     1.0
+    ]
+   }
+  },
+  "родной порог": 0.5,
+  "пороги по классам": {
+   "abstract": 0.5,
+   "algorithm": 0.5,
+   "aside_text": 0.5,
+   "chart": 0.5,
+   "content": 0.5,
+   "display_formula": 0.5,
+   "doc_title": 0.5,
+   "figure_title": 0.5,
+   "footer": 0.5,
+   "footer_image": 0.5,
+   "footnote": 0.5,
+   "formula_number": 0.5,
+   "header": 0.5,
+   "header_image": 0.5,
+   "image": 0.5,
+   "inline_formula": 0.5,
+   "number": 0.5,
+   "paragraph_title": 0.5,
+   "reference": 0.5,
+   "reference_content": 0.5,
+   "seal": 0.5,
+   "table": 0.5,
+   "text": 0.5,
+   "vertical_text": 0.5,
+   "vision_footnote": 0.5
+  },
+  "расхождение порога": [],
+  "словарь ярлыков": [
+   "abstract",
+   "algorithm",
+   "aside_text",
+   "chart",
+   "content",
+   "display_formula",
+   "doc_title",
+   "figure_title",
+   "footer",
+   "footer_image",
+   "footnote",
+   "formula_number",
+   "header",
+   "header_image",
+   "image",
+   "inline_formula",
+   "number",
+   "paragraph_title",
+   "reference",
+   "reference_content",
+   "seal",
+   "table",
+   "text",
+   "vertical_text",
+   "vision_footnote"
+  ],
+  "свод ярлыков": {},
+  "промты": {}
+ },
+ "итог": {
+  "страниц": 600,
+  "рамок": 10747,
+  "артефактов": 1206,
+  "связок рангов": 163,
+  "секунд": 1509.33,
+  "по ярлыкам": {
+   "number": 452,
+   "text": 6370,
+   "paragraph_title": 849,
+   "doc_title": 427,
+   "image": 876,
+   "vision_footnote": 148,
+   "header": 222,
+   "display_formula": 184,
+   "inline_formula": 527,
+   "table": 77,
+   "footer": 57,
+   "header_image": 10,
+   "aside_text": 22,
+   "figure_title": 313,
+   "footnote": 57,
+   "footer_image": 4,
+   "formula_number": 41,
+   "chart": 40,
+   "reference": 5,
+   "reference_content": 31,
+   "seal": 15,
+   "vertical_text": 10,
+   "content": 8,
+   "abstract": 2
+  },
+  "лучший отвергнутый": {
+   "header": 0.499059796333313,
+   "text": 0.4997035264968872,
+   "paragraph_title": 0.4993473291397095,
+   "header_image": 0.4923219680786133,
+   "abstract": 0.2791682183742523,
+   "doc_title": 0.4990013837814331,
+   "number": 0.49313244223594666,
+   "aside_text": 0.4869498014450073,
+   "inline_formula": 0.49992644786834717,
+   "footer": 0.49954140186309814,
+   "vertical_text": 0.4930797517299652,
+   "table": 0.49134138226509094,
+   "vision_footnote": 0.49968886375427246,
+   "figure_title": 0.49932634830474854,
+   "image": 0.4999990463256836,
+   "reference_content": 0.4313943386077881,
+   "algorithm": 0.28814804553985596,
+   "formula_number": 0.4056231379508972,
+   "display_formula": 0.4995647668838501,
+   "footnote": 0.4966617226600647,
+   "reference": 0.22720491886138916,
+   "footer_image": 0.48525261878967285,
+   "seal": 0.42586928606033325,
+   "content": 0.25512874126434326,
+   "chart": 0.369728147983551
+  },
+  "страниц с отвергнутыми": {
+   "header": 270,
+   "text": 598,
+   "paragraph_title": 447,
+   "header_image": 191,
+   "abstract": 226,
+   "doc_title": 362,
+   "number": 543,
+   "aside_text": 309,
+   "inline_formula": 194,
+   "footer": 550,
+   "vertical_text": 96,
+   "table": 306,
+   "vision_footnote": 308,
+   "figure_title": 436,
+   "image": 21,
+   "reference_content": 62,
+   "algorithm": 232,
+   "formula_number": 315,
+   "display_formula": 42,
+   "footnote": 252,
+   "reference": 139,
+   "footer_image": 492,
+   "seal": 116,
+   "content": 442,
+   "chart": 285
+  }
+ },
+ "повтор": "books detect /home/smirn/books/bench/annopage/annopage.pdf --out /home/smirn/books/bench/annopage/detect"
+}
