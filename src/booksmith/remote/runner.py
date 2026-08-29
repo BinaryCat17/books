@@ -13,6 +13,7 @@ import time
 
 from . import ledger
 from .box import Box
+from ..run import knobs
 from .spec import JobSpec
 from .vast import Vast, log
 
@@ -292,7 +293,17 @@ def execute(box: Box, spec: JobSpec, outdir: str,
 # стояла на 25 и отбраковала пять машин подряд, все годные.  Отделять надо
 # не быстрых от медленных, а работающих от сломанных, а между ними два
 # порядка: 7 Мбит/с против 0.06.
-MIN_LINK_MBPS = 2.0
+# ОБЪЯВЛЕНА В РЕЕСТРЕ. Прежде это была константа модуля, и вот чем она
+# обошлась: при нашем канале 4.7 Мбит/с порог считается как
+# `min(2.0, 0.5*ours)` = 2.0, а машины рынка отдавали 1.9 — пять аренд подряд
+# отбракованы полностью, и ослабить порог осознанно было нечем. Хуже того,
+# порог не попадал в слепок: прогон, снявший машину при одном пороге, и
+# прогон, отказавшийся при другом, выглядели одинаково.
+def _min_link_mbps() -> float:
+    return float(knobs.knob("MIN_LINK_MBPS"))
+
+
+MIN_LINK_MBPS = _min_link_mbps()
 
 # Скорость машины «из мира» пока НЕ отбраковывает, а только пишется в
 # журнал.  Первая версия зонда мерила один поток и дала обратную
@@ -377,14 +388,15 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
     # Отбракованные машины исключаются навсегда, а не на один прогон: без
     # этого предпочтение прогретых ведёт обратно на ту же грабли.
     ours = _our_downlink_mbps()
-    floor = MIN_LINK_MBPS
+    limit = _min_link_mbps()
+    floor = limit
     if ours:
         # Машина не может отдать нам быстрее, чем мы принимаем.  Требовать с
         # неё больше половины нашего же канала — предел разумного.
-        floor = min(MIN_LINK_MBPS, 0.5 * ours)
+        floor = min(limit, 0.5 * ours)
         log(f"наш канал вниз ≈ {ours:.1f} Мбит/с, "
             f"порог отбраковки машин {floor:.2f} Мбит/с")
-        if ours < 2 * MIN_LINK_MBPS:
+        if ours < 2 * limit:
             log("ВНИМАНИЕ: наш канал узкий — выкачивание результата будет долгим")
 
     avoid: list[int] = list(ledger.bad_machines())
@@ -445,7 +457,19 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
             state["t_create"] = time.time()
             rec.instance_id = new_id
 
-        vast.create(int(offer["id"]), spec, on_created=_remember)
+        # ОФФЕР МОГ УМЕРЕТЬ между поиском и созданием: рынок разбирают за
+        # секунды, и vast отвечает 400 на чужой уже ask. Прежде это исключение
+        # роняло ВЕСЬ прогон, хотя оставалось четыре попытки и полный рынок
+        # рядом; повтор той же командой брал тот же мёртвый оффер и падал
+        # снова. Считаем это одной неудачной попыткой, а не отказом.
+        try:
+            vast.create(int(offer["id"]), spec, on_created=_remember)
+        except Exception as e:
+            log(f"оффер #{offer['id']} не снялся ({type(e).__name__}: "
+                f"{str(e)[:90]}) — беру следующий")
+            avoid.append(int(offer.get("machine_id") or 0))
+            guard.set()
+            continue
         if ssh_key:
             vast.attach_key(state["iid"], ssh_key)
 
@@ -456,7 +480,7 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
                           boot_limit=BOOT_LIMIT_S,
                           attempt_limit=ATTEMPT_LIMIT_S)
             link = box.probe()
-            down = box.probe_download() if link >= MIN_LINK_MBPS else 0.0
+            down = box.probe_download() if link >= limit else 0.0
             connect_failed = False
         except (RuntimeError, OSError) as e:
             connect_failed = True
@@ -578,6 +602,12 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
     # Машины, которые пришлось бросить, но уничтожить не удалось: добиваем в
     # конце, иначе они биллятся до своего дозора мертвеца.
     undead: list[int] = []
+    # `box` объявляется ДО try. Уборка гасит по нему пульс, а машину можно не
+    # снять вовсе — например, когда за пять попыток не нашлось машины с
+    # приемлемым каналом. Тогда `box` не существовал, и в уборке вылезало
+    # «cannot access local variable 'box'» ПОВЕРХ настоящей причины отказа,
+    # то есть настоящая причина пряталась за нашей же ошибкой.
+    box = None
     try:
         # Оставленная машина живёт не вечно: дозор мертвеца гасит её через
         # KEEP_GRACE_S.  Без этой проверки --reuse на погибший инстанс уходил
