@@ -175,3 +175,23 @@ def test_status_tells_three_zeroes_apart():
         assert r["якорей"] == 2 and r["всего замен"] == 0
         assert any("ещё не ходил" in s for s in said), (
             "«замен нет» и «книга пуста» напечатаны одинаково — это разные нули")
+
+def test_unterminated_mark_is_caught_by_the_anchor_guard():
+    """Незакрытая метка проходит проверку КУСКА и ловится сверкой ЯКОРЕЙ.
+
+    Второй сторож существует ровно ради этого случая: полных меток в куске
+    нет, `_check_fragment` его пропускает, а `swap.anchors` находит
+    закрывающий `-->` дальше по книге и рождает якорь-мусор. Проверка требует
+    ИМЕННО второго сторожа — иначе, сними его, она бы краснела от первого.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        book(tmp)
+        try:
+            ap.put(tmp, A, "<p>текст <!--bs:p0001-b9 внутри</p>",
+                   log=lambda *_: None)
+        except ap.SwapError as e:
+            assert "изменила набор якорей" in str(e), (
+                f"отвергнуто, но НЕ сверкой якорей: {str(e)[:120]!r}")
+        else:
+            raise AssertionError("незакрытая метка принята молча")
+        assert open(os.path.join(tmp, "book.html"), encoding="utf-8").read() == BOOK

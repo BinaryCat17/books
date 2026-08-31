@@ -29,6 +29,7 @@ if HERE not in sys.path:
 import support                                              # noqa: E402
 from booksmith import metrics, policy                       # noqa: E402
 from booksmith.doc import apply as ap                       # noqa: E402
+from booksmith.doc import html as dhtml                     # noqa: E402
 from booksmith.doc import swap                              # noqa: E402
 from booksmith.models import base as mbase                  # noqa: E402
 from booksmith.models import docling_heron as dh            # noqa: E402
@@ -327,6 +328,10 @@ def mutations():
          lambda: attrs(ap, load_journal=_journal_invents_a_stack),
          [("test_apply", "test_undo_without_a_swap_is_loud_and_distinct")]),
 
+        ("сверка набора якорей после замены снята",
+         lambda: attrs(ap, _anchors_unchanged=lambda a, b: True),
+         [("test_apply", "test_unterminated_mark_is_caught_by_the_anchor_guard")]),
+
         ("замена не проверяет вставляемый кусок",
          lambda: attrs(ap, _check_fragment=lambda *a, **k: None),
          [("test_apply", "test_fragment_with_marks_is_refused_by_the_fragment_check"),
@@ -365,6 +370,15 @@ def mutations():
          lambda: sources("models/doclayout.py", '"наш, позиция в списке: "',
                          '"позиция в списке (ранга модель не даёт): "'),
          [("test_order_contract", "test_no_unknown_order_values")]),
+
+        # Второй читатель договора — сборщик книги. Прежде он держался на
+        # честном слове: подмена его правила своей копией не роняла ни одной
+        # проверки из шестидесяти.
+        ("сборщик книги завёл СВОЮ копию правила порядка",
+         lambda: attrs(dhtml, _ours=lambda v: isinstance(v, str)
+                       and v.strip().startswith("наш")),
+         [("test_html_order",
+           "test_book_builder_reads_the_order_rule_through_the_one_contract")]),
 
         ("сторож перестал снимать регистр",
          lambda: attrs(mbase, ours_order=guard_case_sensitive),

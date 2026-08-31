@@ -100,7 +100,41 @@ def _check_fragment(fragment: str, anchor: str) -> None:
             f"блок и должен исчезнуть, скажи это явно другим способом.")
 
 
-def _wrap_fragment(anchor: str, fragment: str, kind: str, source: str) -> str:
+def block_role(out_dir: str, anchor: str) -> str:
+    """Разряд блока по `blocks.json` сборки, или «неизвестен».
+
+    Читается, а не назначается: обёртка замены раньше ставила
+    `data-роль="артефакт"` ВСЕГДА, хотя `blocks.json` по тому же якорю мог
+    говорить «текст». Второй уровень бывает нужен и текстовому блоку, и врать
+    про его разряд в самой книге незачем — по этому атрибуту её потом читают.
+    """
+    p = os.path.join(out_dir, "blocks.json")
+    if not os.path.exists(p):
+        return "неизвестен"
+    try:
+        with open(p, encoding="utf-8") as f:
+            return ((json.load(f).get(anchor) or {}).get("роль")
+                    or "неизвестен")
+    except (ValueError, OSError):
+        return "неизвестен"
+
+
+def _anchors_unchanged(before, after) -> bool:
+    """Тот же ли набор якорей у книги после замены.
+
+    Отдельной функцией ради шва для батареи, как и `_same`: сторож, который
+    нечем сломать, не доказан. И ломать его есть смысл — он ловит то, чего
+    НЕ ловит проверка куска: незакрытую метку (`<!--bs:xyz` без `-->`).
+    Полных меток в таком куске нет, `_check_fragment` его пропускает, а
+    `swap.anchors` находит закрывающий `-->` дальше по книге и рождает
+    якорь-мусор. Замер: кусок `<p>текст <!--bs:p0001-b9 внутри</p>` даёт
+    «появилось ['p0001-b9 внутри…']», и книга не пишется.
+    """
+    return after == before
+
+
+def _wrap_fragment(anchor: str, fragment: str, kind: str, source: str,
+                   role: str = "неизвестен") -> str:
     """Обернуть ответ второго уровня НАШЕЙ обёрткой, не тронув его байтов.
 
     Метим обёртку, а не содержимое: правило проекта — распознанное
@@ -108,8 +142,8 @@ def _wrap_fragment(anchor: str, fragment: str, kind: str, source: str) -> str:
     стоило девяти пропусков из тридцати трёх.
     """
     import html as _h
-    return (f'<div id="{anchor}" data-роль="артефакт" data-уровень="2" '
-            f'data-вид="{_h.escape(kind)}" '
+    return (f'<div id="{anchor}" data-роль="{_h.escape(role)}" '
+            f'data-уровень="2" data-вид="{_h.escape(kind)}" '
             f'data-чем="{_h.escape(source)}">' + fragment + "</div>")
 
 
@@ -130,7 +164,8 @@ def put(out_dir: str, anchor: str, fragment: str, kind: str = "html",
             f"якоря {anchor} в книге нет. Есть {len(before)} других; "
             f"имена постраничные, вида p0042-b17 — посмотри blocks.json.")
 
-    body = _wrap_fragment(anchor, fragment, kind, source or "руками")
+    body = _wrap_fragment(anchor, fragment, kind, source or "руками",
+                          role=block_role(out_dir, anchor))
     new_html, taken = swap.swap(html, anchor, body)
 
     # ГЛАВНАЯ ПРОВЕРКА, и она про соседей, а не про наш блок. `span` стережёт
@@ -138,7 +173,7 @@ def put(out_dir: str, anchor: str, fragment: str, kind: str = "html",
     # обязан остаться тем же самым. Разойдётся — значит замена съела чужую
     # границу, и книга наполовину переразмечена; лучше не записать вовсе.
     after = swap.anchors(new_html)
-    if after != before:
+    if not _anchors_unchanged(before, after):
         lost = sorted(set(before) - set(after))
         got = sorted(set(after) - set(before))
         raise SwapError(

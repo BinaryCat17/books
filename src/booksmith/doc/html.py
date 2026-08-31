@@ -185,6 +185,7 @@ def _ours(v) -> bool:
     from ..models.base import ours_order
     return ours_order(v)
 
+
 def build(detect_dir: str, out_dir: str, log=print) -> dict:
     """Собрать HTML из каталога `books detect`. Возвращает величины сборки."""
     import pymupdf
