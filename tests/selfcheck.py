@@ -28,6 +28,7 @@ if HERE not in sys.path:
 
 import support                                              # noqa: E402
 from booksmith import metrics, policy                       # noqa: E402
+from booksmith.doc import apply as ap                       # noqa: E402
 from booksmith.doc import swap                              # noqa: E402
 from booksmith.models import base as mbase                  # noqa: E402
 from booksmith.models import docling_heron as dh            # noqa: E402
@@ -284,8 +285,61 @@ def guard_case_sensitive(value):
     return isinstance(value, str) and value.strip().startswith("наш")
 
 
+def _journal_without_taken(out_dir, j):
+    """Журнал забыл, ЧТО снял. Откатывать станет нечем, а put при этом
+    отработает как ни в чём не бывало — беда вылезет только при откате."""
+    z = {k: [{**r, "снято": ""} for r in v] for k, v in j["замены"].items()}
+    return _save_journal(out_dir, {**j, "замены": z})
+
+
+def _journal_invents_a_stack(out_dir):
+    """Журнал отвечает стопкой там, где замен не было. «Откатывать нечего» и
+    «откат не удался» перестают различаться."""
+    return {"книга": "book.html",
+            "замены": {"p0042-b17": [{"когда": "?", "чем": "?", "вид": "html",
+                                      "sha256 поставленного": "0" * 64,
+                                      "снято": "<i>выдумка</i>",
+                                      "sha256 снятого": "0" * 64}]}}
+
+
+def _flat_journal(out_dir, j):
+    """Стопка отката схлопнута в последнее значение — среднее состояние
+    пропадает молча, и «переделать другой моделью» перестаёт быть обратимым."""
+    return _save_journal(out_dir, {**j, "замены": {k: v[-1:] for k, v in
+                                                   j["замены"].items()}})
+
+
+_save_journal = ap.save_journal
+
+
 def mutations():
     m = [
+        ("журнал не сохраняет снятое",
+         lambda: attrs(ap, save_journal=_journal_without_taken),
+         [("test_apply", "test_journal_keeps_what_was_taken"),
+          ("test_apply", "test_put_then_undo_restores_the_book_byte_for_byte")]),
+
+        ("вид содержимого принимается любой",
+         lambda: attrs(ap, KINDS=ap.KINDS + ("markdown",)),
+         [("test_apply", "test_unknown_kind_is_refused")]),
+
+        ("журнал выдумывает стопку там, где замен не было",
+         lambda: attrs(ap, load_journal=_journal_invents_a_stack),
+         [("test_apply", "test_undo_without_a_swap_is_loud_and_distinct")]),
+
+        ("замена не проверяет вставляемый кусок",
+         lambda: attrs(ap, _check_fragment=lambda *a, **k: None),
+         [("test_apply", "test_fragment_with_marks_is_refused_by_the_fragment_check"),
+          ("test_apply", "test_empty_fragment_is_refused")]),
+
+        ("стопка отката схлопнута в последнее значение",
+         lambda: attrs(ap, save_journal=_flat_journal),
+         [("test_apply", "test_stack_unwinds_in_reverse_order")]),
+
+        ("откат не сверяет, что лежит на месте блока",
+         lambda: attrs(ap, _same=lambda now, promised: True),
+         [("test_apply", "test_edit_outside_the_journal_blocks_undo")]),
+
         ("сторож метрики не смотрит на слово «наш»",
          lambda: attrs(metrics, _model_has_rank=guard_without_words),
          [("test_order_contract", "test_guard_reads_every_value_as_intended")]),

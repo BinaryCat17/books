@@ -192,6 +192,33 @@ def cmd_html(a):
     return 0
 
 
+def cmd_swap(a):
+    """Второй уровень на месте: поставить разметку вместо картинки, и откатить.
+
+    Обращений к модели здесь нет ни одного — слой умеет только поставить
+    готовый кусок. Кто его породил, решает адаптер, и до его появления замену
+    можно проверить руками, не потратив ни цента.
+    """
+    from .doc import apply as ap
+    d = _run_dir(a.dir, "books swap")
+    try:
+        if a.undo:
+            ap.undo(d, a.anchor, log=log)
+        elif a.anchor:
+            if not a.file:
+                raise ap.SwapError("нечего ставить: дай --file с разметкой "
+                                   "блока либо --undo")
+            with open(a.file, encoding="utf-8") as f:
+                ap.put(d, a.anchor, f.read(), kind=a.kind,
+                       source=a.source or os.path.basename(a.file), log=log)
+        else:
+            ap.status(d, log=log)
+    except ap.SwapError as e:
+        log(str(e))
+        return 1
+    return 0
+
+
 def cmd_feed(a):
     """Приготовить то, что уехало бы в VLM. Ни одного обращения к модели."""
     import glob
@@ -674,6 +701,19 @@ def main(argv=None):
     p.add_argument("--selfcheck", action="store_true",
                    help="батарея мутаций: умеет ли число падать (код 1, если нет)")
     p.set_defaults(fn=cmd_score)
+
+    p = sub.add_parser("swap",
+                       help="второй уровень: разметка вместо картинки, и откат")
+    p.add_argument("dir", help="каталог сборки (books html --out)")
+    p.add_argument("--anchor", help="якорь блока, вида p0042-b17")
+    p.add_argument("--file", help="файл с разметкой блока")
+    p.add_argument("--kind", default="html",
+                   help="вид содержимого: html | otsl | latex | text")
+    p.add_argument("--source", default="",
+                   help="чем порождено; уезжает в журнал и в атрибут блока")
+    p.add_argument("--undo", action="store_true",
+                   help="вернуть то, что стояло до последней замены")
+    p.set_defaults(fn=cmd_swap)
 
     p = sub.add_parser("text",
                        help="метрика чтения: знаки против истины стенда")
