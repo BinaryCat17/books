@@ -270,8 +270,12 @@ def run(pdf, outdir, pages_spec=None, log=print):
     # Вход проверяем ДО подъёма детектора: иначе на опечатке в имени файла
     # оператор ждал загрузки весов, читал словарь ярлыков и получал пять
     # кадров `pymupdf.FileNotFoundError`. Все соседние команды (`books html`,
-    # `books feed`, `books replay`) на дурном пути говорят одной строкой; эта
-    # осталась единственной с трассировкой.
+    # `books feed`, `books replay`) на дурном пути говорят одной строкой.
+    # ЭТА ПРОВЕРКА ЛОВИТ ТОЛЬКО ОТСУТСТВИЕ И КАТАЛОГ. Пустой файл, не-PDF и
+    # книга без страниц ею НЕ ловятся — они ловятся ниже, на открытии; здесь
+    # прежде стояло «осталась единственной с трассировкой», и это объявляло
+    # вылеченным то, что вылечено не было (проверено: EmptyFileError и
+    # FileDataError вылезали трассировкой).
     if not os.path.exists(pdf):
         raise SystemExit(f"нет файла {pdf}")
     if os.path.isdir(pdf):
@@ -329,8 +333,21 @@ def run(pdf, outdir, pages_spec=None, log=print):
         f"классов {len(det.labels)}, "
         f"родной порог {det.fingerprint().get('родной порог')}")
 
-    doc = pymupdf.open(pdf)
-    idxs = parse_pages(pages_spec, doc.page_count)
+    # Открытие тоже говорит СТРОКОЙ. Проверка существования выше ловит опечатку
+    # в имени, а этот `try` — три другие беды, которые она пропускает и которые
+    # прежде вылезали трассировкой: пустой файл (`EmptyFileError`), не-PDF под
+    # именем pdf (`FileDataError`) и книга без единой страницы. Все три
+    # проверены; классы исключений чужие и не перечисляются поимённо нарочно —
+    # список у pymupdf свой, и он менялся.
+    try:
+        doc = pymupdf.open(pdf)
+        pages_total = doc.page_count
+    except Exception as e:                      # noqa: BLE001 — чужая иерархия
+        raise SystemExit(
+            f"{pdf} не открывается как PDF: {type(e).__name__}: {e}") from None
+    if not pages_total:
+        raise SystemExit(f"{pdf} открылся, но страниц в нём ноль — считать нечего")
+    idxs = parse_pages(pages_spec, pages_total)
 
     # Чужие страницы в каталоге — не мелочь. Прошлый прогон мог идти при
     # другом пороге, другом dpi, других весах; смешавшись, они дадут метрике

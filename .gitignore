@@ -65,6 +65,13 @@ bench/*/detect/pages/
 # Продукт первого уровня, 12 МБ на книгу: `books html` из detect/.
 bench/*/html/
 
+# То, что уехало бы в VLM: `books feed` кладёт по картинке на текстовый блок.
+# 12 МБ на 13 страницах slovar — это 1.4 ГБ на 600 страницах annopage. У шести
+# синтетических книг каталог уже закрыт правилом выше, у annopage, annopage-lite,
+# hard и hard36 не был закрыт ничем (`git check-ignore` возвращал 1).
+bench/*/detect/feed/
+bench/*/feed/
+
 # Последняя страница прогона картинкой, 1.7 МБ, — отладочный след, не данные.
 bench/*/dots/_page.png
 

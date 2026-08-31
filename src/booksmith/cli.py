@@ -200,8 +200,17 @@ def cmd_swap(a):
     можно проверить руками, не потратив ни цента.
     """
     from .doc import apply as ap
-    d = _run_dir(a.dir, "books swap")
+    # НЕ `_run_dir`: тот ищет `run.json` каталога ДЕТЕКЦИИ и в отказе зовёт в
+    # каталог с `pages/`, а этой команде нужен каталог СБОРКИ — с `book.html`.
+    # `apply.py` про `run.json` не знает вовсе. Прежняя проверка отказывала
+    # правильному каталогу и советовала не тот.
+    d = os.path.abspath(a.dir)
     try:
+        if a.undo and not a.anchor:
+            raise ap.SwapError(
+                "--undo без --anchor: назови блок, который откатывать. "
+                "Без имени команда откатила бы неизвестно что; список "
+                "заменённых даёт `books swap <каталог>` без ключей.")
         if a.undo:
             ap.undo(d, a.anchor, log=log)
         elif a.anchor:
