@@ -91,6 +91,14 @@ PP-DocLayoutV2: у него ранг чтения свой, и слияний 37
 И это не бесплатно: лишних прыжков между колонками у порядка `post` 474, а у
 тех же самых рамок, пересортированных нашим ключом, — 453. То есть `post`
 порядок УХУДШАЕТ. Чинит его только `full` — 0.79 прыжка на страницу.
+
+ОБА ЧИСЛА ЭТОГО АБЗАЦА СНЯТЫ НА КЛЮЧЕ `(round(y/20), x)`, КОТОРОГО ПРИ `off`
+БОЛЬШЕ НЕТ. Правило сборки переехало в `booksmith/order.py` (раздел 20
+`docs/contour-notes.md`), и при `off` действует объявленное `(y0, x0)` либо
+правила docling — по ручке `ASSEMBLY_ORDER`. Корзинный ключ остался ровно в
+одном месте и ровно для одной работы: НУМЕРАЦИЯ перед вендорским конвейером,
+`Cluster.id`, по нему вендор сшивает детей с обёрткой. Числа `post` (474) это
+не двигает — там сортирует вендор; число 453 стало историческим.
 """
 import hashlib
 import json
@@ -103,6 +111,7 @@ from .base import Block, Page, Recognizer
 # обёртки, то есть потерял для книги. Считать это «своим» списком классов
 # значило бы завести второй словарь разрядов, а они в этом проекте уже
 # расходились.
+from .. import order
 from .. import policy
 from ..run import knobs
 
@@ -633,6 +642,37 @@ class DoclingHeron(Recognizer):
         kinds = {i.name: i.type for i in self.sess.get_inputs()}
         self.uint8_input = "uint8" in kinds.get("images", "")
 
+    def _our_order(self, kept, w, h, index):
+        """Наш порядок сборки — и ТОЛЬКО там, где он вправду наш.
+
+        ДВА РАЗНЫХ СЛУЧАЯ, И ПРЕЖДЕ ОНИ БЫЛИ ОДНИМ. При `DOCLING_PIPELINE=off`
+        этот список и есть книга, значит порядок надо брать из `order.py` —
+        общий на проект и объявленный ручкой `ASSEMBLY_ORDER`. При `post` и
+        `full` порядок задаёт ВЕНДОР: постобработчик сортирует список сам
+        (`_sort_clusters(mode="id")`), а `full` вдобавок зовёт правила чтения.
+        Наша сортировка там — не порядок чтения, а НУМЕРАЦИЯ: номер рамки это
+        `Cluster.id`, по нему вендор сшивает детей с обёрткой, и переставь мы
+        порядок потом — «дети» указывали бы в пустоту.
+
+        Поэтому при включённом конвейере ключ остаётся ПРЕЖНИМ, побайтово:
+        `(round(y/20), x)`. Он корзинный и для порядка чтения негоден — но
+        здесь от него нужна только устойчивая нумерация, а сменить его значило
+        бы сдвинуть все числа разделов 18 и 19, которые сняты на нём. Менять
+        замеренное заодно с починкой нельзя: тогда неизвестно, что из
+        изменившегося чьё.
+        """
+        if self._pipe is not None:
+            kept.sort(key=lambda t: (round(t[2][1] / 20), t[2][0]))
+            return kept
+        # Правило спрашивается ОДИН раз и передаётся дальше: две отдельные
+        # `rule()` читали бы окружение дважды за страницу, и правка ручки
+        # посреди прогона развела бы сторожа с сортировкой.
+        which = order.rule()
+        order.cover(self.labels, which)
+        perm = order.permutation([t[0] for t in kept], [t[2] for t in kept],
+                                 w, h, index, self.labels, which)
+        return [kept[i] for i in perm]
+
     def _run_pipeline(self, blocks, w, h, index):
         """Рамки модели -> рамки после вендора. Возвращает (блоки, meta).
 
@@ -648,7 +688,12 @@ class DoclingHeron(Recognizer):
         включён» без чисел неотличимо от «включён и ничего не сделал».
         """
         if self._pipe is None:
-            return blocks, {"порядок чтения": "наш, сверху вниз и слева направо"}
+            # Что СТОЯЛО ЗДЕСЬ И БЫЛО НЕВЕРНО: константа «наш, сверху вниз и
+            # слева направо» при сортировке `(round(y/20), x)` — корзинами по
+            # двадцать пикселей растра. Два разных правила под одним именем, и
+            # заметить это можно было только чтением обоих мест сразу. Теперь
+            # правило одно (`order.py`) и называется тем, чем является.
+            return blocks, {"порядок чтения": order.WORDS[order.rule()]}
         blocks, m = self._pipe.apply(blocks, w, h, index)
         pp = self._pipe
         if pp.pages == 1 or pp.pages % 10 == 0:
@@ -837,9 +882,8 @@ class DoclingHeron(Recognizer):
                     rejected[lab] = sc
                 continue
             kept.append((lab, sc, [float(v) for v in box]))
-        # Порядка модель не даёт. Раскладываем сверху вниз и слева направо —
-        # и записываем в слепок, что порядок НАШ, а не её.
-        kept.sort(key=lambda t: (round(t[2][1] / 20), t[2][0]))
+        # Порядка модель не даёт — значит он наш, и живёт он в `order.py`.
+        kept = self._our_order(kept, w, h, index)
         blocks = [Block(block_id=i, box=tuple(b), label=lab, score=sc, order=i)
                   for i, (lab, sc, b) in enumerate(kept)]
         # Конвейер идёт ПОСЛЕ нашей сортировки и нумерации, а не до: номер
@@ -969,7 +1013,7 @@ class DoclingEgret(DoclingHeron):
             cx, cy, bw, bh = (float(v) for v in boxes[q])
             kept.append((lab, s, [(cx - bw / 2) * w, (cy - bh / 2) * h,
                                   (cx + bw / 2) * w, (cy + bh / 2) * h]))
-        kept.sort(key=lambda t: (round(t[2][1] / 20), t[2][0]))
+        kept = self._our_order(kept, w, h, index)
         blocks = [Block(block_id=i, box=tuple(b), label=lab, score=s, order=i)
                   for i, (lab, s, b) in enumerate(kept)]
         # Совпадающая геометрия считается ДО конвейера — это свойство ответа

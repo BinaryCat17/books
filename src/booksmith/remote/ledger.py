@@ -22,6 +22,16 @@ _ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."
 LEDGER = knobs.knob("BOOKSMITH_LEDGER") or os.path.join(_ROOT, "runs", "ledger.jsonl")
 
 
+def log(msg):
+    """Свой `log`, а не общий из `vast.py`.
+
+    Тот тянет за собой пакет `vastai`, а журнал читает `books ledger` —
+    команда, которой аренда не нужна вовсе.  Две строки дешевле импорта;
+    ровно так же поступает `box.py`.
+    """
+    print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
+
+
 @dataclass
 class Run:
     job: str
@@ -41,12 +51,30 @@ class Run:
     cpu_cores: float = 0.0
     cpu_ghz: float = 0.0
     link_mbps: float = 0.0         # ЗАМЕРЕННЫЙ канал до нас, не заявленный
-    download_mbps: float = 0.0     # и ЗАМЕРЕННАЯ скорость машины из мира
+    # Скорость машины из мира: `None` значит НЕ МЕРИЛИ, и это не то же самое,
+    # что 0.0 — «зонд не сработал».  Прежде поле было `float = 0.0`, и обе
+    # беды писались одним нулём: зонд зовётся только когда канал до нас выше
+    # порога, а до правки в `runner._rent` — выше РЕЕСТРОВОГО порога, а не
+    # действующего.  В нынешнем журнале три записи с `link_mbps` > 0 и
+    # `download_mbps` = 0.0 (19.08 20:37, 20.08 13:08, 20.08 22:54), и по ним
+    # неотличимо, мерили ли машину вообще.  `fast_machines` читает поле через
+    # `if r.get("download_mbps")` — `None` для неё так же ложно, как 0.0,
+    # порядок машин не меняется.
+    download_mbps: float | None = None
     image_gb: float = 0.0
 
     started: float = field(default_factory=time.time)
     setup_s: float = 0.0           # от create УДАВШЕЙСЯ машины до готового ssh
     reject_s: float = 0.0          # сколько до неё ушло на отбракованные
+    # Сколько СТОИЛИ отбракованные машины и сколько их было.  Отдельными
+    # полями, а не одной суммой в cost_usd: прогон, сорвавшийся на аренде,
+    # писался в журнал как бесплатный (`dph` = 0, потому что до присвоения
+    # `rec.dph` дело не доходило), и пять снятых машин обходились в ноль.  В
+    # нынешнем журнале таких записей 13 («за N попыток не нашлось машины»),
+    # суммарно 9268 секунд прогона при $0.102 на всех — то есть в них
+    # посчитан ОДИН трафик и ни секунды аренды.
+    reject_usd: float = 0.0
+    reject_n: int = 0
     run_s: float = 0.0             # сама задача
     total_s: float = 0.0
     cost_usd: float = 0.0
@@ -207,33 +235,95 @@ def fast_machines(image: str, path: str = LEDGER,
 BAD = os.path.join(os.path.dirname(LEDGER), "bad-machines.json")
 
 
-def mark_bad(machine_id: int, reason: str, path: str = BAD) -> None:
+def _read_bad(path: str) -> tuple[dict, str]:
+    """(список машин, причина недоверия).  Пустой список и БИТЫЙ файл — разное.
+
+    Прежде обе функции ниже глотали любое исключение и продолжали с пустым
+    словарём.  Цена: битый `bad-machines.json` молча выключал чёрный список
+    целиком, а первый же `mark_bad` записывал поверх него ОДНУ машину —
+    остальные исчезали навсегда.  Каждая запись в этом файле оплачена
+    арендой, так что «не разобрался» обязано звучать иначе, чем «пусто».
+    """
+    try:
+        with open(path, "rb") as f:
+            raw = f.read()
+    except FileNotFoundError:
+        return {}, ""                       # файла нет — законная пустота
+    except OSError as e:
+        return {}, f"{type(e).__name__}: {e}"
+    try:
+        data = json.loads(raw.decode("utf-8"))
+    except Exception as e:
+        return {}, f"{type(e).__name__}: {str(e)[:80]} ({len(raw)} байт)"
+    if not isinstance(data, dict):
+        return {}, (f"на верхнем уровне {type(data).__name__}, а нужен объект "
+                    f"({len(raw)} байт)")
+    return data, ""
+
+
+def mark_bad(machine_id: int | None, reason: str, path: str = BAD) -> None:
     """Запомнить машину, которая не годится, — навсегда, а не на прогон.
 
     Без этого предпочтение прогретых машин ведёт прямо на грабли: машина,
     где мы однажды дошли до ssh, считается прогретой, даже если канал до неё
     62 кбит/с.  Ровно так и вышло — и стоило пятнадцати минут аренды.
+
+    `machine_id` может прийти пустым: у оффера это поле необязательное.  Тогда
+    записывать нечего — но и ронять прогон нельзя, а прежде `int(None)` летел
+    из середины цикла аренды наружу и уносил ВЕСЬ прогон вместе с уже снятой
+    машиной (`runner._rent`, ветка отбраковки по каналу).
     """
-    data = {}
     try:
-        with open(path) as f:
-            data = json.load(f)
-    except Exception:
-        pass
-    data[str(int(machine_id))] = {"reason": reason, "ts": time.time()}
+        key = str(int(machine_id))
+    except (TypeError, ValueError):
+        log(f"ВНИМАНИЕ: машину в чёрный список НЕ записать — оффер без "
+            f"machine_id ({machine_id!r}); причина была: {reason}. "
+            f"Эта машина может прийти снова")
+        return
+    data, broken = _read_bad(path)
+    if broken:
+        # Битое содержимое откладываем, а не затираем: в нём машины, каждая
+        # из которых уже стоила аренды.
+        keep = f"{path}.broken-{int(time.time())}"
+        try:
+            os.replace(path, keep)
+        except OSError as e:
+            keep = f"(отложить не удалось: {e})"
+        log(f"ВНИМАНИЕ: чёрный список {path} не разбирается ({broken}) — "
+            f"отложен в {keep}, дальше пишу с чистого листа. Машины из него "
+            f"снова пойдут в аренду, пока файл не починят руками")
+    data[key] = {"reason": reason, "ts": time.time()}
     os.makedirs(os.path.dirname(path), exist_ok=True)
     tmp = path + ".tmp"
     with open(tmp, "w") as f:
         json.dump(data, f, ensure_ascii=False, indent=1)
     os.replace(tmp, path)
+    log(f"машина {key} в чёрном списке навсегда ({reason}); всего в списке "
+        f"{len(data)}")
 
 
 def bad_machines(path: str = BAD) -> list[int]:
-    try:
-        with open(path) as f:
-            return [int(k) for k in json.load(f)]
-    except Exception:
+    """Машины, которые больше не брать.  Молчит только когда список пуст.
+
+    Величина, а не молчание: непрочитанный список выглядит точно так же, как
+    пустой, а стоит он пяти отбракованных аренд.
+    """
+    data, broken = _read_bad(path)
+    if broken:
+        log(f"ВНИМАНИЕ: чёрный список {path} не разбирается ({broken}) — "
+            f"считаю его ПУСТЫМ. Отбракованные машины снова пойдут в аренду; "
+            f"файл на месте, почините руками")
         return []
+    out, skipped = [], 0
+    for k in data:
+        try:
+            out.append(int(k))
+        except (TypeError, ValueError):
+            skipped += 1
+    if skipped:
+        log(f"ВНИМАНИЕ: в чёрном списке {path} непонятных ключей {skipped} "
+            f"из {len(data)} — эти машины не отсеиваются")
+    return out
 
 
 def fit(path: str = LEDGER) -> dict:
@@ -255,7 +345,14 @@ def fit(path: str = LEDGER) -> dict:
       десять раз, целиком арифметическое, печаталось как здоровое число.
 
     Записи со старым устройством `setup_s` отличаются отсутствием поля
-    `reject_s`; они в оценку не идут.
+    `reject_s`; они ПРОПУСКАЮТСЯ — и пропуск печатается числом.
+
+    Пропускаются, а не выключают оценку.  Здесь стояло `if old_shape: return`,
+    то есть ОДНА старая запись отменяла счёт по всем остальным навсегда:
+    журнал только копится, старые записи из него не исчезают, и `books
+    ledger` печатал «41 записей со старым setup_s — по ним считать нельзя»
+    при 70 записях новой формы рядом.  Докстринг при этом обещал ровно
+    противоположное — «они в оценку не идут», — и разошёлся с делом.
     """
     eff, gbs, old_shape = [], set(), 0
     for r in read(path):
@@ -267,18 +364,18 @@ def fit(path: str = LEDGER) -> dict:
             continue
         gbs.add(round(float(gb), 3))
         eff.append((gb * 8 * 1024 / setup) / adv)
-    if old_shape:
-        return {"samples": 0, "почему нет оценки":
-                f"{old_shape} записей со старым setup_s (он мерил весь разбег "
-                f"прогона, а не доставку образа) — по ним считать нельзя"}
+    # Пропущенное называется в КАЖДОМ ответе, а не только в отказе: оценка,
+    # посчитанная по семи записям из сорока восьми, и оценка по всем сорока
+    # восьми — разные оценки, и разницу должно быть видно, не открывая код.
+    skipped = {"пропущено записей со старым setup_s": old_shape} if old_shape else {}
     if len(gbs) < 2:
-        return {"samples": len(eff), "почему нет оценки":
+        return {"samples": len(eff), **skipped, "почему нет оценки":
                 f"размер образа во всех записях один ({sorted(gbs) or '—'}): "
                 f"числитель постоянен, и деление мерило бы знаменатель"}
     if len(eff) < 5:
-        return {"samples": len(eff), "почему нет оценки":
+        return {"samples": len(eff), **skipped, "почему нет оценки":
                 "меньше пяти пригодных записей"}
     eff.sort()
-    return {"samples": len(eff), "разных размеров образа": len(gbs),
+    return {"samples": len(eff), **skipped, "разных размеров образа": len(gbs),
             "link_efficiency_median": eff[len(eff) // 2],
             "link_efficiency_p25": eff[len(eff) // 4]}

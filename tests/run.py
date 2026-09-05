@@ -30,7 +30,14 @@ ROOT = os.path.dirname(HERE)
 sys.path.insert(0, os.path.join(ROOT, "src"))
 sys.path.insert(0, HERE)
 
+import support                                              # noqa: E402
 from support import Skip                                    # noqa: E402
+
+# ЭТОТ БЕГУН ОБЪЯВЛЯЕТ СЕБЯ, и делает это до загрузки первого файла проверок.
+# `support.skip()` выбирает форму пропуска по тому, КТО ГОНЯЕТ; прежде он
+# выбирал по тому, что УСТАНОВЛЕНО («импортируется ли pytest»), и стоило бы
+# это всего прогона — см. `support.foreign_skip`.
+support.OWN_RUNNER = True
 
 SLOW = "BOOKSMITH_TESTS_SLOW"
 
@@ -71,6 +78,18 @@ def run_case(fn):
         # «неизвестный режим») прилетает именно им, и проглотить его значило
         # бы уронить бегун вместо того, чтобы напечатать провал.
         return "fail", traceback.format_exc()
+    except BaseException as e:
+        # Всё, что не Exception и не SystemExit: чужой пропуск засчитываем
+        # пропуском, остальное (KeyboardInterrupt, MemoryError) отдаём наружу
+        # — глотать Ctrl+C значило бы сделать бегун неостановимым.
+        #
+        # Что считать чужим пропуском, решает ОДИН дом — `support`, рядом с
+        # нашим `Skip`. Зовётся через модуль, а не по имени: батарея мутаций
+        # ломает проверяемое место В ПАМЯТИ, и без этого шва проба «бегун не
+        # знает чужого пропуска» не накладывалась бы вовсе.
+        if support.foreign_skip(e):
+            return "skip", f"{e} (объявлен через pytest.skip)"
+        raise
 
 
 def main(argv):

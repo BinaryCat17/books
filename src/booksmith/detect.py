@@ -24,17 +24,15 @@ VLM — и это ЗНАЧЕНИЯ (`null`), а не пропуски. Разн�
 БЛОКА, КОТОРОГО НЕТ В СЛОВАРЕ ПОЛИТИКИ. Каждый из четырёх случаев прежде
 давал код 0 и полный слепок, то есть выглядел успехом.
 """
-import hashlib
 import json
 import os
 import shlex
-import subprocess
 import sys
 import time
 
 from . import policy
 from .models.doclayout import DocLayout
-from .run import knobs
+from .run import knobs, stamp
 
 # Политика «текст / артефакт / служебное» живёт в одном месте — `policy.py`,
 # и оттуда же её берёт сборщик HTML. Два списка разошлись бы: они уже
@@ -50,12 +48,14 @@ from .run import knobs
 # в блоке написано, а между ними лежит перевод туда и обратно.
 
 
-def _sha256(path):
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(1 << 20), b""):
-            h.update(chunk)
-    return h.hexdigest()
+# Три величины слепка — хэш файла, коммит, версии пакетов — переехали в
+# `run/stamp.py`: пишущих слепок стало трое (эта команда, `doc/html.py` и
+# `read/run.py`), а второй экземпляр — то самое расхождение, за которое проект
+# уже платил (13 имён из 17 в реестре ручек против сборщика задания).
+# Здесь стояло, что на арендованной машине этот файл «не поднимется вовсе, он
+# тянет onnxruntime и opencv»; замер опроверг: импорты ленивые, внутри функций
+# `models/doclayout.py`, а на машине эти пакеты есть.
+_sha256 = stamp.sha256
 
 
 # Реестр адаптеров. Пока он был один, вопрос «а не лучше ли другая модель»
@@ -164,58 +164,17 @@ def _knob_roles(det):
     return roles
 
 
-def _knobs_snapshot(roles):
-    """Слепок ручек, где у каждой сказано, кто её читает.
-
-    Ручки НЕ выбрасываются: `books replay --check` требует
-    ("ручки", ИМЯ, "значение") для всех двадцати, и полнота слепка — условие
-    повторимости. Но полный слепок без этой пометки читается как двадцать
-    действующих величин, а действующих в прогоне heron ровно три из двадцати.
-    Поэтому рядом со значением стоит и хозяин, и признак: строку читает
-    человек, признак — машина.
-    """
-    snap = knobs.snapshot()
-    for name, rec in snap.items():
-        who = roles.get(name)
-        rec["кто читает"] = who or "НИКТО В ЭТОМ ПРОГОНЕ"
-        rec["к этому прогону относится"] = who is not None
-    return snap
+# Форма слепка ручек переехала в реестр (`run/knobs.snapshot_with_readers`):
+# снимающих стало двое — детекция и чтение, — и вторая редакция успела
+# получиться другой формы, которую забраковал `books replay --check`.
+_knobs_snapshot = knobs.snapshot_with_readers
 
 
-def _commit():
-    """Коммит кода, которым считали. Грязное дерево помечается ЯВНО.
-
-    Помечается, а не молчит: прогон на незакоммиченных правках повторить
-    нельзя, и знать об этом надо в момент чтения слепка, а не потом.
-    """
-    # Спрашиваем git в КАТАЛОГЕ ИСХОДНИКОВ, а не в рабочем каталоге процесса.
-    # `books detect` можно позвать откуда угодно — из чужого репозитория, из
-    # каталога вовсе без git, — и слепок записал бы чужой коммит или None при
-    # живом репозитории. Обе беды молчаливые.
-    root = os.path.dirname(os.path.dirname(os.path.dirname(
-        os.path.abspath(__file__))))
-    try:
-        h = subprocess.run(["git", "-C", root, "rev-parse", "HEAD"],
-                           capture_output=True, text=True, timeout=10)
-        if h.returncode != 0:
-            return None
-        sha = h.stdout.strip()
-        d = subprocess.run(["git", "-C", root, "status", "--porcelain"],
-                           capture_output=True, text=True, timeout=10)
-        return sha + ("+грязное дерево" if d.stdout.strip() else "")
-    except (OSError, subprocess.SubprocessError):
-        return None
+_commit = stamp.commit
 
 
 def _packages():
-    out = {}
-    for name in ("onnxruntime", "numpy", "cv2", "pymupdf", "yaml"):
-        try:
-            out[name] = __import__(name).__version__
-        except Exception:                      # noqa: BLE001
-            out[name] = None                   # значение, а не пропуск
-    out["python"] = sys.version.split()[0]
-    return out
+    return stamp.packages(stamp.DETECT_PACKAGES)
 
 
 def parse_pages(spec, total):
@@ -228,20 +187,37 @@ def parse_pages(spec, total):
     """
     if not spec:
         return list(range(total))
+    # ПРОБЕЛ РАЗДЕЛЯЕТ ТАК ЖЕ, КАК ЗАПЯТАЯ. Прежде `--pages "1 3"` падало
+    # голым `ValueError: invalid literal for int()`, и это ловилось только у
+    # `detect` — у `overlay` был свой разбор, пробелы принимавший. Когда
+    # разборы свели в один, отказ достался обоим: правило «жаловаться вслух»
+    # нарушалось в двух командах вместо одной. Понимать надо обе записи.
     want = []
-    for part in str(spec).split(","):
+    for part in str(spec).replace(" ", ",").split(","):
         part = part.strip()
         if not part:
             continue
         if "-" in part[1:]:
             a, b = part.split("-", 1)
-            rng = range(int(a), int(b) + 1)
+            try:
+                rng = range(int(a), int(b) + 1)
+            except ValueError:
+                raise SystemExit(
+                    f"в «--pages {spec}» диапазон «{part}» не разобран. "
+                    f"Ожидается «7-9», счёт с единицы.")
             if not rng:
                 raise SystemExit(
                     f"диапазон «{part}» пуст: конец раньше начала")
             want.extend(rng)
         else:
-            want.append(int(part))
+            try:
+                want.append(int(part))
+            except ValueError:
+                # Вслух и с образцом, а не следом стека: этот ключ набирают
+                # руками, и опечатка в нём — обычное дело.
+                raise SystemExit(
+                    f"в «--pages {spec}» кусок «{part}» — не номер страницы. "
+                    f"Ожидается «1,4,7-9» или «1 4 7-9», счёт с единицы.")
     bad = [p for p in want if not 1 <= p <= total]
     if bad:
         raise SystemExit(f"в книге {total} страниц, а запрошены {bad}")

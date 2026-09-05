@@ -3,28 +3,39 @@
     books doctor                 проверить всё ДО того, как пойдут деньги
     books offers                 посмотреть рынок, ничего не арендуя
     books prepare книга.djvu     развернуть djvu в PDF, разрезав развороты
-    books detect книга.pdf       контуры первого уровня, местно и бесплатно
+    books detect книга.pdf       ПЕРВЫЙ УРОВЕНЬ: контуры, местно и бесплатно
+    books read книга.detect/     ВТОРОЙ УРОВЕНЬ: прочитать блоки моделью (платно)
     books html книга.detect/     собрать HTML: текст + артефакты картинками
+    books swap книга.html/       поставить разметку вместо картинки, и откатить;
+                                 --from <чтение> ставит всё прочитанное разом
     books feed книга.detect/     что уехало бы в VLM: кроп или страница с дырами
     books synth                  синтетический стенд: страницы с точной истиной
+    books annopage raw/annopage  золотой стенд: настоящие страницы с истиной
+    books subset                 выжимка: артефакты бок о бок
     books score истина/ рамки/   метрики контуров; --selfcheck — батарея мутаций
+    books text истина/ страницы/ метрика ЧТЕНИЯ: знаки и ячейки таблиц
+    books fitness книга.pdf …    доедет ли смысл: по чернилам, без истины
     books overlay книга.pdf …    рамки поверх страниц, чтобы посмотреть глазами
     books ls | books down 12345 | books reap
     books ledger                 журнал прогонов и оценки по нему
     books replay --check выход/  полон ли слепок входа
 
-РАЗБОРА ЦЕЛИКОМ ЗДЕСЬ ПОКА НЕТ, и это не упущение. Прежний `books ocr` звал
-модель через слой из десятка заплаток поверх чужого пайплайна и собирал книгу
-эвристиками; всё это удалено вместе с замерами, которыми оправдывалось, —
-они считались против вывода другой модели, а не против известного текста.
+СПИСОК ВЫШЕ СВЕРЕН С `sub.add_parser`, и это не педантизм: здесь недоставало
+ШЕСТИ команд из двадцати — `fitness`, `subset`, `annopage`, `read`, `swap`,
+`text`, — то есть весь второй уровень был невидим тому, кто читает шапку.
 
-Что есть — `books detect`: первая половина первого уровня, контуры без единой
-заплатки. Она местная и бесплатная нарочно: метрику контуров надо проверять
-на выводе настоящей модели, а не на выдуманных данных, и упереться в это
-раньше, чем в деньги.
+ОБА УРОВНЯ НА МЕСТЕ. Здесь стояло «разбора целиком тут пока нет… что есть —
+`books detect`, первая половина первого уровня»: верно до появления
+`books read`. Прежний `books ocr` действительно звал модель через слой из
+десятка заплаток поверх чужого пайплайна и собирал книгу эвристиками, и всё
+это удалено вместе с замерами, которыми оправдывалось (они считались против
+вывода другой модели, а не против известного текста). Нынешний второй уровень
+устроен иначе: он ничего не правит, кладёт наблюдённое сбоку и проверяется
+дома против подставного сервера — 27 проверок, ни одного цента.
 """
 import argparse
 import json
+import re
 import os
 import sys
 
@@ -33,6 +44,7 @@ from .models import paddleocr_vl
 from .remote import ledger as ledger_mod
 from .remote.spec import HostReq
 from .remote.vast import Vast, log
+from .run import knobs
 from .run import replay as replay_mod
 
 
@@ -183,11 +195,40 @@ def _run_dir(path, what):
         f"не корень книги.")
 
 
+def book_home(detect_dir: str) -> str:
+    """Куда книга ложится ПО УМОЛЧАНИЮ. В постоянное место, а не рядом с прогоном.
+
+    Прежде умолчанием было `<каталог прогона>/html`, и это верно ровно до
+    первого прогона во временном каталоге: книга собиралась, читалась глазами
+    и исчезала вместе с ним. Замер этого вечера: обе книги — 378 и 539
+    страниц, $0.47 аренды — легли в `/tmp`, и перекладывать пришлось руками.
+
+    Имя берётся из ИСХОДНИКА, а не набирается: книга должна находиться по
+    имени файла, с которого снята. Небезопасные для пути знаки заменяются,
+    длина режется — но не молча, а с сохранением узнаваемости.
+    """
+    with open(os.path.join(detect_dir, "run.json"), encoding="utf-8") as f:
+        snap = json.load(f)
+    stem = os.path.splitext(os.path.basename(snap["исходник"]["путь"]))[0]
+    safe = re.sub(r"[^\w.,()-]+", "-", stem, flags=re.UNICODE).strip("-")[:80]
+    return os.path.join(config.ROOT, "processed", safe or "книга")
+
+
 def cmd_html(a):
     """Продукт первого уровня: текст разметкой, артефакты картинками."""
     from .doc import html as html_mod
     d = _run_dir(a.dir, "books html")
-    out = a.out or os.path.join(d, "html")
+    out = a.out or book_home(d)
+    # ЧУЖОЕ НЕ ЗАТИРАЕМ. В `processed/` лежат книги ПРЕЖНЕГО конвейера, и
+    # совпадение имён там вероятно: та же книга, разобранная иначе. Признак
+    # своего — `run.json`, который пишет сам сборщик; нет его при непустом
+    # каталоге — отказ вслух, а не молчаливая замена чужой работы.
+    if (not a.out and os.path.isdir(out) and os.listdir(out)
+            and not os.path.exists(os.path.join(out, "run.json"))):
+        raise SystemExit(
+            f"в {out} уже лежит что-то не наше (нет run.json сборщика). "
+            f"Это, скорее всего, книга прежнего конвейера, и затирать её "
+            f"молча нельзя. Задайте --out, либо уберите каталог руками.")
     html_mod.build(d, out, log=log)
     return 0
 
@@ -206,6 +247,13 @@ def cmd_swap(a):
     # правильному каталогу и советовала не тот.
     d = os.path.abspath(a.dir)
     try:
+        if a.from_read:
+            if a.anchor or a.undo:
+                raise ap.SwapError(
+                    "--from вместе с --anchor или --undo: это разные работы. "
+                    "--from ставит ВСЁ прочитанное, --anchor — один блок.")
+            ap.from_read(d, a.from_read, log=log)
+            return 0
         if a.undo and not a.anchor:
             raise ap.SwapError(
                 "--undo без --anchor: назови блок, который откатывать. "
@@ -228,6 +276,116 @@ def cmd_swap(a):
     return 0
 
 
+def cmd_read_rented(a, policy_name, out):
+    """Та же работа на АРЕНДОВАННОЙ карте. Отдельная ветка, а не отдельная
+    команда: считает то же самое и тем же кодом, меняется только место.
+
+    ЗАЧЕМ ЭТА ВЕТКА ВООБЩЕ ПОЯВИЛАСЬ. `models/paddleocr_vl.spec()` и
+    `remote.run_job()` не звала НИ ОДНА команда проекта — проверено grep-ом по
+    всему дереву: только определения и проза в комментариях. То есть «читать
+    на арендованной карте» нельзя было запустить ничем, и это выяснилось не
+    чтением кода, а прямым вопросом «а какой командой?».
+    """
+    from .models import paddleocr_vl as vl
+    from .remote import runner
+
+    spec = vl.spec(_pdf_of(a.dir), a.dir, pages=a.pages, policy=policy_name,
+                   budget_usd=a.budget, timeout_minutes=a.timeout)
+    log(f"задание {spec.name}: вход {len(spec.inputs)} путей, потолок "
+        f"${spec.budget_usd:.2f} и {spec.timeout_minutes:.0f} мин, карта "
+        f"{spec.host.gpu}, CUDA от {spec.host.cuda_min}")
+    # ПОТОЛОК ПО ДЕНЬГАМ НЕДОСТИЖИМ, ПОКА ОН БОЛЬШЕ ЧАСОВОЙ ЦЕНЫ. `Budget`
+    # берёт минимум из двух, и при потолке цены $0.60/час рубеж в $0.60
+    # означает ровно час — то есть режет всегда время, а деньги не режут
+    # никогда. Сказать об этом обязан тот, кто платит, а не тот, кто потом
+    # разбирает журнал.
+    by_money_h = a.budget / max(spec.host.max_dph, 1e-9)
+    if by_money_h * 60 >= a.timeout:
+        log(f"  ВНИМАНИЕ: при цене до ${spec.host.max_dph:.2f}/час потолок "
+            f"${a.budget:.2f} — это {by_money_h:.1f} ч, то есть больше "
+            f"{a.timeout:.0f} мин таймаута. Резать будет ВРЕМЯ; настоящая "
+            f"верхняя трата — ${spec.host.max_dph * a.timeout / 60:.2f}")
+    if a.dry_run:
+        log("--dry-run: ничего не арендую, задание собрано и проверено")
+        return 0
+    rc = runner.run_job(spec, out, ssh_key=config.ssh_key(a.key),
+                        dry_run=False)
+    log(f"задача вернула {rc}; результат в {out}")
+    if rc == 0:
+        log(f"дальше: books text <истина> {out}/pages   |   books html {out}")
+    return rc
+
+
+def cmd_read(a):
+    """ВТОРОЙ УРОВЕНЬ: прочитать содержимое блоков моделью.
+
+    Единственная команда проекта, которая тратит деньги за пределами аренды, —
+    и потому единственная, которая ДО первого запроса спрашивает у адреса, как
+    его зовут, и роняет прогон при несовпадении.
+
+    Продукт — тот же `pages/*.json`, что у детекции, только с заполненными
+    `content`/`kind`. Значит `books html`, `books text`, `books score`,
+    `books fitness` и `books overlay` едят его без единой правки.
+    """
+    from .read import http as vhttp
+    from .read import run as vread
+
+    out = a.out or (os.path.abspath(a.dir).rstrip("/") + ".read")
+    # СЛОВАРЬ ЯРЛЫКОВ БЕРЁТСЯ ИЗ СЛЕПКА ДЕТЕКЦИИ, а не вбивается руками.
+    # `run.json` детекции уже несёт `политика.словарь`; вбитое умолчание
+    # расходилось с ним молча, и ловилось лишь СЛУЧАЙНО — по ярлыку, которого
+    # нет в чужом словаре. Замер: `DocLayNet` (11 ярлыков) — строгое
+    # подмножество `Docling-egret` (17), и эта пара прошла бы без единого
+    # слова, а слепок положил бы рядом два несовместимых утверждения.
+    known = json.load(open(os.path.join(a.dir, "run.json"), encoding="utf-8")
+                      ).get("политика", {}).get("словарь")
+    policy_name = a.policy or known
+    if not policy_name:
+        raise SystemExit(
+            f"в слепке {a.dir}/run.json не назван словарь ярлыков, и --policy "
+            f"не задан. Спрашивать по угаданному словарю значит вести таблицу "
+            f"промтом текста и записать прозу чтением.")
+    if a.policy and known and a.policy != known:
+        raise SystemExit(
+            f"--policy {a.policy!r} против словаря детекции {known!r}. "
+            f"Совпадающие ярлыки прошли бы молча, а слепок положил бы рядом "
+            f"два несовместимых утверждения. Убери --policy или пересчитай "
+            f"детекцию тем детектором, чьим словарём собрался читать.")
+    os.makedirs(out, exist_ok=True)
+    if a.rent:
+        return cmd_read_rented(a, policy_name, out)
+
+    reader = vread.build_reader(policy_name)
+    transport = vhttp.build()
+
+    # ЧЕМ ОТВЕЧАЕТ АДРЕС — до первой вырезки и до первого цента.
+    who = transport.check()
+    log(f"адрес {who['адрес']}: отвечает {who['модели на сервере']}, "
+        f"спрашиваем {who['спрашиваем']} — совпало")
+
+    pages = None
+    if a.pages:
+        from .detect import parse_pages
+        import pymupdf
+        with pymupdf.open(_pdf_of(a.dir)) as d:
+            pages = set(parse_pages(a.pages, d.page_count))
+
+    t = vread.read_book(a.dir, out, reader, transport,
+                        resume=not a.no_resume, pages_want=pages, log=log)
+    vread.report(t, log=log)
+    p = vread.snapshot(a.dir, out, reader, transport, t,
+                       {"detect": a.dir, "out": out, "pages": a.pages,
+                        "policy": policy_name})
+    log(f"слепок: {p}")
+    log(f"дальше: books html {out}   |   books text <истина> {out}/pages")
+    return 0
+
+
+def _pdf_of(detect_dir):
+    with open(os.path.join(detect_dir, "run.json"), encoding="utf-8") as f:
+        return json.load(f)["исходник"]["путь"]
+
+
 def cmd_feed(a):
     """Приготовить то, что уехало бы в VLM. Ни одного обращения к модели."""
     import glob
@@ -242,7 +400,7 @@ def cmd_feed(a):
     doc = pymupdf.open(snap["исходник"]["путь"])
     out = a.out or os.path.join(d, "feed")
     page_dpi = float(snap["растр"]["dpi"])
-    p = feed.params()
+    p = feed.params(page_dpi)
     log(f"подача {p['подача']}, вырезка {p['dpi вырезки']:.0f} dpi, "
         f"страница {p['dpi страницы']:.0f} dpi, "
         f"заливка дыр {p['заливка дыр']}")
@@ -265,7 +423,7 @@ def cmd_feed(a):
 
 def cmd_overlay(a):
     """Рамки поверх страниц: истина сплошной, догадка модели пунктиром."""
-    from . import overlay
+    from . import detect, overlay
     marks = [(_pages_dir(a.truth, "--truth"), "И")] if a.truth else []
     if a.detect:
         marks.append((_pages_dir(a.detect, "--detect"), "М"))
@@ -274,7 +432,24 @@ def cmd_overlay(a):
     out = a.out or os.path.splitext(a.pdf)[0] + ".overlay.pdf"
     only = None
     if a.pages:
-        only = [int(x) for x in a.pages.replace(",", " ").split()]
+        # РАЗБОР ТОТ ЖЕ САМЫЙ, что у `books detect`, а не второй экземпляр.
+        # Здесь стоял свой: `[int(x) for x in a.pages.replace(",", " ")…]`, и
+        # он расходился с `detect.parse_pages` ТРЕМЯ способами сразу.
+        # (1) Счёт. `detect` считает с ЕДИНИЦЫ, а это клало число прямо в
+        #     индекс: `books detect --pages 40` даёт лист 0039, а `books
+        #     overlay --pages 40` рисовал 0040. Смотришь не тот лист и не
+        #     узнаёшь об этом — а глазами в этом проекте смотрят именно так:
+        #     продетектировал пару страниц и глянул на них.
+        # (2) Диапазоны. `--pages 40-42` у `detect` работает, здесь падало
+        #     голым следом стека: ValueError: invalid literal for int().
+        # (3) Границы. Номер за пределами книги `detect` объявляет вслух, а
+        #     здесь пустой набор давал молчаливое «расхождения на 0
+        #     страницах» — ноль от непонимания в итоговой строке.
+        import pymupdf
+        doc = pymupdf.open(a.pdf)
+        total = doc.page_count
+        doc.close()
+        only = detect.parse_pages(a.pages, total)
     overlay.build(a.pdf, out, marks, only=only, log=log)
     return 0
 
@@ -445,12 +620,36 @@ def cmd_doctor(_a):
     # Итог обеих проверок — ВЕЛИЧИНОЙ в последней строке. Прежде здесь стояло
     # голое «всё в порядке», и оно оставалось бы «в порядке» при активном
     # адаптере без весов: команда не знала про него вовсе.
+    read_line = _doctor_read()
     det_line = _doctor_detect()
     pipe_line = _doctor_docling()
 
     log(("окружение аренды в порядке" if ok else "есть проблемы — см. выше")
-        + f"; детекция: {det_line}; конвейер docling: {pipe_line}")
+        + f"; чтение: {read_line}; детекция: {det_line}; "
+        + f"конвейер docling: {pipe_line}")
     return 0 if ok else 1
+
+
+def _doctor_read():
+    """Второй уровень: адрес модели и ключ. Возвращает строку для итога.
+
+    Ключ живёт МИМО реестра ручек нарочно: всё объявленное в реестре попадает
+    в `run.json` значением, а слепок кладут в git. Оборотная сторона —
+    имя, невидимое `knobs.readers()`, то есть болезнь `VL_MODEL_DIR` в
+    миниатюре; поэтому оно обязано звучать хотя бы здесь.
+    """
+    ep = knobs.knob("VLM_ENDPOINT")
+    key = config.env("VLM_API_KEY")
+    log("чтение блоков (books read, второй уровень):")
+    if ep:
+        log(f"  [ок  ] VLM_ENDPOINT={ep}, ключ VLM_API_KEY "
+            f"{'есть, %d знаков' % len(key) if key else 'не задан'}")
+        return f"адрес задан, ключ {'есть' if key else 'нет'}"
+    log("  [—   ] VLM_ENDPOINT не задан: `books read` откажется работать "
+        "вслух, а не постучится в никуда. Умолчания нет нарочно. На "
+        "арендованной карте адрес ставит run.sh, ключ там не нужен — vLLM "
+        "поднят на петле")
+    return "адрес не задан (для аренды и не нужен)"
 
 
 def _doctor_detect():
@@ -711,6 +910,28 @@ def main(argv=None):
                    help="батарея мутаций: умеет ли число падать (код 1, если нет)")
     p.set_defaults(fn=cmd_score)
 
+    p = sub.add_parser("read",
+                       help="ВТОРОЙ УРОВЕНЬ: прочитать блоки моделью (платно)")
+    p.add_argument("dir", help="каталог books detect")
+    p.add_argument("--out", default="", help="куда класть; по умолчанию <dir>.read")
+    p.add_argument("--pages", default="", help="какие страницы: 1,4,7-9")
+    p.add_argument("--policy", default="",
+                   help="словарь ярлыков детектора; пусто = взять из слепка "
+                        "детекции, а несовпадение с ним — отказ вслух")
+    p.add_argument("--no-resume", action="store_true",
+                   help="спрашивать заново даже то, что уже прочитано")
+    p.add_argument("--rent", action="store_true",
+                   help="считать на АРЕНДОВАННОЙ карте, а не по VLM_ENDPOINT: "
+                        "снять машину, поднять vLLM, забрать результат")
+    p.add_argument("--budget", type=float, default=0.60,
+                   help="потолок траты, $; достигнут — машина уничтожается")
+    p.add_argument("--timeout", type=float, default=60.0,
+                   help="потолок времени, мин; достигнут — то же самое")
+    p.add_argument("--dry-run", action="store_true",
+                   help="собрать задание и проверить его, ничего не арендуя")
+    p.add_argument("--key", default="", help="путь к ssh-ключу для vast.ai")
+    p.set_defaults(fn=cmd_read)
+
     p = sub.add_parser("swap",
                        help="второй уровень: разметка вместо картинки, и откат")
     p.add_argument("dir", help="каталог сборки (books html --out)")
@@ -722,6 +943,9 @@ def main(argv=None):
                    help="чем порождено; уезжает в журнал и в атрибут блока")
     p.add_argument("--undo", action="store_true",
                    help="вернуть то, что стояло до последней замены")
+    p.add_argument("--from", dest="from_read", default="",
+                   help="каталог `books read`: поставить ВСЁ прочитанное, "
+                        "по одному блоку и с откатом у каждого")
     p.set_defaults(fn=cmd_swap)
 
     p = sub.add_parser("text",
@@ -740,7 +964,8 @@ def main(argv=None):
     p.add_argument("--truth", help="каталог истины (bench/synth/truth)")
     p.add_argument("--detect", help="каталог вывода модели (…/detect/pages)")
     p.add_argument("--out", help="куда положить pdf с рамками")
-    p.add_argument("--pages", help="только эти страницы, через запятую")
+    p.add_argument("--pages",
+                   help="какие страницы: 1,4,7-9; счёт с единицы, как у detect")
     p.set_defaults(fn=cmd_overlay)
 
     p = sub.add_parser("synth", help="синтетический стенд с точной истиной")

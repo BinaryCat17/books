@@ -70,19 +70,35 @@ def parse_pages(spec, n):
         log(f"страницы: вся книга, {n} шт.")
         return list(range(n))
     want = []
-    for part in str(spec).split(","):
+    # ПРОБЕЛ РАЗДЕЛЯЕТ ТАК ЖЕ, КАК ЗАПЯТАЯ — как в `detect.parse_pages`.
+    # Здесь этого не было, и копии расходились на четырёх входах из
+    # тринадцати: «1 3» и «1 4 7-9» там давали страницы, а здесь голый
+    # `ValueError: invalid literal for int()`, и «x», «7-x» там отказывали с
+    # образцом, а здесь той же трассировкой. Разбирается это НА АРЕНДОВАННОЙ
+    # КАРТЕ, после разворачивания весов, то есть за деньги.
+    for part in str(spec).replace(" ", ",").split(","):
         part = part.strip()
         if not part:
             continue
         if "-" in part[1:]:
             a, b = part.split("-", 1)
-            rng = range(int(a), int(b) + 1)
+            try:
+                rng = range(int(a), int(b) + 1)
+            except ValueError:
+                raise SystemExit(
+                    f"в «--pages {spec}» диапазон «{part}» не разобран. "
+                    f"Ожидается «7-9», счёт с единицы.")
             if not rng:
                 raise SystemExit(
                     f"диапазон «{part}» пуст: конец раньше начала")
             want.extend(rng)
         else:
-            want.append(int(part))
+            try:
+                want.append(int(part))
+            except ValueError:
+                raise SystemExit(
+                    f"в «--pages {spec}» кусок «{part}» — не номер страницы. "
+                    f"Ожидается «1,4,7-9» или «1 4 7-9», счёт с единицы.")
     if 0 in want:
         raise SystemExit(
             f"«{spec}»: страницы считаются С ЕДИНИЦЫ, как в `books detect` — "

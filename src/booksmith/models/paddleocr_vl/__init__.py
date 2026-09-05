@@ -5,10 +5,23 @@
 ещё нет: он пишется после того, как стенд научится его судить, и не раньше —
 иначе получится третья редакция того же кода, оценённая теми же глазами.
 
-`spec()` сознательно отсутствует, а не заглушена: задание, ссылающееся на
-несуществующий `entrypoint.py`, свалилось бы уже на арендованной карте, то
-есть за деньги. Пусть падает импорт на моей машине и бесплатно.
+`spec()` ниже собирает задание для раннера. На машину едут четыре скрипта и
+ДВА КАТАЛОГА: вывод детекции (рамки, по которым режем) и САМ ПАКЕТ
+`src/booksmith`. Пакет вместо перепечатки кода — решение, а не удобство:
+соседний `dots_ocr/entrypoint.py` несёт свою копию разбора страниц и сам про
+себя пишет «сторожа у этих двух копий нет». Пакет весит 1.1 МБ против 6.2 ГБ
+весов — величина, которой можно пренебречь, а расхождение двух копий стоило
+бы прогона.
 """
+import os
+
+from ...remote.spec import HostReq, JobSpec
+from ...run import knobs, stamp
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+# Корень пакета: `src/booksmith`. Отсюда, а не от рабочего каталога, — иначе
+# задание, собранное из чужого каталога, увезло бы на машину пустоту.
+PKG = os.path.dirname(os.path.dirname(HERE))
 
 # Образ несёт только инструменты доставки (см. infra/base/Dockerfile), а
 # python, CUDA, torch, vLLM и веса ставятся при старте скриптом provision.sh.
@@ -34,3 +47,97 @@ WARMUP_S = 65.0
 
 # Колёса torch — под CUDA 13, а значит нужен драйвер 580+.
 CUDA_MIN = "13.0"
+
+
+def spec(pdf: str, detect_dir: str, pages: str = "",
+         policy: str = "PP-DocLayoutV2", port: int = 8118,
+         budget_usd: float = 0.60, timeout_minutes: float = 60.0) -> JobSpec:
+    """Задание для раннера: прочитать блоки книги на арендованной карте.
+
+    Раннер про OCR не знает ничего и знать не должен — он видит входные файлы,
+    команду и каталог результата.
+
+    ЧТО ПРОВЕРЯЕТСЯ ЗДЕСЬ, ДОМА И БЕСПЛАТНО. Наличие книги, каталога детекции
+    и слепка в нём. Каждая из трёх пропаж иначе всплыла бы на арендованной
+    карте, то есть за деньги; прежний второй уровень так и отлаживался —
+    тринадцать запусков, $0.52, полезных два.
+    """
+    for p, what in ((pdf, "книга"),
+                    (os.path.join(detect_dir, "pages"), "страницы детекции"),
+                    (os.path.join(detect_dir, "run.json"), "слепок детекции"),
+                    (os.path.join(HERE, "constraints.txt"),
+                     "закреплённое дерево зависимостей"),
+                    (os.path.join(HERE, "provision.sh"), "разворачивание"),
+                    (os.path.join(HERE, "run.sh"), "запуск на боксе"),
+                    (os.path.join(HERE, "entrypoint.py"), "точка входа бокса"),
+                    (PKG, "пакет booksmith")):
+        if not os.path.exists(p):
+            raise SystemExit(f"нет {p} ({what})")
+    # ПАКЕТ ОБЯЗАН КОМПИЛИРОВАТЬСЯ, И ПРОВЕРЯЕТСЯ ЭТО ПРЯМО ПЕРЕД ЗАЛИВКОЙ.
+    # Замер: во время правок дерево полминуты не парсилось (`SyntaxError` в
+    # `read/run.py`), и в это окно на бокс уехала бы книга кода, которая не
+    # запускается. Стоило бы полной аренды — разворачивания, весов и прогрева
+    # vLLM, — чтобы узнать про опечатку. Проверка стоит доли секунды.
+    import compileall
+    if not compileall.compile_dir(PKG, quiet=2, force=True):
+        raise SystemExit(
+            f"пакет {PKG} не компилируется целиком — на бокс уехало бы дерево, "
+            f"которое не запускается, и узнали бы мы это за деньги. "
+            f"Разбери ошибку выше и повтори.")
+    return JobSpec(
+        name="vl-read",
+        image=BASE_IMAGE,
+        command=(f"bash run.sh input.pdf detect outputs {port} "
+                 f"{shlex_quote(pages or '-')} {shlex_quote(policy)}"),
+        inputs={
+            pdf: "input.pdf",
+            detect_dir: "detect",
+            PKG: "booksmith",
+            os.path.join(HERE, "run.sh"): "run.sh",
+            os.path.join(HERE, "provision.sh"): "provision.sh",
+            # БЕЗ НЕГО РАЗВОРАЧИВАНИЕ ПАДАЕТ ЧЕРЕЗ ДВЕ МИНУТЫ ПОСЛЕ ОПЛАТЫ.
+            # `provision.sh` ставит колёса строкой
+            # `uv pip install -r "$HERE/constraints.txt"`, где `$HERE` — его
+            # собственный каталог на боксе. Файл в `inputs` не значился, и
+            # `set -euo pipefail` ронял скрипт:
+            #     error: File not found: `/root/job/constraints.txt`
+            # Проверено на собранной раскладке бокса с подставными `uv` и `hf`.
+            os.path.join(HERE, "constraints.txt"): "constraints.txt",
+            os.path.join(HERE, "entrypoint.py"): "entrypoint.py",
+        },
+        outputs="outputs",
+        # Вырезки НЕ ТЯНЕМ обратно: их режет из книги местная же команда за
+        # секунды, а весят они больше всего остального вместе. Замер соседней
+        # задачи: 167 МБ картинок из 179 МБ каталога, при канале 2.9 Мбит/с —
+        # шестнадцать минут передачи ни за чем.
+        pull_exclude=("crops/",),
+        image_gb=IMAGE_GB,
+        payload_gb=PAYLOAD_GB,
+        warmup_s=WARMUP_S,
+        minutes=25.0,
+        budget_usd=budget_usd,
+        timeout_minutes=timeout_minutes,
+        # ЗАДАННОЕ ОПЕРАТОРОМ едет на машину ЦЕЛИКОМ, а не выборкой. Список
+        # строится из реестра (`knobs.passthrough`), а не пишется руками:
+        # писанный руками он уже расходился с реестром — 13 имён из 17, и
+        # четыре ручки, решающие выбор весов, на машину не уезжали вовсе.
+        # Умолчания при этом НЕ подставляются: у них одно место жительства,
+        # реестр, и второй экземпляр в `run.sh` означал бы, что смена
+        # умолчания в коде не доезжает до машины.
+        env={"HF_HUB_DISABLE_PROGRESS_BARS": "1",
+             # Коммит — отсюда, потому что там его спросить не у кого: git в
+             # образе нет. Ставится ПОД `passthrough`, чтобы заданное
+             # оператором вручную имело перевес над догадкой сборщика.
+             "BOOKSMITH_COMMIT": stamp.commit() or "",
+             **knobs.passthrough()},
+        host=HostReq(gpu="RTX_4090", disk_gb=60, max_dph=0.60,
+                     # Требование к CUDA — свойство ЗАДАЧИ: колёса torch здесь
+                     # под CUDA 13, и без этого фильтра негодная карта
+                     # отсеется уже после оплаты.
+                     cuda_min=CUDA_MIN),
+    )
+
+
+def shlex_quote(s: str) -> str:
+    import shlex
+    return shlex.quote(s)

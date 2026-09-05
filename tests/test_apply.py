@@ -195,3 +195,203 @@ def test_unterminated_mark_is_caught_by_the_anchor_guard():
         else:
             raise AssertionError("незакрытая метка принята молча")
         assert open(os.path.join(tmp, "book.html"), encoding="utf-8").read() == BOOK
+
+
+def test_unclosed_comment_is_caught_by_its_own_guard():
+    """Незавершённый комментарий съедает закрывающую метку блока.
+
+    ПЯТЫЙ сторож, и заведён он потому, что четыре прежних пропускали эту беду
+    все до одного: меток блоков в куске нет, кусок не пуст, вид объявлен, а
+    набор якорей НЕ МЕНЯЕТСЯ — `swap.anchors` ищет `<!--bs:`, и голый `<!--`
+    ему не якорь. Замер до починки на книге из 26 блоков: команда отвечала
+    «поставлено 154, снято 175, якорей 26», а по ВИДИМОЙ разметке (после того
+    как браузер съест комментарии) выходило div открыто 0 -> 1, закрыто
+    0 -> 0, figure 26 -> 25 — остаток книги внутри незакрытого div.
+
+    Проверка требует ИМЕННО этого сторожа: сверка якорей здесь молчит по
+    построению, и красноты от чужой заслуги тут быть не может.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        book(tmp)
+        try:
+            ap.put(tmp, A, "<table><tr><td>1</td></tr></table>"
+                           "<!-- дальше не дописала", log=lambda *_: None)
+        except ap.SwapError as e:
+            assert "комментарий открыт и не закрыт" in str(e), (
+                f"отвергнуто, но НЕ сторожем комментариев: {str(e)[:120]!r}")
+        else:
+            raise AssertionError("незавершённый комментарий принят молча")
+        assert open(os.path.join(tmp, "book.html"), encoding="utf-8").read() == BOOK
+
+
+def test_a_closed_comment_is_not_refused():
+    """Сторож обязан уметь и НЕ срабатывать: закрытый комментарий законен.
+
+    Без этой половины проверка зелена от запрета всего подряд, а второй
+    уровень вправе вернуть разметку с комментарием внутри.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        book(tmp)
+        ap.put(tmp, A, "<table><!-- строка итогов --><tr><td>1</td></tr></table>",
+               log=lambda *_: None)
+        h = open(os.path.join(tmp, "book.html"), encoding="utf-8").read()
+        assert "<!-- строка итогов -->" in h, "законный комментарий не доехал"
+        # И экранированные виды не получают ложного отказа: `render` для
+        # `text`/`latex`/`otsl` превращает `<` в `&lt;`, комментария там нет.
+        ap.put(tmp, B, "итог <!-- это текст, а не комментарий", kind="text",
+               log=lambda *_: None)
+
+
+def test_a_broken_journal_is_not_an_empty_journal():
+    """Нечитаемый журнал обязан остановить работу, а не притвориться пустым.
+
+    Соблазн вернуть `{"замены": {}}` стоил бы всей книги: следующая же замена
+    записала бы поверх огрызка одну свою запись, и стопка отката ВСЕХ прежних
+    замен исчезла бы молча. Проверяем и то, что огрызок остался на диске
+    нетронутым: чинить его будут руками.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        book(tmp)
+        ap.put(tmp, A, "<table>первая</table>", log=lambda *_: None)
+        p = os.path.join(tmp, ap.JOURNAL)
+        whole = open(p, encoding="utf-8").read()
+        with open(p, "w", encoding="utf-8") as f:
+            f.write(whole[:len(whole) // 2])          # обрыв записи
+        stump = open(p, encoding="utf-8").read()
+        try:
+            ap.put(tmp, B, "<table>вторая</table>", log=lambda *_: None)
+        except ap.SwapError as e:
+            assert "не читается как json" in str(e), (
+                f"отвергнуто, но не по причине нечитаемого журнала: {str(e)[:120]!r}")
+        else:
+            raise AssertionError(
+                "замена по нечитаемому журналу прошла — стопка отката всей "
+                "книги затёрта молча")
+        assert open(p, encoding="utf-8").read() == stump, (
+            "огрызок журнала переписан, а в нём единственный след прежних замен")
+
+
+def test_journal_is_written_atomically():
+    """Обрыв записи журнала не смеет стирать стопку отката всей книги.
+
+    `open(p, "w")` обрезает старый файл ПЕРВЫМ делом, и всё, что случится
+    дальше, оставляет на его месте огрызок. Замер на журнале в три замены
+    (2101 байт): прежним способом на диске оставалось 1076 байт, не читаемых
+    как json; нынешним журнал цел, а огрызок уходит в `swaps.json.tmp`.
+    """
+    import json as _json
+
+    class Boom(RuntimeError):
+        pass
+
+    with tempfile.TemporaryDirectory() as tmp:
+        book(tmp)
+        for i in range(3):
+            ap.put(tmp, A, f"<table>вариант {i}</table>", log=lambda *_: None)
+        p = os.path.join(tmp, ap.JOURNAL)
+        whole = open(p, encoding="utf-8").read()
+
+        def half(obj, f, **kw):
+            s = _json.dumps(obj, ensure_ascii=False, indent=1)
+            f.write(s[:len(s) // 2])
+            raise Boom("обрыв записи посередине")
+
+        j = ap.load_journal(tmp)
+        j["замены"]["p9999-b9"] = [{"мусор": "x"}]
+        real, _json.dump = _json.dump, half
+        try:
+            ap.save_journal(tmp, j)
+        except Boom:
+            pass
+        else:
+            raise AssertionError("подмена не сработала — замер ничего не мерил")
+        finally:
+            _json.dump = real
+        assert open(p, encoding="utf-8").read() == whole, (
+            "оборванная запись затёрла журнал: стопка отката всей книги "
+            "потеряна")
+        assert len(ap.load_journal(tmp)["замены"][A]) == 3, "стопка укоротилась"
+
+
+def _bulk_stand(tmp, blocks=6):
+    """Книга на N блоков и каталог чтения к ней."""
+    with open(os.path.join(tmp, "book.html"), "w", encoding="utf-8") as f:
+        f.write("<!doctype html><html><body>\n" + "\n".join(
+            swap.wrap(f"p0000-b{i}",
+                      f'<figure id="p0000-b{i}">картинка</figure>')
+            for i in range(blocks)) + "\n</body></html>\n")
+    with open(os.path.join(tmp, "blocks.json"), "w", encoding="utf-8") as f:
+        json.dump({f"p0000-b{i}": {"роль": "артефакт"} for i in range(blocks)}, f)
+    os.makedirs(os.path.join(tmp, "read", "pages"))
+    with open(os.path.join(tmp, "read", "pages", "0000.json"), "w",
+              encoding="utf-8") as f:
+        json.dump({"index": 0, "blocks": [
+            {"block_id": i, "kind": "html",
+             "content": f"<table><tr><td>{i}</td></tr></table>"}
+            for i in range(blocks)]}, f)
+
+
+def test_bulk_reads_the_book_once_not_once_per_block():
+    """Пакетная замена читает книгу ОДИН раз, а не на каждый блок.
+
+    Чем оплачено: `from_read` звал `put` на каждую замену, а тот перечитывал
+    книгу целиком и дважды разбирал в ней ВСЕ якоря; `block_role` вдобавок
+    перечитывал `blocks.json` на каждый блок. Замер на «Технологии
+    огнеупоров» (2.3 МБ, 6156 блоков, 412 замен): 363 секунды против 5 после
+    починки, несколько гигабайт чтения. Тела книг при этом совпали побайтово,
+    журнал тоже — 412 якорей с теми же хэшами, — значит ускорение ничего не
+    изменило по существу.
+
+    Считаются ОТКРЫТИЯ ФАЙЛОВ, а не время: время меряет машину, а открытия —
+    устройство. Умеет провалиться: верните `put` внутрь цикла.
+    """
+    import builtins
+
+    with tempfile.TemporaryDirectory() as tmp:
+        _bulk_stand(tmp, blocks=6)
+        считано = {"book": 0, "blocks": 0}
+        было = builtins.open
+
+        def счётчик(f, *a, **kw):
+            имя = os.path.basename(str(f))
+            mode = (a[0] if a else kw.get("mode", "r"))
+            if "r" in mode and "w" not in mode:
+                if имя == "book.html":
+                    считано["book"] += 1
+                elif имя == "blocks.json":
+                    считано["blocks"] += 1
+            return было(f, *a, **kw)
+
+        builtins.open = счётчик
+        try:
+            res = ap.from_read(tmp, os.path.join(tmp, "read"),
+                               log=lambda *_: None)
+        finally:
+            builtins.open = было
+
+    assert res["поставлено"] == 6, f"поставлено {res['поставлено']} из 6"
+    assert считано["book"] == 1, (
+        f"книга прочитана {считано['book']} раз на 6 замен — правило снова "
+        f"слито с вводом-выводом, и на шести тысячах блоков это шесть минут")
+    assert считано["blocks"] <= 1, (
+        f"blocks.json прочитан {считано['blocks']} раз — разряды берутся по "
+        f"одному вместо одного чтения на всю книгу")
+
+
+def test_bulk_and_single_put_agree_block_for_block():
+    """Пакетная и одиночная замена дают ОДНУ И ТУ ЖЕ книгу.
+
+    Ускорение обязано быть только ускорением. Проверяется тем же способом,
+    каким проверена настоящая книга: тела сравниваются побайтово.
+    """
+    with tempfile.TemporaryDirectory() as t1, tempfile.TemporaryDirectory() as t2:
+        _bulk_stand(t1)
+        _bulk_stand(t2)
+        ap.from_read(t1, os.path.join(t1, "read"), log=lambda *_: None)
+        for i in range(6):
+            ap.put(t2, f"p0000-b{i}",
+                   f"<table><tr><td>{i}</td></tr></table>",
+                   source="read", log=lambda *_: None)
+        a = open(os.path.join(t1, "book.html"), encoding="utf-8").read()
+        b = open(os.path.join(t2, "book.html"), encoding="utf-8").read()
+    assert a == b, "пакетная и одиночная замена дали РАЗНЫЕ книги"

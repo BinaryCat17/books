@@ -1,25 +1,26 @@
 #!/usr/bin/env bash
-# ВНИМАНИЕ: этот скрипт пока НЕ ЗАПУСКАЕТСЯ ни одной командой.
-# Он зовёт entrypoint.py (строка с `python "$WORK/entrypoint.py"`), а прежний
-# entrypoint удалён вместе со слоем заплаток поверх модели. Сам скрипт
-# сохранён ради того, что в нём оплачено кровью: подъём vLLM через setsid и
-# убийство группы процессов. Сироты APIServer и EngineCore копились по одной
-# за прогон, каждая держала 60% видеопамяти, а проверка здоровья это
-# скрывала — `curl /v1/models` отвечала сирота, и скрипт считал, что поднял
-# сервер сам. Новый адаптер обязан переиспользовать эту часть, а не написать
-# её заново.
-#
 # Исполняется НА арендованной машине: разворачивает окружение, поднимает vLLM
-# и зовёт entrypoint.py.
+# и зовёт entrypoint.py, который читает блоки книги.
 #
-#   bash run.sh input.pdf outputs
+#   bash run.sh input.pdf detect outputs [порт] [страницы] [словарь ярлыков]
+#
+# ЧТО ЗДЕСЬ ОПЛАЧЕНО КРОВЬЮ и не должно переписываться заново: подъём vLLM
+# через setsid и убийство ГРУППЫ процессов. Сироты APIServer и EngineCore
+# копились по одной за прогон, каждая держала 60% видеопамяти, а проверка
+# здоровья это скрывала — `curl /v1/models` отвечала сирота, и скрипт считал,
+# что поднял сервер сам. Отсюда же и проверка имени модели в entrypoint.py:
+# «жив ли» и «как тебя зовут» — разные вопросы.
 set -uo pipefail
 
 WORK="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PDF="${1:-$WORK/input.pdf}"
-OUT="${2:-$WORK/outputs}"
+DETECT="${2:-$WORK/detect}"
+OUT="${3:-$WORK/outputs}"
+PORT_ARG="${4:-}"
+PAGES="${5:--}"
+POLICY="${6:-PP-DocLayoutV2}"
 MODEL="${MODEL_NAME:-PaddleOCR-VL-1.6-0.9B}"
-PORT="${PORT:-8118}"
+PORT="${PORT_ARG:-${PORT:-8118}}"
 RESUME="${RESUME:-1}"
 
 mkdir -p "$OUT"
@@ -37,12 +38,17 @@ export PATH="/opt/env/bin:$PATH"
 # другом.  Ровно этой болезнью и был знаменит `VL_MODEL_DIR` — ручка,
 # решающая, какие веса поднимет vLLM, и невидимая в коде задания.
 #
-# Умолчания всё ещё стоят здесь вторым экземпляром, и это временно: когда
-# появится `spec()`, он будет слать на машину ВЕСЬ слепок реестра, а не
-# только заданное, и правые части отсюда уйдут.
+# Правые части — ОСОЗНАННЫЙ ДОЛГ, а не забывчивость, и вот его точная
+# граница. `spec()` рядом теперь шлёт сюда `knobs.passthrough()`, то есть всё,
+# что оператор ЗАДАЛ; умолчания он не подставляет нарочно — у них одно место
+# жительства, реестр. Значит эти три строки — умолчания ДЛЯ СЛУЧАЯ, КОГДА
+# ОПЕРАТОР МОЛЧАЛ, и они обязаны совпадать с реестром. Расхождение поймает
+# `tests/test_knobs.py`, который сверяет правые части `${X:-…}` с ним.
 export VL_MODEL_DIR="${VL_MODEL_DIR:-/models/vl}"
-export LAYOUT_MODEL_DIR="${LAYOUT_MODEL_DIR:-/models/layout}"
-export PADDLE_PDX_MODEL_SOURCE="${PADDLE_PDX_MODEL_SOURCE:-huggingface}"
+# `LAYOUT_MODEL_DIR` и `PADDLE_PDX_MODEL_SOURCE` отсюда УБРАНЫ вместе с качкой
+# весов детектора: макет считается ДОМА, на процессоре и бесплатно, а на бокс
+# приезжает готовым каталогом `detect/`. Ни один потребитель этих двух
+# переменных на боксе не поднимается, и `books read` детектор не зовёт вовсе.
 # Веса лежат распакованным каталогом, поэтому vLLM получает путь, а не имя.
 # VL_MODEL_DIR к этому месту непуст всегда, ветка `:-` недостижима.
 SERVE_MODEL="$VL_MODEL_DIR"
@@ -64,8 +70,13 @@ fi
 log "=== окружение ==="
 nvidia-smi --query-gpu=name,memory.total,driver_version,compute_cap \
            --format=csv,noheader || log "nvidia-smi недоступен"
-python -c "import paddleocr; print('paddleocr', paddleocr.__version__)" 2>/dev/null \
-  || log "пакет paddleocr не импортируется"
+# Печаталась версия paddleocr — единственный потребитель полутора гигабайт
+# `paddleocr`+`paddlepaddle`+`opencv` в constraints, и тот ради строки в
+# журнале. Чтение блоков их не импортирует; вендор вдобавок прямо советует
+# держать paddle и vllm в РАЗНЫХ окружениях. Спрашиваем то, что вправду решает
+# прогон.
+python -c "import vllm, torch; print('vllm', vllm.__version__, '| torch', torch.__version__)" 2>/dev/null \
+  || log "vllm или torch не импортируются — считать будет нечем"
 
 # ------------------------------------------------------------------ vLLM
 # Считать VLM в процессе на порядок медленнее, чем через vLLM.  Теперь он
@@ -96,15 +107,27 @@ if python -c "import vllm" 2>/dev/null; then
   # отсутствуют (Dockerfile ставит только rsync, zstd, curl и библиотеки), так
   # что искать держателя порта нечем — бьём по имени процесса.  Своей оболочки
   # это не касается: в её командной строке нет ни "vllm serve", ни "VLLM::".
-  STALE=$(pgrep -f "vllm serve" 2>/dev/null | tr '\n' ' ')
-  if [ -n "$STALE" ]; then
-    log "на машине остались процессы vLLM ($STALE) — прибираю"
-    pkill -f "vllm serve" 2>/dev/null; pkill -f "VLLM::" 2>/dev/null
-    sleep 3
-    pkill -9 -f "vllm serve" 2>/dev/null; pkill -9 -f "VLLM::" 2>/dev/null
-    sleep 2
+  # ИСКАТЬ НЕЧЕМ — ЗНАЧИТ СКАЗАТЬ ОБ ЭТОМ, А НЕ НАПЕЧАТАТЬ «ЧУЖИХ НЕТ».
+  # `pgrep` в образе не было, и эта строка выдавала код 127, а `else` печатал
+  # «чужих процессов vLLM на машине нет» независимо от факта — говорящий ноль.
+  # Теперь `procps` в образе есть (infra/base/Dockerfile), но проверка
+  # остаётся: образ пересобирают не каждый день, а сирота держит 60%
+  # видеопамяти.
+  if ! command -v pgrep >/dev/null 2>&1; then
+    log "ИСКАТЬ НЕЧЕМ: в образе нет pgrep — сказать, остались ли чужие "
+    log "процессы vLLM, невозможно. Это НЕ «их нет». Пересобери образ "
+    log "(infra/base/Dockerfile ставит procps)"
   else
-    log "чужих процессов vLLM на машине нет"
+    STALE=$(pgrep -f "vllm serve" 2>/dev/null | tr '\n' ' ')
+    if [ -n "$STALE" ]; then
+      log "на машине остались процессы vLLM ($STALE) — прибираю"
+      pkill -f "vllm serve" 2>/dev/null; pkill -f "VLLM::" 2>/dev/null
+      sleep 3
+      pkill -9 -f "vllm serve" 2>/dev/null; pkill -9 -f "VLLM::" 2>/dev/null
+      sleep 2
+    else
+      log "чужих процессов vLLM на машине нет (спрошено pgrep)"
+    fi
   fi
 
   # setsid даёт vLLM собственную группу процессов.  Без этого группа общая
@@ -184,9 +207,13 @@ SERVER_URL=""
 # ------------------------------------------------------------------ счёт
 log "=== разбираю $(basename "$PDF") ==="
 START=$(date +%s)
-RESUME_FLAG=""; [ "$RESUME" = "1" ] && RESUME_FLAG="--resume"
-python "$WORK/entrypoint.py" --pdf "$PDF" --out "$OUT" \
-       --model "$MODEL" --server "$SERVER_URL" $RESUME_FLAG
+# Пакет booksmith приезжает входным файлом задания и лежит рядом со скриптом:
+# дома и здесь исполняется ОДИН И ТОТ ЖЕ код, а не две его редакции.
+RESUME_FLAG=""; [ "$RESUME" = "1" ] || RESUME_FLAG="--no-resume"
+python "$WORK/entrypoint.py" --pkg "$WORK" --detect "$DETECT" \
+       --pdf "$PDF" --out "$OUT" \
+       --model "$MODEL" --server "$SERVER_URL" \
+       --pages "$PAGES" --policy "$POLICY" $RESUME_FLAG
 RC=$?
 log "разбор завершён с кодом $RC за $(( $(date +%s) - START ))с"
 

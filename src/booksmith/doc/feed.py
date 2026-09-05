@@ -38,14 +38,28 @@ import os
 from .. import policy
 from ..run import knobs
 from . import crop
+# Якорь блока собирается ОДНИМ правилом на весь проект. Здесь стояла его
+# вторая копия (`f"p{page.index:04d}-b{b.block_id}"`), и разошлась бы она с
+# `html.anchor_of` при первой же смене схемы имён — молча: feed.json назвал бы
+# куски одними именами, книга и blocks.json другими, а связать подачу с
+# блоком стало бы нечем. Ровно этой болезнью — двумя копиями одного
+# сговора — рождаются проценты из ничего (см. tests/test_html_order.py).
+from .html import anchor_of
 
 FILLS = {"white": (1.0, 1.0, 1.0), "black": (0.0, 0.0, 0.0),
          "gray": (0.5, 0.5, 0.5)}
 MODES = ("crop", "masked_page")
 
 
-def params() -> dict:
-    """Действующая подача. Уезжает в слепок целиком."""
+def params(page_dpi: float | None = None) -> dict:
+    """Действующая подача. Уезжает в слепок целиком.
+
+    `page_dpi` — резкость ДЕТЕКЦИИ (`растр.dpi` слепка). Пустые `CROP_DPI` и
+    `FEED_DPI` значат «как видела модель», и раскрывать их окружением текущего
+    процесса значит называть «как видела модель» то, чего модель не видела.
+    Без аргумента ответ несёт поле «dpi откуда» со словом «текущего процесса»
+    — угадано, а не сверено.
+    """
     mode = knobs.knob("VLM_INPUT")
     if mode not in MODES:
         raise ValueError(f"VLM_INPUT={mode!r}: знаю только {MODES}")
@@ -57,27 +71,53 @@ def params() -> dict:
     # ЦЕЛОЙ страницы, уезжающей в VLM: поднимаешь резкость вырезки таблицы —
     # вчетверо растёт картинка подачи, другое число визуальных токенов, другая
     # цена, и сравнение подач мерит уже не то.
-    c = crop.params()
+    c = crop.params(page_dpi)
+    feed_dpi = knobs.knob("FEED_DPI")
+    if feed_dpi:
+        page_out, src = float(feed_dpi), "FEED_DPI"
+    elif page_dpi is not None:
+        page_out, src = float(page_dpi), "как у детекции"
+    else:
+        page_out, src = float(knobs.knob("PAGE_DPI")), "PAGE_DPI текущего процесса"
     return {"подача": mode, "заливка дыр": fill,
-            "dpi вырезки": c["dpi"], "поле вырезки": c["поле"],
-            "dpi страницы": float(knobs.knob("FEED_DPI") or knobs.knob("PAGE_DPI"))}
+            "dpi вырезки": c["dpi"], "dpi вырезки откуда": c["dpi откуда"],
+            "поле вырезки": c["поле"],
+            "dpi страницы": page_out, "dpi страницы откуда": src}
 
 
 def _union_rects(holes):
-    """Слить пересекающиеся дыры в связные группы (описанными рамками)."""
+    """Слить пересекающиеся дыры в связные группы (описанными рамками).
+
+    СЛИВАЕТ ДО УПОРА, А НЕ ЗА ОДИН ПРОХОД, и это не придирка. Слитая рамка
+    берётся ОПИСАННОЙ, то есть растёт, — и может накрыть ту, которую этот же
+    проход уже отложил как непересекающуюся. Замер на построенном входе:
+    `[[0,20,4,30], [0,0,10,10], [5,5,8,80]]` — прежний код печатал «дыр 2»
+    (`[0,20,4,30]` и `[0,0,10,80]`), хотя вторая целиком накрывает первую и
+    группа тут одна. По числу дыр выбирают подачу, и завышенное число делает
+    `masked_page` дороже на бумаге, чем она есть.
+
+    На девяти каталогах `bench/*/detect` (762 страницы с артефактами) старый и
+    новый счёт совпали до единицы — 1701 дыра тем и другим. То есть в дереве
+    беда пока не всплывала; чинится она потому, что вход выбирает не она.
+    """
     out = []
     for h in holes:
         cur = list(h)
-        rest = []
-        for o in out:
-            if (cur[0] < o[2] and o[0] < cur[2]
-                    and cur[1] < o[3] and o[1] < cur[3]):
-                cur = [min(cur[0], o[0]), min(cur[1], o[1]),
-                       max(cur[2], o[2]), max(cur[3], o[3])]
-            else:
-                rest.append(o)
-        rest.append(cur)
-        out = rest
+        rest = list(out)
+        grew = True
+        while grew:
+            grew = False
+            keep = []
+            for o in rest:
+                if (cur[0] < o[2] and o[0] < cur[2]
+                        and cur[1] < o[3] and o[1] < cur[3]):
+                    cur = [min(cur[0], o[0]), min(cur[1], o[1]),
+                           max(cur[2], o[2]), max(cur[3], o[3])]
+                    grew = True
+                else:
+                    keep.append(o)
+            rest = keep
+        out = rest + [cur]
     return out
 
 
@@ -111,7 +151,7 @@ def masked_page(doc, page_index: int, boxes, page_dpi: float, dst: str,
     """
     import pymupdf
 
-    p = params()
+    p = params(page_dpi)
     dpi = p["dpi страницы"] if dpi is None else dpi
     fill = p["заливка дыр"] if fill is None else fill
 
@@ -151,20 +191,20 @@ def prepare(doc, page, out_dir: str, page_dpi: float, log=print) -> dict:
     Ни одного обращения к модели: местно, бесплатно, чтобы посмотреть глазами
     и сравнить подачи ДО того, как пойдут деньги.
     """
-    p = params()
+    p = params(page_dpi)
     os.makedirs(out_dir, exist_ok=True)
-    tag = f"p{page.index:04d}"
+    tag = f"p{page.index:04d}"           # имя файла СТРАНИЦЫ, а не якорь блока
     art = [b for b in page.blocks if policy.role(b.label) == "артефакт"]
     txt = [b for b in page.blocks if policy.role(b.label) != "артефакт"]
 
     if p["подача"] == "crop":
         items = []
         for b in txt:
-            rel = f"{tag}-b{b.block_id}.png"
+            a = anchor_of(page.index, b.block_id)
+            rel = f"{a}.png"
             info = crop.cut(doc, page.index, b.box, page_dpi,
                             os.path.join(out_dir, rel))
-            items.append({"якорь": f"{tag}-b{b.block_id}", "ярлык": b.label,
-                          **info})
+            items.append({"якорь": a, "ярлык": b.label, **info})
         return {"подача": "crop", "запросов": len(items),
                 "артефактов не послано": len(art), "куски": items}
 

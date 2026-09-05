@@ -53,6 +53,9 @@ hr.лист[data-пусто]::after{content:"модель не нашла на �
     display:block;font:11px monospace;color:#c00;margin-top:.3em}
 hr.лист[data-без-текста]:not([data-пусто])::after{content:"вся полоса ушла в картинки";
     display:block;font:11px monospace;color:#c00;margin-top:.3em}
+hr.лист[data-только-служебное]{border-top:2px dashed #c00}
+hr.лист[data-только-служебное]::after{content:"на листе только служебное: ни текста, ни артефактов";
+    display:block;font:11px monospace;color:#c00;margin-top:.3em}
 hr.лист{border:0;border-top:1px dashed #ccc;margin:2.5em 0}
 """
 
@@ -99,6 +102,21 @@ def _nesting(arts) -> dict:
     def area(b):
         return max(0.0, b.box[2] - b.box[0]) * max(0.0, b.box[3] - b.box[1])
 
+    def rank(b):
+        """Место блока в порядке модели — КЛЮЧОМ, а не голым `order`.
+
+        `Block.order = None` контракт `models/base.py` разрешает прямо: ранга
+        не даёт ни один адаптер из трёх (yolox и оба docling), а у четвёртого
+        он пуст ровно у того, что первый уровень вырезает картинками — 100% у
+        `image`, `figure_title`, `table`. Прежняя строка сравнивала кортежи
+        `(o.order, o.block_id)` напрямую и на паре «ранг есть / ранга нет»
+        роняла ВСЮ сборку книги: `TypeError: '>=' not supported between
+        instances of 'NoneType' and 'int'`. Ранга нет — сравниваем по
+        `block_id`, а безранговый идёт ПОСЛЕ ранжированного: это порядок
+        разбора, а не наша выдумка о модели.
+        """
+        return (b.order is None, b.order or 0, b.block_id)
+
     inner = {}
     for b in arts:
         for o in arts:
@@ -107,7 +125,7 @@ def _nesting(arts) -> dict:
             ab, ao = area(b), area(o)
             if ab > ao * 1.02:
                 continue
-            if abs(ab - ao) <= ao * 0.02 and (o.order, o.block_id) >= (b.order, b.block_id):
+            if abs(ab - ao) <= ao * 0.02 and rank(o) >= rank(b):
                 continue
             inner[b.block_id] = o.block_id
             break
@@ -156,6 +174,30 @@ def _twice_area(boxes):
     return total
 
 
+def _sheet_trouble(blocks, arts) -> str | None:
+    """Чем плох лист: `пусто` | `без-текста` | `только-служебное` | None.
+
+    ОТКАЗОВ ТРИ, А ПОМЕТКИ БЫЛО ДВЕ, и третий печатался чужой. «Без текста»
+    значило просто «блоки есть, текста среди них нет», поэтому лист с одной
+    колонцифрой (`footer`, разряд «служебное») получал красное «вся полоса
+    ушла в картинки» при `data-доля-в-картинках="0.00"` — элемент
+    противоречил сам себе. Замер: `bench/atlas` стр. 0, один блок `footer`,
+    доля 0.00, пометка про картинки; на всей книге «страниц без единого
+    текстового блока» стояло 9 при восьми настоящих.
+
+    ОТДЕЛЬНОЙ ФУНКЦИЕЙ, а не тремя строками в `build`, ровно ради батареи
+    порчи: правило, зашитое в тело сборки, нечем сломать, а сторож, которого
+    нельзя сломать, не доказан. Возвращаемое слово — оно же имя атрибута
+    (`data-пусто`, `data-без-текста`, `data-только-служебное`): второй копии
+    этих имён в файле нет.
+    """
+    if not blocks:
+        return "пусто"                # модель не нашла на листе ничего
+    if any(policy.role(b.label) == "текст" for b in blocks):
+        return None
+    return "без-текста" if arts else "только-служебное"
+
+
 def _order_src(page) -> str:
     """Откуда у блоков этой страницы взялся `order` — словами адаптера.
 
@@ -184,6 +226,66 @@ def _ours(v) -> bool:
     """
     from ..models.base import ours_order
     return ours_order(v)
+
+
+# Отрисовщик формул. Вариант SVG выбран НЕ по вкусу: он единственный из
+# трёх, который живёт ОДНИМ файлом и не тянет отдельных шрифтов, а книга
+# обязана открываться без сети — её кладут на диск и читают через полгода.
+# KaTeX весит меньше (268 КБ против 2.11 МБ), но требует тридцати файлов
+# шрифтов; MathJax в chtml — того же семейства беда.
+MATHJAX = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                       "mathjax", "tex-svg.js")
+
+# `pre` ВЫЧЕРКНУТ ИЗ ПРОПУСКАЕМЫХ НАРОЧНО. Умолчание MathJax пропускает
+# `pre`, а второй уровень кладёт формулу-артефакт именно в `<pre>`
+# (`doc/apply.render`, вид `latex`). С умолчанием ровно те блоки, ради
+# которых всё и делается, остались бы исходником: на «Технологии огнеупоров»
+# это 2260 формул из 6080 прочитанных блоков.
+_SKIP = ("script", "noscript", "style", "textarea", "code", "annotation",
+         "annotation-xml")
+
+# `$...$` включён, а у MathJax по умолчанию его НЕТ (только `\\(...\\)`).
+# Модель же пишет встроенную математику долларами: «где $\\alpha$ — коэффи‐
+# циент». Без этой строки такие места остались бы с долларами наружу.
+_MATH_CFG = ('window.MathJax={tex:{inlineMath:[["$","$"],["\\\\(","\\\\)"]],'
+             'displayMath:[["\\\\[","\\\\]"],["$$","$$"]]},'
+             'options:{skipHtmlTags:' + json.dumps(list(_SKIP)) + '}};')
+
+
+def _math(out_dir: str) -> tuple[str, str]:
+    """Чем рисовать формулы. Ручка `HTML_MATH`: local | cdn | off.
+
+    Умолчание `local` — книга самодостаточна: 2.11 МБ рядом с ней, и она
+    откроется без сети когда угодно. `cdn` оставлен для случая, когда лишний
+    вес важнее независимости, и он ОБЪЯВЛЯЕТСЯ в журнале, а не подразумевается.
+    `off` — сырой LaTeX, как было до появления этой ручки.
+    """
+    import shutil
+
+    from ..run import knobs
+    how = (knobs.knob("HTML_MATH") or "local").strip()
+    if how not in ("local", "cdn", "off"):
+        raise SystemExit(
+            f"HTML_MATH={how!r}: знаю только local | cdn | off. Молчаливого "
+            f"умолчания здесь нет: книга с неотрисованными формулами выглядит "
+            f"исправной, а читать её нельзя.")
+    if how == "off":
+        return "", "формулы НЕ отрисованы (HTML_MATH=off) — сырой LaTeX"
+    cfg = f"<script>{_MATH_CFG}</script>"
+    if how == "cdn":
+        return (cfg + '<script id="MathJax-script" async '
+                'src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/'
+                'tex-svg.js"></script>',
+                "формулы рисует MathJax ИЗ СЕТИ — без неё книга не откроется")
+    if not os.path.exists(MATHJAX):
+        raise SystemExit(
+            f"нет {MATHJAX}: HTML_MATH=local, а отрисовщика рядом с кодом не "
+            f"лежит. Либо положите его туда, либо HTML_MATH=cdn (нужна сеть "
+            f"при открытии), либо HTML_MATH=off (сырой LaTeX).")
+    shutil.copy2(MATHJAX, os.path.join(out_dir, "tex-svg.js"))
+    return (cfg + '<script id="MathJax-script" async src="tex-svg.js"></script>',
+            f"формулы рисует MathJax из соседнего файла "
+            f"({os.path.getsize(MATHJAX)/1e6:.1f} МБ) — сеть не нужна")
 
 
 def build(detect_dir: str, out_dir: str, log=print) -> dict:
@@ -288,7 +390,7 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
     #    (рамка там одна, пересекаться не с чем), поэтому рядом стоят два
     #    своих числа: страниц без текста вовсе и наибольшая доля листа в
     #    одной рамке.
-    dup_text = nested = no_text = no_blocks = 0
+    dup_text = nested = no_text = no_blocks = only_service = 0
     # ЧЕЙ ПОРЯДОК СОБРАН — главное свойство книги и до сих пор нигде не
     # названное. `Block.order` у трёх адаптеров из четырёх не ранг модели, а
     # наша сортировка сверху вниз и слева направо; адаптер честно говорит об
@@ -307,17 +409,16 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
         arts = [b for b in page.blocks if policy.role(b.label) == "артефакт"]
         sheet = float(page.width) * float(page.height)
         share = _union_share([b.box for b in arts], sheet)
-        # ПУСТАЯ страница — не «ушла в картинки». Прежде лист, на котором
-        # модель не нашла ВООБЩЕ ничего, помечался тем же красным «вся полоса
-        # ушла в картинки», что и лист, целиком съеденный одной рамкой. Это
-        # два разных отказа, и путать их нельзя: первый — «модель ничего не
-        # увидела», второй — «увидела одно на всё».
-        blank = (bool(page.blocks)
-                 and not any(policy.role(b.label) == "текст"
-                             for b in page.blocks))
-        empty = not page.blocks
+        # Чем плох лист — одним словом и одним правилом (`_sheet_trouble`).
+        # Отказов три, и путать их нельзя: «модель не увидела ничего»,
+        # «увидела одно на всё» и «увидела только служебное». Разбор и цена
+        # каждого — при самом правиле, второй копии здесь нет.
+        trouble = _sheet_trouble(page.blocks, arts)
+        empty = trouble == "пусто"
+        blank = trouble == "без-текста"
         no_text += blank
         no_blocks += empty
+        only_service += trouble == "только-служебное"
         for b in arts:
             one = ((b.box[2] - b.box[0]) * (b.box[3] - b.box[1])) / sheet
             if one > biggest[0]:
@@ -329,8 +430,7 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
         body.append(
             f'<hr class="лист" data-стр="{page.index}" '
             f'data-доля-в-картинках="{share:.2f}"'
-            + (' data-без-текста="да"' if blank else '')
-            + (' data-пусто="да"' if empty else '') + '>')
+            + (f' data-{trouble}="да"' if trouble else '') + '>')
         cuts = []
         for b in page.blocks:
             a = anchor_of(page.index, b.block_id)
@@ -437,12 +537,13 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
             f"часть из другого, и какая именно — неизвестно. Книга не "
             f"записана; повторите books html целиком.")
 
+    os.makedirs(out_dir, exist_ok=True)
+    math_head, math_note = _math(out_dir)
     page_html = ("<!doctype html>\n<html lang=\"ru\"><head>"
                  "<meta charset=\"utf-8\">"
                  f"<title>{_html.escape(os.path.basename(pdf))}</title>"
-                 f"<style>{CSS}</style></head>\n<body>\n"
+                 f"<style>{CSS}</style>{math_head}</head>\n<body>\n"
                  + "\n".join(body) + "\n</body></html>\n")
-    os.makedirs(out_dir, exist_ok=True)
     out_html = os.path.join(out_dir, "book.html")
     with open(out_html, "w", encoding="utf-8") as f:
         f.write(page_html)
@@ -491,7 +592,7 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
             "sha256 слепка детекции": _detect._sha256(
                 os.path.join(detect_dir, "run.json"))},
         "политика": policy.snapshot(),
-        "вырезка": crop.params(),
+        "вырезка": crop.params(page_dpi),
         # У сборки нет ни промтов, ни порождения, ни весов — это ЗНАЧЕНИЯ.
         "промты": {},
         "порождение": {"temperature": None, "max_tokens": None,
@@ -523,8 +624,15 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
     log(f"страниц {len(files)}, блоков {sum(counts.values())} "
         f"(текст {counts['текст']}, артефакты {counts['артефакт']}, "
         f"служебное {counts['служебное']})")
-    log(f"вырезок {cut_n} при {crop.params()['dpi']:.0f} dpi, "
-        f"поле {crop.params()['поле']}, срезано листом {clipped}")
+    # Резкость вырезки печатается ТА, ЧТО ПРИМЕНЕНА. Прежде здесь стояло
+    # `crop.params()` без аргумента, то есть пустой `CROP_DPI` раскрывался в
+    # `PAGE_DPI` текущего процесса. Замер: детекция `bench/atlas` при
+    # `PAGE_DPI=150`, сборка при умолчании — строка утверждала «вырезок 26 при
+    # 144 dpi», хотя координаты пересчитывались из 150; теперь 150, и рядом
+    # сказано, откуда число взято.
+    _cp = crop.params(page_dpi)
+    log(f"вырезок {cut_n} при {_cp['dpi']:.0f} dpi ({_cp['dpi откуда']}), "
+        f"поле {_cp['поле']}, срезано листом {clipped}")
     # Ноль от проверки и ноль от непонимания: «0.00%» здесь значит «сверили
     # все вырезки, пересечений нет», а нулевой знаменатель — «сверять нечем»,
     # и так и написано.
@@ -540,6 +648,9 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
         f"артефакта), вложенных артефактов {nested} (подчинены внешней и "
         f"помечены data-внутри; ни один не выброшен)")
     log(f"страниц, где модель не нашла НИЧЕГО: {no_blocks}")
+    log(f"страниц, где кроме служебного нет ничего: {only_service} "
+        f"(ни текста, ни артефактов — вырезать в картинки было нечего, и это "
+        f"НЕ «вся полоса ушла в картинки»)")
     log(f"страниц без единого текстового блока {no_text} "
         f"(вся полоса ушла в картинки), наибольшая доля листа в одной "
         f"рамке {biggest[0]*100:.0f}%"
@@ -564,6 +675,9 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
             + f"; наш, а не модели, на {ours} стр. из {len(files)}")
     log(f"якорей в документе {len(swap.anchors(page_html))}, "
         f"наблюдений сбоку {len(side)}")
+    # Величина, а не молчание: книга с неотрисованными формулами выглядит
+    # исправной ровно до того мига, как её откроют.
+    log(f"формулы: {math_note}")
     log(f"{out_html} ({os.path.getsize(out_html)/1024:.0f} КБ), "
         f"вырезки в {blockdir}")
     return {"страниц": len(files), "по разрядам": counts, "вырезок": cut_n,
@@ -573,4 +687,4 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
             "порядок блоков": {
                 "по meta страниц": dict(sorted(order_src_n.items())),
                 "страниц с нашим порядком": ours},
-            "вырезка": crop.params(), "политика": policy.snapshot()}
+            "вырезка": crop.params(page_dpi), "политика": policy.snapshot()}

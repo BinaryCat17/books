@@ -17,6 +17,7 @@
 """
 import ast
 import os
+import sys
 
 # Каталог исходников. Отсюда, а не от cwd: иначе проверка из другого каталога
 # молча не нашла бы ни одного адаптера и была бы зелёной ни на чём.
@@ -31,13 +32,59 @@ class Skip(Exception):
     """Проверку выполнить нечем. Причина обязательна."""
 
 
+# Кто гоняет проверки. Ставит это САМ бегун (`tests/run.py` при запуске), а
+# не мы отсюда: спрашивать «импортируется ли pytest» вместо «гоняет ли он»
+# уже стоило прогона. Замер (подставной модуль `pytest` в `sys.modules`, тот
+# же договор, что у настоящего — `Skipped(BaseException)` и `skip()`):
+# до правки первый же пропуск под нашим бегуном уходил мимо ловушек
+# `run_case` и убивал прогон целиком — строка «проверок 111: прошло …» не
+# печаталась ВОВСЕ, то есть 110 прошедших проверок пропадали вместе с одним
+# пропуском. Сейчас pytest в `.venv` нет, и беда спит.
+OWN_RUNNER = False
+
+
 def skip(reason: str):
-    """Пропуск с причиной. Под pytest — его же пропуск, чтобы бегун был любой."""
-    try:
-        import pytest
-    except ImportError:
-        raise Skip(reason) from None
-    pytest.skip(reason)
+    """Пропуск с причиной. Под pytest — его же пропуск, чтобы бегун был любой.
+
+    Выбор по ТОМУ, КТО ГОНЯЕТ, а не по тому, что установлено. Проверяются оба
+    признака сразу: наш бегун объявляет себя `OWN_RUNNER`, а pytest, если он
+    и правда работает, к этому мигу уже лежит в `sys.modules` — сам он себя
+    импортирует раньше любой проверки. Импорта pytest здесь больше нет: он-то
+    и превращал «pytest установлен» в «pytest гоняет».
+    """
+    pt = sys.modules.get("pytest")
+    if pt is not None and not OWN_RUNNER:
+        pt.skip(reason)
+    raise Skip(reason)
+
+
+def foreign_skip(e) -> bool:
+    """Пропуск, объявленный ЧУЖИМ бегуном: `pytest.skip()`.
+
+    Живёт РЯДОМ С `Skip`, а не в бегуне, потому что это одна и та же мысль:
+    что считать пропуском. Держать её в двух домах значило бы завести две
+    копии договора — те самые, что расходятся молча (сторож порядка чтения
+    уже разошёлся так регистром).
+
+    Отдельная ветка нужна вот почему: `Skipped` у pytest наследует
+    BaseException, а не Exception, и мимо обычных ловушек бегуна он проходит
+    насквозь, УБИВАЯ прогон. Замер подставным модулем с тем же договором: под
+    нашим бегуном один пропуск — и строка «проверок 111: прошло 110, …» не
+    печаталась вовсе, код возврата 1 от трассы.
+
+    Тип берётся У САМОГО pytest, а не по имени класса: имя `Skipped` может
+    оказаться и у чужого исключения, и тогда провал уехал бы в пропуски.
+    Спрашиваются оба места, где pytest его держит: `pytest.skip.Exception`
+    (ставит декоратор `_with_exception`) и `pytest.Skipped`.
+    """
+    pt = sys.modules.get("pytest")
+    if pt is None:
+        return False
+    for cls in (getattr(getattr(pt, "skip", None), "Exception", None),
+                getattr(pt, "Skipped", None)):
+        if isinstance(cls, type) and isinstance(e, cls):
+            return True
+    return False
 
 
 class Unresolved(RuntimeError):
@@ -88,6 +135,13 @@ def _values(node, module) -> set:
         if isinstance(obj, dict):
             return set(obj.values())
         raise Unresolved(f"{_dotted(node.value)} — не словарь, а {type(obj)}")
+    # СКЛЕЙКА. `order.WORDS[which] + ": модель ранга не даёт"`: правило берётся
+    # из общего словаря, а хвост дописывает адаптер. Разворачиваем в
+    # произведение — каждое левое значение с каждым правым, — иначе сторож
+    # видел бы только половину строки и пропустил бы подмену второй.
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        left, right = _values(node.left, module), _values(node.right, module)
+        return {a + b for a in left for b in right}
     raise Unresolved(
         f"значение «{ORDER_KEY}» вычислить не удалось: {ast.dump(node)[:120]}. "
         f"Это НЕ «значений нет» — допиши разбор в support._values.")

@@ -2,10 +2,21 @@
 
 Чего не мог дать синтетический стенд. Он нарисован шрифтом, а не отпечатан
 высокой печатью, и про чтение знаков не говорит ничего — это записано в его
-собственной шапке. AnnoPage — 7550 страниц исторических документов 1485 года
-и позже, преимущественно чешских и немецких, размеченных экспертами-
-библиотекарями по чешской методике обработки изобразительных документов.
-Zenodo, DOI 10.5281/zenodo.12788419, CC BY 4.0.
+собственной шапке. AnnoPage — **7550 файлов разметки** к **5690**
+опубликованным страницам исторических документов, размеченным экспертами по
+25 нетекстовым категориям. Здесь стояло «7550 страниц», и это неверно:
+разница в 1860 — разметки, ссылающиеся на страницы ЧУЖИХ датасетов, которых в
+архиве нет (ровно столько строк в `images.txt`), и они же дают счётчик
+«разметок без картинки». Zenodo, DOI 10.5281/zenodo.12788419, CC BY 4.0.
+
+ЧЕГО ПРО ЭТОТ АРХИВ СКАЗАТЬ НЕЧЕМ, И ЭТО НЕ ТО ЖЕ, ЧТО «НЕВЕРНО». Здесь
+стояло ещё «1485 года и позже, преимущественно чешских и немецких, по чешской
+методике обработки изобразительных документов». В самом архиве этого нет:
+`README.md` говорит только «mostly from czech written documents», ни даты, ни
+немецких, ни методики, ни DOI внутри ZIP нет вовсе (перечислен исчерпывающе:
+13252 записи). Сведения могли быть взяты со страницы Zenodo или из статьи
+авторов — проверить нечем, и потому они убраны отсюда, а не объявлены
+выдумкой.
 
 ЧТО ЗДЕСЬ РАЗМЕЧЕНО, А ЧТО НЕТ. Размечены ТОЛЬКО нетекстовые объекты, 25
 категорий. Текстовых блоков в истине нет вовсе — значит по этому стенду
@@ -29,6 +40,9 @@ Zenodo, DOI 10.5281/zenodo.12788419, CC BY 4.0.
 import hashlib
 import json
 import os
+import shutil
+
+from .run import knobs
 
 # --- прямое соответствие: только это идёт в замер -------------------------
 DIRECT = {
@@ -65,6 +79,34 @@ def _sha256(path):
     return h.hexdigest()
 
 
+def _yaml_names(root):
+    """Карта «индекс -> имя» из `dataset.yaml`. `None`, если файла нет.
+
+    Разбирается пятью строками, а не библиотекой: нужен один плоский раздел
+    `names:` вида «  0: Имя», и тащить `yaml` в модуль ради него незачем.
+    Двоеточие делим ПЕРВОЕ — в именах категорий бывают запятые, и когда-нибудь
+    может встретиться двоеточие.
+    """
+    p = os.path.join(root, "dataset.yaml")
+    if not os.path.exists(p):
+        return None
+    out, inside = {}, False
+    for line in open(p, encoding="utf-8"):
+        if line.startswith("names:"):
+            inside = True
+            continue
+        if inside:
+            if line.strip() and not line[0].isspace():
+                break                          # раздел кончился
+            if ":" not in line:
+                continue
+            k, v = line.split(":", 1)
+            k = k.strip()
+            if k.isdigit():
+                out[int(k)] = v.strip()
+    return out or None
+
+
 def _classes(root):
     p = os.path.join(root, "classes.txt")
     if not os.path.exists(p):
@@ -77,6 +119,27 @@ def _classes(root):
             f"в датасете есть категории, о которых мы не высказались: "
             f"{unknown}. Умолчания нет нарочно — молчаливое «невыразимо» "
             f"превратилось бы в вечный недобор без объяснения.")
+    # ПОРЯДОК СТРОК СВЕРЯЕТСЯ СО ВТОРЫМ ИСТОЧНИКОМ, а не принимается на веру.
+    # Метка в разметке — это ИНДЕКС, имя ему даёт строка N файла `classes.txt`,
+    # и до сих пор проверялось только МНОЖЕСТВО имён. Цена промера: поменять в
+    # `classes.txt` местами `Table` и `Vignette` — сборка проходит молча, а в
+    # замере объектов становится 1121 вместо 1232 и таблиц 13 вместо 124. То
+    # есть весь золотой стенд уезжает, и ни одна проверка этого не говорит.
+    # Второй источник лежит в том же архиве и до сих пор не читался ни разу.
+    # (Сегодня они СОВПАДАЮТ, 25 из 25, — истина стенда цела; сторож ставится
+    # не по следам аварии, а чтобы её не было.)
+    ymap = _yaml_names(root)
+    if ymap is not None:
+        wrong = [(i, n, ymap.get(i)) for i, n in enumerate(names)
+                 if ymap.get(i) != n]
+        if wrong or len(ymap) != len(names):
+            raise AnnoPageError(
+                f"classes.txt и dataset.yaml расходятся: имён {len(names)} "
+                f"против {len(ymap)}, первое расхождение "
+                f"{wrong[0] if wrong else '—'} (индекс, classes.txt, "
+                f"dataset.yaml). Метка в разметке — это ИНДЕКС, и при "
+                f"расхождении вся истина стенда собралась бы под чужими "
+                f"ярлыками молча.")
     return names
 
 
@@ -84,12 +147,28 @@ def build(root: str, out_dir: str, split: str = "test", limit: int = 0,
           truth_only: bool = False, log=print) -> dict:
     """Сложить книгу-стенд из AnnoPage: PDF плюс истина в нашем формате.
 
-    Страница получает размер, при котором рендер на PAGE_DPI=144 отдаёт РОВНО
+    Страница получает размер, при котором рендер на `PAGE_DPI` отдаёт РОВНО
     исходный растр: тогда координаты истины и рамки модели живут в одной
-    системе, и приводить ничего не надо.
+    системе, и приводить ничего не надо. Ручка читается, а не подразумевается
+    — здесь стояло «на PAGE_DPI=144», и число было зашито в код рядом.
     """
     import cv2
     import pymupdf
+
+    # МАСШТАБ БЕРЁТСЯ ИЗ ОБЪЯВЛЕННОЙ РУЧКИ, а не из зашитого 0.5. Смысл его
+    # один: лист должен быть такого размера в пунктах, чтобы рендер при
+    # `PAGE_DPI` отдал РОВНО исходный растр — тогда координаты истины и рамки
+    # модели живут в одной системе и приводить ничего не надо. Прежде здесь
+    # стояло 0.5 = 72/144, верное ровно при умолчании: подними кто-нибудь
+    # `PAGE_DPI` до 300 — и стенд собрался бы про растр вчетверо мельче
+    # объявленного, а истина продолжала бы писать «dpi: 144.0». Ловила это
+    # сверка размеров в `metrics`, то есть ЧУЖОЙ файл и не всегда; сам
+    # сборщик молчал. Ручку читаем через реестр, иначе прогон не попадёт в
+    # слепок.
+    dpi = float(knobs.knob("PAGE_DPI"))
+    if dpi <= 0:
+        raise AnnoPageError(f"PAGE_DPI = {dpi}: масштаб листа неположителен")
+    scale = 72.0 / dpi
 
     names = _classes(root)
     ldir = os.path.join(root, "labels", split)
@@ -100,9 +179,20 @@ def build(root: str, out_dir: str, split: str = "test", limit: int = 0,
     stems = sorted(f[:-4] for f in os.listdir(ldir) if f.endswith(".txt"))
     os.makedirs(out_dir, exist_ok=True)
     tdir = os.path.join(out_dir, "truth")
-    os.makedirs(tdir, exist_ok=True)
-    for old in os.listdir(tdir):
-        os.unlink(os.path.join(tdir, old))
+    # ИСТИНА ПИШЕТСЯ В СТОРОНУ И ПОДМЕНЯЕТСЯ ТОЛЬКО ПОСЛЕ СТОРОЖЕЙ. Прежде
+    # `truth/` чистился ЗДЕСЬ, а сторожа `--truth-only` (число страниц, размер
+    # листа) стояли на сотню строк ниже, после главного цикла. То есть сторож
+    # говорил правду и говорил ПОЗДНО: опыт на копии стенда — `build(...,
+    # limit=5, truth_only=True)` уронил сборку словами «страниц 600, а истина
+    # переписана на 5: это разные выборки», и к этому мигу от 600 годных
+    # файлов истины оставалось ПЯТЬ. 595 уничтожены отказом, который затевался
+    # ради их защиты. Восстановить их можно было только `git checkout`, и
+    # только потому, что этот стенд отслеживается; в свежем каталоге —
+    # нечем.
+    work = tdir + ".новая"
+    if os.path.isdir(work):
+        shutil.rmtree(work)
+    os.makedirs(work)
 
     # 1860 разметок ссылаются на страницы ЧУЖИХ датасетов, которых в архиве
     # нет. Это не потеря, а объявленное свойство ВЫБОРКИ, поэтому и считается
@@ -166,12 +256,12 @@ def build(root: str, out_dir: str, split: str = "test", limit: int = 0,
                                     "категория": cat, "разряд": kind})
 
         if not truth_only:
-            page = doc.new_page(width=w * 0.5, height=h * 0.5)  # 144dpi -> w,h
+            page = doc.new_page(width=w * scale, height=h * scale)
             with open(img_path, "rb") as f:
                 page.insert_image(page.rect, stream=f.read())
-        with open(os.path.join(tdir, f"{used:04d}.json"), "w",
+        with open(os.path.join(work, f"{used:04d}.json"), "w",
                   encoding="utf-8") as f:
-            json.dump({"index": used, "width": w, "height": h, "dpi": 144.0,
+            json.dump({"index": used, "width": w, "height": h, "dpi": dpi,
                        "blocks": blocks, "raw": None,
                        "meta": {"случай": stem[:8], "книга": "annopage",
                                 "файл": os.path.basename(img_path),
@@ -215,7 +305,7 @@ def build(root: str, out_dir: str, split: str = "test", limit: int = 0,
         for rec in pages:
             r = chk[rec["страница"]].rect
             w, h = rec["размер"]
-            if abs(r.width - w * 0.5) > 0.6 or abs(r.height - h * 0.5) > 0.6:
+            if abs(r.width - w * scale) > 0.6 or abs(r.height - h * scale) > 0.6:
                 chk.close()
                 raise AnnoPageError(
                     f"стр. {rec['страница']}: лист {r.width:.0f}x{r.height:.0f} "
@@ -226,12 +316,24 @@ def build(root: str, out_dir: str, split: str = "test", limit: int = 0,
         doc.save(pdf, garbage=3, deflate=True)
         doc.close()
 
+    # Сторожа позади — можно подменять. Порядок: старое в сторону, новое на
+    # место, старое снести. Оборвись работа посередине, на месте останется
+    # либо прежняя истина, либо новая, но не пустота.
+    keep = tdir + ".прежняя"
+    if os.path.isdir(keep):
+        shutil.rmtree(keep)
+    if os.path.isdir(tdir):
+        os.rename(tdir, keep)
+    os.rename(work, tdir)
+    if os.path.isdir(keep):
+        shutil.rmtree(keep)
+
     n_direct = sum(counts["прямо"].values())
     man = {"книга": "annopage",
-           "о книге": "AnnoPage: исторические страницы 1485 г. и позже, "
+           "о книге": "AnnoPage: 7550 разметок к 5690 страницам, "
                       "разметка библиотекарями, только НЕТЕКСТОВЫЕ объекты",
            "источник": "Zenodo 10.5281/zenodo.12788419, CC BY 4.0",
-           "выборка": split, "страниц": len(pages),
+           "выборка": split, "страниц": len(pages), "PAGE_DPI": dpi,
            "текст размечен": False,
            "объектов в замере": n_direct,
            "объектов вне замера": {
