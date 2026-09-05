@@ -31,9 +31,12 @@ from . import swap
 # третья копия (в `from_read`), и разошлась бы она с `html.anchor_of` молча:
 # `put` ответил бы «якоря нет в книге» на каждый блок, а команда напечатала
 # бы здоровое «отказано N» вместо «схема имён разъехалась».
-from .html import anchor_of
+from .html import ASSETS, SOURCE, anchor_of
 
-JOURNAL = "swaps.json"
+# Журнал замен — КУХНЯ, а не книга, и лежит он в `assets/` вместе с прочим.
+# В корне каталога сборки остаётся ровно один файл, `book.html`, и он
+# самодостаточен: читателю там выбирать не из чего.
+JOURNAL = os.path.join(ASSETS, "swaps.json")
 # Виды содержимого, которые второй уровень вправе вернуть. Список ОБЪЯВЛЕН, а
 # не «любая строка»: `kind` уезжает в журнал и в книгу атрибутом, и опечатка в
 # нём молча превратилась бы в новый вид, о котором никто не договаривался.
@@ -77,7 +80,18 @@ def load_journal(out_dir: str) -> dict:
     """
     p = os.path.join(out_dir, JOURNAL)
     if not os.path.exists(p):
-        return {"книга": "book.html", "замены": {}}
+        # СТАРАЯ РАСКЛАДКА — НЕ ПУСТОЙ ЖУРНАЛ. Журнал переехал в `assets/`, и
+        # книги, собранные до переезда, держат его в корне. Не заметив, мы
+        # объявляли «второй уровень по этой книге ещё не ходил» там, где
+        # лежала стопка отката всей платной работы: на `ruall.read/html` это
+        # 412 замен, на `ru20.read/html` — 17. Хуже, следующая замена завела
+        # бы ВТОРОЙ журнал, а первый остался бы недостижим — ровно та беда,
+        # от которой предостерегает докстрока выше, только с другой стороны.
+        старый = os.path.join(out_dir, "swaps.json")
+        if os.path.exists(старый):
+            p = старый
+        else:
+            return {"книга": "book.html", "замены": {}}
     try:
         with open(p, encoding="utf-8") as f:
             j = json.load(f)
@@ -114,7 +128,18 @@ def save_journal(out_dir: str, j: dict) -> str:
     `os.replace` атомарен в пределах одной файловой системы, поэтому временный
     файл кладётся РЯДОМ с журналом, а не в /tmp.
     """
+    # Пишем ТУДА ЖЕ, ОТКУДА ЧИТАЛИ. Иначе на книге старой раскладки вышло бы
+    # два журнала: прочитанный в корне и записанный в `assets/`, — и стопка
+    # отката разъехалась бы по двум файлам молча.
     p = os.path.join(out_dir, JOURNAL)
+    старый = os.path.join(out_dir, "swaps.json")
+    if not os.path.exists(p) and os.path.exists(старый):
+        p = старый
+    # Кухня могла ещё не появиться: `books html` её создаёт, а замена умеет
+    # работать и над книгой, собранной не им. Журнал — наш файл, и заводить
+    # для него каталог наше дело; отказ здесь означал бы «замена не удалась»
+    # там, где не удалось лишь создать папку.
+    os.makedirs(os.path.dirname(p) or ".", exist_ok=True)
     tmp = p + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(j, f, ensure_ascii=False, indent=1)
@@ -202,7 +227,7 @@ def block_roles(out_dir: str) -> dict:
     гигабайт чтения. Правило то же самое, читатель тот же файл — меняется
     только число обращений.
     """
-    p = os.path.join(out_dir, "blocks.json")
+    p = os.path.join(out_dir, ASSETS, "blocks.json")
     if not os.path.exists(p):
         return {}
     try:
@@ -220,7 +245,7 @@ def block_role(out_dir: str, anchor: str) -> str:
     говорить «текст». Второй уровень бывает нужен и текстовому блоку, и врать
     про его разряд в самой книге незачем — по этому атрибуту её потом читают.
     """
-    p = os.path.join(out_dir, "blocks.json")
+    p = os.path.join(out_dir, ASSETS, "blocks.json")
     if not os.path.exists(p):
         return "неизвестен"
     try:
@@ -324,6 +349,20 @@ def put_into(html: str, anchor: str, fragment: str, kind: str, source: str,
             f"якоря {anchor} в книге нет. Есть {len(before)} других; "
             f"имена постраничные, вида p0042-b17 — посмотри blocks.json.")
     body = _wrap_fragment(anchor, fragment, kind, source or "руками", role=role)
+
+    # ПОВТОР — НЕ РАБОТА. Если на месте блока уже лежит побайтово ровно это,
+    # ставить второй раз нечего: книга не изменится, а в стопке отката
+    # появится лишняя ступень, и `--undo` придётся звать дважды, чтобы
+    # вернуть картинку. Замер до этой проверки: второй `--from` на той же
+    # книге дал «поставлено 412» при неизменном содержимом, а журнал вырос с
+    # 412 замен до 824 — глубина ВСЕХ стопок стала два.
+    #
+    # Сравниваем ГОТОВОЕ ТЕЛО, а не сырой кусок: тело несёт и вид, и источник,
+    # и роль, то есть повтором считается лишь полностью совпавшая замена. Тот
+    # же кусок от другой модели — работа, и она пройдёт.
+    if swap.get(html, anchor) == body:
+        return html, None, body
+
     new_html, taken = swap.swap(html, anchor, body)
     after = swap.anchors(new_html)
     if not _anchors_unchanged(before, after):
@@ -359,6 +398,18 @@ def put(out_dir: str, anchor: str, fragment: str, kind: str = "html",
         html = f.read()
     new_html, entry, body = put_into(
         html, anchor, fragment, kind, source, block_role(out_dir, anchor))
+    if entry is None:
+        # ПОВТОР — НЕ РАБОТА, и величина здесь та же, что у `--from`. Молча
+        # вернуть «поставлено 0» было бы вторым нулём от непонимания: «блок
+        # уже несёт ровно это» и «замена не удалась» — разные ответы.
+        j = load_journal(out_dir)
+        глубина = len(j["замены"].get(anchor, []))
+        log(f"{anchor}: УЖЕ СТОИТ ровно это ({kind}, "
+            f"{source or 'руками'}) — книга не тронута, стопка отката "
+            f"{глубина}")
+        return {"якорь": anchor, "поставлено": 0, "уже стоит": True,
+                "снято": 0, "якорей": len(swap.anchors(html)),
+                "глубина отката": глубина}
     taken = entry["снято"]
     j = load_journal(out_dir)
     j["замены"].setdefault(anchor, []).append(entry)
@@ -494,6 +545,40 @@ def status(out_dir: str, log=print) -> dict:
             "по якорям": live}
 
 
+def source_of(out_dir: str) -> str | None:
+    """Из какого каталога чтения собрана книга — по её собственному слепку.
+
+    `books html` пишет в `assets/run.json` поле `аргументы.detect` — путь, из
+    которого книга собрана. Значит спрашивать его у оператора вторично: книга
+    и так помнит, чем сделана.
+
+    Возвращает `None`, если слепка нет, поле пусто или каталога больше нет на
+    диске. Три разных «нет» здесь НЕ различаются нарочно: вызывающему всё
+    равно нужен `--from`, а причину он назовёт сам, посмотрев на путь.
+    """
+    # СНАЧАЛА — ИСТОЧНИК ВНУТРИ КНИГИ. `books html` кладёт его в
+    # `assets/source`, и это единственный путь, который переживает перенос
+    # каталога на другую машину. В слепке записан АБСОЛЮТНЫЙ путь, и он врёт
+    # ровно тогда, когда книгу куда-то скопировали, — то есть в самый частый
+    # случай.
+    свой = os.path.join(out_dir, SOURCE)
+    if os.path.isdir(os.path.join(свой, "pages")):
+        return свой
+
+    p = os.path.join(out_dir, ASSETS, "run.json")
+    if not os.path.exists(p):
+        return None
+    try:
+        with open(p, encoding="utf-8") as f:
+            снимок = json.load(f)
+    except ValueError:
+        return None
+    путь = ((снимок.get("аргументы") or {}).get("detect") or "").strip()
+    if not путь or not os.path.isdir(os.path.join(путь, "pages")):
+        return None
+    return путь
+
+
 def from_read(out_dir: str, read_dir: str, only_role: str = "артефакт",
               log=print) -> dict:
     """Поставить в книгу ВСЁ, что прочитал второй уровень. По одной, с откатом.
@@ -519,8 +604,9 @@ def from_read(out_dir: str, read_dir: str, only_role: str = "артефакт",
     if not pages:
         raise SwapError(f"в {read_dir} нет pages/*.json — это не каталог "
                         f"`books read`")
-    tally = {"блоков": 0, "поставлено": 0, "нечего ставить": 0,
-             "не тот разряд": 0, "отказано": 0, "знаков": 0}
+    tally = {"блоков": 0, "поставлено": 0, "уже стоит": 0,
+             "нечего ставить": 0, "не тот разряд": 0, "отказано": 0,
+             "знаков": 0}
     refused = []
     src = os.path.basename(os.path.abspath(read_dir))
 
@@ -558,6 +644,9 @@ def from_read(out_dir: str, read_dir: str, only_role: str = "артефакт",
                 tally["отказано"] += 1
                 refused.append(f"{anchor}: {str(e)[:80]}")
                 continue
+            if entry is None:            # уже лежит ровно это
+                tally["уже стоит"] += 1
+                continue
             j["замены"].setdefault(anchor, []).append(entry)
             tally["поставлено"] += 1
             tally["знаков"] += len(body)
@@ -570,13 +659,22 @@ def from_read(out_dir: str, read_dir: str, only_role: str = "артефакт",
         with open(path, "w", encoding="utf-8") as f:
             f.write(html)
     log(f"блоков в чтении {tally['блоков']}: поставлено "
-        f"{tally['поставлено']} ({tally['знаков']} знаков), нечего ставить "
-        f"{tally['нечего ставить']}, не тот разряд {tally['не тот разряд']}, "
-        f"отказано {tally['отказано']}")
-    # Три разных нуля, и каждый со своей причиной.
+        f"{tally['поставлено']} ({tally['знаков']} знаков), уже стояло "
+        f"{tally['уже стоит']}, нечего ставить {tally['нечего ставить']}, "
+        f"не тот разряд {tally['не тот разряд']}, отказано "
+        f"{tally['отказано']}")
+    # ЧЕТЫРЕ разных нуля, и каждый со своей причиной. Четвёртый — «всё уже
+    # стоит» — появился вместе с идемпотентностью, и до него повтор печатал
+    # «ни один блок не встал: разряда „артефакт" среди прочитанного нет» при
+    # 412 стоящих блоках. Тот самый ноль от непонимания: говорящий шаг врал
+    # нулём, а звучало это как приговор чтению.
     if not tally["поставлено"]:
         if not tally["блоков"]:
             log("в чтении нет блоков вовсе — это не «всё уже стоит»")
+        elif tally["уже стоит"]:
+            log(f"книга УЖЕ СОБРАНА этим чтением: {tally['уже стоит']} блоков "
+                f"несут ровно то, что в нём. Ничего не тронуто, стопка отката "
+                f"не выросла — повтор здесь бесплатен")
         elif tally["нечего ставить"] == tally["блоков"]:
             log("модель не прочла НИ ОДНОГО блока — ставить нечего, и это НЕ "
                 "«книга уже собрана»")

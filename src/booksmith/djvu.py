@@ -437,10 +437,3 @@ def to_pdf(src, dst=None, split="auto", log=print):
     log(f"развёрнут: {os.path.basename(dst)}, страниц {made} "
         f"({os.path.getsize(dst) / 1e6:.0f} МБ)")
     return dst
-
-
-def ensure_pdf(path, log=print):
-    """PDF как есть; djvu — развернуть. Всё остальное — пусть падает дальше."""
-    if path.lower().endswith(".djvu"):
-        return to_pdf(path, log=log)
-    return path

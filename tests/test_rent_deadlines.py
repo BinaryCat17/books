@@ -282,3 +282,86 @@ def test_a_refusal_of_access_is_named_apart_from_a_stubborn_machine():
         f"403 назван как обычная неудача уничтожения:\n{всё[:400]}")
     assert "спросить некого" in всё, (
         "«жив» после отказа доступа выдаётся за наблюдение")
+
+
+class _BoxThatFailsAfterPulse:
+    """Машина, у которой пульс завёлся, а связь дальше оборвалась.
+
+    Ровно тот случай, что оставлял брошенную машину бессмертной: пульс
+    заводится ДО первой сетевой команды, а падает она штатно.
+    """
+
+    заведённые: list = []
+
+    def __init__(self, *a, **kw):
+        self.пульс = False
+        _BoxThatFailsAfterPulse.заведённые.append(self)
+
+    def wait_ready(self, **kw):
+        pass
+
+    def start_heartbeat(self):
+        self.пульс = True
+
+    def stop_heartbeat(self):
+        self.пульс = False
+
+    def check_deadman(self):
+        raise OSError("ssh замолчал сразу после пульса")
+
+
+def test_a_failed_connect_leaves_no_machine_with_a_live_pulse():
+    """Отказ ПОСЛЕ `start_heartbeat` обязан пульс погасить.
+
+    ЧЕМ ЭТО ОПЛАЧЕНО. `connect` заводит пульс, а следом идёт в сеть
+    (`check_deadman`), и отказ там штатен. До починки `box` до вызывающего не
+    доезжал — переменная в `_rent` оставалась НЕ ПРИВЯЗАНА, `stop_heartbeat`
+    давал `UnboundLocalError`, и тот глушился молчащим `except Exception:
+    pass`. Машина уезжала в `undead` С ЖИВЫМ ПУЛЬСОМ: наш поток стучал
+    `touch /root/.alive` каждые 30 с до конца прогона и тем ВЫКЛЮЧАЛ дозор
+    мертвеца — единственный из четырёх способов гашения, не зависящий ни от
+    нашего ключа, ни от нашего процесса. На второй попытке хуже вдвое:
+    гасился бы пульс ПРЕДЫДУЩЕЙ машины.
+
+    Ни одной строки в журнал при этом не печаталось, то есть беда была
+    невидима и по выводу.
+    """
+    _BoxThatFailsAfterPulse.заведённые = []
+    было = runner.Box
+    runner.Box = _BoxThatFailsAfterPulse
+    try:
+        for iid in (1001, 1002):
+            try:
+                runner.connect(_FakeVastReady(), iid, _SpecStub(), None,
+                               attempt_limit=60.0)
+            except OSError:
+                pass
+    finally:
+        runner.Box = было
+
+    заведено = _BoxThatFailsAfterPulse.заведённые
+    assert len(заведено) == 2, (
+        f"подставная машина заведена {len(заведено)} раз вместо двух — "
+        f"проверка не дошла до места, которое стережёт")
+    живые = [i for i, b in enumerate(заведено, 1) if b.пульс]
+    assert not живые, (
+        f"после отказа связи пульс остался жив у машин {живые}. Наш поток "
+        f"будет оживлять брошенную машину до конца прогона, и дозор мертвеца "
+        f"на ней выключен — гасить обязан тот, кто завёл")
+
+
+class _FakeVastReady:
+    """Аренда, которая доводит до ssh и не мешает: беда дальше, в `Box`."""
+
+    def wait_running(self, iid, timeout):
+        pass
+
+    def ssh_target(self, iid):
+        return ("root", "10.0.0.1", 22)
+
+    def attach_key(self, *a):
+        pass
+
+
+class _SpecStub:
+    workdir = "/workdir"

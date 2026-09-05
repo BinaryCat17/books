@@ -76,7 +76,16 @@ COPY = ("models/doclayout.py", "models/docling_heron.py",
         # `support.src_path`. Забыть эту строку значит оставить мутацию без
         # действия: проверка прочтёт настоящий файл мимо порчи и будет
         # зелёной на сломанном коде.
-        "models/dots_ocr/entrypoint.py")
+        "models/dots_ocr/entrypoint.py",
+        # Прибор контуров: `test_order` разбирает его `_by_reading` и требует,
+        # чтобы правило сборки спрашивалось у `order.py`, а не повторялось.
+        "metrics.py",
+        # Скрипт, уезжающий на арендованную карту: `test_knobs` сверяет его
+        # `${ИМЯ:-умолчание}` с реестром ручек.
+        "models/paddleocr_vl/run.sh",
+        # Сборщик книги: `test_html_order` разбирает его `build` и требует,
+        # чтобы сверка порядка была на месте и не выводилась из обхода.
+        "doc/html.py")
 
 
 @contextmanager
@@ -1259,7 +1268,7 @@ def anchor_of_a_private_copy(page_index, block_id):
     """`doc/feed` завёл СВОЮ копию правила якоря.
 
     Сегодня она совпадает строкой, и разойдутся копии молча: feed.json звал бы
-    куски одними именами, книга и blocks.json другими, а `books swap` отвечал
+    куски одними именами, книга и blocks.json другими, а `books apply` отвечал
     бы «якоря нет в книге» на каждый блок чтения.
     """
     return f"p{page_index:04d}-b{block_id}"
@@ -1917,6 +1926,149 @@ def mutations():
                              '"фильтр cv2": INTERP', '"подложка2": PAD'),
          [("test_yolox_fingerprint",
            "test_the_fingerprint_declares_the_resize_filter")]),
+
+        # --- повтор не смеет растить стопку отката -------------------------
+        # Снимешь — и второй `books apply` на той же книге удвоит журнал, не
+        # изменив ни знака: 412 замен станут 824, а `--undo` придётся звать
+        # дважды. Ровно на этом держится безопасность умолчания команды.
+        ("повтор замены снова растит стопку отката",
+         lambda: one_line("booksmith.doc.apply",
+                          "    if swap.get(html, anchor) == body:",
+                          "    if False:"),
+         [("test_apply", "test_putting_the_same_markup_twice_changes_nothing")]),
+
+        # --- порядок книги: дыра, которую не ловило НИЧТО ------------------
+        # Скептик перевернул обход блоков одной строкой, и полная батарея
+        # осталась зелёной: 201 проверка, 0 провалов. Книга читалась бы задом
+        # наперёд, а все три прибора мерят СТРАНИЦЫ детекции, не документ.
+        ("книга собирается в перевёрнутом порядке",
+         lambda: one_line("booksmith.doc.html",
+                          "        for b in page.blocks:",
+                          "        for b in reversed(page.blocks):"),
+         [("test_html_order",
+           "test_the_book_carries_blocks_in_the_order_it_walked_them")]),
+
+        # Сторож ЛЕГКО сделать тавтологичным, и первая редакция такой и была:
+        # ожидание копилось внутри стерегомого цикла. Три порчи не поймались
+        # ни одна. Разбор АСТ в проверке требует, чтобы оно жило снаружи.
+        ("ожидание порядка снова копится внутри цикла",
+         lambda: one_line("booksmith.doc.html",
+                          "        ждём.extend(anchor_of(page.index, b.block_id) for b in page.blocks)",
+                          "        pass"),
+         [("test_html_order",
+           "test_the_book_carries_blocks_in_the_order_it_walked_them")]),
+
+        # И сам сторож в сборщике: проверка сравнивает порядок своими руками,
+        # поэтому его снятие она заметит только разбором исходника.
+        # `sources`, а НЕ `one_line`: проверка ловит это РАЗБОРОМ ИСХОДНИКА,
+        # а `one_line` пересобирает модуль в памяти и до файла не доходит. На
+        # этом я ошибся третий раз подряд — механизм у мутации решает не
+        # меньше, чем сама порча.
+        ("сборщик перестал сверять порядок книги",
+         lambda: sources("doc/html.py",
+                         "    if вышло != ждём:",
+                         "    if False:"),
+         [("test_html_order",
+           "test_the_book_carries_blocks_in_the_order_it_walked_them")]),
+
+        # Три места, где переезд кухни в `assets/` ломал работающее, и все
+        # три нашла перекрёстная проверка, а не разбор кода.
+        ("журнал прежней раскладки снова невидим",
+         lambda: one_line("booksmith.doc.apply",
+                          '        старый = os.path.join(out_dir, "swaps.json")',
+                          '        старый = os.path.join(out_dir, "нет.json")'),
+         [("test_apply",
+           "test_a_journal_from_the_old_layout_is_seen_not_declared_empty")]),
+
+        ("сборщик снова не узнаёт свой каталог по слепку в кухне",
+         lambda: one_line("booksmith.doc.html",
+                          '    return (os.path.exists(os.path.join(out_dir, ASSETS, "run.json"))',
+                          '    return (False'),
+         [("test_html_order", "test_the_builder_recognises_its_own_directory")]),
+
+        ("слепок снова ищется только в корне",
+         lambda: one_line("booksmith.run.replay",
+                          '              os.path.join(outdir, ASSETS, "run.json")):',
+                          '              ):'),
+         [("test_knobs", "test_replay_finds_the_snapshot_in_both_layouts")]),
+
+        # Источник внутри книги — единственное, что переживает её перенос.
+        # Сними приоритет, и `books apply` на скопированной книге пойдёт по
+        # абсолютному пути из слепка, которого на новой машине нет.
+        ("источник внутри книги перестал быть главнее пути из слепка",
+         lambda: one_line("booksmith.doc.apply",
+                          '    if os.path.isdir(os.path.join(свой, "pages")):',
+                          "    if False:"),
+         [("test_apply",
+           "test_the_source_inside_the_book_beats_the_recorded_path")]),
+
+        # Книга помнит, из чего собрана: без этого `books apply` без ключей
+        # не знал бы, что ставить, и умолчание пришлось бы отменить.
+        ("книга перестала помнить свой источник",
+         lambda: one_line("booksmith.doc.apply",
+                          '    путь = ((снимок.get("аргументы") or {}).get("detect") or "").strip()',
+                          '    путь = ""'),
+         [("test_apply", "test_the_book_remembers_where_it_was_built_from")]),
+
+        # --- книга обязана нести себя сама ---------------------------------
+        # Умолчания ручек — то, что получит читатель. Верни их в режим
+        # соседнего файла, и книга, открытая по сетевому пути, покажет сырой
+        # LaTeX вместо формул, не сказав ни слова.
+        ("умолчание HTML_MATH снова ссылается на соседний файл",
+         # `one_line`, а НЕ `sources`: проверка ИСПОЛНЯЕТ сборщик, а тот
+         # спрашивает умолчание у импортированного модуля. Подмена файла на
+         # диске до него не доходит — на первом прогоне мутация была «НЕ
+         # ПОЙМАНА» ровно поэтому.
+         lambda: one_line("booksmith.run.knobs",
+                          'Knob("HTML_MATH", "inline",',
+                          'Knob("HTML_MATH", "local",'),
+         [("test_html_order",
+           "test_the_book_is_alone_at_the_root_and_carries_itself")]),
+
+        # --- умолчания оболочки против реестра -----------------------------
+        # Обещание из `run.sh` («расхождение поймает tests/test_knobs.py»)
+        # жило одной строкой прозы: сверки не было ни одной. Мутация ломает
+        # умолчание в скрипте, который уезжает на арендованную карту.
+        ("умолчание в run.sh разошлось с реестром",
+         lambda: sources("models/paddleocr_vl/run.sh",
+                         "${PORT:-8118}", "${PORT:-9999}"),
+         [("test_knobs", "test_shell_defaults_agree_with_the_registry")]),
+
+        # --- круговой ход сетки не смеет терять содержимое -----------------
+        # Без экранирования ячейка `a<b&c` приезжает обратно как `a`, и
+        # батарея порчи мерит усечённую строку, отчитываясь о полной.
+        ("ячейка таблицы снова не экранируется",
+         lambda: one_line("booksmith.text",
+                          '            out.append("<td>" + _html.escape('
+                          'g.get((r, c), "")) + "</td>")',
+                          '            out.append("<td>" + g.get((r, c), "")'
+                          ' + "</td>")'),
+         [("test_text",
+           "test_a_cell_with_angle_brackets_survives_the_round_trip")]),
+
+        # --- прибор мерит ТО ЖЕ правило, которым собирается книга ----------
+        # Вторая копия правила «наш» жила в `metrics._by_reading` вместе с
+        # докстрокой «тот самый порядок». Ключи совпадали, `metrics` не
+        # импортировал `order` вовсе, и связи не было ни одной — а на этом
+        # сборщике снят главный вывод проекта (2471 прыжок против 501 и 439).
+        ("прибор снова сортирует своей копией правила",
+         lambda: sources("metrics.py",
+                         '        idx = order.permutation(',
+                         '        idx = _naive_reading_order('),
+         [("test_order",
+           "test_the_ruler_measures_the_same_rule_the_book_is_built_with")]),
+
+        # --- денежный путь: пульс брошенной машины -------------------------
+        # Кто завёл пульс, тот и гасит при отказе. Снимешь — и брошенная
+        # машина остаётся бессмертной: наш же поток стучит ей `touch
+        # /root/.alive`, а дозор мертвеца на ней единственный, кто не зависит
+        # ни от нашего ключа, ни от нашего процесса.
+        ("пульс не гасится, когда связь оборвалась после него",
+         lambda: one_line("booksmith.remote.runner",
+                          "            box.stop_heartbeat()",
+                          "            pass"),
+         [("test_rent_deadlines",
+           "test_a_failed_connect_leaves_no_machine_with_a_live_pulse")]),
 
         # --- две копии разбора `--pages`: дома и на карте ------------------
         # Свести их в одну нельзя — на бокс уезжают четыре файла, пакета там

@@ -12,7 +12,7 @@
                   и это ВЕРНО по замыслу. Замена артефакта обязана быть
                   обратимой и записанной в журнал, а пересборка книги журнала
                   не знает. Прочитанные таблицы и формулы ставит
-                  `books swap --from`, по одной и с откатом
+                  `books apply --from`, по одной и с откатом
     books text  — `measure(truth_dir, pages_dir)` читает ровно такой каталог
     books score, books fitness, books overlay, books replay — тоже
 

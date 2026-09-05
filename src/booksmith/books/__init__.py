@@ -31,13 +31,3 @@ def load(name: str):
         from .. import synth
         return synth
     return importlib.import_module(f".{name}", __package__)
-
-
-def about() -> dict:
-    out = {}
-    for n in NAMES:
-        m = load(n)
-        out[n] = {"о книге": getattr(m, "ABOUT", ""),
-                  "лист": list(getattr(m, "SHEET", (0, 0))),
-                  "страниц": len(m.CASES)}
-    return out

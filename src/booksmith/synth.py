@@ -185,16 +185,6 @@ def _fill(pg, rect, text, size, font="F"):
     raise SynthError(f"не сошлось наполнение рамки {rect}")
 
 
-def _columns(pg, truth, x, y, width, heights, prose, size=6.6):
-    for n in heights:
-        r = _rect(x, y, x + width, y + n)
-        body = _fill(pg, r, prose, size)
-        truth.append((x, y, x + width, y + n, "text"))
-        _say(truth, body)
-        y += n + 7
-    return y
-
-
 def _rect(x0, y0, x1, y1):
     import pymupdf
     return pymupdf.Rect(x0, y0, x1, y1)

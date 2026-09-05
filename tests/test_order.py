@@ -150,3 +150,53 @@ def test_no_adapter_sorts_by_itself_any_more():
         f"yolox снова сортирует сам: строки {seen['models/yolox_layout.py']}. "
         f"Правило сборки живёт в order.py, и второй экземпляр разойдётся с "
         f"первым молча — так уже было в docling_heron")
+
+
+def test_the_ruler_measures_the_same_rule_the_book_is_built_with():
+    """Прибор спрашивает правило «наш» У `order.py`, а не повторяет его.
+
+    ЧЕМ ЭТО ОПЛАЧЕНО. `metrics._by_reading` держал вторую копию —
+    `sorted(key=(box[1], box[0]))` — и докстроку «тот самый порядок, который
+    адаптеры объявляют словом „наш"». Ключи совпадали, `metrics` не
+    импортировал `order` вовсе, и НИ ОДНА проверка их не связывала. А на этом
+    сборщике снят главный вывод проекта: «наше правило замерено и проиграло»,
+    2471 лишний прыжок против 501 у ранга модели и 439 у правил docling.
+    Правка `order.permutation` оставила бы прибор мерить ПРЕЖНЕЕ правило и
+    называть его нынешним — то есть развернула бы вывод, не тронув ни одной
+    строки прибора.
+
+    Ровно за такое `order.py` и заведён: правило жило в четырёх местах трёх
+    адаптеров, и в двух сортировало `(round(y/20), x)`, объявляя в `meta`
+    «сверху вниз и слева направо».
+
+    Разбором исходника: сравнить ПОВЕДЕНИЕ двух правил мало — они совпадают
+    сегодня, потому и прожили копией. Проверять надо, что второго правила нет.
+    """
+    t = support.tree("metrics.py")
+    fn = next((n for n in ast.walk(t)
+               if isinstance(n, ast.FunctionDef) and n.name == "_by_reading"),
+              None)
+    assert fn is not None, "в metrics.py не стало _by_reading — сборщик снят?"
+
+    свои = [n.lineno for n in ast.walk(fn)
+            if isinstance(n, ast.Call)
+            and ((isinstance(n.func, ast.Name) and n.func.id == "sorted")
+                 or (isinstance(n.func, ast.Attribute) and n.func.attr == "sort"))]
+    assert not свои, (
+        f"`_by_reading` снова сортирует сам (строки {свои}). Правило сборки "
+        f"живёт в `order.py`; вторая копия разойдётся с первой МОЛЧА, а на "
+        f"этом сборщике стоит вывод «наше правило проиграло»")
+
+    зовёт = [n for n in ast.walk(fn)
+             if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+             and n.func.attr == "permutation"]
+    assert зовёт, (
+        "`_by_reading` не зовёт `order.permutation` — прибор мерит не то "
+        "правило, которым собирается книга")
+    named = {k.arg: k.value for c in зовёт for k in c.keywords}
+    which = named.get("which")
+    assert isinstance(which, ast.Constant) and which.value == "ours", (
+        "`order.permutation` позван без `which=\"ours\"`. Без явного имени "
+        "правило возьмётся из ручки `ASSEMBLY_ORDER`, и столбец «наше "
+        "правило» станет означать разное в разных прогонах — сравнивать "
+        "развёртку будет нельзя")

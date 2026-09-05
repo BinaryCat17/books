@@ -306,7 +306,7 @@ def test_the_anchor_rule_has_exactly_one_home():
 
     Своих копий этого правила было ДВЕ — в `doc/feed` и в `doc/apply`, — и
     разошлись бы они молча: feed.json звал бы куски одними именами, книга и
-    blocks.json другими, а `books swap` отвечал бы «якоря нет в книге» на
+    blocks.json другими, а `books apply` отвечал бы «якоря нет в книге» на
     каждый блок чтения. Проверяем тождеством объекта, а не совпадением строк:
     совпадение строк держится ровно до первой правки одной из копий.
     """
@@ -390,3 +390,218 @@ def test_three_kinds_of_bad_sheet_get_three_different_marks():
     for word in ("вся полоса ушла в картинки", "модель не нашла на листе ничего",
                  "на листе только служебное"):
         assert word in book, f"надписи «{word}» в книге нет"
+
+
+def test_the_book_is_alone_at_the_root_and_carries_itself():
+    """В корне сборки РОВНО ОДИН файл, и он не ссылается наружу.
+
+    ДВА ОБЕЩАНИЯ, И ОБА ПРОВЕРЯЮТСЯ ЗДЕСЬ.
+
+    Первое — раскладка. Книгу открывают двойным щелчком из проводника, и
+    корень, где рядом с ней лежат четыре json и двухмегабайтный js, заставляет
+    читателя гадать, что из этого открыть. Кухня уезжает в `assets/`.
+
+    Второе — самодостаточность, и она оплачена. При `HTML_MATH=local` MathJax
+    лежал соседним файлом, и книга, открытая по сетевому пути
+    (`\\\\wsl.localhost\\...` из Windows), показывала формулы СЫРЫМ LaTeX:
+    Chromium молча не грузит локальный скрипт с UNC-пути, консоль пуста, а
+    книга выглядит собранной. То же ждало бы картинки. Поэтому умолчание —
+    вшивать: `HTML_MATH=inline`, `HTML_IMAGES=inline`.
+
+    Вырезки при этом остаются файлами в `assets/blocks` ВСЕГДА: они нужны
+    правкам, замерам и второму уровню, и второй экземпляр внутри книги их не
+    отменяет.
+    """
+    import json
+    import os
+    import re
+    import tempfile
+
+    import pymupdf
+
+    from booksmith import detect as _detect
+    from booksmith.models.base import Block, Page
+
+    with tempfile.TemporaryDirectory() as tmp:
+        pdf = os.path.join(tmp, "проба.pdf")
+        doc = pymupdf.open()
+        doc.new_page(width=500, height=700)
+        doc.save(pdf)
+        doc.close()
+
+        det = os.path.join(tmp, "detect")
+        os.makedirs(os.path.join(det, "pages"))
+        pg = Page(index=0, width=1000, height=1400, dpi=144.0, blocks=[
+            Block(block_id=0, box=(50.0, 50.0, 950.0, 400.0), label="text",
+                  score=0.9, order=0, content="строки"),
+            Block(block_id=1, box=(50.0, 500.0, 950.0, 1300.0), label="table",
+                  score=0.9, order=1)])
+        with open(os.path.join(det, "pages", "0000.json"), "w",
+                  encoding="utf-8") as f:
+            json.dump(pg.to_json(), f, ensure_ascii=False)
+        with open(os.path.join(det, "run.json"), "w", encoding="utf-8") as f:
+            json.dump({"исходник": {"путь": pdf,
+                                    "sha256": _detect._sha256(pdf)},
+                       "растр": {"dpi": 144},
+                       "веса": {"layout": None}}, f, ensure_ascii=False)
+
+        out = os.path.join(tmp, "html")
+        H.build(det, out, log=lambda *_: None)
+
+        в_корне = sorted(os.listdir(out))
+        assert в_корне == ["assets", "book.html"], (
+            f"в корне сборки {в_корне}, а ожидается только book.html и "
+            f"assets/. Всё, кроме книги, — кухня")
+
+        with open(os.path.join(out, "book.html"), encoding="utf-8") as f:
+            s = f.read()
+        # Ищем то, что книга ГРУЗИТ, а не любую ссылку: `src=` у картинок и
+        # скриптов плюс таблицы стилей. Обычный `<a href="https://…">` не
+        # ловим — их два, оба внутри диалога «О программе» самого MathJax,
+        # и на чтение книги без сети они не влияют никак.
+        грузит = [u for u in re.findall(r'\ssrc="([^"]+)"', s)
+                  if not u.startswith("data:")]
+        грузит += re.findall(r'<link[^>]+href="([^"]+)"', s)
+        assert not грузит, (
+            f"книга подгружает со стороны: {грузит[:5]}. По сетевому пути "
+            f"(\\\\wsl.localhost\\...) браузер эти файлы молча не загрузит, и "
+            f"книга откроется без формул и картинок, выглядя исправной")
+
+        assert os.path.isdir(os.path.join(out, "assets", "blocks")), (
+            "вырезок нет в assets/blocks. Они обязаны лежать файлами даже "
+            "когда вшиты в книгу: их читают правки, замеры и второй уровень")
+
+
+def test_the_builder_recognises_its_own_directory():
+    """Признак «каталог собран нами» знает СБОРЩИК, а не вызывающий.
+
+    ЧЕМ ЭТО ОПЛАЧЕНО. Сторож «чужое не затираем» в `cli.py` искал `run.json`
+    в КОРНЕ каталога. Слепок переехал в `assets/`, и сторож стал отказывать
+    каталогу, сделанному этой же командой минуту назад, — причём отказывать
+    ЛОЖЬЮ: «это, скорее всего, книга прежнего конвейера», которых в проекте
+    не осталось ни одной. Под тот же отказ попадал и совет, который печатает
+    сама сборка: «книга пересобирается без него — `books html
+    <книга>/assets/source`».
+
+    Признак живёт рядом с тем, кто слепок ПИШЕТ. Набранная в другом файле
+    строка разошлась бы молча — так и вышло.
+
+    Старая раскладка признаётся своей ТОЖЕ: книги, собранные до переезда,
+    наши, и объявлять их чужими неверно.
+    """
+    import os
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        assert not H.наш_каталог(tmp), "пустой каталог признан нашим"
+
+        os.makedirs(os.path.join(tmp, H.ASSETS))
+        open(os.path.join(tmp, H.ASSETS, "run.json"), "w").close()
+        assert H.наш_каталог(tmp), (
+            "каталог со слепком в кухне не признан своим — пересборка на "
+            "месте откажет, и совет из журнала сборки станет невыполним")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        open(os.path.join(tmp, "run.json"), "w").close()
+        assert H.наш_каталог(tmp), (
+            "книга ПРЕЖНЕЙ раскладки объявлена чужой — она наша, просто "
+            "собрана до переезда слепка")
+
+
+def test_the_book_carries_blocks_in_the_order_it_walked_them():
+    """Порядок книги СВЕРЯЕТСЯ со списком блоков, а не подразумевается.
+
+    ДЫРА, КОТОРУЮ ЭТО ЗАКРЫВАЕТ. Сборщик обходит `page.blocks` как есть, и
+    книга наследует их порядок — ранг модели либо наше правило. Проверялось
+    это НИЧЕМ: скептик перевернул обход одной строкой (`reversed`), и полная
+    батарея осталась зелёной — 201 проверка, 0 провалов. Книга читалась бы
+    задом наперёд. Все три прибора мерят СТРАНИЦЫ детекции, а не собранный
+    документ, и потому молчат по построению.
+
+    СТОРОЖ ЛЕГКО СДЕЛАТЬ ТАВТОЛОГИЧНЫМ, и первая редакция такой и была:
+    ожидание копилось внутри того же цикла, который оно стережёт, — перевернёшь
+    обход, перевернётся и ожидание. Три порчи (reversed, сдвиг на один, потеря
+    последнего) не поймались ни одна. Поэтому здесь проверяется не только то,
+    что сторож есть, но и что ожидание выводится из `page.blocks` НЕЗАВИСИМО.
+    """
+    import ast
+    import json
+    import os
+    import tempfile
+
+    import pymupdf
+    import support
+
+    from booksmith import detect as _detect
+    from booksmith.doc import swap
+    from booksmith.models.base import Block, Page
+
+    with tempfile.TemporaryDirectory() as tmp:
+        pdf = os.path.join(tmp, "проба.pdf")
+        doc = pymupdf.open()
+        doc.new_page(width=500, height=700)
+        doc.save(pdf)
+        doc.close()
+
+        det = os.path.join(tmp, "detect")
+        os.makedirs(os.path.join(det, "pages"))
+        # Порядок НЕсимметричный: при перевороте он обязан не совпасть сам с
+        # собой. На двух блоках переворот заметен, на одном — нет.
+        pg = Page(index=0, width=1000, height=1400, dpi=144.0, blocks=[
+            Block(block_id=0, box=(50.0, 50.0, 950.0, 300.0), label="text",
+                  score=0.9, order=0, content="первый"),
+            Block(block_id=1, box=(50.0, 400.0, 950.0, 700.0), label="text",
+                  score=0.9, order=1, content="второй"),
+            Block(block_id=2, box=(50.0, 800.0, 950.0, 1300.0), label="table",
+                  score=0.9, order=2)])
+        with open(os.path.join(det, "pages", "0000.json"), "w",
+                  encoding="utf-8") as f:
+            json.dump(pg.to_json(), f, ensure_ascii=False)
+        with open(os.path.join(det, "run.json"), "w", encoding="utf-8") as f:
+            json.dump({"исходник": {"путь": pdf,
+                                    "sha256": _detect._sha256(pdf)},
+                       "растр": {"dpi": 144},
+                       "веса": {"layout": None}}, f, ensure_ascii=False)
+
+        out = os.path.join(tmp, "html")
+        H.build(det, out, log=lambda *_: None)
+        with open(os.path.join(out, "book.html"), encoding="utf-8") as f:
+            книга = f.read()
+
+        ждали = [H.anchor_of(0, i) for i in range(3)]
+        assert swap.anchors(книга) == ждали, (
+            f"книга сложена не в порядке блоков: {swap.anchors(книга)} против "
+            f"{ждали}. Порядок книги — это порядок чтения")
+
+    # ОЖИДАНИЕ НЕ СМЕЕТ ВЫВОДИТЬСЯ ИЗ ОБХОДА. Разбором исходника: исполнением
+    # тавтологию не поймать — сторож, выведенный из обхода, на здоровом коде
+    # ведёт себя ровно так же, как честный.
+    t = support.tree("doc/html.py")
+    fn = next(n for n in ast.walk(t)
+              if isinstance(n, ast.FunctionDef) and n.name == "build")
+    циклы = [n for n in ast.walk(fn) if isinstance(n, ast.For)]
+    for c in циклы:
+        внутри = [n for n in ast.walk(c)
+                  if isinstance(n, ast.Call)
+                  and isinstance(n.func, ast.Attribute)
+                  and isinstance(n.func.value, ast.Name)
+                  and n.func.value.id == "ждём"
+                  and n.func.attr == "append"]
+        assert not внутри, (
+            f"ожидание порядка копится ВНУТРИ цикла (строка {внутри[0].lineno}"
+            f") — сторож стал тавтологичным: перевернёшь обход, перевернётся "
+            f"и ожидание. Так уже было, и три порчи не поймались ни одна")
+
+    # И САМ СТОРОЖ ОБЯЗАН БЫТЬ НА МЕСТЕ. Проверка выше сравнивает порядок
+    # своими руками, поэтому снятие сторожа ИЗ СБОРЩИКА она не заметит:
+    # книга-то соберётся верно. А сторож нужен не ей, а настоящему прогону —
+    # там сравнивать некому. Проверено порчей: `if вышло != ждём` -> `if
+    # False` не роняет ни одной проверки.
+    сверок = [n for n in ast.walk(fn)
+              if isinstance(n, ast.Compare)
+              and isinstance(n.left, ast.Name) and n.left.id == "вышло"
+              and any(isinstance(o, ast.NotEq) for o in n.ops)]
+    assert сверок, (
+        "в `build` не осталось сверки `вышло != ждём` — сборщик перестал "
+        "проверять, в том ли порядке сложилась книга. Настоящему прогону "
+        "сравнивать нечем: приборы мерят страницы детекции, а не документ")

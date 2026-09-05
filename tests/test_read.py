@@ -77,7 +77,7 @@ def test_route_with_unknown_kind_is_loud():
 
 
 def test_declared_kinds_agree_with_the_book():
-    """Виды чтеца — те же имена, что принимает `books swap`."""
+    """Виды чтеца — те же имена, что принимает `books apply`."""
     from booksmith.doc.apply import KINDS
     for name in ("PP-DocLayoutV2", "Docling", "DocLayNet"):
         for rt in PaddleOcrVl(name).routes().values():

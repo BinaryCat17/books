@@ -28,12 +28,27 @@ import html as _html
 import json
 import os
 import shlex
+import shutil
 import time
 
 from .. import policy
 from ..models.base import Page
 from ..run import knobs
+
+
 from . import crop, swap
+
+# КУХНЯ КНИГИ. В корне каталога сборки лежит РОВНО ОДИН файл — `book.html`, и
+# он самодостаточен. Всё прочее — вырезки, наблюдённое сбоку, слепок, журнал
+# замен — уезжает сюда. Причина не в опрятности: книгу открывают двойным
+# щелчком из проводника, и корень, где кроме книги лежат четыре json и
+# двухмегабайтный js, заставляет читателя выбирать, что из этого открыть.
+#
+# Вырезки при этом остаются файлами ДАЖЕ КОГДА вшиты в книгу
+# (`HTML_IMAGES=inline`): они нужны правкам, замерам и второму уровню, а не
+# только чтению, и второй экземпляр внутри книги их не заменяет.
+ASSETS = "assets"
+SOURCE = os.path.join(ASSETS, "source")
 
 CSS = """
 body{max-width:52em;margin:2em auto;padding:0 1em;
@@ -65,7 +80,14 @@ def anchor_of(page_index: int, block_id: int) -> str:
     return f"p{page_index:04d}-b{block_id}"
 
 
-def _figure(anchor, b, role, rel, info, inside=None):
+def _figure(anchor, b, role, src, info, inside=None):
+    """Артефакт картинкой. `src` — ГОТОВЫЙ источник, а не путь.
+
+    Здесь стоял `rel` и `_html.escape(rel)` внутри: путь экранировался на
+    месте. Теперь источником может быть и `data:image/png;base64,…` длиной в
+    полмегабайта, экранировать его незачем и накладно, а собирает его
+    `_img_src` — там же, где решается, вшивать вырезку или ссылаться.
+    """
     cap = (f"{b.label} {b.score:.2f}" if b.score is not None else b.label)
     if inside:
         cap = f"деталь {inside} · " + cap
@@ -77,9 +99,102 @@ def _figure(anchor, b, role, rel, info, inside=None):
     within = f' data-внутри="{inside}"' if inside else ""
     return (f'<figure id="{anchor}" data-роль="{role}" '
             f'data-ярлык="{b.label}"{unread}{within}>'
-            f'<img src="{_html.escape(rel)}" alt="{_html.escape(b.label)}" '
+            f'<img src="{src}" alt="{_html.escape(b.label)}" '
             f'width="{info["ширина"]}" height="{info["высота"]}">'
             f'<figcaption>{_html.escape(cap)}</figcaption></figure>')
+
+
+def наш_каталог(out_dir: str) -> bool:
+    """Собран ли каталог `books html`. Признак — слепок, который пишет он сам.
+
+    Старую раскладку (`run.json` в корне) признаём ТОЖЕ: книги, собранные до
+    переезда слепка в `assets/`, свои — затирать их без спроса нельзя, но и
+    объявлять чужими неверно.
+
+    Живёт здесь, а не в `cli.py`, по одной причине: пишет слепок сборщик, и
+    знать, где он лежит, должен он же. Набранная в другом файле строка
+    разошлась бы молча — так и вышло, когда слепок переехал.
+    """
+    return (os.path.exists(os.path.join(out_dir, ASSETS, "run.json"))
+            or os.path.exists(os.path.join(out_dir, "run.json")))
+
+
+def _keep_source(detect_dir: str, out_dir: str, log) -> dict:
+    """Положить рядом с книгой ТО, ИЗ ЧЕГО ОНА СОБРАНА.
+
+    ЗАЧЕМ, И ЭТО НЕ ОПРЯТНОСТЬ. Каталог книги держал всё, чтобы её ЧИТАТЬ, и
+    не всё, чтобы ПЕРЕСОБРАТЬ: `blocks.json` несёт двенадцать полей на блок —
+    рамку, ярлык, порядок, роль, — но `content` среди них нет. Прочитанный
+    текст жил только разметкой внутри `book.html` и в чужом каталоге чтения,
+    за который заплачено на арендованной карте. Снеси тот каталог, и книгу
+    нечем собрать иначе как новой арендой: на «Технологии огнеупоров» это
+    915 078 знаков и $0.545.
+
+    ВТОРОЙ ВЫИГРЫШ ВАЖНЕЕ ПЕРВОГО. `books apply` без ключей берёт источник из
+    слепка книги, а там записан АБСОЛЮТНЫЙ путь. Скопируй книгу на другую
+    машину или просто передвинь каталог чтения — и команда перестанет знать,
+    что ставить. С источником внутри книга самодостаточна и как продукт, и
+    как заготовка.
+
+    Копия, а не перенос: одно чтение годится для нескольких сборок (разные
+    `HTML_IMAGES`, разная резкость вырезки), и съедать его сборкой нельзя.
+
+    `answers/` берём тоже, хотя пересборке они не нужны: это наблюдённое
+    сбоку — секунды, токены, причина остановки, — то есть единственный ответ
+    на вопрос «почему этот блок плохой». Правило проекта держать наблюдённое
+    рядом с блоком, а не в тексте, стоит того, чтобы наблюдённое не терялось.
+    """
+    dst = os.path.join(out_dir, SOURCE)
+    if os.path.abspath(detect_dir) == os.path.abspath(dst):
+        return {"взято": "уже на месте"}
+    было = {}
+    if os.path.isdir(dst):
+        shutil.rmtree(dst)
+    os.makedirs(dst, exist_ok=True)
+    for имя in ("pages", "answers"):
+        src = os.path.join(detect_dir, имя)
+        if os.path.isdir(src):
+            shutil.copytree(src, os.path.join(dst, имя))
+            было[имя] = len(os.listdir(src))
+    for имя in ("run.json", "чем читали.json"):
+        src = os.path.join(detect_dir, имя)
+        if os.path.isfile(src):
+            shutil.copy2(src, os.path.join(dst, имя))
+            было[имя] = 1
+    вес = sum(os.path.getsize(os.path.join(dp, f))
+              for dp, _, fs in os.walk(dst) for f in fs)
+    log(f"источник сохранён в {SOURCE}: "
+        + ", ".join(f"{k} {v}" for k, v in было.items())
+        + f"; {вес / 1e6:.1f} МБ. Книга пересобирается без него — "
+          f"`books html {os.path.join(out_dir, SOURCE)}`")
+    return было
+
+
+def _img_how() -> str:
+    """`HTML_IMAGES`: вшивать вырезки в книгу или ссылаться на файлы."""
+    from ..run import knobs
+    how = (knobs.knob("HTML_IMAGES") or "inline").strip()
+    if how not in ("inline", "linked"):
+        raise SystemExit(
+            f"HTML_IMAGES={how!r}: знаю только inline | linked. Молчаливого "
+            f"умолчания здесь нет: книга без картинок выглядит собранной, а "
+            f"половина смысла в ней — рисунки и таблицы.")
+    return how
+
+
+def _img_src(path: str, rel: str, how: str) -> str:
+    """Чем книга сошлётся на вырезку: путём или своими байтами.
+
+    `inline` — `data:image/png;base64,…`. Дороже на треть (base64), зато
+    книга открывается ПО ЛЮБОМУ пути. `linked` даёт файл вчетверо меньше, но
+    по сетевому пути (`\\\\wsl.localhost\\...`) браузер соседние файлы
+    молча не грузит, и читатель видит книгу без единой иллюстрации.
+    """
+    if how == "linked":
+        return _html.escape(rel)
+    import base64
+    with open(path, "rb") as f:
+        return "data:image/png;base64," + base64.b64encode(f.read()).decode()
 
 
 def _union_share(boxes, sheet):
@@ -264,9 +379,10 @@ def _math(out_dir: str) -> tuple[str, str]:
 
     from ..run import knobs
     how = (knobs.knob("HTML_MATH") or "local").strip()
-    if how not in ("local", "cdn", "off"):
+    if how not in ("inline", "local", "cdn", "off"):
         raise SystemExit(
-            f"HTML_MATH={how!r}: знаю только local | cdn | off. Молчаливого "
+            f"HTML_MATH={how!r}: знаю только inline | local | cdn | off. "
+            f"Молчаливого "
             f"умолчания здесь нет: книга с неотрисованными формулами выглядит "
             f"исправной, а читать её нельзя.")
     if how == "off":
@@ -279,13 +395,27 @@ def _math(out_dir: str) -> tuple[str, str]:
                 "формулы рисует MathJax ИЗ СЕТИ — без неё книга не откроется")
     if not os.path.exists(MATHJAX):
         raise SystemExit(
-            f"нет {MATHJAX}: HTML_MATH=local, а отрисовщика рядом с кодом не "
+            f"нет {MATHJAX}: HTML_MATH={how}, а отрисовщика рядом с кодом не "
             f"лежит. Либо положите его туда, либо HTML_MATH=cdn (нужна сеть "
             f"при открытии), либо HTML_MATH=off (сырой LaTeX).")
-    shutil.copy2(MATHJAX, os.path.join(out_dir, "tex-svg.js"))
-    return (cfg + '<script id="MathJax-script" async src="tex-svg.js"></script>',
-            f"формулы рисует MathJax из соседнего файла "
-            f"({os.path.getsize(MATHJAX)/1e6:.1f} МБ) — сеть не нужна")
+    if how == "local":
+        os.makedirs(os.path.join(out_dir, ASSETS), exist_ok=True)
+        shutil.copy2(MATHJAX, os.path.join(out_dir, ASSETS, "tex-svg.js"))
+        return (cfg + f'<script id="MathJax-script" async '
+                f'src="{ASSETS}/tex-svg.js"></script>',
+                f"формулы рисует MathJax из {ASSETS}/tex-svg.js "
+                f"({os.path.getsize(MATHJAX)/1e6:.1f} МБ). ВНИМАНИЕ: по "
+                f"сетевому пути (\\\\wsl.localhost\\...) браузер этот файл "
+                f"молча не загрузит, и формул не будет")
+    # inline: ВШИВАЕМ. `</script>` внутри бандла разорвал бы наш тег, поэтому
+    # разбиваем последовательность — приём старый и безопасный: для JS это
+    # та же строка, для разборщика HTML — уже не конец тега.
+    with open(MATHJAX, encoding="utf-8") as f:
+        код = f.read().replace("</script>", "<\\/script>")
+    return (cfg + f'<script id="MathJax-script">{код}</script>',
+            f"формулы рисует MathJax ВНУТРИ книги "
+            f"(+{os.path.getsize(MATHJAX)/1e6:.1f} МБ) — ни сети, ни соседних "
+            f"файлов не нужно")
 
 
 def build(detect_dir: str, out_dir: str, log=print) -> dict:
@@ -334,10 +464,10 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
     # ЖУРНАЛ ЗАМЕН ВТОРОГО УРОВНЯ. Пересборка в тот же каталог стирает книгу
     # вместе со всеми заменами, а `swaps.json` остаётся и начинает врать:
     # он утверждает «заменено N» про книгу, где снова стоят картинки, а
-    # `books swap --undo` по такому якорю ставит ложный диагноз «книгу правили
+    # `books apply --undo` по такому якорю ставит ложный диагноз «книгу правили
     # мимо журнала». Правил не человек, а эта самая команда — поэтому она и
     # обязана сказать. Молчать тут дешевле всего и потому опаснее всего.
-    _j = os.path.join(out_dir, "swaps.json")
+    _j = os.path.join(out_dir, ASSETS, "swaps.json")
     if os.path.exists(_j):
         try:
             with open(_j, encoding="utf-8") as f:
@@ -351,12 +481,17 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
               "начнёт врать. Собирай в другой каталог либо убери swaps.json, "
               "если замены больше не нужны.")
 
+    ждём = []          # якоря в том порядке, в каком книга обязана их нести
     files = sorted(glob.glob(os.path.join(detect_dir, "pages", "*.json")))
     if not files:
         raise SystemExit(f"в {detect_dir} нет страниц — сначала books detect")
 
     doc = pymupdf.open(pdf)
-    blockdir = os.path.join(out_dir, "blocks")
+    # Ручку спрашиваем ДО цикла, а не в нём: иначе она читалась бы раз на
+    # каждую вырезку (488 на книге), и — хуже — правка окружения посреди
+    # прогона дала бы книгу, часть картинок в которой вшита, а часть нет.
+    img_how = _img_how()
+    blockdir = os.path.join(out_dir, ASSETS, "blocks")
     os.makedirs(blockdir, exist_ok=True)
     for old in glob.glob(os.path.join(blockdir, "*.png")):
         os.unlink(old)
@@ -432,6 +567,13 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
             f'data-доля-в-картинках="{share:.2f}"'
             + (f' data-{trouble}="да"' if trouble else '') + '>')
         cuts = []
+        # ЧЕГО ЖДЁМ, И ПОЧЕМУ НЕ ВНУТРИ ЦИКЛА. Первая редакция копила
+        # ожидание тут же, при обходе, — и сторож стал тавтологичным:
+        # перевернёшь обход, перевернётся и ожидание. Проверено тремя
+        # порчами (reversed, сдвиг на один, потеря последнего) — НИ ОДНА не
+        # поймалась. Ожидание обязано выводиться из `page.blocks` само по
+        # себе, независимо от того, как их потом обходят.
+        ждём.extend(anchor_of(page.index, b.block_id) for b in page.blocks)
         for b in page.blocks:
             a = anchor_of(page.index, b.block_id)
             role = policy.role(b.label)
@@ -443,14 +585,19 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
             outer = nested_in.get(b.block_id)
             outer_a = anchor_of(page.index, outer) if outer is not None else None
             if role == "артефакт" or not b.content:
-                rel = f"blocks/{a}.png"
+                rel = f"{ASSETS}/blocks/{a}.png"
                 info = crop.cut(doc, page.index, b.box, page_dpi,
                                 os.path.join(out_dir, rel))
+                # ВЫРЕЗКА ЛЕЖИТ ФАЙЛОМ ВСЕГДА, а в книгу едет либо ссылкой на
+                # неё, либо своими байтами. Второй экземпляр внутри книги
+                # первый не отменяет: файлы нужны правкам, замерам и второму
+                # уровню, книга — чтению по любому пути.
+                src = _img_src(os.path.join(out_dir, rel), rel, img_how)
                 cut_n += 1
                 clipped += bool(info["срезано листом"])
                 cuts.append([float(v) for v in info["рамка в пунктах"]])
                 body.append(swap.wrap(
-                    a, _figure(a, b, role, rel, info, inside=outer_a)))
+                    a, _figure(a, b, role, src, info, inside=outer_a)))
             else:
                 info = {}
                 body.append(swap.wrap(
@@ -544,10 +691,54 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
                  f"<title>{_html.escape(os.path.basename(pdf))}</title>"
                  f"<style>{CSS}</style>{math_head}</head>\n<body>\n"
                  + "\n".join(body) + "\n</body></html>\n")
+    # ПОРЯДОК КНИГИ СВЕРЯЕТСЯ, А НЕ ПОДРАЗУМЕВАЕТСЯ.
+    #
+    # Сборщик обходит `page.blocks` как есть, и книга наследует их порядок —
+    # тот, что дала модель рангом либо наше правило `order.py`. Проверялось
+    # это НИЧЕМ: скептик перевернул обход одной строкой (`reversed`), и полная
+    # батарея осталась зелёной — 201 проверка, 0 провалов. Книга читалась бы
+    # задом наперёд, а все три прибора мерят СТРАНИЦЫ детекции, а не
+    # собранный документ, и потому молчат по построению.
+    #
+    # Сверка стоит одного прохода по строке и ловит любую перестановку, не
+    # только переворот. В отказе — МЕСТО расхождения: «книга собралась не в
+    # том порядке» без места чинить нечем.
+    вышло = swap.anchors(page_html)
+    if вышло != ждём:
+        где = next((i for i, (a, b) in enumerate(zip(вышло, ждём)) if a != b),
+                   min(len(вышло), len(ждём)))
+        raise SystemExit(
+            f"книга сложена НЕ в том порядке, в каком её обходили: якорей "
+            f"ждали {len(ждём)}, вышло {len(вышло)}; первое расхождение на "
+            f"месте {где} — ждали "
+            f"{ждём[где] if где < len(ждём) else '(конец)'}, вышло "
+            f"{вышло[где] if где < len(вышло) else '(конец)'}. Порядок книги "
+            f"— это порядок чтения; перепутав его, документ остаётся "
+            f"исправным на вид и нечитаемым по существу.")
+
+    # ОСТАТКИ СТАРОЙ РАСКЛАДКИ — ВСЛУХ, А НЕ МОЛЧА. Пересборка в каталог,
+    # собранный до переезда кухни, кладёт `assets/` РЯДОМ со старыми
+    # `blocks/`, `blocks.json`, `run.json`. Обещание «в корне один файл»
+    # тихо перестаёт быть правдой, а у книги появляются два `blocks.json`,
+    # и разные читатели берут разные. Сами не убираем: это чужие файлы с
+    # чужой работой, и стереть их может только человек.
+    остатки = [n for n in ("blocks", "blocks.json", "run.json", "tex-svg.js")
+               if os.path.exists(os.path.join(out_dir, n))]
+    if остатки:
+        log(f"ВНИМАНИЕ: в корне книги остались файлы прежней раскладки: "
+            f"{', '.join(остатки)}. Кухня теперь в `{ASSETS}/`, и эти —"
+            f" второй, никем не читаемый экземпляр. Уберите их руками; "
+            f"журнал замен `swaps.json` в корне при этом ЧИТАЕТСЯ и трогать "
+            f"его нельзя.")
+
+    # Источник — ПОСЛЕ того, как книга сложилась без отказов: копировать
+    # 22 МБ ради сборки, которая сейчас упадёт, незачем.
+    _keep_source(detect_dir, out_dir, log)
     out_html = os.path.join(out_dir, "book.html")
     with open(out_html, "w", encoding="utf-8") as f:
         f.write(page_html)
-    with open(os.path.join(out_dir, "blocks.json"), "w", encoding="utf-8") as f:
+    with open(os.path.join(out_dir, ASSETS, "blocks.json"), "w",
+              encoding="utf-8") as f:
         json.dump(side, f, ensure_ascii=False, indent=1)
 
     # Свой слепок, а не «наследуем детекцию». У сборки есть собственные
@@ -617,7 +808,8 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
         "повтор": " ".join(shlex.quote(a) for a in
                            ["books", "html", detect_dir, "--out", out_dir]),
     }
-    with open(os.path.join(out_dir, "run.json"), "w", encoding="utf-8") as f:
+    with open(os.path.join(out_dir, ASSETS, "run.json"), "w",
+              encoding="utf-8") as f:
         json.dump(snap_out, f, ensure_ascii=False, indent=1)
 
     # Число, а не «готово»: по разрядам видно, во что превратилась книга.

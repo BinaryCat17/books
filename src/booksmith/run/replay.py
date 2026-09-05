@@ -100,13 +100,27 @@ def facts(outdir):
     старым продуктом: `passes/`, `book.md`, `toc.md` описывали то, чего
     больше не собирается. Чтение одного файла не стоит модуля.
     """
-    f = os.path.join(outdir, "run.json")
-    try:
-        with open(f, encoding="utf-8") as fh:
-            d = json.load(fh)
-        return d if isinstance(d, dict) else {}
-    except (OSError, ValueError):
-        return {}
+    # ДВА МЕСТА, И ОБА ЗАКОННЫЕ. У каталога ДЕТЕКЦИИ слепок лежит в корне,
+    # у каталога КНИГИ — в `assets/`: там в корне ровно один файл, сама
+    # книга, и слепку среди него не место. Проверка искала только корень и на
+    # книге отвечала «слепка нет вовсе» при слепке этажом ниже — говорящий
+    # шаг, врущий нулём, ровно то, что правило проекта запрещает. При этом
+    # `doc/html.py` обещает дословно: «`books replay --check` обязан вернуть
+    # 0 и здесь».
+    #
+    # Имя каталога кухни не набираем строкой — спрашиваем у того, кто слепок
+    # пишет. Набранная копия разошлась бы молча, так уже было.
+    from ..doc.html import ASSETS
+    for f in (os.path.join(outdir, "run.json"),
+              os.path.join(outdir, ASSETS, "run.json")):
+        try:
+            with open(f, encoding="utf-8") as fh:
+                d = json.load(fh)
+            if isinstance(d, dict):
+                return d
+        except (OSError, ValueError):
+            continue
+    return {}
 
 
 # sha256 всего файла — тот же, что считает `detect._sha256` и записывает в

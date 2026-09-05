@@ -82,12 +82,13 @@ class Run:
     note: str = ""
     extra: dict = field(default_factory=dict)
 
-    @property
-    def observed_mbps(self) -> float | None:
-        """Фактическая скорость доставки образа, Мбит/с."""
-        if self.setup_s <= 0 or not self.image_gb:
-            return None
-        return self.image_gb * 8 * 1024 / self.setup_s
+    # `observed_mbps` УБРАНО. Свойство считало скорость доставки образа и
+    # честно возвращало `None`, когда мерить было нечем, — но было недостижимо
+    # по построению: журнал пишется через `asdict(run)`, а `dataclasses.asdict`
+    # свойств не берёт, и в файл оно не попадало НИ РАЗУ. Вторая, живая копия
+    # той же арифметики сидела в `cli.py` и на непомеренном прогоне печатала
+    # «0 Мбит/с» — то есть из двух копий верная семантика была у мёртвой.
+    # Семантика перенесена в живую, копия убрана.
 
 
 def append(run: Run, path: str = LEDGER) -> None:
