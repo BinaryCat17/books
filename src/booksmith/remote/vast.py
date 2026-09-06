@@ -300,7 +300,24 @@ class Vast:
     # (900 s): even if destruction fails outright the machine puts itself out.
     RETRY_S = (4, 8, 16, 32, 60)
 
-    def destroy(self, iid: int) -> bool:
+    def destroy(self, iid) -> bool:
+        """Kill an instance. Returns False rather than raising, ALWAYS.
+
+        THE COERCION LIVES HERE, and it did not: every caller wrote
+        `destroy(int(iid))`, and four of those calls are in cleanup blocks --
+        `int(None)` from a `finally` is the shape that has already cost this
+        project a run, and one of them sat before the line that restores the
+        signal handlers, so a bad id would have left Ctrl-C dead. A kill that
+        refuses must refuse the way the rest of this method does: by saying
+        so and returning False.
+        """
+        try:
+            iid = int(iid)
+        except (TypeError, ValueError):
+            log(f"WARNING: asked to destroy {iid!r}, which is not an instance "
+                f"id -- nothing was killed, and if a machine is running it is "
+                f"still billing: books ls")
+            return False
         for attempt, pause in enumerate(self.RETRY_S):
             refusal = None
             try:

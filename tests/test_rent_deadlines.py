@@ -26,6 +26,7 @@ of the attempt budget unspent.
 Both are one defect by make: a quantity that MUST be derived from another was
 written down as a number. The checks below demand the derivation.
 """
+import ast
 import inspect
 import time
 
@@ -293,6 +294,49 @@ def test_a_machine_is_blamed_only_with_a_witness():
         "ratio has stopped deciding anything")
 
 
+def _loop(links, ours=4.6):
+    """Replay `_rent`'s blame path over a sequence of probe readings.
+
+    `best_link` is raised BEFORE the machine is judged, exactly as `_rent`
+    does it, so what comes out is what the real loop would do.
+    """
+    best, banned = 0.0, []
+    for i, link in enumerate(links):
+        best = max(best, link)
+        if _blame_with(link=link, best=best, ours=ours):
+            banned.append(i)
+    return banned
+
+
+def test_the_permanent_list_is_reachable_at_the_default_floor():
+    """A guard that can never fire is not a guard, and this one could not.
+
+    The witness floor was first set to 2.0 -- the same number as the default
+    `MIN_LINK_MBPS`. A machine only reaches `blame_machine` after being
+    REJECTED, so every reading in `best_link` is below the rejection floor:
+    `best_link < floor <= limit`. With the two equal, the first gate was true
+    every time and NOTHING could be blacklisted, including the 62 kbit/s
+    machine `_rent`'s own comment says the list was made for. Swept over 2744
+    three-probe sequences at the default: zero blacklistings.
+
+    So the two numbers must not meet, and this says so with a machine the
+    loop can actually produce: one at 1.5 Mbit/s -- under the floor of 2.0,
+    hence rejected, hence a witness -- and one at 0.1 after it.
+    """
+    from booksmith.run import knobs
+    floor = float(knobs.KNOB["MIN_LINK_MBPS"].default)
+    assert runner.WITNESS_MBPS < floor, (
+        f"the witness floor {runner.WITNESS_MBPS} has reached the rejection "
+        f"floor {floor}. Every witness is a REJECTED machine, so its reading "
+        f"is below the rejection floor by construction -- the permanent list "
+        f"can then never fire at all")
+    assert _loop([1.5, 0.1]) == [1], (
+        f"a machine reading 0.1 Mbit/s beside one that managed 1.5 was NOT "
+        f"blacklisted: at the default floor of {floor} both are rejected, so "
+        f"this is the only shape a witness can take, and the list is empty "
+        f"without it")
+
+
 def test_a_path_dying_at_our_end_blames_nobody_at_all():
     """The whole rent loop, not one call: a sick path bans NO machine.
 
@@ -309,12 +353,10 @@ def test_a_path_dying_at_our_end_blames_nobody_at_all():
     for name, links in (
             ("one 64 KiB chunk", [0.0437, 0.0, 0.0, 0.0, 0.0]),
             ("one byte in twelve seconds", [6.67e-07, 0.0, 0.0, 0.0, 0.0]),
-            ("every machine dribbles", [0.050, 0.008, 0.012, 0.006, 0.009])):
-        best, banned = 0.0, []
-        for i, link in enumerate(links):
-            best = max(best, link)          # as `_rent` does, before blaming
-            if _blame_with(link=link, best=best, ours=4.6):
-                banned.append(i)
+            ("every machine dribbles", [0.050, 0.008, 0.012, 0.006, 0.009]),
+            ("only 62 kbit/s machines", [0.0, 0.0, 0.062, 0.0, 0.062])):
+        banned = _loop(links)
+        best = max(links)
         assert not banned, (
             f"{name}: machines {banned} went onto the PERMANENT list while "
             f"the best anyone gave us was {best:.4g} Mbit/s -- that is our "
@@ -325,6 +367,31 @@ def test_a_path_dying_at_our_end_blames_nobody_at_all():
     assert _blame_with(link=0.25, best=best, ours=4.6), (
         "with a witness at 7.0 Mbit/s a machine giving 0.25 was NOT listed -- "
         "the floor has swallowed the rule it was added to")
+
+
+def test_a_path_that_sagged_mid_loop_condemns_nobody():
+    """`best_link` is a maximum and never decays, so a witness goes stale.
+
+    Replayed at a raised rejection floor: one machine at 7 Mbit/s, then four
+    reading 2.0-2.3 -- all four onto the PERMANENT list, because the 7 was
+    recorded before our own path sagged and nothing said it had. The guard
+    re-measures our downlink at the moment of blaming, which turns that
+    inference into a measurement.
+    """
+    recorded = []
+    got = runner.blame_machine({"machine_id": 9}, "trial", ours=20.0,
+                               ours_now=3.0, link=2.2, best_link=7.0,
+                               mark=lambda mid, why: recorded.append(mid),
+                               say=lambda *a: None)
+    assert got is False and not recorded, (
+        "a machine was listed FOREVER on a contrast with a witness measured "
+        "while our own path was six times faster than it is now")
+
+    assert runner.blame_machine({"machine_id": 9}, "trial", ours=20.0,
+                                ours_now=19.0, link=2.2, best_link=7.0,
+                                mark=lambda *a: None, say=lambda *a: None), (
+        "our path was steady and the machine still escaped: the sag guard "
+        "has swallowed the rule it was added beside")
 
 
 def test_a_zero_probe_with_no_witness_at_all_blames_nobody():
@@ -367,6 +434,56 @@ def test_a_failed_blacklist_write_does_not_kill_the_rental():
     assert got is False, "a failed write was reported as a successful ban"
     assert any("could NOT be written" in line for line in said), (
         f"the failure to record the ban was swallowed: {said}")
+
+
+def test_no_write_in_the_cleanup_can_leave_ctrl_c_dead():
+    """`run_job` restores the signal handlers WHATEVER happens in its cleanup.
+
+    `ledger.append(rec)` stood unwrapped at the end of that block, and a
+    read-only ledger directory raised `PermissionError` from it. Three things
+    went at once: the money record of the run, the summary line, and
+    `_restore_signals` -- so SIGINT and SIGTERM were left at `SIG_IGN` and
+    Ctrl-C was DEAD for the rest of the process. That is the exact failure the
+    signal machinery exists to prevent, caused by the cleanup that installs it.
+
+    WHAT IS ASKED IS THE STRUCTURE, not a list of calls that might throw.
+    Naming the risky ones is guesswork and goes stale the day another is
+    added; `_restore_signals` being the `finally` of its own block is a
+    property that holds for whatever is written above it.
+    """
+    tree = support.tree("remote/runner.py")
+    fn = next(n for n in ast.walk(tree)
+              if isinstance(n, ast.FunctionDef) and n.name == "run_job")
+    calls = [n for n in ast.walk(fn)
+             if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+             and n.func.id == "_restore_signals"]
+    assert calls, "run_job no longer restores the signal handlers at all"
+
+    protected = []
+    for t in ast.walk(fn):
+        if not (isinstance(t, ast.Try) and t.finalbody):
+            continue
+        protected += [c for stmt in t.finalbody for c in ast.walk(stmt)
+                      if isinstance(c, ast.Call)
+                      and isinstance(c.func, ast.Name)
+                      and c.func.id == "_restore_signals"]
+    # The dry-run path returns early and never ignores the signals; the one
+    # that matters is the cleanup, and it must be a `finally`.
+    assert protected, (
+        "`_restore_signals` is not in a `finally` at all: anything that "
+        "throws in the cleanup leaves SIGINT and SIGTERM ignored, and Ctrl-C "
+        "dead for the rest of the process")
+
+    ignore = next(n for n in ast.walk(fn)
+                  if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+                  and n.func.id == "_ignore_signals")
+    guard = next((t for t in ast.walk(fn)
+                  if isinstance(t, ast.Try) and t.finalbody
+                  and any(c in ast.walk(stmt) for stmt in t.finalbody
+                          for c in [ignore])), None)
+    assert guard is not None, (
+        "the block that IGNORES the signals is not the block that restores "
+        "them: a throw between the two leaves them ignored")
 
 
 def test_a_floor_that_is_not_a_number_is_refused_before_any_money():

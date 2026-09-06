@@ -148,6 +148,10 @@ COPY = ("models/doclayout.py", "models/docling_heron.py",
         # already fallen off silently -- the mark was lost by exactly those
         # blocks that reached the reader as markup.
         "doc/apply.py",
+        # Renting: `test_rent_deadlines` parses `run_job` and demands the
+        # signal restore be a `finally` of its own -- a throw in the cleanup
+        # left Ctrl-C dead for the rest of the process.
+        "remote/runner.py",
         # Level one: `test_data_contract` parses `run` and follows the name
         # the snapshot writes as `seconds` back to its assignment. A second
         # assignment shadowed the clock with a count of boxes.
@@ -2560,6 +2564,27 @@ def mutations():
          lambda: attrs(runnermod, WITNESS_MBPS=0.0),
          [("test_rent_deadlines",
            "test_a_path_dying_at_our_end_blames_nobody_at_all")]),
+
+        # The witness floor meeting the rejection floor: every witness is a
+        # REJECTED machine, so the two meeting turns the list off entirely.
+        ("the witness floor rises to the rejection floor",
+         lambda: attrs(runnermod, WITNESS_MBPS=2.0),
+         [("test_rent_deadlines",
+           "test_the_permanent_list_is_reachable_at_the_default_floor")]),
+
+        ("a sagging path is taken for a run of bad machines",
+         lambda: one_line("booksmith.remote.runner",
+                          "    if ours_now is not None and ours_now < 0.5 * ours:",
+                          "    if False:"),
+         [("test_rent_deadlines",
+           "test_a_path_that_sagged_mid_loop_condemns_nobody")]),
+
+        ("the signal restore stops being a finally of its own",
+         lambda: sources("remote/runner.py",
+                         "        finally:\n            _restore_signals(old_signals)",
+                         "        _restore_signals(old_signals)"),
+         [("test_rent_deadlines",
+           "test_no_write_in_the_cleanup_can_leave_ctrl_c_dead")]),
 
         ("a failed blacklist write takes the rental with it",
          lambda: one_line(

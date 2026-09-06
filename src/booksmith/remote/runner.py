@@ -99,7 +99,7 @@ def _watchdog(vast: Vast, get_iid, budget: Budget, done: threading.Event):
                 log(f"!!! BUDGET SPENT (${budget.spent:.3f}) -- "
                     f"destroying {iid}")
                 fired = True
-            if vast.destroy(int(iid)):
+            if vast.destroy(iid):
                 return
         except Exception as e:                     # noqa: BLE001 -- a last line may not fall
             log(f"  watchdog: {type(e).__name__}: {e}")
@@ -347,12 +347,26 @@ def execute(box: Box, spec: JobSpec, outdir: str,
 # gave 1.9 -- five rentals in a row rejected entirely, with no way to loosen it
 # deliberately. And it missed the snapshot: renting at one threshold and
 # refusing at another looked the same.
-# What a WITNESS must itself reach before it may condemn another machine.
-# Not the rejection floor -- see `blame_machine`, where tying the two together
-# made loosening one make the other harsher. This is a property of OUR path:
-# every reading this project has taken of its own ssh when sick is below it
-# (0.25 and 0.34 on 3 September, 1.16 in the arithmetic in `box.probe`).
-WITNESS_MBPS = 2.0
+# What a WITNESS must itself reach before it may condemn another machine: not
+# "a good speed", but "a stream at all".
+#
+# SET TO 2.0 FIRST, AND THAT SILENTLY TURNED THE BLACKLIST OFF. The default
+# `MIN_LINK_MBPS` is also 2.0, and the two numbers meet: a machine only reaches
+# `blame_machine` after being REJECTED, so every reading in `best_link` is
+# below the rejection floor -- `best_link < floor <= limit`. With the witness
+# floor at the limit the first gate was true every time. Swept over 2744
+# three-probe sequences at the default: 0 machines blacklisted, including the
+# 62 kbit/s machine the list was made for. A guard that can never fire is the
+# defect this project keeps a rule about, introduced by a fix for another one.
+#
+# So the floor is what it should have been: the smallest reading that is a
+# STREAM rather than noise. Over a twelve-second probe 0.5 Mbit/s is about
+# 750 KB. Below it lie every reading this project has of its own sick path
+# (0.25 and 0.34 on 3 September) and of a broken machine (0.06); above it lies
+# the narrow-but-working 1.16 of `box.probe`'s arithmetic. It must stay well
+# under any sane `MIN_LINK_MBPS`, and `test_the_permanent_list_is_reachable_at_
+# the_default_floor` fails if the two ever meet again.
+WITNESS_MBPS = 0.5
 
 
 def _min_link_mbps() -> float:
@@ -428,7 +442,8 @@ KEEP_GRACE_S = 4 * 3600
 
 
 def blame_machine(offer: dict, reason: str, *, ours: float, link: float,
-                  best_link: float, mark=None, say=None) -> bool:
+                  best_link: float, mark=None, say=None,
+                  ours_now: float | None = None) -> bool:
     """Onto the PERMANENT blacklist -- but only when the MACHINE is at fault.
 
     AT MODULE LEVEL, NOT A CLOSURE INSIDE `_rent`, and not for tidiness: a
@@ -490,6 +505,18 @@ def blame_machine(offer: dict, reason: str, *, ours: float, link: float,
         say("  our channel is not measured -- NOT blacklisting: the "
             "probe's zero may have been ours")
         return False
+    # A PATH THAT SAGGED MID-LOOP IS NOT A RUN OF BAD MACHINES. `best_link` is
+    # a maximum and never decays, so a witness recorded while we were fast goes
+    # on condemning long after we have slowed: replayed at a raised rejection
+    # floor, one machine at 7 Mbit/s banned four reading 2.0-2.3 forever. Our
+    # own path is re-measured at this point, and if it has more than halved
+    # since the loop began, the contrast is ours and not theirs.
+    if ours_now is not None and ours_now < 0.5 * ours:
+        say(f"  NOT blacklisting: our own downlink has fallen from "
+            f"{ours:.1f} to {ours_now:.1f} Mbit/s since this rental began, so "
+            f"the machine that gave us {best_link:.2f} was measured on a "
+            f"different path than this one. The contrast is OURS")
+        return False
     if best_link < WITNESS_MBPS:
         say(f"  NOT blacklisting: the best any machine has given us over ssh "
             f"is {best_link:.2f} Mbit/s, under the {WITNESS_MBPS:.1f} a "
@@ -506,10 +533,11 @@ def blame_machine(offer: dict, reason: str, *, ours: float, link: float,
     # THE RECORD MAY NOT KILL THE RUN. `mark_bad` writes a file, and a file
     # write can fail -- a read-only ledger directory took the whole rental with
     # a `PermissionError` out of the middle of `_rent`, machine taken and
-    # billing. The other caller of `mark_bad`, the CUDA branch, has always been
-    # wrapped; this one, on the money path, was not. Failing to WRITE DOWN a
-    # blacklisting is bad; abandoning a running machine over it is worse, and
-    # the difference is said out loud rather than swallowed.
+    # billing. The other caller of `mark_bad`, the CUDA branch, was wrapped in
+    # a bare `except: pass` -- not killing the run, and not saying a word
+    # either; it says one now. Failing to WRITE DOWN a blacklisting is bad;
+    # abandoning a running machine over it is worse, and doing either in
+    # silence is worse than both.
     try:
         mark(offer.get("machine_id"), reason)
     except Exception as e:                                  # noqa: BLE001
@@ -581,8 +609,16 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
     best_link = [0.0]
 
     def _blame(offer: dict, reason: str) -> None:
+        # OUR OWN PATH IS MEASURED AGAIN, HERE, and not taken from the top of
+        # the loop. `ours` was read once, before the first rental; a path that
+        # sags DURING the loop then looks exactly like a run of slow machines,
+        # and `best_link` is a maximum that never decays -- a witness recorded
+        # at 7 Mbit/s went on condemning machines reading 2.2 long after the
+        # 7 had stopped being true of us. One HTTPS megabyte turns that
+        # inference into a measurement, and it is spent at most five times per
+        # rental, against a probe that already costs twelve seconds each.
         blame_machine(offer, reason, ours=ours, link=link,
-                      best_link=best_link[0])
+                      best_link=best_link[0], ours_now=_our_downlink_mbps())
 
     avoid: list[int] = list(ledger.bad_machines())
     undead = undead if undead is not None else []
@@ -686,6 +722,10 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
                 log(f"  offer #{offer['id']} has no machine_id -- "
                     f"this machine can come again")
             else:
+                # `int(mid)`, and the other copy of this line wrote `mid`.
+                # Two spellings of one list, and `int(None)` is the shape that
+                # has already cost a run; the coercion is the same here as
+                # there now, and refuses nothing silently.
                 avoid.append(int(mid))
             guard.set()
             continue
@@ -787,7 +827,7 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
         # The destruction result is not thrown away: on failure the machine is
         # alive and its id must not be cleared -- `finally` would not touch it
         # and its watchdog would be silenced, leaving nobody watching at all.
-        if vast.destroy(int(state["iid"])):
+        if vast.destroy(state["iid"]):
             _charge()                      # this machine's money into the ledger
             state["iid"] = mine["iid"] = None
             guard.set()
@@ -803,7 +843,7 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
                            "since": time.time()})
         mid = offer.get("machine_id")
         if mid is not None:
-            avoid.append(mid)
+            avoid.append(int(mid))
 
     raise RuntimeError(
         f"in {MAX_ATTEMPTS} attempts no machine was found with a channel "
@@ -969,8 +1009,14 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
                                         "the card does not initialise (CUDA)")
                         log(f"machine {rec.machine_id} blacklisted: the "
                             f"card does not initialise")
-            except Exception:
-                pass
+            except Exception as e:                          # noqa: BLE001
+                # SAID, NOT SWALLOWED. This was a bare `pass`, so a failed
+                # blacklist write here left no trace at all -- and the very
+                # next thing the operator reads is a run that finished, with
+                # a machine that will be offered again tomorrow.
+                log(f"WARNING: the CUDA check on machine {rec.machine_id} "
+                    f"did not finish ({e}) -- if the card was dead, the "
+                    f"machine was NOT blacklisted and will be offered again")
         rec.run_s = time.time() - t1
         rec.extra.update(_run_facts(outdir))
         rec.ok = rc == 0
@@ -991,123 +1037,146 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
         rec.note = f"{type(e).__name__}: {e}"
         raise
     finally:
-        _ignore_signals()          # first of all: the cleanup must not be interrupted
-        done.set()
-        for g in guards:           # watchdogs of every attempt, abandoned ones too
-            g.set()
-        for dead in undead:
-            # The rest of an abandoned machine's rental: from the second
-            # already counted in `_rent` to this one, or the minutes between
-            # "could not destroy" and the finishing off cost nothing.
-            rec.reject_usd += dead["dph"] * (time.time() - dead["since"]) / 3600
-            if vast.destroy(int(dead["iid"])):
-                log(f"abandoned instance {dead['iid']} finished off")
-            else:
-                log(f"WARNING: instance {dead['iid']} not destroyed and "
-                    f"still billing -- kill it by hand: "
-                    f"books down {dead['iid']}")
-        iid = state["iid"]
-        elapsed = time.time() - t0
-        rec.total_s = elapsed
-        # Rental counts from the CREATION of the successful machine, not from
-        # the start of the run: before that it did not exist. Rejected machines
-        # are a separate term, their own time at their own price. `rec.dph *
-        # elapsed` was wrong twice: it charged the successful machine minutes
-        # when it did not yet exist (a run in the ledger carries 211 s of
-        # rejection), and a run that fell through on renting went free at
-        # `rec.dph` = 0 and five machines taken cost $0.000 -- 13 records
-        # out of 111, see `_charge`.
-        alive_s = time.time() - (state.get("t_create") or t0)
-        # Traffic counts the payload, not the image alone: wheels and weights
-        # are 7.2 GB against 0.06, and without them the ledger figure was some
-        # hundredfold low. The estimator in pricing.py counts the same way.
-        rec.cost_usd = (rec.dph * alive_s / 3600 + rec.reject_usd
-                        + rec.per_tb * (spec.image_gb + spec.payload_gb) / 1024)
-        # The pulse stops BEFORE the successful machine is destroyed -- last of
-        # the local ways, not first thing in the cleanup. The dead-man's watch
-        # on the card is the one of the four that needs neither our key nor our
-        # process, and our thread's `touch /root/.alive` every 30 seconds keeps
-        # it off.
-        #
-        # DO NOT MOVE IT EARLIER. The argument is computed, not eyeballed:
-        #
-        #   * `stop_heartbeat` does `join(timeout=2)` (`box.py`), i.e. it
-        #     BLOCKS; before `_ignore_signals()` it hands those two seconds to
-        #     Ctrl-C, and "the cleanup must not be interrupted" stands there
-        #     for a reason;
-        #   * the `undead` loop above finishes off up to MAX_ATTEMPTS = 5
-        #     machines at `Vast.RETRY_S` = (4, 8, 16, 32, 60) -- up to 120 s of
-        #     pauses each, 600 s per loop, against DEADMAN_GRACE_S = 900 that
-        #     `tests/test_rent_deadlines.py` guards for ONE destroy, not five.
-        #     An earlier stop starts the watch's clock before those minutes;
-        #   * `box.py`, next to `SHORT_CMD_S`, tells how going to the network
-        #     from a `finally` on a silent machine used to end.
-        #
-        # Abandoned machines stay watched only since the fix in `connect`:
-        # before it both left for `undead` with a live pulse. Three
-        # `stop_heartbeat` calls exist -- `connect` on failure, `_rent` before
-        # abandoning, this one -- and
-        # `test_a_failed_connect_leaves_no_machine_with_a_live_pulse` guards
-        # that.
+        # WRAPPED SO THE RESTORE ALWAYS RUNS. `ledger.append` stood at
+        # the end of this block unguarded, and a read-only ledger
+        # directory raised out of it -- taking the money record, the
+        # summary line, and `_restore_signals` with it, so SIGINT and
+        # SIGTERM were left at `SIG_IGN` and Ctrl-C was DEAD for the
+        # rest of the process. Listing the calls that might throw is
+        # guesswork; putting the restore in a `finally` of its own is
+        # not, and it holds for whatever is added here later.
         try:
-            if box is not None:
-                box.stop_heartbeat()
-        except Exception as e:
-            log(f"pulse not stopped: {e}")
-        if iid and not keep:
-            # The result is inspected, as everywhere else: this was the one
-            # `destroy` in the file without a check, and five failed tries
-            # printed "COULD NOT DESTROY" while the next line reported
-            # "total N min" and returned 0 -- with a live billing machine.
-            if not vast.destroy(int(iid)):
-                log(f"WARNING: instance {iid} NOT DESTROYED and still "
-                    f"billing -- kill it by hand: books down {iid}")
-                rec.note = ((rec.note + "; ") if rec.note else "") + \
-                    f"instance {iid} not destroyed, ${rec.dph:.3f}/hour"
-        elif iid:
-            # The operator leaves on purpose; the watch on the machine does not
-            # know it and would destroy the instance in its 15 minutes. A
-            # longer term: --keep is for the next run, not for days of paying.
-            if keep_until is None:
-                grace = KEEP_GRACE_S
-            else:
-                left_s = keep_until - time.time()
-                if keep_usd is not None:
-                    left_usd = keep_usd - rec.cost_usd
-                    left_s = min(left_s,
-                                 left_usd / max(rec.dph, 1e-6) * 3600)
-                # Ten minutes for the changeover -- enough for the next pass to
-                # connect, not enough to cost anything noticeable.
-                grace = max(300.0, left_s + 600)
+            _ignore_signals()          # first of all: the cleanup must not be interrupted
+            done.set()
+            for g in guards:           # watchdogs of every attempt, abandoned ones too
+                g.set()
+            for dead in undead:
+                # The rest of an abandoned machine's rental: from the second
+                # already counted in `_rent` to this one, or the minutes between
+                # "could not destroy" and the finishing off cost nothing.
+                rec.reject_usd += dead["dph"] * (time.time() - dead["since"]) / 3600
+                if vast.destroy(dead["iid"]):
+                    log(f"abandoned instance {dead['iid']} finished off")
+                else:
+                    log(f"WARNING: instance {dead['iid']} not destroyed and "
+                        f"still billing -- kill it by hand: "
+                        f"books down {dead['iid']}")
+            iid = state["iid"]
+            elapsed = time.time() - t0
+            rec.total_s = elapsed
+            # Rental counts from the CREATION of the successful machine, not from
+            # the start of the run: before that it did not exist. Rejected machines
+            # are a separate term, their own time at their own price. `rec.dph *
+            # elapsed` was wrong twice: it charged the successful machine minutes
+            # when it did not yet exist (a run in the ledger carries 211 s of
+            # rejection), and a run that fell through on renting went free at
+            # `rec.dph` = 0 and five machines taken cost $0.000 -- 13 records
+            # out of 111, see `_charge`.
+            alive_s = time.time() - (state.get("t_create") or t0)
+            # Traffic counts the payload, not the image alone: wheels and weights
+            # are 7.2 GB against 0.06, and without them the ledger figure was some
+            # hundredfold low. The estimator in pricing.py counts the same way.
+            rec.cost_usd = (rec.dph * alive_s / 3600 + rec.reject_usd
+                            + rec.per_tb * (spec.image_gb + spec.payload_gb) / 1024)
+            # The pulse stops BEFORE the successful machine is destroyed -- last of
+            # the local ways, not first thing in the cleanup. The dead-man's watch
+            # on the card is the one of the four that needs neither our key nor our
+            # process, and our thread's `touch /root/.alive` every 30 seconds keeps
+            # it off.
+            #
+            # DO NOT MOVE IT EARLIER. The argument is computed, not eyeballed:
+            #
+            #   * `stop_heartbeat` does `join(timeout=2)` (`box.py`), i.e. it
+            #     BLOCKS; before `_ignore_signals()` it hands those two seconds to
+            #     Ctrl-C, and "the cleanup must not be interrupted" stands there
+            #     for a reason;
+            #   * the `undead` loop above finishes off up to MAX_ATTEMPTS = 5
+            #     machines at `Vast.RETRY_S` = (4, 8, 16, 32, 60) -- up to 120 s of
+            #     pauses each, 600 s per loop, against DEADMAN_GRACE_S = 900 that
+            #     `tests/test_rent_deadlines.py` guards for ONE destroy, not five.
+            #     An earlier stop starts the watch's clock before those minutes;
+            #   * `box.py`, next to `SHORT_CMD_S`, tells how going to the network
+            #     from a `finally` on a silent machine used to end.
+            #
+            # Abandoned machines stay watched only since the fix in `connect`:
+            # before it both left for `undead` with a live pulse. Three
+            # `stop_heartbeat` calls exist -- `connect` on failure, `_rent` before
+            # abandoning, this one -- and
+            # `test_a_failed_connect_leaves_no_machine_with_a_live_pulse` guards
+            # that.
             try:
-                box.set_deadman(grace)
-                log(f"the machine's dead-man's watch reset to "
-                    f"{grace/60:.0f} min without a run")
+                if box is not None:
+                    box.stop_heartbeat()
             except Exception as e:
-                log(f"could not reset the dead-man's watch ({e}) -- the "
-                    f"instance will destroy itself in 15 minutes")
-            log(f"--keep: instance {iid} LEFT ALIVE AND BILLING. "
-                f"Next run: --reuse {iid}; kill it: books down {iid}")
-        if report is not None:
-            # The LIVE machine, not the last one seen. `state["iid"]` is not
-            # cleared after a destruction, and the report called a destroyed
-            # machine live: the next pass took it as `--reuse` and stood
-            # waiting for it until the attempt ceiling, over nothing. A live
-            # instance remains exactly under `--keep`; a machine that FAILED to
-            # be destroyed is alive too but must not be reused -- the operator
-            # has been told to kill it by hand and `note` records it.
-            report["instance_id"] = iid if (keep and iid) else None
-            report["dph"] = rec.dph
-            report["cost_usd"] = rec.cost_usd
-        ledger.append(rec)
-        # A quantity, not "done", and by its terms: one sum hides that half the
-        # money went on machines we never even accepted.
-        log(f"total {elapsed/60:.1f} min ~ ${rec.cost_usd:.3f} "
-            f"(rent {alive_s/60:.1f} min at ${rec.dph:.3f}/hour = "
-            f"${rec.dph * alive_s / 3600:.3f}"
-            + (f"; {rec.reject_n} machines rejected for ${rec.reject_usd:.3f}"
-               if rec.reject_n else "")
-            + (f"; traffic $"
-               f"{rec.per_tb * (spec.image_gb + spec.payload_gb) / 1024:.3f})")
-            + f"; ledger: {ledger.LEDGER}")
-        _restore_signals(old_signals)
+                log(f"pulse not stopped: {e}")
+            if iid and not keep:
+                # The result is inspected, as everywhere else: this was the one
+                # `destroy` in the file without a check, and five failed tries
+                # printed "COULD NOT DESTROY" while the next line reported
+                # "total N min" and returned 0 -- with a live billing machine.
+                if not vast.destroy(iid):
+                    log(f"WARNING: instance {iid} NOT DESTROYED and still "
+                        f"billing -- kill it by hand: books down {iid}")
+                    rec.note = ((rec.note + "; ") if rec.note else "") + \
+                        f"instance {iid} not destroyed, ${rec.dph:.3f}/hour"
+            elif iid:
+                # The operator leaves on purpose; the watch on the machine does not
+                # know it and would destroy the instance in its 15 minutes. A
+                # longer term: --keep is for the next run, not for days of paying.
+                if keep_until is None:
+                    grace = KEEP_GRACE_S
+                else:
+                    left_s = keep_until - time.time()
+                    if keep_usd is not None:
+                        left_usd = keep_usd - rec.cost_usd
+                        left_s = min(left_s,
+                                     left_usd / max(rec.dph, 1e-6) * 3600)
+                    # Ten minutes for the changeover -- enough for the next pass to
+                    # connect, not enough to cost anything noticeable.
+                    grace = max(300.0, left_s + 600)
+                try:
+                    box.set_deadman(grace)
+                    log(f"the machine's dead-man's watch reset to "
+                        f"{grace/60:.0f} min without a run")
+                except Exception as e:
+                    log(f"could not reset the dead-man's watch ({e}) -- the "
+                        f"instance will destroy itself in 15 minutes")
+                log(f"--keep: instance {iid} LEFT ALIVE AND BILLING. "
+                    f"Next run: --reuse {iid}; kill it: books down {iid}")
+            if report is not None:
+                # The LIVE machine, not the last one seen. `state["iid"]` is not
+                # cleared after a destruction, and the report called a destroyed
+                # machine live: the next pass took it as `--reuse` and stood
+                # waiting for it until the attempt ceiling, over nothing. A live
+                # instance remains exactly under `--keep`; a machine that FAILED to
+                # be destroyed is alive too but must not be reused -- the operator
+                # has been told to kill it by hand and `note` records it.
+                report["instance_id"] = iid if (keep and iid) else None
+                report["dph"] = rec.dph
+                report["cost_usd"] = rec.cost_usd
+            # THE LAST THING IN THIS `finally` MAY NOT BE THE FIRST THING THAT
+            # THROWS. `ledger.append` writes a file, and a read-only ledger
+            # directory raised `PermissionError` from HERE -- which cost three
+            # things at once: the whole money record of the run, the summary line
+            # below, and `_restore_signals`, so SIGINT and SIGTERM were left at
+            # `SIG_IGN` for the rest of the process and Ctrl-C was dead. That last
+            # is the exact failure the signal machinery exists to prevent, caused
+            # by the cleanup that installs it.
+            try:
+                ledger.append(rec)
+            except Exception as e:                              # noqa: BLE001
+                log(f"WARNING: the run could NOT be written to the ledger ({e}) "
+                    f"-- the money below is real and was not recorded. The run "
+                    f"itself is finished; it is the record that failed")
+            # A quantity, not "done", and by its terms: one sum hides that half the
+            # money went on machines we never even accepted.
+            log(f"total {elapsed/60:.1f} min ~ ${rec.cost_usd:.3f} "
+                f"(rent {alive_s/60:.1f} min at ${rec.dph:.3f}/hour = "
+                f"${rec.dph * alive_s / 3600:.3f}"
+                + (f"; {rec.reject_n} machines rejected for ${rec.reject_usd:.3f}"
+                   if rec.reject_n else "")
+                + (f"; traffic $"
+                   f"{rec.per_tb * (spec.image_gb + spec.payload_gb) / 1024:.3f})")
+                + f"; ledger: {ledger.LEDGER}")
+        finally:
+            _restore_signals(old_signals)
