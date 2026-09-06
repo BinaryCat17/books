@@ -34,6 +34,7 @@ cannot be measured in it.
 import hashlib
 import json
 import os
+import shutil
 
 import pymupdf
 
@@ -81,11 +82,14 @@ def _carry_meta(t: dict, extra: dict, where: str) -> dict:
         raise SubsetError(
             f"{where}: distillate fields would overwrite truth fields "
             f"{clash}. Truth is carried as is; editing it here is forbidden.")
-    meta = {**src, **extra}
-    lost = [k for k in src if k not in meta]
-    if lost:
-        raise SubsetError(f"{where}: traits lost in the carry-over: {lost}")
-    return meta
+    # NO SECOND GUARD HERE, AND THAT IS THE FIX. There was one:
+    # `lost = [k for k in src if k not in meta]` over `meta = {**src, **extra}`
+    # -- empty by construction, since a dict built from `**src` holds every key
+    # of `src`. It read as protection and could not fail, which is worse than
+    # no guard at all: the "a metric must be able to fail" rule broken in code
+    # rather than in a metric. What it was reaching for is proved on built
+    # input instead, by `test_the_carry_over_keeps_every_truth_field`.
+    return {**src, **extra}
 
 
 def _trait_state(meta: dict, key: str) -> str:
@@ -110,9 +114,17 @@ def build(books, out_dir: str, root: str = "bench", log=print) -> dict:
     arte = set(policy.artefacts())
     os.makedirs(out_dir, exist_ok=True)
     tdir = os.path.join(out_dir, "truth")
-    os.makedirs(tdir, exist_ok=True)
-    for old in os.listdir(tdir):
-        os.unlink(os.path.join(tdir, old))
+    # TRUTH IS WRITTEN ASIDE AND SWAPPED IN ONLY AFTER THE GUARDS, the same
+    # dance as `annopage.build` and for the same reason. `truth/` used to be
+    # emptied HERE, before a loop that can refuse four ways -- no such pdf, no
+    # such page in it, a distillate field clashing with a truth field, and not
+    # one page selected. Every one of those left the bench truth EMPTY: a
+    # refusal meant to protect the data destroying it instead. On the golden
+    # bench that cost 595 of 600 files, recovered only because it is tracked.
+    work = tdir + ".new"
+    if os.path.isdir(work):
+        shutil.rmtree(work)
+    os.makedirs(work)
 
     doc = pymupdf.open()
     kept, per_book, pairs_total = [], {}, 0
@@ -143,7 +155,7 @@ def build(books, out_dir: str, root: str = "bench", log=print) -> dict:
                                     f"{bk}/{name}")
             for key in TRAITS:
                 traits[key][_trait_state(t["meta"], key)] += 1
-            with open(os.path.join(tdir, f"{len(kept):04d}.json"), "w",
+            with open(os.path.join(work, f"{len(kept):04d}.json"), "w",
                       encoding="utf-8") as f:
                 json.dump(t, f, ensure_ascii=False)
             kept.append((bk, i))
@@ -155,6 +167,18 @@ def build(books, out_dir: str, root: str = "bench", log=print) -> dict:
     pdf = os.path.join(out_dir, "hard.pdf")
     doc.save(pdf, garbage=3, deflate=True)
     doc.close()
+
+    # Guards passed -- now it may be swapped. Old aside, new into place, old
+    # removed: break in the middle and either the previous truth or the new one
+    # stands, never emptiness.
+    keep = tdir + ".previous"
+    if os.path.isdir(keep):
+        shutil.rmtree(keep)
+    if os.path.isdir(tdir):
+        os.rename(tdir, keep)
+    os.rename(work, tdir)
+    if os.path.isdir(keep):
+        shutil.rmtree(keep)
     man = {"book": "hard", "about": "subset: two artifacts of one label "
                                     "side by side in the truth",
            "page_count": len(kept), "side_by_side_pairs": pairs_total,

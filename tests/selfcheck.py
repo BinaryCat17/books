@@ -34,6 +34,7 @@ from booksmith import order
 from booksmith import annopage                              # noqa: E402
 from booksmith import overlay                               # noqa: E402
 from booksmith import djvu                                  # noqa: E402
+from booksmith import subset                                # noqa: E402
 from booksmith.doc import apply as ap                       # noqa: E402
 from booksmith.doc import crop                              # noqa: E402
 from booksmith.doc import feed                              # noqa: E402
@@ -518,6 +519,24 @@ def carried_as_text_by_double_counting(sub, arte, rest, tot):
     ink covered by nothing" was rewritten into "not lost, fixable by a label".
     """
     return (int((sub & arte).sum()) + int((sub & rest).sum())) / tot >= fit.WHOLE
+
+
+_REAL_SUBSET_BUILD = subset.build
+
+
+def build_that_empties_truth_first(books, out_dir, root="bench", log=print):
+    """The previous edition: `truth/` cleared BEFORE any guard could refuse.
+
+    Observably the old code: on a build that refuses in the middle of the loop
+    the bench truth is left empty, which is what cost 595 of 600 files on the
+    golden bench. On a build that succeeds the result is identical, so only the
+    check about a refusal may go red.
+    """
+    tdir = os.path.join(out_dir, "truth")
+    if os.path.isdir(tdir):
+        for old in os.listdir(tdir):
+            os.unlink(os.path.join(tdir, old))
+    return _REAL_SUBSET_BUILD(books, out_dir, root=root, log=log)
 
 
 def report_of_the_previous_edition(res, log=print):
@@ -2416,6 +2435,28 @@ def mutations():
         # against.
         # The two journal writers had two copies of one line, and the
         # unguarded one runs while a machine is billing.
+        # --- the distillate: a refusal may not destroy the truth --------
+        ("the distillate empties the truth before its guards run",
+         lambda: attrs(subset, build=build_that_empties_truth_first),
+         [("test_subset", "test_a_refused_build_does_not_destroy_good_truth")]),
+
+        ("the carry-over keeps only the distillate's own fields",
+         lambda: attrs(subset,
+                       _carry_meta=lambda t, extra, where: dict(extra)),
+         [("test_subset", "test_the_carry_over_keeps_every_truth_field")]),
+
+        ("the aside truth is copied into place instead of renamed",
+         lambda: one_line("booksmith.subset",
+                          "    os.rename(work, tdir)",
+                          "    shutil.copytree(work, tdir)"),
+         [("test_subset",
+           "test_the_build_leaves_no_working_directory_behind")]),
+
+        ("a distillate field may overwrite a truth field",
+         lambda: one_line("booksmith.subset", "    if clash:", "    if False:"),
+         [("test_subset",
+           "test_a_field_of_ours_may_not_overwrite_a_truth_field")]),
+
         ("our own channel stops reaching the ledger",
          lambda: one_line("booksmith.remote.ledger",
                           "    our_downlink_mbps: float | None = None",

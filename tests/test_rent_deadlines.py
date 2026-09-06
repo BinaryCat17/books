@@ -49,22 +49,24 @@ class _FakeSsh(rbox.Box):
 class _Stream:
     """A pipe handing out bytes at a set rate. Stands in for ssh."""
 
-    def __init__(self, mbps, total=None):
-        self.mbps, self.t0 = mbps, time.time()
+    def __init__(self, mbps, total=None, clock=None):
+        self.mbps = mbps
+        self.clock = clock if clock is not None else [0.0]
         self.total, self.sent = total, 0
         self.stdout = self
 
     def read(self, n):
-        # How many bytes "have arrived" by now at the given rate.
-        must_be = int(self.mbps * 1e6 / 8 * (time.time() - self.t0))
-        if self.total is not None:
-            must_be = min(must_be, self.total)
-        give = min(n, max(0, must_be - self.sent))
-        if give == 0:
-            if self.total is not None and self.sent >= self.total:
-                return b""          # the stream is over
-            time.sleep(0.01)
-            return b"\x00"          # not enough yet -- but the pipe is alive
+        # ON A CLOCK OF OUR OWN, and that is the whole point. This used to read
+        # `time.time()` and sleep 10 ms when nothing had arrived yet, so the
+        # measurement rode the scheduler: under a stall the probe's elapsed
+        # time grew while no bytes flowed, and the check failed about 1.4 % of
+        # runs -- a defect of the check, not of the probe. Now the pipe hands
+        # over exactly what `n` bytes take at `mbps` and ADVANCES THE CLOCK by
+        # that much, so the arithmetic under test is the only thing measured.
+        if self.total is not None and self.sent >= self.total:
+            return b""              # the stream is over
+        give = n if self.total is None else min(n, self.total - self.sent)
+        self.clock[0] += give * 8 / (self.mbps * 1e6)
         self.sent += give
         return b"\x00" * give
 
@@ -76,14 +78,23 @@ class _Stream:
 
 
 def _probe_at(mbps, seconds=0.6, total=None):
-    """Run the real `Box.probe` against a pipe of a given rate."""
+    """Run the real `Box.probe` against a pipe of a given rate.
+
+    The pipe and the probe share ONE virtual clock, so the answer depends on
+    the probe's arithmetic and on nothing else -- not on the scheduler, not on
+    how long this machine takes to run a loop.
+    """
     import subprocess
-    was = subprocess.Popen
-    subprocess.Popen = lambda *a, **k: _Stream(mbps, total)
+    clock = [1000.0]
+    stream = _Stream(mbps, total, clock)
+    was_popen, was_time = subprocess.Popen, rbox.time.time
+    subprocess.Popen = lambda *a, **k: stream
+    rbox.time.time = lambda: clock[0]
     try:
         return _FakeSsh().probe(seconds=seconds)
     finally:
-        subprocess.Popen = was
+        subprocess.Popen = was_popen
+        rbox.time.time = was_time
 
 
 def test_a_narrow_channel_is_measured_not_called_broken():
@@ -95,10 +106,11 @@ def test_a_narrow_channel_is_measured_not_called_broken():
     indistinguishable BY CONSTRUCTION. Can fail: bring back the count of "did
     exactly mb megabytes arrive".
 
-    THE FLAKY CHECK OF THIS FILE, about 1.4 % of calls, and the defect is in
-    the check: the stub hands over a byte per 10 ms, and WSL sometimes
-    stretches its `time.sleep(0.01)` to a whole second, so the probe reads
-    low. Run it again.
+    IT USED TO BE THE FLAKY CHECK OF THIS FILE, about 1.4 % of calls, and the
+    defect was in the check: the stub rode the real clock and slept 10 ms when
+    nothing had arrived, so a scheduler stall grew the probe's elapsed time
+    while no bytes flowed. Pipe and probe now share one virtual clock, and the
+    answer depends on the probe's arithmetic alone.
     """
     narrow = _probe_at(1.16)
     assert narrow > 0.5, (
