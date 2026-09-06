@@ -14,7 +14,7 @@ can be anything -- unclosed tags, stray `<`, broken entities -- none visible
 to the eye in a five-hundred-page book. One thing will be: at the NEXT
 replacement, "opening 0, closing 1" about another block.
 """
-from booksmith.doc import swap
+from booksmith.processing.assemble import swap
 
 A, B = "p0042-b17", "p0042-b18"
 

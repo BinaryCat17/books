@@ -13,7 +13,7 @@ from booksmith.core import config, replay, schema
 from booksmith.core import knobs
 from booksmith.tree import cyr
 from booksmith.datasets import accept as acceptance
-from booksmith.models import paddleocr_vl
+from booksmith.processing.read.rented import paddleocr_vl
 from booksmith.remote import ledger
 
 

@@ -45,7 +45,7 @@ from booksmith.core import raster as crop
 # one way, the book and blocks.json another, nothing left to tie a feed to a
 # block. Two copies of one convention is how percentages out of nothing are
 # born (see tests/test_html_order.py).
-from .html import anchor_of
+from booksmith.processing.assemble.html import anchor_of
 
 FILLS = {"white": (1.0, 1.0, 1.0), "black": (0.0, 0.0, 0.0),
          "gray": (0.5, 0.5, 0.5)}

@@ -32,7 +32,7 @@ foreign (paddle) threshold applied to a model that has none.
 import os
 
 from booksmith.core.page import Block, Page
-from booksmith.models.base import Recognizer
+from booksmith.processing.layout.base import Detector
 from booksmith.core import order
 from booksmith.core import knobs
 from booksmith.core import stamp
@@ -76,7 +76,7 @@ NMS_BY_CLASS = True
 
 
 
-class YoloXLayout(Recognizer):
+class YoloXLayout(Detector):
     name = "yolox-layout"
     policy_name = "DocLayNet"
 

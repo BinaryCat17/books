@@ -284,13 +284,13 @@ RESIDUE = {
                        "egret fingerprint defect"),
     "src/booksmith/tree/cyr.py": (4, "TOOL: the bounds of the Cyrillic block, in "
                              "the function that counts it"),
-    "src/booksmith/djvu.py": (226, "TITLE and DATA: four books, and the three "
+    "src/booksmith/processing/extract/djvu.py": (226, "TITLE and DATA: four books, and the three "
                               "table captions split across the gutter"),
     "src/booksmith/core/raster.py": (20, "TITLE"),
     "src/booksmith/processing/assess/ink.py": (20, "TITLE"),
     "src/booksmith/core/otsl.py": (94, "TITLE and DATA: a column header and a "
                               "grade designation from the book"),
-    "src/booksmith/read/run.py": (39, "TITLE, two of them"),
+    "src/booksmith/processing/read/driver.py": (39, "TITLE, two of them"),
     "src/booksmith/core/knobs.py": (60, "TITLE, three knob descriptions"),
     "src/booksmith/core/textnorm.py": (20, "TITLE: the book whose 1935 nested blocks "
                                         "measured the latex step"),

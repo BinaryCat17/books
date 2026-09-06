@@ -25,7 +25,7 @@ from dataclasses import asdict
 import support
 from booksmith.core.errors import Refusal
 from booksmith.core import policy
-from booksmith.models import docling_heron as dh
+from booksmith.processing.layout.adapters import docling as dh
 from booksmith.core.page import Block
 from booksmith.core import knobs
 
@@ -184,7 +184,7 @@ def test_off_adds_exactly_one_meta_key():
 
 def test_off_keeps_meta_key_order_byte_for_byte():
     """A key's place in the dict is not cosmetic: json writes keys in order."""
-    keys = support.meta_keys("models/docling_heron.py", "DoclingHeron")
+    keys = support.meta_keys("processing/layout/adapters/docling.py", "DoclingHeron")
     assert "**pipe_meta" in keys, (
         "the page's meta no longer holds `**pipe_meta`: either the pipeline "
         "writes its keys elsewhere, or this check has fallen behind the code")

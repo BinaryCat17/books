@@ -39,7 +39,7 @@ import time
 import urllib.error
 import urllib.request
 
-from . import Ask, Said, Transport
+from booksmith.processing.read import Ask, Said, Transport
 from booksmith.core import config
 from booksmith.core import knobs
 from booksmith.core.errors import Refusal

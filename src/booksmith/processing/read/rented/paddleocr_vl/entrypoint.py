@@ -63,8 +63,8 @@ def main(argv=None):
     if a.pkg not in sys.path:
         sys.path.insert(0, a.pkg)
     try:
-        from booksmith.read import http as vhttp
-        from booksmith.read import run as vread
+        from booksmith.processing.read.transports import openai_http as vhttp
+        from booksmith.processing.read import driver as vread
     except ImportError as e:
         raise SystemExit(
             f"the booksmith package will not import from {a.pkg}: {e}. It "
@@ -93,7 +93,7 @@ def main(argv=None):
     pages = None
     if a.pages and a.pages != "-":
         import pymupdf
-        from booksmith.detect import parse_pages
+        from booksmith.processing.layout.detect import parse_pages
         with pymupdf.open(a.pdf) as d:
             pages = set(parse_pages(a.pages, d.page_count))
 

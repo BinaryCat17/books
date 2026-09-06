@@ -16,15 +16,17 @@ import re
 
 import support
 from booksmith.core.errors import Refusal
-from booksmith.models.doclayout import DocLayout
-from booksmith.models.docling_heron import DoclingEgret, DoclingHeron
-from booksmith.models.yolox_layout import YoloXLayout
+from booksmith.processing.layout.adapters.doclayout import DocLayout
+from booksmith.processing.layout.adapters.docling import (
+    DoclingEgret,
+    DoclingHeron)
+from booksmith.processing.layout.adapters.yolox import YoloXLayout
 from booksmith.core import knobs
 
-ADAPTERS = ((DocLayout, "models/doclayout.py"),
-            (DoclingHeron, "models/docling_heron.py"),
-            (DoclingEgret, "models/docling_heron.py"),
-            (YoloXLayout, "models/yolox_layout.py"))
+ADAPTERS = ((DocLayout, "processing/layout/adapters/doclayout.py"),
+            (DoclingHeron, "processing/layout/adapters/docling.py"),
+            (DoclingEgret, "processing/layout/adapters/docling.py"),
+            (YoloXLayout, "processing/layout/adapters/yolox.py"))
 
 
 def test_unknown_knob_raises_not_returns_empty():
@@ -430,7 +432,7 @@ def test_derivable_shape_still_requires_every_value():
     """
     from booksmith.core import replay
 
-    tree = replay._parse(support.src_path("models/doclayout.py"))
+    tree = replay._parse(support.src_path("processing/layout/adapters/doclayout.py"))
     fn, cls = replay._fp_def(tree, "DocLayout")
     keys = replay._returned(fn, tree, cls)
     assert len(keys) > 10, (
@@ -440,7 +442,7 @@ def test_derivable_shape_still_requires_every_value():
 
 
 # -------------------------------------------------------- .sh AND THE REGISTRY
-# A promise nothing kept BEFORE this check. `models/paddleocr_vl/run.sh` says
+# A promise nothing kept BEFORE this check. `processing/read/rented/paddleocr_vl/run.sh` says
 # word for word: "a drift will be caught by `tests/test_knobs.py`, which
 # compares the right-hand sides of `${X:-…}` with it [the registry]". No such
 # comparison existed: no check opened a `.sh`, and `knobs.readers()` looks in
@@ -480,7 +482,7 @@ def _sh_scan(text):
 def _sh_defaults():
     """Every `${NAME:-default}` in the scripts that ship to the rented card."""
     out = {}
-    root = os.path.join(support.SRC, "models")
+    root = os.path.join(support.SRC, "processing")
     for directory, _, files in os.walk(root):
         for f in sorted(files):
             if not f.endswith(".sh"):

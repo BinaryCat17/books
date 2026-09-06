@@ -25,10 +25,10 @@ from fake_vlm import FakeVlm                                # noqa: E402
 
 from booksmith.core import otsl  # noqa: E402
 from booksmith.core.page import Block, Page  # noqa: E402
-from booksmith.read import Ask, Route                       # noqa: E402
-from booksmith.read import http as vhttp                    # noqa: E402
-from booksmith.read import run as vrun                      # noqa: E402
-from booksmith.models.paddleocr_vl.reader import PaddleOcrVl  # noqa: E402
+from booksmith.processing.read import Ask, Route  # noqa: E402
+from booksmith.processing.read.transports import openai_http as vhttp  # noqa: E402
+from booksmith.processing.read import driver as vrun  # noqa: E402
+from booksmith.processing.read.readers.paddleocr_vl import PaddleOcrVl  # noqa: E402
 
 
 # -------------------------------------------------------------- routes ---

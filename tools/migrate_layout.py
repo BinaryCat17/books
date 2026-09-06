@@ -141,9 +141,54 @@ ALIASES = {"page": "booksmith.core.page", "textnorm": "booksmith.core.textnorm",
 # truth file and PDF of the six books before and after.
 STEP3_PACKAGES = {"booksmith.datasets.make.books": "booksmith.datasets.make.synth.books"}
 
+# STEP 3a: module 1 into `processing/`, names unchanged. Two packages move
+# whole and two of their modules are renamed on the way (`read.http` is the
+# OpenAI-shaped transport, `read.run` the driver); `models/paddleocr_vl/
+# reader.py` leaves its package for `read/readers/` before the package moves
+# (by hand, before running the script). Not moved by the script: the
+# MathJax directory beside html.py, the deletion of doc/feed.py, the rename
+# of `Recognizer` to `Detector`, the image constants into remote/, and the
+# rename table `core/replay.RENAMED` for the tracked snapshots.
+STEP4_MOVES = {
+    "booksmith.djvu": "booksmith.processing.extract.djvu",
+    "booksmith.detect": "booksmith.processing.layout.detect",
+    "booksmith.models.base": "booksmith.processing.layout.base",
+    "booksmith.models.doclayout": "booksmith.processing.layout.adapters.doclayout",
+    "booksmith.models.docling_heron": "booksmith.processing.layout.adapters.docling",
+    "booksmith.models.yolox_layout": "booksmith.processing.layout.adapters.yolox",
+    "booksmith.doc.html": "booksmith.processing.assemble.html",
+    "booksmith.doc.swap": "booksmith.processing.assemble.swap",
+    "booksmith.doc.apply": "booksmith.processing.assemble.apply",
+}
+STEP4_PACKAGES = {
+    "booksmith.read": "booksmith.processing.read",
+    "booksmith.models.paddleocr_vl": "booksmith.processing.read.rented.paddleocr_vl",
+    "booksmith.models.dots_ocr": "booksmith.processing.layout.rented.dots_ocr",
+}
+# Modules renamed while their package moves: applied after the package
+# expansion, moved by hand after the script.
+STEP4_RENAMES = {
+    "booksmith.read.http": "booksmith.processing.read.transports.openai_http",
+    "booksmith.read.run": "booksmith.processing.read.driver",
+    "booksmith.models.paddleocr_vl.reader": "booksmith.processing.read.readers.paddleocr_vl",
+}
+# Non-.py files and package __init__s that tests name by path.
+STEP4_EXTRA_PATHS = {
+    "models/paddleocr_vl/run.sh": "processing/read/rented/paddleocr_vl/run.sh",
+    "models/paddleocr_vl/__init__.py": "processing/read/rented/paddleocr_vl/__init__.py",
+    "models/dots_ocr/entrypoint.py": "processing/layout/rented/dots_ocr/entrypoint.py",
+    "models/dots_ocr/__init__.py": "processing/layout/rented/dots_ocr/__init__.py",
+    "read/http.py": "processing/read/transports/openai_http.py",
+    "read/run.py": "processing/read/driver.py",
+    "models/paddleocr_vl/reader.py": "processing/read/readers/paddleocr_vl.py",
+}
+
 STEPS = {1: (STEP1_MOVES, {}, STEP1_SYMBOLS, STEP1_ATTRS),
          2: (STEP2_MOVES, STEP2_PACKAGES, STEP2_SYMBOLS, STEP2_ATTRS),
-         3: ({}, STEP3_PACKAGES, {}, {})}
+         3: ({}, STEP3_PACKAGES, {}, {}),
+         4: (STEP4_MOVES, STEP4_PACKAGES, {}, {})}
+RENAMES = {4: STEP4_RENAMES}
+EXTRA_PATHS = {4: STEP4_EXTRA_PATHS}
 MOVES, PACKAGES, SYMBOLS, ATTR_RETARGET = STEP1_MOVES, {}, STEP1_SYMBOLS, STEP1_ATTRS
 NEW_ALIASES = ALIASES
 
@@ -164,10 +209,12 @@ def use_step(n):
     # is also the command's name (`prog="books"`, the repeat_command argv),
     # and the first run of step 2 turned five of those into a path. Only
     # `.py` paths and repository paths are literals anyone writes.
+    MOVES.update(RENAMES.get(n, {}))
     PATH_MOVES = {rel_of(o): rel_of(n) for o, n in MOVES.items()
                   if rel_of(o).endswith(".py")}
-    REPO_PATH_MOVES = {"src/booksmith/" + rel_of(o): "src/booksmith/" + rel_of(n)
-                       for o, n in MOVES.items()}
+    PATH_MOVES.update(EXTRA_PATHS.get(n, {}))
+    REPO_PATH_MOVES = {"src/booksmith/" + o: "src/booksmith/" + nw
+                       for o, nw in PATH_MOVES.items()}
 
 
 def rel_of(mod):
@@ -259,7 +306,14 @@ def rewrite_imports(path, is_src):
             continue
         groups = regroup(absmod, node.names)
         if groups is None:
-            continue
+            # A RELATIVE import in a file that MOVES must be re-emitted even
+            # when its target stays: its meaning changes with the file's
+            # depth. Step 3a left `from ...remote.spec import` in a file two
+            # levels deeper, and it resolved to a package that is not there.
+            if node.level and is_src and module_of(path)[0] in MOVES:
+                groups = {absmod: list(node.names)}
+            else:
+                continue
         first = src_lines[node.lineno - 1]
         indent = first[:len(first) - len(first.lstrip())]
         # A comment on the import line survives on the first emitted line.

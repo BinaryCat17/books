@@ -23,7 +23,10 @@ import shutil
 import support
 from booksmith.datasets.metrics import contour as metrics
 from booksmith.core import order
-from booksmith.models import doclayout, docling_heron, yolox_layout
+from booksmith.processing.layout.adapters import (
+    doclayout,
+    docling as docling_heron,
+    yolox as yolox_layout)
 
 # WHOSE ORDER EACH LINE MEANS. "model" -- comparable with truth; "ours" -- not,
 # it would be comparing our own numbering.
@@ -60,9 +63,9 @@ for _w in order.WORDS.values():
 for _mode, _rule in docling_heron._DoclingPipeline.ORDER_RULE.items():
     EXPECTED[_rule] = "ours"
 
-ADAPTERS = (("models/doclayout.py", doclayout),
-            ("models/docling_heron.py", docling_heron),
-            ("models/yolox_layout.py", yolox_layout))
+ADAPTERS = (("processing/layout/adapters/doclayout.py", doclayout),
+            ("processing/layout/adapters/docling.py", docling_heron),
+            ("processing/layout/adapters/yolox.py", yolox_layout))
 
 
 def guard():
@@ -209,7 +212,7 @@ def _fake_page(rows, labels):
     import cv2
     import tempfile
 
-    from booksmith.models.doclayout import DocLayout
+    from booksmith.processing.layout.adapters.doclayout import DocLayout
 
     r = object.__new__(DocLayout)
     r.labels = list(labels)

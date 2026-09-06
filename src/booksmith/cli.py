@@ -35,7 +35,7 @@ import os
 import sys
 
 from booksmith.core import config
-from .models import paddleocr_vl
+from booksmith.processing.read.rented import paddleocr_vl
 from .remote import ledger as ledger_mod
 from .remote.spec import HostReq
 from .remote.vast import Vast
@@ -79,7 +79,7 @@ def cmd_prepare(a):
     with the eye before paying for a card. Two of the three books added lay as
     spreads, and the recogniser would read two pages as one.
     """
-    from . import djvu
+    from booksmith.processing.extract import djvu
     print(djvu.to_pdf(a.file, dst=a.out, split=a.split))
     return 0
 
@@ -87,7 +87,7 @@ def cmd_prepare(a):
 def cmd_detect(a):
     """Level-one contours over the PDF pages. No VLM, no rental, no money."""
     import shlex
-    from . import detect
+    from booksmith.processing.layout import detect
     out = a.out or os.path.splitext(a.file)[0] + ".detect"
     detect.run(a.file, out, a.pages, log=log)
     # Quoted: five of the nine files in raw/ carry spaces and brackets, and a
@@ -211,7 +211,7 @@ def book_home(detect_dir: str) -> str:
 
 def cmd_html(a):
     """Level one's product: text as markup, artefacts as pictures."""
-    from .doc import html as html_mod
+    from booksmith.processing.assemble import html as html_mod
     d = _run_dir(a.dir, "books html")
     out = a.out or book_home(d)
     # FOREIGN WORK IS NOT OVERWRITTEN: the tell of ours is the snapshot the
@@ -238,7 +238,7 @@ def cmd_apply(a):
     Not one call to a model here: this layer only places a ready fragment, and
     what generated it — `books read`, or a hand — is not its business.
     """
-    from .doc import apply as ap
+    from booksmith.processing.assemble import apply as ap
     # NOT `_run_dir`: that one looks for the DETECTION `run.json` and on
     # refusal points at a directory with `pages/`, while this command wants the
     # BUILD directory, the one with `book.html`. The old check refused the
@@ -305,7 +305,7 @@ def cmd_read_rented(a, policy_name, out):
     surfaced from the direct question "with which command?", not from reading
     the code.
     """
-    from .models import paddleocr_vl as vl
+    from booksmith.processing.read.rented import paddleocr_vl as vl
     from .remote import runner
 
     spec = vl.spec(_pdf_of(a.dir), a.dir, pages=a.pages, policy=policy_name,
@@ -346,8 +346,8 @@ def cmd_read(a):
     filled in, so `books html`, `text`, `score`, `fitness` and `overlay` eat it
     unchanged.
     """
-    from .read import http as vhttp
-    from .read import run as vread
+    from booksmith.processing.read.transports import openai_http as vhttp
+    from booksmith.processing.read import driver as vread
 
     out = a.out or (os.path.abspath(a.dir).rstrip("/") + ".read")
     # THE LABEL DICTIONARY COMES FROM THE DETECTION SNAPSHOT, not typed by
@@ -386,7 +386,7 @@ def cmd_read(a):
 
     pages = None
     if a.pages:
-        from .detect import parse_pages
+        from booksmith.processing.layout.detect import parse_pages
         with raster.open_pdf(_pdf_of(a.dir)) as d:
             pages = set(parse_pages(a.pages, d.page_count))
 
@@ -443,7 +443,7 @@ def cmd_feed(a):
 
 def cmd_overlay(a):
     """Boxes over the pages: truth solid, the model's guess dashed."""
-    from booksmith import detect
+    from booksmith.processing.layout import detect
     from booksmith.datasets import look as overlay
     marks = [(_pages_dir(a.truth, "--truth"), "T")] if a.truth else []
     if a.detect:
@@ -775,7 +775,7 @@ def _doctor_detect():
         return ("NOT CHECKED — the detect set is missing packages "
                 f"({len(missing)} of 3)")
 
-    from . import detect
+    from booksmith.processing.layout import detect
     from booksmith.core import knobs
     active = knobs.knob("LAYOUT_ADAPTER")
     # The same `_adapter()` `books detect` calls, its name given through the

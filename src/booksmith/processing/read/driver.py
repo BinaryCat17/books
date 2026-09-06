@@ -49,7 +49,7 @@ import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-from . import Ask, Reader, Transport
+from booksmith.processing.read import Ask, Reader, Transport
 from booksmith.core import otsl, policy
 from booksmith.core import raster as crop
 from booksmith.core.page import Page
@@ -68,7 +68,7 @@ READERS = ("paddleocr-vl",)
 def build_reader(policy_name: str) -> Reader:
     name = knobs.knob("VLM_READER")
     if name == "paddleocr-vl":
-        from ..models.paddleocr_vl.reader import PaddleOcrVl
+        from booksmith.processing.read.readers.paddleocr_vl import PaddleOcrVl
         return PaddleOcrVl(policy_name)
     raise Refusal(
         f"VLM_READER={name!r}: I know only {READERS}. A silent fallback to "
@@ -569,9 +569,7 @@ def snapshot(detect_dir: str, out_dir: str, reader: Reader,
                     "module": type(reader).__module__,
                     "sha256": stamp.sha256(
                         sys.modules[type(reader).__module__].__file__),
-                    "sha256_command": stamp.sha256(
-                        os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                     "run.py")),
+                    "sha256_command": stamp.sha256(os.path.abspath(__file__)),
                     # OTSL parsing is OUR code and decides the numbers no less
                     # than the model does. Without its hash two runs with
                     # different parsers would look identical.

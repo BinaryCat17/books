@@ -16,9 +16,9 @@ import json
 import os
 import tempfile
 
-from booksmith.doc import apply as ap
-from booksmith.doc import html as dhtml
-from booksmith.doc import swap
+from booksmith.processing.assemble import apply as ap
+from booksmith.processing.assemble import html as dhtml
+from booksmith.processing.assemble import swap
 from booksmith.core.errors import Refusal
 
 A, B = "p0042-b17", "p0042-b18"

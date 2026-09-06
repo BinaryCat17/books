@@ -139,7 +139,7 @@ def test_the_code_emits_exactly_the_declared_html_attributes():
     """
     src = ""
     for name in ("html.py", "apply.py"):
-        src += open(os.path.join(support.SRC, "doc", name), encoding="utf-8").read()
+        src += open(os.path.join(support.SRC, "processing", "assemble", name), encoding="utf-8").read()
     found = {a for a in re.findall(r'data-[\wЀ-ӿ-]+', src)}
     declared = set(schema.HTML_ATTRS)
     assert found == declared, (
@@ -188,7 +188,7 @@ def _emitted_text(rel):
 def _doc_sources():
     """Every `.py` under `doc/`, at any depth. `doc/mathjax/` is a package."""
     out = []
-    for root, _, files in os.walk(os.path.join(support.SRC, "doc")):
+    for root, _, files in os.walk(os.path.join(support.SRC, "processing", "assemble")):
         out += [os.path.join(root, f) for f in sorted(files)
                 if f.endswith(".py")]
     return out
@@ -315,8 +315,8 @@ def test_the_rented_image_was_built_from_this_dockerfile():
     import re
     import subprocess
     root = os.path.dirname(os.path.dirname(support.SRC))
-    src = open(os.path.join(support.SRC, "models", "paddleocr_vl",
-                            "__init__.py"), encoding="utf-8").read()
+    src = open(os.path.join(support.SRC, "remote", "image.py"),
+               encoding="utf-8").read()
     m = re.search(r'BASE_IMAGE\s*=\s*"[^"]*:([0-9a-f]{7,40})"', src)
     assert m, "BASE_IMAGE no longer carries a commit SHA as its tag"
     tag = m.group(1)
@@ -363,7 +363,7 @@ def test_the_snapshot_seconds_are_a_duration_and_nothing_else():
     snapshot must be assigned once in the whole function, and that assignment
     must be a subtraction of two clock readings.
     """
-    tree = support.tree("detect.py")
+    tree = support.tree("processing/layout/detect.py")
     fn = next((n for n in ast.walk(tree)
                if isinstance(n, ast.FunctionDef) and n.name == "run"), None)
     assert fn is not None, "detect.py no longer defines `run`"

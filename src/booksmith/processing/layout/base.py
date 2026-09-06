@@ -30,7 +30,7 @@ resolutions are incomparable.
 from booksmith.core.page import Page
 
 
-class Recognizer:
+class Detector:
     """What a model adapter must be able to do.
 
     THE LIST USED TO BE SHORTER THAN THE TRUTH, and that is the defect this

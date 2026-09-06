@@ -22,7 +22,7 @@ understanding, taken for a zero from checking. So `torn_grid` looks at SHAPE.
 import json
 import os
 
-from booksmith.doc import html as H
+from booksmith.processing.assemble import html as H
 
 
 # ------------------------------------------------------ table shape ---
@@ -138,7 +138,7 @@ def test_the_mark_survives_the_replacement():
     checks, half in `apply.py` and was not: deleting two lines of
     `_wrap_fragment` reddened none of the 217 checks.
     """
-    from booksmith.doc import apply as ap
+    from booksmith.processing.assemble import apply as ap
     intact = ap._wrap_fragment("p1-b0", "<fcel>a<fcel>b<nl>", "otsl",
                                "a probe", torn=False)
     torn = ap._wrap_fragment("p1-b0", "<fcel>a<fcel>b<nl>", "otsl", "a probe",
@@ -154,7 +154,7 @@ def test_unknown_is_not_whole():
     Silence is right; lying was easy either way -- mark by default, or
     declare the block whole.
     """
-    from booksmith.doc import apply as ap
+    from booksmith.processing.assemble import apply as ap
     nothing = ap._wrap_fragment("p1-b0", "<fcel>a<nl>", "otsl", "by hand")
     assert "data-truncated" not in nothing, nothing
 
@@ -168,7 +168,7 @@ def test_from_read_asks_the_sidecar_for_the_reason():
     import ast
 
     import support
-    t = support.tree("doc/apply.py")
+    t = support.tree("processing/assemble/apply.py")
     fn = next(n for n in ast.walk(t)
               if isinstance(n, ast.FunctionDef) and n.name == "from_read")
     calls = [n for n in ast.walk(fn)
@@ -226,8 +226,8 @@ def _bench(tmp, chunks, cut=()):
     """A book of N blocks, a reading directory and the observed beside it."""
     import json as _j
     import os as _o
-    from booksmith.doc import apply as ap
-    from booksmith.doc import swap
+    from booksmith.processing.assemble import apply as ap
+    from booksmith.processing.assemble import swap
     with open(_o.path.join(tmp, "book.html"), "w", encoding="utf-8") as f:
         f.write("<!doctype html><html><body>\n" + "\n".join(
             swap.wrap(f"p0000-b{i}", f'<figure id="p0000-b{i}">pic</figure>')
@@ -259,7 +259,7 @@ def test_bulk_counts_spans_declared_and_placed():
     log.
     """
     import tempfile
-    from booksmith.doc import apply as ap
+    from booksmith.processing.assemble import apply as ap
     with tempfile.TemporaryDirectory() as tmp:
         _bench(tmp, ["<fcel>h<lcel><nl><fcel>1<fcel>2<nl>",     # 1 merge
                      "<fcel>a<fcel>b<nl><fcel>1<fcel>2<nl>",    # no merges
@@ -284,7 +284,7 @@ def test_bulk_counts_the_impossible_shape_of_the_book_not_of_the_run():
     (counting blocks the guards refused to place).
     """
     import tempfile
-    from booksmith.doc import apply as ap
+    from booksmith.processing.assemble import apply as ap
     with tempfile.TemporaryDirectory() as tmp:
         _bench(tmp, ["<fcel>a<fcel>b<fcel>c<fcel>d<fcel>e<nl>",  # 1x5 -- no
                      "<fcel>a<fcel>b<nl><fcel>1<fcel>2<nl>"])
@@ -303,7 +303,7 @@ def test_bulk_counts_the_impossible_shape_of_the_book_not_of_the_run():
 def test_bulk_marks_the_torn_block_in_the_book():
     """Truncation reaches the book through the bulk swap as well."""
     import tempfile
-    from booksmith.doc import apply as ap
+    from booksmith.processing.assemble import apply as ap
     with tempfile.TemporaryDirectory() as tmp:
         _bench(tmp, ["<fcel>a<fcel>b<nl><fcel>1<fcel>2<nl>",
                      "<fcel>c<fcel>d<nl><fcel>3<fcel>4<nl>"], cut={1})
@@ -323,7 +323,7 @@ def test_bulk_names_the_rewrap_apart_from_new_work():
     MODEL ANSWER, not of the finished body, which differs by the wrapper.
     """
     import tempfile
-    from booksmith.doc import apply as ap
+    from booksmith.processing.assemble import apply as ap
     with tempfile.TemporaryDirectory() as tmp:
         _bench(tmp, ["<fcel>a<fcel>b<nl><fcel>1<fcel>2<nl>"])
         t1 = ap.from_read(tmp, os.path.join(tmp, "read"), log=lambda *_: None)
@@ -375,7 +375,7 @@ def test_a_refused_block_is_not_counted_as_being_in_the_book():
     fragment, caught by `_check_fragment`.
     """
     import tempfile
-    from booksmith.doc import apply as ap
+    from booksmith.processing.assemble import apply as ap
     with tempfile.TemporaryDirectory() as tmp:
         _bench(tmp, ["<fcel>a<fcel>b<nl><fcel>1<fcel>2<nl>",
                      # 1x5: impossible shape, AND the fragment is refused.

@@ -68,7 +68,7 @@ def _dots_parse_pages():
     mutations were reported as not caught, though reverting either by hand
     reddens both checks.
     """
-    path = support.src_path(os.path.join("models", "dots_ocr",
+    path = support.src_path(os.path.join("processing", "layout", "rented", "dots_ocr",
                                          "entrypoint.py"))
     spec = importlib.util.spec_from_file_location("dots_entrypoint", path)
     mod = importlib.util.module_from_spec(spec)
@@ -101,7 +101,7 @@ def test_both_copies_of_parse_pages_agree():
     counts for money. Diverged, both still look sound: checked at home, falls
     on the card.
     """
-    from booksmith.detect import parse_pages as canon
+    from booksmith.processing.layout.detect import parse_pages as canon
     other = _dots_parse_pages()
 
     mismatches = []
@@ -126,7 +126,7 @@ def test_the_dash_means_the_whole_book_only_on_the_box():
     thinking, and `run.sh` with its `${4:--}` starts getting a refusal where
     it used to count the whole book.
     """
-    from booksmith.detect import parse_pages as canon
+    from booksmith.processing.layout.detect import parse_pages as canon
     other = _dots_parse_pages()
 
     assert _outcome(other, SHELL_ALL) == ("pages", list(range(TOTAL))), (
@@ -147,7 +147,7 @@ def test_a_space_separates_pages_in_both_copies():
     with a bare `ValueError` after the weights were unpacked and the money
     was running.
     """
-    from booksmith.detect import parse_pages as canon
+    from booksmith.processing.layout.detect import parse_pages as canon
     other = _dots_parse_pages()
 
     for fn, name in ((canon, "detect"), (other, "dots_ocr")):

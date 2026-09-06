@@ -7,7 +7,7 @@ green. The cost is known from next door: on `bench/hard36` the metric printed
 "reading order agrees 73%" where order is marked on none of the 36 pages. A
 number out of nothing is born of two copies of one contract.
 """
-from booksmith.doc import html as H
+from booksmith.processing.assemble import html as H
 from booksmith.core import page as B
 from booksmith.core import book
 
@@ -224,7 +224,7 @@ def test_crop_dpi_counts_what_will_actually_be_cut():
     33 640 and hang over by at most 4.8 px -- real data never caught it, but
     the two numbers must be counted on one rectangle.
     """
-    from booksmith.read.run import crop_dpi_for
+    from booksmith.processing.read.driver import crop_dpi_for
     W = (112896, 1003520)
     sheet = (0.0, 0.0, 1012.0, 1466.0)
     out = (0, 0, 2024, 1466)                   # twice the sheet wide
@@ -275,7 +275,7 @@ def test_crop_dpi_takes_the_ink_that_exists_and_invents_none():
     (`Reader.pixels`), box size from the detector. Above our own grid we NEVER
     go -- that would invent dots and call them reading.
     """
-    from booksmith.read.run import crop_dpi_for
+    from booksmith.processing.read.driver import crop_dpi_for
     W = (112896, 1003520)
     # block below the lower bound: stay on our grid and say so
     d, why = crop_dpi_for((0, 0, 273, 47), 144.0, 144.0, W)
@@ -327,7 +327,7 @@ def test_the_anchor_rule_has_exactly_one_home():
     the book" for every read block. Checked by object identity: equal strings
     hold only until the first edit to one copy.
     """
-    from booksmith.doc import apply as ap
+    from booksmith.processing.assemble import apply as ap
     from booksmith.doc import feed
     assert feed.anchor_of is H.anchor_of, "doc/feed made its own anchor"
     assert ap.anchor_of is H.anchor_of, "doc/apply made its own anchor"
@@ -379,7 +379,7 @@ def test_three_kinds_of_bad_sheet_get_three_different_marks():
             with open(os.path.join(det, "pages", f"{p.index:04d}.json"),
                       "w", encoding="utf-8") as f:
                 json.dump(p.to_json(), f, ensure_ascii=False)
-        from booksmith import detect as _detect
+        from booksmith.processing.layout import detect as _detect
         with open(os.path.join(det, "run.json"), "w", encoding="utf-8") as f:
             json.dump({"source": {"path": pdf,
                                     "sha256": _detect._sha256(pdf)},
@@ -434,7 +434,7 @@ def test_the_book_is_alone_at_the_root_and_carries_itself():
 
     import pymupdf
 
-    from booksmith import detect as _detect
+    from booksmith.processing.layout import detect as _detect
     from booksmith.core.page import Block, Page
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -546,8 +546,8 @@ def test_the_book_carries_blocks_in_the_order_it_walked_them():
     import pymupdf
     import support
 
-    from booksmith import detect as _detect
-    from booksmith.doc import swap
+    from booksmith.processing.layout import detect as _detect
+    from booksmith.processing.assemble import swap
     from booksmith.core.page import Block, Page
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -590,7 +590,7 @@ def test_the_book_carries_blocks_in_the_order_it_walked_them():
     # THE EXPECTATION MAY NOT BE DERIVED FROM THE WALK, and only the source can
     # say so: a tautological guard behaves on healthy code exactly like an
     # honest one.
-    t = support.tree("doc/html.py")
+    t = support.tree("processing/assemble/html.py")
     fn = next(n for n in ast.walk(t)
               if isinstance(n, ast.FunctionDef) and n.name == "build")
     loops = [n for n in ast.walk(fn) if isinstance(n, ast.For)]

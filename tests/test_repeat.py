@@ -22,7 +22,7 @@ THE SECOND TRAP -- MUTUAL HIDING. Two repeats of one place "have each other",
 and both can be hidden, leaving none in the book. So the comparison runs only
 against the blocks that REMAIN.
 """
-from booksmith.doc import html as H
+from booksmith.processing.assemble import html as H
 from booksmith.core.page import Block, Page
 
 

@@ -32,7 +32,7 @@ import os
 
 from booksmith.core import knobs
 from booksmith.core.page import Block, Page
-from booksmith.models.base import Recognizer
+from booksmith.processing.layout.base import Detector
 from booksmith.core import order
 from booksmith.core import stamp
 from booksmith.core.errors import WeightsMissing
@@ -75,7 +75,7 @@ def has_rank(out) -> bool:
     return out.shape[1] >= 7
 
 
-class DocLayout(Recognizer):
+class DocLayout(Detector):
     """PP-DocLayoutV2 (ONNX) directly: boxes, labels, reading order.
 
     `read()` returns a `Page` without one character of text: `content` `None`

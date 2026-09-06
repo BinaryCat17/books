@@ -30,7 +30,7 @@ import sys
 import time
 
 from booksmith.core import policy
-from .models.doclayout import DocLayout
+from booksmith.processing.layout.adapters.doclayout import DocLayout
 from booksmith.core import knobs, stamp
 from booksmith.core.errors import Refusal
 from booksmith.core import raster
@@ -100,13 +100,13 @@ def _adapter():
     if which == "doclayout":
         return DocLayout()
     if which == "docling":
-        from .models.docling_heron import DoclingHeron
+        from booksmith.processing.layout.adapters.docling import DoclingHeron
         return DoclingHeron()
     if which == "docling-egret":
-        from .models.docling_heron import DoclingEgret
+        from booksmith.processing.layout.adapters.docling import DoclingEgret
         return DoclingEgret()
     if which == "yolox":
-        from .models.yolox_layout import YoloXLayout
+        from booksmith.processing.layout.adapters.yolox import YoloXLayout
         return YoloXLayout()
     raise Refusal(f"LAYOUT_ADAPTER={which!r}: I know only {ADAPTERS}")
 
@@ -558,7 +558,7 @@ def run(pdf, outdir, pages_spec=None, log=print):
                     "module": type(det).__module__,
                     "sha256": _sha256(sys.modules[type(det).__module__].__file__),
                     "sha256_command": _sha256(os.path.join(here,
-                                                           "detect.py"))},
+                                                           "processing/layout/detect.py"))},
         "policy": policy.snapshot(getattr(det, "policy_name", None)),
         "prompts": {},
         "generation": {"temperature": None, "max_tokens": None,

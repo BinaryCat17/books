@@ -1,5 +1,5 @@
 bench/annopage/detect: values in the snapshot 38 of 55, missing 17, empty 11 (of those, knobs with no value 5); NOT EVERYTHING WAS CHECKED -- 26 fingerprint values have nothing to be checked against
-  the fingerprint of adapter doclayout-onnx is NOT VERIFIED: models/doclayout.py is not the code that counted (snapshot 1f3ac82a, tree <current source>) -- 26 fingerprint values went unchecked, and 2 of them are absent from the snapshot. This is 'snapshot OLD', not 'snapshot INCOMPLETE'
+  the fingerprint of adapter doclayout-onnx is NOT VERIFIED: processing/layout/adapters/doclayout.py is not the code that counted (snapshot 1f3ac82a, tree <current source>) -- 26 fingerprint values went unchecked, and 2 of them are absent from the snapshot. This is 'snapshot OLD', not 'snapshot INCOMPLETE'
   absent knobs/YOLOX_WEIGHTS/value                   -- knob YOLOX_WEIGHTS
   absent knobs/DOCLING_PIPELINE/value                -- knob DOCLING_PIPELINE
   absent knobs/ASSEMBLY_ORDER/value                  -- knob ASSEMBLY_ORDER

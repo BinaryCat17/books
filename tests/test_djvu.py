@@ -32,7 +32,7 @@ import sys
 
 import support
 
-from booksmith import djvu
+from booksmith.processing.extract import djvu
 
 # Points in one probe row. Derived FROM THE KNOB, not from the literal 36 that
 # stood here before. Not cosmetic: with 36 wired in, `PROBE_DPI` = 72 would
@@ -85,7 +85,7 @@ def _spread(rows=599, draw=()):
 
 def _cut(doc, pg):
     """Where to cut; `None` is a veto."""
-    from booksmith import djvu
+    from booksmith.processing.extract import djvu
     x = djvu._gutter(pg, pg.rect)
     doc.close()
     return x

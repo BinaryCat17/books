@@ -72,13 +72,22 @@ src/booksmith/
                rewriting the renting again. Four independent ways to kill a
                machine, including a dead-man's watch on the card itself; each
                was added after the previous one let money leak
-  models/      detection adapters, all ONNX on the CPU: base.py is the
-               contract (Recognizer), doclayout.py (PP-DocLayout*),
-               docling_heron.py (heron and egret), yolox_layout.py;
-               paddleocr_vl/ and dots_ocr/ deliver a VLM to a rented machine
-  processing/  MODULE 1, one book stage by stage (being filled by step 3 of
-               docs/plan.md): assess/ink.py, the ink measurement -- will the
-               meaning reach the second level; needs no truth
+  processing/  MODULE 1, one book stage by stage: extract/djvu.py (djvu ->
+               PDF with spreads cut apart); layout/ (base.py the Detector
+               contract, detect.py level one, adapters/ doclayout,
+               docling, yolox -- all ONNX on the CPU --, rented/dots_ocr a
+               layout VLM delivered to a rented card); read/ (LEVEL TWO,
+               `books read`: __init__ the contract for reading a block,
+               driver.py the book driver whose product is THE SAME
+               pages/*.json detection makes with content and kind filled
+               in, transports/openai_http.py delivery to any OpenAI-
+               compatible address, readers/paddleocr_vl.py the one reader,
+               rented/paddleocr_vl the job that raises vLLM on a card);
+               assemble/ (html.py contours into HTML, swap.py and apply.py
+               one picture replaced by markup at a time with an undo,
+               mathjax/ shipped beside the book, knob HTML_MATH); assess/
+               (ink.py the ink measurement -- will the meaning reach the
+               second level; needs no truth)
   datasets/    MODULE 2, many books, truth, numbers: bench.py (Bench, Run:
                the one loader and the one identity check), metrics/ (base.py
                the contract -- Metric, Record, Scalar, the one battery loop;
@@ -94,19 +103,8 @@ src/booksmith/
                look.py boxes drawn over the pages, table.py every metric on
                one run side by side, accept.py reports and records against
                bench/expected/
-  models/      detection adapters, all ONNX on the CPU: base.py is the
-               contract (Recognizer), doclayout.py (PP-DocLayout*),
-               docling_heron.py (heron and egret), yolox_layout.py;
-               paddleocr_vl/ and dots_ocr/ deliver a VLM to a rented machine
-  doc/         contours into HTML: feed, html; swap and apply are level two --
-               one picture replaced by markup at a time, with an undo;
-               mathjax/ ships MathJax beside the book, knob `HTML_MATH`
-  read/        LEVEL TWO, `books read`: the contract for reading a block
-               (__init__), transport to any OpenAI-compatible address (http),
-               the book driver (run). Its product is THE SAME `pages/*.json`
-               detection makes, with `content` and `kind` filled in
-  detect.py    level one: page contours, locally and free
-  djvu.py      djvu -> PDF with spreads cut apart
+  doc/         feed.py, the VLM-input preview; goes with step 3a's second
+               half (`books crop` replaces it)
   cli.py       books <command>
 tests/         collusions between files, own runner (there is no pytest in
                .venv): tests/run.py, and tests/run.py --slow --selfcheck for

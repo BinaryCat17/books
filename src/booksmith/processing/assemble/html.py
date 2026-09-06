@@ -39,7 +39,7 @@ from booksmith.core import knobs
 
 from booksmith.core import book, raster as crop
 from booksmith.core.book import ASSETS, SOURCE
-from booksmith.doc import swap
+from booksmith.processing.assemble import swap
 
 CSS = """
 body{max-width:52em;margin:2em auto;padding:0 1em;
@@ -487,7 +487,7 @@ def _img_src(path: str, rel: str, how: str) -> str:
 def _union_share(boxes, sheet):
     """Share of the sheet under artifacts, by UNION rather than a sum of areas:
     nested boxes would otherwise count twice."""
-    from .feed import _union_area
+    from booksmith.doc.feed import _union_area
     if not boxes or sheet <= 0:
         return 0.0
     return min(1.0, _union_area([[float(v) for v in b] for b in boxes]) / sheet)

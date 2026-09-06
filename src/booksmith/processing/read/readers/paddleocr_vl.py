@@ -50,7 +50,7 @@ model, and there is none of that here.
 import hashlib
 import os
 
-from ...read import Reader, Route
+from booksmith.processing.read import Reader, Route
 from booksmith.core import knobs
 from booksmith.core.errors import Refusal
 

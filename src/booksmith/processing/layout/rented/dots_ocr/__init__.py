@@ -51,8 +51,8 @@ CLI branch, not before it.
 """
 import os
 
-from ..paddleocr_vl import BASE_IMAGE, IMAGE_GB
-from ...remote.spec import HostReq, JobSpec
+from booksmith.remote.image import BASE_IMAGE, IMAGE_GB
+from booksmith.remote.spec import HostReq, JobSpec
 from booksmith.core.errors import Refusal
 
 HERE = os.path.dirname(os.path.abspath(__file__))

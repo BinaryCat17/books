@@ -27,7 +27,7 @@ import ast
 
 import support
 
-REL = "models/yolox_layout.py"
+REL = "processing/layout/adapters/yolox.py"
 
 
 def _resize_call(t):

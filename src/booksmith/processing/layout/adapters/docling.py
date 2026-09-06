@@ -83,7 +83,7 @@ import os
 import sys
 
 from booksmith.core.page import Block, Page
-from booksmith.models.base import Recognizer
+from booksmith.processing.layout.base import Detector
 # The role of a label is OUR policy and lives in one place. Needed here for
 # one number: artefact boxes the vendor took into the children of a TEXT
 # wrapper, that is, lost for the book. A list of classes of our own here would
@@ -509,7 +509,7 @@ class _DoclingPipeline:
         }
 
 
-class DoclingHeron(Recognizer):
+class DoclingHeron(Detector):
     name = "docling-heron"
     policy_name = "Docling"
 

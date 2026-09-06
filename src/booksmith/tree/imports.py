@@ -29,9 +29,7 @@ MAY_IMPORT = {
     "processing": ("core", "remote"),
     "datasets": ("core", "processing"),
 }
-# `models` is here until step 3a of the plan moves the two rented-job specs
-# (`models/paddleocr_vl`, `models/dots_ocr`) under `processing/*/rented/`.
-IMPORTERS_OF_REMOTE = ("remote", "cli", "processing", "models")
+IMPORTERS_OF_REMOTE = ("remote", "cli", "processing")
 
 # Modules and packages the plan has not placed yet. `datasets`, `processing`
 # and `cli` may import them until their step moves them (the metrics and
@@ -42,7 +40,7 @@ IMPORTERS_OF_REMOTE = ("remote", "cli", "processing", "models")
 # `tests/test_imports.py` demands that every name in it still exists at the
 # top of the package, so a placed module cannot stay exempt by
 # forgetfulness. Empty after step 3c.
-UNPLACED = ("detect", "djvu", "models", "doc", "read", "cli")
+UNPLACED = ("doc", "cli")
 REACH_UNPLACED = ("datasets", "processing", "cli")
 
 

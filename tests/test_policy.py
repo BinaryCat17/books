@@ -11,7 +11,9 @@ dictionary knows the policy. Five dictionaries at five detectors, not to be
 muddled: `check` compares against ONE named dictionary, not their union.
 """
 from booksmith.core import policy
-from booksmith.models import docling_heron, yolox_layout
+from booksmith.processing.layout.adapters import (
+    docling as docling_heron,
+    yolox as yolox_layout)
 
 
 def test_check_passes_on_its_own_dictionary():

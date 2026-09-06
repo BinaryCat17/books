@@ -1,6 +1,6 @@
 """The adapter contract is compared with the pipeline, not believed.
 
-WHY THIS FILE EXISTS. `models.base.Recognizer` said "exactly two things" and
+WHY THIS FILE EXISTS. `models.base.Detector` said "exactly two things" and
 declared five members while `detect.py` asked for eight. The four it did not
 declare -- `dir`, `labels`, `policy_name`, `threshold_drift` -- have no default
 anywhere, so an adapter written to the contract as documented would import
@@ -17,20 +17,20 @@ import os
 import textwrap
 
 import support
-from booksmith.models import base
+from booksmith.processing.layout import base
 
 # Adapters we ship. Named explicitly: a new one lands here deliberately or not
 # at all, which is the same rule `subset.TRAITS` follows.
 ADAPTERS = (("doclayout.py", "DocLayout"),
-            ("docling_heron.py", "DoclingHeron"),
-            ("docling_heron.py", "DoclingEgret"),
-            ("yolox_layout.py", "YoloXLayout"))
+            ("docling.py", "DoclingHeron"),
+            ("docling.py", "DoclingEgret"),
+            ("yolox.py", "YoloXLayout"))
 
 
 # Every file that drives an adapter. `detect.py` is the pipeline; `cli.py`
 # asks `books doctor` questions of the same object, and its `getattr(det,
 # "onnx", "")` was invisible to a check that read `detect.py` alone.
-DRIVERS = ("detect.py", "cli.py")
+DRIVERS = ("processing/layout/detect.py", "cli.py")
 
 
 def _asked_of(var, rel):
@@ -81,8 +81,8 @@ def _names_not_implemented(node) -> bool:
 
 
 def _declared():
-    return ({n for n in vars(base.Recognizer) if not n.startswith("__")}
-            | set(getattr(base.Recognizer, "__annotations__", {})))
+    return ({n for n in vars(base.Detector) if not n.startswith("__")}
+            | set(getattr(base.Detector, "__annotations__", {})))
 
 
 def test_the_contract_declares_everything_the_pipeline_asks_for():
@@ -99,7 +99,7 @@ def test_the_contract_declares_everything_the_pipeline_asks_for():
     missing = sorted(asked - _declared())
     assert not missing, (
         f"{' and '.join(DRIVERS)} ask an adapter for {missing}, and "
-        f"`Recognizer` declares none of them. An adapter written to the "
+        f"`Detector` declares none of them. An adapter written to the "
         f"contract would import and then fall at the first run")
 
 
@@ -115,7 +115,7 @@ def test_the_contract_declares_every_dict_key_the_pipeline_indexes():
     Only the HARD ones count: a key read with `.get` degrades to a poorer log
     and is not load-bearing, and listing it would claim otherwise.
     """
-    src = open(os.path.join(support.SRC, "detect.py"), encoding="utf-8").read()
+    src = open(os.path.join(support.SRC, "processing/layout/detect.py"), encoding="utf-8").read()
     meta, fp = set(), set()
     for n in ast.walk(ast.parse(src)):
         if not (isinstance(n, ast.Subscript)
@@ -132,8 +132,8 @@ def test_the_contract_declares_every_dict_key_the_pipeline_indexes():
             fp.add(n.slice.value)
 
     for what, found, declared in (
-            ("page meta", meta, set(base.Recognizer.PAGE_META_REQUIRED)),
-            ("fingerprint", fp, set(base.Recognizer.FINGERPRINT_REQUIRED))):
+            ("page meta", meta, set(base.Detector.PAGE_META_REQUIRED)),
+            ("fingerprint", fp, set(base.Detector.FINGERPRINT_REQUIRED))):
         assert found == declared, (
             f"detect.py indexes {what} keys {sorted(found)} with no default; "
             f"the contract declares {sorted(declared)}. An adapter that fills "
@@ -149,14 +149,14 @@ def test_every_adapter_fills_the_keys_the_contract_names():
     own source. Crude, and it goes red the day one is dropped.
     """
     for rel, cls_name in ADAPTERS:
-        src = open(os.path.join(support.SRC, "models", rel),
+        src = open(os.path.join(support.SRC, "processing", "layout", "adapters", rel),
                    encoding="utf-8").read()
         keys = {k.value for n in ast.walk(ast.parse(src))
                 if isinstance(n, ast.Dict)
                 for k in n.keys
                 if isinstance(k, ast.Constant) and isinstance(k.value, str)}
-        want = (set(base.Recognizer.PAGE_META_REQUIRED)
-                | set(base.Recognizer.FINGERPRINT_REQUIRED))
+        want = (set(base.Detector.PAGE_META_REQUIRED)
+                | set(base.Detector.FINGERPRINT_REQUIRED))
         missing = sorted(want - keys)
         assert not missing, (
             f"{rel} never writes {missing}, and the pipeline indexes them "
@@ -198,9 +198,9 @@ def test_the_contract_declares_nothing_nobody_asks_for():
                     if isinstance(v, ast.Name) and v.id in HOLDERS:
                         used.add(n.attr)
                     elif isinstance(v, ast.Attribute) \
-                            and v.attr == "Recognizer":
+                            and v.attr == "Detector":
                         used.add(n.attr)
-                    elif isinstance(v, ast.Name) and v.id == "Recognizer":
+                    elif isinstance(v, ast.Name) and v.id == "Detector":
                         used.add(n.attr)
                 for n in ast.walk(tree):
                     if (isinstance(n, ast.Call)
@@ -212,7 +212,7 @@ def test_the_contract_declares_nothing_nobody_asks_for():
                         used.add(n.args[1].value)
     idle = sorted(n for n in _declared() if n not in used)
     assert not idle, (
-        f"`Recognizer` declares {idle}, which nothing reads on an adapter. "
+        f"`Detector` declares {idle}, which nothing reads on an adapter. "
         f"A contract term nobody asks for is a name that outlived its use")
 
 
@@ -233,20 +233,20 @@ def test_every_adapter_we_ship_satisfies_the_contract():
     """
     import importlib
     must = sorted(n for n in _declared() if _refuses(getattr(
-        base.Recognizer, n, None)))
+        base.Detector, n, None)))
     assert "read" in must and "label_map" not in must, (
         f"the selection has drifted: {must}. `read` refuses and must be "
         f"required; `label_map` has a documented default and must not be")
     for rel, cls_name in ADAPTERS:
         mod = importlib.import_module(
-            "booksmith.models." + rel[:-3])
+            "booksmith.processing.layout.adapters." + rel[:-3])
         cls = getattr(mod, cls_name, None)
         assert cls is not None, f"{rel} no longer defines {cls_name}"
-        assert issubclass(cls, base.Recognizer), (
-            f"{cls_name} is not a Recognizer at all")
+        assert issubclass(cls, base.Detector), (
+            f"{cls_name} is not a Detector at all")
         for name in must:
             own = any(name in vars(k) for k in cls.__mro__
-                      if k is not base.Recognizer)
+                      if k is not base.Detector)
             assert own, (
                 f"{cls_name} does not implement {name!r}: it inherits the "
                 f"contract's own version, which either raises or answers for "

@@ -37,24 +37,24 @@ from booksmith.remote import runner as runnermod
 from booksmith.core import order
 from booksmith.datasets.make import annopage  # noqa: E402
 from booksmith.datasets import look as overlay  # noqa: E402
-from booksmith import djvu                                  # noqa: E402
+from booksmith.processing.extract import djvu  # noqa: E402
 from booksmith.datasets.make import subset  # noqa: E402
-from booksmith.models import base as basemod                # noqa: E402
-from booksmith.models import yolox_layout as yolox          # noqa: E402
-from booksmith.doc import apply as ap                       # noqa: E402
+from booksmith.processing.layout import base as basemod  # noqa: E402
+from booksmith.processing.layout.adapters import yolox as yolox  # noqa: E402
+from booksmith.processing.assemble import apply as ap  # noqa: E402
 from booksmith.core import raster as crop  # noqa: E402
 from booksmith.doc import feed                              # noqa: E402
-from booksmith.doc import html as dhtml                     # noqa: E402
-from booksmith.doc import swap                              # noqa: E402
-from booksmith.models import base as mbase                  # noqa: E402
-from booksmith.models import docling_heron as dh            # noqa: E402
+from booksmith.processing.assemble import html as dhtml  # noqa: E402
+from booksmith.processing.assemble import swap  # noqa: E402
+from booksmith.processing.layout import base as mbase  # noqa: E402
+from booksmith.processing.layout.adapters import docling as dh  # noqa: E402
 from booksmith.core import knobs, replay, stamp  # noqa: E402
-from booksmith.models import doclayout                      # noqa: E402
+from booksmith.processing.layout.adapters import doclayout  # noqa: E402
 from booksmith.datasets.metrics import text as booktext  # noqa: E402
-from booksmith.read import Reader, Route, Said              # noqa: E402
-from booksmith.read import http as vhttp                    # noqa: E402
-from booksmith.read import run as vrun                      # noqa: E402
-from booksmith.models.paddleocr_vl.reader import PaddleOcrVl  # noqa: E402
+from booksmith.processing.read import Reader, Route, Said  # noqa: E402
+from booksmith.processing.read.transports import openai_http as vhttp  # noqa: E402
+from booksmith.processing.read import driver as vrun  # noqa: E402
+from booksmith.processing.read.readers.paddleocr_vl import PaddleOcrVl  # noqa: E402
 from booksmith.tree import cyr as cyrmod  # noqa: E402
 from booksmith.core import schema  # noqa: E402
 from booksmith.datasets import accept as acceptance  # noqa: E402
@@ -89,7 +89,7 @@ def redeclare(obj, add=None, drop=()):
     DECLARATION: dropping a member of a contract and adding one nobody reads
     are the two ways such a list goes wrong, and neither is a value change.
 
-    ANNOTATIONS COUNT AS DECLARATIONS. `Recognizer` states `dir: str` with no
+    ANNOTATIONS COUNT AS DECLARATIONS. `Detector` states `dir: str` with no
     value on purpose -- a forgotten one must be an AttributeError, not a
     silent empty string -- so `vars()` does not hold it and dropping it from
     there damaged nothing. The mutation went uncaught and said so.
@@ -135,22 +135,22 @@ def attrs(obj, **kw):
             setattr(obj, k, v)
 
 
-COPY = ("models/doclayout.py", "models/docling_heron.py",
-        "models/yolox_layout.py",
+COPY = ("processing/layout/adapters/doclayout.py", "processing/layout/adapters/docling.py",
+        "processing/layout/adapters/yolox.py",
         # Entry point for the rented card: a copy of the `--pages` parser,
         # guarded by `test_parse_pages`, which reads the file FROM HERE via
         # `support.src_path`. Forget this line and the check reads the real
         # file past the damage -- green on broken code.
-        "models/dots_ocr/entrypoint.py",
+        "processing/layout/rented/dots_ocr/entrypoint.py",
         # Contour ruler: `test_order` parses its `_by_reading` and demands the
         # assembly rule be asked of `order.py`, not repeated here.
         "datasets/metrics/contour.py",
         # Script that ships to the rented card: `test_knobs` compares its
         # `${NAME:-default}` against the knob registry.
-        "models/paddleocr_vl/run.sh",
+        "processing/read/rented/paddleocr_vl/run.sh",
         # Book builder: `test_html_order` parses its `build` and demands the
         # order check be present, not derived from the walk itself.
-        "doc/html.py",
+        "processing/assemble/html.py",
         # Table parsing: `test_otsl_html` demands ONE tag walk for two
         # consumers. A second walk would drift from the first silently.
         "core/otsl.py",
@@ -158,10 +158,10 @@ COPY = ("models/doclayout.py", "models/docling_heron.py",
         # sidecar and pass the truncation flag into the wrapper. This half has
         # already fallen off silently -- the mark was lost by exactly those
         # blocks that reached the reader as markup.
-        "doc/apply.py",
+        "processing/assemble/apply.py",
         # Transport: `test_knobs` walks the package for a knob read as a
         # number past `knobs.number` -- the spelling `nan` walked through.
-        "read/http.py",
+        "processing/read/transports/openai_http.py",
         # Renting: `test_rent_deadlines` parses `run_job` and demands the
         # signal restore be a `finally` of its own -- a throw in the cleanup
         # left Ctrl-C dead for the rest of the process.
@@ -169,7 +169,7 @@ COPY = ("models/doclayout.py", "models/docling_heron.py",
         # Level one: `test_data_contract` parses `run` and follows the name
         # the snapshot writes as `seconds` back to its assignment. A second
         # assignment shadowed the clock with a count of boxes.
-        "detect.py")
+        "processing/layout/detect.py")
 
 
 @contextmanager
@@ -823,7 +823,7 @@ def veto_looks_at_the_whole_probe(pix, x):
 def routes_guess_by_role(self):
     """The route is DERIVED from the role instead of declared. That is how a
     twenty-sixth class in new weights would silently ride the text prompt."""
-    from booksmith.read import Route
+    from booksmith.processing.read import Route
     from booksmith.core import policy
     out = {}
     for lab in policy.POLICIES[self.policy_name]:
@@ -849,7 +849,7 @@ def grid_only_from_html(s, kind=None):
 
 def refusal_looks_like_silence(self, ask):
     """A delivery refusal recorded as model silence: two zeroes merged."""
-    from booksmith.read import Said
+    from booksmith.processing.read import Said
     return Said(anchor=ask.anchor, text="", finish="stop")
 
 
@@ -1953,10 +1953,10 @@ def _dockerfile_with_a_new_package():
     open(os.path.join(d, "infra", "base", "Dockerfile"), "w",
          encoding="utf-8").write(text.replace("      procps \\",
                                               "      procps \\\n      strace \\"))
-    pkg = os.path.join(d, "src", "booksmith", "models", "paddleocr_vl")
+    pkg = os.path.join(d, "src", "booksmith", "processing", "read", "rented", "paddleocr_vl")
     os.makedirs(pkg)
     open(os.path.join(pkg, "__init__.py"), "w", encoding="utf-8").write(
-        open(os.path.join(support.SRC, "models", "paddleocr_vl",
+        open(os.path.join(support.SRC, "processing", "read", "rented", "paddleocr_vl",
                           "__init__.py"), encoding="utf-8").read())
     return os.path.join(d, "src", "booksmith")
 
@@ -2118,7 +2118,7 @@ def mutations():
         # rule -- the rule is single (`order.WORDS`) and the table derives from
         # it, so swapping the rule moves both sides at once.
         ("the adapter invents a value outside the contract table",
-         lambda: sources("models/doclayout.py",
+         lambda: sources("processing/layout/adapters/doclayout.py",
                          '+ ": the model gives no rank"',
                          '+ " (the model gives no rank at all)"'),
          [("test_order_contract", "test_no_unknown_order_values")]),
@@ -2140,7 +2140,7 @@ def mutations():
          [("test_order_contract", "test_guard_ignores_case")]),
 
         ("the adapter never said whose order it is",
-         lambda: sources("models/yolox_layout.py",
+         lambda: sources("processing/layout/adapters/yolox.py",
                          '"reading_order": order.WORDS[which],', ""),
          [("test_order_contract", "test_adapters_declare_order_rule_at_all")]),
 
@@ -2156,7 +2156,7 @@ def mutations():
           ("test_docling_pipeline", "test_off_adds_exactly_one_meta_key")]),
 
         ("the pipeline key moved to the end of meta",
-         lambda: sources("models/docling_heron.py",
+         lambda: sources("processing/layout/adapters/docling.py",
                          '                  **pipe_meta,\n'
                          '                  "best_rejected_by_class": rejected})',
                          '                  "best_rejected_by_class": rejected})'),
@@ -2521,7 +2521,7 @@ def mutations():
         # Back to `put` inside the loop: the book is re-read per replacement.
         ("the bulk swap reads the book once per block",
          lambda: one_line(
-             "booksmith.doc.apply",
+             "booksmith.processing.assemble.apply",
              "                html, entry, _ = put_into(",
              "                put(out_dir, anchor, body, source=src,\n"
              "                    log=lambda *a: None)\n"
@@ -2529,7 +2529,7 @@ def mutations():
          [("test_apply", "test_bulk_reads_the_book_once_not_once_per_block")]),
 
         ("block roles are taken one at a time",
-         lambda: one_line("booksmith.doc.apply",
+         lambda: one_line("booksmith.processing.assemble.apply",
                           "    roles = block_roles(out_dir)",
                           "    roles = {}"),
          [("test_apply", "test_bulk_reads_the_book_once_not_once_per_block")]),
@@ -2713,7 +2713,7 @@ def mutations():
            "test_no_numeric_knob_takes_a_value_that_is_not_a_number")]),
 
         ("a knob is read as a number past the one reader",
-         lambda: sources("read/http.py",
+         lambda: sources("processing/read/transports/openai_http.py",
                          'knobs.number("VLM_TIMEOUT_S")',
                          'float(knobs.knob("VLM_TIMEOUT_S"))'),
          [("test_knobs",
@@ -2863,7 +2863,7 @@ def mutations():
         # A second copy of the rule inside an adapter -- exactly what ailed
         # `docling_heron`: it sorted by one key and declared another.
         ("the adapter sorts by its own key again",
-         lambda: source_swap("models/yolox_layout.py",
+         lambda: source_swap("processing/layout/adapters/yolox.py",
                              "        which = order.rule()",
                              "        kept.sort(key=lambda t: (t[2][1],"
                              " t[2][0]))\n        which = order.rule()"),
@@ -2905,13 +2905,13 @@ def mutations():
 
         # --- yolox: the value that decides every coordinate ---------------
         ("the resize filter is a literal in place again",
-         lambda: source_swap("models/yolox_layout.py",
+         lambda: source_swap("processing/layout/adapters/yolox.py",
                              "interpolation=INTERP", "interpolation=1"),
          [("test_yolox_fingerprint",
            "test_the_resize_filter_is_a_named_constant_not_a_literal")]),
 
         ("the resize filter is dropped from the fingerprint",
-         lambda: source_swap("models/yolox_layout.py",
+         lambda: source_swap("processing/layout/adapters/yolox.py",
                              '"cv2_filter": INTERP', '"backdrop2": PAD'),
          [("test_yolox_fingerprint",
            "test_the_fingerprint_declares_the_resize_filter")]),
@@ -2922,7 +2922,7 @@ def mutations():
         # `--undo` has to be called twice. The safety of the command's default
         # rests on exactly this.
         ("a repeated swap grows the undo stack again",
-         lambda: one_line("booksmith.doc.apply",
+         lambda: one_line("booksmith.processing.assemble.apply",
                           "    if swap.get(html, anchor) == body:",
                           "    if False:"),
          [("test_apply", "test_putting_the_same_markup_twice_changes_nothing")]),
@@ -2933,7 +2933,7 @@ def mutations():
         # while all three instruments measure detection PAGES, not the
         # document.
         ("the book is assembled in reversed order",
-         lambda: one_line("booksmith.doc.html",
+         lambda: one_line("booksmith.processing.assemble.html",
                           "        for b in page.blocks:",
                           "        for b in reversed(page.blocks):"),
          [("test_html_order",
@@ -2944,7 +2944,7 @@ def mutations():
         # mutations, none caught. The check's AST parse demands it live
         # outside.
         ("the expected order accumulates inside the loop again",
-         lambda: one_line("booksmith.doc.html",
+         lambda: one_line("booksmith.processing.assemble.html",
                           "        expected.extend(anchor_of(page.index, b.block_id) for b in page.blocks)",
                           "        pass"),
          [("test_html_order",
@@ -2955,7 +2955,7 @@ def mutations():
         # `sources`, not `one_line`. Third mistake in a row on this: a
         # mutation's mechanism decides as much as the damage does.
         ("the assembler stopped checking the book's order",
-         lambda: sources("doc/html.py",
+         lambda: sources("processing/assemble/html.py",
                          "    if got != expected:",
                          "    if False:"),
          [("test_html_order",
@@ -2975,7 +2975,7 @@ def mutations():
            "test_a_journal_from_the_old_layout_is_seen_not_declared_empty")]),
 
         ("the assembler again fails to know its directory by the snapshot in the kitchen",
-         lambda: one_line("booksmith.doc.html",
+         lambda: one_line("booksmith.processing.assemble.html",
                           '    return (os.path.exists(os.path.join(out_dir, ASSETS, "run.json"))',
                           '    return (False'),
          [("test_html_order", "test_the_builder_recognises_its_own_directory")]),
@@ -2990,7 +2990,7 @@ def mutations():
         # Drop its priority and `books apply` on a copied book follows the
         # absolute path from the snapshot, which the new machine does not have.
         ("the source inside the book stopped outranking the path from the snapshot",
-         lambda: one_line("booksmith.doc.apply",
+         lambda: one_line("booksmith.processing.assemble.apply",
                           '    if os.path.isdir(os.path.join(own, "pages")):',
                           "    if False:"),
          [("test_apply",
@@ -3000,7 +3000,7 @@ def mutations():
         # apply` with no flags would not know what to place, and the default
         # would have to go.
         ("the book stopped remembering its source",
-         lambda: one_line("booksmith.doc.apply",
+         lambda: one_line("booksmith.processing.assemble.apply",
                           '    path = ((snapshot.get("args") or {}).get("detect") or "").strip()',
                           '    path = ""'),
          [("test_apply", "test_the_book_remembers_where_it_was_built_from")]),
@@ -3025,7 +3025,7 @@ def mutations():
         # lived as one line of prose: there was no check at all. This breaks a
         # default in the script that ships to the rented card.
         ("a default in run.sh diverged from the registry",
-         lambda: sources("models/paddleocr_vl/run.sh",
+         lambda: sources("processing/read/rented/paddleocr_vl/run.sh",
                          'PORT="${PORT_ARG:-${PORT:-8118}}"',
                          'PORT="${PORT_ARG:-${PORT:-9999}}"'),
          [("test_knobs", "test_shell_defaults_agree_with_the_registry")]),
@@ -3082,14 +3082,14 @@ def mutations():
         # disagreed on four inputs of thirteen, and the string is parsed ON THE
         # CARD, where a bare traceback means a rental paid for nothing.
         ("a space stopped separating pages in the copy for the card",
-         lambda: sources("models/dots_ocr/entrypoint.py",
+         lambda: sources("processing/layout/rented/dots_ocr/entrypoint.py",
                          'str(spec).replace(" ", ",").split(",")',
                          'str(spec).split(",")'),
          [("test_parse_pages", "test_both_copies_of_parse_pages_agree"),
           ("test_parse_pages", "test_a_space_separates_pages_in_both_copies")]),
 
         ("on the card the dash stopped meaning 'the whole book'",
-         lambda: sources("models/dots_ocr/entrypoint.py",
+         lambda: sources("processing/layout/rented/dots_ocr/entrypoint.py",
                          'if not spec or spec == "-":',
                          'if not spec:'),
          [("test_parse_pages",
@@ -3100,7 +3100,7 @@ def mutations():
         # nothing -- the field IS in the snapshot, and `replay --check`
         # approves it, comparing keys and not values.
         ("the threshold divergence is wired in as a literal again",
-         lambda: source_swap("models/yolox_layout.py",
+         lambda: source_swap("processing/layout/adapters/yolox.py",
                              '"threshold_drift": self.threshold_drift()',
                              '"threshold_drift": []'),
          [("test_yolox_fingerprint",
@@ -3108,7 +3108,7 @@ def mutations():
            )]),
 
         ("--pages counts from zero in overlay and from one in detect",
-         lambda: one_line("booksmith.detect",
+         lambda: one_line("booksmith.processing.layout.detect",
                           "return [p - 1 for p in sorted(set(want))]",
                           "return sorted(set(want))"),
          [("test_overlay", "test_pages_are_counted_from_one_like_detect")]),
@@ -3376,7 +3376,7 @@ def mutations():
          [("test_torn", "test_unknown_is_not_whole")]),
 
         ("from_read stopped asking for the observed data",
-         lambda: sources("doc/apply.py",
+         lambda: sources("processing/assemble/apply.py",
                          "    obs = observed(read_dir)",
                          "    obs = {}"),
          [("test_torn", "test_from_read_asks_the_sidecar_for_the_reason")]),
@@ -3454,7 +3454,7 @@ def mutations():
         # other way and ran for nothing.
         ("merges in the book are equated with the declared ones",
          lambda: one_line(
-             "booksmith.doc.apply",
+             "booksmith.processing.assemble.apply",
              "    placed = sum(1 for c in cells if c[\"rows\"] > 1 "
              "or c[\"cols\"] > 1)",
              "    placed = announced"),
@@ -3462,14 +3462,14 @@ def mutations():
 
         ("a re-wrap is compared with the FIRST step of the stack",
          lambda: one_line(
-             "booksmith.doc.apply",
+             "booksmith.processing.assemble.apply",
              "            if previous and previous[-1].get(\"sha256_model_answer\") == \\",
              "            if previous and previous[0].get(\"sha256_model_answer\") == \\"),
          [("test_torn", "test_bulk_names_the_rewrap_apart_from_new_work")]),
 
         ("a refused block counts as lying in the book",
          lambda: one_line(
-             "booksmith.doc.apply",
+             "booksmith.processing.assemble.apply",
              "                tally[\"refused\"] += 1",
              "                _count_in_book(tally, misshapen, anchor, body,"
              " b.get(\"kind\") or \"html\"); tally[\"refused\"] += 1"),
@@ -3728,7 +3728,7 @@ def mutations():
         # The clock shadowed by a box count, which is what `run.json` then
         # recorded as `seconds` whenever the vendor pipeline was on.
         ("the wall clock is shadowed by a count of removed boxes",
-         lambda: sources("detect.py",
+         lambda: sources("processing/layout/detect.py",
                          "        removed = pipe[\"before\"] - pipe[\"after\"]",
                          "        took = pipe[\"before\"] - pipe[\"after\"]"),
          [("test_data_contract",
@@ -3736,17 +3736,17 @@ def mutations():
 
         # --- the adapter contract, compared with the pipeline ------------
         ("the contract drops a member the pipeline asks for",
-         lambda: redeclare(basemod.Recognizer, drop=("dir",)),
+         lambda: redeclare(basemod.Detector, drop=("dir",)),
          [("test_models_contract",
            "test_the_contract_declares_everything_the_pipeline_asks_for")]),
 
         ("the contract forgets a dict key the pipeline indexes",
-         lambda: attrs(basemod.Recognizer, PAGE_META_REQUIRED=("rank_ties",)),
+         lambda: attrs(basemod.Detector, PAGE_META_REQUIRED=("rank_ties",)),
          [("test_models_contract",
            "test_the_contract_declares_every_dict_key_the_pipeline_indexes")]),
 
         ("the contract names a fingerprint key nobody indexes",
-         lambda: attrs(basemod.Recognizer,
+         lambda: attrs(basemod.Detector,
                        FINGERPRINT_REQUIRED=("sha256_weights", "invented")),
          [("test_models_contract",
            "test_the_contract_declares_every_dict_key_the_pipeline_indexes"),
@@ -3754,13 +3754,13 @@ def mutations():
            "test_every_adapter_fills_the_keys_the_contract_names")]),
 
         ("the required members are chosen by their docstrings again",
-         lambda: attrs(basemod.Recognizer,
+         lambda: attrs(basemod.Detector,
                        label_map=_label_map_that_refuses),
          [("test_models_contract",
            "test_every_adapter_we_ship_satisfies_the_contract")]),
 
         ("the contract grows a term nobody asks for",
-         lambda: redeclare(basemod.Recognizer,
+         lambda: redeclare(basemod.Detector,
                            add={"nobody_reads_this": ""}),
          [("test_models_contract",
            "test_the_contract_declares_nothing_nobody_asks_for")]),

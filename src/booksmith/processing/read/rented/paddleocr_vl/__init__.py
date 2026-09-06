@@ -1,7 +1,7 @@
 """PaddleOCR-VL on a rented card: delivery, and the figures for ranking.
 
 WHAT IS HERE: only what the runner needs to pick a machine and price a run.
-The reading lives next door in `reader.py`; a `Recognizer` of `models.base`
+The reading lives next door in `reader.py`; a `Detector` of `models.base`
 is not here and will not be -- this model reads, it does not detect layout.
 `books read` has ridden this spec: 436 pages over eight rentals ($0.545 by
 `runs/ledger.jsonl`, two of them successful).
@@ -18,29 +18,21 @@ weights -- negligible, where a divergence of copies costs a run.
 """
 import os
 
-from ...remote.spec import HostReq, JobSpec
+import booksmith
+
+from booksmith.remote.spec import HostReq, JobSpec
 from booksmith.core import knobs, stamp
 from booksmith.core.errors import Refusal
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 # The package root, `src/booksmith`. From here rather than from the working
 # directory -- otherwise a job assembled elsewhere would carry emptiness.
-PKG = os.path.dirname(os.path.dirname(HERE))
+# FROM THE PACKAGE ITSELF, never by counting `dirname`s: this file moved two
+# levels deeper in the package move of 2026-09-07, and two `dirname`s would
+# have shipped `processing/read` to the box as "booksmith" -- a partial
+# package, learnt for money. `tests/test_roots.py` holds it.
+PKG = os.path.dirname(os.path.abspath(booksmith.__file__))
 
-# The image carries only the delivery tools (see infra/base/Dockerfile);
-# python, CUDA, torch, vLLM and the weights are installed at start by
-# provision.sh.
-#
-# Not love of complexity but measurement: docker pulls three layers at once,
-# one stream per layer, and the registry cuts a connection to ~25 Mbit/s. A
-# 76 Mbit/s ceiling against the machine's 1518 -- a 6.02 GB image rode 10.7
-# minutes. The same 11 GB through uv and hf install in 82 seconds: dozens of
-# connections, and the channel saturated.
-#
-# Measured on our side and needing no ground truth: it is about the network,
-# not parsing, and so survived the clean slate, unlike the table figures.
-BASE_IMAGE = "ghcr.io/binarycat17/vast-base:d69de6e"
-IMAGE_GB = 0.06
 
 # Wheels plus weights as they travel the wire: 9.0 GB of environment on disk
 # arrive as compressed wheels, the weights (2.2 GB) do not compress at all.

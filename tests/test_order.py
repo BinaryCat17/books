@@ -126,8 +126,8 @@ def test_no_adapter_sorts_by_itself_any_more():
     Able to fail: put `kept.sort(key=…)` back into any adapter.
     """
     seen = {}
-    for rel in ("models/doclayout.py", "models/yolox_layout.py",
-                "models/docling_heron.py"):
+    for rel in ("processing/layout/adapters/doclayout.py", "processing/layout/adapters/yolox.py",
+                "processing/layout/adapters/docling.py"):
         bad = []
         for node in ast.walk(support.tree(rel)):
             if (isinstance(node, ast.Call)
@@ -140,16 +140,16 @@ def test_no_adapter_sorts_by_itself_any_more():
     # our rule and has no place in `order.py`. `docling_heron` is allowed one
     # -- the NUMBERING before the vendor pipeline, `Cluster.id`, by which the
     # vendor sews children to their wrapper.
-    assert len(seen["models/doclayout.py"]) == 1, (
-        f"doclayout has {len(seen['models/doclayout.py'])} keyed sorts, and "
+    assert len(seen["processing/layout/adapters/doclayout.py"]) == 1, (
+        f"doclayout has {len(seen['processing/layout/adapters/doclayout.py'])} keyed sorts, and "
         f"one is lawful -- by the model's rank: "
-        f"{seen['models/doclayout.py']}")
-    assert len(seen["models/docling_heron.py"]) == 1, (
-        f"docling_heron has {len(seen['models/docling_heron.py'])} sorts, "
+        f"{seen['processing/layout/adapters/doclayout.py']}")
+    assert len(seen["processing/layout/adapters/docling.py"]) == 1, (
+        f"docling_heron has {len(seen['processing/layout/adapters/docling.py'])} sorts, "
         f"and one is lawful -- the numbering before the pipeline")
-    assert not seen["models/yolox_layout.py"], (
+    assert not seen["processing/layout/adapters/yolox.py"], (
         f"yolox sorts on its own again: lines "
-        f"{seen['models/yolox_layout.py']}. The assembly rule lives in "
+        f"{seen['processing/layout/adapters/yolox.py']}. The assembly rule lives in "
         f"order.py, and a second copy diverges from the first in silence -- "
         f"which is what happened in docling_heron")
 

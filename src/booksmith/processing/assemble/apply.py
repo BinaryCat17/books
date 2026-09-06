@@ -20,7 +20,7 @@ import json
 import os
 import time
 
-from . import swap
+from booksmith.processing.assemble import swap
 # The block anchor is built by ONE rule for the whole project. A third copy
 # lived here (in `from_read`), and drift from `html.anchor_of` would be silent:
 # `put` answers "no such anchor" for every block and the command prints a
@@ -28,7 +28,11 @@ from . import swap
 from booksmith.core import book
 from booksmith.core.book import ASSETS, JOURNAL, SOURCE
 from booksmith.core import page
-from booksmith.doc.html import anchor_of, observed, torn_grid, torn_of
+from booksmith.processing.assemble.html import (
+    anchor_of,
+    observed,
+    torn_grid,
+    torn_of)
 from booksmith.core.errors import Refusal
 
 
