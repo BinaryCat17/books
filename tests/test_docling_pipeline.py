@@ -140,7 +140,7 @@ def test_unknown_label_dies_at_construction():
 def test_egret_names_translate_whole():
     """Every egret display name translates, by that same construction."""
     if not have_docling():
-        support.skip("no_docling_package")
+        support.skip("no docling package: pip install -e \".[docling]\"")
     p = dh._DoclingPipeline("post", list(dh.EGRET_TO_DOCLING),
                             "docling-egret")
     assert set(p.to_docling) == set(dh.EGRET_TO_DOCLING)

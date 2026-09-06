@@ -421,10 +421,17 @@ def run(pdf, outdir, pages_spec=None, log=print):
             f"itself gave cannot be checked; the sums below are incomplete "
             f"by those pages")
     if had_pipeline:
-        took = pipe["before"] - pipe["after"]
-        share = 100.0 * took / pipe["before"] if pipe["before"] else 0.0
+        # `removed`, NOT `took`. It was `took`, which is the name of the wall
+        # clock measured at the top of this function -- and `run.json` writes
+        # `"seconds": round(took, 2)` a hundred lines below. With the pipeline
+        # on, the snapshot's `seconds` was the COUNT OF BOXES the vendor
+        # removed. It never showed on disk: every tracked `detect/run.json`
+        # has `stage_ran: false`, so the branch has not run in a snapshot
+        # anyone kept -- which is why nothing caught it.
+        removed = pipe["before"] - pipe["after"]
+        share = 100.0 * removed / pipe["before"] if pipe["before"] else 0.0
         log(f"docling pipeline {mode}: the model gave {pipe['before']} "
-            f"boxes, it removed {took} ({share:.1f}%), {pipe['after']} went "
+            f"boxes, it removed {removed} ({share:.1f}%), {pipe['after']} went "
             f"into the book, {pipe['children']} into children, "
             f"{pipe['reordered']} permuted, "
             f"{pipe['page_count']} pages of {len(idxs)} through it")

@@ -1,7 +1,7 @@
 """The product of level one: HTML and crops, plus a reversible one-at-a-time
 swap.
 
-Here and only here is HTML born. Three files, three different jobs:
+Here and only here is HTML born. Four files, four different jobs:
 
     crop.py   cut an artifact out of the page by the model's box
     html.py   fold the pages into HTML: text as markup, artifacts as pictures

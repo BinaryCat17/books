@@ -99,7 +99,6 @@ def span(html: str, anchor: str) -> tuple[int, int]:
     # the trouble surfaced at the NEXT swap -- "opening 0, closing 1" -- with
     # the book already half re-marked and the message naming the wrong block.
     body = html[a:b]
-    head = OPEN.split("{}")[0]
     for other in _marks_in(body):
         if other == anchor:
             continue

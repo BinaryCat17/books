@@ -42,7 +42,15 @@ from booksmith import annopage
 
 def _mini(root, names=None, yaml_names=None, pages=2):
     """A tiny archive of AnnoPage shape: two pages, one object each."""
-    names = list(names if names is not None else annopage._classes.__doc__ or [])
+    # NO DEFAULT WORTH THE NAME. This read `annopage._classes.__doc__ or []`,
+    # and `_classes` has no docstring -- so the fallback was `[]` and
+    # `classes.txt` would have been a lone newline; had a docstring ever been
+    # added, `list(str)` would have given a list of single CHARACTERS. Every
+    # caller passes `names=`, so the branch was dead as well as wrong; a
+    # refusal says so instead.
+    if names is None:
+        raise AssertionError("_mini needs names= -- there is no sane default")
+    names = list(names)
     os.makedirs(os.path.join(root, "labels", "test"), exist_ok=True)
     os.makedirs(os.path.join(root, "images", "test"), exist_ok=True)
     with open(os.path.join(root, "classes.txt"), "w", encoding="utf-8") as f:
@@ -168,9 +176,18 @@ def test_the_sheet_follows_the_declared_knob():
             _mini(root, names=names, yaml_names=names)
             old = os.environ.get("PAGE_DPI")
             os.environ["PAGE_DPI"] = dpi
+            # NO CACHE TO CLEAR, and a guard hid that. The line here was
+            # `knobs.knob.cache_clear() if hasattr(knobs.knob, "cache_clear")
+            # else None`; `knobs.knob` is a plain function, so the `hasattr`
+            # was always False and the call never ran. Harmless today and
+            # blind in the direction that matters: memoise `knob()` and this
+            # sweep would compare 144 against 144 and go green on a wired-in
+            # scale -- the very defect it exists to catch. Asserted instead.
+            assert not hasattr(knobs.knob, "cache_clear"), (
+                "`knobs.knob` is memoised now: this sweep sets PAGE_DPI per "
+                "pass and would read the first value every time, reporting "
+                "agreement it never measured")
             try:
-                knobs.knob.cache_clear() if hasattr(knobs.knob, "cache_clear") \
-                    else None
                 man = annopage.build(root, out, split="test",
                                      log=lambda *a: None)
             finally:

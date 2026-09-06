@@ -17,6 +17,7 @@ import os
 import tempfile
 
 from booksmith.doc import apply as ap
+from booksmith.doc import html as dhtml
 from booksmith.doc import swap
 
 A, B = "p0042-b17", "p0042-b18"
@@ -558,3 +559,19 @@ def test_a_journal_from_the_old_layout_is_seen_not_declared_empty():
             "lies in the root -- the undo stack has split across two files")
         assert len(ap.load_journal(tmp)["swaps"]) == 2, (
             "the second swap did not land in the journal that was read")
+
+        # AND THE REBUILD GUARD MUST SEE IT TOO. It had a third copy of the
+        # rule, looking only under `assets/`, so a rebuild into an old-layout
+        # book wiped the book while this live journal survived and began to
+        # lie -- the exact accident the guard exists to prevent, passing it by
+        # on the one layout that needed it.
+        try:
+            dhtml.build(tmp, tmp, log=lambda *_: None)
+        except SystemExit as e:
+            assert "swap journal" in str(e), (
+                f"the rebuild refused, but not about the journal: {e}")
+        else:
+            raise AssertionError(
+                "a rebuild into a book whose journal lies in the ROOT was "
+                "allowed: the book is wiped and the journal keeps claiming "
+                "the swaps are in it")

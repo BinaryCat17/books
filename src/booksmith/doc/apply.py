@@ -25,7 +25,7 @@ from . import swap
 # lived here (in `from_read`), and drift from `html.anchor_of` would be silent:
 # `put` answers "no such anchor" for every block and the command prints a
 # healthy "refused N" instead of "the naming scheme has split".
-from .html import (ASSETS, SOURCE, anchor_of, observed, torn_grid,
+from .html import (ASSETS, SOURCE, anchor_of, journal_path, observed, torn_grid,
                    torn_of)
 
 # The swap journal is KITCHEN, not book: it lives in `assets/`, and the build
@@ -72,19 +72,17 @@ def load_journal(out_dir: str) -> dict:
     `put` writes over the stub at once and the undo stack of every earlier swap
     is gone for good.
     """
-    p = os.path.join(out_dir, JOURNAL)
+    # OLD LAYOUT — NOT AN EMPTY JOURNAL. The journal moved into `assets/`, and
+    # books built before the move keep it in the root. Missing that, we
+    # declared "no swaps: the second level has not walked this book yet" where
+    # the undo stack of all the paid work lay: 412 swaps on `ruall.read/html`,
+    # 17 on `ru20.read/html`. Worse, the next swap would start a SECOND journal
+    # and leave the first unreachable. The rule is `html.journal_path`, asked
+    # by the rebuild guard too -- it used to have a third copy that looked only
+    # under `assets/`.
+    p = journal_path(out_dir)
     if not os.path.exists(p):
-        # OLD LAYOUT — NOT AN EMPTY JOURNAL. The journal moved into `assets/`,
-        # and books built before the move keep it in the root. Missing that, we
-        # declared "no swaps: the second level has not walked this book yet"
-        # where the undo stack of all the paid work lay: 412 swaps on
-        # `ruall.read/html`, 17 on `ru20.read/html`. Worse, the next swap
-        # would start a SECOND journal and leave the first unreachable.
-        old = os.path.join(out_dir, "swaps.json")
-        if os.path.exists(old):
-            p = old
-        else:
-            return {"book": "book.html", "swaps": {}}
+        return {"book": "book.html", "swaps": {}}
     try:
         with open(p, encoding="utf-8") as f:
             j = json.load(f)
@@ -118,13 +116,8 @@ def save_journal(out_dir: str, j: dict) -> str:
     `os.replace` is atomic within one filesystem, so the temp file goes BESIDE
     the journal, not into /tmp.
     """
-    # WRITE WHERE WE READ. Otherwise a book of the old layout gets two journals
-    # — read in the root, written into `assets/` — and the undo stack splits
-    # across them silently.
-    p = os.path.join(out_dir, JOURNAL)
-    old = os.path.join(out_dir, "swaps.json")
-    if not os.path.exists(p) and os.path.exists(old):
-        p = old
+    # WRITE WHERE WE READ, by the same rule `load_journal` asks.
+    p = journal_path(out_dir)
     # The kitchen may not exist yet: `books html` creates it, and a swap can
     # work over a book it did not build. Refusing here would report "the swap
     # failed" where only a folder failed.

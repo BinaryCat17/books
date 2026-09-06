@@ -46,6 +46,28 @@ from . import crop, swap
 # the second level need them, not just reading.
 ASSETS = "assets"
 SOURCE = os.path.join(ASSETS, "source")
+JOURNAL = os.path.join(ASSETS, "swaps.json")
+
+
+def journal_path(out_dir: str) -> str:
+    """Where THIS book's swap journal lives -- one rule, asked by everyone.
+
+    The journal moved into `assets/`, and books built before the move keep it
+    in the root; `doc/apply` reads and writes the old place when it is the
+    only one there. The rebuild guard in `build` did NOT: it looked only under
+    `assets/`, so rebuilding into an old-layout book wiped the book while a
+    live journal survived and began to lie -- the exact accident the guard
+    exists to prevent, passing it by on the one layout it was needed for.
+
+    So the rule lives here, in the lower of the two modules, and both callers
+    ask it. Returns the new place when neither exists: that is where a journal
+    would be created.
+    """
+    new = os.path.join(out_dir, JOURNAL)
+    old = os.path.join(out_dir, "swaps.json")
+    if not os.path.exists(new) and os.path.exists(old):
+        return old
+    return new
 
 CSS = """
 body{max-width:52em;margin:2em auto;padding:0 1em;
@@ -725,6 +747,29 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
 
     detect_dir = os.path.abspath(detect_dir)
     out_dir = os.path.abspath(out_dir)
+
+    # THE SECOND LEVEL'S SWAP JOURNAL, AND THIS STANDS FIRST. Rebuilding into
+    # the same directory wipes the book with every swap while `swaps.json`
+    # survives and starts lying: it claims "N swapped" about a book showing
+    # pictures again, and `books apply --undo` then misdiagnoses "the book was
+    # edited past the journal". It was edited by this very command, so this
+    # command must say so. A refusal about DESTROYING the output belongs above
+    # every complaint about the input -- it stood below them, so a book with a
+    # journal and a missing source PDF was told about the PDF.
+    _j = journal_path(out_dir)
+    if os.path.exists(_j):
+        try:
+            with open(_j, encoding="utf-8") as f:
+                _n = sum(len(v) for v in (json.load(f).get("swaps") or {}).values())
+        except (ValueError, OSError):
+            _n = -1
+        raise SystemExit(
+            f"{out_dir} holds the second level's swap journal"
+            + (f" ({_n} swaps)" if _n >= 0 else " (unreadable)")
+            + ".\nA rebuild wipes the book along with them while the journal "
+              "survives and starts lying. Build into another directory, or "
+              "remove swaps.json if the swaps are no longer needed.")
+
     with open(os.path.join(detect_dir, "run.json"), encoding="utf-8") as f:
         snap = json.load(f)
     pdf = snap["source"]["path"]
@@ -760,24 +805,6 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
            else " -- the detection snapshot named no sha256, nothing to "
                 "check against"))
 
-    # THE SECOND LEVEL'S SWAP JOURNAL. Rebuilding into the same directory wipes
-    # the book with every swap while `swaps.json` survives and starts lying: it
-    # claims "N swapped" about a book showing pictures again, and `books apply
-    # --undo` then misdiagnoses "the book was edited past the journal". It was
-    # edited by this very command, so this command must say so.
-    _j = os.path.join(out_dir, ASSETS, "swaps.json")
-    if os.path.exists(_j):
-        try:
-            with open(_j, encoding="utf-8") as f:
-                _n = sum(len(v) for v in (json.load(f).get("swaps") or {}).values())
-        except (ValueError, OSError):
-            _n = -1
-        raise SystemExit(
-            f"{out_dir} holds the second level's swap journal"
-            + (f" ({_n} swaps)" if _n >= 0 else " (unreadable)")
-            + ".\nA rebuild wipes the book along with them while the journal "
-              "survives and starts lying. Build into another directory, or "
-              "remove swaps.json if the swaps are no longer needed.")
 
     expected = []          # anchors in the order the book must carry them
     files = sorted(glob.glob(os.path.join(detect_dir, "pages", "*.json")))

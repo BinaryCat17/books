@@ -116,7 +116,11 @@ COPY = ("models/doclayout.py", "models/docling_heron.py",
         # sidecar and pass the truncation flag into the wrapper. This half has
         # already fallen off silently -- the mark was lost by exactly those
         # blocks that reached the reader as markup.
-        "doc/apply.py")
+        "doc/apply.py",
+        # Level one: `test_data_contract` parses `run` and follows the name
+        # the snapshot writes as `seconds` back to its assignment. A second
+        # assignment shadowed the clock with a count of boxes.
+        "detect.py")
 
 
 @contextmanager
@@ -2682,9 +2686,9 @@ def mutations():
         # Three places where moving the kitchen into `assets/` broke working
         # code, and all three were found by cross-checking, not by reading.
         ("the old-layout journal is invisible again",
-         lambda: one_line("booksmith.doc.apply",
-                          '        old = os.path.join(out_dir, "swaps.json")',
-                          '        old = os.path.join(out_dir, "absent.json")'),
+         lambda: one_line("booksmith.doc.html",
+                          '    old = os.path.join(out_dir, "swaps.json")',
+                          '    old = os.path.join(out_dir, "absent.json")'),
          [("test_apply",
            "test_a_journal_from_the_old_layout_is_seen_not_declared_empty")]),
 
@@ -3429,6 +3433,24 @@ def mutations():
         ("book content is no longer weighed apart",
          lambda: attrs(cyrmod, CONTENT_SUFFIX="PROSE_RU"),
          [("test_cyrillic_ratchet", "test_book_content_did_not_move")]),
+
+        # The rebuild guard had a THIRD copy of "where the journal lives",
+        # looking only under `assets/` -- so it passed by the one layout it
+        # was needed for.
+        ("the rebuild guard looks only in the kitchen",
+         lambda: attrs(dhtml, journal_path=lambda out_dir: os.path.join(
+             out_dir, dhtml.JOURNAL)),
+         [("test_apply",
+           "test_a_journal_from_the_old_layout_is_seen_not_declared_empty")]),
+
+        # The clock shadowed by a box count, which is what `run.json` then
+        # recorded as `seconds` whenever the vendor pipeline was on.
+        ("the wall clock is shadowed by a count of removed boxes",
+         lambda: sources("detect.py",
+                         "        removed = pipe[\"before\"] - pipe[\"after\"]",
+                         "        took = pipe[\"before\"] - pipe[\"after\"]"),
+         [("test_data_contract",
+           "test_the_snapshot_seconds_are_a_duration_and_nothing_else")]),
 
         # --- the adapter contract, compared with the pipeline ------------
         ("the contract drops a member the pipeline asks for",

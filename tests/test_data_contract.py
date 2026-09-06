@@ -23,6 +23,8 @@ the halves and both directions turn red:
 translation renames the keys in the code, this check goes red until the data is
 migrated too -- and that is the point of it, not a defect in it.
 """
+import ast
+import builtins
 import collections
 import glob
 import json
@@ -274,3 +276,52 @@ def test_the_rented_image_was_built_from_this_dockerfile():
         f"the Dockerfile installs {drifted}, which the image tagged {tag} was "
         "not built with. Rebuild the image and move BASE_IMAGE to the new tag, "
         "or any prose relying on those packages is false on a paid run")
+
+
+def test_the_snapshot_seconds_are_a_duration_and_nothing_else():
+    """`run.json` writes `"seconds"`, and it must be the wall clock.
+
+    IT WAS NOT, WITH THE VENDOR PIPELINE ON. `took = time.time() - t0` at the
+    top of `detect` was shadowed a hundred lines below by
+    `took = pipe["before"] - pipe["after"]` inside `if had_pipeline:`, and the
+    snapshot then recorded THE COUNT OF BOXES the vendor removed under the name
+    `seconds`. It never showed on disk: every tracked `detect/run.json` carries
+    `stage_ran: false`, so the branch has not run in any snapshot anyone kept,
+    and nothing was there to notice.
+
+    Checked by reading rather than by running, because running it costs a
+    docling install and five seconds of ONNX -- and because the defect is a
+    NAME, which is exactly what reading sees. The name written into the
+    snapshot must be assigned once in the whole function, and that assignment
+    must be a subtraction of two clock readings.
+    """
+    tree = support.tree("detect.py")
+    fn = next((n for n in ast.walk(tree)
+               if isinstance(n, ast.FunctionDef) and n.name == "run"), None)
+    assert fn is not None, "detect.py no longer defines `run`"
+
+    written = [v for n in ast.walk(fn) if isinstance(n, ast.Dict)
+               for k, v in zip(n.keys, n.values)
+               if isinstance(k, ast.Constant) and k.value == "seconds"]
+    assert len(written) == 1, (
+        f"`seconds` is written into {len(written)} dicts of `run` -- one "
+        f"of them is not the snapshot, and this check no longer knows which")
+    # `round` is a builtin, not a local; what is followed is the local.
+    names = [n.id for n in ast.walk(written[0])
+             if isinstance(n, ast.Name) and n.id not in dir(builtins)]
+    assert len(names) == 1, (
+        f"the `seconds` value names {names}; this check reads one local name "
+        f"and follows it to its assignment")
+    name = names[0]
+
+    assigned = [n for n in ast.walk(fn) if isinstance(n, ast.Assign)
+                and any(isinstance(t, ast.Name) and t.id == name
+                        for t in n.targets)]
+    assert len(assigned) == 1, (
+        f"{name!r} is assigned {len(assigned)} times inside `run`, and the "
+        f"snapshot writes it as `seconds`. The second assignment shadows the "
+        f"clock: with the vendor pipeline on, the snapshot recorded a count "
+        f"of boxes as a duration")
+    src = ast.dump(assigned[0].value)
+    assert "time" in src, (
+        f"{name!r} is not measured from the clock at all: {src[:120]}")
