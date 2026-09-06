@@ -117,9 +117,9 @@ def test_pages_are_counted_from_one_like_detect():
                 f"--pages {spec!r}: в выходе листы {got}, ожидались "
                 f"{list(range(len(want)))} подряд с первого")
             s = "\n".join(said)
-            assert f"листов нарисовано {len(want)} из 3" in s, s
+            assert f"sheets drawn {len(want)} of 3" in s, s
             if len(want) < 3:
-                assert f"это страница {want[0] + 1} книги" in s, (
+                assert f"is page {want[0] + 1} of the book" in s, (
                     f"--pages {spec!r}: прибор не сказал, какая страница "
                     f"книги стала первой в файле. `books detect` на том же "
                     f"вводе взял бы {want} — смотришь не тот лист и не "
@@ -140,7 +140,7 @@ def test_a_page_out_of_the_book_is_loud():
             cli.main(["overlay", pdf, "--truth", t, "--pages", "9",
                       "--out", os.path.join(d, "x.pdf")])
         except SystemExit as e:
-            assert "3 страниц" in str(e), f"жалоба не про то: {e}"
+            assert "3 pages" in str(e), f"жалоба не про то: {e}"
             return
         raise AssertionError("страница за пределами книги принята молча")
 
@@ -156,8 +156,8 @@ def test_a_page_missing_from_one_markup_is_named():
         pdf = _stand(d, model_skip=(1,))
         s = _say(pdf, [(os.path.join(d, "truth", "pages"), "И"),
                        (os.path.join(d, "model", "pages"), "М")])
-        assert "У модели НЕТ 1 страниц" in s and "[1]" in s, s
-        assert "листов нарисовано 2 из 3" in s, s
+        assert "the model is MISSING 1 pages" in s and "[1]" in s, s
+        assert "sheets drawn 2 of 3" in s, s
 
 
 def test_a_page_missing_from_the_truth_is_named_too():
@@ -172,7 +172,7 @@ def test_a_page_missing_from_the_truth_is_named_too():
         os.unlink(os.path.join(d, "truth", "pages", "0001.json"))
         s = _say(pdf, [(os.path.join(d, "truth", "pages"), "И"),
                        (os.path.join(d, "model", "pages"), "М")])
-        assert "У истины НЕТ 1 страниц" in s and "[1]" in s, s
+        assert "truth is MISSING 1 pages" in s and "[1]" in s, s
 
 
 def test_one_markup_says_there_is_nothing_to_compare():
@@ -185,8 +185,8 @@ def test_one_markup_says_there_is_nothing_to_compare():
     with tempfile.TemporaryDirectory() as d:
         pdf = _stand(d)
         s = _say(pdf, [(os.path.join(d, "truth", "pages"), "И")])
-        assert "НЕ С ЧЕМ" in s, s
-        assert "совпало 0" not in s, f"итог всё ещё врёт нулями:\n{s}"
+        assert "NOTHING TO COMPARE WITH" in s, s
+        assert "matched 0" not in s, f"итог всё ещё врёт нулями:\n{s}"
 
 
 def test_the_summary_counts_sheets_not_pages_of_the_book():
@@ -198,7 +198,7 @@ def test_the_summary_counts_sheets_not_pages_of_the_book():
     with tempfile.TemporaryDirectory() as d:
         pdf = _stand(d)
         s = _say(pdf, [(os.path.join(d, "truth", "pages"), "И")], only=[0])
-        assert "листов нарисовано 1 из 3 в книге, рамок 1" in s, s
+        assert "sheets drawn 1 of 3 in the book, boxes 1" in s, s
 
 
 def test_what_was_not_checked_by_sha256_is_named():
@@ -214,7 +214,7 @@ def test_what_was_not_checked_by_sha256_is_named():
             json.dump({"sha256 pdf": overlay._sha256(pdf)}, f)
         s = _say(pdf, [(os.path.join(d, "truth", "pages"), "И"),
                        (os.path.join(d, "model", "pages"), "М")])
-        assert "сверен для И" in s and "НЕ СВЕРЕН для М" in s, s
+        assert "verified for И" in s and "NOT VERIFIED for М" in s, s
 
 
 def test_the_sheet_shouts_at_exactly_what_the_number_calls_extra():

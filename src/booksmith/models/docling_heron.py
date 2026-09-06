@@ -144,8 +144,8 @@ EGRET_TO_DOCLING = {
 # touching geometry. Merged, they would say "better" without saying from what.
 PIPELINE_MODES = ("off", "post", "full")
 
-_PIP_INSTALL = ('pip install -e ".[docling]"  (docling-slim==2.123.1 и rtree; '
-                'без torch, +54 МБ)')
+_PIP_INSTALL = ('pip install -e ".[docling]"  (docling-slim==2.123.1 and '
+                'rtree; no torch, +54 MB)')
 
 
 class _DoclingPipeline:
@@ -176,7 +176,7 @@ class _DoclingPipeline:
 
     def __init__(self, mode: str, labels, adapter: str):
         if mode not in PIPELINE_MODES:
-            raise SystemExit(f"DOCLING_PIPELINE={mode!r}: знаю только "
+            raise SystemExit(f"DOCLING_PIPELINE={mode!r}: I know only "
                              f"{PIPELINE_MODES}")
         self.mode = mode
         self.adapter = adapter
@@ -194,10 +194,11 @@ class _DoclingPipeline:
             from docling_core.types.doc import BoundingBox, DocItemLabel, Size
         except ImportError as e:
             raise SystemExit(
-                f"DOCLING_PIPELINE={mode}, а пакета docling нет: {e}. "
-                f"Поставить: {_PIP_INSTALL}. Либо DOCLING_PIPELINE=off — "
-                f"тогда адаптер считает рамки модели как есть, и пакет не "
-                f"нужен вовсе.") from None
+                f"DOCLING_PIPELINE={mode}, and there is no docling "
+                f"package: {e}. Install: {_PIP_INSTALL}. Or "
+                f"DOCLING_PIPELINE=off -- then the adapter counts the model "
+                f"boxes as they are and the package is not needed at all."
+                ) from None
         self._Cluster, self._DlPage = Cluster, DlPage
         self._BoundingBox, self._DocItemLabel, self._Size = (
             BoundingBox, DocItemLabel, Size)
@@ -230,24 +231,25 @@ class _DoclingPipeline:
             try:
                 DocItemLabel(name)
             except ValueError:
-                bad.append(f"{lab!r} (-> {name!r}: такого имени нет в словаре "
-                           f"docling вовсе)")
+                bad.append(f"{lab!r} (-> {name!r}: no such name in the "
+                           f"docling vocabulary at all)")
                 continue
             if name not in known:
-                bad.append(f"{lab!r} (-> {name!r}: имя в словаре docling "
-                           f"есть, а порога у постобработчика нет)")
+                bad.append(f"{lab!r} (-> {name!r}: the name is in the "
+                           f"docling vocabulary, but the postprocessor has "
+                           f"no threshold for it)")
         if bad:
             raise SystemExit(
-                f"адаптер {adapter}: ярлыки {', '.join(bad)} постобработчику "
-                f"docling несъедобны. Он знает {len(known)} классов — те, что "
-                f"перечислены в LayoutPostprocessor.CONFIDENCE_THRESHOLDS, "
-                f"— и порог берёт по ярлыку без умолчания, то есть на любом "
-                f"другом падает KeyError на первой же странице. Перевод "
-                f"объявляется ПОИМЁННО в EGRET_TO_DOCLING "
-                f"(models/docling_heron.py): "
-                f"правило «в нижний регистр» молча приняло бы новый класс "
-                f"новых весов и подсунуло бы его вендору под выдуманным "
-                f"именем.")
+                f"adapter {adapter}: labels {', '.join(bad)} are "
+                f"indigestible to the docling postprocessor. It knows "
+                f"{len(known)} classes -- those listed in "
+                f"LayoutPostprocessor.CONFIDENCE_THRESHOLDS -- and takes the "
+                f"threshold by label with NO default, so on any other it "
+                f"dies with KeyError on the very first page. The translation "
+                f"is declared BY NAME in EGRET_TO_DOCLING "
+                f"(models/docling_heron.py): a rule 'lower-case it' would "
+                f"silently accept a new class of new weights and slip it to "
+                f"the vendor under an invented name.")
         self.back = {v: k for k, v in self.to_docling.items() if v != k}
 
         # sha256 of BOTH files: they are the rules. A vendor edit changes our
@@ -306,9 +308,9 @@ class _DoclingPipeline:
             return self._DocItemLabel(self.to_docling[raw])
         except KeyError:
             raise RuntimeError(
-                f"ярлык {raw!r} не из словаря весов {self.adapter}: перевода "
-                f"в словарь docling для него нет. Объяви его в "
-                f"EGRET_TO_DOCLING поимённо.") from None
+                f"label {raw!r} is not from the {self.adapter} weights "
+                f"vocabulary: it has no translation into docling's. Declare "
+                f"it in EGRET_TO_DOCLING by name.") from None
 
     def apply(self, blocks, width, height, index):
         """Adapter boxes -> boxes after the vendor. Returns (blocks, meta)."""
@@ -385,9 +387,9 @@ class _DoclingPipeline:
             # while the count "after" would merely look a little smaller.
             if sorted(order) != list(range(len(clusters))):
                 raise RuntimeError(
-                    f"правила порядка docling вернули не перестановку на "
-                    f"странице {index}: было {len(clusters)} рамок, "
-                    f"вернулось {len(order)} номеров")
+                    f"the docling order rules returned no permutation on "
+                    f"page {index}: there were {len(clusters)} boxes, "
+                    f"{len(order)} numbers came back")
             moved = sum(1 for i, j in enumerate(order) if i != j)
             clusters = [clusters[i] for i in order]
 
@@ -490,9 +492,9 @@ class _DoclingPipeline:
     def fingerprint(self):
         return {
             "mode": self.mode,
-            "what_is_it": ("код ВЕНДОРА, вызванный как есть, без единой нашей "
-                        "правки внутри; reading_order_rb — rule-based, 740 "
-                        "строк правил над рамками, ни одного веса"),
+            "what_is_it": ("VENDOR code, called as it is, without one edit "
+                        "of ours inside; reading_order_rb is rule-based, 740 "
+                        "lines of rules over boxes, not a single weight"),
             "classes": ["docling.utils.layout_postprocessor.LayoutPostprocessor"]
                       + (["docling.models.postprocessing.reading_order_rb."
                           "ReadingOrderPredictor"] if self.mode == "full"
@@ -501,7 +503,7 @@ class _DoclingPipeline:
             "sha256_vendor_files": self.files,
             "postprocess_options": self.options.model_dump(mode="json"),
             "label_map_to_docling": self.to_docling,
-            "label_outward": "в написании адаптера",
+            "label_outward": "in the adapter's spelling",
             "summary": {"page_count": self.pages, "boxes_before": self.before,
                      "boxes_after": self.after, "moved_to_children": self.kids,
                      "boxes_reordered": self.displaced,
@@ -531,9 +533,10 @@ class DoclingHeron(Recognizer):
                    if not os.path.exists(p)]
         if missing:
             raise WeightsMissing(
-                f"нет весов docling heron: {missing}. Скачать три файла из "
+                f"no docling heron weights: {missing}. Download three "
+                f"files from "
                 f"huggingface.co/docling-project/docling-layout-heron-onnx "
-                f"в {self.dir}")
+                f"into {self.dir}")
         with open(cfg_path, encoding="utf-8") as f:
             cfg = json.load(f)
         i2l = cfg.get("id2label") or {}
@@ -568,15 +571,17 @@ class DoclingHeron(Recognizer):
         PIL_TO_CV2 = {0: 0, 1: 4, 2: 1, 3: 2, 4: 3, 5: 3}
         if pil not in PIL_TO_CV2:
             raise WeightsMissing(
-                f"незнакомый код фильтра resample={pil} в препроцессоре: "
-                f"подставить свой значило бы ужимать страницу не тем.")
+                f"unknown filter code resample={pil} in the preprocessor: "
+                f"substituting our own would shrink the page with the wrong "
+                f"filter.")
         self.interp_pil = pil
         self.interp = PIL_TO_CV2[pil]
         self.do_pad = bool(pre.get("do_pad", False))
         if self.do_pad:
             raise WeightsMissing(
-                "в препроцессоре do_pad: true, а мы жмём растр без подложки — "
-                "рамки вышли бы смещёнными и правдоподобными сразу.")
+                "the preprocessor says do_pad: true, and we shrink the "
+                "raster with no padding -- the boxes would come out shifted "
+                "and plausible at once.")
         self.do_rescale = bool(pre.get("do_rescale", False))
         self.do_normalize = bool(pre.get("do_normalize", False))
         self.sess = ort.InferenceSession(
@@ -639,14 +644,14 @@ class DoclingHeron(Recognizer):
         blocks, m = self._pipe.apply(blocks, w, h, index)
         pp = self._pipe
         if pp.pages == 1 or pp.pages % 10 == 0:
-            print(f"  [конвейер docling {pp.mode}] {pp.pages} стр.: рамок "
-                  f"{pp.before} -> {pp.after}, в дети {pp.kids} (из них "
-                  f"артефактов в текстовых обёртках {pp.arte_in_text}, "
-                  f"пропало {pp.arte_lost}), "
-                  f"не на своём месте {pp.displaced} (сортировка сдвинула "
-                  f"{pp.resorted}, правила переставили "
+            print(f"  [docling pipeline {pp.mode}] {pp.pages} pp.: boxes "
+                  f"{pp.before} -> {pp.after}, into children {pp.kids} (of "
+                  f"those, artefacts in text wrappers {pp.arte_in_text}, "
+                  f"lost {pp.arte_lost}), "
+                  f"out of place {pp.displaced} (the sort moved "
+                  f"{pp.resorted}, the rules permuted "
                   + (str(pp.reordered) if pp.mode == "full"
-                     else "— (не звались)") + ")")
+                     else "-- (never called)") + ")")
         return blocks, {"reading_order": _DoclingPipeline.ORDER_RULE[pp.mode],
                         "docling_pipeline": m}
 
@@ -666,9 +671,10 @@ class DoclingHeron(Recognizer):
         there is nothing to compare with -- which is not the same as "no
         drift".
         """
-        return [f"родного порога у весов нет; действует "
-                f"LAYOUT_SCORE_THRESHOLD={knobs.knob('LAYOUT_SCORE_THRESHOLD')} "
-                f"на все {len(self.labels)} классов"]
+        return [f"the weights have no native threshold; acting is "
+                f"LAYOUT_SCORE_THRESHOLD="
+                f"{knobs.knob('LAYOUT_SCORE_THRESHOLD')} "
+                f"on all {len(self.labels)} classes"]
 
     def knobs_read(self) -> tuple[str, ...]:
         """Exactly the two below, and that is checked by grep over the file.
@@ -718,25 +724,24 @@ class DoclingHeron(Recognizer):
             share = (100.0 * it["boxes_after"] / it["boxes_before"]
                     if it["boxes_before"] else 0.0)
             rules = (str(it["reordered_by_order_rules"])
-                       if self._pipe.mode == "full" else "— (не звались)")
+                       if self._pipe.mode == "full" else "-- (never called)")
             # `post` DOES change the order: the postprocessor sorts by exact
             # (top, left), not by our round(y/20) key.
-            order = ("ПРАВИЛА ВЕНДОРА (reading_order_rb, не модель)"
+            order = ("VENDOR RULES (reading_order_rb, not a model)"
                        if self._pipe.mode == "full" else
-                       "пересортирован постобработчиком docling по "
-                       "(верх, лево), ранга модели нет")
-            print(f"конвейер docling {self._pipe.mode}: страниц "
-                  f"{it['page_count']}, рамок {it['boxes_before']} -> "
-                  f"{it['boxes_after']} ({share:.1f}%), ушло в дети "
-                  f"{it['moved_to_children']}, из них артефактов в текстовых "
-                  f"обёртках {it['artifact_boxes_in_text_wrappers']} "
-                  f"(пропало из верхнего списка "
+                       "resorted by the docling postprocessor by "
+                       "(top, left), there is no model rank")
+            print(f"docling pipeline {self._pipe.mode}: pages "
+                  f"{it['page_count']}, boxes {it['boxes_before']} -> "
+                  f"{it['boxes_after']} ({share:.1f}%), into children "
+                  f"{it['moved_to_children']}, of those artefacts in text "
+                  f"wrappers {it['artifact_boxes_in_text_wrappers']} "
+                  f"(lost from the top list "
                   f"{it['of_those_lost_from_top_level']}); "
-                  f"не на своём месте против нашего порядка "
-                  f"{it['boxes_reordered']} (сортировка постобработчика "
-                  f"сдвинула "
-                  f"{it['reordered_by_postprocessor_sort']}, правила "
-                  f"переставили {rules}); порядок чтения {order}")
+                  f"out of place against our order "
+                  f"{it['boxes_reordered']} (the postprocessor sort moved "
+                  f"{it['reordered_by_postprocessor_sort']}, the rules "
+                  f"permuted {rules}); reading order {order}")
         return {
             "name": self.name,
             "model": getattr(self, "full_name",
@@ -772,9 +777,9 @@ class DoclingHeron(Recognizer):
             # registry.
             "docling_pipeline": (self._pipe.fingerprint() if self._pipe else {
                 "mode": "off",
-                "what_is_it": ("вендорская постобработка и правила порядка "
-                            "чтения docling; выключены — рамки модели идут "
-                            "как есть, порядок наш"),
+                "what_is_it": ("the vendor postprocessing and docling's "
+                            "reading-order rules; switched off -- the model "
+                            "boxes go as they are, the order is ours"),
                 "docling_version": None,
                 "sha256_vendor_files": {},
                 "postprocess_options": None,
@@ -788,7 +793,7 @@ class DoclingHeron(Recognizer):
 
         img = cv2.imread(image_path)
         if img is None:
-            raise RuntimeError(f"не читается растр страницы: {image_path}")
+            raise RuntimeError(f"the page raster does not read: {image_path}")
         h, w = img.shape[:2]
         rz = cv2.resize(img, (self.target_w, self.target_h),
                         interpolation=self.interp)
@@ -816,8 +821,9 @@ class DoclingHeron(Recognizer):
             cid, sc = int(cid), float(sc)
             if not 0 <= cid < len(self.labels):
                 raise RuntimeError(
-                    f"модель вернула класс {cid}, а словарь знает "
-                    f"{len(self.labels)}: выдуманный ярлык хуже отказа.")
+                    f"the model returned class {cid}, the vocabulary knows "
+                    f"{len(self.labels)}: an invented label is worse than a "
+                    f"refusal.")
             lab = self.labels[cid]
             if sc < thr[lab]:
                 if sc > rejected.get(lab, 0.0):
@@ -878,8 +884,9 @@ class DoclingEgret(DoclingHeron):
         names = [i.name for i in self.sess.get_inputs()]
         if names != ["pixel_values"]:
             raise WeightsMissing(
-                f"вход графа {names}, а ждали ['pixel_values']: разбирать "
-                f"наугад значит кормить модель не тем.")
+                f"graph input {names}, ['pixel_values'] was expected: "
+                f"parsing at random means feeding the model the wrong "
+                f"thing.")
 
     def read(self, image_path: str, index: int, dpi: float) -> Page:
         import cv2
@@ -887,7 +894,7 @@ class DoclingEgret(DoclingHeron):
 
         img = cv2.imread(image_path)
         if img is None:
-            raise RuntimeError(f"не читается растр страницы: {image_path}")
+            raise RuntimeError(f"the page raster does not read: {image_path}")
         h, w = img.shape[:2]
         rz = cv2.resize(img, (self.target_w, self.target_h),
                         interpolation=self.interp)
@@ -901,8 +908,9 @@ class DoclingEgret(DoclingHeron):
         nq, nc = prob.shape
         if nc != len(self.labels):
             raise RuntimeError(
-                f"граф отдал {nc} классов, а словарь знает "
-                f"{len(self.labels)}: выдуманный ярлык хуже отказа.")
+                f"the graph gave {nc} classes, the vocabulary knows "
+                f"{len(self.labels)}: an invented label is worse than a "
+                f"refusal.")
         # THE SELECTION FOLLOWS D-FINE'S OWN RULE, NOT argmax over classes
         # ("one query, one label"). No model of the DETR family finishes
         # reading itself that way: sigmoid, topk over the FLATTENED Q*C, label
@@ -977,8 +985,8 @@ class DoclingEgret(DoclingHeron):
                  "class_count": int(nc),
                  "logits": [[float(v) for v in r] for r in logits],
                  "boxes": [[float(v) for v in r] for r in boxes],
-                 "how_to_read_logits": "сигмоида поканально (focal loss)",
-                 "raw_row_coords": "cxcywh, нормированные"},
+                 "how_to_read_logits": "sigmoid per channel (focal loss)",
+                 "raw_row_coords": "cxcywh, normalised"},
             meta={"detector": self.name, "raster": image_path,
                   "boxes_accepted": len(kept), "rank_ties": 0,
                   # See heron: the place of the key keeps the byte-for-byte
@@ -988,8 +996,8 @@ class DoclingEgret(DoclingHeron):
                   # number showing it really worked: the old argmax cannot
                   # produce extra labels by construction, so a zero here means
                   # "the rules agreed on this page", not "the rule sat idle".
-                  "selection_rule": f"topk {nq} по развёрнутым Q*C, "
-                                    f"ярлык = i % {nc} (как в D-FINE/RT-DETR)",
+                  "selection_rule": f"topk {nq} over the flattened Q*C, "
+                                    f"label = i % {nc} (as in D-FINE/RT-DETR)",
                   "extra_labels_on_shared_boxes":
                       len(geom) - len(set(geom)),
                   "rows_above_threshold_outside_topk": cut,

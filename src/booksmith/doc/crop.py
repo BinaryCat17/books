@@ -127,10 +127,11 @@ def params(page_dpi: float | None = None,
     margin = float(knobs.knob("CROP_MARGIN"))
     if margin < 0:
         raise ValueError(
-            f"CROP_MARGIN={margin}: отрицательное поле РЕЖЕТ рамку модели, а "
-            f"не добавляет поля. Правка рамки модели запрещена правилом "
-            f"проекта, и ни одна величина вырезки такого среза не показывает "
-            f"(«срезано листом» — про край листа, а не про наш нож)")
+            f"CROP_MARGIN={margin}: a negative margin CUTS the model's box "
+            f"instead of adding room. Editing the model's box is forbidden by "
+            f"a project rule, and no crop quantity shows such a cut "
+            f"(\"clipped by the sheet\" is about the sheet edge, not our "
+            f"knife)")
     raw = knobs.knob("CROP_DPI")
     if raw:
         # ZERO AND NEGATIVE ARE REFUSED ALOUD. The string "0" is truthy and
@@ -142,27 +143,27 @@ def params(page_dpi: float | None = None,
             _v = float(raw)
         except ValueError:
             raise ValueError(
-                f"CROP_DPI={raw!r}: не число. Резать по этому нечем, а тихий "
-                f"откат на умолчание записал бы в слепок одну величину при "
-                f"другой резкости") from None
+                f"CROP_DPI={raw!r}: not a number. There is nothing to cut "
+                f"by, and a silent fallback to the default would write one "
+                f"value into the snapshot at another sharpness") from None
         if _v <= 0:
             raise ValueError(
-                f"CROP_DPI={raw!r}: резкость вырезки не бывает нулевой или "
-                f"отрицательной. pymupdf на нуле молча берёт 72 dpi, и книга "
-                f"уехала бы в модель вчетверо грубее заказанного, а запись "
-                f"говорила бы «0»")
+                f"CROP_DPI={raw!r}: crop sharpness is never zero or "
+                f"negative. At zero pymupdf silently takes 72 dpi, the book "
+                f"would go to the model four times coarser than ordered, and "
+                f"the record would say \"0\"")
         dpi, src = float(raw), "CROP_DPI"
     elif page_native:
         dpi, src = float(page_native), "native_scan_dpi"
     elif page_dpi is not None:
-        dpi, src = float(page_dpi), ("как у детекции: своя резкость страницы "
-                                     "не определяется (вектор или несколько "
-                                     "картинок на листе)")
+        dpi, src = float(page_dpi), ("as in detection: the page's own "
+                                     "sharpness cannot be determined (vector, "
+                                     "or several images on the sheet)")
     else:
         # The detection resolution was not named -- take the environment and
         # SAY so. A zero from a check and a zero from not knowing: this value
         # is not "agreed with detection", it is "nothing to agree with".
-        dpi, src = float(knobs.knob("PAGE_DPI")), "PAGE_DPI текущего процесса"
+        dpi, src = float(knobs.knob("PAGE_DPI")), "PAGE_DPI of this process"
     return {"dpi": dpi, "dpi_source": src, "margin": margin}
 
 
@@ -186,7 +187,7 @@ def _clipped(rect, clip) -> bool:
 
 
 def _box_trouble(w: float, h: float) -> str | None:
-    """What is wrong with the box itself: `ПЕРЕВЁРНУТА` | `ВЫРОЖДЕНА` | None.
+    """What is wrong with the box itself: `INVERTED` | `DEGENERATE` | None.
 
     Both gave an empty intersection with the sheet and so drew the foreign
     diagnosis "does not intersect the sheet" -- for a box lying in the middle
@@ -199,9 +200,10 @@ def _box_trouble(w: float, h: float) -> str | None:
     proven.
     """
     if w < 0 or h < 0:
-        return "ПЕРЕВЁРНУТА: правый край левее левого либо нижний выше верхнего"
+        return ("INVERTED: the right edge is left of the left one, or the "
+                "bottom above the top")
     if w == 0 or h == 0:
-        return "ВЫРОЖДЕНА: площадь ноль, вырезать нечего"
+        return "DEGENERATE: zero area, nothing to cut"
     return None
 
 
@@ -230,9 +232,9 @@ def cut(doc, page_index: int, box, page_dpi: float, dst: str,
     trouble = _box_trouble(w, h)
     if trouble:
         raise ValueError(
-            f"рамка {tuple(round(v,1) for v in box)} на стр. {page_index} "
-            f"{trouble} ({w:.1f} x {h:.1f} пунктов). Это дефект САМОЙ рамки, "
-            f"а не её положения на листе")
+            f"box {tuple(round(v,1) for v in box)} on p. {page_index} "
+            f"{trouble} ({w:.1f} x {h:.1f} points). This is a defect of the "
+            f"BOX ITSELF, not of where it lies on the sheet")
     if margin:
         x0, y0, x1, y1 = (x0 - w * margin, y0 - h * margin,
                           x1 + w * margin, y1 + h * margin)
@@ -252,8 +254,9 @@ def cut(doc, page_index: int, box, page_dpi: float, dst: str,
     margin_clipped = _clipped(want, clip)
     if clip.is_empty:
         raise ValueError(
-            f"рамка {tuple(round(v,1) for v in box)} на стр. {page_index} "
-            f"не пересекается с листом {tuple(round(v,1) for v in page.rect)}")
+            f"box {tuple(round(v,1) for v in box)} on p. {page_index} "
+            f"does not intersect the sheet "
+            f"{tuple(round(v,1) for v in page.rect)}")
 
     os.makedirs(os.path.dirname(os.path.abspath(dst)), exist_ok=True)
     pix = page.get_pixmap(dpi=int(dpi), clip=clip)

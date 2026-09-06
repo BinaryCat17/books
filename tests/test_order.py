@@ -30,8 +30,9 @@ def test_every_dictionary_has_a_translation():
     """
     have, want = set(order._LABELS), set(policy.POLICIES)
     assert have == want, (
-        f"перевод ярлыков и политики разошлись: нет перевода у "
-        f"{sorted(want - have)}, перевод без политики у {sorted(have - want)}")
+        f"the label translation and the policies have diverged: no "
+        f"translation for {sorted(want - have)}, a translation with no policy "
+        f"for {sorted(have - want)}")
 
 
 def test_translations_name_only_labels_the_rules_look_at():
@@ -44,8 +45,8 @@ def test_translations_name_only_labels_the_rules_look_at():
              "picture", "table", "text"}
     for name, tr in order._LABELS.items():
         bad = set(tr.values()) - eight
-        assert not bad, f"{name}: перевод целит в {sorted(bad)}, а правила " \
-                        f"смотрят только на {sorted(eight)}"
+        assert not bad, (f"{name}: the translation aims at {sorted(bad)}, "
+                         f"and the rules look only at {sorted(eight)}")
 
 
 def test_translations_use_labels_that_exist():
@@ -57,8 +58,8 @@ def test_translations_use_labels_that_exist():
     for name, tr in order._LABELS.items():
         bad = set(tr) - set(policy.POLICIES[name])
         assert not bad, (
-            f"{name}: перевод знает ярлыки {sorted(bad)}, которых у модели "
-            f"нет — такой ключ не сработает НИКОГДА и молча")
+            f"{name}: the translation knows labels {sorted(bad)} the model "
+            f"does not have -- such a key will NEVER fire, and silently")
 
 
 def test_ours_needs_neither_labels_nor_docling():
@@ -67,10 +68,10 @@ def test_ours_needs_neither_labels_nor_docling():
     Able to fail: make `cover` always ask the policy, and a fake dictionary of
     one label will break a rule that never touches labels.
     """
-    assert order.cover(["никакой такой политики нет"], "ours") is None
+    assert order.cover(["no such policy exists at all"], "ours") is None
     boxes = [(10, 300, 90, 380), (10, 10, 90, 90), (200, 10, 280, 90)]
     perm = order.permutation(["x"] * 3, boxes, 400, 600, 0, ["x"], "ours")
-    assert perm == [1, 2, 0], f"сверху вниз и слева направо дало {perm}"
+    assert perm == [1, 2, 0], f"top to bottom, left to right gave {perm}"
 
 
 def test_docling_returns_a_permutation_and_touches_no_box():
@@ -83,14 +84,14 @@ def test_docling_returns_a_permutation_and_touches_no_box():
     try:
         import docling  # noqa: F401
     except ImportError:
-        support.skip("нет пакета docling: правило `docling` не проверить")
+        support.skip("no docling package: the `docling` rule cannot be checked")
     labels = ["text", "table", "header", "text", "image"]
     boxes = [(50, 400, 300, 500), (50, 200, 300, 380), (50, 20, 300, 60),
              (330, 400, 580, 500), (330, 100, 580, 380)]
     vocab = list(policy.POLICIES["PP-DocLayoutV2"])
     perm = order.permutation(labels, boxes, 600, 800, 0, vocab, "docling")
     assert sorted(perm) == list(range(len(boxes))), (
-        f"не перестановка: {perm} на {len(boxes)} рамках")
+        f"not a permutation: {perm} over {len(boxes)} boxes")
 
 
 def test_an_unknown_rule_dies_loudly():
@@ -101,13 +102,13 @@ def test_an_unknown_rule_dies_loudly():
     """
     import os
     was = os.environ.get("ASSEMBLY_ORDER")
-    os.environ["ASSEMBLY_ORDER"] = "сверхуВниз"
+    os.environ["ASSEMBLY_ORDER"] = "topToBottom"
     try:
         order.rule()
     except SystemExit as e:
         assert "ASSEMBLY_ORDER" in str(e) and "ours" in str(e), e
     else:
-        raise AssertionError("незнакомое правило принято молча")
+        raise AssertionError("an unknown rule was accepted in silence")
     finally:
         if was is None:
             os.environ.pop("ASSEMBLY_ORDER", None)
@@ -139,15 +140,17 @@ def test_no_adapter_sorts_by_itself_any_more():
     # -- the NUMBERING before the vendor pipeline, `Cluster.id`, by which the
     # vendor sews children to their wrapper.
     assert len(seen["models/doclayout.py"]) == 1, (
-        f"в doclayout сортировок с ключом {len(seen['models/doclayout.py'])}, "
-        f"а законна одна — по рангу модели: {seen['models/doclayout.py']}")
+        f"doclayout has {len(seen['models/doclayout.py'])} keyed sorts, and "
+        f"one is lawful -- by the model's rank: "
+        f"{seen['models/doclayout.py']}")
     assert len(seen["models/docling_heron.py"]) == 1, (
-        f"в docling_heron сортировок {len(seen['models/docling_heron.py'])}, "
-        f"а законна одна — нумерация перед конвейером")
+        f"docling_heron has {len(seen['models/docling_heron.py'])} sorts, "
+        f"and one is lawful -- the numbering before the pipeline")
     assert not seen["models/yolox_layout.py"], (
-        f"yolox снова сортирует сам: строки {seen['models/yolox_layout.py']}. "
-        f"Правило сборки живёт в order.py, и второй экземпляр разойдётся с "
-        f"первым молча — так уже было в docling_heron")
+        f"yolox sorts on its own again: lines "
+        f"{seen['models/yolox_layout.py']}. The assembly rule lives in "
+        f"order.py, and a second copy diverges from the first in silence -- "
+        f"which is what happened in docling_heron")
 
 
 def test_the_ruler_measures_the_same_rule_the_book_is_built_with():
@@ -173,27 +176,28 @@ def test_the_ruler_measures_the_same_rule_the_book_is_built_with():
     fn = next((n for n in ast.walk(t)
                if isinstance(n, ast.FunctionDef) and n.name == "_by_reading"),
               None)
-    assert fn is not None, "в metrics.py не стало _by_reading — сборщик снят?"
+    assert fn is not None, "metrics.py lost _by_reading -- assembler removed?"
 
     ours = [n.lineno for n in ast.walk(fn)
             if isinstance(n, ast.Call)
             and ((isinstance(n.func, ast.Name) and n.func.id == "sorted")
                  or (isinstance(n.func, ast.Attribute) and n.func.attr == "sort"))]
     assert not ours, (
-        f"`_by_reading` снова сортирует сам (строки {ours}). Правило сборки "
-        f"живёт в `order.py`; вторая копия разойдётся с первой МОЛЧА, а на "
-        f"этом сборщике стоит вывод «наше правило проиграло»")
+        f"`_by_reading` sorts on its own again (lines {ours}). The assembly "
+        f"rule lives in `order.py`; a second copy diverges from the first in "
+        f"SILENCE, and the verdict \"our rule lost\" rests on this "
+        f"assembler")
 
     calls = [n for n in ast.walk(fn)
              if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
              and n.func.attr == "permutation"]
     assert calls, (
-        "`_by_reading` не зовёт `order.permutation` — прибор мерит не то "
-        "правило, которым собирается книга")
+        "`_by_reading` does not call `order.permutation` -- the instrument "
+        "measures a rule other than the one the book is assembled by")
     named = {k.arg: k.value for c in calls for k in c.keywords}
     which = named.get("which")
     assert isinstance(which, ast.Constant) and which.value == "ours", (
-        "`order.permutation` позван без `which=\"ours\"`. Без явного имени "
-        "правило возьмётся из ручки `ASSEMBLY_ORDER`, и столбец «наше "
-        "правило» станет означать разное в разных прогонах — сравнивать "
-        "развёртку будет нельзя")
+        "`order.permutation` is called without `which=\"ours\"`. Without "
+        "the explicit name the rule comes from the knob `ASSEMBLY_ORDER`, the "
+        "column \"our rule\" starts meaning different things in different "
+        "runs, and the sweep becomes incomparable")

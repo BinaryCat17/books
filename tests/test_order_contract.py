@@ -72,8 +72,8 @@ def guard():
         if fn is not None:
             return fn
     raise AssertionError(
-        "в metrics нет ни `_model_has_rank`, ни `_has_order`: сторож порядка "
-        "переименован, и договор с адаптерами больше никем не держится")
+        "metrics has neither `_model_has_rank` nor `_has_order`: the order "
+        "guard was renamed, and nobody holds the contract with the adapters")
 
 
 def says_model_rank(value) -> bool:
@@ -84,9 +84,10 @@ def test_adapters_declare_order_rule_at_all():
     """Every adapter has a value. An empty set is not "all is well"."""
     for rel, mod in ADAPTERS:
         vals = support.page_order_values(rel, mod)
-        assert vals, (f"{rel}: ни одного значения «{support.ORDER_KEY}» в meta "
-                      f"страницы. Сторож метрики возьмёт умолчание «ранг "
-                      f"модели» и напечатает процент по нашей же нумерации")
+        assert vals, (f"{rel}: not one {support.ORDER_KEY} value in a page's "
+                      f"meta. The metric's guard would take the default "
+                      f"'model rank' and print a percentage off our own "
+                      f"numbering")
 
 
 def test_no_unknown_order_values():
@@ -96,13 +97,14 @@ def test_no_unknown_order_values():
         seen |= support.page_order_values(rel, mod)
     unknown = seen - set(EXPECTED)
     assert not unknown, (
-        f"адаптеры кладут в страницу значения, которых нет в таблице "
-        f"договора: {sorted(unknown)}. Допиши их в EXPECTED и скажи, чей это "
-        f"порядок, — сторож метрики решает по ним, печатать процент или нет")
+        f"adapters put values into a page that the contract table does not "
+        f"hold: {sorted(unknown)}. Add them to EXPECTED and say whose order "
+        f"it is -- the metric's guard decides by them whether to print a "
+        f"percentage")
     forgotten = set(EXPECTED) - seen
     assert not forgotten, (
-        f"в таблице договора есть значения, которых ни один адаптер больше не "
-        f"кладёт: {sorted(forgotten)}. Проверка сторожа по ним меряет воздух")
+        f"the contract table holds values no adapter puts down any more: "
+        f"{sorted(forgotten)}. Checking the guard by them measures air")
 
 
 def test_guard_reads_every_value_as_intended():
@@ -111,11 +113,12 @@ def test_guard_reads_every_value_as_intended():
     for value, whose in sorted(EXPECTED.items()):
         got = "model" if says_model_rank(value) else "ours"
         if got != whose:
-            wrong.append(f"{value!r}: задумано «{whose}», сторож понял «{got}»")
+            wrong.append(f"{value!r}: meant {whose!r}, guard read {got!r}")
     assert not wrong, (
-        "сторож метрики и адаптеры разошлись — " + "; ".join(wrong)
-        + ". Это тот самый процент из ничего: метрика сверит с истиной нашу "
-          "же нумерацию либо промолчит о настоящем ранге модели")
+        "guard and adapters have parted -- " + "; ".join(wrong)
+        + ". This is the percentage out of nothing: the metric will compare "
+          "our own numbering with truth, or keep quiet about a real model "
+          "rank")
 
 
 def test_guard_ignores_case():
@@ -129,9 +132,9 @@ def test_guard_ignores_case():
     from booksmith.models.base import ours_order
     for v in ("OURS_top_down_left_right", "Ours_top_down", "OURS by choice",
               "  ours_top_down_left_right  "):
-        assert ours_order(v), f"{v!r} не опознано как наш порядок"
+        assert ours_order(v), f"{v!r} was not recognised as our order"
     for v in ("model_rank", "", None, 0, "generation_order"):
-        assert not ours_order(v), f"{v!r} ошибочно принято за наш порядок"
+        assert not ours_order(v), f"{v!r} wrongly taken for our order"
 
 
 def test_our_order_values_start_with_lowercase_nash():
@@ -144,8 +147,8 @@ def test_our_order_values_start_with_lowercase_nash():
     for value, whose in EXPECTED.items():
         if whose == "ours":
             assert value.startswith("ours"), (
-                f"{value!r} объявлено нашим порядком, но не начинается со "
-                f"слова «наш»: сторож примет его за ранг модели")
+                f"{value!r} is declared our order but does not start with "
+                f"the word 'ours': the guard will take it for a model rank")
 
 
 def test_fingerprint_wording_stays_out_of_page_meta():
@@ -177,7 +180,7 @@ def test_truth_side_has_three_answers_not_two():
     assert st({"meta": {}}) == metrics.ORDER_SILENT
     assert st({}) == metrics.ORDER_SILENT
     assert len({metrics.ORDER_MARKED, metrics.ORDER_UNMARKED,
-                metrics.ORDER_SILENT}) == 3, "три состояния слиплись в два"
+                metrics.ORDER_SILENT}) == 3, "three states stuck into two"
 
 
 # --------------------------------------------------------------------------
@@ -217,7 +220,7 @@ def _fake_page(rows, labels):
     r.norm_mean = [0.0] * 3
     r.norm_std = [1.0] * 3
     arr = np.array(rows, np.float32)
-    r.sess = type("Граф", (), {
+    r.sess = type("Graph", (), {
         "run": lambda _self, _names, _feed: [arr, np.array([len(rows)])]})()
     tmp = tempfile.mkdtemp(prefix="booksmith-order-")
     png = os.path.join(tmp, "page.png")
@@ -250,13 +253,13 @@ def test_no_rank_means_our_rule_not_the_order_of_the_graph():
     got = [(b.box[1], b.box[0]) for b in page.blocks]
     want = sorted(got)
     assert got == want, (
-        f"рамки сложены не сверху вниз и слева направо: {got}. Порядка модель "
-        f"не дала, значит порядок наш — и он обязан быть объявленным правилом, "
-        f"а не тем, в каком рамки вышли из подавления дублей")
+        f"the boxes do not run top down and left to right: {got}. The model "
+        f"gave no order, so the order is ours -- and it must be a declared "
+        f"rule, not the order duplicate suppression happened to leave")
     came = [(r[3], r[2]) for r in _ROWS_NO_RANK]
     assert came != want, (
-        "рамки для этой проверки поданы уже в нужном порядке: она согласилась "
-        "бы и с отсутствием сортировки вовсе")
+        "the boxes for this check were fed already in the wanted order: it "
+        "would agree with no sorting at all")
 
 
 def test_no_rank_page_declares_the_rule_it_actually_used():
@@ -269,11 +272,12 @@ def test_no_rank_page_declares_the_rule_it_actually_used():
     page = _fake_page(_ROWS_NO_RANK, ["text"])
     said = page.meta[support.ORDER_KEY]
     assert said in EXPECTED and EXPECTED[said] == "ours", (
-        f"страница без ранга объявила {said!r} — этого нет в таблице договора "
-        f"как нашего порядка")
+        f"a page without a rank declared {said!r} -- the contract table does "
+        f"not hold that as our order")
     assert "top_down" in said and "left_right" in said, (
-        f"правило не названо словами: {said!r}. Сторож метрики пропустит "
-        f"строку по слову «наш», а читателю останется гадать, чем сложено")
+        f"the rule is not named in words: {said!r}. The guard lets the line "
+        f"through on the word 'ours', and the reader is left guessing what "
+        f"laid the boxes")
 
 
 def test_model_rank_still_wins_over_our_rule():
@@ -287,10 +291,10 @@ def test_model_rank_still_wins_over_our_rule():
             [0.0, 0.9, 100.0, 700.0, 300.0, 760.0, 2.0]]
     page = _fake_page(rows, ["text"])
     assert [b.order for b in page.blocks] == [1, 2, 3], (
-        f"ранги модели не соблюдены: {[b.order for b in page.blocks]}")
+        f"the model ranks are not kept: {[b.order for b in page.blocks]}")
     assert [b.box[1] for b in page.blocks] == [400.0, 700.0, 100.0], (
-        "рамки сложены сверху вниз при живом ранге модели — наше правило "
-        "вытеснило модельное, то есть мы решили за модель")
+        "the boxes run top down while the model rank is alive -- our rule "
+        "displaced the model's, that is, we decided for the model")
     assert page.meta[support.ORDER_KEY] == "model_rank"
 
 
@@ -341,17 +345,18 @@ def test_floor_variant_is_a_floor_at_every_point_of_the_sweep():
     M = _pages_where_grouping_matters()
     build = metrics._order_variants(M)["column_by_column"]
     assert callable(build), (
-        "варианты сборки отданы готовыми страницами: пересобрать пол под "
-        "параметры точки нечем, и он перестанет быть полом всюду, где точка "
-        "отошла от умолчания")
+        "the assembly variants are handed over as ready pages: there is "
+        "nothing to rebuild the floor with for a point's parameters, and it "
+        "stops being a floor wherever the point leaves the default")
     bad = []
     for point in metrics._sweep_points(metrics.COLUMN_SWEEP, False):
         v = metrics.column_jumps(build(**point), **point)["excess_jumps"]
         if v:
             bad.append(f"{metrics._fmt_point(point)}: {v}")
     assert not bad, (
-        "пол шкалы даёт лишние прыжки в точках " + "; ".join(bad)
-        + " — вариант сложен при одних параметрах, а померен при других")
+        "the floor of the scale gives extra jumps at points " + "; ".join(bad)
+        + " -- the variant was built at one set of parameters and measured at "
+          "another")
 
 
 def test_floor_built_at_defaults_would_not_be_a_floor():
@@ -365,8 +370,8 @@ def test_floor_built_at_defaults_would_not_be_a_floor():
     seen = [metrics.column_jumps(fixed, **p)["excess_jumps"]
             for p in metrics._sweep_points(metrics.COLUMN_SWEEP, False)]
     assert any(seen), (
-        f"на этих страницах группировка ничего не решает ({seen}): проверка "
-        f"выше прошла бы и на сломанном приборе")
+        f"grouping decides nothing on these pages ({seen}): the check above "
+        f"would pass on a broken instrument too")
 
 
 def test_ranking_rebuilds_the_variants_it_measures():
@@ -384,9 +389,10 @@ def test_ranking_rebuilds_the_variants_it_measures():
 
     metrics.column_jumps_ranking({"sentinel": spy, "model": M})
     pts = metrics._sweep_points(metrics.COLUMN_SWEEP, False)
-    assert seen, "сборщика не позвали ни разу — вариант не пересобирается"
+    assert seen, "the builder was never called -- the variant is not rebuilt"
     assert any(p for p in seen), (
-        f"сборщика звали {len(seen)} раз и ни разу с параметрами точки: "
-        f"пересборка есть только на словах")
+        f"the builder was called {len(seen)} times and never with a point's "
+        f"parameters: the rebuilding exists only in words")
     assert len(seen) <= len(pts), (
-        f"сборщика позвали {len(seen)} раз на {len(pts)} точках — лишний счёт")
+        f"the builder was called {len(seen)} times over {len(pts)} points -- "
+        f"an extra count")

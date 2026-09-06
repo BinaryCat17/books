@@ -9,10 +9,10 @@ untouched moved not one of the five. Nor did stopping halfway, at 300 files of
 
 WHAT DID MOVE, in that same experiment, was elsewhere in the same report:
 
-    на объекте вне замера: 350        -> the line disappeared entirely
-    лишняя рамка: 110                 -> 460
-    истина о порядке: не размечен 600 -> НЕ СКАЗАНО 600
-    sha256 сверен: 94cf0349275b       -> sha256 не сверен: поля нет в слепке
+    on an object outside scoring: 350 -> the line disappeared entirely
+    spurious_box: 110                 -> 460
+    truth on order: not marked 600    -> NOT SAID 600
+    sha256 checked: 94cf0349275b      -> sha256 NOT checked: no such field
 
 Three hundred and fifty boxes the bench had excluded from scoring were quietly
 charged to the model, and the distinction between "checked and equal" and "had
@@ -23,10 +23,10 @@ visible in the text around them.
 So the acceptance is the text. Every line of every report, compared verbatim.
 
 WHY `bench/hard` AND NOT ONLY `bench/annopage`. AnnoPage annotates no text at
-all, so the whole text half of the report is `НЕ РАЗМЕЧЕНЫ` there and stays
+all, so the whole text half of the report is `NOT MARKED` there and stays
 that way through any damage. `bench/hard` mixes 124 AnnoPage pages with 6
-synthetic ones, and it is the only tracked bench where the caption "считано по
-6 страницам из 130" exists to be lost.
+synthetic ones, and it is the only tracked bench where the caption "counted
+over 6 pages of 130" exists to be lost.
 
 WHY THESE FIVE COMMANDS. Together they touch every format the migration
 rewrites: truth and detect pages (`score`), truth content (`text`), the run
@@ -56,7 +56,7 @@ COMMANDS = {
         ["replay", "--check", "bench/annopage/detect"],
         ["bench/annopage/detect/run.json"]),
     # `books text --selfcheck` is here because the reports alone cannot see a
-    # broken PROBE. Measured: renaming the normalisation level `нет` to `none`
+    # broken PROBE. Measured: renaming the normalisation level to `none`
     # in one place and not the other made `--norm none` do exactly what
     # `boundary` does -- three levels became two -- and the probe that guarded
     # it threw instead of measuring. The report `text-slovar` was identical
@@ -92,14 +92,14 @@ def missing(name):
 # The wall clock on every log line, obviously.
 #
 # And the hash of a SOURCE file as it is right now -- `replay --check` prints
-# "(в слепке 1f3ac82a, в дереве 5b4afbfe)" to say the snapshot was taken with
+# "(snapshot 1f3ac82a, tree 5b4afbfe)" to say the snapshot was taken with
 # different code. That hash changes on every edit to `models/doclayout.py`,
 # comments included, so during a translation it would redden this report
 # constantly and get fixed by `--save`, which blesses the other 582 lines
 # blind. The hash IN THE SNAPSHOT is kept: it is data, and it must not move.
 # The hash of the file on disk is not what these reports are guarding.
 _CLOCK = re.compile(r"^\[\d\d:\d\d:\d\d\] ", re.M)
-_TREE_HASH = re.compile(r"(в дереве )[0-9a-f]{8,}")
+_TREE_HASH = re.compile(r"(tree )[0-9a-f]{8,}")
 
 
 def run(name):

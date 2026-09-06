@@ -320,8 +320,8 @@ def build(root: str, out_dir: str, split: str = "test", limit: int = 0,
 
     n_direct = sum(counts["direct"].values())
     man = {"book": "annopage",
-           "about": "AnnoPage: 7550 разметок к 5690 страницам, "
-                      "разметка библиотекарями, только НЕТЕКСТОВЫЕ объекты",
+           "about": "AnnoPage: 7550 annotations over 5690 pages, marked by "
+                    "librarians, NON-TEXT objects only",
            "origin": "Zenodo 10.5281/zenodo.12788419, CC BY 4.0",
            "split": split, "page_count": len(pages), "PAGE_DPI": dpi,
            "text_marked": False,

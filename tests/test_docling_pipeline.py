@@ -1,20 +1,22 @@
-"""Вендорский конвейер docling: поимённость перевода и цена выключенной ручки.
+"""The docling vendor pipeline: translation by name, and the price of the
+knob being off.
 
-Две вещи, обе про сговор двух файлов.
+Two things, both about a conspiracy of two files.
 
-ПЕРВАЯ. Перевод ярлыков наших весов в словарь docling объявлен ПОИМЁННО
-(`EGRET_TO_DOCLING`), а не правилом «в нижний регистр, дефис в подчёркивание».
-Правило молча приняло бы восемнадцатый класс новых весов и подсунуло бы его
-вендору под выдуманным именем. Поэтому неизвестное имя обязано ронять
-ПОСТРОЕНИЕ конвейера — на нулевой странице и по всему словарю весов сразу, а
-не на четырёхсотой после двадцати минут счёта.
+FIRST. The translation of our weights' labels into docling's vocabulary is
+declared BY NAME (`EGRET_TO_DOCLING`), not by a rule "lowercase, hyphen into
+underscore". A rule would silently accept an eighteenth class of new weights
+and hand it to the vendor under an invented name. So an unknown name must
+fail the CONSTRUCTION of the pipeline -- on page zero and over the whole
+weight vocabulary at once, not on page four hundred after twenty minutes of
+counting.
 
-ВТОРАЯ. `DOCLING_PIPELINE=off` — умолчание, и оно куплено замером: конвейер
-ухудшает слияние (366 -> 461), находимость (694 -> 562) и целость смысла
-(602 -> 500). Значит выключенный он обязан быть НЕ ПРОСТО безвредным, а
-тождественным прежнему коду: те же рамки, те же объекты, то же место ключа в
-meta. Иначе сверка «ручка выключена — ничего не изменилось» споткнётся о
-порядок ключей json, а не о рамки.
+SECOND. `DOCLING_PIPELINE=off` is the default, and it was bought by
+measurement: the pipeline worsens merging (366 -> 461), findability (694 ->
+562) and wholeness of meaning (602 -> 500). Switched off it must therefore be
+not merely harmless but IDENTICAL to the earlier code: the same boxes, the
+same objects, the same place for the key in meta. Otherwise the comparison
+"the knob is off, nothing changed" stumbles over json key order, not boxes.
 """
 import json
 import os
@@ -27,16 +29,19 @@ from booksmith.models.base import Block
 from booksmith.run import knobs
 
 OFF_META_KEYS = ["reading_order"]
-# Состав и порядок ключей meta страницы ДО появления конвейера. Конвейер
-# добавил `**pipe_meta` ровно на место бывшего «порядок чтения», и при `off`
-# он разворачивается в него же — страница выходит побайтово прежней.
+# The composition and order of the page's meta keys BEFORE the pipeline
+# existed. The pipeline put `**pipe_meta` exactly where "reading order" had
+# stood, and at `off` it unfolds into that same key -- the page comes out
+# byte for byte as before.
 META_BEFORE_PIPELINE = ["detector", "raster", "boxes_accepted",
                         "rank_ties", "reading_order",
                         "best_rejected_by_class"]
 
 
 class env:
-    """Ручка на время проверки. Окружение живое — возвращаем как было."""
+    """A knob for the length of a check. The environment is live:
+    put back as it was.
+    """
 
     def __init__(self, **kw):
         self.kw, self.old = kw, {}
@@ -66,81 +71,82 @@ def have_docling():
 
 
 def test_pipeline_default_is_off():
-    """Умолчание ВЫКЛЮЧЕНО, и это решение замера, а не вкус."""
+    """The default is OFF, a decision of measurement and not of taste."""
     assert knobs.KNOB["DOCLING_PIPELINE"].default == "off"
     with env(DOCLING_PIPELINE=None):
         assert knobs.knob("DOCLING_PIPELINE") == "off"
 
 
 def test_three_modes_not_two():
-    """`post` и `full` — разные значения: эффекты разные, и их надо разводить."""
+    """`post` and `full` are different values: the effects differ."""
     assert dh.PIPELINE_MODES == ("off", "post", "full")
 
 
 def test_unknown_mode_dies_loudly():
-    """`DOCLING_PIPELINE=вкл` роняет прогон и называет, что знает.
+    """`DOCLING_PIPELINE=on` fails the run and names what it does know.
 
-    Падение стоит миллисекунды и происходит ДО импорта docling: проверка
-    режима — первая строка конструктора.
+    The fall costs milliseconds and happens BEFORE docling is imported: the
+    mode check is the first line of the constructor.
     """
     try:
-        dh._DoclingPipeline("вкл", list(dh.DEFAULT_LABELS), "docling")
+        dh._DoclingPipeline("on", list(dh.DEFAULT_LABELS), "docling")
     except SystemExit as e:
         assert "off" in str(e) and "post" in str(e) and "full" in str(e)
     else:
-        raise AssertionError("неизвестный режим ручки принят молча")
+        raise AssertionError("an unknown knob mode was accepted silently")
 
 
 def test_translation_covers_both_dictionaries():
-    """Перевод сверяется с ОБОИМИ словарями политики, а не с одним.
+    """The translation is checked against BOTH policy vocabularies, not one.
 
-    Ключи `EGRET_TO_DOCLING` — витринные имена egret, значения — снейк-кейс
-    heron. Ровно эти же два набора объявлены политиками `Docling-egret` и
-    `Docling`. Разъедутся — вендор получит выдуманное имя, а `policy.check`
-    уронит прогон на своём же стенде.
+    The keys of `EGRET_TO_DOCLING` are egret's display names, the values are
+    heron's snake_case. Those same two sets are declared by the policies
+    `Docling-egret` and `Docling`. Let them drift apart and the vendor gets
+    an invented name, while `policy.check` fails the run on our own bench.
     """
     assert set(dh.EGRET_TO_DOCLING) == set(policy.DOCLING_EGRET), (
-        "словарь перевода и политика egret разошлись: "
+        "the translation table and the egret policy diverged: "
         f"{sorted(set(dh.EGRET_TO_DOCLING) ^ set(policy.DOCLING_EGRET))}")
     assert set(dh.EGRET_TO_DOCLING.values()) == set(policy.DOCLING), (
-        "перевод ведёт не в словарь heron: "
+        "the translation does not lead into heron's vocabulary: "
         f"{sorted(set(dh.EGRET_TO_DOCLING.values()) ^ set(policy.DOCLING))}")
     assert set(dh.DEFAULT_LABELS) == set(policy.DOCLING), (
-        "запасной словарь ярлыков heron разошёлся с политикой Docling")
+        "heron's fallback label vocabulary diverged from the Docling policy")
 
 
 def test_unknown_label_dies_at_construction():
-    """Неизвестное имя роняет ПОСТРОЕНИЕ, а не первую страницу.
+    """An unknown name fails the CONSTRUCTION, not the first page.
 
-    Проверяется по всему словарю весов сразу: на странице чужой ярлык мог бы и
-    не встретиться, а прогон всё равно неверен.
+    Checked over the whole weight vocabulary at once: a foreign label might
+    not turn up on a page, and the run is wrong all the same.
     """
     if not have_docling():
-        support.skip("нет пакета docling: pip install -e \".[docling]\"")
+        support.skip("no docling package: pip install -e \".[docling]\"")
     good = list(dh.DEFAULT_LABELS)
-    dh._DoclingPipeline("post", good, "docling")      # словарь весов целиком
+    dh._DoclingPipeline("post", good, "docling")   # whole weight vocabulary
     try:
         dh._DoclingPipeline("post", good + ["Chart"], "docling")
     except SystemExit as e:
-        assert "Chart" in str(e), f"в жалобе нет самого ярлыка: {e}"
+        assert "Chart" in str(e), f"the complaint omits the label itself: {e}"
         assert "EGRET_TO_DOCLING" in str(e), (
-            f"жалоба не говорит, ГДЕ чинить: {e}")
+            f"the complaint does not say WHERE to fix it: {e}")
     else:
         raise AssertionError(
-            "конвейер построился со словарём, в котором есть непереводимый "
-            "ярлык: он доедет до вендора под выдуманным именем")
+            "the pipeline was built with a vocabulary holding an "
+            "untranslatable label: it will reach the vendor under an "
+            "invented name")
 
 
 def test_egret_names_translate_whole():
-    """Витринные имена egret переводятся все до одного, тем же построением."""
+    """Every egret display name translates, by that same construction."""
     if not have_docling():
         support.skip("no_docling_package")
     p = dh._DoclingPipeline("post", list(dh.EGRET_TO_DOCLING),
                             "docling-egret")
     assert set(p.to_docling) == set(dh.EGRET_TO_DOCLING)
     assert set(p.back) == set(dh.EGRET_TO_DOCLING.values()), (
-        "обратный перевод неполон: наружу ярлык обязан возвращаться в "
-        "написании адаптера, иначе policy.check уронит прогон egret")
+        "the reverse translation is incomplete: outward a label must come "
+        "back in the adapter's spelling, or policy.check fails the egret run")
 
 
 def _blocks():
@@ -151,57 +157,58 @@ def _blocks():
 
 
 def test_off_returns_the_very_same_frames():
-    """При выключенной ручке рамки не копируются и не трогаются ВОВСЕ.
+    """With the knob off the boxes are neither copied nor touched AT ALL.
 
-    Сверяется тождество объекта, а не равенство: копия, сделанная «на всякий
-    случай», уже была бы местом, где что-то может измениться.
+    Identity of the object is compared, not equality: a copy made just in
+    case would already be a place where something can change.
     """
     adapter = object.__new__(dh.DoclingHeron)
     adapter._pipe = None
     blocks = _blocks()
     before = json.dumps([asdict(b) for b in blocks], ensure_ascii=False)
     out, meta = adapter._run_pipeline(blocks, 800, 1200, 0)
-    assert out is blocks, "при off рамки пересобираются — это уже не «как есть»"
+    assert out is blocks, "at off the boxes are rebuilt -- no longer as is"
     assert json.dumps([asdict(b) for b in out], ensure_ascii=False) == before
 
 
 def test_off_adds_exactly_one_meta_key():
-    """И ровно один ключ meta, тот самый. Лишний ключ — уже другая страница."""
+    """And exactly one meta key, that one. An extra key is another page."""
     adapter = object.__new__(dh.DoclingHeron)
     adapter._pipe = None
     _, meta = adapter._run_pipeline(_blocks(), 800, 1200, 0)
     assert list(meta) == OFF_META_KEYS, (
-        f"при off meta страницы получила {list(meta)}, а прежде в ней стоял "
-        f"один ключ {OFF_META_KEYS}")
+        f"at off the page's meta got {list(meta)}, while before it held the "
+        f"single key {OFF_META_KEYS}")
 
 
 def test_off_keeps_meta_key_order_byte_for_byte():
-    """Место ключа в словаре — не косметика: json пишет ключи по порядку."""
+    """A key's place in the dict is not cosmetic: json writes keys in order."""
     keys = support.meta_keys("models/docling_heron.py", "DoclingHeron")
     assert "**pipe_meta" in keys, (
-        "в meta страницы больше нет `**pipe_meta`: либо конвейер пишет ключи "
-        "мимо, либо проверка отстала от кода")
+        "the page's meta no longer holds `**pipe_meta`: either the pipeline "
+        "writes its keys elsewhere, or this check has fallen behind the code")
     i = keys.index("**pipe_meta")
     got = keys[:i] + OFF_META_KEYS + keys[i + 1:]
     assert got == META_BEFORE_PIPELINE, (
-        f"при DOCLING_PIPELINE=off состав или порядок ключей meta изменился:\n"
-        f"  было  {META_BEFORE_PIPELINE}\n  стало {got}\n"
-        f"Побайтового совпадения с прежними страницами больше нет.")
+        f"at DOCLING_PIPELINE=off the composition or the order of the meta "
+        f"keys changed:\n"
+        f"  was  {META_BEFORE_PIPELINE}\n  now  {got}\n"
+        f"There is no byte-for-byte match with the earlier pages any more.")
 
 
 def test_adapter_at_off_builds_no_pipeline():
-    """Живой адаптер на настоящих весах: при off вендорского кода нет вовсе.
+    """The live adapter on real weights: at off there is no vendor code at all.
 
-    Медленная (поднимает сессию ONNX), поэтому по требованию: --slow.
+    Slow (it raises an ONNX session), hence on demand: --slow.
     """
     if not os.environ.get("BOOKSMITH_TESTS_SLOW"):
-        support.skip("медленная (~5с, поднимает ONNX): запусти с --slow")
+        support.skip("slow (~5s, raises ONNX): run it with --slow")
     if not os.path.isdir(os.path.join(dh.MODELS, "docling-heron_onnx")):
-        support.skip("нет весов docling-heron_onnx")
+        support.skip("no docling-heron_onnx weights")
     with env(DOCLING_PIPELINE="off"):
         a = dh.DoclingHeron()
     assert a.pipeline == "off"
-    assert a._pipe is None, "ручка выключена, а конвейер вендора построен"
+    assert a._pipe is None, "the knob is off, yet the vendor pipeline is built"
     assert "DOCLING_PIPELINE" in a.knobs_read(), (
-        "ручка решает прогон, но адаптер её не объявляет — слепок двух "
-        "разных прогонов станет неотличим")
+        "the knob decides the run, yet the adapter does not declare it -- "
+        "the snapshots of two different runs become indistinguishable")

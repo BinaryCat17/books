@@ -1,6 +1,6 @@
 {
  "book": "zhurnal",
- "about": "сборник статей: заголовок и авторы, аннотация, врезка в рамке, обтекание, подпись сбоку от рисунка, сноски, список литературы",
+ "about": "collection of articles: title and authors, abstract, boxed insert, text wrap, a caption beside the figure, footnotes, references",
  "page_count": 10,
  "synth_seed": 1,
  "aging": "old",

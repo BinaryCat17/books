@@ -1,25 +1,27 @@
-"""Сговор внутри `yolox_layout.py`: чем ужимают вход и что об этом записано.
+"""A conspiracy inside `yolox_layout.py`: what shrinks the input, and what
+the fingerprint records about it.
 
-ЧТО ЗДЕСЬ ЗАКРЕПЛЕНО И ЧЕМ ЗА ЭТО ПЛАТИЛИ. Фильтр ужатия был голым литералом
-`interpolation=1` внутри `_letterbox` и в отпечаток не попадал — в отличие от
-соседней подложки `PAD`, объявленной константой. А решает он больше всех
-прочих чисел файла: замер на `bench/slovar` (13 страниц, прочее неизменно) —
-520 рамок при LINEAR, 492 при NEAREST, 497 при CUBIC, 519 при AREA, и
-СОВПАВШИХ С БАЗОЙ рамок 0, 1 и 28 соответственно. То есть подмена фильтра
-меняет все координаты до единой. У `doclayout` этот же фильтр читается из
-весов и лежит в отпечатке; здесь `books replay --check` увидеть его не мог по
-построению, и прогон был неповторим МОЛЧА.
+WHAT IS PINNED HERE AND WHAT IT COST. The shrink filter was a bare
+`interpolation=1` inside `_letterbox` and never reached the fingerprint --
+unlike the neighbouring `PAD`, declared a constant. Yet it decides more than
+any other number in the file: on `bench/slovar` (13 pages, all else
+unchanged) 520 boxes at LINEAR, 492 at NEAREST, 497 at CUBIC, 519 at AREA, of
+which MATCHING THE BASELINE 0, 1 and 28. Swapping the filter moves every
+coordinate there is. `doclayout` reads the same filter out of its weights and
+keeps it in the fingerprint; here `books replay --check` could not see it by
+construction, and the run was unrepeatable SILENTLY.
 
-Величину объявили константой и завели в отпечаток — а сторожа не поставили, и
-скептик это доказал прогоном: из копии дерева вынули поле «фильтр cv2», и
-батарея объявила себя полностью исправной (163 проверки, 0 провалено; 139
-мутаций, 139 поймано). Свежий `books detect` испорченным кодом давал слепок
-без поля, а `replay --check` печатал «величин в слепке 77 из 77, не хватает 0»
-и код 0. То есть неповторимость возвращалась ровно тем же молчанием.
+The value became a constant and reached the fingerprint -- with no guard set,
+and a sceptic proved that by running: with the `cv2_filter` field cut out of
+a copy of the tree the battery declared itself entirely sound (163 checks, 0
+failed; 139 mutations, 139 caught), a fresh `books detect` on the broken code
+wrote a snapshot without the field, and `replay --check` printed 77
+quantities of 77, 0 missing, and exited 0. The unrepeatability came back
+through the very same silence.
 
-РАЗБОРОМ ИСХОДНИКА, А НЕ ИСПОЛНЕНИЕМ: `fingerprint()` живёт на построенном
-адаптере, а построить его — поднять 216 МБ весов. Разбор видит ровно то, что
-увидит человек. Тот же приём, что у прочих сговоров этого каталога.
+BY PARSING THE SOURCE, NOT BY RUNNING IT: `fingerprint()` lives on a built
+adapter, and building one raises 216 MB of weights. The parse sees exactly
+what a person sees -- the trick of every conspiracy in this directory.
 """
 import ast
 
@@ -29,7 +31,7 @@ REL = "models/yolox_layout.py"
 
 
 def _resize_call(t):
-    """Единственный `cv2.resize` файла."""
+    """The one and only `cv2.resize` of the file."""
     out = []
     for node in ast.walk(t):
         if (isinstance(node, ast.Call)
@@ -40,26 +42,28 @@ def _resize_call(t):
 
 
 def test_the_resize_filter_is_a_named_constant_not_a_literal():
-    """`cv2.resize` берёт фильтр ИМЕНЕМ, а не числом на месте.
+    """`cv2.resize` takes the filter BY NAME, not by a number in place.
 
-    Умеет провалиться: верните `interpolation=1`, и проверка покраснеет.
+    Can fail: put `interpolation=1` back and the check reddens.
     """
     calls = _resize_call(support.tree(REL))
-    assert len(calls) == 1, f"вызовов cv2.resize {len(calls)}, ожидался один"
+    assert len(calls) == 1, f"cv2.resize calls {len(calls)}, expected one"
     kw = {k.arg: k.value for k in calls[0].keywords}
-    assert "interpolation" in kw, "фильтр ужатия вообще не задан"
+    assert "interpolation" in kw, "the shrink filter is not given at all"
     v = kw["interpolation"]
     assert isinstance(v, ast.Name), (
-        "фильтр ужатия задан числом на месте, а не именованной константой — "
-        "значит в отпечаток он не попадёт и прогон станет неповторим молча")
-    assert v.id == "INTERP", f"фильтр зовут {v.id}, а отпечаток ждёт INTERP"
+        "the shrink filter is a number in place, not a named constant -- so "
+        "it will not reach the fingerprint and the run goes unrepeatable "
+        "silently")
+    assert v.id == "INTERP", (
+        f"the filter is called {v.id}, the fingerprint expects INTERP")
 
 
 def test_the_fingerprint_declares_the_resize_filter():
-    """Отпечаток объявляет фильтр ужатия ТОЙ ЖЕ константой.
+    """The fingerprint declares the shrink filter by THE SAME constant.
 
-    Сговор здесь между двумя местами одного файла: `_letterbox` ужимает, а
-    `fingerprint` записывает. Разойдясь, они оба остаются исправными на вид.
+    A conspiracy between two places in one file: `_letterbox` shrinks,
+    `fingerprint` records. Diverged, both still look sound alone.
     """
     t = support.tree(REL)
     named = set()
@@ -71,26 +75,28 @@ def test_the_fingerprint_declares_the_resize_filter():
                     and isinstance(v, ast.Name)):
                 named.add(v.id)
     assert "INTERP" in named, (
-        "в отпечатке нет поля «фильтр cv2» со значением INTERP. Подмена "
-        "фильтра меняет ВСЕ координаты рамок (520 против 492/497/519 на "
-        "bench/slovar, совпавших с базой 0/1/28), а слепок об этом молчит — "
-        "`books replay --check` такую разницу увидеть не может")
+        "the fingerprint has no `cv2_filter` field holding INTERP. Swapping "
+        "the filter moves ALL box coordinates (520 against 492/497/519 on "
+        "bench/slovar, matching the baseline 0/1/28) while the snapshot "
+        "keeps quiet -- `books replay --check` cannot see such a difference")
 
 
 def test_the_fingerprint_asks_the_threshold_guard_instead_of_a_literal():
-    """«Расхождение порога» в отпечатке — ВЫЗОВ сторожа, а не литерал.
+    """`threshold_drift` in the fingerprint is a CALL of the guard, not a
+    literal.
 
-    ЧЕМ ЭТО ОПЛАЧЕНО. Здесь стояло зашитое `[]`, при том что
-    `threshold_drift()` у этой сборки говорит непустое ВСЕГДА: родного порога
-    у весов нет, действует наш `LAYOUT_SCORE_THRESHOLD`. То есть адаптер
-    кричал об этом в журнал, а в `run.json` писал «расхождения нет» — слепок
-    противоречил собственному сторожу, и ровно этот дефект у `docling_heron`
-    уже был найден и починен, а третий адаптер из трёх забыли.
+    WHAT PAID FOR IT. A hard-wired `[]` stood here, while `threshold_drift()`
+    on this build says non-empty ALWAYS: the weights carry no threshold of
+    their own, ours -- `LAYOUT_SCORE_THRESHOLD` -- is in force. The adapter
+    shouted that into the log and wrote "no drift" into `run.json`: the
+    snapshot contradicted its own guard. This very defect was found and fixed
+    in `docling_heron`, and the third adapter of the three was forgotten.
 
-    Литерал опасен тем, что выглядит исправным: поле в слепке ЕСТЬ, и
-    `books replay --check` его наличие одобряет — он сверяет ключи, а не
-    значения. Разбором исходника, а не исполнением, по той же причине, что и
-    у соседних проверок файла: построить адаптер значит поднять веса.
+    A literal is dangerous because it looks sound: the field IS in the
+    snapshot, and `books replay --check` approves its presence -- it compares
+    keys, not values. By parsing the source rather than running, for the same
+    reason as the neighbouring checks: building the adapter means raising the
+    weights.
     """
     t = support.tree(REL)
     seen = []
@@ -100,12 +106,13 @@ def test_the_fingerprint_asks_the_threshold_guard_instead_of_a_literal():
         for k, v in zip(node.keys, node.values):
             if isinstance(k, ast.Constant) and k.value == "threshold_drift":
                 seen.append(v)
-    assert seen, "в отпечатке нет поля «расхождение порога» вовсе"
+    assert seen, "the fingerprint has no `threshold_drift` field at all"
     assert all(isinstance(v, ast.Call)
                and isinstance(v.func, ast.Attribute)
                and v.func.attr == "threshold_drift" for v in seen), (
-        "поле «расхождение порога» в отпечатке — не вызов "
-        "`self.threshold_drift()`. Зашитое значение врёт молча: сторож "
-        "говорит «родного порога нет, действует наш LAYOUT_SCORE_THRESHOLD», "
-        "а слепок отвечает «расхождения нет», и `replay --check` это "
-        "одобряет, потому что сверяет наличие ключа, а не значение")
+        "the `threshold_drift` field of the fingerprint is not a call of "
+        "`self.threshold_drift()`. A hard-wired value lies silently: the "
+        "guard says the weights have no threshold of their own and our "
+        "LAYOUT_SCORE_THRESHOLD is in force, the snapshot answers \"no "
+        "drift\", and `replay --check` approves it, because it compares the "
+        "presence of a key, not its value")

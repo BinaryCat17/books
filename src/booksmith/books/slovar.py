@@ -1,46 +1,54 @@
-"""Словарь: узкие колонки мелким шрифтом — то, чего у справочника нет вовсе.
+"""A dictionary: narrow columns in small type -- what the handbook lacks.
 
-ГЛАВНЫЙ ВОПРОС ЭТОЙ КНИГИ. Померено, что детектор втягивает в рамку таблицы
-всё, что стоит рядом по горизонтали. Померено и обратное: колонки ПРОЗЫ он
-разделяет исправно — на 36 страницах справочника 98 пар текстовых рамок стоят
-бок о бок. Значит слияние — свойство не соседства вообще, а таблицы.
+THE QUESTION THIS BOOK ASKS. It is measured that the detector pulls into a
+table's box whatever stands beside it horizontally. The converse is measured
+too: columns of PROSE it separates correctly -- 98 pairs of text boxes stand
+side by side over 36 handbook pages. So merging is a property of the table,
+not of adjacency as such.
 
-Словарь ставит этот вопрос ребром: его колонки — проза, но по виду ближе
-всего к таблице (выровненные короткие строки, висячий отступ, узкий столбец,
-мелкий кегль). Просвет разворачивается от 26 пунктов до 5, и отдельная
-страница ставит в просвет ВЕРТИКАЛЬНУЮ ЛИНЕЙКУ: до сих пор единственное, что
-заставило детектор разделить две таблицы, была тень переплёта, то есть
-физический разрез. Линейка — тот же разрез, но нарисованный.
+The dictionary puts that to the test: its columns are prose, but they look
+more like a table than anything else (aligned short lines, hanging indent, a
+narrow column, small type). The gap sweeps from 26 points down to 5, and one
+page puts a VERTICAL RULE into the gap. Until now the only thing that made the
+detector separate two tables was the gutter shadow -- a physical cut. The rule
+is that same cut, drawn.
 
-Пара страниц `slov_index_numbers` / `slov_abbrev_table` сделана нарочно
-неразличимой на глаз: одинаковая сетка, в первой это ТЕКСТ (указатель), во
-второй ТАБЛИЦА. Цена ошибки ярлыка на неотличимых страницах — то, ради чего
-пара и стоит.
+The pair `slov_index_numbers` / `slov_abbrev_table` is made deliberately
+indistinguishable by eye: the same grid, TEXT (an index) in the first and a
+TABLE in the second. The price of a label error on indistinguishable pages is
+what the pair exists to show.
 """
 from ..synth import (ENTRY_EN, ENTRY_RU, SynthError, _entries, _figure,
                      _grid, _line, _page, _put, _running_head, _say, _table,
                      _text_w)
 
-# Карманный формат: лист уже и ниже справочника, аспект 0.588 против 0.690.
+# Pocket format: narrower and shorter than the handbook, aspect 0.588 vs 0.690.
 SHEET = (680, 1156)
 PT = 0.5
-PW, PH = SHEET[0] * PT, SHEET[1] * PT      # 340 x 578 пунктов
+PW, PH = SHEET[0] * PT, SHEET[1] * PT      # 340 x 578 points
 MARGIN, TOP, BOT_Y = 20.0, 34.0, 552.0
-ABOUT = ("карманный словарь-указатель: узкие колонки, висячий отступ, "
-         "колонтитул; ставит вопрос «слияние — свойство таблицы или "
-         "соседства?» на колонках ПРОЗЫ")
+ABOUT = ("pocket dictionary and index: narrow columns, hanging indent, "
+         "running head; asks \"is merging a property of the table or of "
+         "adjacency?\" on columns of PROSE")
 
 WORDS_EN = ("Abutment", "Backlash", "Camshaft", "Dowel", "Eccentric",
             "Flywheel", "Gudgeon", "Hardening", "Indexing", "Journal",
             "Keyway", "Lapping", "Mandrel", "Nitriding", "Overhang",
             "Pinion", "Quenching", "Reaming", "Spindle", "Tailstock")
+# The Russian half of the parallel-text page is BOOK CONTENT: it is drawn
+# onto the sheet, and the sheet is a page of a Russian-English dictionary.
+# It lives in a constant whose name ends in `_RU` because that is how
+# `booksmith.cyr` tells content from prose -- an inline literal would have
+# been counted as untranslated prose, and translating it would have destroyed
+# the page it belongs to.
+TAIL_RU = "деталь, несущая нагрузку в сборке"
 WORDS_RU = ("Вал", "Втулка", "Гайка", "Допуск", "Заготовка", "Износ",
             "Калибр", "Люнет", "Муфта", "Наплавка", "Оправка", "Патрон",
             "Развёртка", "Суппорт", "Фаска", "Хомут", "Цанга", "Шпонка")
 
 
 def _cols(n, gap):
-    """Начала и ширина n колонок при заданном просвете."""
+    """The starts and the width of n columns at the given gap."""
     w = (PW - 2 * MARGIN - (n - 1) * gap) / n
     return [MARGIN + i * (w + gap) for i in range(n)], w
 
@@ -51,9 +59,9 @@ def _sheet(doc):
 
 def _fill_cols(pg, t, n, gap, words, size=5.8, bold=False, y0=None,
                label="text", tpl=ENTRY_EN):
-    """Колонки гнёзд. У каждой СВОЙ отрезок словника: настоящая страница
-    словаря идёт по алфавиту слева направо, а не повторяет одно и то же
-    четырежды."""
+    """Columns of entries, each with ITS OWN slice of the word list: a real
+    dictionary page runs alphabetically left to right rather than repeating
+    the same thing four times."""
     xs, w = _cols(n, gap)
     for k, x in enumerate(xs):
         _entries(pg, t, x, y0 or TOP, BOT_Y, w, PW, words, size=size,
@@ -62,31 +70,31 @@ def _fill_cols(pg, t, n, gap, words, size=5.8, bold=False, y0=None,
 
 
 def c_slov_2col(doc, rng):
-    """КОНТРОЛЬ: две колонки, просвет 26 пт. Слияния быть не должно."""
+    """CONTROL: two columns, 26 pt gap. There must be no merging."""
     pg = _sheet(doc); t = []
     _fill_cols(pg, t, 2, 26.0, WORDS_EN)
     return pg, t
 
 
 def c_slov_3col(doc, rng):
-    """Три колонки, просвет 10 пт — с междустрочье."""
+    """Three columns, 10 pt gap -- about one line's leading."""
     pg = _sheet(doc); t = []
     _fill_cols(pg, t, 3, 10.0, WORDS_EN, size=5.2)
     return pg, t
 
 
 def c_slov_4col_tight(doc, rng):
-    """Предел: четыре колонки, просвет 5 пт, кегль 4.8."""
+    """The limit: four columns, 5 pt gap, 4.8 pt type."""
     pg = _sheet(doc); t = []
     _fill_cols(pg, t, 4, 5.0, WORDS_EN, size=4.8)
     return pg, t
 
 
 def c_slov_4col_ruled(doc, rng):
-    """То же, но в КАЖДЫЙ просвет поставлена вертикальная линейка.
+    """The same, with a vertical rule in EVERY gap.
 
-    До сих пор единственное, что заставило детектор разделить две таблицы, —
-    тень переплёта, физический разрез. Линейка — тот же разрез, нарисованный.
+    Until now the only thing that made the detector separate two tables was
+    the gutter shadow, a physical cut. The rule is that cut, drawn.
     """
     pg = _sheet(doc); t = []
     xs, w = _fill_cols(pg, t, 4, 5.0, WORDS_EN, size=4.8)
@@ -96,16 +104,17 @@ def c_slov_4col_ruled(doc, rng):
 
 
 def c_slov_index_numbers(doc, rng):
-    """Указатель: слово и номера страниц через запятую, три колонки.
+    """An index: a word and page numbers, comma separated, three columns.
 
-    ТЕКСТ, а не таблица. Пара к `slov_abbrev_table`, где та же сетка — таблица.
+    TEXT, not a table. The pair to `slov_abbrev_table`, where the same grid IS
+    a table.
     """
     pg = _sheet(doc); t = []
     xs, w = _cols(3, 10.0)
-    # Блок истины — ГРУППА строк под буквой, а не строка. Строка блоком не
-    # бывает: детектор такой рамки не отдаёт ни при каком пороге, и «нашлось
-    # 0 из 204» читалось бы как слепота модели, будучи нашей же ошибкой
-    # гранулярности.
+    # A truth block is the GROUP of lines under a letter, not one line. A
+    # single line is never a block: no detector returns such a box at any
+    # threshold, and "found 0 of 204" would have read as the model being blind
+    # when it was our own granularity mistake.
     for c, x in enumerate(xs):
         y = TOP
         n = c * 7
@@ -137,8 +146,8 @@ def c_slov_index_numbers(doc, rng):
 
 
 def c_slov_abbrev_table(doc, rng):
-    """Таблица сокращений в четыре узких столбца. Пара к указателю выше:
-    на глаз то же, в истине — одна `table`."""
+    """A table of abbreviations in four narrow columns. The pair to the index
+    above: the same by eye, one `table` in the truth."""
     pg = _sheet(doc); t = []
     _put(pg, MARGIN, TOP, "TABLE OF ABBREVIATIONS", 7.0, sheet_w=PW)
     t.append((MARGIN - 2, TOP - 8, MARGIN + _text_w("TABLE OF ABBREVIATIONS", 7.0) + 2,
@@ -150,15 +159,15 @@ def c_slov_abbrev_table(doc, rng):
 
 
 def c_slov_parallel(doc, rng):
-    """Параллельный текст: статья и перевод, строки выровнены построчно.
+    """Parallel text: entry and translation, aligned line for line.
 
-    Самый похожий на таблицу вид ТЕКСТА: две колонки, строки на одной высоте.
+    The most table-like kind of TEXT there is: two columns, rows at one height.
     """
     pg = _sheet(doc); t = []
     xs, w = _cols(2, 14.0)
     y = TOP
     k = 0
-    # Блок истины — АБЗАЦ из пяти построчно выровненных строк, а не строка.
+    # A truth block is the PARAGRAPH of five aligned lines, not one line.
     while y < BOT_Y - 50:
         y0, yy = y, y
         for x, lang in zip(xs, ("en", "ru")):
@@ -167,8 +176,7 @@ def c_slov_parallel(doc, rng):
             for j in range(5):
                 src = WORDS_EN if lang == "en" else WORDS_RU
                 tail = ("the part that carries the load in the assembly"
-                        if lang == "en" else
-                        "деталь, несущая нагрузку в сборке")
+                        if lang == "en" else TAIL_RU)
                 ln = f"{src[(k + j) % len(src)]} — {tail}"
                 while _text_w(ln, 5.4) > w:
                     ln = ln[:-2]
@@ -183,9 +191,9 @@ def c_slov_parallel(doc, rng):
 
 
 def c_slov_grammar_block(doc, rng):
-    """Табличка форм 3x4 ВНУТРИ узкой колонки, текст вплотную сверху и снизу.
+    """A 3x4 grid of forms INSIDE a narrow column, text tight above and below.
 
-    Вертикальное слияние проверялось только на полосе во всю ширину набора.
+    Vertical merging has only ever been tested on a full-measure page.
     """
     pg = _sheet(doc); t = []
     xs, w = _cols(2, 20.0)
@@ -198,10 +206,10 @@ def c_slov_grammar_block(doc, rng):
 
 
 def c_slov_running_head(doc, rng):
-    """Колонтитул с диапазоном слов, линейка и колонцифра.
+    """A running head with a word range, a rule and a folio.
 
-    Класс `header` стендом не проверялся ни разу: у справочника есть только
-    `number`.
+    The class `header` has never been tested by the bench: the handbook has
+    only `number`.
     """
     pg = _sheet(doc); t = []
     _running_head(pg, t, MARGIN, PW - MARGIN, TOP - 12, "ABUTMENT", "CAMSHAFT",
@@ -211,21 +219,21 @@ def c_slov_running_head(doc, rng):
 
 
 def c_slov_headword_bold(doc, rng):
-    """Гнёзда выделены разрядкой: рвёт ли выделение колонку на гнёзда."""
+    """Headwords set in letter-spacing: does emphasis tear the column up?"""
     pg = _sheet(doc); t = []
     _fill_cols(pg, t, 2, 18.0, WORDS_EN, size=5.6, bold=True)
     return pg, t
 
 
 def c_slov_cyrillic(doc, rng):
-    """КОНТРОЛЬ письменности: то же устройство, кириллица."""
+    """SCRIPT CONTROL: the same construction, in Cyrillic."""
     pg = _sheet(doc); t = []
     _fill_cols(pg, t, 3, 10.0, WORDS_RU, size=5.2, tpl=ENTRY_RU)
     return pg, t
 
 
 def c_slov_letter_divider(doc, rng):
-    """Буквенный разделитель во всю ширину набора между гнёздами."""
+    """A full-measure letter divider between the entries."""
     pg = _sheet(doc); t = []
     xs, w = _cols(2, 18.0)
     for x in xs:
@@ -241,7 +249,7 @@ def c_slov_letter_divider(doc, rng):
 
 
 def c_slov_small_cut(doc, rng):
-    """Мелкий рисунок ВНУТРИ узкой колонки, текст обтекает его сверху и снизу."""
+    """A small figure INSIDE a narrow column, text flowing above and below."""
     pg = _sheet(doc); t = []
     xs, w = _cols(2, 18.0)
     _entries(pg, t, xs[0], TOP, 200, w, PW, WORDS_EN, size=5.6)

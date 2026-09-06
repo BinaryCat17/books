@@ -157,8 +157,8 @@ def build(books, out_dir: str, root: str = "bench", log=print) -> dict:
     pdf = os.path.join(out_dir, "hard.pdf")
     doc.save(pdf, garbage=3, deflate=True)
     doc.close()
-    man = {"book": "hard", "about": "выжимка: два артефакта одного ярлыка "
-                                       "бок о бок в истине",
+    man = {"book": "hard", "about": "subset: two artifacts of one label "
+                                    "side by side in the truth",
            "page_count": len(kept), "side_by_side_pairs": pairs_total,
            "by_book": per_book, "pages": [{"book": b, "page_no": i}
                                                for b, i in kept],

@@ -41,9 +41,18 @@ PT = 72.0 / DPI                   # pixel -> point
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf"
 FONT_MONO = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"
 
-ABOUT = ("английский технический справочник пятидесятых: плотная "
-         "двухколонная вёрстка, таблицы без линеек, чертежи, развороты "
-         "и повороты")
+ABOUT = ("English technical handbook of the fifties: dense two-column "
+         "setting, tables without rules, drawings, spreads and rotations")
+
+# DRAWN ONTO THE PAGE, therefore book content, therefore a name ending in
+# `_RU` -- see `booksmith.cyr`. These were inline literals and an inline
+# literal is counted as untranslated prose: the ratchet asked for them in
+# English, and English here would have changed the raster of the two Cyrillic
+# pages of the handbook and moved every ink figure measured on them.
+BOX_TITLE_RU = "ВРЕЗКА"
+FIG_CAPTION_RU = "Рис. 3.  Схема испытания"
+HEADS_RU = ("Марка", "σ, МПа", "δ, %", "НВ",
+            "Примечание")
 
 PROSE_EN = (
     "The lead screw must be lowered to obtain a correct alignment with the "
@@ -102,14 +111,14 @@ def _say(truth, text=None, *, cells=None, spans=None, add=False):
     truth absent.
     """
     if not truth:
-        raise SynthError("_say позван раньше, чем добавлена рамка истины")
+        raise SynthError("`_say` called before a truth box was added")
     i = len(truth) - 1
     rec = _SAID.get(i)
     if rec is not None and not add:
         raise SynthError(
-            f"истина знаков блока {i} ({truth[i][4]}) переписывается второй "
-            f"раз: было {rec!r}, стало {text!r}. Либо `_say` отстал от "
-            f"`append` на блок, либо надо add=True")
+            f"character truth of block {i} ({truth[i][4]}) is being written "
+            f"a second time: was {rec!r}, now {text!r}. Either `_say` is one "
+            f"block behind `append`, or add=True is wanted")
     if rec is None:
         rec = {}
         _SAID[i] = rec
@@ -149,13 +158,13 @@ def _fill(pg, rect, text, size, font="F"):
         if rc < 0:
             body = body[:int(len(body) * 0.9)]
             if len(body) < 20:
-                raise SynthError(f"в рамку {rect} не влезает даже 20 знаков")
+                raise SynthError(f"not even 20 characters fit the box {rect}")
             continue
         if rc > size * 1.4 and len(body) < len(text) * 12:
             body = body + text
             continue
         return body
-    raise SynthError(f"не сошлось наполнение рамки {rect}")
+    raise SynthError(f"filling the box {rect} did not converge")
 
 
 def _rect(x0, y0, x1, y1):
@@ -430,8 +439,8 @@ def _line(pg, x0, y0, x1, y1, width=0.9):
     pixels darker than INK, so for the truth it does not exist at all."""
     import pymupdf
     if width < 0.5:
-        raise SynthError(f"линейка {width} пт тоньше пола 0.5: её не увидит "
-                         f"ни `_measure`, ни модель")
+        raise SynthError(f"a rule {width} pt is under the floor of 0.5: "
+                         f"neither `_measure` nor the model will see it")
     pg.draw_line(pymupdf.Point(x0, y0), pymupdf.Point(x1, y1),
                  color=(0, 0, 0), width=width)
 
@@ -449,8 +458,9 @@ def _put(pg, x, y, text, size=6.4, font="F", right=None, sheet_w=None):
         x = right - w
     if sheet_w is not None and x + w > sheet_w + 0.5:
         raise SynthError(
-            f"строка {text[:24]!r} шириной {w:.0f} пт не влезает на лист "
-            f"{sheet_w:.0f} пт от x={x:.0f}: `insert_text` обрежет её молча")
+            f"the line {text[:24]!r}, {w:.0f} pt wide, does not fit a "
+            f"{sheet_w:.0f} pt sheet from x={x:.0f}: `insert_text` will clip "
+            f"it silently")
     pg.insert_text((x, y), text, fontname=font, fontsize=size)
     return w
 
@@ -537,8 +547,8 @@ def _formula(pg, truth, x, y, text, size=8.5, number=None, right=None,
     bad = _has_glyphs(text, "M")
     if bad:
         raise SynthError(
-            f"в шрифте нет знаков {bad} — они нарисуются пустыми рамками, и "
-            f"стенд померит квадратики вместо формулы")
+            f"the font lacks {bad}: they draw as empty boxes, and the bench "
+            f"would measure squares instead of a formula")
     w = _put(pg, x, y, text, size, font="M", sheet_w=sheet_w)
     truth.append((x - 3, y - size - 1, x + w + 3, y + 3, "display_formula"))
     # An artifact by policy (cropped as an image): glyphs to the artifact
@@ -583,7 +593,7 @@ def _matrix(pg, truth, x, y, rows, cols, size=6.6, kind="matrix",
     return y1 + size * 1.4
 
 
-def _box_insert(pg, truth, x, y, w, h, prose, size=5.8, title="ВРЕЗКА"):
+def _box_insert(pg, truth, x, y, w, h, prose, size=5.8, title=BOX_TITLE_RU):
     """A boxed insert: to the eye, a one-cell table."""
     import pymupdf
     pg.draw_rect(pymupdf.Rect(x, y, x + w, y + h), color=(0, 0, 0), width=0.8)
@@ -857,12 +867,15 @@ def c_russian(doc, rng):
     """Cyrillic: our books are in it, a Latin bench gives no such class."""
     pg = _page(doc); t = []
     y = _flow(pg, t, COL_X[0], TOP, 300, PROSE_RU)
-    _table(pg, t, COL_X[0] + 6, y + 14, [("Марка", COL_X[0] + 6),
-                                         ("σ, МПа", COL_X[0] + 76),
-                                         ("НВ", COL_X[0] + 146)], 6)
+    # Three of the five, and NOT the first three: the narrow table carries
+    # grade, strength and hardness, skipping elongation.
+    narrow = (HEADS_RU[0], HEADS_RU[1], HEADS_RU[3])
+    _table(pg, t, COL_X[0] + 6, y + 14,
+           list(zip(narrow, (COL_X[0] + 6, COL_X[0] + 76,
+                             COL_X[0] + 146))), 6)
     _flow(pg, t, COL_X[0], y + 130, BOT, PROSE_RU)
     y2 = _flow(pg, t, COL_X[1], TOP, 280, PROSE_RU)
-    _figure(pg, t, COL_X[1], y2 + 12, COLW, 100, "Рис. 3.  Схема испытания")
+    _figure(pg, t, COL_X[1], y2 + 12, COLW, 100, FIG_CAPTION_RU)
     _flow(pg, t, COL_X[1], y2 + 132, BOT, PROSE_RU)
     return pg, t
 
@@ -1003,9 +1016,9 @@ def c_russian_table_wide(doc, rng):
     """Cyrillic plus a wide full-width table."""
     pg = _page(doc); t = []
     _flow(pg, t, MARGIN, TOP, 230, PROSE_RU, w=2 * COLW + GUT)
-    _table(pg, t, MARGIN + 6, 260, [("Марка", MARGIN + 6), ("σ, МПа", MARGIN + 96),
-                                    ("δ, %", MARGIN + 186), ("НВ", MARGIN + 276),
-                                    ("Примечание", MARGIN + 356)], 16, colw=76)
+    _table(pg, t, MARGIN + 6, 260,
+           list(zip(HEADS_RU, (MARGIN + 6, MARGIN + 96, MARGIN + 186,
+                               MARGIN + 276, MARGIN + 356))), 16, colw=76)
     _flow(pg, t, MARGIN, 470, BOT, PROSE_RU, w=2 * COLW + GUT)
     return pg, t
 
@@ -1342,7 +1355,7 @@ def _age(img, profile: str, seed: int):
                            borderMode=cv2.BORDER_REPLICATE)
     ok, enc = cv2.imencode(".jpg", g, [cv2.IMWRITE_JPEG_QUALITY, p["jpeg"]])
     if not ok:
-        raise SynthError("не удалось пережать страницу в JPEG")
+        raise SynthError("could not re-compress the page to JPEG")
     return cv2.imdecode(enc, cv2.IMREAD_COLOR), M
 
 
@@ -1417,10 +1430,10 @@ def _commit() -> str:
         h = subprocess.run(["git", "-C", root, "rev-parse", "HEAD"],
                            capture_output=True, text=True, timeout=10)
         if h.returncode != 0:
-            return "не репозиторий"
-        return h.stdout.strip() + (" (грязное дерево)" if p.stdout.strip() else "")
+            return "not a repository"
+        return h.stdout.strip() + (" (dirty tree)" if p.stdout.strip() else "")
     except Exception as e:
-        return f"не спросили git: {e}"
+        return f"git was not asked: {e}"
 
 
 def _sha256(path):
@@ -1466,10 +1479,11 @@ def _measure(img, boxes, case: str):
         sub = ink[b:d, a:c]
         if sub.size == 0 or not sub.any():
             raise SynthError(
-                f"{case}: рамка истины {lab} {[round(v) for v in (x0, y0, x1, y1)]} "
-                f"пуста — под ней не нарисовано ни пикселя. Это не «блок без "
-                f"содержимого», это НЕ НАРИСОВАЛОСЬ, и в замере такая рамка "
-                f"даёт модели вечный незаслуженный промах.")
+                f"{case}: the truth box {lab} "
+                f"{[round(v) for v in (x0, y0, x1, y1)]} is EMPTY -- not one "
+                f"pixel is drawn under it. This is not \"a block with no "
+                f"content\", this is NOT DRAWN, and in a measurement such a "
+                f"box gives the model a permanent undeserved miss.")
         ys, xs = np.where(sub)
         L, T = a + int(xs.min()), b + int(ys.min())
         R, B = a + int(xs.max()) + 1, b + int(ys.max()) + 1
@@ -1574,7 +1588,7 @@ def _text_check(words, boxes, said, case: str):
                 if len(samples) < 4:
                     samples.append(f"{b[4]}#{j}: {w!r}")
         if m and len(samples) < 4:
-            samples.append(f"{b[4]}#{j}: нет в слое {list(m)[:3]}")
+            samples.append(f"{b[4]}#{j}: not in the layer {list(m)[:3]}")
     return {"words_in_layer": len(words), "missing_from_layer": miss,
             "outside_truth": len(outside), "ghosts": ghost,
             "dot_leaders": leaders, "unexplained": unknown,
@@ -1595,7 +1609,7 @@ def build(out_dir: str, cases=None, seed: int = 1, aging: str = "old",
     import pymupdf
 
     if aging not in AGING:
-        raise SynthError(f"профиль старения {aging!r}: знаю только {tuple(AGING)}")
+        raise SynthError(f"ageing profile {aging!r}: I know only {tuple(AGING)}")
     from .books import load
     mod = load(book)
     B_CASES = mod.CASES
@@ -1604,13 +1618,13 @@ def build(out_dir: str, cases=None, seed: int = 1, aging: str = "old",
     names = list(cases or B_CASES)
     bad = [n for n in names if n not in B_CASES]
     if bad:
-        raise SynthError(f"в книге {book} нет случаев: {bad}. "
-                         f"Есть: {sorted(B_CASES)}")
+        raise SynthError(f"book {book} has no such cases: {bad}. "
+                         f"It has: {sorted(B_CASES)}")
     for f in (FONT, FONT_MONO):
         if not os.path.exists(f):
             raise SynthError(
-                f"нет шрифта {f}. Стенд рисует им, и без него страницы выйдут "
-                f"пустыми. Поставьте fonts-dejavu или задайте свой путь.")
+                f"no font {f}. The bench draws with it, and without it the "
+                f"pages come out blank. Install fonts-dejavu or set a path.")
 
     os.makedirs(out_dir, exist_ok=True)
     truth_dir = os.path.join(out_dir, "truth")
@@ -1640,9 +1654,10 @@ def build(out_dir: str, cases=None, seed: int = 1, aging: str = "old",
         bad_id = [j for j in said if j >= len(t)]
         if bad_id:
             raise SynthError(
-                f"{name}: истина знаков записана блокам {bad_id}, а рамок "
-                f"истины всего {len(t)}. `_say` отстал от `truth.append` — "
-                f"связь по номеру блока порвана, и знаки уехали бы не туда")
+                f"{name}: character truth was written for blocks {bad_id}, "
+                f"and there are only {len(t)} truth boxes. `_say` fell behind "
+                f"`truth.append`: the link by block number is broken, and the "
+                f"characters would have gone to the wrong boxes")
         pix = pg.get_pixmap(dpi=int(DPI))
         img = cv2.cvtColor(
             np.frombuffer(pix.samples, np.uint8)
@@ -1657,9 +1672,9 @@ def build(out_dir: str, cases=None, seed: int = 1, aging: str = "old",
         boxes = _measure(img, boxes, name)
         if len(boxes) != len(t):
             raise SynthError(
-                f"{name}: `_measure` вернул {len(boxes)} рамок против {len(t)} "
-                f"объявленных — номера блоков поехали, и истина знаков легла "
-                f"бы на чужие рамки")
+                f"{name}: `_measure` returned {len(boxes)} boxes against "
+                f"{len(t)} declared -- the block numbers have shifted, and the "
+                f"character truth would land on someone else's boxes")
         # On the CLEAN page and the MEASURED boxes: aging is out (no text
         # layer after rasterizing) and so is rotation (it happens below, and
         # turning the words by the same two matrices gains the number nothing).
@@ -1735,7 +1750,7 @@ def build(out_dir: str, cases=None, seed: int = 1, aging: str = "old",
         thin = [b for b in boxes if b[2] - b[0] < 2 or b[3] - b[1] < 2]
         if thin:
             raise SynthError(
-                f"{name}: после старения рамка истины схлопнулась: "
+                f"{name}: after ageing a truth box collapsed: "
                 f"{[(round(v,1) for v in t[:4]) for t in thin[:2]]}")
         page = out.new_page(width=w * PT, height=h * PT)
         ok, enc = cv2.imencode(".png", img)
@@ -1819,30 +1834,31 @@ def build(out_dir: str, cases=None, seed: int = 1, aging: str = "old",
                       "char_truth": chars,
                       "text_layer_check": check})
         big = undecl["largest_blob"]
-        log(f"  {i:2d} {name:22s} {w}x{h}, блоков {len(blocks)}"
-            + ("  (разворот)" if name in B_SPREADS else "")
-            + (f"  (повёрнут {rot}°)" if rot else "")
-            + f", вне истины {undecl['pixels']} px"
-            + (f" (пятно {big['size_on_clean_raster'][0]}"
+        log(f"  {i:2d} {name:22s} {w}x{h}, blocks {len(blocks)}"
+            + ("  (spread)" if name in B_SPREADS else "")
+            + (f"  (rotated {rot} deg)" if rot else "")
+            + f", outside truth {undecl['pixels']} px"
+            + (f" (blob {big['size_on_clean_raster'][0]}"
                f"x{big['size_on_clean_raster'][1]}"
                f" = {big['area']} px)" if big else "")
-            + f"; знаков {chars['chars']}, слов {chars['words']} "
-              f"в {chars['blocks_with_text']} блоках"
-            + (f", БЕЗ ЗНАКОВ {chars['text_blocks_without_chars']} "
+            + f"; chars {chars['chars']}, words {chars['words']} "
+              f"in {chars['blocks_with_text']} blocks"
+            + (f", NO CHARS {chars['text_blocks_without_chars']} "
                f"({', '.join(chars['which_without_chars'])})"
                if no_chars else "")
-            + (f", ячеек {chars['cell_count']} в {chars['tables_with_grid']} табл."
+            + (f", cells {chars['cell_count']} in "
+               f"{chars['tables_with_grid']} tables"
                if chars["tables_with_grid"] else "")
-            + f"; слов вне истины {check['outside_truth']}"
+            + f"; words outside truth {check['outside_truth']}"
             + (f" {check['outside_truth_samples']}" if check["outside_truth"] else "")
-            + (f", НЕТ В СЛОЕ {check['missing_from_layer']}"
+            + (f", NOT IN LAYER {check['missing_from_layer']}"
                if check["missing_from_layer"] else "")
-            + (f", НЕОБЪЯСНЁННЫХ {check['unexplained']}"
+            + (f", UNEXPLAINED {check['unexplained']}"
                if check["unexplained"] else "")
             + (f" {check['mismatch_examples']}"
                if check["mismatch_examples"] else "")
-            + f", призраков {check['ghosts']}"
-            + (f", выносок {check['dot_leaders']}" if check["dot_leaders"] else ""))
+            + f", ghosts {check['ghosts']}"
+            + (f", leaders {check['dot_leaders']}" if check["dot_leaders"] else ""))
 
     # Named after the BOOK, not `synth.pdf` everywhere: six books under one
     # file name confuse at the first glance at a directory.
@@ -1903,25 +1919,27 @@ def build(out_dir: str, cases=None, seed: int = 1, aging: str = "old",
     with open(os.path.join(out_dir, "manifest.json"), "w",
               encoding="utf-8") as f:
         json.dump(man, f, ensure_ascii=False, indent=1)
-    log(f"страниц {len(pages)}, блоков истины {sum(counts.values())} "
+    log(f"pages {len(pages)}, truth blocks {sum(counts.values())} "
         f"({', '.join(f'{k} {v}' for k, v in sorted(counts.items()))})")
     # A MAGNITUDE, NOT THE WORD "DONE". Each of these has caught trouble the
     # word "done" would have passed: blocks_with_text below the count of text
     # blocks is a silent hole in the truth; missing-from-layer above zero is a
     # truth richer than the paper; words outside the truth is a piece of the
     # page never declared (the catalogue numbers).
-    log(f"истина знаков: {total['chars']} знаков, {total['words']} слов "
-        f"в {total['blocks_with_text']} блоках"
-        + (f"; БЕЗ ЗНАКОВ текстовых блоков {total['text_blocks_without_chars']}"
+    log(f"character truth: {total['chars']} chars, {total['words']} words "
+        f"in {total['blocks_with_text']} blocks"
+        + (f"; text blocks with NO CHARS "
+           f"{total['text_blocks_without_chars']}"
            if total["text_blocks_without_chars"] else "")
-        + f"; таблиц с сеткой {total['tables_with_grid']}, "
-          f"ячеек {total['cell_count']}")
-    log(f"слов, нарисованных вне всякой рамки истины: "
-        f"{total['words_outside_truth']} из {total['words_in_text_layer_total']} "
-        f"в текстовом слое")
-    log(f"сверка с текстовым слоем: нет в слое {total['missing_from_layer']}, "
-        f"необъяснённых {total['unexplained']}, "
-        f"призраков повторной заливки {total['ghosts']}, "
-        f"точечных выносок {total['dot_leaders']}")
-    log(f"{pdf} ({os.path.getsize(pdf)/1e6:.1f} МБ), истина в {truth_dir}")
+        + f"; tables with a grid {total['tables_with_grid']}, "
+          f"cells {total['cell_count']}")
+    log(f"words drawn outside every truth box: "
+        f"{total['words_outside_truth']} of "
+        f"{total['words_in_text_layer_total']} in the text layer")
+    log(f"against the text layer: not in the layer "
+        f"{total['missing_from_layer']}, "
+        f"unexplained {total['unexplained']}, "
+        f"ghosts of a re-fill {total['ghosts']}, "
+        f"dot leaders {total['dot_leaders']}")
+    log(f"{pdf} ({os.path.getsize(pdf)/1e6:.1f} MB), truth in {truth_dir}")
     return man

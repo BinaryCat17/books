@@ -68,8 +68,8 @@ def test_torn_grid_falls_on_deliberately_broken_input():
     assert H.torn_grid(whole) is None
     damaged = dict(whole, rows=1)
     assert H.torn_grid(damaged) is not None, (
-        "таблица, у которой обрыв съел все переводы строк, объявлена "
-        "законной — правило слепо ровно к тому, ради чего заведено")
+        "a table whose truncation ate every line break was declared lawful "
+        "-- the rule is blind to the very thing it exists for")
 
 
 # --------------------------------------------------- observed beside ---
@@ -121,7 +121,7 @@ def test_broken_answers_file_does_not_silently_erase_the_others():
                         "observed": {}}])
         with open(os.path.join(tmp, "answers", "p0002.json"), "w",
                   encoding="utf-8") as f:
-            f.write("{это не json")
+            f.write("{this is not json")
         o = H.observed(tmp)
         assert o["p0001-b0"]["outcome"] == "length"
 
@@ -139,9 +139,9 @@ def test_the_mark_survives_the_replacement():
     `_wrap_fragment` reddened none of the 217 checks.
     """
     from booksmith.doc import apply as ap
-    intact = ap._wrap_fragment("p1-b0", "<fcel>a<fcel>b<nl>", "otsl", "проба",
-                            torn=False)
-    torn = ap._wrap_fragment("p1-b0", "<fcel>a<fcel>b<nl>", "otsl", "проба",
+    intact = ap._wrap_fragment("p1-b0", "<fcel>a<fcel>b<nl>", "otsl",
+                               "a probe", torn=False)
+    torn = ap._wrap_fragment("p1-b0", "<fcel>a<fcel>b<nl>", "otsl", "a probe",
                              torn=True)
     assert "data-truncated" not in intact, intact
     assert 'data-truncated="yes"' in torn, torn
@@ -155,7 +155,7 @@ def test_unknown_is_not_whole():
     declare the block whole.
     """
     from booksmith.doc import apply as ap
-    nothing = ap._wrap_fragment("p1-b0", "<fcel>a<nl>", "otsl", "руками")
+    nothing = ap._wrap_fragment("p1-b0", "<fcel>a<nl>", "otsl", "by hand")
     assert "data-truncated" not in nothing, nothing
 
 
@@ -175,15 +175,16 @@ def test_from_read_asks_the_sidecar_for_the_reason():
              if isinstance(n, ast.Call)
              and isinstance(n.func, ast.Name) and n.func.id == "observed"]
     assert calls, (
-        "`from_read` не зовёт `observed` — признак обрыва взять неоткуда, и "
-        "пометка пропадёт у тех самых блоков, что доехали разметкой")
+        "`from_read` does not call `observed` -- there is nowhere to take "
+        "the truncation flag from, and the mark vanishes from exactly the "
+        "blocks that arrived as markup")
     passes = [n for n in ast.walk(fn)
                 if isinstance(n, ast.Call)
                 and isinstance(n.func, ast.Name) and n.func.id == "put_into"
                 and any(k.arg == "torn" for k in n.keywords)]
     assert passes, (
-        "`from_read` зовёт `put_into` без `torn=` — наблюдённое прочитано и "
-        "выброшено, что хуже, чем не читать его вовсе")
+        "`from_read` calls `put_into` without `torn=` -- the observed data "
+        "is read and thrown away, which is worse than not reading it")
 
 
 def test_the_torn_field_tells_three_states_apart():
@@ -229,7 +230,7 @@ def _bench(tmp, chunks, cut=()):
     from booksmith.doc import swap
     with open(_o.path.join(tmp, "book.html"), "w", encoding="utf-8") as f:
         f.write("<!doctype html><html><body>\n" + "\n".join(
-            swap.wrap(f"p0000-b{i}", f'<figure id="p0000-b{i}">кар</figure>')
+            swap.wrap(f"p0000-b{i}", f'<figure id="p0000-b{i}">pic</figure>')
             for i in range(len(chunks))) + "\n</body></html>\n")
     _o.makedirs(_o.path.join(tmp, ap.ASSETS), exist_ok=True)
     with open(_o.path.join(tmp, ap.ASSETS, "blocks.json"), "w",
@@ -260,19 +261,19 @@ def test_bulk_counts_spans_declared_and_placed():
     import tempfile
     from booksmith.doc import apply as ap
     with tempfile.TemporaryDirectory() as tmp:
-        _bench(tmp, ["<fcel>ш<lcel><nl><fcel>1<fcel>2<nl>",     # 1 merge
+        _bench(tmp, ["<fcel>h<lcel><nl><fcel>1<fcel>2<nl>",     # 1 merge
                      "<fcel>a<fcel>b<nl><fcel>1<fcel>2<nl>",    # no merges
                      # NON-RECTANGULAR: 1 declared, and it cannot be
                      # placed -- without this case the two numbers agree
                      # and could have been equated unnoticed.
-                     "<fcel>ш<lcel><nl><fcel>л<ucel><nl>"])
+                     "<fcel>h<lcel><nl><fcel>v<ucel><nl>"])
         t = ap.from_read(tmp, os.path.join(tmp, "read"), log=lambda *_: None)
         assert t["merges_declared"] == 2, t
         assert t["merges_in_book"] == 1, t
         assert t["tables_with_merges"] == 2, t
         assert t["merges_declared"] != t["merges_in_book"], (
-            "объявленное и вставшее совпали — расхождение, ради которого "
-            "заведены оба числа, стало ненаблюдаемым")
+            "declared and placed agreed -- the discrepancy both numbers "
+            "exist for became unobservable")
 
 
 def test_bulk_counts_the_impossible_shape_of_the_book_not_of_the_run():
@@ -294,9 +295,9 @@ def test_bulk_counts_the_impossible_shape_of_the_book_not_of_the_run():
                              log=lambda *_: None)
         assert again["placed"] == 0 and again["already_placed"] == 2, again
         assert again["impossible_table_shape"] == 1, (
-            "на повторном прогоне число обнулилось — значит оно про работу "
-            "запуска, а не про книгу, и «невозможна у 0» читается как "
-            "«таких нет»")
+            "on a repeat run the number went to zero -- so it is about the "
+            "work of THIS run and not about the book, and \"impossible for "
+            "0\" reads as \"there are none\"")
 
 
 def test_bulk_marks_the_torn_block_in_the_book():
@@ -327,7 +328,7 @@ def test_bulk_names_the_rewrap_apart_from_new_work():
         _bench(tmp, ["<fcel>a<fcel>b<nl><fcel>1<fcel>2<nl>"])
         t1 = ap.from_read(tmp, os.path.join(tmp, "read"), log=lambda *_: None)
         assert t1["placed"] == 1 and t1["rewrapped"] == 0, (
-            "первая замена — настоящая работа, а не переобёртка")
+            "the first swap is real work, not a re-wrap")
         # A REAL REWRAP: same model bytes, a different wrapper. This is how a
         # book assembled by an older edition of the code looks after a new
         # `apply`: on the refractories book, 63 blocks of 412.
@@ -336,7 +337,7 @@ def test_bulk_names_the_rewrap_apart_from_new_work():
         def other_wrapper(anchor, fragment, kind, source, role="unknown",
                            torn=None):
             return was(anchor, fragment, kind, source, role=role,
-                        torn=torn).replace("<div ", '<div data-проба="1" ', 1)
+                        torn=torn).replace("<div ", '<div data-probe="1" ', 1)
 
         ap._wrap_fragment = other_wrapper
         try:
@@ -346,8 +347,8 @@ def test_bulk_names_the_rewrap_apart_from_new_work():
             ap._wrap_fragment = was
         assert t2["placed"] == 1, t2
         assert t2["rewrapped"] == 1, (
-            "смена НАШЕЙ обёртки записана как новая работа — «поставлено» "
-            f"в журнале означало бы работу, которой не было: {t2}")
+            "a change to OUR wrapper was recorded as new work -- \"placed\" "
+            f"in the journal would mean work that never happened: {t2}")
         # A third run with the old wrapper: the body differs again, the model
         # bytes do not -- work AND a rewrap.
         t3 = ap.from_read(tmp, os.path.join(tmp, "read"), log=lambda *_: None)
@@ -356,13 +357,14 @@ def test_bulk_names_the_rewrap_apart_from_new_work():
         # block by hand -- putting the model answer back is WORK, though the
         # first step of the stack holds the same bytes. Without this case both
         # comparisons answer alike and `[-1]` -> `[0]` passes unnoticed.
-        ap.put(tmp, "p0000-b0", "<fcel>руками<nl>", kind="otsl",
-               source="человек", log=lambda *_: None)
+        ap.put(tmp, "p0000-b0", "<fcel>by hand<nl>", kind="otsl",
+               source="a person", log=lambda *_: None)
         t4 = ap.from_read(tmp, os.path.join(tmp, "read"), log=lambda *_: None)
         assert t4["placed"] == 1, t4
         assert t4["rewrapped"] == 0, (
-            "возврат ответа модели поверх ручной правки записан как "
-            f"переобёртка — сверяется первая ступень стопки, а не последняя: {t4}")
+            "putting the model's answer back over a hand edit was recorded "
+            f"as a re-wrap -- the FIRST step of the stack is being compared, "
+            f"not the last: {t4}")
 
 
 def test_a_refused_block_is_not_counted_as_being_in_the_book():
@@ -382,8 +384,8 @@ def test_a_refused_block_is_not_counted_as_being_in_the_book():
         t = ap.from_read(tmp, os.path.join(tmp, "read"), log=lambda *_: None)
         assert t["refused"] == 1, t
         assert t["impossible_table_shape"] == 0, (
-            "отказанный блок посчитан среди блоков книги — а его в книге "
-            f"нет: {t}")
+            "a refused block was counted among the book's blocks -- and it "
+            f"is not in the book: {t}")
 
 
 def test_the_caption_names_which_zero_it_was():
@@ -397,12 +399,12 @@ def test_the_caption_names_which_zero_it_was():
     """
     stayed_silent = H.why_empty({"outcome": "stop", "error": None})
     not_asked = H.why_empty({"outcome": None, "error": None})
-    refusal = H.why_empty({"outcome": None, "error": "таймаут"})
+    refusal = H.why_empty({"outcome": None, "error": "timeout"})
     truncated = H.why_empty({"outcome": "length", "error": None})
     nothing_to = H.why_empty(None)
     all = [stayed_silent, not_asked, refusal, truncated, nothing_to]
     assert len(set(all)) == 5, (
-        f"два разных нуля названы одинаково: {all}")
-    assert "промолчала" in stayed_silent
-    assert "не спрашивали" in not_asked
-    assert "таймаут" in refusal
+        f"two different zeros were given the same name: {all}")
+    assert "kept quiet" in stayed_silent
+    assert "never asked" in not_asked
+    assert "timeout" in refusal

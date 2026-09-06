@@ -1,17 +1,17 @@
-"""Подставная служба VLM: OpenAI-совместимый адрес, отвечающий по указке.
+"""A stand-in VLM: an OpenAI-compatible endpoint that answers to order.
 
-ЗАЧЕМ. Второй уровень целиком — вырезки, промты, разбор ответа, сборка
-страниц, пять разных нулей, слепок — проверяется ЗДЕСЬ, бесплатно, и только
-после этого едет на арендованную карту. Прежний второй уровень платил за
-отладку разбора аренду за арендой: тринадцать запусков и $0.52, из которых
-полезных два, и все ловушки оказались нашими, ни одной модельной.
+WHY. The whole of level two -- crops, prompts, answer parsing, page assembly,
+five different zeros, the snapshot -- is checked HERE, for nothing, and only
+then goes to a rented card. The previous level two paid rental after rental to
+debug its parser: thirteen runs and $0.52, two of them useful, and every trap
+turned out to be ours, not one the model's.
 
-Сервер отвечает ровно тем, что ему велели: строкой, пустотой, обрывом по
-потолку, кодом 500. То есть каждая из пяти бед второго уровня воспроизводится
-на месте и за миллисекунды, а не ждёт, когда модель соблаговолит промолчать.
+The server answers exactly what it was told to: a string, emptiness, a cut at
+the ceiling, a 500. So each of level two's five troubles reproduces on the spot
+in milliseconds instead of waiting for the model to deign to fall silent.
 
-Ни в каком смысле не модель: он не читает картинку и не притворяется, что
-читает. Он проверяет НАШУ половину.
+It is a model in no sense: it does not read the image and does not pretend to.
+It checks OUR half.
 """
 import base64
 import json
@@ -20,24 +20,24 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 
 class FakeVlm:
-    """Служба на случайном порту. `plan` решает, что отвечать.
+    """A service on a random port. `plan` decides what it answers.
 
-    `plan` — либо один ответ на все запросы, либо словарь «промт -> ответ»,
-    либо функция (промт, картинка) -> ответ. Ответ описывается словарём:
+    `plan` is one answer for every request, or a dict {prompt -> answer}, or a
+    function (prompt, image) -> answer. An answer is a dict:
 
-        {"text": "...", "finish": "stop"}   обычный ответ
-        {"text": "", "finish": "stop"}      модель промолчала
-        {"text": "...", "finish": "length"} оборвано потолком
-        {"http": 500}                       отказ доставки
+        {"text": "...", "finish": "stop"}   an ordinary answer
+        {"text": "", "finish": "stop"}      the model stayed silent
+        {"text": "...", "finish": "length"} cut off at the ceiling
+        {"http": 500}                       delivery refused
     """
 
     def __init__(self, plan, model="PaddleOCR-VL-1.6-0.9B"):
         self.plan, self.model = plan, model
-        self.seen = []                      # что спрашивали, по порядку
+        self.seen = []                      # what was asked, in order
         srv = self
 
         class H(BaseHTTPRequestHandler):
-            def log_message(self, *a):      # тишина в выводе проверок
+            def log_message(self, *a):      # silence in the checks' output
                 pass
 
             def _json(self, code, body):
@@ -51,7 +51,7 @@ class FakeVlm:
             def do_GET(self):
                 if self.path.endswith("/models"):
                     return self._json(200, {"data": [{"id": srv.model}]})
-                return self._json(404, {"error": "нет такого пути"})
+                return self._json(404, {"error": "no such path"})
 
             def do_POST(self):
                 n = int(self.headers.get("Content-Length") or 0)
@@ -61,8 +61,9 @@ class FakeVlm:
                                if c.get("type") == "text"), "")
                 uri = next((c.get("image_url", {}).get("url") for c in content
                             if c.get("type") == "image_url"), "")
-                # Байты картинки достаются ЦЕЛИКОМ: проверки сверяют, что до
-                # модели доехала та самая вырезка, а не соседняя.
+                # The image bytes are taken WHOLE: the checks verify that the
+                # crop which reached the model is that one and not its
+                # neighbour.
                 img = b""
                 if "," in uri:
                     img = base64.b64decode(uri.split(",", 1)[1])
@@ -73,7 +74,7 @@ class FakeVlm:
                                                          "max_tokens")}})
                 a = srv._answer(prompt, img)
                 if "http" in a:
-                    return self._json(a["http"], {"error": "подставной отказ"})
+                    return self._json(a["http"], {"error": "a staged refusal"})
                 return self._json(200, {
                     "model": srv.model,
                     "choices": [{"message": {"content": a.get("text")},

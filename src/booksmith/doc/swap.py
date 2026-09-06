@@ -1,24 +1,20 @@
-"""Замена одного блока разметкой второго уровня — и откат.
+"""Swapping one block for second-level markup -- and undoing it.
 
-Ради этого вся двухуровневая схема и затевалась: «замену можно проверить,
-откатить и переделать другой моделью, не трогая книгу». Обещание держится
-ровно на одной вещи — на том, что заменить один блок можно ТОЧНО, не задев
-соседей и не разобрав весь документ.
+The whole two-level scheme exists for this: "a swap can be checked, undone and
+redone by another model without touching the book". That rests on one thing --
+replacing a block EXACTLY, without touching its neighbours and without parsing
+the document. Hence a pair of comments for the borders:
 
-Поэтому границы блока размечены парой комментариев, а не выводятся разбором
-HTML:
+    <!--bs:p0042-b17-->…any markup…<!--/bs:p0042-b17-->
 
-    <!--bs:p0042-b17-->…любая разметка…<!--/bs:p0042-b17-->
+Parsing HTML would be a needless risk: the second level returns markup a model
+wrote, and it can be anything -- unclosed tags, stray `<`, broken entities. An
+exact string search does not care. The price: the marks show in the page
+source, not in the browser.
 
-Разбор HTML тут был бы лишним риском: второй уровень вернёт разметку, которую
-писала модель, и она бывает какой угодно — незакрытые теги, лишние `<`,
-битые сущности. Поиск точной строки-метки от этого не зависит вовсе. Цена —
-метки видны в исходнике страницы; в браузере их нет.
-
-Все функции здесь ЧИСТЫЕ: строка на входе, строка на выходе, ни файлов, ни
-моделей. Это единственный слой конвейера, который можно проверить целиком, не
-потратив ни секунды счёта, — и потому именно его надо покрыть проверками
-раньше всех.
+Every function here is PURE -- string in, string out, no files, no models -- so
+this is the one layer checkable whole without a second of compute, and the
+first one to cover.
 """
 
 OPEN = "<!--bs:{}-->"
@@ -26,7 +22,7 @@ CLOSE = "<!--/bs:{}-->"
 
 
 class AnchorError(ValueError):
-    """С меткой блока что-то не так: нет её, их две, или они наизнанку."""
+    """Something is wrong with a block mark: missing, doubled, inverted."""
 
 
 def marks(anchor: str) -> tuple[str, str]:
@@ -34,16 +30,16 @@ def marks(anchor: str) -> tuple[str, str]:
 
 
 def wrap(anchor: str, body: str) -> str:
-    """Обернуть разметку блока метками. Так её кладёт `html.py`."""
+    """Wrap a block's markup in marks. This is how `html.py` lays it down."""
     o, c = marks(anchor)
     return o + body + c
 
 
 def anchors(html: str) -> list[str]:
-    """Какие блоки есть в документе, в порядке появления.
+    """Which blocks the document holds, in order of appearance.
 
-    Порядок — тот же, что в документе, а не отсортированный: он и есть порядок
-    чтения, и терять его нельзя.
+    The DOCUMENT order, not a sorted one: it is the reading order, and losing
+    it is not allowed.
     """
     out, i = [], 0
     head = OPEN.split("{}")[0]          # "<!--bs:"
@@ -53,14 +49,13 @@ def anchors(html: str) -> list[str]:
             return out
         j = html.find("-->", i)
         if j < 0:
-            raise AnchorError(f"метка не закрыта: {html[i:i+40]!r}")
+            raise AnchorError(f"mark not closed: {html[i:i+40]!r}")
         out.append(html[i + len(head):j])
         i = j + 3
 
 
 def _marks_in(fragment: str) -> list[str]:
-    """Имена якорей, чьи метки встречаются во фрагменте (открывающие и
-    закрывающие)."""
+    """Anchor names whose marks occur in the fragment (opening and closing)."""
     out, i = [], 0
     for head in (OPEN.split("{}")[0], CLOSE.split("{}")[0]):
         i = 0
@@ -77,32 +72,32 @@ def _marks_in(fragment: str) -> list[str]:
 
 
 def span(html: str, anchor: str) -> tuple[int, int]:
-    """Границы ТЕЛА блока: (начало после метки, конец до закрывающей).
+    """Borders of the block BODY: (after the opening mark, before the closing).
 
-    Двойная метка — ошибка вслух, а не «возьму первую». Так ловится
-    столкновение якорей: `block_id` считается заново на каждой странице, и
-    сквозной `b17` на книге в пятьсот страниц дал бы пятьсот одинаковых
-    якорей. Постраничный `p0042-b17` этого не допускает, но проверка стоит
-    одного `count` и переживёт следующую схему именования.
+    A doubled mark is trouble said aloud, not "take the first": that is how an
+    anchor collision is caught. `block_id` restarts on every page, so a
+    book-wide `b17` over five hundred pages would give five hundred identical
+    anchors. The per-page `p0042-b17` forbids it, but the check costs one
+    `count` and will outlive the next naming scheme.
     """
     o, c = marks(anchor)
     n_o, n_c = html.count(o), html.count(c)
     if n_o != 1 or n_c != 1:
         raise AnchorError(
-            f"метка {anchor}: открывающих {n_o}, закрывающих {n_c}, "
-            f"а должно быть по одной")
+            f"mark {anchor}: opening {n_o}, closing {n_c}, "
+            f"and there must be one of each")
     a = html.index(o) + len(o)
     b = html.index(c)
     if b < a:
-        raise AnchorError(f"метка {anchor} вывернута: закрывающая раньше "
-                          f"открывающей")
-    # ПЕРЕКРЁСТ. Счёт «по одной» ловит пропажу, дубль и выворот ОДНОЙ пары, но
-    # не ловит зацепления двух: в `<!--bs:A-->1<!--bs:B-->2<!--/bs:A-->3
-    # <!--/bs:B-->` обе метки по одной, и жалобы не было. `get('A')` отдавал
-    # тело с чужой открывающей меткой внутри, `swap('A', …)` стирал её вместе
-    # с телом, и беда всплывала на СЛЕДУЮЩЕЙ замене — «открывающих 0,
-    # закрывающих 1» — когда книга уже наполовину переразмечена и по
-    # сообщению не понять, чей блок сломан.
+        raise AnchorError(f"mark {anchor} is inverted: the closing one comes "
+                          f"before the opening")
+    # CROSSING. Counting "one each" catches a lost, a doubled and an inverted
+    # pair of ONE anchor, but not two interlocked: in
+    # `<!--bs:A-->1<!--bs:B-->2<!--/bs:A-->3<!--/bs:B-->` both marks are one
+    # each and nothing complained. `get('A')` returned a body with a foreign
+    # opening mark inside, `swap('A', …)` erased it along with the body, and
+    # the trouble surfaced at the NEXT swap -- "opening 0, closing 1" -- with
+    # the book already half re-marked and the message naming the wrong block.
     body = html[a:b]
     head = OPEN.split("{}")[0]
     for other in _marks_in(body):
@@ -111,29 +106,29 @@ def span(html: str, anchor: str) -> tuple[int, int]:
         oo, oc = marks(other)
         if (oo in body) != (oc in body):
             raise AnchorError(
-                f"метка {anchor} пересекается с {other}: внутри её тела лежит "
-                f"только одна метка соседа. Замена {anchor} уничтожила бы "
-                f"границу соседнего блока, а вылезло бы это лишь на нём.")
+                f"mark {anchor} crosses {other}: only ONE of the neighbour's "
+                f"marks lies inside its body. Swapping {anchor} would destroy "
+                f"the neighbour's border, and it would show only on him.")
     return a, b
 
 
 def get(html: str, anchor: str) -> str:
-    """Что сейчас стоит на месте блока."""
+    """What stands in the block's place now."""
     a, b = span(html, anchor)
     return html[a:b]
 
 
 def swap(html: str, anchor: str, fragment: str) -> tuple[str, str]:
-    """Поставить на место блока новую разметку.
+    """Put new markup in the block's place.
 
-    Возвращает (новый документ, ЧТО там стояло). Второе — не удобство, а
-    условие обещания: без снятого старого куска откат невозможен, а замена
-    без отката — это не замена, а правка книги.
+    Returns (new document, WHAT stood there). The second is not a convenience
+    but the condition of the promise: without the removed piece there is no
+    undo, and a swap without undo is not a swap but an edit of the book.
     """
     a, b = span(html, anchor)
     return html[:a] + fragment + html[b:], html[a:b]
 
 
 def restore(html: str, anchor: str, previous: str) -> str:
-    """Вернуть на место блока то, что сняли. Обратная к `swap`."""
+    """Put back what was removed. The inverse of `swap`."""
     return swap(html, anchor, previous)[0]

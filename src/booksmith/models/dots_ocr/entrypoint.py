@@ -68,7 +68,7 @@ def parse_pages(spec, n):
     would look like a success.
     """
     if not spec or spec == "-":
-        log(f"страницы: вся книга, {n} шт.")
+        log(f"pages: the whole book, {n} of them")
         return list(range(n))
     want = []
     # A SPACE SEPARATES JUST LIKE A COMMA, as in `detect.parse_pages`. It did
@@ -87,34 +87,37 @@ def parse_pages(spec, n):
                 rng = range(int(a), int(b) + 1)
             except ValueError:
                 raise SystemExit(
-                    f"в «--pages {spec}» диапазон «{part}» не разобран. "
-                    f"Ожидается «7-9», счёт с единицы.")
+                    f"in `--pages {spec}` the range {part!r} did not parse. "
+                    f"Expected \"7-9\", counting from one.")
             if not rng:
                 raise SystemExit(
-                    f"диапазон «{part}» пуст: конец раньше начала")
+                    f"the range {part!r} is empty: the end precedes the "
+                    f"start")
             want.extend(rng)
         else:
             try:
                 want.append(int(part))
             except ValueError:
                 raise SystemExit(
-                    f"в «--pages {spec}» кусок «{part}» — не номер страницы. "
-                    f"Ожидается «1,4,7-9» или «1 4 7-9», счёт с единицы.")
+                    f"in `--pages {spec}` the piece {part!r} is not a page "
+                    f"number. Expected \"1,4,7-9\" or \"1 4 7-9\", counting "
+                    f"from one.")
     if 0 in want:
         raise SystemExit(
-            f"«{spec}»: страницы считаются С ЕДИНИЦЫ, как в `books detect` — "
-            f"первая страница книги это 1, нулевой нет. Прежде здесь был счёт "
-            f"с нуля, и та же строка означала другие страницы.")
+            f"{spec!r}: pages count FROM ONE, as in `books detect` -- the "
+            f"first page of the book is 1 and there is no page zero. This "
+            f"counted from zero once, and the same string then meant other "
+            f"pages.")
     bad = [p for p in want if not 1 <= p <= n]
     if bad:
-        raise SystemExit(f"в книге {n} страниц, а запрошены {bad}")
+        raise SystemExit(f"the book has {n} pages, and {bad} were asked for")
     if not want:
-        raise SystemExit(f"набор страниц «{spec}» пуст — считать нечего")
+        raise SystemExit(f"the page set {spec!r} is empty: nothing to count")
     idxs = [p - 1 for p in sorted(set(want))]
     # Into the log a quantity, not "understood": what came out of the string
     # is visible BEFORE the card starts ticking.
-    log(f"страницы «{spec}» поняты с единицы: {len(idxs)} шт., "
-        f"с {idxs[0]+1}-й по {idxs[-1]+1}-ю (индексы {idxs[0]}..{idxs[-1]})")
+    log(f"pages {spec!r} understood from one: {len(idxs)} of them, "
+        f"{idxs[0]+1} to {idxs[-1]+1} (indices {idxs[0]}..{idxs[-1]})")
     return idxs
 
 
@@ -132,10 +135,10 @@ def extract(text):
         t = m.group(1).strip()
     i, j = t.find("["), t.rfind("]")
     if i < 0 or j <= i:
-        raise ValueError(f"в ответе нет списка JSON: {t[:200]!r}")
+        raise ValueError(f"no JSON list in the answer: {t[:200]!r}")
     data = json.loads(t[i:j + 1])
     if not isinstance(data, list):
-        raise ValueError(f"разобрался не список, а {type(data).__name__}")
+        raise ValueError(f"what parsed is not a list but a {type(data).__name__}")
     return data
 
 
@@ -154,15 +157,15 @@ def tally(pages, boxes, empty, bad):
     prints "no data" instead of 0.0 boxes per page.
     """
     ok = pages - bad
-    s = (f"{pages} страниц, рамок {boxes}, пустых страниц {empty}, "
-         f"неразобранных {bad}, "
-         + (f"рамок на разобранную {boxes/ok:.1f}" if ok
-            else "рамок на разобранную нет данных"))
+    s = (f"{pages} pages, boxes {boxes}, empty pages {empty}, "
+         f"unparsed {bad}, "
+         + (f"boxes per parsed page {boxes/ok:.1f}" if ok
+            else "boxes per parsed page: no data"))
     if pages and not boxes:
         # There is nothing here to judge by whether this is a refusal or a
         # genuinely empty selection: `--pages 5` on a blank sheet gives a
         # lawful zero. So the quantity shouts and the decision stays at home.
-        s = "НИ ОДНОЙ РАМКИ за весь проход. " + s
+        s = "NOT ONE BOX in the whole pass. " + s
     return s
 
 
@@ -190,7 +193,7 @@ def main():
     from PIL import Image
     from transformers import AutoModelForCausalLM, AutoProcessor
 
-    log("гружу модель")
+    log("loading the model")
     t0 = time.time()
     # A DIRECTORY NAME WITHOUT A DOT. Loading by the repository name is
     # impossible: the dot in "dots.ocr" becomes a package separator in the
@@ -200,19 +203,19 @@ def main():
     name = os.environ.get("DOTS_DIR", "/models/DotsOCR")
     if not os.path.isdir(name):
         raise SystemExit(
-            f"нет каталога весов {name}: provision.sh должен был положить их "
-            f"туда. Грузить по имени репозитория нельзя — точка в имени ломает "
-            f"импорт удалённого кода.")
+            f"no weights directory {name}: provision.sh should have put "
+            f"them there. Loading by repository name is impossible -- the dot "
+            f"in the name breaks the remote-code import.")
     model = AutoModelForCausalLM.from_pretrained(
         name, trust_remote_code=True, torch_dtype=torch.bfloat16,
         attn_implementation="sdpa", device_map="cuda")
     proc = AutoProcessor.from_pretrained(
         name, trust_remote_code=True,
         min_pixels=256 * 28 * 28, max_pixels=a.max_pixels)
-    log(f"потолок подачи {a.max_pixels} пикселей "
-        f"({a.max_pixels/1e6:.2f} Мпикс)")
+    log(f"input ceiling {a.max_pixels} pixels "
+        f"({a.max_pixels/1e6:.2f} Mpixel)")
     model.eval()
-    log(f"модель поднята за {time.time()-t0:.0f} с")
+    log(f"model up in {time.time()-t0:.0f} s")
 
     # THE PROCESSOR'S EXTRA KEYS. It lays down more than `generate` takes --
     # for dots.ocr `mm_token_type_ids`, and the run fell on the very first
@@ -244,13 +247,13 @@ def main():
             if not bad:
                 raise
             drop.update(bad)
-            log(f"  generate не принимает {sorted(bad)} — отбрасываю и повторяю")
+            log(f"  generate does not take {sorted(bad)} -- dropping and retrying")
             try:
                 return model.generate(
                     **{k: v for k, v in left.items() if k not in drop}, **kw)
             except ValueError as e2:
                 core = {k: v for k, v in inputs.items() if k in CORE}
-                log(f"  и после этого ValueError ({e2}); оставляю только "
+                log(f"  and a ValueError after that ({e2}); keeping only "
                     f"{sorted(core)}")
                 if not core:
                     raise
@@ -258,8 +261,8 @@ def main():
 
     doc = pymupdf.open(a.pdf)
     idxs = parse_pages(a.pages, doc.page_count)
-    log(f"страниц в файле {doc.page_count}, считаю {len(idxs)}, "
-        f"проходов {a.repeats}")
+    log(f"pages in the file {doc.page_count}, counting {len(idxs)}, "
+        f"passes {a.repeats}")
 
     tmp = os.path.join(a.out, "_page.png")
     for r in range(a.repeats):
@@ -297,7 +300,7 @@ def main():
                 # What the processor gave at all -- as a quantity, once.
                 # Without it, working out a stranger's refusal costs a fresh
                 # rental.
-                log(f"  процессор отдал ключи: {sorted(inputs)}")
+                log(f"  the processor returned the keys: {sorted(inputs)}")
             oom = False
             try:
                 # Greedy decoding, no sampling: otherwise our own drift would
@@ -313,7 +316,7 @@ def main():
                 torch.cuda.empty_cache()
                 oom = True
                 out = None
-                log(f"  стр. {i}: не хватило видеопамяти, пропускаю")
+                log(f"  p. {i}: out of video memory, skipping")
             ans = "" if oom else proc.batch_decode(
                 out[:, inputs["input_ids"].shape[1]:],
                 skip_special_tokens=True)[0]
@@ -321,15 +324,14 @@ def main():
             blocks, err = [], None
             try:
                 if oom:
-                    raise RuntimeError("страница пропущена: не хватило "
-                                       "видеопамяти")
+                    raise RuntimeError("page skipped: out of video memory")
                 for k, item in enumerate(extract(ans)):
                     cat = item.get("category")
                     box = item.get("bbox")
                     if cat not in LABELS:
-                        raise ValueError(f"категория {cat!r} вне словаря")
+                        raise ValueError(f"category {cat!r} is outside the vocabulary")
                     if not (isinstance(box, list) and len(box) == 4):
-                        raise ValueError(f"рамка не из четырёх чисел: {box!r}")
+                        raise ValueError(f"a box is not four numbers: {box!r}")
                     x0, y0, x1, y1 = (float(v) / scale for v in box)
                     blocks.append({
                         "block_id": k, "box": [x0, y0, x1, y1],
@@ -361,14 +363,14 @@ def main():
                                     "parse_error": err}}, f,
                           ensure_ascii=False)
             if n % 10 == 0 or n == len(idxs):
-                log(f"  проход {r}: {n}/{len(idxs)}, рамок {seen}, "
-                    f"пустых {empty}, неразобранных {bad}, "
-                    f"{time.time()-t_pass:.0f} с")
-        log(f"проход {r} кончился: {tally(len(idxs), seen, empty, bad)}, "
-            f"{time.time()-t_pass:.0f} с "
-            f"({(time.time()-t_pass)/max(1,len(idxs)):.2f} с/страница)")
+                log(f"  pass {r}: {n}/{len(idxs)}, boxes {seen}, "
+                    f"empty {empty}, unparsed {bad}, "
+                    f"{time.time()-t_pass:.0f} s")
+        log(f"pass {r} finished: {tally(len(idxs), seen, empty, bad)}, "
+            f"{time.time()-t_pass:.0f} s "
+            f"({(time.time()-t_pass)/max(1,len(idxs)):.2f} s/page)")
         if bad == len(idxs):
-            log("НИ ОДНА страница не разобралась — это отказ, а не пустая книга")
+            log("NOT ONE page parsed -- this is a refusal, not an empty book")
             return 3
     doc.close()
     if os.path.exists(tmp):

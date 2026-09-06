@@ -1,16 +1,17 @@
-"""Сборник статей: смешанная вёрстка, ради которой и нужен второй уровень.
+"""A collection of articles: the mixed layout level two exists for.
 
-Зачем. Справочник однороден: проза, таблица, рисунок. В журнале на одной
-полосе стоят заголовок статьи, аннотация втяжкой, врезка в рамке, фотография
-с подписью сбоку, сноски под линейкой и колонцифра — и все они соседи.
+WHY. The handbook is uniform -- prose, table, figure. Here one page carries an
+article title, an indented abstract, a boxed insert, a photograph with its
+caption to the SIDE, footnotes under a rule and a folio, and all of them are
+neighbours.
 
-Две ловушки. ВРЕЗКА В РАМКЕ на глаз — таблица в одну ячейку; в истине это
-текст. ПОДПИСЬ СБОКУ от рисунка — не под ним, как везде в стенде: попадёт ли
-она внутрь рамки рисунка.
+Two traps. THE BOXED INSERT looks like a one-cell table; in the truth it is
+text. THE SIDE CAPTION is not under the figure as everywhere else on the
+bench: does it end up inside the figure's box?
 
-Контроль — `zh_two_col_plain`: обычная двухколонная полоса без единой
-особенности. Без неё «нашлось мало» на пёстрой полосе нечем отличить от
-общей неудачи книги.
+The control is `zh_two_col_plain`, an ordinary two-column page with no feature
+at all. Without it, "little was found" on a busy page cannot be told from the
+book failing as a whole.
 """
 from ..synth import (PROSE_EN, _box_insert, _caption, _chart, _fill, _figure,
                      _flow, _grid, _halftone, _line, _page, _put, _rect,
@@ -18,13 +19,14 @@ from ..synth import (PROSE_EN, _box_insert, _caption, _chart, _fill, _figure,
 
 SHEET = (1080, 1520)
 PT = 0.5
-PW, PH = SHEET[0] * PT, SHEET[1] * PT       # 540 x 760 пунктов
+PW, PH = SHEET[0] * PT, SHEET[1] * PT       # 540 x 760 points
 MARGIN, TOP, BOT_Y = 38.0, 46.0, 720.0
 COLW = (PW - 2 * MARGIN - 18.0) / 2
 GUT = 18.0
 COL_X = (MARGIN, MARGIN + COLW + GUT)
-ABOUT = ("сборник статей: заголовок и авторы, аннотация, врезка в рамке, "
-         "обтекание, подпись сбоку от рисунка, сноски, список литературы")
+ABOUT = ("collection of articles: title and authors, abstract, boxed "
+         "insert, text wrap, a caption beside the figure, footnotes, "
+         "references")
 
 
 def _sheet(doc):
@@ -38,7 +40,7 @@ def _colon(pg, t, page_no):
 
 
 def c_zh_two_col_plain(doc, rng):
-    """КОНТРОЛЬ: две колонки прозы, ничего больше."""
+    """CONTROL: two columns of prose, nothing else."""
     pg = _sheet(doc); t = []
     for x in COL_X:
         _flow(pg, t, x, TOP, BOT_Y, PROSE_EN, w=COLW)
@@ -47,7 +49,7 @@ def c_zh_two_col_plain(doc, rng):
 
 
 def c_zh_article_head(doc, rng):
-    """Заголовок статьи, авторы, аннотация втяжкой, потом две колонки."""
+    """Article title, authors, an indented abstract, then two columns."""
     pg = _sheet(doc); t = []
     title = "ALIGNMENT OF THE LEAD SCREW IN HEAVY LATHES"
     w = _put(pg, MARGIN + 10, TOP + 14, title, 11.0, sheet_w=PW)
@@ -68,7 +70,7 @@ def c_zh_article_head(doc, rng):
 
 
 def c_zh_box_insert(doc, rng):
-    """Врезка в рамке посреди колонки: на глаз таблица в одну ячейку."""
+    """A boxed insert mid-column: to the eye, a one-cell table."""
     pg = _sheet(doc); t = []
     _flow(pg, t, COL_X[0], TOP, 260, PROSE_EN, w=COLW)
     _box_insert(pg, t, COL_X[0], 274, COLW, 150, PROSE_EN)
@@ -79,11 +81,11 @@ def c_zh_box_insert(doc, rng):
 
 
 def c_zh_side_caption(doc, rng):
-    """Подпись СБОКУ от рисунка, а не под ним."""
+    """The caption BESIDE the figure, not under it."""
     pg = _sheet(doc); t = []
     _flow(pg, t, COL_X[0], TOP, 200, PROSE_EN, w=COLW)
     _figure(pg, t, COL_X[0], 216, COLW, 170, "Fig. 4  Jig")
-    # подпись второй строкой — справа от рисунка, в соседней колонке
+    # the second caption sits right of the figure, in the next column
     _caption(pg, t, COL_X[1], 300, "Fig. 5  The same, in section")
     _flow(pg, t, COL_X[1], TOP, 280, PROSE_EN, w=COLW)
     _flow(pg, t, COL_X[1], 316, BOT_Y, PROSE_EN, w=COLW)
@@ -93,7 +95,7 @@ def c_zh_side_caption(doc, rng):
 
 
 def c_zh_photo_and_table(doc, rng):
-    """Фотография и таблица на одной полосе, рядом по вертикали."""
+    """A photograph and a table on one page, vertical neighbours."""
     pg = _sheet(doc); t = []
     _flow(pg, t, COL_X[0], TOP, 190, PROSE_EN, w=COLW)
     _halftone(pg, t, COL_X[0], 206, COLW, 160, "Fig. 6  Bed casting")
@@ -105,7 +107,7 @@ def c_zh_photo_and_table(doc, rng):
 
 
 def c_zh_wrap_figure(doc, rng):
-    """Рисунок в теле колонки, текст обтекает его сверху и снизу."""
+    """A figure inside the column, text flowing above and below it."""
     pg = _sheet(doc); t = []
     _flow(pg, t, COL_X[0], TOP, 240, PROSE_EN, w=COLW)
     _chart(pg, t, COL_X[0] + 26, 262, COLW - 40, 140, "Fig. 7  Hardness")
@@ -116,7 +118,7 @@ def c_zh_wrap_figure(doc, rng):
 
 
 def c_zh_footnotes(doc, rng):
-    """Сноски под короткой линейкой в подвале обеих колонок."""
+    """Footnotes under a short rule at the foot of both columns."""
     pg = _sheet(doc); t = []
     for x in COL_X:
         _flow(pg, t, x, TOP, 590, PROSE_EN, w=COLW)
@@ -133,7 +135,7 @@ def c_zh_footnotes(doc, rng):
 
 
 def c_zh_references(doc, rng):
-    """Список литературы в две колонки: втяжка и номера в скобках."""
+    """References in two columns: indents and bracketed numbers."""
     pg = _sheet(doc); t = []
     w = _put(pg, MARGIN + 10, TOP + 12, "REFERENCES", 9.0, sheet_w=PW)
     t.append((MARGIN + 8, TOP + 2, MARGIN + 10 + w + 2, TOP + 15,
@@ -146,7 +148,7 @@ def c_zh_references(doc, rng):
 
 
 def c_zh_pull_quote(doc, rng):
-    """Выделенная цитата крупным кеглем между двумя линейками."""
+    """A pull quote in a larger size between two rules."""
     pg = _sheet(doc); t = []
     _flow(pg, t, COL_X[0], TOP, 250, PROSE_EN, w=COLW)
     _line(pg, COL_X[0], 268, COL_X[0] + COLW, 268, 1.1)
@@ -164,7 +166,7 @@ def c_zh_pull_quote(doc, rng):
 
 
 def c_zh_mixed(doc, rng):
-    """Всё сразу: колонтитул, врезка, рисунок с подписью, таблица, сноска."""
+    """All at once: running head, insert, captioned figure, table, footnote."""
     pg = _sheet(doc); t = []
     _running_head(pg, t, MARGIN, PW - MARGIN, TOP - 16, "MACHINE TOOLS",
                   "SEC. 26", 70)

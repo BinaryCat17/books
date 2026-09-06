@@ -1,1 +1,1 @@
-якорей в книге 6156; заменено блоков 412, всего замен 412, откачено до конца 0
+anchors in the book 6156; blocks swapped 412, swaps in all 412, undone to the end 0

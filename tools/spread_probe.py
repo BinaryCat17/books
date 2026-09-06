@@ -30,7 +30,7 @@ RUN::
 
     python tools/spread_probe.py --selfcheck            # no books, seconds
     python tools/spread_probe.py raw/*.djvu
-    python tools/spread_probe.py --pages 17,20,23 raw/книга.djvu
+    python tools/spread_probe.py --pages 17,20,23 raw/book.djvu
 
 The third form names what was found on suspect sheets: feed it a table across
 the whole spread and a bare binding shadow, and the classes must differ.
@@ -118,46 +118,46 @@ def probe(src, only=None):
 
 # (case name, what to draw over two columns of "text", is a veto expected)
 CASES = (
-    ("чистый корешок", None, False),
-    ("тень переплёта сверху", "shadow-top", False),
-    ("тень переплёта на всю высоту", "shadow-full", False),
-    ("линейка через весь разворот", "rule-full", True),
-    ("линейка через треть", "rule-third", True),
-    ("таблица во весь разворот", "table", True),
+    ("a clean gutter", None, False),
+    ("binding shadow at the top", "shadow-top", False),
+    ("binding shadow the full height", "shadow-full", False),
+    ("a rule across the whole spread", "rule-full", True),
+    ("a rule across a third", "rule-third", True),
+    ("a table across the whole spread", "table", True),
     # Scans are grey, not black: without this case RULE_INK could go to 250
     # and no case drawn in pure black would notice. The mutation has to be
     # caught, or the threshold is unchecked.
-    ("выцветшая линейка через разворот", "rule-grey", True),
+    ("a faded rule across the spread", "rule-grey", True),
     # Scan paper is yellowish. Without this case the same threshold could drop
     # to five and the whole sheet would become "ink".
-    ("жёлтая бумага, чистый корешок", "paper-grey", False),
+    ("yellowed paper, a clean gutter", "paper-grey", False),
     # THE BLACK EDGE OF THE SHEET -- the defect itself: 44 false vetoes of 379
     # on the "Справочник". Run 27..100% of the width, straight through the
     # length threshold; only position tells it apart. Top and bottom apart: in
     # the live books all 391 continuous rows fell on the TOP edge, so nothing
     # but this case checks the bottom.
-    ("чёрная кромка листа сверху", "edge-top", False),
-    ("чёрная кромка листа снизу", "edge-bottom", False),
+    ("a black sheet edge at the top", "edge-top", False),
+    ("a black sheet edge at the bottom", "edge-bottom", False),
     # The other side of that threshold: a rule at the very edge of the BODY
     # must cause a veto. At 5.5% of the height -- where the "Справочник" has
     # its nearest-to-edge real rule (row 33 of 599). Reddens if RULE_EDGE goes
     # to 6%.
-    ("линейка у края тела листа", "rule-near-edge", True),
+    ("a rule at the edge of the sheet body", "rule-near-edge", True),
     # A rule ONE probe row tall: 703 blocks of 882 in the "Справочник" are
     # exactly that. The old quantity -- the share of continuous rows -- wanted
     # three of 599 and would never have fired on such a rule.
-    ("линейка в одну строку пробы", "rule-hairline", True),
+    ("a rule one probe row tall", "rule-hairline", True),
     # The binding shadow is not always at the edge: in the "Справочник" 4 short
     # rows across the gutter lie at 6.8..13.9% of the height, run up to 0.109
     # of the width. Without this case nothing checks the LOWER side of
     # RULE_RUN: on the edge cases RULE_EDGE now cuts it off.
-    ("тень переплёта в теле листа", "shadow-body", False),
+    ("binding shadow inside the sheet body", "shadow-body", False),
     # A table on ONE page of the spread whose rule runs past the geometric
     # middle: the gutter almost never falls at the half, which is why a column
     # is searched for at all. Such a sheet can and must be cut -- to the right
     # of the rule. Reddens if GUTTER_BAND is narrowed: the cut then hits the
     # middle, that is, the rule.
-    ("линейка одной страницы за середину", "rule-one-page", False),
+    ("one page's rule past the middle", "rule-one-page", False),
 )
 
 
@@ -277,7 +277,7 @@ def selfcheck():
         return doc
 
     bad = 0
-    print("самопроверка вето:")
+    print("self-check of the veto:")
     for name, kind, want in CASES:
         doc = sheet(kind)
         pg = doc[0]
@@ -285,10 +285,10 @@ def selfcheck():
         doc.close()
         ok = got == want
         bad += not ok
-        print(f"  {name:34s} вето {'ДА ' if got else 'нет'}  "
-              f"ждали {'ДА ' if want else 'нет'}"
-              f"{'' if ok else '   <-- НЕ СОШЛОСЬ'}")
-    print(f"  расхождений {bad} из {len(CASES)}")
+        print(f"  {name:38s} veto {'YES' if got else 'no '}  "
+              f"expected {'YES' if want else 'no '}"
+              f"{'' if ok else '   <-- MISMATCH'}")
+    print(f"  mismatches {bad} of {len(CASES)}")
     return 1 if bad else 0
 
 
@@ -313,23 +313,25 @@ def main(argv):
     for src in files:
         spreads, vetoed, through, short, edge, detail = probe(src, only)
         print(f"\n{os.path.basename(src)}")
-        print(f"  разворотов {spreads}, вето {vetoed} "
+        print(f"  spreads {spreads}, vetoes {vetoed} "
               f"({vetoed / max(1, spreads):.1%})")
-        print(f"  строк черноты через корешок: сквозных {through} "
-              f"(из них на кромке листа {edge}, в теле {through - edge}), "
-              f"коротких {short}")
+        print(f"  rows of black across the gutter: continuous {through} "
+              f"(of them on the sheet edge {edge}, in the body "
+              f"{through - edge}), short {short}")
         if short and not through:
-            print("  — вся чернота оказалась короткой: без различения вето "
-                  "сработало бы напрасно на каждом таком развороте")
+            print("  -- all the black turned out short: without the "
+                  "distinction the veto would have fired for nothing on "
+                  "every such spread")
         if edge and through == edge:
-            print("  — все сквозные строки лежат на кромке листа: без "
-                  "различения по положению вето сработало бы напрасно")
+            print("  -- every continuous row lies on the sheet edge: "
+                  "without telling position apart the veto would have fired "
+                  "for nothing")
         for sheet_no, h, body, edg, sh, rule, v in detail[:20]:
-            print(f"    лист {sheet_no}: проба {h} строк, сквозные в теле "
-                  f"{body}, на кромке {edg}, короткие {sh}, "
-                  f"линейка {rule:.3f} ширины{'  ВЕТО' if v else ''}")
+            print(f"    sheet {sheet_no}: probe {h} rows, continuous in the "
+                  f"body {body}, on the edge {edg}, short {sh}, "
+                  f"rule {rule:.3f} of the width{'  VETO' if v else ''}")
         if len(detail) > 20:
-            print(f"    … ещё {len(detail) - 20}")
+            print(f"    ... and {len(detail) - 20} more")
     return 0
 
 

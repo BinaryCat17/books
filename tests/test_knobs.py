@@ -35,18 +35,19 @@ def test_unknown_knob_raises_not_returns_empty():
         knobs.knob("MULTIVIEW")          # once a knob, removed with its patch
     except KeyError as e:
         assert "MULTIVIEW" in str(e) and "KNOBS" in str(e), (
-            f"жалоба не называет ни ручку, ни реестр: {e}")
+            f"the complaint names neither the knob nor the registry: {e}")
     else:
         raise AssertionError(
-            "реестр отдал значение ручке, которой в нём нет: она не попадёт в "
-            "слепок, и прогон станет неповторимым молча")
+            "the registry gave a value for a knob it does not hold: that "
+            "knob will not reach the snapshot, and the run becomes silently "
+            "unrepeatable")
 
 
 def test_names_are_unique():
     """A duplicate name would silently overwrite one knob in KNOB."""
     names = [k.name for k in knobs.KNOBS]
     assert len(names) == len(set(names)), (
-        f"имена ручек повторяются: "
+        f"knob names repeat: "
         f"{sorted({n for n in names if names.count(n) > 1})}")
 
 
@@ -58,18 +59,18 @@ def test_defaults_are_strings():
     """
     for k in knobs.KNOBS:
         assert isinstance(k.default, str), (
-            f"{k.name}: умолчание {k.default!r} не строка")
-        assert k.what, f"{k.name}: не сказано, что она делает"
+            f"{k.name}: the default {k.default!r} is not a string")
+        assert k.what, f"{k.name}: it does not say what it does"
 
 
 def test_snapshot_holds_every_knob_with_every_field():
     s = knobs.snapshot()
     assert set(s) == set(knobs.names()), (
-        f"в слепке {len(s)} ручек из {len(knobs.names())}: "
+        f"the snapshot holds {len(s)} knobs of {len(knobs.names())}: "
         f"{sorted(set(knobs.names()) ^ set(s))}")
     for name, rec in s.items():
         assert set(rec) == {"value", "default", "set_externally", "what",
-                            "debt"}, f"{name}: поля слепка {sorted(rec)}"
+                            "debt"}, f"{name}: snapshot fields {sorted(rec)}"
 
 
 def test_snapshot_tells_set_from_default():
@@ -89,10 +90,10 @@ def test_snapshot_tells_set_from_default():
         s = knobs.snapshot()[name]
         assert s["set_externally"] is True and s["value"] == "999"
         assert s["default"] == knobs.KNOB[name].default, (
-            "умолчание в слепке подменилось заданным: сравнить прогон с "
-            "умолчанием станет не с чем")
+            "the default in the snapshot was replaced by the value given: "
+            "there is nothing left to compare a run against the default with")
         os.environ[name] = ""
-        assert knobs.knob(name) == "", "пустая строка снаружи проиграла умолчанию"
+        assert knobs.knob(name) == "", "an empty string from outside lost to the default"
     finally:
         os.environ.pop(name, None)
         if old is not None:
@@ -122,7 +123,7 @@ def test_audit_finds_no_disagreement():
     the knob stands as if alive.
     """
     bad = knobs.audit()
-    assert bad == [], ("реестр разошёлся с деревом, расхождений "
+    assert bad == [], ("the registry diverged from the tree, differences "
                        f"{len(bad)}:\n  " + "\n  ".join(bad))
 
 
@@ -136,11 +137,11 @@ def test_readers_finds_consumers_and_counts_them():
     assert set(who) == set(knobs.names())
     live = sum(1 for v in who.values() if v)
     assert live == len(knobs.KNOBS) - len(knobs.debts()), (
-        f"ручек {len(knobs.KNOBS)}, потребитель нашёлся у {live}, долгом "
-        f"объявлено {len(knobs.debts())} — три числа не сходятся")
+        f"knobs {len(knobs.KNOBS)}, a consumer was found for {live}, "
+        f"declared debt {len(knobs.debts())} -- the three do not add up")
     for name in knobs.debts():
         assert knobs.KNOB[name].debt is True
-        assert not who[name], f"{name}: объявлена долгом, а её читает {who[name]}"
+        assert not who[name], f"{name}: declared a debt, and {who[name]} reads it"
 
 
 def test_adapters_declare_the_knobs_they_read():
@@ -157,22 +158,22 @@ def test_adapters_declare_the_knobs_they_read():
         read = set(re.findall(r'knob\(\s*["\']([A-Z_0-9]+)["\']', text))
         told = set(object.__new__(cls).knobs_read())
         assert told == read, (
-            f"{cls.__name__}: объявлено {sorted(told)}, а в {rel} читается "
-            f"{sorted(read)}. Лишнее в объявлении — уверенная неправда в "
-            f"слепке, недостающее — ручка, решившая прогон и в него не "
-            f"попавшая")
+            f"{cls.__name__}: declared {sorted(told)}, and {rel} reads "
+            f"{sorted(read)}. What is extra in the declaration is a confident "
+            f"lie in the snapshot; what is missing is a knob that decided the "
+            f"run and never reached it")
         unknown = told - set(knobs.names())
         assert not unknown, (
-            f"{cls.__name__} объявляет ручки, которых нет в реестре: "
-            f"{sorted(unknown)} — болезнь VL_MODEL_DIR")
+            f"{cls.__name__} declares knobs the registry does not have: "
+            f"{sorted(unknown)} -- the VL_MODEL_DIR disease")
 
 
 def test_docling_pipeline_is_registered():
     """The knob that decided 5826 boxes must be in the registry."""
     k = knobs.KNOB["DOCLING_PIPELINE"]
-    assert k.debt is False, "живая ручка помечена долгом"
+    assert k.debt is False, "a live knob is marked a debt"
     assert knobs.readers()["DOCLING_PIPELINE"], (
-        "у DOCLING_PIPELINE не нашлось ни одного потребителя")
+        "DOCLING_PIPELINE has not one consumer")
 
 
 # --------------------------------------------------------------------------
@@ -232,33 +233,34 @@ def _raised_by_skip(own_runner):
         was = support.OWN_RUNNER
         support.OWN_RUNNER = own_runner
         try:
-            support.skip("нечем")
+            support.skip("nothing to do it with")
         except support.Skip as e:
-            return "наш Skip", str(e)
+            return "our Skip", str(e)
         except BaseException as e:                          # noqa: BLE001
             return type(e).__name__, str(e)
         finally:
             support.OWN_RUNNER = was
-        return "не поднялось вовсе", ""
+        return "did not raise at all", ""
     return _with_fake_pytest(body)
 
 
 def test_skip_under_our_runner_does_not_depend_on_pytest_being_installed():
     """Our runner runs -- the skip is OURS, even with pytest installed."""
     kind, why = _raised_by_skip(own_runner=True)
-    assert kind == "наш Skip", (
-        f"при установленном pytest пропуск поднялся как {kind}: наш бегун "
-        f"его не поймает и напечатает провал вместо пропуска — а `Skipped` "
-        f"наследует BaseException, так что и вовсе умрёт, не напечатав итога")
-    assert why == "нечем", "причина пропуска потерялась"
+    assert kind == "our Skip", (
+        f"with pytest installed the skip was raised as {kind}: our runner "
+        f"will not catch it and will print a failure instead of a skip -- and "
+        f"`Skipped` inherits BaseException, so it will die outright without "
+        f"printing a summary")
+    assert why == "nothing to do it with", "the reason for the skip was lost"
 
 
 def test_skip_under_pytest_stays_a_pytest_skip():
     """pytest runs -- the skip is HIS, else `Skip` reaches him as a failure."""
     kind, _ = _raised_by_skip(own_runner=False)
     assert kind == "Skipped", (
-        f"под pytest пропуск объявлен как {kind} — он засчитает проверку "
-        f"провалом, а не пропуском")
+        f"under pytest the skip is declared as {kind} -- pytest will count "
+        f"the check as a failure and not a skip")
 
 
 def _load_runner():
@@ -294,20 +296,21 @@ def test_runner_counts_a_foreign_skip_as_a_skip_and_survives():
             import sys
             try:
                 return runner.run_case(
-                    lambda: sys.modules["pytest"].skip("нечем"))
+                    lambda: sys.modules["pytest"].skip("nothing to do it with"))
             except BaseException as e:                      # noqa: BLE001
                 # A broken runner does not catch a foreign skip and lets it out
                 # -- that is exactly how it died. Caught here so that this
                 # check goes red rather than the whole run.
-                return f"выпущено наружу ({type(e).__name__})", str(e)
+                return f"let out ({type(e).__name__})", str(e)
         state, why = _with_fake_pytest(body)
     finally:
         support.OWN_RUNNER = was
     assert state == "skip", (
-        f"чужой пропуск засчитан как «{state}»: `Skipped` наследует "
-        f"BaseException и мимо ловушек `run_case` убивал бегун целиком — "
-        f"итог не печатался вовсе")
-    assert "нечем" in why, f"причина пропуска потерялась: {why!r}"
+        f"a foreign skip was counted as {state!r}: `Skipped` inherits "
+        f"BaseException and, going past the traps in `run_case`, killed the "
+        f"runner outright -- no summary was printed at all")
+    assert "nothing to do it with" in why, (
+        f"the reason for the skip was lost: {why!r}")
 
 
 def test_runner_still_lets_a_real_interrupt_out():
@@ -324,8 +327,8 @@ def test_runner_still_lets_a_real_interrupt_out():
     finally:
         support.OWN_RUNNER = was
     raise AssertionError(
-        "бегун проглотил Ctrl+C и записал его в состояние проверки: "
-        "остановить прогон стало нечем")
+        "the runner swallowed Ctrl+C and wrote it into the check's state: "
+        "there is nothing left to stop a run with")
 
 
 # --------------------------------------------------------------------------
@@ -376,24 +379,28 @@ def test_shape_that_could_not_be_derived_is_loud_not_silent():
             cur = snap
             for k in p[:-1]:
                 cur = cur.setdefault(k, {})
-            cur[p[-1]] = "есть"
+            cur[p[-1]] = "present"
         snap["adapter"] = {"name": "myocr", "module": "booksmith.myocr",
                            "sha256": replay._sha256(path)}
-        assert replay.FP not in snap, "ветку отпечатка кладём не мы"
+        assert replay.FP not in snap, "the fingerprint branch is not put there by us"
         sh = replay.shape(snap)
         assert sh["not_derived"] == 1, (
-            "форму отпечатка вывести не удалось, а прибор об этом молчит: "
-            "молчание тут читается как «проверено всё»")
+            "the fingerprint's shape could not be derived and the "
+            "instrument keeps quiet: silence here reads as \"everything was "
+            "checked\"")
         miss = replay.missing(snap, replay.required(snap, sh))
         assert [p for p, _ in miss] == [(replay.FP,)], (
-            f"слепок ВОВСЕ БЕЗ ветки «{replay.FP}» объявлен полным: "
-            f"не хватает {len(miss)}, а `books replay --check` вернул бы 0")
+            f"a snapshot with NO {replay.FP!r} branch at all was declared "
+            f"complete: {len(miss)} are missing, and `books replay --check` "
+            f"would have returned 0")
         assert not sh["verified"], (
-            "форма не выведена, а отпечаток назван сверенным — слово СВЕРЕН "
-            "рядом с невыведенной формой и было главной ложью")
+            "the shape was not derived and the fingerprint was called "
+            "CHECKED -- that word beside an underived shape was the chief "
+            "lie")
         assert replay.selfcheck(_tmp_out(tmp, snap), log=lambda *_a: None) > 0, (
-            "батарея слепка вернула ноль на слепке без отпечатка: ноль от "
-            "непонимания выдан за ноль от проверки")
+            "the snapshot battery returned zero on a snapshot with no "
+            "fingerprint: a zero from not understanding passed off as a zero "
+            "from a check")
     finally:
         replay.PKG = was
         _sh.rmtree(tmp, ignore_errors=True)
@@ -402,7 +409,7 @@ def test_shape_that_could_not_be_derived_is_loud_not_silent():
 def _tmp_out(tmp, snap):
     """The directory with `run.json` -- what `replay.selfcheck` reads."""
     import json
-    out = os.path.join(tmp, "выход")
+    out = os.path.join(tmp, "out")
     os.makedirs(out, exist_ok=True)
     with open(os.path.join(out, "run.json"), "w", encoding="utf-8") as f:
         json.dump(snap, f, ensure_ascii=False)
@@ -421,8 +428,9 @@ def test_derivable_shape_still_requires_every_value():
     fn, cls = replay._fp_def(tree, "DocLayout")
     keys = replay._returned(fn, tree, cls)
     assert len(keys) > 10, (
-        f"из `DocLayout.fingerprint()` выведено {len(keys)} величин — разбор "
-        f"ослеп, и требование к отпечатку осыпалось до одной ветки")
+        f"{len(keys)} values were derived from `DocLayout.fingerprint()` -- "
+        f"the parse went blind and the requirement on the fingerprint "
+        f"crumbled to one branch")
 
 
 # -------------------------------------------------------- .sh AND THE REGISTRY
@@ -524,11 +532,12 @@ def test_shell_defaults_agree_with_the_registry():
     # zero from misunderstanding against a zero from checking.
     checked = sorted(n for n in found if n in registry)
     assert len(checked) >= 4, (
-        f"сверено всего {len(checked)} имён ({checked}) — проверка зелена ни "
-        f"на чём. Ждём хотя бы четыре: скрипты, уезжающие на карту, читают "
-        f"MODEL_NAME, PORT, RESUME, VLLM_USE_FLASHINFER_SAMPLER и "
-        f"VL_MODEL_DIR. Пусто здесь значит, что `.sh` не нашлись или разбор "
-        f"перестал их видеть, а не что расхождений нет")
+        f"only {len(checked)} names were compared ({checked}) -- the check "
+        f"is green on nothing. At least four are expected: the scripts that "
+        f"travel to the card read MODEL_NAME, PORT, RESUME, "
+        f"VLLM_USE_FLASHINFER_SAMPLER and VL_MODEL_DIR. Empty here means the "
+        f"`.sh` were not found or the parse stopped seeing them, not that "
+        f"there is no divergence")
 
     troubles = []
     for name, places in sorted(found.items()):
@@ -539,18 +548,19 @@ def test_shell_defaults_agree_with_the_registry():
             if k.default:
                 if default != k.default:
                     troubles.append(
-                        f"  {name}: в {file} умолчание {default!r}, "
-                        f"в реестре {k.default!r}")
+                        f"  {name}: in {file} the default is {default!r}, "
+                        f"in the registry {k.default!r}")
             elif "run.sh" not in k.what and "shell" not in k.what:
                 troubles.append(
-                    f"  {name}: реестр умолчания не даёт, а {file} подставляет "
-                    f"{default!r}, и запись реестра об этом молчит "
+                    f"  {name}: the registry gives no default and {file} "
+                    f"supplies {default!r}, and the registry entry is silent "
                     f"(«{k.what[:60]}»)")
     assert not troubles, (
-        "умолчания оболочки разошлись с реестром:\n" + "\n".join(troubles)
-        + "\nУ умолчания одно место жительства. Разойдясь, слепок пишет одно, "
-          "а арендованная карта считает другим — и узнать об этом можно "
-          "только по счёту.")
+        "the shell defaults diverged from the registry:\n"
+        + "\n".join(troubles)
+        + "\nA default has one place of residence. Once they diverge the "
+          "snapshot writes one value while the rented card computes with "
+          "another, and the only way to find out is the bill.")
 
 
 def test_replay_finds_the_snapshot_in_both_layouts():
@@ -572,11 +582,11 @@ def test_replay_finds_the_snapshot_in_both_layouts():
 
     snapshot = {"knobs": {"PAGE_DPI": {"value": "144"}}}
     with tempfile.TemporaryDirectory() as tmp:
-        assert replay.facts(tmp) == {}, "слепок найден там, где его нет"
+        assert replay.facts(tmp) == {}, "a snapshot was found where there is none"
 
         with open(os.path.join(tmp, "run.json"), "w", encoding="utf-8") as f:
             _json.dump(snapshot, f)
-        assert replay.facts(tmp) == snapshot, "слепок в корне не прочитан"
+        assert replay.facts(tmp) == snapshot, "the snapshot at the root was not read"
 
     with tempfile.TemporaryDirectory() as tmp:
         os.makedirs(os.path.join(tmp, ASSETS))
@@ -584,8 +594,9 @@ def test_replay_finds_the_snapshot_in_both_layouts():
                   encoding="utf-8") as f:
             _json.dump(snapshot, f)
         assert replay.facts(tmp) == snapshot, (
-            "слепок в кухне не прочитан — `books replay --check` на каталоге "
-            "книги скажет «слепка нет вовсе» при лежащем рядом слепке")
+            "the snapshot in the kitchen was not read -- `books replay "
+            "--check` on a book directory will say \"no snapshot at all\" "
+            "with a snapshot lying right beside it")
 
 
 def test_the_aging_knob_lists_exactly_the_profiles_that_exist():

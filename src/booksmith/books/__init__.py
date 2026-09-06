@@ -1,22 +1,23 @@
-"""Книги синтетического стенда: каждая — свой род вёрстки и свой формат листа.
+"""Books of the synthetic bench: one kind of layout and one sheet size each.
 
-Зачем реестр, а не один плоский словарь случаев. Одна книга-справочник
-проверяет один род вёрстки, и её числа уже сказали всё, что могли:
-`docs/contour-notes.md`. Дальше нужны страницы, которых у справочника нет
-вовсе, — узкие колонки словаря, матрицы учебника, поле чертежа с основной
-надписью, полоса каталога без единой строки прозы, врезка журнала.
+WHY A REGISTRY and not one flat dictionary of cases. The handbook tests one
+kind of layout, and its numbers have said everything they can say
+(`docs/contour-notes.md`). What is needed next are pages the handbook does not
+have at all: the narrow columns of a dictionary, the matrices of a textbook,
+a drawing field with its title block, a catalogue page without a line of
+prose, a magazine's boxed insert.
 
-Формат листа у каждой СВОЙ и объявляется в модуле книги. Пока размер брался
-из модуля `synth`, рисовальщик, позванный для другой книги, молча рисовал бы
-на формате справочника — тот же капкан единиц, что однажды увёл половину
-разворота за край листа.
+THE SHEET SIZE IS THE BOOK'S OWN and is declared in the book's module. While
+the size came from `synth`, a drawing helper called for another book would
+silently draw on the handbook's format -- the same unit trap that once carried
+half a spread off the edge of the sheet.
 
-Книга обязана объявить:
-    SHEET   (ширина, высота) растра при 144 dpi
-    ABOUT   одна строка: что это за книга и чем она полезна замеру
-    CASES   {имя случая: функция(doc, rng) -> (страница, истина)}
-    SPREADS множество случаев-разворотов (им дорисовывается тень переплёта)
-    ROTATE  {имя случая: угол} — что повернуть после отрисовки
+A book must declare:
+    SHEET   (width, height) of the raster at 144 dpi
+    ABOUT   one line: what this book is and what it is good for measuring
+    CASES   {case name: function(doc, rng) -> (page, truth)}
+    SPREADS the set of spread cases (a gutter shadow is drawn onto them)
+    ROTATE  {case name: angle} -- what to rotate after drawing
 """
 import importlib
 
@@ -24,9 +25,9 @@ NAMES = ("spravochnik", "slovar", "matematika", "atlas", "katalog", "zhurnal")
 
 
 def load(name: str):
-    """Модуль книги. `spravochnik` живёт в самом `synth` — он там и родился."""
+    """A book's module. `spravochnik` lives in `synth`, where it was born."""
     if name not in NAMES:
-        raise KeyError(f"нет книги {name!r}: есть {NAMES}")
+        raise KeyError(f"no book {name!r}: there are {NAMES}")
     if name == "spravochnik":
         from .. import synth
         return synth

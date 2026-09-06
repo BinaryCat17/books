@@ -1,19 +1,19 @@
-"""Каталог деталей: полоса, на которой кроме таблицы нет ничего.
+"""A parts catalogue: a page with nothing on it but the table.
 
-Зачем. У справочника таблица всегда окружена прозой, и «нашлась» она во
-многом потому, что вокруг был текст, от которого её отличают. В каталоге
-полоса — сама таблица: сверху колонтитул, снизу колонцифра, между ними сорок
-строк цифр. Гипотеза: без окружения детектор либо обводит всю полосу, либо
-рвёт таблицу на куски.
+WHY. In the handbook a table is always surrounded by prose, and it was "found"
+in large part BECAUSE there was text to tell it from. Here the table IS the
+page: a running head above, a folio below, forty rows of figures between. The
+hypothesis: with nothing around it, the detector either boxes the whole page
+or tears the table into pieces.
 
-Вторая гипотеза книги — ПРОДОЛЖЕНИЕ. Настоящий каталог ведёт одну таблицу
-через десяток страниц: шапка повторяется, слева стоит «Продолжение табл. 7».
-Проверяется, отличит ли модель повторную шапку от шапки колонтитула и не
-приклеит ли строку продолжения к таблице.
+The second hypothesis is CONTINUATION. A real catalogue carries one table
+across a dozen pages: the header repeats and "Continuation of Table 7" stands
+at the left. Does the model tell a repeated header from a running head, and
+does it glue the continuation line onto the table?
 
-Контроль — `kat_two_stacked`: две таблицы одна под другой. На справочнике
-такая пара проходит верно, значит на ней видно, что беда именно в
-безокружении, а не в самой книге.
+The control is `kat_two_stacked`, two tables one under the other. The handbook
+passes that pair correctly, so a failure here is about the bare page and not
+about the pair itself.
 """
 from ..synth import (PROSE_EN, _flow, _grid, _line, _page, _put,
                      _running_head, _say, _table, _text_w)
@@ -22,8 +22,9 @@ SHEET = (1012, 1466)
 PT = 0.5
 PW, PH = SHEET[0] * PT, SHEET[1] * PT
 MARGIN, TOP, BOT_Y = 30.0, 46.0, 700.0
-ABOUT = ("каталог деталей: полоса без прозы, длинные таблицы через много "
-         "страниц, повторная шапка, «Продолжение табл.», сноска под таблицей")
+ABOUT = ("parts catalogue: a page with no prose, long tables running over "
+         "many pages, a repeated header, \"Continuation of Table\", a "
+         "footnote under the table")
 
 
 def _sheet(doc, wide=False):
@@ -40,20 +41,20 @@ def _cat_table(pg, t, x, y, n_cols, rows, colw=52.0, step=9.6, size=5.8,
     cols = _grid(x, n_cols, colw=colw, gap=6.0)
     y1 = _table(pg, t, x, y, cols, rows, size=size, colw=colw, step=step)
     if numbered:
-        # НОМЕРА СТРОК РИСУЮТСЯ ЛЕВЕЕ РАМКИ ТАБЛИЦЫ (x-20 против x-6) И СВОЕЙ
-        # РАМКИ НЕ ИМЕЮТ — так и задан случай `kat_row_numbers`: вопрос в том,
-        # возьмёт ли модель их отдельной рамкой или втянет в таблицу. Значит
-        # это чернила и слова ВНЕ всякой рамки истины, и стенд обязан их
-        # НАЗВАТЬ числом, а не спрятать: счётчик «слов вне истины» в `build`
-        # ловит ровно их, и его ненулевое значение здесь — не дефект, а
-        # объявленное свойство страницы.
+        # ROW NUMBERS ARE DRAWN LEFT OF THE TABLE BOX (x-20 against x-6) AND
+        # HAVE NO BOX OF THEIR OWN -- that IS the case `kat_row_numbers`: does
+        # the model take them as a separate box or pull them into the table?
+        # So they are ink and words OUTSIDE every truth box, and the bench must
+        # NAME that with a number rather than hide it. The "words outside the
+        # truth" counter in `build` catches exactly these, and its non-zero
+        # value here is a declared property of the page, not a defect.
         for r in range(rows):
             _put(pg, x - 20, y + 10 + r * step, f"{r + 1}", size, sheet_w=PW)
     return y1
 
 
 def c_kat_full_table(doc, rng):
-    """Полоса — одна таблица во всю высоту. Ни строки прозы."""
+    """The page is one table, full height. Not a line of prose."""
     pg = _sheet(doc); t = []
     _head(pg, t, 214)
     _cat_table(pg, t, MARGIN + 8, TOP + 34, 7, 62, colw=58.0, step=10.2)
@@ -61,7 +62,7 @@ def c_kat_full_table(doc, rng):
 
 
 def c_kat_continued(doc, rng):
-    """«Продолжение табл. 7» и повторная шапка."""
+    """"Continuation of Table 7" and a repeated header."""
     pg = _sheet(doc); t = []
     _head(pg, t, 215)
     w = _put(pg, MARGIN + 8, TOP + 30, "Continuation of Table 7", 6.6,
@@ -74,7 +75,7 @@ def c_kat_continued(doc, rng):
 
 
 def c_kat_row_numbers(doc, rng):
-    """Слева столбец номеров строк: отдельная рамка или часть таблицы."""
+    """A column of row numbers at the left: own box, or part of the table."""
     pg = _sheet(doc); t = []
     _head(pg, t, 216)
     _cat_table(pg, t, MARGIN + 30, TOP + 34, 6, 60, colw=62.0, step=10.4,
@@ -83,7 +84,7 @@ def c_kat_row_numbers(doc, rng):
 
 
 def c_kat_mid_start(doc, rng):
-    """Таблица начинается В СЕРЕДИНЕ полосы, сверху — конец прозы."""
+    """The table starts IN THE MIDDLE of the page, prose ends above it."""
     pg = _sheet(doc); t = []
     _head(pg, t, 217)
     _flow(pg, t, MARGIN, TOP + 30, 300, PROSE_EN, w=PW - 2 * MARGIN)
@@ -92,7 +93,7 @@ def c_kat_mid_start(doc, rng):
 
 
 def c_kat_mid_end(doc, rng):
-    """Таблица КОНЧАЕТСЯ в середине полосы, ниже — проза."""
+    """The table ENDS in the middle of the page, prose below it."""
     pg = _sheet(doc); t = []
     _head(pg, t, 218)
     y = _cat_table(pg, t, MARGIN + 8, TOP + 34, 7, 30, colw=58.0, step=10.2)
@@ -101,7 +102,7 @@ def c_kat_mid_end(doc, rng):
 
 
 def c_kat_footnote_under(doc, rng):
-    """Сноска под таблицей за короткой линейкой: часть таблицы или нет."""
+    """A footnote under the table behind a short rule: part of it or not."""
     pg = _sheet(doc); t = []
     _head(pg, t, 219)
     y = _cat_table(pg, t, MARGIN + 8, TOP + 34, 7, 48, colw=58.0, step=10.2)
@@ -118,7 +119,7 @@ def c_kat_footnote_under(doc, rng):
 
 
 def c_kat_two_stacked(doc, rng):
-    """КОНТРОЛЬ: две таблицы одна под другой с подписями."""
+    """CONTROL: two tables one under the other, each with a caption."""
     pg = _sheet(doc); t = []
     _head(pg, t, 220)
     y = TOP + 34
@@ -134,7 +135,7 @@ def c_kat_two_stacked(doc, rng):
 
 
 def c_kat_two_side(doc, rng):
-    """Две УЗКИЕ таблицы бок о бок: тот самый дефект, но в каталоге."""
+    """Two NARROW tables side by side: the known defect, in a catalogue."""
     pg = _sheet(doc); t = []
     _head(pg, t, 221)
     for x in (MARGIN + 8, PW / 2 + 20):
@@ -143,7 +144,7 @@ def c_kat_two_side(doc, rng):
 
 
 def c_kat_wide_rotated(doc, rng):
-    """Широкая таблица на ПОВЁРНУТОЙ полосе."""
+    """A wide table on a ROTATED page."""
     pg = _sheet(doc); t = []
     _head(pg, t, 222)
     _cat_table(pg, t, MARGIN + 8, TOP + 40, 8, 56, colw=50.0, step=10.2)
@@ -151,7 +152,7 @@ def c_kat_wide_rotated(doc, rng):
 
 
 def c_kat_spread_continue(doc, rng):
-    """РАЗВОРОТ: таблица идёт через корешок, шапка одна на обе половины."""
+    """SPREAD: the table crosses the gutter, one header for both halves."""
     pg = _sheet(doc, wide=True); t = []
     _running_head(pg, t, MARGIN, 2 * PW - MARGIN, TOP - 14, "PART CATALOGUE",
                   "SHAFT FITS", 223)
@@ -160,10 +161,10 @@ def c_kat_spread_continue(doc, rng):
 
 
 def c_kat_sparse_tail(doc, rng):
-    """Хвост таблицы в четыре строки и пустая нижняя треть полосы.
+    """A four-row tail of a table and an empty bottom third of the page.
 
-    Настоящий каталог так и кончается. Проверяет, не приклеит ли модель к
-    короткому хвосту колонтитул или колонцифру.
+    A real catalogue ends like this. Does the model glue the running head or
+    the folio onto so short a tail?
     """
     pg = _sheet(doc); t = []
     _head(pg, t, 224)

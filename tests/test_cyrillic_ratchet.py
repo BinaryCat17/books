@@ -27,6 +27,8 @@ import os
 import support
 from booksmith import cyr as _module
 
+ROOT = _module.ROOT
+
 # Cyrillic built rather than typed. A test of the counter needs Cyrillic input,
 # and typing it here would put a permanent floor under `tests.literals` that no
 # translation can remove -- the instrument would be unable to reach its target
@@ -48,6 +50,26 @@ def _count():
     if "count" not in _CACHE:
         _CACHE["count"] = _cyr().count()
     return _CACHE["count"]
+
+
+def _areas_of(src):
+    """Count one module given as text, without putting it on disk.
+
+    `py_areas` reads files, so the source is written to a scratch file inside
+    the tree -- the walk itself never sees it, because the walk asks git.
+    """
+    import collections
+    import tempfile
+    c = collections.Counter()
+    with tempfile.NamedTemporaryFile("w", suffix=".py", encoding="utf-8",
+                                     delete=False) as f:
+        f.write(src)
+        path = f.name
+    try:
+        _cyr().py_areas([path], "x", c)
+    finally:
+        os.unlink(path)
+    return c
 
 
 def test_the_baseline_exists_and_covers_every_area():
@@ -148,11 +170,65 @@ def test_the_counter_ignores_punctuation_it_must_not_chase():
 
 
 def test_book_content_is_exempt_by_name_not_by_file():
-    """`books/*.py` is 92.5 % our prose; a file-level exemption would hide it."""
+    """The exemption follows the CONSTANT, and never the file it lives in.
+
+    A file-level exemption for `books/*.py` was the first design and it would
+    have left our own prose Russian forever: those files were 9105 characters
+    of which only 682 were book text. The exemption is therefore the constant's
+    NAME, and this proves it on built input rather than on the tree, so it goes
+    on saying something after the last file is translated and every counted
+    area is zero.
+
+    Both directions are asserted, because only one of them was ever wrong:
+    Russian under a content name must be exempt, and the SAME Russian under any
+    other name must be counted as prose.
+    """
     cyr = _cyr()
     c = _count()
     assert c["book_prose"] > 0, "no book content found -- exemption is dead"
-    press = cyr.ratchet_areas(c)
-    assert "book_prose" not in press
-    assert c["src.docstrings"] > c["book_prose"] * 10, (
-        "book prose is not being separated from the prose around it")
+    assert "book_prose" not in cyr.ratchet_areas(c)
+
+    word = RU_LETTER * 7
+    src = f'WORDS{cyr.CONTENT_SUFFIX} = ("{word}",)\nNOTES = ("{word}",)\n'
+    counted = _areas_of(src)
+    assert counted["book_prose"] == 7, (
+        f"content under a name ending in {cyr.CONTENT_SUFFIX!r} was not "
+        f"exempted: {counted}")
+    assert counted["x.literals"] == 7, (
+        f"the same Russian under another name was not counted as prose: "
+        f"{counted}")
+
+
+def test_bench_snapshots_are_weighed_even_though_they_are_exempt():
+    """Exempt is a decision. Invisible is the instrument lying by omission.
+
+    `bench/**.json` was SKIPPED outright, so 17 696 codepoints of Russian
+    sitting inside nine tracked snapshots -- six manifests and three
+    `detect/run.json`, all of them knob descriptions copied in when the run
+    happened -- were not counted anywhere at all. The ratchet reported the job
+    as smaller than it is, which is the failure this project keeps a rule
+    about: a zero from a check and a zero from not looking.
+
+    The name comes from the code (`DATA_PREFIXES`) and the number from the
+    disk, so this fails in both directions: restore the skip and it goes red,
+    and so does pressing the ratchet on data that must not move.
+    """
+    cyr = _cyr()
+    want = 0
+    for rel in cyr.tracked():
+        if not any(rel.startswith(d) for d in cyr.DATA_PREFIXES):
+            continue
+        if rel in cyr.RECORD_FILES or rel.endswith(cyr.RECORD_GLOBS):
+            continue
+        try:
+            want += cyr.cyr(open(os.path.join(ROOT, rel),
+                                 encoding="utf-8").read())
+        except (UnicodeDecodeError, IsADirectoryError):
+            continue
+    assert want > 0, "no Cyrillic under bench/ at all -- the walk broke"
+    assert _count()["bench_data"] == want, (
+        f"bench data weighed as {_count()['bench_data']}, and the disk holds "
+        f"{want}. Something under {cyr.DATA_PREFIXES} is not being counted.")
+    assert "bench_data" not in cyr.ratchet_areas(_count()), (
+        "the ratchet is pressing on records of runs; they can only change by "
+        "re-running, and pressing sets a floor it can never reach")

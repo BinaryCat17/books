@@ -84,13 +84,13 @@ def _check_labels(page, pol, known, adapter):
     if not bad:
         return
     raise RuntimeError(
-        f"страница {page.index}: ярлыки блоков {bad} не из словаря политики "
-        f"«{pol}» (адаптер {adapter}; словарь знает {len(known)} написаний: "
-        f"{sorted(known)}). Считать дальше нельзя: артефактные ярлыки берутся "
-        f"из этого же словаря, и блок с чужим написанием дал бы «артефактов "
-        f"0» — ноль от непонимания под видом замера. Чинить надо перевод "
-        f"ярлыка в адаптере или сам словарь policy.POLICIES, но не эту "
-        f"проверку.")
+        f"page {page.index}: block labels {bad} are not from the policy "
+        f"vocabulary {pol} (adapter {adapter}; the vocabulary knows "
+        f"{len(known)} spellings: {sorted(known)}). Counting cannot go on: "
+        f"artefact labels come from that same vocabulary, and a block with a "
+        f"foreign spelling would give 'artefacts 0' -- a zero from not "
+        f"understanding, dressed as a measurement. Fix the label translation "
+        f"in the adapter, or policy.POLICIES itself, but not this check.")
 
 
 def _adapter():
@@ -106,7 +106,7 @@ def _adapter():
     if which == "yolox":
         from .models.yolox_layout import YoloXLayout
         return YoloXLayout()
-    raise SystemExit(f"LAYOUT_ADAPTER={which!r}: знаю только {ADAPTERS}")
+    raise SystemExit(f"LAYOUT_ADAPTER={which!r}: I know only {ADAPTERS}")
 
 
 # Knobs THIS command reads, not the adapter. A third rank, and no ornament:
@@ -135,22 +135,23 @@ def _knob_roles(det):
         mine = tuple(det.knobs_read())
     except NotImplementedError:
         raise SystemExit(
-            f"адаптер {det.name} не объявил, какие ручки читает "
-            f"(models/base.py, knobs_read). Пустой кортеж — законный ответ, "
-            f"молчание — нет: молчащий адаптер вернул бы слепок к тому, "
-            f"ради чего это объявление и заведено.") from None
+            f"adapter {det.name} did not declare which knobs it reads "
+            f"(models/base.py, knobs_read). An empty tuple is a lawful "
+            f"answer, silence is not: a silent adapter would take the "
+            f"snapshot back to what this declaration exists against."
+            ) from None
     unknown = [n for n in mine if n not in knobs.KNOB]
     if unknown:
         raise SystemExit(
-            f"адаптер {det.name} объявил ручки, которых нет в реестре: "
-            f"{unknown}. Либо опечатка, либо чтение окружения мимо "
-            f"run/knobs.py — обе беды молчаливые.")
+            f"adapter {det.name} declared knobs the registry does not hold: "
+            f"{unknown}. Either a typo, or the environment is read past "
+            f"run/knobs.py -- both troubles are silent.")
     roles = {}
     for n in knobs.names():
         if n in mine:
-            roles[n] = f"адаптер {det.name}"
+            roles[n] = f"adapter {det.name}"
         elif n in COMMAND_KNOBS:
-            roles[n] = "команда books detect"
+            roles[n] = "the books detect command"
         else:
             roles[n] = None
     return roles
@@ -196,11 +197,11 @@ def parse_pages(spec, total):
                 rng = range(int(a), int(b) + 1)
             except ValueError:
                 raise SystemExit(
-                    f"в «--pages {spec}» диапазон «{part}» не разобран. "
-                    f"Ожидается «7-9», счёт с единицы.")
+                    f"in --pages {spec} the range {part} was not parsed. "
+                    f"Expected 7-9, counting from one.")
             if not rng:
                 raise SystemExit(
-                    f"диапазон «{part}» пуст: конец раньше начала")
+                    f"range {part} is empty: the end is before the start")
             want.extend(rng)
         else:
             try:
@@ -209,13 +210,13 @@ def parse_pages(spec, total):
                 # Out loud and with a sample, not a stack trace: this flag is
                 # typed by hand, and a typo in it is routine.
                 raise SystemExit(
-                    f"в «--pages {spec}» кусок «{part}» — не номер страницы. "
-                    f"Ожидается «1,4,7-9» или «1 4 7-9», счёт с единицы.")
+                    f"in --pages {spec} the piece {part} is not a page "
+                    f"number. Expected 1,4,7-9 or 1 4 7-9, from one.")
     bad = [p for p in want if not 1 <= p <= total]
     if bad:
-        raise SystemExit(f"в книге {total} страниц, а запрошены {bad}")
+        raise SystemExit(f"the book has {total} pages, {bad} were asked")
     if not want:
-        raise SystemExit(f"набор страниц «{spec}» пуст — считать нечего")
+        raise SystemExit(f"the page set {spec} is empty -- nothing to count")
     return [p - 1 for p in sorted(set(want))]
 
 
@@ -230,8 +231,8 @@ def run(pdf, outdir, pages_spec=None, log=print):
     # snapshot would lie.
     dpi_used = int(dpi)
     if dpi_used != dpi:
-        log(f"ВНИМАНИЕ: PAGE_DPI={dpi_raw} усечён до {dpi_used} — "
-            f"растр рисуется целым числом точек на дюйм")
+        log(f"WARNING: PAGE_DPI={dpi_raw} truncated to {dpi_used} -- the "
+            f"raster is drawn at a whole number of dots per inch")
 
     pdf = os.path.abspath(pdf)
     outdir = os.path.abspath(outdir)
@@ -244,9 +245,9 @@ def run(pdf, outdir, pages_spec=None, log=print):
     # ABSENCE AND A DIRECTORY: an empty file, a non-PDF and a book with no
     # pages are caught below, at the open.
     if not os.path.exists(pdf):
-        raise SystemExit(f"нет файла {pdf}")
+        raise SystemExit(f"no file {pdf}")
     if os.path.isdir(pdf):
-        raise SystemExit(f"{pdf} — каталог, а ожидается PDF одной книги")
+        raise SystemExit(f"{pdf} is a directory, one book's PDF is expected")
 
     det = _adapter()
     # The policy must cover the weights vocabulary WHOLE and name nothing
@@ -265,7 +266,7 @@ def run(pdf, outdir, pages_spec=None, log=print):
     for line in det.threshold_drift():
         # Loudly: a silent divergence means the run went on our number
         # instead of the model's.
-        log(f"ВНИМАНИЕ: порог задан не родной — {line}")
+        log(f"WARNING: the threshold set is not the native one -- {line}")
 
     # What the operator set, by value and by name; what this adapter cannot
     # digest, on its own line. Measured before it:
@@ -278,26 +279,26 @@ def run(pdf, outdir, pages_spec=None, log=print):
     dead = [n for n in given if roles[n] is None]
     # The zero is printed TOO: a zero from a check ("we asked, nothing is
     # set"), not the silence of a step that may not have run.
-    log(f"задано снаружи ручек {len(given)}"
+    log(f"knobs set from outside {len(given)}"
         + (f": {', '.join(given)}" if given else ""))
     if dead:
-        log(f"ВНИМАНИЕ: из них {len(dead)} не читает ни адаптер {det.name}, "
-            f"ни сама команда: {', '.join(dead)} — заданное значение на этот "
-            f"прогон НЕ влияет, в слепке оно помечено «к этому прогону "
-            f"относится: false»")
-    log(f"детектор {det.name}: "
-        f"{det.fingerprint().get('model')} из {det.dir}")
+        log(f"WARNING: of those, {len(dead)} are read neither by adapter "
+            f"{det.name} nor by the command itself: {', '.join(dead)} -- the "
+            f"value set does NOT affect this run, and the snapshot marks it "
+            f"for_this_run: false")
+    log(f"detector {det.name}: "
+        f"{det.fingerprint().get('model')} from {det.dir}")
     # About the input we ask the FINGERPRINT, not one adapter's fields: the
     # second adapter had none, and a hard `det.keep_ratio` dropped the run on
     # the first foreign model. Every adapter must have a fingerprint -- that is
     # the contract.
     fp_in = (det.fingerprint().get("input") or {})
-    log(f"вход модели {fp_in.get('width')}x{fp_in.get('height')} (ШxВ): "
+    log(f"model input {fp_in.get('width')}x{fp_in.get('height')} (WxH): "
         + ", ".join(f"{k}={v}" for k, v in fp_in.items()
                     if k not in ("width", "height")))
-    log(f"словарь {pol}, "
-        f"классов {len(det.labels)}, "
-        f"родной порог {det.fingerprint().get('native_threshold')}")
+    log(f"vocabulary {pol}, "
+        f"classes {len(det.labels)}, "
+        f"native threshold {det.fingerprint().get('native_threshold')}")
 
     # Opening speaks IN A LINE too: the three troubles the check above misses
     # used to come out as tracebacks -- an empty file (`EmptyFileError`), a
@@ -307,11 +308,12 @@ def run(pdf, outdir, pages_spec=None, log=print):
     try:
         doc = pymupdf.open(pdf)
         pages_total = doc.page_count
-    except Exception as e:                      # noqa: BLE001 — чужая иерархия
+    except Exception as e:                   # noqa: BLE001 -- foreign tree
         raise SystemExit(
-            f"{pdf} не открывается как PDF: {type(e).__name__}: {e}") from None
+            f"{pdf} does not open as a PDF: {type(e).__name__}: {e}") from None
     if not pages_total:
-        raise SystemExit(f"{pdf} открылся, но страниц в нём ноль — считать нечего")
+        raise SystemExit(
+            f"{pdf} opened, but has zero pages -- nothing to count")
     idxs = parse_pages(pages_spec, pages_total)
 
     # Foreign pages in the directory are no trifle: the earlier run may have
@@ -323,10 +325,10 @@ def run(pdf, outdir, pages_spec=None, log=print):
     if stale:
         for f in stale:
             os.unlink(os.path.join(pagedir, f))
-        log(f"убрано страниц прошлого прогона: {len(stale)}")
+        log(f"pages of the previous run removed: {len(stale)}")
 
-    log(f"{os.path.basename(pdf)}: страниц в файле {doc.page_count}, "
-        f"считаю {len(idxs)} при {dpi_used} dpi")
+    log(f"{os.path.basename(pdf)}: pages in the file {doc.page_count}, "
+        f"counting {len(idxs)} at {dpi_used} dpi")
 
     t0 = time.time()
     tmp = os.path.join(outdir, f".page.{os.getpid()}.png")
@@ -384,7 +386,7 @@ def run(pdf, outdir, pages_spec=None, log=print):
                 counts[b.label] = counts.get(b.label, 0) + 1
                 artefacts += b.label in arte
             if n % 10 == 0 or n == len(idxs):
-                log(f"  {n}/{len(idxs)} страниц, рамок {sum(counts.values())}")
+                log(f"  {n}/{len(idxs)} pages, boxes {sum(counts.values())}")
     finally:
         doc.close()
         if os.path.exists(tmp):
@@ -397,12 +399,12 @@ def run(pdf, outdir, pages_spec=None, log=print):
     # The stage note is set ONLY when the pipeline really ran: with it off
     # every number is the model's anyway, and an extra word would make earlier
     # runs incomparable by eye for nothing.
-    box_stage = (f"после конвейера docling {mode}" if had_pipeline
-                  else "у модели, конвейера над рамками не было")
-    log(f"рамок {total} на {len(idxs)} страницах "
-        f"({total/len(idxs):.1f} на страницу), артефактов {artefacts}, "
-        f"связок рангов {ties}, {took:.1f} с ({took/len(idxs):.2f} с/страница)"
-        + (f" — все числа рамок ПОСЛЕ конвейера docling {mode}"
+    box_stage = (f"after the docling pipeline {mode}" if had_pipeline
+                  else "the model's own, there was no pipeline over boxes")
+    log(f"boxes {total} on {len(idxs)} pages "
+        f"({total/len(idxs):.1f} per page), artefacts {artefacts}, "
+        f"rank ties {ties}, {took:.1f} s ({took/len(idxs):.2f} s/page)"
+        + (f" -- every box number is AFTER the docling pipeline {mode}"
            if had_pipeline else ""))
 
     # WHAT THE PIPELINE REMOVED IS A QUANTITY OF ITS OWN, NOT A CORRECTION TO
@@ -414,54 +416,60 @@ def run(pdf, outdir, pages_spec=None, log=print):
     # classes (0.480 / 0.425 / 0.476) matched to the digit, being removed by
     # the threshold BEFORE the pipeline.
     if mute_pages:
-        log(f"ВНИМАНИЕ: на {mute_pages} страницах из {len(idxs)} адаптер "
-            f"{det.name} не сказал «рамок принято» — сколько отдала сама "
-            f"модель, сверить нечем; сложенное ниже неполно на эти страницы")
+        log(f"WARNING: on {mute_pages} pages of {len(idxs)} adapter "
+            f"{det.name} did not say 'boxes accepted' -- how many the model "
+            f"itself gave cannot be checked; the sums below are incomplete "
+            f"by those pages")
     if had_pipeline:
         took = pipe["before"] - pipe["after"]
         share = 100.0 * took / pipe["before"] if pipe["before"] else 0.0
-        log(f"конвейер docling {mode}: модель отдала рамок {pipe['before']}, "
-            f"он снял {took} ({share:.1f}%), в книгу пошло {pipe['after']}, "
-            f"ушло в дети {pipe['children']}, переставлено {pipe['reordered']}, "
-            f"страниц через него {pipe['page_count']} из {len(idxs)}")
+        log(f"docling pipeline {mode}: the model gave {pipe['before']} "
+            f"boxes, it removed {took} ({share:.1f}%), {pipe['after']} went "
+            f"into the book, {pipe['children']} into children, "
+            f"{pipe['reordered']} permuted, "
+            f"{pipe['page_count']} pages of {len(idxs)} through it")
         # The removals are NOT broken down by label, and silence about that
         # is not allowed: "table accepted 0" with the knob on would read as
         # "the model found none" when it may mean "it did, the pipeline
         # removed it".
-        log(f"    снятое конвейером по ярлыкам НЕ разложено: адаптер отдаёт "
-            f"«рамок до» только итогом ({pipe['before']}), по классам их нет "
+        log(f"    what the pipeline removed is NOT broken down by label: "
+            f"the adapter gives 'boxes before' as a total only "
+            f"({pipe['before']}), never by class "
             f"(models/docling_heron.py, pipe_meta)")
         if pipe["missing_numbers"]:
-            log(f"ВНИМАНИЕ: конвейер не дал чисел {sorted(pipe['missing_numbers'])} "
-                f"— сложенное выше на столько же неполно")
+            log(f"WARNING: the pipeline gave no numbers "
+                f"{sorted(pipe['missing_numbers'])} -- the sums above are "
+                f"incomplete by as much")
         if pipe["page_count"] != len(idxs):
-            log(f"ВНИМАНИЕ: через конвейер прошли {pipe['page_count']} страниц "
-                f"из {len(idxs)} — числа этапов сложены по разным выборкам")
+            log(f"WARNING: {pipe['page_count']} pages of {len(idxs)} went "
+                f"through the pipeline -- the stage numbers are summed over "
+                f"different samples")
         if pipe["after"] != total:
-            log(f"ВНИМАНИЕ: конвейер отчитался о {pipe['after']} рамках после "
-                f"себя, а в страницах их {total}: разница "
+            log(f"WARNING: the pipeline reported {pipe['after']} boxes "
+                f"after itself, and the pages hold {total}: a difference of "
                 f"{abs(pipe['after'] - total)}")
         if not mute_pages and pipe["before"] != model_boxes:
-            log(f"ВНИМАНИЕ: конвейер принял {pipe['before']} рамок, а модель "
-                f"отдала {model_boxes}: разница "
-                f"{abs(pipe['before'] - model_boxes)} рамок потеряна между "
-                f"этапами")
+            log(f"WARNING: the pipeline took {pipe['before']} boxes and "
+                f"the model gave {model_boxes}: a difference of "
+                f"{abs(pipe['before'] - model_boxes)} boxes lost between the "
+                f"stages")
     else:
         # A zero from a check, not the silence of a step: it says there WAS
         # no pipeline, and says it with the number of pages it was not on.
-        log(f"конвейер вендора рамок не касался: страниц через него 0 из "
-            f"{len(idxs)}, «принято» ниже — рамки самой модели")
+        log(f"the vendor pipeline did not touch the boxes: 0 pages of "
+            f"{len(idxs)} through it, 'accepted' below is the model's own")
         if not mute_pages and model_boxes != total:
-            log(f"ВНИМАНИЕ: модель отдала {model_boxes} рамок, а в страницах "
-                f"их {total} при отсутствии конвейера: рамки правит кто-то "
-                f"неназванный")
+            log(f"WARNING: the model gave {model_boxes} boxes and the "
+                f"pages hold {total} with no pipeline at all: someone "
+                f"unnamed is correcting the boxes")
 
     # A quantity, not "verified": how many label spellings met, out of how
     # many known. Foreign ones are always zero -- not because they do not
     # happen, but because such a run never gets this far (`_check_labels` drops
     # it on that very page).
-    log(f"написаний ярлыков сверено со словарём «{pol}»: {len(spellings)} "
-        f"из {len(known)} известных, чужих 0 — иначе прогон бы упал")
+    log(f"label spellings checked against vocabulary {pol}: "
+        f"{len(spellings)} of {len(known)} known, foreign 0 -- else the run "
+        f"would have fallen")
 
     # By class -- accepted AND best rejected. Without the second number
     # "table 0" reads as "there are no tables" when it may mean "the table was
@@ -478,33 +486,34 @@ def run(pdf, outdir, pages_spec=None, log=print):
     # "the box was 0.02 below the threshold" where it was accepted by the model
     # and removed afterwards by the vendor.
     if had_pipeline:
-        log(f"    по классам ДВА ЭТАПА: «принято» — {box_stage}; «лучший "
-            f"отвергнутый» — порог модели ДО него. Складывать их нельзя.")
+        log(f"    by class, TWO STAGES: 'accepted' is {box_stage}; 'best "
+            f"rejected' is the model's threshold BEFORE it. Do not add them.")
     else:
-        log(f"    по классам, оба числа от модели ({box_stage}): «принято» "
-            f"— рамки выше порога, «лучший отвергнутый» — лучшая ниже него")
-    mark = " (после конвейера)" if had_pipeline else ""
-    answer_mark = ", ДО конвейера" if had_pipeline else ""
+        log(f"    by class, both numbers from the model ({box_stage}): "
+            f"'accepted' is boxes above the threshold, 'best rejected' the "
+            f"best one below it")
+    mark = " (after the pipeline)" if had_pipeline else ""
+    answer_mark = ", BEFORE the pipeline" if had_pipeline else ""
     for lab in shown:
-        line = f"    {lab:18s} принято{mark} {counts.get(lab, 0):5d}"
+        line = f"    {lab:18s} accepted{mark} {counts.get(lab, 0):5d}"
         if lab in rej_best:
-            line += (f", лучший отвергнутый {rej_best[lab]:.3f} "
-                     f"(стр. {rej_pages[lab]}{answer_mark})")
+            line += (f", best rejected {rej_best[lab]:.3f} "
+                     f"(p. {rej_pages[lab]}{answer_mark})")
         log(line)
     rest = {l: v for l, v in rej_best.items() if l not in shown}
     if rest:
         top = max(rest.items(), key=lambda kv: kv[1])
-        log(f"    прочих классов отвергнуто {len(rest)}, "
-            f"выше всех {top[0]} {top[1]:.3f}"
-            + (" (всё — порогом модели, ДО конвейера)" if had_pipeline
-               else ""))
+        log(f"    other classes rejected {len(rest)}, "
+            f"highest of all {top[0]} {top[1]:.3f}"
+            + (" (all by the model's threshold, BEFORE the pipeline)"
+               if had_pipeline else ""))
 
     if total == 0:
         raise RuntimeError(
-            f"ни одной рамки на {len(idxs)} страницах — это отказ, а не "
-            f"пустая книга. Порог LAYOUT_SCORE_THRESHOLD="
-            f"{knobs.knob('LAYOUT_SCORE_THRESHOLD')}, веса {det.dir}. "
-            f"Лучшее отвергнутое: {rej_best or 'ничего не отвергнуто вовсе'}")
+            f"not one box on {len(idxs)} pages -- a refusal, not an empty "
+            f"book. Threshold LAYOUT_SCORE_THRESHOLD="
+            f"{knobs.knob('LAYOUT_SCORE_THRESHOLD')}, weights {det.dir}. "
+            f"Best rejected: {rej_best or 'nothing was rejected at all'}")
 
     here = os.path.dirname(os.path.abspath(__file__))
     fp = det.fingerprint()
@@ -561,7 +570,7 @@ def run(pdf, outdir, pages_spec=None, log=print):
                      "box_counts_stage":
                          box_stage,
                      "best_rejected_stage":
-                         "порогом модели, ДО конвейера вендора",
+                         "by the model threshold, BEFORE the vendor pipeline",
                      # An incomplete sum is NOT a quantity: a page the
                      # adapter kept quiet about makes it smaller by exactly
                      # what we do not know. So either a number, or `null`
@@ -585,9 +594,9 @@ def run(pdf, outdir, pages_spec=None, log=print):
                          # only as a total.
                          "removed_by_label": None,
                          "why_removed_by_label_empty":
-                             ("адаптер отдаёт «рамок до» одним числом на "
-                              "страницу; по классам их нет — см. pipe_meta "
-                              "в models/docling_heron.py"),
+                             ("the adapter gives 'boxes before' as one "
+                              "number per page; by class there are none -- "
+                              "see pipe_meta in models/docling_heron.py"),
                          "numbers_never_given":
                              sorted(pipe["missing_numbers"]),
                      },
@@ -601,5 +610,5 @@ def run(pdf, outdir, pages_spec=None, log=print):
     }
     with open(os.path.join(outdir, "run.json"), "w", encoding="utf-8") as f:
         json.dump(snap, f, ensure_ascii=False, indent=1)
-    log(f"слепок: {os.path.join(outdir, 'run.json')}")
+    log(f"snapshot: {os.path.join(outdir, 'run.json')}")
     return outdir

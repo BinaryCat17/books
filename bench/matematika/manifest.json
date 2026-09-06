@@ -1,6 +1,6 @@
 {
  "book": "matematika",
- "about": "курс математики: выключные формулы с номерами, матрицы и определители, системы в скобке, теоремы; ставит `display_formula` против `table`",
+ "about": "mathematics course: numbered display formulas, matrices and determinants, systems in a brace, theorems; sets `display_formula` against `table`",
  "page_count": 12,
  "synth_seed": 1,
  "aging": "old",

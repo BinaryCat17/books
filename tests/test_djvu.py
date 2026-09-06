@@ -101,8 +101,8 @@ def test_scan_edge_at_the_top_does_not_veto():
     """
     doc, pg = _spread(draw=[(0, 0, WIDE, 3)])
     assert _cut(doc, pg) is not None, (
-        "чёрная кромка листа принята за линейку таблицы — это и есть 44 "
-        "ложных вето из 379 разворотов «Справочника»")
+        "the black edge of the sheet was taken for a table rule -- that "
+        "is the 44 false vetoes of the handbook's 379 spreads")
 
 
 def test_scan_edge_at_the_bottom_does_not_veto():
@@ -114,8 +114,8 @@ def test_scan_edge_at_the_bottom_does_not_veto():
     """
     doc, pg = _spread(draw=[(0, 599 - 3, WIDE, 599)])
     assert _cut(doc, pg) is not None, (
-        "кромка у нижнего края листа запретила разрез — порог по положению "
-        "работает только сверху")
+        "an edge at the bottom of the sheet forbade the cut -- the "
+        "threshold on position works only from above")
 
 
 def test_rule_across_the_gutter_vetoes():
@@ -131,8 +131,8 @@ def test_rule_across_the_gutter_vetoes():
     """
     doc, pg = _spread(draw=[(50, 300, 700, 302)])
     assert _cut(doc, pg) is None, (
-        "линейка через весь разворот не остановила разрез — разрезанная "
-        "таблица не восстанавливается ничем")
+        "a rule across the whole spread did not stop the cut -- a table "
+        "cut in two is restored by nothing")
 
 
 def test_hairline_rule_of_a_single_probe_row_vetoes():
@@ -145,8 +145,8 @@ def test_hairline_rule_of_a_single_probe_row_vetoes():
     """
     doc, pg = _spread(draw=[(50, 300, 700, 301)])
     assert _cut(doc, pg) is None, (
-        "линейка в одну строку пробы прошла мимо вето — порог мерит толщину "
-        "линейки вместо её длины")
+        "a rule one probe row thick went past the veto -- the threshold "
+        "measures the thickness of a rule instead of its length")
 
 
 def test_veto_does_not_depend_on_the_height_of_the_scan():
@@ -163,9 +163,9 @@ def test_veto_does_not_depend_on_the_height_of_the_scan():
         doc, pg = _spread(rows=rows, draw=[(0, 0, WIDE, 3)])
         answers.append(_cut(doc, pg) is None)
     assert answers[0] == answers[1], (
-        f"проба 599 строк -> вето {answers[0]}, проба 601 строка -> "
-        f"вето {answers[1]}: решение зависит от высоты скана, а не от листа")
-    assert not answers[0], "кромка листа не должна запрещать разрез вовсе"
+        f"a 599-row probe -> veto {answers[0]}, a 601-row probe -> veto "
+        f"{answers[1]}: the decision follows the scan height, not the sheet")
+    assert not answers[0], "a sheet edge must not forbid the cut at all"
 
 
 def test_rule_near_the_edge_of_the_body_still_vetoes():
@@ -179,8 +179,8 @@ def test_rule_near_the_edge_of_the_body_still_vetoes():
     """
     doc, pg = _spread(draw=[(50, 33, 700, 34)])
     assert _cut(doc, pg) is None, (
-        "линейка на 5.5 % высоты не видна вето — приграничная полоса съела "
-        "тело листа")
+        "a rule at 5.5 % of the height is invisible to the veto -- the "
+        "edge strip has eaten the body of the sheet")
 
 
 def test_binding_shadow_in_the_body_does_not_veto():
@@ -194,8 +194,8 @@ def test_binding_shadow_in_the_body_does_not_veto():
     """
     doc, pg = _spread(draw=[(345, 50, 405, 53)])
     assert _cut(doc, pg) is not None, (
-        "тень переплёта принята за линейку — тень есть улика корешка, то есть "
-        "прямо противоположна тому, что вето ищет")
+        "a binding shadow was taken for a rule -- a shadow is evidence of "
+        "the spine, that is, the exact opposite of what the veto looks for")
 
 
 def test_a_thin_rule_across_the_gutter_needs_the_probe_we_declared():
@@ -226,9 +226,11 @@ def test_a_thin_rule_across_the_gutter_needs_the_probe_we_declared():
     pg.draw_rect(pymupdf.Rect(50 * PT, 300 * PT, 700 * PT, 300 * PT + 0.6),
                  color=None, fill=(0, 0, 0))
     assert _cut(doc, pg) is None, (
-        "тонкая линейка через корешок не видна вето: проба слишком груба. "
-        f"PROBE_DPI = {djvu.PROBE_DPI}, а замер на «Справочнике» требует 72 — "
-        "при 36 три настоящие таблицы через корешок режутся молча")
+        "a thin rule across the spine is invisible to the veto: the probe "
+        "is too coarse. "
+        f"PROBE_DPI = {djvu.PROBE_DPI}, while the measurement on the "
+        "handbook demands 72 -- at 36 three real tables across the spine "
+        "are cut in silence")
 
 
 def test_the_probe_selfcheck_agrees_with_the_veto():
@@ -244,14 +246,14 @@ def test_the_probe_selfcheck_agrees_with_the_veto():
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     path = os.path.join(root, "tools", "spread_probe.py")
     if not os.path.exists(path):
-        support.skip(f"нет {path} — промер не в дереве")
+        support.skip(f"no {path} -- the gauge is not in the tree")
     spec = importlib.util.spec_from_file_location("spread_probe", path)
     mod = importlib.util.module_from_spec(spec)
     sys.modules["spread_probe"] = mod
     spec.loader.exec_module(mod)
     assert len(mod.CASES) >= 14, (
-        f"листов самопроверки {len(mod.CASES)}, было 14: случаи вычеркнуты, "
-        f"а не добавлены")
+        f"selfcheck sheets {len(mod.CASES)}, there were 14: cases have "
+        f"been struck out, not added")
     import io
     from contextlib import redirect_stdout
     buf = io.StringIO()
@@ -260,5 +262,5 @@ def test_the_probe_selfcheck_agrees_with_the_veto():
     # `selfcheck` returns 1 on ANY divergence, not their number: they are
     # named in what it printed, so take them from there -- otherwise a failure
     # says "1" and keeps quiet about which sheet diverged.
-    assert bad == 0, (f"промер разошёлся с вето, листов {len(mod.CASES)}:\n"
-                      + buf.getvalue())
+    assert bad == 0, (f"the gauge diverged from the veto, sheets "
+                      f"{len(mod.CASES)}:\n" + buf.getvalue())

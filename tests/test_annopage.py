@@ -1,34 +1,35 @@
-"""Сборщик золотого стенда: два места, где он мог соврать молча.
+"""The golden bench builder: two places where it could lie silently.
 
-ПРОВЕРОК У ЭТОГО ФАЙЛА НЕ БЫЛО НИ ОДНОЙ, а на его продукте стоят все головные
-числа проекта: 698 объектов из 1232, 646 целых по смыслу, 94.0% чернил, выбор
-`PP-DocLayoutV2` основой первого уровня. Ни одна из 152 прежних проверок
-`annopage.py` не касалась.
+THIS FILE HAD NOT ONE CHECK, and every headline number of the project stands
+on its product: 698 objects of 1232, 646 whole in meaning, 94.0% of the ink,
+`PP-DocLayoutV2` chosen as the base of level one. Not one of the 152 earlier
+checks touched `annopage.py`.
 
-Сговор здесь между `annopage.py` и АРХИВОМ AnnoPage, и записан он был только
-прозой. Оба дефекта ниже найдены и померены на живом стенде, оба чинились
-после находки, и оба умеют вернуться — потому и закреплены.
+The conspiracy is between `annopage.py` and THE AnnoPage ARCHIVE, and it was
+written down as prose alone. Both defects below were found and measured on
+the live bench, both were fixed after the find, and both can return -- hence
+pinned here.
 
-    порядок классов на веру      метка в разметке это ИНДЕКС, а имя ему даёт
-                                 строка N файла `classes.txt`; проверялось
-                                 только МНОЖЕСТВО имён. Перестановка `Table` и
-                                 `Vignette` проходила молча, и в замере
-                                 становилось 1121 объект вместо 1232, таблиц
-                                 13 вместо 124. Рядом, в том же архиве, лежит
-                                 второй источник той же карты — `dataset.yaml`,
-                                 и он не читался ни разу
+    class order on faith    a label in the markup is an INDEX, and its name
+                            comes from line N of `classes.txt`; only the SET
+                            of names was checked. Swapping `Table` and
+                            `Vignette` passed silently, and the measurement
+                            became 1121 objects instead of 1232, 13 tables
+                            instead of 124. A second source of the same map,
+                            `dataset.yaml`, lies in the same archive and had
+                            never been read
 
-    истина стёрта до сторожей    `truth/` чистился до главного цикла, а
-                                 сторожа `--truth-only` стояли сотней строк
-                                 ниже. Опыт на копии стенда: сборка упала
-                                 словами «страниц 600, а истина переписана на
-                                 5», и к этому мигу от 600 годных файлов
-                                 оставалось ПЯТЬ. 595 уничтожены отказом,
-                                 который затевался ради их защиты
+    truth wiped before      `truth/` was cleaned before the main loop while
+    the guards              the `--truth-only` guards stood a hundred lines
+                            below. On a copy of the bench the build fell
+                            saying "600 pages, truth rewritten to 5" -- and
+                            by that moment FIVE of 600 good files were left.
+                            595 destroyed by the refusal meant to protect
+                            them
 
-Стенд здесь СВОЙ, крошечный и синтетический: `raw/annopage` — 3.5 ГБ, его нет
-ни на одной чужой машине, и проверка, молча пропускающая себя без него, была
-бы ровно тем нулём от непонимания, о котором предупреждает CLAUDE.md.
+The bench here is OUR OWN, tiny and synthetic: `raw/annopage` is 3.5 GB, is
+on no other machine, and a check that silently skipped itself without it
+would be exactly the zero from not understanding that CLAUDE.md warns of.
 """
 import json
 import os
@@ -40,7 +41,7 @@ from booksmith import annopage
 
 
 def _mini(root, names=None, yaml_names=None, pages=2):
-    """Крошечный архив формы AnnoPage: две страницы, по одному объекту."""
+    """A tiny archive of AnnoPage shape: two pages, one object each."""
     names = list(names if names is not None else annopage._classes.__doc__ or [])
     os.makedirs(os.path.join(root, "labels", "test"), exist_ok=True)
     os.makedirs(os.path.join(root, "images", "test"), exist_ok=True)
@@ -65,18 +66,18 @@ def _mini(root, names=None, yaml_names=None, pages=2):
 
 
 def _real_names():
-    """25 имён в том порядке, в каком их объявляет наш собственный свод."""
+    """The 25 names in the order our own register declares them."""
     return (list(annopage.DIRECT) + list(annopage.DOUBTFUL)
             + list(annopage.INEXPRESSIBLE))
 
 
 def test_class_order_is_checked_against_the_second_source():
-    """Расхождение `classes.txt` и `dataset.yaml` роняет сборку ВСЛУХ.
+    """`classes.txt` against `dataset.yaml`: a disagreement fails ALOUD.
 
-    Умеет провалиться: снимите сверку — и перестановка двух строк пройдёт
-    молча, а весь стенд соберётся под чужими ярлыками. На живом архиве обе
-    карты сегодня СОВПАДАЮТ (25 из 25), то есть сторож ставится не по следам
-    аварии.
+    Can fail: drop the comparison and swapping two lines passes silently
+    while the whole bench assembles under other people's labels. On the live
+    archive the two maps AGREE today (25 of 25), so the guard is not being
+    set in the tracks of an accident.
     """
     names = _real_names()
     swapped = list(names)
@@ -86,17 +87,19 @@ def test_class_order_is_checked_against_the_second_source():
         try:
             annopage._classes(d)
         except annopage.AnnoPageError as e:
-            assert "dataset.yaml" in str(e), f"жалоба не про тот файл: {e}"
+            assert "dataset.yaml" in str(e), (
+                f"the complaint is about the wrong file: {e}")
             return
         raise AssertionError(
-            "перестановка двух классов принята молча — метка в разметке это "
-            "ИНДЕКС, и вся истина стенда собралась бы под чужими ярлыками")
+            "swapping two classes was accepted silently -- a label in the "
+            "markup is an INDEX, and the whole truth of the bench would "
+            "assemble under other people's labels")
 
 
 def test_matching_sources_are_accepted():
-    """Обратная сторона: совпадающие карты сборку НЕ роняют.
+    """The other side: matching maps do NOT fail the build.
 
-    Без неё сторож можно было бы «починить», просто запретив всё.
+    Without it the guard could be "fixed" by forbidding everything.
     """
     names = _real_names()
     with tempfile.TemporaryDirectory() as d:
@@ -105,13 +108,13 @@ def test_matching_sources_are_accepted():
 
 
 def test_a_failed_build_does_not_destroy_good_truth():
-    """Отказ сторожа НЕ уничтожает истину, которая уже лежала.
+    """A guard's refusal does NOT destroy the truth already lying there.
 
-    Тот самый дефект: сборка падала правдивыми словами, уже стерев 595 файлов
-    из 600. Проверка кладёт заведомо чужую истину, роняет сборку сторожем
-    `--truth-only` (pdf, которого нет) и требует, чтобы чужое осталось
-    нетронутым — потому что решать, что делать с несовпадением, должен
-    человек, а не обломок сборки.
+    That very defect: the build fell with truthful words, having already
+    erased 595 files of 600. The check lays down knowingly foreign truth,
+    fails the build by the `--truth-only` guard (a pdf that is not there),
+    and demands the foreign truth be left untouched -- because what to do
+    about a mismatch is for a human to decide, not for a fragment of a build.
     """
     names = _real_names()
     with tempfile.TemporaryDirectory() as d:
@@ -123,7 +126,7 @@ def test_a_failed_build_does_not_destroy_good_truth():
         for k in range(7):
             with open(os.path.join(tdir, f"{k:04d}.json"), "w",
                       encoding="utf-8") as f:
-                json.dump({"marker": "прежняя истина"}, f)
+                json.dump({"marker": "the truth that was already here"}, f)
         before = sorted(os.listdir(tdir))
         try:
             annopage.build(root, out, split="test", truth_only=True,
@@ -132,24 +135,26 @@ def test_a_failed_build_does_not_destroy_good_truth():
             pass
         else:
             raise AssertionError(
-                "сборка с --truth-only и без pdf прошла — сторожа нет вовсе")
+                "a build with --truth-only and no pdf went through -- there "
+                "is no guard at all")
         after = sorted(os.listdir(tdir))
         assert after == before, (
-            f"неудачная сборка тронула истину: было {len(before)} файлов, "
-            f"стало {len(after)}. Сторож, уничтожающий то, что защищает, — "
-            f"хуже отсутствующего: он ещё и объявляет себя сработавшим")
+            f"the failed build touched the truth: {len(before)} files "
+            f"before, {len(after)} after. A guard that destroys what it "
+            f"protects is worse than a missing one: it also declares itself "
+            f"to have fired")
 
 
 def test_the_sheet_follows_the_declared_knob():
-    """Размер листа считается ИЗ `PAGE_DPI`, а не из зашитого 0.5.
+    """The sheet size is computed FROM `PAGE_DPI`, not from a wired-in 0.5.
 
-    Смысл размера один: рендер при `PAGE_DPI` обязан отдать ровно исходный
-    растр. Зашитое 0.5 верно ровно при умолчании 144; при 288 стенд собрался
-    бы про растр вдвое мельче объявленного, а истина продолжала бы писать
-    «dpi: 144.0». Ловила это сверка размеров в `metrics` — чужой файл, — а сам
-    сборщик молчал.
+    The size means one thing: rendering at `PAGE_DPI` must return exactly the
+    source raster. A wired 0.5 is right only at the default 144; at 288 the
+    bench would assemble about a raster twice as fine as declared, while the
+    truth went on writing "dpi: 144.0". The size comparison in `metrics`
+    caught that -- someone else's file -- and the builder itself kept quiet.
 
-    Умеет провалиться: верните `w * 0.5`, и лист при 288 останется прежним.
+    Can fail: put `w * 0.5` back and the sheet at 288 stays as it was.
     """
     import pymupdf
 
@@ -174,11 +179,13 @@ def test_the_sheet_follows_the_declared_knob():
                 else:
                     os.environ["PAGE_DPI"] = old
             assert man["PAGE_DPI"] == float(dpi), (
-                f"манифест не записал ручку: {man['PAGE_DPI']} при {dpi}")
+                f"the manifest did not record the knob: {man['PAGE_DPI']} "
+                f"at {dpi}")
             doc = pymupdf.open(os.path.join(out, "annopage.pdf"))
             seen[dpi] = doc[0].rect.width
             doc.close()
     assert abs(seen["144"] - 2 * seen["288"]) < 0.01, (
-        f"лист не поехал за ручкой: при 144 ширина {seen['144']} пт, при 288 "
-        f"{seen['288']} пт, а должна быть вдвое меньше. Значит масштаб зашит, "
-        f"и стенд, собранный при другом PAGE_DPI, врёт про свой растр молча")
+        f"the sheet did not follow the knob: at 144 the width is "
+        f"{seen['144']} pt, at 288 it is {seen['288']} pt, and it should be "
+        f"half as much. So the scale is wired in, and a bench assembled at "
+        f"another PAGE_DPI lies about its own raster silently")

@@ -1,6 +1,6 @@
 {
  "book": "annopage",
- "about": "AnnoPage: исторические страницы 1485 г. и позже, разметка библиотекарями, только НЕТЕКСТОВЫЕ объекты",
+ "about": "AnnoPage: historical pages from 1485 onward, marked by librarians, NON-TEXT objects only",
  "origin": "Zenodo 10.5281/zenodo.12788419, CC BY 4.0",
  "split": "test",
  "page_count": 600,

@@ -265,8 +265,8 @@ def layout(s):
             # stands for itself, none is lost.
             # THE TAG COMES FROM THE ROOT, not from the address. A continuation
             # has no tag of its own, and our `fcel` default tore one cell of the
-            # model in half: `<ched>шапка<lcel>` non-rectangular gave
-            # `<th>шапка</th><td>шапка</td>`, half header and half not. A ROOT
+            # model in half: `<ched>head<lcel>` non-rectangular gave
+            # `<th>head</th><td>head</td>`, half header and half not. A ROOT
             # ALWAYS HAS A TAG -- `_walk` sets `tag_of` at the same instant as
             # `owner`, for content, empty cell and continuation to nowhere alike
             # -- and the `"fcel"` default never fired on the book's 236 758 roots.

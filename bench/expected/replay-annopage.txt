@@ -1,25 +1,25 @@
-bench/annopage/detect: величин в слепке 38 из 55, не хватает 17, пусты 11 (из них ручек без значения 5); ПРОВЕРЕНО НЕ ВСЁ — 26 величин отпечатка не с чем сверить
-  отпечаток адаптера doclayout-onnx НЕ СВЕРЕН: models/doclayout.py не тот код, которым считали (в слепке 1f3ac82a, в дереве <current source>) — 26 величин отпечатка не проверено, из них в слепке нет 2. Это «слепок старый», а не «слепок неполон»
-  нет knobs/YOLOX_WEIGHTS/value                      — ручка YOLOX_WEIGHTS
-  нет knobs/DOCLING_PIPELINE/value                   — ручка DOCLING_PIPELINE
-  нет knobs/ASSEMBLY_ORDER/value                     — ручка ASSEMBLY_ORDER
-  нет knobs/HTML_MATH/value                          — ручка HTML_MATH
-  нет knobs/HTML_IMAGES/value                        — ручка HTML_IMAGES
-  нет knobs/HTML_REPEATS/value                       — ручка HTML_REPEATS
-  нет knobs/MIN_LINK_MBPS/value                      — ручка MIN_LINK_MBPS
-  нет knobs/BOOKSMITH_COMMIT/value                   — ручка BOOKSMITH_COMMIT
-  нет knobs/VLM_READER/value                         — ручка VLM_READER
-  нет knobs/VLM_TRANSPORT/value                      — ручка VLM_TRANSPORT
-  нет knobs/VLM_ENDPOINT/value                       — ручка VLM_ENDPOINT
-  нет knobs/VLM_MAX_TOKENS/value                     — ручка VLM_MAX_TOKENS
-  нет knobs/VLM_TIMEOUT_S/value                      — ручка VLM_TIMEOUT_S
-  нет knobs/VLM_RETRIES/value                        — ручка VLM_RETRIES
-  нет knobs/VLM_CONCURRENCY/value                    — ручка VLM_CONCURRENCY
-  нет knobs/VLM_TOP_P/value                          — ручка VLM_TOP_P
-  нет knobs/VLM_SEED/value                           — ручка VLM_SEED
-  пусто prompts                                      — все промты адаптера, побайтово
-  пусто generation/temperature                       — температура порождения
-  пусто generation/max_tokens                        — потолок длины ответа
-  пусто generation/top_p                             — отсечение по вероятности
-  пусто generation/seed                              — зерно порождения
-  пусто weights/vl                                   — отпечаток весов VLM
+bench/annopage/detect: values in the snapshot 38 of 55, missing 17, empty 11 (of those, knobs with no value 5); NOT EVERYTHING WAS CHECKED -- 26 fingerprint values have nothing to be checked against
+  the fingerprint of adapter doclayout-onnx is NOT VERIFIED: models/doclayout.py is not the code that counted (snapshot 1f3ac82a, tree <current source>) -- 26 fingerprint values went unchecked, and 2 of them are absent from the snapshot. This is 'snapshot OLD', not 'snapshot INCOMPLETE'
+  absent knobs/YOLOX_WEIGHTS/value                   -- knob YOLOX_WEIGHTS
+  absent knobs/DOCLING_PIPELINE/value                -- knob DOCLING_PIPELINE
+  absent knobs/ASSEMBLY_ORDER/value                  -- knob ASSEMBLY_ORDER
+  absent knobs/HTML_MATH/value                       -- knob HTML_MATH
+  absent knobs/HTML_IMAGES/value                     -- knob HTML_IMAGES
+  absent knobs/HTML_REPEATS/value                    -- knob HTML_REPEATS
+  absent knobs/MIN_LINK_MBPS/value                   -- knob MIN_LINK_MBPS
+  absent knobs/BOOKSMITH_COMMIT/value                -- knob BOOKSMITH_COMMIT
+  absent knobs/VLM_READER/value                      -- knob VLM_READER
+  absent knobs/VLM_TRANSPORT/value                   -- knob VLM_TRANSPORT
+  absent knobs/VLM_ENDPOINT/value                    -- knob VLM_ENDPOINT
+  absent knobs/VLM_MAX_TOKENS/value                  -- knob VLM_MAX_TOKENS
+  absent knobs/VLM_TIMEOUT_S/value                   -- knob VLM_TIMEOUT_S
+  absent knobs/VLM_RETRIES/value                     -- knob VLM_RETRIES
+  absent knobs/VLM_CONCURRENCY/value                 -- knob VLM_CONCURRENCY
+  absent knobs/VLM_TOP_P/value                       -- knob VLM_TOP_P
+  absent knobs/VLM_SEED/value                        -- knob VLM_SEED
+  empty prompts                                      -- every adapter prompt, byte for byte
+  empty generation/temperature                       -- generation temperature
+  empty generation/max_tokens                        -- ceiling on answer length
+  empty generation/top_p                             -- probability cutoff
+  empty generation/seed                              -- generation seed
+  empty weights/vl                                   -- VLM weights fingerprint

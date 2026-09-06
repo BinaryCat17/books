@@ -140,28 +140,28 @@ def _sha256(path):
 def _base(knob_names):
     r = []
     for name in knob_names:
-        r.append((("knobs", name, "value"), f"ручка {name}"))
+        r.append((("knobs", name, "value"), f"knob {name}"))
     r += [
-        (("raster", "scale"), "масштаб растра"),
-        (("raster", "dpi"), "разрешение растра, dpi"),
-        (("args",), "аргументы прогона распознавателя"),
-        (("commit",), "коммит кода booksmith, которым считали"),
-        (("source", "sha256"), "sha256 исходного файла книги"),
-        (("adapter", "sha256"), "sha256 адаптера модели"),
-        (("adapter", "name"), "какой моделью читали"),
+        (("raster", "scale"), "raster scale"),
+        (("raster", "dpi"), "raster resolution, dpi"),
+        (("args",), "arguments of the recogniser run"),
+        (("commit",), "the booksmith commit that counted"),
+        (("source", "sha256"), "sha256 of the book's source file"),
+        (("adapter", "sha256"), "sha256 of the model adapter"),
+        (("adapter", "name"), "which model read"),
         # Prompts were once required by name, `ocr` and `table`, because the
         # old pipeline had those two. The adapter knows how many it has and
         # what they are called; required is that it write them down, not that
         # there be two.
-        (("prompts",), "все промты адаптера, побайтово"),
-        (("generation", "temperature"), "температура порождения"),
-        (("generation", "max_tokens"), "потолок длины ответа"),
-        (("generation", "top_p"), "отсечение по вероятности"),
-        (("generation", "seed"), "зерно порождения"),
-        (("packages",), "версии пакетов, решающих разбор"),
-        (("weights", "vl"), "отпечаток весов VLM"),
-        (("weights", "layout"), "отпечаток весов детекции макета"),
-        (("repeat_command",), "готовая строка повтора"),
+        (("prompts",), "every adapter prompt, byte for byte"),
+        (("generation", "temperature"), "generation temperature"),
+        (("generation", "max_tokens"), "ceiling on answer length"),
+        (("generation", "top_p"), "probability cutoff"),
+        (("generation", "seed"), "generation seed"),
+        (("packages",), "versions of the packages that decide parsing"),
+        (("weights", "vl"), "VLM weights fingerprint"),
+        (("weights", "layout"), "layout weights fingerprint"),
+        (("repeat_command",), "the ready repeat line"),
     ]
     return tuple(r)
 
@@ -298,7 +298,7 @@ def _writer_file(mod, name):
     if isinstance(mod, str) and mod.split(".")[:1] == ["booksmith"]:
         p = os.path.join(PKG, *mod.split(".")[1:]) + ".py"
         if os.path.exists(p):
-            return p, "по имени модуля", [p]
+            return p, "by module name", [p]
     hits = []
     if isinstance(name, str) and name:
         for p in _sources():
@@ -309,7 +309,7 @@ def _writer_file(mod, name):
                    for c in _classes(tree).values()):
                 hits.append(p)
     if len(hits) == 1:
-        return hits[0], "по имени адаптера", hits
+        return hits[0], "by adapter name", hits
     return None, None, hits
 
 
@@ -326,25 +326,25 @@ def shape(snap):
          "derived": [], "not_verified": 0, "of_those_missing": 0, "blind": 0,
          "not_derived": 0, "row": ""}
     if not snap:
-        r["row"] = "отпечаток: слепка нет — сверять нечего"
+        r["row"] = "fingerprint: there is no snapshot -- nothing to check"
         return r
     ad = snap.get("adapter")
     ad = ad if isinstance(ad, dict) else {}
     name = ad.get("name")
     r["name"] = name
     said = ad.get("sha256")
-    said_s = str(said)[:8] if isinstance(said, str) else "не записан"
+    said_s = str(said)[:8] if isinstance(said, str) else "not recorded"
     path, how, hits = _writer_file(ad.get("module"), name)
     if path is None:
         r["blind"] = 1
         r["row"] = (
-            f"отпечаток НЕ СВЕРЕН: писатель {name!r} не опознан — "
-            + (f"имя объявлено в {len(hits)} файлах дерева "
+            f"fingerprint NOT VERIFIED: writer {name!r} not identified -- "
+            + (f"the name is declared in {len(hits)} files of the tree "
                f"({', '.join(os.path.relpath(h, PKG) for h in hits)})"
                if hits else
-               "слепок не назвал поле adapter/module, и класса с таким "
-               "именем в дереве нет")
-            + ". Сколько величин отпечатка не проверено, тоже неизвестно")
+               "the snapshot named no adapter/module field, and the tree "
+               "holds no class of that name")
+            + ". How many fingerprint values went unchecked is unknown too")
         return r
     r["file"], r["how"] = path, how
     rel = os.path.relpath(path, PKG)
@@ -358,9 +358,10 @@ def shape(snap):
         # `fingerprint`. Taking any would check the shape against a foreign
         # class.
         r["blind"] = 1
-        r["row"] = (f"отпечаток НЕ СВЕРЕН: в {rel} нет класса с "
-                       f"name = {name!r}, а `fingerprint` там не один — "
-                       f"чей отпечаток в слепке, определить нечем")
+        r["row"] = (f"fingerprint NOT VERIFIED: {rel} holds no class with "
+                       f"name = {name!r}, and it holds more than one "
+                       f"`fingerprint` -- nothing tells whose fingerprint "
+                       f"lies in the snapshot")
         return r
     if fn is None:
         ok_fp, fpv = _dig(snap, (FP,))
@@ -370,17 +371,18 @@ def shape(snap):
             # here would declare someone else's branch a value.
             r["blind"] = 1
             r["row"] = (
-                f"отпечаток НЕ СВЕРЕН: в слепке он есть ({len(fpv)} ветвей), "
-                f"а у писателя {name} ({rel}) `fingerprint()` не объявлен "
-                f"вовсе — код разошёлся с прогоном, сверять не с чем")
+                f"fingerprint NOT VERIFIED: the snapshot has one "
+                f"({len(fpv)} branches), and writer {name} ({rel}) declares "
+                f"no `fingerprint()` at all -- the code has parted from the "
+                f"run, there is nothing to check against")
             return r
         # A writer without `fingerprint()` -- that is how `doc.html` writes
         # its snapshot: assembling HTML is not a model and gives no
         # fingerprint. A VALUE, not an omission.
         r["verified"] = True
-        r["row"] = (f"отпечатка нет вовсе: писал {name} ({rel}), "
-                       f"`fingerprint()` там не объявлен — это значение, "
-                       f"а не пропуск")
+        r["row"] = (f"no fingerprint at all: {name} ({rel}) wrote it and "
+                       f"declares no `fingerprint()` -- this is a value, "
+                       f"not an omission")
         return r
     keys = sorted(_returned(fn, tree, def_cls))
     if not keys:
@@ -394,26 +396,27 @@ def shape(snap):
         # number. NOT "no fingerprint at all": that case left by the branch
         # above, declared a value.
         r["not_derived"] = 1
-        r["derived"] = [((FP,), f"отпечаток адаптера {name} целиком")]
+        r["derived"] = [((FP,), f"the whole fingerprint of adapter {name}")]
         r["row"] = (
-            f"форму отпечатка адаптера {name} ВЫВЕСТИ НЕ УДАЛОСЬ: "
-            f"`fingerprint()` в {rel} объявлен, а разбор не достал из него ни "
-            f"одного ключа (sha256 "
-            + ("сходится" if isinstance(said, str) and now == said
-               else f"НЕ сходится: в слепке {said_s}, в дереве "
+            f"THE FINGERPRINT SHAPE OF ADAPTER {name} WOULD NOT DERIVE: "
+            f"`fingerprint()` is declared in {rel}, and the walk got not one "
+            f"key out of it (sha256 "
+            + ("matches" if isinstance(said, str) and now == said
+               else f"does NOT match: snapshot {said_s}, tree "
                     f"{str(now)[:8]}")
-            + f"). Требуется только сама ветка «{FP}», а что внутри — не "
-              f"проверено ничем: в слепке там {len(_fp_paths(snap))} величин, "
-              f"и вырезать любую можно незаметно")
+            + f"). Only the {FP} branch itself is required, and what is "
+              f"inside is checked by nothing: the snapshot holds "
+              f"{len(_fp_paths(snap))} values there, and any one of them can "
+              f"be cut unnoticed")
         return r
-    req = [((FP,) + k, f"величина отпечатка адаптера {name}") for k in keys]
-    req.insert(0, ((FP,), f"отпечаток адаптера {name} целиком"))
+    req = [((FP,) + k, f"a fingerprint value of adapter {name}") for k in keys]
+    req.insert(0, ((FP,), f"the whole fingerprint of adapter {name}"))
     if isinstance(said, str) and now == said:
         r["verified"] = True
         r["derived"] = req
-        r["row"] = (f"отпечаток адаптера {name} сверен: {rel} тот самый "
-                       f"(sha256 сходится, опознан {how}), из него выведено "
-                       f"{len(req)} величин")
+        r["row"] = (f"the fingerprint of adapter {name} is verified: {rel} "
+                       f"is the very one (sha256 matches, identified {how}), "
+                       f"{len(req)} values were derived from it")
         return r
     # Nothing to verify against -- but HOW MUCH of today's shape the snapshot
     # holds can still be said, and these are different tidings. "26 not
@@ -425,10 +428,11 @@ def shape(snap):
     r["not_verified"] = len(req)
     r["of_those_missing"] = sum(1 for path, _ in req if not _dig(snap, path)[0])
     r["row"] = (
-        f"отпечаток адаптера {name} НЕ СВЕРЕН: {rel} не тот код, которым "
-        f"считали (в слепке {said_s}, в дереве {str(now)[:8]}) — {len(req)} "
-        f"величин отпечатка не проверено, из них в слепке нет "
-        f"{r['of_those_missing']}. Это «слепок старый», а не «слепок неполон»")
+        f"the fingerprint of adapter {name} is NOT VERIFIED: {rel} is not the "
+        f"code that counted (snapshot {said_s}, tree {str(now)[:8]}) -- "
+        f"{len(req)} fingerprint values went unchecked, and "
+        f"{r['of_those_missing']} of them are absent from the snapshot. This "
+        f"is 'snapshot OLD', not 'snapshot INCOMPLETE'")
     return r
 
 
@@ -558,7 +562,7 @@ def check(outdir, verbose=True):
     if verbose:
         name = os.path.relpath(outdir)
         if not snap:
-            print(f"{name}: run.json не читается — слепка нет вовсе")
+            print(f"{name}: run.json does not read -- no snapshot at all")
         kn_h = sum(1 for p, _ in hol if p and p[0] == "knobs")
         # The caveat stands ON THE SAME LINE as the number: "42 of 42, 0
         # missing" with the explanation a line below reads as "complete", and a
@@ -566,40 +570,43 @@ def check(outdir, verbose=True):
         # unchecked.
         caveat = ""
         if sh["not_verified"]:
-            caveat = (f"; ПРОВЕРЕНО НЕ ВСЁ — {sh['not_verified']} величин "
-                      f"отпечатка не с чем сверить")
+            caveat = (f"; NOT EVERYTHING WAS CHECKED -- "
+                      f"{sh['not_verified']} fingerprint values have nothing "
+                      f"to be checked against")
         elif sh["blind"]:
-            caveat = "; ПРОВЕРЕНО НЕ ВСЁ — отпечаток не сверен вовсе"
+            caveat = ("; NOT EVERYTHING WAS CHECKED -- the fingerprint was "
+                      "not verified at all")
         elif sh["not_derived"]:
             # Same caveat, different trouble: the writer is identified and has
             # a fingerprint whose shape would not derive. Only the branch
             # itself is required, and silence about that once approved a
             # snapshot with no fingerprint at all.
-            caveat = ("; ПРОВЕРЕНО НЕ ВСЁ — форму отпечатка вывести не "
-                      "удалось, требуется только сама ветка")
-        print(f"{name}: величин в слепке {len(req) - len(miss)} из {len(req)}, "
-              f"не хватает {len(miss)}, пусты {len(hol)} "
-              f"(из них ручек без значения {kn_h}){caveat}")
+            caveat = ("; NOT EVERYTHING WAS CHECKED -- the fingerprint "
+                      "shape would not derive, only the branch is required")
+        print(f"{name}: values in the snapshot {len(req) - len(miss)} of "
+              f"{len(req)}, missing {len(miss)}, empty {len(hol)} "
+              f"(of those, knobs with no value {kn_h}){caveat}")
         print(f"  {sh['row']}")
         unc = uncovered(snap, sh)
         if unc:
             names = [" / ".join(p[1:]) for p in unc[:5]]
-            print(f"  требованием НЕ покрыто {len(unc)} величин отпечатка из "
-                  f"{len(_fp_paths(snap))}, что лежат в слепке: "
-                  f"их ключи считаются на прогоне (пороги по ярлыкам, словари "
-                  f"перевода, итоги), из исходника их не вывести — вырезать "
-                  f"такую можно незаметно. "
+            print(f"  NOT covered by the requirement: {len(unc)} "
+                  f"fingerprint values of the {len(_fp_paths(snap))} lying "
+                  f"in the snapshot -- their keys are born during a run "
+                  f"(per-label thresholds, translation maps, summaries) and "
+                  f"cannot be derived from the source, so such a value can "
+                  f"be cut unnoticed. "
                   + ", ".join(names)
-                  + (f" и ещё {len(unc) - 5}" if len(unc) > 5 else ""))
+                  + (f" and {len(unc) - 5} more" if len(unc) > 5 else ""))
         for path, what in miss:
-            print(f"  нет {'/'.join(map(str, path)):46s} — {what}")
+            print(f"  absent {'/'.join(map(str, path)):43s} -- {what}")
         # Empty knobs are not listed by name: an empty string in a knob is the
         # ordinary "not set", there are always many, and they would drown the
         # list. Their number is above.
         for path, what in hol:
             if path and path[0] == "knobs":
                 continue
-            print(f"  пусто {'/'.join(map(str, path)):44s} — {what}")
+            print(f"  empty {'/'.join(map(str, path)):44s} -- {what}")
     return miss
 
 
@@ -648,21 +655,22 @@ def selfcheck(outdir, log=print) -> int:
     # keep quiet about it.
     drift = knobs.audit()
     for line_ in drift:
-        log(f"  РЕЕСТР РУЧЕК: {line_}")
-    log(f"{name}: требований {len(req)} = ключей ручек {kn} + литералов "
-        f"{lit} + величин отпечатка {fp}; ручек в реестре "
-        f"{len(knobs.names())}, из них объявленным долгом "
-        f"{len(knobs.debts())}; расхождений реестра с деревом {len(drift)}")
+        log(f"  KNOB REGISTRY: {line_}")
+    log(f"{name}: requirements {len(req)} = knob keys {kn} + literals "
+        f"{lit} + fingerprint values {fp}; knobs in the registry "
+        f"{len(knobs.names())}, of those declared a debt "
+        f"{len(knobs.debts())}; registry drift against the tree {len(drift)}")
     log(f"  {sh['row']}")
     unc = uncovered(snap, sh)
     if unc:
-        log(f"  величин отпечатка, вырезаемых незаметно: {len(unc)} — их "
-            f"ключи родятся на прогоне (пороги по ярлыкам, словари перевода, "
-            f"итоги конвейера), и разбор исходника их не видит. Это слепое "
-            f"пятно ПИСАТЕЛЯ, а не проверки: закрывается оно тем, что адаптер "
-            f"объявит их число рядом с ними, — потому и печатается числом")
+        log(f"  fingerprint values that can be cut unnoticed: {len(unc)} "
+            f"-- their keys are born during a run (per-label thresholds, "
+            f"translation maps, pipeline summaries), and parsing the source "
+            f"does not see them. This is the WRITER's blind spot, not the "
+            f"check's: it closes by the adapter declaring their count beside "
+            f"them -- which is why it is printed as a number")
     if not snap:
-        log(f"{name}: run.json не читается — выбивать нечего")
+        log(f"{name}: run.json does not read -- nothing to knock out")
         return len(req) + len(drift)
     absent = [p for p, _ in req if not _dig(snap, p)[0]]
     bad = 0
@@ -675,16 +683,16 @@ def selfcheck(outdir, log=print) -> int:
             cur = cur[k]
         del cur[path[-1]]
         if not any(p == path for p, _ in missing(cut, req)):
-            log(f"  НЕ ПОЙМАНО: {'/'.join(map(str, path))} — {what}")
+            log(f"  NOT CAUGHT: {'/'.join(map(str, path))} -- {what}")
             bad += 1
-    log(f"{name}: выбито {len(req) - len(absent)} ключей из "
-        f"{len(req)}, не пойманных пропаж {bad}"
-        + (f"; изначально отсутствуют {len(absent)}" if absent else "")
-        + (f"; не с чем сверить величин отпечатка {sh['not_verified']}"
-           if sh["not_verified"] else "")
-        + ("; писатель слепка не опознан" if sh["blind"] else "")
-        + ("; форму отпечатка вывести не удалось — требовалась одна лишь "
-           "ветка" if sh["not_derived"] else ""))
+    log(f"{name}: knocked out {len(req) - len(absent)} keys of "
+        f"{len(req)}, omissions not caught {bad}"
+        + (f"; absent from the start {len(absent)}" if absent else "")
+        + (f"; fingerprint values with nothing to check against "
+           f"{sh['not_verified']}" if sh["not_verified"] else "")
+        + ("; the snapshot's writer was not identified" if sh["blind"] else "")
+        + ("; the fingerprint shape would not derive -- only the branch "
+           "itself was required" if sh["not_derived"] else ""))
     return (bad + len(absent) + len(drift) + sh["not_verified"] + sh["blind"]
             + sh["not_derived"])
 
@@ -717,7 +725,7 @@ def cmd_replay(a):
             if v:
                 print(v)
             else:
-                print(f"{os.path.relpath(d)}: строки повтора нет — "
-                      f"слепок неполон, смотри books replay --check")
+                print(f"{os.path.relpath(d)}: there is no repeat line -- "
+                      f"the snapshot is incomplete, see books replay --check")
                 rc = 1
     return rc

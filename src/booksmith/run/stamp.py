@@ -1,36 +1,36 @@
-"""Три величины, без которых прогон не повторить: хэш файла, коммит, пакеты.
+"""Three quantities without which a run does not repeat: file hash, commit,
+packages.
 
-ЖИВУТ ОТДЕЛЬНО, ПОТОМУ ЧТО ПИШУЩИХ СЛЕПОК СТАЛО ТРОЕ: `detect.py`,
-`doc/html.py` и `read/run.py`. Пока слепок писала одна `detect.py`, эти функции
-законно были её частными; с третьим пишущим второй экземпляр означал бы
-расхождение, за которое проект уже платил — реестр ручек против сборщика
-задания, 13 имён из 17, — и `dots_ocr/entrypoint.py` до сих пор носит
-признание «сторожа у этих двух копий нет».
+APART, BECAUSE THE SNAPSHOT NOW HAS THREE WRITERS: `detect.py`, `doc/html.py`,
+`read/run.py`. With one writer these were lawfully its own; with three, a
+second copy is drift -- paid for once by the knob registry against the task
+builder, 13 names of 17, and `dots_ocr/entrypoint.py` still admits "nothing
+guards these two copies".
 
-ЗДЕСЬ СТОЯЛО ДРУГОЕ ОБОСНОВАНИЕ, И ОНО НЕ ВОСПРОИЗВОДИТСЯ. Было сказано, что
-на арендованной машине `detect.py` «не поднимется вовсе: он тянет
-onnxruntime и opencv, которых там нет». Замер опроверг обе половины:
-`import booksmith.detect` при заблокированных `onnxruntime`, `cv2` и `yaml`
-проходит — они импортируются ЛЕНИВО, внутри функций `models/doclayout.py`, — и
-на машине они есть, `models/paddleocr_vl/constraints.txt` их прижимает
-поимённо. Довод остался один, зато проверяемый: пишущих трое.
+ANOTHER JUSTIFICATION STOOD HERE AND DOES NOT REPRODUCE: that `detect.py`
+"will not come up at all" on a rented machine, wanting onnxruntime and opencv.
+Both halves are false -- `import booksmith.detect` passes with `onnxruntime`,
+`cv2` and `yaml` blocked, because they are pulled LAZILY inside functions of
+`models/doclayout.py`, and on the machine they do exist, pinned by name in
+`models/paddleocr_vl/constraints.txt`. One argument is left, and it is
+checkable: three writers.
 
-ЧЕГО ЗДЕСЬ ВСЁ ЕЩЁ НЕТ. Третий экземпляр `_commit` живёт в `synth.py` и
-говорит ДРУГИМИ словами: «(грязное дерево)» в скобках против «+грязное
-дерево» здесь, и `'не репозиторий'` вместо `None`. То есть слепки `books
-synth` и `books detect` про одно и то же дерево уже сейчас читаются
-по-разному. И `def _sha256` в дереве девять штук. Свести это — работа, а не
-строчка, и она не сделана; сказано, чтобы не считалось сделанным.
+WHAT IS STILL NOT HERE. A third `_commit` lives in `synth.py` and says it in
+OTHER words -- "(dirty tree)" in brackets against "+dirty tree" here, and
+`'not a repository'` instead of `None` -- so the snapshots of `books synth`
+and `books detect` about one tree already read differently. And `def _sha256`
+occurs nine times in the tree. Merging that is work, not a line, and it is not
+done; said here so it does not count as done.
 """
 import hashlib
 import os
 import subprocess
 import sys
 
-# Пакеты, решающие РАЗБОР СТРАНИЦЫ. Список объявлен вызывающим, а не зашит:
-# у детекции и у чтения он разный, и общий список молча писал бы `null`
-# против пакета, которого в этом прогоне и не должно быть, — то есть выдавал
-# бы «не смотрели» за «нет».
+# Packages that decide PAGE PARSING. Declared by the caller, not baked in:
+# detection and reading need different ones, and a shared list would silently
+# write `null` against a package this run never wanted -- "we did not look"
+# passed off as "absent".
 DETECT_PACKAGES = ("onnxruntime", "numpy", "cv2", "pymupdf", "yaml")
 READ_PACKAGES = ("pymupdf",)
 
@@ -44,34 +44,35 @@ def sha256(path: str) -> str:
 
 
 def commit() -> str | None:
-    """Коммит кода, которым считали. Грязное дерево помечается ЯВНО.
+    """The commit of the code that counted. A dirty tree is marked EXPLICITLY.
 
-    Помечается, а не молчит: прогон на незакоммиченных правках повторить
-    нельзя, и знать об этом надо в момент чтения слепка, а не потом.
+    Marked, not passed over: a run on uncommitted edits cannot be repeated,
+    and that must be known while the snapshot is being read, not later.
 
-    Спрашиваем git в КАТАЛОГЕ ИСХОДНИКОВ, а не в рабочем каталоге процесса:
-    команду можно позвать откуда угодно — из чужого репозитория, из каталога
-    вовсе без git, — и слепок записал бы чужой коммит или `None` при живом
-    репозитории. Обе беды молчаливые.
+    git is asked IN THE SOURCE DIRECTORY, not in the process's working one:
+    the command can be called from anywhere -- a foreign repository, a
+    directory with no git at all -- and the snapshot would record a foreign
+    commit, or `None` beside a live repository. Both troubles are silent.
     """
-    # Корень считается ОТ ПАКЕТА, а не четырьмя `dirname` от файла. Разница не
-    # косметическая: первая редакция взяла три `dirname` (как было в
-    # `detect.py`, откуда правило переехало) и получила `src/` вместо корня —
-    # git отвечал по объемлющему репозиторию. Счёт уровней ломается при первом
-    # же переносе файла, а `booksmith.__file__` знает, где пакет, сам.
+    # The root is taken FROM THE PACKAGE, not by four `dirname` off this file.
+    # Not cosmetic: the first edition took three (as `detect.py` did, whence
+    # this rule moved) and got `src/` instead of the root -- git then answered
+    # for the enclosing repository. Counting levels breaks at the first move
+    # of the file; `booksmith.__file__` knows where the package is by itself.
     #
-    # ЧЕГО ЭТО НЕ ЛОВИТ, и молчать нельзя: пакет, лежащий ВНУТРИ чужого
-    # репозитория, отдаст чужой коммит. Проверено: плоская раскладка внутри
-    # постороннего git даёт его HEAD. Отличить «наш репозиторий» от «какой-то
-    # репозиторий» нечем — разве что сверкой пути, а пакет законно живёт и
-    # установленным. На боксе это безопасно случайно: пакет ложится в
-    # `$WORK/booksmith`, git там нет вовсе, и ответ `None`.
+    # WHAT THIS DOES NOT CATCH, and silence is forbidden: a package lying
+    # INSIDE a foreign repository hands back a foreign commit. Checked: a flat
+    # layout inside someone else's git gives its HEAD. Nothing tells "our
+    # repository" from "some repository" -- short of comparing paths, and the
+    # package lawfully lives installed as well. On the box this is safe by
+    # accident: it lands in `$WORK/booksmith`, there is no git there at all,
+    # and the answer is `None`.
     import booksmith
-    # СКАЗАННОЕ СНАРУЖИ СИЛЬНЕЕ СПРОШЕННОГО У GIT, и только когда git молчит.
-    # На арендованной машине git нет вовсе (проверено разбором слоёв образа), а
-    # прогон там — единственный платный, и остаться ему без записи о коде
-    # нельзя. Сборщик задания кладёт сюда свой `commit()`; порядок именно
-    # такой — местный git, если он есть, вернее переданного.
+    # WHAT IS TOLD FROM OUTSIDE COUNTS ONLY WHERE GIT IS SILENT. A rented
+    # machine has no git at all (checked by unpacking the image layers), and
+    # the run there is the only paid one -- it must not be left without a
+    # record of the code. The task builder puts its own `commit()` here; the
+    # order is exactly this -- local git, when there is any, is the truer one.
     from . import knobs
     told = knobs.knob("BOOKSMITH_COMMIT")
     root = os.path.dirname(os.path.dirname(
@@ -84,10 +85,10 @@ def commit() -> str | None:
         head = h.stdout.strip()
         d = subprocess.run(["git", "-C", root, "status", "--porcelain"],
                            capture_output=True, text=True, timeout=10)
-        # Пометка ровно та же строка, что писала `detect._commit`. Расхождение
-        # в один знак сделало бы слепки двух команд несравнимыми глазом, а
-        # сверять их приходится именно глазом.
-        return head + ("+грязное дерево" if d.stdout.strip() else "")
+        # The mark is the very string `detect._commit` wrote. One character
+        # apart and the snapshots of two commands stop being comparable by
+        # eye -- and by eye is exactly how they get compared.
+        return head + ("+dirty tree" if d.stdout.strip() else "")
     except (OSError, subprocess.SubprocessError):
         return told or None
 
@@ -98,6 +99,6 @@ def packages(names=DETECT_PACKAGES) -> dict:
         try:
             out[name] = __import__(name).__version__
         except Exception:                      # noqa: BLE001
-            out[name] = None                   # значение, а не пропуск
+            out[name] = None                   # a value, not a gap
     out["python"] = sys.version.split()[0]
     return out

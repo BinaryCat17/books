@@ -1,18 +1,19 @@
-"""Курс математики: половина полосы — выключные формулы.
+"""A mathematics course: half the page is display formulas.
 
-Зачем эта книга. У справочника `display_formula` проверен ОДНОЙ страницей, а
-шесть ярлыков политики — `inline_formula`, `formula_number`, `algorithm`,
-`abstract`, `reference`, `reference_content` — не проверены ни разу.
+WHY THIS BOOK. In the handbook `display_formula` is tested by ONE page, and
+six policy labels -- `inline_formula`, `formula_number`, `algorithm`,
+`abstract`, `reference`, `reference_content` -- are not tested at all.
 
-Главная ловушка книги — МАТРИЦА. На глаз это сетка чисел в скобках, то есть
-таблица; по существу это одна формула. Цена ошибки названа заранее: как
-таблицу второй уровень разберёт сеткой ячеек и потеряет смысл; как формулу —
-отдаст целиком. Определитель поставлен рядом с настоящей таблицей тех же
-пропорций, чтобы «назвал таблицей» нельзя было списать на общую слепоту.
+Its main trap is the MATRIX. To the eye it is a grid of numbers in brackets,
+i.e. a table; in substance it is one formula. The price of the error is named
+in advance: as a table, level two parses it into a grid of cells and loses the
+meaning; as a formula, it hands it over whole. The determinant is placed
+beside a REAL table of the same proportions, so that "called it a table"
+cannot be written off as general blindness.
 
-Знаки проверяются ДО отрисовки: отсутствующий глиф DejaVu рисует не пустотой,
-а рамкой .notdef — чернилами, — и `_measure` спокойно примет её за формулу.
-Страница вышла бы с квадратиками, а числа здоровыми.
+Glyphs are checked BEFORE drawing: a missing glyph is drawn by DejaVu not as
+emptiness but as a .notdef box -- ink -- and `_measure` would calmly take that
+for a formula. The page would come out full of squares and the numbers healthy.
 """
 from ..synth import (PROSE_EN, SynthError, _fill, _flow, _formula, _grid,
                      _line, _matrix, _page, _put, _rect, _refs, _say, _table,
@@ -20,12 +21,12 @@ from ..synth import (PROSE_EN, SynthError, _fill, _flow, _formula, _grid,
 
 SHEET = (936, 1324)
 PT = 0.5
-PW, PH = SHEET[0] * PT, SHEET[1] * PT       # 468 x 662 пункта
+PW, PH = SHEET[0] * PT, SHEET[1] * PT       # 468 x 662 points
 MARGIN, TOP, BOT_Y = 40.0, 44.0, 620.0
 COLW = PW - 2 * MARGIN
-ABOUT = ("курс математики: выключные формулы с номерами, матрицы и "
-         "определители, системы в скобке, теоремы; ставит `display_formula` "
-         "против `table`")
+ABOUT = ("mathematics course: numbered display formulas, matrices and "
+         "determinants, systems in a brace, theorems; sets `display_formula` "
+         "against `table`")
 
 FORMULAS = (
     "s = (a + b) / 2c",
@@ -43,17 +44,17 @@ def _sheet(doc):
 
 
 def c_mat_plain_prose(doc, rng):
-    """КОНТРОЛЬ: одна колонка сплошной прозы, ни одной формулы."""
+    """CONTROL: one column of solid prose, not a single formula."""
     pg = _sheet(doc); t = []
     _flow(pg, t, MARGIN, TOP, BOT_Y, PROSE_EN, w=COLW)
     return pg, t
 
 
 def c_mat_display_numbered(doc, rng):
-    """Шесть выключных формул с номерами у ПРАВОГО поля.
+    """Six display formulas numbered at the RIGHT margin.
 
-    Номер — отдельный блок или часть формулы? И не разливается ли рамка
-    формулы до самого поля, проглотив номер.
+    Is the number a separate block or part of the formula? And does the
+    formula's box spill out to the margin and swallow it?
     """
     pg = _sheet(doc); t = []
     y = _flow(pg, t, MARGIN, TOP, 150, PROSE_EN, w=COLW)
@@ -66,8 +67,8 @@ def c_mat_display_numbered(doc, rng):
 
 
 def c_mat_chain(doc, rng):
-    """Семь формул подряд с просветом 4 пункта: вертикальное слияние на
-    классе формул. На таблицах вертикаль проходит верно — а здесь?"""
+    """Seven formulas in a row with a 4-point gap: vertical merging on the
+    formula class. On tables the vertical passes correctly -- and here?"""
     pg = _sheet(doc); t = []
     y = _flow(pg, t, MARGIN, TOP, 140, PROSE_EN, w=COLW)
     y += 16
@@ -79,7 +80,7 @@ def c_mat_chain(doc, rng):
 
 
 def c_mat_matrix(doc, rng):
-    """Определитель 5x5 и матрица 4x6 в скобках — ловушка ярлыка."""
+    """A 5x5 determinant and a 4x6 bracketed matrix -- the label trap."""
     pg = _sheet(doc); t = []
     _flow(pg, t, MARGIN, TOP, 130, PROSE_EN, w=COLW)
     y = _matrix(pg, t, MARGIN + 40, 158, 5, 5, kind="det", sheet_w=PW)
@@ -90,10 +91,10 @@ def c_mat_matrix(doc, rng):
 
 
 def c_mat_matrix_vs_table(doc, rng):
-    """ПАРА: матрица и НАСТОЯЩАЯ таблица тех же пропорций на одной полосе.
+    """THE PAIR: a matrix and a REAL table of the same proportions on one page.
 
-    Если модель назовёт таблицей обе — это слепота, а не ошибка ярлыка, и
-    отличить одно от другого без пары нечем.
+    If the model calls both tables, that is blindness and not a label error,
+    and without the pair there is nothing to tell the two apart with.
     """
     pg = _sheet(doc); t = []
     _flow(pg, t, MARGIN, TOP, 120, PROSE_EN, w=COLW)
@@ -105,7 +106,7 @@ def c_mat_matrix_vs_table(doc, rng):
 
 
 def c_mat_system(doc, rng):
-    """Система уравнений в фигурной скобке."""
+    """A system of equations inside a brace."""
     pg = _sheet(doc); t = []
     _flow(pg, t, MARGIN, TOP, 150, PROSE_EN, w=COLW)
     x, y = MARGIN + 70, 190.0
@@ -114,7 +115,7 @@ def c_mat_system(doc, rng):
              "a31 x1 + a32 x2 = b3")
     for k, ln in enumerate(lines):
         _put(pg, x + 14, y + k * 15, ln, 8.0, font="M", sheet_w=PW)
-    # фигурная скобка штрихами
+    # the brace, drawn as strokes
     _line(pg, x + 6, y - 8, x + 6, y + 2 * 15 + 4, 0.8)
     _line(pg, x + 6, y - 8, x + 11, y - 11, 0.7)
     _line(pg, x + 6, y + 2 * 15 + 4, x + 11, y + 2 * 15 + 7, 0.7)
@@ -127,7 +128,7 @@ def c_mat_system(doc, rng):
 
 
 def c_mat_theorem(doc, rng):
-    """Теорема и доказательство с втяжкой: рвёт ли втяжка колонку."""
+    """Theorem and proof, indented: does the indent tear the column apart?"""
     pg = _sheet(doc); t = []
     y = _flow(pg, t, MARGIN, TOP, 130, PROSE_EN, w=COLW)
     for title in ("THEOREM 3.1.", "PROOF."):
@@ -145,7 +146,7 @@ def c_mat_theorem(doc, rng):
 
 
 def c_mat_numbered_list(doc, rng):
-    """Нумерованный список с втяжкой — ложная таблица в два столбца."""
+    """An indented numbered list -- a false two-column table."""
     pg = _sheet(doc); t = []
     y = _flow(pg, t, MARGIN, TOP, 140, PROSE_EN, w=COLW)
     y += 14
@@ -165,7 +166,7 @@ def c_mat_numbered_list(doc, rng):
 
 
 def c_mat_references(doc, rng):
-    """Список литературы: втяжка, номера в скобках — тоже ложная таблица."""
+    """References: indents and bracketed numbers -- another false table."""
     pg = _sheet(doc); t = []
     y = _flow(pg, t, MARGIN, TOP, 300, PROSE_EN, w=COLW)
     w = _put(pg, MARGIN, y + 22, "REFERENCES", 8.0, sheet_w=PW)
@@ -176,7 +177,7 @@ def c_mat_references(doc, rng):
 
 
 def c_mat_inline(doc, rng):
-    """Строчные формулы ВНУТРИ абзацев: рвут ли они абзац на куски."""
+    """Inline formulas INSIDE paragraphs: do they tear the paragraph up?"""
     pg = _sheet(doc); t = []
     y = TOP
     while y < BOT_Y - 40:
@@ -184,20 +185,20 @@ def c_mat_inline(doc, rng):
         body = _fill(pg, r, PROSE_EN, 6.6)
         t.append((MARGIN, y, PW - MARGIN, y + 74, "text"))
         _say(t, body)
-        # формула в строку поверх строки абзаца
+        # an inline formula drawn over a line of the paragraph
         _put(pg, MARGIN + 120, y + 30, "(a + b)/2c", 6.6, font="M", sheet_w=PW)
-        # Строчная формула нарисована ПОВЕРХ абзаца и своей рамки не имеет —
-        # так задуман случай. Значит её знаки принадлежат этому же блоку, и
-        # без `add=True` они оказались бы нарисованными, но не объявленными:
-        # сверка с текстовым слоем показала бы расхождение там, где стенд
-        # ведёт себя ровно как задумано.
+        # The inline formula is drawn OVER the paragraph and has no box of
+        # its own -- that is the case. So its characters belong to this same
+        # block, and without `add=True` they would be drawn but not declared:
+        # a comparison against the text layer would report a discrepancy where
+        # the bench is behaving exactly as designed.
         _say(t, "(a + b)/2c", add=True)
         y += 84
     return pg, t
 
 
 def c_mat_tall_fraction(doc, rng):
-    """Высокие дроби: рамка формулы выше строки в три раза."""
+    """Tall fractions: the formula box is three times the line height."""
     pg = _sheet(doc); t = []
     y = _flow(pg, t, MARGIN, TOP, 160, PROSE_EN, w=COLW)
     y += 20
@@ -218,8 +219,8 @@ def c_mat_tall_fraction(doc, rng):
 
 
 def c_mat_greek(doc, rng):
-    """Греческие и математические знаки: контроль «письменность не меняет
-    ярлык». Знаки проверены на наличие в шрифте ДО отрисовки."""
+    """Greek and mathematical signs: the control for "the script does not
+    change the label". Every glyph is checked against the font BEFORE drawing."""
     pg = _sheet(doc); t = []
     y = _flow(pg, t, MARGIN, TOP, 150, PROSE_EN, w=COLW)
     y += 16

@@ -54,14 +54,14 @@ def _data_uri(path: str) -> tuple[str, int]:
     ext = os.path.splitext(path)[1].lower()
     if ext not in MIME:
         raise ValueError(
-            f"{path}: не знаю такого вида картинки. Знаю {sorted(MIME)}; "
-            f"вырезки кладёт `doc/crop.py`, и это .png")
+            f"{path}: I do not know this image kind. I know {sorted(MIME)}; "
+            f"crops are written by `doc/crop.py`, and those are .png")
     raw = open(path, "rb").read()
     if not raw:
         raise ValueError(
-            f"{path}: вырезка пуста (0 байт). Послать её значит получить "
-            f"выдуманный ответ на пустое место — модель на пустом белом листе "
-            f"выдаёт таблицы, пять разных за пять попыток.")
+            f"{path}: the crop is empty (0 bytes). Sending it means getting "
+            f"an invented answer to an empty place -- on a blank white sheet "
+            f"the model produces tables, five different ones in five tries.")
     return f"data:{MIME[ext]};base64," + base64.b64encode(raw).decode(), len(raw)
 
 
@@ -82,8 +82,9 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         raise urllib.error.HTTPError(
             req.full_url, code,
-            f"перенаправление на {newurl}: не иду. Ключ и картинка уехали бы "
-            f"на адрес, который назвал сервер, а не оператор", headers, fp)
+            f"redirect to {newurl}: not following. The key and the image "
+            f"would travel to an address named by the server, not by the "
+            f"operator", headers, fp)
 
 
 _OPENER = urllib.request.build_opener(_NoRedirect)
@@ -110,7 +111,7 @@ def _read_json(req, timeout):
     try:
         return json.loads(raw.decode())
     except (ValueError, UnicodeDecodeError) as e:
-        raise _BadBody(f"{type(e).__name__}: {e}; первые байты "
+        raise _BadBody(f"{type(e).__name__}: {e}; first bytes "
                        f"{raw[:120]!r}") from None
 
 
@@ -139,9 +140,9 @@ class Http(Transport):
             # such trouble exactly so (`books html` on a swapped PDF,
             # `parse_pages`).
             raise SystemExit(
-                "VLM_ENDPOINT пуст: не задан адрес модели. Умолчания нет "
-                "нарочно — молчаливый `localhost` заставил бы прогон стучаться "
-                "в никуда и объявить это молчанием модели.")
+                "VLM_ENDPOINT is empty: no model address was given. There "
+                "is no default on purpose -- a silent `localhost` would make "
+                "the run knock at nothing and call that the model's silence.")
 
     # -------------------------------------------------------- the contract --
     def fingerprint(self) -> dict:
@@ -149,7 +150,7 @@ class Http(Transport):
                 "model_asked": self.model,
                 "timeout_s": self.timeout, "delivery_retries": self.retries,
                 # The key itself is NOT written: snapshots go to git.
-                "api_key": ("есть, %d знаков" % len(self.key)) if self.key
+                "api_key": ("present, %d chars" % len(self.key)) if self.key
                         else "no"}
 
     def knobs_read(self) -> tuple[str, ...]:
@@ -178,16 +179,17 @@ class Http(Transport):
                 self.timeout)
         except Exception as e:            # noqa: BLE001 -- any failure is one
             raise RuntimeError(
-                f"адрес {self.server} не отвечает на /models: {e}. "
-                f"Это отказ ДОСТАВКИ, а не молчание модели.") from e
+                f"the endpoint {self.server} does not answer /models: {e}. "
+                f"This is a DELIVERY failure, not the model's silence.") from e
         ids = [m.get("id") for m in (d.get("data") or [])]
         out = {"endpoint": self.server, "models_on_server": ids,
                "asking_for": want, "matched": want in ids}
         if not out["matched"]:
             raise RuntimeError(
-                f"на {self.server} стоит {ids}, а спрашивать собираемся "
-                f"{want!r}. Считать в таком виде значит записать в слепок имя "
-                f"одной модели при ответах другой — уверенно и неверно.")
+                f"{self.server} carries {ids}, and we are about to ask for "
+                f"{want!r}. Counting like this writes one model's name into "
+                f"the snapshot over another model's answers -- confidently "
+                f"and wrongly.")
         return out
 
     def send(self, ask: Ask) -> Said:
@@ -213,7 +215,7 @@ class Http(Transport):
             except _BadBody as e:
                 # THERE WAS AN ANSWER. No repeat -- back as a value at once.
                 return Said(anchor=ask.anchor,
-                            error=f"тело ответа не разобрано: {e}",
+                            error=f"the response body did not parse: {e}",
                             took_s=time.time() - t0,
                             meta={"delivery_attempts": attempt + 1,
                                   "image_bytes": nbytes,
@@ -238,7 +240,7 @@ class Http(Transport):
                     # keeping silent: silence is an empty string in `content`.
                     return Said(
                         anchor=ask.anchor,
-                        error=f"200 без choices: {json.dumps(d)[:200]}",
+                        error=f"200 with no choices: {json.dumps(d)[:200]}",
                         took_s=time.time() - t0, raw=d,
                         meta={"delivery_attempts": attempt + 1,
                               "image_bytes": nbytes, "answer_arrived": True,
@@ -267,7 +269,7 @@ class Http(Transport):
         # a run that asked once was written down as having asked three times,
         # and nothing anywhere would have contradicted it. Every other return
         # path in this function already counts the truth.
-        return Said(anchor=ask.anchor, error=last or "отказ без объяснения",
+        return Said(anchor=ask.anchor, error=last or "refused with no reason",
                     took_s=time.time() - t0,
                     meta={"delivery_attempts": attempt + 1,
                           "image_bytes": nbytes,
@@ -281,7 +283,7 @@ def build() -> Transport:
     name = knobs.knob("VLM_TRANSPORT")
     if name != "http":
         raise SystemExit(
-            f"VLM_TRANSPORT={name!r}: знаю только 'http'. Молчаливый откат на "
-            f"него означал бы, что опечатка в имени транспорта считается "
-            f"успешным прогоном.")
+            f"VLM_TRANSPORT={name!r}: I know only 'http'. A silent fallback "
+            f"to it would make a typo in the transport's name count as a "
+            f"successful run.")
     return Http()

@@ -70,7 +70,7 @@ def test_missing_anchor_is_loud():
     try:
         swap.get(doc(), "p9999-b1")
     except swap.AnchorError as e:
-        assert "открывающих 0" in str(e)
+        assert "opening 0" in str(e)
     else:
         raise AssertionError("замена на месте, которого нет, прошла молча")
 
@@ -84,7 +84,7 @@ def test_double_anchor_is_loud():
     try:
         swap.span(d, A)
     except swap.AnchorError as e:
-        assert "открывающих 2" in str(e)
+        assert "opening 2" in str(e)
     else:
         raise AssertionError("две одинаковые метки приняты за одну")
 
@@ -94,7 +94,7 @@ def test_inverted_anchor_is_loud():
     try:
         swap.span(d, A)
     except swap.AnchorError as e:
-        assert "вывернут" in str(e)
+        assert "is inverted" in str(e)
     else:
         raise AssertionError("закрывающая метка раньше открывающей принята")
 
@@ -137,6 +137,6 @@ def test_unterminated_mark_is_loud():
     try:
         swap.anchors("<p>текст<!--bs:p0001-b1 и всё")
     except swap.AnchorError as e:
-        assert "не закрыта" in str(e)
+        assert "not closed" in str(e)
     else:
         raise AssertionError("оборванная метка молча дала пустой список")

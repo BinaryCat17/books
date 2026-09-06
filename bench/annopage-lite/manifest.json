@@ -1,6 +1,6 @@
 {
  "book": "annopage-lite",
- "about": "AnnoPage, длинная сторона ужата до 1 Мпикс — ровно то, что видит dots.ocr; истина пересчитана тем же коэффициентом",
+ "about": "AnnoPage with the long side squeezed to 1 Mpixel -- exactly what dots.ocr sees; the truth is rescaled by the same factor",
  "page_count": 600,
  "text_marked": false,
  "order_marked": false,

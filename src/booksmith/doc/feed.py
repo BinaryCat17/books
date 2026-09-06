@@ -63,10 +63,10 @@ def params(page_dpi: float | None = None) -> dict:
     """
     mode = knobs.knob("VLM_INPUT")
     if mode not in MODES:
-        raise ValueError(f"VLM_INPUT={mode!r}: знаю только {MODES}")
+        raise ValueError(f"VLM_INPUT={mode!r}: I know only {MODES}")
     fill = knobs.knob("MASK_FILL")
     if fill not in FILLS:
-        raise ValueError(f"MASK_FILL={fill!r}: знаю только {tuple(FILLS)}")
+        raise ValueError(f"MASK_FILL={fill!r}: I know only {tuple(FILLS)}")
     # From crop we take ONLY what belongs to the `crop` mode. The previous
     # edition expanded `crop.params()` whole, and CROP_DPI silently set the
     # resolution of the WHOLE page going to the VLM: sharpen a table crop and
@@ -77,9 +77,9 @@ def params(page_dpi: float | None = None) -> dict:
     if feed_dpi:
         page_out, src = float(feed_dpi), "FEED_DPI"
     elif page_dpi is not None:
-        page_out, src = float(page_dpi), "как у детекции"
+        page_out, src = float(page_dpi), "as in detection"
     else:
-        page_out, src = float(knobs.knob("PAGE_DPI")), "PAGE_DPI текущего процесса"
+        page_out, src = float(knobs.knob("PAGE_DPI")), "PAGE_DPI of this process"
     return {"feed_mode": mode, "hole_fill": fill,
             "crop_dpi": c["dpi"], "crop_dpi_source": c["dpi_source"],
             "crop_margin": c["margin"],

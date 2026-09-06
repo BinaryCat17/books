@@ -1,27 +1,27 @@
-"""Чтение блоков на арендованной карте. Исполняется НА боксе.
+"""Reading blocks on a rented card. Executed ON the box.
 
-ЗДЕСЬ НЕТ НИ ОДНОГО ПОВТОРЁННОГО ПРАВИЛА, и это главное отличие от соседнего
-`dots_ocr/entrypoint.py`. Тот несёт свою копию разбора страниц и сам про себя
-пишет: «СТОРОЖА У ЭТИХ ДВУХ КОПИЙ НЕТ… расхождение поймает только человек».
-Проект уже платил за такое расхождение — реестр ручек против сборщика
-задания, 13 имён из 17, — и повторять его во второй раз незачем.
+NOT ONE RULE IS REPEATED HERE, and that is the main difference from the
+neighbouring `dots_ocr/entrypoint.py`, which carries its own copy of the page
+parser and says so about itself. The project has already paid for such a
+divergence -- the knob registry against the job builder, 13 names of 17 --
+and there is no reason to pay twice.
 
-Вместо копии на машину едет САМ ПАКЕТ: `spec()` кладёт `src/booksmith`
-входным файлом (1.1 МБ, против 6.2 ГБ весов — величина, которой можно
-пренебречь), а этот файл только подставляет пути и зовёт `booksmith.read.run`.
-То есть дома и на карте исполняется ОДИН И ТОТ ЖЕ код, вплоть до байта, и
-проверен он дома против подставного сервера — бесплатно и заранее
-(`tests/test_read.py`, 27 проверок).
+Instead of a copy, THE PACKAGE ITSELF travels: `spec()` sends `src/booksmith`
+as an input file (1.1 MB against 6.2 GB of weights, a quantity that can be
+ignored), and this file only fills in paths and calls `booksmith.read.run`.
+So at home and on the card the SAME code runs, byte for byte, and it was
+checked at home against a stand-in server -- free and in advance
+(`tests/test_read.py`, 27 checks).
 
-ЧТО ЗДЕСЬ СВОЁ, А НЕ ОБЩЕЕ. Ровно три вещи, и все три — про то, что машина
-чужая: путь к книге (она приезжает как `input.pdf`, а слепок детекции помнит
-домашний путь), адрес поднятого vLLM и место результата. Всё остальное —
-общее.
+WHAT IS LOCAL RATHER THAN SHARED. Exactly three things, all three about the
+machine being someone else's: the path to the book (it arrives as `input.pdf`
+while the detection snapshot remembers the home path), the address of the
+vLLM that was brought up, and where the result goes.
 
-ЧТО ОБЯЗАНО ПАДАТЬ ЗДЕСЬ, А НЕ НА ПОЛПУТИ. Отсутствие пакета, отсутствие
-каталога детекции, адрес, отвечающий чужим именем модели. Каждое из трёх
-стоит денег ровно столько, сколько тикает карта, поэтому проверяется до
-первой вырезки.
+WHAT MUST FAIL HERE AND NOT HALFWAY. A missing package, a missing detection
+directory, an endpoint answering with another model's name. Each of the three
+costs exactly as much as the card ticks, so each is checked before the first
+crop.
 """
 import argparse
 import os
@@ -36,29 +36,30 @@ def log(*a):
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(description="второй уровень на боксе")
+    ap = argparse.ArgumentParser(description="level two, on the box")
     ap.add_argument("--pkg", default=HERE,
-                    help="каталог, где лежит пакет booksmith (уезжает с заданием)")
-    ap.add_argument("--detect", required=True, help="каталог books detect")
-    ap.add_argument("--pdf", required=True, help="книга, как она легла на бокс")
+                    help="where the booksmith package lies (it travels with the job)")
+    ap.add_argument("--detect", required=True, help="a `books detect` directory")
+    ap.add_argument("--pdf", required=True, help="the book as it landed on the box")
     ap.add_argument("--out", required=True)
-    ap.add_argument("--server", required=True, help="адрес vLLM вместе с /v1")
+    ap.add_argument("--server", required=True, help="the vLLM address, including /v1")
     ap.add_argument("--model", default="")
     ap.add_argument("--pages", default="")
     ap.add_argument("--policy", default="PP-DocLayoutV2")
-    # `run.sh` подставляет этот ключ при `RESUME=0`, а `RESUME` — объявленная
-    # ручка реестра, которую пробрасывает `knobs.passthrough()`. Прежде ключа
-    # здесь не было вовсе, и оператор, задавший `RESUME=0`, получал
-    # `error: unrecognized arguments: --no-resume`, код 2 — ПОСЛЕ аренды,
-    # разворачивания и подъёма vLLM. Вторая половина той же беды: `resume` не
-    # передавался в `read_book` вовсе, то есть при `RESUME=1` ручка тоже
-    # ничего не решала. Третьего поведения у неё не было.
+    # `run.sh` passes this flag when `RESUME=0`, and `RESUME` is a declared
+    # registry knob forwarded by `knobs.passthrough()`. The flag did not exist
+    # here at all, so an operator who set `RESUME=0` got `error: unrecognized
+    # arguments: --no-resume`, exit code 2 -- AFTER the rental, the unrolling
+    # and the vLLM coming up. The other half of the same defect: `resume` was
+    # not passed to `read_book` either, so at `RESUME=1` the knob decided
+    # nothing. It had no third behaviour.
     ap.add_argument("--no-resume", action="store_true",
-                    help="спрашивать заново даже то, что уже прочитано")
+                    help="ask again even for what has already been read")
     a = ap.parse_args(argv)
 
-    # Пакет ищем ЯВНО и падаем вслух: без него дальше пошли бы `ImportError`
-    # из середины прохода, то есть уже за деньги и на полпути.
+    # The package is looked for EXPLICITLY and the failure is loud: without
+    # it an `ImportError` would come from the middle of the pass -- on the
+    # money, and halfway.
     if a.pkg not in sys.path:
         sys.path.insert(0, a.pkg)
     try:
@@ -66,16 +67,19 @@ def main(argv=None):
         from booksmith.read import run as vread
     except ImportError as e:
         raise SystemExit(
-            f"пакет booksmith не поднимается из {a.pkg}: {e}. На машину он "
-            f"едет входным файлом задания (`spec()` рядом); без него считать "
-            f"нечем, и лучше сказать это сейчас, чем на середине книги.")
+            f"the booksmith package will not import from {a.pkg}: {e}. It "
+            f"travels as an input file of the job (`spec()` is beside this); "
+            f"without it there is nothing to count with, and saying so now "
+            f"beats saying it in the middle of the book.")
 
     if not os.path.isdir(os.path.join(a.detect, "pages")):
-        raise SystemExit(f"в {a.detect} нет pages/ — каталог детекции не приехал")
+        raise SystemExit(f"no pages/ in {a.detect}: the detection directory did "
+                         f"not arrive")
 
-    # Адрес и имя модели — через окружение, потому что их читает транспорт из
-    # реестра ручек. Мимо реестра здесь не ходит ничто: ручка, прочитанная в
-    # обход, не попадёт в слепок, и прогон станет неповторимым молча.
+    # The address and the model name go through the environment, because the
+    # transport reads them from the knob registry. Nothing here goes past the
+    # registry: a knob read around it does not reach the snapshot, and the run
+    # becomes silently unrepeatable.
     os.environ["VLM_ENDPOINT"] = a.server
     if a.model:
         os.environ["MODEL_NAME"] = a.model
@@ -83,8 +87,8 @@ def main(argv=None):
     reader = vread.build_reader(a.policy)
     transport = vhttp.build()
     who = transport.check()
-    log(f"адрес {who['endpoint']}: отвечает {who['models_on_server']}, "
-        f"спрашиваем {who['asking_for']} — совпало")
+    log(f"endpoint {who['endpoint']}: answers {who['models_on_server']}, "
+        f"we ask for {who['asking_for']} -- they agree")
 
     pages = None
     if a.pages and a.pages != "-":
@@ -100,9 +104,9 @@ def main(argv=None):
     vread.snapshot(a.detect, a.out, reader, transport, t,
                    {"detect": a.detect, "out": a.out, "pages": a.pages,
                     "on_box": True})
-    # Число, а не «готово»: по нему видно, за что заплачено.
-    log(f"итог: прочитано {t['read']} из {t['asked']} спрошенных, "
-        f"знаков {t['chars']}, счёта {t['compute_seconds']:.0f} с")
+    # A quantity, not "done": it shows what was paid for.
+    log(f"total: read {t['read']} of {t['asked']} asked, "
+        f"chars {t['chars']}, compute {t['compute_seconds']:.0f} s")
     return 0
 
 

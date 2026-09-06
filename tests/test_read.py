@@ -163,14 +163,14 @@ def test_empty_crop_is_loud():
     as reading.
     """
     import tempfile
-    p = os.path.join(tempfile.mkdtemp(), "пусто.png")
+    p = os.path.join(tempfile.mkdtemp(), "empty.png")
     open(p, "wb").close()
     try:
         vhttp._data_uri(p)
     except ValueError as e:
-        assert "пуста" in str(e)
+        assert "the crop is empty" in str(e)
     else:
-        raise AssertionError("пустая вырезка уехала бы в модель")
+        raise AssertionError("an empty crop would have gone to the model")
 
 
 def test_the_very_crop_reaches_the_model():
@@ -418,9 +418,9 @@ def test_empty_run_is_not_a_success():
     try:
         _run(tmp, {"OCR:": {"text": "x"}}, pages_want={999})
     except SystemExit as e:
-        assert "пуст" in str(e)
+        assert "empty" in str(e)
     else:
-        raise AssertionError("пустой набор страниц прошёл молча")
+        raise AssertionError("an empty page set passed in silence")
 
 
 def test_snapshot_carries_prompts_and_our_parser():

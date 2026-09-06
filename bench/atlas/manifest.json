@@ -1,6 +1,6 @@
 {
  "book": "atlas",
- "about": "альбом чертежей: альбомный лист, поле чертежа, основная надпись, спецификация внутри поля, выносные позиции; проверяет `image` против вложенной `table`",
+ "about": "album of drawings: landscape sheet, drawing field, title block, specification inside the field, callout numbers; tests `image` against a nested `table`",
  "page_count": 11,
  "synth_seed": 1,
  "aging": "old",

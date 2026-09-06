@@ -1,29 +1,28 @@
-"""Атлас конструкций: альбомный лист, крупная графика, мало текста.
+"""An atlas of drawings: landscape sheet, large graphics, little text.
 
-Зачем. У справочника рисунок всегда стоит В ПОЛОСЕ НАБОРА среди прозы. В
-атласе полоса — сам чертёж, а текста на листе может не быть вовсе, и это
-другая задача: детектору не за что зацепиться, кроме самой графики.
+WHY. In the handbook a figure always sits IN THE TEXT BLOCK among prose. Here
+the drawing IS the block, and a sheet may carry no text at all -- a different
+problem, because the detector has nothing to grip but the graphics.
 
-Две ловушки книги названы заранее. Первая — ОСНОВНАЯ НАДПИСЬ чертежа: сетка
-ячеек с текстом в углу поля, то есть таблица внутри рисунка; вопрос, отдаст
-ли модель две рамки или одну. Вторая — ТАБЛИЦА СПЕЦИФИКАЦИИ, лежащая внутри
-поля чертежа: таблица и рисунок здесь не соседи, а вложены.
+Two traps, named in advance. The TITLE BLOCK of a drawing: a grid of cells
+with text in the corner of the field, i.e. a table inside a figure -- two
+boxes or one? And the SPECIFICATION TABLE lying inside the drawing field:
+table and figure are not neighbours here, they are nested.
 
-Контрольная страница `atl_plate_only` не несёт ни надписи, ни спецификации:
-без неё «нашёл рисунок» на странице со штампом нечем отличить от «обвёл всё
-подряд».
+The control page `atl_plate_only` carries neither. Without it, "found the
+figure" on a stamped page cannot be told from "boxed everything at once".
 """
 from ..synth import (PROSE_EN, _callouts, _caption, _flow, _frame_stamp,
                      _grid, _halftone, _line, _page, _plate, _put, _say,
                      _table, _text_w)
 
-SHEET = (1440, 1012)                 # альбомный: 720 x 506 пунктов
+SHEET = (1440, 1012)                 # landscape: 720 x 506 points
 PT = 0.5
 PW, PH = SHEET[0] * PT, SHEET[1] * PT
 MARGIN, TOP, BOT_Y = 26.0, 34.0, 480.0
-ABOUT = ("альбом чертежей: альбомный лист, поле чертежа, основная надпись, "
-         "спецификация внутри поля, выносные позиции; проверяет `image` "
-         "против вложенной `table`")
+ABOUT = ("album of drawings: landscape sheet, drawing field, title block, "
+         "specification inside the field, callout numbers; tests `image` "
+         "against a nested `table`")
 
 
 def _sheet(doc, wide=False):
@@ -31,7 +30,7 @@ def _sheet(doc, wide=False):
 
 
 def c_atl_plate_only(doc, rng):
-    """КОНТРОЛЬ: одно поле чертежа и подпись. Ни надписи, ни спецификации."""
+    """CONTROL: one drawing field and a caption. No stamp, no spec."""
     pg = _sheet(doc); t = []
     _plate(pg, t, MARGIN + 40, TOP + 10, PW - 2 * MARGIN - 80, 380)
     _caption(pg, t, MARGIN + 46, TOP + 408, "Fig. 12  Machine tool bed")
@@ -39,7 +38,7 @@ def c_atl_plate_only(doc, rng):
 
 
 def c_atl_frame_stamp(doc, rng):
-    """Рамка чертежа и ОСНОВНАЯ НАДПИСЬ в углу: таблица внутри рисунка."""
+    """Drawing frame and TITLE BLOCK in the corner: a table inside a figure."""
     pg = _sheet(doc); t = []
     _plate(pg, t, MARGIN + 30, TOP + 6, PW - 2 * MARGIN - 60, 360)
     _frame_stamp(pg, t, 10, 10, PW - 10, PH - 10)
@@ -47,7 +46,7 @@ def c_atl_frame_stamp(doc, rng):
 
 
 def c_atl_spec_inside(doc, rng):
-    """Таблица спецификации ВНУТРИ поля чертежа, справа от вида."""
+    """The specification table INSIDE the drawing field, right of the view."""
     pg = _sheet(doc); t = []
     _plate(pg, t, MARGIN, TOP, 400, 380)
     _table(pg, t, MARGIN + 430, TOP + 30,
@@ -58,10 +57,10 @@ def c_atl_spec_inside(doc, rng):
 
 
 def c_atl_two_views(doc, rng):
-    """Два вида рядом: соседние поля чертежа — сливаются или нет.
+    """Two views side by side: adjacent drawing fields -- merged or not.
 
-    На справочнике два рисунка бок о бок модель разделила. Здесь они больше,
-    ближе и одинаковы по устройству.
+    On the handbook the model separated two figures side by side. Here they
+    are larger, closer, and identical in construction.
     """
     pg = _sheet(doc); t = []
     _plate(pg, t, MARGIN + 20, TOP + 10, PW - 2 * MARGIN - 40, 360, views=2)
@@ -71,7 +70,7 @@ def c_atl_two_views(doc, rng):
 
 
 def c_atl_callouts(doc, rng):
-    """Выносные позиции в кружках вокруг вида — мелкие чернила по всему полю."""
+    """Callout numbers in circles around the view -- small ink everywhere."""
     pg = _sheet(doc); t = []
     _plate(pg, t, MARGIN + 90, TOP, PW - 2 * MARGIN - 180, 380)
     _callouts(pg, t, PW / 2, TOP + 190, 110,
@@ -81,7 +80,7 @@ def c_atl_callouts(doc, rng):
 
 
 def c_atl_caption_above(doc, rng):
-    """Подпись НАД рисунком, а не под ним."""
+    """The caption ABOVE the figure, not below it."""
     pg = _sheet(doc); t = []
     _caption(pg, t, MARGIN + 46, TOP + 10, "Fig. 17  Tailstock, plan")
     _plate(pg, t, MARGIN + 40, TOP + 20, PW - 2 * MARGIN - 80, 380)
@@ -89,7 +88,7 @@ def c_atl_caption_above(doc, rng):
 
 
 def c_atl_photo_plate(doc, rng):
-    """Полутоновая фотография во всю полосу: другая физика, тот же ярлык."""
+    """A halftone photograph across the block: other physics, same label."""
     pg = _sheet(doc); t = []
     _halftone(pg, t, MARGIN + 60, TOP, PW - 2 * MARGIN - 120, 370,
               "Fig. 18  Milling head, photograph")
@@ -97,7 +96,7 @@ def c_atl_photo_plate(doc, rng):
 
 
 def c_atl_text_and_plate(doc, rng):
-    """Полоса текста внизу под чертежом: единственная проза в книге."""
+    """A band of text under the drawing: the only prose in this book."""
     pg = _sheet(doc); t = []
     _plate(pg, t, MARGIN + 60, TOP, PW - 2 * MARGIN - 120, 300)
     _caption(pg, t, MARGIN + 66, TOP + 318, "Fig. 19  Gearbox, section")
@@ -106,7 +105,7 @@ def c_atl_text_and_plate(doc, rng):
 
 
 def c_atl_spread_plate(doc, rng):
-    """РАЗВОРОТ: чертёж через корешок."""
+    """SPREAD: a drawing across the gutter."""
     pg = _sheet(doc, wide=True); t = []
     _plate(pg, t, MARGIN + 40, TOP, 2 * PW - 2 * MARGIN - 80, 400)
     _caption(pg, t, MARGIN + 46, TOP + 420,
@@ -115,7 +114,7 @@ def c_atl_spread_plate(doc, rng):
 
 
 def c_atl_rotated_plate(doc, rng):
-    """Лист, ПОВЁРНУТЫЙ на 90°, с чертежом и основной надписью."""
+    """A sheet ROTATED by 90 degrees, with drawing and title block."""
     pg = _sheet(doc); t = []
     _plate(pg, t, MARGIN + 40, TOP, PW - 2 * MARGIN - 200, 370)
     _frame_stamp(pg, t, 10, 10, PW - 10, PH - 10, no="26.69")
@@ -123,9 +122,9 @@ def c_atl_rotated_plate(doc, rng):
 
 
 def c_atl_sparse(doc, rng):
-    """Почти пустой лист: один мелкий вид в углу и подпись.
+    """An almost empty sheet: one small view in the corner and a caption.
 
-    Порядок чтения на полосе, где читать почти нечего.
+    Reading order on a page where there is almost nothing to read.
     """
     pg = _sheet(doc); t = []
     _plate(pg, t, MARGIN + 40, TOP + 40, 240, 180)

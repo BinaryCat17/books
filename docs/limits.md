@@ -161,3 +161,31 @@ everything this project has written into its comments -- and leaves every
 instrument green while reporting a quarter of the job done. Each area
 therefore carries a second number, the Latin in the same prose: translation
 turns Cyrillic into Latin, deletion turns it into nothing.
+
+**An exemption must be a rule, not a list.** The ratchet exempts book content
+-- the Russian actually drawn onto a synthetic page -- and the exemption began
+as a list of four constant names. It leaked in BOTH directions. `CASES` and
+`AGING` were on it and are not book text, which filed the ageing profile's
+old Russian name as untouchable prose. `ABOUT` was on it and is a sentence written FOR THE
+OPERATOR and copied into `bench/*/manifest.json`, so six book descriptions,
+643 characters, were invisible to the instrument that was supposed to be
+chasing them. Meanwhile the Russian half of the parallel-text page was an
+inline literal in the middle of a function, exempted by nothing, and
+translating it would have destroyed the page it belongs to. The rule now is
+the constant's NAME: it must end in `_RU`, so the exemption is declared where
+the content is, and a literal that is content but is not named cannot hide.
+
+**A mutation that patches source by text must name exactly ONE place.**
+Twenty-four mutations reach inside a function by replacing one exact line.
+Move that line -- reflow, translate, rename -- and the mutation stops landing;
+the battery refuses to certify it and aborts, several minutes in, leaving
+everything after it unmeasured. `tools/anchors.py` asks the same question
+about all 52 literal patches in under a second, and it found three anchors
+that matched TWO or THREE places, where `str.replace(old, new, 1)` silently
+patches the first. In all three the first happened to be the intended one.
+
+**A quotation of a report goes stale exactly like a copy of a number.** Seven
+citations of `books score` and `books text` output in `docs/contour-notes.md`
+were verbatim, and the reports were translated out from under them. The fix is
+not to stop quoting but to take the quote from `bench/expected/*.txt`, which is
+regenerated from the command itself.

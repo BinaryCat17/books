@@ -31,7 +31,7 @@ WHAT MUST FAIL ALOUD ON THIS PATH:
   * a PDF whose sha256 differs from the detection snapshot: boxes measured on
     one file, crops cut from another.
 
-FIVE DIFFERENT ZEROS, COUNTED APART. Merged, they all print "прочитано 0"
+FIVE DIFFERENT ZEROS, COUNTED APART. Merged, they all print "read 0"
 while meaning something different every time:
 
     not asked        -- route empty with a declared reason (figures)
@@ -71,9 +71,9 @@ def build_reader(policy_name: str) -> Reader:
         from ..models.paddleocr_vl.reader import PaddleOcrVl
         return PaddleOcrVl(policy_name)
     raise SystemExit(
-        f"VLM_READER={name!r}: знаю только {READERS}. Молчаливый откат на "
-        f"первый попавшийся означал бы, что опечатка в имени чтеца считается "
-        f"успешным прогоном, а слепок назовёт не ту модель.")
+        f"VLM_READER={name!r}: I know only {READERS}. A silent fallback to "
+        f"whichever comes first would make a typo in the reader's name count "
+        f"as a successful run, with the snapshot naming the wrong model.")
 
 
 def _sniff(text: str) -> str:
@@ -164,9 +164,10 @@ def _detect_facts(detect_dir: str) -> dict:
     p = os.path.join(detect_dir, "run.json")
     if not os.path.exists(p):
         raise SystemExit(
-            f"в {detect_dir} нет run.json — это не каталог `books detect`. "
-            f"Чтение без слепка детекции не знает ни книги, ни dpi, которым "
-            f"считаны рамки, и порезало бы вырезки не по тем координатам.")
+            f"no run.json in {detect_dir}: this is not a `books detect` "
+            f"directory. Reading without the detection snapshot knows neither "
+            f"the book nor the dpi the boxes were measured at, and would cut "
+            f"the crops at the wrong coordinates.")
     with open(p, encoding="utf-8") as f:
         return json.load(f)
 
@@ -187,18 +188,19 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
     facts = _detect_facts(detect_dir)
     pdf = pdf or facts["source"]["path"]
     if not os.path.exists(pdf):
-        raise SystemExit(f"нет исходника {pdf}, названного слепком детекции")
+        raise SystemExit(f"no source {pdf}, the one the detection snapshot names")
     got = stamp.sha256(pdf)
     if got != facts["source"]["sha256"]:
         raise SystemExit(
-            f"{pdf}: sha256 {got[:12]} против {facts['source']['sha256'][:12]} "
-            f"в слепке детекции. Рамки считаны по ДРУГОМУ файлу; вырезки "
-            f"поехали бы не по тем координатам, а ответ выглядел бы чтением.")
+            f"{pdf}: sha256 {got[:12]} against "
+            f"{facts['source']['sha256'][:12]} in the detection snapshot. The "
+            f"boxes were measured on ANOTHER file; the crops would be cut at "
+            f"the wrong coordinates and the answer would look like reading.")
     page_dpi = float(facts["raster"]["dpi"])
 
     files = sorted(glob.glob(os.path.join(detect_dir, "pages", "*.json")))
     if not files:
-        raise SystemExit(f"в {detect_dir} нет страниц — сначала books detect")
+        raise SystemExit(f"no pages in {detect_dir}: run books detect first")
 
     # ANOTHER BOOK'S PAGES. The `out` directory is assembled by hand and reused;
     # `0007.json` from a different book would survive the run and ride into
@@ -210,11 +212,12 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
         alien = sorted(set(os.listdir(_pages_dir)) - mine_)
         if alien:
             raise SystemExit(
-                f"в {_pages_dir} лежат страницы, которых нет в детекции: "
-                f"{alien[:5]}{'…' if len(alien) > 5 else ''} ({len(alien)} шт.). "
-                f"Это каталог от другой книги или другого набора страниц; "
-                f"они уехали бы в книгу и в замер как часть этой. Убери их или "
-                f"выбери пустой --out.")
+                f"{_pages_dir} holds pages the detection does not have: "
+                f"{alien[:5]}{'...' if len(alien) > 5 else ''} "
+                f"({len(alien)} of them). This is a directory from another "
+                f"book or another page set; they would travel into the book "
+                f"and into the measurement as part of this one. Remove them "
+                f"or choose an empty --out.")
     os.makedirs(_pages_dir, exist_ok=True)
     os.makedirs(os.path.join(out_dir, "answers"), exist_ok=True)
     crops_dir = os.path.join(out_dir, "crops")
@@ -232,7 +235,7 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
         pages.append((fp, pg))
         labels |= {b.label for b in pg.blocks}
     if not pages:
-        raise SystemExit("ни одной страницы к чтению — набор --pages пуст")
+        raise SystemExit("not one page to read: the --pages set is empty")
     reader.cover(labels)
 
     params = _gen_params()
@@ -258,9 +261,9 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
         same_setup = was == setup
         if not same_setup:
             diff = [k for k in setup if was.get(k) != setup[k]]
-            log(f"ЧИТАЛИ ДРУГИМ: разошлось {diff} — возобновлять нельзя, "
-                f"спрашиваю всё заново. Иначе слепок объявил бы новые величины "
-                f"действующими при старых ответах.")
+            log(f"READ WITH SOMETHING ELSE: {diff} differ -- resuming is not "
+                f"allowed, asking everything again. Otherwise the snapshot "
+                f"would declare new values in force over old answers.")
     with open(setup_path, "w", encoding="utf-8") as f:
         json.dump(setup, f, ensure_ascii=False, indent=1)
     doc = pymupdf.open(pdf)
@@ -404,8 +407,8 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
                     tally["asked_no_answer"] += 1
                     b.content, b.kind = None, "none"
                     answers.append({"anchor": anchor,
-                                    "trouble": "спросили, ответа под этим якорем "
-                                            "не пришло"})
+                                    "trouble": "asked, and no answer came "
+                                               "under this anchor"})
                     continue
                 rec = s.to_json()
                 rec["label"] = b.label
@@ -455,7 +458,7 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
                 tally["hit_ceiling"] += 1
                 worst.append(anchor)
             # ONLY REAL QUESTIONS COUNT. Blocks taken from a previous run landed
-            # here too: a second `books read` printed «спрошено 567» with ZERO
+            # here too: a second `books read` printed "asked 567" with ZERO
             # calls to the service, and "seconds per block" divided by that same
             # number. Two quantities under one name, drifting apart by
             # construction.
@@ -471,10 +474,10 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
         with open(ans_path, "w", encoding="utf-8") as f:
             json.dump({"page": pg.index, "answers": answers}, f,
                       ensure_ascii=False, indent=1)
-        log(f"стр. {pg.index}: спрошено {len(asks)}, прочитано "
+        log(f"p. {pg.index}: asked {len(asks)}, read "
             f"{sum(1 for a in answers if a.get('text'))}, "
-            f"молчаний {sum(1 for a in answers if a.get('text') == '')}, "
-            f"отказов {sum(1 for a in answers if a.get('error'))}")
+            f"silences {sum(1 for a in answers if a.get('text') == '')}, "
+            f"refusals {sum(1 for a in answers if a.get('error'))}")
     doc.close()
 
     tally["by_kind"] = by_kind
@@ -485,44 +488,45 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
 
 def report(t: dict, log=log) -> None:
     """Quantities, not "done". The five zeros are printed apart."""
-    log(f"страниц {t['page_count']}, блоков {t['block_count']}: спрошено "
-        f"{t['asked']}, не спрошено {t['not_asked']}")
+    log(f"pages {t['page_count']}, blocks {t['block_count']}: asked "
+        f"{t['asked']}, not asked {t['not_asked']}")
     if t["reused_from_previous_run"]:
-        log(f"  взято из прошлого прогона {t['reused_from_previous_run']} — "
-            f"эти блоки модель СЕЙЧАС не читала")
-    log(f"прочитано {t['read']}, знаков {t['chars']}, по видам "
-        f"{t['by_kind'] or '—'}")
-    log(f"резкость вырезки: своя у книги "
-        f"{t['native_book_dpi'] and round(t['native_book_dpi']) or '—'} dpi, "
-        f"окно модели {t['model_window'] or 'не объявлено'}; "
-        f"{t['crop_dpi_reason_counts'] or '—'}")
+        log(f"  taken from a previous run {t['reused_from_previous_run']} "
+            f"-- the model did NOT read these blocks now")
+    log(f"read {t['read']}, chars {t['chars']}, by kind "
+        f"{t['by_kind'] or '--'}")
+    log(f"crop sharpness: the book's own "
+        f"{t['native_book_dpi'] and round(t['native_book_dpi']) or '--'} dpi, "
+        f"model window {t['model_window'] or 'not declared'}; "
+        f"{t['crop_dpi_reason_counts'] or '--'}")
     # The five troubles are printed ALWAYS, zeros included: a line that
     # disappears at zero reads as "this never happens" rather than "it did not
     # happen this time".
-    log(f"  модель промолчала {t['model_silent']}, отказов доставки "
-        f"{t['delivery_failed']}, оборвано потолком {t['hit_ceiling']}, "
-        f"ответ мимо якоря {t['answer_wrong_anchor']}, спрошено без ответа "
-        f"{t['asked_no_answer']}")
+    log(f"  model silent {t['model_silent']}, delivery failed "
+        f"{t['delivery_failed']}, hit the ceiling {t['hit_ceiling']}, "
+        f"answer past the anchor {t['answer_wrong_anchor']}, asked with no "
+        f"answer {t['asked_no_answer']}")
     if t["crop_failed"]:
-        log(f"  ВЫРЕЗКА НЕ ВЫШЛА у {t['crop_failed']} блоков — рамка "
-            f"модели вырождена или лежит вне листа. Это её дефект, а не наш; "
-            f"блок остался непрочитанным: {'; '.join(t['crop_failures'][:3])}")
+        log(f"  THE CROP FAILED on {t['crop_failed']} blocks -- the model's "
+            f"box is degenerate or lies off the sheet. That is its defect, "
+            f"not ours; the block stayed unread: "
+            f"{'; '.join(t['crop_failures'][:3])}")
     if t["hit_ceiling"]:
-        log(f"  ОБОРВАНО ПОТОЛКОМ: {', '.join(t['truncated_anchors'])}"
-            f"{'…' if t['hit_ceiling'] > 20 else ''} — у таблицы это "
-            f"НЕ выглядит поломкой: вендорский otsl_pad_to_sqr_v2 молча "
-            f"укорачивает длинные строки, и порванная таблица возвращается "
-            f"правдоподобной. Поднимать VLM_MAX_TOKENS или резать мельче")
+        log(f"  CUT AT THE CEILING: {', '.join(t['truncated_anchors'])}"
+            f"{'...' if t['hit_ceiling'] > 20 else ''} -- on a table this does "
+            f"NOT look broken: the vendor's otsl_pad_to_sqr_v2 silently "
+            f"shortens long rows, and a torn table comes back plausible. "
+            f"Raise VLM_MAX_TOKENS or crop smaller")
     if t["kind_not_as_promised"]:
-        log(f"  вид ответа разошёлся с объявленным у "
-            f"{t['kind_not_as_promised']} блоков — это НЕ дефект модели, а "
-            f"повод пересмотреть объявление в чтеце; догадка лежит сбоку, в "
-            f"answers/")
+        log(f"  the answer's kind differs from the declared one on "
+            f"{t['kind_not_as_promised']} blocks -- NOT a defect of the model "
+            f"but a reason to revisit the declaration in the reader; the "
+            f"guess lies beside it, in answers/")
     if not t["asked"]:
-        log("СПРОШЕНО НОЛЬ БЛОКОВ — это не успех, а пустой прогон")
+        log("ZERO BLOCKS ASKED -- not a success, an empty run")
     if t["compute_seconds"]:
-        log(f"счёта {t['compute_seconds']:.1f} с, токенов {t['tokens']}, "
-            f"{t['compute_seconds'] / max(1, t['asked']):.2f} с на блок")
+        log(f"compute {t['compute_seconds']:.1f} s, tokens {t['tokens']}, "
+            f"{t['compute_seconds'] / max(1, t['asked']):.2f} s per block")
 
 
 def _repeat_line(detect_dir: str, out_dir: str, args: dict) -> str:
@@ -547,7 +551,7 @@ def snapshot(detect_dir: str, out_dir: str, reader: Reader,
     """Input snapshot: the same fields as detection, and at last a non-empty
     `prompts`."""
     facts = _detect_facts(detect_dir)
-    read_knobs = {**{n: "адаптер чтения" for n in reader.knobs_read()},
+    read_knobs = {**{n: "reading adapter" for n in reader.knobs_read()},
                   **{n: "transport" for n in transport.knobs_read()}}
     snap = {
         "when": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
@@ -616,11 +620,11 @@ def _knobs_snapshot(read_by_adapter) -> dict:
             "VLM_TEMPERATURE", "VLM_MAX_TOKENS", "VLM_TOP_P", "VLM_SEED",
             "CROP_MARGIN", "PAGE_DPI")
     # THE "WHAT WE ASK / HOW WE DELIVER" SEAM LIVES IN THE SNAPSHOT TOO. Roles
-    # used to be folded into one tuple with «адаптер чтения» on all of them --
+    # used to be folded into one tuple with "reading adapter" on all of them --
     # so `VLM_ENDPOINT`, `VLM_RETRIES` and `VLM_TIMEOUT_S`, read by the
     # transport, were credited to the model. The seam the whole of
     # `read/__init__.py` exists for was erased in the snapshot.
     roles = dict(read_by_adapter)
     for n in mine:
-        roles.setdefault(n, "сама команда `books read`")
+        roles.setdefault(n, "the `books read` command itself")
     return knobs.snapshot_with_readers(roles)

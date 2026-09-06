@@ -15,12 +15,13 @@ def test_book_builder_reads_the_order_rule_through_the_one_contract():
     """`doc/html` must call `models.base.ours_order`, not a copy of its own.
 
     THE PROBE SET MUST CONTAIN BOTH ANSWERS, and that is asserted rather than
-    assumed. After the marker word moved from `наш` to `ours` these values were
-    left behind, and every one of the nine then returned False from BOTH sides:
-    the check compared False with False nine times and would have passed a
-    broken copy whole. It was caught while translating the prose around it, not
-    by the check itself and not by the battery -- the mutation that guards it
-    plants a `наш` copy and so kept working by accident.
+    assumed. After the marker word moved from the Russian one to `ours` these
+    values were left behind, and every one of the nine then returned False from
+    BOTH sides: the check compared False with False nine times and would have
+    passed a broken copy whole. It was caught while translating the prose
+    around it, not by the check itself and not by the battery -- the mutation
+    that guards it plants a Russian-worded copy and so kept working by
+    accident.
     """
     probes = ("ours_top_down_left_right", "OURS, in bands", "  ours  ",
               "Ours_by_choice", "model_rank", "", None, 0, "generation_order")
@@ -30,9 +31,10 @@ def test_book_builder_reads_the_order_rule_through_the_one_contract():
         "functions that both say False proves nothing")
     for v in probes:
         assert H._ours(v) == B.ours_order(v), (
-            f"{v!r}: сборщик книги и контракт адаптера разошлись — "
-            f"сборщик {H._ours(v)}, контракт {B.ours_order(v)}. Это та самая "
-            f"вторая копия договора, из-за которой рождается процент из ничего")
+            f"{v!r}: the book builder and the adapter contract diverged -- "
+            f"builder {H._ours(v)}, contract {B.ours_order(v)}. This is that "
+            f"second copy of one contract out of which a percentage is born "
+            f"from nothing")
 
 
 def test_anchor_is_page_scoped():
@@ -86,12 +88,12 @@ def test_clipping_is_measured_with_a_tolerance_not_exactly():
         dst = os.path.join(tmp, "b.png")
         inside = crop.cut(doc, 0, inside_px, dpi, dst)
         assert inside["clipped_by_sheet"] is False, (
-            "рамка целиком внутри листа объявлена срезанной — это float32 "
-            "пересечения, а не дефект модели")
+            "a box wholly inside the sheet was declared clipped -- that is "
+            "float32 intersection, not a defect of the model")
         out = crop.cut(doc, 0, out_px, dpi, dst)
         assert out["clipped_by_sheet"] is True, (
-            "рамка, вылезшая за лист на 20 пунктов, срезанной НЕ названа — "
-            "допуск съел настоящую беду")
+            "a box hanging 20 points off the sheet was NOT called clipped -- "
+            "the tolerance ate a real trouble")
 
 
 def test_degenerate_and_inverted_boxes_are_named_by_their_own_trouble():
@@ -100,6 +102,10 @@ def test_degenerate_and_inverted_boxes_are_named_by_their_own_trouble():
     Both gave an empty intersection and got the wrong diagnosis -- "does not
     meet the sheet" -- for a box in the middle of the paper, sending the reader
     after shifted coordinates.
+
+    THE PROBE WORDS ARE `doc/crop`'s OWN, and that file is still Russian: this
+    check greps its message, so the words stay as they are until it is
+    translated.
     """
     import os
     import tempfile
@@ -107,22 +113,23 @@ def test_degenerate_and_inverted_boxes_are_named_by_their_own_trouble():
     doc = _sheet()
     with tempfile.TemporaryDirectory() as tmp:
         dst = os.path.join(tmp, "b.png")
-        for box, word in (([200.0, 200.0, 200.0, 300.0], "ВЫРОЖДЕНА"),
-                          ([300.0, 200.0, 200.0, 300.0], "ПЕРЕВЁРНУТА")):
+        for box, word in (([200.0, 200.0, 200.0, 300.0], "DEGENERATE"),
+                          ([300.0, 200.0, 200.0, 300.0], "INVERTED")):
             try:
                 crop.cut(doc, 0, box, 144.0, dst)
             except ValueError as e:
                 assert word in str(e), (
-                    f"рамка {box} названа не своей бедой: {str(e)[:90]!r}")
+                    f"the box {box} was named by the wrong trouble: "
+                    f"{str(e)[:90]!r}")
             else:
-                raise AssertionError(f"рамка {box} вырезана молча")
+                raise AssertionError(f"the box {box} was cut silently")
         # And a real "off the sheet" must stay itself.
         try:
             crop.cut(doc, 0, [5000.0, 5000.0, 5100.0, 5100.0], 144.0, dst)
         except ValueError as e:
-            assert "не пересекается с листом" in str(e)
+            assert "does not intersect the sheet" in str(e)
         else:
-            raise AssertionError("рамка за пределами листа вырезана молча")
+            raise AssertionError("a box beyond the sheet was cut silently")
 
 
 def test_negative_margin_is_refused_out_loud():
@@ -142,7 +149,7 @@ def test_negative_margin_is_refused_out_loud():
     except ValueError as e:
         assert "CROP_MARGIN" in str(e)
     else:
-        raise AssertionError("отрицательное поле принято молча")
+        raise AssertionError("a negative margin was accepted silently")
     finally:
         if was is None:
             del os.environ["CROP_MARGIN"]
@@ -176,11 +183,12 @@ def test_native_dpi_divides_by_the_placement_not_by_the_sheet():
                       if False else pix.tobytes("png"))
     got = crop.native_dpi(page)
     doc.close(); src.close(); img.close()
-    assert got is not None, "растр на весь лист, а резкость не определилась"
+    assert got is not None, (
+        "the raster covers the whole sheet, and sharpness was not determined")
     # By placement: 1000 px / 400 pt = 180 dpi. By the SHEET it would be 360.
     assert abs(got - 180.0) < 1.0, (
-        f"резкость {got:.1f} — считана по ширине ЛИСТА, а не размещения; "
-        f"деление на лист даёт 360 и завышает вдвое")
+        f"sharpness {got:.1f} -- counted by the width of the SHEET, not of "
+        f"the placement; dividing by the sheet gives 360 and doubles it")
 
 
 def test_native_dpi_says_nothing_when_there_is_nothing_to_say():
@@ -190,8 +198,8 @@ def test_native_dpi_says_nothing_when_there_is_nothing_to_say():
 
     doc = pymupdf.open()
     page = doc.new_page(width=200, height=100)
-    page.insert_text((10, 50), "только текст")
-    assert crop.native_dpi(page) is None, "вектор объявил решётку"
+    page.insert_text((10, 50), "text only")
+    assert crop.native_dpi(page) is None, "vector art declared a grid"
 
     # A corner stamp: detailed, but a fifth of the width.
     small = pymupdf.open()
@@ -202,8 +210,8 @@ def test_native_dpi_says_nothing_when_there_is_nothing_to_say():
     got = crop.native_dpi(page)
     doc.close(); small.close()
     assert got is None, (
-        f"марка в углу объявлена резкостью страницы ({got}) — по ней резался "
-        f"бы весь лист")
+        f"a stamp in the corner was declared the page's sharpness ({got}) -- "
+        f"the whole sheet would be cut by it")
 
 
 def test_crop_dpi_counts_what_will_actually_be_cut():
@@ -222,13 +230,14 @@ def test_crop_dpi_counts_what_will_actually_be_cut():
     without, _ = crop_dpi_for(out, 144.0, 601.0, W)
     with_sheet, why = crop_dpi_for(out, 144.0, 601.0, W, sheet=sheet)
     assert with_sheet > without + 1, (
-        f"по листу {with_sheet:.1f}, по полной рамке {without:.1f} — резкость "
-        f"считается по тому, чего на бумаге нет")
+        f"by the sheet {with_sheet:.1f}, by the full box {without:.1f} -- "
+        f"sharpness is counted on what is not on the paper")
     # The same box wholly ON the sheet must not change when a sheet appears.
     inside = (0, 0, 540, 700)
     a, _ = crop_dpi_for(inside, 144.0, 601.0, W)
     b, _ = crop_dpi_for(inside, 144.0, 601.0, W, sheet=sheet)
-    assert abs(a - b) < 1e-9, "лист изменил резкость рамки, лежащей внутри него"
+    assert abs(a - b) < 1e-9, (
+        "the sheet changed the sharpness of a box lying inside it")
 
 
 def test_crop_dpi_never_comes_from_the_environment_silently():
@@ -241,6 +250,9 @@ def test_crop_dpi_never_comes_from_the_environment_silently():
     144 throws away 48% of the ink in the file (measured in `crop.params`).
     Today it is the scan's OWN sharpness; the guard is unchanged: a number must
     name its source, and a silent environment may not be one.
+
+    The two probe words below are `doc/crop`'s own answers and stay Russian
+    until that file is translated.
     """
     from booksmith.doc import crop
     # own sharpness known -- it is taken, detection is irrelevant
@@ -248,10 +260,11 @@ def test_crop_dpi_never_comes_from_the_environment_silently():
     assert p["dpi"] == 300.0 and p["dpi_source"] == "native_scan_dpi", p
     # none of its own -- detection, and that is said in words
     p2 = crop.params(150.0)
-    assert p2["dpi"] == 150.0 and "как у детекции" in p2["dpi_source"], p2
+    assert p2["dpi"] == 150.0 and "as in detection" in p2["dpi_source"], p2
     # neither -- the environment, and it is NAMED as a guess
-    assert crop.params()["dpi_source"] == "PAGE_DPI текущего процесса", (
-        "резкость угадана по окружению, и об этом не сказано ни слова")
+    assert crop.params()["dpi_source"] == "PAGE_DPI of this process", (
+        "sharpness was guessed from the environment, and not a word was "
+        "said about it")
 
 
 def test_crop_dpi_takes_the_ink_that_exists_and_invents_none():
@@ -295,13 +308,13 @@ def test_nesting_survives_blocks_without_a_model_rank():
                 Block(block_id=2, box=box, label="image", order=o2)]
         inner = H._nesting(arts)
         assert len(inner) == 1, (
-            f"ранги {o1!r}/{o2!r}: вложенность посчитана как {inner}, а рамки "
-            f"совпадают — одна обязана уйти внутрь другой")
+            f"ranks {o1!r}/{o2!r}: nesting counted as {inner}, while the "
+            f"boxes coincide -- one of them must go inside the other")
     # Rank decides WHO is outer, and by HER order, not by our id.
     arts = [Block(block_id=1, box=box, label="table", order=9),
             Block(block_id=2, box=box, label="image", order=1)]
     assert H._nesting(arts) == {1: 2}, (
-        "внешней названа не та, что раньше по рангу модели")
+        "the outer one named is not the one earlier by the model's rank")
 
 
 def test_the_anchor_rule_has_exactly_one_home():
@@ -315,8 +328,8 @@ def test_the_anchor_rule_has_exactly_one_home():
     """
     from booksmith.doc import apply as ap
     from booksmith.doc import feed
-    assert feed.anchor_of is H.anchor_of, "doc/feed завёл свой якорь"
-    assert ap.anchor_of is H.anchor_of, "doc/apply завёл свой якорь"
+    assert feed.anchor_of is H.anchor_of, "doc/feed made its own anchor"
+    assert ap.anchor_of is H.anchor_of, "doc/apply made its own anchor"
 
 
 def test_three_kinds_of_bad_sheet_get_three_different_marks():
@@ -324,7 +337,7 @@ def test_three_kinds_of_bad_sheet_get_three_different_marks():
 
     There were two, and the third printed somebody else's mark: `blank` meant
     "blocks exist, no text among them", so a sheet with a single page number
-    (`footer`, furniture) got the red "the whole page went to pictures" at
+    (`footer`, furniture) got the red "the whole column went into pictures" at
     `data-image-share="0.00"` -- an element contradicting itself. Measured:
     `bench/atlas` p. 0.
     """
@@ -342,7 +355,7 @@ def test_three_kinds_of_bad_sheet_get_three_different_marks():
     art = Block(block_id=0, box=(50.0, 50.0, 950.0, 1350.0), label="table",
                 score=0.9, order=0)
     with tempfile.TemporaryDirectory() as tmp:
-        pdf = os.path.join(tmp, "проба.pdf")
+        pdf = os.path.join(tmp, "probe.pdf")
         doc = pymupdf.open()
         for _ in range(4):
             doc.new_page(width=500, height=700)
@@ -357,7 +370,7 @@ def test_three_kinds_of_bad_sheet_get_three_different_marks():
             page(1, [art]),
             page(2, []),
             page(3, [Block(block_id=0, box=(50.0, 50.0, 950.0, 600.0),
-                           label="text", score=0.9, order=0, content="строки"),
+                           label="text", score=0.9, order=0, content="lines"),
                      Block(block_id=1, box=(50.0, 700.0, 950.0, 1300.0),
                            label="table", score=0.9, order=1)]),
         ]
@@ -379,20 +392,21 @@ def test_three_kinds_of_bad_sheet_get_three_different_marks():
     import re
     marks = dict(re.findall(r'<hr class="sheet" data-sheet="(\d+)"([^>]*)>', book))
     assert 'data-furniture-only' in marks["0"], (
-        f"лист из одного служебного помечен как {marks['0']!r} — а картинок "
-        f"на нём нет вовсе")
+        f"a sheet of one furniture block is marked {marks['0']!r} -- and it "
+        f"holds no pictures at all")
     assert 'data-no-text' not in marks["0"], (
-        "лист без единой картинки назван ушедшим в картинки: "
+        "a sheet without a single picture was called gone into pictures: "
         f"{marks['0']!r}")
     assert ('data-no-text' in marks["1"]
             and 'data-furniture-only' not in marks["1"]), marks["1"]
     assert 'data-empty' in marks["2"], marks["2"]
     assert marks["3"].strip().endswith('"'), (
-        f"здоровый лист получил пометку отказа: {marks['3']!r}")
+        f"a healthy sheet got a refusal mark: {marks['3']!r}")
     # Each mark has wording of its own -- else they differ only in name.
-    for word in ("вся полоса ушла в картинки", "модель не нашла на листе ничего",
-                 "на листе только служебное"):
-        assert word in book, f"надписи «{word}» в книге нет"
+    for word in ("the whole column went into pictures",
+                 "the model found nothing on this sheet",
+                 "only furniture on this sheet"):
+        assert word in book, f"the wording \"{word}\" is not in the book"
 
 
 def test_the_book_is_alone_at_the_root_and_carries_itself():
@@ -423,7 +437,7 @@ def test_the_book_is_alone_at_the_root_and_carries_itself():
     from booksmith.models.base import Block, Page
 
     with tempfile.TemporaryDirectory() as tmp:
-        pdf = os.path.join(tmp, "проба.pdf")
+        pdf = os.path.join(tmp, "probe.pdf")
         doc = pymupdf.open()
         doc.new_page(width=500, height=700)
         doc.save(pdf)
@@ -433,7 +447,7 @@ def test_the_book_is_alone_at_the_root_and_carries_itself():
         os.makedirs(os.path.join(det, "pages"))
         pg = Page(index=0, width=1000, height=1400, dpi=144.0, blocks=[
             Block(block_id=0, box=(50.0, 50.0, 950.0, 400.0), label="text",
-                  score=0.9, order=0, content="строки"),
+                  score=0.9, order=0, content="lines"),
             Block(block_id=1, box=(50.0, 500.0, 950.0, 1300.0), label="table",
                   score=0.9, order=1)])
         with open(os.path.join(det, "pages", "0000.json"), "w",
@@ -450,8 +464,8 @@ def test_the_book_is_alone_at_the_root_and_carries_itself():
 
         in_root = sorted(os.listdir(out))
         assert in_root == ["assets", "book.html"], (
-            f"в корне сборки {in_root}, а ожидается только book.html и "
-            f"assets/. Всё, кроме книги, — кухня")
+            f"the build root holds {in_root}, and only book.html and assets/ "
+            f"are expected. Everything but the book is kitchen")
 
         with open(os.path.join(out, "book.html"), encoding="utf-8") as f:
             s = f.read()
@@ -463,13 +477,15 @@ def test_the_book_is_alone_at_the_root_and_carries_itself():
                   if not u.startswith("data:")]
         loads += re.findall(r'<link[^>]+href="([^"]+)"', s)
         assert not loads, (
-            f"книга подгружает со стороны: {loads[:5]}. По сетевому пути "
-            f"(\\\\wsl.localhost\\...) браузер эти файлы молча не загрузит, и "
-            f"книга откроется без формул и картинок, выглядя исправной")
+            f"the book loads from outside: {loads[:5]}. Over a network path "
+            f"(\\\\wsl.localhost\\...) the browser will silently not load "
+            f"these files, and the book opens without formulas and pictures, "
+            f"looking sound")
 
         assert os.path.isdir(os.path.join(out, "assets", "blocks")), (
-            "вырезок нет в assets/blocks. Они обязаны лежать файлами даже "
-            "когда вшиты в книгу: их читают правки, замеры и второй уровень")
+            "no crops in assets/blocks. They must lie as files even when "
+            "inlined into the book: edits, measurements and the second level "
+            "read them")
 
 
 def test_the_builder_recognises_its_own_directory():
@@ -490,19 +506,20 @@ def test_the_builder_recognises_its_own_directory():
     import tempfile
 
     with tempfile.TemporaryDirectory() as tmp:
-        assert not H.is_our_dir(tmp), "пустой каталог признан нашим"
+        assert not H.is_our_dir(tmp), "an empty directory was called ours"
 
         os.makedirs(os.path.join(tmp, H.ASSETS))
         open(os.path.join(tmp, H.ASSETS, "run.json"), "w").close()
         assert H.is_our_dir(tmp), (
-            "каталог со слепком в кухне не признан своим — пересборка на "
-            "месте откажет, и совет из журнала сборки станет невыполним")
+            "a directory with the snapshot in the kitchen was not recognised "
+            "as ours -- a rebuild in place would refuse, and the advice from "
+            "the build log becomes impossible to follow")
 
     with tempfile.TemporaryDirectory() as tmp:
         open(os.path.join(tmp, "run.json"), "w").close()
         assert H.is_our_dir(tmp), (
-            "книга ПРЕЖНЕЙ раскладки объявлена чужой — она наша, просто "
-            "собрана до переезда слепка")
+            "a book of the OLD layout was declared alien -- it is ours, "
+            "only built before the snapshot moved")
 
 
 def test_the_book_carries_blocks_in_the_order_it_walked_them():
@@ -533,7 +550,7 @@ def test_the_book_carries_blocks_in_the_order_it_walked_them():
     from booksmith.models.base import Block, Page
 
     with tempfile.TemporaryDirectory() as tmp:
-        pdf = os.path.join(tmp, "проба.pdf")
+        pdf = os.path.join(tmp, "probe.pdf")
         doc = pymupdf.open()
         doc.new_page(width=500, height=700)
         doc.save(pdf)
@@ -545,9 +562,9 @@ def test_the_book_carries_blocks_in_the_order_it_walked_them():
         # two blocks a reversal shows, on one it does not.
         pg = Page(index=0, width=1000, height=1400, dpi=144.0, blocks=[
             Block(block_id=0, box=(50.0, 50.0, 950.0, 300.0), label="text",
-                  score=0.9, order=0, content="первый"),
+                  score=0.9, order=0, content="first"),
             Block(block_id=1, box=(50.0, 400.0, 950.0, 700.0), label="text",
-                  score=0.9, order=1, content="второй"),
+                  score=0.9, order=1, content="second"),
             Block(block_id=2, box=(50.0, 800.0, 950.0, 1300.0), label="table",
                   score=0.9, order=2)])
         with open(os.path.join(det, "pages", "0000.json"), "w",
@@ -566,8 +583,8 @@ def test_the_book_carries_blocks_in_the_order_it_walked_them():
 
         wanted = [H.anchor_of(0, i) for i in range(3)]
         assert swap.anchors(book) == wanted, (
-            f"книга сложена не в порядке блоков: {swap.anchors(book)} против "
-            f"{wanted}. Порядок книги — это порядок чтения")
+            f"the book is not assembled in block order: {swap.anchors(book)} "
+            f"against {wanted}. The book's order IS the reading order")
 
     # THE EXPECTATION MAY NOT BE DERIVED FROM THE WALK, and only the source can
     # say so: a tautological guard behaves on healthy code exactly like an
@@ -584,9 +601,10 @@ def test_the_book_carries_blocks_in_the_order_it_walked_them():
                   and n.func.value.id == "expected"
                   and n.func.attr == "append"]
         assert not inside, (
-            f"ожидание порядка копится ВНУТРИ цикла (строка {inside[0].lineno}"
-            f") — сторож стал тавтологичным: перевернёшь обход, перевернётся "
-            f"и ожидание. Так уже было, и три порчи не поймались ни одна")
+            f"the order expectation accumulates INSIDE the loop (line "
+            f"{inside[0].lineno}) -- the guard has become tautological: "
+            f"reverse the walk and the expectation reverses with it. This has "
+            f"happened before, and three corruptions were caught by none")
 
     # AND THE GUARD MUST BE IN PLACE. The check above compares the order
     # itself, so it would not notice the guard leaving THE BUILDER -- the book
@@ -598,6 +616,7 @@ def test_the_book_carries_blocks_in_the_order_it_walked_them():
               and isinstance(n.left, ast.Name) and n.left.id == "got"
               and any(isinstance(o, ast.NotEq) for o in n.ops)]
     assert check_count, (
-        "в `build` не осталось сверки `вышло != ждём` — сборщик перестал "
-        "проверять, в том ли порядке сложилась книга. Настоящему прогону "
-        "сравнивать нечем: приборы мерят страницы детекции, а не документ")
+        "no `got != expected` comparison is left in `build` -- the builder "
+        "stopped checking whether the book came out in the right order. A "
+        "real run has nothing to compare with: the instruments measure "
+        "detection pages, not the document")

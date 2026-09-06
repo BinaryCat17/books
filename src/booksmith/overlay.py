@@ -36,11 +36,11 @@ NOT_FOUND = (0.85, 0.10, 0.10)     # red: in truth, absent from the model
 SPURIOUS = (0.95, 0.55, 0.00)       # orange: in the model, absent from truth
 ONE = (0.15, 0.35, 0.85)         # blue: one markup, nothing to compare with
 # A DIVERGENT LABEL is not "a spurious box" and has its own colour now. The
-# caption «ярлык: A -> B» took the same orange as «ЛИШНЯЯ» and hung over a GREY
+# caption "label: A -> B" took the same orange as "EXTRA" and hung over a GREY
 # box: its colour contradicted its own box, and the reader hunted an orange
 # rectangle that was not there. On `bench/slovar` 207 of 517 pairs (40%) carry
 # it, on one sheet 56 of 56; by eye a caption is 1.47 times wider than its box,
-# 61 of 62 are covered by another, and a real «ЛИШНЯЯ» beside them goes
+# 61 of 62 are covered by another, and a real "EXTRA" beside them goes
 # invisible. Narrow -- 10 or more captions on 5 sheets of 859, all slovar -- but
 # colour cures it, patience does not.
 LABEL = (0.45, 0.25, 0.65)        # purple: same box, different name
@@ -80,30 +80,31 @@ def _same_book(pdf: str, marks) -> str:
                 continue
             if j != mine:
                 raise OverlayError(
-                    f"разметка «{tag}» ({d}) про ДРУГУЮ книгу: в её слепке "
-                    f"sha256 {j[:12]}, а у {pdf} — {mine[:12]}. Нарисованные "
-                    f"рамки выглядели бы дефектом модели.")
+                    f"markup {tag} ({d}) is about ANOTHER book: its "
+                    f"snapshot says sha256 {j[:12]}, {pdf} says {mine[:12]}. "
+                    f"The boxes drawn would look like a defect of the model.")
             if tag not in said:
                 # ONCE PER MARKUP, not per snapshot found. `said.append` used to
                 # sit inside the loop over the two files, and with both
-                # `manifest.json` and `run.json` in one directory the line came
-                # out «sha256 сверен для И, М, М».
+                # `manifest.json` and `run.json` in one directory the line
+                # named the same markup twice.
                 said.append(tag)
         if len(said) == was:
             unchecked.append(tag)
-    # WHAT WAS NOT CHECKED IS NAMED ALOUD. It used to print «sha256 сверен для
-    # И» and say not a word about «М» being unchecked: half a guard read as the
-    # whole guard. The same zero from not understanding -- "we did not look"
-    # dressed as "it matched".
-    ok = f"sha256 сверен для {', '.join(said)}" if said else None
-    no = (f"НЕ СВЕРЕН для {', '.join(unchecked)}: слепка рядом нет, про ту "
-          f"ли книгу эта разметка — сказать нечем") if unchecked else None
-    return "; ".join(x for x in (ok, no) if x) or "sha256 сверять нечем"
+    # WHAT WAS NOT CHECKED IS NAMED ALOUD. It used to print "sha256 verified
+    # for" the first markup and say not a word about the second being
+    # unchecked: half a guard read as the whole guard. The same zero from not
+    # understanding -- "we did not look" dressed as "it matched".
+    ok = f"sha256 verified for {', '.join(said)}" if said else None
+    no = (f"NOT VERIFIED for {', '.join(unchecked)}: no snapshot lies beside "
+          f"it, nothing to say whether this markup is about that book"
+          ) if unchecked else None
+    return "; ".join(x for x in (ok, no) if x) or "sha256: nothing to verify"
 
 
 def _pages(d: str) -> dict:
     if not os.path.isdir(d):
-        raise OverlayError(f"нет каталога разметки {d}")
+        raise OverlayError(f"no markup directory {d}")
     out = {}
     for name in sorted(os.listdir(d)):
         if not name.endswith(".json") or name == "run.json":
@@ -111,10 +112,10 @@ def _pages(d: str) -> dict:
         with open(os.path.join(d, name), encoding="utf-8") as f:
             p = json.load(f)
         if "blocks" not in p or "index" not in p:
-            raise OverlayError(f"{name}: не похоже на страницу разметки")
+            raise OverlayError(f"{name}: does not look like a markup page")
         out[int(p["index"])] = p
     if not out:
-        raise OverlayError(f"в {d} нет ни одной страницы разметки")
+        raise OverlayError(f"{d} holds not one markup page")
     return out
 
 
@@ -126,11 +127,11 @@ def _pair(truth, model):
     ARTEFACT IS MATCHED WITH ARTEFACT. `books score` looks for a truth artefact
     only among the model's ARTEFACT boxes (pass A); its label-blind pass serves
     reading order and text, not the final share. Blind matching drew a table
-    covered by a `text` box in thin grey «совпало», counted it matched and kept
-    the page out of the divergences -- where the number called it lost: 51
-    artefacts over nine benches (33 annopage, 14 hard, 2 matematika, one each
-    atlas and hard36), 31 of them tables eaten by a text box (table->text 17,
-    table->content 13, table->reference 1).
+    covered by a `text` box in thin grey as "matched", counted it matched and
+    kept the page out of the divergences -- where the number called it lost:
+    51 artefacts over nine benches (33 annopage, 14 hard, 2 matematika, one
+    each atlas and hard36), 31 of them tables eaten by a text box (table->text
+    17, table->content 13, table->reference 1).
 
     The side comes from the same `label in arte` as in `compare_pages`, not from
     `policy.role`: a label the policy does not describe must behave here as it
@@ -217,42 +218,42 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
     sets = [(_pages(d), tag) for d, tag in marks]
     doc = pymupdf.open(pdf)
     if not os.path.exists(FONT):
-        die(f"нет шрифта {FONT}: подписи выйдут пустыми")
+        die(f"no font {FONT}: the captions would come out empty")
     if only is not None:
         bad = [i for i in only if not 0 <= i < doc.page_count]
         if bad:
-            die(f"в {pdf} нет страниц {bad}: всего {doc.page_count}")
+            die(f"{pdf} has no pages {bad}: {doc.page_count} in all")
     for pages, tag in sets:
         lost = sorted(i for i in pages if not 0 <= i < doc.page_count)
         if lost:
-            die(f"у разметки «{tag}» есть страницы {lost[:5]}, которых нет в "
-                f"{pdf} ({doc.page_count} страниц): они исчезли бы без счёта.")
+            die(f"markup {tag} has pages {lost[:5]} that are not in {pdf} "
+                f"({doc.page_count} pages): they would vanish uncounted.")
 
     counts = {"matched": 0, "missed": 0, "spurious": 0, "outside_markup": 0,
               "pages_without_text_markup": 0, "pages_compared": 0,
               # MISSES ARE COUNTED BY NAME. A page absent from one markup used
               # to be skipped by both `continue` branches in silence, and the
               # sheet looked complete. Measured: drop 3 pages of 13 from the
-              # model on slovar and «НЕ НАШЛА 6» does not flinch while
+              # model on slovar and "NOT FOUND 6" does not flinch while
               # divergences get FEWER (10 -> 7) -- the model improved by losing
-              # part of its answer. `books score` on that input refuses to count
-              # aloud: «модель не разметила страницы [0, 5, 11]: сверять нечего».
+              # part of its answer. `books score` on that input refuses to
+              # count aloud: "the model marked up no pages [0, 5, 11]".
               "missing_in_truth": [], "missing_in_model": [], "in_neither": 0,
               "pages": []}
     # TWO QUANTITIES, and there used to be one. `drawn` counts BOXES (in every
     # branch, and the "not one landed" guard stands on it); `sheets` counts the
     # SHEETS reached. The summary printed `doc.page_count`, a third quantity:
-    # `--pages 102` on the golden bench gave «листов 600» with one drawn. Three
-    # things under one word is the trouble of «глав 0» standing for "I did not
-    # recognise them".
+    # `--pages 102` on the golden bench gave "600 sheets" with one drawn.
+    # Three things under one word is the trouble of "chapters 0" standing for
+    # "I did not recognise them".
     drawn = 0
     sheets = 0
     for i, page in enumerate(doc):
         if only is not None and i not in only:
             continue
         if page.rotation:
-            die(f"страница {i} повёрнута атрибутом PDF ({page.rotation}°): "
-                f"рамки лягут поперёк. Разверни PDF до наложения.")
+            die(f"page {i} is rotated by a PDF attribute ({page.rotation}°): "
+                f"the boxes would lie across it. Unrotate the PDF first.")
         page.insert_font(fontname="L", fontfile=FONT)
         p0 = sets[0][0].get(i)
         if p0 is None:
@@ -268,8 +269,8 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
         k = page.rect.width / p0["width"]
         kh = page.rect.height / p0["height"]
         if abs(k - kh) > 1e-3:
-            die(f"страница {i}: растр разметки {p0['width']}x{p0['height']} "
-                f"не той пропорции, что лист — рамки лягут растянутыми.")
+            die(f"page {i}: markup raster {p0['width']}x{p0['height']} is "
+                f"not the sheet's proportion -- boxes would lie stretched.")
         if len(sets) == 1:
             for b in p0["blocks"]:
                 _rect(page, b["box"], k, ONE, 1.1)
@@ -286,9 +287,9 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
         # raster differs from truth's by even a pixel, the boxes lie shifted and
         # the sheet looks convincing.
         if (p1["width"], p1["height"]) != (p0["width"], p0["height"]):
-            die(f"страница {i}: растр истины {p0['width']}x{p0['height']}, "
-                f"растр модели {p1['width']}x{p1['height']} — рамки лягут "
-                f"в разных системах координат.")
+            die(f"page {i}: truth raster {p0['width']}x{p0['height']}, "
+                f"model raster {p1['width']}x{p1['height']} -- the boxes "
+                f"would lie in different coordinate systems.")
         sheets += 1
         pairs, lost, extra = _pair(p0["blocks"], p1["blocks"])
         # The sign comes from TRUTH and is per page; no field means it marks up.
@@ -301,11 +302,11 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
         # WE SHOUT ONLY AT WHAT THE NUMBER ALSO CALLS SPURIOUS. The sign used to
         # be one -- is the label an artefact -- and the sheet shouted orange at
         # everything: 508 boxes on the golden bench, of which `books score`
-        # itself calls 110 spurious and DELIBERATELY forgives 350 (69%) as «на
-        # объекте вне замера». Truth put those objects beyond the scored
-        # boundary; blaming the model for a find there punishes it for a line WE
-        # drew, and a person sentenced the model by a number the instrument
-        # beside it refutes.
+        # itself calls 110 spurious and DELIBERATELY forgives 350 (69%) as
+        # "on an object outside scoring". Truth put those objects beyond
+        # the scored boundary; blaming the model for a find there punishes it
+        # for a line WE drew, and a person sentenced the model by a number the
+        # instrument beside it refutes.
         #
         # The rule comes from `metrics.extra_kind` -- ONE for sheet and number,
         # not a second copy: copies drifting apart has already cost this project
@@ -347,11 +348,11 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
             _rect(page, x["box"], k, MATCHED, 0.7)
             if b["label"] != x["label"]:
                 _label(page, x["box"], k, LABEL,
-                       f"ярлык: {b['label']} -> {x['label']}")
+                       f"label: {b['label']} -> {x['label']}")
             drawn += 1
         for b in lost:
             _rect(page, b["box"], k, NOT_FOUND, 1.6)
-            _label(page, b["box"], k, NOT_FOUND, f"НЕ НАШЛА  {b['label']}")
+            _label(page, b["box"], k, NOT_FOUND, f"NOT FOUND  {b['label']}")
             drawn += 1
         for x in quiet:
             # Not drawing these at all is not an option: the sheet would say
@@ -362,13 +363,13 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
         for x in loud:
             _rect(page, x["box"], k, SPURIOUS, 1.6, dashes="[3 3] 0")
             s = f" {x['score']:.2f}" if x.get("score") is not None else ""
-            _label(page, x["box"], k, SPURIOUS, f"ЛИШНЯЯ  {x['label']}{s}",
+            _label(page, x["box"], k, SPURIOUS, f"EXTRA  {x['label']}{s}",
                    above=False)
             drawn += 1
 
     if not drawn:
-        die(f"ни одна страница разметки не легла на {pdf}: в PDF "
-            f"{doc.page_count} страниц, а индексы разметки другие")
+        die(f"not one markup page landed on {pdf}: the PDF has "
+            f"{doc.page_count} pages, and the markup indices are others")
     n = doc.page_count
     # THE OUTPUT CARRIES ONLY WHAT WAS ASKED FOR. The whole document used to be
     # saved: `--pages 102` on the golden bench gave a 494 MB file, 417 KB LARGER
@@ -388,41 +389,43 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
     doc.save(out, garbage=3, deflate=True)
     doc.close()
     log(note)
-    log(f"{out}: листов нарисовано {sheets} из {n} в книге, рамок {drawn}")
+    log(f"{out}: sheets drawn {sheets} of {n} in the book, boxes {drawn}")
     if picked:
-        log(f"  в файл вошли только запрошенные листы, и НУМЕРАЦИЯ В НЁМ "
-            f"СВОЯ: лист 1 выхода — это страница {picked[0] + 1} книги"
-            + (f", последний — {picked[-1] + 1}" if len(picked) > 1 else ""))
+        log(f"  only the requested sheets went into the file, and ITS "
+            f"NUMBERING IS ITS OWN: sheet 1 of the output is page "
+            f"{picked[0] + 1} of the book"
+            + (f", the last is {picked[-1] + 1}" if len(picked) > 1 else ""))
     if len(sets) == 1:
-        # NOTHING TO COMPARE WITH -- and that is not «совпало 0, НЕ НАШЛА 0,
-        # ЛИШНИХ 0», which is what it used to print with boxes drawn: three
+        # NOTHING TO COMPARE WITH -- and that is not "matched 0, NOT FOUND
+        # 0, EXTRA 0", which is what it used to print with boxes drawn: three
         # zeros and "divergences on 0 pages" read as "everything agreed" though
         # no comparison happened. A zero from not understanding, in the summary
         # line.
-        log(f"  одна разметка «{sets[0][1]}»: сличать эти {drawn} рамок НЕ "
-            f"С ЧЕМ. Это не «расхождений нет» — второй разметки не подали "
-            f"вовсе")
+        log(f"  one markup, {sets[0][1]}: these {drawn} boxes have NOTHING "
+            f"TO COMPARE WITH. This is not 'no divergences' -- a second "
+            f"markup was never supplied")
     else:
-        log(f"  совпало {counts['matched']}, "
-            f"НЕ НАШЛА {counts['missed']}, ЛИШНИХ {counts['spurious']}; "
-            f"расхождения на {len(counts['pages'])} страницах")
+        log(f"  matched {counts['matched']}, "
+            f"NOT FOUND {counts['missed']}, EXTRA {counts['spurious']}; "
+            f"divergences on {len(counts['pages'])} pages")
     # Misses as a quantity and by name, or an incomplete model output looks
     # like a clean sheet.
-    for who, key in (("истины", "missing_in_truth"), ("модели", "missing_in_model")):
+    for who, key in (("truth", "missing_in_truth"),
+                     ("the model", "missing_in_model")):
         if counts[key]:
             p = counts[key]
-            log(f"  У {who} НЕТ {len(p)} страниц, которые есть у другой "
-                f"разметки: {p[:8]}{' …' if len(p) > 8 else ''}. Эти листы "
-                f"НЕ сличались, и их рамки в числа выше не вошли — сравнивать "
-                f"лист с числом здесь нельзя")
-    # A quantity rather than silence: «ЛИШНИХ 508» without this line would read
+            log(f"  {who} is MISSING {len(p)} pages that the other markup "
+                f"has: {p[:8]}{' …' if len(p) > 8 else ''}. These sheets were "
+                f"NOT compared, and their boxes did not enter the numbers "
+                f"above -- sheet and number cannot be compared here")
+    # A quantity rather than silence: "EXTRA 508" without this line would read
     # as "the whole sheet was checked", though text on these pages was not
     # checked at all.
     if counts["pages_without_text_markup"]:
-        log(f"  текста истина НЕ размечает на "
-            f"{counts['pages_without_text_markup']} страницах из "
-            f"{counts['pages_compared']} (meta «текст размечен»: false): "
-            f"{counts['outside_markup']} рамок модели этих разрядов "
-            f"нарисованы волоском и в «лишних» НЕ считаны — это не ноль "
-            f"лишних, это «сверять было нечем»")
+        log(f"  truth does NOT mark text up on "
+            f"{counts['pages_without_text_markup']} pages of "
+            f"{counts['pages_compared']} (meta text_marked: false): "
+            f"{counts['outside_markup']} model boxes of those classes are "
+            f"drawn as a hairline and NOT counted as extra -- this is not "
+            f"zero extra, it is 'there was nothing to compare with'")
     return counts

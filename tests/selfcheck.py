@@ -916,7 +916,7 @@ def read_book_shrugs_at_zero_pages(*a, **kw):
     try:
         return _real_read_book(*a, **kw)
     except SystemExit as e:
-        if "ни одной страницы" not in str(e):
+        if "not one page to read" not in str(e):
             raise
         return {"page_count": 0, "block_count": 0, "asked": 0, "not_asked": 0,
                 "read": 0, "model_silent": 0, "delivery_failed": 0,
@@ -1327,7 +1327,7 @@ def repeats_take_the_empty_block_too(page, covered):
 
 def why_empty_says_unread_for_everything(o):
     """All five zeroes collapse into one, as before the fix."""
-    return "не прочитан"
+    return "unread"
 
 
 def repeats_join_without_a_gap(page, covered):
@@ -1657,7 +1657,7 @@ def cut_without_the_named_troubles(doc, page_index, box, page_dpi, dst,
     try:
         return _real_cut(doc, page_index, box, page_dpi, dst, **kw)
     except ValueError as e:
-        if "ВЫРОЖДЕНА" in str(e) or "ПЕРЕВЁРНУТА" in str(e):
+        if "DEGENERATE" in str(e) or "INVERTED" in str(e):
             raise ValueError(
                 f"рамка {tuple(box)} на стр. {page_index} не пересекается с "
                 f"листом") from None
@@ -1992,7 +1992,7 @@ def mutations():
          [("test_docling_pipeline", "test_pipeline_default_is_off")]),
 
         ("в режимы ручки добавили четвёртый",
-         lambda: attrs(dh, PIPELINE_MODES=("off", "post", "full", "вкл")),
+         lambda: attrs(dh, PIPELINE_MODES=("off", "post", "full", "on")),
          [("test_docling_pipeline", "test_three_modes_not_two"),
           ("test_docling_pipeline", "test_unknown_mode_dies_loudly")]),
 
@@ -2734,24 +2734,25 @@ def mutations():
                           "pass"),
          [("test_overlay", "test_a_page_missing_from_one_markup_is_named")]),
 
-        ("итог называет страницы книги, а не нарисованные листы",
+        ("the summary names the book's pages, not the sheets drawn",
          lambda: one_line(
              "booksmith.overlay",
-             'log(f"{out}: листов нарисовано {sheets} из {n} в книге, '
-             'рамок {drawn}")',
-             'log(f"{out}: листов нарисовано {n} из {n} в книге, '
-             'рамок {drawn}")'),
+             'log(f"{out}: sheets drawn {sheets} of {n} in the book, '
+             'boxes {drawn}")',
+             'log(f"{out}: sheets drawn {n} of {n} in the book, '
+             'boxes {drawn}")'),
          # This one only: `test_pages_are_counted…` now counts boxes via
          # `get_drawings()` in the output PDF and no longer depends on the
          # summary line -- it looks at what is DRAWN, not at what is said.
          [("test_overlay",
            "test_the_summary_counts_sheets_not_pages_of_the_book")]),
 
-        ("одна разметка отчитывается тремя нулями",
+        ("one markup reports itself as three zeros",
          lambda: one_line(
              "booksmith.overlay",
-             'log(f"  одна разметка «{sets[0][1]}»: сличать эти {drawn} рамок НЕ "',
-             'log(f"  совпало 0, НЕ НАШЛА 0, ЛИШНИХ 0 «{sets[0][1]}» {drawn} "'),
+             'log(f"  one markup, {sets[0][1]}: these {drawn} boxes have '
+             'NOTHING "',
+             'log(f"  matched 0, NOT FOUND 0, EXTRA 0 {sets[0][1]} {drawn} "'),
          [("test_overlay",
            "test_one_markup_says_there_is_nothing_to_compare")]),
 
@@ -3090,7 +3091,7 @@ def mutations():
          [("test_torn", "test_a_refused_block_is_not_counted_as_being_in_"
                         "the_book")]),
 
-        ("причина пустоты сводится к «не прочитан»",
+        ("the reason for emptiness collapses into \"unread\"",
          lambda: attrs(dhtml, why_empty=why_empty_says_unread_for_everything),
          [("test_torn", "test_the_caption_names_which_zero_it_was")]),
 
@@ -3236,8 +3237,13 @@ def mutations():
          [("test_cyrillic_ratchet",
            "test_the_counter_counts_codepoints_not_lines")]),
 
+        ("records of runs stop being weighed at all",
+         lambda: attrs(cyrmod, DATA_PREFIXES=()),
+         [("test_cyrillic_ratchet",
+           "test_bench_snapshots_are_weighed_even_though_they_are_exempt")]),
+
         ("book prose is no longer separated from ours",
-         lambda: attrs(cyrmod, CONTENT_NAMES=()),
+         lambda: attrs(cyrmod, CONTENT_SUFFIX="_NO_NAME_ENDS_IN_THIS"),
          [("test_cyrillic_ratchet",
            "test_book_content_is_exempt_by_name_not_by_file")]),
 
@@ -3302,7 +3308,7 @@ def mutations():
            "test_prose_was_translated_not_deleted")]),
 
         ("book content is no longer weighed apart",
-         lambda: attrs(cyrmod, CONTENT_NAMES=("PROSE_RU",)),
+         lambda: attrs(cyrmod, CONTENT_SUFFIX="PROSE_RU"),
          [("test_cyrillic_ratchet", "test_book_content_did_not_move")]),
 
         ("an html attribute the code writes is not declared",

@@ -1,6 +1,6 @@
 {
  "book": "hard",
- "about": "выжимка: два артефакта одного ярлыка бок о бок в истине",
+ "about": "subset: two artifacts of one label side by side in the truth",
  "page_count": 130,
  "side_by_side_pairs": 887,
  "by_book": {
