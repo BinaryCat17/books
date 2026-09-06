@@ -176,8 +176,8 @@ class DocLayout(Recognizer):
         whose threshold this project has already tinkered with, and that trace
         must stay separately visible.
         """
-        common = float(knobs.knob("LAYOUT_SCORE_THRESHOLD"))
-        table = float(knobs.knob("LAYOUT_TABLE_THRESHOLD"))
+        common = knobs.number("LAYOUT_SCORE_THRESHOLD")
+        table = knobs.number("LAYOUT_TABLE_THRESHOLD")
         return {lab: (table if lab == "table" else common) for lab in self.labels}
 
     def threshold_drift(self) -> list[str]:
@@ -189,7 +189,7 @@ class DocLayout(Recognizer):
         """
         out = []
         for name in ("LAYOUT_SCORE_THRESHOLD", "LAYOUT_TABLE_THRESHOLD"):
-            v = float(knobs.knob(name))
+            v = knobs.number(name)
             if abs(v - self.native_threshold) >= 1e-9:
                 out.append(f"{name}={v} against the native "
                            f"draw_threshold={self.native_threshold}")

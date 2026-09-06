@@ -79,7 +79,7 @@ def params(page_dpi: float | None = None) -> dict:
     elif page_dpi is not None:
         page_out, src = float(page_dpi), "as in detection"
     else:
-        page_out, src = float(knobs.knob("PAGE_DPI")), "PAGE_DPI of this process"
+        page_out, src = knobs.number("PAGE_DPI"), "PAGE_DPI of this process"
     return {"feed_mode": mode, "hole_fill": fill,
             "crop_dpi": c["dpi"], "crop_dpi_source": c["dpi_source"],
             "crop_margin": c["margin"],

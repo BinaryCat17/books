@@ -1610,7 +1610,10 @@ def build(out_dir: str, cases=None, seed: int = 1, aging: str = "old",
     tracked bench is a partial second copy of the truth, and the next reader
     has no way to tell which one is the bench.
     """
+    # `truth.previous` too: the swap leaves the old truth aside under that
+    # name, and a bench directory ignores neither it nor `truth.new`.
     aside = (os.path.join(out_dir, "truth.new"),
+             os.path.join(out_dir, "truth.previous"),
              os.path.join(out_dir, f"{book}.pdf.new"),
              os.path.join(out_dir, "manifest.json.new"))
     try:

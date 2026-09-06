@@ -130,8 +130,8 @@ class Http(Transport):
     def __init__(self, server: str | None = None, model: str | None = None):
         self.server = (server or knobs.knob("VLM_ENDPOINT")).rstrip("/")
         self.model = model or knobs.knob("MODEL_NAME")
-        self.timeout = float(knobs.knob("VLM_TIMEOUT_S"))
-        self.retries = int(knobs.knob("VLM_RETRIES"))
+        self.timeout = knobs.number("VLM_TIMEOUT_S")
+        self.retries = knobs.number("VLM_RETRIES", kind=int)
         # The key is from `.env`, not from the registry: see the header.
         self.key = config.env("VLM_API_KEY")
         if not self.server:

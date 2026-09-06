@@ -147,7 +147,30 @@ def build(root: str, out_dir: str, split: str = "test", limit: int = 0,
     A page gets the size at which rendering at `PAGE_DPI` returns EXACTLY the
     source raster: then truth coordinates and model boxes live in one system
     and nothing has to be converted.
+
+    NOTHING HALF-BUILT IS LEFT BEHIND. This file records the accident that
+    taught the write-aside -- 595 of 600 truth files destroyed by a refusal
+    meant to protect them -- and then left `truth.new` on disk after every one
+    of those refusals. `bench/annopage` is tracked and ignores neither that
+    name nor `truth.previous`, so a refused build put a partial second copy of
+    the golden bench into the working tree.
     """
+    aside = (os.path.join(out_dir, "truth.new"),
+             os.path.join(out_dir, "truth.previous"),
+             os.path.join(out_dir, "annopage.pdf.new"),
+             os.path.join(out_dir, "manifest.json.new"))
+    try:
+        return _build(root, out_dir, split, limit, truth_only, log)
+    except BaseException:
+        for p in aside:
+            try:
+                shutil.rmtree(p) if os.path.isdir(p) else os.unlink(p)
+            except OSError:
+                pass                  # the refusal is the news, not this
+        raise
+
+
+def _build(root, out_dir, split, limit, truth_only, log) -> dict:
     import cv2
     import pymupdf
 
@@ -157,7 +180,7 @@ def build(root: str, out_dir: str, split: str = "test", limit: int = 0,
     # truth went on writing "dpi: 144.0". Caught by the size check in `metrics`
     # -- a FOREIGN file, and not always; the builder itself was silent. Read
     # through the registry, or the run misses the snapshot.
-    dpi = float(knobs.knob("PAGE_DPI"))
+    dpi = knobs.number("PAGE_DPI")
     if dpi <= 0:
         raise AnnoPageError(
             f"PAGE_DPI = {dpi}: the sheet scale is not positive")
@@ -279,6 +302,13 @@ def build(root: str, out_dir: str, split: str = "test", limit: int = 0,
     if not pages:
         raise AnnoPageError("not one page was assembled")
     pdf = os.path.join(out_dir, "annopage.pdf")
+    # The pdf and the manifest are written aside too, and swapped with the
+    # truth: three files that refer to one another, so a fall between them
+    # leaves a bench describing one sample beside a pdf holding another.
+    wpdf, wman = pdf + ".new", os.path.join(out_dir, "manifest.json.new")
+    for stale in (wpdf, wman):
+        if os.path.exists(stale):
+            os.unlink(stale)
     if truth_only:
         doc.close()
         if not os.path.exists(pdf):
@@ -306,20 +336,12 @@ def build(root: str, out_dir: str, split: str = "test", limit: int = 0,
                     f"raster {w}x{h} -- this truth is not about this pdf.")
         chk.close()
     else:
-        doc.save(pdf, garbage=3, deflate=True)
+        # ASIDE, LIKE THE TRUTH. This wrote `pdf` in place while the truth
+        # waited in `truth.new`, so a fall between the two left `truth/`
+        # describing one sample and the pdf beside it holding another -- the
+        # mixture this dance exists to prevent, in the file it does not cover.
+        doc.save(wpdf, garbage=3, deflate=True)
         doc.close()
-
-    # Guards passed -- now it may be swapped. Old aside, new into place, old
-    # removed: break in the middle and either the previous truth or the new one
-    # is left standing, never emptiness.
-    keep = tdir + ".previous"
-    if os.path.isdir(keep):
-        shutil.rmtree(keep)
-    if os.path.isdir(tdir):
-        os.rename(tdir, keep)
-    os.rename(work, tdir)
-    if os.path.isdir(keep):
-        shutil.rmtree(keep)
 
     n_direct = sum(counts["direct"].values())
     man = {"book": "annopage",
@@ -335,10 +357,33 @@ def build(root: str, out_dir: str, split: str = "test", limit: int = 0,
            "by_category": counts,
            "category_map": DIRECT,
            "annotations_without_image": skipped_no_image,
-           "pdf": os.path.basename(pdf), "sha256 pdf": _sha256(pdf)}
-    with open(os.path.join(out_dir, "manifest.json"), "w",
-              encoding="utf-8") as f:
+           "pdf": os.path.basename(pdf),
+           "sha256 pdf": _sha256(wpdf if os.path.exists(wpdf) else pdf)}
+    with open(wman, "w", encoding="utf-8") as f:
         json.dump(man, f, ensure_ascii=False, indent=1)
+
+    # GUARDS PASSED -- NOW ALL THREE MAY BE SWAPPED, and nothing below here can
+    # refuse. Old truth aside, new into place, old removed: break in the middle
+    # and either the previous truth or the new one stands, never emptiness. The
+    # `rmtree` at the end is caught because it runs AFTER the point of no
+    # return, and a throw there used to leave the manifest unwritten -- a new
+    # bench with an old passport, whose recorded sha256 names another pdf.
+    keep = tdir + ".previous"
+    if os.path.isdir(keep):
+        shutil.rmtree(keep)
+    if os.path.isdir(tdir):
+        os.rename(tdir, keep)
+    os.rename(work, tdir)
+    if os.path.exists(wpdf):
+        os.replace(wpdf, pdf)
+    os.replace(wman, os.path.join(out_dir, "manifest.json"))
+    if os.path.isdir(keep):
+        try:
+            shutil.rmtree(keep)
+        except OSError as e:
+            log(f"WARNING: the previous truth is left at {keep} ({e}) -- the "
+                f"bench itself is whole, but that is a second copy and must "
+                f"be removed by hand")
     log(f"pages {len(pages)}, {n_direct} objects enter the scoring; "
         f"outside it: doubtful {man['objects_out_of_scope']['doubtful']}, "
         f"inexpressible {man['objects_out_of_scope']['inexpressible']}")

@@ -115,15 +115,22 @@ class _Clock:
 
 
 def _probe_timed(mbps, seconds=0.6, total=None):
-    """(measured Mbit/s, virtual seconds the probe took)."""
+    """(measured Mbit/s, virtual seconds, the argv the probe actually ran)."""
     import subprocess
     clock = [1000.0]
     stream = _Stream(mbps, total, clock)
+    ran = []
     was_popen, was_time = subprocess.Popen, rbox.time
-    subprocess.Popen = lambda *a, **k: stream
+
+    def spy(cmd, *a, **k):
+        ran.append(cmd)
+        return stream
+
+    subprocess.Popen = spy
     rbox.time = _Clock(clock)
     try:
-        return _FakeSsh().probe(seconds=seconds), clock[0] - 1000.0
+        got = _FakeSsh().probe(seconds=seconds)
+        return got, clock[0] - 1000.0, (ran[0] if ran else None)
     finally:
         subprocess.Popen = was_popen
         rbox.time = was_time
@@ -145,6 +152,14 @@ def test_a_narrow_channel_is_measured_not_called_broken():
     answer depends on the probe's arithmetic alone.
     """
     narrow = _probe_at(1.16)
+    # A BAND OF 0.5..3.0 LET A DOUBLING THROUGH: 1.16 read as 2.32 fits it,
+    # and 2.32 clears the default rejection floor of 2.0 -- a machine too slow
+    # to use, accepted. Under a virtual clock the probe's arithmetic is exact,
+    # so the band is what exactness allows and not what a scheduler forced.
+    assert 1.10 <= narrow <= 1.25, (
+        f"a 1.16 Mbit/s channel measured as {narrow:.2f} -- under a clock "
+        f"this probe controls, the arithmetic is exact, and anything else is "
+        f"the arithmetic being wrong")
     assert narrow > 0.5, (
         f"a 1.16 Mbit/s channel measured as {narrow:.2f} -- the probe "
         f"again confuses \"we are slow\" with \"the machine is broken\"")
@@ -160,10 +175,16 @@ def test_a_broken_machine_still_gives_a_number_below_any_floor():
     here it RUNS against such a pipe and must return a number BELOW the floor.
     """
     broken = _probe_at(0.062)
+    assert 0.055 <= broken <= 0.070, (
+        f"a 62 kbit/s machine measured as {broken:.4f} -- exact arithmetic "
+        f"over an exact clock must give back what was put in")
     assert broken < 0.3, (
         f"a 62 kbit/s machine measured as {broken:.2f} Mbit/s -- the probe "
         f"no longer tells a broken one from a slow one")
     healthy = _probe_at(50.0)
+    assert 47.0 <= healthy <= 53.0, (
+        f"a 50 Mbit/s machine measured as {healthy:.1f} -- exact in, exact "
+        f"out, or the arithmetic is wrong")
     assert healthy > 10.0, (
         f"a healthy machine measured as {healthy:.1f} Mbit/s -- the probe "
         f"reads low")
@@ -181,17 +202,74 @@ def test_the_probe_stops_ON_TIME_and_not_on_a_byte_count():
 
     Without this, a size demand passed every check in the file.
     """
+    # ONE READ MAY STRADDLE THE DEADLINE and that is lawful: the loop checks
+    # the clock, then reads, and the read takes time. TWO is a `do-while`
+    # dressed as a deadline, and on a real twelve-second probe over a slow
+    # link one chunk can be many seconds. The band is therefore one quantum
+    # either side, not the fourfold slack it began with -- ten chunks past the
+    # end passed that.
+    slack = _Stream.QUANTUM
     for mbps in (0.062, 1.16, 50.0):
-        _, took = _probe_timed(mbps, seconds=0.6)
-        assert took <= 1.2, (
-            f"at {mbps} Mbit/s the probe ran {took:.1f} s of the 0.6 it was "
+        _, took, _cmd = _probe_timed(mbps, seconds=0.6)
+        assert took <= 0.6 + 2 * slack, (
+            f"at {mbps} Mbit/s the probe ran {took:.3f} s of the 0.6 it was "
             f"given -- it is waiting for a SIZE, and a slow machine will be "
             f"written down as a broken one, which is the defect this probe "
             f"was written to end")
-        assert took >= 0.3, (
+        assert took >= 0.6 - slack, (
             f"at {mbps} Mbit/s the probe gave up after {took:.3f} s of 0.6 -- "
             f"it stopped on a byte count, and one early chunk is the TCP "
             f"ramp-up, not the channel")
+
+
+def test_the_probe_asks_THE_MACHINE_and_asks_it_for_a_bounded_stream():
+    """It must contact the box, over ssh, for `mb_cap` of random bytes.
+
+    `subprocess.Popen` is replaced wholesale by the stub, so nothing looked at
+    the command it was given -- and a probe reading OUR OWN `/dev/urandom`
+    passed every check in this file, reporting hundreds of Mbit/s for every
+    machine. The 62 kbit/s machine the whole apparatus exists for would have
+    sailed through. "Measured the link" and "measured nothing" were the same
+    to the suite.
+
+    `mb_cap` is checked too: it appears only inside the command string, so it
+    was untested by construction, and without it the probe asks for an endless
+    stream from a machine that is billing.
+    """
+    _, _, cmd = _probe_timed(50.0, seconds=0.6)
+    assert cmd is not None, "the probe started no process at all"
+    argv = cmd if isinstance(cmd, list) else [cmd]
+    joined = " ".join(str(x) for x in argv)
+    assert argv[0] == "ssh" and _FakeSsh._addr in argv, (
+        f"the probe did not go to the machine over ssh: {argv}. It measured "
+        f"something, and the something was not the link")
+    assert "/dev/urandom" in joined, (
+        f"the probe asks for something other than random bytes: {joined}. "
+        f"Zeros compress in ssh and give a pretty lie")
+    assert "head -c" in joined, (
+        f"the probe asks for an UNBOUNDED stream: {joined}. `mb_cap` is the "
+        f"only thing stopping a machine that is billing from sending forever")
+
+
+def test_the_probe_divides_by_the_time_it_actually_took():
+    """A stream that ends early is measured over the time it USED.
+
+    Dividing by the constant `seconds` instead of the measured span passed
+    every check, because `total` was used at exactly one value in this file --
+    zero -- where both arithmetics give 0.0. A machine whose ssh dies after a
+    third of the budget, having delivered its bytes at full speed, must read
+    at full speed and not at a third of it.
+    """
+    mbps, seconds = 30.0, 0.6
+    bytes_in_a_third = int(mbps * 1e6 / 8 * (seconds / 3))
+    got, took, _ = _probe_timed(mbps, seconds=seconds, total=bytes_in_a_third)
+    assert took < 0.9 * seconds, (
+        f"the stream ended after a third and the probe still ran {took:.2f} "
+        f"of {seconds} s -- it is not noticing the end of the stream")
+    assert 0.7 * mbps <= got <= 1.4 * mbps, (
+        f"a stream that ended early measured {got:.1f} against {mbps} -- the "
+        f"probe divides by the budget it was given, not by the time it used, "
+        f"so every early end reads as a slow machine")
 
 
 def test_a_dead_channel_is_the_only_zero():

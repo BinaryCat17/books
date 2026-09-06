@@ -124,7 +124,7 @@ def params(page_dpi: float | None = None,
     comes, and when the own resolution is unknown (vector, several images on a
     sheet) the detection one is taken; `dpi_source` names which it was.
     """
-    margin = float(knobs.knob("CROP_MARGIN"))
+    margin = knobs.number("CROP_MARGIN", negative=True)
     if margin < 0:
         raise ValueError(
             f"CROP_MARGIN={margin}: a negative margin CUTS the model's box "
@@ -139,13 +139,16 @@ def params(page_dpi: float | None = None,
         # falls back to 72 dpi silently, so the book was cut four times coarser
         # than ordered while the record said "dpi 0". Checked: `CROP_DPI=0`
         # gives a 150x100 px crop where 600 would give 1250x833.
+        #
+        # `nan` PASSED BOTH OF THESE. `float("nan")` raises nothing and
+        # `nan <= 0` is False, so the guard that refuses zero out loud let the
+        # worse value through in silence -- the same hole `_min_link_mbps` had.
+        # The finite check lives once, in `knobs.number`; zero and negative
+        # stay here, because the reason they are refused is this file's.
         try:
-            _v = float(raw)
-        except ValueError:
-            raise ValueError(
-                f"CROP_DPI={raw!r}: not a number. There is nothing to cut "
-                f"by, and a silent fallback to the default would write one "
-                f"value into the snapshot at another sharpness") from None
+            _v = knobs.number("CROP_DPI")
+        except SystemExit as e:
+            raise ValueError(str(e)) from None
         if _v <= 0:
             raise ValueError(
                 f"CROP_DPI={raw!r}: crop sharpness is never zero or "
@@ -163,7 +166,7 @@ def params(page_dpi: float | None = None,
         # The detection resolution was not named -- take the environment and
         # SAY so. A zero from a check and a zero from not knowing: this value
         # is not "agreed with detection", it is "nothing to agree with".
-        dpi, src = float(knobs.knob("PAGE_DPI")), "PAGE_DPI of this process"
+        dpi, src = knobs.number("PAGE_DPI"), "PAGE_DPI of this process"
     return {"dpi": dpi, "dpi_source": src, "margin": margin}
 
 

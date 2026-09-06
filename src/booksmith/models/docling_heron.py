@@ -659,7 +659,7 @@ class DoclingHeron(Recognizer):
         """The threshold per class. This build has no native `draw_threshold`,
         so the common knob is taken -- and said outright, so that the number
         does not look like a foreign default."""
-        common = float(knobs.knob("LAYOUT_SCORE_THRESHOLD"))
+        common = knobs.number("LAYOUT_SCORE_THRESHOLD")
         return {lab: common for lab in self.labels}
 
     def threshold_drift(self) -> list[str]:

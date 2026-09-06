@@ -154,10 +154,10 @@ def crop_dpi_for(box, page_dpi: float, native: float | None,
 def _gen_params() -> dict:
     """Generation parameters. They ride into the snapshot whole, as
     `generation`."""
-    return {"temperature": float(knobs.knob("VLM_TEMPERATURE")),
-            "max_tokens": int(knobs.knob("VLM_MAX_TOKENS")),
-            "top_p": float(knobs.knob("VLM_TOP_P")),
-            "seed": int(knobs.knob("VLM_SEED"))}
+    return {"temperature": knobs.number("VLM_TEMPERATURE"),
+            "max_tokens": knobs.number("VLM_MAX_TOKENS", kind=int),
+            "top_p": knobs.number("VLM_TOP_P"),
+            "seed": knobs.number("VLM_SEED", kind=int, negative=True)}
 
 
 def _detect_facts(detect_dir: str) -> dict:
@@ -369,7 +369,7 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
         asked_now = {a.anchor for a in asks}
         said = {}
         if asks:
-            n = max(1, int(knobs.knob("VLM_CONCURRENCY")))
+            n = max(1, knobs.number("VLM_CONCURRENCY", kind=int))
             want = {a.anchor for a in asks}
             with ThreadPoolExecutor(max_workers=n) as pool:
                 for s in pool.map(transport.send, asks):

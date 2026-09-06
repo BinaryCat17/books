@@ -206,3 +206,93 @@ def test_the_sheet_follows_the_declared_knob():
         f"{seen['144']} pt, at 288 it is {seen['288']} pt, and it should be "
         f"half as much. So the scale is wired in, and a bench assembled at "
         f"another PAGE_DPI lies about its own raster silently")
+
+
+def test_a_refused_build_leaves_the_golden_bench_untouched():
+    """The accident this file records, and the half of it that was missing.
+
+    `annopage.build` learned the write-aside after a refusal destroyed 595 of
+    600 truth files -- and then left `truth.new` on disk after every refusal,
+    with the pdf written in place and the manifest written after the swap. So
+    a refusal could leave a partial second copy of the golden bench in a
+    tracked directory, and a fall between the writes could leave `truth/`
+    describing one sample beside a pdf holding another.
+
+    The refusal used is the one the file's own comment names: `--truth-only`
+    over a different sample, which is caught by the page-count guard AFTER the
+    main loop has written every truth file.
+    """
+    import json
+    import shutil
+    import tempfile
+    tmp = tempfile.mkdtemp()
+    root, out = os.path.join(tmp, "raw"), os.path.join(tmp, "out")
+    names = _real_names()
+    _mini(root, names=names, yaml_names=names, pages=6)
+    annopage.build(root, out, split="test", log=lambda *a: None)
+
+    tdir = os.path.join(out, "truth")
+    was = {n: open(os.path.join(tdir, n), encoding="utf-8").read()
+           for n in os.listdir(tdir)}
+    man_was = open(os.path.join(out, "manifest.json"), encoding="utf-8").read()
+    pdf_was = open(os.path.join(out, "annopage.pdf"), "rb").read()
+
+    try:
+        annopage.build(root, out, split="test", limit=3, truth_only=True,
+                       log=lambda *a: None)
+    except annopage.AnnoPageError:
+        pass
+    else:
+        raise AssertionError("the mismatched --truth-only build did not refuse")
+
+    now = {n: open(os.path.join(tdir, n), encoding="utf-8").read()
+           for n in os.listdir(tdir)}
+    assert now == was, (
+        f"a refused build changed the truth: {len(was)} files -> {len(now)}. "
+        f"This is the accident that cost 595 of 600, arriving again")
+    assert open(os.path.join(out, "manifest.json"),
+                encoding="utf-8").read() == man_was, "the passport moved"
+    assert open(os.path.join(out, "annopage.pdf"), "rb").read() == pdf_was, (
+        "the pdf moved while the truth did not")
+    left = sorted(n for n in os.listdir(out)
+                  if n.endswith(".new") or n.endswith(".previous"))
+    assert not left, (
+        f"a refused build left {left} beside the golden bench -- a partial "
+        f"second copy of the truth, in a directory git tracks and does not "
+        f"ignore, with nothing to say which of the two is the bench")
+
+    # AND THE PDF TRAVELS WITH THEM. The refusal above never reaches the save
+    # (`--truth-only` writes no pdf), so the window between "pdf written" and
+    # "truth swapped" needs a crash of its own -- staged at the hash of the
+    # aside pdf, which is the last thing before the manifest and therefore
+    # after the new pdf exists and before anything is swapped.
+    _mini(root, names=names, yaml_names=names, pages=4)
+    real = annopage._sha256
+
+    def boom(path):
+        if path.endswith(".new"):
+            raise RuntimeError("interrupted between the pdf and the swap")
+        return real(path)
+
+    annopage._sha256 = boom
+    try:
+        annopage.build(root, out, split="test", log=lambda *a: None)
+    except RuntimeError:
+        pass
+    else:
+        raise AssertionError("the staged crash did not happen")
+    finally:
+        annopage._sha256 = real
+
+    now = {n: open(os.path.join(tdir, n), encoding="utf-8").read()
+           for n in os.listdir(tdir)}
+    assert now == was, "the truth moved while the pdf and manifest did not"
+    assert open(os.path.join(out, "annopage.pdf"), "rb").read() == pdf_was, (
+        "the pdf was replaced while the truth was not: the truth now "
+        "describes one sample and the pdf beside it holds another")
+    assert open(os.path.join(out, "manifest.json"),
+                encoding="utf-8").read() == man_was, "the passport moved alone"
+    left = sorted(n for n in os.listdir(out)
+                  if n.endswith(".new") or n.endswith(".previous"))
+    assert not left, f"the crash left {left} behind"
+    shutil.rmtree(tmp, ignore_errors=True)

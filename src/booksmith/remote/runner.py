@@ -379,18 +379,10 @@ def _min_link_mbps() -> float:
     them being blamed or accepted. A typo that costs money must be a refusal
     before the first rental, not a puzzling log after five.
     """
-    raw = knobs.knob("MIN_LINK_MBPS")
-    try:
-        v = float(raw)
-    except (TypeError, ValueError):
-        raise SystemExit(f"MIN_LINK_MBPS={raw!r} is not a number") from None
-    if not (v == v) or v in (float("inf"), float("-inf")) or v < 0:
-        raise SystemExit(
-            f"MIN_LINK_MBPS={raw!r}: a rejection floor must be a finite "
-            f"number and not negative. `nan` compares False with everything, "
-            f"so every machine would be neither accepted nor rejected for a "
-            f"named reason -- five rentals paid for and nothing learned")
-    return v
+    # ONE READER FOR ALL OF THEM. This validation was written here first and
+    # then found to be missing from six other numeric knobs, so it moved into
+    # `knobs.number` and this is the caller it was born for.
+    return knobs.number("MIN_LINK_MBPS")
 
 
 

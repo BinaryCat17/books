@@ -551,7 +551,7 @@ def cmd_synth(a):
     log(f"book {a.book}: cases {len(cases or load(a.book).CASES)}, "
         f"ageing {knobs.knob('SYNTH_AGING')}, "
         f"seed {knobs.knob('SYNTH_SEED')}")
-    synth.build(out, cases, int(knobs.knob("SYNTH_SEED")),
+    synth.build(out, cases, knobs.number("SYNTH_SEED", kind=int),
                 knobs.knob("SYNTH_AGING"), book=a.book, log=log)
     log(f"next: books detect {shlex_quote(out)}/{a.book}.pdf "
         f"--out {shlex_quote(out)}/detect")

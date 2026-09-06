@@ -551,6 +551,42 @@ def knob(name):
     return k.default if v is None else v
 
 
+def number(name, *, kind=float, negative=False):
+    """A knob's value AS A NUMBER, refusing what a number should not be.
+
+    `float()` accepts `nan` and `inf`, and `nan` compares False with
+    EVERYTHING -- so a mistyped knob does not fail, it makes every comparison
+    that guards it silently false. Swept across the tree, six knobs took it and
+    carried it into a run: `CROP_DPI` and `CROP_MARGIN` past guards that refuse
+    zero and negatives; `VLM_TEMPERATURE` and `VLM_TOP_P` onto the PAID path;
+    `VLM_TIMEOUT_S` into urllib; `LAYOUT_SCORE_THRESHOLD` into every box
+    comparison. Worst of them, `PAGE_DPI=nan` built the golden bench to
+    completion: truth coordinates in one system, pdf geometry in pymupdf's
+    default letter page, `nan` in the manifest, and not a word said.
+
+    That is the shape this project keeps a rule about -- a zero from a check
+    against a zero from not understanding -- so the reading is in ONE place
+    and refuses out loud. Zero is allowed here and refused by the knobs that
+    care: `CROP_DPI` has its own reason, and it says it.
+    """
+    raw = knob(name)
+    try:
+        v = kind(raw)
+    except (TypeError, ValueError):
+        raise SystemExit(
+            f"{name}={raw!r} is not a number: {kind.__name__} expected. A "
+            f"knob that decides a run may not be a typo") from None
+    f = float(v)
+    if f != f or f in (float("inf"), float("-inf")):
+        raise SystemExit(
+            f"{name}={raw!r}: not a finite number. `nan` compares False with "
+            f"everything, so every guard around this knob would quietly stop "
+            f"holding -- and the run would finish and say nothing")
+    if f < 0 and not negative:
+        raise SystemExit(f"{name}={raw!r}: negative, and this knob is not")
+    return v
+
+
 def snapshot():
     """Every knob at once: what stood, what the default was, was it set.
 
@@ -630,8 +666,8 @@ def readers(root=None):
     Numbers in comments obey the rule numbers in the ledger do: a value, not a
     word, and a value counted.
 
-    WHAT IT SEES AND WHAT IT DOES NOT. In `.py` only the direct form
-    `knob("NAME")`; a read through a variable (the name arrived in a loop) is
+    WHAT IT SEES AND WHAT IT DOES NOT. In `.py` the two direct forms,
+    `knob("NAME")` and `number("NAME")`; a read through a variable is
     not found, the knob looks dead, and `audit()` howls a false alarm. The bias
     is deliberate: a false alarm costs a minute, a silent "all is well" cost
     the project `VL_MODEL_DIR`. In `.sh` it searches `$NAME` and `${NAME}` --
@@ -667,7 +703,17 @@ def readers(root=None):
             rel = os.path.relpath(path, root)
             py = fn.endswith(".py")
             for name in found:
-                hit = ((f'knob("{name}")' in text or f"knob('{name}')" in text)
+                # BOTH SPELLINGS. `number("NAME")` is the reader for numeric
+                # knobs, and this detector knew only `knob("NAME")` -- so the
+                # moment six knobs moved onto it, nine of them looked DEAD and
+                # `audit()` howled about a registry that had not changed. A
+                # detector that knows one of two ways to read is the same
+                # defect it exists to catch, one level up.
+                hit = (any(f'{fn_}("{name}")' in text
+                           or f"{fn_}('{name}')" in text
+                           or f'{fn_}("{name}",' in text
+                           or f"{fn_}('{name}'," in text
+                           for fn_ in ("knob", "number"))
                        if py else sh[name].search(text) is not None)
                 if hit:
                     found[name].append(rel)

@@ -148,6 +148,9 @@ COPY = ("models/doclayout.py", "models/docling_heron.py",
         # already fallen off silently -- the mark was lost by exactly those
         # blocks that reached the reader as markup.
         "doc/apply.py",
+        # Transport: `test_knobs` walks the package for a knob read as a
+        # number past `knobs.number` -- the spelling `nan` walked through.
+        "read/http.py",
         # Renting: `test_rent_deadlines` parses `run_job` and demands the
         # signal restore be a `finally` of its own -- a throw in the cleanup
         # left Ctrl-C dead for the rest of the process.
@@ -582,6 +585,19 @@ def carried_as_text_by_double_counting(sub, arte, rest, tot):
     ink covered by nothing" was rewritten into "not lost, fixable by a label".
     """
     return (int((sub & arte).sum()) + int((sub & rest).sum())) / tot >= fit.WHOLE
+
+
+_REAL_ANNOPAGE_BUILD = annopage._build
+
+
+def _annopage_build_that_leaves_litter(root, out_dir, split="test", limit=0,
+                                       truth_only=False, log=print):
+    """The sweep is gone: a refusal leaves `truth.new` beside the truth.
+
+    Calls the inner builder directly, which is what `build` was before it
+    grew the wrapper -- so the refusal propagates and the aside files stay.
+    """
+    return _REAL_ANNOPAGE_BUILD(root, out_dir, split, limit, truth_only, log)
 
 
 _REAL_SUBSET_BUILD = subset.build
@@ -2509,6 +2525,18 @@ def mutations():
          [("test_subset",
            "test_truth_pdf_and_manifest_are_swapped_together")]),
 
+        ("the golden bench is built with the pdf written in place",
+         lambda: one_line("booksmith.annopage",
+                          "        doc.save(wpdf, garbage=3, deflate=True)",
+                          "        doc.save(pdf, garbage=3, deflate=True)"),
+         [("test_annopage",
+           "test_a_refused_build_leaves_the_golden_bench_untouched")]),
+
+        ("the golden bench leaves what it wrote aside",
+         lambda: attrs(annopage, build=_annopage_build_that_leaves_litter),
+         [("test_annopage",
+           "test_a_refused_build_leaves_the_golden_bench_untouched")]),
+
         ("a refusal leaves what it wrote aside",
          lambda: attrs(subset, _swept=lambda fn, *a: fn(*a)),
          [("test_subset",
@@ -2603,10 +2631,34 @@ def mutations():
          [("test_rent_deadlines",
            "test_a_failed_blacklist_write_does_not_kill_the_rental")]),
 
+        # `nan` is a legal float and compares False with everything, so a
+        # mistyped knob made every guard around it quietly stop holding.
+        ("a knob that is not a finite number is taken on trust",
+         lambda: one_line("booksmith.run.knobs",
+                          "    if f != f or f in (float(\"inf\"), float(\"-inf\")):",
+                          "    if False:"),
+         [("test_knobs",
+           "test_no_numeric_knob_takes_a_value_that_is_not_a_number")]),
+
+        ("a knob is read as a number past the one reader",
+         lambda: sources("read/http.py",
+                         'knobs.number("VLM_TIMEOUT_S")',
+                         'float(knobs.knob("VLM_TIMEOUT_S"))'),
+         [("test_knobs",
+           "test_every_numeric_knob_is_read_through_the_one_reader")]),
+
+        ("the knob detector knows only one way to read a knob",
+         lambda: one_line(
+             "booksmith.run.knobs",
+             '                hit = (any(f\'{fn_}("{name}")\' in text',
+             '                hit = (any(f\'knob("{name}")\' in text'),
+         [("test_knobs", "test_audit_finds_no_disagreement"),
+          ("test_knobs", "test_readers_finds_consumers_and_counts_them")]),
+
         ("the rejection floor is taken on trust",
          lambda: one_line("booksmith.remote.runner",
-                          "    raw = knobs.knob(\"MIN_LINK_MBPS\")",
-                          "    return float(knobs.knob(\"MIN_LINK_MBPS\"))"),
+                          '    return knobs.number("MIN_LINK_MBPS")',
+                          '    return float(knobs.knob("MIN_LINK_MBPS"))'),
          [("test_rent_deadlines",
            "test_a_floor_that_is_not_a_number_is_refused_before_any_money")]),
 
@@ -2633,6 +2685,34 @@ def mutations():
                           "            while got < 65536:"),
          [("test_rent_deadlines",
            "test_the_probe_stops_ON_TIME_and_not_on_a_byte_count")]),
+
+        ("the probe measures our own disk instead of the machine",
+         lambda: one_line(
+             "booksmith.remote.box",
+             '        cmd = (self._ssh + ["-o", "ControlMaster=no"]\n'
+             '               + [self._addr, f"head -c {mb_cap * 1024 * 1024} '
+             '/dev/urandom"])',
+             '        cmd = ["sh", "-c", "head -c 67108864 /dev/urandom"]'),
+         [("test_rent_deadlines",
+           "test_the_probe_asks_THE_MACHINE_and_asks_it_for_a_bounded_stream")]),
+
+        ("the probe divides by the budget, not by the time it used",
+         lambda: one_line("booksmith.remote.box",
+                          "        dt = max(time.time() - t0, 1e-6)",
+                          "        dt = seconds"),
+         [("test_rent_deadlines",
+           "test_the_probe_divides_by_the_time_it_actually_took")]),
+
+        ("every byte the probe reads is counted twice",
+         lambda: one_line("booksmith.remote.box",
+                          "                got += len(chunk)",
+                          "                got += 2 * len(chunk)"),
+         [("test_rent_deadlines",
+           "test_a_narrow_channel_is_measured_not_called_broken"),
+          ("test_rent_deadlines",
+           "test_a_broken_machine_still_gives_a_number_below_any_floor"),
+          ("test_rent_deadlines",
+           "test_the_probe_divides_by_the_time_it_actually_took")]),
 
         ("a dead pipe passes for a live channel",
          lambda: one_line("booksmith.remote.box",

@@ -123,7 +123,13 @@ def build(books, out_dir: str, root: str = "bench", log=print) -> dict:
 
 def _swept(fn, books, out_dir, root, log):
     """Run the build; on any failure remove what it wrote aside."""
+    # `truth.previous` TOO. The sweep listed only what a build WRITES, and the
+    # swap also leaves the old truth aside under that name -- `bench/hard` is
+    # tracked and ignores neither, so an interrupted build left a second copy
+    # of the bench truth in the working tree with nothing to say which is the
+    # bench.
     aside = (os.path.join(out_dir, "truth.new"),
+             os.path.join(out_dir, "truth.previous"),
              os.path.join(out_dir, "hard.pdf.new"),
              os.path.join(out_dir, "manifest.json.new"))
     try:

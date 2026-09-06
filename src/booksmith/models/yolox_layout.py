@@ -122,7 +122,7 @@ class YoloXLayout(Recognizer):
                 f"{len(self.labels)} classes.")
 
     def thresholds(self) -> dict[str, float]:
-        common = float(knobs.knob("LAYOUT_SCORE_THRESHOLD"))
+        common = knobs.number("LAYOUT_SCORE_THRESHOLD")
         return {lab: common for lab in self.labels}
 
     def threshold_drift(self) -> list[str]:

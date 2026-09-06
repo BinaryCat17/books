@@ -147,15 +147,52 @@ def test_the_code_emits_exactly_the_declared_html_attributes():
         f"declaration names {sorted(declared - found)} the code never writes")
 
 
-def _code_only(src: str) -> str:
-    """The source with docstrings and comments removed, roughly.
+def _emitted_text(rel):
+    """Every string the code BUILDS, read from the syntax tree.
 
-    Only good enough to tell an emission from a mention: triple-quoted blocks
-    go whole and comments go by line. A `class=` surviving both is code.
+    NOT A REGEXP OVER THE FILE, and that took three bypasses to learn. The
+    text version stripped triple-quoted blocks as prose, so a template inside
+    one was invisible; it could not see `'<div ' 'class' '="x">'`, where the
+    text `class=` does not occur in the source at all; and it read only the
+    top-level `.py` of `doc/`, while `doc/mathjax/` is already a subpackage.
+
+    The parser joins adjacent literals for us, so the split form arrives
+    whole. An f-string comes back as its literal parts with a marker where a
+    value goes, which is what makes `class="{cls}"` visible AS an unreadable
+    class rather than as nothing at all. Docstrings are dropped -- prose, not
+    emission.
     """
-    text = re.sub(r'"""(?:.|\n)*?"""', "", src)
-    text = re.sub(r"\'\'\'(?:.|\n)*?\'\'\'", "", text)
-    return "\n".join(re.sub(r"#.*$", "", ln) for ln in text.split("\n"))
+    tree = ast.parse(open(rel, encoding="utf-8").read())
+    docs = set()
+    for n in ast.walk(tree):
+        if isinstance(n, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef,
+                          ast.ClassDef)) and n.body:
+            first = n.body[0]
+            if (isinstance(first, ast.Expr)
+                    and isinstance(first.value, ast.Constant)
+                    and isinstance(first.value.value, str)):
+                docs.add(id(first.value))
+    out = []
+    for n in ast.walk(tree):
+        if (isinstance(n, ast.Constant) and isinstance(n.value, str)
+                and id(n) not in docs):
+            out.append(n.value)
+        elif isinstance(n, ast.JoinedStr):
+            out.append("".join(
+                q.value if isinstance(q, ast.Constant)
+                and isinstance(q.value, str) else "\x00"
+                for q in n.values))
+    return out
+
+
+def _doc_sources():
+    """Every `.py` under `doc/`, at any depth. `doc/mathjax/` is a package."""
+    out = []
+    for root, _, files in os.walk(os.path.join(support.SRC, "doc")):
+        out += [os.path.join(root, f) for f in sorted(files)
+                if f.endswith(".py")]
+    return out
+
 
 
 def test_the_code_emits_exactly_the_declared_html_classes():
@@ -180,30 +217,27 @@ def test_the_code_emits_exactly_the_declared_html_classes():
     and says so, which is the difference between "checked" and "did not look".
     The whole `doc/` package is read, not three files of it.
     """
-    src = ""
-    for name in sorted(os.listdir(os.path.join(support.SRC, "doc"))):
-        if name.endswith(".py"):
-            src += open(os.path.join(support.SRC, "doc", name),
-                        encoding="utf-8").read()
     plain = re.compile(r'class="([\wЀ-ӿ-]+)"')
-    found = set(plain.findall(src))
+    found, unreadable = set(), []
+    for rel in _doc_sources():
+        for text in _emitted_text(rel):
+            for hit in re.finditer(r"class\s*=", text):
+                tail = text[hit.start():]
+                m = plain.match(tail)
+                if m:
+                    found.add(m.group(1))
+                else:
+                    unreadable.append(f"{os.path.basename(rel)}: {tail[:44]!r}")
     declared = set(schema.HTML_CLASSES)
     assert found == declared, (
         f"code emits classes {sorted(found - declared)} that are not "
         f"declared; declaration names {sorted(declared - found)} the code "
         f"never writes")
-
-    # Every `class=` in the package must be one this check could read. Prose
-    # is stripped first: a comment naming a class is not an emission, and a
-    # check that reddens on prose gets switched off.
-    code = _code_only(src)
-    seen = len(plain.findall(code))
-    total = len(re.findall(r"class=", code))
-    assert seen == total, (
-        f"{total - seen} of {total} `class=` in doc/ are not a plain declared "
-        f"literal -- an apostrophe-quoted attribute, an f-string hole, a "
-        f"concatenation, or two classes in one attribute. This check cannot "
-        f"read those, and will not claim to have checked them")
+    assert not unreadable, (
+        f"these `class=` are not a plain declared literal: {unreadable}. An "
+        f"f-string hole, a concatenation, a `%s` or two classes in one "
+        f"attribute -- this check cannot read them, and will not claim to "
+        f"have checked them")
 
 
 def test_the_built_book_carries_the_declared_classes():

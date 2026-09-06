@@ -109,3 +109,14 @@ bench/zhurnal/*
 # The manifest is all that is left of a synthetic book: by it one can see that
 # a rebuild after an edit to synth.py produced a DIFFERENT book.
 !bench/*/manifest.json
+
+# WHAT A BENCH BUILDER WRITES ASIDE. `truth.new` and `truth.previous` are the
+# two halves of the write-aside dance, and `bench/hard` and `bench/annopage`
+# are tracked and closed by nothing -- so an interrupted build put a partial
+# SECOND COPY of the bench truth into the working tree, with nothing to say
+# which of the two directories is the bench. The builders sweep them now; this
+# is the second line of defence, because a kill -9 sweeps nothing.
+bench/*/truth.new/
+bench/*/truth.previous/
+bench/*/*.pdf.new
+bench/*/manifest.json.new

@@ -155,7 +155,12 @@ def test_adapters_declare_the_knobs_they_read():
     for cls, rel in ADAPTERS:
         with open(support.src_path(rel), encoding="utf-8") as f:
             text = f.read()
-        read = set(re.findall(r'knob\(\s*["\']([A-Z_0-9]+)["\']', text))
+        # BOTH READERS. `knobs.number("NAME")` is how a numeric knob is taken
+        # -- it refuses `nan`, which `float(knob(...))` accepted -- and a scan
+        # that knows only `knob(` declared three live knobs dead the moment
+        # the adapters moved onto it.
+        read = set(re.findall(
+            r'(?:knob|number)\(\s*["\']([A-Z_0-9]+)["\']', text))
         told = set(object.__new__(cls).knobs_read())
         assert told == read, (
             f"{cls.__name__}: declared {sorted(told)}, and {rel} reads "
@@ -613,3 +618,70 @@ def test_the_aging_knob_lists_exactly_the_profiles_that_exist():
     listed = knob.what.split(": ")[1].split("|")
     assert listed == list(synth.AGING), (
         f"the knob offers {listed}, `synth.AGING` accepts {list(synth.AGING)}")
+
+
+def test_no_numeric_knob_takes_a_value_that_is_not_a_number():
+    """`nan` is a legal float, and it compares False with EVERYTHING.
+
+    So a mistyped knob did not fail -- it made every guard around it quietly
+    stop holding. Driven across the tree: `CROP_DPI` and `CROP_MARGIN` walked
+    past guards that refuse zero and negatives; `VLM_TEMPERATURE` and
+    `VLM_TOP_P` reached the PAID path; `VLM_TIMEOUT_S` reached urllib;
+    `LAYOUT_SCORE_THRESHOLD` reached every box comparison. Worst of them,
+    `PAGE_DPI=nan` built the GOLDEN BENCH to completion -- truth coordinates
+    in one system, pdf geometry in pymupdf's default letter page, `nan` in the
+    manifest, and not one word said.
+
+    The names come from the registry, not from a list here: a numeric knob
+    added tomorrow is covered the day it is declared.
+    """
+    numeric = []
+    for k in knobs.KNOBS:
+        try:
+            float(k.default)
+        except (TypeError, ValueError):
+            continue
+        numeric.append(k.name)
+    assert len(numeric) >= 10, (
+        f"only {len(numeric)} knobs look numeric: {numeric}. The registry has "
+        f"changed shape and this check is now looking at almost nothing")
+
+    was = dict(os.environ)
+    try:
+        for name in numeric:
+            for bad in ("nan", "-nan", "inf", "-inf", "infinity"):
+                os.environ[name] = bad
+                try:
+                    got = knobs.number(name)
+                except SystemExit:
+                    continue
+                raise AssertionError(
+                    f"{name}={bad!r} was accepted as {got!r}. Every guard "
+                    f"comparing it will be quietly false, and the run will "
+                    f"finish and say nothing")
+            os.environ.pop(name, None)
+    finally:
+        os.environ.clear()
+        os.environ.update(was)
+
+
+def test_every_numeric_knob_is_read_through_the_one_reader():
+    """`float(knob(...))` is the spelling that let `nan` in. There are none.
+
+    A second way to read a knob as a number is a second place for this defect
+    to live, and it would look exactly like the first: no failure, no message,
+    a guard that stops holding. Searched over the package, not remembered.
+    """
+    import glob
+    bad = []
+    root = os.path.dirname(support.SRC)
+    for path in glob.glob(os.path.join(support.SRC, "**", "*.py"),
+                          recursive=True):
+        text = open(path, encoding="utf-8").read()
+        for m in re.finditer(r'(?:float|int)\(\s*knobs?\.knob\(', text):
+            line = text[:m.start()].count("\n") + 1
+            bad.append(f"{os.path.relpath(path, root)}:{line}")
+    assert not bad, (
+        f"a knob is read as a number past `knobs.number`: {bad}. That is the "
+        f"spelling `nan` walked through -- `float()` accepts it and every "
+        f"comparison after it is False")
