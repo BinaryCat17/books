@@ -1,203 +1,160 @@
 # books
 
-Сканы технических книг → HTML. И раннер, который умеет снимать GPU в аренду
-под любую задачу, а не только под эту.
+Scans of technical books -> HTML. Plus a runner that rents a GPU for ANY job,
+not only this one.
 
-**Проект на чистом листе.** Прежний разбор удалён — 6.6 тыс. строк из 11.3.
-Не потому, что он не работал, а потому, что нечем было показать, работает ли
-он: все числа качества мерились против вывода другой модели (Mistral OCR), а
-не против известного текста. Эталонный файл удалён, каталоги прогонов тоже —
-воспроизвести нельзя ни одного числа. Что именно недействительно и что
-остаётся в силе — во вводке `docs/ocr-notes.md`.
+**The project is on a clean slate.** The previous pipeline is deleted -- 6.6k
+lines out of 11.3k. Not because it failed, but because there was nothing to
+show whether it worked: every quality figure was measured against the output
+of another model (Mistral OCR), not against known text. The reference file is
+gone and so are the run directories -- not one of those numbers can be
+reproduced. What is void and what still stands: the preface of
+`docs/ocr-notes.md`.
 
-Карта кода, команд и ручек — в `CLAUDE.md`, и ЖИВЁТ ОНА ТАМ ОДНА. Здесь
-стоял её второй экземпляр, и к 31 августа он разошёлся с делом на восемь
-модулей и четыре команды: не значились ни `annopage.py`, ни `fitness.py`, ни
-`text.py`, ни `subset.py`, ни два адаптера, ни `dots_ocr/`, ни каталог
-`tests/`. Второй экземпляр расходится молча — то же правило, по которому в
-этом проекте умолчание ручки живёт ровно в одном месте.
+The map of code, commands and knobs lives in `CLAUDE.md`, and it lives there
+ALONE -- as do the six rules. A second copy stood here and by 31 August had
+drifted from the tree by eight modules and four commands, and the rules copy
+had silently lost one of the six. A second copy diverges without a sound; the
+same reason a knob's default lives in exactly one place.
 
-## Куда идём
+## Where this is going
 
-Два уровня.
+Two levels. Markdown is no longer the target, EPUB/FB2/PDF are not wanted --
+the format builder is deleted.
 
-1. Первый проходит книгу целиком и отдаёт **контуры**: рамки, ярлыки, порядок
-   чтения. Ни знака текста — это детектор макета, а не распознаватель. HTML из
-   одних контуров собирается, но в нём каждый блок картинка (замер на
-   `bench/slovar`: 568 картинок, 0 абзацев). Здесь было сказано «читаемый
-   HTML: текст на месте» — тексту взяться неоткуда.
-2. Второй берёт каждый вынутый артефакт **в изоляции от соседей** и делает из
-   него блок HTML. Замена идёт по одной, её можно проверить, откатить и
-   переделать другой моделью, не трогая книгу.
+**The first** returns **contours** -- boxes, labels, reading order -- and not
+one character of text: a layout detector, not a recogniser, so HTML built from
+contours alone is all pictures (`bench/slovar`: 568 pictures, 0 paragraphs). It
+runs on the CPU and costs nothing. Measurements: `docs/contour-notes.md`.
 
-Markdown больше не цель, EPUB/FB2/PDF не нужны — сборщик форматов удалён.
+**The second** (`books read`) takes each artefact **in isolation from its
+neighbours** and turns it into a block of HTML, one at a time, so each can be
+checked, rolled back and redone by another model without touching the book. It
+is checked at home against a stub server (27 checks, not one cent), and on
+2026-09-04 it read 436 real pages on a rented 4090 -- $0.545 over eight
+rentals, two of them successful -- after which `books apply --from` put 412
+replacements into one book. That 412 is NOT reproducible here: snapshot and
+output live outside git, the commit in the snapshot reads "dirty tree". It
+proves the tract works; it measures no quality.
 
-Порядок работ: стенд и метрики **до** моделей, и он соблюдён. Стендов два —
-синтетический с точной истиной и золотой из 600 настоящих страниц с разметкой
-библиотекарей. Батарей порчи ПЯТЬ, и у каждой свой вопрос: контуры и порядок
-(`books score --selfcheck`), годность по чернилам (`books fitness
---selfcheck`), чтение знаков и ячеек (`books text --selfcheck`), полнота
-слепка (`books replay --check --selfcheck`) и сговоры между файлами
-(`tests/run.py --slow --selfcheck`). ПЯТЬ БАТАРЕЙ ВОЗВРАЩАЮТ 0 НЕ ВЕЗДЕ, и
-здесь было сказано, что везде. На синтетических стендах — да, ноль. На
-золотом (`bench/annopage`) `books text --selfcheck` печатает «не пойманных
-порч: 4» и возвращает 1, и это не дыра в метрике: у AnnoPage истины ТЕКСТА
-нет вовсе, четырём пробам нечего ломать, а батарея выдаёт «нечего ломать» за
-«не поймала». То же на одностраничном входе у `books score`: две пробы (сдвиг
-на страницу и TOUCH=1.01) дают ложный провал вместо «нет данных». Обе беды —
-про сторожа применимости у самих проб, и обе названы.
+## Five corruption batteries, and what each returns
 
-Прибору, который не умеет провалиться, верить нельзя — и это не фигура речи.
-Свежий случай: затвор «якорь мимо рамки» появился в `text.py`, а проба рядом
-осталась требовать прежнего («объявленный якорь сильнее геометрии»), и
-`books text --selfcheck` стал возвращать 1 на ВСЕХ ШЕСТИ синтетических
-стендах — прибор объявил себя сломанным ровно там, где стал строже. Чисел
-батарей в этой прозе нет нарочно: их печатает последняя строка бегуна.
+Bench and metrics came **before** models: a synthetic bench with exact truth,
+and a golden one of 600 real pages marked up by librarians. An instrument that
+cannot fail cannot be trusted, so every metric carries a battery that feeds it
+deliberately spoiled input. **None of the five returns zero on every input**,
+and the input decides more than the battery does. Measured on this tree
+2026-09-06:
 
-Первый уровень работает целиком на процессоре и бесплатно; основой назначен
-`PP-DocLayoutV2` — он предсказывает порядок чтения сам. Здесь стояло
-«единственный из семи», и это неверно: ранг даёт и `PP-DocLayoutV3`, своих
-рангов у двух моделей из шести. Что чем померено — `docs/contour-notes.md`.
+| battery | zero uncaught on | red on |
+|---|---|---|
+| `books score --selfcheck` | 33 probes, all six synthetic books and `bench/annopage` | a ONE-PAGE directory: 2 false failures on a dense page (page shift, `TOUCH=1.01`), 10 on a sparse one |
+| `books text --selfcheck` | 29 probes, 18-19 measured, `<book>/truth <book>/truth`, all six | `<book>/detect/pages`, all six: 2 to 5 uncaught. `bench/annopage`: **3**, not the 4 this file used to claim |
+| `books fitness --selfcheck` | 21 probes, `spravochnik`, `atlas`, `katalog` | `slovar`, `matematika`, `zhurnal`: 1 uncaught each |
+| `books replay --selfcheck` | nothing today | all seven benches -- while uncaught losses are 0 on every one |
+| `tests/run.py --slow --selfcheck` | its figures are deliberately absent from this prose: the runner prints them on its last line | |
 
-Второй уровень (`books read`) написан И ПРОЕХАЛ: чтение блоков любой моделью
-за OpenAI-совместимым адресом, промты и виды объявлены адаптером, продукт —
-тот же `pages/*.json`, что у детекции. Проверен он дома против подставного
-сервера (27 проверок, ни одного цента), а 2026-09-04 прочитал 436 страниц
-настоящей моделью на арендованной 4090 — $0.545 за восемь аренд, из них две
-удачных, — и `books apply --from` поставил 412 замен на одну книгу.
+In four batteries of the five the red is at least in part the instrument
+**reporting "nothing to break" as "did not catch"**, and each diagnosis is a
+fact about the bench it ran on, so they live with the benches:
+`bench/README.md`.
 
-Здесь стояло «ни одной страницы настоящей моделью ещё не прочитано». Число
-412 при этом НЕ воспроизводимо из репозитория: слепок и вывод лежат вне git,
-коммит в слепке — «грязное дерево». Это доказательство работоспособности
-тракта, а не замер качества.
+The honest kind of red is what the batteries are for: when the "anchor outside
+the box" gate appeared in `text.py`, the probe beside it went on demanding the
+old behaviour, and the battery returned 1 on all six synthetic benches -- the
+instrument declaring itself broken exactly where it had got stricter.
 
-## Правила
+## The job contract
 
-Их шесть, и живут они в `CLAUDE.md` — ОДНИМ экземпляром. Здесь стоял второй, и
-он успел разойтись: правил осталось пять, выпало «Ноль от проверки и ноль от
-непонимания — разные нули». Ровно за такое молчаливое расхождение из этого
-файла и выносили вторые экземпляры карты кода.
-
-Коротко, чтобы понять дух: модель никто не чинит; распознанное неприкосновенно;
-метрика обязана уметь провалиться; в журнал — величину, а не слово «готово»;
-ноль от проверки и ноль от непонимания — разные нули; ручка объявляется в
-реестре. Каждое с ценой ошибки — в `CLAUDE.md`.
-
-## Контракт задачи
-
-Раннер знает ровно три вещи: **входные файлы, команду и каталог с
-результатом**. Ничего про PDF и OCR в `remote/` нет — иначе следующая
-ML-задача снова потребовала бы переписывать аренду.
+The runner knows exactly three things: **input files, a command, and an output
+directory**. There is nothing about PDFs or OCR in `remote/` -- otherwise the
+next ML job would demand that renting be rewritten again.
 
 ```python
 JobSpec(
     name="test25",
     image="ghcr.io/binarycat17/vast-base:<sha>",
     command="bash run.sh input.pdf outputs",
-    inputs={"книга.pdf": "input.pdf", "run.sh": "run.sh"},
-    outputs="outputs",          # тянется к нам ПО ХОДУ работы, не в конце
-    budget_usd=1.00,            # жёсткий потолок: достигнут — машина гибнет
+    inputs={"book.pdf": "input.pdf", "run.sh": "run.sh"},
+    outputs="outputs",          # pulled back AS IT GOES, not at the end
+    budget_usd=1.00,            # hard ceiling: reached means the machine dies
 )
 ```
 
-## Установка
+## Installing
 
 ```bash
 python3 -m venv .venv
-.venv/bin/pip install -e '.[detect]'            # detect — onnxruntime, opencv
-.venv/bin/vastai set api-key <КЛЮЧ>             # console.vast.ai/account
+.venv/bin/pip install -e '.[detect]'            # detect -- onnxruntime, opencv
+.venv/bin/vastai set api-key <KEY>              # console.vast.ai/account
 ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_vast -N ''
 ```
 
-Секреты — в `.env` в корне (режим 600, не версионируется), образец в
-`.env.example`. Впиши их сам, в своём терминале.
+Secrets go into `.env` at the root (mode 600, not versioned), template in
+`.env.example`. Fill them in yourself, in your own terminal.
 
-## Команды
+**The commands money touches** are six, all of them described in `CLAUDE.md`:
+`books doctor` (check everything BEFORE money starts moving), `offers`, `ls`,
+`down <id>`, `reap`, `ledger`. Everything else -- parsing, benches, metrics --
+runs locally on the CPU and costs nothing.
 
-Полный список — в `CLAUDE.md`. Здесь только то, за чем идут деньги:
+## How a machine is chosen
 
-```bash
-books doctor                 проверить всё ДО того, как пойдут деньги
-books offers                 посмотреть рынок, ничего не арендуя
-books ls                     что арендовано прямо сейчас
-books down 12345 | books reap    убить инстанс / прибрать всё
-books ledger                 журнал прогонов и оценки по нему
-```
+Not by price per hour. The ranking computes the **full cost of the run**:
+delivery splits into two channels of very different capacity -- the image
+through docker, the environment around it -- and above both sits **traffic,
+whose inbound price is non-zero at EVERY offer, $0.4 to $29.3 per TB**. At the
+worst offer on the market that is $0.23 against $0.35 of rent: 40% of the bill,
+in a field that ranking by `dph_total` does not see.
 
-Всё остальное — разбор, стенды и метрики — считается местно, на процессоре, и
-не стоит ничего.
+## Money cannot leak
 
-## Как выбирается машина
+Destruction is duplicated because every single way of doing it has failed
+once. Three defences are local:
 
-Не по цене за час. Ранжирование считает **полную стоимость прогона**, и
-доставка в ней разбита на два канала с разной пропускной способностью:
+1. `finally` -- on any exit, exceptions included;
+2. SIGINT/SIGTERM trapping -- otherwise the process dies past `finally`;
+3. a watchdog thread on the budget -- in case the main one hangs in ssh.
 
-| составляющая | почему |
-|---|---|
-| образ через docker | три слоя одновременно, один поток на слой, реестр режет соединение до ~25 Мбит/с |
-| окружение мимо docker | uv и hf открывают десятки соединений и берут канал целиком |
-| **трафик** | цена входящего трафика ненулевая у **всех** офферов: от $0.4 до $29.3 за ТБ |
-| аренда | собственно $/час |
+Plus a verification: after `destroy_instance` the instance list is requested
+again -- a CLI used to be called here that **returned 0 even when it refused to
+destroy**, and the script reported success while money ran. But all three share
+one point of failure, a live local process: the operator's environment
+restarted once and the instance kept billing while the job on it had died with
+the ssh. So the fourth defence sits **on the rented machine itself**:
 
-Разница не косметическая: на худшем оффере рынка трафик даёт $0.23 при $0.35
-аренды — 40 % счёта в поле, которое ранжирование по `dph_total` не видит.
+4. the dead man's watch. vast puts `CONTAINER_API_KEY` into the container -- a
+   key with the right to destroy that instance. A loop from `onstart` watches
+   the age of `/root/.alive`, which the operator touches every 30 seconds; if
+   the touch stops for longer than 15 minutes the machine kills itself. With
+   `--keep` the term rises to four hours: leaving on purpose is allowed,
+   forgetting forever is not.
 
-## Деньги не могут утечь
+## The image and the environment
 
-Уничтожение продублировано, потому что каждый способ по отдельности однажды
-подвёл. Три защиты локальные:
+The image carries delivery tools only -- rsync, zstd, curl, uv, and the system
+libraries for opencv and kernel compilation. No python, no CUDA, no torch: CUDA
+arrives inside the torch wheels, uv installs python. **54 MB as measured
+2026-08-19**, and that figure is stale: `procps` and `git` went into
+`infra/base/Dockerfile` on 2026-09-05 (which puts git alone at 20 MB), and
+there is no docker in this environment to re-measure with.
 
-1. `finally` — на любом выходе, включая исключение;
-2. перехват SIGINT/SIGTERM — иначе процесс умирает мимо `finally`;
-3. сторожевой поток по бюджету — на случай, если основной залип в ssh.
+The design follows from one measurement -- **21+ minutes to come up through
+docker against 3 minutes around it** (byte counts and the reason:
+`docs/vast-notes.md`). So everything heavy is installed at start by
+`provision.sh`: python, wheels, weights through `hf download`. Eighty seconds,
+and idempotent -- on a warm machine (`--reuse`) it finishes in seconds.
 
-Плюс проверка: после `destroy_instance` список инстансов запрашивается заново.
-Раньше здесь дёргался CLI, который **возвращал 0, даже когда отказывался
-уничтожать**, и скрипт рапортовал об успехе, пока шли деньги.
+Wheels come from `constraints.txt`, the pinned tree in full -- all 241
+packages, not just the top level -- or dependency resolution happens on the
+rented card and a fresh release of any transitive dependency drops the book
+halfway. `requirements.in` is the input for regenerating it, command in its
+header; the uv in the image must be the version that compiled it, or it will
+not resolve.
 
-Но у всех трёх одна точка отказа — живой локальный процесс. Перезапустилось
-окружение оператора, и инстанс остался биллиться, притом что задача на нём
-умерла вместе с ssh. Поэтому четвёртая защита стоит **на самой арендованной
-машине** и от нас не зависит:
+The image tag is the short commit SHA, and that is not pedantry: vast rebuilds
+any image with a layer of its own carrying ssh and caches the result on the
+machine as `<image>_<tag>/ssh`. Under an unchanging `latest` the rebuild from
+the old base stays there forever and fixes never arrive.
 
-4. дозор мертвеца. vast кладёт в контейнер `CONTAINER_API_KEY` — ключ, которым
-   инстанс имеет право уничтожить сам себя. Фоновый цикл из `onstart` смотрит
-   на возраст `/root/.alive`; оператор трогает файл каждые 30 секунд, пропало
-   касание дольше чем на 15 минут — машина гасит себя сама. При `--keep` срок
-   поднимается до четырёх часов: уйти нарочно можно, забыть навсегда — нет.
-
-## Образ и окружение
-
-Образ содержит только инструменты доставки — rsync, zstd, curl, uv и системные
-библиотеки для opencv и компиляции ядер. Пятьдесят четыре мегабайта. Ни python,
-ни CUDA, ни torch в нём нет: CUDA приезжает в колёсах torch, python ставит uv.
-
-Так вышло по замеру, а не из любви к минимализму:
-
-| | через docker | мимо docker |
-|---|---|---|
-| доставка | 6.02 ГБ за 10.7 мин = **76 Мбит/с** | 11 ГБ за 82 с ≈ **1100 Мбит/с** |
-| старт целиком | 21+ мин | **3 мин** |
-
-Обе цифры сняты на RTX 4090 с каналом 1518 Мбит/с. Docker выбирал пять
-процентов канала, и упереться в это можно было только им: он качает ровно три
-слоя одновременно, по одному потоку на слой, а реестр душит каждое соединение
-до ~25 Мбит/с. Раскладка слоёв тут не помогает — потолок не в ней.
-
-Поэтому всё тяжёлое ставит `provision.sh` при старте: python, колёса, веса
-через `hf download`. Восемьдесят секунд. Скрипт идемпотентен — на прогретой
-машине (`--reuse`) отрабатывает за секунды.
-
-Колёса ставятся из `constraints.txt` — закреплённого дерева целиком, все 241
-пакет, а не только верхний уровень. Иначе разрешение зависимостей идёт на
-арендованной карте, и новый релиз любой транзитивной зависимости роняет книгу
-на середине. `requirements.in` остаётся входом для пересборки этого файла;
-команда — в шапке `constraints.txt`. Версия uv в образе должна совпадать с той,
-что компилировала файл, иначе он не решается.
-
-Тег образа — короткий SHA коммита, и это не педантизм: vast достраивает любой
-образ своим слоем с ssh и кеширует результат на машине под именем
-`<образ>_<тег>/ssh`. При неизменном `latest` там навсегда остаётся достройка от
-старой базы, и правки просто не доезжают.
-
-Подробности и полный список граблей vast.ai — в `docs/vast-notes.md`.
+Everything else about vast.ai, rakes included: `docs/vast-notes.md`.

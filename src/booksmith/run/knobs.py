@@ -423,7 +423,7 @@ KNOBS = (
     # aged one grows one. A bench without these two in the snapshot is not
     # reproducible.
     Knob("SYNTH_SEED", "1", "зерно синтетического стенда"),
-    Knob("SYNTH_AGING", "old", "профиль старения стенда: clean|scan|old|ветхий"),
+    Knob("SYNTH_AGING", "old", "профиль старения стенда: clean|scan|old|decayed"),
 
     # --- SECOND LEVEL: reading block content --------------------------------
     # The same cut as in `read/__init__.py`: what we ask is a property of the

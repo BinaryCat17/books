@@ -3239,6 +3239,14 @@ def mutations():
          [("test_acceptance",
            "test_replay_check_reports_the_same_report")]),
 
+        ("the aging knob advertises a profile that does not exist",
+         lambda: one_line("booksmith.run.knobs",
+                          '    Knob("SYNTH_AGING", "old", "\u043f\u0440\u043e\u0444\u0438\u043b\u044c '
+                          '\u0441\u0442\u0430\u0440\u0435\u043d\u0438\u044f \u0441\u0442\u0435\u043d\u0434\u0430: clean|scan|old|decayed"),',
+                          '    Knob("SYNTH_AGING", "old", "profile: clean|scan|old|frail"),'),
+         [("test_knobs",
+           "test_the_aging_knob_lists_exactly_the_profiles_that_exist")]),
+
         ("the probe battery and the book drop out of the acceptance table",
          lambda: attrs(acceptance, COMMANDS={
              k: v for k, v in acceptance.COMMANDS.items()

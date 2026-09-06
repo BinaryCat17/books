@@ -601,3 +601,19 @@ def test_replay_finds_the_snapshot_in_both_layouts():
         assert replay.facts(tmp) == snapshot, (
             "слепок в кухне не прочитан — `books replay --check` на каталоге "
             "книги скажет «слепка нет вовсе» при лежащем рядом слепке")
+
+
+def test_the_aging_knob_lists_exactly_the_profiles_that_exist():
+    """A knob's description names its legal values, and they must be legal.
+
+    `SYNTH_AGING` went on advertising the old name of the fourth profile
+    had been renamed to `decayed`, so the documented command raised `KeyError`
+    -- `synth.AGING[profile]` is a plain lookup with no default. The
+    description is not a comment: it is copied verbatim into every run
+    snapshot, so the wrong value travels with the record of the run.
+    """
+    from booksmith import synth
+    knob = [k for k in knobs.KNOBS if k.name == "SYNTH_AGING"][0]
+    listed = knob.what.split(": ")[1].split("|")
+    assert listed == list(synth.AGING), (
+        f"the knob offers {listed}, `synth.AGING` accepts {list(synth.AGING)}")

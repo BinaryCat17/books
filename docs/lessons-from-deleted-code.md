@@ -1,277 +1,274 @@
-# Что знал удалённый код
+# What the deleted code knew
 
-Чистый лист снёс 6.6 тыс. строк. Вместе с ними ушли бы замеры, разборы аварий
-и отвергнутые гипотезы, за которые заплачено деньгами и упавшими машинами.
-История git сохранением не считается: её никто не читает.
+The clean slate took out 6.6k lines. With them would have gone measurements,
+crash post-mortems and rejected hypotheses paid for in money and fallen
+machines. Git history does not count as keeping: nobody reads it.
 
-Здесь только то, что **не зависит от удалённого эталона Mistral OCR** и было
-проверено по тексту удалённых файлов дословно. Числа качества таблиц («22 из
-22», «79 % строк значений») сюда не входят — они недействительны, см. шапку
-`docs/ocr-notes.md`.
+Only what does **not depend on the deleted Mistral OCR reference** is here, all
+of it verified word for word against the text of the deleted files. Table
+quality figures ("22 of 22", "79% of value rows") are not here: they are void,
+see the preface of `docs/ocr-notes.md`.
 
 ---
 
-## Приёмка обязана уметь падать, и это проверяется мутациями
+## Acceptance must be able to fail, and mutations are how you prove it
 
-Было в `tests/mutants.py`:
+From `tests/mutants.py`:
 
-> «Тест, не падающий ни на одной мутации, — фон, а не проверка. В этом проекте
-> так уже было: **пометка `≠` стояла у 416 таблиц из 448 и ничего не значила**.»
+> "A test that falls on no mutation is background, not a check. This project
+> has been there: **the `≠` mark stood on 416 tables of 448 and meant
+> nothing**."
 
-Устройство: каждая мутация — правка, вносимая в код и отменяемая обратно, и
-рядом список наборов, которые **обязаны** от неё покраснеть. Возврат 1, если
-хоть одна мутация не поймана ни одним набором. Плюс `harness.need()`: проверка,
-для которой в дереве нет функции, **громко** пропускается — молчаливый пропуск
-и есть фон.
+How it worked: every mutation is an edit made to the code and rolled back
+after, with a list beside it of the suites that **must** go red from it; return
+1 if any mutation is caught by no suite. Plus `harness.need()`: a check whose
+function is missing from the tree is skipped **loudly** -- a silent skip is the
+background. The same file held a measured defect of the instrument itself: the
+ruler `<[^>]+>` instead of `<[^<>]*>` understated the word count by **9.0%**
+(84 069 against 92 405), because a bare angle bracket arrives from mathematics
+like `$1 < K$`.
 
-Там же измеренный дефект самого прибора: линейка `<[^>]+>` вместо `<[^<>]*>`
-занижала счёт слов на **9.0 %** (84 069 против 92 405), потому что голая
-угловая скобка приходит из математики `$1 < K$`.
+**What follows for the new bench.** A contour metric is founded together with
+its mutation table and its own exit code, not after. "A metric must be able to
+fail" without a mutation registry is a promise, not an instrument.
 
-**Что из этого следует для нового стенда.** Метрика контуров заводится вместе
-с таблицей мутаций и своим кодом возврата, а не после. Правило «метрика обязана
-уметь провалиться» без реестра мутаций — обещание, а не прибор.
+## The chain of passes: five money mistakes
 
-## Цепочка проходов: пять денежных ошибок
+From the deleted `cli.py`, functions `_multipass` and `_drop_machine`. The
+machinery (`keep_until`, `keep_usd`) survived in `remote/runner.py`, the caller
+did not: the cure is left, the disease erased, and the chain will be written
+again.
 
-Было в удалённом `cli.py`, функции `_multipass` и `_drop_machine`. Механизм
-(`keep_until`, `keep_usd`) уцелел в `remote/runner.py`, вызывающий — нет.
-То есть лекарство осталось, а болезнь стёрта; цепочку напишут заново.
+* **Budget and deadline belong to the whole chain, not to a pass.** "`--passes
+  3 --timeout 90` meant not an hour and a half **but four and a half**: three
+  independent watchdogs of 90 minutes each. The money ceiling multiplied by
+  three the same way." An operator who typed "no more than a dollar and no
+  longer than an hour" bought three dollars and three hours -- silently.
+* **A break in the middle of the chain.** "A break on the second pass left the
+  machine alive until the dead man's watch, and `--timeout 90 --budget 1.00`
+  turned into **189 minutes of billing**."
+* **The machine number was taken after `return rc`.** A failed first pass left
+  `iid` empty, the kill quietly did nothing, and the machine went on with
+  `--keep` and lived to the dead man's watch, "burning the whole declared
+  budget without a single page of result".
+* **`iid or …` did not pick up a replacement.** If the first machine died and a
+  second was taken, the kill went to a machine that no longer existed; the next
+  pass went with `--reuse` onto a corpse and took a third, while the live
+  second was left abandoned and unaccounted.
+* **`cost is None` is not "no money spent".** Otherwise the money half of the
+  limiter switched itself off entirely and silently.
 
-* **Бюджет и срок — на всю цепочку, а не на проход.** «`--passes 3 --timeout
-  90` означало не полтора часа, **а четыре с половиной**: три независимых
-  сторожа по 90 минут. Денежный потолок так же умножался на три.» Оператор,
-  набравший «не больше доллара и не дольше часа», покупал три доллара и три
-  часа — молча.
-* **Обрыв в середине цепочки.** «Обрыв на втором проходе оставлял машину жить
-  до дозора, и `--timeout 90 --budget 1.00` оборачивался **189 минутами
-  биллинга**.»
-* **Номер машины забирался после `return rc`.** Упавший первый проход оставлял
-  `iid` пустым, гашение молча ничего не делало, а машина шла с `--keep` и жила
-  до дозора мертвеца, «сжигая весь заявленный бюджет без единой страницы
-  результата».
-* **`iid or …` не подхватывал замену.** Если первая машина умерла и снята
-  вторая, гасили несуществующую; следующий проход шёл с `--reuse` на мертвеца
-  и снимал третью, а живая вторая оставалась брошенной и неучтённой.
-* **`cost is None` — не «денег не потрачено».** Иначе денежная половина
-  ограничителя выключалась целиком и молча.
+Plus the threshold `MIN_PASS_MIN`: a minute is not enough even for connecting
+and raising the server (11 s + 66 s on a repeat pass, one and a half to fifteen
+minutes from cold).
 
-Плюс порог `MIN_PASS_MIN`: за минуту не успевает даже подключение и подъём
-сервера (11 с + 66 с на повторном проходе, от полутора до пятнадцати минут на
-холодном старте).
+## How to tell that reading has degenerated
 
-## Как узнать, что чтение выродилось
+From `merge.py`. Looping is the universal failure of an autoregressive VLM: it
+does not depend on the reference and will come back with any model. Three
+signs:
+1. an exact repeat of 30-grams;
+2. a repeat with **link drift** (digits collapsed to `#`) -- this catches
+   `2024年10月15日 2024年10月16日 …`, 4 095 characters of Chinese dates on a
+   title page where the exact repeater sees only 1 064;
+3. an arithmetic progression.
 
-Было в `merge.py`. Зацикливание — универсальный отказ авторегрессионной VLM,
-от эталона он не зависит и вернётся с любой моделью.
+> "Measured on six books, **9 783 pages of three passes: 125 firings, of them
+> 0 false** -- every one checked by eye, seven of them against the scan too."
 
-Три признака:
-1. точный повтор 30-грамм;
-2. повтор с **дрейфом звена** (цифры сводятся к `#`) — ловит
-   `2024年10月15日 2024年10月16日 …`, 4 095 знаков китайских дат на титуле, где
-   точный повторитель видит только 1 064;
-3. арифметическая прогрессия.
+**Rejected by measurement:** "gzip compressibility was measured and NOT
+included: every page with `gz <= 0.10` is caught by the repeat detector, and it
+adds not one of its own." This is the first thing that will be proposed again.
 
-> «Замер на шести книгах, **9 783 страницы трёх проходов: 125 срабатываний, из
-> них ложных 0** — каждое проверено глазом, семь вдобавок по скану.»
+## Comparing two cells: where the normalisation boundary runs
 
-**Отвергнуто замером:** «Сжимаемость gzip замерена и НЕ включена: все страницы
-с `gz <= 0.10` ловятся повтором, ни одной своей она не добавляет.» Это первое,
-что предложат снова.
+From `merge.py`, measured on six books, **32 634 cells** of the base. Any
+comparison needs it -- two readings against each other, or a reading against
+truth.
 
-## Как сравнивать две ячейки: где проходит граница нормализации
-
-Было в `merge.py`, замер на шести книгах, **32 634 ячейки** основы. Понадобится
-любому сличению — двух чтений между собой или чтения с истиной.
-
-| ступень | снято | вред |
+| step | removed | harm |
 |---|---|---|
-| NFKC и пробелы | 127 | 0 |
-| регистр | 90 | 0 |
-| тире / дефис / минус | 376 | 0 |
-| десятичная запятая | 42 | 0 |
-| хвостовая пунктуация | 147 | 0 |
-| **— граница —** | | |
-| головная пунктуация | 139 | **4** (`.850` == `850`) |
-| вся пунктуация | 504 | **108** (`6—2` == `6,2`) |
+| NFKC and whitespace | 127 | 0 |
+| case | 90 | 0 |
+| dash / hyphen / minus | 376 | 0 |
+| decimal comma | 42 | 0 |
+| trailing punctuation | 147 | 0 |
+| **-- the boundary --** | | |
+| leading punctuation | 139 | **4** (`.850` == `850`) |
+| all punctuation | 504 | **108** (`6—2` == `6,2`) |
 
-**Отвергнуто замером:** ступень «двойники кириллица/латиница». Подмена
-двойника в этом корпусе есть сама ошибка распознавания, а не разнопись: на
-скане «Х10Л6», в книге «X10A6». Со ступенью — 14 находок из 29, лифт **2.70**;
-без неё — 16 из 29, лифт **3.06**.
+**Rejected by measurement:** the step "Cyrillic/Latin lookalikes". Substituting
+a lookalike in this corpus IS the recognition error itself, not a spelling
+variant: on the scan "Х10Л6", in the book "X10A6". With the step -- 14 finds of
+29, lift **2.70**; without it -- 16 of 29, lift **3.06**.
 
-## Готовность считают по артефакту, а не по следу
+## Readiness is counted by the artefact, not by the trace
 
-Было в `jobs/paddleocr/entrypoint.py`, про `--resume`:
+From `jobs/paddleocr/entrypoint.py`, about `--resume`:
 
-> «Страница пишется двумя вызовами: `save_to_markdown`, потом `save_to_json`, и
-> каждый обёрнут своим `try`. Первый может упасть (замер на «Справочнике»:
-> **3 страницы из 760 остались без `.md` при живом `.json`**). Прежний счёт брал
-> **любой** файл с числовым именем и объявлял страницу готовой; `--resume` её не
-> пересчитывал никогда, а `run.json` показывал полное число страниц, будто всё
-> на месте. Дыра при этом видна в книге только тем, что абзац кончается на
-> полуслове.»
+> "A page is written by two calls, `save_to_markdown` then `save_to_json`, and
+> each is wrapped in its own `try`. The first can fall (measured on the
+> Handbook: **3 pages of 760 were left without `.md` while the `.json`
+> lived**). The old count took **any** file with a numeric name and declared
+> the page ready; `--resume` never recomputed it, and `run.json` showed the
+> full page count as though everything were in place. In the book the hole
+> shows only as a paragraph ending mid-word."
 
-Ручка `RESUME` в реестре осталась, знание — здесь.
+The knob `RESUME` stayed in the registry; the knowledge is here.
 
-## Реестр ручек держится не на `KeyError`
+## The knob registry does not rest on `KeyError`
 
-Было в `tests/test_knobs_registry.py`:
+From `tests/test_knobs_registry.py`:
 
-> «Проверка **разбирает исходник деревом**, а не гоняет код: ветка
-> `if os.environ.get("PROBE") == "1"` на подставке не исполняется никогда…
-> `export НОВАЯ=…` в run.sh — **так в прошлый раз поймался `VL_MODEL_DIR`**:
-> ручку ставит оболочка, в entrypoint.py её не видно, а решает она, какие веса
-> поднимет vLLM.»
+> "The check **parses the source as a tree** rather than running the code: the
+> branch `if os.environ.get("PROBE") == "1"` never executes on a stub… and
+> `export NEW=…` in run.sh -- **that is how `VL_MODEL_DIR` was caught last
+> time**: the shell sets the knob, it is invisible in entrypoint.py, and it
+> decides which weights vLLM will raise."
 
-Ловец не восстановлен. `run/knobs.py` об этом честно предупреждает в шапке.
+The catcher has not been restored. `run/knobs.py` says so honestly in its
+header.
 
-## Память при сборке форматов
+## Memory when building formats
 
-Было в `convert.py` и `tests/test_convert_stand.py`. Цель проекта теперь HTML,
-то есть pandoc и браузерная вёрстка вернутся — и потолок памяти на внешний
-конвертер придётся находить падением машины ещё раз.
+From `convert.py` and `tests/test_convert_stand.py`. The target is HTML now, so
+pandoc and browser typesetting will return -- and the memory ceiling of an
+external converter will otherwise have to be found by crashing a machine one
+more time.
 
-> «`-native_divs`. Самое дорогое. Замер на «Биохимии» (2.5 МБ разметки, 1590
-> div): с `native_divs` — **пик RSS 4.7 ГБ и 129 с**, без него — **279 МБ и
-> 6.5 с**. Именно это, **а не только WeasyPrint**, роняло машину: шесть книг
-> подряд стоят **10.9 ГБ**, а машины всего **7.9**.»
+> "`-native_divs`. The most expensive one. Measured on Biochemistry (2.5 MB of
+> markup, 1590 divs): with `native_divs` -- **peak RSS 4.7 GB and 129 s**,
+> without it -- **279 MB and 6.5 s**. That, **and not WeasyPrint alone**, was
+> what dropped the machine: six books in a row take **10.9 GB**, and the
+> machine has **7.9**."
 
-Поправка к ходячей версии: WSL ронял **pandoc с `native_divs`**, а не только
-WeasyPrint. Виновника называет сам удалённый файл.
+A correction to the walking version: WSL was dropped by **pandoc with
+`native_divs`**, not by WeasyPrint alone -- the culprit is named by the deleted
+file itself. Two silent losses from the same place:
+* `-raw_tex`: "one unclosed brace in a cell is enough to eat half the book" --
+  184 tables against 470, 237 image tags against 1434;
+* `-markdown_in_html_blocks`: the cell `(a) .004"` opens an `<ol>` inside a
+  `<td>` and swallows the rest of the table -- that is how 2 tables of 41 went
+  missing.
 
-Две молчаливые потери оттуда же:
-* `-raw_tex`: «одной незакрытой скобки в ячейке хватает, чтобы съесть половину
-  книги» — таблиц 184 против 470, тегов картинок 237 против 1434;
-* `-markdown_in_html_blocks`: ячейка `(a) .004"` открывает `<ol>` внутри
-  `<td>` и проглатывает остаток таблицы — так пропадали 2 таблицы из 41.
+The result of the fixes: epub files that do not parse as XML were **147 of
+223** across six books, and became **6 of 263**.
 
-Итог правок: файлов epub, не разбирающихся как XML, было **147 из 223** по
-шести книгам, стало **6 из 263**.
+## Zero from a check and zero from incomprehension are different zeros
 
-## Ноль от проверки и ноль от непонимания — разные нули
+From `docs/plan-fixes.md` and `structure.py`.
 
-Было в `docs/plan-fixes.md` и `structure.py`.
+> "`report.md` prints 'References to figures in the text 0, images 103' as a
+> meaningful diagnosis, although the label `figure_title` gave 66 blocks -- the
+> counters are hard-wired to the English `Fig\.`."
 
-> «`report.md` печатает „Ссылок на рисунки в тексте 0, картинок 103“ как
-> содержательный диагноз, хотя метка `figure_title` дала 66 блоков — счётчики
-> зашиты на английское `Fig\.`.»
+> "A chapter number can be Roman… of four books parsed at once, all four had
+> chapters and not one was recognised. The report honestly wrote 'chapters 0'
+> -- and that read as 'the book has no chapters', not as 'I did not recognise
+> them'."
 
-> «Номер главы бывает римским… из четырёх разобранных за раз книг главы были во
-> всех четырёх и ни одна не опозналась. Отчёт при этом честно писал „глав 0“ —
-> и это читалось как „глав в книге нет“, а не „я их не узнал“.»
+Of the same kind: Feynman numbers his sections with `§`, so "section order
+violations 0" is not the result of a check but the absence of one. And the
+converse: one phrase `chapter 40` in a one-chapter book drew thirty-eight
+unassembled chapters into the journal.
 
-Того же разряда: у Фейнмана разделы нумерованы знаком `§`, поэтому «нарушений
-порядка разделов 0» — не результат проверки, а её отсутствие. И обратное: одна
-фраза `chapter 40` в книге на одну главу рисовала в журнале тридцать восемь
-несобранных глав.
+## A check has three outcomes, not two
 
-## У проверки три исхода, а не два
+From `docs/ocr-notes.md`, moved here when that file was cleaned. The rule about
+pipeline steps ("print the quantity, not 'done'") gains a second one about
+checks themselves, and it surfaced three times in one morning.
 
-Было в `docs/ocr-notes.md`, откуда перенесено при чистке файла. Правило про
-шаги конвейера («печатай величину, а не готово») дополняется вторым, про сами
-проверки, и вскрылось оно за одно утро трижды подряд.
+* **Rejecting machines by channel went silent at zero.** `probe()` returns 0.0
+  on timeout, and both message branches tested `if link` and `elif link` -- at
+  zero both are false. In the journal: ssh ready in five seconds, then nothing,
+  then "DESTROYED" half a minute later. Ten such attempts in a row looked like
+  "a bad market"; I blamed the market first, then my own regression, and both
+  guesses were wrong.
+* **The measurement of our own channel returned zero and the threshold stayed
+  as it was.** First the 3 MB probe did not fit in its deadline -- that is, the
+  insurance against a narrow channel was broken by a narrow channel. Then
+  Cloudflare answered 403 without a `User-Agent` header. In both cases
+  everything looked as if it worked.
+* **A machine with a broken card passed selection.** `mark_bad` knew only about
+  the channel, and a card falling with `CUDA unknown error` had a splendid
+  network. Such a machine would come back again and again.
 
-* **Отбраковка машин по каналу молчала при нуле.** `probe()` возвращает 0.0
-  при тайм-ауте, а обе ветки сообщения проверяли `if link` и `elif link` — при
-  нуле ложны обе. В журнале: ssh готов за пять секунд, дальше пусто, через
-  полминуты «УНИЧТОЖЕН». Десять таких попыток подряд выглядели как «плохой
-  рынок»; я списал сперва на рынок, потом на собственную регрессию, обе
-  догадки мимо.
-* **Замер своего канала возвращал ноль, и порог оставался прежним.** Сперва
-  проба в 3 МБ не укладывалась в срок — то есть страховка от узкого канала
-  ломалась именно узким каналом. Потом Cloudflare отвечал 403 без заголовка
-  `User-Agent`. В обоих случаях всё выглядело работающим.
-* **Машина со сломанной картой проходила отбор.** `mark_bad` знал только про
-  канал, а карта, падающая с `CUDA unknown error`, имела прекрасную сеть.
-  Такая машина возвращалась бы снова и снова.
+The rule: any check has three outcomes -- good, bad, and **could not check**.
+The third must be loud and must never silently mean "good". Here it meant
+exactly that three times. From the other side, a fuse that is too tight also
+costs money: a five-minute ceiling per attempt rejected two good machines in a
+row, vast counting a container as started before ssh begins listening while
+`Connection refused` drags on for four and a half minutes. Four different ways
+of getting an unusable machine in one hour -- a narrow channel, a slow ssh, a
+dead card, and our own wrong threshold.
 
-Правило: у любой проверки три исхода — годно, негодно и **не смог проверить**.
-Третий обязан быть громким и не должен молча означать «годно». Здесь он
-трижды означал именно это.
+## The third witness: the PDF text layer
 
-Отдельно, обратной стороной: слишком жёсткий предохранитель тоже стоит денег.
-Потолок попытки в пять минут отбраковал две годные машины подряд — vast числит
-контейнер запущенным раньше, чем ssh начинает слушать, и `Connection refused`
-тянется по четыре с половиной минуты. За час набралось четыре разных способа
-получить негодную машину: узкий канал, долгий ssh, мёртвая карта и собственный
-неверный порог.
+The prescription to check numbers against the PDF's own text layer went out of
+`docs/ocr-notes.md` with the rest of the void material, but the technique is
+recorded here: the extraction code (`engines/pdf_layer.py`, 375 lines) is
+deleted, and the layer was the one witness that is **neither Mistral nor costs
+money**. What was non-trivial in it: reading two columns in the right order,
+the gutter band `BAND = 10.0`, `WIDE_FRAC = 0.49` for headings across columns,
+margins of 30/45 pt at a page width of ~506 pt, joining paragraphs across a
+page break, cutting illustrations out of an MRC scan.
 
-## Третий свидетель: текстовый слой PDF
+## A detection threshold is set for all classes at once
 
-Предписание сверять числа с собственным текстовым слоем PDF из
-`docs/ocr-notes.md` удалено вместе с остальным недействительным, но сам приём
-записан здесь: код извлечения (`engines/pdf_layer.py`, 375 строк) удалён, а
-слой был единственным свидетелем, который **не Mistral и не стоит денег**.
+A trap of somebody else's library, independent of the reference: given a
+dictionary of thresholds, `postprocess` takes 0.5 for the classes not listed --
+so a dictionary with one class silently worsens all the others. The threshold
+was set for **all 25 classes explicitly**.
 
-Что там было нетривиального: чтение двух колонок в правильном порядке, полоса
-межколонника `BAND = 10.0`, `WIDE_FRAC = 0.49` для заголовков поперёк колонок,
-поля 30/45 pt при ширине страницы ~506 pt, склейка абзацев через разрыв
-страницы, вырезание иллюстраций из MRC-скана.
+## Small things, expensive to find twice
 
-## Порог детекции задаётся всем классам сразу
+* **The filename limit is 255 BYTES, not characters.** A Cyrillic title of 120
+  characters is 240 bytes; with the extension tail, 262. "This fell over after
+  the passes had already been paid for."
+* **Reserved names.** `report.pdf` produced `report.md`, and the report was
+  written over the assembled book -- with a zero exit code.
+* **`splitext` bites the tail off a book.**
+  `Фейнмановские_лекции_по_физике._1` is a legal name, and `._1` leaves as an
+  extension.
+* **A measurement without a run name can be neither confirmed nor refuted**:
+  both sides get their own number and both are right.
+* **A date beside a number.** The main error of the previous plan edition fell
+  to one comparison: the book's build time against the commit's. A measurement
+  without a date says nothing about whether it applies to what is on disk.
+* **Edited `cli.py` -- then run `books`.** Checking the consequences of an edit
+  instead of the edit itself is exactly how the CLI was broken.
 
-Ловушка чужой библиотеки, от эталона не зависит: `postprocess` при словаре
-порогов берёт для незаданных классов 0.5, то есть словарь с одним классом
-молча ухудшает все остальные. Порог задавался **всем 25 классам явно**.
+## Rejected by measurement, on the renting side
 
-## Мелочи, дорогие к повторному поиску
+* **"Merge the passes into one remote job".** Reloading the model for the sake
+  of temperature is unnecessary -- it is a request parameter. The price of the
+  question is 246 s on Feynman, 19.0% of the chain, i.e. **2.5 cents per book**
+  at $0.363/hour. Less than one rejected machine costs ($0.09).
+* **"Keep the server alive between passes".** A gain of one and a half cents,
+  against the risk of repeating the vLLM orphan disaster.
+* **"The witness must re-ask about the same crops".** The markup of the passes
+  already matches byte for byte -- there is nothing to fix. (Confirmed again on
+  the clean slate: block boxes match byte for byte across all three passes.)
 
-* **Предел имени файла — 255 БАЙТ, а не знаков.** Кириллический заголовок в 120
-  знаков это 240 байт; с хвостом расширения — 262. «Падало это после того, как
-  проходы уже оплачены.»
-* **Зарезервированные имена.** `report.pdf` давал `report.md`, и отчёт писался
-  поверх собранной книги — при нулевом коде возврата.
-* **`splitext` откусывает у книги хвост.** `Фейнмановские_лекции_по_физике._1` —
-  законное имя, и `._1` уходит как расширение.
-* **Замер без имени прогона нельзя ни подтвердить, ни опровергнуть**: обе
-  стороны получают своё число и обе правы.
-* **Дата рядом с числом.** Главная ошибка прошлой редакции плана ловилась одним
-  сравнением: время сборки книги против времени коммита. Замер без даты ничего
-  не говорит о том, применён ли он к тому, что лежит на диске.
-* **Правил `cli.py` — запусти `books`.** Проверять следствия правки вместо самой
-  правки — как раз то, чем CLI и был сломан.
+## Transport: small things left alone deliberately
 
-## Отвергнуто замером по части аренды
+All of low severity, all about `remote/box.py`, which survived. Written down so
+as not to be searched for again, and not to be "fixed" when the decision was
+not to fix them.
 
-* **«Объединить проходы в одно удалённое задание».** Перезагружать модель ради
-  температуры не нужно — это параметр запроса. Цена вопроса — 246 с у Фейнмана,
-  19.0 % цепочки, то есть **2.5 цента на книгу** при $0.363/час. Меньше, чем
-  стоит одна отбракованная машина ($0.09).
-* **«Держать сервер живым между проходами».** Выигрыш полтора цента, риск —
-  повторение беды с сиротами vLLM.
-* **«Свидетель должен переспрашивать те же кропы».** Разметка проходов уже
-  совпадает побайтово — чинить нечего. (Подтверждено заново на чистом листе:
-  рамки блоков во всех трёх проходах совпадают побайтово.)
-
-## Транспорт: мелочи, оставленные сознательно
-
-Все низкой серьёзности, все про `remote/box.py`, который уцелел. Записаны,
-чтобы не искать заново и не «чинить» то, что решено не чинить.
-
-* Откат `except OSError: _SOCK_DIR = tempfile.gettempdir()` возвращает сокет в
-  общий `/tmp`, и вызвать откат может любой местный пользователь, положив
-  `/tmp/.booksmith-<uid>` обычным файлом. Хуже, чем было, при этом **не
-  становится**: до той правки сокет и так лежал в общем `/tmp`.
-* `os.makedirs(mode=0o700)` не меняет режим **существующего** каталога, и
-  симлинк на чужой каталог проходит молча. Сценарий «однажды запустили под
-  sudo» закрыт номером пользователя в имени; остаётся намеренный местный
-  противник.
-* `TMPDIR` длиннее ~87 знаков даёт `ControlPath too long` и rc=255 на каждом
-  ssh — отказ фатальный, отката на обычное соединение нет. Предел пути к
-  юникс-сокету 108 байт, худший реальный путь **47 байт**; комментарий в коде
-  говорил 42, потому что в счёте забыли пятизначный порт (поправлено).
-* Запасной `scp` в `push()` зовётся при любом ненулевом коде, включая 124, и
-  идёт без `timeout`. Практического веса нет: `ServerAlive*` убивают его за
-  ~60 с, а заливается 3.5 МБ.
-
-## Незакрытое в уцелевшем коде
-
-Оба дефекта живут в `remote/runner.py` сегодня; единственное их описание было
-в удалённом плане.
-
-* `Budget` заводится внутри цикла попыток, поэтому отбракованные по каналу
-  машины сдвигают срок прохода — **до +32 мин** (4 попытки × 480 с).
-* Путь `--reuse` зовёт `connect()` без `attempt_limit` — **до 35 минут**
-  ожидания на уже биллящейся машине, тогда как в ветке аренды на это отведено
-  480 с. Канал на этом пути не меряется вовсе.
+* The fallback `except OSError: _SOCK_DIR = tempfile.gettempdir()` returns the
+  socket to the shared `/tmp`, and any local user can trigger it by putting
+  `/tmp/.booksmith-<uid>` there as an ordinary file. It does **not get worse**
+  than it was, though: before that edit the socket lay in `/tmp` anyway.
+* `os.makedirs(mode=0o700)` does not change the mode of an **existing**
+  directory, and a symlink to somebody else's directory passes silently. The
+  "ran it under sudo once" scenario is closed by the user id in the name; a
+  deliberate local adversary remains.
+* A `TMPDIR` longer than ~87 characters gives `ControlPath too long` and rc=255
+  on every ssh -- fatal, with no fallback to an ordinary connection. The unix
+  socket path limit is 108 bytes and the worst real path is **47 bytes**; the
+  comment in the code said 42, having left the five-digit port out of the count
+  (fixed).
+* The fallback `scp` in `push()` is called on any non-zero code, 124 included,
+  and goes without a `timeout`. Of no practical weight: `ServerAlive*` kill it
+  in ~60 s, and 3.5 MB is what gets uploaded.

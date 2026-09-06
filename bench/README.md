@@ -1,91 +1,118 @@
-# bench/ — стенды
+# bench/ -- the benches
 
 ```
 bench/
-  annopage/       ЗОЛОТОЙ СТЕНД: 600 настоящих страниц, истина библиотекарей
-                  (AnnoPage, Zenodo 10.5281/zenodo.12788419, CC BY 4.0).
-                  Размечены ТОЛЬКО нетекстовые категории — 1232 артефакта и
-                  ни одного текстового блока; порядок чтения не размечен вовсе
-  annopage-lite/  те же 600 страниц, ужатых до 1 Мпикс: ровно то, что видит
-                  внутри себя dots.ocr, истина пересчитана тем же коэффициентом
-  hard/           выжимка обоих стендов: 130 страниц, где два артефакта
-                  одного ярлыка стоят бок о бок (124 из них настоящие)
-  hard36/         36 труднейших из них
-  real/           три PDF наших собственных сканов. Руками НЕ размечены —
-                  единственное, чего у стенда до сих пор нет
+  annopage/       THE GOLDEN BENCH: 600 real pages, truth by librarians
+                  (AnnoPage, Zenodo 10.5281/zenodo.12788419, CC BY 4.0). Only
+                  non-text categories are marked up -- 1232 artefacts and not
+                  one text block; reading order not marked up at all
+  annopage-lite/  the same 600 pages squeezed to 1 Mpixel: what dots.ocr sees
+                  inside itself, truth rescaled by the same factor
+  hard/           the squeeze of both benches: 130 pages where two artefacts of
+                  one label stand side by side (124 of them real)
+  hard36/         the 36 hardest of those
+  real/           three PDFs of our own scans. NOT marked up by hand -- the one
+                  thing the bench still lacks
+  expected/       acceptance snapshots: seven command reports, compared as text
+                  by `tests/test_acceptance.py`
   spravochnik/    \
-  slovar/          |  шесть синтетических книг с ТОЧНОЙ истиной, включая
-  matematika/      |  ЗНАКИ и сетку таблиц. Не версионируются: собираются
-  atlas/           |  одной командой побайтово теми же — зерно, профиль
-  katalog/         |  старения и sha256 генератора записаны в manifest.json
+  slovar/          |  six synthetic books with EXACT truth, characters and
+  matematika/      |  table grids included. Not versioned: one command rebuilds
+  atlas/           |  them byte for byte -- seed, aging profile and the sha256
+  katalog/         |  of the generator are written into manifest.json
   zhurnal/        /
 ```
 
-Каждый каталог книги устроен одинаково:
+Every book directory is built alike:
 
 ```
 bench/slovar/
-  slovar.pdf      сама книга
-  truth/          истина по страницам, меренная по чернилам; у текстового
-                  блока лежат его ЗНАКИ, у таблицы — строки, столбцы и текст
-                  каждой ячейки (истина артефактов — сбоку у страницы, по
-                  номеру блока)
-  detect/         вывод модели плюс полный слепок входа
-  check/          ЛИСТЫ С РАМКАМИ по модели на файл — то, на что надо
-                  смотреть глазами; не версионируется, рисуется books overlay
-  html/book.html  продукт первого уровня: то, что получится из книги
-  manifest.json   чем эта истина построена
+  slovar.pdf      the book itself
+  truth/          truth by page, measured by ink; a text block carries its
+                  CHARACTERS, a table its rows, columns and the text of every
+                  cell (artefact truth sits beside the page, by block number)
+  check.pdf       ONE sheet-with-boxes file -- what has to be looked at with
+                  eyes; not versioned, drawn by books overlay
+  detect/         the model's output plus the full input snapshot
+  html/book.html  the product of the first level: what the book turns into
+  manifest.json   what this truth was built with
 ```
 
-**Что версионируется, а что нет.** Правило записано в `.gitignore` и одно: в
-git едет то, чего не пересобрать бесплатно, — истина, `manifest.json`, слепок
-входа `detect/run.json` и вывод, за который заплачено на арендованной карте.
-Сами книги (472 МБ у annopage), рамки, листы с рамками и продукт сборки не
-едут: их отдаёт процессор по одной команде.
+`bench/annopage/` is the exception and the only one: there `check/` is a
+DIRECTORY with one file per detector -- `PP-DocLayoutV2.pdf`, `V3`, `plus-L`,
+`YOLOX-layout`, `docling-heron`, `docling-egret`, 496 to 498 MB each. Both are
+kept out of git by name: `bench/*/check/` for the directory, `bench/*/*.pdf`
+for the single sheet.
 
-**Приборов у стенда четыре, и у каждого своя батарея порчи.**
-`books score` — контуры и ярлыки; `books fitness` — годность по ЧЕРНИЛАМ, без
-истины; `books text` — знаки и ячейки таблиц; `tests/run.py --selfcheck` —
-сговоры между файлами. Непойманных порч в них должно быть ноль. Мерить
-одним прибором нельзя, и это оплачено: `books fitness` слияние соседних рамок
-по построению не штрафует, и оценка конвейера docling одними чернилами дала
-цену в семь объектов вместо ста тридцати двух.
+**What is versioned and what is not.** One rule, written in `.gitignore`: git
+carries what cannot be rebuilt for free -- truth, `manifest.json`, the input
+snapshot `detect/run.json`, and output paid for on a rented card. The books
+themselves (472 MB for annopage), the boxes, the sheets and the assembled
+product do not travel; the CPU makes them from one command.
 
-## Настоящие страницы, на которых ломался прежний разбор
+## Three instruments, and the input each of them is honest on
 
-Три PDF в `bench/real/` со сканами одного справочника по восстановлению станков: плотная
-двухколоночная вёрстка, таблицы **без единой линейки**, столбцы держатся на
-выравнивании пробелами, местами выцветший отпечаток.
+**The bench has three instruments**, each with its own corruption battery:
+`books score` -- contours and labels; `books fitness` -- fitness by INK, no
+truth needed; `books text` -- characters and table cells. (`tests/run.py
+--selfcheck` is a fourth battery but not a fourth instrument: it measures the
+conspiracies between files, not the bench.) Measuring with one alone is a
+mistake already paid for: `books fitness` by construction does not penalise the
+merging of neighbouring boxes, and judging the docling pipeline by ink alone
+priced it at seven objects instead of a hundred and thirty-two.
 
-| файл | что это |
+**"Zero uncaught" is a property of the INPUT, not of the battery.** `README.md`
+tabulates which battery is green where; the reasons are properties of these
+benches, measured 2026-09-06:
+
+| what the bench is | what the battery does |
 |---|---|
-| `tables20.pdf` | страницы 302..321 книги — те, на которых мерили таблицы |
-| `holdout20.pdf` | отложенная выборка, страницы в `holdout20.pages.json`: 4, 40, 143, 292, 393..400, 443..450; четырнадцать из двадцати без таблиц вовсе — для проверки на ложные срабатывания |
-| `test25.pdf` | двадцать пять страниц с начала книги |
+| the truth carries characters, `detect/pages` does not (`slovar` page 0003: 75 detected blocks, 0 with `content`, against 60 of 60 in the truth) | `books text` is zero only on `<book>/truth <book>/truth` -- 0 uncaught, 18-19 of 29 probes measured; against `detect/pages` it returns 1 with 2 to 5 uncaught, "answer shifted by a page" and "every tenth character dropped from the truth" having nothing to break |
+| annopage marks up non-text objects only | the same battery prints **uncaught 3** there, 20 of 29 probes unable to measure anything |
+| `slovar`, `matematika` and `zhurnal` print "solid dark columns 0 on 0 pages, scanned without a gutter shadow" | `books fitness --selfcheck` reds on exactly those three: the probe blows `GUTTER` to 0.0, squeezes it to 1.0 and demands the count fall below a base of zero. The other three books: 21 probes, 0 uncaught |
+| `models/doclayout.py` is no longer the code the snapshots were taken with (snapshot `c7506498`, tree `298a2d54`) | `books replay --selfcheck` returns 1 on all seven benches while uncaught losses are 0 on every one: 26 fingerprint values unverified, 4 keys absent from the start, 17 on annopage. Stale, not incomplete |
+| one page is not a book | `books score` is 0 uncaught on all six books and on annopage, 33 probes, and false-fails on a ONE-PAGE directory: 2 probes on a dense page (page shift, `TOUCH=1.01`), 10 on a sparse one |
 
-**Разборы удалены, и не по недосмотру.** Здесь лежали `mistral/` и `olmocr/` —
-вывод двух моделей, служивший «эталоном». Эталоном он не был: это второе
-чтение, и ошибки в нём документированы (стр. 311 «Pool Room Lathes», стр. 314
-`(1)`/`(2)` вместо `(±)`). Хуже того, метрика брала знаменатель из него, а
-значит не видела ничего, что обе системы пропустили разом. Файлы удалены,
-чтобы их не подняли снова в роли истины.
+**Truth against itself is the one input where reading has a known answer**,
+which is why the acceptance snapshot uses it. In four of those five the red is
+at least in part **"nothing to break" reported as "did not catch"** -- no probe
+carries a guard of its own applicability. The numbers are still worth reading;
+it is the guard that is missing.
 
-**Чем эти страницы ценны теперь.** Золотой стенд состоит из чужих сканов, а
-синтетический даёт точную истину, но не воспроизводит высокую печать
-пятидесятых по пожелтевшей бумаге — а именно
-на ней читаются `Laths` вместо `Lathes` и `mch` вместо `inch`. Отсюда эти
-страницы пойдут в золотой стенд, размеченный руками. Заведомо трудные, по
-прежним разборам: 304 (третий столбец нечитаем, модель достроила по образцу),
-313 (рамка поперёк межколонника), 317 (взят один столбец из трёх), 40
-(таблица с ярлыком `display_formula`), 4 (оглавление с точечными выносками).
+## The real pages the old pipeline broke on
+
+Three PDFs in `bench/real/`, scans of one machine-tool reconditioning handbook:
+dense two-column setting, tables **without a single rule**, columns held
+together by spaces, in places a faded impression.
+
+| file | what it is |
+|---|---|
+| `tables20.pdf` | pages 302..321 of the book -- the ones the tables were measured on |
+| `holdout20.pdf` | the held-out sample, pages listed in `holdout20.pages.json`: 4, 40, 143, 292, 393..400, 443..450; fourteen of the twenty have no tables at all, for false positives |
+| `test25.pdf` | twenty-five pages from the start of the book |
+
+**The parses were deleted, and not by oversight.** `mistral/` and `olmocr/`
+lay here -- two models' output serving as a "reference". It was not one: it is
+a second reading, its errors are documented (p. 311 "Pool Room Lathes", p. 314
+`(1)`/`(2)` instead of `(±)`), and the metric took its denominator from it, so
+it could not see anything both systems missed at once. Deleted so they cannot
+be raised as truth again.
+
+**What these pages are worth now.** The golden bench is somebody else's scans,
+and the synthetic one gives exact truth but no fifties letterpress on yellowed
+paper -- exactly where `Laths` is read for `Lathes` and `mch` for `inch`. So
+these pages go into a hand-marked golden bench. Known to be hard, from the old
+parses: 304 (third column unreadable, the model completed it from the pattern),
+313 (a box across the gutter), 317 (one column taken of three), 40 (a table
+labelled `display_formula`), 4 (a contents page with dot leaders).
 
 ---
 
-## Синтетический стенд: шесть книг
+## The synthetic bench: six books
 
-Не версионируется (от 10 до 62 МБ на книгу). Собирается заново одной командой,
-побайтово тем же — зерно, профиль старения, sha256 генератора и коммит
-записаны в `manifest.json`:
+Not versioned (10 to 62 MB per book), rebuilt by one command byte for byte the
+same -- seed, aging profile, generator sha256 and commit go into
+`manifest.json`:
 
 ```
 books synth   --book slovar --out bench/slovar
@@ -97,76 +124,76 @@ books overlay bench/slovar/slovar.pdf --truth bench/slovar/truth \
 books html    bench/slovar/detect --out bench/slovar/html
 ```
 
-| книга | лист | страниц | что проверяет |
+| book | sheet | pages | what it checks |
 |---|---|---|---|
-| `spravochnik` | 506×733 пт | 36 | таблицы всех размеров, развороты, повороты, чертежи |
-| `slovar` | 340×578 | 13 | узкие колонки прозы: слияние — свойство таблицы или соседства |
-| `matematika` | 468×662 | 12 | `display_formula` против `table`: матрицы, дроби, номера формул |
-| `atlas` | 720×506 | 11 | поле чертежа, основная надпись, спецификация внутри рисунка |
-| `katalog` | 506×733 | 11 | полоса без прозы, продолжение таблицы, сноска под таблицей |
-| `zhurnal` | 540×760 | 10 | врезка в рамке, подпись сбоку, аннотация, список литературы |
+| `spravochnik` | 506x733 pt | 36 | tables of every size, spreads, rotations, drawings |
+| `slovar` | 340x578 | 13 | narrow columns of prose: is merging a property of the table or of proximity |
+| `matematika` | 468x662 | 12 | `display_formula` against `table`: matrices, fractions, formula numbers |
+| `atlas` | 720x506 | 11 | the drawing field, the title block, a specification inside a drawing |
+| `katalog` | 506x733 | 11 | a strip with no prose, a table continuation, a footnote under a table |
+| `zhurnal` | 540x760 | 10 | a boxed insert, a side caption, an abstract, a reference list |
 
-`check.pdf` показывает **РАСХОЖДЕНИЯ**, а не всё подряд:
+`check.pdf` shows **DISCREPANCIES**, not everything: **thin grey, unlabelled**
+means truth and model agree, and there is nothing to look at; **thick red, "НЕ
+НАШЛА"** is in the truth with no pair in the model; **orange dashes,
+"ЛИШНЯЯ"** is in the model with no pair in the truth.
 
-* **тонкое серое, без подписи** — истина и модель об одном. Смотреть не на что,
-  и потому не подписано;
-* **красное толстое, «НЕ НАШЛА»** — есть в истине, у модели пары нет;
-* **оранжевый пунктир, «ЛИШНЯЯ»** — есть у модели, в истине пары нет.
+On a good page the sheet is almost blank; on a bad one you see exactly the
+trouble. The first edition drew both markups in full -- two hundred nearly
+coincident boxes, two labels over each -- and the sheet stopped being readable
+exactly where there was nothing to read. Nor were the dashes drawn: `dashes`
+was passed as a tuple where pymupdf wants a string, so it silently drew a solid
+line and the two markups were indistinguishable.
 
-На хорошей странице лист почти чист; на плохой видно ровно беду. Первая
-редакция рисовала обе разметки целиком — две сотни почти совпадающих рамок с
-двумя подписями над каждой, — и лист переставал читаться ровно там, где читать
-было нечего. Пунктир при этом не рисовался вовсе: `dashes` передавался
-кортежем, а pymupdf ждёт строку и молча рисовал сплошную, то есть разметки
-были неотличимы ничем.
+**Looking is mandatory, and that is paid for six times over.** Not once did the
+number look ill while the bench was lying: empty text boxes (`insert_textbox`
+draws nothing when the text does not fit and quietly returns a negative); the
+right half of a spread off the edge of the sheet (pixels in a field counted in
+points); a "drawing" made of forty-seven parallel lines; a formula box 83
+points wider than the formula; one box for a running head that the model
+correctly gives as two; a line as a truth block where only a paragraph is ever
+a block. Hence the three rules of the bench:
 
-**Смотреть обязательно, и это оплачено шесть раз.** Ни разу число не выглядело
-больным, когда врал стенд: пустые рамки текста (`insert_textbox` при
-непомещающемся тексте не рисует ничего и молча отдаёт отрицательное); правая
-половина разворота за краем листа (пиксели в поле, считающем пункты); «чертёж»
-из сорока семи параллельных линий; рамка формулы шире формулы на 83 пункта;
-одна рамка на колонтитул, который модель верно отдаёт двумя; строка как блок
-истины там, где блоком бывает только абзац. Отсюда три правила стенда:
+* truth boxes are **measured by ink** (`_measure`), not declared by a number;
+* an empty box **fails the build**, rather than handing the model an eternal
+  undeserved miss;
+* a box grows **only along solid ink** -- a gap means what follows is no longer
+  ours.
 
-* рамки истины **меряются по чернилам** (`_measure`), а не объявляются числом;
-* пустая рамка **роняет сборку**, а не даёт модели вечный незаслуженный промах;
-* рост рамки идёт **только по сплошным чернилам** — просвет означает, что
-  дальше уже не наше.
+### Aging profiles
 
-### Профили старения
-
-| профиль | что добавляет |
+| profile | what it adds |
 |---|---|
-| `clean` | ничего: чистая типографика |
-| `scan` | лёгкое размытие, зерно, тонировка, перекос 0.5°, JPEG 85 |
-| `old` | то же сильнее: перекос 1.2°, JPEG 68 — **по умолчанию** |
-| `ветхий` | + просвет с оборота и тёмный край скана, вдвое больше крапин, JPEG 52 |
+| `clean` | nothing: clean typography |
+| `scan` | light blur, grain, tint, 0.5 deg skew, JPEG 85 |
+| `old` | the same, stronger: 1.2 deg skew, JPEG 68 -- **the default** |
+| `decayed` | + show-through from the back and a dark scan edge, twice the specks, JPEG 52 |
 
-Профиль задаётся ручкой `SYNTH_AGING` и **не заводит отдельного каталога**:
-`SYNTH_AGING=ветхий books synth --book spravochnik --out bench/vetkhiy` собирает
-ту же книгу на ветхой бумаге, если нужно сравнить. Держать такую копию рядом
-постоянно незачем — она делается за минуту, а в каталоге путается с книгами.
+The profile is set by the knob `SYNTH_AGING` and **gets no directory of its
+own**: `SYNTH_AGING=decayed books synth --book spravochnik --out bench/decayed`
+builds the same book on decayed paper when there is something to compare.
+Keeping such a copy around is pointless -- a minute to make, and it gets
+confused with the books in the listing.
 
-Старение — не украшение: на ЧИСТОЙ странице рамки `table` нет вовсе, на
-состаренной она появляется вместе с конкурирующей `text` на том же
-прямоугольнике.
+Aging is not decoration: on a CLEAN page there is no `table` box at all, while
+on an aged one it appears together with a competing `text` box on the very same
+rectangle.
 
-**Перекос у `old` и `ветхий` НАМЕРЕННО одинаков.** Перекос — единственное в
-старении, что двигает рамки истины (аффинная матрица переносит их через
-`_xform_box`), и угол берётся из отдельного генератора, чтобы не зависеть от
-числа крапин. При равном перекосе рамки истины двух профилей совпадают
-побайтно на всех 36 страницах, и разницу в числе можно отнести к бумаге, а не
-к съехавшей истине. Прежняя редакция ставила «ветхому» 1.8°, обещая в этом
-же файле, что рамки не двигаются, — двигались все 382, до 28 пикселей.
+**The skew of `old` and `decayed` is DELIBERATELY identical.** Skew is the only
+part of aging that moves truth boxes (the affine matrix carries them through
+`_xform_box`), and its angle comes from a separate generator so as not to
+depend on the number of specks. At equal skew the two profiles' truth boxes
+match byte for byte on all 36 pages, so a difference in the number belongs to
+the paper and not to truth that slid. The previous edition gave the decayed
+profile 1.8 deg while promising in this same file that boxes do not move -- all
+382 moved, by up to 28 pixels.
 
-### Чего стенд НЕ даёт
+### What the bench does NOT give
 
-Высокой печати пятидесятых по пожелтевшей бумаге — той, на которой читается
-`Laths` вместо `Lathes`. Он про ГЕОМЕТРИЮ и ЯРЛЫКИ, не про чтение знаков.
-
-Цвета: `_age` переводит страницу в серое, поэтому порядок каналов на входе
-модели этим стендом не проверяется никак.
-
-Кривизны листа у корешка: она не выражается аффинным преобразованием, и рамки
-истины после неё пришлось бы считать приблизительно — а приблизительная
-истина хуже отсутствующей.
+Fifties letterpress on yellowed paper -- the kind where `Laths` is read for
+`Lathes`. This bench is about GEOMETRY and LABELS, not about reading
+characters. Colour, either: `_age` converts the page to grey, so the channel
+order at the model's input goes unchecked here in any way. Nor curvature of the
+sheet at the spine -- it is not expressible as an affine transform, truth boxes
+after it would have to be computed approximately, and approximate truth is
+worse than none.
