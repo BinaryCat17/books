@@ -1908,9 +1908,12 @@ def mutations():
         # The second reader of the contract is the book builder, and it used
         # to stand on trust: a private copy of its rule failed none of sixty
         # checks.
-        ("сборщик книги завёл СВОЮ копию правила порядка",
+        # The copy differs only by NOT folding case -- which is precisely the
+        # half the check is named for, and the half that stopped being
+        # exercised when the probe values were left in Russian.
+        ("the book builder keeps a copy of the order rule that ignores case",
          lambda: attrs(dhtml, _ours=lambda v: isinstance(v, str)
-                       and v.strip().startswith("наш")),
+                       and v.strip().startswith("ours")),
          [("test_html_order",
            "test_book_builder_reads_the_order_rule_through_the_one_contract")]),
 

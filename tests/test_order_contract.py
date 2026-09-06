@@ -1,21 +1,21 @@
-"""Договор о ПОРЯДКЕ ЧТЕНИЯ: слово «наш» в адаптере против сторожа метрики.
+"""The READING-ORDER contract: the word "ours" in an adapter against the guard.
 
-Договор такой. Адаптер кладёт в `meta` страницы поле «порядок чтения» и
-называет им, ЧЕЙ порядок он отдал. `metrics` по этому полю решает: сверять
-порядок с истиной или сказать НЕ СВЕРЯЕТСЯ. Решает он по одному признаку — по
-слову «наш» со строчной буквы в начале строки.
+The contract. An adapter puts a `reading order` field into a page's `meta` and
+names by it WHOSE order it gave. `metrics` decides by that field whether to
+compare the order with truth or to say NOT COMPARED, and it decides by one
+sign: the word "ours", lower case, at the start of the string.
 
-Договор нигде не записан целиком: половина его живёт в комментарии
-`docling_heron.py`, половина в docstring `metrics._model_has_rank`, а
-значений, которые обязаны опознаваться, СЕМЬ и они в трёх файлах. Разойдись
-они — метрика напечатает процент из ничего. Так уже было: на hard36 стояло
-«пар 211, согласовано 73%» там, где порядок не размечен ни на одной из 36
-страниц, и по этим процентам ранжировались детекторы.
+Nowhere is the contract written whole: half in a comment in `docling_heron.py`,
+half in the docstring of `metrics._model_has_rank`, and the values that must be
+recognised are SEVEN, in three files. Let them drift and the metric prints a
+percentage out of nothing. It has: on hard36 stood "pairs 211, agrees 73%"
+where order is marked on none of the 36 pages, and detectors were ranked by
+those percentages.
 
-Здесь закреплены ОБЕ стороны сразу: все значения, которые адаптеры реально
-кладут в страницу, прогоняются через самого сторожа и обязаны опознаться так,
-как задумано. Задуманное записано таблицей ниже — руками, отдельно от кода:
-таблица, выведенная из кода, согласилась бы с любой его порчей.
+BOTH SIDES ARE FIXED HERE at once: every value the adapters really put into a
+page is run through the guard itself and must be read as intended. The intent
+is written in the table below by hand, apart from the code: a table derived
+from the code would agree with any corruption of it.
 """
 import os
 import shutil
@@ -25,39 +25,38 @@ from booksmith import metrics
 from booksmith import order
 from booksmith.models import doclayout, docling_heron, yolox_layout
 
-# ЧЕЙ ПОРЯДОК ЗНАЧИТ КАЖДАЯ СТРОКА. «модель» — сверять с истиной можно,
-# «наш» — нельзя, потому что сверялась бы наша же нумерация.
+# WHOSE ORDER EACH LINE MEANS. "model" -- comparable with truth; "ours" -- not,
+# it would be comparing our own numbering.
 EXPECTED = {
-    # doclayout.py, PP-DocLayoutV2: указательная сеть даёт настоящий ранг.
+    # doclayout.py, PP-DocLayoutV2: the pointer network gives a real rank.
     "model_rank": "model",
-    # doclayout.py, PP-DocLayout_plus-L: ранга нет, `order` — позиция в
-    # НАШЕЙ сортировке. Без этой строки метрика печатала «согласовано»
-    # 29/36/41/44/46/44% по шести стендам вместо «НЕ СВЕРЯЕТСЯ».
+    # doclayout.py, PP-DocLayout_plus-L: no rank, `order` is the position in
+    # OUR sort. Without this line the metric printed "agrees"
+    # 29/36/41/44/46/44% over six benches instead of "NOT COMPARED".
     #
-    # Слова изменились вместе с делом. Прежде здесь стояло «наш, позиция в
-    # списке: модель ранга не даёт» — и позиция в списке была позицией после
-    # подавления дублей, то есть ПО УБЫВАНИЮ УВЕРЕННОСТИ (100.0% из 3354
-    # соседних пар на 200 страницах `bench/annopage`), а «сверху вниз» у неё
-    # около половины — монетка; точная цифра разошлась в копиях, оговорка в
-    # разделе 18 `docs/contour-notes.md`. Порядок, которого модель не дала,
-    # наш по определению,
-    # но объявлен он должен быть ПРАВИЛОМ, а не местом в списке.
+    # The words changed with the deed. Here stood "ours, position in the list:
+    # the model gives no rank", and that position was the position after
+    # duplicate suppression -- BY DESCENDING CONFIDENCE (100.0% of 3354
+    # neighbouring pairs on 200 pages of `bench/annopage`), while "top down"
+    # holds for about half of them, a coin toss; the exact figure diverged
+    # between copies, caveat in section 18 of `docs/contour-notes.md`. An order
+    # the model did not give is ours by definition, but it must be declared as
+    # a RULE, not as a place in a list.
 }
-# ПРАВИЛА СБОРКИ БЕРУТСЯ ИЗ `order.WORDS`, А НЕ НАБИРАЮТСЯ ЗДЕСЬ ВТОРОЙ РАЗ.
-# Прежде две их строки стояли в этой таблице литералами, и это был третий
-# экземпляр слов при двух пишущих адаптерах. Теперь источник один: разойдись
-# он с адаптером — упадёт `test_no_unknown_order_values`, а не человек это
-# заметит.
+# THE ASSEMBLY RULES COME FROM `order.WORDS`, THEY ARE NOT TYPED HERE AGAIN.
+# Two of them stood in this table as literals -- a third copy of the words for
+# two writing adapters. Now the source is one: drift from an adapter and
+# `test_no_unknown_order_values` falls, instead of a human noticing.
 #
-# Хвост «: модель ранга не даёт» дописывает `doclayout` — там правило звучит
-# при живой модели, которая ранга не дала, и сказать об этом надо в той же
-# строке. Обе формы обязаны читаться сторожем как НАШ порядок.
+# The tail ": the model gives no rank" is appended by `doclayout`, where the
+# rule is voiced by a live model that gave no rank and has to say so in the
+# same line. Both forms must read to the guard as OUR order.
 for _w in order.WORDS.values():
     EXPECTED[_w] = "ours"
     EXPECTED[_w + ": the model gives no rank"] = "ours"
-# Плюс правила вендорского конвейера: их два, они длинные и они ОБЯЗАНЫ быть
-# «нашими» — docling порядка не предсказывает ни с ручкой, ни без неё, а
-# reading_order_rb это 740 строк правил без единого веса.
+# Plus the vendor pipeline's rules: two of them, long, and both MUST be "ours".
+# docling predicts no order with the knob or without it, and reading_order_rb
+# is 740 lines of rules with not a single weight.
 for _mode, _rule in docling_heron._DoclingPipeline.ORDER_RULE.items():
     EXPECTED[_rule] = "ours"
 
@@ -67,7 +66,7 @@ ADAPTERS = (("models/doclayout.py", doclayout),
 
 
 def guard():
-    """Сторож метрики. Переименуют — падаем вслух, а не молча зеленеем."""
+    """The metric's guard. Renamed, we fall out loud instead of going green."""
     for name in ("_model_has_rank", "_has_order"):
         fn = getattr(metrics, name, None)
         if fn is not None:
@@ -82,7 +81,7 @@ def says_model_rank(value) -> bool:
 
 
 def test_adapters_declare_order_rule_at_all():
-    """У каждого адаптера значение есть. Пустой набор — не «всё в порядке»."""
+    """Every adapter has a value. An empty set is not "all is well"."""
     for rel, mod in ADAPTERS:
         vals = support.page_order_values(rel, mod)
         assert vals, (f"{rel}: ни одного значения «{support.ORDER_KEY}» в meta "
@@ -91,7 +90,7 @@ def test_adapters_declare_order_rule_at_all():
 
 
 def test_no_unknown_order_values():
-    """Новое значение обязано быть описано ЗДЕСЬ, а не появиться молча."""
+    """A new value must be described HERE, not appear silently."""
     seen = set()
     for rel, mod in ADAPTERS:
         seen |= support.page_order_values(rel, mod)
@@ -107,7 +106,7 @@ def test_no_unknown_order_values():
 
 
 def test_guard_reads_every_value_as_intended():
-    """Главная проверка: сторож опознаёт КАЖДОЕ значение так, как задумано."""
+    """The main check: the guard reads EVERY value as intended."""
     wrong = []
     for value, whose in sorted(EXPECTED.items()):
         got = "model" if says_model_rank(value) else "ours"
@@ -120,14 +119,12 @@ def test_guard_reads_every_value_as_intended():
 
 
 def test_guard_ignores_case():
-    """Сторож обязан снимать регистр, и это не косметика.
+    """The guard must strip case, and that is not cosmetics.
 
-    `doclayout.fingerprint()` пишет тот же смысл с ЗАГЛАВНОЙ («НАШ, позиция в
-    списке…»). Пока сторож сверял регистр, такая строка, попав в meta
-    страницы, читалась бы как РАНГ МОДЕЛИ — то есть метрика молча начала бы
-    сверять нашу же нумерацию с истиной и печатать проценты из ничего. Ровно
-    так на `bench/hard36` родилось «порядок чтения согласовано 73%» там, где
-    порядок не размечен ни на одной из 36 страниц.
+    `doclayout.fingerprint()` writes the same meaning in CAPITALS. While the
+    guard compared case, such a string in a page's meta would read as THE
+    MODEL'S RANK, and the metric would silently compare our own numbering with
+    truth -- the hard36 73% of the header.
     """
     from booksmith.models.base import ours_order
     for v in ("OURS_top_down_left_right", "Ours_top_down", "OURS by choice",
@@ -138,11 +135,11 @@ def test_guard_ignores_case():
 
 
 def test_our_order_values_start_with_lowercase_nash():
-    """Признак — слово «наш» в начале; в meta страницы пишем СО СТРОЧНОЙ.
+    """The sign is the word "ours" first; in page meta we write it LOWER CASE.
 
-    Регистр сторож снимает (см. `test_guard_ignores_case`), так что строчная
-    здесь — уговор о единообразии, а не условие работы. Условие одно: слово
-    «наш» обязано стоять ПЕРВЫМ.
+    Case is stripped by the guard (see `test_guard_ignores_case`), so lower
+    case here is an agreement on uniformity, not a condition of work. The
+    condition is one: the word "ours" must stand FIRST.
     """
     for value, whose in EXPECTED.items():
         if whose == "ours":
@@ -152,30 +149,27 @@ def test_our_order_values_start_with_lowercase_nash():
 
 
 def test_fingerprint_wording_stays_out_of_page_meta():
-    """ПРОВЕРКА ОСТАВЛЕНА ПУСТОЙ НАРОЧНО — её предмет исчез вместе с дефектом.
+    """LEFT EMPTY ON PURPOSE -- its subject vanished together with the defect.
 
-    Она стерегла вот что: в `doclayout.fingerprint()` тот же смысл записан с
-    ЗАГЛАВНОЙ («НАШ, позиция в списке…»), а сторож сверял регистр — и такая
-    строка, попади она в meta страницы, читалась бы как ранг модели.
-    Стерегла успешно: порча «адаптер написал «Наш» с заглавной» ловилась
-    именно ею.
+    It guarded the CAPITALS spelling of `doclayout.fingerprint()` against a
+    case-comparing guard, and guarded it well: the corruption "the adapter
+    wrote it capitalised" was caught here.
 
-    Регистр из сторожа снят (`models/base.ours_order`), и написание перестало
-    что-либо решать: проверка стала тождеством, которое не может провалиться
-    ни при какой порче — батарея это и показала, оставив её без единой
-    мутации. Держать зелёную проверку, ничего не проверяющую, хуже, чем не
-    держать никакой: она докладывает об исправности.
-
-    Что стережёт предмет теперь: `test_guard_ignores_case` (регистр снимается)
-    и `test_no_unknown_order_values` (новое написание не появляется молча).
+    Case was taken out of the guard (`models/base.ours_order`) and spelling
+    stopped deciding anything: the check became an identity that cannot fail
+    under any corruption -- the battery showed it by leaving it without a
+    single mutation. A green check that checks nothing is worse than none: it
+    reports soundness. The subject is now guarded by `test_guard_ignores_case`
+    (case is stripped) and `test_no_unknown_order_values` (no new spelling
+    appears silently).
     """
 
 
 def test_truth_side_has_three_answers_not_two():
-    """Сторона истины: «размечен», «не размечен», «не сказано» — три ответа.
+    """The truth side: "marked", "unmarked", "not said" -- three answers.
 
-    Умолчание `True` здесь и дало hard36 «согласовано 73%». Проверяем, что
-    молчащая истина не читается как размеченная.
+    The default `True` here is what gave hard36 its "agrees 73%". Checked: a
+    silent truth must not read as a marked one.
     """
     st = metrics._truth_order_state
     assert st({"meta": {"order_marked": True}}) == metrics.ORDER_MARKED
@@ -187,28 +181,26 @@ def test_truth_side_has_three_answers_not_two():
 
 
 # --------------------------------------------------------------------------
-# ВТОРАЯ СТОРОНА ТОГО ЖЕ ДОГОВОРА: не «чей порядок объявлен», а «тот ли это
-# порядок». Строка в meta может быть безупречной и при этом описывать не то,
-# чем рамки сложены, — и ровно так и было. У `PP-DocLayout_plus-L` ранга нет,
-# ветка сортировки при `has_order = False` отсутствовала вовсе, и рамки
-# уходили в книгу в порядке, в каком их отдал граф: ПО УБЫВАНИЮ УВЕРЕННОСТИ
-# (100.0% из 3354 соседних пар на 200 страницах; «сверху вниз» у них около
-# половины, монетка — точная цифра разошлась в копиях, см. раздел 18
-# `docs/contour-notes.md`). В meta при этом стояло честное «наш, позиция в
-# списке» — честное и
-# бесполезное: позиция в списке не правило, а случайность, и книга собиралась
-# ею.
+# THE SECOND SIDE OF THE SAME CONTRACT: not "whose order is declared" but "is
+# it that order". The meta line can be flawless and still describe something
+# other than what the boxes are laid by -- and so it was. `PP-DocLayout_plus-L`
+# has no rank, the sorting branch at `has_order = False` was missing entirely,
+# and the boxes went into the book in the order the graph gave them, by
+# descending confidence (the numbers are in the EXPECTED table above). Meta
+# meanwhile carried an honest "ours, position in the list" -- honest and
+# useless: a position in a list is an accident, not a rule, and the book was
+# built by it.
 #
-# Проверяется ПОВЕДЕНИЕМ, а не разбором дерева: разбор увидел бы `.sort(` и
-# согласился бы с любым ключом сортировки. Модель для этого не поднимается —
-# граф подставной, ONNX не читается, весов не надо.
+# Checked BY BEHAVIOUR, not by parsing the tree: parsing would see `.sort(` and
+# agree with any sort key. No model is raised for it -- the graph is a
+# stand-in, no ONNX is read, no weights are needed.
 
 def _fake_page(rows, labels):
-    """Страница адаптера на ПОДСТАВНОМ графе: 214 МБ весов не поднимаем.
+    """An adapter page on a STAND-IN graph: 214 MB of weights stay down.
 
-    `rows` — то, что отдаёт первый выход графа: класс, счёт, x0, y0, x1, y1 и
-    дальше по желанию ранг. Шесть колонок значат «ранга у модели нет» — ровно
-    сборка plus-L.
+    `rows` is what the graph's first output gives: class, score, x0, y0, x1, y1
+    and, if it likes, a rank. Six columns mean "the model has no rank" --
+    exactly the plus-L build.
     """
     import numpy as np
     import cv2
@@ -236,23 +228,23 @@ def _fake_page(rows, labels):
         shutil.rmtree(tmp, ignore_errors=True)
 
 
-# Рамки нарочно поданы В ПОРЯДКЕ УБЫВАНИЯ УВЕРЕННОСТИ и в этом же порядке
-# СТОЯТ НЕ СВЕРХУ ВНИЗ: если сортировки нет, порядок останется тот, в каком
-# граф их отдал, и обе стороны разойдутся молча.
-_ROWS_NO_RANK = [                      # класс, счёт, x0, y0, x1, y1
-    [0.0, 0.99, 400.0, 700.0, 700.0, 760.0],   # ниже всех, но увереннее всех
-    [0.0, 0.90, 100.0, 100.0, 300.0, 160.0],   # верх, левая колонка
-    [0.0, 0.80, 400.0, 100.0, 700.0, 160.0],   # верх, правая колонка
-    [0.0, 0.70, 100.0, 400.0, 300.0, 460.0],   # середина, левая
+# The boxes are fed IN DESCENDING CONFIDENCE on purpose, and in that order they
+# do NOT run top down: with no sorting they stay as the graph gave them, and
+# both sides drift silently.
+_ROWS_NO_RANK = [                      # class, score, x0, y0, x1, y1
+    [0.0, 0.99, 400.0, 700.0, 700.0, 760.0],   # lowest of all, surest of all
+    [0.0, 0.90, 100.0, 100.0, 300.0, 160.0],   # top, left column
+    [0.0, 0.80, 400.0, 100.0, 700.0, 160.0],   # top, right column
+    [0.0, 0.70, 100.0, 400.0, 300.0, 460.0],   # middle, left
 ]
 
 
 def test_no_rank_means_our_rule_not_the_order_of_the_graph():
-    """Ранга нет — рамки сложены НАШИМ объявленным правилом, а не как пришли.
+    """No rank -- the boxes are laid by OUR declared rule, not as they arrived.
 
-    Ожидаемое записано руками: сверху вниз, при равном верхе слева направо.
-    Порядок прихода (по убыванию уверенности) обязан быть НЕ ТЕМ — иначе
-    проверка не отличила бы правило от его отсутствия.
+    The expectation is written by hand: top down, and left to right on equal
+    tops. The arrival order (descending confidence) must be a different one, or
+    the check could not tell a rule from the absence of one.
     """
     page = _fake_page(_ROWS_NO_RANK, ["text"])
     got = [(b.box[1], b.box[0]) for b in page.blocks]
@@ -268,11 +260,11 @@ def test_no_rank_means_our_rule_not_the_order_of_the_graph():
 
 
 def test_no_rank_page_declares_the_rule_it_actually_used():
-    """Строка в meta называет ТО ЖЕ правило, которым рамки и сложены.
+    """The meta line names THE SAME rule the boxes were laid by.
 
-    Обе стороны здесь одна проверка нарочно: строка без порядка и порядок без
-    строки одинаково молчаливы. Прежде расходились именно они — «наш, позиция
-    в списке» при отсутствии всякой сортировки.
+    Both halves in one check on purpose: a line without an order and an order
+    without a line are equally silent. It was precisely those two that drifted
+    -- "ours, position in the list" with no sorting at all.
     """
     page = _fake_page(_ROWS_NO_RANK, ["text"])
     said = page.meta[support.ORDER_KEY]
@@ -285,10 +277,10 @@ def test_no_rank_page_declares_the_rule_it_actually_used():
 
 
 def test_model_rank_still_wins_over_our_rule():
-    """Ранг МОДЕЛИ по-прежнему главнее нашего правила — иначе мы решили за неё.
+    """The MODEL's rank still beats our rule -- else we decided for her.
 
-    Семь колонок значат, что ранг есть. Подан он ПОПЕРЁК геометрии: если наше
-    правило вытеснит модельное, порядок станет «сверху вниз», и это видно.
+    Seven columns mean there is a rank. It is fed ACROSS the geometry: if our
+    rule displaced the model's, the order would go top down, and that shows.
     """
     rows = [[0.0, 0.9, 100.0, 100.0, 300.0, 160.0, 3.0],
             [0.0, 0.9, 100.0, 400.0, 300.0, 460.0, 1.0],
@@ -303,29 +295,28 @@ def test_model_rank_still_wins_over_our_rule():
 
 
 # --------------------------------------------------------------------------
-# ЛИНЕЙКА, КОТОРОЙ СУДЯТ ПОРЯДОК СБОРКИ. `books score --selfcheck` печатает,
-# держится ли выбор между вариантами сборки на всей развёртке параметров
-# группировки. Нижним концом шкалы объявлен вариант «колонка за колонкой»:
-# «лишних прыжков в нём ноль ПО ПОСТРОЕНИЮ».
+# THE RULER THAT JUDGES ASSEMBLY ORDER. `books score --selfcheck` prints
+# whether the choice between assembly variants holds over the whole sweep of
+# grouping parameters, and the bottom of the scale is declared to be "column by
+# column": "extra jumps in it are zero BY CONSTRUCTION".
 #
-# Так вот, «по построению» верно только при тех параметрах, при которых
-# вариант и сложен. Пол складывался при УМОЛЧАНИИ, а мерился на всей
-# развёртке — и в точках «перекрытие x 0.8/0.9» давал 1.81 и 1.93 прыжка на
-# страницу против 1.69 и 1.73 у самой модели. Отсюда батарея печатала
-# «ВЫБИРАТЬ модель или правило сборки по этой величине НЕЛЬЗЯ» — приговор от
-# линейки прибора, а не от данных, и вопреки разделу 18 `contour-notes`.
-# Перевернулась ровно 1 пара из 6, и та единственная, где участвует пол.
+# True only at the parameters the variant was built at. The floor was built at
+# the DEFAULT and measured over the whole sweep -- at "x overlap 0.8/0.9" it
+# gave 1.81 and 1.93 jumps per page against 1.69 and 1.73 for the model itself.
+# Hence the battery printed "a model or an assembly rule may NOT be chosen by
+# this value": a verdict from the instrument's ruler, not from the data, and
+# against section 18 of `contour-notes`. Exactly 1 pair of 6 flipped, the one
+# the floor is in.
 
 def _pages_where_grouping_matters():
-    """Две колонки, каждая с ГУЛЯЮЩИМ краем набора: строки идут через одну со
-    сдвигом вправо, и пересечение соседей по вертикали — 0.75 ширины рамки.
+    """Two columns with a RAGGED type edge: every other row shifted right, so
+    neighbours overlap vertically by 0.75 of the box width.
 
-    Число 0.75 выбрано не наугад: при перекрытии до 0.7 колонка держится
-    целой, при 0.8 и 0.9 распадается надвое. Ровно этим развёртка и опасна —
-    группировка меняется под ногами, и вариант, СЛОЖЕННЫЙ при одних
-    параметрах, померенный при других перестаёт быть собой. На ровной сетке,
-    где колонки не распадаются ни при каком перекрытии, проверка мерила бы
-    воздух, и вторая половина (`..._would_not_be_a_floor`) это стережёт.
+    0.75 is not arbitrary: up to 0.7 the column holds together, at 0.8 and 0.9
+    it falls in two. That is what makes the sweep dangerous -- grouping shifts
+    underfoot, and a variant BUILT at one set of parameters stops being itself
+    when measured at another. On an even grid the check would measure air, and
+    `..._would_not_be_a_floor` guards against that.
     """
     pages = {}
     for i in range(3):
@@ -341,11 +332,11 @@ def _pages_where_grouping_matters():
 
 
 def test_floor_variant_is_a_floor_at_every_point_of_the_sweep():
-    """Пол обязан давать НОЛЬ лишних прыжков в КАЖДОЙ точке развёртки.
+    """The floor must give ZERO extra jumps at EVERY point of the sweep.
 
-    Иначе он не пол, а просто ещё один вариант, и приговор «выбирать по этой
-    величине нельзя» рождается из того, что вариант сложен по одной линейке,
-    а померен другой.
+    Otherwise it is not a floor but one more variant, and the verdict "this
+    value may not be chosen by" is born of a variant built by one ruler and
+    measured by another.
     """
     M = _pages_where_grouping_matters()
     build = metrics._order_variants(M)["column_by_column"]
@@ -364,13 +355,13 @@ def test_floor_variant_is_a_floor_at_every_point_of_the_sweep():
 
 
 def test_floor_built_at_defaults_would_not_be_a_floor():
-    """Та же величина у пола, сложенного ПО-СТАРОМУ, обязана быть НЕ нулём.
+    """The same value for a floor built THE OLD WAY must NOT be zero.
 
-    Без этой половины предыдущая проверка зелена и на данных, где параметры
-    ничего не решают, — то есть меряет воздух.
+    Without this half the check above is green on data where the parameters
+    decide nothing -- that is, it measures air.
     """
     M = _pages_where_grouping_matters()
-    fixed = metrics._by_columns(M)          # сложен один раз, при умолчании
+    fixed = metrics._by_columns(M)          # built once, at the defaults
     seen = [metrics.column_jumps(fixed, **p)["excess_jumps"]
             for p in metrics._sweep_points(metrics.COLUMN_SWEEP, False)]
     assert any(seen), (
@@ -379,10 +370,10 @@ def test_floor_built_at_defaults_would_not_be_a_floor():
 
 
 def test_ranking_rebuilds_the_variants_it_measures():
-    """Приговор об устойчивости считается по ПЕРЕСОБРАННЫМ вариантам.
+    """The stability verdict is counted on REBUILT variants.
 
-    Сторож смотрит не на слова, а на то, что сборщику передали точку: если
-    его позвали без параметров, пересборки нет.
+    The guard looks not at words but at whether the builder was handed a point:
+    call it without parameters and there is no rebuilding.
     """
     M = _pages_where_grouping_matters()
     seen = []

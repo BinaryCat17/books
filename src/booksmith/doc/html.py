@@ -600,8 +600,8 @@ def _order_src(page) -> str:
     Three states, never confused: NO field — the snapshot is silent (all nine
     bench directories predate it); `null` — the adapter said "don't know"; a
     string — it named the source. The "model rank" default for a missing field
-    lives in `metrics._has_order` and is NOT repeated here: passing the unknown
-    off as the model's is the substitution being fixed.
+    lives in `metrics._model_has_rank` and is NOT repeated here: passing the
+    unknown off as the model's is the substitution being fixed.
     """
     m = page.meta or {}
     if "reading_order" not in m:

@@ -1,24 +1,34 @@
-"""Сборщик книги и договор о порядке чтения.
+"""The book builder and the reading-order contract.
 
-Проверка узкая и заведена по замеру: у договора про поле `порядок чтения` ДВА
-читателя — сторож метрики и сборщик книги, — и стерёгся только первый.
-Скептик показал это порчей: вернул в `doc/html._ours` собственную, разошедшуюся
-копию правила (без снятия регистра), и все шестьдесят проверок остались
-зелёными. То есть половина договора держалась на честном слове.
-
-Цена расхождения известна и уплачена соседним прибором: на `bench/hard36`
-метрика печатала «порядок чтения согласовано 73%» там, где порядок не размечен
-ни на одной из 36 страниц. Число из ничего рождается именно так — двумя
-копиями одного сговора.
+The `reading order` field has TWO readers -- the metric's guard and the book
+builder -- and only the first was watched: a skeptic put a drifted copy of the
+rule (no case folding) back into `doc/html._ours` and all sixty checks stayed
+green. The cost is known from next door: on `bench/hard36` the metric printed
+"reading order agrees 73%" where order is marked on none of the 36 pages. A
+number out of nothing is born of two copies of one contract.
 """
 from booksmith.doc import html as H
 from booksmith.models import base as B
 
 
 def test_book_builder_reads_the_order_rule_through_the_one_contract():
-    """`doc/html` обязан звать `models.base.ours_order`, а не свою копию."""
-    for v in ("наш, сверху вниз", "Наш, полосами", "НАШ, позиция в списке",
-              "  наш  ", "model_rank", "", None, 0, "порядок порождения"):
+    """`doc/html` must call `models.base.ours_order`, not a copy of its own.
+
+    THE PROBE SET MUST CONTAIN BOTH ANSWERS, and that is asserted rather than
+    assumed. After the marker word moved from `наш` to `ours` these values were
+    left behind, and every one of the nine then returned False from BOTH sides:
+    the check compared False with False nine times and would have passed a
+    broken copy whole. It was caught while translating the prose around it, not
+    by the check itself and not by the battery -- the mutation that guards it
+    plants a `наш` copy and so kept working by accident.
+    """
+    probes = ("ours_top_down_left_right", "OURS, in bands", "  ours  ",
+              "Ours_by_choice", "model_rank", "", None, 0, "generation_order")
+    answers = {B.ours_order(v) for v in probes}
+    assert answers == {True, False}, (
+        "the probe set no longer contains both answers: comparing two "
+        "functions that both say False proves nothing")
+    for v in probes:
         assert H._ours(v) == B.ours_order(v), (
             f"{v!r}: сборщик книги и контракт адаптера разошлись — "
             f"сборщик {H._ours(v)}, контракт {B.ours_order(v)}. Это та самая "
@@ -26,25 +36,25 @@ def test_book_builder_reads_the_order_rule_through_the_one_contract():
 
 
 def test_anchor_is_page_scoped():
-    """Якорь ПОСТРАНИЧНЫЙ: `block_id` считается заново на каждой странице.
+    """The anchor is PER PAGE: `block_id` restarts on every page.
 
-    Сквозной `b17` на книге в пятьсот страниц дал бы пятьсот одинаковых
-    якорей, и замена второго уровня попала бы не туда.
+    A book-wide `b17` over five hundred pages would give five hundred identical
+    anchors, and a second-level swap would land in the wrong place.
     """
     assert H.anchor_of(42, 17) == "p0042-b17"
     assert H.anchor_of(0, 0) == "p0000-b0"
     assert H.anchor_of(1, 17) != H.anchor_of(2, 17)
 
 
-# --- вырезка: сговор сборки книги с рамкой модели ---------------------------
+# --- crops: the builder's contract with the model's box ---------------------
 #
-# Проверки вырезки живут здесь, а не в своём файле, потому что сговор один:
-# `doc/html` режет `doc/crop`-ом по рамке модели и печатает его величины в
-# подпись блока. Каждая ниже закрывает беду, воспроизведённую на `bench/atlas`.
+# One contract, one file: `doc/html` cuts with `doc/crop` by the model's box
+# and prints its numbers into the caption. Each check below closes a trouble
+# reproduced on `bench/atlas`.
 
 def _sheet():
-    """Пустой лист 720x506 пунктов в памяти. Без bench: проверка обязана идти
-    в любом дереве, а не только там, где стенд уже нарезан."""
+    """An empty 720x506 pt sheet in memory. No bench: this must run in any
+    tree, not only where the bench is cut."""
     import pymupdf
     doc = pymupdf.open()
     doc.new_page(width=720, height=506)
@@ -52,28 +62,26 @@ def _sheet():
 
 
 def test_clipping_is_measured_with_a_tolerance_not_exactly():
-    """«Срезано листом» на резкости, не дающей двоично точного множителя.
+    """The "clipped by the sheet" flag at a dpi with no binary-exact scale.
 
-    pymupdf держит координаты одинарной точностью и прогоняет их через float32
-    ещё раз при пересечении. Замер на `bench/atlas`: при `PAGE_DPI` = 144
-    множитель 72/144 = 0.5 точен и срезанных 0 из 28, при 150 — 28 из 28, и в
-    книгу к 26 вырезкам из 26 дописывалось «рамка вышла за лист». Расхождение
-    при этом до 1.7e-05 пункта, то есть беды нет вовсе.
+    pymupdf holds coordinates in single precision and runs them through float32
+    again when intersecting. On `bench/atlas` at `PAGE_DPI` = 144 the scale
+    72/144 = 0.5 is exact and 0 of 28 were clipped; at 150, 28 of 28, and 26
+    crops of 26 got "the box left the sheet" over a disagreement of 1.7e-05 pt.
 
-    И ОБРАТНОЕ, без чего проверка ничего не стоит: настоящий срез обязан
-    остаться видимым. Метрика, которая не умеет сработать, не доказана.
+    AND THE REVERSE: a real clip must stay visible. A metric that cannot fire
+    is not proven.
     """
     import os
     import tempfile
     from booksmith.doc import crop
     doc = _sheet()
-    dpi = 150.0                       # 72/150 = 0.48 — двоично НЕ точно
-    # Рамка В ПИКСЕЛЯХ, и числа взяты не круглые НАРОЧНО: при 100 и 300
-    # пикселях пункты выходят целыми, точное сравнение расхождения не даёт, и
-    # проверка была бы зелена на неисправном коде. 113 пикселей дают
-    # 54.239999999999995 пункта — вот на таких она и падала.
+    dpi = 150.0                       # 72/150 = 0.48 -- NOT binary-exact
+    # The box is IN PIXELS, and not round on purpose: at 100 and 300 px the
+    # points come out whole and the check would be green on broken code. 113 px
+    # gives 54.239999999999995 pt -- what it used to fail on.
     inside_px = [113, 74, 1332, 803]
-    out_px = [113, 74, int((720 + 20) / 0.48), 803]      # вылезла на 20 пунктов
+    out_px = [113, 74, int((720 + 20) / 0.48), 803]      # 20 pt off the sheet
     with tempfile.TemporaryDirectory() as tmp:
         dst = os.path.join(tmp, "b.png")
         inside = crop.cut(doc, 0, inside_px, dpi, dst)
@@ -87,10 +95,11 @@ def test_clipping_is_measured_with_a_tolerance_not_exactly():
 
 
 def test_degenerate_and_inverted_boxes_are_named_by_their_own_trouble():
-    """Вырожденная и перевёрнутая рамка — не «мимо листа».
+    """A degenerate or an inverted box is not "off the sheet".
 
-    Обе давали пустое пересечение и получали чужой диагноз «не пересекается с
-    листом» при рамке посреди бумаги; читающий шёл искать съехавшие координаты.
+    Both gave an empty intersection and got the wrong diagnosis -- "does not
+    meet the sheet" -- for a box in the middle of the paper, sending the reader
+    after shifted coordinates.
     """
     import os
     import tempfile
@@ -107,7 +116,7 @@ def test_degenerate_and_inverted_boxes_are_named_by_their_own_trouble():
                     f"рамка {box} названа не своей бедой: {str(e)[:90]!r}")
             else:
                 raise AssertionError(f"рамка {box} вырезана молча")
-        # А настоящая «мимо листа» обязана остаться собой.
+        # And a real "off the sheet" must stay itself.
         try:
             crop.cut(doc, 0, [5000.0, 5000.0, 5100.0, 5100.0], 144.0, dst)
         except ValueError as e:
@@ -117,12 +126,12 @@ def test_degenerate_and_inverted_boxes_are_named_by_their_own_trouble():
 
 
 def test_negative_margin_is_refused_out_loud():
-    """Отрицательное `CROP_MARGIN` РЕЖЕТ рамку модели, а не даёт поля.
+    """A negative `CROP_MARGIN` CUTS the model's box instead of giving margin.
 
-    Замер до починки: `CROP_MARGIN=-0.1` на рамке (96, 96, 192, 144) пунктов
-    отдавал вырезку (105.6, 100.8, 182.4, 139.2) — десятая доля съедена с
-    каждой стороны, — и обе величины среза стояли False. Правка рамки модели
-    запрещена правилом проекта, поэтому падение, а не тихий зажим в ноль.
+    Before the fix: `CROP_MARGIN=-0.1` on the box (96, 96, 192, 144) pt
+    returned (105.6, 100.8, 182.4, 139.2) -- a tenth eaten off each side --
+    with both clip flags False. Editing the model's box is forbidden, hence a
+    failure and not a silent clamp to zero.
     """
     import os
     from booksmith.doc import crop
@@ -142,41 +151,40 @@ def test_negative_margin_is_refused_out_loud():
 
 
 def test_native_dpi_divides_by_the_placement_not_by_the_sheet():
-    """Собственная резкость считается по ШИРИНЕ РАЗМЕЩЕНИЯ картинки.
+    """Native sharpness is counted from the image's PLACEMENT width.
 
-    Скан разворота ШИРЕ листа: `books prepare` режет его пополам и кладёт обе
-    половины через `show_pdf_page`, так что растр в 2867 px лежит на 688 пт при
-    листе в 278 пт. Деление на лист завышало решётку ровно во столько раз, во
-    сколько растр шире, — до 2.47 раза на четырёх книгах из шести. Сверено с
-    заголовком самого djvu (`djvudump`): у трёх книг из трёх формат объявляет
-    300 / 600 / 300 dpi, и новая формула совпадает с ним, а старая — нет.
-
-    Правка была не покрыта ничем: в `tests/` про `native_dpi` не было ни слова.
+    A spread scan is WIDER than the sheet: `books prepare` halves it and lays
+    both halves with `show_pdf_page`, so a 2867 px raster sits on 688 pt while
+    the sheet is 278 pt. Dividing by the sheet overstated the grid by the
+    factor the raster is wider -- up to 2.47x on four books of six. `djvudump`
+    declares 300 / 600 / 300 dpi on three books of three; the new formula
+    agrees, the old one does not. `native_dpi` did not appear in `tests/` at
+    all.
     """
     import pymupdf
     from booksmith.doc import crop
 
-    # Лист 200x100 пт, растр 1000 px лежит на 400 пт — вдвое шире листа.
+    # Sheet 200x100 pt, a 1000 px raster laid on 400 pt -- twice the sheet.
     doc = pymupdf.open()
     page = doc.new_page(width=200, height=100)
     src = pymupdf.open()
     sp = src.new_page(width=400, height=100)
     sp.insert_text((10, 50), "x")
-    pix = sp.get_pixmap(dpi=180)          # 1000 px на 400 пт = 180 dpi
+    pix = sp.get_pixmap(dpi=180)          # 1000 px over 400 pt = 180 dpi
     img = pymupdf.open("png", pix.tobytes("png"))
     page.insert_image(pymupdf.Rect(0, 0, 400, 100), stream=img.convert_to_pdf()
                       if False else pix.tobytes("png"))
     got = crop.native_dpi(page)
     doc.close(); src.close(); img.close()
     assert got is not None, "растр на весь лист, а резкость не определилась"
-    # По размещению: 1000 px / 400 пт = 180 dpi. По ЛИСТУ вышло бы 360.
+    # By placement: 1000 px / 400 pt = 180 dpi. By the SHEET it would be 360.
     assert abs(got - 180.0) < 1.0, (
         f"резкость {got:.1f} — считана по ширине ЛИСТА, а не размещения; "
         f"деление на лист даёт 360 и завышает вдвое")
 
 
 def test_native_dpi_says_nothing_when_there_is_nothing_to_say():
-    """Вектор и марка в углу — `None`, а не число наугад."""
+    """Vector art and a corner stamp give `None`, not a guessed number."""
     import pymupdf
     from booksmith.doc import crop
 
@@ -185,7 +193,7 @@ def test_native_dpi_says_nothing_when_there_is_nothing_to_say():
     page.insert_text((10, 50), "только текст")
     assert crop.native_dpi(page) is None, "вектор объявил решётку"
 
-    # Марка в углу: подробная, но занимает пятую часть ширины.
+    # A corner stamp: detailed, but a fifth of the width.
     small = pymupdf.open()
     sp = small.new_page(width=40, height=20)
     sp.insert_text((2, 15), "m")
@@ -199,25 +207,24 @@ def test_native_dpi_says_nothing_when_there_is_nothing_to_say():
 
 
 def test_crop_dpi_counts_what_will_actually_be_cut():
-    """Резкость считается по ПЕРЕСЕЧЕНИЮ рамки с листом, а не по рамке.
+    """Sharpness counts the box's INTERSECTION with the sheet, not the box.
 
-    `crop.cut` режет пересечение — рамка модели вправе вылезти за бумагу. Считая
-    зажим под окно модели по ПОЛНОЙ рамке, мы прижимали бы резкость под размер,
-    которого на листе нет: рамка, вылезшая вдвое, получала 83.7 dpi вместо
-    118.4, то есть окно модели не добиралось. На стенде таких рамок 28 из
-    33 640 и вылеты не больше 4.8 пикселя — настоящими данными это не поймано,
-    но два числа обязаны считаться по одному прямоугольнику.
+    `crop.cut` cuts the intersection -- the model's box may hang off the paper.
+    By the FULL box, one hanging over by half got 83.7 dpi instead of 118.4, so
+    the model's window was never filled. On the bench such boxes are 28 of
+    33 640 and hang over by at most 4.8 px -- real data never caught it, but
+    the two numbers must be counted on one rectangle.
     """
     from booksmith.read.run import crop_dpi_for
     W = (112896, 1003520)
     sheet = (0.0, 0.0, 1012.0, 1466.0)
-    out = (0, 0, 2024, 1466)                   # вдвое шире листа
+    out = (0, 0, 2024, 1466)                   # twice the sheet wide
     without, _ = crop_dpi_for(out, 144.0, 601.0, W)
     with_sheet, why = crop_dpi_for(out, 144.0, 601.0, W, sheet=sheet)
     assert with_sheet > without + 1, (
         f"по листу {with_sheet:.1f}, по полной рамке {without:.1f} — резкость "
         f"считается по тому, чего на бумаге нет")
-    # А та же рамка ЦЕЛИКОМ на листе не должна меняться от появления листа.
+    # The same box wholly ON the sheet must not change when a sheet appears.
     inside = (0, 0, 540, 700)
     a, _ = crop_dpi_for(inside, 144.0, 601.0, W)
     b, _ = crop_dpi_for(inside, 144.0, 601.0, W, sheet=sheet)
@@ -225,64 +232,60 @@ def test_crop_dpi_counts_what_will_actually_be_cut():
 
 
 def test_crop_dpi_never_comes_from_the_environment_silently():
-    """Пустой `CROP_DPI` не значит «как в ЭТОМ процессе», и говорит откуда.
+    """An empty `CROP_DPI` is not "as in THIS process", and it names its home.
 
-    Умолчание менялось дважды, и оба раза замером. Сперва оно было «`PAGE_DPI`
-    текущего процесса» — детекция `bench/atlas` при `PAGE_DPI=150` и сборка
-    при умолчании печатали «вырезок 26 при 144 dpi», хотя координаты
-    пересчитывались из 150. Потом стало «как у детекции», и это тоже оказалось
-    мало: на настоящем скане в 200 dpi резать при 144 значит выбросить 48%
-    чернил, которые в файле есть (замер в `crop.params`).
-
-    Сегодня умолчание — СОБСТВЕННАЯ резкость скана, а стережёт эта проверка
-    то, что стерегла всегда: величина обязана называть свой источник, и
-    молчаливое окружение источником быть не смеет.
+    The default moved twice, by measurement. It was "`PAGE_DPI` of the current
+    process": detection of `bench/atlas` at `PAGE_DPI=150` and a build at the
+    default printed "26 crops at 144 dpi" while coordinates came from 150. Then
+    "same as detection", also too little -- on a real 200 dpi scan, cutting at
+    144 throws away 48% of the ink in the file (measured in `crop.params`).
+    Today it is the scan's OWN sharpness; the guard is unchanged: a number must
+    name its source, and a silent environment may not be one.
     """
     from booksmith.doc import crop
-    # своя резкость известна — она и берётся, детекция ни при чём
+    # own sharpness known -- it is taken, detection is irrelevant
     p = crop.params(150.0, page_native=300.0)
     assert p["dpi"] == 300.0 and p["dpi_source"] == "native_scan_dpi", p
-    # своей нет — детекция, и об этом сказано словами
+    # none of its own -- detection, and that is said in words
     p2 = crop.params(150.0)
     assert p2["dpi"] == 150.0 and "как у детекции" in p2["dpi_source"], p2
-    # нет ни того ни другого — окружение, и это НАЗВАНО угаданным
+    # neither -- the environment, and it is NAMED as a guess
     assert crop.params()["dpi_source"] == "PAGE_DPI текущего процесса", (
         "резкость угадана по окружению, и об этом не сказано ни слова")
 
 
 def test_crop_dpi_takes_the_ink_that_exists_and_invents_none():
-    """Резкость вырезки — правило, а не число: сколько есть, но не больше окна.
+    """Crop sharpness is a rule: all there is, but no more than the window.
 
-    Ни одна из трёх величин не наша: резкость приходит от скана, границы от
-    модели (`Reader.pixels`), размер рамки от детектора. Вверх выше своей
-    решётки не поднимаемся НИКОГДА — это выдумывало бы точки и звало их
-    чтением.
+    None of the three is ours: sharpness from the scan, bounds from the model
+    (`Reader.pixels`), box size from the detector. Above our own grid we NEVER
+    go -- that would invent dots and call them reading.
     """
     from booksmith.read.run import crop_dpi_for
     W = (112896, 1003520)
-    # блок мельче нижней границы: остаёмся на своей решётке и говорим об этом
+    # block below the lower bound: stay on our grid and say so
     d, why = crop_dpi_for((0, 0, 273, 47), 144.0, 144.0, W)
     assert d == 144.0 and "below_model_min" == why, (d, why)
-    # тот же блок в книге из djvu (текстовый слой 601 dpi) — берём всё
+    # the same block in a djvu book (601 dpi text layer) -- take it all
     d, why = crop_dpi_for((0, 0, 273, 47), 144.0, 601.0, W)
     assert d == 601.0 and why == "native_scan_dpi", (d, why)
-    # крупная таблица там же вышла бы за верхнюю границу — ужимаем ровно к ней
+    # a big table there would pass the upper bound -- squeeze to exactly it
     d, why = crop_dpi_for((0, 0, 540, 700), 144.0, 601.0, W)
     px = (540 / 144 * d) * (700 / 144 * d)
     assert abs(px - W[1]) < 1 and why == "downscaled_to_model_max", (d, why, px)
-    # границ модель не объявила — режем своей резкостью и ничего не правим
+    # the model declared no bounds -- cut at our sharpness and fix nothing
     d, why = crop_dpi_for((0, 0, 540, 700), 144.0, 601.0, None)
     assert d == 601.0 and why == "native_scan_dpi_no_model_bounds", (d, why)
 
 
 def test_nesting_survives_blocks_without_a_model_rank():
-    """`Block.order = None` контракт разрешает ПРЯМО — сборка не смеет падать.
+    """`Block.order = None` is allowed OUTRIGHT -- the build may not fall.
 
-    Ранга не даёт ни один адаптер из трёх (yolox и оба docling), а у
-    четвёртого он пуст ровно у того, что первый уровень вырезает картинками
-    (100% у `image`, `figure_title`, `table` — см. `models/base.Block`). Пара
-    «ранг есть / ранга нет» на одном прямоугольнике роняла ВСЮ книгу:
-    `TypeError: '>=' not supported between instances of 'NoneType' and 'int'`.
+    Three adapters of four give no rank (yolox and both docling), and in the
+    fourth it is empty for exactly what the first level cuts out as pictures
+    (100% of `image`, `figure_title`, `table`). A "rank / no rank" pair on one
+    rectangle brought the WHOLE book down: `TypeError: '>=' not supported
+    between instances of 'NoneType' and 'int'`.
     """
     from booksmith.models.base import Block
     box = (0.0, 0.0, 100.0, 100.0)
@@ -294,7 +297,7 @@ def test_nesting_survives_blocks_without_a_model_rank():
         assert len(inner) == 1, (
             f"ранги {o1!r}/{o2!r}: вложенность посчитана как {inner}, а рамки "
             f"совпадают — одна обязана уйти внутрь другой")
-    # Ранг решает, КТО внешний, и решает он ЕЁ порядком, а не нашим id.
+    # Rank decides WHO is outer, and by HER order, not by our id.
     arts = [Block(block_id=1, box=box, label="table", order=9),
             Block(block_id=2, box=box, label="image", order=1)]
     assert H._nesting(arts) == {1: 2}, (
@@ -302,13 +305,13 @@ def test_nesting_survives_blocks_without_a_model_rank():
 
 
 def test_the_anchor_rule_has_exactly_one_home():
-    """Имя блока собирает `doc/html.anchor_of`, и никто больше.
+    """The block name is built by `doc/html.anchor_of` and by nobody else.
 
-    Своих копий этого правила было ДВЕ — в `doc/feed` и в `doc/apply`, — и
-    разошлись бы они молча: feed.json звал бы куски одними именами, книга и
-    blocks.json другими, а `books apply` отвечал бы «якоря нет в книге» на
-    каждый блок чтения. Проверяем тождеством объекта, а не совпадением строк:
-    совпадение строк держится ровно до первой правки одной из копий.
+    TWO private copies existed, in `doc/feed` and `doc/apply`, and they would
+    have drifted silently: feed.json calling fragments by one set of names, the
+    book and blocks.json by another, `books apply` answering "no such anchor in
+    the book" for every read block. Checked by object identity: equal strings
+    hold only until the first edit to one copy.
     """
     from booksmith.doc import apply as ap
     from booksmith.doc import feed
@@ -317,13 +320,13 @@ def test_the_anchor_rule_has_exactly_one_home():
 
 
 def test_three_kinds_of_bad_sheet_get_three_different_marks():
-    """Лист-отказ бывает ТРЁХ видов, и путать их нельзя.
+    """A refusing sheet comes in THREE kinds, and they may not be confused.
 
-    Прежде пометки было две, и третий вид печатался чужой: `blank` значил
-    «блоки есть, текста среди них нет», поэтому лист с одной колонцифрой
-    (`footer`, разряд «служебное») получал красное «вся полоса ушла в
-    картинки» при `data-image-share="0.00"` — элемент противоречил сам
-    себе. Замер: `bench/atlas` стр. 0.
+    There were two, and the third printed somebody else's mark: `blank` meant
+    "blocks exist, no text among them", so a sheet with a single page number
+    (`footer`, furniture) got the red "the whole page went to pictures" at
+    `data-image-share="0.00"` -- an element contradicting itself. Measured:
+    `bench/atlas` p. 0.
     """
     import json
     import os
@@ -386,31 +389,28 @@ def test_three_kinds_of_bad_sheet_get_three_different_marks():
     assert 'data-empty' in marks["2"], marks["2"]
     assert marks["3"].strip().endswith('"'), (
         f"здоровый лист получил пометку отказа: {marks['3']!r}")
-    # И у каждой пометки своя надпись — иначе разведены они только на словах.
+    # Each mark has wording of its own -- else they differ only in name.
     for word in ("вся полоса ушла в картинки", "модель не нашла на листе ничего",
                  "на листе только служебное"):
         assert word in book, f"надписи «{word}» в книге нет"
 
 
 def test_the_book_is_alone_at_the_root_and_carries_itself():
-    """В корне сборки РОВНО ОДИН файл, и он не ссылается наружу.
+    """EXACTLY ONE file at the root of a build, and it points nowhere outside.
 
-    ДВА ОБЕЩАНИЯ, И ОБА ПРОВЕРЯЮТСЯ ЗДЕСЬ.
+    The layout: the book is opened by double click, and a root holding four
+    json files and a two-megabyte js beside it leaves the reader guessing which
+    one to open. The kitchen moves into `assets/`.
 
-    Первое — раскладка. Книгу открывают двойным щелчком из проводника, и
-    корень, где рядом с ней лежат четыре json и двухмегабайтный js, заставляет
-    читателя гадать, что из этого открыть. Кухня уезжает в `assets/`.
+    Self-sufficiency is paid for: at `HTML_MATH=local` MathJax sat in a
+    neighbouring file, and the book opened over a network path
+    (`\\\\wsl.localhost\\...` from Windows) showed formulas as RAW LaTeX --
+    Chromium silently refuses a local script from a UNC path, the console is
+    empty, and the book looks built. Images would go the same way. Hence the
+    defaults `HTML_MATH=inline`, `HTML_IMAGES=inline`.
 
-    Второе — самодостаточность, и она оплачена. При `HTML_MATH=local` MathJax
-    лежал соседним файлом, и книга, открытая по сетевому пути
-    (`\\\\wsl.localhost\\...` из Windows), показывала формулы СЫРЫМ LaTeX:
-    Chromium молча не грузит локальный скрипт с UNC-пути, консоль пуста, а
-    книга выглядит собранной. То же ждало бы картинки. Поэтому умолчание —
-    вшивать: `HTML_MATH=inline`, `HTML_IMAGES=inline`.
-
-    Вырезки при этом остаются файлами в `assets/blocks` ВСЕГДА: они нужны
-    правкам, замерам и второму уровню, и второй экземпляр внутри книги их не
-    отменяет.
+    Crops stay files in `assets/blocks` ALWAYS: edits, measurements and the
+    second level read them.
     """
     import json
     import os
@@ -455,10 +455,10 @@ def test_the_book_is_alone_at_the_root_and_carries_itself():
 
         with open(os.path.join(out, "book.html"), encoding="utf-8") as f:
             s = f.read()
-        # Ищем то, что книга ГРУЗИТ, а не любую ссылку: `src=` у картинок и
-        # скриптов плюс таблицы стилей. Обычный `<a href="https://…">` не
-        # ловим — их два, оба внутри диалога «О программе» самого MathJax,
-        # и на чтение книги без сети они не влияют никак.
+        # What the book LOADS, not any link: `src=` on images and scripts plus
+        # stylesheets. A plain `<a href="https://…">` is not caught -- there
+        # are two, both in MathJax's "About" dialog, and neither affects
+        # offline reading.
         loads = [u for u in re.findall(r'\ssrc="([^"]+)"', s)
                   if not u.startswith("data:")]
         loads += re.findall(r'<link[^>]+href="([^"]+)"', s)
@@ -473,21 +473,18 @@ def test_the_book_is_alone_at_the_root_and_carries_itself():
 
 
 def test_the_builder_recognises_its_own_directory():
-    """Признак «каталог собран нами» знает СБОРЩИК, а не вызывающий.
+    """The "this directory is ours" mark belongs to the BUILDER, not callers.
 
-    ЧЕМ ЭТО ОПЛАЧЕНО. Сторож «чужое не затираем» в `cli.py` искал `run.json`
-    в КОРНЕ каталога. Слепок переехал в `assets/`, и сторож стал отказывать
-    каталогу, сделанному этой же командой минуту назад, — причём отказывать
-    ЛОЖЬЮ: «это, скорее всего, книга прежнего конвейера», которых в проекте
-    не осталось ни одной. Под тот же отказ попадал и совет, который печатает
-    сама сборка: «книга пересобирается без него — `books html
-    <книга>/assets/source`».
+    The "do not overwrite what is not ours" guard in `cli.py` looked for
+    `run.json` at the ROOT. The snapshot moved into `assets/`, and the guard
+    began refusing a directory this very command had made a minute earlier --
+    with a LIE: "this is probably a book of the previous pipeline", of which
+    none are left. Under the same refusal fell the advice the build itself
+    prints: "the book rebuilds without it -- `books html
+    <book>/assets/source`".
 
-    Признак живёт рядом с тем, кто слепок ПИШЕТ. Набранная в другом файле
-    строка разошлась бы молча — так и вышло.
-
-    Старая раскладка признаётся своей ТОЖЕ: книги, собранные до переезда,
-    наши, и объявлять их чужими неверно.
+    The mark lives next to whoever WRITES the snapshot; a string typed in
+    another file drifts silently, and did. The old layout counts as ours TOO.
     """
     import os
     import tempfile
@@ -509,20 +506,19 @@ def test_the_builder_recognises_its_own_directory():
 
 
 def test_the_book_carries_blocks_in_the_order_it_walked_them():
-    """Порядок книги СВЕРЯЕТСЯ со списком блоков, а не подразумевается.
+    """The book's order is CHECKED against the block list, not assumed.
 
-    ДЫРА, КОТОРУЮ ЭТО ЗАКРЫВАЕТ. Сборщик обходит `page.blocks` как есть, и
-    книга наследует их порядок — ранг модели либо наше правило. Проверялось
-    это НИЧЕМ: скептик перевернул обход одной строкой (`reversed`), и полная
-    батарея осталась зелёной — 201 проверка, 0 провалов. Книга читалась бы
-    задом наперёд. Все три прибора мерят СТРАНИЦЫ детекции, а не собранный
-    документ, и потому молчат по построению.
+    The builder walks `page.blocks` as they come and the book inherits their
+    order -- the model's rank or our rule. Nothing checked that: a skeptic
+    reversed the walk with one word (`reversed`) and the battery stayed green,
+    201 checks, 0 failures. The book would read backwards, and all three
+    instruments measure DETECTION pages, not the built document.
 
-    СТОРОЖ ЛЕГКО СДЕЛАТЬ ТАВТОЛОГИЧНЫМ, и первая редакция такой и была:
-    ожидание копилось внутри того же цикла, который оно стережёт, — перевернёшь
-    обход, перевернётся и ожидание. Три порчи (reversed, сдвиг на один, потеря
-    последнего) не поймались ни одна. Поэтому здесь проверяется не только то,
-    что сторож есть, но и что ожидание выводится из `page.blocks` НЕЗАВИСИМО.
+    SUCH A GUARD IS EASY TO MAKE TAUTOLOGICAL, and the first draft was: the
+    expectation accumulated inside the loop it guards -- reverse the walk and
+    the expectation reverses with it. Three corruptions (reversed, off by one,
+    last one dropped) were caught by none. Hence the second half: the
+    expectation is derived from `page.blocks` INDEPENDENTLY.
     """
     import ast
     import json
@@ -545,8 +541,8 @@ def test_the_book_carries_blocks_in_the_order_it_walked_them():
 
         det = os.path.join(tmp, "detect")
         os.makedirs(os.path.join(det, "pages"))
-        # Порядок НЕсимметричный: при перевороте он обязан не совпасть сам с
-        # собой. На двух блоках переворот заметен, на одном — нет.
+        # ASYMMETRIC on purpose: reversed, the order must not match itself. On
+        # two blocks a reversal shows, on one it does not.
         pg = Page(index=0, width=1000, height=1400, dpi=144.0, blocks=[
             Block(block_id=0, box=(50.0, 50.0, 950.0, 300.0), label="text",
                   score=0.9, order=0, content="первый"),
@@ -573,9 +569,9 @@ def test_the_book_carries_blocks_in_the_order_it_walked_them():
             f"книга сложена не в порядке блоков: {swap.anchors(book)} против "
             f"{wanted}. Порядок книги — это порядок чтения")
 
-    # ОЖИДАНИЕ НЕ СМЕЕТ ВЫВОДИТЬСЯ ИЗ ОБХОДА. Разбором исходника: исполнением
-    # тавтологию не поймать — сторож, выведенный из обхода, на здоровом коде
-    # ведёт себя ровно так же, как честный.
+    # THE EXPECTATION MAY NOT BE DERIVED FROM THE WALK, and only the source can
+    # say so: a tautological guard behaves on healthy code exactly like an
+    # honest one.
     t = support.tree("doc/html.py")
     fn = next(n for n in ast.walk(t)
               if isinstance(n, ast.FunctionDef) and n.name == "build")
@@ -592,11 +588,11 @@ def test_the_book_carries_blocks_in_the_order_it_walked_them():
             f") — сторож стал тавтологичным: перевернёшь обход, перевернётся "
             f"и ожидание. Так уже было, и три порчи не поймались ни одна")
 
-    # И САМ СТОРОЖ ОБЯЗАН БЫТЬ НА МЕСТЕ. Проверка выше сравнивает порядок
-    # своими руками, поэтому снятие сторожа ИЗ СБОРЩИКА она не заметит:
-    # книга-то соберётся верно. А сторож нужен не ей, а настоящему прогону —
-    # там сравнивать некому. Проверено порчей: `if вышло != ждём` -> `if
-    # False` не роняет ни одной проверки.
+    # AND THE GUARD MUST BE IN PLACE. The check above compares the order
+    # itself, so it would not notice the guard leaving THE BUILDER -- the book
+    # still builds correctly. The guard is for a real run, where nobody
+    # compares. Proved by corruption: `if got != expected` -> `if False` fails
+    # no check.
     check_count = [n for n in ast.walk(fn)
               if isinstance(n, ast.Compare)
               and isinstance(n.left, ast.Name) and n.left.id == "got"

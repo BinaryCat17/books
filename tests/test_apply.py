@@ -1,16 +1,16 @@
-"""Замена блока в готовой КНИГЕ: файлы, журнал, откат.
+"""Swapping a block in a finished BOOK: files, journal, undo.
 
-`test_swap.py` стережёт чистые строки; здесь начинаются файлы, и вместе с
-ними — единственное, ради чего вся двухуровневая схема затевалась: «замену
-можно проверить, откатить и переделать другой моделью, не трогая книгу».
+`test_swap.py` guards pure strings; here the files begin, and with them the one
+thing the whole two-level scheme was started for: "a swap can be checked,
+undone and redone by another model without touching the book".
 
-Обещание держится ровно на трёх вещах, и каждая тут проверена:
-  * снятое СОХРАНЕНО, иначе откатывать нечем;
-  * стопка, а не последнее значение: две замены подряд откатываются по одной,
-    иначе среднее состояние пропадает молча;
-  * после отката книга совпадает с исходной ПОБАЙТОВО — «почти совпадает»
-    здесь ничего не значит, потому что разницу в один символ на пятистах
-    страницах не увидит никто.
+The promise stands on three things, each checked here:
+  * what was taken out is KEPT, else there is nothing to undo with;
+  * a stack, not a last value: two swaps in a row undo one at a time, else the
+    middle state vanishes silently;
+  * after an undo the book matches the original BYTE FOR BYTE -- "almost
+    matches" means nothing when one character in five hundred pages is
+    invisible to everybody.
 """
 import json
 import os
@@ -47,11 +47,10 @@ def test_put_then_undo_restores_the_book_byte_for_byte():
 
 
 def test_stack_unwinds_in_reverse_order():
-    """Две замены подряд — две ступени отката, а не одна.
+    """Two swaps in a row -- two undo steps, not one.
 
-    Так и работает второй уровень: модель ответила, ответ не понравился,
-    переделали другой моделью. Плоское поле «что было» потеряло бы среднее
-    состояние молча.
+    That is how the second level works: the model answered, the answer was no
+    good, another model redid it.
     """
     with tempfile.TemporaryDirectory() as tmp:
         book(tmp)
@@ -74,18 +73,17 @@ def test_neighbour_is_untouched():
 
 
 def test_fragment_with_marks_is_refused_by_the_fragment_check():
-    """Метка внутри вставляемого куска — призрачный якорь.
+    """A mark inside the inserted fragment is a ghost anchor.
 
-    Беда вылезла бы не здесь, а на СЛЕДУЮЩЕЙ замене, сообщением «открывающих
-    2» про чужой блок, когда книга уже наполовину переразмечена.
+    The trouble would surface not here but on the NEXT swap, as "opening marks
+    2" about another block, with the book already half re-marked.
 
-    Сторожей на это ДВА, и проверка нарочно требует ПЕРВОГО. Второй — сверка
-    набора якорей после замены — поймал бы тот же кусок, и потому подмена
-    первого сторожа заглушкой проходила батарею незамеченной: проверка
-    краснела от чужой заслуги. Ловить надо в источнике, до того как книга
-    вообще прочитана: только там видно, что дело в КУСКЕ, а не в том, что
-    «замена изменила набор якорей», — разбираться со вторым сообщением
-    пришлось бы дольше.
+    There are TWO guards for it and the check demands the FIRST. The second --
+    comparing the anchor set after the swap -- catches the same fragment, so
+    replacing the first with a stub passed the battery unnoticed: the check
+    went red by another's merit. It must be caught at the source, before the
+    book is read at all: only there is it visible that the FRAGMENT is at
+    fault.
     """
     with tempfile.TemporaryDirectory() as tmp:
         book(tmp)
@@ -100,7 +98,7 @@ def test_fragment_with_marks_is_refused_by_the_fragment_check():
 
 
 def test_empty_fragment_is_refused():
-    """Пустая замена стирает блок, и по виду это «модель промолчала»."""
+    """An empty swap erases the block and looks like "the model kept quiet"."""
     with tempfile.TemporaryDirectory() as tmp:
         book(tmp)
         for empty in ("", "   \n"):
@@ -125,7 +123,7 @@ def test_unknown_kind_is_refused():
 
 
 def test_undo_without_a_swap_is_loud_and_distinct():
-    """«Не заменяли» и «откат не удался» — разные беды, и разные сообщения."""
+    """Never swapped and undo failed are different troubles, and say so."""
     with tempfile.TemporaryDirectory() as tmp:
         book(tmp)
         try:
@@ -137,10 +135,10 @@ def test_undo_without_a_swap_is_loud_and_distinct():
 
 
 def test_edit_outside_the_journal_blocks_undo():
-    """Книгу правили руками — слепой откат затёр бы эту правку.
+    """The book was edited by hand -- a blind undo would erase that edit.
 
-    «Откат» звучит безопасно, и именно поэтому проверка нужна: без неё
-    команда молча уничтожает чужую работу.
+    "Undo" sounds safe, which is exactly why the check is needed: without it
+    the command silently destroys somebody else's work.
     """
     with tempfile.TemporaryDirectory() as tmp:
         p = book(tmp)
@@ -177,12 +175,12 @@ def test_status_tells_three_zeroes_apart():
             "«замен нет» и «книга пуста» напечатаны одинаково — это разные нули")
 
 def test_unterminated_mark_is_caught_by_the_anchor_guard():
-    """Незакрытая метка проходит проверку КУСКА и ловится сверкой ЯКОРЕЙ.
+    """An unterminated mark passes the FRAGMENT check and is caught by ANCHORS.
 
-    Второй сторож существует ровно ради этого случая: полных меток в куске
-    нет, `_check_fragment` его пропускает, а `swap.anchors` находит
-    закрывающий `-->` дальше по книге и рождает якорь-мусор. Проверка требует
-    ИМЕННО второго сторожа — иначе, сними его, она бы краснела от первого.
+    The second guard exists for this case alone: the fragment holds no complete
+    mark, `_check_fragment` lets it through, and `swap.anchors` finds a closing
+    `-->` further down the book and gives birth to a rubbish anchor. The check
+    demands THAT guard -- take it away and it would go red by the first one.
     """
     with tempfile.TemporaryDirectory() as tmp:
         book(tmp)
@@ -198,18 +196,19 @@ def test_unterminated_mark_is_caught_by_the_anchor_guard():
 
 
 def test_unclosed_comment_is_caught_by_its_own_guard():
-    """Незавершённый комментарий съедает закрывающую метку блока.
+    """An unclosed comment eats the block's closing mark.
 
-    ПЯТЫЙ сторож, и заведён он потому, что четыре прежних пропускали эту беду
-    все до одного: меток блоков в куске нет, кусок не пуст, вид объявлен, а
-    набор якорей НЕ МЕНЯЕТСЯ — `swap.anchors` ищет `<!--bs:`, и голый `<!--`
-    ему не якорь. Замер до починки на книге из 26 блоков: команда отвечала
-    «поставлено 154, снято 175, якорей 26», а по ВИДИМОЙ разметке (после того
-    как браузер съест комментарии) выходило div открыто 0 -> 1, закрыто
-    0 -> 0, figure 26 -> 25 — остаток книги внутри незакрытого div.
+    The FIFTH guard, raised because the four before it let this through, every
+    one: the fragment carries no block marks, is not empty, its kind is
+    declared, and the anchor set does NOT change -- `swap.anchors` looks for
+    `<!--bs:`, and a bare `<!--` is no anchor to it. Measured before the fix on
+    a book of 26 blocks: the command answered "placed 154, taken 175, anchors
+    26", while by the VISIBLE markup (once the browser has eaten the comments)
+    div went open 0 -> 1, closed 0 -> 0, figure 26 -> 25 -- the rest of the
+    book inside an unclosed div.
 
-    Проверка требует ИМЕННО этого сторожа: сверка якорей здесь молчит по
-    построению, и красноты от чужой заслуги тут быть не может.
+    The check demands THIS guard: the anchor comparison is silent here by
+    construction.
     """
     with tempfile.TemporaryDirectory() as tmp:
         book(tmp)
@@ -225,10 +224,10 @@ def test_unclosed_comment_is_caught_by_its_own_guard():
 
 
 def test_a_closed_comment_is_not_refused():
-    """Сторож обязан уметь и НЕ срабатывать: закрытый комментарий законен.
+    """A guard must be able NOT to fire as well: a closed comment is lawful.
 
-    Без этой половины проверка зелена от запрета всего подряд, а второй
-    уровень вправе вернуть разметку с комментарием внутри.
+    Without this half the check is green from forbidding everything, and the
+    second level may lawfully return markup with a comment inside.
     """
     with tempfile.TemporaryDirectory() as tmp:
         book(tmp)
@@ -236,19 +235,19 @@ def test_a_closed_comment_is_not_refused():
                log=lambda *_: None)
         h = open(os.path.join(tmp, "book.html"), encoding="utf-8").read()
         assert "<!-- строка итогов -->" in h, "законный комментарий не доехал"
-        # И экранированные виды не получают ложного отказа: `render` для
-        # `text`/`latex`/`otsl` превращает `<` в `&lt;`, комментария там нет.
+        # And escaped kinds get no false refusal: `render` for `text`/`latex`/
+        # `otsl` turns `<` into `&lt;`, so there is no comment there.
         ap.put(tmp, B, "итог <!-- это текст, а не комментарий", kind="text",
                log=lambda *_: None)
 
 
 def test_a_broken_journal_is_not_an_empty_journal():
-    """Нечитаемый журнал обязан остановить работу, а не притвориться пустым.
+    """An unreadable journal must stop the work, not pretend to be empty.
 
-    Соблазн вернуть `{"замены": {}}` стоил бы всей книги: следующая же замена
-    записала бы поверх огрызка одну свою запись, и стопка отката ВСЕХ прежних
-    замен исчезла бы молча. Проверяем и то, что огрызок остался на диске
-    нетронутым: чинить его будут руками.
+    The temptation to return `{"swaps": {}}` would cost the whole book: the
+    next swap would write its one record over the stump and the undo stack of
+    ALL previous swaps would vanish silently. Also checked: the stump is left
+    on disk untouched -- it will be repaired by hand.
     """
     with tempfile.TemporaryDirectory() as tmp:
         book(tmp)
@@ -256,7 +255,7 @@ def test_a_broken_journal_is_not_an_empty_journal():
         p = os.path.join(tmp, ap.JOURNAL)
         whole = open(p, encoding="utf-8").read()
         with open(p, "w", encoding="utf-8") as f:
-            f.write(whole[:len(whole) // 2])          # обрыв записи
+            f.write(whole[:len(whole) // 2])          # a broken write
         stump = open(p, encoding="utf-8").read()
         try:
             ap.put(tmp, B, "<table>вторая</table>", log=lambda *_: None)
@@ -272,12 +271,12 @@ def test_a_broken_journal_is_not_an_empty_journal():
 
 
 def test_journal_is_written_atomically():
-    """Обрыв записи журнала не смеет стирать стопку отката всей книги.
+    """A broken journal write may not erase the undo stack of the whole book.
 
-    `open(p, "w")` обрезает старый файл ПЕРВЫМ делом, и всё, что случится
-    дальше, оставляет на его месте огрызок. Замер на журнале в три замены
-    (2101 байт): прежним способом на диске оставалось 1076 байт, не читаемых
-    как json; нынешним журнал цел, а огрызок уходит в `swaps.json.tmp`.
+    `open(p, "w")` truncates the old file FIRST, and whatever happens next
+    leaves a stump in its place. Measured on a journal of three swaps (2101
+    bytes): the old way left 1076 bytes on disk, unreadable as json; the
+    present one leaves the journal whole and the stump in `swaps.json.tmp`.
     """
     import json as _json
 
@@ -314,16 +313,15 @@ def test_journal_is_written_atomically():
 
 
 def _bulk_stand(tmp, blocks=6):
-    """Книга на N блоков и каталог чтения к ней."""
+    """A book of N blocks and a reading directory for it."""
     with open(os.path.join(tmp, "book.html"), "w", encoding="utf-8") as f:
         f.write("<!doctype html><html><body>\n" + "\n".join(
             swap.wrap(f"p0000-b{i}",
                       f'<figure id="p0000-b{i}">картинка</figure>')
             for i in range(blocks)) + "\n</body></html>\n")
-    # Наблюдённое сбоку лежит в КУХНЕ (`assets/`), а не рядом с книгой: в
-    # корне каталога сборки один файл, и он самодостаточен. Путь спрашиваем у
-    # самого модуля, а не набираем строкой, — иначе фикстура разойдётся со
-    # сборщиком молча, и проверка станет зелёной ни на чём.
+    # What is observed on the side lies in the KITCHEN (`assets/`): the root of
+    # a build holds one file. The path is asked of the module rather than typed
+    # as a string -- else the fixture drifts from the builder silently.
     os.makedirs(os.path.join(tmp, ap.ASSETS), exist_ok=True)
     with open(os.path.join(tmp, ap.ASSETS, "blocks.json"), "w",
               encoding="utf-8") as f:
@@ -338,18 +336,17 @@ def _bulk_stand(tmp, blocks=6):
 
 
 def test_bulk_reads_the_book_once_not_once_per_block():
-    """Пакетная замена читает книгу ОДИН раз, а не на каждый блок.
+    """A bulk swap reads the book ONCE, not once per block.
 
-    Чем оплачено: `from_read` звал `put` на каждую замену, а тот перечитывал
-    книгу целиком и дважды разбирал в ней ВСЕ якоря; `block_role` вдобавок
-    перечитывал `blocks.json` на каждый блок. Замер на «Технологии
-    огнеупоров» (2.3 МБ, 6156 блоков, 412 замен): 363 секунды против 5 после
-    починки, несколько гигабайт чтения. Тела книг при этом совпали побайтово,
-    журнал тоже — 412 якорей с теми же хэшами, — значит ускорение ничего не
-    изменило по существу.
+    What it cost: `from_read` called `put` per swap, and `put` re-read the
+    whole book and parsed ALL its anchors twice; `block_role` re-read
+    `blocks.json` per block. Measured on "Refractory technology" (2.3 MB, 6156
+    blocks, 412 swaps): 363 seconds against 5 after the fix, several gigabytes
+    of reading. The bodies matched byte for byte afterwards, and the journal
+    too -- 412 anchors with the same hashes.
 
-    Считаются ОТКРЫТИЯ ФАЙЛОВ, а не время: время меряет машину, а открытия —
-    устройство. Умеет провалиться: верните `put` внутрь цикла.
+    FILE OPENINGS are counted, not time: time measures the machine, openings
+    the design. It can fail: put `put` back inside the loop.
     """
     import builtins
 
@@ -385,10 +382,10 @@ def test_bulk_reads_the_book_once_not_once_per_block():
 
 
 def test_bulk_and_single_put_agree_block_for_block():
-    """Пакетная и одиночная замена дают ОДНУ И ТУ ЖЕ книгу.
+    """The bulk swap and the single one give ONE AND THE SAME book.
 
-    Ускорение обязано быть только ускорением. Проверяется тем же способом,
-    каким проверена настоящая книга: тела сравниваются побайтово.
+    A speed-up must be only a speed-up. Checked the way the real book was:
+    bodies compared byte for byte.
     """
     with tempfile.TemporaryDirectory() as t1, tempfile.TemporaryDirectory() as t2:
         _bulk_stand(t1)
@@ -404,21 +401,19 @@ def test_bulk_and_single_put_agree_block_for_block():
 
 
 def test_putting_the_same_markup_twice_changes_nothing():
-    """ПОВТОР — НЕ РАБОТА: книга не тронута, стопка отката не выросла.
+    """A REPEAT IS NOT WORK: the book untouched, the undo stack no taller.
 
-    ЧЕМ ЭТО ОПЛАЧЕНО. До этой проверки второй `books apply` на той же книге
-    ставил всё заново: содержимое не менялось, а журнал рос вдвое — на
-    «Технологии огнеупоров» 412 замен превращались в 824, и глубина ВСЕХ
-    стопок становилась два. То есть `--undo` пришлось бы звать дважды, чтобы
-    вернуть картинку, а «сколько раз книгу собирали» стало бы неотличимо от
-    «сколько раз блок переделывали».
+    WHAT IT COST. Before this check a second `books apply` put everything
+    again: the content did not change and the journal doubled -- on "Refractory
+    technology" 412 swaps became 824 and the depth of EVERY stack became two.
+    `--undo` would then take two calls to get the picture back, and "how many
+    times the book was built" became indistinguishable from "how many times the
+    block was redone". It also makes the default safe: typing `books apply
+    book` twice breaks nothing.
 
-    Это же делает безопасным умолчание команды: `books apply книга` без ключей
-    ставит прочитанное, и человек, набравший её дважды, ничего не портит.
-
-    Повтором считается ПОЛНОСТЬЮ совпавшее тело — вместе с видом, источником и
-    ролью. Тот же кусок от другой модели работа, и он пройдёт: это проверяется
-    ниже отдельно.
+    A repeat is a body that matched COMPLETELY -- kind, source and role
+    included. The same fragment from another model is work and it passes:
+    checked below.
     """
     with tempfile.TemporaryDirectory() as tmp:
         book(tmp)
@@ -438,8 +433,8 @@ def test_putting_the_same_markup_twice_changes_nothing():
         now = open(os.path.join(tmp, "book.html"), encoding="utf-8").read()
         assert now == snapshot, "книга изменилась от повторной той же замены"
 
-        # А ДРУГОЙ источник — работа, и стопка обязана вырасти: иначе
-        # переделать блок другой моделью стало бы нельзя.
+        # And ANOTHER source is work, the stack must grow: else a block could
+        # no longer be redone by another model.
         third = ap.put(tmp, A, "<p>раз</p>", kind="html", source="м2",
                         log=lambda *_: None)
         assert third["undo_depth"] == 2, (
@@ -448,23 +443,23 @@ def test_putting_the_same_markup_twice_changes_nothing():
 
 
 def test_the_source_inside_the_book_beats_the_recorded_path():
-    """Источник ВНУТРИ книги сильнее пути из слепка.
+    """The source INSIDE the book beats the path from the snapshot.
 
-    В слепке записан АБСОЛЮТНЫЙ путь каталога чтения, и он врёт ровно в самом
-    частом случае — книгу скопировали на другую машину или передвинули
-    каталог чтения. `books html` кладёт источник в `assets/source`, и он
-    переносится вместе с книгой.
+    The snapshot records an ABSOLUTE path, which lies in the commonest case of
+    all -- the book copied to another machine, or the reading directory moved.
+    `books html` puts the source into `assets/source`, and it travels with the
+    book.
 
-    ЧЕМ ЭТО ОПЛАЧЕНО. Каталог книги держал всё, чтобы её читать, и не всё,
-    чтобы пересобрать: `blocks.json` несёт рамку, ярлык, порядок и роль, но не
-    `content`. Прочитанный текст жил только разметкой в `book.html` и в чужом
-    каталоге, за который заплачено на карте, — снеси его, и книгу нечем
-    собрать иначе как новой арендой (915 078 знаков, $0.545).
+    WHAT IT COST. The book directory held everything to READ the book and not
+    everything to REBUILD it: `blocks.json` carries box, label, order and role,
+    but no `content`. The read text lived only as markup in `book.html` and in
+    a foreign directory paid for on the card -- delete that and the book takes
+    a new rental to assemble (915 078 characters, $0.545).
     """
     with tempfile.TemporaryDirectory() as tmp:
         book(tmp)
         os.makedirs(os.path.join(tmp, ap.ASSETS), exist_ok=True)
-        # В слепке — путь, которого на диске НЕТ.
+        # The snapshot holds a path that is NOT on disk.
         with open(os.path.join(tmp, ap.ASSETS, "run.json"), "w",
                   encoding="utf-8") as f:
             json.dump({"args": {"detect": "/нет/такого/каталога"}}, f,
@@ -481,12 +476,12 @@ def test_the_source_inside_the_book_beats_the_recorded_path():
 
 
 def test_the_book_remembers_where_it_was_built_from():
-    """`books apply` без ключей берёт источник из слепка книги.
+    """`books apply` with no keys takes the source from the book's snapshot.
 
-    Спрашивать вторично незачем: `books html` записал путь в
-    `assets/run.json`, и человек, набравший `books apply книга`, вправе
-    ожидать, что она соберётся. Нет слепка или каталог исчез — `None`, и
-    команда обязана сказать это вслух, а не поставить ничего молча.
+    Nothing to ask twice: `books html` wrote the path into `assets/run.json`,
+    and a man who types `books apply book` may expect it to assemble. No
+    snapshot, or the directory gone -- `None`, said out loud rather than
+    placing nothing.
     """
     with tempfile.TemporaryDirectory() as tmp:
         book(tmp)
@@ -503,8 +498,8 @@ def test_the_book_remembers_where_it_was_built_from():
         assert ap.source_of(tmp) == reading, (
             f"источник из слепка не прочитан: {ap.source_of(tmp)!r}")
 
-        # Каталог исчез — источника НЕТ, и это не то же, что «слепок пуст»:
-        # оба дают None, но команда назовёт путь в отказе.
+        # Gone directory and empty snapshot both give None -- but the refusal
+        # names the path.
         os.rmdir(os.path.join(reading, "pages"))
         assert ap.source_of(tmp) is None, (
             "исчезнувший каталог чтения выдан за источник — команда упала бы "
@@ -512,18 +507,16 @@ def test_the_book_remembers_where_it_was_built_from():
 
 
 def test_a_journal_from_the_old_layout_is_seen_not_declared_empty():
-    """Журнал в КОРНЕ книги читается, а не выдаётся за «замен не было».
+    """A journal in the book's ROOT is read, not declared "no swaps at all".
 
-    ЧЕМ ЭТО ОПЛАЧЕНО. Журнал переехал в `assets/`, а книги, собранные до
-    переезда, держат его в корне. Не заметив, команда отвечала «второй
-    уровень по этой книге ещё не ходил» там, где лежала стопка отката всей
-    платной работы: на `vl-reads/ruall.read/html` — 412 замен, на
-    `ru20.read/html` — 17. Ноль от непонимания, и притом на данных, которые
-    стоили денег.
-
-    Вторая половина беды страшнее первой: следующая замена завела бы ВТОРОЙ
-    журнал в `assets/`, а первый остался бы недостижим. Поэтому пишем ТУДА
-    ЖЕ, откуда прочли, — это проверяется здесь же.
+    WHAT IT COST. The journal moved into `assets/`, and books built before the
+    move keep it in the root. Not noticing, the command answered "the second
+    level has not walked this book yet" where the undo stack of all the paid
+    work lay: 412 swaps on `vl-reads/ruall.read/html`, 17 on `ru20.read/html`.
+    A zero from misunderstanding, on data that cost money. The second half is
+    worse: the next swap would start a SECOND journal in `assets/` and the
+    first would be unreachable. So we write BACK WHERE WE READ, checked here
+    too.
     """
     with tempfile.TemporaryDirectory() as tmp:
         book(tmp)
@@ -532,7 +525,7 @@ def test_a_journal_from_the_old_layout_is_seen_not_declared_empty():
         new = os.path.join(tmp, ap.JOURNAL)
         assert os.path.exists(new), "журнал не в кухне — правка не применилась"
 
-        # Переносим журнал в корень: так выглядит книга прежней раскладки.
+        # Move the journal to the root: that is a book of the old layout.
         old = os.path.join(tmp, "swaps.json")
         os.replace(new, old)
         j = ap.load_journal(tmp)
@@ -540,7 +533,7 @@ def test_a_journal_from_the_old_layout_is_seen_not_declared_empty():
             f"журнал из корня не прочитан: {j['swaps']}. Книга объявила бы "
             f"себя нетронутой, имея стопку отката")
 
-        # Вторая замена обязана лечь В ТОТ ЖЕ файл, а не завести второй.
+        # The second swap must land IN THE SAME file, not start a second one.
         ap.put(tmp, B, "<p>два</p>", kind="html", source="м1",
                log=lambda *_: None)
         assert not os.path.exists(new), (

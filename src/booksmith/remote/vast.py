@@ -1,11 +1,10 @@
-"""Аренда на vast.ai поверх SDK.
+"""Renting on vast.ai over the SDK.
 
-Раньше здесь был разбор stdout от CLI, и оттуда росла половина проблем:
-`destroy instance` требовал подтверждения и **возвращал 0, даже когда
-отказывался работать**, так что скрипт рапортовал об уничтожении, а деньги
-продолжали идти.  В SDK этого нет — `destroy_instance(id)` ничего не
-спрашивает.  Проверку повторным запросом всё равно оставляем: она стоит один
-вызов, а ошибка стоит денег.
+This used to parse the CLI's stdout, and half the trouble grew from there:
+`destroy instance` asked for confirmation and **returned 0 even when it refused
+to work**, so the script reported a destruction while the money kept running.
+The SDK asks nothing -- `destroy_instance(id)`. The re-query check stays all
+the same: it costs one call, and the mistake costs money.
 """
 import os
 import re
@@ -16,45 +15,40 @@ from vastai import VastAI
 from . import pricing
 from .spec import HostReq, JobSpec
 
-# ssh на инстансе vast перехватывает вход и загоняет его в tmux; `ssh host 'cmd'`
-# при этом печатает "no sessions" и НИЧЕГО не выполняет.  Лечится этим файлом.
-# rsync ставим сразу: без него выкачивание результатов было бы неинкрементальным.
-# Права на authorized_keys чинятся в фоне, а не разово: vast записывает файл
-# с открытой всем маской, и момент записи не определён — он бывает и позже
-# нашего onstart.  sshd читает authorized_keys на каждое подключение, так
-# что достаточно починить права до первой удачной попытки.
+# ssh on a vast instance hijacks the login into tmux, so `ssh host 'cmd'`
+# prints "no sessions" and RUNS NOTHING; cured by this file. rsync goes in at
+# once, or fetching results would not be incremental. authorized_keys
+# permissions are fixed in a loop, not once: vast writes the file
+# world-readable at an undefined moment, sometimes later than our onstart, and
+# sshd reads it on every connection. The image does the same through
+# StrictModes no, which cannot be relied on: vast caches the built image by
+# name and tag, and the machine may hold a build off an older base.
 #
-# В образе то же самое снято через StrictModes no, но полагаться на это
-# нельзя: vast кеширует достроенный образ по имени с тегом, и на машине
-# может лежать сборка от старой версии базы.  Здесь чинится всегда.
+# ------------------------------------------------------------ deadman watch
+# Destruction used to rest on a live local process -- the `finally` in run_job
+# and a guard in its thread. One reboot of the operator's machine and the
+# instance lived on billing while its task died with the ssh: instance
+# 48131402, seven minutes for nothing.
 #
-# ------------------------------------------------------------ дозор мертвеца
-# Уничтожение инстанса до сих пор держалось на живом локальном процессе:
-# блок `finally` в run_job и сторож в его же потоке.  Стоило перезапуститься
-# машине оператора — и инстанс остался жить и биллиться, а задача на нём при
-# этом умерла вместе с ssh.  Проверено на себе: инстанс 48131402, семь минут
-# впустую.
+# So the switch moved ONTO the rented machine. vast puts CONTAINER_API_KEY and
+# CONTAINER_ID into the container -- the key by which an instance may destroy
+# itself -- and a background loop watches the age of /root/.alive, touched
+# every 30 seconds by the living operator (Box.start_heartbeat). No touch for
+# longer than DEADMAN_GRACE_S and the machine destroys itself.
 #
-# Поэтому выключатель переносится НА арендованную машину и от нас не зависит.
-# vast кладёт в контейнер CONTAINER_API_KEY и CONTAINER_ID — ключ, которым
-# инстанс имеет право уничтожить сам себя.  Фоновый цикл смотрит на возраст
-# /root/.alive: пока оператор жив, он трогает файл каждые 30 секунд (см.
-# Box.start_heartbeat).  Пропало касание дольше, чем на DEADMAN_GRACE_S, —
-# машина уничтожает себя сама.
-#
-# Срок лежит в /root/.alive.grace отдельным файлом, а не зашит в цикл: при
-# --keep инстанс нарочно остаётся без оператора, и туда пишется другое число.
+# The grace sits in /root/.alive.grace, not baked into the loop: with --keep
+# the instance is deliberately left without an operator and gets another
+# number.
 DEADMAN_GRACE_S = 900
 
-# Куда дозор докладывает, что он ВЗВЕДЁН.  Без этого файла проверить его было
-# нечем: при пустом CONTAINER_API_KEY цикл жил как ни в чём не бывало и раз в
-# полминуты стучал `curl -X DELETE` с пустым Bearer — то есть последний рубеж
-# против утечки денег был выключен, а выглядел работающим.  Ошибки уходили в
-# /root/deadman.log, которого мы не забираем.  Теперь дозор пишет о себе
-# ВЕЛИЧИНАМИ (pid оболочки, в которой он крутится, id инстанса и ДЛИНУ ключа —
-# длину, а не сам ключ: доклад лежит на машине и уезжает в наш лог), и
-# `Box.check_deadman` читает этот файл сразу после ssh, до того как на машину
-# что-то зальют.
+# Where the watch reports it is ARMED. Without this file nothing could check
+# it: on an empty CONTAINER_API_KEY the loop lived as if nothing were wrong and
+# knocked `curl -X DELETE` with an empty Bearer every half minute -- the last
+# line against a money leak switched off and looking like work, its errors
+# going to /root/deadman.log, which we do not fetch. The watch now reports in
+# QUANTITIES (pid of its shell, instance id, LENGTH of the key -- the length,
+# not the key: the report lies on the machine and travels into our log), and
+# `Box.check_deadman` reads it right after ssh, before anything is uploaded.
 DEADMAN_STATE = "/root/.deadman.state"
 
 ONSTART = (
@@ -67,23 +61,23 @@ ONSTART = (
     "   K=$(tr '\\0' '\\n' < $E | sed -n 's/^CONTAINER_API_KEY=//p' | head -1); fi; "
     " if [ -z \"$I\" ]; then "
     "   I=$(tr '\\0' '\\n' < $E | sed -n 's/^CONTAINER_ID=//p' | head -1); fi; "
-    # Доклад пишется ИЗНУТРИ фонового цикла и прямо перед `while`: он
-    # свидетельствует не о наличии переменных в onstart, а о том, что дозор
-    # дожил до своего цикла с непустым ключом и непустым id.  Пустое —
-    # выход с криком в файл, который мы читаем.
-    # Слова доклада — ЛАТИНИЦЕЙ, и это не стиль.  Строка едет в vast через
-    # API, ложится на машину файлом onstart, исполняется её оболочкой и
-    # возвращается к нам через ssh; выживает ли на этом пути UTF-8, проверить
-    # можно только арендой.  Ложная тревога «дозор не взведён» из-за
-    # покорёженной буквы стоила бы доверия к самой тревоге.
+    # The report is written FROM INSIDE the background loop, right before
+    # `while`: it testifies not that onstart had the variables but that the
+    # watch reached its loop with a non-empty key and id; empty means exit with
+    # a shout into the file we read.
+    # Its words are LATIN, and that is not style: the string travels to vast
+    # through the API, lands as an onstart file, is run by the machine's shell
+    # and returns over ssh, and whether UTF-8 survives that can only be checked
+    # by renting. A false "watch not armed" would cost the alarm its
+    # credibility.
     " if [ -z \"$K\" ] || [ -z \"$I\" ]; then "
     "   echo \"NOT-ARMED key=${{#K}} id='$I'\" > {state}; exit 1; fi; "
     " echo \"ARMED pid=$$ id=$I key=${{#K}} grace={grace}s\" > {state}; "
     " while sleep 30; do "
-    # `|| echo` ловил только ОТСУТСТВИЕ файла.  Пустой файл (оборванная
-    # запись) давал пустой G, `[ N -gt ]` — синтаксическую ошибку, то есть
-    # ложь: машина не убивала себя никогда и молча писала ошибки в
-    # /root/deadman.log, которого мы не забираем.
+    # `|| echo` caught only a MISSING file. An empty one (a torn write) gave an
+    # empty G and `[ N -gt ]` a syntax error -- that is, a lie: the machine
+    # never killed itself and wrote the errors quietly into /root/deadman.log,
+    # which we do not fetch.
     "   G=$(cat /root/.alive.grace 2>/dev/null); "
     "   case \"$G\" in \'\'|0|*[!0-9]*) G={grace};; esac; "
     "   A=$(stat -c %Y /root/.alive 2>/dev/null || echo 0); "
@@ -111,32 +105,30 @@ class Vast:
     def __init__(self, api_key: str | None = None):
         self.v = VastAI(api_key) if api_key else VastAI()
 
-    # ---------------------------------------------------------------- выбор
+    # --------------------------------------------------------------- choice
     def offers(self, host: HostReq, image_gb: float, minutes: float,
                payload_gb: float = 0.0, warmup_s: float = 0.0) -> list[dict]:
         q = host.query()
         log(f"поиск: {q}, диск {host.disk_gb} ГБ")
-        # `storage` — это диск, ПОД КОТОРЫЙ сервер считает `dph_total`
-        # (`vastai/api/offers.py`: `q["allocated_storage"] = storage`), а его
-        # умолчание в SDK — 5.0 ГиБ.  Мы же арендуем 60, и на этом числе
-        # держатся ТРИ вещи разом: фильтр `dph_total<max_dph` (его применяет
-        # сервер), наш потолок бюджета и стоимость в журнале.
+        # `storage` is the disk the server prices `dph_total` AGAINST
+        # (`vastai/api/offers.py`: `q["allocated_storage"] = storage`), SDK
+        # default 5.0 GiB. We rent 60, and THREE things hang on that number:
+        # the server-side `dph_total<max_dph` filter, our budget ceiling and
+        # the ledger cost.
         #
-        # Замер на живом рынке 03.09.2026 (RTX_4090, одна и та же строка
-        # запроса, отличается только `storage`; сравниваются 17 офферов,
-        # попавших в ОБЕ выдачи): при 60 ГиБ цена выше на $0.013…$0.051 в
-        # час — медиана $0.026, то есть 3.8% (до 8.4%).  Разброс вчетверо —
-        # это цена диска у хоста, от $0.16 до $0.53 за ГБ-месяц.
+        # Measured on the live market 03.09.2026 (RTX_4090, same query, only
+        # `storage` differing; 17 offers in BOTH answers): at 60 GiB the price
+        # is $0.013…$0.051 an hour higher -- median $0.026, 3.8% (up to 8.4%).
+        # The fourfold spread is the host's disk price, $0.16 to $0.53 per
+        # GB-month.
         #
-        # ЧЕГО ЗАМЕР НЕ ПОКАЗАЛ: порядок офферов от этого сегодня не
-        # изменился — на 14 общих офферах ни один не сменил места, самый
-        # дешёвый тот же.  Разная добавка у разных хостов сделать это может,
-        # но утверждать, что «ранжирование выбирало не ту машину», нечем.
-        # Померено другое: на те же 3.8% занижены потолок бюджета (`Budget`
-        # делит деньги на `dph`), стоимость в журнале и порог
-        # `dph_total<max_dph`, который применяет сервер.  Из 17 офферов
-        # сегодня НИ ОДИН не перевалил через наши $0.60 от смены диска —
-        # перевалил бы только тот, что стоит к потолку ближе, чем добавка.
+        # WHAT IT DID NOT SHOW: the order did not change today -- of 14 shared
+        # offers not one moved, the cheapest is the same, so "the ranking
+        # picked the wrong machine" is unclaimable. What it did show: those
+        # same 3.8% understate the budget ceiling (`Budget` divides money by
+        # `dph`), the ledger cost and that server threshold. Of today's 17
+        # offers NOT ONE crossed our $0.60 from the disk change -- only one
+        # already closer to the ceiling than the surcharge would.
         found = self.v.search_offers(q, order="dph_total",
                                      storage=float(host.disk_gb))
         if not found:
@@ -156,10 +148,10 @@ class Vast:
                 raise SystemExit("годных офферов не осталось: все проверенные "
                                  "машины отсеяны по каналу")
         if prefer_machines:
-            # Список приоритетный, а не множество: первым идёт тот, кто у нас
-            # быстрее всех считал.  Раньше здесь бралось `ranked[0]` из
-            # пересечения, то есть самый дешёвый из знакомых, — а дешёвый и
-            # быстрый это разные машины.
+            # A priority list, not a set: first comes whoever computed fastest
+            # for us. This used to take `ranked[0]` of the intersection, the
+            # cheapest of the known ones -- and cheap and fast are different
+            # machines.
             by_machine = {}
             for o in ranked:
                 by_machine.setdefault(o.get("machine_id"), o)
@@ -173,14 +165,15 @@ class Vast:
             log("  " + pricing.describe(o))
         return ranked[0]
 
-    # ---------------------------------------------------------------- аренда
+    # -------------------------------------------------------------- renting
     def create(self, offer_id: int, spec: JobSpec,
                on_created=None) -> int:
-        """Создать инстанс и СРАЗУ отдать его id наружу.
+        """Create the instance and hand its id out AT ONCE.
 
-        Раньше сюда же входила привязка ssh-ключа с пятью повторами по 4с.
-        Всё это время инстанс уже существовал и брал деньги, а вызывающий код
-        его id ещё не знал: Ctrl-C в этом окне — и уничтожать было нечего.
+        Binding the ssh key, five retries of 4 s, used to live in here. All
+        that time the instance already existed and took money while the caller
+        did not know its id: Ctrl-C in that window and there was nothing to
+        destroy.
         """
         res = self.v.create_instance(
             id=int(offer_id),
@@ -192,8 +185,8 @@ class Vast:
             onstart_cmd=ONSTART.format(workdir=spec.workdir,
                                        grace=DEADMAN_GRACE_S,
                                        state=DEADMAN_STATE),
-            # Без этого неудачное размещение молча создаёт ОСТАНОВЛЕННЫЙ
-            # инстанс, который продолжает брать деньги за диск.
+            # Without this a failed placement silently creates a STOPPED
+            # instance that goes on charging for disk.
             cancel_unavail=True,
         )
         iid = res.get("new_contract")
@@ -201,14 +194,14 @@ class Vast:
             raise SystemExit(f"создать инстанс не удалось: {res}")
         log(f"инстанс {iid} создан")
         if on_created:
-            on_created(int(iid))       # до всего остального: он уже биллится
+            on_created(int(iid))       # before all else: it is already billing
         return int(iid)
 
     def attach_key(self, iid: int, key_path: str) -> bool:
-        """Ключ, зарегистрированный на аккаунте, в инстанс НЕ попадает.
+        """A key registered on the account does NOT reach the instance.
 
-        Его нужно привязать к конкретному инстансу, иначе получишь
-        `Permission denied (publickey)` — уже после того, как выкачал образ.
+        It must be attached to this very instance, or you get `Permission
+        denied (publickey)` -- after the image has been downloaded.
         """
         pub = key_path + ".pub"
         if not os.path.exists(pub):
@@ -226,26 +219,26 @@ class Vast:
                 time.sleep(4)
         return False
 
-    # ---------------------------------------------------------------- статус
+    # --------------------------------------------------------------- status
     def instance(self, iid: int) -> dict | None:
-        """Описание инстанса; None — если его точно нет.
+        """The instance description; None only when it surely does not exist.
 
-        При ошибке обращения бросаем, а не возвращаем None: вызывающий код
-        отличает «ответили, что машины нет» от «не смогли спросить».  Раньше
-        любая пятисотка или таймаут выглядели как «инстанса нет», и --reuse
-        снимал ВТОРУЮ карту, оставив первую биллиться до своего дозора.
-        Полярность здесь та же, что в alive(): неизвестность — не смерть.
+        On a request error we raise rather than return None: the caller must
+        tell "they answered that the machine is gone" from "we could not ask".
+        Any 500 or timeout used to look like "no instance", and --reuse took a
+        SECOND card while the first billed on to its own watch. Polarity as in
+        alive(): unknown is not dead.
         """
         rows = self.v.show_instance(id=int(iid))
         return rows[0] if isinstance(rows, list) and rows else (
             rows if isinstance(rows, dict) else None)
 
     def wait_running(self, iid: int, timeout: float = 2100) -> dict:
-        """Ждать старта контейнера.  Сюда попадает выкачивание образа.
+        """Wait for the container to start. The image download happens in here.
 
-        Ждать заодно поля `ssh_host` нельзя: часть инстансов его не публикует,
-        хотя `ssh_url` при этом отвечает нормально, и цикл молча висит до
-        таймаута, ничего не объясняя в логе.
+        Waiting for the `ssh_host` field as well is not allowed: some instances
+        never publish it while `ssh_url` answers fine, and the loop then hangs
+        to the timeout explaining nothing in the log.
         """
         t0, last = time.time(), None
         while time.time() - t0 < timeout:
@@ -264,12 +257,12 @@ class Vast:
         raise RuntimeError(f"инстанс {iid} не поднялся за {timeout:.0f}с")
 
     def ssh_target(self, iid: int) -> tuple[str, str, str]:
-        """Адрес машины: сначала прямой, прокси — запасной.
+        """The machine's address: direct first, the proxy as fallback.
 
-        `ssh_url` отдаёт прокси sshN.vast.ai, и он подводит: туннель до
-        контейнера иногда не поднимается вовсе — "remote port forwarding
-        failed for listen port", притом что прямой порт при этом отвечает.
-        Прямой ещё и быстрее: rsync с результатом не идёт через ретранслятор.
+        `ssh_url` gives out the sshN.vast.ai proxy, and it fails: the tunnel to
+        the container sometimes does not come up at all -- "remote port
+        forwarding failed for listen port" -- while the direct port answers.
+        Direct is also faster: rsync of the result crosses no relay.
         """
         inst = self.instance(iid) or {}
         ip = inst.get("public_ipaddr")
@@ -285,27 +278,25 @@ class Vast:
         log("  прямого адреса нет — иду через прокси vast")
         return m.groups()  # user, host, port
 
-    # ------------------------------------------------------------ уничтожение
+    # ---------------------------------------------------------- destruction
     def alive(self, iid: int) -> bool:
-        """Существует ли инстанс, то есть идут ли деньги."""
+        """Does the instance exist, that is, is money still running."""
         try:
             rows = self.v.show_instances()
         except Exception:
-            return True          # не смогли проверить -> считаем, что жив
+            return True          # could not ask -> assume it is alive
         return any(str(i.get("id")) == str(iid) for i in rows)
 
-    # Отступы РАСТУТ, а не стоят на месте. Здесь была плоская пауза в 4 с на
-    # пять попыток, и каждая делает ДВА обращения к API — уничтожение плюс
-    # проверку: десять запросов за двадцать секунд. Пока всё хорошо, это
-    # незаметно; но стоит API начать отвечать отказом, как код продолжает
-    # долбить С ТОЙ ЖЕ ЧАСТОТОЙ, то есть отвечает на ограничение частоты
-    # учащением. Замер 3 сентября 2026: после такой серии ключ начал отдавать
-    # 403 на ВСЁ, включая `/users/current`, и проверено `curl`-ом с тем же
-    # ключом — то есть отказ пришёл от vast.ai, а не от нашей обёртки.
+    # The backoff GROWS. A flat 4 s pause over five attempts, each making TWO
+    # API calls (destroy plus check), is ten requests in twenty seconds:
+    # unnoticeable while all is well, but let the API refuse and the code
+    # hammers AT THE SAME RATE, answering a rate limit by speeding up. Measured
+    # 3 September 2026: after such a burst the key returned 403 to EVERYTHING,
+    # `/users/current` included, and `curl` with the same key showed the
+    # refusal came from vast.ai, not from our wrapper.
     #
-    # Сумма отступов 2 минуты — намеренно меньше отсрочки дозора мертвеца
-    # (900 с): даже если уничтожение не удастся вовсе, машина погасит себя
-    # сама, и растягивать попытки дольше её отсрочки бессмысленно.
+    # The backoffs sum to 2 minutes, deliberately under the deadman grace
+    # (900 s): even if destruction fails outright the machine puts itself out.
     RETRY_S = (4, 8, 16, 32, 60)
 
     def destroy(self, iid: int) -> bool:
@@ -315,11 +306,11 @@ class Vast:
                 self.v.destroy_instance(id=int(iid))
             except Exception as e:
                 refusal = e
-                # ОТКАЗ ДОСТУПА — ЭТО ДРУГАЯ БЕДА, и звать её надо иначе.
-                # «Уничтожение не сработало» значит «машина не послушалась»;
-                # 403 и 429 значат «нас не пускают», и тогда бессмысленна не
-                # только эта попытка, но и проверка `alive` следом — она
-                # вернёт «жив» просто потому, что спросить некого.
+                # A REFUSAL OF ACCESS IS ANOTHER TROUBLE and must be named as
+                # one. "Destroy did not work" means the machine disobeyed; 403
+                # and 429 mean we are not let in, and then not only this
+                # attempt is pointless but the `alive` check after it -- it
+                # will answer "alive" merely because there is nobody to ask.
                 we_are_refused = any(k in str(e) for k in ("403", "429"))
                 log(f"  попытка {attempt+1} уничтожить не удалась: {e}"
                     + ("  — это ОТКАЗ ДОСТУПА, а не отказ машины: дальше жду "
@@ -336,7 +327,7 @@ class Vast:
         return False
 
     def reap(self, prefix: str = "bs-") -> int:
-        """Прибрать всё, что оставили наши прогоны."""
+        """Clear away whatever our runs left behind."""
         rows = self.v.show_instances()
         mine = [i for i in rows if (i.get("label") or "").startswith(prefix)]
         if not mine:

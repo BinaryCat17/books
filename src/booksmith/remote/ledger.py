@@ -1,9 +1,9 @@
-"""Журнал прогонов: одна строка JSON на прогон.
+"""The run ledger: one JSON line per run.
 
-Смысл не в отчётности.  Константы модели стоимости (LINK_EFFICIENCY,
-UNPACK_RATIO) раньше были подобраны по двум замерам и вбиты в код, а сами
-замеры нигде не хранились.  Журнал делает их вычислимыми — и заодно копит
-список машин, которые уже держат наш образ в кеше docker.
+Not for reporting. The cost model's constants (LINK_EFFICIENCY, UNPACK_RATIO)
+were once fitted on two measurements and nailed into the code while the
+measurements themselves were stored nowhere. The ledger makes them computable,
+and collects the machines that already hold our image in their docker cache.
 """
 import json
 import os
@@ -12,22 +12,21 @@ from dataclasses import dataclass, asdict, field
 
 from ..run import knobs
 
-# Относительный путь молча терял бы всю историю при запуске из другого
-# каталога, а вместе с ней и подбор прогретых машин.
+# A relative path would silently lose the whole history when run from another
+# directory, and the pick of warmed machines with it.
 _ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-# Ручка объявлена в реестре: `books replay --check` иначе не увидит, что
-# журнал и ЧЁРНЫЙ СПИСОК машин уехали в другой каталог. Чтение окружения мимо
-# реестра было здесь единственным во всём проекте — и уводило за собой
-# `bad-machines.json`, после чего отбракованные машины снова шли в аренду.
+# Declared in the registry, or `books replay --check` cannot see that the
+# ledger and the machine BLACKLIST moved elsewhere. This was the project's only
+# read of the environment past the registry, and it dragged `bad-machines.json`
+# along -- after which rejected machines went back into rentals.
 LEDGER = knobs.knob("BOOKSMITH_LEDGER") or os.path.join(_ROOT, "runs", "ledger.jsonl")
 
 
 def log(msg):
-    """Свой `log`, а не общий из `vast.py`.
-
-    Тот тянет за собой пакет `vastai`, а журнал читает `books ledger` —
-    команда, которой аренда не нужна вовсе.  Две строки дешевле импорта;
-    ровно так же поступает `box.py`.
+    """Our own `log`, not the shared one from `vast.py`, which drags in the
+    `vastai` package: the ledger is read by `books ledger`, a command that
+    rents nothing. Two lines are cheaper than the import, and `box.py` does
+    the same.
     """
     print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
 
@@ -42,53 +41,52 @@ class Run:
     offer_id: int | None = None
     dph: float = 0.0
     per_tb: float = 0.0
-    inet_down_adv: float = 0.0     # заявленная хостом полоса
+    inet_down_adv: float = 0.0     # bandwidth the host advertises
     disk_bw: float = 0.0
-    # Разброс времени старта vLLM между машинами — шестикратный (65с против
-    # 374с на одинаковых RTX 4090), и он не объясняется ни каналом, ни
-    # диском: почти всё это импорты, компиляция и прогрев, то есть процессор.
-    # Пишем его, чтобы выбирать по замеру, а не по догадке.
+    # vLLM start-up time varies sixfold between machines (65 s against 374 s on
+    # identical RTX 4090s), and neither link nor disk explains it: almost all
+    # of it is imports, compilation and warm-up, i.e. the CPU. Recorded so the
+    # pick goes by measurement, not by guess.
     cpu_cores: float = 0.0
     cpu_ghz: float = 0.0
-    link_mbps: float = 0.0         # ЗАМЕРЕННЫЙ канал до нас, не заявленный
-    # Скорость машины из мира: `None` значит НЕ МЕРИЛИ, и это не то же самое,
-    # что 0.0 — «зонд не сработал».  Прежде поле было `float = 0.0`, и обе
-    # беды писались одним нулём: зонд зовётся только когда канал до нас выше
-    # порога, а до правки в `runner._rent` — выше РЕЕСТРОВОГО порога, а не
-    # действующего.  В нынешнем журнале три записи с `link_mbps` > 0 и
-    # `download_mbps` = 0.0 (19.08 20:37, 20.08 13:08, 20.08 22:54), и по ним
-    # неотличимо, мерили ли машину вообще.  `fast_machines` читает поле через
-    # `if r.get("download_mbps")` — `None` для неё так же ложно, как 0.0,
-    # порядок машин не меняется.
+    link_mbps: float = 0.0         # MEASURED link to us, not advertised
+    # Speed from the world. `None` means NOT MEASURED, which is not 0.0, "the
+    # probe failed". The field used to be `float = 0.0` and both troubles were
+    # written as one zero: the probe runs only when the link to us clears a
+    # floor -- and before the fix in `runner._rent`, the REGISTRY floor rather
+    # than the effective one. Three records in the current ledger carry
+    # `link_mbps` > 0 with `download_mbps` = 0.0 (19.08 20:37, 20.08 13:08,
+    # 20.08 22:54), and by them it cannot be told whether the machine was
+    # measured at all. `fast_machines` tests the field truthily, so `None`
+    # there is as false as 0.0 and the order of machines does not change.
     download_mbps: float | None = None
     image_gb: float = 0.0
 
     started: float = field(default_factory=time.time)
-    setup_s: float = 0.0           # от create УДАВШЕЙСЯ машины до готового ssh
-    reject_s: float = 0.0          # сколько до неё ушло на отбракованные
-    # Сколько СТОИЛИ отбракованные машины и сколько их было.  Отдельными
-    # полями, а не одной суммой в cost_usd: прогон, сорвавшийся на аренде,
-    # писался в журнал как бесплатный (`dph` = 0, потому что до присвоения
-    # `rec.dph` дело не доходило), и пять снятых машин обходились в ноль.  В
-    # нынешнем журнале таких записей 13 («за N попыток не нашлось машины»),
-    # суммарно 9268 секунд прогона при $0.102 на всех — то есть в них
-    # посчитан ОДИН трафик и ни секунды аренды.
+    setup_s: float = 0.0           # from create of a SUCCESSFUL machine to ssh
+    reject_s: float = 0.0          # time spent on rejected ones before it
+    # What the rejected machines COST and how many there were. Separate fields
+    # rather than one sum in cost_usd: a run that died during renting was
+    # written down as free (`dph` = 0, `rec.dph` never reached), and five taken
+    # machines came to nothing. The current ledger holds 13 such records ("no
+    # machine found in N attempts"), 9268 seconds of running for $0.102 between
+    # them -- one traffic charge counted, and not a second of rent.
     reject_usd: float = 0.0
     reject_n: int = 0
-    run_s: float = 0.0             # сама задача
+    run_s: float = 0.0             # the task itself
     total_s: float = 0.0
     cost_usd: float = 0.0
     ok: bool = False
     note: str = ""
     extra: dict = field(default_factory=dict)
 
-    # `observed_mbps` УБРАНО. Свойство считало скорость доставки образа и
-    # честно возвращало `None`, когда мерить было нечем, — но было недостижимо
-    # по построению: журнал пишется через `asdict(run)`, а `dataclasses.asdict`
-    # свойств не берёт, и в файл оно не попадало НИ РАЗУ. Вторая, живая копия
-    # той же арифметики сидела в `cli.py` и на непомеренном прогоне печатала
-    # «0 Мбит/с» — то есть из двух копий верная семантика была у мёртвой.
-    # Семантика перенесена в живую, копия убрана.
+    # `observed_mbps` REMOVED. It computed image delivery speed and honestly
+    # returned `None` when there was nothing to measure, but was unreachable by
+    # construction: the ledger is written through `asdict(run)`, which takes no
+    # properties, so it reached the file NOT ONCE. A second, live copy of the
+    # arithmetic sat in `cli.py` and printed "0 Мбит/с" on an unmeasured run --
+    # of the two copies the dead one held the right semantics. It moved into
+    # the live one; the copy is gone.
 
 
 def append(run: Run, path: str = LEDGER) -> None:
@@ -114,15 +112,14 @@ def read(path: str = LEDGER) -> list[dict]:
 
 
 def warm_machines(image: str, path: str = LEDGER) -> list[int]:
-    """Машины, где этот образ уже поднимался, свежие первыми.
+    """Machines where this image has already come up, freshest first.
 
-    Кеш docker живёт на физической машине, и там же остаётся достройка vast
-    со своим ssh — а она дороже самого образа: индекс Debian и под сотню
-    пакетов.  Замерено: 34 секунды на прогретой машине против шести минут.
+    The docker cache lives on the physical machine, and so does vast's own ssh
+    build on top -- which costs more than the image: a Debian index and near a
+    hundred packages, 34 seconds on a warm machine against six minutes.
 
-    Признак прогретости — что мы дошли до ssh (setup_s), а не что задача
-    удалась: машина прогрелась и в том прогоне, который упал на нашей же
-    ошибке в коде задачи.
+    The mark of warmth is reaching ssh (setup_s), not the task succeeding: the
+    run that died on our own bug in the task code warmed the machine too.
     """
     seen: dict[int, float] = {}
     for r in read(path):
@@ -135,16 +132,15 @@ def warm_machines(image: str, path: str = LEDGER) -> list[int]:
 
 def slow_machines(image: str, path: str = LEDGER,
                   job: str | None = None) -> list[int]:
-    """Машины, которые по журналу вдвое медленнее лучшей.
+    """Machines the ledger shows to be twice slower than the best.
 
-    Отдельная функция, потому что предпочтение прогретых машин иначе сводит
-    отбор на нет: fast_machines выбрасывает медленную, а список прогретых
-    возвращает её следом, и она снимается как ни в чём не бывало.  Так
-    вернулась 110506 со своими 909 секундами — шестым номером после пяти
-    быстрых.
+    A separate function, because preferring warm machines otherwise cancels the
+    selection: fast_machines drops a slow one, the warm list hands it back, and
+    it is rented as if nothing had happened -- so 110506 with its 909 seconds
+    returned sixth, behind five fast ones.
 
-    `job` — та же оговорка, что у `fast_machines`: без имени задачи времена
-    несравнимы, и медленных не выделяется ни одной.
+    `job` carries the caveat of `fast_machines`: without a task name times are
+    incomparable and not one machine is marked slow.
     """
     fast = set(fast_machines(image, path, job))
     seen = set()
@@ -158,45 +154,42 @@ def slow_machines(image: str, path: str = LEDGER,
 
 def fast_machines(image: str, path: str = LEDGER,
                   job: str | None = None) -> list[int]:
-    """Машины, отсортированные по замеренной скорости, самые быстрые первыми.
+    """Machines sorted by MEASURED speed, fastest first.
 
-    Мерить надо не рекламу, а машину.  Отбор офферов идёт по заявленному
-    `inet_down>500`, и это именно реклама: прогон, снявший машину 110506 с
-    обещанием больше 500, получил 96 Мбит/с и считал 909 секунд вместо 300.
+    Measure the machine, not the advertising. Offers are filtered on the
+    advertised `inet_down>500`, and advertising it is: the run that took
+    machine 110506 on a promise above 500 got 96 Mbit/s and computed 909
+    seconds instead of 300.
 
-    Считается медиана, а не максимум: машина 18857 однажды дала 1140 Мбит/с,
-    но её шесть замеров это 33, 104, 154, 307, 319, 1140 — по максимуму она
-    попала бы в лучшие, по медиане стоит там, где заслуживает.
+    The median, not the maximum: machine 18857 once gave 1140 Mbit/s, but its
+    six probes are 33, 104, 154, 307, 319, 1140.
 
-    Оговорка честная: сам зонд предсказывает время прогона слабо, корреляция
-    по журналу всего -0.42.  Поэтому машины с наблюдённым временем счёта
-    ранжируются по нему, а зонд остаётся запасной мерой для тех, кого мы
-    видели один раз.
+    Honest caveat: the probe predicts run time poorly, correlation over the
+    ledger only -0.42, so machines with an observed compute time rank by that
+    and the probe is a fallback for those seen once.
 
-    ЧТО ЗДЕСЬ МЕРИТСЯ НА САМОМ ДЕЛЕ.  `run_s` — это доставка плюс подъём
-    vLLM плюс счёт, и первое слагаемое господствует.  Машина 110506, которой
-    обоснованы обе функции («909 секунд там, где 136645 укладывается в 212»),
-    по журналу имеет `extra.pages_per_sec` = 0.819 при `vllm_startup_s` = 123,
-    то есть 24.4 с собственно счёта на двадцати страницах — тот же разряд, что
-    у 51608 (0.79) на той же задаче.  Остальные 760 секунд ушли на колёса и
-    веса.  Значит ранжирование по `run_s` предпочитает машину с широким
-    каналом, а не быструю карту; для полной стоимости прогона это законно, но
-    называть результат «медленной машиной» — неправда, и докстринги её
-    говорили.  Чистая мера счёта лежит рядом в журнале: `extra.pages_per_sec`,
-    заполнено в 59 записях из 95.  Сравнивать её между КНИГАМИ всё равно
-    нельзя: у 51608 она 0.79 на двадцати страницах таблиц и 2.0 на Фейнмане —
-    страницы разной плотности, а не машина разной скорости.
+    WHAT IS ACTUALLY MEASURED HERE. `run_s` is delivery plus vLLM start-up plus
+    compute, and the first term dominates. Machine 110506, on which both
+    functions rest ("909 seconds where 136645 fits in 212"), has
+    `extra.pages_per_sec` = 0.819 at `vllm_startup_s` = 123 -- 24.4 s of
+    compute over twenty pages, the same order as 51608 (0.79) on that task; the
+    other 760 seconds went on wheels and weights. So ranking by `run_s` prefers
+    a wide link, not a fast card: legitimate for the total cost of a run, but
+    calling the result "a slow machine" is untrue, and these docstrings used to
+    do it. The clean compute measure lies beside it, `extra.pages_per_sec`,
+    filled in 59 records of 95 -- still not comparable BETWEEN BOOKS: 51608
+    reads 0.79 on twenty pages of tables and 2.0 on Feynman, pages of different
+    density, not a machine of different speed.
 
-    Какую задачу считать сравнимой, решает вызывающий: `job` — имя задания,
-    ровно то, что попадёт в запись журнала.  Прежде здесь стояло
-    `job.startswith("tables")` — имя стенда из двадцати страниц, по которому
-    тогда мерили.  Стенда больше нет, и хардкод выбирал бы ноль записей
-    молча, ничего не сообщая: список машин просто стал бы пустым, а причину
-    никто бы не увидел.  Без `job` времена не используются вовсе — сравнивать
-    нечего с чем, и зонд честнее выдуманного порядка.  Цена этого решения
-    названа прямо: у ПЕРВОГО прогона новой книги истории с таким `job` нет,
-    и по времени не отбраковывается никто.  Это ограничение, а не защита; оно
-    печатается числом в `runner._warm`, чтобы не выглядело работой.
+    `job` says which task counts as comparable, and it is the caller's to
+    choose: the job name, exactly as it lands in the record. It used to be
+    `job.startswith("tables")`, a twenty-page bench that no longer exists, and
+    the hardcode would now pick zero records silently. Without `job` times are
+    not used at all -- there is nothing to compare with what, and the probe is
+    honester than an invented order. The price, stated plainly: a new book's
+    FIRST run has no history under that `job` and rejects nobody by time. A
+    limitation, not a defence, and `runner._warm` prints it as a number so it
+    does not look like work.
     """
     probes: dict[int, list[float]] = {}
     times: dict[int, list[float]] = {}
@@ -208,9 +201,9 @@ def fast_machines(image: str, path: str = LEDGER,
         mid = int(mid)
         if r.get("download_mbps"):
             probes.setdefault(mid, []).append(float(r["download_mbps"]))
-        # Время счёта сравнимо только внутри одной задачи: у модели с
-        # вчетверо более тяжёлыми весами машина, видевшая только её,
-        # выглядела бы медленной ни за что.
+        # Compute time is comparable only within one task: a machine that only
+        # ever saw a model with four times heavier weights would look slow for
+        # nothing.
         if job and r.get("ok") and r.get("run_s") and r.get("job") == job:
             times.setdefault(mid, []).append(float(r["run_s"]))
 
@@ -220,11 +213,11 @@ def fast_machines(image: str, path: str = LEDGER,
         return v[n // 2] if n % 2 else (v[n // 2 - 1] + v[n // 2]) / 2
 
     seen = set(probes) | set(times)
-    # Сначала те, кого мы видели за работой — по времени, меньше значит лучше.
-    # Затем остальные — по зонду, больше значит лучше.
+    # First those seen at work -- by time, less is better. Then the rest -- by
+    # probe, more is better.
     ranked = sorted((m for m in seen if m in times), key=lambda m: med(times[m]))
-    # Машину, которая вдвое медленнее лучшей, предпочитать незнакомой нельзя:
-    # 110506 считала 909 секунд там, где 136645 укладывается в 212.
+    # A machine twice slower than the best must not be preferred to an unknown
+    # one: 110506 computed 909 seconds where 136645 fits in 212.
     if ranked:
         limit = 2 * med(times[ranked[0]])
         ranked = [m for m in ranked if med(times[m]) <= limit]
@@ -237,19 +230,20 @@ BAD = os.path.join(os.path.dirname(LEDGER), "bad-machines.json")
 
 
 def _read_bad(path: str) -> tuple[dict, str]:
-    """(список машин, причина недоверия).  Пустой список и БИТЫЙ файл — разное.
+    """(machine list, reason for distrust). An empty list and a BROKEN file
+    are different things.
 
-    Прежде обе функции ниже глотали любое исключение и продолжали с пустым
-    словарём.  Цена: битый `bad-machines.json` молча выключал чёрный список
-    целиком, а первый же `mark_bad` записывал поверх него ОДНУ машину —
-    остальные исчезали навсегда.  Каждая запись в этом файле оплачена
-    арендой, так что «не разобрался» обязано звучать иначе, чем «пусто».
+    Both functions below used to swallow any exception and carry on with an
+    empty dict. The price: a broken `bad-machines.json` silently switched the
+    blacklist off entirely, and the first `mark_bad` wrote ONE machine over it,
+    the rest gone for good. Every record in that file is paid for by a rental,
+    so "could not parse" must sound different from "empty".
     """
     try:
         with open(path, "rb") as f:
             raw = f.read()
     except FileNotFoundError:
-        return {}, ""                       # файла нет — законная пустота
+        return {}, ""                       # no file -- legitimate emptiness
     except OSError as e:
         return {}, f"{type(e).__name__}: {e}"
     try:
@@ -263,16 +257,17 @@ def _read_bad(path: str) -> tuple[dict, str]:
 
 
 def mark_bad(machine_id: int | None, reason: str, path: str = BAD) -> None:
-    """Запомнить машину, которая не годится, — навсегда, а не на прогон.
+    """Remember a machine that will not do -- forever, not for one run.
 
-    Без этого предпочтение прогретых машин ведёт прямо на грабли: машина,
-    где мы однажды дошли до ssh, считается прогретой, даже если канал до неё
-    62 кбит/с.  Ровно так и вышло — и стоило пятнадцати минут аренды.
+    Without it, preferring warm machines walks straight into the rake: a
+    machine we once reached ssh on counts as warm even when the link to it is
+    62 kbit/s. That is what happened, and it cost fifteen minutes of rent.
 
-    `machine_id` может прийти пустым: у оффера это поле необязательное.  Тогда
-    записывать нечего — но и ронять прогон нельзя, а прежде `int(None)` летел
-    из середины цикла аренды наружу и уносил ВЕСЬ прогон вместе с уже снятой
-    машиной (`runner._rent`, ветка отбраковки по каналу).
+    `machine_id` may arrive empty, the field being optional on an offer, and
+    then there is nothing to record -- but the run must not die either, and
+    `int(None)` used to fly out of the middle of the rent loop and take the
+    WHOLE run with it, machine already taken (`runner._rent`, the branch that
+    rejects by link).
     """
     try:
         key = str(int(machine_id))
@@ -283,8 +278,8 @@ def mark_bad(machine_id: int | None, reason: str, path: str = BAD) -> None:
         return
     data, broken = _read_bad(path)
     if broken:
-        # Битое содержимое откладываем, а не затираем: в нём машины, каждая
-        # из которых уже стоила аренды.
+        # Broken content is set aside, not overwritten: it holds machines, each
+        # of which has already cost a rental.
         keep = f"{path}.broken-{int(time.time())}"
         try:
             os.replace(path, keep)
@@ -304,10 +299,9 @@ def mark_bad(machine_id: int | None, reason: str, path: str = BAD) -> None:
 
 
 def bad_machines(path: str = BAD) -> list[int]:
-    """Машины, которые больше не брать.  Молчит только когда список пуст.
-
-    Величина, а не молчание: непрочитанный список выглядит точно так же, как
-    пустой, а стоит он пяти отбракованных аренд.
+    """Machines never to take again. Silent only when the list is empty: an
+    unread list looks exactly like an empty one, and it is worth five rejected
+    rentals.
     """
     data, broken = _read_bad(path)
     if broken:
@@ -328,32 +322,28 @@ def bad_machines(path: str = BAD) -> list[int]:
 
 
 def fit(path: str = LEDGER) -> dict:
-    """Оценить LINK_EFFICIENCY по фактическим прогонам.
+    """Estimate LINK_EFFICIENCY from the actual runs.
 
-    ОТКАЗЫВАЕТСЯ СЧИТАТЬ, когда считать не из чего, и говорит почему.
+    REFUSES TO COMPUTE when there is nothing to compute from, and says why.
 
-    Оценка делит `image_gb * 8 * 1024 / setup_s` на объявленный канал. У неё
-    два условия, и оба нарушались молча:
+    The estimate divides `image_gb * 8 * 1024 / setup_s` by the advertised
+    link. Two conditions, both of which used to break silently:
 
-    * **числитель должен меняться.** Во всех записях нынешнего журнала
-      `image_gb` равен 0.06 — одна и та же константа. Делить константу на
-      меняющийся знаменатель значит мерить знаменатель, а не эффективность
-      канала.
-    * **знаменатель должен мерить доставку.** До правки `setup_s` мерил весь
-      разбег прогона: замер нашего канала, ВСЕ отбракованные попытки, каждый
-      поиск предложений и оба зонда. Отсюда медиана 0.0052 против константы
-      0.05, которую эта оценка и должна была подтвердить, — расхождение в
-      десять раз, целиком арифметическое, печаталось как здоровое число.
+    * **the numerator must vary.** In every record of the current ledger
+      `image_gb` is 0.06, one constant, and dividing a constant by a varying
+      denominator measures the denominator, not the link.
+    * **the denominator must measure delivery.** Before the fix `setup_s`
+      measured the whole run-up: the probe of our own link, EVERY rejected
+      attempt, each offer search and both probes. Hence a median of 0.0052
+      against the constant 0.05 it was meant to confirm -- a tenfold gap,
+      purely arithmetic, printed as a healthy number.
 
-    Записи со старым устройством `setup_s` отличаются отсутствием поля
-    `reject_s`; они ПРОПУСКАЮТСЯ — и пропуск печатается числом.
-
-    Пропускаются, а не выключают оценку.  Здесь стояло `if old_shape: return`,
-    то есть ОДНА старая запись отменяла счёт по всем остальным навсегда:
-    журнал только копится, старые записи из него не исчезают, и `books
-    ledger` печатал «41 записей со старым setup_s — по ним считать нельзя»
-    при 70 записях новой формы рядом.  Докстринг при этом обещал ровно
-    противоположное — «они в оценку не идут», — и разошёлся с делом.
+    Records of the old `setup_s` shape are recognised by the missing `reject_s`
+    field and SKIPPED, the skip printed as a number. Skipped, not disabling the
+    estimate: `if old_shape: return` stood here, so ONE old record cancelled
+    the count over all the others forever -- the ledger only grows -- and
+    `books ledger` called 41 records uncountable while 70 of the new shape sat
+    beside them, the docstring meanwhile promising the opposite.
     """
     eff, gbs, old_shape = [], set(), 0
     for r in read(path):
@@ -365,9 +355,9 @@ def fit(path: str = LEDGER) -> dict:
             continue
         gbs.add(round(float(gb), 3))
         eff.append((gb * 8 * 1024 / setup) / adv)
-    # Пропущенное называется в КАЖДОМ ответе, а не только в отказе: оценка,
-    # посчитанная по семи записям из сорока восьми, и оценка по всем сорока
-    # восьми — разные оценки, и разницу должно быть видно, не открывая код.
+    # The skip is named in EVERY answer, not only in a refusal: an estimate
+    # over seven records of forty-eight and one over all forty-eight are
+    # different estimates, and the difference must show without opening code.
     skipped = {"skipped_old_setup_s": old_shape} if old_shape else {}
     if len(gbs) < 2:
         return {"samples": len(eff), **skipped, "why_no_estimate":

@@ -1,78 +1,57 @@
-"""Вырезать артефакт из страницы по рамке модели.
+"""Cut an artifact out of a page along the model's box.
 
-Режем ИЗ PDF, а не из растра, которым кормили детектор. Причина в числе:
-детекция идёт при `PAGE_DPI` = 144, и плотная таблица без линеек даёт там
-шесть-семь точек на высоту знака — второй уровень на такой вырезке провалится,
-а спишут это на него. Из PDF можно взять любую резкость, не переспрашивая
-детектор.
+We cut FROM THE PDF, not from the raster the detector was fed, and the reason
+is a number: detection runs at `PAGE_DPI` = 144, where a dense unruled table
+gives six or seven dots per character height -- level two would fail on such a
+crop and be blamed for it. From the PDF any resolution can be had without
+asking the detector again.
 
-ДВЕ РУЧКИ, И ОБЕ ОБЪЯВЛЕНЫ В РЕЕСТРЕ.
+TWO KNOBS, BOTH DECLARED IN THE REGISTRY. `CROP_DPI` is the crop resolution;
+empty means the scan's OWN, all the ink the file holds and not one dot
+invented. `CROP_MARGIN` is padding around the box, in fractions of its size,
+and its default 0 is not laziness but a VALUE: the pipeline cuts exactly on the
+box (`layout_unclip_ratio` = [1.0, 1.0]), and any non-zero padding edits the
+model's box, which the rules forbid. A negative one CUTS INTO that box and is
+refused aloud -- `CROP_MARGIN=-0.1` ate a tenth off each side, the crop went
+into the book gnawed, and no quantity showed it: "clipped by the sheet"
+measures the SHEET's edge, not our knife. Should a bench show that padding is
+needed, it comes back as a number with a measurement.
 
-`CROP_DPI` — резкость вырезки. Умолчание — СОБСТВЕННАЯ резкость скана: взять
-все чернила, которые в файле есть, и не выдумать ни одной точки сверх. Прежде
-умолчанием была резкость детекции (144), и на настоящем скане в 200 dpi это
-выбрасывало 48% чернил — замер в `params` ниже.
-
-ЧЬЯ ЭТО РЕЗКОСТЬ, И ПОЧЕМУ НЕ ОКРУЖЕНИЕ. Прежде пустой `CROP_DPI` раскрывался
-в `PAGE_DPI` ТЕКУЩЕГО процесса, а он к прогону детекции отношения не имеет:
-`books detect` мог считать при одном значении, `books html` собираться при
-другом, и «как видела модель» становилось неправдой молча. Замер: детекция
-`bench/atlas` при `PAGE_DPI=150`, сборка при умолчании — команда печатала
-«вырезок 26 при 144 dpi», хотя координаты рамок пересчитывались из 150.
-Резкость детекции лежит в слепке полем `растр.dpi` и приезжает сюда
-аргументом `page_dpi`; окружение спрашивается только тогда, когда аргумента
-нет вовсе, и тогда об этом сказано полем «dpi откуда».
-
-`CROP_MARGIN` — поле вокруг рамки, в долях её размера. Умолчание 0, и это
-не лень: пайплайн режет ровно по рамке (`layout_unclip_ratio` = [1.0, 1.0]),
-а всякое ненулевое поле есть правка рамки модели — то самое, что правила
-запрещают. Ноль здесь ЗНАЧЕНИЕ: мы не трогаем рамку. Если стенд покажет, что
-поле нужно, оно вернётся числом и с замером.
-
-ОТРИЦАТЕЛЬНОЕ ПОЛЕ ЗАПРЕЩЕНО ВСЛУХ. Оно не «поле наоборот», а РЕЗКА рамки
-модели: `CROP_MARGIN=-0.1` съедал по десятой доле с каждой стороны, вырезка
-уезжала в книгу обкусанной, и ни одна величина этого не показывала — «срезано
-листом» меряет край ЛИСТА, а не наш нож. Правка рамки модели запрещена
-правилом проекта, поэтому здесь падение, а не тихий зажим в ноль.
+The measurements behind both defaults are in `params` below.
 """
 import os
 
 from ..run import knobs
 
-# Допуск сравнения рамок, в пунктах PDF. ОДИН на весь файл, и это не вкус:
-# pymupdf держит координаты одинарной точностью, и пересечение прогоняет их
-# через float32 ещё раз. Замер на `bench/atlas`: при `PAGE_DPI` = 144
-# множитель 72/144 = 0.5 двоично точен и расхождения нет вовсе (0 рамок из
-# 28), при 150, 200 и 300 — 28 из 28, величина расхождения до 1.7e-05 пункта.
-# Точное сравнение объявляло срезанной листом рамку, целиком лежащую внутри
-# листа. 0.01 пункта — это 1/7200 дюйма, вчетверо меньше самой мелкой
-# типографской шпации; ниже этого «срез» неотличим от шума представления.
+# Box comparison tolerance, in PDF points. ONE for the whole file, and not to
+# taste: pymupdf holds coordinates in single precision and runs intersection
+# through float32 once more. Measured on `bench/atlas`: at `PAGE_DPI` = 144 the
+# factor 72/144 = 0.5 is binary-exact and diverges not at all (0 boxes of 28);
+# at 150, 200 and 300 it is 28 of 28, up to 1.7e-05 point, and exact comparison
+# declared a box lying wholly inside the sheet clipped by it. 0.01 point is
+# 1/7200 inch, below the smallest typographic space, so under it a "clip" is
+# indistinguishable from representation noise.
 EPS_PT = 0.01
 
 
 def native_dpi(page) -> float | None:
-    """СОБСТВЕННАЯ резкость страницы: сколько чернил в ней вправду есть.
+    """The page's OWN resolution: how much ink it really holds. Above that grid
+    a cut yields interpolation, not ink.
 
-    Скан внутри PDF — это растр, и у него своя решётка. Выше неё резать
-    бессмысленно: получится интерполяция, а не чернила.
+    THE MOST DETAILED OF THOSE COVERING THE WHOLE SHEET. Our own books arrive
+    from djvu (`books prepare`), and such a PDF carries TWO layers on one
+    sheet. Measured on `bench/real/tables20.pdf`, sheet 506 x 733 points:
 
-    БЕРЁТСЯ САМАЯ ПОДРОБНАЯ ИЗ ЛЕЖАЩИХ НА ВЕСЬ ЛИСТ, и это не придирка. Наши
-    собственные книги приезжают из djvu (`books prepare`), а такой PDF несёт
-    ДВА слоя на одном листе: фон и отдельно текст с маской. Замер на
-    `bench/real/tables20.pdf`, лист 506 x 733 пункта:
+        layer 0: 1408 x 2038 px = 200 dpi, covers the whole sheet
+        layer 1: 4222 x 6112 px = 601 dpi, covers the whole sheet, with a mask
 
-        слой 0: 1408 x 2038 px = 200 dpi, лежит на весь лист
-        слой 1: 4222 x 6112 px = 601 dpi, лежит на весь лист, с маской
+    The detailed layer is the letters, and the first version took a resolution
+    only when the sheet held ONE image -- it gave up on such books and returned
+    `None`.
 
-    Подробный слой — это и есть буквы; первая редакция брала резкость только
-    когда картинка на листе ОДНА, то есть на таких книгах сдавалась и
-    возвращала `None`. Условие «на весь лист» отсекает марку или вклейку в
-    углу: она бывает сколь угодно подробной, и резать по ней всю страницу
-    значило бы раздуть каждую вырезку впустую.
-
-    `None` значит «сказать нечем»: страница векторная (у цифрового PDF решётки
-    нет вовсе) или ни одна картинка не лежит на весь лист. Это ЗНАЧЕНИЕ, а не
-    ноль: вызывающий обязан отличить «резкость неизвестна» от «резкость 144».
+    `None` means "nothing to say with": vector page (a digital PDF has no grid)
+    or no image over the whole sheet. A VALUE, not a zero -- the caller must
+    tell "resolution unknown" from "resolution 144".
     """
     w_pt = float(page.rect.width)
     if w_pt <= 0:
@@ -91,60 +70,59 @@ def native_dpi(page) -> float | None:
         except Exception:                          # noqa: BLE001
             continue
         for r in rects:
-            # Только картинки, ЛЕЖАЩИЕ НА ВЕСЬ ЛИСТ. Марка, вклейка или логотип
-            # в углу бывают сколь угодно подробными, и брать их резкость за
-            # резкость страницы значило бы резать весь лист впустую по одной
-            # картинке.
+            # Only images COVERING THE WHOLE SHEET: a stamp or inset in a
+            # corner can be arbitrarily detailed, and cutting the whole page by
+            # it would inflate every crop for nothing.
             if r.width < w_pt * 0.9 or r.width <= 0:
                 continue
-            # ДЕЛИМ НА ШИРИНУ РАЗМЕЩЕНИЯ, А НЕ НА ШИРИНУ ЛИСТА. Растр бывает
-            # ШИРЕ листа — так выглядит скан разворота, из которого лист
-            # вырезает половину, — и деление на лист завышало решётку ровно во
-            # столько раз, во сколько растр шире.
+            # DIVIDE BY THE PLACEMENT WIDTH, NOT THE SHEET WIDTH. A raster can
+            # be WIDER than the sheet -- a spread scan the sheet takes half
+            # of -- and dividing by the sheet overstated the grid by exactly
+            # that ratio.
             #
-            # Замер на пяти страницах каждой из шести книг: завышение у ЧЕТЫРЁХ
-            # книг из шести, до 2.47 раза. Худший случай — «Технология
-            # огнеупоров»: лист 278.2 пт, растр 2867 px лежит на 688.1 пт;
-            # деление на лист объявляло 741.9 dpi при настоящей решётке 300.0.
-            # Цена завышения померена сверкой с самим вложенным растром:
-            # вчетверо больше пикселей покупали +0.02 корреляции с истиной,
-            # тогда как настоящий подробный слой даёт +0.18 — в десять раз
-            # больше. То есть это ровно «догадка растеризатора», которую
-            # `params()` ниже обещает не покупать.
+            # Measured on five pages of each of six books: overstated in FOUR
+            # of the six, up to 2.47x. Worst case, "Технология огнеупоров":
+            # sheet 278.2 pt, raster 2867 px placed on 688.1 pt, read as 741.9
+            # dpi against a real grid of 300.0. The price was measured against
+            # the embedded raster itself: four times the pixels bought +0.02
+            # correlation with truth, where the genuine detailed layer gives
+            # +0.18. That is the "rasteriser's guess" `params()` promises not
+            # to buy.
             best = max(best, w_px / float(r.width) * 72.0)
     return best or None
 
 
 def params(page_dpi: float | None = None,
            page_native: float | None = None) -> dict:
-    """Действующие величины вырезки. Уезжают в слепок целиком.
+    """The crop values in force. They go into the snapshot whole.
 
-    `page_dpi` — резкость ДЕТЕКЦИИ (`растр.dpi` слепка).
-    `page_native` — СОБСТВЕННАЯ резкость страницы (`native_dpi`).
+    `page_dpi` is the DETECTION resolution (`raster.dpi` of the snapshot),
+    `page_native` the page's OWN (`native_dpi`).
 
-    ЧТО ЗНАЧИТ ПУСТОЙ `CROP_DPI` — и это переписано ЗАМЕРОМ, а не вкусом.
-    Прежде он значил «как у детекции», то есть 144. Замер на настоящем скане
-    (`bench/real/tables20.pdf`, растр 1408 x 2038 на листе 506 x 733 пт = 200
-    dpi), один и тот же кусок:
+    WHAT AN EMPTY `CROP_DPI` MEANS -- rewritten by MEASUREMENT, not by taste.
+    It used to mean "as at detection", i.e. 144. One and the same piece of a
+    real scan (`bench/real/tables20.pdf`, raster 1408 x 2038 on a 506 x 733 pt
+    sheet = 200 dpi):
 
         CROP_DPI=144   810 x 221 =  179 010 px
-        CROP_DPI=200  1125 x 306 =  344 250 px   <- своя решётка скана
-        CROP_DPI=288  1620 x 441 =  714 420 px   } выше неё — интерполяция,
-        CROP_DPI=400  2249 x 612 = 1376 388 px   } чернил больше не становится
+        CROP_DPI=200  1125 x 306 =  344 250 px   <- the scan's own grid
+        CROP_DPI=288  1620 x 441 =  714 420 px   } above it interpolation,
+        CROP_DPI=400  2249 x 612 = 1376 388 px   } no more ink appears
 
-    То есть при «как у детекции» мы выбрасывали 48% чернил, которые в файле
-    ЕСТЬ. Теперь пустой `CROP_DPI` значит «сколько в скане есть, и ни точкой
-    больше»: взять всё, не выдумав ничего. Детекции это не касается — она
-    считает при `PAGE_DPI` и от вырезки не зависит.
+    So "as at detection" threw away 48 % of the ink that IS in the file. Empty
+    now means "as much as the scan holds, not one dot more"; detection is
+    untouched, it counts at `PAGE_DPI`. Nor is more safer: above the own grid
+    what is added is the rasteriser's guess, and it costs twice, because
+    PaddleOCR-VL has `max_pixels` around a million and squeezes an inflated
+    crop back in its own processor -- we would pay to compress an invention.
 
-    ПОЧЕМУ НЕ «ПОБОЛЬШЕ». Потому что выше своей решётки прибавляются не
-    чернила, а догадка растеризатора, и она обошлась бы дороже: у
-    PaddleOCR-VL `max_pixels` около миллиона, и раздутая вырезка ужимается
-    обратно уже её процессором — то есть мы платили бы вдвое за то, чтобы
-    сжать выдуманное.
-
-    Когда своя резкость неизвестна (вектор, несколько картинок на листе),
-    берётся резкость детекции, и «dpi откуда» это называет.
+    AND IT IS THE DETECTION RUN'S RESOLUTION, NOT THE CURRENT PROCESS'S. Empty
+    `CROP_DPI` used to expand to `PAGE_DPI` here and now: `bench/atlas`
+    detected at `PAGE_DPI=150` and assembled at the default printed 26 crops at
+    144 dpi while the coordinates were converted from 150 -- "as the model saw
+    it" made untrue, silently. The environment is asked only when no argument
+    comes, and when the own resolution is unknown (vector, several images on a
+    sheet) the detection one is taken; `dpi_source` names which it was.
     """
     margin = float(knobs.knob("CROP_MARGIN"))
     if margin < 0:
@@ -155,11 +133,11 @@ def params(page_dpi: float | None = None,
             f"(«срезано листом» — про край листа, а не про наш нож)")
     raw = knobs.knob("CROP_DPI")
     if raw:
-        # НОЛЬ И ОТРИЦАТЕЛЬНОЕ — ОТКАЗ ВСЛУХ. Строка «0» истинна, и она
-        # проходила эту ветку насквозь: `get_pixmap(dpi=0)` у pymupdf молча
-        # откатывается на 72 dpi, то есть книга резалась вчетверо грубее
-        # заказанного, а в записи стояло «dpi 0». Проверено: `CROP_DPI=0` даёт
-        # вырезку 150x100 px там, где при 600 было бы 1250x833.
+        # ZERO AND NEGATIVE ARE REFUSED ALOUD. The string "0" is truthy and
+        # went straight through this branch: `get_pixmap(dpi=0)` in pymupdf
+        # falls back to 72 dpi silently, so the book was cut four times coarser
+        # than ordered while the record said "dpi 0". Checked: `CROP_DPI=0`
+        # gives a 150x100 px crop where 600 would give 1250x833.
         try:
             _v = float(raw)
         except ValueError:
@@ -181,43 +159,44 @@ def params(page_dpi: float | None = None,
                                      "не определяется (вектор или несколько "
                                      "картинок на листе)")
     else:
-        # Резкость детекции не назвали — берём окружение и ГОВОРИМ об этом.
-        # Ноль от проверки и ноль от непонимания: это значение не «сверено с
-        # детекцией», а «сверять не с чем».
+        # The detection resolution was not named -- take the environment and
+        # SAY so. A zero from a check and a zero from not knowing: this value
+        # is not "agreed with detection", it is "nothing to agree with".
         dpi, src = float(knobs.knob("PAGE_DPI")), "PAGE_DPI текущего процесса"
     return {"dpi": dpi, "dpi_source": src, "margin": margin}
 
 
 def box_to_points(box, page_dpi: float):
-    """Рамка из пикселей растра при `page_dpi` — в пункты PDF (72 на дюйм)."""
+    """A box in raster pixels at `page_dpi` -> PDF points (72 per inch)."""
     k = 72.0 / page_dpi
     return tuple(v * k for v in box)
 
 
 def _clipped(rect, clip) -> bool:
-    """Срезана ли `rect` до `clip` — С ДОПУСКОМ, а не точным сравнением.
+    """Is `rect` clipped down to `clip` -- WITH TOLERANCE, not exactly.
 
-    Правило сравнения в этом файле ОДНО, и живёт оно здесь. Прежде «срезано
-    листом» сверялось точно (`(raw & page.rect) != raw`), а соседняя величина
-    «поле срезано листом» — с допуском 0.01; два разных правила на две
-    соседние строки, и первое врало на всякой резкости, не дающей двоично
-    точного множителя (см. `EPS_PT`).
+    The comparison rule in this file is ONE, and it lives here. "Clipped by the
+    sheet" used to compare exactly (`(raw & page.rect) != raw`) while its
+    neighbour "margin clipped by the sheet" used the 0.01 tolerance: two rules
+    on two adjacent lines, and the first lied at every resolution whose factor
+    is not binary-exact (see `EPS_PT`).
     """
     return (abs(clip.width - rect.width) > EPS_PT
             or abs(clip.height - rect.height) > EPS_PT)
 
 
 def _box_trouble(w: float, h: float) -> str | None:
-    """Чем плоха сама рамка: `ПЕРЕВЁРНУТА` | `ВЫРОЖДЕНА` | None.
+    """What is wrong with the box itself: `ПЕРЕВЁРНУТА` | `ВЫРОЖДЕНА` | None.
 
-    Обе беды давали пустое пересечение с листом и потому получали чужой
-    диагноз «не пересекается с листом» — при рамке, лежащей посреди бумаги.
-    Читающий шёл искать съехавшие координаты и край листа, а дело было в самой
-    рамке. `read/run.py` ловит ValueError из `cut` и считает его величиной
-    «вырезка не вышла», так что вид исключения от разделения не изменился.
+    Both gave an empty intersection with the sheet and so drew the foreign
+    diagnosis "does not intersect the sheet" -- for a box lying in the middle
+    of the paper, sending the reader after slipped coordinates and a sheet
+    edge. `read/run.py` catches the ValueError from `cut` and counts it as
+    "crop failed", so the exception type did not change with the split.
 
-    ОТДЕЛЬНОЙ ФУНКЦИЕЙ ради батареи порчи: диагноз, зашитый двумя `if` внутрь
-    `cut`, нечем сломать, а сторож, которого нельзя сломать, не доказан.
+    A SEPARATE FUNCTION for the mutation battery: a diagnosis sewn as two `if`s
+    inside `cut` cannot be broken, and a guard that cannot be broken is not
+    proven.
     """
     if w < 0 or h < 0:
         return "ПЕРЕВЁРНУТА: правый край левее левого либо нижний выше верхнего"
@@ -228,19 +207,19 @@ def _box_trouble(w: float, h: float) -> str | None:
 
 def cut(doc, page_index: int, box, page_dpi: float, dst: str,
         dpi: float | None = None, margin: float | None = None) -> dict:
-    """Вырезать рамку в файл. Возвращает, ЧТО именно вырезано.
+    """Cut the box into a file. Returns WHAT exactly was cut.
 
-    Возвращает не «готово», а величины: итоговый размер в точках, применённое
-    поле, срез по краю страницы. Без них нельзя отличить «вырезали таблицу» от
-    «вырезали её левую половину, потому что рамка вылезла за лист».
+    Not "done" but quantities: resulting size in points, margin applied,
+    clipping by the page edge. Without them "we cut a table" cannot be told
+    from "we cut its left half, because the box ran off the sheet".
     """
     import pymupdf
 
-    # Своя резкость спрашивается ТОЛЬКО когда её не назвали. Прежде
-    # `native_dpi(doc[page_index])` считался всегда, в том числе когда `dpi`
-    # передан явно и ответ выбрасывается: замер по стенду — 15 601 вызов
-    # `get_images` на 600 страниц, из них полезных ноль, потому что `books read`
-    # резкость каждой вырезки решает сам.
+    # The own resolution is asked for ONLY when it was not named. Before,
+    # `native_dpi(doc[page_index])` was computed always, including when `dpi`
+    # is passed explicitly and the answer thrown away: measured over the bench,
+    # 15 601 `get_images` calls over 600 pages, none of them useful, because
+    # `books read` decides each crop's resolution itself.
     p = params(page_dpi, native_dpi(doc[page_index]) if dpi is None else None)
     dpi = p["dpi"] if dpi is None else dpi
     margin = p["margin"] if margin is None else margin
@@ -258,14 +237,15 @@ def cut(doc, page_index: int, box, page_dpi: float, dst: str,
         x0, y0, x1, y1 = (x0 - w * margin, y0 - h * margin,
                           x1 + w * margin, y1 + h * margin)
     want = pymupdf.Rect(x0, y0, x1, y1)
-    # Пересечение с листом. Рамка модели может выйти за край — это её дефект,
-    # и он должен быть ВИДЕН числом, а не молча обрезан.
+    # Intersection with the sheet. The model's box may run off the edge -- its
+    # defect, and it must be SEEN as a number, not silently trimmed.
     #
-    # Дефект модели и последствие НАШЕЙ ручки — разные числа. Прежняя редакция
-    # мерила выход за лист уже РАСШИРЕННОЙ на CROP_MARGIN рамки, и стоило
-    # назначить поле, как рамка, целиком лежащая внутри листа, объявлялась
-    # срезанной — а к подписи блока в книге дописывалось «рамка вышла за лист».
-    # Ложное обвинение модели тем чаще, чем крупнее поле.
+    # The model's defect and the consequence of OUR knob are different numbers.
+    # The former version measured the overrun of the box ALREADY widened by
+    # CROP_MARGIN, so setting a margin was enough for a box lying wholly inside
+    # the sheet to be declared clipped, and the block's caption in the book
+    # gained "the box ran off the sheet" -- a false accusation of the model,
+    # the more frequent the larger the margin.
     raw = pymupdf.Rect(*box_to_points(box, page_dpi))
     clipped = _clipped(raw, raw & page.rect)
     clip = want & page.rect

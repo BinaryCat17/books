@@ -28,8 +28,9 @@ WHAT WAS BROKEN HERE, AND WHY IT STAYS IN THE HEADER.
   `decayed`, one page of which has no artefact boxes, that line killed the
   battery with IndexError on probe six of nine.
 
-* **A missing flag was read as a present one.** `_has_order` defaulted to
-  `True`, so truth silent about its reading order counted as annotated, and
+* **A missing flag was read as a present one.** The guard, then named
+  `_has_order` and now `_model_has_rank`, defaulted to `True`, so truth
+  silent about its reading order counted as annotated, and
   seven benches of nine printed a percentage off it: hard36 "pairs 211, agreed
   73%" (no flag in any of its 36 files), slovar 89%, matematika 100%,
   spravochnik 99%, katalog 99%, atlas 95%, zhurnal 96%. Detectors had been

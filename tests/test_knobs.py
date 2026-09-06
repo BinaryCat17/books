@@ -1,17 +1,15 @@
-"""Реестр ручек: что не объявлено — то не читается, и наоборот.
+"""The knob registry: what is not declared is not read, and the reverse.
 
-Правило проекта: «Ручка объявляется в реестре `run/knobs.py`. Чтение окружения
-мимо реестра — ошибка: ручка, которой нет в реестре, не попадёт в слепок, и
-прогон станет неповторимым молча». Молчаливую беду здесь ловить нечем — кроме
-проверок.
+The project rule -- a knob absent from `run/knobs.py` never reaches the
+snapshot and the run becomes silently irreproducible -- is held here by nothing
+but checks.
 
-Сам реестр про свою слепоту говорит честно: `VL_MODEL_DIR` поймал не он, а
-удалённый `tests/test_knobs_registry.py`, разбиравший исходники деревом.
-Половина того ловца восстановлена как `readers()`/`audit()` — здесь она
-поставлена под проверку, а заодно закрыт кусок, который `readers()` за собой
-не берёт вовсе: сверка объявлений `knobs_read()` у адаптеров с тем, что они
-читают на самом деле. Там три списка, набранных руками, и расхождение в них
-даёт слепок УВЕРЕННЫЙ И НЕВЕРНЫЙ — величина названа, а к прогону не относится.
+The registry is honest about its blindness: `VL_MODEL_DIR` was caught not by it
+but by the deleted `tests/test_knobs_registry.py`, which parsed sources as
+trees. Half of that catcher came back as `readers()`/`audit()`, put under check
+here together with the piece it does not take on: the adapters' `knobs_read()`
+declarations against what they really read. Three hand-typed lists, and a drift
+gives a snapshot CONFIDENT AND WRONG.
 """
 import os
 import re
@@ -29,13 +27,12 @@ ADAPTERS = ((DocLayout, "models/doclayout.py"),
 
 
 def test_unknown_knob_raises_not_returns_empty():
-    """Незаявленное имя бросает, а не отдаёт пустую строку.
+    """An undeclared name raises instead of returning an empty string.
 
-    Пустая строка тут — это прогон, который выглядит настроенным и не
-    повторяется.
+    An empty string here is a run that looks configured and does not repeat.
     """
     try:
-        knobs.knob("MULTIVIEW")          # была ручкой, снесена вместе с заплаткой
+        knobs.knob("MULTIVIEW")          # once a knob, removed with its patch
     except KeyError as e:
         assert "MULTIVIEW" in str(e) and "KNOBS" in str(e), (
             f"жалоба не называет ни ручку, ни реестр: {e}")
@@ -46,7 +43,7 @@ def test_unknown_knob_raises_not_returns_empty():
 
 
 def test_names_are_unique():
-    """Дубль имени молча затёр бы одну ручку другой в словаре KNOB."""
+    """A duplicate name would silently overwrite one knob in KNOB."""
     names = [k.name for k in knobs.KNOBS]
     assert len(names) == len(set(names)), (
         f"имена ручек повторяются: "
@@ -54,10 +51,10 @@ def test_names_are_unique():
 
 
 def test_defaults_are_strings():
-    """Умолчание хранится СТРОКОЙ — ровно как приехало бы из окружения.
+    """A default is kept as a STRING, as it would arrive from the shell.
 
-    Иначе слепок пишет `2.0` там, где прогон видел `"2"`, и сверка двух
-    прогонов спотыкается о тип, а не о значение.
+    Otherwise the snapshot writes `2.0` where the run saw `"2"`, and comparing
+    two runs trips over the type instead of the value.
     """
     for k in knobs.KNOBS:
         assert isinstance(k.default, str), (
@@ -76,10 +73,10 @@ def test_snapshot_holds_every_knob_with_every_field():
 
 
 def test_snapshot_tells_set_from_default():
-    """«Задано снаружи» — отдельный вопрос от «значение».
+    """Whether a knob was SET is a question apart from its value.
 
-    Пустая строка в окружении это ЗНАЧЕНИЕ, а не отсутствие: `${X:-0}` в
-    оболочке и умолчание реестра обязаны говорить одно и то же.
+    An empty string in the environment is a VALUE, not an absence: `${X:-0}` in
+    the shell and the registry default must say one and the same thing.
     """
     name = "PAGE_DPI"
     old = os.environ.get(name)
@@ -103,7 +100,7 @@ def test_snapshot_tells_set_from_default():
 
 
 def test_passthrough_carries_only_what_was_set():
-    """На арендованную машину уезжает ЗАДАННОЕ, умолчания живут в одном месте."""
+    """What ships to the card is what was SET; defaults live in one place."""
     old = os.environ.get("PASSES")
     try:
         os.environ.pop("PASSES", None)
@@ -118,10 +115,11 @@ def test_passthrough_carries_only_what_was_set():
 
 
 def test_audit_finds_no_disagreement():
-    """Объявленный долг сходится с деревом исходников.
+    """The declared debt agrees with the source tree.
 
-    Две тихие беды разом: ручку начали читать, а `debt=True` с неё не сняли; и
-    последнего потребителя удалили вместе с кодом, а ручка стоит как живая.
+    Two silent troubles at once: a knob started being read and `debt=True` was
+    never taken off it; and the last consumer was deleted with its code while
+    the knob stands as if alive.
     """
     bad = knobs.audit()
     assert bad == [], ("реестр разошёлся с деревом, расхождений "
@@ -129,10 +127,10 @@ def test_audit_finds_no_disagreement():
 
 
 def test_readers_finds_consumers_and_counts_them():
-    """`readers()` считает потребителей, а не помнит их прозой.
+    """`readers()` counts consumers instead of remembering them in prose.
 
-    Числа сверяются с реестром: живых ручек должно быть ровно столько,
-    сколько всего минус объявленный долг.
+    The numbers are checked against the registry: live knobs must be exactly as
+    many as the total minus the declared debt.
     """
     who = knobs.readers()
     assert set(who) == set(knobs.names())
@@ -146,12 +144,12 @@ def test_readers_finds_consumers_and_counts_them():
 
 
 def test_adapters_declare_the_knobs_they_read():
-    """Сговор через файл: `knobs_read()` адаптера против его же исходника.
+    """A contract through a file: `knobs_read()` against the adapter's source.
 
-    Именно эту сверку `readers()` за собой не берёт, и живёт она тремя
-    списками, набранными руками. Расхождение молчит: `books replay --check`
-    вернёт 0, а `run.json` назовёт величину, к прогону не относящуюся, — как
-    было с `LAYOUT_MODEL_NAME=PP-DocLayoutV2` в прогоне heron.
+    The comparison `readers()` does not take on. A drift is silent: `books
+    replay --check` returns 0 while `run.json` names a value that has nothing
+    to do with the run -- as happened with `LAYOUT_MODEL_NAME=PP-DocLayoutV2`
+    in a heron run.
     """
     for cls, rel in ADAPTERS:
         with open(support.src_path(rel), encoding="utf-8") as f:
@@ -170,7 +168,7 @@ def test_adapters_declare_the_knobs_they_read():
 
 
 def test_docling_pipeline_is_registered():
-    """Ручка, решившая разницу в 5826 рамок, обязана быть в реестре."""
+    """The knob that decided 5826 boxes must be in the registry."""
     k = knobs.KNOB["DOCLING_PIPELINE"]
     assert k.debt is False, "живая ручка помечена долгом"
     assert knobs.readers()["DOCLING_PIPELINE"], (
@@ -178,26 +176,22 @@ def test_docling_pipeline_is_registered():
 
 
 # --------------------------------------------------------------------------
-# СГОВОР ДВУХ ФАЙЛОВ ПРОВЕРОК: `support.skip()` и `tests/run.py`. Живёт он
-# здесь по той же причине, по какой здесь живут остальные: молчаливую беду
-# ловить нечем, кроме проверки, а беда тут ровно такая — и молчит она обо
-# ВСЁМ прогоне сразу.
-#
-# Чем оплачено. `support.skip()` выбирал форму пропуска по тому, ИМПОРТИРУЕТСЯ
-# ли pytest, а не по тому, КТО ГОНЯЕТ. У pytest `Skipped` наследует
-# BaseException, а не Exception, — мимо обеих ловушек `run_case`. Замер
-# подставным модулем с тем же договором: под нашим бегуном первый же пропуск
-# убивал прогон трассой, строка «проверок 111: прошло 110 …» не печаталась
-# ВОВСЕ, код возврата 1. То есть достаточно было поставить pytest в `.venv`,
-# чтобы 110 зелёных проверок перестали докладывать о себе.
+# A CONTRACT BETWEEN TWO CHECK FILES: `support.skip()` and `tests/run.py`, and
+# it is silent about the WHOLE run at once. `support.skip()` chose the form of
+# a skip by whether pytest was IMPORTABLE, not by WHO RUNS, and in pytest
+# `Skipped` inherits BaseException, not Exception -- past both traps of
+# `run_case`. Measured with a stand-in module of the same contract: under our
+# runner the first skip killed the run with a traceback, the line "checks 111:
+# passed 110 ..." did not print AT ALL, exit code 1. Installing pytest into
+# `.venv` was enough to stop 110 green checks reporting themselves.
 
 def _fake_pytest():
-    """Подставной pytest, повторяющий договор настоящего ДОСЛОВНО.
+    """A stand-in pytest repeating the real contract WORD FOR WORD.
 
-    `Skipped` от BaseException (у pytest он от `OutcomeException`, а тот от
-    BaseException) и `skip.Exception`, который ставит декоратор
-    `_with_exception`. Настоящий pytest в `.venv` не стоит, и ждать его
-    установки, чтобы узнать про беду, — то же самое, что не проверять.
+    `Skipped` from BaseException (in pytest from `OutcomeException`, and that
+    from BaseException) and the `skip.Exception` its `_with_exception`
+    decorator sets. Real pytest is not in `.venv`, and waiting for it to learn
+    of the trouble is the same as not checking.
     """
     import types
     mod = types.ModuleType("pytest")
@@ -214,7 +208,7 @@ def _fake_pytest():
 
 
 def _with_fake_pytest(fn):
-    """Выполнить с подставным pytest в `sys.modules` и вернуть как было."""
+    """Run with a stand-in pytest in `sys.modules`, then put it back."""
     import sys
     had = sys.modules.get("pytest")
     sys.modules["pytest"] = _fake_pytest()
@@ -228,12 +222,11 @@ def _with_fake_pytest(fn):
 
 
 def _raised_by_skip(own_runner):
-    """Чем именно кончился `support.skip()` при подставном pytest.
+    """What exactly `support.skip()` ended with under a stand-in pytest.
 
-    Ловится BaseException, и это не перестраховка: испорченный `skip()`
-    поднимает `Skipped`, а тот наследует BaseException — выпусти его наружу,
-    и он убьёт ВНЕШНИЙ бегун вместо того, чтобы покраснеть здесь. Мутация
-    обязана краснеть названной проверкой, а не смертью прогона.
+    BaseException is caught deliberately: a broken `skip()` raises `Skipped`,
+    which inherits BaseException -- let it out and it kills the OUTER runner. A
+    mutation must go red as a named check, not as the death of the run.
     """
     def body():
         was = support.OWN_RUNNER
@@ -251,7 +244,7 @@ def _raised_by_skip(own_runner):
 
 
 def test_skip_under_our_runner_does_not_depend_on_pytest_being_installed():
-    """Наш бегун гоняет — пропуск НАШ, даже когда pytest лежит рядом."""
+    """Our runner runs -- the skip is OURS, even with pytest installed."""
     kind, why = _raised_by_skip(own_runner=True)
     assert kind == "наш Skip", (
         f"при установленном pytest пропуск поднялся как {kind}: наш бегун "
@@ -261,7 +254,7 @@ def test_skip_under_our_runner_does_not_depend_on_pytest_being_installed():
 
 
 def test_skip_under_pytest_stays_a_pytest_skip():
-    """Гоняет pytest — пропуск ЕГО. Иначе `Skip` уехал бы к нему провалом."""
+    """pytest runs -- the skip is HIS, else `Skip` reaches him as a failure."""
     kind, _ = _raised_by_skip(own_runner=False)
     assert kind == "Skipped", (
         f"под pytest пропуск объявлен как {kind} — он засчитает проверку "
@@ -269,12 +262,12 @@ def test_skip_under_pytest_stays_a_pytest_skip():
 
 
 def _load_runner():
-    """Сам бегун, поднятый ОТДЕЛЬНЫМ модулем.
+    """The runner itself, raised as a SEPARATE module.
 
-    Отдельным, потому что запущенный бегун зовётся `__main__`, а под pytest
-    его нет вовсе. Загрузка объявляет `support.OWN_RUNNER`, и вызывающий
-    обязан вернуть его как было: иначе следующая проверка под pytest получила
-    бы наш пропуск вместо его.
+    Separate because a running runner is called `__main__`, and under pytest
+    there is none. Loading it declares `support.OWN_RUNNER`, and the caller
+    must put that back, or the next check under pytest gets our skip instead of
+    his.
     """
     import importlib.util
     import os as _os
@@ -288,12 +281,11 @@ def _load_runner():
 
 
 def test_runner_counts_a_foreign_skip_as_a_skip_and_survives():
-    """Чужой пропуск (`pytest.skip`) — пропуск, а не смерть бегуна.
+    """A foreign skip (`pytest.skip`) is a skip, not the death of the runner.
 
-    Вторая половина починки: даже если проверка позовёт `pytest.skip()` мимо
-    `support.skip()`, итог обязан напечататься. Величина здесь — СОСТОЯНИЕ,
-    а не «не упало»: провал и пропуск считаются разными числами, и подмена
-    одного другим — та же ложь, что молчание.
+    The second half of the fix: even if a check calls `pytest.skip()` past
+    `support.skip()`, the total must print. The value here is the STATE, not
+    "did not fall": a failure and a skip are different numbers.
     """
     was = support.OWN_RUNNER
     try:
@@ -304,9 +296,9 @@ def test_runner_counts_a_foreign_skip_as_a_skip_and_survives():
                 return runner.run_case(
                     lambda: sys.modules["pytest"].skip("нечем"))
             except BaseException as e:                      # noqa: BLE001
-                # Испорченный бегун чужой пропуск не ловит и выпускает его
-                # наружу — именно так он и умирал. Ловим здесь, чтобы
-                # покраснела эта проверка, а не весь прогон.
+                # A broken runner does not catch a foreign skip and lets it out
+                # -- that is exactly how it died. Caught here so that this
+                # check goes red rather than the whole run.
                 return f"выпущено наружу ({type(e).__name__})", str(e)
         state, why = _with_fake_pytest(body)
     finally:
@@ -319,7 +311,7 @@ def test_runner_counts_a_foreign_skip_as_a_skip_and_survives():
 
 
 def test_runner_still_lets_a_real_interrupt_out():
-    """KeyboardInterrupt наружу: бегун, который его глотает, неостановим."""
+    """KeyboardInterrupt goes out: swallow it and the run cannot be stopped."""
     was = support.OWN_RUNNER
     try:
         runner = _load_runner()
@@ -337,20 +329,21 @@ def test_runner_still_lets_a_real_interrupt_out():
 
 
 # --------------------------------------------------------------------------
-# ПОЛНОТА СЛЕПКА: `replay.shape()` выводит требуемую форму отпечатка разбором
-# исходника адаптера. Разбор бывает бессилен — отпечаток собран включением, за
-# циклом, отдан готовым полем, — и вот этот случай стоил прибору лица: ветка
-# «отпечаток» не попадала в требования ВООБЩЕ, и слепок, где отпечатка нет
-# вовсе, проходил `books replay --check` с кодом 0, строкой «величин в слепке
-# 51 из 51, не хватает 0» и словом СВЕРЕН рядом. Проверка полноты одобряла
-# неполный слепок ровно тогда, когда сама не справилась.
+# SNAPSHOT COMPLETENESS: `replay.shape()` derives the required fingerprint
+# shape by parsing the adapter's source. Parsing is sometimes powerless --
+# fingerprint built by a comprehension, past a loop, handed over ready -- and
+# that cost the instrument its face: the "fingerprint" branch did not enter the
+# requirements AT ALL, so a snapshot with no fingerprint passed `books replay
+# --check` with code 0, "values in the snapshot 51 of 51, missing 0" and the
+# word VERIFIED beside it. The completeness check approved an incomplete
+# snapshot exactly when it had failed itself.
 
 def _adapter_with_underivable_fingerprint(tmp):
-    """Писатель слепка, чью форму разбор дерева НЕ выведет.
+    """A snapshot writer whose shape tree-parsing will NOT derive.
 
-    Настоящий по устройству: класс с объявленным `name` и объявленным
-    `fingerprint()`. Ключей в нём разбор не находит ни одного — они
-    считаются на прогоне.
+    Real in build: a class with a declared `name` and a declared
+    `fingerprint()`. Parsing finds not one key in it -- they are counted during
+    the run.
     """
     path = os.path.join(tmp, "myocr.py")
     with open(path, "w", encoding="utf-8") as f:
@@ -362,11 +355,11 @@ def _adapter_with_underivable_fingerprint(tmp):
 
 
 def test_shape_that_could_not_be_derived_is_loud_not_silent():
-    """«Вывести не удалось» — величина, а не молчаливое согласие.
+    """Failure to derive the shape is a value, not silent agreement.
 
-    Требуется хотя бы САМА ветка отпечатка: слепок без неё обязан быть
-    неполным. И незнание названо числом — `не выведено`, — иначе «проверено
-    всё» и «проверено то, что смогли» неразличимы.
+    At least the fingerprint BRANCH itself is required: a snapshot without it
+    must be incomplete. And the ignorance is named by a number -- `not_derived`
+    -- else "all checked" and "as much as we could" are indistinguishable.
     """
     import shutil as _sh
     import tempfile
@@ -407,7 +400,7 @@ def test_shape_that_could_not_be_derived_is_loud_not_silent():
 
 
 def _tmp_out(tmp, snap):
-    """Каталог с `run.json` — то, что `replay.selfcheck` читает с диска."""
+    """The directory with `run.json` -- what `replay.selfcheck` reads."""
     import json
     out = os.path.join(tmp, "выход")
     os.makedirs(out, exist_ok=True)
@@ -417,10 +410,10 @@ def _tmp_out(tmp, snap):
 
 
 def test_derivable_shape_still_requires_every_value():
-    """Обратная сторона: где форма ВЫВЕЛАСЬ, требуется не одна ветка, а всё.
+    """The other side: where the shape WAS derived, every value is required.
 
-    Без этой половины починку можно было бы «сделать», объявив невыводимой
-    любую форму: ветка требуется, а внутри — ничего.
+    Without this half the fix could be "done" by declaring any shape
+    underivable -- the branch required, and nothing inside it.
     """
     from booksmith.run import replay
 
@@ -432,27 +425,25 @@ def test_derivable_shape_still_requires_every_value():
         f"ослеп, и требование к отпечатку осыпалось до одной ветки")
 
 
-# ---------------------------------------------------------------- .sh И РЕЕСТР
-# Обещание, которое ДО этой проверки не выполнялось ничем. В
-# `models/paddleocr_vl/run.sh` стоит дословно: «Расхождение поймает
-# `tests/test_knobs.py`, который сверяет правые части `${X:-…}` с ним
-# [реестром]». Такой сверки не было: ни одна проверка каталога не открывала
-# `.sh` вовсе, а `knobs.readers()` ищет в оболочке только НАЛИЧИЕ `$ИМЯ`, не
-# значение. То есть обещанный сторож существовал одной строкой прозы, и это
-# хуже отсутствующего: на него ссылались, принимая решения.
+# -------------------------------------------------------- .sh AND THE REGISTRY
+# A promise nothing kept BEFORE this check. `models/paddleocr_vl/run.sh` says
+# word for word: "a drift will be caught by `tests/test_knobs.py`, which
+# compares the right-hand sides of `${X:-…}` with it [the registry]". No such
+# comparison existed: no check opened a `.sh`, and `knobs.readers()` looks in
+# shell only for the PRESENCE of `$NAME`. A guard existing as one line of prose
+# is worse than none: it was cited in decisions.
 
 _SH_OPEN = re.compile(r'\$\{([A-Z_][A-Z0-9_]*):-')
 
 
 def _sh_scan(text):
-    """Пары (имя, умолчание) из `${ИМЯ:-…}`, СО СЧЁТОМ СКОБОК.
+    """Pairs (name, default) from `${NAME:-…}`, WITH BRACE COUNTING.
 
-    Регэксп `[^}]*` здесь не годится, и это не педантизм: в `run.sh` стоит
-    `PORT="${PORT_ARG:-${PORT:-8118}}"`, и такой регэксп съедает внешнее
-    целиком, а внутреннее `${PORT:-8118}` не видит ВОВСЕ. Первая редакция
-    этой проверки так и промахнулась: подменённый в копии дерева `PORT`
-    (9999 против 8118 в реестре) прошёл незамеченным, и проверка объявила
-    себя исправной. Сторож, слепой к вложенности, стережёт не то, что обещает.
+    A `[^}]*` regexp will not do: `run.sh` holds
+    `PORT="${PORT_ARG:-${PORT:-8118}}"`, where it eats the outer one whole and
+    never sees the inner `${PORT:-8118}`. The first draft missed exactly there
+    -- a `PORT` swapped in a copy of the tree (9999 against 8118 in the
+    registry) went unnoticed and the check declared itself sound.
     """
     pairs = []
     for m in _SH_OPEN.finditer(text):
@@ -473,7 +464,7 @@ def _sh_scan(text):
 
 
 def _sh_defaults():
-    """Все `${ИМЯ:-умолчание}` из скриптов, что уезжают на арендованную карту."""
+    """Every `${NAME:-default}` in the scripts that ship to the rented card."""
     out = {}
     root = os.path.join(support.SRC, "models")
     for directory, _, files in os.walk(root):
@@ -483,15 +474,15 @@ def _sh_defaults():
             path = os.path.join(directory, f)
             with open(path, encoding="utf-8") as fh:
                 text = fh.read()
-            # КОММЕНТАРИИ ОТБРАСЫВАЮТСЯ, и это не мелочь. В `run.sh` те же
-            # `${PORT:-8118}` стоят ВТОРОЙ раз — в прозе, объясняющей правило.
-            # Сверяя прозу наравне с кодом, сторож падал бы от правки
-            # комментария, то есть от того, что поведения не меняет. Проверено:
-            # порча ТОЛЬКО примера в комментарии роняла проверку.
+            # COMMENTS ARE DROPPED, and that is no detail. In `run.sh` the same
+            # `${PORT:-8118}` stands a SECOND time, in the prose explaining the
+            # rule. Comparing prose on a par with code, the guard would fall
+            # from a comment edit, which changes no behaviour. Checked:
+            # corrupting ONLY the example in the comment made the check fail.
             without_prose = "\n".join(
                 l for l in text.split("\n") if not l.lstrip().startswith("#"))
             for name, default in _sh_scan(without_prose):
-                # `${X:-…}` — образец из комментария, а не переменная.
+                # `${X:-…}` is an example out of a comment, not a variable.
                 if name == "X":
                     continue
                 out.setdefault(name, []).append(
@@ -500,42 +491,37 @@ def _sh_defaults():
 
 
 def test_shell_defaults_agree_with_the_registry():
-    """Умолчание в `.sh` совпадает с умолчанием реестра — или признано вслух.
+    """A `.sh` default equals the registry default -- or is admitted out loud.
 
-    ДВА РАЗНЫХ СЛУЧАЯ, И ИХ НЕЛЬЗЯ МЕРИТЬ ОДНОЙ МЕРКОЙ.
+    TWO CASES, AND ONE RULER WILL NOT DO. The registry DECLARED a default
+    (non-empty): the shell must substitute the same, or the snapshot writes one
+    thing while the card counts by another and only the bill shows it. The
+    registry gives NO default (empty string): the owner of the value is the
+    shell, and the registry entry must SAY so -- otherwise an empty default is
+    indistinguishable from a forgotten one, the `VL_MODEL_DIR` disease whose
+    catcher, says the `run/knobs.py` header, is restored by HALF.
 
-    Реестр ОБЪЯВИЛ умолчание (непустое) — оболочка обязана подставлять то же.
-    Разойдясь, они дают прогон, где слепок пишет одно, а карта считает другим,
-    и заметить это можно только по счёту.
+    A name absent from the registry it does NOT catch and does not pretend to:
+    that needs a list of lawful shell variables. There are EIGHT of them, not
+    six as stood here: `ENVDIR`, `MODELS`, `HF_HOME`, `VL_REPO`, `SRV`,
+    `PYTORCH_CUDA_ALLOC_CONF`, plus `DOTS_DIR` (the knob past the registry the
+    `run/knobs.py` header writes about) and `PORT_ARG`, the positional argument
+    of `run.sh`, whose own default is `${PORT:-8118}`.
 
-    Реестр умолчания НЕ ДАЁТ (пустая строка) — значит хозяин значения не он, а
-    оболочка, и это обязано быть СКАЗАНО в самой записи реестра. Иначе пустое
-    умолчание неотличимо от забытого: ровно болезнь `VL_MODEL_DIR`, о которой
-    шапка `run/knobs.py` пишет, что ловец её восстановлен НАПОЛОВИНУ.
-
-    Имя, которого в реестре нет вовсе, эта проверка НЕ ловит — и не
-    притворяется ловящей: для этого нужен список законных переменных оболочки,
-    а его нет. Их ВОСЕМЬ, а не шесть, как стояло здесь: к `ENVDIR`, `MODELS`,
-    `HF_HOME`, `VL_REPO`, `SRV`, `PYTORCH_CUDA_ALLOC_CONF` добавляются
-    `DOTS_DIR` (та самая ручка мимо реестра, о которой пишет шапка
-    `run/knobs.py`) и `PORT_ARG` — позиционный аргумент `run.sh`, чьё
-    умолчание само есть `${PORT:-8118}`.
-
-    ЧЕГО ЭТА ПРОВЕРКА НЕ СВЕРЯЕТ, ХОТЯ ВЫГЛЯДИТ СВЕРЯЮЩЕЙ. У ручки с ПУСТЫМ
-    умолчанием реестра значение из `.sh` не сверяется ни с чем — сверяется
-    только признание в описании. То есть подмена `${VL_MODEL_DIR:-/models/vl}`
-    на `/models/xxx` проходит молча, и это проверено мутацией. Иначе нельзя:
-    хозяин значения объявлен оболочкой, и второго места для него нет.
+    AND WHAT IT DOES NOT COMPARE THOUGH IT LOOKS AS IF IT DID: for a knob with
+    an EMPTY registry default the `.sh` value is compared with nothing, only
+    the admission in the description. `${VL_MODEL_DIR:-/models/vl}` swapped for
+    `/models/xxx` passes silently, proved by mutation. It cannot be otherwise:
+    the owner is declared to be the shell, and there is no second home.
     """
     registry = {k.name: k for k in knobs.KNOBS}
     found = _sh_defaults()
 
-    # ЗНАМЕНАТЕЛЬ, БЕЗ КОТОРОГО ПРОВЕРКА ЗЕЛЕНА НИ НА ЧЁМ. Не найдись ни
-    # одного `.sh` — `_sh_defaults()` вернёт пустоту, `беды` останутся
-    # пустыми, и `assert not беды` пройдёт, не сверив НИ ОДНОГО имени.
-    # Проверено исполнением: при пустом каталоге `models` проверка была
-    # зелёной. Это «ноль от проверки против нуля от непонимания», и соседняя
-    # проверка этого же файла защищается ровно так же — числом.
+    # THE DENOMINATOR, WITHOUT WHICH THE CHECK IS GREEN ON NOTHING. Find no
+    # `.sh` and `_sh_defaults()` returns empty, `troubles` stays empty, and
+    # `assert not troubles` passes having compared NOT ONE name. Proved by
+    # running it: with an empty `models` directory the check was green -- a
+    # zero from misunderstanding against a zero from checking.
     checked = sorted(n for n in found if n in registry)
     assert len(checked) >= 4, (
         f"сверено всего {len(checked)} имён ({checked}) — проверка зелена ни "
@@ -568,16 +554,15 @@ def test_shell_defaults_agree_with_the_registry():
 
 
 def test_replay_finds_the_snapshot_in_both_layouts():
-    """Слепок ищется и в корне, и в кухне — два законных места.
+    """The snapshot is looked for in the root and in the kitchen.
 
-    У каталога ДЕТЕКЦИИ `run.json` лежит в корне, у каталога КНИГИ — в
-    `assets/`: там в корне ровно один файл, сама книга. Проверка полноты
-    смотрела только корень и на книге отвечала «слепка нет вовсе» при слепке
-    этажом ниже, возвращая 1. При этом сборщик обещает дословно: «`books
-    replay --check` обязан вернуть 0 и здесь».
-
-    Говорящий шаг, врущий нулём, — то же правило, из-за которого «глав 0»
-    читалось как «глав в книге нет».
+    A DETECTION directory keeps `run.json` at the root, a BOOK directory in
+    `assets/`, where the root holds one file, the book. The completeness check
+    looked only at the root and answered "no snapshot at all" on a book with
+    the snapshot one floor down, returning 1 -- while the builder promises word
+    for word: "`books replay --check` must return 0 here too" -- a speaking
+    step lying with a zero, the rule that made "chapters 0" read as "there are
+    none".
     """
     import json as _json
     import tempfile
@@ -606,8 +591,8 @@ def test_replay_finds_the_snapshot_in_both_layouts():
 def test_the_aging_knob_lists_exactly_the_profiles_that_exist():
     """A knob's description names its legal values, and they must be legal.
 
-    `SYNTH_AGING` went on advertising the old name of the fourth profile
-    had been renamed to `decayed`, so the documented command raised `KeyError`
+    `SYNTH_AGING` went on advertising the fourth profile under its old name
+    after the rename to `decayed`, so the documented command raised `KeyError`
     -- `synth.AGING[profile]` is a plain lookup with no default. The
     description is not a comment: it is copied verbatim into every run
     snapshot, so the wrong value travels with the record of the run.

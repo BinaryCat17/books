@@ -1,68 +1,52 @@
-"""Второй уровень: договор о чтении содержимого блока моделью зрения.
+"""Level two: the contract for reading a block's content with a vision model.
 
-Здесь и только здесь объявлено, ЧТО значит «прочитать блок». Ни одного
-запроса, ни одного пути на диске, ни одного имени модели — четыре значения и
-два контракта, и всё.
+Here and only here is it declared WHAT "read a block" means -- three values
+(`Route`, `Ask`, `Said`) and two contracts, and not one request, path on disk
+or model name.
 
-ПОЧЕМУ ШОВ ПРОХОДИТ ИМЕННО ЗДЕСЬ. Второй уровень раскладывается на две
-независимые вещи, и они меняются порознь:
+WHY THE SEAM RUNS HERE. What we ASK belongs to the MODEL, how we DELIVER to the
+TRANSPORT, and they change apart: a new model is one `Reader` file with not a
+line in the transport, a new delivery one `Transport` file with not a line in
+the models. `Ask` and `Said` stand between them, both immutable.
 
-    ЧТО ПРОСИМ    — свойство МОДЕЛИ: какой промт на какой ярлык, каким видом
-                    придёт ответ, чем отличается этот прогон от другого.
-                    Живёт в `Reader`, по одному на модель.
-    КАК ДОСТАВЛЯЕМ — свойство ТРАНСПОРТА: адрес, ключ, таймаут, повтор при
-                    обрыве связи, чем именно отвечает та сторона.
-                    Живёт в `Transport`, по одному на способ доставки.
+THREE OUTCOMES, NOT TWO: `Said` keeps `text`, `error` and `finish` apart,
+because "the model said nothing", "delivery did not arrive" and "cut off at the
+answer ceiling" want three different repairs. The third is the expensive one --
+the vendor's `otsl_pad_to_sqr_v2` silently truncates rows longer than the
+"optimal width", so a table torn at the ceiling comes back PLAUSIBLE and short
+rather than broken (`docs/ocr-notes.md`), and `finish` alone tells it apart.
 
-Между ними — `Ask` и `Said`, оба неизменяемые. `Ask` заморожен не для красоты:
-транспорт, дописавший к промту «а теперь получше», вернул бы правдоподобный
-ответ на ДРУГОЙ вопрос, и в слепке стоял бы первый. Заморозка роняет такую
-правку на месте.
+THE PROMPT DECLARES THE CONTENT KIND, NOT THE ANSWER. Asked "Table
+Recognition:" means `otsl`, whatever the model replies. Sniffing the kind out
+of the answer would repair the model: a table labelled `display_formula` at
+0.95 by level one and honestly returned as an array of LaTeX
+(`docs/ocr-notes.md`, p. 40) would be recorded as latex, and a LABEL error on a
+correct box would dissolve into "that is how the model reads". The guess lives
+BESIDE, in `Said.meta`, as a named counter rather than a silent fix.
 
-Отсюда обещание, которое просил заказчик: новая модель — один файл `Reader`,
-ни строки в транспорте; новый способ доставки (облачное API с ключом, чужой
-vLLM, модель в процессе) — один файл `Transport`, ни строки в моделях.
-
-ТРИ ИСХОДА, А НЕ ДВА. `Said` несёт `text`, `error` и `finish` ПОРОЗНЬ, потому
-что «модель промолчала», «доставка не донесла» и «оборвалось по потолку
-ответа» — три разные беды с тремя разными починками, и слитые в одно поле они
-молчат про все три. Третья особенно дорога: вендорский `otsl_pad_to_sqr_v2`
-молча укорачивает строки длиннее «оптимальной ширины», и порванная по потолку
-таблица возвращается ПРАВДОПОДОБНОЙ и короткой, а не сломанной
-(`docs/ocr-notes.md`). Отличить её можно ровно одним полем — `finish`.
-
-ВИД СОДЕРЖИМОГО ОБЪЯВЛЯЕТ ПРОМТ, А НЕ ОТВЕТ. Спросили «Table Recognition:» —
-значит `otsl`, чем бы модель ни ответила. Нюхать вид из ответа значило бы
-чинить модель: таблица, получившая на первом уровне ярлык `display_formula`
-0.95 и честно вернувшаяся массивом LaTeX (замер в `docs/ocr-notes.md`,
-стр. 40), записалась бы латехом, и ошибка ЯРЛЫКА при верной рамке растворилась
-бы в «модель так читает». Догадка о виде живёт СБОКУ, в `Said.meta`, и её
-расхождение с объявленным — именной счётчик, а не молчаливое исправление.
-
-ЧЕГО ЗДЕСЬ НЕТ НАРОЧНО: переспроса. Ни `Reader`, ни `Transport` не вправе
-задать второй вопрос по тому же блоку, увидев ответ. Правило проекта — «модель
-никто не чинит», и переспрос это его нарушение в самом чистом виде: он
-исправляет вывод модели, а замер об этом не узнает. Повторять можно ТОЛЬКО
-отказ доставки, когда ответа не было вовсе; это сказано кодом в `http.py`.
+DELIBERATELY ABSENT: re-asking. Neither side may ask a second question about
+the same block after seeing the answer -- "nobody repairs the model" broken in
+its purest form, correcting output the measurement never learns about. Only a
+delivery failure, where no answer came at all, may be repeated; `http.py` says
+so in code.
 """
 from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True)
 class Route:
-    """Что спрашивать у модели про блок с таким ярлыком.
+    """What to ask the model about a block with this label.
 
-    `prompt` пустой — блок НЕ СПРАШИВАЕМ, и тогда `why` обязателен. Пустой
-    промт это ЗНАЧЕНИЕ с причиной, а не пропуск: у PaddleOCR-VL таких
-    несколько, и каждый молчит по своему замеру. Чтение внутри рисунков
-    проверено и отвергнуто (+2100 слов мусора на двадцати страницах, школьная
-    панграмма, выдуманная по штриховому чертежу); вид ответа на `chart` и
-    `seal` не мерен ни разу, и назвать его наугад значило бы соврать в поле,
-    по которому книга потом решает, что показывать.
+    An empty `prompt` means the block is NOT ASKED, and then `why` is required:
+    a VALUE with a reason. PaddleOCR-VL has several, each silent by its own
+    measurement -- reading inside figures was tried and rejected (+2100 words
+    of rubbish over twenty pages, a schoolbook pangram invented from a line
+    drawing), while the answer shape for `chart` and `seal` was never measured
+    once, and naming it blind would lie in the field the book decides what to
+    show by.
 
-    `kind` — вид содержимого, который ОБЕЩАЕТ этот промт: `text`, `otsl`,
-    `html`, `latex`. Имена те же, что в контракте блока (`models/base.py`) и в
-    списке `doc/apply.KINDS`; расхождение ловится проверкой, а не доверием.
+    `kind` is the kind this prompt PROMISES: the names of the block contract
+    (`models/base.py`) and of `doc/apply.KINDS`, held by a check, not by trust.
     """
     prompt: str
     kind: str = ""
@@ -72,8 +56,8 @@ class Route:
         return bool(self.prompt)
 
     def check(self, label: str) -> None:
-        """Маршрут обязан быть осмысленным. Молчаливый мусор здесь стоил бы
-        целой книги, прочитанной не тем промтом."""
+        """A route must make sense. Silent rubbish here would cost a whole book
+        read with the wrong prompt."""
         from ..doc.apply import KINDS
         if self.prompt and not self.kind:
             raise ValueError(
@@ -94,17 +78,17 @@ class Route:
 
 @dataclass(frozen=True)
 class Ask:
-    """Один вопрос модели. Заморожен: транспорт правит его только через отказ.
+    """One question to the model. Frozen, and not for beauty: a transport
+    appending "now do it better" to the prompt would get a plausible answer to
+    a DIFFERENT question while the snapshot held the first.
 
-    `image` — путь к вырезке, уже сделанной `doc/crop.py`. Байты картинки
-    читает транспорт: у разных способов доставки они едут по-разному (data:
-    внутри запроса, файлом, ссылкой), и знать об этом договору незачем.
-
-    `sha256 картинки` уезжает в ответ рядом с ответом. Без него нельзя
-    отличить «модель прочла не то» от «мы послали не ту вырезку» — а это уже
-    случалось в проекте на первом уровне, и стоило аренды: переменная цикла
-    затёрла коэффициент масштаба, и 36 страниц из 36 записались
-    неразобранными при безупречном ответе модели.
+    `image` is the path to the crop `doc/crop.py` has already made; the bytes
+    are the transport's business, since deliveries carry them differently. The
+    image `sha256` rides back beside the answer -- without it "the model read
+    the wrong thing" cannot be told from "we sent the wrong crop", which has
+    happened here at level one and cost a rental: a loop variable overwrote the
+    scale factor, and 36 pages of 36 were recorded unparsed while the model's
+    answer was flawless.
     """
     anchor: str
     image: str
@@ -116,21 +100,21 @@ class Ask:
 
 @dataclass
 class Said:
-    """Что вышло из одного вопроса. Байты `text` не правит никто.
+    """What came of one question. Nobody edits the bytes of `text`.
 
-    Поля исхода РАЗДЕЛЬНЫЕ, и это главное в этом файле:
+    The outcome fields are SEPARATE, and that is the main thing in this file:
 
-        text   — байты модели, как пришли. `None` значит «ответа не было»,
-                 пустая строка — «модель ответила пустотой». Разные вещи.
-        error  — доставка не донесла: обрыв, таймаут, код не 200. Ответа нет
-                 вовсе, и это НЕ молчание модели.
-        finish — почему кончилось порождение: `"stop"` | `"length"` | `None`.
-                 `None` — «сервер не сказал», а не «оборвалось»: третий ноль.
+        text   -- the model's bytes as they arrived. `None` is "no answer
+                  came", an empty string "the model answered with emptiness".
+        error  -- delivery did not arrive: break, timeout, a code other than
+                  200. No answer at all, and NOT the model's silence.
+        finish -- why generation ended: `"stop"` | `"length"` | `None`. `None`
+                  is "the server did not say", not "it was cut off".
 
-    `meta` — всё наблюдённое сбоку: токены, секунды, догадка о виде,
-    расхождение имени модели. В `text` не лезет ничего: правило проекта —
-    распознанное неприкосновенно, и оно уже стоило девяти пропусков из
-    тридцати трёх, когда пометки дописывались в разметку.
+    `meta` is everything observed beside: tokens, seconds, the guess about the
+    kind, a model-name mismatch. Nothing enters `text` -- what was recognised
+    is untouchable, and that rule already cost nine misses of thirty-three when
+    marks were written into the markup.
     """
     anchor: str
     text: str | None = None
@@ -142,7 +126,7 @@ class Said:
     meta: dict = field(default_factory=dict)
 
     def answered(self) -> bool:
-        """Ответ ЕСТЬ (пусть и пустой). Отказ доставки — не ответ."""
+        """There IS an answer, even an empty one. A delivery failure is not."""
         return self.error is None and self.text is not None
 
     def to_json(self) -> dict:
@@ -153,75 +137,73 @@ class Said:
 
 
 class Reader:
-    """Что обязан уметь адаптер МОДЕЛИ. Ровно четыре вещи.
+    """What a MODEL adapter must be able to do. Exactly three things.
 
-    Назвать себя так, чтобы прогон повторился (`fingerprint`); объявить свои
-    ручки (`knobs_read`); объявить, что спрашивать про какой ярлык (`routes`);
-    и всё. Ни адреса, ни повторов, ни аренды, ни обхода страниц — это не его
-    дело, и в этом весь смысл разреза.
+    Name itself so the run repeats (`fingerprint`), declare its knobs
+    (`knobs_read`), declare what to ask about which label (`routes`). No
+    address, retries, renting or page walk -- that is the point of the cut.
 
-    ПОЧЕМУ `routes` ОБЪЯВЛЯЕТСЯ, А НЕ ВЫВОДИТСЯ ИЗ ЯРЛЫКА. Тот же довод, что у
-    `policy.POLICIES`: словарь ярлыков СВОЙ у каждого детектора (25 имён у
-    PP-DocLayoutV2, 20 у plus-L, по 17 у обеих моделей docling, 11 у
-    DocLayNet), и правило «чего не знаю — то спрошу как текст» молча повело бы
-    двадцать шестой класс новых весов не тем промтом. Полнота проверяется
-    `cover()` и роняет прогон ДО первого запроса.
+    WHY `routes` IS DECLARED, NOT DERIVED FROM THE LABEL: the label vocabulary
+    is each detector's OWN (25 names in PP-DocLayoutV2, 20 in plus-L, 17 in
+    each docling model, 11 in DocLayNet), so "whatever I do not know I ask as
+    text" would silently take the twenty-sixth class of new weights to the
+    wrong prompt. `cover()` checks completeness and drops the run BEFORE the
+    first request.
     """
 
     name: str = ""
 
     def fingerprint(self) -> dict:
-        """Чем этот прогон отличается от другого. Уезжает в слепок целиком.
+        """What tells this run from another. Goes into the snapshot whole.
 
-        Обязан нести ключ «веса». За чужим API весов не видно, и тогда там
-        стоит ОБЪЯВЛЕННАЯ пустота с причиной, а не молчаливый `null`: «весов
-        не видно, модель за чужим API» и «весов не смотрели» — разные прогоны.
+        Must carry the "weights" key. Behind a foreign API the weights are
+        invisible, and then a DECLARED emptiness with a reason stands there,
+        not a silent `null`: "weights invisible, model behind a foreign API"
+        and "weights not looked at" are different runs.
         """
         raise NotImplementedError
 
     def knobs_read(self) -> tuple[str, ...]:
-        """Какие ручки реестра читает ИМЕННО ЭТОТ адаптер. Списком.
+        """Which registry knobs THIS adapter reads. As a list.
 
-        Болезнь та же, что у детекторов, и она уже случалась: слепок прогона
-        heron уверенно писал `LAYOUT_MODEL_NAME=PP-DocLayoutV2` — величину, к
-        прогону не относящуюся, — и `books replay --check` это одобрял.
-        Слепок был ПОЛОН и недействующий, и тем он опаснее обрыва.
+        The detectors' disease, and it has already happened: a heron run's
+        snapshot confidently wrote `LAYOUT_MODEL_NAME=PP-DocLayoutV2` -- a
+        value irrelevant to that run -- and `books replay --check` approved it.
+        The snapshot was COMPLETE and inoperative, which is worse than a gap.
         """
         raise NotImplementedError
 
     def routes(self) -> dict[str, Route]:
-        """ЯРЛЫК ДЕТЕКТОРА -> что спрашивать. Полон по построению."""
+        """DETECTOR LABEL -> what to ask. Complete by construction."""
         raise NotImplementedError
 
     def pixels(self) -> tuple[int, int] | None:
-        """(минимум, максимум) пикселей вырезки, которые модельВПРАВДУ ест.
+        """(minimum, maximum) crop pixels the model REALLY eats.
 
-        ОБЪЯВЛЯЕТ МОДЕЛЬ, А НЕ МЫ. Вопрос «какой dpi выставить» долго стоял
-        как выбор числа, и всякое число тут было бы нашим. На деле границ две
-        и обе чужие: ниже нижней модель растягивает вырезку сама, выше верхней
-        — ужимает. Значит правило простое и не наше: резать столько, сколько
-        в скане ЕСТЬ, но не больше, чем модель съест.
+        DECLARED BY THE MODEL, NOT BY US. "Which dpi to set" long stood as a
+        choice of number, and any number here would have been ours. Both bounds
+        are foreign: below the lower one the model stretches the crop, above
+        the upper one it shrinks it. So cut as much as the scan HAS, and no
+        more than the model eats.
 
-        Замер, из-за которого это поле заведено. Вырезки `bench/slovar` при
-        резкости детекции: медиана 12 195 пикселей, и 555 из 566 — ниже
-        нижней границы PaddleOCR-VL (112 896). А наши собственные книги
-        приезжают из djvu с текстовым слоем в 601 dpi: тот же блок там выходит
-        около 212 тысяч пикселей — внутри окна, — тогда как таблица разошлась
-        бы до трёх миллионов, то есть втрое выше верхней границы, и мы платили
-        бы за байты, которые модель тут же выбросит.
+        Measured: `bench/slovar` crops at detection resolution have a median of
+        12 195 pixels, and 555 of 566 sit below PaddleOCR-VL's lower bound of
+        112 896. Our own books come from djvu with a 601 dpi text layer, where
+        the same block is about 212 thousand -- inside the window -- while a
+        table would spread to three million, three times over the upper bound,
+        paying for bytes the model throws away at once.
 
-        `None` — «модель своих границ не объявляла». Это ЗНАЧЕНИЕ: тогда
-        резкость берётся своей у скана и ничем не правится, а в журнал идёт
-        «границ модели нет».
+        `None` is "the model declared no bounds", a VALUE: the resolution is
+        then the scan's own, corrected by nothing, and the ledger says so.
         """
         return None
 
     def cover(self, labels) -> None:
-        """Проверить, что маршрут есть у КАЖДОГО ярлыка словаря детектора.
+        """Check that EVERY label of the detector's vocabulary has a route.
 
-        Зовётся до первого запроса и до первого цента. Ярлык без маршрута —
-        отказ вслух: молчаливое умолчание «спрошу OCR:» прочитало бы таблицу
-        как прозу и записало бы это чтением.
+        Called before the first request and the first cent. A label without a
+        route is refused aloud: a silent default of "ask OCR:" would read a
+        table as prose and record that as the reading.
         """
         r = self.routes()
         for lab in sorted(labels):
@@ -235,17 +217,17 @@ class Reader:
 
 
 class Transport:
-    """Что обязан уметь способ ДОСТАВКИ. Тоже четыре вещи.
+    """What a DELIVERY method must be able to do. Four things.
 
-    Назваться, объявить ручки, сказать чем именно отвечает та сторона
-    (`check`) и донести один вопрос (`send`). Промтов, ярлыков и OTSL он не
-    знает вовсе.
+    Name itself, declare its knobs, say what the other side answers with
+    (`check`) and deliver one question (`send`). Of prompts, labels and OTSL it
+    knows nothing.
 
-    `check` СТОИТ ОТДЕЛЬНЫМ МЕТОДОМ, а не строчкой внутри `send`, ради одного:
-    он обязан отработать ДО первого платного запроса и напечатать величины.
-    Беда, ради которой он заведён, оплачена на первом уровне: проверка
-    здоровья `curl /v1/models` отвечала СИРОТА прошлого прогона, державшая
-    60% видеопамяти, и скрипт считал, что поднял сервер сам.
+    `check` IS A SEPARATE METHOD, not a line inside `send`: it must run BEFORE
+    the first paid request and print quantities. The trouble it exists for was
+    paid at level one -- the `curl /v1/models` health check was answered by an
+    ORPHAN of the previous run holding 60 % of the video memory, and the script
+    believed it had raised the server itself.
     """
 
     name: str = ""
@@ -257,10 +239,11 @@ class Transport:
         raise NotImplementedError
 
     def check(self, model: str | None = None) -> dict:
-        """Чем отвечает адрес и то ли это, что мы просим. Величины, а не «ок»."""
+        """What the address answers with and whether it is what we ask for.
+        Quantities, not "ok"."""
         raise NotImplementedError
 
     def send(self, ask: Ask) -> Said:
-        """Один вопрос — один ответ. Отказ возвращается ЗНАЧЕНИЕМ, не броском:
-        прогон на пятистах блоках не должен умирать от одного обрыва связи."""
+        """One question, one answer. A failure returns as a VALUE, not a throw:
+        a run over five hundred blocks must not die of one lost connection."""
         raise NotImplementedError

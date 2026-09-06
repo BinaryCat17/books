@@ -1,66 +1,58 @@
-"""Что модель обязана вернуть — и чего с её ответом делать нельзя.
+"""What the model must return -- and what must never be done to its answer.
 
-Прежний конвейер не имел этого слоя вовсе: модель, её починка и сборка книги
-жили одним файлом в 1948 строк, где десяток `patched`-функций правил рамки
-внутри чужого пайплайна. Из-за этого нельзя было ответить на простой вопрос
-«что даёт модель сама по себе»: к моменту, когда что-то можно было измерить,
-её вывод уже был исправлен нами и ошибка исправления неотличима от ошибки
-модели.
+The old pipeline had no such layer: model, patching and book build shared one
+file of 1948 lines where a dozen `patched` functions edited boxes inside a
+foreign pipeline. "What does the model give by itself" was unanswerable -- by
+the time anything could be measured the output was already corrected by us.
 
-Отсюда три правила, и они не стилистические.
+Hence three rules, none of them stylistic.
 
-**1. Рамку модели не правит никто.** Ни слияния, ни разрезания поперёк
-межколонника, ни переспроса, ни порогов, подобранных нами. Если модель
-ставит рамку поперёк межколонника — это её дефект, он попадёт в метрику и
-будет виден. Замазанный заплаткой, он исчезал из замера, но не из книги.
+**1. Nobody edits the model's box.** No merges, no cuts across the gutter, no
+re-asking, no thresholds of ours. A box across the gutter is the model's
+defect: it reaches the metric and shows. Patched, it left the measurement, not
+the book.
 
-**2. Распознанное неприкосновенно.** Прежде в текст дописывались `⚠`, `≠`,
-`<mark>` и комментарии со ссылкой на скан — то есть вывод модели правился на
-месте. Это стоило конкретно: маркер `⚠` дописывался в ячейки раньше, чем
-считалась подпись к таблице, и рамка переставала узнавать собственную
-таблицу — 9 пропусков из 33. Теперь всё наблюдённое (вероятности, расхождения
-проходов, вырезки) живёт сбоку и связано с блоком по `block_id`.
+**2. What was recognised is untouchable.** `⚠`, `≠`, `<mark>` and comments
+citing the scan used to be appended to the text. Cost: `⚠` entered cells before
+the table caption was counted, the box stopped recognising its own table -- 9
+misses of 33. Everything observed (probabilities, pass disagreements, crops)
+lives beside the block, tied by `block_id`.
 
-**3. Ярлык хранится в словаре модели, а не в нашем.** Приводить `header`
-одной модели к `title` другой — значит терять разряд ошибки: на стр. 40
-прежнего стенда таблица получила ярлык `display_formula` с уверенностью 0.95,
-и это ошибка ЯРЛЫКА при верной рамке, отдельная от ошибки локализации. Свод
-словарей объявляется адаптером отдельно и записывается в слепок, чтобы
-перевод был виден и обратим.
+**3. The label stays in the model's vocabulary, not ours.** Mapping one
+model's `header` onto another's `title` loses the class of error: on p. 40 of
+the old bench a table got `display_formula` at 0.95 -- a LABEL error on a
+correct box, separate from localisation. The map is declared by the adapter and
+snapshotted, so the translation stays reversible.
 
-Координаты — в пикселях страницы, отрисованной при `dpi`. Хранится и то, и
-другое: без dpi два прогона при разной подаче несравнимы, а метрика контуров
-приводит обе стороны к долям страницы сама.
+Coordinates are page pixels at `dpi`; both are stored, or two runs at different
+resolutions are incomparable.
 """
 from dataclasses import dataclass, field, asdict
 
 
 @dataclass
 class Block:
-    """Один блок так, как его увидела модель.
+    """One block as the model saw it.
 
-    `box` — (x0, y0, x1, y1) в пикселях страницы при `Page.dpi`, начало в
-    левом верхнем углу. `label` и `score` — словами и числами самой модели.
-    `order` — её же порядок чтения, `None` если модель порядка не даёт.
+    `box` is (x0, y0, x1, y1) in page pixels at `Page.dpi`, origin top left;
+    `label`, `score` and `order` are the model's own, `order` being `None` when
+    it gives no reading order.
 
-    Прежняя редакция этой строки говорила «`block_order` был `null` на всех
-    539 страницах». Замер по тем же файлам показал другое и более полезное:
-    `null` у 2645 блоков из 9546 (27.7 %), страница, где `null` ВСЕ блоки, —
-    одна из 539. Нуль стоит строго по ярлыку: 100 % у `image` (683 из 683),
-    `figure_title` (695), `table` (584), `number` (534), `header` (88) — и
-    0 % у `text`, `paragraph_title`, `display_formula`. То есть порядок
-    выбрасывался ровно у того, что первый уровень вырезает картинками.
+    Measured over the stored runs: `order` is `null` on 2645 blocks of 9546
+    (27.7 %), and on all blocks of exactly one page in 539. The zero follows
+    the label strictly -- 100 % for `image` (683 of 683), `figure_title` (695),
+    `table` (584), `number` (534), `header` (88), 0 % for `text`,
+    `paragraph_title`, `display_formula` -- so order was dropped for precisely
+    what level one crops out as pictures.
 
-    Сырой выход детектора при этом даёт ранг ВСЕМ рамкам (1254 из 1254 на
-    65 страницах `bench/`), так что `None` здесь — про пайплайн, а не про
-    модель. Ранги приходят С ДЫРАМИ (на месте снесённых порогом) и иногда
-    СВЯЗАННЫМИ: 48 рамок на 18 страницах из 65 несут точно совпадающий ранг,
-    и среди них пары `{table, text}` на одном прямоугольнике. Связку
-    разрешать не наше дело — она доезжает связкой.
+    The raw detector ranks EVERY box (1254 of 1254 on 65 `bench/` pages), so
+    `None` here is the pipeline, not the model. Ranks arrive WITH HOLES (where
+    the threshold removed a box) and sometimes TIED: 48 boxes on 18 of those 65
+    pages share an equal rank, among them `{table, text}` pairs on one
+    rectangle. Untying is not ours to do -- the tie travels on.
 
-    `content` — то, что модель вернула для этого блока, побайтово. `kind`
-    говорит, чем это считать: `text`, `otsl`, `html`, `latex`, `none`.
-    Разбирать `content` — работа второго уровня, не адаптера.
+    `content` is what the model returned, byte for byte; `kind` says what to
+    treat it as. Parsing it is level two's work, not the adapter's.
     """
     block_id: int
     box: tuple[float, float, float, float]
@@ -77,30 +69,30 @@ class Block:
 
 @dataclass
 class Page:
-    """Страница целиком: блоки модели и обстоятельства, при которых читали."""
+    """The whole page: the model's blocks and the circumstances of the read."""
     index: int
     width: int
     height: int
     dpi: float
     blocks: list[Block] = field(default_factory=list)
-    # Ответ модели до всякого разбора. Хранится ради одного: когда метрика
-    # покажет странность, надо уметь отличить «модель так ответила» от «мы
-    # так разобрали». Прежде такой возможности не было.
+    # The model's answer before any parsing, kept so that "the model answered
+    # so" stays separable from "we parsed it so" when the metric shows
+    # something odd.
     raw: dict | None = None
     meta: dict = field(default_factory=dict)
 
     def to_json(self) -> dict:
-        # `asdict` раскрывает вложенные датаклассы сам — прежняя строка
-        # `d["blocks"] = [asdict(b) …]` делала то же самое второй раз.
+        # `asdict` unfolds nested dataclasses itself; the former extra line
+        # over `blocks` did that work twice.
         return asdict(self)
 
     @staticmethod
     def from_json(d: dict) -> "Page":
-        # `box` обязан вернуться КОРТЕЖЕМ.  json отдаёт список, и без этой
-        # строки блок, записанный на диск и прочитанный обратно, не равен
-        # своему исходнику: `(1,2,3,4) != [1,2,3,4]`.  Для слоя, чья
-        # объявленная задача — делать два прогона сравнимыми, это по существу;
-        # рядом в `run/knobs.py` о том же сказано про умолчания-строки.
+        # `box` must come back a TUPLE: json returns a list, and a block
+        # written to disk and read back would be unequal to its original,
+        # `(1,2,3,4) != [1,2,3,4]`. For a layer whose declared job is making
+        # two runs comparable that is material; `run/knobs.py` says the same
+        # about string defaults.
         blocks = [Block(**{**b, "box": tuple(b["box"])})
                   for b in d.get("blocks", [])]
         return Page(index=d["index"], width=d["width"], height=d["height"],
@@ -109,57 +101,51 @@ class Page:
 
 
 class Recognizer:
-    """Что обязан уметь адаптер модели.
+    """What a model adapter must be able to do.
 
-    Ровно две вещи: назвать себя так, чтобы прогон был повторим, и прочесть
-    страницу. Всё остальное — аренда, проходы, журнал — задача раннера, а
-    сборка документа задача второго уровня.
-
-    «Назвать себя» включает и список ручек, которые адаптер читает: слепок
-    без него называл действующей величину, к прогону не относящуюся, — см.
-    `knobs_read`.
+    Exactly two things: name itself so the run is reproducible (`fingerprint`
+    plus `knobs_read`), and read a page. Renting, passes and the ledger are the
+    runner's business, assembling the document is level two's.
     """
 
     name: str = ""
 
     def fingerprint(self) -> dict:
-        """Чем этот прогон отличается от другого: веса, промты, версии.
+        """What tells this run from another: weights, prompts, versions.
 
-        Уезжает в слепок целиком. Пустой отпечаток — законный ответ только
-        для модели, у которой действительно нечего записать; у всех наших
-        есть что.
+        Goes into the snapshot whole. An empty fingerprint is legitimate only
+        for a model with genuinely nothing to record; ours all have something.
         """
         raise NotImplementedError
 
     def knobs_read(self) -> tuple[str, ...]:
-        """Какие ручки реестра читает ИМЕННО ЭТОТ адаптер. Объявляется списком.
+        """Which registry knobs THIS adapter reads. Declared as a list.
 
-        Зачем это поле вообще. Замер до него: `LAYOUT_ADAPTER=docling` на
-        12 страницах `bench/matematika` писал в слепок
-        `LAYOUT_MODEL_NAME=PP-DocLayoutV2`, считая при этом heron, у которого
-        каталог весов зашит в `__init__`, а единственное чтение
-        `LAYOUT_MODEL_DIR` живёт в чужом файле `doclayout.py`. То же с
-        `LAYOUT_TABLE_THRESHOLD`: её не читают ни heron, ни yolox. Слепок при
-        этом формально ПОЛОН, `books replay --check` возвращал 0 — и тем он
-        опаснее обрыва: величина названа уверенно, а к прогону отношения не
-        имеет. Это болезнь `VL_MODEL_DIR` из шапки `run/knobs.py`, только
-        тише: там ручка шла мимо реестра, здесь — мимо потребителя.
+        Measured before the field existed: `LAYOUT_ADAPTER=docling` on 12 pages
+        of `bench/matematika` wrote `LAYOUT_MODEL_NAME=PP-DocLayoutV2` into the
+        snapshot while computing heron, whose weights directory is hardwired in
+        `__init__` and whose only `LAYOUT_MODEL_DIR` read lives in a foreign
+        file, `doclayout.py`. Same for `LAYOUT_TABLE_THRESHOLD`: neither heron
+        nor yolox reads it. The snapshot was formally COMPLETE and `books
+        replay --check` returned 0 -- more dangerous than a gap, since the
+        value is named confidently and belongs to another run. The `VL_MODEL_DIR`
+        disease from the head of `run/knobs.py`, quieter: there the knob went
+        past the registry, here past the consumer.
 
-        ПОЧЕМУ ОБЪЯВЛЯЕТСЯ, А НЕ ВЫВОДИТСЯ. Вывести список разбором исходников
-        умел ровно один ловец — удалённый `tests/test_knobs_registry.py`, и он
-        не восстановлен; но дело не только в этом. Чтение прячется вне класса
-        (`weights_dir()` в `doclayout.py` — функция модуля, зовётся из
-        `__init__`), приходит из умолчания вызывающего (`YoloXLayout(weights=…)`
-        ручку не читает вовсе) и может вообще не проходить через `knob()` —
-        `export` в оболочке не видит никакой разбор по построению. Выведенный
-        список молча промахнулся бы по таким путям и дал бы уверенность там,
-        где защиты нет; объявленный сверяется grep-ом по одному файлу за
-        полминуты, и его расхождение с кодом видно человеку.
+        WHY DECLARED, NOT DERIVED. The one catcher that derived the list by
+        parsing sources, `tests/test_knobs_registry.py`, is deleted and not
+        restored -- but the read also hides outside the class (`weights_dir()`
+        in `doclayout.py`, called from `__init__`), arrives from the caller's
+        default (`YoloXLayout(weights=…)` reads no knob at all) or never passes
+        through `knob()` -- an `export` in the shell is invisible to any parser
+        by construction. A derived list misses such paths silently; a declared
+        one is grepped against one file in half a minute, and its drift from
+        the code is visible to a human.
 
-        Пустой кортеж — законный ответ ТОЛЬКО для адаптера, которому нечего
-        объявить (все веса зашиты, порог родной). Умолчания здесь нет нарочно:
-        адаптер, промолчавший по забывчивости, вернул бы слепок ровно к той
-        болезни, ради которой поле заведено, — уверенный и неверный.
+        An empty tuple is legitimate ONLY for an adapter with nothing to
+        declare (weights hardwired, native threshold). No default on purpose:
+        an adapter silent out of forgetfulness would return the snapshot to the
+        very disease this field was made for -- confident and wrong.
         """
         raise NotImplementedError
 
@@ -167,36 +153,40 @@ class Recognizer:
         raise NotImplementedError
 
     def label_map(self) -> dict[str, str]:
-        """Перевод ярлыков модели в общий словарь — объявляется, не зашивается.
+        """Model labels into the common vocabulary -- declared, not hardwired.
 
-        Пустой словарь значит «словарь модели и есть общий». Метрика ярлыков
-        сверяет по переведённым именам, но хранит и исходные, чтобы ошибку
-        перевода можно было отличить от ошибки модели.
+        An empty dict means "the model's vocabulary is the common one". The
+        label metric compares translated names but keeps the originals, so a
+        translation error stays separable from a model error.
         """
         return {}
 
 
-# --------------------------------------------------------------- порядок ---
-# Договор про поле `порядок чтения` в `meta` страницы, и живёт он ЗДЕСЬ,
-# потому что пишут это поле адаптеры, а читателей у него уже двое:
-# `metrics._model_has_rank` (сверять ли порядок с истиной вообще) и
-# `doc/html.build` (что напечатать в журнал сборки). Оба читали строку по
-# первому слову СВОЕЙ копией правила, и копии успели разойтись регистром:
-# `doclayout.fingerprint` пишет «НАШ» с заглавной, а в meta страницы адаптеры
-# кладут строчную, и один читатель зачёл бы наш порядок модели.
+# --------------------------------------------------------------- order ---
+# The contract for the page `meta` field `reading_order`, kept HERE because
+# adapters write that field and it already has two readers:
+# `metrics._model_has_rank` (compare order with truth at all?) and
+# `doc/html.build` (what to print into the build log). Both once read the
+# string's first word by THEIR OWN copy of the rule.
 #
-# Цена расхождения известна и уплачена соседним прибором: на `bench/hard36`
-# метрика печатала «порядок чтения согласовано 73%» там, где порядок не
-# размечен ни на одной из 36 страниц. Число из ничего рождается ровно так —
-# двумя копиями одного сговора, о котором нигде не написано.
+# The price of drift was paid by the instrument next door: on `bench/hard36`
+# the metric printed "reading order agreed 73 %" where order is annotated on
+# none of the 36 pages. A number out of nothing is born exactly so -- two
+# copies of one convention written down nowhere.
 OUR_ORDER = "ours"
 
 
 def ours_order(value) -> bool:
-    """Наш ли это порядок — по значению `meta["порядок чтения"]`.
+    """Is this our order -- by the value of `meta["reading_order"]`.
 
-    Всё, что не строка (`None`, отсутствие поля), — НЕ «модельное», а
-    неизвестное: отвечать за него этой функции нечем, и она говорит False,
-    оставляя решение вызывающему. Регистр снят нарочно, см. выше.
+    Anything that is not a string (`None`, a missing field) is NOT "the
+    model's" but unknown: this function cannot answer for it, says False and
+    leaves the decision to the caller.
+
+    THE `ours` PREFIX IS THE WHOLE SIGNAL, and case is stripped on purpose:
+    the capitalised wording `doclayout.fingerprint` once used would otherwise
+    have read, in page meta, as MODEL RANK, and the metric would have scored
+    our own numbering against truth. Held by `test_guard_ignores_case`; today
+    fingerprint and page meta spell it identically, lower case.
     """
     return isinstance(value, str) and value.strip().lower().startswith(OUR_ORDER)

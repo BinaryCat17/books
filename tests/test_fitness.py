@@ -1,41 +1,36 @@
-"""Прибор ГОДНОСТИ: чем его можно выиграть, не найдя ничего.
+"""The FITNESS instrument: how it can be won without finding anything.
 
-ПОЧЕМУ ЭТОТ ФАЙЛ ПОЯВИЛСЯ. `books fitness` — один из трёх приборов проекта, и
-его выводом уже выбран детектор и оценён вендорский конвейер docling. При этом
-`grep fitness tests/` не находил НИ ОДНОЙ строки: прибор, которым выбирают
-модель, не был проверен ничем, кроме собственной батареи, а батарея портила
-только вывод модели — ни истину, ни свои пороги.
+WHY THIS FILE EXISTS. `books fitness` chose the detector and judged the docling
+pipeline, and `grep fitness tests/` found NOT ONE line: the only check on it
+was its own battery, which corrupted the model's output and neither the truth
+nor its own thresholds.
 
-Что здесь закреплено, всё — воспроизведённые дефекты, а не гипотезы:
+Every defect below was reproduced, not supposed:
 
-  * рамка, уехавшая за левый верхний угол, накрывала две трети листа
-    (отрицательный конец среза numpy отсчитывается ОТ КОНЦА);
-  * пиксель, накрытый и артефактной рамкой, и текстовой, считался ДВАЖДЫ, и
-    задвоенная разметка переписывала дорогую беду «потеряно» в дешёвую
-    «уехал текстом». Полный проход: `bench/annopage` 90 -> 86, `bench/hard`
-    44 -> 42 — шесть записей, но РАЗНЫХ объектов четыре (hard собран из тех
-    же книг), и настоящая беда среди них одна: стр. 94 `table`, 14% чернил
-    под открытым небом. Семь МАЛЫХ стендов дали ноль, и по этому нулю дефект
-    был объявлен неопасным — ровно то, чего выборка не находит;
-  * пустой растр печатался как «вне всех рамок 100.0% — это то, что исчезнет
-    из HTML», то есть ноль от непонимания под видом замера;
-  * «истина не подана» печаталось и тогда, когда истина подана, а артефактов в
-    ней нет: два разных нуля одной строкой;
-  * из ПЯТИ порогов отчёт объявлял один, батарея проверяла два, а dpi —
-    единицу измерения всего здесь считаемого — не объявлял никто;
-  * строка о слепоте к слиянию стояла ПОСЛЕ возвратов по истине, то есть в
-    режиме без истины — которым и меряют настоящие сканы — не печаталась;
-  * память растра не экономила ничего ровно на том стенде, ради которого
-    заведена, и дважды подряд: потолком в страницах с полной очисткой, потом
-    потолком в байтах с вытеснением старейшего.
+  * a box off the top-left corner covered two thirds of the sheet (a negative
+    slice end in numpy counts FROM THE END);
+  * a pixel under an artefact box and a text box at once counted TWICE, and the
+    doubled markup rewrote the expensive "lost" into the cheap "left as text".
+    Full run: `bench/annopage` 90 -> 86, `bench/hard` 44 -> 42 -- six records,
+    four DISTINCT objects (hard is built from the same books), one real trouble
+    among them: p. 94 `table`, 14% of its ink in the open. Seven SMALL benches
+    gave zero, and by that zero it was called harmless -- exactly what a sample
+    cannot find;
+  * an empty raster printed "outside every box 100.0% -- this is what will
+    vanish from the HTML": a zero from misunderstanding, dressed as a measure;
+  * "no truth supplied" printed when truth was supplied and held no artefacts:
+    two different zeros in one line;
+  * of FIVE thresholds the report declared one, the battery checked two, and
+    dpi -- the unit of everything counted here -- nobody;
+  * the merging-blindness line stood AFTER the returns by truth, so the
+    truthless mode, the one real scans are measured in, never printed it;
+  * raster memory saved nothing on the very bench it was raised for, twice: a
+    cap in pages with a full clear, then a cap in bytes evicting the oldest.
 
-Отчёт проверяется отдельно от чисел нарочно: батарея порчи смотрит на ЧИСЛА и
-про печать сказать не может ничего по построению.
-
-ЗАМЕР ЗДЕСЬ НА НАСТОЯЩИХ ФОРМАХ СТРАНИЦ, и это не педантизм. Проверка памяти,
-писанная на игрушечных 64x64, была зелёной на коде, который не экономил
-ничего: потолок в байтах на таких страницах не связывает никогда, и стенд
-прятал ровно тот дефект, ради которого заведён.
+The report is checked apart from the numbers because the battery looks at
+NUMBERS and can say nothing about printing. Page shapes here are REAL: the
+memory check written on toy 64x64 pages was green on code that saved nothing --
+a byte cap never binds on such pages.
 """
 import os
 import sys
@@ -51,11 +46,10 @@ import support                                              # noqa: E402
 from booksmith import fitness                               # noqa: E402
 
 
-# --- чем меряем ------------------------------------------------------------
-# Страница строится тут же и целиком: 200x200 точек, чернила — прямоугольник
-# с известными краями. Ни ONNX, ни весов, ни стенда на диске; вся проверка
-# укладывается в сотые доли секунды, и каждое ожидаемое число выводится из
-# геометрии, а не списывается с прогона.
+# --- what we measure with ---------------------------------------------------
+# The page is built here, whole: 200x200 pt, the ink a rectangle with known
+# edges. No ONNX, no weights, no bench on disk; every expected number comes
+# from geometry, not off a run.
 
 def _book(rects, out):
     doc = pymupdf.open()
@@ -87,56 +81,58 @@ def _said(res):
     return "\n".join(out)
 
 
-# --- нарезка рамок ---------------------------------------------------------
+# --- slicing boxes ----------------------------------------------------------
 
 def test_box_off_the_sheet_covers_nothing():
-    """Рамка целиком за листом не накрывает ни пикселя.
+    """A box wholly off the sheet covers not one pixel.
 
-    Прежняя нарезка `m[max(0, int(y0)):int(y1) + 1]` при отрицательном `y1`
-    отсчитывала конец ОТ КОНЦА массива: рамка [-40, -40, -20, -20] накрывала
-    6561 пиксель из 10000. Метрику можно было выиграть мусором.
+    The old slice `m[max(0, int(y0)):int(y1) + 1]` counted a negative `y1` FROM
+    THE END of the array: the box [-40, -40, -20, -20] covered 6561 pixels of
+    10000. The metric could be won with rubbish.
     """
     assert int(fitness._mask((100, 100), [[-40, -40, -20, -20]]).sum()) == 0
     assert fitness._clip((100, 100), [-40, -40, -20, -20]) is None
 
 
 def test_box_hanging_over_the_edge_is_cut_by_the_sheet():
-    """А наполовину свесившаяся — накрывает ровно свою часть листа."""
+    """And one hanging half off covers exactly its own part of the sheet."""
     m = fitness._mask((100, 100), [[-10, -10, 9, 9]])
-    assert int(m.sum()) == 100, int(m.sum())          # 10x10 в углу
+    assert int(m.sum()) == 100, int(m.sum())          # 10x10 in the corner
     m = fitness._mask((100, 100), [[90, 90, 500, 500]])
     assert int(m.sum()) == 100, int(m.sum())
 
 
-# --- два счёта одного пикселя ----------------------------------------------
+# --- one pixel counted twice ------------------------------------------------
 
 def test_pixel_under_two_boxes_counts_once():
-    """Объект, у которого половина чернил не накрыта ничем, не «уехал текстом».
+    """An object with half its ink under nothing has not "left as text".
 
-    Задвоенная разметка (одна и та же область отдана артефактом и текстом) —
-    не выдумка: у сырого docling-heron 4435 задвоенных пар. Прежняя формула
-    `t_kept + kept` считала общий пиксель дважды, сумма переваливала за
-    порог, и объект получал диагноз «не потерян, чинится ярлыком».
+    Doubled markup -- one area given to an artefact and to text at once -- is
+    no invention: raw docling-heron has 4435 doubled pairs. `t_kept + kept`
+    counted the shared pixel twice, the sum passed the threshold, and the
+    object was diagnosed "not lost, fixable by a label".
     """
     with tempfile.TemporaryDirectory() as tmp:
         pdf = _book([(20, 20, 120, 120)], tmp)
         truth = _pages([((20, 20, 120, 120), "table")], tmp, "truth")
-        # рамка артефакта и текстовая — ОДНА И ТА ЖЕ левая половина объекта
+        # the artefact box and the text box are THE SAME left half of the
+        # object
         det = _pages([((20, 20, 70, 120), "table"),
                       ((20, 20, 70, 120), "text")], tmp, "det")
         r = fitness.measure(pdf, det, truth)
         assert r["torn"] == 1, r
         assert r["left_as_text"] == 0, r
-        # ...а когда текстовая рамка и правда держит остаток — диагноз верен
+        # ...and when the text box really holds the rest, the diagnosis is
+        # right
         det2 = _pages([((20, 20, 70, 120), "table"),
                        ((60, 20, 120, 120), "text")], tmp, "det2")
         assert fitness.measure(pdf, det2, truth)["left_as_text"] == 1
 
 
-# --- нули ------------------------------------------------------------------
+# --- zeros ------------------------------------------------------------------
 
 def test_blank_page_is_not_a_total_loss():
-    """Пустой растр — «мерить нечего», а не «потеряна вся книга»."""
+    """An empty raster is "nothing to measure", not "the book is lost"."""
     with tempfile.TemporaryDirectory() as tmp:
         pdf = _book([], tmp)
         det = _pages([((10, 10, 50, 50), "table")], tmp, "det")
@@ -146,7 +142,7 @@ def test_blank_page_is_not_a_total_loss():
 
 
 def test_truth_without_artefacts_is_not_a_missing_truth():
-    """Истина подана, артефактов в ней нет — это ДРУГОЙ ноль."""
+    """Truth supplied, no artefacts in it -- that is ANOTHER zero."""
     with tempfile.TemporaryDirectory() as tmp:
         pdf = _book([(20, 20, 120, 120)], tmp)
         det = _pages([((20, 20, 120, 120), "text")], tmp, "det")
@@ -159,7 +155,7 @@ def test_truth_without_artefacts_is_not_a_missing_truth():
 
 
 def test_object_without_ink_is_a_bench_defect_not_a_score():
-    """Объект истины без чернил не считан ни в «цел», ни в «порван»."""
+    """A truth object without ink counts as neither "intact" nor "torn"."""
     with tempfile.TemporaryDirectory() as tmp:
         pdf = _book([(20, 20, 120, 120)], tmp)
         det = _pages([((20, 20, 120, 120), "table")], tmp, "det")
@@ -172,7 +168,7 @@ def test_object_without_ink_is_a_bench_defect_not_a_score():
 
 
 def test_page_the_model_did_not_mark_is_loud():
-    """Молчание модели — отказ, а не «чернил не потеряно»."""
+    """A silent model is a refusal, not "no ink lost"."""
     with tempfile.TemporaryDirectory() as tmp:
         pdf = _book([(20, 20, 120, 120)], tmp)
         truth = _pages([((20, 20, 120, 120), "table")], tmp, "truth")
@@ -190,25 +186,25 @@ def test_page_the_model_did_not_mark_is_loud():
             assert False, "молчание модели прошло молча"
 
 
-# --- линейка ---------------------------------------------------------------
+# --- the ruler --------------------------------------------------------------
 
 def test_report_declares_the_whole_ruler():
-    """Все четыре порога и dpi — в отчёте, а не только «цел».
+    """All five thresholds and the dpi in the report, not just "intact".
 
-    Величина без объявленной линейки уже стоила проекту невоспроизводимого
-    «лишних прыжков 7.0 -> 1.3». Здесь единица измерения — пиксель растра,
-    то есть число зависит от `PAGE_DPI`: те же рамки на bench/real/tables20.pdf
-    дают «чернил под артефактом» 24.83% при 144 dpi и 25.99% при 600.
+    A number without a declared ruler already cost an irreproducible "extra
+    jumps 7.0 -> 1.3". The unit is the raster pixel, so the number rides on
+    `PAGE_DPI`: the same boxes on bench/real/tables20.pdf give "ink under
+    artefacts" 24.83% at 144 dpi and 25.99% at 600.
     """
     with tempfile.TemporaryDirectory() as tmp:
         pdf = _book([(20, 20, 120, 120)], tmp)
         det = _pages([((20, 20, 120, 120), "table")], tmp, "det")
         said = _said(fitness.measure(pdf, det))
         assert "72 dpi" in said, said
-        # ПОРОГОВ ПЯТЬ, И СРАВНЕНИЕ ТОЧНОЕ. Здесь спрашивались четыре из пяти
-        # (`EDGE` печатался только при потерях, и выкинуть его строку можно
-        # было, не покраснев), да ещё и подстрокой: `BITTEN = 0.8` проходило
-        # по «0.80» случайно, а `INK = 160` прошло бы и по «1600».
+        # FIVE THRESHOLDS, AND EXACT COMPARISON. Four of the five were asked
+        # for (`EDGE` printed only on losses, so its line could go without
+        # red), and asked as a substring: `BITTEN = 0.8` passed on "0.80" by
+        # accident, and `INK = 160` would pass on "1600".
         import re
         nums = re.findall(r"\d+(?:\.\d+)?", said)
         for v in (fitness.INK, fitness.WHOLE, fitness.ALMOST, fitness.BITTEN):
@@ -219,11 +215,10 @@ def test_report_declares_the_whole_ruler():
 
 
 def test_report_says_out_loud_that_it_is_blind_to_merging():
-    """Прибор обязан сам называть, чего не видит, и звать соседа по имени.
+    """The instrument must name what it cannot see, and name the neighbour.
 
-    И называть ОБЯЗАТЕЛЬНО без истины тоже: строка стояла после обоих
-    `return` по истине, а `books fitness книга.pdf --detect …` — ровно тот
-    режим, которым меряют настоящие сканы, и им прибор про слепоту молчал.
+    Without truth too: the line stood after both `return`s by truth, and `books
+    fitness book.pdf --detect …` is the mode real scans are measured in.
     """
     with tempfile.TemporaryDirectory() as tmp:
         pdf = _book([(20, 20, 120, 120)], tmp)
@@ -236,11 +231,11 @@ def test_report_says_out_loud_that_it_is_blind_to_merging():
 
 
 def test_the_number_that_grows_when_boxes_merge():
-    """«Приехал не в одиночку» — единственное число, растущее от слияния.
+    """The one number that GROWS when boxes merge: "arrived with company".
 
-    Все прочие от слияния улучшаются (bench/hard36: цел 365 -> 385, порван
-    28 -> 13, чернил объектов 94.8% -> 96.1%), и по одним им слияние выглядит
-    выгодным. Это росло там же 309 -> 385.
+    The rest improve (bench/hard36: intact 365 -> 385, torn 28 -> 13, object
+    ink 94.8% -> 96.1%), and by them alone merging looks profitable. This one
+    went 309 -> 385 there.
     """
     with tempfile.TemporaryDirectory() as tmp:
         pdf = _book([(20, 20, 80, 80), (110, 20, 170, 80)], tmp)
@@ -251,9 +246,9 @@ def test_the_number_that_grows_when_boxes_merge():
         one = _pages([((20, 20, 170, 80), "table")], tmp, "one")
         a = fitness.measure(pdf, apart, truth)
         b = fitness.measure(pdf, one, truth)
-        assert a["intact"] == b["intact"] == 2, (a, b)          # слепые числа молчат
+        assert a["intact"] == b["intact"] == 2, (a, b)          # blind numbers keep quiet
         assert a["in_one_box"] == b["in_one_box"] == 2
-        assert a["arrived_with_company"] == 0, a         # а это — говорит
+        assert a["arrived_with_company"] == 0, a         # and this one speaks
         assert b["arrived_with_company"] == 2, b
         assert a["boxes_with_many_objects"] == 0
         assert b["boxes_with_many_objects"] == 1
@@ -261,29 +256,29 @@ def test_the_number_that_grows_when_boxes_merge():
 
 
 def test_the_ink_threshold_has_one_meaning_in_both_homes():
-    """`fitness.INK` и `synth.INK` — одно число в двух домах.
+    """`fitness.INK` and `synth.INK` are one number in two homes.
 
-    Стенд меряет свою истину этим порогом, метрика — вывод модели. Разойдись
-    копии, и «доехало 94.8% чернил» считалось бы не про те чернила, которыми
-    размечена истина. Свести импортом можно (cv2 в `synth` грузится ВНУТРИ
-    функций, `import booksmith.synth` стоит 2 мс), но метрика не должна
-    зависеть от того, кто рисует стенд, — поэтому договор держит проверка.
+    The bench marks its truth by this threshold, the metric measures the model
+    by it; let them drift and "94.8% of ink arrived" is not about the ink the
+    truth is marked by. Import would join them (cv2 in `synth` loads INSIDE
+    functions, `import booksmith.synth` costs 2 ms), but the metric must not
+    depend on whoever draws the bench.
     """
     from booksmith import synth
     assert fitness.INK == synth.INK, (fitness.INK, synth.INK)
 
 
 def test_merging_two_objects_into_one_box_does_not_lower_the_numbers():
-    """Слепота, закреплённая замером: слияние прибор считает УЛУЧШЕНИЕМ.
+    """Blindness fixed by measurement: merging counts here as an IMPROVEMENT.
 
-    Проверка не о том, что так правильно, а о том, что так есть. Разойдись
-    это с текстом отчёта — соврёт либо отчёт, либо прибор.
+    Not that it is right, but that it is so. Let this drift from the report's
+    own text and one of the two lies.
     """
     with tempfile.TemporaryDirectory() as tmp:
         pdf = _book([(20, 20, 80, 80), (110, 20, 170, 80)], tmp)
         truth = _pages([((20, 20, 80, 80), "table"),
                         ((110, 20, 170, 80), "table")], tmp, "truth")
-        # обе таблицы обведены порознь, но у правой срезан край
+        # both tables boxed apart, but the right one has its edge cut off
         apart = _pages([((20, 20, 80, 80), "table"),
                         ((110, 20, 150, 80), "table")], tmp, "apart")
         one = _pages([((20, 20, 170, 80), "table")], tmp, "one")
@@ -294,18 +289,16 @@ def test_merging_two_objects_into_one_box_does_not_lower_the_numbers():
         assert b["in_one_box"] > a["in_one_box"]
 
 
-# --- память растра ---------------------------------------------------------
+# --- raster memory ----------------------------------------------------------
 
-# Страница ЗОЛОТОГО СТЕНДА, а не игрушечная: 1700x2200 — это 3.57 МиБ булевой
-# маской и 457 КиБ упакованной, ровно порядок настоящей (средняя страница
-# bench/annopage при 144 dpi — 5.00 МиБ и 640 КиБ). На игрушечных 64x64
-# потолок в байтах не связывает НИКОГДА, и проверка, писанная на них, прятала
-# ровно тот дефект, ради которого заведена.
+# A GOLDEN BENCH page, not a toy: 1700x2200 is 3.57 MiB as a boolean mask and
+# 457 KiB packed, the order of a real one (the average `bench/annopage` page at
+# 144 dpi: 5.00 MiB and 640 KiB). On toy 64x64 the byte cap NEVER binds.
 _PAGE = (2200, 1700)
 
 
 def _memory_probe(pages, cap, passes):
-    """Сколько рендеров стоят `passes` последовательных проходов по книге."""
+    """How many renders `passes` sequential walks over the book cost."""
     rendered = {"n": 0}
     real, cap0 = fitness._ink, fitness._INK_CACHE_MAX_BYTES
 
@@ -334,44 +327,42 @@ def _memory_probe(pages, cap, passes):
 
 
 def test_ink_memory_does_not_thrash_on_a_book_bigger_than_the_cap():
-    """Книга больше потолка считается наполовину из памяти, а не заново целиком.
+    """A book bigger than the cap is half counted from memory, not wholly anew.
 
-    Вытеснение при ПОСЛЕДОВАТЕЛЬНОМ обходе промахивается по построению: всё,
-    что вытеснено к концу прохода, нужно в начале следующего. Обе прежние
-    редакции — потолок в 64 страницы с полной очисткой и потолок в байтах с
-    вытеснением старейшего — давали ровно столько рендеров, сколько без памяти
-    вовсе. Симуляция на НАСТОЯЩЕМ следе обращений (23 прохода, снятые с самой
-    батареи, с их порогами чернил) и настоящих формах страниц золотого стенда,
-    600 страниц, потолок 512 МиБ: без памяти 13800 рендеров, вытеснением 2400,
-    удержанием набранного 1800 — оно же идеал (три прохода: пороги 160, 0 и
-    256 дают три разные маски).
+    Eviction under a SEQUENTIAL walk misses by construction: what is evicted by
+    the end of a pass is wanted at the start of the next. Both earlier versions
+    -- 64 pages with a full clear, and a byte cap evicting the oldest -- cost
+    as many renders as no memory at all. Simulated on a REAL access trace (23
+    passes off the battery itself, with its ink thresholds) and real
+    golden-bench page shapes, 600 pages, cap 512 MiB: no memory 13800 renders,
+    eviction 2400, holding what was gathered 1800 -- the ideal (three passes:
+    thresholds 160, 0 and 256 give three masks).
     """
     page = (_PAGE[0] * _PAGE[1] + 7) // 8
     held, pages, passes = 4, 10, 3
     n = _memory_probe(pages, held * page, passes)
-    # первый проход платит за всё, дальше платит только то, что не влезло
+    # the first pass pays for everything, then only what did not fit
     assert n == pages + (passes - 1) * (pages - held), n
     assert n < pages * passes, "память не сэкономила ничего — это промашка"
     assert n > pages, "стенд подобран так, что потолок не связывает"
 
 
 def test_ink_memory_pays_nothing_twice_when_the_book_fits():
-    """Книга по размеру — каждая страница рендерится ровно один раз."""
+    """A book that fits -- every page rendered exactly once."""
     page = (_PAGE[0] * _PAGE[1] + 7) // 8
     assert _memory_probe(10, 10 * page, 5) == 10
 
 
 def test_ink_memory_makes_room_for_the_next_book():
-    """Прошлая книга уступает место следующей, а своя — не уступает.
+    """The previous book gives way to the next; our own pages do not.
 
-    `_INK_CACHE` — глобаль модуля, и процесс, меряющий больше одной книги
-    (восемь стендов подряд — обычное дело и для человека, и для проверок),
-    получал вот что: книга А забивает потолок, книге Б не достаётся НИ БАЙТА.
-    Симуляция на настоящем следе обращений и настоящих формах страниц,
-    потолок 512 МиБ, две книги по 600 страниц: удержанием набранного 15600
-    рендеров, вытеснением подряд 4200, выселением ЧУЖИХ книг 3600 — идеал.
-    Внутри книги вытеснять по-прежнему нельзя: обход последовательный, и
-    вытесненное нужно на следующем проходе (одна книга: 1800 против 2400).
+    `_INK_CACHE` is a module global, and a process measuring more than one book
+    (eight benches in a row is ordinary) got this: book A fills the cap, book B
+    gets NOT ONE BYTE. Simulated on the real trace and real page shapes, cap
+    512 MiB, two books of 600 pages: holding what was gathered 15600 renders,
+    evicting in order 4200, evicting OTHER books 3600 -- the ideal. Inside a
+    book eviction stays forbidden: the walk is sequential and what is evicted
+    is wanted on the next pass (one book: 1800 against 2400).
     """
     page = (_PAGE[0] * _PAGE[1] + 7) // 8
     real, cap0 = fitness._ink, fitness._INK_CACHE_MAX_BYTES
@@ -386,7 +377,7 @@ def test_ink_memory_makes_room_for_the_next_book():
             return None
 
     fitness._ink = spy
-    fitness._INK_CACHE_MAX_BYTES = 4 * page      # места ровно на одну книгу
+    fitness._INK_CACHE_MAX_BYTES = 4 * page      # room for exactly one book
     fitness._INK_CACHE.clear()
     fitness._INK_CACHE_BYTES = 0
     try:
@@ -394,8 +385,8 @@ def test_ink_memory_makes_room_for_the_next_book():
             for _ in range(3):
                 for i in range(4):
                     fitness._ink_of(book, Doc(), i, 144)
-        # каждая книга отрендерена по разу: вторая вытеснила первую, но
-        # ВНУТРИ книги ни одна страница не считана дважды
+        # each book rendered once: the second evicted the first, but INSIDE a
+        # book no page was read twice
         assert rendered["n"] == 8, rendered["n"]
     finally:
         fitness._ink = real
@@ -405,18 +396,18 @@ def test_ink_memory_makes_room_for_the_next_book():
 
 
 def test_the_cap_holds_the_bench_it_was_raised_for():
-    """Потолок обязан вмещать золотой стенд ЦЕЛИКОМ — иначе он ничего не даёт.
+    """The cap must hold the golden bench WHOLE -- else it gives nothing.
 
-    Число потолка выведено из этого стенда замером, и связь обязана быть
-    проверяемой: здесь стояло «460 МБ булевыми и 58 МБ упакованными, влезают
-    целиком», мимо в шесть с половиной раз, и не влезали.
+    The number was derived from this bench, and the link must stay checkable:
+    here stood "460 MB boolean and 58 MB packed, they fit whole" -- wrong by
+    six and a half times, and they did not fit.
     """
-    # ЧИТАЕТСЯ `truth/`, А НЕ `detect/pages`. Второй лежит под `.gitignore`
-    # (`bench/*/detect/pages/`), и на свежем клоне проверка молча пропускалась
-    # — а под мутацией пропуск считается НЕ покрасневшей проверкой, так что
-    # мутация «потолок опущен ниже золотого стенда» печаталась НЕ ПОЙМАНА и
-    # `--selfcheck` возвращал 1. Формы страниц лежат и в `truth/`: те же 600
-    # файлов, в git, сумма ровно та же.
+    # `truth/` IS READ, NOT `detect/pages`: the second is under `.gitignore`
+    # (`bench/*/detect/pages/`), so on a fresh clone the check was skipped
+    # silently -- and a skip counts under mutation as a check that did NOT go
+    # red, so "cap lowered below the golden bench" printed NOT CAUGHT and
+    # `--selfcheck` returned 1. The shapes are in `truth/` as well: the same
+    # 600 files, in git, the same sum.
     import json
     d = os.path.join(os.path.dirname(HERE), "bench", "annopage", "truth")
     if not os.path.isdir(d):
@@ -434,7 +425,7 @@ def test_the_cap_holds_the_bench_it_was_raised_for():
 
 
 def test_ink_threshold_is_part_of_the_memory_key():
-    """Сдвинули порог — маску считать заново, иначе живой порог мёртв на вид."""
+    """Move the threshold, recount the mask -- else a live one looks dead."""
     rendered = {"n": 0}
     real = fitness._ink
 
@@ -464,19 +455,19 @@ def test_ink_threshold_is_part_of_the_memory_key():
         fitness._INK_CACHE_BYTES = 0
 
 
-# --- батарея ---------------------------------------------------------------
+# --- the battery ------------------------------------------------------------
 
 def test_battery_counts_what_it_could_not_measure():
-    """«Непойманных 0» при пяти непомеренных пробах — это слово, а не число.
+    """Saying "uncaught 0" over five unmeasured probes is a word, not a number.
 
-    Без истины большинство проб мерить нечем, и итог обязан назвать сколько
-    именно: иначе батарея выглядит зелёной, померив меньше половины.
+    Without truth most probes have nothing to measure, and the total must name
+    how many, or the battery looks green having measured under half.
 
-    Проверяется АРИФМЕТИКА итога, а не литерал: сколько проб названо «нет
-    данных», столько и обязано стоять в «нечем мерить», и померенных без
-    истины обязано быть заметно меньше. Литерал «нечем мерить 0» тут врал бы
-    сам: на книге из одной таблицы разряды «почти цел» и «надкушен» пусты, и
-    двум пробам порогов мерить нечем честно.
+    The ARITHMETIC of the total is checked, not a literal: as many probes as
+    say "no data" must stand in "nothing to measure with". A literal "nothing
+    to measure 0" would lie by itself -- on a book of one table "almost intact"
+    and "bitten" are empty, and two threshold probes honestly have nothing to
+    measure.
     """
     def counts(*a):
         out = []
@@ -491,9 +482,9 @@ def test_battery_counts_what_it_could_not_measure():
         pdf = _book([(20, 20, 120, 120)], tmp)
         det = _pages([((20, 20, 120, 120), "table")], tmp, "det")
         truth = _pages([((20, 20, 120, 120), "table")], tmp, "truth")
-        # Считаются строки ПРОБ, а не весь вывод: итог сам поминает «нет
-        # данных», отсылая к ним, и, посчитанный вместе с ними, давал бы на
-        # одну молчащую пробу больше, чем было.
+        # PROBE lines are counted, not the whole output: the total mentions "no
+        # data" itself and, counted together with them, gave one silent probe
+        # more than there was.
         bad, out, tail, got = counts(pdf, det, truth)
         assert bad == 0, tail
         silent = sum("нет данных" in l for l in out[:-1])
@@ -502,15 +493,15 @@ def test_battery_counts_what_it_could_not_measure():
         bad2, out2, tail2, got2 = counts(pdf, det)
         assert bad2 == 0, tail2
         assert sum("нет данных" in l for l in out2[:-1]) == got2["unmeasurable"], tail2
-        # без истины мерить нечем ГОРАЗДО большему числу проб, и это видно
+        # without truth far more probes have nothing to measure, and it shows
         assert got2["measured"] < got["measured"] / 2, (tail, tail2)
 
 
 def test_battery_corrupts_all_three_sides():
-    """Вывод модели, ИСТИНА и СВОИ пороги — каждый порознь.
+    """The model's output, the TRUTH and OUR OWN thresholds -- each apart.
 
-    Двинутые разом, они прячут инертный: метрика, безразличная к истине,
-    меряет один свой вход, а мёртвый порог печатается наравне с живым.
+    Moved together they hide the inert one: a metric indifferent to truth
+    measures one input, and a dead threshold prints beside a live one.
     """
     with tempfile.TemporaryDirectory() as tmp:
         pdf = _book([(20, 20, 120, 120)], tmp)
@@ -519,8 +510,8 @@ def test_battery_corrupts_all_three_sides():
         out = []
         fitness.mutations(pdf, det, truth, log=out.append)
         said = "\n".join(out)
-        assert "истина сдвинута" in said, said        # третья сторона
-        assert "порог чернил" in said, said           # вторая
+        assert "истина сдвинута" in said, said        # the third side
+        assert "порог чернил" in said, said           # the second
         assert "уехали за левый верхний угол" in said, said
         assert "слиты в одну" in said, said
         assert "отдана ещё и текстовой" in said, said
