@@ -322,7 +322,7 @@ def test_three_kinds_of_bad_sheet_get_three_different_marks():
     Прежде пометки было две, и третий вид печатался чужой: `blank` значил
     «блоки есть, текста среди них нет», поэтому лист с одной колонцифрой
     (`footer`, разряд «служебное») получал красное «вся полоса ушла в
-    картинки» при `data-доля-в-картинках="0.00"` — элемент противоречил сам
+    картинки» при `data-image-share="0.00"` — элемент противоречил сам
     себе. Замер: `bench/atlas` стр. 0.
     """
     import json
@@ -374,16 +374,16 @@ def test_three_kinds_of_bad_sheet_get_three_different_marks():
         book = open(os.path.join(out, "book.html"), encoding="utf-8").read()
 
     import re
-    marks = dict(re.findall(r'<hr class="лист" data-стр="(\d+)"([^>]*)>', book))
-    assert 'data-только-служебное' in marks["0"], (
+    marks = dict(re.findall(r'<hr class="sheet" data-sheet="(\d+)"([^>]*)>', book))
+    assert 'data-furniture-only' in marks["0"], (
         f"лист из одного служебного помечен как {marks['0']!r} — а картинок "
         f"на нём нет вовсе")
-    assert 'data-без-текста' not in marks["0"], (
+    assert 'data-no-text' not in marks["0"], (
         "лист без единой картинки назван ушедшим в картинки: "
         f"{marks['0']!r}")
-    assert ('data-без-текста' in marks["1"]
-            and 'data-только-служебное' not in marks["1"]), marks["1"]
-    assert 'data-пусто' in marks["2"], marks["2"]
+    assert ('data-no-text' in marks["1"]
+            and 'data-furniture-only' not in marks["1"]), marks["1"]
+    assert 'data-empty' in marks["2"], marks["2"]
     assert marks["3"].strip().endswith('"'), (
         f"здоровый лист получил пометку отказа: {marks['3']!r}")
     # И у каждой пометки своя надпись — иначе разведены они только на словах.

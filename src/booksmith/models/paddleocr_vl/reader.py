@@ -145,7 +145,7 @@ def _weights() -> dict:
     # ПОБАЙТОВО — 2059 байт, sha256 ce7f4565f8b1db78…, — то есть сторож не
     # ловил ровно тот прогон, ради которого писался («качаем одно, объявляем
     # другое»). Он ловил лишь «весов нет вовсе».
-    src = os.path.join(d, "ОТКУДА.json")
+    src = os.path.join(d, "SOURCE.json")
     if os.path.exists(src):
         try:
             import json as _j
@@ -153,10 +153,10 @@ def _weights() -> dict:
                 "repo")
         except (ValueError, OSError) as e:
             out["repo"] = None
-            out["why_empty"] = f"ОТКУДА.json не читается: {e}"
+            out["why_empty"] = f"SOURCE.json не читается: {e}"
     else:
         out["repo"] = None
-        out["why_empty"] = ("рядом с весами нет ОТКУДА.json — его пишет "
+        out["why_empty"] = ("рядом с весами нет SOURCE.json — его пишет "
                                "provision.sh; значит веса положены не им, и "
                                "какие они, сказать нечем")
     # Хэшируем файл, который у двух репозиториев РАЗЛИЧАЕТСЯ, а не тот, что

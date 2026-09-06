@@ -257,7 +257,7 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
                            # подставного сервера, петля на боксе) и ответ
                            # модели не решает; имя модели — решает.
                            if k in ("transport", "model_asked")}}
-    setup_path = os.path.join(out_dir, "чем читали.json")
+    setup_path = os.path.join(out_dir, "read_with.json")
     same_setup = True
     if resume and os.path.exists(setup_path):
         with open(setup_path, encoding="utf-8") as f:

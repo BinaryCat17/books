@@ -18,7 +18,7 @@
 
 ПОЧЕМУ СЕЙЧАС КАРТИНКАМИ СТАНОВИТСЯ И ТЕКСТ. Распознавателя текста ещё нет:
 `books detect` даёт контуры, а `Block.content` пуст у всех блоков. Блок, для
-которого текста нет, выводится вырезкой и помечается `data-текст="не прочитан"`
+которого текста нет, выводится вырезкой и помечается `data-text="не прочитан"`
 — честно и сразу полезно: по такой странице глазом видно, верны ли контуры и
 порядок чтения, ДО того как соглашения о них закрепит метрика. Когда появится
 чтение текста, те же блоки поедут текстом, и ни строки здесь менять не придётся.
@@ -65,8 +65,8 @@ figure img{max-width:100%;height:auto;display:block;
            border:1px solid #ddd}
 figcaption{font:12px/1.4 monospace;color:#777;margin-top:.3em}
 p{margin:.7em 0}
-[data-роль="служебное"]{opacity:.55}
-[data-текст="не прочитан"] figcaption{color:#a60}
+[data-role="служебное"]{opacity:.55}
+[data-text="не прочитан"] figcaption{color:#a60}
 /* ТЕКСТОВЫЙ БЛОК, УЕХАВШИЙ КАРТИНКОЙ, НЕ ЗАНИМАЕТ ЭКРАН. Их семь на книгу, и
    все семь — полосы тени переплёта: рамка модели легла на дефект скана, а
    модель на этот шум ответила пустым. Вырезка 12x408 px рисуется в натуре и
@@ -74,30 +74,30 @@ p{margin:.7em 0}
    текста. Рамку НЕ убираем (это дефект первого уровня, и он мерится), число
    не прячем (оно в журнале и в слепке) — уменьшаем только показ, и подпись
    при этом говорит, ПОЧЕМУ блок пуст. */
-[data-текст="не прочитан"] img{max-height:8em;width:auto;object-fit:contain}
-figure[data-внутри]{margin-left:2em;border-left:3px solid #e0c000;padding-left:.8em}
-figure[data-внутри] figcaption{color:#a60}
-hr.лист[data-без-текста]{border-top:2px solid #c00}
-hr.лист[data-пусто]{border-top:2px dotted #c00}
-hr.лист[data-пусто]::after{content:"модель не нашла на листе ничего";
+[data-text="не прочитан"] img{max-height:8em;width:auto;object-fit:contain}
+figure[data-inside]{margin-left:2em;border-left:3px solid #e0c000;padding-left:.8em}
+figure[data-inside] figcaption{color:#a60}
+hr.sheet[data-no-text]{border-top:2px solid #c00}
+hr.sheet[data-empty]{border-top:2px dotted #c00}
+hr.sheet[data-empty]::after{content:"модель не нашла на листе ничего";
     display:block;font:11px monospace;color:#c00;margin-top:.3em}
-hr.лист[data-без-текста]:not([data-пусто])::after{content:"вся полоса ушла в картинки";
+hr.sheet[data-no-text]:not([data-empty])::after{content:"вся полоса ушла в картинки";
     display:block;font:11px monospace;color:#c00;margin-top:.3em}
-hr.лист[data-только-служебное]{border-top:2px dashed #c00}
-hr.лист[data-только-служебное]::after{content:"на листе только служебное: ни текста, ни артефактов";
+hr.sheet[data-furniture-only]{border-top:2px dashed #c00}
+hr.sheet[data-furniture-only]::after{content:"на листе только служебное: ни текста, ни артефактов";
     display:block;font:11px monospace;color:#c00;margin-top:.3em}
-hr.лист{border:0;border-top:1px dashed #ccc;margin:2.5em 0}
+hr.sheet{border:0;border-top:1px dashed #ccc;margin:2.5em 0}
 
 /* ОБРЫВ ПО ПОТОЛКУ — ВИДЕН ГЛАЗОМ, А НЕ ТОЛЬКО В ЖУРНАЛЕ. Оборванный ответ
    ничем не отличался от целого: 118 471 знак (12.95 % текста книги)
    стоял обычными <p> и <table>. Пометка на РАМКЕ блока, а не в тексте —
    `content` остаётся байтами модели. */
-[data-оборвано]{border-left:3px solid #c00;padding-left:.8em;margin-left:-1em}
-[data-оборвано]::before{content:"ответ модели оборван по потолку длины — "
+[data-truncated]{border-left:3px solid #c00;padding-left:.8em;margin-left:-1em}
+[data-truncated]::before{content:"ответ модели оборван по потолку длины — "
     "дальше этого места текст обрывается на полуслове";
     display:block;font:11px monospace;color:#c00;margin:.3em 0}
-[data-форма-таблицы]::after{content:"форма таблицы невозможна: "
-    attr(data-форма-таблицы);
+[data-table-shape]::after{content:"форма таблицы невозможна: "
+    attr(data-table-shape);
     display:block;font:11px monospace;color:#c00;margin-top:.3em}
 
 /* ТАБЛИЦЫ. Здесь не было НИ ОДНОГО правила: во всей книге 16 селекторов и
@@ -123,12 +123,12 @@ tr:nth-child(even) td{background:#fbfaf9}
    text, и широкая `<table>` может приехать в книгу видом `html` — тогда она
    попадала бы в необережённый div. В этой книге таких блоков 0 (latex 248,
    otsl 104, text 60), но правило дешевле оговорки. */
-div[data-уровень="2"]{overflow-x:auto}
+div[data-level="2"]{overflow-x:auto}
 /* Подпись таблицы приходит ОТДЕЛЬНЫМ блоком модели (ярлык `figure_title`) и
    отдельным <p> остаётся: свести её в <caption> значило бы переставить блоки
    и сломать порядок книги, который сверяется отдельным сторожем. Поэтому
    роднит их вид, а не разметка. */
-p[data-ярлык="figure_title"]{font-size:.9em;color:#555;margin:1.2em 0 .2em}
+p[data-label="figure_title"]{font-size:.9em;color:#555;margin:1.2em 0 .2em}
 
 /* ПОВТОР ХОЗЯИНА. Детектор обводит встроенную в строку математику СВОЕЙ
    рамкой поверх абзаца, второй уровень читает её отдельно — и то же место
@@ -150,20 +150,20 @@ p[data-ярлык="figure_title"]{font-size:.9em;color:#555;margin:1.2em 0 .2em}
    ГДЕ ОСТАЁТСЯ СПРЯТАННОЕ: в самом `book.html` (разметка на месте, скрыт
    только показ) и в `assets/source/pages/*.json`. Здесь стояло «и в
    blocks.json» — неверно: `content` среди его полей нет вовсе. */
-[data-повтор-текст="дословно"]{display:none}
+[data-repeat-text="дословно"]{display:none}
 /* Доказанный повтор, ОСТАВЛЕННЫЙ ради вёрстки: носитель несёт то же сырым
    латехом, и спрятать свёрстанное значило бы показать читателю `FeO-SiO_{2}`
    вместо формулы. */
-[data-повтор-текст="вёрстка"]{opacity:.85}
+[data-repeat-text="вёрстка"]{opacity:.85}
 /* Читателю сказано, что лист сокращён, и сказано на самом листе. */
-hr.лист[data-скрыто-повторов]::after{
-    content:"на этом листе скрыто повторов: " attr(data-скрыто-повторов)
+hr.sheet[data-repeats-hidden]::after{
+    content:"на этом листе скрыто повторов: " attr(data-repeats-hidden)
             " (тот же текст напечатан рядом; HTML_REPEATS=show покажет все)";
     display:block;font:11px monospace;color:#999;margin-top:.3em}
-[data-повтор-текст="расходится"]{opacity:.7;border-left:2px solid #ccc;
+[data-repeat-text="расходится"]{opacity:.7;border-left:2px solid #ccc;
     padding-left:.6em}
-[data-повтор-текст="расходится"]::after{content:"повтор блока "
-    attr(data-повтор) ", текст разошёлся";
+[data-repeat-text="расходится"]::after{content:"повтор блока "
+    attr(data-repeat) ", текст разошёлся";
     display:block;font:11px monospace;color:#888;margin-top:.2em}
 """
 
@@ -214,12 +214,12 @@ def _figure(anchor, b, role, src, info, inside=None, mark="", why=None):
     # Python 3.12, а пакет заявляет 3.10.
     # ПОЧЕМУ пусто — в подписи, а не одним словом «не прочитан». Прежде здесь
     # стоял глухой атрибут, и книга называла молчание модели непрочитанным.
-    unread = "" if role == "artifact" else ' data-текст="не прочитан"'
+    unread = "" if role == "artifact" else ' data-text="не прочитан"'
     if role != "artifact" and why:
         cap += " · " + why
-    within = f' data-внутри="{inside}"' if inside else ""
-    return (f'<figure id="{anchor}" data-роль="{role}" '
-            f'data-ярлык="{b.label}"{unread}{within}{mark}>'
+    within = f' data-inside="{inside}"' if inside else ""
+    return (f'<figure id="{anchor}" data-role="{role}" '
+            f'data-label="{b.label}"{unread}{within}{mark}>'
             f'<img src="{src}" alt="{_html.escape(b.label)}" '
             f'width="{info["width"]}" height="{info["height"]}">'
             f'<figcaption>{_html.escape(cap)}</figcaption></figure>')
@@ -277,7 +277,7 @@ def _keep_source(detect_dir: str, out_dir: str, log) -> dict:
         if os.path.isdir(src):
             shutil.copytree(src, os.path.join(dst, имя))
             было[имя] = len(os.listdir(src))
-    for имя in ("run.json", "чем читали.json"):
+    for имя in ("run.json", "read_with.json"):
         src = os.path.join(detect_dir, имя)
         if os.path.isfile(src):
             shutil.copy2(src, os.path.join(dst, имя))
@@ -636,12 +636,12 @@ def _twice_area(boxes):
 
 
 def _sheet_trouble(blocks, arts) -> str | None:
-    """Чем плох лист: `пусто` | `без-текста` | `только-служебное` | None.
+    """Чем плох лист: `empty` | `no-text` | `furniture-only` | None.
 
     ОТКАЗОВ ТРИ, А ПОМЕТКИ БЫЛО ДВЕ, и третий печатался чужой. «Без текста»
     значило просто «блоки есть, текста среди них нет», поэтому лист с одной
     колонцифрой (`footer`, разряд «служебное») получал красное «вся полоса
-    ушла в картинки» при `data-доля-в-картинках="0.00"` — элемент
+    ушла в картинки» при `data-image-share="0.00"` — элемент
     противоречил сам себе. Замер: `bench/atlas` стр. 0, один блок `footer`,
     доля 0.00, пометка про картинки; на всей книге «страниц без единого
     текстового блока» стояло 9 при восьми настоящих.
@@ -649,14 +649,14 @@ def _sheet_trouble(blocks, arts) -> str | None:
     ОТДЕЛЬНОЙ ФУНКЦИЕЙ, а не тремя строками в `build`, ровно ради батареи
     порчи: правило, зашитое в тело сборки, нечем сломать, а сторож, которого
     нельзя сломать, не доказан. Возвращаемое слово — оно же имя атрибута
-    (`data-пусто`, `data-без-текста`, `data-только-служебное`): второй копии
+    (`data-empty`, `data-no-text`, `data-furniture-only`): второй копии
     этих имён в файле нет.
     """
     if not blocks:
-        return "пусто"                # модель не нашла на листе ничего
+        return "empty"                # модель не нашла на листе ничего
     if any(policy.role(b.label) == "text" for b in blocks):
         return None
-    return "без-текста" if arts else "только-служебное"
+    return "no-text" if arts else "furniture-only"
 
 
 def _order_src(page) -> str:
@@ -970,11 +970,11 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
         # исчезали без единого следа на странице.
         скрыто_тут = sum(1 for v in повторы_стр.values() if v[1] == "дословно")
         body.append(
-            f'<hr class="лист" data-стр="{page.index}" '
-            f'data-доля-в-картинках="{share:.2f}"'
-            + (f' data-скрыто-повторов="{скрыто_тут}"'
+            f'<hr class="sheet" data-sheet="{page.index}" '
+            f'data-image-share="{share:.2f}"'
+            + (f' data-repeats-hidden="{скрыто_тут}"'
                if скрыто_тут and repeats_how == "hide" else "")
-            + (f' data-{trouble}="да"' if trouble else '') + '>')
+            + (f' data-{trouble}="yes"' if trouble else '') + '>')
         cuts = []
         # ЧЕГО ЖДЁМ, И ПОЧЕМУ НЕ ВНУТРИ ЦИКЛА. Первая редакция копила
         # ожидание тут же, при обходе, — и сторож стал тавтологичным:
@@ -1019,17 +1019,17 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
             o = obs.get(a) or {}
             torn = torn_of(o)
             shape = torn_grid(o.get("otsl_grid"))
-            mark = ' data-оборвано="да"' if torn else ""
+            mark = ' data-truncated="yes"' if torn else ""
             if повтор:
                 # ПРИ `show` ПОМЕТКА ОСТАЁТСЯ, А СОКРЫТИЯ НЕТ: наблюдённое
                 # никуда не девается, выключается только его последствие.
                 вид = (повтор_текст if repeats_how == "hide"
                        else ("показан по HTML_REPEATS=show"
                              if повтор_текст == "дословно" else повтор_текст))
-                mark += (f' data-повтор="{повтор}"'
-                         f' data-повтор-текст="{вид}"')
+                mark += (f' data-repeat="{повтор}"'
+                         f' data-repeat-text="{вид}"')
             if shape:
-                mark += f' data-форма-таблицы="{_html.escape(shape, quote=True)}"'
+                mark += f' data-table-shape="{_html.escape(shape, quote=True)}"'
             if torn:
                 torn_n += 1
                 torn_a.append(a)
@@ -1058,8 +1058,8 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
             else:
                 info = {}
                 body.append(swap.wrap(
-                    a, f'<p id="{a}" data-роль="{role}" '
-                       f'data-ярлык="{b.label}"{mark}>'
+                    a, f'<p id="{a}" data-role="{role}" '
+                       f'data-label="{b.label}"{mark}>'
                        f'{_html.escape(b.content)}</p>'))
             # Наблюдённое — сбоку, по якорю. В текст не лезет ничего.
             side[a] = {"page": page.index, "block_id": b.block_id,
@@ -1341,7 +1341,7 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
     log(f"текстовых блоков внутри артефактной рамки {dup_text} "
         f"(они в HTML ЕСТЬ, но их чернила уехали ещё и в картинку "
         f"артефакта), вложенных артефактов {nested} (подчинены внешней и "
-        f"помечены data-внутри; ни один не выброшен)")
+        f"помечены data-inside; ни один не выброшен)")
     # ВТОРАЯ ПОЛОВИНА, и она больше первой. Печатается рядом нарочно: два
     # числа об одной беде, разнесённые по журналу, сравнить некому.
     log(f"текстовых блоков внутри НЕАРТЕФАКТНОЙ рамки {dup_in_text} — те же "
@@ -1390,7 +1390,7 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
                f"{'…' if shape_n > 5 else ''}" if shape_n else ""))
         if torn_n or shape_n:
             log(f"  ЭТИ БЛОКИ В КНИГЕ ЕСТЬ и помечены "
-                f"data-оборвано / data-форма-таблицы. Текст модели не правлен "
+                f"data-truncated / data-table-shape. Текст модели не правлен "
                 f"ни байтом: обрыв — её дефект, наше дело назвать его вслух")
     else:
         log("наблюдённое чтения: answers/ рядом НЕТ — читали ли эти блоки и "

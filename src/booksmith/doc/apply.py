@@ -242,7 +242,7 @@ def block_role(out_dir: str, anchor: str) -> str:
     """Разряд блока по `blocks.json` сборки, или «неизвестен».
 
     Читается, а не назначается: обёртка замены раньше ставила
-    `data-роль="артефакт"` ВСЕГДА, хотя `blocks.json` по тому же якорю мог
+    `data-role="артефакт"` ВСЕГДА, хотя `blocks.json` по тому же якорю мог
     говорить «текст». Второй уровень бывает нужен и текстовому блоку, и врать
     про его разряд в самой книге незачем — по этому атрибуту её потом читают.
     """
@@ -331,7 +331,7 @@ def _wrap_fragment(anchor: str, fragment: str, kind: str, source: str,
 
     ОБРЫВ ПО ПОТОЛКУ ПЕРЕЕЗЖАЕТ В ОБЁРТКУ ВМЕСТЕ С КУСКОМ, и это поймано
     замером собственной правки. Сборка помечает оборванные блоки
-    `data-оборвано`, но замена ставит на место блока СВОЙ `<div>` — и пометка
+    `data-truncated`, но замена ставит на место блока СВОЙ `<div>` — и пометка
     исчезала: в книге оставалось 10 пометок из 14, а терялись ровно те
     четыре, что `books apply` и поставил (две таблицы, формула, график). То
     есть метка пропадала именно у блоков, доехавших до читателя разметкой.
@@ -342,13 +342,13 @@ def _wrap_fragment(anchor: str, fragment: str, kind: str, source: str,
     """
     import html as _h
     shape = torn_grid(_grid_tally(fragment, kind))
-    bad = (f' data-форма-таблицы="{_h.escape(shape, quote=True)}"'
+    bad = (f' data-table-shape="{_h.escape(shape, quote=True)}"'
            if shape else "")
     if torn:
-        bad += ' data-оборвано="да"'
-    return (f'<div id="{anchor}" data-роль="{_h.escape(role)}" '
-            f'data-уровень="2" data-вид="{_h.escape(kind)}" '
-            f'data-чем="{_h.escape(source)}"{bad}>' + render(fragment, kind)
+        bad += ' data-truncated="yes"'
+    return (f'<div id="{anchor}" data-role="{_h.escape(role)}" '
+            f'data-level="2" data-kind="{_h.escape(kind)}" '
+            f'data-placed-by="{_h.escape(source)}"{bad}>' + render(fragment, kind)
             + "</div>")
 
 
@@ -852,11 +852,11 @@ def from_read(out_dir: str, read_dir: str, only_role: str = "artifact",
                 f"плоско и не выпрямляются"))
     log(f"  форма таблицы невозможна у {tally['impossible_table_shape']} "
         f"блоков КНИГИ — ответ модели оставлен побайтово, помечен "
-        f"data-форма-таблицы"
+        f"data-table-shape"
         + (f": {'; '.join(misshapen[:3])}" if misshapen else ""))
     # ПОМЕТКА, КОТОРУЮ НЕ РИСУЕТ CSS, — ЭТО ПОМЕТКА ТОЛЬКО В ЖУРНАЛЕ, и
     # молчать об этом нельзя. Замер: книга, собранная прежним кодом, после
-    # `apply` получает `data-оборвано` и `data-форма-таблицы` в теле, а в её
+    # `apply` получает `data-truncated` и `data-table-shape` в теле, а в её
     # `<style>` правил для них нет — и обещание «ВИДЕН ГЛАЗОМ, А НЕ ТОЛЬКО В
     # ЖУРНАЛЕ» на этом пути не держится. Заодно и схлопнутые в спаны таблицы
     # остаются без охраны `overflow-x`. Сами CSS не правим: книга — чужой
@@ -869,9 +869,9 @@ def from_read(out_dir: str, read_dir: str, only_role: str = "artifact",
         # предупреждает.
         _книга = html
         нет = [имя for имя, правило in
-               (("пометки обрыва", "[data-оборвано]"),
+               (("пометки обрыва", "[data-truncated]"),
                 ("рамки таблиц", "border-collapse"),
-                ("прокрутка широкой таблицы", 'div[data-уровень="2"]'))
+                ("прокрутка широкой таблицы", 'div[data-level="2"]'))
                if правило not in _книга]
         if нет:
             log(f"  ВНИМАНИЕ: книга собрана прежним CSS — в ней нет правил для "

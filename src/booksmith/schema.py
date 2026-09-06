@@ -110,8 +110,8 @@ FORMATS = (
 
 # THE BOOK IS A FORMAT TOO, and it was the last one nobody declared. `books
 # html` writes these names into `book.html` and `books apply` parses the book
-# back out with selectors over them (`div[data-уровень="2"]`,
-# `[data-оборвано]`). Renaming one in the code left the runner green, the
+# back out with selectors over them (`div[data-level="2"]`,
+# `[data-truncated]`). Renaming one in the code left the runner green, the
 # battery green, the ratchet green and all five reports identical -- while the
 # only real book on disk, 412 swaps and $0.545 of reading, still carried the
 # old names and would never be found again.
@@ -119,16 +119,16 @@ FORMATS = (
 # Declared here so the rename has to be deliberate: the code side is checked
 # against this list, and the book on disk is checked against it too.
 HTML_ATTRS = (
-    "data-без-текста", "data-вид", "data-внутри", "data-доля-в-картинках",
-    "data-оборвано", "data-повтор", "data-повтор-текст", "data-пусто",
-    "data-роль", "data-скрыто-повторов", "data-стр", "data-текст",
-    "data-только-служебное", "data-уровень", "data-форма-таблицы",
-    "data-чем", "data-ярлык",
+    "data-no-text", "data-kind", "data-inside", "data-image-share",
+    "data-truncated", "data-repeat", "data-repeat-text", "data-empty",
+    "data-role", "data-repeats-hidden", "data-sheet", "data-text",
+    "data-furniture-only", "data-level", "data-table-shape",
+    "data-placed-by", "data-label",
 )
 HTML_CLASSES = ("лист",)
 
 # The four that EVERY built book must carry, whatever is on its pages. The
-# other thirteen are conditional -- `data-без-текста` only appears if some
+# other thirteen are conditional -- `data-no-text` only appears if some
 # sheet has no text on it -- so they cannot be required of a particular book.
 # These four are structural: a page marker, a block role, a model label and a
 # nesting level are written for every block of every book.
@@ -136,7 +136,7 @@ HTML_CLASSES = ("лист",)
 # Checked against the book on disk rather than against the code, because that
 # is the pairing that drifts: MathJax puts a few dozen data- attributes of its
 # own into the same file, so "everything in the book" is not a usable set.
-HTML_CORE = ("data-роль", "data-ярлык", "data-стр", "data-уровень")
+HTML_CORE = ("data-role", "data-label", "data-sheet", "data-level")
 
 
 def measure(root=ROOT):

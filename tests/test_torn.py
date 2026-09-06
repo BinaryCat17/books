@@ -147,8 +147,8 @@ def test_the_mark_survives_the_replacement():
                             torn=False)
     рван = ap._wrap_fragment("p1-b0", "<fcel>a<fcel>b<nl>", "otsl", "проба",
                              torn=True)
-    assert "data-оборвано" not in цел, цел
-    assert 'data-оборвано="да"' in рван, рван
+    assert "data-truncated" not in цел, цел
+    assert 'data-truncated="yes"' in рван, рван
 
 
 def test_unknown_is_not_whole():
@@ -160,7 +160,7 @@ def test_unknown_is_not_whole():
     """
     from booksmith.doc import apply as ap
     никак = ap._wrap_fragment("p1-b0", "<fcel>a<nl>", "otsl", "руками")
-    assert "data-оборвано" not in никак, никак
+    assert "data-truncated" not in никак, никак
 
 
 def test_from_read_asks_the_sidecar_for_the_reason():
@@ -312,10 +312,10 @@ def test_bulk_marks_the_torn_block_in_the_book():
                      "<fcel>c<fcel>d<nl><fcel>3<fcel>4<nl>"], обрыв={1})
         ap.from_read(tmp, os.path.join(tmp, "read"), log=lambda *_: None)
         книга = open(os.path.join(tmp, "book.html"), encoding="utf-8").read()
-        assert книга.count('data-оборвано="да"') == 1, книга
+        assert книга.count('data-truncated="yes"') == 1, книга
         # И помечен ИМЕННО оборванный, а не первый попавшийся.
         i = книга.index("p0000-b1")
-        assert 'data-оборвано="да"' in книга[i:i + 200], книга[i:i + 200]
+        assert 'data-truncated="yes"' in книга[i:i + 200], книга[i:i + 200]
 
 
 def test_bulk_names_the_rewrap_apart_from_new_work():
