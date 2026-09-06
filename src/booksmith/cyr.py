@@ -100,6 +100,12 @@ OTHER_GLOBS = ("*.md", "*.sh", "*.toml", "*.yml", "*.yaml", "*.in", "*.txt",
 # here would drown the prose signal in 432 250 characters that must not move.
 DATA_PREFIXES = ("bench/",)
 
+# The rename maps. Their left-hand side IS the Russian that was renamed away --
+# that is what makes them the record of the migration, readable years later by
+# someone holding an old file. Pressing on them would set a floor the ratchet
+# can never reach, which is the one thing that teaches people to ignore it.
+RECORD_FILES = ("tools/keymap.json", "tools/valuemap.json", "tools/htmlmap.json")
+
 
 def tracked(*globs):
     """Files git would keep: tracked, plus untracked that are not ignored.
@@ -195,6 +201,10 @@ def count():
     for rel in tracked(*OTHER_GLOBS):
         if any(rel.startswith(d) for d in DATA_PREFIXES) and rel.endswith(".json"):
             continue
+        if rel in RECORD_FILES:
+            c["rename_record"] += cyr(open(os.path.join(ROOT, rel),
+                                          encoding="utf-8").read())
+            continue
         if rel.endswith(".py"):
             continue
         text = open(os.path.join(ROOT, rel), encoding="utf-8").read()
@@ -213,9 +223,9 @@ def count():
               "tests.comments", "tests.docstrings", "tests.literals",
               "tests.names", "tools.comments", "tools.docstrings",
               "tools.literals", "tools.names", "docs", "config",
-              "bench_data", "book_prose"):
+              "bench_data", "book_prose", "rename_record"):
         c.setdefault(k, 0)
-        if k not in ("bench_data", "book_prose"):
+        if k not in ("bench_data", "book_prose", "rename_record"):
             c.setdefault(k + ".latin", 0)
     return dict(c)
 
@@ -229,7 +239,8 @@ def ratchet_areas(c):
     Cyrillic that left an area turn into English, or into nothing?
     """
     return {k: v for k, v in c.items()
-            if k not in ("book_prose", "bench_data") and not k.endswith(".latin")}
+            if k not in ("book_prose", "bench_data", "rename_record")
+            and not k.endswith(".latin")}
 
 
 def latin_areas(c):
@@ -250,6 +261,8 @@ def main(argv):
     press = ratchet_areas(c)
     print(f"\n  {sum(press.values()):>9}  TOTAL under the ratchet")
     print(f"  {c.get('book_prose', 0):>9}  book prose (exempt, must not move)")
+    print(f"  {c.get('rename_record', 0):>9}  rename maps (exempt: the record "
+          f"of what moved where)")
     if "--check" in argv:
         if not os.path.isfile(BASELINE):
             print("no baseline; run --save first")
