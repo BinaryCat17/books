@@ -47,7 +47,6 @@ from booksmith import text as booktext                      # noqa: E402
 from booksmith.read import Reader, Route, Said              # noqa: E402
 from booksmith.read import http as vhttp                    # noqa: E402
 from booksmith.read import run as vrun                      # noqa: E402
-from booksmith.read import run as vrun                      # noqa: E402
 from booksmith.models.paddleocr_vl.reader import PaddleOcrVl  # noqa: E402
 from booksmith import cyr as cyrmod                        # noqa: E402
 from booksmith import schema                               # noqa: E402
@@ -356,8 +355,7 @@ _save_journal = ap.save_journal
 
 # ---- SECOND LEVEL: the reading guards ------------------------------------
 # Every `test_read` check used to be covered by no mutation at all, and the
-# runner printed that honestly. A check that cannot be broken is unproven --
-# the project rule applied to the checks themselves.
+# runner printed that honestly.
 
 def crop_dpi_by_the_whole_box(box, page_dpi, native, window, sheet=None):
     """Old rule: the clamp computed on the FULL box while what gets cut is the
@@ -596,7 +594,7 @@ def source_swap(rel, old, new):
     be a literal inside a method, and running it would mean loading a 216 MB
     model. Without this they count as uncoverable -- which happened: a sceptic
     removed the "cv2 filter" field from the tree copy and the battery declared
-    itself sound. The working tree is untouched.
+    itself sound.
     """
     import ast
     src = io_open_src(rel)
@@ -631,7 +629,7 @@ def one_line(modname, old, new):
     AND onto the package as an attribute -- the second is required, or `from
     booksmith import fitness` in a reloaded check takes the old module and the
     mutation goes unnoticed. This changes BEHAVIOUR; `sources` is for checks
-    that read the file from disk. The edit lives only in memory.
+    that read the file from disk.
     """
     mod = importlib.import_module(modname)
     with open(mod.__file__, encoding="utf-8") as f:
@@ -749,14 +747,13 @@ def transport_check_only_pings(self, model=None):
 
 
 # ---- SECOND LEVEL: the book pass, transport, answer parsing --------------
-# Nineteen `test_read` checks and nine `test_text` ones stood in the runner's
-# "no mutation" list: they guarded in appearance only. Money runs through the
-# second level and `books text` is the ruler the model will be judged by, so
-# both must go red on a PLAUSIBLE defect -- one a person would really write,
-# not a stub that throws. Where there is no seam the damage returns the
-# QUANTITY the defect would: the guards of `measure_pages` and `read_book` sit
-# inside two-hundred line functions, and replacing a whole function with a copy
-# would prove only that the copy differs.
+# `test_read` and `test_text` stood in the runner's "no mutation" list: they
+# guarded in appearance only. Money runs through the second level and `books
+# text` is the ruler the model will be judged by, so both must go red on a
+# PLAUSIBLE defect -- one a person would write, not a stub that throws. Where
+# there is no seam the damage returns the QUANTITY the defect would: the guards
+# of `measure_pages` and `read_book` sit inside two-hundred line functions, and
+# a whole function replaced by a copy would prove only that the copy differs.
 
 _real_send = vhttp.Http.send
 _real_http_init = vhttp.Http.__init__
@@ -1292,10 +1289,15 @@ def _repeats_variant(page, covered, *, artifacts=False, empty=False,
                    if o.block_id != b.block_id and covered(b.box, o.box)]
         own = booktext.normalize(b.content or "", "latex")
         lo = threshold if threshold is not None else dhtml.REPEAT_MIN
-        out = (always if always else
+        # `why`, not `out`: the verdict once shared the name of the result
+        # dict, overwrote it with a str, and the next line raised TypeError.
+        # `reddens` counts any exception as red, so all four mutations built
+        # on this helper were certified caught while modelling nothing --
+        # exactly the "stub that throws" this file's own prose forbids.
+        why = (always if always else
                  ("verbatim" if len(own) >= lo and own in stays
                   else "differs"))
-        out[b.block_id] = (owners[0].block_id if owners else None, out)
+        out[b.block_id] = (owners[0].block_id if owners else None, why)
     return out
 
 
@@ -1481,9 +1483,8 @@ def anchor_without_the_page(page_index, block_id):
 
 
 # ---- THE READING RULER: `books text` -------------------------------------
-# The `measure_pages` guards sit inside a two-hundred line function with no
-# seam. The damage returns the quantity the defect would, and is named after
-# the defect, not after the method.
+# No seam to the `measure_pages` guards: the damage returns the quantity the
+# defect would, and is named after the defect, not after the method.
 
 def measure_scores_silence_as_zero(T, P, *a, **kw):
     """A block with no answer gets CER 0 instead of None: "it told no lies".
@@ -1577,8 +1578,7 @@ def truth_both_chooses_silently(b, side=None):
 
 # ---- THE BOOK: journal, comments, crops ----------------------------------
 # Checks added to `test_apply` and `test_html_order` during this very work: the
-# second level's money runs through them too, and guarding in appearance is
-# not enough for them.
+# second level's money runs through them too.
 
 _real_load_journal = ap.load_journal
 _real_cut = crop.cut
@@ -1866,17 +1866,14 @@ def mutations():
          lambda: attrs(metrics, _truth_order_state=truth_state_defaults_to_marked),
          [("test_order_contract", "test_truth_side_has_three_answers_not_two")]),
 
-        # THE PROBE WAS RE-AIMED, not dropped. It used to break the adapter's
+        # THE PROBE WAS RE-AIMED, not dropped: it broke the adapter's
         # capitalisation and caught only because the guard compared case --
-        # and comparing case was the defect: `doclayout.fingerprint` writes
-        # "OURS" capitalised, and that string in a page's meta would read as
-        # model rank. Case dropped, the old damage was damage no longer: the
-        # probe became unfailable, reporting health having checked nothing.
-        # Damaged now is a value absent from the contract table. The guard
-        # takes it for MODEL RANK (it does not start with "ours") and the
-        # metric prints a percentage over our own numbering -- the hard36
+        # which was itself the defect, `doclayout.fingerprint` writing "OURS"
+        # capitalised. Damaged now is a value absent from the contract table.
+        # The guard takes it for MODEL RANK (it does not start with "ours") and
+        # the metric prints a percentage over our own numbering: the hard36
         # trouble from the other end. The adapter's TAIL is damaged, not the
-        # rule: the rule is single (`order.WORDS`) and the table derives from
+        # rule -- the rule is single (`order.WORDS`) and the table derives from
         # it, so swapping the rule moves both sides at once.
         ("адаптер завёл значение мимо таблицы договора",
          lambda: sources("models/doclayout.py",
@@ -2124,10 +2121,8 @@ def mutations():
          [("test_knobs", "test_runner_still_lets_a_real_interrupt_out")]),
 
         # --- the order the model did not give
-        # The seam moved with the rule: `our_order_key` in `doclayout` used to
-        # be damaged, now the shared `order.permutation` is. The damage is the
-        # same: an order the model did not give is not set at all, and boxes
-        # reach the book in the order the graph handed them over.
+        # An order the model did not give is not set at all, and boxes reach
+        # the book in the order the graph handed them over.
         ("порядок, которого модель не дала, не задан вовсе",
          lambda: attrs(order, permutation=lambda labels, boxes, w, h, index,
                        vocab, which=None: list(range(len(boxes)))),
@@ -2276,8 +2271,7 @@ def mutations():
          lambda: attrs(fit, mutations=battery_that_corrupts_only_the_model),
          [("test_fitness", "test_battery_corrupts_all_three_sides")]),
 
-        # Back to `put` inside the loop: the rule is fused with I/O again and
-        # the book is re-read for every replacement.
+        # Back to `put` inside the loop: the book is re-read per replacement.
         ("пакетная замена читает книгу на каждый блок",
          lambda: one_line(
              "booksmith.doc.apply",
@@ -2690,8 +2684,7 @@ def mutations():
          [("test_annopage",
            "test_class_order_is_checked_against_the_second_source")]),
 
-        # Line-level: the truth is written straight into place again.
-        # `attrs` cannot reach here -- the edit is inside the long `build`.
+        # The truth is written straight into place again.
         ("истина пишется на место, до сторожей",
          lambda: one_line("booksmith.annopage",
                           'work = tdir + ".новая"',
@@ -2699,7 +2692,7 @@ def mutations():
          [("test_annopage",
            "test_a_failed_build_does_not_destroy_good_truth")]),
 
-        # Line-level: the sheet scale is a number again, not the knob.
+        # The sheet scale is a number again, not the knob.
         ("размер листа стенда зашит, а не взят из PAGE_DPI",
          lambda: one_line("booksmith.annopage",
                           "page = doc.new_page(width=w * scale, "
@@ -2990,9 +2983,8 @@ def mutations():
          [("test_torn", "test_bulk_counts_the_impossible_shape_of_the_book_"
                         "not_of_the_run")]),
 
-        # `one_line`, not `sources`: behavioural damage through `sources`
-        # never reaches the code. Both of these were first written that way and
-        # ran for nothing.
+        # `one_line`, not `sources`: both of these were first written the
+        # other way and ran for nothing.
         ("слияния в книге приравнены к объявленным",
          lambda: one_line(
              "booksmith.doc.apply",
