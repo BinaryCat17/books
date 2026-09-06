@@ -1,41 +1,39 @@
-"""AnnoPage: ЗОЛОТОЙ СТЕНД из настоящих страниц с истиной от библиотекарей.
+"""AnnoPage: THE GOLDEN BENCH -- real pages, truth from librarians.
 
-Чего не мог дать синтетический стенд. Он нарисован шрифтом, а не отпечатан
-высокой печатью, и про чтение знаков не говорит ничего — это записано в его
-собственной шапке. AnnoPage — **7550 файлов разметки** к **5690**
-опубликованным страницам исторических документов, размеченным экспертами по
-25 нетекстовым категориям. Здесь стояло «7550 страниц», и это неверно:
-разница в 1860 — разметки, ссылающиеся на страницы ЧУЖИХ датасетов, которых в
-архиве нет (ровно столько строк в `images.txt`), и они же дают счётчик
-«разметок без картинки». Zenodo, DOI 10.5281/zenodo.12788419, CC BY 4.0.
+What the synthetic bench cannot give: it is drawn with a font, not printed by
+letterpress, and says nothing about reading characters -- its own header says
+so. AnnoPage is **7550 annotation files** to **5690** published pages of
+historical documents, marked by experts over 25 non-text categories. Here stood
+"7550 pages", which is wrong: the difference of 1860 is annotations pointing at
+pages of OTHER datasets the archive does not hold (exactly that many lines in
+`images.txt`), and they are the same "annotations without an image" counter.
+Zenodo, DOI 10.5281/zenodo.12788419, CC BY 4.0.
 
-ЧЕГО ПРО ЭТОТ АРХИВ СКАЗАТЬ НЕЧЕМ, И ЭТО НЕ ТО ЖЕ, ЧТО «НЕВЕРНО». Здесь
-стояло ещё «1485 года и позже, преимущественно чешских и немецких, по чешской
-методике обработки изобразительных документов». В самом архиве этого нет:
-`README.md` говорит только «mostly from czech written documents», ни даты, ни
-немецких, ни методики, ни DOI внутри ZIP нет вовсе (перечислен исчерпывающе:
-13252 записи). Сведения могли быть взяты со страницы Zenodo или из статьи
-авторов — проверить нечем, и потому они убраны отсюда, а не объявлены
-выдумкой.
+WHAT THERE IS NOTHING TO SAY ABOUT, WHICH IS NOT THE SAME AS "WRONG". The
+archive says only "mostly from czech written documents" (`README.md`) -- no
+date, no methodology, and no DOI inside the ZIP (listed exhaustively: 13252
+entries). "1485 and later, mostly Czech and German, by the Czech methodology"
+stood here and is removed: nothing here can check it, which is not the same as
+calling it an invention.
 
-ЧТО ЗДЕСЬ РАЗМЕЧЕНО, А ЧТО НЕТ. Размечены ТОЛЬКО нетекстовые объекты, 25
-категорий. Текстовых блоков в истине нет вовсе — значит по этому стенду
-меряется локализация артефактов и ничего больше. Строка отчёта «текст и
-служебное» на нём обязана говорить «нет данных», а не «ноль»: это разные нули.
+WHAT IS MARKED AND WHAT IS NOT. ONLY non-text objects, 25 categories. The truth
+holds no text blocks at all, so this bench measures artifact localisation and
+nothing else. The report line "text and service" must say "no data" on it, not
+"zero": different zeros.
 
-ТРИ РАЗРЯДА КАТЕГОРИЙ, И ГРАНИЦА МЕЖДУ НИМИ — НАШЕ РЕШЕНИЕ, ОБЪЯВЛЕННОЕ ЯВНО.
+THREE BUCKETS OF CATEGORIES, AND THE BORDER IS OUR DECISION, DECLARED ALOUD.
 
-* `ПРЯМО` — у нашей модели есть ярлык ровно про это. Только эти объекты
-  входят в замер.
-* `СПОРНО` — соответствие правдоподобно, но не однозначно (карта, реклама,
-  ноты, рукописная пометка). Свести их к `image` значило бы решить за модель
-  спорный случай и записать себе лишние находки.
-* `НЕВЫРАЗИМО` — книжный декор: буквица, виньетка, фриз, экслибрис, шмуцтитул,
-  наборное украшение. В словаре PP-DocLayoutV2 нет ничего про это, и промах
-  тут был бы промахом СЛОВАРЯ, а не модели.
+* `DIRECT` -- our model has a label for exactly this. Only these enter the
+  measurement.
+* `DOUBTFUL` -- the match is plausible but not unambiguous (map, advertisement,
+  musical notation, handwritten note). Collapsing them to `image` would decide
+  a disputed case for the model and credit us with finds we did not make.
+* `INEXPRESSIBLE` -- book decor: initial, vignette, frieze, exlibris, signet,
+  ornament. PP-DocLayoutV2's vocabulary holds nothing about it, so a miss here
+  would be the VOCABULARY's miss, not the model's.
 
-Спорное и невыразимое не выбрасывается молча: их число печатается рядом с
-итогом, чтобы «нашли 40%» нельзя было прочесть как «40% страницы разобрано».
+Doubtful and inexpressible are not dropped in silence: their counts print
+beside the total, so "found 40 %" cannot be read as "40 % of the page parsed".
 """
 import hashlib
 import json
@@ -44,7 +42,7 @@ import shutil
 
 from .run import knobs
 
-# --- прямое соответствие: только это идёт в замер -------------------------
+# --- direct match: only this enters the measurement -----------------------
 DIRECT = {
     "Table": "table",
     "Graph": "chart",
@@ -58,10 +56,10 @@ DIRECT = {
     "Chemical formula and equation": "display_formula",
     "Stamp": "seal",
 }
-# --- соответствие правдоподобно, но спорно: в замер НЕ идёт ---------------
+# --- plausible but disputed: does NOT enter the measurement ---------------
 DOUBTFUL = ("Map", "Advertisement", "Musical notation", "Handwritten note",
             "Caricature and comics", "Barcode and QR code")
-# --- нашей моделью невыразимо вовсе ---------------------------------------
+# --- inexpressible by our model at all ------------------------------------
 INEXPRESSIBLE = ("Initial", "Vignette", "Frieze", "Exlibris", "Signet",
                  "Decorative inscription", "Other book decor",
                  "Symbol, logo, coat of arms")
@@ -80,12 +78,11 @@ def _sha256(path):
 
 
 def _yaml_names(root):
-    """Карта «индекс -> имя» из `dataset.yaml`. `None`, если файла нет.
+    """The "index -> name" map from `dataset.yaml`. `None` if there is no file.
 
-    Разбирается пятью строками, а не библиотекой: нужен один плоский раздел
-    `names:` вида «  0: Имя», и тащить `yaml` в модуль ради него незачем.
-    Двоеточие делим ПЕРВОЕ — в именах категорий бывают запятые, и когда-нибудь
-    может встретиться двоеточие.
+    Parsed in five lines rather than by a library: one flat `names:` section of
+    "  0: Name", not worth dragging `yaml` into the module for. Split on the
+    FIRST colon -- category names hold commas, and may one day hold a colon.
     """
     p = os.path.join(root, "dataset.yaml")
     if not os.path.exists(p):
@@ -97,7 +94,7 @@ def _yaml_names(root):
             continue
         if inside:
             if line.strip() and not line[0].isspace():
-                break                          # раздел кончился
+                break                          # the section has ended
             if ":" not in line:
                 continue
             k, v = line.split(":", 1)
@@ -119,15 +116,14 @@ def _classes(root):
             f"в датасете есть категории, о которых мы не высказались: "
             f"{unknown}. Умолчания нет нарочно — молчаливое «невыразимо» "
             f"превратилось бы в вечный недобор без объяснения.")
-    # ПОРЯДОК СТРОК СВЕРЯЕТСЯ СО ВТОРЫМ ИСТОЧНИКОМ, а не принимается на веру.
-    # Метка в разметке — это ИНДЕКС, имя ему даёт строка N файла `classes.txt`,
-    # и до сих пор проверялось только МНОЖЕСТВО имён. Цена промера: поменять в
-    # `classes.txt` местами `Table` и `Vignette` — сборка проходит молча, а в
-    # замере объектов становится 1121 вместо 1232 и таблиц 13 вместо 124. То
-    # есть весь золотой стенд уезжает, и ни одна проверка этого не говорит.
-    # Второй источник лежит в том же архиве и до сих пор не читался ни разу.
-    # (Сегодня они СОВПАДАЮТ, 25 из 25, — истина стенда цела; сторож ставится
-    # не по следам аварии, а чтобы её не было.)
+    # THE ORDER OF THE LINES IS CHECKED AGAINST A SECOND SOURCE, not taken on
+    # faith: until now only the SET of names was checked. The price of missing
+    # it: swap `Table` and `Vignette` in `classes.txt` and the build passes in
+    # silence while the measurement gets 1121 objects instead of 1232 and 13
+    # tables instead of 124 -- the whole golden bench sails, and nothing says
+    # so. The second source lies in the same archive and had never been read
+    # once. (Today they AGREE, 25 of 25 -- the truth is intact; the guard is
+    # set not after an accident but so that there is none.)
     ymap = _yaml_names(root)
     if ymap is not None:
         wrong = [(i, n, ymap.get(i)) for i, n in enumerate(names)
@@ -145,26 +141,21 @@ def _classes(root):
 
 def build(root: str, out_dir: str, split: str = "test", limit: int = 0,
           truth_only: bool = False, log=print) -> dict:
-    """Сложить книгу-стенд из AnnoPage: PDF плюс истина в нашем формате.
+    """Fold a bench book out of AnnoPage: a PDF plus truth in our format.
 
-    Страница получает размер, при котором рендер на `PAGE_DPI` отдаёт РОВНО
-    исходный растр: тогда координаты истины и рамки модели живут в одной
-    системе, и приводить ничего не надо. Ручка читается, а не подразумевается
-    — здесь стояло «на PAGE_DPI=144», и число было зашито в код рядом.
+    A page gets the size at which rendering at `PAGE_DPI` returns EXACTLY the
+    source raster: then truth coordinates and model boxes live in one system
+    and nothing has to be converted.
     """
     import cv2
     import pymupdf
 
-    # МАСШТАБ БЕРЁТСЯ ИЗ ОБЪЯВЛЕННОЙ РУЧКИ, а не из зашитого 0.5. Смысл его
-    # один: лист должен быть такого размера в пунктах, чтобы рендер при
-    # `PAGE_DPI` отдал РОВНО исходный растр — тогда координаты истины и рамки
-    # модели живут в одной системе и приводить ничего не надо. Прежде здесь
-    # стояло 0.5 = 72/144, верное ровно при умолчании: подними кто-нибудь
-    # `PAGE_DPI` до 300 — и стенд собрался бы про растр вчетверо мельче
-    # объявленного, а истина продолжала бы писать «dpi: 144.0». Ловила это
-    # сверка размеров в `metrics`, то есть ЧУЖОЙ файл и не всегда; сам
-    # сборщик молчал. Ручку читаем через реестр, иначе прогон не попадёт в
-    # слепок.
+    # THE SCALE COMES FROM THE DECLARED KNOB, not from a wired-in 0.5 = 72/144
+    # that was true only at the default: raise `PAGE_DPI` to 300 and the bench
+    # would be built about a raster four times smaller than declared while the
+    # truth went on writing "dpi: 144.0". Caught by the size check in `metrics`
+    # -- a FOREIGN file, and not always; the builder itself was silent. Read
+    # through the registry, or the run misses the snapshot.
     dpi = float(knobs.knob("PAGE_DPI"))
     if dpi <= 0:
         raise AnnoPageError(f"PAGE_DPI = {dpi}: масштаб листа неположителен")
@@ -179,29 +170,27 @@ def build(root: str, out_dir: str, split: str = "test", limit: int = 0,
     stems = sorted(f[:-4] for f in os.listdir(ldir) if f.endswith(".txt"))
     os.makedirs(out_dir, exist_ok=True)
     tdir = os.path.join(out_dir, "truth")
-    # ИСТИНА ПИШЕТСЯ В СТОРОНУ И ПОДМЕНЯЕТСЯ ТОЛЬКО ПОСЛЕ СТОРОЖЕЙ. Прежде
-    # `truth/` чистился ЗДЕСЬ, а сторожа `--truth-only` (число страниц, размер
-    # листа) стояли на сотню строк ниже, после главного цикла. То есть сторож
-    # говорил правду и говорил ПОЗДНО: опыт на копии стенда — `build(...,
-    # limit=5, truth_only=True)` уронил сборку словами «страниц 600, а истина
-    # переписана на 5: это разные выборки», и к этому мигу от 600 годных
-    # файлов истины оставалось ПЯТЬ. 595 уничтожены отказом, который затевался
-    # ради их защиты. Восстановить их можно было только `git checkout`, и
-    # только потому, что этот стенд отслеживается; в свежем каталоге —
-    # нечем.
+    # TRUTH IS WRITTEN ASIDE AND SWAPPED IN ONLY AFTER THE GUARDS. `truth/` was
+    # cleared HERE while the `--truth-only` guards (page count, sheet size)
+    # stood a hundred lines below, after the main loop -- telling the truth,
+    # and telling it LATE. On a copy of the bench `build(..., limit=5,
+    # truth_only=True)` killed the build with "600 pages, truth rewritten to 5:
+    # different samples", and by that moment FIVE of the 600 good truth files
+    # were left: 595 destroyed by a refusal meant to protect them. Recovered by
+    # `git checkout`, and only because this bench is tracked; in a fresh
+    # directory, by nothing.
     work = tdir + ".новая"
     if os.path.isdir(work):
         shutil.rmtree(work)
     os.makedirs(work)
 
-    # 1860 разметок ссылаются на страницы ЧУЖИХ датасетов, которых в архиве
-    # нет. Это не потеря, а объявленное свойство ВЫБОРКИ, поэтому и считается
-    # оно до главного цикла и по всей выборке. Внутри цикла счёт обрывался
-    # вместе с ним на --limit: `--split train --limit 5` печатал «без картинки
-    # 178» при честных 1860, а на выборке, где пропуски идут дальше предела, —
-    # ровный 0, то есть «не дошли» под видом «нет пропусков». Предпроход
-    # дешёвый: 0.1 с на 6950 разметок, только os.path.exists, растры не
-    # читаются.
+    # 1860 annotations point at pages of OTHER datasets the archive does not
+    # hold. Not a loss but a declared property of the SAMPLE, so it is counted
+    # before the main loop and over the whole sample. Inside the loop the count
+    # broke off at --limit with it: `--split train --limit 5` printed "without
+    # image 178" against an honest 1860, and on a sample whose gaps come after
+    # the limit, a flat 0 -- "did not get there" dressed as "no gaps". The
+    # pre-pass costs 0.1 s over 6950 annotations, only os.path.exists.
     images = {}
     for stem in stems:
         for ext in (".jpg", ".jpeg", ".png", ".tif", ".tiff"):
@@ -248,10 +237,10 @@ def build(root: str, out_dir: str, split: str = "test", limit: int = 0,
                     kind = "doubtful" if cat in DOUBTFUL else "inexpressible"
                     counts[kind][cat] = counts[kind].get(cat, 0) + 1
                     drop[kind] += 1
-                    # Рамка ОСТАЁТСЯ в истине отдельным списком. Выбросив её
-                    # совсем, мы объявляли бы лишней всякую рамку модели,
-                    # попавшую на рекламу или буквицу, — а модель там не
-                    # виновата: это мы не смогли выразить категорию.
+                    # The box STAYS in the truth, in a list of its own. Drop
+                    # it and every model box landing on an advertisement or an
+                    # initial would count as superfluous -- and the model is
+                    # not at fault there: we failed to express the category.
                     outside.append({"box": [round(v, 1) for v in box],
                                     "category": cat, "bucket": kind})
 
@@ -267,15 +256,16 @@ def build(root: str, out_dir: str, split: str = "test", limit: int = 0,
                                 "file": os.path.basename(img_path),
                                 "objects_out_of_scope": drop,
                                 "out_of_scope": outside,
-                                # Текстовых блоков в истине НЕТ ВОВСЕ.
+                                # NO text blocks in the truth AT ALL.
                                 "text_marked": False,
-                                # И ПОРЯДКА ЧТЕНИЯ ТОЖЕ НЕТ. `order` ниже —
-                                # это номер строки в файле разметки, а он
-                                # сгруппирован по классам: на стр. 51 порядок
-                                # 0,1,2,3 стоит при y0 = 1560, 3004, 673,
-                                # 4129. Сверять с ним чей-либо порядок чтения
-                                # значит мерить чужую величину; метрика этот
-                                # признак читает и печатает прочерк.
+                                # AND NO READING ORDER EITHER. The `order`
+                                # below is the line number in the annotation
+                                # file, and that file is grouped by class: on
+                                # page 51 orders 0,1,2,3 sit at y0 = 1560,
+                                # 3004, 673, 4129. Checking anyone's reading
+                                # order against it measures a different
+                                # quantity; the metric reads this flag and
+                                # prints a dash.
                                 "order_marked": False}}, f,
                       ensure_ascii=False)
         pages.append({"page": used, "size": [w, h], "file": stem,
@@ -291,9 +281,9 @@ def build(root: str, out_dir: str, split: str = "test", limit: int = 0,
         doc.close()
         if not os.path.exists(pdf):
             raise AnnoPageError(f"нет {pdf}: с --truth-only он должен уже быть")
-        # Сверяем ЧИСЛО И РАЗМЕР страниц: переписать истину под чужой pdf —
-        # ровно та беда, от которой в `books score` стоит проверка sha256, и
-        # тут она обходилась бы с чёрного хода.
+        # Page COUNT AND SIZE both: rewriting truth under a foreign pdf is the
+        # trouble the sha256 check in `books score` guards, coming in here by
+        # the back door.
         import pymupdf as _pm
         chk = _pm.open(pdf)
         if chk.page_count != len(pages):
@@ -316,9 +306,9 @@ def build(root: str, out_dir: str, split: str = "test", limit: int = 0,
         doc.save(pdf, garbage=3, deflate=True)
         doc.close()
 
-    # Сторожа позади — можно подменять. Порядок: старое в сторону, новое на
-    # место, старое снести. Оборвись работа посередине, на месте останется
-    # либо прежняя истина, либо новая, но не пустота.
+    # Guards passed -- now it may be swapped. Old aside, new into place, old
+    # removed: break in the middle and either the previous truth or the new one
+    # is left standing, never emptiness.
     keep = tdir + ".прежняя"
     if os.path.isdir(keep):
         shutil.rmtree(keep)

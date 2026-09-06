@@ -1,34 +1,31 @@
-"""Вето на разрез разворота: что ему полагается видеть и чего — нет.
+"""The veto on cutting a spread: what it must see, and what it must not.
 
-Сговор здесь между `djvu.py` и ЛИСТОМ СКАНА, а не между двумя файлами, и
-записан он был только числом в докстринге. Числа хватило ровно на один раз:
-первая редакция вето дала 11 ложных отказов из 189 на «Огнеупорах», вторая —
-44 из 379 на «Справочнике» (пересборка отдавала 716 страниц вместо 760), и оба
-раза дефект был один и тот же по устройству: вето меряло чернила, но не
-меряло, ЧТО это за чернила.
+The agreement here is with THE SCANNED SHEET, not with a second file, and it
+used to live only as a number in a docstring. The number lasted exactly one
+edition: the first gave 11 false refusals of 189
+on "Технология огнеупоров", the second 44 of 379 on "Справочник по чугунному
+литью" (the rebuild returned 716 pages instead of 760), and both times the
+defect was the same by make -- the veto measured ink, not WHAT KIND of ink.
 
-Каждая проверка ниже закреплена замером по живым сканам и умеет провалиться —
-проверено возвратом дефекта:
+Every check below is held by a measurement on live scans and can fail, proved
+by putting the defect back:
 
-    чёрная кромка листа                    старый код: вето (44 из 379)
-    та же кромка снизу                     старый код: вето
-    линейка в одну строку пробы            старый код: НЕ вето (порог «три
-                                           строки», а 703 линейки из 882 —
-                                           высотой ровно в строку)
-    высота скана не решает                 старый код: 599 строк — вето,
-                                           601 — нет, на том же листе
+    black sheet edge at the top            old code: veto (44 of 379)
+    the same edge at the bottom            old code: veto
+    a rule one probe row thick             old code: NO veto (threshold
+                                           "three rows", while 703 rules of
+                                           882 are exactly one row high)
+    scan height does not decide            old code: 599 rows -- veto,
+                                           601 -- none, on the same sheet
 
-Что мерилось и на чём: 568 разворотов двух книг («Справочник по чугунному
-литью» — 379, «Технология огнеупоров» — 189).
+Measured on 568 spreads of two books: the handbook 379, the refractories 189.
 
-Проба была 36 dpi и стала 72. Причина в третьем дефекте того же устройства:
-вето меряло чернила и не меряло, что это за чернила, — а при 36 dpi ТРИ
-настоящие таблицы через корешок «Справочника» давали 0.000, 0.043 и 0.038,
-то есть слабее кляксы скана (0.109), и резались все три. При 72 разрыв
-полный: 0.376 у одной из них и ровно 0.000 у остальных 378 разворотов.
-Две другие не ловятся ни при каком пороге — у них линейки упираются в
-собственную рамку каждой полосы; это названо в `djvu.py` и не чинится здесь.
-`PT` ниже считается ОТ РУЧКИ, иначе эти проверки молча разошлись бы с кодом.
+The probe was 36 dpi and is now 72, for a third defect of the same make: at
+36 dpi the THREE real tables crossing the gutter of the handbook gave 0.000,
+0.043 and 0.038, weaker than a scan blot (0.109), and all three were cut. At
+72 the gap is complete: 0.376 at one of them, exactly 0.000 at the other 378.
+The other two are caught at no threshold -- their rules stop against the
+closed frame of each page; named in `djvu.py`, not repaired here.
 """
 import os
 import sys
@@ -37,44 +34,40 @@ import support
 
 from booksmith import djvu
 
-# Пунктов в одной строке пробы. Считается ОТ РУЧКИ, а не от числа 36, которое
-# стояло здесь прежде. Разница не косметическая: `PROBE_DPI` пришлось поднять
-# до 72 (три настоящие таблицы через корешок при 36 не видны вовсе), и с
-# зашитым числом весь этот файл стал бы рисовать листы не того масштаба, а
-# проверки — проходить, ничего не проверяя. Теперь ручку можно двигать, и
-# проверки поедут за ней.
+# Points in one probe row. Derived FROM THE KNOB, not from the literal 36 that
+# stood here before. Not cosmetic: with 36 wired in, `PROBE_DPI` = 72 would
+# have this file drawing sheets at the wrong scale while the checks passed,
+# checking nothing. The knob can move now, and the checks follow it.
 PT = 72 / djvu.PROBE_DPI
 
 
-WIDE = 750                   # ширина листа В ПИКСЕЛЯХ ПРОБЫ
+WIDE = 750                   # sheet width IN PROBE PIXELS
 
 
 def _spread(rows=599, draw=()):
-    """Синтетический разворот: две колонки «текста» и корешок между ними.
+    """A synthetic spread: two columns of "text" and a gutter between them.
 
-    ВСЁ ЗДЕСЬ В ПИКСЕЛЯХ ПРОБЫ, и `draw` тоже. Прежде лист был задан
-    наполовину в строках пробы (высота), наполовину в пунктах (ширина, шаг
-    строк, сами пятна), и при `PROBE_DPI` = 36 это случайно сходилось. При 72
-    разошлось вслух: тень переплёта из `test_binding_shadow_in_the_body` села
-    ровно на строку «текста», слиплась с ней в прогон во всю ширину — и
-    проверка провалилась ровно по той причине, о которой предупреждал
-    комментарий двумя строками ниже. Стенд, у которого две системы координат,
-    держится на совпадении, а не на правиле.
+    EVERYTHING HERE IS IN PROBE PIXELS, `draw` included. The sheet used to be
+    half in probe rows (height) and half in points (width, row step, spots),
+    agreeing by accident at `PROBE_DPI` = 36. At 72 it broke aloud: the
+    binding shadow of `test_binding_shadow_in_the_body` landed on a row of
+    "text" and stuck to it into a full-width run -- the very trap the comment
+    below warns of. A bench with two coordinate systems rests on coincidence.
 
-    Числа подобраны так, что при 36 dpi лист выходит прежним до пикселя (750 x
-    599 пикселей пробы), — значит все замеры, которыми закреплены проверки,
-    остаются про тот же лист.
+    The numbers are chosen so that at 36 dpi the sheet comes out as before to
+    the pixel (750 x 599 probe pixels), so every measurement holding these
+    checks is still about the same sheet.
     """
     import pymupdf
     h = rows * PT
-    w = WIDE * PT                    # шире 1.15 * h — иначе это не разворот
+    w = WIDE * PT                    # wider than 1.15 * h, or it is no spread
     doc = pymupdf.open()
     pg = doc.new_page(width=w, height=h)
-    # Две колонки «текста»: без них `argmin` не за что зацепить, и рез уедет
-    # куда угодно. Шаг 20 пикселей пробы подобран так, чтобы ни одна строка не
-    # легла на середину листа: слипшись со строкой текста, любое пятно у
-    # корешка даёт прогон во всю ширину и проверка проходит по неверной
-    # причине.
+    # Two columns of "text": without them `argmin` has nothing to catch and
+    # the cut goes anywhere. The step of 20 probe pixels is chosen so that no
+    # row lands on the middle of the sheet: stuck to a text row, any spot by
+    # the gutter gives a full-width run and the check passes for a wrong
+    # reason.
     y = 25
     while y < rows - 25:
         pg.draw_line(pymupdf.Point(50 * PT, y * PT),
@@ -91,7 +84,7 @@ def _spread(rows=599, draw=()):
 
 
 def _cut(doc, pg):
-    """Куда резать; `None` — вето."""
+    """Where to cut; `None` is a veto."""
     from booksmith import djvu
     x = djvu._gutter(pg, pg.rect)
     doc.close()
@@ -99,12 +92,12 @@ def _cut(doc, pg):
 
 
 def test_scan_edge_at_the_top_does_not_veto():
-    """Чёрная кромка листа — не линейка таблицы, резать можно.
+    """A black sheet edge is not a table rule: cutting is allowed.
 
-    Тот самый дефект: на «Справочнике» 391 сквозная строка книги ЛЕЖИТ У КРАЯ
-    (204 — прямо на строке 0), в теле листа нет ни одной, а прогон у кромки
-    27..100 % ширины — порог длины она проходит насквозь. Отсюда 44 отказа из
-    379 разворотов, и все ложные.
+    The defect itself: on the handbook 391 full-width rows LIE AT THE EDGE
+    (204 of them on row 0), none in the body of the sheet, and the run at the
+    edge is 27..100 % of the width -- it clears the length threshold
+    outright. Hence 44 refusals of 379 spreads, all false.
     """
     doc, pg = _spread(draw=[(0, 0, WIDE, 3)])
     assert _cut(doc, pg) is not None, (
@@ -113,11 +106,11 @@ def test_scan_edge_at_the_top_does_not_veto():
 
 
 def test_scan_edge_at_the_bottom_does_not_veto():
-    """То же снизу.
+    """The same from below.
 
-    Заведена нарочно: все 391 сквозная строка живых книг пришлись на ВЕРХНИЙ
-    край, то есть нижнюю половину порога проверить на них нечем. Половина
-    условия, проверенная нулём наблюдений, — та же непроверенная половина.
+    Deliberate: all 391 full-width rows of the live books fell on the UPPER
+    edge, so the lower half of the threshold has nothing to check against.
+    Half a condition checked by zero observations is an unchecked half.
     """
     doc, pg = _spread(draw=[(0, 599 - 3, WIDE, 599)])
     assert _cut(doc, pg) is not None, (
@@ -126,12 +119,15 @@ def test_scan_edge_at_the_bottom_does_not_veto():
 
 
 def test_rule_across_the_gutter_vetoes():
-    """Линейка через весь разворот — резать нельзя.
+    """A rule across the whole spread: cutting is forbidden.
 
-    Положительная сторона вето. На живых сканах она не проверена и проверена
-    быть не может: таблиц через корешок в наших книгах НЕТ ни одной (строк,
-    чёрных через центральные 10 % ширины, в теле листа одна на 568
-    разворотов, и та — хвост кромки). Значит держится она на этой проверке.
+    The positive side of the veto. On live scans it fires exactly ONCE in 568
+    spreads -- handbook 193, above. Here it said no table in our books
+    crosses the gutter at all, on a 36 dpi count of one black row through the
+    central 10 % of the width in the body of a sheet per 568 spreads, and
+    that one the tail of an edge. `djvu.py` retracts the claim, and it is why
+    the probe stayed at 36. One live positive is no bench, so the side is
+    held here.
     """
     doc, pg = _spread(draw=[(50, 300, 700, 302)])
     assert _cut(doc, pg) is None, (
@@ -140,12 +136,12 @@ def test_rule_across_the_gutter_vetoes():
 
 
 def test_hairline_rule_of_a_single_probe_row_vetoes():
-    """Линейка толщиной в ОДНУ строку пробы видна вето.
+    """A rule ONE probe row thick is visible to the veto.
 
-    Замер: на 36 dpi настоящая линейка занимает одну строку — 703 блока из
-    882 в «Справочнике», медиана 1. Прежняя величина — доля сквозных строк от
-    высоты пробы против порога 0.005 — на пробе в 599 строк требовала ТРЁХ, то
-    есть по настоящей линейке не срабатывала бы никогда.
+    Measured: at 36 dpi a real rule takes one row -- 703 blocks of 882 in the
+    handbook, median 1. The old quantity, the share of full-width rows in the
+    probe height against `RULE_MAX` = 0.005, demanded THREE on a 599-row
+    probe, that is, it would never have fired on a real rule.
     """
     doc, pg = _spread(draw=[(50, 300, 700, 301)])
     assert _cut(doc, pg) is None, (
@@ -154,13 +150,13 @@ def test_hairline_rule_of_a_single_probe_row_vetoes():
 
 
 def test_veto_does_not_depend_on_the_height_of_the_scan():
-    """Один и тот же лист, проба на две строки выше — тот же ответ.
+    """The same sheet, a probe two rows taller -- the same answer.
 
-    Прежняя величина квантовалась шагом 1/высоту пробы: при трёх сквозных
-    строках 3/599 = 0.005008 давало вето, а 3/601 = 0.004992 — не давало. На
-    «Справочнике» из 39 разворотов ровно с тремя строками вето получили 31 (те,
-    где скан вышел в 599 строк) и не получили 8 (601 и 604). Решала высота
-    скана, а не содержимое листа.
+    The old quantity was quantised in steps of 1/probe height: with three
+    full-width rows 3/599 = 0.005008 vetoed and 3/601 = 0.004992 did not. On
+    the handbook, of the 39 spreads with exactly three rows, 31 got a veto
+    (those whose scan came out 599 rows tall) and 8 did not (601 and 604).
+    The scan height decided, not the sheet.
     """
     answers = []
     for rows in (599, 601):
@@ -173,13 +169,13 @@ def test_veto_does_not_depend_on_the_height_of_the_scan():
 
 
 def test_rule_near_the_edge_of_the_body_still_vetoes():
-    """Линейка у самого края тела листа вето ВЫЗЫВАЕТ.
+    """A rule at the very edge of the sheet body DOES raise the veto.
 
-    Обратная сторона порога по положению: отрезать от пробы можно не сколько
-    угодно. 5.5 % высоты — ближайшая к краю настоящая линейка, какую удалось
-    намерить («Справочник», 33 строки из 599; на трёх других книгах ближайшая
-    ещё дальше — 8.1 % и 7.7 %). Проверка краснеет, если `RULE_EDGE` поднять
-    до 6 %.
+    The other side of the threshold on position: only so much of the probe
+    may be cut away. The closest real rule to an edge we could measure is at
+    5.5 % of the height (handbook, row 33 of 599); on the two other books,
+    8.1 % ("Кристаллизация") and 7.7 % ("Биохимия"). The check reddens if
+    `RULE_EDGE` is raised to 6 %.
     """
     doc, pg = _spread(draw=[(50, 33, 700, 34)])
     assert _cut(doc, pg) is None, (
@@ -188,11 +184,13 @@ def test_rule_near_the_edge_of_the_body_still_vetoes():
 
 
 def test_binding_shadow_in_the_body_does_not_veto():
-    """Тень переплёта в теле листа — не линейка: резать можно.
+    """A binding shadow in the body of the sheet is not a rule: cut away.
 
-    Тень бывает и не у края: в «Справочнике» 4 коротких строки черноты через
-    корешок стоят на 6.8..13.9 % высоты, прогон до 0.109 ширины. Отделяет их
-    от линейки только длина, и запас там измеренный — 2.3 раза до порога 0.25.
+    A shadow is not always at an edge: in the handbook 4 short rows of black
+    across the gutter sit at 6.8..13.9 % of the height, run up to 0.109 of
+    the width, and only length separates them from a rule. The margin here
+    was called "2.3 times to the threshold of 0.25"; `djvu.py` retracts it --
+    2.3x was measured at 36 dpi over a missed positive.
     """
     doc, pg = _spread(draw=[(345, 50, 405, 53)])
     assert _cut(doc, pg) is not None, (
@@ -201,33 +199,30 @@ def test_binding_shadow_in_the_body_does_not_veto():
 
 
 def test_a_thin_rule_across_the_gutter_needs_the_probe_we_declared():
-    """ТОНКАЯ линейка через корешок обязана быть видна — а видит её ручка.
+    """A THIN rule across the gutter must be visible -- the knob sees it.
 
-    Эта проверка стоит не за вето, а ЗА `PROBE_DPI`, и она единственная здесь
-    такая. Остальные проверки файла нарочно безразличны к ручке (лист задан в
-    пикселях пробы), и потому ни одна из них не заметит, если ручку вернуть на
-    36. А вернуть её — значит молча погубить настоящие таблицы: на
-    «Справочнике» три таблицы через корешок при 36 dpi дают 0.000, 0.043 и
-    0.038 — слабее кляксы скана (0.109), — и режутся все три; при 72 разв. 193
-    даёт 0.376 и остаётся цел.
+    This check stands for `PROBE_DPI`, not for the veto, and it is the only
+    one here that does. The rest are deliberately indifferent to the knob (the
+    sheet is in probe pixels), so none would notice it going back to 36 --
+    which kills real tables in silence, by the three numbers above.
 
-    Линейка здесь задана В ПУНКТАХ, а не в пикселях пробы, — в этом весь
-    смысл: пункт привязан к бумаге, пиксель пробы к ручке. 0.6 pt — тонкая,
-    но обычная линейка (на скане 600 dpi это 5 пикселей). При 72 dpi она
-    занимает почти целую строку пробы и остаётся чёрной; при 36 усредняется с
-    белым, светлеет за порог `RULE_INK` и пропадает.
+    The rule here is given IN POINTS, not in probe pixels, and that is the
+    whole idea: a point is tied to the paper, a probe pixel to the knob.
+    0.6 pt is a thin but ordinary rule (5 pixels on a 600 dpi scan). At 72 dpi
+    it fills almost a whole probe row and stays black; at 36 it averages with
+    white, lightens past `RULE_INK` and disappears.
 
-    Развёртка по толщине (обе стороны — вето или рез):
+    Sweep by thickness (both sides -- veto or cut):
 
-        0.4 pt   36 dpi РЕЖЕТ   72 dpi вето
-        0.6 pt   36 dpi РЕЖЕТ   72 dpi вето     <- взято сюда
-        0.8 pt   36 dpi вето    72 dpi вето
-        1.0 pt и толще — обе видят
+        0.4 pt   36 dpi CUTS   72 dpi veto
+        0.6 pt   36 dpi CUTS   72 dpi veto      <- taken here
+        0.8 pt   36 dpi veto   72 dpi veto
+        1.0 pt and thicker -- both see it
     """
     import pymupdf
     doc, pg = _spread()
-    # 50..700 — те же пиксели пробы, что у толстой линейки в проверке выше;
-    # толщина в ПУНКТАХ, потому и не умножается на PT.
+    # 50..700 are the same probe pixels as the thick rule in the check above;
+    # the thickness is IN POINTS, which is why it is not multiplied by PT.
     pg.draw_rect(pymupdf.Rect(50 * PT, 300 * PT, 700 * PT, 300 * PT + 0.6),
                  color=None, fill=(0, 0, 0))
     assert _cut(doc, pg) is None, (
@@ -237,12 +232,13 @@ def test_a_thin_rule_across_the_gutter_needs_the_probe_we_declared():
 
 
 def test_the_probe_selfcheck_agrees_with_the_veto():
-    """`tools/spread_probe.py --selfcheck` обязан сходиться на этом коде.
+    """`tools/spread_probe.py --selfcheck` must agree with this code.
 
-    Сговор между файлами: промер меряет вето своими четырнадцатью листами и
-    своей копией выбора столбца. Разойдясь с `djvu.py`, он будет всё так же
-    печатать числа — и они будут не про то, что делает конвейер. Ровно так
-    прежний замер («порог 0.5 % ловит 84 % контрольных») и стал непроверяемым.
+    An agreement between files: the gauge measures the veto with its own
+    fourteen sheets and its own copy of the column choice. Drifting from
+    `djvu.py`, it keeps printing numbers -- about something other than what
+    the pipeline does. That is how the old "a 0.5 % threshold catches 84 % of
+    the controls" became unverifiable.
     """
     import importlib.util
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -261,8 +257,8 @@ def test_the_probe_selfcheck_agrees_with_the_veto():
     buf = io.StringIO()
     with redirect_stdout(buf):
         bad = mod.selfcheck()
-    # `selfcheck` возвращает 1 при ЛЮБОМ расхождении, а не их число: поимённо
-    # они в напечатанном, оттуда и берём — иначе провал скажет «1» и умолчит,
-    # какой именно лист разошёлся.
+    # `selfcheck` returns 1 on ANY divergence, not their number: they are
+    # named in what it printed, so take them from there -- otherwise a failure
+    # says "1" and keeps quiet about which sheet diverged.
     assert bad == 0, (f"промер разошёлся с вето, листов {len(mod.CASES)}:\n"
                       + buf.getvalue())

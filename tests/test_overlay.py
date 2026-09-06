@@ -1,35 +1,33 @@
-"""Прибор, которым в проекте смотрят ГЛАЗАМИ, — и у него не было ни одной
-проверки.
+"""The instrument the project looks with ITS EYES -- and it had no checks.
 
-Ни `overlay` в `tests/`, ни одной из 158 проверок, ни одной из 134 мутаций.
-Цена особая: `books score` врёт числом, и число можно перепроверить другим
-числом; `books overlay` врёт КАРТИНКОЙ, а картинку перепроверяют глазами — и
-человек уходит уверенный, что видел сам. В этой сессии глазами смотрели
-четырежды, и дважды это опрокидывало утверждение, которое держалось числами.
+No `overlay` in `tests/`, none of the 158 checks, none of the 134 mutations.
+The price is special: `books score` lies with a number, and a number can be
+rechecked by another; `books overlay` lies with a PICTURE, and a picture is
+rechecked by eye -- the reader leaves certain he saw it himself. In this
+session we looked by eye four times, and twice it overturned a claim numbers
+had held up.
 
-Закреплены четыре дефекта, все найдены аудитом и все воспроизведены:
+Four defects are pinned here, all found by audit and all reproduced:
 
-    --pages считался с НУЛЯ      у `books detect` — с единицы, и диапазонов
-                                 `40-42` этот разбор не знал вовсе (падал
-                                 голым ValueError). Смотришь не тот лист и не
-                                 узнаёшь об этом, а глазами смотрят именно
-                                 так: продетектировал пару страниц и глянул
+    --pages counted from ZERO   `books detect` counts from one, and this
+                                parser knew no ranges `40-42` at all (a bare
+                                ValueError). You look at the wrong sheet and
+                                never learn of it -- and by eye is exactly how
+                                one looks: detect a page or two and glance
 
-    страница, которой нет у       убрал у модели 3 страницы из 13 — «НЕ НАШЛА
-    одной разметки, пропускалась   6» не дрогнуло, а «расхождений» стало
-    молча                          МЕНЬШЕ (10 -> 7): модель на вид улучшилась
-                                   оттого, что часть её ответа пропала.
-                                   `books score` на том же входе отказывается
-                                   считать вслух
+    a page missing from one     3 pages of 13 taken from the model: "NOT FOUND
+    markup was skipped in       6" did not budge and "divergences" got FEWER
+    silence                     (10 -> 7) -- the model looked better because
+                                part of its answer was gone. `books score` on
+                                the same input refuses to count aloud
 
-    одна разметка -> три нуля     «совпало 0, НЕ НАШЛА 0, ЛИШНИХ 0;
-                                   расхождения на 0 страницах» при
-                                   нарисованных рамках. Ноль от непонимания в
-                                   ИТОГОВОЙ строке
+    one markup -> three zeroes  "matched 0, NOT FOUND 0, EXTRA 0; divergences
+                                on 0 pages" with the boxes drawn. A zero from
+                                not understanding, in the SUMMARY line
 
-    «листов 600» при одном        печаталось `doc.page_count`; три разные
-    нарисованном                   величины (страницы книги, листы, рамки)
-                                   ходили под одним словом
+    "600 sheets" with one       `doc.page_count` was printed; three different
+    drawn                       quantities (pages of the book, sheets, boxes)
+                                travelled under one word
 """
 import json
 import os
@@ -41,7 +39,7 @@ from booksmith import overlay
 
 
 def _stand(d, pages=3, model_skip=()):
-    """Книга на три листа, истина на всех, вывод модели — кроме `model_skip`."""
+    """Three sheets, truth on all, model output minus `model_skip`."""
     import pymupdf
     pdf = os.path.join(d, "b.pdf")
     doc = pymupdf.open()
@@ -72,7 +70,7 @@ def _say(pdf, marks, only=None):
 
 
 def _drawn_sheets(out_pdf):
-    """Какие листы выхода вправду что-то несут. Считано ГЛАЗАМИ ПРИБОРА."""
+    """Which output sheets really carry anything -- read off the drawings."""
     import pymupdf
     doc = pymupdf.open(out_pdf)
     got = [i for i, pg in enumerate(doc) if pg.get_drawings()]
@@ -81,19 +79,19 @@ def _drawn_sheets(out_pdf):
 
 
 def test_pages_are_counted_from_one_like_detect():
-    """`--pages` здесь считается ТАК ЖЕ, как у `books detect`.
+    """`--pages` is counted here THE SAME WAY as in `books detect`.
 
-    Разбор один на оба, а не второй экземпляр: `books detect --pages 2` даёт
-    лист 0001, и `books overlay --pages 2` обязан нарисовать его же. Прежде
-    рисовался 0002 — и молча.
+    One parser for both, not a second copy: `books detect --pages 2` gives
+    sheet 0001, and `books overlay --pages 2` must draw that one. It used to
+    draw 0002, in silence.
 
-    ЗОВЁМ ЧЕРЕЗ CLI, А НЕ РАЗБОРЩИК НАПРЯМУЮ, и это существо проверки.
-    Первая её редакция утверждала `detect.parse_pages("2", 3) == [1]` и потом
-    сама передавала этот набор в `build` — то есть меряла, что разборщик
-    считает с единицы (это было верно и до починки), и НЕ меряла, что
-    `cmd_overlay` его зовёт. Замер скептика: откат `cli.py` целиком и точечная
-    мутация прямо на исправленную строку давали НОЛЬ красных проверок.
-    Дыра ровно того класса, что чинилась рядом.
+    CALLED THROUGH THE CLI, NOT THE PARSER DIRECTLY, and that is the substance
+    of the check. Its first edition asserted `detect.parse_pages("2", 3) ==
+    [1]` and then passed that set to `build` itself -- measuring that the
+    parser counts from one (true before the repair too) and NOT that
+    `cmd_overlay` calls it. Reverting `cli.py` whole and a point mutation on
+    the repaired line both gave ZERO red checks -- a hole of the very class
+    being repaired beside it.
     """
     from booksmith import cli
     with tempfile.TemporaryDirectory() as d:
@@ -104,17 +102,16 @@ def test_pages_are_counted_from_one_like_detect():
             out = os.path.join(d, f"p{spec.replace(' ', '_')}.pdf")
             said = []
             was = cli.log
-            cli.log = said.append          # `log` в cli — импортированное имя
+            cli.log = said.append          # `log` in cli is an imported name
             try:
                 assert cli.main(["overlay", pdf, "--truth", t,
                                  "--pages", spec, "--out", out]) == 0
             finally:
                 cli.log = was
-            # В выходе лежат ТОЛЬКО запрошенные листы (иначе `--pages 102` на
-            # золотом стенде давал бы 494 МБ), поэтому счёт сверяем двумя
-            # величинами: сколько листов вышло и КАКАЯ страница книги стала
-            # первой. Вторую прибор обязан назвать сам — молчаливый сдвиг
-            # номеров был бы той же бедой, что и сдвиг `--pages` на единицу.
+            # The output holds ONLY the requested sheets (else `--pages 102`
+            # on the golden bench would give 494 MB), so the count is checked
+            # by two quantities: how many sheets came out, and WHICH page of
+            # the book came first -- the instrument names the second itself.
             got = _drawn_sheets(out)
             assert got == list(range(len(want))), (
                 f"--pages {spec!r}: в выходе листы {got}, ожидались "
@@ -130,10 +127,10 @@ def test_pages_are_counted_from_one_like_detect():
 
 
 def test_a_page_out_of_the_book_is_loud():
-    """Номер за пределами книги — жалоба вслух, а не пустой прогон.
+    """A number past the end of the book is a complaint, not an empty run.
 
-    Прежде свой разбор `overlay` клал число прямо в индекс, а пустой набор
-    давал молчаливое «расхождения на 0 страницах».
+    `overlay`'s own parser used to put the number straight into the index,
+    and an empty set gave a silent "divergences on 0 pages".
     """
     from booksmith import cli
     with tempfile.TemporaryDirectory() as d:
@@ -149,10 +146,11 @@ def test_a_page_out_of_the_book_is_loud():
 
 
 def test_a_page_missing_from_one_markup_is_named():
-    """Страница, которой нет у одной разметки, НАЗЫВАЕТСЯ, а не пропускается.
+    """A page missing from one markup is NAMED, not skipped.
 
-    Умеет провалиться: верните `continue` без счётчика — и лист выйдет
-    полным на вид, а числа станут лучше оттого, что часть ответа пропала.
+    Can fail: bring back the `continue` without a counter -- the sheet comes
+    out looking whole while the numbers improve because part of the answer
+    went missing.
     """
     with tempfile.TemporaryDirectory() as d:
         pdf = _stand(d, model_skip=(1,))
@@ -163,11 +161,11 @@ def test_a_page_missing_from_one_markup_is_named():
 
 
 def test_a_page_missing_from_the_truth_is_named_too():
-    """Зеркальная сторона: дыра в ИСТИНЕ называется так же, как дыра в модели.
+    """The mirror side: a hole in the TRUTH is named as one in the model is.
 
-    Скептик показал, что чинил я обе стороны, а проверял одну: подмена
-    `counts["нет у истины"].append(i)` на `pass` не красила НИ ОДНОЙ из 163
-    проверок. Сторож, у которого проверена половина, — половина сторожа.
+    The sceptic showed that both sides were repaired and one was checked:
+    replacing `counts["missing_in_truth"].append(i)` with `pass` reddened NOT
+    ONE of the 163 checks. A guard with half of it checked is half a guard.
     """
     with tempfile.TemporaryDirectory() as d:
         pdf = _stand(d)
@@ -178,11 +176,11 @@ def test_a_page_missing_from_the_truth_is_named_too():
 
 
 def test_one_markup_says_there_is_nothing_to_compare():
-    """Одна разметка — «сличать НЕ С ЧЕМ», а не три нуля.
+    """One markup means "NOTHING TO COMPARE WITH", not three zeroes.
 
-    Три нуля при нарисованных рамках читаются как «всё сошлось». Это тот же
-    ноль от непонимания, что «глав 0» вместо «я их не узнал», только в
-    итоговой строке.
+    Three zeroes with boxes drawn read as "it all agreed" -- the same zero
+    from not understanding as "chapters 0" for "I did not recognise them",
+    here in the summary line.
     """
     with tempfile.TemporaryDirectory() as d:
         pdf = _stand(d)
@@ -192,10 +190,10 @@ def test_one_markup_says_there_is_nothing_to_compare():
 
 
 def test_the_summary_counts_sheets_not_pages_of_the_book():
-    """Итог называет НАРИСОВАННЫЕ листы, и рамки — отдельно.
+    """The summary names the sheets DRAWN, and the boxes separately.
 
-    Прежде печаталось `doc.page_count`: `--pages 102` на золотом стенде давало
-    «листов 600» при одном нарисованном.
+    `doc.page_count` used to be printed: `--pages 102` on the golden bench
+    gave "600 sheets" with one drawn.
     """
     with tempfile.TemporaryDirectory() as d:
         pdf = _stand(d)
@@ -204,10 +202,10 @@ def test_the_summary_counts_sheets_not_pages_of_the_book():
 
 
 def test_what_was_not_checked_by_sha256_is_named():
-    """Несверенная разметка НАЗЫВАЕТСЯ, а не молчит.
+    """Unverified markup is NAMED, not passed over in silence.
 
-    Прежде печаталось «sha256 сверен для И» — и о том, что «М» не сверен
-    вовсе, ни слова: половина сторожа читалась как весь сторож.
+    It used to print "sha256 checked for И" and not a word about "М" being
+    unchecked at all: half a guard read as the whole guard.
     """
     with tempfile.TemporaryDirectory() as d:
         pdf = _stand(d)
@@ -220,17 +218,17 @@ def test_what_was_not_checked_by_sha256_is_named():
 
 
 def test_the_sheet_shouts_at_exactly_what_the_number_calls_extra():
-    """«ЛИШНИХ» на листе == «лишняя рамка» в `books score`. Один классификатор.
+    """"EXTRA" on the sheet == "spurious box" in `books score`. One rule.
 
-    ЗАЧЕМ. Прибор делил рамки на крикливые и тихие по одному признаку —
-    артефактный ли ярлык, — и кричал оранжевым на всё подряд: на золотом
-    стенде 508 рамок, из которых `books score` зовёт лишними 110, а 350 (69%)
-    НАРОЧНО оправдывает («на объекте вне замера»). Человек смотрел и выносил
-    приговор модели по числу, которое прибор рядом опровергает.
+    WHY. The instrument split boxes into loud and quiet by one sign -- an
+    artefact label -- and shouted orange at everything: on the golden bench
+    508 boxes, of which `books score` calls 110 spurious and DELIBERATELY
+    forgives 350 (69 %) as "on an object outside the measure". A person looked
+    and sentenced the model by a number the instrument beside it refutes.
 
-    Умеет провалиться: верните признак по ярлыку — и «ЛИШНИХ» станет больше
-    «лишней рамки». Здесь это видно на трёх рамках вместо трёхсот пятидесяти,
-    но правило то же, и правило ОДНО: `metrics.extra_kind` зовут оба.
+    Can fail: bring back the sign by label and "EXTRA" grows past "spurious
+    box". Here it shows on three boxes instead of 350, but the rule is the
+    same and it is ONE: `metrics.extra_kind`, called by both.
     """
     import json as _j
 
@@ -238,7 +236,7 @@ def test_the_sheet_shouts_at_exactly_what_the_number_calls_extra():
 
     with tempfile.TemporaryDirectory() as d:
         pdf = _stand(d, pages=1)
-        # Истина: один артефакт в замере плюс один ВНЕ замера.
+        # Truth: one artefact inside the measure plus one OUTSIDE it.
         t = {"index": 0, "width": 400, "height": 600,
              "blocks": [{"block_id": 0, "box": [10, 10, 90, 90],
                          "label": "table", "score": None, "order": 0,
@@ -246,8 +244,8 @@ def test_the_sheet_shouts_at_exactly_what_the_number_calls_extra():
              "meta": {"out_of_scope": [{"box": [200, 200, 300, 300],
                                       "category": "Vignette",
                                       "bucket": "inexpressible"}]}}
-        # Модель: нашла таблицу, плюс рамка НА объекте вне замера, плюс
-        # настоящая лишняя в пустоте.
+        # Model: found the table, plus a box ON an object outside the
+        # measure, plus a genuinely spurious one in empty space.
         m = {"index": 0, "width": 400, "height": 600,
              "blocks": [{"block_id": 0, "box": [10, 10, 90, 90],
                          "label": "table", "score": 0.9, "order": 0,
@@ -285,15 +283,15 @@ def test_the_sheet_shouts_at_exactly_what_the_number_calls_extra():
 
 
 def test_a_changed_label_is_not_painted_like_an_extra_box():
-    """Подпись «ярлык: A -> B» и «ЛИШНЯЯ» — РАЗНЫМ цветом.
+    """The caption "label: A -> B" and "EXTRA" get DIFFERENT colours.
 
-    Прежде обе брали одну оранжевую константу, и подпись висела над СЕРОЙ
-    рамкой: цвет подписи противоречил цвету рамки, к которой она относится.
-    Замер глазами на `bench/slovar` стр. 2 (56 таких подписей из 56 пар): из
-    двух настоящих «ЛИШНИХ» листа одна была невидима — стояла в трёх пунктах
-    от одноимённо окрашенной подписи тем же кеглем.
+    Both used to take the one orange constant, and the caption hung over a
+    GREY box: its colour contradicted the box it belongs to. Measured by eye
+    on `bench/slovar` p. 2 (56 such captions of 56 pairs): of the two genuine
+    "EXTRA" boxes on the sheet one was invisible -- three points from a
+    caption of the same colour in the same size.
 
-    Умеет провалиться: сведите цвета обратно.
+    Can fail: bring the colours back together.
     """
     assert overlay.LABEL != overlay.SPURIOUS, (
         "смена ярлыка красится как лишняя рамка — оранжевый перестаёт "

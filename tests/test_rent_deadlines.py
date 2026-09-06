@@ -1,24 +1,23 @@
-"""Сроки аренды: два потолка, каждый из которых отбраковывал ГОДНЫЕ машины.
+"""Rental deadlines: two ceilings, each of which binned GOOD machines.
 
-ПРОВЕРОК НА `remote/` НЕ БЫЛО НИ ОДНОЙ, и оба дефекта ниже нашёл не разбор
-кода, а ПЛАТНЫЙ ПРОГОН 3 сентября 2026: три годные машины подряд под нож,
-$0.081 и 13 минут из 60, прежде чем его остановили руками.
+THERE WERE NO CHECKS ON `remote/` AT ALL, and neither defect below was found
+by reading the code. Both came out of a PAID RUN on 3 September 2026: three
+good machines binned in a row, $0.081 and 13 minutes out of 60 before it was
+stopped by hand.
 
-    зонд не поспевал        Порог отбраковки в `runner` подстраивается под наш
-    за собственным порогом  канал (`min(limit, 0.5*ours)` = 0.90 Мбит/с), а
-                            срок зонда был зашит: 4 МБ за 25 с. При нашем
-                            канале 1.8 Мбит/с 32 мегабита идут 18 с в идеале и
-                            с рукопожатием ssh в 25 не влезают. Зонд возвращал
-                            0 — «тайм-аут», неотличимый от сломанной машины
+THE PROBE COULD NOT KEEP UP WITH ITS OWN FLOOR. The rejection floor in
+`runner` follows our own channel (`min(limit, 0.5*ours)` = 0.90 Mbit/s), while
+the probe's deadline was wired in: 4 MB in 25 s. On our 1.8 Mbit/s channel
+32 megabits take 18 s at best and do not fit into 25 with the ssh handshake.
+The probe returned 0 -- a "timeout" no different from a dead machine.
 
-    потолок внутри потолка  Подъём контейнера резался по `min(BOOT_LIMIT_S,
-                            остаток)` = `min(120, 480)` = 120 с. Машина
-                            49873851 успешно качала образ («Download
-                            complete», «Pull complete») и была срезана на 2:12
-                            при неизрасходованных 360 с бюджета попытки
+A CEILING INSIDE A CEILING. Container start was cut by `min(BOOT_LIMIT_S,
+remaining)` = `min(120, 480)` = 120 s. Machine 49873851 was pulling the image
+fine ("Download complete", "Pull complete") and was cut off at 2:12 with 360 s
+of the attempt budget unspent.
 
-Оба дефекта — один и тот же по устройству: величина, которая ДОЛЖНА выводиться
-из другой, была записана числом. Проверки ниже требуют именно вывода.
+Both are one defect by make: a quantity that MUST be derived from another was
+written down as a number. The checks below demand the derivation.
 """
 import inspect
 import time
@@ -30,7 +29,7 @@ from booksmith.remote import runner
 
 
 class _FakeSsh(rbox.Box):
-    """Коробка, которая не ходит по ssh: считаем ТОЛЬКО срок, а не канал."""
+    """A box that never goes over ssh: no real channel is measured here."""
 
     def __init__(self):
         self.seen = None
@@ -40,7 +39,7 @@ class _FakeSsh(rbox.Box):
 
 
 class _Stream:
-    """Труба, отдающая байты с заданной скоростью. Заменяет ssh к машине."""
+    """A pipe handing out bytes at a set rate. Stands in for ssh."""
 
     def __init__(self, mbps, total=None):
         self.mbps, self.t0 = mbps, time.time()
@@ -48,16 +47,16 @@ class _Stream:
         self.stdout = self
 
     def read(self, n):
-        # Сколько байт «успело прийти» к этому моменту при заданной скорости.
+        # How many bytes "have arrived" by now at the given rate.
         must_be = int(self.mbps * 1e6 / 8 * (time.time() - self.t0))
         if self.total is not None:
             must_be = min(must_be, self.total)
         give = min(n, max(0, must_be - self.sent))
         if give == 0:
             if self.total is not None and self.sent >= self.total:
-                return b""          # поток кончился
+                return b""          # the stream is over
             time.sleep(0.01)
-            return b"\x00"          # ещё не накопилось — но труба жива
+            return b"\x00"          # not enough yet -- but the pipe is alive
         self.sent += give
         return b"\x00" * give
 
@@ -69,7 +68,7 @@ class _Stream:
 
 
 def _probe_at(mbps, seconds=0.6, total=None):
-    """Прогнать настоящий `Box.probe` против трубы заданной скорости."""
+    """Run the real `Box.probe` against a pipe of a given rate."""
     import subprocess
     was = subprocess.Popen
     subprocess.Popen = lambda *a, **k: _Stream(mbps, total)
@@ -80,15 +79,18 @@ def _probe_at(mbps, seconds=0.6, total=None):
 
 
 def test_a_narrow_channel_is_measured_not_called_broken():
-    """Узкий канал даёт МАЛЕНЬКОЕ ЧИСЛО, а не ноль.
+    """A narrow channel gives a SMALL NUMBER, not a zero.
 
-    Прежде зонд просил ровно 4 МБ и ждал их 25 с; не успел — возвращал 0.0, а
-    ноль в `runner` значит «машина сломана». То есть «мы не успели принять»
-    записывалось как «она не умеет отдавать», и отличить одно от другого было
-    нельзя ПО ПОСТРОЕНИЮ. Платный прогон 3 сентября 2026 отбраковал так три
-    годные машины подряд: $0.081 и 13 минут из 60.
+    The probe used to demand exactly 4 MB and wait 25 s for them; short of
+    that it returned 0.0, and a zero in `runner` means "the machine is
+    broken" -- "we failed to receive" written down as "it cannot send",
+    indistinguishable BY CONSTRUCTION. Can fail: bring back the count of "did
+    exactly mb megabytes arrive".
 
-    Умеет провалиться: верните счёт «пришло ли ровно mb мегабайт».
+    THE FLAKY CHECK OF THIS FILE, about 1.4 % of calls, and the defect is in
+    the check: the stub hands over a byte per 10 ms, and WSL sometimes
+    stretches its `time.sleep(0.01)` to a whole second, so the probe reads
+    low. Run it again.
     """
     narrow = _probe_at(1.16)
     assert narrow > 0.5, (
@@ -98,11 +100,11 @@ def test_a_narrow_channel_is_measured_not_called_broken():
 
 
 def test_a_broken_machine_still_gives_a_number_below_any_floor():
-    """Сломанная машина даёт 0.06, а не ноль — и всё равно отбраковывается.
+    """A broken machine gives 0.06, not zero -- and is binned anyway.
 
-    Зонд написан ради машины с 62 кбит/с, принявшей 3.5 МБ за семь с
-    половиной минут. Сделав зонд честным, легко было сделать его слепым:
-    здесь он ГОНЯЕТСЯ против такой трубы и обязан вернуть число НИЖЕ порога.
+    The probe was written for a machine at 62 kbit/s that took 3.5 MB in
+    seven and a half minutes. Making it honest made it easy to make it blind:
+    here it RUNS against such a pipe and must return a number BELOW the floor.
     """
     broken = _probe_at(0.062)
     assert broken < 0.3, (
@@ -114,15 +116,16 @@ def test_a_broken_machine_still_gives_a_number_below_any_floor():
 
 
 def test_a_dead_channel_is_the_only_zero():
-    """Ноль остаётся ровно за одним случаем: не пришло НИ БАЙТА.
+    """Zero is left to exactly one case: NOT ONE BYTE arrived.
 
-    Это и есть то, о чём `runner` вправе сказать «беру другую» не сомневаясь.
+    That is the one thing `runner` may answer "take another" to without
+    doubting.
     """
     assert _probe_at(0.0, total=0) == 0.0, "мёртвая труба дала не ноль"
 
 
 class _FakeVast:
-    """Аренда, которая ничего не арендует: ловим ТОЛЬКО переданный срок."""
+    """A rental that rents nothing: only the deadline passed in is caught."""
 
     def __init__(self):
         self.boot_timeout = None
@@ -136,16 +139,15 @@ class _FakeVast:
 
 
 def test_connect_gives_the_boot_the_whole_attempt():
-    """У попытки ОДИН срок. Второго потолка внутри него нет.
+    """An attempt has ONE deadline. No second ceiling lives inside it.
 
-    `min(BOOT_LIMIT_S, остаток)` резал подъём по 120 с при 480 с бюджета
-    попытки — и убивал машину, которая исправно качала образ («Download
-    complete», «Pull complete», срезана на 2:12).
+    `min(BOOT_LIMIT_S, remaining)` cut the boot at 120 s out of a 480 s
+    attempt budget -- the machine it killed is named above.
 
-    ПОВЕДЕНИЕМ, А НЕ РАЗБОРОМ ИСХОДНИКА: первая редакция читала текст функции
-    через `inspect.getsource`, и мутация, пересобирающая модуль в памяти, ей
-    была не видна — батарея объявила её пойманной, ничего не проверив.
-    Ловится ровно то, что уходит в `wait_running`.
+    BY BEHAVIOUR, NOT BY PARSING THE SOURCE: the first edition read the text
+    of the function through `inspect.getsource`, and a mutation that rebuilds
+    the module in memory was invisible to it -- the battery declared it caught
+    having checked nothing. What is caught is what reaches `wait_running`.
     """
     v = _FakeVast()
     try:
@@ -165,16 +167,14 @@ def test_connect_gives_the_boot_the_whole_attempt():
 
 
 def _blame_with(link, best, ours, limit=None):
-    """Позвать НАСТОЯЩИЙ сторож. Прямо, а не вытаскивая тело разбором.
+    """Call the REAL guard, directly, not by digging its body out of source.
 
-    Первая редакция выковыривала `_blame` из `_rent` через `ast` и исполняла
-    в подставном окружении — потому что сторож был заперт в замыкании. Она и
-    проверяла соответственно ТЕКСТ: батарея честно сказала «НЕ ПОЙМАНА» на
-    обеих мутациях, ведь те пересобирают модуль в памяти. Сторож вынесен на
-    уровень модуля, и проверять стало нечего, кроме поведения.
-
-    `limit` в подписи нет вовсе — и это тоже проверяется: решение о вечном
-    списке не смеет зависеть от порога отбраковки.
+    The first edition pulled `_blame` out of `_rent` with `ast` and ran it in
+    a fake environment, the guard being locked in a closure -- so it checked
+    TEXT, and the battery honestly said NOT CAUGHT on both mutations, which
+    rebuild the module in memory. The guard lives at module level now, and
+    nothing is left to check but behaviour. `limit` is absent from the
+    signature, and that is checked too.
     """
     recorded = []
     runner.blame_machine({"machine_id": 777}, "проба", ours=ours, link=link,
@@ -185,12 +185,13 @@ def _blame_with(link, best, ours, limit=None):
 
 
 def test_a_machine_is_blamed_only_with_a_witness():
-    """В ВЕЧНЫЙ список — только когда другая машина дала втрое больше.
+    """Onto the PERMANENT list only when another machine gave three times as
+    much.
 
-    Чем оплачено (3 сентября 2026): сторож сравнивал наш HTTP-канал с
-    порогом (`ours < 2*limit`), а зонд меряет ssh. Разрыв между транспортами
-    у нас десятикратный — HTTP 4.6 и 2.4 против ssh 0.34 и 0.25 с ДВУХ
-    РАЗНЫХ машин подряд, — и обе ушли в вечный список ни за что.
+    What it cost (3 September 2026): the guard compared our HTTP channel with
+    the floor (`ours < 2*limit`) while the probe measures ssh. Our gap between
+    transports is tenfold -- HTTP 4.6 and 2.4 against ssh 0.34 and 0.25 from
+    TWO DIFFERENT machines in a row -- both listed for nothing.
     """
     assert _blame_with(link=0.25, best=0.34, ours=4.6) == [], (
         "машина занесена НАВСЕГДА при том, что лучшая из виденных дала лишь "
@@ -203,11 +204,11 @@ def test_a_machine_is_blamed_only_with_a_witness():
 
 
 def test_the_verdict_cannot_depend_on_the_rejection_floor():
-    """Порог отбраковки в решении о вечном списке НЕ участвует.
+    """The rejection floor takes NO part in the permanent-list verdict.
 
-    Прежде сторож смотрел на `limit`, и понижение порога с 2.0 до 0.4
-    превращало запрет в разрешение: одна ручка на две противоположные работы.
-    Теперь её нет в подписи вовсе — это и есть самая крепкая форма запрета.
+    The guard used to look at `limit`, and lowering the floor from 2.0 to 0.4
+    turned a ban into a pass: one knob doing two opposite jobs. It is gone
+    from the signature entirely, which is the firmest form of the ban.
     """
     import inspect
     names = set(inspect.signature(runner.blame_machine).parameters)
@@ -217,7 +218,7 @@ def test_the_verdict_cannot_depend_on_the_rejection_floor():
 
 
 class _FakeVastApi:
-    """Обёртка vast, которая всегда отказывает и считает обращения."""
+    """A vast wrapper that always refuses and counts the calls."""
 
     def __init__(self, err):
         self.err, self.calls = err, 0
@@ -232,18 +233,18 @@ class _FakeVastApi:
 
 
 def test_destroy_backs_off_instead_of_hammering():
-    """Отступы между попытками РАСТУТ, и сумма меньше отсрочки дозора.
+    """The pauses GROW, and their sum stays under the dead man's grace.
 
-    Чем оплачено (3 сентября 2026): здесь стояла плоская пауза 4 с на пять
-    попыток, а каждая делает ДВА обращения к API — уничтожение плюс проверку.
-    Десять запросов за двадцать секунд. Когда vast.ai начал отвечать 403, код
-    продолжил долбить с той же частотой, и ключ перестал пускать НА ВСЁ,
-    включая `/users/current` (проверено `curl`-ом с тем же ключом: отказ
-    пришёл от них, а не от нашей обёртки).
+    What it cost (3 September 2026): a flat 4 s pause over five attempts
+    stood here, and each attempt makes TWO API calls -- destroy plus check.
+    Ten requests in twenty seconds. When vast.ai began answering 403 the code
+    kept hammering at the same rate, and the key stopped opening ANYTHING,
+    `/users/current` included (checked with `curl` on the same key: the
+    refusal came from them, not from our wrapper).
 
-    Сумма отступов обязана быть МЕНЬШЕ отсрочки дозора мертвеца: если
-    уничтожение не удаётся вовсе, машина гасит себя сама, и растягивать
-    попытки дольше её отсрочки — значит платить за ожидание впустую.
+    The sum must be LESS than the dead man's grace: if destruction fails
+    outright the machine puts itself out, and stretching the attempts past
+    that grace is paying to wait for nothing.
     """
     from booksmith.remote.vast import Vast
     steps = list(Vast.RETRY_S)
@@ -256,12 +257,12 @@ def test_destroy_backs_off_instead_of_hammering():
 
 
 def test_a_refusal_of_access_is_named_apart_from_a_stubborn_machine():
-    """403 и 429 зовутся ОТКАЗОМ ДОСТУПА, а не «машина не послушалась».
+    """403 and 429 are A REFUSAL OF ACCESS, not "the machine disobeyed".
 
-    Разные беды: «уничтожение не сработало» лечится повтором, «нас не
-    пускают» повтором делается хуже. И проверка `alive` следом в этом случае
-    отвечает «жив» просто потому, что спросить некого — это не наблюдение, а
-    отсутствие наблюдения.
+    Different troubles: "destruction did not work" is cured by a retry, "we
+    are not being let in" is made worse by one. And the `alive` check that
+    follows then answers "alive" only because there is nobody to ask -- the
+    absence of an observation, not an observation.
     """
     import time as _t
 
@@ -285,10 +286,10 @@ def test_a_refusal_of_access_is_named_apart_from_a_stubborn_machine():
 
 
 class _BoxThatFailsAfterPulse:
-    """Машина, у которой пульс завёлся, а связь дальше оборвалась.
+    """A machine whose pulse started and whose link then broke.
 
-    Ровно тот случай, что оставлял брошенную машину бессмертной: пульс
-    заводится ДО первой сетевой команды, а падает она штатно.
+    Exactly the case that left an abandoned machine immortal: the pulse
+    starts BEFORE the first network command, and that command fails normally.
     """
 
     declared: list = []
@@ -311,20 +312,18 @@ class _BoxThatFailsAfterPulse:
 
 
 def test_a_failed_connect_leaves_no_machine_with_a_live_pulse():
-    """Отказ ПОСЛЕ `start_heartbeat` обязан пульс погасить.
+    """A failure AFTER `start_heartbeat` must put the pulse out.
 
-    ЧЕМ ЭТО ОПЛАЧЕНО. `connect` заводит пульс, а следом идёт в сеть
-    (`check_deadman`), и отказ там штатен. До починки `box` до вызывающего не
-    доезжал — переменная в `_rent` оставалась НЕ ПРИВЯЗАНА, `stop_heartbeat`
-    давал `UnboundLocalError`, и тот глушился молчащим `except Exception:
-    pass`. Машина уезжала в `undead` С ЖИВЫМ ПУЛЬСОМ: наш поток стучал
-    `touch /root/.alive` каждые 30 с до конца прогона и тем ВЫКЛЮЧАЛ дозор
-    мертвеца — единственный из четырёх способов гашения, не зависящий ни от
-    нашего ключа, ни от нашего процесса. На второй попытке хуже вдвое:
-    гасился бы пульс ПРЕДЫДУЩЕЙ машины.
-
-    Ни одной строки в журнал при этом не печаталось, то есть беда была
-    невидима и по выводу.
+    WHAT THIS COST. `connect` starts the pulse and then goes to the network
+    (`check_deadman`), where a failure is normal. Before the repair the `box`
+    never reached the caller -- the variable in `_rent` stayed UNBOUND,
+    `stop_heartbeat` raised `UnboundLocalError`, and a silent
+    `except Exception: pass` swallowed it. The machine went to `undead` WITH A
+    LIVE PULSE: our thread kept touching `/root/.alive` every 30 s to the end
+    of the run, switching OFF the dead man's watch -- the only one of the four
+    ways of putting a machine out that depends neither on our key nor on our
+    process. On a second attempt the pulse put out would be the PREVIOUS
+    machine's. And not one line went to the log.
     """
     _BoxThatFailsAfterPulse.declared = []
     was = runner.Box
@@ -351,7 +350,7 @@ def test_a_failed_connect_leaves_no_machine_with_a_live_pulse():
 
 
 class _FakeVastReady:
-    """Аренда, которая доводит до ssh и не мешает: беда дальше, в `Box`."""
+    """A rental that reaches ssh and no further: the trouble is in `Box`."""
 
     def wait_running(self, iid, timeout):
         pass

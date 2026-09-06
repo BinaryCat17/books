@@ -1,24 +1,23 @@
-"""Обрыв ответа доезжает до книги, а форма невозможной таблицы называется.
+"""A truncated answer reaches the book, and an impossible shape is named.
 
-ЗАЧЕМ ЭТОТ ФАЙЛ ЗАВЕДЁН, и это замер, а не опасение. `books read` считает
-пять нулей порознь и называет их вслух: в слепке чтения «Технологии
-огнеупоров» стоит «оборвано потолком: 14» и все четырнадцать якорей списком.
-Дальше знание пропадало целиком — `grep` по дереву не находил ни `finish`, ни
-«оборван» нигде за пределами `read/`. В книгу при этом вошли ВСЕ четырнадцать
-(118 471 знак — 12.95 % всего прочитанного текста), и ни один не отличим
-на вид от целого.
+WHY THIS FILE EXISTS -- measured, not feared. `books read` counts five zeroes
+apart and says them aloud: the reading snapshot of "Технология огнеупоров"
+carries "hit the ceiling: 14" and lists all fourteen anchors. Past `read/` the
+knowledge vanished: `grep` found neither `finish` nor "truncated" anywhere
+else. All fourteen went into the book (118 471 characters, 12.95 % of
+everything read), none looking torn.
 
-ПОЧЕМУ ПЯТИ СТОРОЖЕЙ `books apply` НЕ ХВАТИЛО. Оборванный кусок не несёт
-чужих меток, не пуст, вид объявлен, набор якорей не меняет и незавершённого
-комментария не содержит — то есть проходит все пятеро. Худший, `p0055-b11`,
-на скане таблица 4x4, а в книге `<table>` с 2047 `<td>` в ОДНОЙ строке: одна
-эта строка держит 36 % всех ячеек книги.
+WHY THE FIVE GUARDS OF `books apply` WERE NOT ENOUGH. A truncated fragment
+carries no foreign markers, is not empty, declares its kind, leaves the anchor
+set alone and holds no unfinished comment -- it passes all five. The worst,
+`p0055-b11`, is a 4x4 table on the scan and a `<table>` with 2047 `<td>` in
+ONE row in the book: that row alone holds 36 % of the cells in the book.
 
-И ПОЧЕМУ СЧЁТЧИКИ РВАНОСТИ ЭТОГО НЕ ВИДЯТ. У `p0055-b11` они все чисты —
-продолжений в никуда 0, строк разной длины 0, текст мимо тегов 0. Не потому,
-что таблица цела, а потому, что в ответе нет ни одного `<nl>`: строк не с чем
-сравнивать, продолжениям некуда деться. Ноль от непонимания, принятый за ноль
-от проверки. Правило `torn_grid` смотрит поэтому не на рваность, а на ФОРМУ.
+AND WHY THE TEARING COUNTERS MISS IT. For `p0055-b11` they are all clean --
+0 continuations to nowhere, 0 rows of unequal length, 0 text outside tags.
+Not because the table is whole, but because the answer holds no `<nl>` at
+all: no rows to compare, nowhere for a continuation to go. A zero from not
+understanding, taken for a zero from checking. So `torn_grid` looks at SHAPE.
 """
 import json
 import os
@@ -26,45 +25,45 @@ import os
 from booksmith.doc import html as H
 
 
-# ------------------------------------------------- форма таблицы ---
+# ------------------------------------------------------ table shape ---
 
 def test_torn_grid_catches_the_shape_no_tearing_counter_can_see():
-    """Таблица в одну строку и в один столбец — названы, прочие молчат."""
-    # Та самая `p0055-b11`: 2047 клеток в одной строке при чистой рваности.
+    """A one-row and a one-column table are named; a real one stays silent."""
+    # The very `p0055-b11`: 2047 cells in one row, tearing counters clean.
     assert "2047" in (H.torn_grid({"rows": 1, "grid_cells": 2047}) or "")
-    # И зеркальный случай — `p0166-b2` настоящей книги, 7 строк в один
-    # столбец, `finish=stop`, все счётчики рваности чисты. Его не нашёл ни
-    # один прибор проекта до этого правила.
+    # And the mirror case -- `p0166-b2` of the real book: 7 rows in one
+    # column, `finish=stop`, every tearing counter clean. No instrument in
+    # the project found it before this rule.
     assert "7" in (H.torn_grid({"rows": 7, "grid_cells": 7}) or "")
-    # Настоящая таблица книги (`p0005-b2`, «Рост производства…») — молчит.
+    # A real table of the book (`p0005-b2`) -- silent.
     assert H.torn_grid({"rows": 9, "grid_cells": 63}) is None
 
 
 def test_torn_grid_zero_from_absence_is_not_zero_from_checking():
-    """Сетки нет — это НЕ «форма в порядке». Оба случая дают None, и это
-    единственное место, где их путать можно: наверху они разведены полем
-    «чтение наблюдалось», которое `None` при отсутствии `answers/`."""
+    """No grid is NOT "the shape is fine". Both give None, and this is the
+    only place they can be confused: above they are held apart by the field
+    "reading observed", which is `None` when `answers/` is absent."""
     assert H.torn_grid(None) is None
     assert H.torn_grid({}) is None
-    # Крошечная таблица не объявляется невозможной: 1x3 — законная шапка.
+    # A tiny table is not declared impossible: 1x3 is a legal header.
     assert H.torn_grid({"rows": 1, "grid_cells": 3}) is None
-    # А 1x4 — уже нет, и граница названа числом, а не «на глаз».
+    # 1x4 is not, and the border is named by a number, not by eye.
     assert H.torn_grid({"rows": 1, "grid_cells": 4}) is not None
-    # ТО ЖЕ С ДРУГОЙ СТОРОНЫ, и без этой пары порог столбца не держало ничто:
-    # порча «rows > 3 -> rows > 1» проходила батарею незамеченной, потому что
-    # ни одна проверка не подавала законный однослобцовый столбик.
-    # Колонка из трёх клеток — законная (подписи строк без данных).
+    # THE SAME FROM THE OTHER SIDE. Without this pair nothing held the column
+    # threshold: the mutation `rows > 3 -> rows > 1` went through the battery
+    # unnoticed, because no check ever fed it a legal single column.
+    # Three cells in a column are legal (row labels without data).
     assert H.torn_grid({"rows": 2, "grid_cells": 2}) is None
     assert H.torn_grid({"rows": 3, "grid_cells": 3}) is None
-    # А из четырёх — уже нет.
+    # Four are not.
     assert H.torn_grid({"rows": 4, "grid_cells": 4}) is not None
 
 
 def test_torn_grid_falls_on_deliberately_broken_input():
-    """Правило обязано уметь провалиться: подаём заведомо испорченное.
+    """The rule must be able to fail: feed it something knowingly broken.
 
-    Настоящая сетка книги, у которой отняли строки (упор в потолок обрывает
-    ответ до первого `<nl>`), обязана перестать быть законной."""
+    A real grid of the book with its rows taken away (hitting the ceiling
+    cuts the answer before the first `<nl>`) must stop being legal."""
     whole = {"rows": 9, "grid_cells": 63}
     assert H.torn_grid(whole) is None
     damaged = dict(whole, rows=1)
@@ -73,7 +72,7 @@ def test_torn_grid_falls_on_deliberately_broken_input():
         "законной — правило слепо ровно к тому, ради чего заведено")
 
 
-# ------------------------------------------------ наблюдённое сбоку ---
+# --------------------------------------------------- observed beside ---
 
 def _answers(tmp, recs):
     os.makedirs(os.path.join(tmp, "answers"), exist_ok=True)
@@ -83,7 +82,7 @@ def _answers(tmp, recs):
 
 
 def test_observed_carries_the_reason_the_block_is_bad(tmp_path=None):
-    """`observed` достаёт из `answers/` причину остановки по якорю."""
+    """`observed` pulls the stop reason out of `answers/` by anchor."""
     import tempfile
     with tempfile.TemporaryDirectory() as tmp:
         _answers(tmp, [
@@ -103,21 +102,19 @@ def test_observed_carries_the_reason_the_block_is_bad(tmp_path=None):
 
 
 def test_no_answers_is_silence_not_a_clean_bill():
-    """Каталог без `answers/` даёт ПУСТО, и сборка обязана сказать это
-    словами, а не напечатать «оборвано 0».
-
-    Ровно та беда, из-за которой правило проекта разводит два нуля: «глав 0»
-    означало «я их не узнал», а читалось как «глав в книге нет»."""
+    """No `answers/` gives EMPTY, and the build must say so in words rather
+    than print "truncated 0" -- the trouble the project rule about two zeroes
+    is made of: "chapters 0" meant "I did not recognise them"."""
     import tempfile
     with tempfile.TemporaryDirectory() as tmp:
         assert H.observed(tmp) == {}
 
 
 def test_broken_answers_file_does_not_silently_erase_the_others():
-    """Один нечитаемый файл `answers/` не уносит с собой соседние.
+    """One unreadable `answers/` file does not take its neighbours with it.
 
-    Потерять наблюдённое молча — то же самое, что не собрать его вовсе, но
-    выглядит как исправный прогон."""
+    Losing the observed silently is the same as never collecting it, but it
+    looks like a healthy run."""
     import tempfile
     with tempfile.TemporaryDirectory() as tmp:
         _answers(tmp, [{"anchor": "p0001-b0", "outcome": "length",
@@ -129,18 +126,17 @@ def test_broken_answers_file_does_not_silently_erase_the_others():
         assert o["p0001-b0"]["outcome"] == "length"
 
 
-# ------------------------------ вторая половина: замена в книге ---
+# ----------------------------- second half: the swap inside the book ---
 
 def test_the_mark_survives_the_replacement():
-    """Обёртка `books apply` НЕСЁТ пометку обрыва, а не снимает её.
+    """The `books apply` wrapper CARRIES the truncation mark, not strips it.
 
-    Замер, ради которого проверка заведена. Сборка помечает 14 оборванных
-    блоков; `books apply` ставит на место четырёх из них свой `<div>` — и в
-    книге оставалось 10 пометок из 14. Терялись ровно те четыре, что доехали
-    до читателя разметкой: оборванная таблица, оборванная формула, оборванный
-    график. Половина правила жила в `html.py` и была закреплена проверками, а
-    половина в `apply.py` — и не была: снятие двух строк из `_wrap_fragment`
-    не роняло ни одной из 217 проверок.
+    The build marks 14 truncated blocks; `books apply` puts its own `<div>`
+    over four of them -- and the book was left with 10 marks of 14. The four
+    lost were exactly those that reached the reader as markup: a torn table,
+    formula and chart. Half the rule lived in `html.py` and was held by
+    checks, half in `apply.py` and was not: deleting two lines of
+    `_wrap_fragment` reddened none of the 217 checks.
     """
     from booksmith.doc import apply as ap
     intact = ap._wrap_fragment("p1-b0", "<fcel>a<fcel>b<nl>", "otsl", "проба",
@@ -152,11 +148,11 @@ def test_the_mark_survives_the_replacement():
 
 
 def test_unknown_is_not_whole():
-    """`torn=None` — «не спрашивали», и пометки «цел» отсюда не следует.
+    """`torn=None` means "not asked"; "whole" does not follow from it.
 
-    Одиночная замена (`--anchor … --file …`) наблюдённого рядом не имеет.
-    Молчание тут верно; соврать было бы легко — поставить пометку по
-    умолчанию либо, наоборот, объявить блок целым.
+    A single swap (`--anchor … --file …`) has nothing observed beside it.
+    Silence is right; lying was easy either way -- mark by default, or
+    declare the block whole.
     """
     from booksmith.doc import apply as ap
     nothing = ap._wrap_fragment("p1-b0", "<fcel>a<nl>", "otsl", "руками")
@@ -164,10 +160,10 @@ def test_unknown_is_not_whole():
 
 
 def test_from_read_asks_the_sidecar_for_the_reason():
-    """`from_read` обязан брать признак обрыва из `answers/`, а не выдумывать.
+    """`from_read` must take truncation from `answers/`, not invent it.
 
-    Проверяется по исходнику: без явной передачи `torn=` половина правила
-    снова отвалится молча — так уже было.
+    Checked against the source: without an explicit `torn=`, half the rule
+    falls off silently again -- as it already did once.
     """
     import ast
 
@@ -191,12 +187,12 @@ def test_from_read_asks_the_sidecar_for_the_reason():
 
 
 def test_the_torn_field_tells_three_states_apart():
-    """«Оборвано», «дочитано» и «не спрашивали» — три разных значения.
+    """"Truncated", "read to the end" and "not asked" are three values.
 
-    Замер: из 6156 блоков книги 14 оборваны, 6073 дочитаны, а 69 (рисунки)
-    не спрашивали вовсе — маршрут у них пуст с объявленной причиной. Поле
-    печатало последним двум одно и то же `False`, то есть само сливало два
-    нуля, против чего и заведено. Различает их пустое `чем кончилось`.
+    Measured: of 6156 blocks 14 are truncated, 6073 were read to the end, and
+    69 (pictures) were never asked -- their route is empty with a declared
+    reason. The field printed the same `False` for the last two, merging the
+    two zeroes it exists to keep apart. An empty `outcome` separates them.
     """
     import tempfile
     with tempfile.TemporaryDirectory() as tmp:
@@ -204,29 +200,29 @@ def test_the_torn_field_tells_three_states_apart():
             {"anchor": "p0001-b0", "outcome": "length",
              "observed": {}},
             {"anchor": "p0001-b1", "outcome": "stop", "observed": {}},
-            # Не спрашивали: ответа нет, и «цел» отсюда не следует.
+            # Not asked: there is no answer, and "whole" does not follow.
             {"anchor": "p0001-b2", "outcome": None, "observed": {}},
         ])
         o = H.observed(tmp)
-        # Зовём ПРАВИЛО, а не повторяем его здесь: проверка, повторяющая
-        # проверяемое, тавтологична и порчу пропускает. Так и вышло — порча
-        # «не спрашивали считается дочитанным» прошла мимо первой редакции.
+        # Call the RULE instead of repeating it here: a check that restates
+        # what it checks is a tautology and lets mutations through. It did --
+        # the mutation "not asked counts as read" passed the first edition.
         state = {a: H.torn_of(v) for a, v in o.items()}
         assert state == {"p0001-b0": True, "p0001-b1": False,
                              "p0001-b2": None}, state
-        # И отсутствие наблюдения — тоже «сказать нечем», а не «цел».
+        # No observation at all is also "nothing to say", not "whole".
         assert H.torn_of(None) is None and H.torn_of({}) is None
 
 
-# ------------------------- величины замены: их регрессию ловить нечем ---
+# ---------------- swap quantities: nothing caught their regression ---
 #
-# Приёмщик прошёлся по всем 225 проверкам семью порчами и показал, что новые
-# счётчики закрыты ТОЛЬКО ПО ФОРМЕ: величина заведена, а сломай её — никто не
-# покраснеет. Ровно то состояние, в котором «104 таблицы при colspan 0»
-# прожили целый прогон. Ниже — стенд, на котором каждая из них умеет упасть.
+# The acceptance pass ran seven mutations against all 225 checks and showed
+# the new counters closed BY FORM ONLY: the quantity exists, break it and
+# nobody reddens -- the state in which "104 tables at colspan 0" lived a whole
+# run. Below is the bench on which each of them can fail.
 
 def _bench(tmp, chunks, cut=()):
-    """Книга на N блоков, каталог чтения и наблюдённое рядом."""
+    """A book of N blocks, a reading directory and the observed beside it."""
     import json as _j
     import os as _o
     from booksmith.doc import apply as ap
@@ -256,19 +252,19 @@ def _bench(tmp, chunks, cut=()):
 
 
 def test_bulk_counts_spans_declared_and_placed():
-    """Слияния — ДВЕ величины, и расхождение между ними видно.
+    """Merges are TWO quantities, and the gap between them is visible.
 
-    Без них регрессия перевода обратно в повторы была бы невидима в журнале:
-    ровно так «104 таблицы при colspan 0» и прожили целый прогон.
+    Without both, a regression back into repeated cells is invisible in the
+    log.
     """
     import tempfile
     from booksmith.doc import apply as ap
     with tempfile.TemporaryDirectory() as tmp:
-        _bench(tmp, ["<fcel>ш<lcel><nl><fcel>1<fcel>2<nl>",     # 1 слияние
-                     "<fcel>a<fcel>b<nl><fcel>1<fcel>2<nl>",    # без слияний
-                     # НЕПРЯМОУГОЛЬНОЕ: объявлено 1, а встать не может —
-                     # без этого случая числа совпадают, и приравнять их
-                     # можно было бы незаметно.
+        _bench(tmp, ["<fcel>ш<lcel><nl><fcel>1<fcel>2<nl>",     # 1 merge
+                     "<fcel>a<fcel>b<nl><fcel>1<fcel>2<nl>",    # no merges
+                     # NON-RECTANGULAR: 1 declared, and it cannot be
+                     # placed -- without this case the two numbers agree
+                     # and could have been equated unnoticed.
                      "<fcel>ш<lcel><nl><fcel>л<ucel><nl>"])
         t = ap.from_read(tmp, os.path.join(tmp, "read"), log=lambda *_: None)
         assert t["merges_declared"] == 2, t
@@ -280,16 +276,16 @@ def test_bulk_counts_spans_declared_and_placed():
 
 
 def test_bulk_counts_the_impossible_shape_of_the_book_not_of_the_run():
-    """Форма считается по КНИГЕ: повторный прогон печатает то же число.
+    """The shape is counted over the BOOK: a repeat run prints the same.
 
-    Счёт дважды переезжал и дважды врал — то среди вновь поставленных (на
-    собранной книге выходил ноль при двух невозможных таблицах), то в начале
-    витка (считал блоки, которые сторожа отказались ставить).
+    The count moved twice and lied twice: among the newly placed (zero on an
+    assembled book holding two impossible tables), and at the top of the loop
+    (counting blocks the guards refused to place).
     """
     import tempfile
     from booksmith.doc import apply as ap
     with tempfile.TemporaryDirectory() as tmp:
-        _bench(tmp, ["<fcel>a<fcel>b<fcel>c<fcel>d<fcel>e<nl>",  # 1x5 — нельзя
+        _bench(tmp, ["<fcel>a<fcel>b<fcel>c<fcel>d<fcel>e<nl>",  # 1x5 -- no
                      "<fcel>a<fcel>b<nl><fcel>1<fcel>2<nl>"])
         first = ap.from_read(tmp, os.path.join(tmp, "read"),
                              log=lambda *_: None)
@@ -304,7 +300,7 @@ def test_bulk_counts_the_impossible_shape_of_the_book_not_of_the_run():
 
 
 def test_bulk_marks_the_torn_block_in_the_book():
-    """Обрыв доезжает до книги и через пакетную замену тоже."""
+    """Truncation reaches the book through the bulk swap as well."""
     import tempfile
     from booksmith.doc import apply as ap
     with tempfile.TemporaryDirectory() as tmp:
@@ -313,17 +309,17 @@ def test_bulk_marks_the_torn_block_in_the_book():
         ap.from_read(tmp, os.path.join(tmp, "read"), log=lambda *_: None)
         book = open(os.path.join(tmp, "book.html"), encoding="utf-8").read()
         assert book.count('data-truncated="yes"') == 1, book
-        # И помечен ИМЕННО оборванный, а не первый попавшийся.
+        # And the mark sits on the TRUNCATED one, not the first to hand.
         i = book.index("p0000-b1")
         assert 'data-truncated="yes"' in book[i:i + 200], book[i:i + 200]
 
 
 def test_bulk_names_the_rewrap_apart_from_new_work():
-    """«Переобёрнуто» отделено от «поставлено».
+    """"Rewrapped" is held apart from "placed".
 
-    Смена НАШЕЙ обёртки — настоящая замена и в стопку отката ложится, но
-    работой не является: байты модели те же. Сверяется sha ОТВЕТА МОДЕЛИ
-    последней ступени, а не готовое тело — тело различается ровно обёрткой.
+    Changing OUR wrapper is a real swap and joins the undo stack, but it is
+    not work: the model bytes are the same. So the sha compared is of the
+    MODEL ANSWER, not of the finished body, which differs by the wrapper.
     """
     import tempfile
     from booksmith.doc import apply as ap
@@ -332,9 +328,9 @@ def test_bulk_names_the_rewrap_apart_from_new_work():
         t1 = ap.from_read(tmp, os.path.join(tmp, "read"), log=lambda *_: None)
         assert t1["placed"] == 1 and t1["rewrapped"] == 0, (
             "первая замена — настоящая работа, а не переобёртка")
-        # ПЕРЕОБЁРТКА НАСТОЯЩАЯ: байты модели те же, обёртка другая. Так
-        # выглядит книга, собранная прежней редакцией кода, после нового
-        # `apply`: на «Технологии огнеупоров» это 63 блока из 412.
+        # A REAL REWRAP: same model bytes, a different wrapper. This is how a
+        # book assembled by an older edition of the code looks after a new
+        # `apply`: on the refractories book, 63 blocks of 412.
         was = ap._wrap_fragment
 
         def other_wrapper(anchor, fragment, kind, source, role="unknown",
@@ -352,15 +348,14 @@ def test_bulk_names_the_rewrap_apart_from_new_work():
         assert t2["rewrapped"] == 1, (
             "смена НАШЕЙ обёртки записана как новая работа — «поставлено» "
             f"в журнале означало бы работу, которой не было: {t2}")
-        # А третий прогон прежней обёрткой — снова настоящая работа, потому
-        # что тело опять другое; но байты модели те же, значит переобёртка.
+        # A third run with the old wrapper: the body differs again, the model
+        # bytes do not -- work AND a rewrap.
         t3 = ap.from_read(tmp, os.path.join(tmp, "read"), log=lambda *_: None)
         assert t3["rewrapped"] == t3["placed"] == 1, t3
-        # СВЕРЯЕТСЯ ПОСЛЕДНЯЯ СТУПЕНЬ СТОПКИ, А НЕ ПЕРВАЯ. Кто-то поправил
-        # блок руками другой разметкой — вернуть на его место ответ модели
-        # это РАБОТА, а не переобёртка, хотя в первой ступени стопки лежат те
-        # же байты. Без этого случая обе сверки дают один ответ, и подмена
-        # `[-1]` на `[0]` проходит незамеченной.
+        # THE LAST STACK STEP IS COMPARED, NOT THE FIRST. Someone fixed the
+        # block by hand -- putting the model answer back is WORK, though the
+        # first step of the stack holds the same bytes. Without this case both
+        # comparisons answer alike and `[-1]` -> `[0]` passes unnoticed.
         ap.put(tmp, "p0000-b0", "<fcel>руками<nl>", kind="otsl",
                source="человек", log=lambda *_: None)
         t4 = ap.from_read(tmp, os.path.join(tmp, "read"), log=lambda *_: None)
@@ -371,17 +366,17 @@ def test_bulk_names_the_rewrap_apart_from_new_work():
 
 
 def test_a_refused_block_is_not_counted_as_being_in_the_book():
-    """Блок, который сторожа не пустили, в числах КНИГИ не появляется.
+    """A block the guards refused never enters the numbers OF THE BOOK.
 
-    Счёт формы однажды уже стоял до сторожей и говорил о книге то, чего в
-    ней нет. Отказ здесь настоящий: кусок несёт чужую метку блока, и её
-    ловит `_check_fragment`.
+    The shape count once stood before the guards and told of the book what is
+    not in it. The refusal here is real: a foreign block marker inside the
+    fragment, caught by `_check_fragment`.
     """
     import tempfile
     from booksmith.doc import apply as ap
     with tempfile.TemporaryDirectory() as tmp:
         _bench(tmp, ["<fcel>a<fcel>b<nl><fcel>1<fcel>2<nl>",
-                     # 1x5 — форма невозможна, И кусок будет отвергнут.
+                     # 1x5: impossible shape, AND the fragment is refused.
                      "<fcel>a<fcel>b<fcel>c<fcel>d<fcel>e<nl>"
                      "<!--bs:p0000-b9-->"])
         t = ap.from_read(tmp, os.path.join(tmp, "read"), log=lambda *_: None)
@@ -392,13 +387,13 @@ def test_a_refused_block_is_not_counted_as_being_in_the_book():
 
 
 def test_the_caption_names_which_zero_it_was():
-    """Подпись у пустого блока называет ПРИЧИНУ, а не «не прочитан».
+    """The caption of an empty block names the REASON, not "not read".
 
-    Замер: у `p0024-b23` (полоса тени переплёта, 12x408 px) в `answers/`
-    стоит `чем кончилось: stop`, `отказ: null`, текст пустой — модель
-    ОТВЕТИЛА ПУСТЫМ. Книга говорила «не прочитан», что читается как «мы его
-    не читали». Пять нулей `books read` сводились в один, и говорящий из них
-    врал.
+    Measured: `p0024-b23` (a binding-shadow strip, 12x408 px) carries
+    `outcome: stop`, `error: null` and empty text in `answers/` -- the model
+    ANSWERED WITH NOTHING. The book said "not read", read as "we never read
+    it". The five zeroes of `books read` collapsed into one, and the one that
+    spoke was lying.
     """
     stayed_silent = H.why_empty({"outcome": "stop", "error": None})
     not_asked = H.why_empty({"outcome": None, "error": None})

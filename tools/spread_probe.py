@@ -1,58 +1,48 @@
-"""Проверить вето на разрез разворота: сколько раз сработало и справедливо ли.
+"""Check the spread-cut veto: how often it fired, and whether it was right.
 
-ЗАЧЕМ ЭТОТ ФАЙЛ СУЩЕСТВУЕТ.  Первая редакция вето в `djvu.py` объявляла
-«порог 0.5% ловит 84% контрольных при отказе на 1–2% настоящих корешков» — и
-скрипт, которым это считали, в дерево не попал.  Через день утверждение стало
-непроверяемым, а прогон по живой книге дал другое: 11 отказов из 189 (5.8%),
-и все одиннадцать ложные.  Замер без способа его повторить — это мнение,
-набранное моноширинным шрифтом.
+WHY THIS FILE EXISTS. The first edition of the veto in `djvu.py` announced "a
+0.5 % threshold catches 84 % of the controls" -- and the script that computed
+it never entered the tree. A day later the claim was unverifiable, and a live
+book said otherwise: 11 refusals of 189, all eleven false. A measurement with
+no way to repeat it is an opinion set in monospace.
 
-ЧТО МЕРИТ.  По каждому развороту: сработало ли вето, и если да — из-за чего.
-Чернота, идущая через корешок, делится на ТРИ разряда, и это различение и
-есть суть:
+WHAT IT MEASURES. Per spread: did the veto fire, and on account of what. Black
+crossing the gutter falls into THREE classes:
 
-    короткая      — прогон в десяток-другой пикселей.  Так выглядит ТЕНЬ
-                    ПЕРЕПЛЁТА: у сканов разворота строки корешка чернее
-                    всего.  Вето по ней — ложная тревога, и притом обидная:
-                    тень переплёта есть улика корешка, то есть прямо
-                    противоположна тому, что вето ищет.
-    сквозная,
-    но на кромке  — прогон в четверть ширины и дальше, но лежит вплотную к
-                    краю листа.  Так выглядит ЧЁРНАЯ КРОМКА СКАНА, и по длине
-                    она от линейки неотличима: 27..100 % ширины разворота.
-                    Она и дала 44 ложных вето из 379 на «Справочнике».
-    сквозная
-    в теле листа  — та же длина, но в теле страницы.  Так выглядит линейка
-                    таблицы, пересекающей корешок: она идёт через обе
-                    страницы.  Вето по ней и должно срабатывать — только по
-                    ней.
+    short         -- a dozen-odd pixels. The BINDING SHADOW, blackest of all on
+                     a spread scan. A veto here is a false alarm and a galling
+                     one: the shadow is evidence OF a gutter, the opposite of
+                     what the veto hunts.
+    continuous,
+    at the edge   -- a quarter of the width and beyond, flush to the edge of
+                     the sheet. The BLACK EDGE OF THE SCAN, by length
+                     indistinguishable from a rule: 27..100 % of the spread. It
+                     gave 44 false vetoes of 379 on the "Справочник".
+    continuous,
+    in the body   -- the same length, inside the sheet. A table rule crossing
+                     the gutter. On this one the veto should fire -- on this
+                     one only.
 
-Все три величины печатаются отдельно.  «Линеек нет», «чернота была и вся
-оказалась короткой» и «чернота была сквозная, да вся на кромке» — три разных
-ответа, и сводить их в одно число значит терять ровно тот разряд ошибки, ради
-которого промер и написан: оба раза, когда вето ошибалось, оно ошибалось
-именно разрядом.
+All three print apart, because merging them loses exactly the class of error
+the gauge exists for: both times the veto was wrong, it was wrong by class.
 
-ЗАПУСК::
+RUN::
 
-    python tools/spread_probe.py --selfcheck            # без книг, секунды
+    python tools/spread_probe.py --selfcheck            # no books, seconds
     python tools/spread_probe.py raw/*.djvu
     python tools/spread_probe.py --pages 17,20,23 raw/книга.djvu
 
-Третий вид — посмотреть поимённо, что нашлось на подозрительных листах.  Им и
-проверяется, что признак различает: подставьте лист с таблицей во весь
-разворот и лист с одной тенью переплёта — разряды должны выйти разные.
+The third form names what was found on suspect sheets: feed it a table across
+the whole spread and a bare binding shadow, and the classes must differ.
 
-ЧЕГО ПРОМЕР НЕ ПРОВЕРЯЕТ, И ЭТО НАДО ЗНАТЬ.  Отрицательная сторона измерена на
-живых книгах: 11 ложных вето «Огнеупоров» и 44 ложных вето «Справочника» сняты,
-на обеих книгах теперь 0 из 189 и 0 из 379.  Положительная — что настоящая
-линейка через корешок вето ВЫЗЫВАЕТ — на живых сканах не проверена, и теперь
-известно почему: таблицы через корешок в наших книгах НЕТ ни одной.  Замер:
-строк, чёрных через центральные 10 % ширины, в теле листа одна на 568
-разворотов, и та — хвост той же кромки.  Проверена положительная сторона пока
-только синтетикой, `--selfcheck`.  Значит цена ошибки прежняя и
-несимметричная: лишний отказ отдаёт распознавателю двухколоночный разворот,
-страницы целы; разрез по таблице уничтожает числа безвозвратно.
+BOTH SIDES ARE MEASURED ON LIVE SCANS NOW, and raising `PROBE_DPI` to 72 got
+there. Negative: the 11 false vetoes of "Огнеупоры" and the 44 of the
+"Справочник" are gone. Positive: the one veto left IS a real table across the
+gutter ("Справочник" sheet 194, rule over 0.376 of the width) -- the positive
+side is no longer synthetic-only. Partial, still: of the three known such
+tables only that one is catchable at any threshold, and why is in `djvu.py`.
+The cost stays asymmetric: a spurious refusal hands over a two-column spread
+with its pages whole; a cut through a table destroys the numbers for good.
 """
 import os
 import subprocess
@@ -65,7 +55,7 @@ from booksmith import djvu  # noqa: E402
 
 
 def unpack(src, tmp):
-    """djvu -> pdf во временный каталог, минуя проверку свежести в to_pdf."""
+    """djvu -> pdf into a temp dir, bypassing the freshness check in to_pdf."""
     out = os.path.join(tmp, "probe.pdf")
     subprocess.run([djvu._tool("ddjvu"), "-format=pdf", "-quality=85",
                     src, out], check=True, capture_output=True)
@@ -73,7 +63,7 @@ def unpack(src, tmp):
 
 
 def cut_column(pix):
-    """Тот же выбор столбца, что делает `_gutter`, — чтобы мерить то самое."""
+    """The same column `_gutter` picks -- so we measure that very one."""
     data = pix.samples
     lo = int(pix.width * (0.5 - djvu.GUTTER_BAND / 2))
     hi = int(pix.width * (0.5 + djvu.GUTTER_BAND / 2))
@@ -86,8 +76,8 @@ def cut_column(pix):
 
 
 def probe(src, only=None):
-    """Промер одной книги. Возвращает (разворотов, вето, сквозных, коротких,
-    сквозных на кромке, подробности)."""
+    """One book. Returns (spreads, vetoes, continuous, short, continuous at
+    the edge, detail)."""
     import pymupdf
     with tempfile.TemporaryDirectory() as tmp:
         doc = pymupdf.open(unpack(src, tmp))
@@ -108,10 +98,9 @@ def probe(src, only=None):
             x = cut_column(pix)
             through, short = djvu.dark_rows(pix, x)
             lo, hi = djvu.body_band(pix)
-            # Сквозные У КРАЯ печатаются отдельно от сквозных в теле листа:
-            # это те самые 391 строка «Справочника», из-за которых вето
-            # срабатывало 44 раза из 379. Свести их в одно число значит снова
-            # потерять разряд ошибки, ради которого промер и написан.
+            # Continuous AT THE EDGE apart from continuous in the body: the
+            # 391 rows of the "Справочник" that fired the veto 44 times of 379.
+            # One number for both loses the class of error again.
             edge = [y for y in through if not (lo <= y < hi)]
             body = [y for y in through if lo <= y < hi]
             through_total += len(through)
@@ -127,7 +116,7 @@ def probe(src, only=None):
     return spreads, vetoed, through_total, short_total, edge_total, detail
 
 
-# (имя случая, что нарисовать поверх двух колонок «текста», ждём ли вето)
+# (case name, what to draw over two columns of "text", is a veto expected)
 CASES = (
     ("чистый корешок", None, False),
     ("тень переплёта сверху", "shadow-top", False),
@@ -135,58 +124,55 @@ CASES = (
     ("линейка через весь разворот", "rule-full", True),
     ("линейка через треть", "rule-third", True),
     ("таблица во весь разворот", "table", True),
-    # Сканы серые, а не чёрные: без этого случая порог черноты RULE_INK можно
-    # задрать до 250 — и ни один нарисованный чистым чёрным случай этого не
-    # заметит. Мутация должна ловиться, иначе порог не проверен.
+    # Scans are grey, not black: without this case RULE_INK could go to 250
+    # and no case drawn in pure black would notice. The mutation has to be
+    # caught, or the threshold is unchecked.
     ("выцветшая линейка через разворот", "rule-grey", True),
-    # Бумага у сканов желтоватая. Без этого случая тот же порог можно опустить
-    # до пяти, и всё поле листа станет «чернилами».
+    # Scan paper is yellowish. Without this case the same threshold could drop
+    # to five and the whole sheet would become "ink".
     ("жёлтая бумага, чистый корешок", "paper-grey", False),
-    # ЧЁРНАЯ КРОМКА ЛИСТА — тот самый дефект: 44 ложных вето из 379 разворотов
-    # «Справочника». Прогон 27..100% ширины, порог длины проходит насквозь, и
-    # различает её только положение. Верх и низ порознь: в живых книгах вся
-    # 391 сквозная строка пришлась на ВЕРХНИЙ край, значит нижний не проверен
-    # ничем, кроме этого случая.
+    # THE BLACK EDGE OF THE SHEET -- the defect itself: 44 false vetoes of 379
+    # on the "Справочник". Run 27..100% of the width, straight through the
+    # length threshold; only position tells it apart. Top and bottom apart: in
+    # the live books all 391 continuous rows fell on the TOP edge, so nothing
+    # but this case checks the bottom.
     ("чёрная кромка листа сверху", "edge-top", False),
     ("чёрная кромка листа снизу", "edge-bottom", False),
-    # Обратная сторона того же порога: линейка, стоящая у самого края ТЕЛА
-    # листа, вето вызывать обязана. Стоит она на 5.5% высоты — ровно там, где
-    # в «Справочнике» замерена ближайшая к краю настоящая линейка (33 строки
-    # из 599). Случай краснеет, если RULE_EDGE поднять до 6%.
+    # The other side of that threshold: a rule at the very edge of the BODY
+    # must cause a veto. At 5.5% of the height -- where the "Справочник" has
+    # its nearest-to-edge real rule (row 33 of 599). Reddens if RULE_EDGE goes
+    # to 6%.
     ("линейка у края тела листа", "rule-near-edge", True),
-    # Линейка в ОДНУ строку пробы: на 36 dpi так выглядит настоящая линейка
-    # (703 блока из 882 в «Справочнике» — высотой ровно в строку). Прежняя
-    # величина — доля сквозных строк — на пробе в 599 строк требовала трёх и
-    # по такой линейке не сработала бы никогда.
+    # A rule ONE probe row tall: 703 blocks of 882 in the "Справочник" are
+    # exactly that. The old quantity -- the share of continuous rows -- wanted
+    # three of 599 and would never have fired on such a rule.
     ("линейка в одну строку пробы", "rule-hairline", True),
-    # Тень переплёта бывает и НЕ у края: в «Справочнике» 4 коротких строки
-    # черноты через корешок лежат на 6.8..13.9% высоты, прогон до 0.109
-    # ширины. Без этого случая нижнюю сторону порога RULE_RUN проверить нечем:
-    # у кромочных случаев её теперь отсекает RULE_EDGE.
+    # The binding shadow is not always at the edge: in the "Справочник" 4 short
+    # rows across the gutter lie at 6.8..13.9% of the height, run up to 0.109
+    # of the width. Without this case nothing checks the LOWER side of
+    # RULE_RUN: on the edge cases RULE_EDGE now cuts it off.
     ("тень переплёта в теле листа", "shadow-body", False),
-    # Линейка таблицы, стоящей на ОДНОЙ странице разворота, но заходящей за
-    # геометрическую середину скана: корешок у сканов почти никогда не
-    # приходится на половину, ради этого и ищется столбец. Резать такой лист
-    # можно и нужно — справа от линейки. Случай краснеет, если сузить полосу
-    # поиска GUTTER_BAND: тогда рез упрётся в середину, то есть в линейку.
+    # A table on ONE page of the spread whose rule runs past the geometric
+    # middle: the gutter almost never falls at the half, which is why a column
+    # is searched for at all. Such a sheet can and must be cut -- to the right
+    # of the rule. Reddens if GUTTER_BAND is narrowed: the cut then hits the
+    # middle, that is, the rule.
     ("линейка одной страницы за середину", "rule-one-page", False),
 )
 
 
 def selfcheck():
-    """Умеет ли вето провалиться — на нарисованных листах, без книг.
+    """Can the veto fail -- on drawn sheets, without books.
 
-    Половина случаев обязана вето вызвать, половина обязана не вызвать.
-    Признак, который нельзя провалить, — не прибор: пометка `≠` в прежнем
-    разборе стояла у 416 таблиц из 448 и не значила ничего именно потому, что
-    её никто не проверял против известной порчи.
+    Half the cases must raise a veto and half must not. A signal that cannot be
+    made to fail is not an instrument: the `≠` mark of the old parse stood on
+    416 tables of 448 and meant nothing precisely because nobody checked it
+    against a known corruption. Returns 1 on any mismatch: a check has to be
+    able to stop somebody.
 
-    Возврат 1 при любом расхождении: проверка нужна такая, чтобы могла
-    кого-нибудь остановить.
+    WHAT IT CATCHES. A run with a knob shifted on purpose (mutation)::
 
-    ЧТО ЭТА ПРОВЕРКА ЛОВИТ.  Прогон с нарочно сдвинутой ручкой (мутация)::
-
-        RULE_RUN 0.25 -> 0.9         6 расхождений из 14
+        RULE_RUN 0.25 -> 0.9         6 mismatches of 14
         RULE_RUN 0.25 -> 0.05        1
         RULE_EDGE 0.03 -> 0.0        2
         RULE_EDGE 0.03 -> 0.06       1
@@ -194,26 +180,30 @@ def selfcheck():
         RULE_INK 96 -> 250           1
         RULE_INK 96 -> 5             1
         RULE_BAND 0.012 -> 0.4       1
-        RULE_BAND 0.012 -> 0.0001    0 — НЕ ловится
+        RULE_BAND 0.012 -> 0.0001    0 -- NOT caught
         GUTTER_BAND 0.20 -> 0.9      6
         GUTTER_BAND 0.20 -> 0.001    1
-        PROBE_DPI 36 -> 12           2
-        PROBE_DPI 36 -> 150          0 — НЕ ловится
-        MIN_SPREAD_RATIO 1.15 -> 9   0 — НЕ ловится
+        PROBE_DPI 72 -> 12           2
+        PROBE_DPI 72 -> 150          0 -- NOT caught
+        PROBE_DPI 72 -> 36           0 -- NOT caught, and this is the dear one
+        MIN_SPREAD_RATIO 1.15 -> 9   0 -- NOT caught
 
-    `RULE_EDGE` ловится в ОБЕ стороны, и это не украшение: порог, введённый
-    против ложных вето, обязан краснеть и когда его убрали (вернулись 44
-    ложных вето «Справочника»), и когда его задрали (перестала видеться
-    линейка, стоящая близко к краю).  Односторонне проверенный порог можно
-    двигать в безопасную для проверки сторону сколько угодно.
+    `RULE_EDGE` is caught BOTH ways, and that is not decoration: a threshold
+    brought in against false vetoes must redden when it is removed (the 44 come
+    back) and when it is raised (a rule close to the edge stops being seen). A
+    threshold checked on one side can be moved as far as you like towards the
+    other.
 
-    Три мутации не ловятся, и молчать об этом нельзя — непроверенное, выданное
-    за проверенное, и есть тот фон, ради ухода от которого всё написано.
-    `MIN_SPREAD_RATIO` не ловится честно: самопроверка зовёт `_gutter` напрямую
-    и признака разворота не касается вовсе.  `RULE_BAND` вниз и `PROBE_DPI`
-    вверх не ловятся потому, что обе делают промер ТОЧНЕЕ: полоса уже — строгее
-    отбор, разрешение выше — виднее линейка; вреда от них на нарисованных
-    листах нет, а есть ли он на живых сканах, эта проверка сказать не может.
+    Four are not caught, and keeping quiet about that is the background all
+    this was written to leave. `MIN_SPREAD_RATIO` honestly cannot be: the
+    self-check calls `_gutter` directly and never touches the spread test.
+    `RULE_BAND` down and `PROBE_DPI` up make the gauge MORE precise -- narrower
+    band, stricter filter; higher resolution, clearer rule -- so on drawn
+    sheets they do no harm, and whether they do on live scans this cannot say.
+    `PROBE_DPI` DOWN to the old 36 is the expensive one: drawn rules stay pure
+    black at any resolution, while on the live "Справочник" that step sank
+    three real tables to 0.000..0.043, below a scan blot. The drawn sheets
+    cannot see it; the books did.
     """
     import pymupdf
 
@@ -222,17 +212,17 @@ def selfcheck():
         pg = doc.new_page(width=800, height=500)
         if kind == "paper-grey":
             pg.draw_rect(pg.rect, color=None, fill=(0.88, 0.85, 0.78))
-        for x0 in (60, 430):                      # две колонки «текста»
+        for x0 in (60, 430):                      # two columns of "text"
             for i in range(20):
                 pg.draw_line(pymupdf.Point(x0, 60 + i * 20),
                              pymupdf.Point(x0 + 310, 60 + i * 20),
                              color=(0, 0, 0), width=3)
         black, grey = (0, 0, 0), (0.55, 0.55, 0.55)
         if kind == "shadow-top":
-            # ШИРЕ полосы поиска (400 ± 40 pt), иначе `argmin` просто уйдёт от
-            # тени в соседний чистый столбец, случай пройдёт по неверной
-            # причине и мутацию порога не поймает. В книге тень именно такая:
-            # накрывает весь корешок, и уйти от неё некуда.
+            # WIDER than the search band (400 +- 40 pt), or `argmin` walks off
+            # the shadow into the clean column next door, the case passes for
+            # the wrong reason and catches no threshold mutation. In the book
+            # the shadow is just so: it covers the gutter, nowhere to walk.
             pg.draw_rect(pymupdf.Rect(340, 0, 460, 12), color=None, fill=black)
         elif kind == "shadow-full":
             pg.draw_rect(pymupdf.Rect(396, 0, 404, 500), color=None, fill=black)
@@ -251,35 +241,37 @@ def selfcheck():
                              pymupdf.Point(740, 100 + i * 40),
                              color=black, width=4)
         elif kind == "edge-top":
-            # Во всю ширину и вплотную к краю — как кромка настоящего скана.
-            # 8 pt при 500 pt высоты = 1.6% высоты пробы: столько же, сколько
-            # самая глубокая кромка «Справочника» (9 строк из 604, 1.5%).
+            # Full width and flush to the edge, like the edge of a real scan.
+            # 8 pt at a height of 500 pt = 1.6% of the probe: as deep as the
+            # deepest edge of the "Справочник" (9 rows of 604, 1.5%).
             pg.draw_rect(pymupdf.Rect(0, 0, 800, 8), color=None, fill=black)
         elif kind == "edge-bottom":
             pg.draw_rect(pymupdf.Rect(0, 492, 800, 500), color=None,
                          fill=black)
         elif kind == "rule-near-edge":
-            # 28 pt из 500 = 5.5% высоты — ближайшая к краю настоящая линейка,
-            # какую удалось намерить на живой книге.
+            # 28 pt of 500 = 5.5% of the height -- the nearest-to-edge real
+            # rule we could measure on a live book.
             pg.draw_rect(pymupdf.Rect(60, 28, 740, 30), color=None, fill=black)
         elif kind == "rule-hairline":
-            # 2 pt при 36 dpi — ровно одна строка пробы, и границы её лежат на
-            # целых пикселях: иначе сглаживание размажет линейку на две строки
-            # и случай пройдёт по неверной причине.
+            # 2 pt -- one probe row at the old PROBE_DPI 36, two at today's
+            # 72. Bounds on whole pixels, or antialiasing smears the rule over
+            # an extra row and the case passes for the wrong reason.
             pg.draw_rect(pymupdf.Rect(60, 250, 740, 252), color=None,
                          fill=black)
         elif kind == "shadow-body":
-            # Той же ширины, что и тень сверху (иначе argmin уйдёт от неё в
-            # чистый столбец), но на 20% высоты — в теле листа, где RULE_EDGE
-            # её уже не отсекает. Прогон 120 pt из 800 = 15% ширины, порог
-            # RULE_RUN = 25%. Стоит МЕЖДУ строк «текста» (они через 20 pt):
-            # слипшись со строкой, пятно дало бы прогон в 85% ширины и случай
-            # прошёл бы по неверной причине — так первая редакция и вышла.
+            # Same width as the shadow on top (or argmin walks off into a
+            # clean column), but at 20% of the height -- in the body, where
+            # RULE_EDGE no longer cuts it off. Run 120 pt of 800 = 15% of the
+            # width against RULE_RUN = 25%. BETWEEN rows of "text" (20 pt
+            # apart): stuck to a row, the blot would run 85% of the width and
+            # the case would pass for the wrong reason -- so the first edition
+            # came out.
             pg.draw_rect(pymupdf.Rect(340, 108, 460, 114), color=None,
                          fill=black)
         elif kind == "rule-one-page":
-            # Кончается за серединой листа (410 из 800), но до столбца, куда
-            # уйдёт рез: справа от линейки есть чистая полоса 410..430.
+            # Ends past the middle of the sheet (410 of 800) but short of the
+            # column the cut will take: a clean band 410..430 lies to its
+            # right.
             pg.draw_rect(pymupdf.Rect(60, 250, 410, 254), color=None,
                          fill=black)
         return doc

@@ -1,90 +1,83 @@
-"""ПОРЯДОК СБОРКИ КНИГИ — одно правило на весь проект, а не четыре копии.
+"""BOOK ASSEMBLY ORDER -- one rule for the project, not four copies.
 
-ЧТО ЭТО РЕШАЕТ. Первый уровень отдаёт контуры, но книгу надо сложить в
-последовательность. Две модели из шести предсказывают порядок чтения САМИ —
-`PP-DocLayoutV2` и `V3`, у них это настоящий ранг сети. У остальных четырёх —
-`plus-L`, `heron`, `egret`, `YOLOX` — ранга нет, и порядок задаём мы. Этот
-файл и есть «мы».
+WHAT IT DECIDES. Level one returns contours; the book still has to be folded
+into a sequence. Two models of six predict the reading order THEMSELVES --
+`PP-DocLayoutV2` and `V3`, a real network rank. `plus-L`, `heron`, `egret` and
+`YOLOX` have none, so we set the order. This file is "we".
 
-ПОЧЕМУ ОТДЕЛЬНЫМ ФАЙЛОМ. Правило жило в ЧЕТЫРЁХ местах трёх адаптеров, и в
-двух из них оно было ДРУГИМ, чем объявляло:
+WHY A FILE OF ITS OWN. The rule lived in FOUR places of three adapters, and in
+two of them it was NOT what it declared:
 
-    doclayout.py:441   our_order_key       -> (y0, x0)          объявлено верно
-    yolox_layout.py    kept.sort           -> (y0, x0)          объявлено верно
-    docling_heron.py   kept.sort  x2       -> (round(y/20), x)  ОБЪЯВЛЕНО КАК
-                                              «наш, сверху вниз и слева
-                                              направо», то есть не то
+    doclayout.py:441   our_order_key       -> (y0, x0)          declared right
+    yolox_layout.py    kept.sort           -> (y0, x0)          declared right
+    docling_heron.py   kept.sort  x2       -> (round(y/20), x)  DECLARED AS
+                                              "ours, top down and left to
+                                              right", which it is not
 
-Корзины по двадцать пикселей — ровно тот способ, который в `doclayout.py`
-отвергнут доводом «двадцать это пиксели растра: при другом `PAGE_DPI` соседи по
-строке переставляются, а ручки, которая бы это объявила, нет». Под одним именем
-жили два правила, и заметить это можно было только чтением всех четырёх мест
-сразу. Теперь место одно.
+Twenty-pixel buckets are the very thing `doclayout.py` had rejected (the
+reason stands below, at the sort). Two rules under one name, visible only by
+reading all four places at once. Now the place is one.
 
-КАКОЕ ПРАВИЛО ЛУЧШЕ — ЗАМЕРЕНО, И НАШЕ ПРОИГРАЛО. Опыт: ОДНИ И ТЕ ЖЕ рамки
-`PP-DocLayoutV2`, 600 страниц золотого стенда, переставлены тремя способами и
-померены одним `books score` на одном знаменателе (464 страницы в счёте):
+WHICH RULE IS BETTER IS MEASURED, AND OURS LOST. THE SAME `PP-DocLayoutV2`
+boxes, 600 golden pages, permuted three ways, one `books score`, one
+denominator (464 pages counted):
 
-    наше (y0, x0)          2471 лишний прыжок   5.33 на страницу
-    ранг самой модели V2    501                 1.08
-    правила docling         439                 0.95
-    правила docling вслепую 454                 0.98   (все ярлыки = текст)
+    ours (y0, x0)             2471 extra jumps   5.33 per page
+    the model's own rank, V2   501               1.08
+    docling rules              439               0.95
+    docling rules blindfolded  454               0.98   (every label = text)
 
-Контроль сошёлся: вариант «ранг» дал ровно те 501, что печатает `books score`
-на рабочем выводе, — значит опыт поставлен верно, координаты не тронуты, а
-переставлен только список.
+Control: the "rank" variant gave exactly the 501 `books score` prints on the
+working output -- coordinates untouched, only the list permuted. The
+blindfolded run shows the win comes NOT from our label translation but from the
+rules finding columns; 439 against 454 is the price of the translation, small.
 
-Слепой прогон здесь не украшение: он показывает, что выигрыш даёт НЕ наш
-перевод ярлыков, а то, что правила действительно находят колонки. Разница
-между 439 и 454 — цена перевода, и она мала.
+STABILITY IS CHECKED, AND THE ANSWER IS TWO DIFFERENT ONES.
+`metrics.column_jumps_ranking` over 16 sweep points of the grouping
+parameters:
 
-УСТОЙЧИВОСТЬ ПРОВЕРЕНА, И ОТВЕТА ДВА РАЗНЫХ. `metrics.column_jumps_ranking`
-по 16 точкам развёртки параметров группировки:
+    RULER SPAN 4.02
+    bounds:  ours (y0, x0)      3.021 .. 7.041
+             model rank V2      0.229 .. 1.733
+             docling rules      0.284 .. 1.569
+    inverted pairs: "model rank V2 against docling rules"
 
-    РАЗМАХ ЛИНЕЙКИ 4.02
-    пределы:  наше (y0, x0)     3.021 .. 7.041
-              ранг модели V2    0.229 .. 1.733
-              правила docling   0.284 .. 1.569
-    перевёрнутых пар: «ранг модели V2 против правила docling»
+* **ours is worse than both STABLY** -- the bounds do not overlap at any of the
+  16 points. That is the one being replaced;
+* **docling rules against the V2 rank the instrument CANNOT TELL APART** -- the
+  pair inverts, the difference at the default being 0.13 against a span of
+  4.02. So V2 and V3 keep their rank: trading working and free for a 54 MB
+  dependency without a number is taste, not measurement.
 
-То есть:
+WHY (y0, x0) LOSES THOUGH IT SOUNDS RIGHT: on a two-column page it reads ACROSS
+the columns -- a line of the left, a line of the right, the left again. Every
+crossing is an extra jump, justly: a book folded that way interleaves columns.
 
-* **наше правило хуже обоих УСТОЙЧИВО** — пределы не пересекаются вовсе, ни на
-  одной из 16 точек. Его и заменяем;
-* **правила docling против ранга V2 прибор НЕ РАЗЛИЧАЕТ** — пара перевёрнута,
-  разница при умолчании 0.13 при размахе линейки 4.02. Поэтому V2 и V3 свой
-  ранг СОХРАНЯЮТ: менять работающее и даровое на зависимость в 54 МБ, не имея
-  числа, — это выбор по вкусу, а не по замеру.
+WHAT THIS IS NOT: fixing the model. No box coordinate is touched, nothing
+merged, cut or dropped -- only the ORDER OF THE LIST, and that was always ours.
+The rule "nobody fixes the model" does not apply here.
 
-ПОЧЕМУ (y0, x0) ПРОИГРЫВАЕТ, ХОТЯ ЗВУЧИТ ПРАВИЛЬНО. На двухколоночной странице
-он читает ПОПЕРЁК колонок: строка левой, строка правой, снова левой. Каждый
-такой переход прибор считает лишним прыжком, и считает справедливо — книга,
-сложенная так, перемешивает колонки.
+WHAT `docling` COSTS, before switching it on:
 
-ЧТО ЭТО НЕ ЕСТЬ. Это НЕ починка модели: координаты рамок не трогаются ни на
-знак, ни одна рамка не сливается, не режется и не удаляется — меняется
-исключительно ПОРЯДОК СПИСКА, а он всегда был наш. Правило «модель никто не
-чинит» тут не при чём, и подменять его сюда нельзя.
-
-ЧЕМ ПЛАТИМ ЗА `docling`, и это надо знать до включения:
-
-* пакеты: `docling-slim` и `rtree`, +54 МБ (без torch);
-* ПОРЯДОК ЗАВИСИТ ОТ ВЕРСИИ ПИТОНА. В `reading_order_rb.py` два нетранзитивных
-  `sorted()` (строки 535 и 556, оба сортируют `PageElement` одним `__lt__`), и
-  на тех же 600 страницах между python 3.12.3 и 3.13.13 порядок разошёлся на
-  ТРЁХ страницах. Рамки при этом до последнего знака те же. Версия уезжает в
-  слепок (`detect._packages`), то есть расхождение хотя бы видно;
-* правила смотрят всего на ВОСЕМЬ ярлыков из своего словаря, и перевод в них
-  объявлен здесь поимённо — см. `_LABELS`.
+* `docling-slim` and `rtree`, +54 MB (no torch);
+* THE ORDER DEPENDS ON THE PYTHON VERSION. `reading_order_rb.py` holds two
+  non-transitive `sorted()` calls (lines 535 and 556, both sorting
+  `PageElement` by one `__lt__`), and on the same 600 pages python 3.12.3 and
+  3.13.13 diverged on THREE pages, the boxes identical to the last digit. The
+  version travels into the snapshot (`detect._packages`), so the divergence is
+  at least visible;
+* the rules look at only EIGHT labels of their vocabulary, translated by name
+  in `_LABELS`.
 """
 import functools
 
 RULES = ("ours", "docling")
 DEFAULT = "ours"
 
-# Слова для `meta` страницы. Они же — то, что прочтёт `metrics._model_has_rank`:
-# слово «наш» в начале строки ОБЯЗАНО остаться, иначе метрика примет чужое
-# правило за ранг модели и напечатает процент согласия из ничего.
+# Words for the page `meta`, and also what `metrics._model_has_rank` reads:
+# `ours` MUST stay the first word of the string (case is folded for it in
+# `models/base.ours_order`), or the metric takes a foreign rule for a model
+# rank and prints an agreement percentage out of nothing.
 WORDS = {
     "ours": "ours_top_down_left_right",
     "docling": ("ours_by_choice_but_the_rule_is_foreign: reading_order_rb "
@@ -94,7 +87,8 @@ WORDS = {
 
 
 def rule() -> str:
-    """Какое правило действует. Ручка читается через реестр, а не из среды."""
+    """Which rule is in force. The knob comes through the registry, not the
+    environment."""
     from .run import knobs
     v = (knobs.knob("ASSEMBLY_ORDER") or DEFAULT).strip()
     if v not in RULES:
@@ -106,18 +100,20 @@ def rule() -> str:
     return v
 
 
-# ПЕРЕВОД ЯРЛЫКОВ ОБЪЯВЛЕН ПОИМЁННО, А НЕ ВЫВЕДЕН ИЗ РАЗРЯДА. Тот же довод,
-# что у маршрутов чтения в `models/paddleocr_vl/reader.py`: словарь ярлыков СВОЙ
-# у каждого детектора — 25 имён у V2, 20 у plus-L, по 17 у обеих моделей
-# docling, 11 у DocLayNet, — и правило «чего не знаю, то текст» молча повело бы
-# двадцать шестой класс новых весов не тем именем. Разряд (`policy.role`) сюда
-# не годится: он отвечает на вопрос «вырезать или печатать», а правилам порядка
-# нужно «верхний колонтитул или нижний», и разряд «служебное» их не различает.
+# TRANSLATED BY NAME, NOT DERIVED FROM THE ROLE. Same argument as the reading
+# routes in `models/paddleocr_vl/reader.py`: each detector has its OWN
+# vocabulary -- 25 names in V2, 20 in plus-L, 17 in each docling model, 11 in
+# DocLayNet -- and "what I do not know is text" would silently carry the
+# twenty-sixth class of new weights under a wrong name. The role
+# (`policy.role`) will not do: it answers "cut out or print", while the rules
+# need "page header or page footer", which the role "service" does not tell
+# apart.
 #
-# Правила смотрят ровно на восемь имён (проверено разбором `reading_order_rb`):
-# CAPTION, CODE, FOOTNOTE, PAGE_FOOTER, PAGE_HEADER, PICTURE, TABLE, TEXT.
-# Всё, что сюда не попало, — TEXT, и это ЗНАЧЕНИЕ, а не умолчание: у правил нет
-# отдельного поведения для «абзаца» и «заголовка раздела».
+# The rules look at exactly eight names (checked by reading
+# `reading_order_rb`): CAPTION, CODE, FOOTNOTE, PAGE_FOOTER, PAGE_HEADER,
+# PICTURE, TABLE, TEXT. Anything unlisted is TEXT, and that is a VALUE, not a
+# default: the rules have no separate behaviour for "paragraph" and "section
+# header".
 _LABELS = {
     "PP-DocLayoutV2": {
         "header": "page_header", "header_image": "page_header",
@@ -160,23 +156,21 @@ _LABELS = {
 
 
 def cover(vocab, which=None) -> str | None:
-    """Есть ли перевод под словарь ЭТОЙ модели. Роняет прогон ДО первой страницы.
+    """Is there a translation for THIS vocabulary. Fails before page one.
 
-    СПРАШИВАЕТСЯ ТОЛЬКО ТОГДА, КОГДА НУЖЕН. Правилу `ours` ярлыки не нужны
-    вовсе — оно смотрит на одни координаты, — и требовать под него описанную
-    политику значило бы ронять прогон на словаре, которого правило и не
-    касается. Первая редакция так и делала, и это ловилось подставным
-    адаптером с одним ярлыком.
+    ASKED ONLY WHEN NEEDED. The `ours` rule needs no labels -- it looks at
+    coordinates -- and demanding a declared policy for it would kill a run over
+    a vocabulary the rule never touches. The first edition did that, caught by
+    a stub adapter with one label.
 
-    `vocab` — ПОЛНЫЙ словарь модели (`self.labels`), а не ярлыки страницы:
-    политика выбирается словарём модели, а не именем, набранным руками, — то
-    же правило, что в `policy.for_labels`, и здесь оно вызывается, а не
-    переписывается.
+    `vocab` is the model's FULL vocabulary (`self.labels`), not the page's
+    labels: the policy is chosen by vocabulary, not by a hand-typed name --
+    `policy.for_labels` again, called here rather than rewritten.
 
-    Незнакомый ярлык внутри известного словаря не беда: он поедет как `text`,
-    и это объявленное значение. Беда — чужой словарь целиком: у правил есть
-    отдельное поведение для колонтитулов, и по чужому словарю колонтитул уехал
-    бы в тело страницы. Молча.
+    An unknown label inside a known vocabulary is no trouble: it rides as
+    `text`, a declared value. A foreign vocabulary whole is: the rules have
+    separate behaviour for running heads, and under a foreign one a running
+    head would sail into the body of the page. Silently.
     """
     if (which or rule()) == "ours":
         return None
@@ -192,12 +186,12 @@ def cover(vocab, which=None) -> str | None:
 
 @functools.lru_cache(maxsize=1)
 def _predictor():
-    """Предсказатель порядка ОДИН на прогон.
+    """ONE order predictor per run.
 
-    Его конструктор ставит два своих числа (`dilated_page_element`, порог
-    горизонтального расширения 0.15); заводить его заново на каждой странице
-    значило бы обещать, что они могут разъехаться. Ровно тот же довод, что у
-    `_DoclingPipeline` в `models/docling_heron.py`.
+    Its constructor sets two numbers of its own (`dilated_page_element`, the
+    horizontal expansion threshold 0.15); building it afresh per page would
+    promise they may drift. Same argument as `_DoclingPipeline` in
+    `models/docling_heron.py`.
     """
     try:
         from docling.models.postprocessing.reading_order_rb import (
@@ -215,27 +209,26 @@ def _predictor():
 
 def permutation(labels, boxes, width, height, index, vocab,
                 which=None) -> list[int]:
-    """Перестановка списка блоков. Возвращает НОМЕРА, а не блоки.
+    """Permutation of the block list. Returns INDICES, not blocks.
 
-    Номерами нарочно: у трёх адаптеров списки трёх разных форм (кортеж
-    `(label, score, box)` у yolox и heron, строка numpy у doclayout), и общее
-    правило не должно знать ни одной из них. Прежде каждый сортировал сам, и
-    формы разошлись вместе с правилами.
+    Indices on purpose: three adapters carry three list shapes (a
+    `(label, score, box)` tuple in yolox and heron, a numpy row in doclayout),
+    and the shared rule must know none of them. Each used to sort itself, and
+    the shapes drifted along with the rules.
 
-    `boxes` — в пикселях страницы, начало в ЛЕВОМ ВЕРХНЕМ углу, как везде у
-    нас. Правила docling ждут отсчёта СНИЗУ (`self.b > other.b`), и перевод
-    делается здесь. Подать как есть значило бы получить книгу, прочитанную
-    снизу вверх, и ни одна метрика рамок этого не заметила бы — ровно эта
-    ловушка названа в разделе 19 `docs/contour-notes.md`.
+    `boxes` are in page pixels, origin at the TOP LEFT as everywhere here; the
+    docling rules count from the BOTTOM (`self.b > other.b`), converted here.
+    Fed as they come, the book would be read bottom up and no box metric would
+    notice -- the trap named in section 19 of `docs/contour-notes.md`.
     """
     which = which or rule()
     n = len(boxes)
     if n == 0:
         return []
     if which == "ours":
-        # Корзины по y НЕТ нарочно: `round(y/20)` — это пиксели растра, и при
-        # другом PAGE_DPI соседи по строке переставлялись бы, а ручки, которая
-        # бы это объявила, нет.
+        # NO y buckets, on purpose: `round(y/20)` is raster pixels, and at
+        # another PAGE_DPI row neighbours would swap places with no knob to
+        # declare it.
         return sorted(range(n), key=lambda i: (boxes[i][1], boxes[i][0]))
 
     from docling.models.postprocessing.reading_order_rb import (
@@ -254,10 +247,10 @@ def permutation(labels, boxes, width, height, index, vocab,
             b=h - float(b[3]), t=h - float(b[1]),
             coord_origin=CoordOrigin.BOTTOMLEFT))
     out = [e.cid for e in _predictor().predict_reading_order(els)]
-    # ПЕРЕСТАНОВКА ОБЯЗАНА БЫТЬ ПЕРЕСТАНОВКОЙ. Правила разводят колонтитулы и
-    # тело по трём спискам и сшивают обратно; потеряйся там элемент — рамка
-    # исчезла бы из книги молча, а число рамок «после» выглядело бы просто
-    # чуть меньшим.
+    # A PERMUTATION MUST BE A PERMUTATION. The rules split running heads and
+    # body into three lists and stitch them back; lose an element there and a
+    # box would vanish from the book silently, while the count "after" would
+    # merely look a little smaller.
     if sorted(out) != list(range(n)):
         raise RuntimeError(
             f"правила порядка docling вернули не перестановку на странице "

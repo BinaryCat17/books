@@ -1,36 +1,37 @@
-"""Что именно уезжает в VLM: кроп по рамке или страница с дырами.
+"""What exactly goes to the VLM: a crop by box, or a page with holes.
 
-Две подачи, и обе — ГИПОТЕЗЫ. Ни одна не проверена: VLM в этом проекте не
-запускалась после чистого листа ни разу. Поэтому они объявлены ручкой
-`VLM_INPUT`, а не выбраны, и сравнит их стенд числом.
+Two feeds, HYPOTHESES both when written. `crop` has since run for real --
+`books read`, 436 pages, $0.545; `masked_page` never has, and cannot from the
+paying path: `books read` cuts its own crops and never asks `VLM_INPUT`, which
+only `books feed` reads. The two are still unmeasured against each other.
 
-    crop         по одному запросу на текстовый блок. Так работает пайплайн
-                 PaddleOCR-VL штатно: замер прежнего прогона — 409 запросов
-                 на 25 страниц, шестнадцать на страницу.
-    masked_page  один запрос на страницу; артефакты замазаны. В шестнадцать
-                 раз меньше вызовов, и модель видит связный текст целиком —
-                 переносы, колонки, продолжение абзаца через рисунок.
+    crop         one request per text block, as the PaddleOCR-VL pipeline
+                 ships: measured on an earlier run, 409 requests over 25
+                 pages, sixteen a page.
+    masked_page  one request per page, artifacts painted over. Sixteen times
+                 fewer calls, and the model sees coherent text whole --
+                 hyphenation, columns, a paragraph continuing past a figure.
 
-В ОБЕИХ артефакты в VLM не уезжают вовсе. Это и есть первый уровень: текст
-читаем, таблицы и рисунки вырезаем картинками и не парсим. Попытка заглянуть
-внутрь рисунка проверена и отвергнута — школьная панграмма `The quick brown
-fox`, выдуманная по штриховому чертежу, +2100 слов мусора на 20 страницах.
+In BOTH, artifacts do not go to the VLM at all. That is the first level: read
+the text, cut tables and figures out as pictures, do not parse them. Looking
+inside a figure was tried and rejected -- the pangram `The quick brown fox`
+invented off a line drawing, +2100 words of rubbish over 20 pages.
 
-ЧТО ИЗВЕСТНО ПРОТИВ `masked_page`, И ЭТО НАДО ЗНАТЬ ДО ЗАМЕРА.
+WHAT IS KNOWN AGAINST `masked_page`, BEFORE THE MEASUREMENT.
 
-* **Пустое место не молчит.** Проба «пустой белый лист»: модель выдала пять
-  разных китайских канцелярских таблиц за пять попыток. Замазанный
-  прямоугольник — тот же пустой лист в миниатюре, и на его месте может
-  явиться сочинённая таблица. Поэтому чем замазывать — ручка `MASK_FILL`, а
-  не константа: белое здесь наименее нейтрально из всего, что можно выбрать.
-* **Контекст портит чтение.** Убрали третий столбец — модель прочла второй
-  верно; с полной страницей читала неверно. На этом корпусе изоляция помогла.
-* **Потолок ответа.** Пайплайн опускает `max_new_tokens` до 4096, а самый
-  длинный ОДИН текстовый блок в наших книгах — 8207 знаков. Страница целиком
-  больше, и обрыв у этой модели выглядит как зацикливание.
+* **Empty space does not keep quiet.** The probe "a blank white sheet": five
+  tries, five different Chinese office tables. A painted rectangle is that
+  sheet in miniature, and an invented table can appear in its place. So what to
+  paint with is the `MASK_FILL` knob, not a constant: white is the least
+  neutral choice there is.
+* **Context spoils reading.** Remove the third column and the model read the
+  second right; with the whole page it read it wrong. Here isolation helped.
+* **The answer ceiling.** The pipeline lowers `max_new_tokens` to 4096, while
+  the longest SINGLE text block in our books is 8207 characters. A whole page
+  is bigger, and a cutoff in this model looks like looping.
 
-Здесь, в `doc/`, а не в `models/`, потому что вся работа — геометрия рамок и
-растр, тот же код, что у вырезки. В модель это уедет байтами картинки.
+Here in `doc/`, not `models/`: all the work is box geometry and raster, the
+same code as the crop. Into the model it goes as image bytes.
 """
 import json
 import os
@@ -38,12 +39,12 @@ import os
 from .. import policy
 from ..run import knobs
 from . import crop
-# Якорь блока собирается ОДНИМ правилом на весь проект. Здесь стояла его
-# вторая копия (`f"p{page.index:04d}-b{b.block_id}"`), и разошлась бы она с
-# `html.anchor_of` при первой же смене схемы имён — молча: feed.json назвал бы
-# куски одними именами, книга и blocks.json другими, а связать подачу с
-# блоком стало бы нечем. Ровно этой болезнью — двумя копиями одного
-# сговора — рождаются проценты из ничего (см. tests/test_html_order.py).
+# The block anchor is built by ONE rule for the project. Here stood a second
+# copy (`f"p{page.index:04d}-b{b.block_id}"`) that would have drifted from
+# `html.anchor_of` at the first rename -- silently: feed.json naming the pieces
+# one way, the book and blocks.json another, nothing left to tie a feed to a
+# block. Two copies of one convention is how percentages out of nothing are
+# born (see tests/test_html_order.py).
 from .html import anchor_of
 
 FILLS = {"white": (1.0, 1.0, 1.0), "black": (0.0, 0.0, 0.0),
@@ -52,13 +53,13 @@ MODES = ("crop", "masked_page")
 
 
 def params(page_dpi: float | None = None) -> dict:
-    """Действующая подача. Уезжает в слепок целиком.
+    """The feed in force. It goes into the snapshot whole.
 
-    `page_dpi` — резкость ДЕТЕКЦИИ (`растр.dpi` слепка). Пустые `CROP_DPI` и
-    `FEED_DPI` значат «как видела модель», и раскрывать их окружением текущего
-    процесса значит называть «как видела модель» то, чего модель не видела.
-    Без аргумента ответ несёт поле «dpi откуда» со словом «текущего процесса»
-    — угадано, а не сверено.
+    `page_dpi` is the DETECTION resolution (`raster.dpi` of the snapshot);
+    empty `CROP_DPI` and `FEED_DPI` mean "as the model saw it". Expanding those
+    from the current process would call "as the model saw it" something the
+    model never saw, so with no argument `page_dpi_source` names the current
+    process -- guessed, not agreed.
     """
     mode = knobs.knob("VLM_INPUT")
     if mode not in MODES:
@@ -66,11 +67,11 @@ def params(page_dpi: float | None = None) -> dict:
     fill = knobs.knob("MASK_FILL")
     if fill not in FILLS:
         raise ValueError(f"MASK_FILL={fill!r}: знаю только {tuple(FILLS)}")
-    # Из crop берём ТОЛЬКО то, что относится к режиму `crop`. Прежняя редакция
-    # раскрывала crop.params() целиком, и CROP_DPI молча задавал разрешение
-    # ЦЕЛОЙ страницы, уезжающей в VLM: поднимаешь резкость вырезки таблицы —
-    # вчетверо растёт картинка подачи, другое число визуальных токенов, другая
-    # цена, и сравнение подач мерит уже не то.
+    # From crop we take ONLY what belongs to the `crop` mode. The previous
+    # edition expanded `crop.params()` whole, and CROP_DPI silently set the
+    # resolution of the WHOLE page going to the VLM: sharpen a table crop and
+    # the feed image grows fourfold -- another count of visual tokens, another
+    # price, and the comparison of feeds measures something else.
     c = crop.params(page_dpi)
     feed_dpi = knobs.knob("FEED_DPI")
     if feed_dpi:
@@ -86,19 +87,19 @@ def params(page_dpi: float | None = None) -> dict:
 
 
 def _union_rects(holes):
-    """Слить пересекающиеся дыры в связные группы (описанными рамками).
+    """Merge intersecting holes into connected groups (by bounding boxes).
 
-    СЛИВАЕТ ДО УПОРА, А НЕ ЗА ОДИН ПРОХОД, и это не придирка. Слитая рамка
-    берётся ОПИСАННОЙ, то есть растёт, — и может накрыть ту, которую этот же
-    проход уже отложил как непересекающуюся. Замер на построенном входе:
-    `[[0,20,4,30], [0,0,10,10], [5,5,8,80]]` — прежний код печатал «дыр 2»
-    (`[0,20,4,30]` и `[0,0,10,80]`), хотя вторая целиком накрывает первую и
-    группа тут одна. По числу дыр выбирают подачу, и завышенное число делает
-    `masked_page` дороже на бумаге, чем она есть.
+    MERGES TO EXHAUSTION, NOT IN ONE PASS, and that is not nitpicking: a merged
+    box is the BOUNDING one, so it grows, and may cover one this same pass has
+    already set aside as disjoint. On a constructed input
+    `[[0,20,4,30], [0,0,10,10], [5,5,8,80]]` the old code printed "holes 2"
+    (`[0,20,4,30]` and `[0,0,10,80]`) though the second covers the first
+    entirely and the group is one. The feed is chosen by the number of holes,
+    and an inflated number makes `masked_page` dearer on paper than it is.
 
-    На девяти каталогах `bench/*/detect` (762 страницы с артефактами) старый и
-    новый счёт совпали до единицы — 1701 дыра тем и другим. То есть в дереве
-    беда пока не всплывала; чинится она потому, что вход выбирает не она.
+    Over nine `bench/*/detect` directories (762 pages with artifacts) old and
+    new agreed to the unit, 1701 holes: the trouble has not surfaced in the
+    tree, and is fixed because it is not what chooses the input.
     """
     out = []
     for h in holes:
@@ -122,7 +123,7 @@ def _union_rects(holes):
 
 
 def _union_area(holes):
-    """Площадь объединения прямоугольников: развёртка по вертикали."""
+    """Area of the union of rectangles: a sweep along the vertical."""
     if not holes:
         return 0
     xs = sorted({v for h in holes for v in (h[0], h[2])})
@@ -143,11 +144,11 @@ def _union_area(holes):
 
 def masked_page(doc, page_index: int, boxes, page_dpi: float, dst: str,
                 dpi: float | None = None, fill: str | None = None) -> dict:
-    """Страница целиком, артефакты замазаны. Возвращает величины подачи.
+    """The whole page, artifacts painted over. Returns the feed values.
 
-    Замазываем ПОСЛЕ отрисовки, прямо по растру: рисовать поверх PDF значит
-    менять исходник, а он должен остаться нетронутым — из него же режутся
-    вырезки для второго уровня.
+    Painted AFTER rendering, straight onto the raster: drawing over the PDF
+    would change the source, and it has to stay untouched -- the crops for the
+    second level are cut from it.
     """
     import pymupdf
 
@@ -157,8 +158,9 @@ def masked_page(doc, page_index: int, boxes, page_dpi: float, dst: str,
 
     page = doc[page_index]
     pix = page.get_pixmap(dpi=int(dpi))
-    # Рамки приходят в пикселях растра детекции; переводим в пиксели ЭТОГО
-    # растра. Без пересчёта дыры уехали бы, а страница выглядела бы целой.
+    # The boxes arrive in pixels of the detection raster; converted to pixels
+    # of THIS one. Without that the holes would drift and the page would still
+    # look whole.
     k = dpi / page_dpi
     holes = []
     for b in boxes:
@@ -169,11 +171,11 @@ def masked_page(doc, page_index: int, boxes, page_dpi: float, dst: str,
             continue
         pix.set_rect(r, tuple(int(c * 255) for c in FILLS[fill]))
         holes.append([r.x0, r.y0, r.x1, r.y1])
-    # Площадь по ОБЪЕДИНЕНИЮ, а не суммой. Модель отдаёт `chart` и `image` на
-    # одном прямоугольнике со связанным рангом — это её задокументированное
-    # поведение, — и сумма площадей на такой странице ровно вдвое завышала
-    # «долю страницы замазана», а «дыр 2» стояло при одной дыре. По этим
-    # числам и выбирают подачу.
+    # Area by UNION, not by sum. The model returns `chart` and `image` on one
+    # rectangle with a tied rank -- its documented behaviour -- and a sum of
+    # areas on such a page overstated "share of page painted" exactly twofold,
+    # while "holes 2" stood at one hole. These are the numbers the feed is
+    # chosen by.
     area = _union_area(holes)
     merged = _union_rects(holes)
     os.makedirs(os.path.dirname(os.path.abspath(dst)), exist_ok=True)
@@ -186,14 +188,14 @@ def masked_page(doc, page_index: int, boxes, page_dpi: float, dst: str,
 
 
 def prepare(doc, page, out_dir: str, page_dpi: float, log=print) -> dict:
-    """Приготовить то, что уехало бы в VLM, и НИЧЕГО не считать.
+    """Prepare what would go to the VLM, and count NOTHING.
 
-    Ни одного обращения к модели: местно, бесплатно, чтобы посмотреть глазами
-    и сравнить подачи ДО того, как пойдут деньги.
+    Not one call to the model: local and free, so the feeds can be looked at
+    and compared BEFORE the money goes.
     """
     p = params(page_dpi)
     os.makedirs(out_dir, exist_ok=True)
-    tag = f"p{page.index:04d}"           # имя файла СТРАНИЦЫ, а не якорь блока
+    tag = f"p{page.index:04d}"           # the PAGE file name, not an anchor
     art = [b for b in page.blocks if policy.role(b.label) == "artifact"]
     txt = [b for b in page.blocks if policy.role(b.label) != "artifact"]
 
@@ -214,9 +216,9 @@ def prepare(doc, page, out_dir: str, page_dpi: float, log=print) -> dict:
     return {"feed_mode": "masked_page", "requests": 1,
             "artifacts_masked": len(art),
             "text_blocks_on_page": len(txt),
-            # Куда потом вернуть плейсхолдеры. Модель об этом не скажет:
-            # промпт у неё два слова, без системного сообщения, попросить
-            # метку нечем. Значит, геометрию дыр обязаны помнить мы.
+            # Where to put the placeholders back. The model will not say: its
+            # prompt is two words, no system message, nothing to ask a marker
+            # with. So the hole geometry is ours to remember.
             "page": info}
 
 

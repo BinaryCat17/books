@@ -1,14 +1,14 @@
-"""Второй уровень: чтение блоков моделью — весь путь, без единого цента.
+"""The second level: blocks read by a model -- the whole path, for no cents.
 
-Проверяется НАША половина: маршруты промтов, доставка, разбор ответа, сборка
-страниц, пять разных нулей и слепок. Модель подменяется `fake_vlm.FakeVlm` —
-OpenAI-совместимым адресом, отвечающим по указке; он не читает картинку и не
-притворяется, что читает.
+OUR half is checked, from prompt routes to the snapshot, five different
+zeroes among them. The model is stood in for by `fake_vlm.FakeVlm`, an
+OpenAI-compatible endpoint answering to order; it does not read the picture
+and does not pretend to.
 
-ПОЧЕМУ ЭТО НАПИСАНО ДО ПЕРВОГО ПЛАТНОГО ПРОГОНА. Порядок работ в проекте
-обратный привычному: сперва стенд и прибор, потом модель. Прежний второй
-уровень отлаживался на арендованной карте — тринадцать запусков, $0.52, из них
-полезных два, и все ловушки оказались нашими, ни одной модельной.
+WHY BEFORE THE FIRST PAID RUN. The order of work here is the reverse of the
+usual: bench and instrument first, model after. The previous second level was
+debugged on a rented card -- thirteen launches, $0.52, two of them useful --
+and every trap turned out to be ours, not one the model's.
 """
 import json
 import os
@@ -27,18 +27,18 @@ from booksmith.read import run as vrun                      # noqa: E402
 from booksmith.models.paddleocr_vl.reader import PaddleOcrVl  # noqa: E402
 
 
-# ------------------------------------------------------------ маршруты ---
+# -------------------------------------------------------------- routes ---
 
 def test_every_label_of_every_dictionary_has_a_route():
-    """Ярлык без маршрута роняет прогон ДО первого цента.
+    """A label without a route drops the run BEFORE the first cent.
 
-    Умолчания «чего не знаю — спрошу OCR:» нет нарочно: словарь ярлыков СВОЙ
-    у каждого детектора, и двадцать шестой класс новых весов уехал бы не тем
-    промтом, а его ответ записался бы чтением.
+    No default "whatever I don't know, ask OCR:", deliberately: each detector
+    has its OWN label dictionary, and the twenty-sixth class of new weights
+    would leave under the wrong prompt, its answer written down as reading.
     """
     from booksmith import policy
     for name, d in policy.POLICIES.items():
-        PaddleOcrVl(name).cover(d.keys())          # бросит, если дыра
+        PaddleOcrVl(name).cover(d.keys())          # throws on a hole
 
 
 def test_unknown_label_is_loud():
@@ -52,7 +52,7 @@ def test_unknown_label_is_loud():
 
 
 def test_kind_comes_from_the_prompt_not_from_the_answer():
-    """Вид объявляет ПРОМТ. Спросили таблицу — вид `otsl`, что бы ни пришло."""
+    """The PROMPT declares the kind: ask for a table, get kind `otsl`."""
     r = PaddleOcrVl("PP-DocLayoutV2").routes()
     assert r["table"].kind == "otsl" and r["table"].prompt == "Table Recognition:"
     assert r["display_formula"].kind == "latex"
@@ -60,7 +60,7 @@ def test_kind_comes_from_the_prompt_not_from_the_answer():
 
 
 def test_silence_carries_a_reason():
-    """«Не спрашиваем» — значение с причиной, а не забытый ярлык."""
+    """"Not asked" is a reason, not a forgotten label."""
     r = PaddleOcrVl("PP-DocLayoutV2").routes()
     for lab in ("image", "header_image", "footer_image"):
         assert not r[lab].asked()
@@ -77,7 +77,7 @@ def test_route_with_unknown_kind_is_loud():
 
 
 def test_declared_kinds_agree_with_the_book():
-    """Виды чтеца — те же имена, что принимает `books apply`."""
+    """The reader's kinds are names `books apply` accepts."""
     from booksmith.doc.apply import KINDS
     for name in ("PP-DocLayoutV2", "Docling", "DocLayNet"):
         for rt in PaddleOcrVl(name).routes().values():
@@ -85,7 +85,7 @@ def test_declared_kinds_agree_with_the_book():
                 assert rt.kind in KINDS, f"вид {rt.kind} книге неизвестен"
 
 
-# ------------------------------------------------------------ транспорт ---
+# ----------------------------------------------------------- transport ---
 
 def _t(url, model="PaddleOCR-VL-1.6-0.9B"):
     os.environ["VLM_ENDPOINT"] = url
@@ -94,10 +94,11 @@ def _t(url, model="PaddleOCR-VL-1.6-0.9B"):
 
 
 def test_transport_asks_who_is_answering():
-    """Проверка спрашивает не «жив ли», а «как тебя зовут».
+    """The check asks not "are you alive" but "what is your name".
 
-    Оплачено первым уровнем: `curl /v1/models` отвечала СИРОТА прошлого
-    прогона, державшая 60% видеопамяти, и скрипт считал, что поднял сервер сам.
+    Paid for on the first level: `curl /v1/models` was answered by an ORPHAN
+    of the previous run holding 60 % of the video memory, and the script took
+    it for its own.
     """
     with FakeVlm({"text": "ок"}) as s:
         out = _t(s.url).check()
@@ -115,8 +116,8 @@ def test_wrong_model_name_stops_the_run():
 
 
 def test_delivery_refusal_is_a_value_not_a_throw(tmp_png=None):
-    """Отказ доставки возвращается значением: прогон на пятистах блоках не
-    должен умирать от одного обрыва связи."""
+    """A refused delivery comes back as a value: a run over five hundred
+    blocks must not die of one broken connection."""
     png = _png()
     with FakeVlm({"http": 500}) as s:
         t = _t(s.url)
@@ -128,10 +129,10 @@ def test_delivery_refusal_is_a_value_not_a_throw(tmp_png=None):
 
 
 def test_answer_200_is_never_repeated():
-    """Переспрос после ответа запрещён правилом и выражен кодом.
+    """Asking again after an answer is forbidden by rule and said in code.
 
-    Ответ 200 с пустотой — это ОТВЕТ, и второй вопрос по нему был бы починкой
-    модели. Считаем обращения к службе: их обязано быть ровно одно.
+    A 200 with nothing in it IS an answer, and asking again would be
+    repairing the model. Calls to the service are counted: exactly one.
     """
     png = _png()
     os.environ["VLM_RETRIES"] = "3"
@@ -142,7 +143,7 @@ def test_answer_200_is_never_repeated():
 
 
 def test_delivery_refusal_is_repeated():
-    """А вот отказ доставки повторяется: ответа не было вовсе."""
+    """A refused delivery is repeated: there was no answer at all."""
     png = _png()
     os.environ["VLM_RETRIES"] = "2"
     with FakeVlm({"http": 503}) as s:
@@ -152,11 +153,11 @@ def test_delivery_refusal_is_repeated():
 
 
 def test_empty_crop_is_loud():
-    """Пустая вырезка не уезжает в модель.
+    """An empty crop never leaves for the model.
 
-    На пустом белом листе эта модель выдаёт полноценные таблицы — пять разных
-    за пять попыток. Послать пустоту значит получить выдумку и записать её
-    чтением.
+    On a blank white sheet this model returns full tables -- five different
+    ones in five tries. Send emptiness and you get an invention written down
+    as reading.
     """
     import tempfile
     p = os.path.join(tempfile.mkdtemp(), "пусто.png")
@@ -170,10 +171,10 @@ def test_empty_crop_is_loud():
 
 
 def test_the_very_crop_reaches_the_model():
-    """До модели доехала ТА вырезка, а не соседняя.
+    """THAT crop reached the model, not the neighbouring one.
 
-    Оплачено первым уровнем: переменная цикла затёрла коэффициент масштаба, и
-    36 страниц из 36 записались неразобранными при безупречном ответе модели.
+    Paid for on the first level: a loop variable overwrote the scale factor,
+    and 36 pages of 36 were written down unparsed on a faultless answer.
     """
     png = _png()
     n = os.path.getsize(png)
@@ -183,44 +184,42 @@ def test_the_very_crop_reaches_the_model():
         assert s.seen[0]["prompt"] == "Table Recognition:"
 
 
-# ------------------------------------------------------------- разбор ---
+# ------------------------------------------------------------- parsing ---
 
 def test_otsl_grid_matches_html_grid_cell_for_cell():
-    """Сетка из OTSL и та же сетка из HTML совпадают по адресам.
+    """A grid from OTSL and the same grid from HTML agree address by address.
 
-    Ради чего эта проверка. Прибор чтения разбирал таблицу ТОЛЬКО из HTML, и
-    безупречный ответ PaddleOCR-VL — а она отдаёт OTSL — получал «совпало по
-    адресу 0 (0%)» и клеймо «отдана текстом»: обвинение модели в дефекте
-    нашего разбора.
+    The reading instrument parsed a table ONLY out of HTML, so a faultless
+    answer from PaddleOCR-VL -- which returns OTSL -- got "matched by address
+    0 (0 %)" and the brand "handed over as text": the model accused of a
+    defect in our parser.
     """
-    # Сверяется НЕ разбор OTSL сам по себе, а ТА функция, которой прибор
-    # достаёт сетку из ответа модели. Первая редакция этой проверки звала
-    # `otsl.grid` и `_html_grid` порознь — и мутация «прибор снова слепнет на
-    # OTSL» прошла мимо неё: сломанный `_answer_grid` проверку не касался
-    # вовсе. Батарея это и поймала.
+    # What is compared is NOT the OTSL parser but THE function the instrument
+    # pulls a grid out of a model answer with. The first edition called
+    # `otsl.grid` and `_html_grid` separately, and the mutation "blind to OTSL
+    # again" passed it by: a broken `_answer_grid` never touched the check.
     from booksmith import text as booktext
     want = {(0, 0): "А", (0, 1): "Б", (1, 0): "1", (1, 1): "2"}
     g1 = booktext._answer_grid("<fcel>А<fcel>Б<nl><fcel>1<fcel>2<nl>", "otsl")
     g2 = booktext._answer_grid("<table><tr><td>А</td><td>Б</td></tr>"
                                "<tr><td>1</td><td>2</td></tr></table>", "html")
-    # И вид, объявленный промтом, не запирает разбор: модель, спрошенная про
-    # таблицу и ответившая HTML, ТАБЛИЦУ ПРОЧЛА, и мерить надо чтение.
+    # And the kind declared by the prompt does not lock the parser: a model
+    # asked for a table and answering HTML HAS READ THE TABLE.
     g3 = booktext._answer_grid("<fcel>А<fcel>Б<nl><fcel>1<fcel>2<nl>", "html")
     assert g1 == g2 == g3 == want
 
 
 def test_otsl_span_occupies_all_its_addresses():
-    """Сквозная клетка занимает все адреса — как colspan у HTML-разбора."""
+    """A spanning cell occupies every address, as colspan does in HTML."""
     g = otsl.grid("<ched>шапка<lcel><nl><fcel>1<fcel>2<nl>")
     assert g[(0, 0)] == g[(0, 1)] == "шапка"
 
 
 def test_torn_otsl_is_counted_not_repaired():
-    """Рваный OTSL остаётся рваным и считается числом.
+    """Torn OTSL stays torn and is counted as a number.
 
-    Вендорский `otsl_pad_to_sqr_v2` поступает наоборот — молча дополняет и
-    укорачивает, — и порванная по потолку таблица возвращается у него
-    правдоподобной.
+    The vendor's `otsl_pad_to_sqr_v2` does the opposite -- pads and truncates
+    in silence -- and a table torn at the ceiling comes back plausible.
     """
     _, t = otsl.parse("<fcel>a<fcel>b<nl><fcel>c<nl>")
     assert t["rows_of_unequal_length"] == 1
@@ -229,23 +228,23 @@ def test_torn_otsl_is_counted_not_repaired():
 
 
 def test_not_otsl_is_none_not_empty():
-    """«Это не OTSL» и «таблица пуста» — разные ответы."""
+    """"Not OTSL" and "the table is empty" are different answers."""
     assert otsl.grid("<table><tr><td>x</td></tr></table>") is None
     assert otsl.grid("просто проза") is None
     assert otsl.grid("") is None
 
 
 def test_sniffed_kind_never_overrides_the_declared_one():
-    """Догадка о виде лежит СБОКУ и ничего не решает."""
+    """A guess at the kind lies BESIDE and decides nothing."""
     assert vrun._sniff("<fcel>a<nl>") == "otsl"
     assert vrun._sniff("проза") == "text"
     assert vrun._sniff("") == "empty"
 
 
-# --------------------------------------------------------- проход книги ---
+# ------------------------------------------------------- the book pass ---
 
 def _png():
-    """Настоящая маленькая картинка: транспорт читает байты, а не путь."""
+    """A real small picture: the transport reads bytes, not a path."""
     import tempfile
     import pymupdf
     d = os.path.join(tempfile.mkdtemp(), "к.png")
@@ -258,7 +257,7 @@ def _png():
 
 
 def _book(tmp):
-    """Крошечная книга и каталог детекции к ней: два блока, текст и таблица."""
+    """A tiny book and its detect directory: text, table and a picture."""
     import pymupdf
     from booksmith.run import stamp
     pdf = os.path.join(tmp, "к.pdf")
@@ -302,7 +301,7 @@ def _run(tmp, plan, **kw):
 
 
 def test_read_fills_content_in_the_same_page_schema():
-    """Продукт чтения — тот же `pages/*.json`, что у детекции."""
+    """Reading produces the same `pages/*.json` detection does."""
     import tempfile
     tmp = tempfile.mkdtemp()
     _book(tmp)
@@ -313,17 +312,17 @@ def test_read_fills_content_in_the_same_page_schema():
     by = {b.block_id: b for b in p.blocks}
     assert by[0].content == "строка прозы" and by[0].kind == "text"
     assert by[1].content == "<fcel>А<fcel>Б<nl>" and by[1].kind == "otsl"
-    # Рисунок не спрашивали вовсе — и это НЕ молчание модели.
+    # The picture was never asked -- and that is NOT model silence.
     assert by[2].content is None and by[2].kind == "none"
     assert t["not_asked"] == 1 and t["read"] == 2
 
 
 def test_five_zeroes_are_counted_apart():
-    """Не спрошено / отказ доставки / промолчала / оборвано / прочитано."""
+    """Not asked / delivery refused / stayed silent / truncated / read."""
     import tempfile
     tmp = tempfile.mkdtemp()
     _book(tmp)
-    out, t = _run(tmp, {"OCR:": {"text": ""},                       # молчание
+    out, t = _run(tmp, {"OCR:": {"text": ""},                       # silence
                         "Table Recognition:": {"text": "<fcel>x<nl>",
                                                "finish": "length"}})
     assert t["not_asked"] == 1, t
@@ -334,7 +333,7 @@ def test_five_zeroes_are_counted_apart():
 
 
 def test_delivery_refusal_does_not_look_like_silence():
-    """Отказ связи не записывается молчанием модели: разные беды."""
+    """A refused connection is not model silence: different troubles."""
     import tempfile
     tmp = tempfile.mkdtemp()
     _book(tmp)
@@ -345,7 +344,7 @@ def test_delivery_refusal_does_not_look_like_silence():
 
 
 def test_model_bytes_are_untouched():
-    """Байты модели доезжают до страницы побайтово, включая мусор."""
+    """Model bytes reach the page byte for byte, rubbish included."""
     import tempfile
     tmp = tempfile.mkdtemp()
     _book(tmp)
@@ -358,7 +357,7 @@ def test_model_bytes_are_untouched():
 
 
 def test_observed_lives_beside_not_inside():
-    """Секунды, токены, догадка о виде — в answers/, а не в тексте блока."""
+    """Seconds, tokens, the kind guess -- in answers/, not in the text."""
     import tempfile
     tmp = tempfile.mkdtemp()
     _book(tmp)
@@ -369,19 +368,19 @@ def test_observed_lives_beside_not_inside():
     assert a["p0000-b0"]["observed"]["kind_sniffed"] == "text"
     assert a["p0000-b1"]["observed"]["kind_sniffed"] == "otsl"
     assert "seconds" in a["p0000-b0"]
-    # А в самом тексте — ни одной нашей пометки.
+    # And not one mark of ours in the text itself.
     with open(os.path.join(out, "pages", "0000.json"), encoding="utf-8") as f:
         p = Page.from_json(json.load(f))
     assert p.blocks[0].content == "проза"
 
 
 def test_swapped_pdf_stops_the_run():
-    """Книга, подменённая после детекции, роняет чтение вслух."""
+    """A book swapped after detection drops the reading, aloud."""
     import tempfile
     tmp = tempfile.mkdtemp()
     pdf = _book(tmp)
     with open(pdf, "ab") as f:
-        f.write(b"% extra byte\n")   # байт мимо ASCII в b"" не кладут
+        f.write(b"% extra byte\n")   # no non-ASCII byte goes in a b"" literal
     try:
         _run(tmp, {"OCR:": {"text": "x"}})
     except SystemExit as e:
@@ -391,7 +390,7 @@ def test_swapped_pdf_stops_the_run():
 
 
 def test_resume_does_not_ask_twice():
-    """Возобновление не платит второй раз за уже прочитанный блок."""
+    """Resuming does not pay twice for a block already read."""
     import tempfile
     tmp = tempfile.mkdtemp()
     _book(tmp)
@@ -409,7 +408,7 @@ def test_resume_does_not_ask_twice():
 
 
 def test_empty_run_is_not_a_success():
-    """Ноль спрошенных блоков — не успех, а пустой прогон."""
+    """Zero blocks asked is not a success but an empty run."""
     import tempfile
     tmp = tempfile.mkdtemp()
     _book(tmp)
@@ -422,12 +421,13 @@ def test_empty_run_is_not_a_success():
 
 
 def test_snapshot_carries_prompts_and_our_parser():
-    """Слепок несёт промты, порождение и хэш НАШЕГО разбора OTSL.
+    """The snapshot carries prompts, generation and the hash of OUR OTSL
+    parser.
 
-    Промты — единственное, чем здесь управляют ответом; поле «промты» было
-    пусто у всех прогонов проекта, и это первое, что его заполняет. Разбор
-    OTSL хэшируется отдельно: он решает числа не меньше модели, и два прогона
-    с разным разбором обязаны различаться слепком.
+    Prompts are the only thing here that steers the answer, and the "prompts"
+    field was empty in every run of the project until now. The OTSL parser is
+    hashed apart: it decides the numbers no less than the model, and two runs
+    with different parsers must differ in the snapshot.
     """
     import tempfile
     tmp = tempfile.mkdtemp()
@@ -445,5 +445,5 @@ def test_snapshot_carries_prompts_and_our_parser():
     assert snap["generation"]["max_tokens"] == 4096
     assert len(snap["adapter"]["sha256_otsl_parser"]) == 64
     assert snap["fingerprint"]["weights"]["dir"] is None
-    # Ключ НЕ уезжает в слепок: его кладут в git.
+    # The key does NOT go into the snapshot: snapshots are committed to git.
     assert snap["transport_fingerprint"]["api_key"] == "no"
