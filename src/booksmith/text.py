@@ -81,8 +81,8 @@ _DEC = re.compile(r"(?<=\d),(?=\d)")
 
 NORM_STEPS = {
     "none": [],
-    "boundary": ["NFKC и пробелы", "регистр", "тире/дефис/минус",
-                "десятичная запятая", "хвостовая пунктуация"],
+    "boundary": ["NFKC and spaces", "case", "dash/hyphen/minus",
+                 "decimal comma", "trailing punctuation"],
     # SIXTH STEP, MEASURED SEPARATELY. Everything above was measured on CELLS
     # (32 634 over six books) and says nothing about matching a formula against
     # prose: display maths arrives as `\[...\]`, the same fragment inside a
@@ -109,15 +109,16 @@ NORM_STEPS = {
     # degree sign; KEPT: command NAMES, `\alpha` -> `alpha`. Dropping all
     # commands gives 90 more matches and lifts the background 3.4 % -> 4.6 %,
     # signal to background 20.1 -> 15.9: noise. Rejected.
-    "latex": ["обёртка математики", "оформительские команды", "индексы в строку",
-              "^{\\circ} -> °", "далее ступени границы"],
+    "latex": ["math wrapper", "typeface commands", "indices inlined",
+              "^{\\circ} -> °", "then the boundary steps"],
     # What was rejected is printed beside the number; see `NORM_REFUSED`.
 }
 # Printed beside the number. Otherwise "CER 0.03" will mean anything at all a
 # month from now, and the first proposal will be to strip punctuation too.
-NORM_REFUSED = ("головная пунктуация (снимает 139, вредит 4: '.850' == '850'), "
-                "вся пунктуация (504 при вреде 108: '6—2' == '6,2'), "
-                "двойники кир/лат (лифт 2.70 против 3.06 без неё)")
+NORM_REFUSED = ("leading punctuation (removes 139, harms 4: '.850' == "
+                "'850'), all punctuation (504 at harm 108: '6—2' == '6,2'), "
+                "Cyrillic/Latin lookalikes (lift 2.70 against 3.06 "
+                "without it)")
 
 
 # LaTeX typeface commands change the SHAPE, not the meaning, so they go; the
@@ -169,8 +170,8 @@ def normalize(s: str, level: str = NORM) -> str:
     Exactly the steps measured at harm 0, and not one beyond them.
     """
     if level not in NORM_STEPS:
-        raise TextError(f"уровень нормализации {level!r} не объявлен; "
-                        f"есть {sorted(NORM_STEPS)}")
+        raise TextError(f"normalisation level {level!r} is not declared; "
+                        f"there are {sorted(NORM_STEPS)}")
     if s is None:
         return ""
     if level == "none":
@@ -189,9 +190,10 @@ def normalize(s: str, level: str = NORM) -> str:
 # measurement, which says nothing about matching a formula against prose.
 REFUSED = {
     "boundary": NORM_REFUSED,
-    "latex": ("снять пробелы целиком (сигнал 1268 против 841, но ложных среди "
-              "скрытых 12.8% против 11.7%; отвергнута не по выгоде, а по "
-              "несимметричной цене ошибки: ложное скрытие уносит текст)"),
+    "latex": ("strip spaces entirely (signal 1268 against 841, but false "
+              "among the hidden 12.8% against 11.7%; refused not on profit "
+              "but on the asymmetric cost of error: a false hide takes text "
+              "away)"),
 }
 
 
@@ -336,8 +338,9 @@ def _truth_grid(b, side=None):
         # Both sides speak and disagree. Taking either silently chooses for
         # the operator which truth to believe.
         raise TextError(
-            f"блок {b.get('block_id')}: сетка есть и в meta блока, и сбоку у "
-            f"страницы, и они не совпадают. Какой верить — решать не метрике.")
+            f"block {b.get('block_id')}: a grid is in the block's meta AND "
+            f"beside the page, and they disagree. Which to believe is not "
+            f"for the metric to decide.")
     if src is None:
         src = from_side
     if src is None:
@@ -345,10 +348,10 @@ def _truth_grid(b, side=None):
     g = _cells_from(src)
     if g is None:
         raise TextError(
-            f"блок {b.get('block_id')}: в meta есть табличные ключи "
+            f"block {b.get('block_id')}: meta holds table keys "
             f"{[k for k in m if k in _CELLS_KEYS or k in ('table', 'structure')]}, "
-            f"а сетка из них не читается. Пропустить это молча значит "
-            f"напечатать «ячеек 0» там, где ячейки есть.")
+            f"but no grid reads out of them. Skipping this silently means "
+            f"printing 'cells 0' where there are cells.")
     return g
 
 
@@ -375,9 +378,10 @@ def _truth_both(b, side=None):
     comes first and would drop the characters silently."""
     if _truth_grid(b, side) is not None and _truth_text(b, side) is not None:
         raise TextError(
-            f"блок {b.get('block_id')}: сбоку лежит И сетка таблицы, И знаки. "
-            f"Какую истину считать — решать не метрике: ветка таблицы стоит "
-            f"первой и знаки выбросила бы молча.")
+            f"block {b.get('block_id')}: beside it lie BOTH a table grid "
+            f"AND characters. Which truth to count is not for the metric to "
+            f"decide: the table branch comes first and would drop the "
+            f"characters silently.")
 
 
 class _TableHTML(HTMLParser):
@@ -553,9 +557,10 @@ def _anchor(b):
                 n = _anchor_num(v)
                 if n is None:
                     raise TextError(
-                        f"якорь {v!r} не разобран: ни число, ни постраничная "
-                        f"метка вида p0042-b17. Сопоставить по нему нельзя, а "
-                        f"тихо перейти на геометрию значит соврать про способ")
+                        f"anchor {v!r} not parsed: neither a number nor a "
+                        f"per-page label of the form p0042-b17. It cannot "
+                        f"pair, and quietly falling back to geometry would "
+                        f"lie about the method")
                 return n
     return None
 
@@ -660,17 +665,17 @@ def _load(d):
     of foreign jsons yields a plausible number about nothing.
     """
     if not os.path.isdir(d):
-        raise TextError(f"нет каталога {d}")
+        raise TextError(f"no directory {d}")
     out = {}
     for name in sorted(os.listdir(d)):
         if name.endswith(".json") and name not in ("run.json", "manifest.json"):
             with open(os.path.join(d, name), encoding="utf-8") as f:
                 p = json.load(f)
             if "blocks" not in p or "index" not in p:
-                raise TextError(f"{name}: не похоже на страницу разметки")
+                raise TextError(f"{name}: does not look like a markup page")
             out[int(p["index"])] = p
     if not out:
-        raise TextError(f"в {d} нет страниц")
+        raise TextError(f"no pages in {d}")
     return out
 
 
@@ -683,7 +688,7 @@ def measure(truth_dir: str, pages_dir: str, norm: str = NORM) -> dict:
     def _check(name, *a):
         fn = getattr(metrics, name, None)
         if fn is None:
-            return f"{name} НЕ СВЕРЕНО: проверки нет в metrics.py"
+            return f"{name} NOT CHECKED: no such check in metrics.py"
         return fn(*a)
 
     note = f"{_check('_same_book', truth_dir, pages_dir)}; " \
@@ -759,7 +764,7 @@ def measure_pages(T: dict, P: dict, norm: str = NORM) -> dict:
             j_, how = got.get(i_, (None, None))
             ans = pb[j_] if j_ is not None else None
             rec = {"page": i, "block_id": b.get("block_id"),
-                   "label": b.get("label"), "matched_by": how or "нет пары"}
+                   "label": b.get("label"), "matched_by": how or "no pair"}
             _truth_both(b, side)          # both truths at once: refuse aloud
             grid = _truth_grid(b, side)
             content = b.get("content")
@@ -866,7 +871,7 @@ def measure_pages(T: dict, P: dict, norm: str = NORM) -> dict:
                     # No character truth: nothing to read, so any text in the
                     # answer is invention. That is what a bait is.
                     bait["artifacts"] += 1
-                    rec["bucket"] = "приманка"
+                    rec["bucket"] = "bait"
                     if ans is None:
                         bait["unmatched"] += 1
                         mt["unmatched_truth"] += 1
@@ -884,7 +889,7 @@ def measure_pages(T: dict, P: dict, norm: str = NORM) -> dict:
                 # `bench/matematika` 26 formulas answered BYTE-FOR-BYTE from
                 # truth gave "26 artifacts, READ 26 (100%), silent 0".
                 art["block_count"] += 1
-                rec["bucket"] = "артефакт по истине"
+                rec["bucket"] = "artifact_with_truth"
                 ref = normalize(aside_text, norm)
                 art["truth_chars"] += len(ref)
                 if ans is None:
@@ -981,64 +986,69 @@ def report(res: dict, log=print) -> None:
     if res.get("book"):
         log(res["book"])
     n = res["normalization"]
-    log(f"нормализация: {n['level']} — " + ", ".join(n["steps"] or ["нет"]))
-    log(f"  НЕ снимаем: {n['not_stripped']}")
+    log(f"normalisation: {n['level']} — "
+        + ", ".join(n["steps"] or ["none"]))
+    log(f"  NOT stripped: {n['not_stripped']}")
     p, s = res["pages"], res["matching"]
-    log(f"страниц: истины {p['truth']}, ответа {p['answer']}, "
-        f"без ответа {p['no_answer']}, лишних {p['spurious']}")
+    log(f"pages: truth {p['truth']}, answer {p['answer']}, "
+        f"no answer {p['no_answer']}, spurious {p['spurious']}")
     d = s["share"]
     # The share paired is printed FIRST and always: a CER over two blocks of
     # forty is a figure about pairing, not about reading.
-    log(f"сопоставлено {s['matched_total']}/{s['truth_blocks']}"
-        f" ({'—' if d is None else f'{d*100:.0f}%'}): по якорю {s['by_anchor']}, "
-        f"по номеру {s['by_number']}, по геометрии {s['by_geometry']}")
-    log(f"  НЕ сопоставлено: истины {s['unmatched_truth']}, "
-        f"лишних в ответе {s['extra_in_answer']}, "
-        f"якорь в никуда {s['anchor_to_nowhere']}, на чужую страницу "
-        f"{s['anchor_wrong_page']}, мимо рамки {s['anchor_box_mismatch']}, "
-        f"без рамки в ответе {s['answer_without_box']}")
+    log(f"paired {s['matched_total']}/{s['truth_blocks']}"
+        f" ({'—' if d is None else f'{d*100:.0f}%'}): "
+        f"by anchor {s['by_anchor']}, by number {s['by_number']}, "
+        f"by geometry {s['by_geometry']}")
+    log(f"  NOT paired: truth {s['unmatched_truth']}, "
+        f"extra in the answer {s['extra_in_answer']}, "
+        f"anchor to nowhere {s['anchor_to_nowhere']}, to another page "
+        f"{s['anchor_wrong_page']}, off the box "
+        f"{s['anchor_box_mismatch']}, "
+        f"no box in the answer {s['answer_without_box']}")
     t = res["text"]
     if not t["block_count"]:
-        log("текст: НЕ РАЗМЕЧЕН в этой истине — сверять нечего "
-            "(это не ноль чтения)")
+        log("text: NOT MARKED in this truth — nothing to compare "
+            "(this is not zero reading)")
     else:
         cer, wer = t["CER"], t["WER"]
         ans = t["cer_answered"]
-        log(f"текст: блоков {t['block_count']}, знаков {t['truth_chars']}, "
-            f"слов {t['truth_words']}; "
+        log(f"text: blocks {t['block_count']}, "
+            f"characters {t['truth_chars']}, "
+            f"words {t['truth_words']}; "
             f"CER {'—' if cer is None else f'{cer:.4f}'}, "
             f"WER {'—' if wer is None else f'{wer:.4f}'}")
-        log(f"  на отвеченных CER "
-            f"{'—' if ans is None else f'{ans:.4f}'} по "
-            f"{t['truth_chars_answered']} знакам; "
-            f"без ответа {t['no_answer']} "
+        log(f"  CER over answered "
+            f"{'—' if ans is None else f'{ans:.4f}'} over "
+            f"{t['truth_chars_answered']} characters; "
+            f"no answer {t['no_answer']} "
             f"({(t['share_no_answer'] or 0)*100:.0f}%), "
-            f"не сопоставлено {t['unmatched']}, "
-            f"истина пуста {t['truth_empty']}")
+            f"not paired {t['unmatched']}, "
+            f"truth empty {t['truth_empty']}")
         if t["upper_bounded"]:
-            log(f"  расстояние ОЦЕНЕНО СВЕРХУ у {t['upper_bounded']} блоков: "
-                f"строки длиннее бюджета в {_BUDGET} клеток")
+            log(f"  distance UPPER BOUNDED on {t['upper_bounded']} blocks: "
+                f"strings longer than the budget of {_BUDGET} cells")
     b = res["tables"]
     if not b["block_count"]:
-        log("таблицы: структурной истины в этой книге нет — "
-            "сверять нечего (это не ноль по ячейкам)")
+        log("tables: this book has no structural truth — nothing to "
+            "compare (this is not zero by cells)")
     elif not b.get("answered_blocks"):
         # A third outcome, not the same as the first: truth EXISTS and the
         # answer does not.
-        log(f"таблицы: блоков {b['block_count']}, ячеек {b['cell_count']}, но ОТВЕТА "
-            f"НЕТ НИ НА ОДИН — сверять нечего, и это НЕ «совпало 0%»")
-        log(f"  без ответа {b['no_answer']}, отдана текстом "
-            f"{b['given_as_text']}, не сопоставлено {b['unmatched']}")
+        log(f"tables: blocks {b['block_count']}, cells {b['cell_count']}, "
+            f"but THERE IS NO ANSWER TO A SINGLE ONE — nothing to compare, "
+            f"and this is NOT 'matched 0%'")
+        log(f"  no answer {b['no_answer']}, given as text "
+            f"{b['given_as_text']}, not paired {b['unmatched']}")
     else:
         dc, cc = b["share_cells_matched"], b["cer_cells"]
-        log(f"таблицы: блоков {b['block_count']} (с ответом "
-            f"{b['answered_blocks']}), ячеек {b['cell_count']}, "
-            f"совпало по адресу {b['cells_matched']} "
+        log(f"tables: blocks {b['block_count']} (answered "
+            f"{b['answered_blocks']}), cells {b['cell_count']}, "
+            f"matched by address {b['cells_matched']} "
             f"({'—' if dc is None else f'{dc*100:.0f}%'}), "
-            f"CER ячеек {'—' if cc is None else f'{cc:.4f}'}")
-        log(f"  без ответа {b['no_answer']}, отдана текстом "
-            f"{b['given_as_text']}, сетка разошлась {b['grid_shape_differs']}, "
-            f"не сопоставлено {b['unmatched']}")
+            f"cell CER {'—' if cc is None else f'{cc:.4f}'}")
+        log(f"  no answer {b['no_answer']}, given as text "
+            f"{b['given_as_text']}, grid shape differs "
+            f"{b['grid_shape_differs']}, not paired {b['unmatched']}")
     ar = res["artifacts_with_truth"]
     if ar["block_count"]:
         c, ca = ar["CER"], ar["cer_answered"]
@@ -1046,31 +1056,33 @@ def report(res: dict, log=print) -> None:
         if not answered:
             # As for tables: silence on ALL of them once printed "CER
             # 1.0000", computed from nothing and read as measured.
-            log(f"артефакты С ИСТИНОЙ (формулы, подписи): блоков "
-                f"{ar['block_count']}, знаков {ar['truth_chars']}, но ОТВЕТА НЕТ "
-                f"НИ НА ОДИН — сверять нечего, и это НЕ «CER 1.0»")
+            log(f"artifacts WITH TRUTH (formulas, captions): blocks "
+                f"{ar['block_count']}, characters {ar['truth_chars']}, but "
+                f"THERE IS NO ANSWER TO A SINGLE ONE — nothing to compare, "
+                f"and this is NOT 'CER 1.0'")
         else:
-            log(f"артефакты С ИСТИНОЙ (формулы, подписи): блоков {ar['block_count']}"
-                f" (с ответом {answered}), знаков {ar['truth_chars']}, CER "
-                f"{'—' if c is None else f'{c:.4f}'}; на отвеченных "
+            log(f"artifacts WITH TRUTH (formulas, captions): blocks "
+                f"{ar['block_count']} (answered {answered}), characters "
+                f"{ar['truth_chars']}, CER "
+                f"{'—' if c is None else f'{c:.4f}'}; over answered "
                 f"{'—' if ca is None else f'{ca:.4f}'}")
-        log(f"  без ответа {ar['no_answer']}, не сопоставлено "
-            f"{ar['unmatched']}, выдумано на пустой истине "
+        log(f"  no answer {ar['no_answer']}, not paired "
+            f"{ar['unmatched']}, invented on empty truth "
             f"{ar['invented_on_empty_truth']}")
-        log(f"  это НЕ приманки: у них истина знаков ЕСТЬ, и прочитать их — "
-            f"верная работа, а не выдумка")
+        log(f"  these are NOT baits: they DO have character truth, and "
+            f"reading them is right work, not invention")
     a = res["baits"]
     if not a["artifacts"]:
-        log("приманки: артефактов без текста в истине нет — "
-            "проверить выдумывание не на чем")
+        log("baits: no artifacts without text in truth — nothing to "
+            "check invention on")
     else:
-        log(f"приманки: артефактов {a['artifacts']}, ПРОЧИТАНО "
+        log(f"baits: artifacts {a['artifacts']}, READ "
             f"{a['read']} ({(a['share'] or 0)*100:.0f}%), "
-            f"промолчано {a['stayed_silent']}, "
-            f"не сопоставлено {a['unmatched']}")
-    log(f"истина НЕ РАЗМЕЧЕНА: блоков {res['truth_unmarked']}, из них "
-        f"с ответом модели {res['answers_on_unmarked']} — сверять их не с "
-        f"чем, это НЕ ноль чтения; вид ответа не тот: "
+            f"stayed silent {a['stayed_silent']}, "
+            f"not paired {a['unmatched']}")
+    log(f"truth NOT MARKED: blocks {res['truth_unmarked']}, of them with "
+        f"a model answer {res['answers_on_unmarked']} — there is nothing to "
+        f"check them against, this is NOT zero reading; wrong answer kind: "
         f"{res['answer_kind_wrong']}")
     # Only blocks WITH AN ERROR: "worst block: CER 0.000" admits there is
     # nothing to print. TEXT AND ARTIFACTS COUNT APART, paid for twice in one
@@ -1080,26 +1092,28 @@ def report(res: dict, log=print) -> None:
     # this line printed: one wrong letter in one formula brought `books text`
     # down with `KeyError: 'WER'` -- money spent, answers written, no report.
     txt_rec = [r for r in res["per_block"] if r.get("bucket") == "text"]
-    art_rec = [r for r in res["per_block"] if r.get("bucket") == "артефакт по истине"]
-    for name, rec, total in (("знаков", txt_rec, res["text"]["block_count"]),
-                             ("артефактов", art_rec, ar["block_count"])):
+    art_rec = [r for r in res["per_block"]
+               if r.get("bucket") == "artifact_with_truth"]
+    for name, rec, total in (("text", txt_rec, res["text"]["block_count"]),
+                             ("artifact", art_rec, ar["block_count"])):
         if not total:
             continue
         scored = [r for r in rec if r.get("CER") is not None]
         err = [r for r in scored if r["CER"]]
         if not scored:
-            log(f"  сверять было НЕЧЕГО: ни одного блока {name} с посчитанным "
-                f"CER из {total} — это НЕ «CER 0 на всех»")
+            log(f"  there was NOTHING to compare: not one {name} block "
+                f"with a computed CER out of {total} — this is NOT "
+                f"'CER 0 on all'")
         elif not err:
-            log(f"  блоков с ошибкой {name} нет: CER 0 на всех "
-                f"{len(scored)} посчитанных из {total}")
+            log(f"  no {name} blocks with an error: CER 0 on all "
+                f"{len(scored)} computed of {total}")
         for r in sorted(err, key=lambda r: -r["CER"])[:3]:
             # `WER` exists for text only. Print what was computed, not what
             # was expected to be there.
             wer = (f", WER {r['WER']:.3f}" if r.get("WER") is not None else "")
-            log(f"  худший блок {name} с.{r['page']} б.{r['block_id']} "
+            log(f"  worst {name} block p.{r['page']} b.{r['block_id']} "
                 f"({r['label']}, {r['matched_by']}): CER {r['CER']:.3f}{wer}, "
-                f"знаков {r.get('chars', 0)}")
+                f"characters {r.get('chars', 0)}")
 
 
 # ---------------------------------------------------------------- mutations
@@ -1434,11 +1448,11 @@ def mutations(truth_dir: str, pages_dir: str, log=print) -> int:
     def s(x, f="{:.4f}"):
         return "—" if x is None else f.format(x)
 
-    log(f"исходно: сопоставлено {s(b_match, '{:.2f}')}, CER {s(b_cer)}, "
-        f"WER {s(b_wer)}, без ответа {s(b_none, '{:.2f}')}, "
-        f"ячеек совпало {s(b_cell, '{:.2f}')}, CER ячеек {s(b_cellcer)}, "
-        f"приманок {s(b_bait, '{:.2f}')}, "
-        f"не сопоставлено {b_lost}, лишних {b_extra}")
+    log(f"baseline: paired {s(b_match, '{:.2f}')}, CER {s(b_cer)}, "
+        f"WER {s(b_wer)}, no answer {s(b_none, '{:.2f}')}, "
+        f"cells matched {s(b_cell, '{:.2f}')}, cell CER {s(b_cellcer)}, "
+        f"baits {s(b_bait, '{:.2f}')}, "
+        f"not paired {b_lost}, extra {b_extra}")
 
     ti, tj = _pick_text(P, T)
     di, dj = _pick_text(P, T, want=lambda c: any(x.isdigit() for x in c))
@@ -1482,15 +1496,15 @@ def mutations(truth_dir: str, pages_dir: str, log=print) -> int:
     probes = []
 
     # --- corrupting the model ANSWER: characters
-    probes.append(("выброшен каждый десятый знак", "CER вырос",
+    probes.append(("every tenth character dropped", "CER grew",
                    lambda: cer_up(one(_drop10))))
-    probes.append(("переставлены две строки внутри блока", "CER вырос",
+    probes.append(("two lines swapped inside the block", "CER grew",
                    lambda: cer_up(one(_swap_lines))))
-    probes.append(("переставлены два слова", "WER вырос",
+    probes.append(("two words swapped", "WER grew",
                    lambda: (lambda mm: None if mm is None
                             else grew(M(mm)["text"]["WER"], b_wer))(
                        one(_swap_words))))
-    probes.append(("склеены переносы там, где их не было", "CER вырос",
+    probes.append(("hyphenation glued where there was none", "CER grew",
                    lambda: cer_up(one(_glue))))
 
     def digit():
@@ -1503,14 +1517,15 @@ def mutations(truth_dir: str, pages_dir: str, log=print) -> int:
             return None
         return cer_up(_edit(P, di, dj, lambda _: new))
 
-    probes.append(("подменена одна цифра", "CER вырос", digit))
-    probes.append(("пустой ответ на непустом блоке", "без ответа больше",
+    probes.append(("one digit replaced", "CER grew", digit))
+    probes.append(("an empty answer on a non-empty block", "more no-answer",
                    lambda: (lambda mm: None if mm is None else
                             grew(M(mm)["text"]["share_no_answer"], b_none))(
                        one(lambda s_: ""))))
-    probes.append(("пустой ответ на непустом блоке", "CER вырос",
+    probes.append(("an empty answer on a non-empty block", "CER grew",
                    lambda: cer_up(one(lambda s_: ""))))
-    probes.append(("все ответы выброшены", "CER ровно 1.0 и без ответа 1.0",
+    probes.append(("every answer dropped",
+                   "CER exactly 1.0 and no answer 1.0",
                    lambda: (lambda r: r["text"]["CER"] == 1.0
                             and r["text"]["share_no_answer"] == 1.0)(
                        M(_map_all(P, lambda c: None)))))
@@ -1530,23 +1545,23 @@ def mutations(truth_dir: str, pages_dir: str, log=print) -> int:
             return None
         return cer_up(_edit(P, ti, tj, lambda _: src))
 
-    probes.append(("ответ от СОСЕДНЕГО блока целиком", "CER вырос", neighbour))
+    probes.append(("the NEIGHBOUR's answer whole", "CER grew", neighbour))
 
     # --- corrupting the ANSWER: table
-    probes.append(("СДВИГ СТРОКИ В ТАБЛИЦЕ (набор ячеек тот же)",
-                   "совпавших ячеек меньше",
+    probes.append(("A ROW SHIFT IN A TABLE (the same bag of cells)",
+                   "fewer matched cells",
                    lambda: (lambda mm: None if mm is None else
                             fell(M(mm)["tables"]["share_cells_matched"],
                                  b_cell))(one_tab(_shift_rows))))
-    probes.append(("опустошена одна ячейка", "совпавших ячеек меньше",
+    probes.append(("one cell emptied", "fewer matched cells",
                    lambda: (lambda mm: None if mm is None else
                             fell(M(mm)["tables"]["share_cells_matched"],
                                  b_cell))(one_tab(_blank_cell))))
-    probes.append(("таблица отдана простым текстом", "отданных текстом больше",
+    probes.append(("the table given as plain text", "more given as text",
                    lambda: (lambda mm: None if mm is None else
                             grew(M(mm)["tables"]["given_as_text"], b_flat))(
                        one_tab(_detable))))
-    probes.append(("таблица отдана простым текстом", "CER ячеек вырос",
+    probes.append(("the table given as plain text", "cell CER grew",
                    lambda: (lambda mm: None if mm is None else
                             grew(M(mm)["tables"]["cer_cells"], b_cellcer))(
                        one_tab(_detable))))
@@ -1555,10 +1570,11 @@ def mutations(truth_dir: str, pages_dir: str, log=print) -> int:
     def bait():
         if ai is None:
             return None
-        mm = _edit(P, ai, aj, lambda _: "Рис. 4. Схема установки, 12 подписей")
+        mm = _edit(P, ai, aj,
+                   lambda _: "Fig. 4. Diagram of the setup, 12 captions")
         return grew(M(mm)["baits"]["share"], b_bait)
 
-    probes.append(("артефакту дописан текст (приманка)", "приманок больше",
+    probes.append(("text added to an artifact (bait)", "more baits",
                    bait))
 
     # --- corrupting OUR OWN PAIRING: it is an input too
@@ -1571,21 +1587,23 @@ def mutations(truth_dir: str, pages_dir: str, log=print) -> int:
     def shifted():
         return fell(M(_shift_boxes(P))["matching"]["share"], b_match)
 
-    probes.append(("рамки ответа сдвинуты на 0.9 своего размера",
-                   "сопоставлено меньше (когда сводили не по якорю)", shifted))
+    probes.append(("answer boxes shifted by 0.9 of their size",
+                   "fewer paired (where pairing was not by anchor)",
+                   shifted))
     def dropped():
         mm = _drop_block(P)
         return None if mm is None else grew(
             M(mm)["matching"]["unmatched_truth"], b_lost)
 
-    probes.append(("блок выкинут из ответа", "не сопоставлено больше", dropped))
-    probes.append(("лишний блок в ответе", "лишних больше",
+    probes.append(("a block dropped from the answer", "more not paired",
+                   dropped))
+    probes.append(("an extra block in the answer", "more extra",
                    lambda: grew(M(_add_block(P))["matching"]
                                 ["extra_in_answer"], b_extra)))
-    probes.append(("якорь указывает в никуда", "якорей в никуда больше",
+    probes.append(("the anchor points nowhere", "more anchors to nowhere",
                    lambda: grew(M(_dead_anchor(P))["matching"]
                                 ["anchor_to_nowhere"], b_dead)))
-    probes.append(("ответ сдвинут на страницу", "CER вырос",
+    probes.append(("the answer shifted by one page", "CER grew",
                    lambda: (lambda mm: None if mm is None else cer_up(mm))(
                        _shuffle_pages(P))))
     # GUARD OVER THE "anchor off box" GATE: an anchor is verified, not trusted,
@@ -1615,8 +1633,8 @@ def mutations(truth_dir: str, pages_dir: str, log=print) -> int:
         return grew(M(S)["matching"]["anchor_box_mismatch"],
                     was["anchor_box_mismatch"])
 
-    probes.append(("с якорями рамки сдвинуты на 0.9",
-                   "«якорь мимо рамки» растёт",
+    probes.append(("with anchors, boxes shifted by 0.9",
+                   "'anchor off box' grows",
                    anchor_gate))
 
     # THE SECOND GATE OF THE SAME STAGE, COVERED BY NOTHING: with the
@@ -1632,8 +1650,9 @@ def mutations(truth_dir: str, pages_dir: str, log=print) -> int:
                 and grew(m["anchor_wrong_page"],
                          was["anchor_wrong_page"]))
 
-    probes.append(("якорь называет соседнюю страницу при верном номере блока",
-                   "сопоставление падает, «якорь на чужую страницу» растёт",
+    probes.append(("the anchor names the neighbouring page with the right "
+                   "block number",
+                   "pairing falls, 'anchor to another page' grows",
                    anchor_page_gate))
 
     # --- corrupting TRUTH: the metric must look at BOTH inputs
@@ -1641,24 +1660,26 @@ def mutations(truth_dir: str, pages_dir: str, log=print) -> int:
         tt, ok = _corrupt_truth(T, _drop10)
         return None if (not ok or b_cer is None) else cer(tt=tt) > b_cer
 
-    probes.append(("в истине выброшен каждый десятый знак", "CER вырос",
+    probes.append(("every tenth character dropped in truth", "CER grew",
                    truth_chars))
-    probes.append(("в истине испорчена ячейка таблицы",
-                   "совпавших ячеек меньше",
+    probes.append(("a table cell corrupted in truth",
+                   "fewer matched cells",
                    lambda: (lambda tt: None if not tt[1] else
                             fell(M(tt=tt[0])["tables"]["share_cells_matched"],
                                  b_cell))(_corrupt_truth_cell(T))))
 
     # --- REVERSE probes: the figure must STAY PUT
-    probes.append(("вход не испорчен вовсе", "все числа на месте",
+    probes.append(("the input not corrupted at all",
+                   "every number stays put",
                    lambda: M() == base))
-    probes.append(("разнопись внутри границы (регистр, тире, NFKC, точка)",
-                   "CER не изменился",
+    probes.append(("variance inside the boundary (case, dash, NFKC, dot)",
+                   "CER unchanged",
                    lambda: (lambda mm: None if mm is None
                             else cer(mm) == b_cer)(one(_spelling))))
     # The same variance at level "none" MUST move the figure: otherwise
     # normalisation is dead and the probe above praises inaction, not work.
-    probes.append(("та же разнопись при нормализации «none»", "CER изменился",
+    probes.append(("the same variance at normalisation 'none'",
+                   "CER changed",
                    lambda: (lambda mm: None if mm is None else
                             measure_pages(T, mm, norm="none")["text"]["CER"]
                             != measure_pages(T, P, norm="none")["text"]["CER"])(
@@ -1711,14 +1732,16 @@ def mutations(truth_dir: str, pages_dir: str, log=print) -> int:
                         "artifacts_with_truth"][field]
         return None
 
-    probes.append(("таблица отдана в OTSL вместо HTML",
-                   "числа те же (разбор наш, а не беда модели)",
+    probes.append(("the table given as OTSL instead of HTML",
+                   "the same numbers (the parsing is ours, not the model's "
+                   "trouble)",
                    _same_numbers_in_otsl))
-    probes.append(("испорчен артефакт с истиной знаков", "CER артефактов вырос",
+    probes.append(("an artifact with character truth corrupted",
+                   "artifact CER grew",
                    lambda: (lambda v: None if v is None else
                             grew(v, base["artifacts_with_truth"]["CER"]))(
                        _artefact_truth(lambda c: "#" + c[1:], "CER"))))
-    probes.append(("артефакт с истиной не прочитан", "без ответа больше",
+    probes.append(("an artifact with truth not read", "more no-answer",
                    lambda: (lambda v: None if v is None else
                             v > base["artifacts_with_truth"]["no_answer"])(
                        _artefact_truth(lambda c: "", "no_answer"))))
@@ -1734,25 +1757,26 @@ def mutations(truth_dir: str, pages_dir: str, log=print) -> int:
             ok = False
             # NOT the word "fell": seven probes in `metrics.py` have "fell" as
             # their `want`, which would read "fell -- fell: ValueError".
-            want = f"{want} — ПРОБА БРОСИЛА {type(e).__name__}: {e}"
-        mark = "нет данных" if ok is None else ("ok " if ok else "НЕТ")
+            want = f"{want} — THE PROBE THREW {type(e).__name__}: {e}"
+        mark = "no data" if ok is None else ("ok " if ok else "NO")
         log(f"  {mark:>10}  {name}: {want}")
         bad += ok is False
         mute += ok is None
         seen += 1
 
-    log("чего эта батарея НЕ ловит: неверную ИСТИНУ (сверять её не с чем, "
-        "кроме скана и глаз); выдумку модели, попавшую в истину дважды; "
-        "ошибку внутри границы нормализации — она снята нарочно и замером; "
-        "чтение, потерянное ДО метрики, если блока нет ни в истине, ни в "
-        "ответе.")
+    log("what this battery does NOT catch: a wrong TRUTH (nothing to check "
+        "it against but the scan and the eyes); a model invention that got "
+        "into truth twice; an error inside the normalisation boundary — it "
+        "is stripped on purpose and by measurement; reading lost BEFORE the "
+        "metric, when the block is in neither truth nor answer.")
     # A FIGURE, NOT THE WORD "DONE", as in `fitness`: a lone "uncaught: N" hid
     # ten or eleven probes of twenty-eight that measured NOTHING, and a broken
     # helper (`_anchor_all`) sends a probe to "no data", where breakage looks
     # like health. THE DENOMINATOR IS WHAT WAS PRINTED (`seen`): adding groups
     # by hand gave `metrics.mutations` "probes 32" against 33 outcomes.
-    log(f"батарея чтения: проб {seen}, померено {seen - mute}, "
-        f"нечем мерить {mute} (см. строки «нет данных»), непойманных {bad}")
+    log(f"reading battery: probes {seen}, measured {seen - mute}, "
+        f"nothing to measure with {mute} (see the 'no data' lines), "
+        f"uncaught {bad}")
     return bad
 
 

@@ -267,7 +267,7 @@ def _carried_as_text(sub, arte, rest, tot):
 def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
     """Fitness of the model output. Truth is not required."""
     if not os.path.exists(pdf):
-        raise metrics.MetricError(f"нет {pdf}")
+        raise metrics.MetricError(f"no {pdf}")
     M = metrics._load(detect_dir)
     T = metrics._load(truth_dir) if truth_dir else {}
     doc = pymupdf.open(pdf)
@@ -297,14 +297,15 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
     for i in pages:
         if i not in M:
             raise metrics.MetricError(
-                f"модель не разметила страницу {i}: считать нечего. "
-                f"Пустой ответ тут выглядел бы как «чернил не потеряно».")
+                f"the model marked up no page {i}: nothing to count. An "
+                f"empty answer here would look like 'no ink lost'.")
         p = M[i]
         ink = _ink_of(pdf, doc, i, p["dpi"])
         if ink.shape != (p["height"], p["width"]):
             raise metrics.MetricError(
-                f"страница {i}: растр {ink.shape[1]}x{ink.shape[0]}, "
-                f"разметка {p['width']}x{p['height']} — рамки лягут мимо")
+                f"page {i}: raster {ink.shape[1]}x{ink.shape[0]}, "
+                f"markup {p['width']}x{p['height']} — the boxes will fall "
+                f"wide")
         arte = [b["box"] for b in p["blocks"]
                 if policy.role(b["label"]) == "artifact"]
         rest = [b["box"] for b in p["blocks"]
@@ -431,47 +432,49 @@ def report(res: dict, log=print) -> None:
     # ANSWER, not from the module: the battery moves these very globals, and a
     # report reading them would lie about its own measurement.
     t = res["thresholds"]
-    log(f"страниц {s}, растр {'/'.join(map(str, res['dpi'])) or '?'} dpi; "
-        f"порог чернил {t['ink']}; доли чернил объекта: "
-        f"цел от {t['intact']:.2f}, почти цел от {t['almost']:.2f}, "
-        f"надкушен от {t['bitten']:.2f}")
-    log(f"площадь под рамками {res['boxes_area'] / max(1, res['sheet_area']) * 100:.0f}% "
-        f"листа — при 100% числа ниже ничего не значат: рамка во весь лист "
-        f"выигрывает замер, не найдя ничего")
+    log(f"pages {s}, raster {'/'.join(map(str, res['dpi'])) or '?'} dpi; "
+        f"ink threshold {t['ink']}; shares of the object's ink: "
+        f"intact from {t['intact']:.2f}, almost intact from "
+        f"{t['almost']:.2f}, bitten from {t['bitten']:.2f}")
+    log(f"area under boxes "
+        f"{res['boxes_area'] / max(1, res['sheet_area']) * 100:.0f}% of the "
+        f"sheet — at 100% the numbers below mean nothing: a box over the "
+        f"whole sheet wins the measurement having found nothing")
     # BLINDNESS IS DECLARED BEFORE THE NUMBERS AND UNCONDITIONALLY. This line
     # stood AFTER both truth `return`s, so in the truth-less mode -- the one
     # real scans are measured in -- not a word of it was printed, and its
     # numbers were someone else's run hardwired. Ours are on the "arrived with
     # company" line below.
-    log("ЧЕМ ЭТОТ ПРИБОР ВЫИГРЫВАЕТСЯ: слияние соседних рамок он почти не "
-        "штрафует по построению — слитая рамка улучшает тут и чернила, и «цел», "
-        "и «вырезается одной картинкой». Не слиплось ли — спрашивать у `books "
-        "score`; по одному этому отчёту модель не выбирают")
+    log("HOW THIS INSTRUMENT IS WON: merging neighbouring boxes it barely "
+        "penalises by construction — a merged box improves the ink here, and "
+        "'intact', and 'cuts as one picture'. Whether things stuck together "
+        "— ask `books score`; a model is not chosen on this report alone")
     if not ink:
         # A ZERO FROM NOT UNDERSTANDING, NOT FROM MEASUREMENT. An empty raster
         # used to print as "outside every box 100.0% -- that is what vanishes
         # from the HTML": the divisor was swapped for `max(1, 0)`, so "nothing
         # to measure" came out as "the whole book is lost". Reproducible with a
         # white page in one call.
-        log("чернил не найдено ВОВСЕ: ни одного пикселя темнее порога. Это не "
-            "«всё потеряно», а «нечего мерить» — пустой растр, не тот порог "
-            "или не та книга")
+        log("NO ink found AT ALL: not one pixel darker than the threshold. "
+            "This is not 'everything is lost' but 'nothing to measure' — an "
+            "empty raster, the wrong threshold or the wrong book")
         return
-    log(f"чернил страницы под рамками: "
+    log(f"page ink under boxes: "
         f"{res['ink_under_boxes'] / ink * 100:.1f}% "
-        f"(под артефактом {res['ink_under_artifact'] / ink * 100:.1f}%), "
-        f"вне всех рамок "
-        f"{(1 - res['ink_under_boxes'] / ink) * 100:.1f}% — это то, "
-        f"что исчезнет из HTML")
+        f"(under an artefact "
+        f"{res['ink_under_artifact'] / ink * 100:.1f}%), outside every box "
+        f"{(1 - res['ink_under_boxes'] / ink) * 100:.1f}% — that is what "
+        f"will vanish from the HTML")
     # THE FIFTH THRESHOLD IS DECLARED UNCONDITIONALLY. The line printed only
     # when `lost > 0`, leaving `EDGE` droppable from the report without a check
     # going red. With nothing to lose the band is named all the same: a ruler
     # does not depend on what was measured with it.
     lost = ink - res["ink_under_boxes"]
-    log(f"  полоса у края листа {t['edge_band'] * 100:.0f}% меньшей стороны; "
-        + (f"из потерянного в ней {res['ink_outside_boxes_at_edge'] / lost * 100:.0f}% "
-           f"— обычно это тёмная кромка скана, а не содержимое"
-           if lost > 0 else "терять нечего: чернила все под рамками"))
+    log(f"  edge band {t['edge_band'] * 100:.0f}% of the shorter side; "
+        + (f"of what was lost, "
+           f"{res['ink_outside_boxes_at_edge'] / lost * 100:.0f}% lies in it "
+           f"— usually the dark edge of the scan, not content"
+           if lost > 0 else "nothing to lose: all the ink is under boxes"))
     # THE SIXTH THRESHOLD, likewise unconditional, and standing here rather than
     # among the losses because it is about what was FOUND: a dark column under a
     # box scores as preserved content, and the box that covered it lifts the
@@ -479,47 +482,54 @@ def report(res: dict, log=print) -> None:
     cols = res["dark_columns"]
     pos = res["dark_columns_positions"]
     middle = sum(1 for x in pos if 0.2 <= x <= 0.8)
-    log(f"  сплошных тёмных столбцов {cols} на "
-        f"{res['pages_with_dark_column']} стр. (столбец тёмен более чем на "
-        f"{GUTTER * 100:.0f}% высоты листа); чернил в них "
-        f"{res['ink_in_dark_columns'] / ink * 100:.1f}% ВСЕХ, из них "
-        f"{res['ink_in_dark_columns_off_edge'] / ink * 100:.1f}% вне "
-        f"краевой полосы — этого строка выше не видит по построению. "
-        + (f"В середине листа (0.2..0.8 ширины) {middle} из {cols}: "
-           f"{'вероятно линейки таблиц, а не дефект скана' if middle else 'ни одного, то есть это края и переплёт'}"
-           if cols else "их нет — эта книга сканирована без тени переплёта")
-        + ". Рамка, накрывшая такой столбец, ПОВЫШАЕТ число под рамками, "
-          "ничего не найдя")
+    where = ("likely table rules, not a scan defect" if middle
+             else "not one, i.e. these are the edges and the gutter")
+    log(f"  solid dark columns {cols} on "
+        f"{res['pages_with_dark_column']} pp. (a column dark over more than "
+        f"{GUTTER * 100:.0f}% of the sheet height); ink in them "
+        f"{res['ink_in_dark_columns'] / ink * 100:.1f}% of ALL, of it "
+        f"{res['ink_in_dark_columns_off_edge'] / ink * 100:.1f}% outside "
+        f"the edge band — the line above cannot see that by construction. "
+        + (f"In the middle of the sheet (0.2..0.8 of the width) {middle} of "
+           f"{cols}: "
+           f"{where}"
+           if cols else "there are none — this book was scanned without a "
+                        "gutter shadow")
+        + ". A box covering such a column RAISES the under-boxes number "
+          "having found nothing")
     # THREE DIFFERENT ZEROS, AND THEY USED TO BE ONE. "Truth not supplied" was
     # printed when truth was supplied and simply held no artefacts -- telling
     # the operator he had forgotten the `--truth` he had passed.
     if not res["truth_pages"]:
-        log("истина не подана: по объектам сказать нечего — это не ноль потерь")
+        log("truth NOT supplied: nothing to say about objects — this is "
+            "not zero loss")
         return
     if not n:
-        log(f"истина подана ({res['truth_pages']} страниц), но артефактов в "
-            f"ней нет ни одного: по объектам сказать нечего. Это ДРУГОЙ ноль, "
-            f"чем «истина не подана», и оба — не «ноль потерь»")
+        log(f"truth supplied ({res['truth_pages']} pages), but it holds "
+            f"not one artefact: nothing to say about objects. This is a "
+            f"DIFFERENT zero from 'truth NOT supplied', and neither is "
+            f"'zero loss'")
         return
-    log(f"ЧЕРНИЛ ОБЪЕКТОВ СОХРАНЕНО: "
+    log(f"OBJECT INK PRESERVED: "
         f"{res['object_ink_in_boxes'] / max(1, res['object_ink']) * 100:.1f}%")
-    log(f"объектов {n}: цел {res['intact']} ({res['intact'] / n * 100:.0f}%), "
-        f"почти цел {res['almost_intact']}, надкушен {res['bitten']}, "
-        f"порван {res['torn']}")
-    log(f"вырезается одной картинкой {res['in_one_box']} "
+    log(f"objects {n}: intact {res['intact']} "
+        f"({res['intact'] / n * 100:.0f}%), "
+        f"almost intact {res['almost_intact']}, bitten {res['bitten']}, "
+        f"torn {res['torn']}")
+    log(f"cuts as one picture {res['in_one_box']} "
         f"({res['in_one_box'] / n * 100:.0f}%); "
-        f"разорван между рамками {res['split_between_boxes']}; "
-        f"уехал текстом {res['left_as_text']}")
+        f"split between boxes {res['split_between_boxes']}; "
+        f"left as text {res['left_as_text']}")
     # THE ONE NUMBER OF THIS INSTRUMENT THAT GROWS WITH MERGING; every other one
     # improves under it. Figures and reasoning in the header.
-    log(f"приехало не в одиночку {res['arrived_with_company']} "
+    log(f"arrived with company {res['arrived_with_company']} "
         f"({res['arrived_with_company'] / n * 100:.0f}%), "
-        f"рамок с двумя объектами и больше: "
-        f"{res['boxes_with_many_objects']} — это работа, переложенная "
-        f"на второй уровень, и ТОЛЬКО это число от слияния растёт")
+        f"boxes with two objects or more: "
+        f"{res['boxes_with_many_objects']} — that is work handed to the "
+        f"second level, and ONLY this number grows with merging")
     if res["empty_objects"]:
-        log(f"ВНИМАНИЕ: {res['empty_objects']} объектов истины без чернил — "
-            f"это дефект стенда, они не считаны ни в цел, ни в порван")
+        log(f"WARNING: {res['empty_objects']} truth objects without ink — "
+            f"a bench defect, counted neither as intact nor as torn")
 
 
 # ------------------------------------------------- the spoiling battery
@@ -665,10 +675,10 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
     moved = RT(_edit(T0, _shift)) if base["objects"] else None
 
     probes = [
-        ("рамки артефактов разрезаны пополам", "вырезаемых одной картинкой меньше",
+        ("artefact boxes cut in half", "fewer cut as one picture",
          lambda: None if not base["objects"] else
                  halved["in_one_box"] < base["in_one_box"]),
-        ("рамки артефактов разрезаны пополам", "чернил при этом не потеряно",
+        ("artefact boxes cut in half", "and no ink is lost by it",
          lambda: None if not base["objects"] else
                  halved["object_ink_in_boxes"]
                  >= base["object_ink_in_boxes"]),
@@ -676,42 +686,43 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
         # missing here. Without `--truth` both sides are zero, `0 <= 0` is True,
         # and the battery printed "ok" about a nesting it had not checked: a
         # zero from not understanding, dressed as a satisfied condition. Mirror
-        # of the trouble ten lines below, where a zero gave a false "НЕТ" line.
-        ("вложенность", "вырезаемых одной картинкой не больше, чем целых",
+        # of the trouble ten lines below, where a zero gave a false "NO" line.
+        ("nesting", "no more cut as one picture than intact",
          lambda: None if not base["objects"] else
                  base["in_one_box"] <= base["intact"]),
-        ("рамок нет вовсе", "чернил под рамками ноль",
+        ("no boxes at all", "zero ink under boxes",
          lambda: R(_edit(M0, lambda b: None))["ink_under_boxes"] == 0),
         # Without this probe the metric could be won with rubbish, finding
         # nothing (`_clip`), and not one of the eight probes saw it.
-        ("рамки уехали за левый верхний угол", "чернил под рамками ноль",
+        ("boxes moved off the top-left corner", "zero ink under boxes",
          lambda: R(_edit(M0, _offpage))["ink_under_boxes"] == 0),
         # The same guard, missing here too. The price: without `--truth` there
         # are no objects, "object ink in boxes" is zero before the damage and
-        # after, `0 < 0` is False, and the battery printed the "НЕТ" mark --
+        # after, `0 < 0` is False, and the battery printed the "NO" mark --
         # accusing the instrument where there is nothing to measure. Six books
         # of six, `books fitness … --selfcheck` without `--truth` returned 1.
-        ("рамки сжаты вдвое", "чернил объектов сохранено меньше",
+        ("boxes shrunk by half", "less object ink preserved",
          lambda: None if not base["objects"] else
                  R(_edit(M0, lambda b: _scale(b, 0.5)))["object_ink_in_boxes"]
                  < base["object_ink_in_boxes"]),
-        ("артефакты названы текстом", "чернил под артефактом ноль",
+        ("artefacts called text", "zero ink under artefacts",
          lambda: as_text["ink_under_artifact"] == 0),
-        ("артефакты названы текстом", "объекты уехали текстом",
+        ("artefacts called text", "objects left as text",
          lambda: None if not base["objects"] else
                  as_text["left_as_text"] > base["left_as_text"]),
-        ("рамки выкинуты, кроме текстовых", "целых меньше",
+        ("boxes dropped except the text ones", "fewer intact",
          lambda: None if not base["objects"] else
                  R(_edit(M0, lambda b: None if art(b) else b))["intact"] < base["intact"]),
         # Without this probe the metric could be taken with one box, having
         # found nothing.
-        ("одна рамка во весь лист", "чернил 100%, но и площадь 100%",
+        ("one box over the whole sheet", "ink 100%, but area 100% too",
          lambda: (lambda r: r["ink_under_boxes"] == r["ink_total"]
                   and r["boxes_area"] == r["sheet_area"])(R(full))),
         # ...and it wins on OBJECTS too, where the older probe looked at page
         # ink only: the headline line of the report is taken whole by one box,
         # and that belongs in the battery, not in the header alone.
-        ("одна рамка во весь лист", "и объектов цел ВСЕ — вот чем метрика берётся",
+        ("one box over the whole sheet",
+         "and ALL objects intact — this is how the metric is won",
          lambda: None if not base["objects"] else
                  (lambda r: r["intact"] == r["objects"]
                   and r["in_one_box"] == r["objects"])(R(full))),
@@ -721,8 +732,8 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
         # blind whole and silently again. The "nothing to measure" guard is
         # special here -- there is nothing to merge if no page holds two objects
         # at once, and a book of one table is an honest "no data".
-        ("все артефактные рамки слиты в одну",
-         "прежние числа не падают, а «не в одиночку» растёт",
+        ("all artefact boxes merged into one",
+         "the older numbers do not fall, and 'arrived with company' grows",
          lambda: None if not base["objects"] else
                  (lambda r: (None if not r["boxes_with_many_objects"] else
                              (r["intact"] >= base["intact"]
@@ -730,9 +741,10 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
                               >= base["object_ink_in_boxes"]
                               and r["arrived_with_company"]
                               > base["arrived_with_company"]),
-                             f"цел {base['intact']} -> {r['intact']}, "
-                             f"порван {base['torn']} -> {r['torn']}, "
-                             f"не в одиночку {base['arrived_with_company']} -> "
+                             f"intact {base['intact']} -> {r['intact']}, "
+                             f"torn {base['torn']} -> {r['torn']}, "
+                             f"with company "
+                             f"{base['arrived_with_company']} -> "
                              f"{r['arrived_with_company']}"))(
                      R(_merge(M0)))),
         # DOUBLING, as raw docling-heron does it with its 4435 doubled pairs.
@@ -740,8 +752,8 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
         # to move. Made for a caught defect: "left as text" was `t_kept + kept`,
         # a pixel under two boxes going for two. On bench/hard36: 21 -> 31, ten
         # objects with half their ink under open sky declared "not lost".
-        ("каждая артефактная рамка отдана ещё и текстовой",
-         "по объектам не меняется НИЧЕГО: пиксель под двумя рамками — один пиксель",
+        ("every artefact box handed out as a text one too",
+         "NOTHING changes by objects: a pixel under two boxes is one pixel",
          lambda: None if not base["objects"] else
                  (lambda r: all(r[k] == base[k] for k in
                                 ("intact", "almost_intact", "bitten", "torn",
@@ -751,12 +763,14 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
         # Extremes, not "nudge it and see": a nudge could change nothing on a
         # bench where every object is whole anyway, and a dead threshold would
         # pass.
-        ("порог чернил обнулён и задран", "чернил то ноль, то весь лист",
+        ("the ink threshold zeroed and maxed",
+         "ink is now zero, now the whole sheet",
          lambda: _at("INK", 0, lambda: measure(pdf, detect_dir)["ink_total"]) == 0
                  and _at("INK", 256, lambda: (lambda r: r["ink_total"]
                                               == r["sheet_area"])(
                      measure(pdf, detect_dir)))),
-        ("порог «цел» обнулён и задран", "целых то все, то ни одного",
+        ("the 'intact' threshold zeroed and maxed",
+         "intact is now all, now none",
          lambda: None if not base["objects"] else
                  _at("WHOLE", 0.0, lambda: (lambda r: r["intact"] == r["objects"])(
                      measure(pdf, detect_dir, truth_dir)))
@@ -770,15 +784,15 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
         # two must move ENTIRELY, checkable on any bench where the class holds
         # anyone. Guard on an empty class as the neighbours': nothing to measure
         # is "no data", not "ok".
-        ("порог «почти цел» сведён к соседям",
-         "разряд между «цел» и «надкушен» переезжает целиком",
+        ("the 'almost intact' threshold brought to its neighbours",
+         "the class between 'intact' and 'bitten' moves entirely",
          lambda: None if not base["almost_intact"] + base["bitten"] else
                  _at("ALMOST", WHOLE,
                      lambda: measure(pdf, detect_dir, truth_dir)["almost_intact"] == 0)
                  and _at("ALMOST", BITTEN,
                          lambda: measure(pdf, detect_dir, truth_dir)["bitten"] == 0)),
-        ("порог «надкушен» сведён к соседям",
-         "разряд между «почти цел» и «порван» переезжает целиком",
+        ("the 'bitten' threshold brought to its neighbours",
+         "the class between 'almost intact' and 'torn' moves entirely",
          lambda: None if not base["bitten"] + base["torn"] else
                  _at("BITTEN", 0.0,
                      lambda: measure(pdf, detect_dir, truth_dir)["torn"] == 0)
@@ -799,13 +813,14 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
         # holding a single dark pixel is a dark column) and squeezed to 1.0
         # (dark over the full height of the sheet, margins included -- no such
         # thing exists).
-        ("тёмный столбец раздут и сжат",
-         "то все чернила в столбцах, то ни одного",
+        ("the dark column blown up and squeezed",
+         "now all the ink is in columns, now none",
          lambda: (_at("GUTTER", 0.0, lambda: measure(pdf, detect_dir, truth_dir)
                       ["ink_in_dark_columns"]) >= base["ink_in_dark_columns"]
                   and _at("GUTTER", 1.0, lambda: measure(pdf, detect_dir, truth_dir)
                           ["dark_columns"]) < base["dark_columns"])),
-        ("полоса у края раздута и сжата", "у края то всё потерянное, то меньше",
+        ("the edge band blown up and squeezed",
+         "at the edge now everything lost, now less",
          lambda: None if base["ink_total"] <= base["ink_under_boxes"] else
                  (lambda lost:
                   _at("EDGE", 1.0, lambda: measure(pdf, detect_dir, truth_dir)
@@ -820,14 +835,16 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
         # the instrument where there is nothing to measure (caught on a toy page
         # whose model box coincides with the object: 100% -> 100%). The number
         # under a shifted box differs always, save on a uniformly filled sheet.
-        ("истина сдвинута на пол-объекта вниз", "чернил объектов стало другое",
+        ("truth shifted down by half an object",
+         "object ink came out different",
          lambda: None if not base["objects"] else
                  (moved["object_ink"] != base["object_ink"],
-                  f"чернил объектов {base['object_ink']} -> "
-                  f"{moved['object_ink']}, сохранено "
+                  f"object ink {base['object_ink']} -> "
+                  f"{moved['object_ink']}, preserved "
                   f"{base['object_ink_in_boxes'] / max(1, base['object_ink']) * 100:.1f}%"
                   f" -> {moved['object_ink_in_boxes'] / max(1, moved['object_ink']) * 100:.1f}%")),
-        ("истина уехала за лист", "объектов ноль, и все они «пустые»",
+        ("truth moved off the sheet", "zero objects, and all of them "
+         "'empty'",
          lambda: None if not base["objects"] else
                  (lambda r: r["objects"] == 0 and r["empty_objects"]
                   == base["objects"] + base["empty_objects"])(
@@ -839,11 +856,12 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
             try:
                 ok = fn()
             except Exception as e:
-                ok, expect = False, f"{expect} — упало: {type(e).__name__}: {e}"
+                ok, expect = False, (f"{expect} — threw: "
+                                     f"{type(e).__name__}: {e}")
             if isinstance(ok, tuple):
                 ok, note = ok
                 expect = f"{expect} [{note}]"
-            mark = "нет данных" if ok is None else ("ok " if ok else "НЕТ")
+            mark = "no data" if ok is None else ("ok " if ok else "NO")
             log(f"  {mark:>11}  {name}: {expect}")
             bad += ok is False
             mute += ok is None
@@ -856,6 +874,8 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
     # empty "almost whole" class, no page with two objects at once -- so lumping
     # them into "needs truth" would swap one zero for another. Which it is, the
     # probe's own line says.
-    log(f"батарея годности: проб {len(probes)}, померено {len(probes) - mute}, "
-        f"нечем мерить {mute} (см. строки «нет данных»), непойманных {bad}")
+    log(f"fitness battery: probes {len(probes)}, "
+        f"measured {len(probes) - mute}, "
+        f"nothing to measure with {mute} (see the 'no data' lines), "
+        f"uncaught {bad}")
     return bad

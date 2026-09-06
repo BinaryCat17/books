@@ -81,17 +81,17 @@ class MetricError(RuntimeError):
 
 def _load(d):
     if not os.path.isdir(d):
-        raise MetricError(f"нет каталога {d}")
+        raise MetricError(f"no directory {d}")
     out = {}
     for name in sorted(os.listdir(d)):
         if name.endswith(".json") and name != "run.json":
             with open(os.path.join(d, name), encoding="utf-8") as f:
                 p = json.load(f)
             if "blocks" not in p or "index" not in p:
-                raise MetricError(f"{name}: не похоже на страницу разметки")
+                raise MetricError(f"{name}: does not look like a markup page")
             out[int(p["index"])] = p
     if not out:
-        raise MetricError(f"в {d} нет страниц разметки")
+        raise MetricError(f"no markup pages in {d}")
     return out
 
 
@@ -105,19 +105,19 @@ def _same_book(truth_dir: str, detect_dir: str) -> str:
     man = os.path.join(os.path.dirname(truth_dir.rstrip("/")), "manifest.json")
     run = os.path.join(os.path.dirname(detect_dir.rstrip("/")), "run.json")
     if not (os.path.exists(man) and os.path.exists(run)):
-        return "sha256 не сверен: нет manifest.json или run.json рядом"
+        return "sha256 not checked: no manifest.json or run.json beside"
     with open(man, encoding="utf-8") as f:
         a = json.load(f).get("sha256 pdf")
     with open(run, encoding="utf-8") as f:
         b = (json.load(f).get("source") or {}).get("sha256")
     if not (a and b):
-        return "sha256 не сверен: поля нет в слепке"
+        return "sha256 not checked: the field is absent from the snapshot"
     if a != b:
         raise MetricError(
-            f"истина и вывод модели про РАЗНЫЕ книги: sha256 {a[:12]} против "
-            f"{b[:12]}. Число тут вышло бы осмысленным на вид и бессмысленным "
-            f"по существу.")
-    return f"sha256 сверен: {a[:12]}"
+            f"truth and model output are about DIFFERENT books: sha256 "
+            f"{a[:12]} against {b[:12]}. A number here would look sensible "
+            f"and mean nothing.")
+    return f"sha256 checked: {a[:12]}"
 
 
 def _inter(a, b):
@@ -157,15 +157,15 @@ def extra_kind(box, paired, unpaired, outside, tb) -> str:
     scored truth is a duplicate before we ask about "outside scoring".
     """
     if any(cover(box, b) >= 0.9 for b in paired):
-        return "вложенный дубль"
+        return "nested duplicate"
     if any(cover(box, b) >= 0.9 for b in unpaired):
-        return "внутри ненайденного"
+        return "inside a miss"
     if (any(cover(box, b) >= 0.5 or cover(b, box) >= 0.5 for b in outside)
             # ...but NOT when the same box also covers truth artefacts: a
             # full-page box meets any drop cap, and the amnesty would forgive
             # it the tables it swallowed too.
             and sum(1 for b in tb if cover(b["box"], box) >= 0.6) < 2):
-        return "на объекте вне замера"
+        return "on an object outside scoring"
     return "spurious_box"
 
 
@@ -236,27 +236,27 @@ def _diagnose(t, mine, others_truth, arte):
     touching = [m for m in mine if cover(t["box"], m["box"]) >= TOUCH
                 or cover(m["box"], t["box"]) >= TOUCH]
     if not touching:
-        return "не увидел"
+        return "not seen"
     best = max(touching, key=lambda m: iou(t["box"], m["box"]))
     ct, cm = cover(t["box"], best["box"]), cover(best["box"], t["box"])
     eaten = [o for o in others_truth
              if o is not t and cover(o["box"], best["box"]) >= 0.6]
     if eaten and ct >= 0.6:
-        return "слияние"
+        return "merge"
     # Fragmentation counts ARTEFACT boxes only. Counting text ones gave
     # "missed the table but covered it with text" the name of the cheapest
     # trouble instead of the dearest.
     inside = [m for m in touching if m["label"] in arte
               and cover(m["box"], t["box"]) >= 0.7]
     if len(inside) >= 2:
-        return "дробление"
+        return "fragmentation"
     if policy.role(best["label"]) == "text" and ct >= 0.6:
-        return "съеден текстом"
+        return "eaten by text"
     if ct < 0.85 and cm >= 0.85:
-        return "срез"
+        return "crop"
     if cm < 0.6:
-        return "разлив"
-    return "рядом, но не совпал"
+        return "spill"
+    return "near, but no match"
 
 
 def _same_raster(T: dict, M: dict) -> str:
@@ -276,23 +276,24 @@ def _same_raster(T: dict, M: dict) -> str:
     common = sorted(set(T) & set(M))
     if any(k not in p for i in common for p in (T[i], M[i])
            for k in ("width", "height")):
-        return "растр НЕ СВЕРЕН: у страниц нет полей width/height"
+        return "raster NOT CHECKED: pages have no width/height fields"
     dt = sorted({T[i].get("dpi") for i in common}, key=str)
     dm = sorted({M[i].get("dpi") for i in common}, key=str)
-    bad = [f"с.{i}: истина {T[i]['width']}x{T[i]['height']}, "
-           f"модель {M[i]['width']}x{M[i]['height']}" for i in common
+    bad = [f"p.{i}: truth {T[i]['width']}x{T[i]['height']}, "
+           f"model {M[i]['width']}x{M[i]['height']}" for i in common
            if (T[i]["width"], T[i]["height"]) != (M[i]["width"], M[i]["height"])]
     if bad:
         raise MetricError(
-            f"истина и вывод модели в РАЗНЫХ растрах: координаты в разных "
-            f"системах, и число вышло бы правдоподобным и ложным. Разошлись "
-            f"{len(bad)} страниц из {len(common)}: " + "; ".join(bad[:3])
+            f"truth and model output are in DIFFERENT rasters: coordinates "
+            f"in different systems, and the number would come out plausible "
+            f"and false. {len(bad)} pages of {len(common)} differ: "
+            + "; ".join(bad[:3])
             + (" …" if len(bad) > 3 else "")
-            + f". dpi: истина {dt}, модель {dm} — смотри PAGE_DPI прогона.")
-    note = f"растр сверен: {len(common)} страниц, размеры совпали"
+            + f". dpi: truth {dt}, model {dm} — see the run's PAGE_DPI.")
+    note = f"raster checked: {len(common)} pages, sizes agree"
     if dt != dm:
-        note += (f"; ярлык dpi РАЗНЫЙ (истина {dt}, модель {dm}) — на "
-                 f"координаты не влияет, растр один")
+        note += (f"; the dpi label DIFFERS (truth {dt}, model {dm}) — no "
+                 f"effect on coordinates, one raster")
     return note
 
 
@@ -309,8 +310,9 @@ def compare_pages(T: dict, M: dict) -> dict:
     missing = sorted(set(T) - set(M))
     if missing:
         raise MetricError(
-            f"модель не разметила страницы {missing[:5]}: сверять нечего. "
-            f"Пустой отчёт тут выглядел бы как «совпало ноль», а это другое.")
+            f"the model marked up no pages {missing[:5]}: nothing to "
+            f"compare. An empty report here would read as 'matched zero', "
+            f"which is another thing.")
 
     arte = set(policy.artefacts())
     # Order is scored ONLY on pages whose truth declared it annotated. A
@@ -323,7 +325,7 @@ def compare_pages(T: dict, M: dict) -> dict:
     # position, and undeclared there is no telling whether the model rank or
     # our top-down numbering produced it.
     rules = sorted({str((M[i].get("meta") or {}).get(
-        "reading_order", "не объявлено (принято «ранг модели»)"))
+        "reading_order", "not declared (taken as 'model rank')"))
         for i in T if i in M})
     model_rank = all(_model_has_rank(M[i]) for i in T if i in M)
     per_case, conf, ranks = {}, {}, []
@@ -442,10 +444,10 @@ def compare_pages(T: dict, M: dict) -> dict:
     # order here") is the bench, "not said" (no answer) a hole in its builder.
     why_order = ""
     if not order_pages:
-        why_order = ("истина порядка не несёт: " + ", ".join(
-            f"{k} у {states[k]}" for k in
+        why_order = ("truth carries no order: " + ", ".join(
+            f"{k} on {states[k]}" for k in
             (ORDER_MARKED, ORDER_UNMARKED, ORDER_SILENT) if states.get(k))
-            + f" из {len(T)} страниц")
+            + f" of {len(T)} pages")
     return {"totals": tot, "sense": sense(T, M), "text_and_furniture": txt,
             "by_case": per_case,
             "by_label": {k: {"truth": v[1], "found": v[0],
@@ -454,14 +456,15 @@ def compare_pages(T: dict, M: dict) -> dict:
             "troubles": dict(sorted(beds.items())),
             "label_confusion": {f"{a}->{b}": n for (a, b), n in sorted(conf.items())},
             "order_truth": {"states": states, "page_count": len(T)},
-            "order_rule": ", ".join(rules) or "нечего объявлять",
+            "order_rule": ", ".join(rules) or "nothing to declare",
             # TWO QUESTIONS, TWO QUANTITIES. The first is about the model and
             # demands a real rank on both sides. The second is about the BOOK,
             # where an assembly order always exists, rank or not.
             "model_order": _order_agree(
                 ranks, 1, ceiling, order_pages, len(T),
                 why_order or ("" if model_rank else
-                              f"модель ранга не даёт ({', '.join(rules)})")),
+                              f"the model gives no rank "
+                              f"({', '.join(rules)})")),
             "assembly_order": _order_agree(
                 ranks, 2, ceiling, order_pages, len(T), why_order),
             "jumps": column_jumps(M)}
@@ -476,8 +479,8 @@ def compare_pages(T: dict, M: dict) -> dict:
 # bench, one line from its builder away (today 36 of 36 pages of hard36 and 13
 # of 13 of slovar are silent); the second the bench itself, since AnnoPage
 # annotates no order at all. Hence separate report lines.
-ORDER_MARKED = "размечен"
-ORDER_UNMARKED = "не размечен"
+ORDER_MARKED = "marked"
+ORDER_UNMARKED = "not marked"
 ORDER_SILENT = "not_said"
 
 
@@ -709,10 +712,10 @@ def column_jumps(M: dict, overlap=None, wide=None, min_boxes=None,
             per_page[i] = excess
     ok = counted > 0
     why = "" if ok else (
-        f"величина НЕ ОПРЕДЕЛЕНА: ни на одной из {pages} страниц не набралось "
-        f"{mn} рамок в счёте (всего в счёте {in_count}, мимо счёта "
-        f"{wide_n} сквозных и {other} иных разрядов) — прыгать не между чем. "
-        f"Это НЕ ноль прыжков.")
+        f"the quantity is UNDEFINED: not one of the {pages} pages gathered "
+        f"{mn} counted boxes (counted in all {in_count}, out of the count "
+        f"{wide_n} full-width and {other} of other buckets) — nothing to "
+        f"jump between. This is NOT zero jumps.")
     return {"excess_jumps": tot_excess if ok else None,
             # A share stands beside its denominator, and that denominator is
             # NOT "all pages": uncounted pages stay out of it.
@@ -743,8 +746,8 @@ def column_jumps(M: dict, overlap=None, wide=None, min_boxes=None,
 COLUMN_SWEEP = {"overlap": (0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90),
                 "wide": (0.50, 0.60, 0.70, 0.80, 1.01),
                 "min_boxes": (2, 3, 5)}
-_SWEEP_RU = {"overlap": "перекрытие x", "wide": "сквозная рамка",
-             "min_boxes": "минимум рамок"}
+_SWEEP_NAMES = {"overlap": "x overlap", "wide": "full-width box",
+                "min_boxes": "minimum boxes"}
 
 
 def _sweep_points(grid: dict, cross: bool) -> list:
@@ -784,7 +787,7 @@ def _fmt_point(shift: dict) -> str:
     """Name a sweep point in words: WHAT is shifted off the default."""
     if not shift:
         return "default"
-    return ", ".join(f"{_SWEEP_RU.get(k, k)} {v}"
+    return ", ".join(f"{_SWEEP_NAMES.get(k, k)} {v}"
                      for k, v in sorted(shift.items()))
 
 
@@ -795,12 +798,12 @@ def _ranking_rule(rk: dict) -> str:
     play, near = rk.get("ruler_play"), rk.get("closest_pair_at_default")
     if play is None:
         return ""
-    out = (f"Размах линейки по развёртке {play:.2f}: пара, разошедшаяся при "
-           f"умолчании меньше этого, по величине НЕ РЕШАЕТСЯ.")
+    out = (f"Ruler play over the sweep {play:.2f}: a pair parted at the "
+           f"default by less than this is NOT SETTLED by the quantity.")
     if near:
         d, who = near
-        out += (f" Ближайшая пара здесь — {who}, разница {d:.2f}"
-                + (" (меньше размаха: считать это выигрышем нельзя)."
+        out += (f" The closest pair here is {who}, difference {d:.2f}"
+                + (" (below the play: this cannot count as a win)."
                    if d < play else "."))
     return out
 
@@ -858,12 +861,12 @@ def column_jumps_ranking(variants: dict, grid: dict = None,
                     continue
                 signs.add(va < vb)
             if len(signs) > 1:
-                flips.append(f"{na} против {nb}")
+                flips.append(f"{na} against {nb}")
             elif not signs:
                 # A TIE AT EVERY POINT is muteness, not stability: a pair the
                 # quantity never told apart takes no part in the choice, and
                 # calling it "not flipped" enters silence as proof.
-                ties.append(f"{na} против {nb}")
+                ties.append(f"{na} against {nb}")
     # THE CLOSEST PAIR AGAINST THE PLAY OF THE RULER. Stability is checked on
     # the pairs that exist and the next may be closer, so a rule for pairs that
     # were not here prints beside it: a gap smaller than the quantity's own
@@ -875,7 +878,7 @@ def column_jumps_ranking(variants: dict, grid: dict = None,
     near = None
     if pts and pts[0] == {}:
         gaps = [(abs(vals[names[a]][0] - vals[names[b]][0]),
-                 f"{names[a]} против {names[b]}")
+                 f"{names[a]} against {names[b]}")
                 for a in range(len(names)) for b in range(a + 1, len(names))
                 if vals[names[a]][0] is not None
                 and vals[names[b]][0] is not None
@@ -968,29 +971,31 @@ def _report_order(res: dict, log) -> None:
     st = res["order_truth"]
     n, c = st["page_count"], st["states"]
     if c.get(ORDER_MARKED, 0) < n:
-        log(f"истина о порядке: размечен {c.get(ORDER_MARKED, 0)}, "
-            f"не размечен {c.get(ORDER_UNMARKED, 0)}, "
-            f"НЕ СКАЗАНО {c.get(ORDER_SILENT, 0)} из {n} страниц")
+        log(f"truth about order: marked {c.get(ORDER_MARKED, 0)}, "
+            f"not marked {c.get(ORDER_UNMARKED, 0)}, "
+            f"NOT SAID {c.get(ORDER_SILENT, 0)} of {n} pages")
     # ITS OWN line: "not said" takes one line from whoever built the bench,
     # "not marked" is not curable at all.
     if c.get(ORDER_SILENT):
-        log(f"  «не сказано» — ЭТО НЕ «не размечен»: у {c[ORDER_SILENT]} "
-            f"страниц истины поля «порядок размечен» НЕТ ВОВСЕ, и число по "
-            f"ним было бы взято из ничего (так печаталось «согласовано 73%» "
-            f"на hard36). Чинится у того, кто собрал этот стенд.")
-    for name, key in (("чтения МОДЕЛИ против истины", "model_order"),
-                      ("СБОРКИ книги против истины", "assembly_order")):
+        log(f"  'not said' IS NOT 'not marked': {c[ORDER_SILENT]} truth "
+            f"pages have NO `order_marked` field AT ALL, and a number over "
+            f"them would be taken out of nothing (that is how 'agreed 73%' "
+            f"printed on hard36). Cured by whoever built this bench.")
+    for name, key in (("of MODEL reading against truth", "model_order"),
+                      ("of book ASSEMBLY against truth", "assembly_order")):
         o = res[key]
         tail = ("" if key == "model_order"
-                else f"; наш порядок построен так: {res['order_rule']}")
+                else f"; our order is built so: {res['order_rule']}")
         if o["agreement"] is None:
-            log(f"порядок {name}: НЕ СВЕРЯЕТСЯ — {o.get('why', 'нет пар')} "
-                f"(это не ноль согласия){tail}")
+            log(f"order {name}: NOT COMPARED — "
+                f"{o.get('why', 'no pairs')} "
+                f"(this is not zero agreement){tail}")
         else:
-            log(f"порядок {name}: согласовано {o['agreement']*100:.0f}%, "
-                f"пар измерено {o['pairs']} из {o['pairs_possible']} возможных по "
-                f"истине, по {o['page_count']} страницам из {o['pages_total']}"
-                + (f", блоков без ранга {o['blocks_without_rank']}"
+            log(f"order {name}: agreed {o['agreement']*100:.0f}%, "
+                f"pairs measured {o['pairs']} of {o['pairs_possible']} "
+                f"possible by truth, over {o['page_count']} pages of "
+                f"{o['pages_total']}"
+                + (f", blocks without rank {o['blocks_without_rank']}"
                    if o.get("blocks_without_rank") else "") + tail)
     _report_jumps(res["jumps"], log)
 
@@ -1008,25 +1013,26 @@ def _report_jumps(j: dict, log) -> None:
     """
     par = ", ".join(f"{k} {v}" for k, v in j["params"].items())
     if j["excess_jumps"] is None:
-        log(f"лишние прыжки между колонками: ПРОЧЕРК — {j['why']} "
-            f"Группировка: {par}")
+        log(f"excess column jumps: DASH — {j['why']} "
+            f"Grouping: {par}")
     else:
         thin = j["pages_not_counted_too_few_boxes"]
-        tail = (f"рамок в счёте {j['boxes_counted']}, мимо счёта "
-                f"{j['full_width_boxes']} сквозных и {j['boxes_other_buckets']} "
-                f"иных разрядов; страниц без счёта {thin} из {j['page_count']} "
-                f"(рамок меньше минимума); группировка: {par}")
+        tail = (f"boxes counted {j['boxes_counted']}, out of the count "
+                f"{j['full_width_boxes']} full-width and "
+                f"{j['boxes_other_buckets']} of other buckets; pages not "
+                f"counted {thin} of {j['page_count']} (fewer boxes than the "
+                f"minimum); grouping: {par}")
         if not j["pages_with_2plus_columns"]:
-            log(f"лишние прыжки между колонками: 0 — величина ПОСЧИТАНА по "
-                f"{j['pages_counted']} страницам, но ноль этот ПО "
-                f"ПОСТРОЕНИЮ: ни одной многоколоночной страницы из "
-                f"{j['page_count']}, перескакивать было некуда. {tail}")
+            log(f"excess column jumps: 0 — the quantity IS COMPUTED over "
+                f"{j['pages_counted']} pages, but this zero is BY "
+                f"CONSTRUCTION: not one multi-column page of "
+                f"{j['page_count']}, there was nowhere to jump. {tail}")
         else:
-            log(f"лишние прыжки между колонками: {j['excess_jumps']} "
-                f"({j['per_page']:.2f} на страницу по "
-                f"{j['pages_counted']} страницам в счёте из {j['page_count']}; "
-                f"переходов {j['transitions']}, колонок {j['columns']} на "
-                f"{j['pages_with_2plus_columns']} многоколоночных страницах). "
+            log(f"excess column jumps: {j['excess_jumps']} "
+                f"({j['per_page']:.2f} per page over "
+                f"{j['pages_counted']} counted pages of {j['page_count']}; "
+                f"transitions {j['transitions']}, columns {j['columns']} on "
+                f"{j['pages_with_2plus_columns']} multi-column pages). "
                 f"{tail}")
 
 
@@ -1034,7 +1040,7 @@ def report(res: dict, log=print) -> None:
     if res.get("book"):
         log(res["book"])
     t, x = res["totals"], res["text_and_furniture"]
-    log(f"артефактов {t['artifacts']}, найдено {t['found']} "
+    log(f"artefacts {t['artifacts']}, found {t['found']} "
         f"({t['share']*100:.0f}%)")
     for why, n in res["troubles"].items():
         log(f"  {why}: {n}")
@@ -1044,45 +1050,48 @@ def report(res: dict, log=print) -> None:
     if x["block_count"]:
         note = ""
         if x.get("pages_with_text_markup", 0) < x.get("pages_total", 0):
-            note = (f" — считано по {x['pages_with_text_markup']} страницам "
-                    f"из {x['pages_total']}, на остальных текст не размечен")
-        log(f"текст и служебное: блоков {x['block_count']}, найдено {x['found']} "
-            f"({x['share']*100:.0f}%){note}")
+            note = (f" — counted over {x['pages_with_text_markup']} pages "
+                    f"of {x['pages_total']}, text not marked on the rest")
+        log(f"text and furniture: blocks {x['block_count']}, found "
+            f"{x['found']} ({x['share']*100:.0f}%){note}")
     else:
-        log("текст и служебное: НЕ РАЗМЕЧЕНЫ в этой истине — сверять нечего "
-            "(это не ноль полноты)")
+        log("text and furniture: NOT MARKED in this truth — nothing to "
+            "compare (this is not zero completeness)")
     if res.get("sense"):
         c = res["sense"]
-        log(f"СМЫСЛ ЦЕЛ: {c['intact']}/{c['objects']} ({c['share']*100:.0f}%) — "
-            f"обрезан {c['cropped']}, слит {c['merged']}, "
-            f"назван текстом {c['called_text']}, "
-            f"не увиден {c['not_seen']} (объект внутри рамки от "
-            f"{c['threshold_fits']:.2f}, сосед от {c['threshold_neighbour']:.2f})")
+        log(f"SENSE WHOLE: {c['intact']}/{c['objects']} "
+            f"({c['share']*100:.0f}%) — cropped {c['cropped']}, "
+            f"merged {c['merged']}, called text {c['called_text']}, "
+            f"not seen {c['not_seen']} (object inside the box from "
+            f"{c['threshold_fits']:.2f}, neighbour from "
+            f"{c['threshold_neighbour']:.2f})")
     miss = {k: v for k, v in res["by_label"].items()
             if v["found"] < v["truth"]}
     if miss:
-        log("  недобор по ярлыкам: " + ", ".join(
+        log("  misses by label: " + ", ".join(
             f"{k} {v['found']}/{v['truth']}" for k, v in miss.items()))
     _report_order(res, log)
     n_pairs = sum(res["label_confusion"].values())
     # Buckets ALWAYS print: the only part of the confusion that survives a
     # vocabulary border.
-    log(f"путаница разрядов: {role_errors(res)} из {n_pairs} пар")
+    log(f"bucket confusion: {role_errors(res)} of {n_pairs} pairs")
     voc = label_alphabet(res)
     if not voc:
         t_lab = sorted({k.split("->", 1)[0] for k in res["label_confusion"]})
         m_lab = sorted({k.split("->", 1)[1] for k in res["label_confusion"]})
-        log(f"путаница ярлыков: НЕ СВЕРЯЕТСЯ — истина и модель отвечают в "
-            f"разных словарях (истина ложится в {_fits(t_lab) or '—'}, "
-            f"модель в {_fits(m_lab) or '—'}; общих ярлыков "
-            f"{len(set(t_lab) & set(m_lab))} из {len(set(t_lab) | set(m_lab))}). "
-            f"Это НЕ 100% ошибок: `table` и `Table` про одно и то же, а "
-            f"перевода между словарями у нас нет и не должно быть.")
+        log(f"label confusion: NOT COMPARED — truth and model answer in "
+            f"different vocabularies (truth fits {_fits(t_lab) or '—'}, "
+            f"model {_fits(m_lab) or '—'}; labels in common "
+            f"{len(set(t_lab) & set(m_lab))} of "
+            f"{len(set(t_lab) | set(m_lab))}). This is NOT 100% errors: "
+            f"`table` and `Table` are the same thing, and we have no "
+            f"translation between vocabularies, nor should we.")
     else:
         bad = {k: v for k, v in res["label_confusion"].items()
                if k.split("->", 1)[0] != k.split("->", 1)[1]}
-        log(f"путаница ярлыков: {label_errors(res)} из {n_pairs} пар "
-            f"(словарь один: {', '.join(voc)})" + (f" — {bad}" if bad else ""))
+        log(f"label confusion: {label_errors(res)} of {n_pairs} pairs "
+            f"(one vocabulary: {', '.join(voc)})"
+            + (f" — {bad}" if bad else ""))
     for case, c in sorted(res["by_case"].items(),
                           key=lambda kv: (kv[1]["found"] - kv[1]["artifacts"])):
         if c["found"] < c["artifacts"] or c["troubles"]:
@@ -1423,18 +1432,19 @@ def mutations(truth_dir: str, detect_dir: str, log=print) -> int:
     # labels with PP-DocLayoutV2, so there is no diagonal. A number would pass
     # misunderstanding off as measurement; comparing it would be a TypeError.
     b_lab = label_errors(base)
-    b_lab_s = "не сверяется (словари разные)" if b_lab is None else str(b_lab)
+    b_lab_s = ("not compared (different vocabularies)"
+               if b_lab is None else str(b_lab))
     b_role = role_errors(base)
-    b_merge, b_split = _beds(base, "слияние"), _beds(base, "дробление")
-    b_dup, b_in = (_beds(base, "вложенный дубль"),
-                   _beds(base, "внутри ненайденного"))
-    log(f"исходно: артефактов {b_found*100:.0f}%, текста {b_text_s}, "
-        f"порядок модели {b_ord_s}, порядок сборки {b_asm_s}, "
-        f"лишних прыжков {b_jump} на {b_multi} многоколоночных страницах, "
-        f"ошибок ярлыка {b_lab_s}, "
-        f"ошибок разряда {b_role}, "
-        f"слияний {b_merge}, дроблений {b_split}, "
-        f"вложенных дублей {b_dup}, внутри ненайденного {b_in}")
+    b_merge, b_split = _beds(base, "merge"), _beds(base, "fragmentation")
+    b_dup, b_in = (_beds(base, "nested duplicate"),
+                   _beds(base, "inside a miss"))
+    log(f"baseline: artefacts {b_found*100:.0f}%, text {b_text_s}, "
+        f"model order {b_ord_s}, assembly order {b_asm_s}, "
+        f"excess jumps {b_jump} on {b_multi} multi-column pages, "
+        f"label errors {b_lab_s}, "
+        f"bucket errors {b_role}, "
+        f"merges {b_merge}, fragmentations {b_split}, "
+        f"nested duplicates {b_dup}, inside a miss {b_in}")
 
     def R(mm=None, tt=None):
         return compare_pages(tt or T, mm or M)
@@ -1528,93 +1538,93 @@ def mutations(truth_dir: str, detect_dir: str, log=print) -> int:
     # the metric. Such probes return None and print under a mark of their own.
     probes = [
         # --- damage to the model output
-        ("сдвиг рамок на треть их размера", "упало",
+        ("boxes shifted by a third of their size", "fell",
          lambda: found(_shift_rel(M, 0.34)) < b_found),
-        ("рамки раздуты в 1.5 раза (разлив)", "упало",
+        ("boxes inflated 1.5x (spill)", "fell",
          lambda: found(_grow(M, 1.5)) < b_found),
-        ("рамки сжаты в 0.6 раза (срез)", "упало",
+        ("boxes shrunk 0.6x (crop)", "fell",
          lambda: found(_grow(M, 0.6)) < b_found),
-        ("артефакты выкинуты вовсе", "ноль",
+        ("artefacts dropped altogether", "zero",
          lambda: found(_only(M, lambda b: b["label"] not in arte)) == 0.0),
         # A TEXT label of the same vocabulary, not an invented one: an
         # invented one breaks `policy.role` in the diagnosis, so the probe
         # would fail with someone else's error instead of its answer.
-        (f"артефакты названы {plain}", "ноль",
+        (f"artefacts called {plain}", "zero",
          lambda: None if not plain
                  else found(_relabel(M, lambda l: plain if l in arte else l)) == 0.0),
-        ("рамки продублированы", "не выросло",
+        ("boxes duplicated", "did not grow",
          lambda: found(_duplicate(M)) <= b_found),
-        ("разметка сдвинута на страницу", "упало",
+        ("markup shifted by one page", "fell",
          lambda: found(_shuffle_pages(M)) < b_found),
-        ("ранги модели перевёрнуты", "порядок модели упал",
+        ("model ranks reversed", "model order fell",
          lambda: None if b_ord is None
                  else R(_reverse_order(M))["model_order"]["agreement"]
                       < b_ord),
         # The same damage, and the second quantity must NOT budge: ranks and
         # the list are different things, and scoring assembly by rank would
         # show here at once.
-        ("ранги модели перевёрнуты", "порядок сборки НЕ изменился",
+        ("model ranks reversed", "assembly order UNCHANGED",
          lambda: None if b_asm is None
                  else R(_reverse_order(M))["assembly_order"]["agreement"]
                       == b_asm),
-        ("порядок сборки перевёрнут (список блоков)", "упало",
+        ("assembly order reversed (block list)", "fell",
          lambda: None if b_asm is None
                  else R(_reverse_blocks(M))["assembly_order"]["agreement"]
                       < b_asm),
         # --- damage aimed at order WITHOUT TRUTH
-        ("две колонки перемешаны", "лишних прыжков больше",
+        ("two columns interleaved", "more excess jumps",
          lambda: None if not (b_multi and _mixable())
                  else R(_mix_columns(M))["jumps"]["excess_jumps"] > b_jump),
-        ("все рамки в одну колонку", "лишних прыжков ноль",
+        ("all boxes into one column", "excess jumps zero",
          lambda: None if not b_jump
                  else R(_one_column(M))["jumps"]["excess_jumps"] == 0),
         # TWO ZEROS, A PROBE FOR EACH. The previous one demands the quantity
         # FALL TO ZERO where it is computed -- many boxes, one column, no
         # transitions. This one demands NO QUANTITY AT ALL on a one-box page,
         # where a zero would lie "assembly runs straight through".
-        ("страница из одной рамки в счёте", "величина ПРОЧЕРК, а не ноль",
+        ("a page with one counted box", "the quantity is a DASH, not a zero",
          one_box_dash),
         # --- damage aimed at the NAMED counters
-        ("артефакты страницы слиты в один", "слияний больше",
+        ("the page's artefacts merged into one", "more merges",
          lambda: None if not mergeable()
-                 else _beds(R(_merge_all(M, arte)), "слияние") > b_merge),
-        ("каждый артефакт разрезан пополам", "дроблений больше",
-         lambda: _beds(R(_split_all(M, arte)), "дробление") > b_split),
+                 else _beds(R(_merge_all(M, arte)), "merge") > b_merge),
+        ("every artefact cut in half", "more fragmentations",
+         lambda: _beds(R(_split_all(M, arte)), "fragmentation") > b_split),
         # A nested box has TWO names, each needing its probe: one damage
         # lifting both could not tell a live counter from one stuck to its
         # neighbour. A copy of a scored box is a duplicate; a half whose
         # artefact is no longer found is "inside a miss", with no original.
-        ("рамки продублированы", "вложенных дублей больше",
+        ("boxes duplicated", "more nested duplicates",
          lambda: None if not nested_pair()
-                 else _beds(R(_duplicate(M)), "вложенный дубль") > b_dup),
-        ("каждый артефакт разрезан пополам", "внутри ненайденного больше",
+                 else _beds(R(_duplicate(M)), "nested duplicate") > b_dup),
+        ("every artefact cut in half", "more inside a miss",
          lambda: None if not halves_inside()
                  else _beds(R(_split_all(M, arte)),
-                            "внутри ненайденного") > b_in),
+                            "inside a miss") > b_in),
         # --- damage aimed at LABEL CONFUSION (the second of the three)
         #
         # "No data", not "NO", when the sides speak different vocabularies:
         # above 100% errors there are none, and on egret/yolox this probe
         # printed "NO" for a fault of comparison, 698/698 pairs being errors
         # before any damage. Now the quantity is honestly not computed there.
-        (f"ярлык {pick} подменён на {other}", "ошибок ярлыка больше",
+        (f"label {pick} replaced by {other}", "more label errors",
          lambda: _grew(label_errors(R(_relabel(
                      M, lambda l: other if l == pick else l))), b_lab)
                  if (pick and other) else None),
         # BUCKET confusion lives across the vocabulary border and must be able
         # to fail like the rest. The damage is across a bucket, not within one:
         # `table`->`chart` cannot move this number by construction.
-        (f"артефакты названы {plain}", "ошибок разряда больше",
+        (f"artefacts called {plain}", "more bucket errors",
          lambda: None if not (plain and any(
                      policy.role(k.split("->", 1)[0]) == "artifact"
                      for k in base["label_confusion"]))
                  else role_errors(R(_relabel(
                      M, lambda l: plain if l in arte else l))) > b_role),
-        (f"ярлык {pick} подменён на {other}", "локализация НЕ изменилась",
+        (f"label {pick} replaced by {other}", "localisation UNCHANGED",
          lambda: None if not (pick and other)
                  else found(_relabel(M, lambda l: other if l == pick else l)) == b_found),
         # --- the "sense whole" quantity needs a probe too
-        ("артефакты страницы слиты в один", "смысл цел падает",
+        ("the page's artefacts merged into one", "sense whole falls",
          lambda: None if not _multi(T, arte)
                  else R(_merge_all(M, arte))["sense"]["merged"]
                       > base["sense"]["merged"]),
@@ -1622,27 +1632,28 @@ def mutations(truth_dir: str, detect_dir: str, log=print) -> int:
         # (threshold 0.90) but is still visible (neighbour 0.5), i.e. CROPPED.
         # A stronger squeeze drives it into "not seen", another loss than the
         # probe name promises.
-        ("рамки сжаты в 0.85 раза", "обрезанных больше",
+        ("boxes shrunk 0.85x", "more cropped",
          lambda: R(_grow(M, 0.85))["sense"]["cropped"] > base["sense"]["cropped"]),
-        ("рамки сжаты вдвое", "целых меньше",
+        ("boxes shrunk by half", "fewer intact",
          lambda: R(_grow(M, 0.5))["sense"]["intact"] < base["sense"]["intact"]),
         # Dropping the artefacts leaves the text boxes, so objects go into
         # "called text" and "not seen"; the probe looks at the sum.
-        ("артефакты выкинуты вовсе", "целых не осталось",
+        ("artefacts dropped altogether", "no intact left",
          lambda: R(_only(M, lambda b: b["label"] not in arte))["sense"]["intact"] == 0),
         # --- damage to TRUTH: the metric must look at both its inputs
-        ("истина сдвинута на треть размера рамки", "упало",
+        ("truth shifted by a third of the box size", "fell",
          lambda: found(tt=_shift_rel(T, 0.34)) < b_found),
-        ("истина раздута в 1.5 раза", "упало",
+        ("truth inflated 1.5x", "fell",
          lambda: found(tt=_grow(T, 1.5)) < b_found),
         # The order-annotation flag is an input like the boxes, and damaging it
         # must yield SILENCE, not a number: the `True` default made an erased
         # flag indistinguishable from a declared one.
-        ("у истины стёрт признак разметки порядка", "НЕ СВЕРЯЕТСЯ, а не число",
+        ("the order-marked flag erased from truth",
+         "NOT COMPARED, not a number",
          lambda: None if b_asm is None
                  else all(R(tt=_forget_order_mark(T))[k]["agreement"] is None
                           for k in ("model_order", "assembly_order"))),
-        ("текст и служебное выкинуты из истины", "текста ноль",
+        ("text and furniture dropped from truth", "text zero",
          lambda: None if not any(policy.role(b["label"]) != "artifact"
                                  for p in T.values() for b in p["blocks"])
                  else R(tt=_only(T, lambda b: b["label"] in arte))
@@ -1661,8 +1672,8 @@ def mutations(truth_dir: str, detect_dir: str, log=print) -> int:
             # NOT the word "fell": seven probes have "fell" for their `want`
             # (there it means "the quantity must fall"), and it would come out
             # "fell -- fell: ValueError". Different things, different words.
-            want = f"{want} — ПРОБА БРОСИЛА {type(e).__name__}: {e}"
-        mark = "нет данных" if ok is None else ("ok " if ok else "НЕТ")
+            want = f"{want} — THE PROBE THREW {type(e).__name__}: {e}"
+        mark = "no data" if ok is None else ("ok " if ok else "NO")
         log(f"  {mark:>10}  {name}: {want}")
         bad += ok is False
         mute += ok is None
@@ -1701,8 +1712,8 @@ def mutations(truth_dir: str, detect_dir: str, log=print) -> int:
         c_hi = at(cover=hi)["totals"]["share"]
         c_lo = at(cover=lo)["totals"]["share"]
         t_hi = at(tol=keep_p * 8)["totals"]["share"]
-        blind = _beds(at(touch=1.01), "не увидел")
-        base_blind = _beds(base, "не увидел")
+        blind = _beds(at(touch=1.01), "not seen")
+        base_blind = _beds(base, "not seen")
 
         # TWO QUESTIONS, AND ONE PROBE MUST NOT ASK BOTH. "Is the threshold
         # monotone" is a property of the METRIC -- stricter cannot give more,
@@ -1729,19 +1740,19 @@ def mutations(truth_dir: str, detect_dir: str, log=print) -> int:
                 worst = min(worst, cover(b["box"], _pad(mb[j]["box"], keep_p)),
                             cover(mb[j]["box"], _pad(b["box"], keep_p)))
         for name, ok, why in (
-                (f"COVER_MATCH монотонен: строже {c_hi*100:.0f}%, база "
-                 f"{b_found*100:.0f}%, мягче {c_lo*100:.0f}%",
-                 c_hi <= b_found <= c_lo, "строже не больше, мягче не меньше"),
-                (f"COVER_MATCH не мёртв (худшее покрытие совпавшей пары "
-                 f"{worst:.2f} при пороге {keep_c:.2f})",
+                (f"COVER_MATCH is monotone: stricter {c_hi*100:.0f}%, base "
+                 f"{b_found*100:.0f}%, softer {c_lo*100:.0f}%",
+                 c_hi <= b_found <= c_lo, "stricter no more, softer no less"),
+                (f"COVER_MATCH is not dead (worst cover of a matched pair "
+                 f"{worst:.2f} at threshold {keep_c:.2f})",
                  True if moved else None,
-                 "сдвинулся хоть в одну сторону; «нет данных» значит, что на "
-                 "ЭТОЙ книге все пары далеко от границы"),
-                (f"TOL_PX x8 ({t_hi*100:.0f}% против {b_found*100:.0f}%)",
-                 t_hi >= b_found, "не меньше"),
-                (f"TOUCH=1.01 (не увидел {blind} против {base_blind})",
-                 blind > base_blind, "бед «не увидел» больше")):
-            mark = "нет данных" if ok is None else ("ok " if ok else "НЕТ")
+                 "moved at least one way; 'no data' means that on THIS book "
+                 "every pair is far from the border"),
+                (f"TOL_PX x8 ({t_hi*100:.0f}% against {b_found*100:.0f}%)",
+                 t_hi >= b_found, "no less"),
+                (f"TOUCH=1.01 (not seen {blind} against {base_blind})",
+                 blind > base_blind, "more 'not seen' troubles")):
+            mark = "no data" if ok is None else ("ok " if ok else "NO")
             log(f"  {mark:>10}  {name}: {why}")
             bad += ok is False
             mute += ok is None
@@ -1757,8 +1768,8 @@ def mutations(truth_dir: str, detect_dir: str, log=print) -> int:
         sw = column_jumps_sweep(M)
         lo, hi, b0 = sw["min"], sw["max"], sw["baseline"]
         if lo is None:
-            log(f"  развёртка группировки колонок: величина ПРОЧЕРК во всех "
-                f"{sw['points']} точках — на этом стенде мерить не на чем")
+            log(f"  column grouping sweep: the quantity is a DASH at all "
+                f"{sw['points']} points — nothing to measure on this bench")
         else:
             pt = {p["value"]: _fmt_point(p["shifted"])
                   for p in sw["by_point"]
@@ -1767,39 +1778,41 @@ def mutations(truth_dir: str, detect_dir: str, log=print) -> int:
             # forbidden: on `katalog` it is zero, and a range "in percent of
             # the default" would kill the battery by zero division on the bench
             # with least to measure anyway.
-            b0s = "прочерк" if b0 is None else f"{b0:.2f}"
+            b0s = "dash" if b0 is None else f"{b0:.2f}"
             pct = ("" if not b0 else
-                   f", то есть {(hi - lo) / b0 * 100:.0f}% от умолчания")
-            log(f"  развёртка группировки колонок ({sw['quantity']}): умолчание "
-                f"{b0s}, по {sw['points']} точкам гуляет {lo:.2f}..{hi:.2f} "
-                f"(размах {hi - lo:.2f}{pct}); ниже всего при «{pt[lo]}», выше "
-                f"всего при «{pt[hi]}»; прочерков {sw['dashes']}")
+                   f", that is {(hi - lo) / b0 * 100:.0f}% of the default")
+            log(f"  column grouping sweep ({sw['quantity']}): default "
+                f"{b0s}, over {sw['points']} points it roams "
+                f"{lo:.2f}..{hi:.2f} (range {hi - lo:.2f}{pct}); lowest at "
+                f"'{pt[lo]}', highest at '{pt[hi]}'; dashes {sw['dashes']}")
         # THE MAIN QUESTION ABOUT SENSITIVITY. Spread alone does not forbid the
         # quantity: moving ALL variants together, the choice between them
         # holds. What forbids it is variants swapping places.
         rk = column_jumps_ranking(_order_variants(M))
         span = "; ".join(
-            f"{n} {a:.2f}..{b:.2f}" if a is not None else f"{n} прочерк"
+            f"{n} {a:.2f}..{b:.2f}" if a is not None else f"{n} dash"
             for n, (a, b) in rk["ranges"].items())
         if rk["stable"]:
             # A tie at every point is NOT proof: a pair the quantity never
             # told apart says nothing about the choice.
-            log(f"  порядок вариантов сборки на всей развёртке УСТОЙЧИВ: "
-                f"{rk['variants']} варианта, {rk['pairs']} пар, ни одна не "
-                f"перевернулась на {rk['points']} точках; различает "
-                f"{rk['pairs_distinguished']} пар из {rk['pairs']}"
-                + (f", ничья на всех точках у {len(rk['tied_pairs'])} "
-                   f"({'; '.join(rk['tied_pairs'])}) — про них величина молчит"
+            log(f"  the order of assembly variants is STABLE over the "
+                f"whole sweep: {rk['variants']} variants, {rk['pairs']} "
+                f"pairs, not one flipped at {rk['points']} points; "
+                f"distinguishes {rk['pairs_distinguished']} pairs of "
+                f"{rk['pairs']}"
+                + (f", a tie at every point for {len(rk['tied_pairs'])} "
+                   f"({'; '.join(rk['tied_pairs'])}) — about these the "
+                   f"quantity is silent"
                    if rk["tied_pairs"] else "")
-                + f". {_ranking_rule(rk)} Пределы: {span}")
+                + f". {_ranking_rule(rk)} Ranges: {span}")
         else:
-            log(f"  ВНИМАНИЕ: порядок вариантов сборки МЕНЯЕТСЯ от параметров "
-                f"группировки — перевернулось {len(rk['flipped_pairs'])} пар "
-                f"из {rk['pairs']} на {rk['points']} точках "
-                f"({'; '.join(rk['flipped_pairs'])}). ВЫБИРАТЬ модель или "
-                f"правило сборки по этой величине НЕЛЬЗЯ: знак разницы держится "
-                f"не на данных, а на наших параметрах. {_ranking_rule(rk)} "
-                f"Пределы: {span}")
+            log(f"  WARNING: the order of assembly variants CHANGES with "
+                f"the grouping parameters — {len(rk['flipped_pairs'])} pairs "
+                f"of {rk['pairs']} flipped at {rk['points']} points "
+                f"({'; '.join(rk['flipped_pairs'])}). CHOOSING a model or an "
+                f"assembly rule by this quantity IS FORBIDDEN: the sign of "
+                f"the difference rests on our parameters, not on the data. "
+                f"{_ranking_rule(rk)} Ranges: {span}")
 
         # --- small damage must NOT be caught
         #
@@ -1838,22 +1851,22 @@ def mutations(truth_dir: str, detect_dir: str, log=print) -> int:
                 fragile += (c - keep_c) < (d / w + d / h)
         tol = max(1.0, float(fragile))
         ok = moved <= tol
-        log(f"  {'ok ' if ok else 'НЕТ'}  сдвиг на 3 пикселя: переехало "
-            f"{moved:.0f} рамок из {n}; допуск {tol:.0f} — столько пар сидит "
-            f"на самой границе покрытия")
+        log(f"  {'ok ' if ok else 'NO'}  shift by 3 pixels: {moved:.0f} "
+            f"boxes of {n} moved; tolerance {tol:.0f} — that many pairs sit "
+            f"right on the cover border")
         bad += not ok
         seen += 1
 
     except Exception as e:                                      # noqa: BLE001
-        log(f"  {'НЕТ':>10}  ОСТАТОК БАТАРЕИ НЕ ДОЕХАЛ: "
+        log(f"  {'NO':>10}  THE REST OF THE BATTERY DID NOT ARRIVE: "
             f"{type(e).__name__}: {e}")
         bad += 1
         seen += 1
-    log("чего эта батарея НЕ ловит: неверную ИСТИНУ (против неё только глаза "
-        "и `books overlay`); неверный перевод координат моделью (истина и "
-        "вывод сверяются друг с другом, а не с растром); подмену книги при "
-        "отсутствии слепка рядом; ошибку ярлыка ВНУТРИ разряда, если она "
-        "одинакова у истины и модели.")
+    log("what this battery does NOT catch: a wrong TRUTH (only the eyes and "
+        "`books overlay` stand against it); a wrong coordinate transform by "
+        "the model (truth and output are checked against each other, not "
+        "against the raster); a swapped book when no snapshot lies beside; a "
+        "label error INSIDE a bucket, if truth and model make it alike.")
     # A QUANTITY, NOT THE WORD "DONE", as in `fitness` and `text`: one
     # "uncaught damage: N" line left out the seven probes of thirty-three that
     # measured NOTHING, so the battery printed a zero having measured less than
@@ -1861,8 +1874,9 @@ def mutations(truth_dir: str, detect_dir: str, log=print) -> int:
     # not derived from `len(probes)` -- there are THREE groups (main loop,
     # thresholds, lone 3 px shift), and adding them by hand gave "probes 32"
     # against 33 printed outcomes.
-    log(f"батарея контуров: проб {seen}, померено {seen - mute}, "
-        f"нечем мерить {mute} (см. строки «нет данных»), непойманных {bad}")
+    log(f"contour battery: probes {seen}, measured {seen - mute}, "
+        f"nothing to measure with {mute} (see the 'no data' lines), "
+        f"uncaught {bad}")
     return bad
 
 # ------------------------------------------------- SENSE WHOLE

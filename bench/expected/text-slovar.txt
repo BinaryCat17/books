@@ -1,13 +1,13 @@
-sha256 не сверен: нет manifest.json или run.json рядом; растр сверен: 13 страниц, размеры совпали
-нормализация: boundary — NFKC и пробелы, регистр, тире/дефис/минус, десятичная запятая, хвостовая пунктуация
-  НЕ снимаем: головная пунктуация (снимает 139, вредит 4: '.850' == '850'), вся пунктуация (504 при вреде 108: '6—2' == '6,2'), двойники кир/лат (лифт 2.70 против 3.06 без неё)
-страниц: истины 13, ответа 13, без ответа 0, лишних 0
-сопоставлено 523/523 (100%): по якорю 0, по номеру 523, по геометрии 0
-  НЕ сопоставлено: истины 0, лишних в ответе 0, якорь в никуда 0, на чужую страницу 0, мимо рамки 0, без рамки в ответе 0
-текст: блоков 520, знаков 56578, слов 10233; CER 0.0000, WER 0.0000
-  на отвеченных CER 0.0000 по 56578 знакам; без ответа 0 (0%), не сопоставлено 0, истина пуста 0
-таблицы: блоков 2, ячеек 227, но ОТВЕТА НЕТ НИ НА ОДИН — сверять нечего, и это НЕ «совпало 0%»
-  без ответа 2, отдана текстом 0, не сопоставлено 0
-приманки: артефактов 1, ПРОЧИТАНО 0 (0%), промолчано 1, не сопоставлено 0
-истина НЕ РАЗМЕЧЕНА: блоков 0, из них с ответом модели 0 — сверять их не с чем, это НЕ ноль чтения; вид ответа не тот: 0
-  блоков с ошибкой знаков нет: CER 0 на всех 520 посчитанных из 520
+sha256 not checked: no manifest.json or run.json beside; raster checked: 13 pages, sizes agree
+normalisation: boundary — NFKC and spaces, case, dash/hyphen/minus, decimal comma, trailing punctuation
+  NOT stripped: leading punctuation (removes 139, harms 4: '.850' == '850'), all punctuation (504 at harm 108: '6—2' == '6,2'), Cyrillic/Latin lookalikes (lift 2.70 against 3.06 without it)
+pages: truth 13, answer 13, no answer 0, spurious 0
+paired 523/523 (100%): by anchor 0, by number 523, by geometry 0
+  NOT paired: truth 0, extra in the answer 0, anchor to nowhere 0, to another page 0, off the box 0, no box in the answer 0
+text: blocks 520, characters 56578, words 10233; CER 0.0000, WER 0.0000
+  CER over answered 0.0000 over 56578 characters; no answer 0 (0%), not paired 0, truth empty 0
+tables: blocks 2, cells 227, but THERE IS NO ANSWER TO A SINGLE ONE — nothing to compare, and this is NOT 'matched 0%'
+  no answer 2, given as text 0, not paired 0
+baits: artifacts 1, READ 0 (0%), stayed silent 1, not paired 0
+truth NOT MARKED: blocks 0, of them with a model answer 0 — there is nothing to check them against, this is NOT zero reading; wrong answer kind: 0
+  no text blocks with an error: CER 0 on all 520 computed of 520

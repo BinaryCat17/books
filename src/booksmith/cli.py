@@ -46,11 +46,12 @@ from .run import replay as replay_mod
 def _host_args(ap):
     ap.add_argument("--gpu", default="RTX_4090",
                     help="RTX_4090 / RTX_5090 / A100_PCIE ...")
-    ap.add_argument("--max-dph", type=float, default=0.60, help="потолок $/час")
-    ap.add_argument("--disk", type=int, default=60, help="диск инстанса, ГБ")
+    ap.add_argument("--max-dph", type=float, default=0.60,
+                    help="ceiling in $/hour")
+    ap.add_argument("--disk", type=int, default=60, help="instance disk, GB")
     ap.add_argument("--machine", type=int,
-                    help="привязаться к machine_id с прогретым кешем")
-    ap.add_argument("--image", help="переопределить docker-образ")
+                    help="pin to a machine_id with a warm cache")
+    ap.add_argument("--image", help="override the docker image")
 
 
 def cmd_offers(a):
@@ -87,7 +88,7 @@ def cmd_detect(a):
     detect.run(a.file, out, a.pages, log=log)
     # Quoted: five of the nine files in raw/ carry spaces and brackets, and a
     # hint you cannot paste into a shell is not a hint.
-    log(f"проверить полноту слепка: books replay --check {shlex.quote(out)}")
+    log(f"snapshot completeness: books replay --check {shlex.quote(out)}")
     return 0
 
 
@@ -116,20 +117,20 @@ def _page_files(d):
     for both swaps one zero for the other.
     """
     if not os.path.isdir(d):
-        return 0, "не каталог"
+        return 0, "not a directory"
     names = sorted(f for f in os.listdir(d)
                    if f.endswith(".json") and f != "run.json")
     if not names:
-        return 0, "json-файлов нет вовсе"
+        return 0, "no json files at all"
     try:
         with open(os.path.join(d, names[0]), encoding="utf-8") as f:
             first = json.load(f)
     except (OSError, ValueError) as e:
-        return 0, f"{names[0]} не читается как json ({type(e).__name__})"
+        return 0, f"{names[0]} does not read as json ({type(e).__name__})"
     if not (isinstance(first, dict) and "blocks" in first
             and "index" in first):
-        return 0, (f"json-файлов {len(names)}, но {names[0]} — не страница "
-                   f"разметки: нет полей blocks/index")
+        return 0, (f"json files {len(names)}, but {names[0]} is not a layout "
+                   f"page: no blocks/index fields")
     return len(names), ""
 
 
@@ -143,24 +144,24 @@ def _pages_dir(path, what):
     """
     if not os.path.exists(path):
         raise SystemExit(
-            f"{what}: нет пути {path}. Ожидается каталог прогона "
-            f"`books detect` (в нём pages/ и run.json) или сам каталог "
-            f"страниц разметки (*.json).")
+            f"{what}: no path {path}. Expected a `books detect` run "
+            f"directory (pages/ and run.json in it) or the directory of "
+            f"layout pages itself (*.json).")
     sub = os.path.join(path, "pages")
     (here, why_here), (there, why_sub) = _page_files(path), _page_files(sub)
     if there and not here:
         # A value, not silence: a substituted directory must show in the
         # journal, or "measured the wrong thing" reads like "measured".
-        log(f"{what}: подан каталог прогона, страницы беру из {sub} — их "
-            f"{there}")
+        log(f"{what}: given a run directory, taking the pages from {sub} — "
+            f"there are {there}")
         return sub
     if here:
         return path
     raise SystemExit(
-        f"{what}: страниц разметки не нашлось. В {path} — {why_here}; "
-        f"в {sub} — {why_sub}. Ожидается каталог прогона `books detect` "
-        f"(в нём pages/ и run.json) или сам каталог страниц. Считать "
-        f"нечего — и это не ноль потерь.")
+        f"{what}: no layout pages found. In {path} — {why_here}; in {sub} — "
+        f"{why_sub}. Expected a `books detect` run directory (pages/ and "
+        f"run.json in it) or the page directory itself. There is nothing to "
+        f"count — and that is not a zero of losses.")
 
 
 def _run_dir(path, what):
@@ -172,18 +173,18 @@ def _run_dir(path, what):
     """
     if not os.path.exists(path):
         raise SystemExit(
-            f"{what}: нет пути {path}. Ожидается каталог прогона "
-            f"`books detect` — тот, где лежит run.json.")
+            f"{what}: no path {path}. Expected a `books detect` run "
+            f"directory — the one holding run.json.")
     if os.path.exists(os.path.join(path, "run.json")):
         return path
     up = os.path.dirname(os.path.abspath(path.rstrip("/")))
     if _page_files(path)[0] and os.path.exists(os.path.join(up, "run.json")):
-        log(f"{what}: подан каталог страниц, слепок беру из {up}")
+        log(f"{what}: given a page directory, taking the snapshot from {up}")
         return up
     raise SystemExit(
-        f"{what}: в {path} нет run.json. Ожидается каталог прогона "
-        f"`books detect` (в нём pages/ и run.json), а не каталог страниц и "
-        f"не корень книги.")
+        f"{what}: no run.json in {path}. Expected a `books detect` run "
+        f"directory (pages/ and run.json in it), not a page directory and "
+        f"not a book root.")
 
 
 def book_home(detect_dir: str) -> str:
@@ -219,10 +220,10 @@ def cmd_html(a):
     if (not a.out and os.path.isdir(out) and os.listdir(out)
             and not html_mod.is_our_dir(out)):
         raise SystemExit(
-            f"в {out} уже лежит что-то не наше: нет ни "
-            f"`{html_mod.ASSETS}/run.json`, ни `run.json` в корне — значит "
-            f"каталог собран не `books html`. Затирать его молча нельзя: "
-            f"задайте --out либо уберите каталог руками.")
+            f"{out} already holds something not ours: neither "
+            f"`{html_mod.ASSETS}/run.json` nor `run.json` in the root — so "
+            f"the directory was not built by `books html`. Overwriting it "
+            f"silently is not allowed: give --out or remove it by hand.")
     html_mod.build(d, out, log=log)
     return 0
 
@@ -243,8 +244,9 @@ def cmd_apply(a):
         if a.from_read:
             if a.anchor or a.undo:
                 raise ap.SwapError(
-                    "--from вместе с --anchor или --undo: это разные работы. "
-                    "--from ставит ВСЁ прочитанное, --anchor — один блок.")
+                    "--from together with --anchor or --undo: these are "
+                    "different jobs. --from places EVERYTHING read, "
+                    "--anchor one block.")
             ap.from_read(d, a.from_read, log=log)
             return 0
         if a.status:
@@ -252,15 +254,15 @@ def cmd_apply(a):
             return 0
         if a.undo and not a.anchor:
             raise ap.SwapError(
-                "--undo без --anchor: назови блок, который откатывать. "
-                "Без имени команда откатила бы неизвестно что; список "
-                "заменённых даёт `books apply <каталог> --status`.")
+                "--undo without --anchor: name the block to roll back. "
+                "Unnamed, the command would roll back who knows what; the "
+                "list of replaced ones is `books apply <dir> --status`.")
         if a.undo:
             ap.undo(d, a.anchor, log=log)
         elif a.anchor:
             if not a.file:
-                raise ap.SwapError("нечего ставить: дай --file с разметкой "
-                                   "блока либо --undo")
+                raise ap.SwapError("nothing to place: give --file with the "
+                                   "block markup, or --undo")
             with open(a.file, encoding="utf-8") as f:
                 ap.put(d, a.anchor, f.read(), kind=a.kind,
                        source=a.source or os.path.basename(a.file), log=log)
@@ -275,12 +277,13 @@ def cmd_apply(a):
             src = ap.source_of(d)
             if not src:
                 raise ap.SwapError(
-                    f"{d}: не знаю, что ставить. В `{ap.ASSETS}/run.json` нет "
-                    f"пути каталога чтения либо его больше нет на диске — "
-                    f"назови его сам: `books apply {os.path.basename(d)} "
-                    f"--from <каталог books read>`. Что уже заменено, "
-                    f"покажет `--status`.")
-            log(f"источник взят из слепка книги: {src}")
+                    f"{d}: I do not know what to place. "
+                    f"`{ap.ASSETS}/run.json` holds no path to a reading "
+                    f"directory, or it is gone from disk — name it "
+                    f"yourself: `books apply {os.path.basename(d)} --from "
+                    f"<books read dir>`. What is already replaced is shown "
+                    f"by `--status`.")
+            log(f"source taken from the book's snapshot: {src}")
             ap.from_read(d, src, log=log)
     except ap.SwapError as e:
         log(str(e))
@@ -303,27 +306,28 @@ def cmd_read_rented(a, policy_name, out):
 
     spec = vl.spec(_pdf_of(a.dir), a.dir, pages=a.pages, policy=policy_name,
                    budget_usd=a.budget, timeout_minutes=a.timeout)
-    log(f"задание {spec.name}: вход {len(spec.inputs)} путей, потолок "
-        f"${spec.budget_usd:.2f} и {spec.timeout_minutes:.0f} мин, карта "
-        f"{spec.host.gpu}, CUDA от {spec.host.cuda_min}")
+    log(f"job {spec.name}: input {len(spec.inputs)} paths, ceiling "
+        f"${spec.budget_usd:.2f} and {spec.timeout_minutes:.0f} min, card "
+        f"{spec.host.gpu}, CUDA from {spec.host.cuda_min}")
     # THE MONEY CEILING IS UNREACHABLE WHILE IT EXCEEDS THE HOURLY PRICE.
     # `Budget` takes the smaller of the two, so at a price ceiling of
     # $0.60/hour a $0.60 limit means exactly one hour: time always cuts, money
     # never. Whoever pays is told, not whoever later reads the journal.
     by_money_h = a.budget / max(spec.host.max_dph, 1e-9)
     if by_money_h * 60 >= a.timeout:
-        log(f"  ВНИМАНИЕ: при цене до ${spec.host.max_dph:.2f}/час потолок "
-            f"${a.budget:.2f} — это {by_money_h:.1f} ч, то есть больше "
-            f"{a.timeout:.0f} мин таймаута. Резать будет ВРЕМЯ; настоящая "
-            f"верхняя трата — ${spec.host.max_dph * a.timeout / 60:.2f}")
+        log(f"  WARNING: at a price of up to ${spec.host.max_dph:.2f}/hour "
+            f"the ceiling ${a.budget:.2f} is {by_money_h:.1f} h, i.e. more "
+            f"than the {a.timeout:.0f} min timeout. TIME will be the cutter; "
+            f"the real top spend is "
+            f"${spec.host.max_dph * a.timeout / 60:.2f}")
     if a.dry_run:
-        log("--dry-run: ничего не арендую, задание собрано и проверено")
+        log("--dry-run: renting nothing, the job is built and checked")
         return 0
     rc = runner.run_job(spec, out, ssh_key=config.ssh_key(a.key),
                         dry_run=False)
-    log(f"задача вернула {rc}; результат в {out}")
+    log(f"the job returned {rc}; the result is in {out}")
     if rc == 0:
-        log(f"дальше: books text <истина> {out}/pages   |   books html {out}")
+        log(f"next: books text <truth> {out}/pages   |   books html {out}")
     return rc
 
 
@@ -353,15 +357,17 @@ def cmd_read(a):
     policy_name = a.policy or known
     if not policy_name:
         raise SystemExit(
-            f"в слепке {a.dir}/run.json не назван словарь ярлыков, и --policy "
-            f"не задан. Спрашивать по угаданному словарю значит вести таблицу "
-            f"промтом текста и записать прозу чтением.")
+            f"the snapshot {a.dir}/run.json names no label dictionary and "
+            f"--policy is not given. Asking by a guessed dictionary means "
+            f"leading a table with the text prompt and filing prose as "
+            f"reading.")
     if a.policy and known and a.policy != known:
         raise SystemExit(
-            f"--policy {a.policy!r} против словаря детекции {known!r}. "
-            f"Совпадающие ярлыки прошли бы молча, а слепок положил бы рядом "
-            f"два несовместимых утверждения. Убери --policy или пересчитай "
-            f"детекцию тем детектором, чьим словарём собрался читать.")
+            f"--policy {a.policy!r} against the detection dictionary "
+            f"{known!r}. Matching labels would pass without a word, and the "
+            f"snapshot would file two incompatible claims side by side. Drop "
+            f"--policy, or recompute detection with the detector whose "
+            f"dictionary you mean to read by.")
     os.makedirs(out, exist_ok=True)
     if a.rent:
         return cmd_read_rented(a, policy_name, out)
@@ -371,8 +377,8 @@ def cmd_read(a):
 
     # WHAT THE ENDPOINT ANSWERS WITH — before the first crop and first cent.
     who = transport.check()
-    log(f"адрес {who['endpoint']}: отвечает {who['models_on_server']}, "
-        f"спрашиваем {who['asking_for']} — совпало")
+    log(f"endpoint {who['endpoint']}: answers {who['models_on_server']}, "
+        f"we ask {who['asking_for']} — matched")
 
     pages = None
     if a.pages:
@@ -387,8 +393,8 @@ def cmd_read(a):
     p = vread.snapshot(a.dir, out, reader, transport, t,
                        {"detect": a.dir, "out": out, "pages": a.pages,
                         "policy": policy_name})
-    log(f"слепок: {p}")
-    log(f"дальше: books html {out}   |   books text <истина> {out}/pages")
+    log(f"snapshot: {p}")
+    log(f"next: books html {out}   |   books text <truth> {out}/pages")
     return 0
 
 
@@ -412,9 +418,9 @@ def cmd_feed(a):
     out = a.out or os.path.join(d, "feed")
     page_dpi = float(snap["raster"]["dpi"])
     p = feed.params(page_dpi)
-    log(f"подача {p['feed_mode']}, вырезка {p['crop_dpi']:.0f} dpi, "
-        f"страница {p['page_dpi']:.0f} dpi, "
-        f"заливка дыр {p['hole_fill']}")
+    log(f"feed {p['feed_mode']}, crop {p['crop_dpi']:.0f} dpi, "
+        f"page {p['page_dpi']:.0f} dpi, "
+        f"hole fill {p['hole_fill']}")
     res, asked, arts = [], 0, 0
     for fp in sorted(glob.glob(os.path.join(d, "pages", "*.json"))):
         with open(fp, encoding="utf-8") as f:
@@ -426,9 +432,10 @@ def cmd_feed(a):
     doc.close()
     path = feed.dump({"knobs": p, "pages": res}, out)
     # A number, not "done": the feed is chosen by it.
-    log(f"страниц {len(res)}, запросов в VLM {asked} "
-        f"({asked/max(len(res),1):.1f} на страницу), артефактов мимо VLM {arts}")
-    log(f"{path}; картинки подачи в {out}")
+    log(f"pages {len(res)}, VLM requests {asked} "
+        f"({asked/max(len(res),1):.1f} per page), artefacts past the VLM "
+        f"{arts}")
+    log(f"{path}; feed pictures in {out}")
     return 0
 
 
@@ -439,7 +446,7 @@ def cmd_overlay(a):
     if a.detect:
         marks.append((_pages_dir(a.detect, "--detect"), "М"))
     if not marks:
-        raise SystemExit("нечего рисовать: задайте --truth и/или --detect")
+        raise SystemExit("nothing to draw: give --truth and/or --detect")
     out = a.out or os.path.splitext(a.pdf)[0] + ".overlay.pdf"
     only = None
     if a.pages:
@@ -466,8 +473,8 @@ def cmd_overlay(a):
 def cmd_score(a):
     """Contour metrics: truth against the model output."""
     from . import metrics
-    truth = _pages_dir(a.truth, "истина")
-    det = _pages_dir(a.detect, "рамки модели")
+    truth = _pages_dir(a.truth, "truth")
+    det = _pages_dir(a.detect, "model boxes")
     if a.selfcheck:
         return 1 if metrics.mutations(truth, det, log=log) else 0
     metrics.report(metrics.compare(truth, det), log=log)
@@ -493,8 +500,8 @@ def cmd_text(a):
     order is not annotated at all.
     """
     from . import text
-    truth = _pages_dir(a.truth, "истина")
-    pages = _pages_dir(a.pages, "прочитанное")
+    truth = _pages_dir(a.truth, "truth")
+    pages = _pages_dir(a.pages, "what was read")
     if a.selfcheck:
         return 1 if text.mutations(truth, pages, log=log) else 0
     text.report(text.measure(truth, pages, norm=a.norm), log=log)
@@ -526,10 +533,10 @@ def cmd_annopage(a):
     """The golden bench from AnnoPage: real pages, librarians' truth."""
     from . import annopage
     out = a.out or "bench/annopage"
-    log(f"AnnoPage из {a.root}, выборка {a.split}")
+    log(f"AnnoPage from {a.root}, split {a.split}")
     annopage.build(a.root, out, split=a.split, limit=a.limit,
                    truth_only=a.truth_only, log=log)
-    log(f"дальше: books detect {shlex_quote(out)}/annopage.pdf "
+    log(f"next: books detect {shlex_quote(out)}/annopage.pdf "
         f"--out {shlex_quote(out)}/detect")
     return 0
 
@@ -541,11 +548,12 @@ def cmd_synth(a):
     out = a.out or f"bench/{a.book}"
     cases = a.cases.split(",") if a.cases else None
     from .books import load
-    log(f"книга {a.book}: случаев {len(cases or load(a.book).CASES)}, "
-        f"старение {knobs.knob('SYNTH_AGING')}, зерно {knobs.knob('SYNTH_SEED')}")
+    log(f"book {a.book}: cases {len(cases or load(a.book).CASES)}, "
+        f"ageing {knobs.knob('SYNTH_AGING')}, "
+        f"seed {knobs.knob('SYNTH_SEED')}")
     synth.build(out, cases, int(knobs.knob("SYNTH_SEED")),
                 knobs.knob("SYNTH_AGING"), book=a.book, log=log)
-    log(f"дальше: books detect {shlex_quote(out)}/{a.book}.pdf "
+    log(f"next: books detect {shlex_quote(out)}/{a.book}.pdf "
         f"--out {shlex_quote(out)}/detect")
     return 0
 
@@ -558,14 +566,14 @@ def shlex_quote(s):
 def cmd_ls(_a):
     v = Vast()
     rows = v.v.show_instances()
-    log(f"баланс: ${v.balance():.3f}")
+    log(f"balance: ${v.balance():.3f}")
     if not rows:
-        log("инстансов нет — денег не тратится")
+        log("no instances — no money going out")
         return 0
     for i in rows:
         log(f"  {i['id']}  {i.get('actual_status')}  {i.get('label')}  "
-            f"${float(i.get('dph_total') or 0):.3f}/час  "
-            f"машина {i.get('machine_id')}  {i.get('gpu_name')}")
+            f"${float(i.get('dph_total') or 0):.3f}/hour  "
+            f"machine {i.get('machine_id')}  {i.get('gpu_name')}")
     return 0
 
 
@@ -585,20 +593,20 @@ def cmd_doctor(_a):
 
     def check(name, good, hint=""):
         nonlocal ok
-        log(f"  [{'ок  ' if good else 'нет '}] {name}"
+        log(f"  [{'ok  ' if good else 'no  '}] {name}"
             + ("" if good else f" — {hint}"))
         ok = ok and good
 
-    log("проверка окружения:")
-    check("rsync локально", shutil.which("rsync") is not None,
-          "нужен для инкрементальной выкачки: apt install rsync")
-    check("ssh локально", shutil.which("ssh") is not None,
+    log("environment check:")
+    check("rsync locally", shutil.which("rsync") is not None,
+          "needed for the incremental pull: apt install rsync")
+    check("ssh locally", shutil.which("ssh") is not None,
           "apt install openssh-client")
     key = config.ssh_key()
-    check(f"ssh-ключ {config.DEFAULT_SSH_KEY}", key is not None,
+    check(f"ssh key {config.DEFAULT_SSH_KEY}", key is not None,
           "ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_vast -N ''")
-    check("публичная часть ключа", bool(key) and os.path.exists(key + ".pub"),
-          "без неё ключ не привязать к инстансу")
+    check("public half of the key", bool(key) and os.path.exists(key + ".pub"),
+          "without it the key cannot be attached to an instance")
     # Not through `check`: without `.env` everything works except paid reading
     # over a NETWORK endpoint, and the vast key lives apart in
     # ~/.config/vastai. Failing acceptance over it is a false alarm, and a
@@ -611,20 +619,21 @@ def cmd_doctor(_a):
     # environment first — and a rented card's vLLM listens on the loopback and
     # asks for none.
     if not os.path.exists(config.ENV_FILE):
-        log(f"  [ – ] .env в корне — нет; нужен он только для VLM_API_KEY при "
-            f"чтении по сетевому адресу. Образец: .env.example")
+        log(f"  [ – ] .env in the root — none; it is needed only for "
+            f"VLM_API_KEY when reading over a network endpoint. Sample: "
+            f".env.example")
 
     try:
         v = Vast()
         bal = v.balance()
-        check(f"ключ vast.ai (баланс ${bal:.3f})", True)
-        check("баланса хватит хотя бы на прогон", bal > 0.20,
-              "пополни: console.vast.ai/billing")
+        check(f"vast.ai key (balance ${bal:.3f})", True)
+        check("balance enough for at least one run", bal > 0.20,
+              "top up: console.vast.ai/billing")
         rows = v.v.show_instances()
-        check(f"нет забытых инстансов (сейчас {len(rows)})", not rows,
-              "books ls, затем books reap")
+        check(f"no forgotten instances (now {len(rows)})", not rows,
+              "books ls, then books reap")
     except Exception as e:
-        check("ключ vast.ai", False, f"vastai set api-key <КЛЮЧ> ({e})")
+        check("vast.ai key", False, f"vastai set api-key <KEY> ({e})")
 
     # Separate blocks, and NOT through `check` either: detection and the vendor
     # pipeline install as optional sets, and whoever only rents needs neither.
@@ -637,9 +646,10 @@ def cmd_doctor(_a):
     det_line = _doctor_detect()
     pipe_line = _doctor_docling()
 
-    log(("окружение аренды в порядке" if ok else "есть проблемы — см. выше")
-        + f"; чтение: {read_line}; детекция: {det_line}; "
-        + f"конвейер docling: {pipe_line}")
+    log(("the rental environment is in order" if ok
+         else "there are troubles — see above")
+        + f"; reading: {read_line}; detection: {det_line}; "
+        + f"docling pipeline: {pipe_line}")
     return 0 if ok else 1
 
 
@@ -653,16 +663,16 @@ def _doctor_read():
     """
     ep = knobs.knob("VLM_ENDPOINT")
     key = config.env("VLM_API_KEY")
-    log("чтение блоков (books read, второй уровень):")
+    log("reading blocks (books read, level two):")
     if ep:
-        log(f"  [ок  ] VLM_ENDPOINT={ep}, ключ VLM_API_KEY "
-            f"{'есть, %d знаков' % len(key) if key else 'не задан'}")
-        return f"адрес задан, ключ {'есть' if key else 'нет'}"
-    log("  [—   ] VLM_ENDPOINT не задан: `books read` откажется работать "
-        "вслух, а не постучится в никуда. Умолчания нет нарочно. На "
-        "арендованной карте адрес ставит run.sh, ключ там не нужен — vLLM "
-        "поднят на петле")
-    return "адрес не задан (для аренды и не нужен)"
+        log(f"  [ok  ] VLM_ENDPOINT={ep}, key VLM_API_KEY "
+            f"{'present, %d chars' % len(key) if key else 'not set'}")
+        return f"endpoint set, key {'present' if key else 'none'}"
+    log("  [—   ] VLM_ENDPOINT not set: `books read` will refuse out loud "
+        "rather than knock at nothing. There is no default on purpose. On a "
+        "rented card run.sh sets the endpoint and no key is needed there — "
+        "vLLM is raised on the loopback")
+    return "endpoint not set (rental does not need one)"
 
 
 def _doctor_detect():
@@ -684,24 +694,26 @@ def _doctor_detect():
     It says as a value what is absent and what turns it on.
     """
     import time
-    log("детекция макета (books detect, необязательный набор):")
+    log("layout detection (books detect, optional set):")
     missing = []
-    for mod, why in (("onnxruntime", "счёт детектора"), ("cv2", "raster"),
-                     ("yaml", "чтение inference.yml")):
+    for mod, why in (("onnxruntime", "the detector's arithmetic"),
+                     ("cv2", "raster"),
+                     ("yaml", "reading inference.yml")):
         try:
             __import__(mod)
         except ImportError:
             missing.append(f"{mod} ({why})")
     if missing:
-        log(f"  [ – ] нет пакетов: {', '.join(missing)} — "
-            f'поставьте: pip install -e ".[detect]"')
+        log(f"  [ – ] packages missing: {', '.join(missing)} — "
+            f'install: pip install -e ".[detect]"')
         # A zero from checking and a zero from not understanding are DIFFERENT
         # lines: without these packages no adapter rises at all, so there is
         # nothing to call "no weights".
-        log("  [ – ] веса адаптеров НЕ ПРОВЕРЕНЫ ни у одного: поднимать их "
-            "нечем. Это не «весов нет», это «не смотрели».")
-        return ("НЕ ПРОВЕРЕНА — нет пакетов набора detect "
-                f"({len(missing)} из 3)")
+        log("  [ – ] adapter weights NOT CHECKED for a single one: there is "
+            "nothing to raise them with. That is not «no weights», it is "
+            "«we did not look».")
+        return ("NOT CHECKED — the detect set is missing packages "
+                f"({len(missing)} of 3)")
 
     from . import detect
     from .run import knobs
@@ -725,35 +737,36 @@ def _doctor_detect():
                 # measured). "No weights" and "weights present, adapter would
                 # not rise" are different troubles: a download cures the first,
                 # the second breaks the run with a full weights directory.
-                kind = ("весов нет" if type(e).__name__ == "WeightsMissing"
-                        else f"НЕ ПОДНЯЛСЯ ({type(e).__name__})")
+                kind = ("no weights" if type(e).__name__ == "WeightsMissing"
+                        else f"DID NOT RISE ({type(e).__name__})")
                 log(f"  [ – ] {which:14s} {kind}: {e}")
                 continue
             w = getattr(det, "onnx", "") or ""
             mb = os.path.getsize(w) / 2 ** 20 if os.path.exists(w) else 0.0
             have.append(which)
-            log(f"  [ок  ] {which:14s} {det.name}, ярлыков "
-                f"{len(det.labels)}, весов {mb:.0f} МБ, поднялся за "
-                f"{time.time() - t:.1f} с — {det.dir}")
+            log(f"  [ok  ] {which:14s} {det.name}, labels "
+                f"{len(det.labels)}, weights {mb:.0f} MB, rose in "
+                f"{time.time() - t:.1f} s — {det.dir}")
             det = None                        # not holding 4 graphs at once
     finally:
         if saved is None:
             os.environ.pop("LAYOUT_ADAPTER", None)
         else:
             os.environ["LAYOUT_ADAPTER"] = saved
-    log(f"  адаптеров поднялось {len(have)} из {len(detect.ADAPTERS)}"
-        f" ({', '.join(have) if have else 'ни одного'}), проверка заняла "
-        f"{time.time() - t0:.0f} с; книгу сейчас считает LAYOUT_ADAPTER="
-        f"{active}")
-    line = f"адаптеров поднялось {len(have)} из {len(detect.ADAPTERS)}"
+    log(f"  adapters risen {len(have)} of {len(detect.ADAPTERS)}"
+        f" ({', '.join(have) if have else 'none at all'}), the check took "
+        f"{time.time() - t0:.0f} s; the book is now counted by "
+        f"LAYOUT_ADAPTER={active}")
+    line = f"adapters risen {len(have)} of {len(detect.ADAPTERS)}"
     if active not in detect.ADAPTERS:
-        log(f"  ВНИМАНИЕ: LAYOUT_ADAPTER={active!r} — такого адаптера нет; "
-            f"знаю {', '.join(detect.ADAPTERS)}")
-        line += f", но LAYOUT_ADAPTER={active!r} не из этого списка"
+        log(f"  WARNING: LAYOUT_ADAPTER={active!r} — no such adapter; I "
+            f"know {', '.join(detect.ADAPTERS)}")
+        line += f", but LAYOUT_ADAPTER={active!r} is not from that list"
     elif active not in have:
-        log(f"  ВНИМАНИЕ: активный адаптер {active} не поднялся (причина "
-            f"строкой выше) — `books detect` упадёт, не посчитав ни страницы")
-        line += f", активный {active} НЕ ПОДНЯЛСЯ"
+        log(f"  WARNING: the active adapter {active} did not rise (reason "
+            f"one line above) — `books detect` will fall without counting a "
+            f"page")
+        line += f", the active {active} DID NOT RISE"
     return line
 
 
@@ -771,8 +784,8 @@ def _doctor_docling():
     from .run import knobs
 
     mode = knobs.knob("DOCLING_PIPELINE")
-    log(f"конвейер docling (ручка DOCLING_PIPELINE={mode}, "
-        f"необязательный набор):")
+    log(f"docling pipeline (knob DOCLING_PIPELINE={mode}, "
+        f"optional set):")
     gone = []
     try:
         if iu.find_spec("docling.utils.layout_postprocessor") is None:
@@ -790,38 +803,39 @@ def _doctor_docling():
         except md.PackageNotFoundError:
             vers[dist] = None
     if gone:
-        log(f"  [ – ] нет: {', '.join(gone)} — поставьте: "
-            f'pip install -e ".[docling]". При DOCLING_PIPELINE=post|full '
-            f"прогон упадёт вслух, при off (умолчание) он не нужен вовсе")
-        return (f"нет {len(gone)} из 2 пакетов"
-                + (f", а ручка стоит в {mode}" if mode != "off" else ""))
+        log(f"  [ – ] missing: {', '.join(gone)} — install: "
+            f'pip install -e ".[docling]". At DOCLING_PIPELINE=post|full '
+            f"the run falls out loud, at off (the default) it is not needed "
+            f"at all")
+        return (f"{len(gone)} of 2 packages missing"
+                + (f", and the knob is at {mode}" if mode != "off" else ""))
     # The version comes from the DISTRIBUTION, not `docling.__version__`: one
     # package, two deliveries (`docling-slim` and full), and pyproject pins the
     # version to the point — a vendor rule change would move our boxes
     # silently. With no distribution at all (sources on the path) it says so:
     # "not declared" is not a version.
     ver = (vers["docling-slim"] or vers["docling"]
-           or "версия не объявлена (дистрибутива нет, модуль откуда-то ещё)")
+           or "version not declared (no distribution, module from elsewhere)")
     kind = ("slim" if vers["docling-slim"] else
-            "полная поставка" if vers["docling"] else "поставка неизвестна")
-    log(f"  [ок  ] docling {ver} ({kind}), rtree {vers['rtree']}; "
-        f"включается DOCLING_PIPELINE=post|full поверх адаптеров docling и "
-        f"docling-egret, сейчас {mode}")
-    return f"{ver} + rtree {vers['rtree']}, ручка в {mode}"
+            "full delivery" if vers["docling"] else "delivery unknown")
+    log(f"  [ok  ] docling {ver} ({kind}), rtree {vers['rtree']}; "
+        f"turned on by DOCLING_PIPELINE=post|full over the docling and "
+        f"docling-egret adapters, now {mode}")
+    return f"{ver} + rtree {vers['rtree']}, knob at {mode}"
 
 
 def cmd_ledger(_a):
     rows = ledger_mod.read()
     if not rows:
-        log(f"журнал пуст ({ledger_mod.LEDGER})")
+        log(f"journal empty ({ledger_mod.LEDGER})")
         return 0
     ok = sum(1 for r in rows if r.get("ok"))
     spent = sum(r.get("cost_usd") or 0 for r in rows)
-    log(f"{len(rows)} прогонов, успешных {ok}, потрачено ${spent:.3f}")
+    log(f"{len(rows)} runs, successful {ok}, spent ${spent:.3f}")
     for r in rows[-10:]:
         # NOT MEASURED AND ZERO ARE DIFFERENT THINGS. `else 0` stood here, and
         # a run whose `setup_s` is zero (delivery cut short by a signal) printed
-        # as "0 Мбит/с" — "the link is dead" instead of "no measurement". Six
+        # as "0 Mbps" — "the link is dead" instead of "no measurement". Six
         # such records in the printed ten, 29 over the whole journal, and all
         # six DO carry the image size (0.06 GB): the zero is in `setup_s` alone.
         # A negative `setup_s` means "not measured" too, not a negative speed.
@@ -834,12 +848,12 @@ def cmd_ledger(_a):
         gb = r.get("image_gb")
         mb = (gb * 8 * 1024 / setup) if (setup or 0) > 0 and gb else None
         log(f"  {r.get('started_iso','')}  {r.get('job','')[:22]:22s} "
-            f"{'ok ' if r.get('ok') else 'сбой'}  "
-            f"старт {r.get('setup_s',0)/60:4.1f}м "
-            f"({'  не мерили' if mb is None else f'{mb:4.0f} Мбит/с'})  "
-            f"счёт {r.get('run_s',0)/60:5.1f}м  ${r.get('cost_usd',0):.3f}  "
-            f"машина {r.get('machine_id')}")
-    log(f"оценка по журналу: {ledger_mod.fit()}")
+            f"{'ok ' if r.get('ok') else 'fail'}  "
+            f"start {r.get('setup_s',0)/60:4.1f}m "
+            f"({' not measured' if mb is None else f'{mb:4.0f} Mbps'})  "
+            f"count {r.get('run_s',0)/60:5.1f}m  ${r.get('cost_usd',0):.3f}  "
+            f"machine {r.get('machine_id')}")
+    log(f"estimate from the journal: {ledger_mod.fit()}")
     return 0
 
 
@@ -870,86 +884,89 @@ def main(argv=None):
         formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
 
-    p = sub.add_parser("offers", help="показать рынок, ничего не арендуя")
+    p = sub.add_parser("offers", help="look at the market, renting nothing")
     _host_args(p)
     p.add_argument("--minutes", type=float, default=20.0,
-                   help="на сколько минут считать стоимость прогона")
+                   help="how many minutes to price a run for")
     p.set_defaults(fn=cmd_offers)
 
-    p = sub.add_parser("prepare", help="развернуть djvu в PDF")
+    p = sub.add_parser("prepare", help="unfold djvu into PDF")
     p.add_argument("file")
-    p.add_argument("--out", help="куда положить PDF")
+    p.add_argument("--out", help="where to put the PDF")
     p.add_argument("--split", default="auto", choices=("auto", "yes", "no"),
-                   help="резать ли развороты")
+                   help="whether to cut the spreads")
     p.set_defaults(fn=cmd_prepare)
 
-    p = sub.add_parser("detect", help="контуры первого уровня, местно")
-    p.add_argument("file", help="PDF (djvu разверните через books prepare)")
-    p.add_argument("--out", help="куда положить pages/ и run.json")
-    p.add_argument("--pages", help="какие страницы: 1,4,7-9; по умолчанию все")
+    p = sub.add_parser("detect", help="level-one contours, locally")
+    p.add_argument("file", help="PDF (unfold djvu with books prepare)")
+    p.add_argument("--out", help="where to put pages/ and run.json")
+    p.add_argument("--pages", help="which pages: 1,4,7-9; all by default")
     p.set_defaults(fn=cmd_detect)
 
-    p = sub.add_parser("html", help="собрать HTML из каталога books detect")
-    p.add_argument("dir", help="каталог, куда писал books detect")
-    p.add_argument("--out", help="куда положить book.html и assets/")
+    p = sub.add_parser("html", help="build HTML from a books detect directory")
+    p.add_argument("dir", help="the directory books detect wrote to")
+    p.add_argument("--out", help="where to put book.html and assets/")
     p.set_defaults(fn=cmd_html)
 
-    p = sub.add_parser("feed", help="что уехало бы в VLM, без обращения к ней")
-    p.add_argument("dir", help="каталог, куда писал books detect")
-    p.add_argument("--out", help="куда положить картинки подачи")
+    p = sub.add_parser("feed",
+                       help="what would go to the VLM, without asking it")
+    p.add_argument("dir", help="the directory books detect wrote to")
+    p.add_argument("--out", help="where to put the feed pictures")
     p.set_defaults(fn=cmd_feed)
 
     p = sub.add_parser("fitness",
-                       help="годен ли вывод, чтобы гнать через него OCR")
-    p.add_argument("pdf", help="страницы, по которым считать чернила")
-    p.add_argument("--detect", required=True, help="каталог вывода модели")
-    p.add_argument("--truth", default="", help="истина; без неё считается "
-                   "только то, что вне всех рамок")
+                       help="is the output fit to run OCR through")
+    p.add_argument("pdf", help="the pages to count ink over")
+    p.add_argument("--detect", required=True, help="model output directory")
+    p.add_argument("--truth", default="", help="truth; without it only what "
+                   "lies outside every box is counted")
     p.add_argument("--selfcheck", action="store_true",
-                   help="батарея порчи: умеет ли число упасть")
+                   help="damage battery: can the number fall")
     p.set_defaults(fn=cmd_fitness)
 
-    p = sub.add_parser("subset", help="выжимка: артефакты бок о бок")
-    p.add_argument("--books", help="какие книги стенда, через запятую")
-    p.add_argument("--out", help="куда положить hard.pdf и truth/")
+    p = sub.add_parser("subset", help="distillate: artefacts side by side")
+    p.add_argument("--books", help="which bench books, comma-separated")
+    p.add_argument("--out", help="where to put hard.pdf and truth/")
     p.set_defaults(fn=cmd_subset)
 
-    p = sub.add_parser("annopage", help="золотой стенд из датасета AnnoPage")
-    p.add_argument("root", help="корень распакованного AnnoPage")
+    p = sub.add_parser("annopage", help="golden bench from the AnnoPage set")
+    p.add_argument("root", help="root of the unpacked AnnoPage")
     p.add_argument("--split", default="test", help="test | train")
-    p.add_argument("--limit", type=int, default=0, help="взять только N страниц")
+    p.add_argument("--limit", type=int, default=0, help="take only N pages")
     p.add_argument("--truth-only", action="store_true", dest="truth_only",
-                   help="переписать только истину, не трогая уже собранный pdf")
-    p.add_argument("--out", help="куда положить annopage.pdf и truth/")
+                   help="rewrite the truth only, leaving the built pdf alone")
+    p.add_argument("--out", help="where to put annopage.pdf and truth/")
     p.set_defaults(fn=cmd_annopage)
 
-    p = sub.add_parser("score", help="метрики контуров против истины стенда")
-    p.add_argument("truth", help="каталог истины (bench/synth/truth)")
-    p.add_argument("detect", help="каталог вывода модели (…/detect/pages)")
+    p = sub.add_parser("score", help="contour metrics against the bench truth")
+    p.add_argument("truth", help="truth directory (bench/synth/truth)")
+    p.add_argument("detect", help="model output directory (…/detect/pages)")
     p.add_argument("--selfcheck", action="store_true",
-                   help="батарея мутаций: умеет ли число падать (код 1, если нет)")
+                   help="mutation battery: can the number fall (1 if not)")
     p.set_defaults(fn=cmd_score)
 
     p = sub.add_parser("read",
-                       help="ВТОРОЙ УРОВЕНЬ: прочитать блоки моделью (платно)")
-    p.add_argument("dir", help="каталог books detect")
-    p.add_argument("--out", default="", help="куда класть; по умолчанию <dir>.read")
-    p.add_argument("--pages", default="", help="какие страницы: 1,4,7-9")
+                       help="LEVEL TWO: read the blocks with a model (paid)")
+    p.add_argument("dir", help="books detect directory")
+    p.add_argument("--out", default="",
+                   help="where to put it; <dir>.read by default")
+    p.add_argument("--pages", default="", help="which pages: 1,4,7-9")
     p.add_argument("--policy", default="",
-                   help="словарь ярлыков детектора; пусто = взять из слепка "
-                        "детекции, а несовпадение с ним — отказ вслух")
+                   help="the detector label dictionary; empty = take it from "
+                        "the detection snapshot, and a mismatch with it is a "
+                        "refusal out loud")
     p.add_argument("--no-resume", action="store_true",
-                   help="спрашивать заново даже то, что уже прочитано")
+                   help="ask again even for what has already been read")
     p.add_argument("--rent", action="store_true",
-                   help="считать на АРЕНДОВАННОЙ карте, а не по VLM_ENDPOINT: "
-                        "снять машину, поднять vLLM, забрать результат")
+                   help="count on a RENTED card instead of VLM_ENDPOINT: "
+                        "take a machine, raise vLLM, fetch the result")
     p.add_argument("--budget", type=float, default=0.60,
-                   help="потолок траты, $; достигнут — машина уничтожается")
+                   help="spending ceiling, $; reached — the machine dies")
     p.add_argument("--timeout", type=float, default=60.0,
-                   help="потолок времени, мин; достигнут — то же самое")
+                   help="time ceiling, min; reached — the same")
     p.add_argument("--dry-run", action="store_true",
-                   help="собрать задание и проверить его, ничего не арендуя")
-    p.add_argument("--key", default="", help="путь к ssh-ключу для vast.ai")
+                   help="build the job and check it, renting nothing")
+    p.add_argument("--key", default="", help="path to the ssh key for vast.ai")
     p.set_defaults(fn=cmd_read)
 
     # THE COMMAND IS `apply`, and `swap` stood here. `swap` names the MECHANICS
@@ -959,77 +976,79 @@ def main(argv=None):
     # `apply` matches the module that does it, and `--undo` reads as "undo what
     # was applied".
     p = sub.add_parser("apply",
-                       help="второй уровень: разметка вместо картинки, и откат")
-    p.add_argument("dir", help="каталог сборки (books html --out)")
-    p.add_argument("--anchor", help="якорь блока, вида p0042-b17")
-    p.add_argument("--file", help="файл с разметкой блока")
+                       help="level two: markup instead of a picture, and undo")
+    p.add_argument("dir", help="build directory (books html --out)")
+    p.add_argument("--anchor", help="block anchor, of the form p0042-b17")
+    p.add_argument("--file", help="file holding the block markup")
     p.add_argument("--kind", default="html",
-                   help="вид содержимого: html | otsl | latex | text")
+                   help="content kind: html | otsl | latex | text")
     p.add_argument("--source", default="",
-                   help="чем порождено; уезжает в журнал и в атрибут блока")
+                   help="what produced it; goes to the journal and the block")
     p.add_argument("--undo", action="store_true",
-                   help="вернуть то, что стояло до последней замены")
+                   help="bring back what stood before the last swap")
     p.add_argument("--status", action="store_true",
-                   help="только отчёт: что заменено, ничего не трогая")
+                   help="report only: what is replaced, touching nothing")
     p.add_argument("--from", dest="from_read", default="",
-                   help="каталог `books read`: поставить ВСЁ прочитанное, "
-                        "по одному блоку и с откатом у каждого")
+                   help="a `books read` directory: place EVERYTHING read, "
+                        "one block at a time and each with an undo")
     p.set_defaults(fn=cmd_apply)
 
     p = sub.add_parser("text",
-                       help="метрика чтения: знаки против истины стенда")
-    p.add_argument("truth", help="каталог истины (bench/<книга>/truth)")
-    p.add_argument("pages", help="каталог прочитанного (…/detect/pages)")
+                       help="reading metric: characters against bench truth")
+    p.add_argument("truth", help="truth directory (bench/<book>/truth)")
+    p.add_argument("pages", help="directory of what was read (…/detect/pages)")
     p.add_argument("--norm", default=text_norm_default(),
-                   help="граница нормализации при сличении; "
-                        "объявляется числом и уезжает в отчёт")
+                   help="the normalisation boundary when comparing; "
+                        "declared as a number and carried into the report")
     p.add_argument("--selfcheck", action="store_true",
-                   help="батарея порчи: умеет ли число падать (код 1, если нет)")
+                   help="damage battery: can the number fall (1 if not)")
     p.set_defaults(fn=cmd_text)
 
-    p = sub.add_parser("overlay", help="рамки поверх страниц, чтобы посмотреть глазами")
-    p.add_argument("pdf", help="страницы, поверх которых рисовать")
-    p.add_argument("--truth", help="каталог истины (bench/synth/truth)")
-    p.add_argument("--detect", help="каталог вывода модели (…/detect/pages)")
-    p.add_argument("--out", help="куда положить pdf с рамками")
+    p = sub.add_parser("overlay",
+                       help="boxes over the pages, to look with your own eyes")
+    p.add_argument("pdf", help="the pages to draw over")
+    p.add_argument("--truth", help="truth directory (bench/synth/truth)")
+    p.add_argument("--detect", help="model output directory (…/detect/pages)")
+    p.add_argument("--out", help="where to put the pdf with the boxes")
     p.add_argument("--pages",
-                   help="какие страницы: 1,4,7-9; счёт с единицы, как у detect")
+                   help="which pages: 1,4,7-9; counted from one, as in detect")
     p.set_defaults(fn=cmd_overlay)
 
-    p = sub.add_parser("synth", help="синтетический стенд с точной истиной")
+    p = sub.add_parser("synth", help="synthetic bench with exact truth")
     p.add_argument("--book", default="spravochnik",
-                   help="какая книга стенда: spravochnik|slovar|matematika|"
+                   help="which bench book: spravochnik|slovar|matematika|"
                         "atlas|katalog|zhurnal")
-    p.add_argument("--out", help="куда положить <книга>.pdf и truth/")
-    p.add_argument("--cases", help="какие случаи, через запятую; по умолчанию все")
+    p.add_argument("--out", help="where to put <book>.pdf and truth/")
+    p.add_argument("--cases",
+                   help="which cases, comma-separated; all by default")
     p.set_defaults(fn=cmd_synth)
 
-    p = sub.add_parser("ls", help="что сейчас арендовано")
+    p = sub.add_parser("ls", help="what is rented right now")
     p.set_defaults(fn=cmd_ls)
 
-    p = sub.add_parser("down", help="уничтожить инстанс")
+    p = sub.add_parser("down", help="destroy an instance")
     p.add_argument("id", type=int)
     p.set_defaults(fn=cmd_down)
 
-    p = sub.add_parser("reap", help="уничтожить всё, что оставили наши прогоны")
+    p = sub.add_parser("reap", help="destroy everything our runs left behind")
     p.set_defaults(fn=cmd_reap)
 
     p = sub.add_parser("doctor",
-                       help="проверить окружение до того, как тратить деньги")
+                       help="check the environment before spending money")
     p.set_defaults(fn=cmd_doctor)
 
-    p = sub.add_parser("ledger", help="журнал прогонов и оценки по нему")
+    p = sub.add_parser("ledger", help="run journal and the estimate from it")
     p.set_defaults(fn=cmd_ledger)
 
-    p = sub.add_parser("replay", help="полон ли слепок входа для повтора")
+    p = sub.add_parser("replay", help="is the input snapshot complete")
     # nargs="+", not "*": a check whose whole point is its exit code silently
     # approved on an empty list — `books replay --check` with no directory
     # returned 0 and printed not a line.
-    p.add_argument("outdir", nargs="+", help="каталог разбора")
+    p.add_argument("outdir", nargs="+", help="parse directory")
     p.add_argument("--selfcheck", action="store_true",
-                   help="умеет ли сама проверка провалиться (код 1, если нет)")
+                   help="can the check itself fail (1 if not)")
     p.add_argument("--check", action="store_true",
-                   help="печатать недостающее и вернуть 1, если оно есть")
+                   help="print what is missing and return 1 if there is any")
     p.set_defaults(fn=replay_mod.cmd_replay)
 
     a = ap.parse_args(argv)

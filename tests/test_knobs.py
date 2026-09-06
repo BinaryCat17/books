@@ -541,7 +541,7 @@ def test_shell_defaults_agree_with_the_registry():
                     troubles.append(
                         f"  {name}: в {file} умолчание {default!r}, "
                         f"в реестре {k.default!r}")
-            elif "run.sh" not in k.what and "оболочк" not in k.what:
+            elif "run.sh" not in k.what and "shell" not in k.what:
                 troubles.append(
                     f"  {name}: реестр умолчания не даёт, а {file} подставляет "
                     f"{default!r}, и запись реестра об этом молчит "

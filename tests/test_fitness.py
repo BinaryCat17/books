@@ -137,8 +137,8 @@ def test_blank_page_is_not_a_total_loss():
         pdf = _book([], tmp)
         det = _pages([((10, 10, 50, 50), "table")], tmp, "det")
         said = _said(fitness.measure(pdf, det))
-        assert "нечего мерить" in said, said
-        assert "исчезнет из HTML" not in said, said
+        assert "nothing to measure" in said, said
+        assert "vanish from the HTML" not in said, said
 
 
 def test_truth_without_artefacts_is_not_a_missing_truth():
@@ -149,8 +149,8 @@ def test_truth_without_artefacts_is_not_a_missing_truth():
         truth = _pages([((20, 20, 120, 120), "text")], tmp, "truth")
         with_truth = _said(fitness.measure(pdf, det, truth))
         without = _said(fitness.measure(pdf, det))
-        assert "истина подана" in with_truth, with_truth
-        assert "истина не подана" in without, without
+        assert "truth supplied" in with_truth, with_truth
+        assert "truth NOT supplied" in without, without
         assert with_truth != without
 
 
@@ -164,7 +164,7 @@ def test_object_without_ink_is_a_bench_defect_not_a_score():
         r = fitness.measure(pdf, det, truth)
         assert r["objects"] == 1 and r["empty_objects"] == 1, r
         assert r["intact"] + r["almost_intact"] + r["bitten"] + r["torn"] == 1, r
-        assert "дефект стенда" in _said(r)
+        assert "a bench defect" in _said(r)
 
 
 def test_page_the_model_did_not_mark_is_loud():
@@ -181,7 +181,7 @@ def test_page_the_model_did_not_mark_is_loud():
         try:
             fitness.measure(pdf, det, truth)
         except Exception as e:
-            assert "не разметила страницу" in str(e), e
+            assert "marked up no page" in str(e), e
         else:
             assert False, "молчание модели прошло молча"
 
@@ -211,7 +211,7 @@ def test_report_declares_the_whole_ruler():
             want = f"{v:.2f}" if isinstance(v, float) else str(v)
             assert want in nums, (want, nums)
         assert f"{fitness.EDGE * 100:.0f}" in nums, (fitness.EDGE, nums)
-        assert "полоса у края" in said, said
+        assert "edge band" in said, said
 
 
 def test_report_says_out_loud_that_it_is_blind_to_merging():
@@ -227,7 +227,7 @@ def test_report_says_out_loud_that_it_is_blind_to_merging():
         for res in (fitness.measure(pdf, det, truth), fitness.measure(pdf, det),
                     fitness.measure(_book([], tmp), det)):
             said = _said(res)
-            assert "слияние" in said.lower() and "books score" in said, said
+            assert "merging" in said.lower() and "books score" in said, said
 
 
 def test_the_number_that_grows_when_boxes_merge():
@@ -252,7 +252,7 @@ def test_the_number_that_grows_when_boxes_merge():
         assert b["arrived_with_company"] == 2, b
         assert a["boxes_with_many_objects"] == 0
         assert b["boxes_with_many_objects"] == 1
-        assert "не в одиночку 2" in _said(b)
+        assert "arrived with company 2" in _said(b)
 
 
 def test_the_ink_threshold_has_one_meaning_in_both_homes():
@@ -487,12 +487,13 @@ def test_battery_counts_what_it_could_not_measure():
         # more than there was.
         bad, out, tail, got = counts(pdf, det, truth)
         assert bad == 0, tail
-        silent = sum("нет данных" in l for l in out[:-1])
+        silent = sum("no data" in l for l in out[:-1])
         assert got["probes"] == got["measured"] + got["unmeasurable"], tail
         assert got["unmeasurable"] == silent, (tail, silent)
         bad2, out2, tail2, got2 = counts(pdf, det)
         assert bad2 == 0, tail2
-        assert sum("нет данных" in l for l in out2[:-1]) == got2["unmeasurable"], tail2
+        assert (sum("no data" in l for l in out2[:-1])
+                == got2["unmeasurable"]), tail2
         # without truth far more probes have nothing to measure, and it shows
         assert got2["measured"] < got["measured"] / 2, (tail, tail2)
 
@@ -510,8 +511,8 @@ def test_battery_corrupts_all_three_sides():
         out = []
         fitness.mutations(pdf, det, truth, log=out.append)
         said = "\n".join(out)
-        assert "истина сдвинута" in said, said        # the third side
-        assert "порог чернил" in said, said           # the second
-        assert "уехали за левый верхний угол" in said, said
-        assert "слиты в одну" in said, said
-        assert "отдана ещё и текстовой" in said, said
+        assert "truth shifted" in said, said          # the third side
+        assert "ink threshold" in said, said          # the second
+        assert "moved off the top-left corner" in said, said
+        assert "merged into one" in said, said
+        assert "handed out as a text one too" in said, said

@@ -1,103 +1,103 @@
-sha256 сверен: bd65ad0e4a97; растр сверен: 130 страниц, размеры совпали
-артефактов 736, найдено 316 (43%)
+sha256 checked: bd65ad0e4a97; raster checked: 130 pages, sizes agree
+artefacts 736, found 316 (43%)
+  crop (image): 2
+  crop (table): 16
+  eaten by text (display_formula): 3
+  eaten by text (table): 11
+  fragmentation (display_formula): 1
+  fragmentation (table): 3
+  inside a miss: 23
+  merge (chart): 44
+  merge (display_formula): 65
+  merge (image): 252
+  merge (table): 7
+  near, but no match (chart): 4
+  near, but no match (image): 1
+  nested duplicate: 7
+  not seen (image): 2
+  not seen (table): 4
+  on an object outside scoring: 32
+  spill (chart): 1
+  spill (display_formula): 1
+  spill (image): 2
+  spill (table): 1
   spurious_box: 60
-  вложенный дубль: 7
-  внутри ненайденного: 23
-  дробление (display_formula): 1
-  дробление (table): 3
-  на объекте вне замера: 32
-  не увидел (image): 2
-  не увидел (table): 4
-  разлив (chart): 1
-  разлив (display_formula): 1
-  разлив (image): 2
-  разлив (table): 1
-  рядом, но не совпал (chart): 4
-  рядом, но не совпал (image): 1
-  слияние (chart): 44
-  слияние (display_formula): 65
-  слияние (image): 252
-  слияние (table): 7
-  срез (image): 2
-  срез (table): 16
-  съеден текстом (display_formula): 3
-  съеден текстом (table): 11
-текст и служебное: блоков 49, найдено 45 (92%) — считано по 6 страницам из 130, на остальных текст не размечен
-СМЫСЛ ЦЕЛ: 274/736 (37%) — обрезан 45, слит 366, назван текстом 21, не увиден 30 (объект внутри рамки от 0.90, сосед от 0.50)
-  недобор по ярлыкам: chart 56/105, display_formula 59/129, image 187/446, paragraph_title 1/5, table 13/55
-истина о порядке: размечен 0, не размечен 124, НЕ СКАЗАНО 6 из 130 страниц
-  «не сказано» — ЭТО НЕ «не размечен»: у 6 страниц истины поля «порядок размечен» НЕТ ВОВСЕ, и число по ним было бы взято из ничего (так печаталось «согласовано 73%» на hard36). Чинится у того, кто собрал этот стенд.
-порядок чтения МОДЕЛИ против истины: НЕ СВЕРЯЕТСЯ — истина порядка не несёт: не размечен у 124, not_said у 6 из 130 страниц (это не ноль согласия)
-порядок СБОРКИ книги против истины: НЕ СВЕРЯЕТСЯ — истина порядка не несёт: не размечен у 124, not_said у 6 из 130 страниц (это не ноль согласия); наш порядок построен так: не объявлено (принято «ранг модели»)
-лишние прыжки между колонками: 193 (1.61 на страницу по 120 страницам в счёте из 130; переходов 331, колонок 258 на 94 многоколоночных страницах). рамок в счёте 1954, мимо счёта 572 сквозных и 206 иных разрядов; страниц без счёта 10 из 130 (рамок меньше минимума); группировка: x_overlap_of_narrow_box 0.5, full_width_box_share 0.6, min_boxes_per_page 2, buckets_counted ['artifact', 'text']
-путаница разрядов: 16 из 375 пар
-путаница ярлыков: 75 из 375 пар (словарь один: PP-DocLayoutV2) — {'chart->image': 44, 'display_formula->image': 7, 'display_formula->inline_formula': 3, 'figure_title->vision_footnote': 2, 'image->chart': 5, 'image->header_image': 1, 'table->content': 6, 'table->display_formula': 2, 'table->text': 5}
-  73f5527c                 0/45  spurious_box 5, слияние (display_formula) 45
-  efc968a3                 1/38  слияние (image) 37
-  e8342f90                 0/36  spurious_box 1, слияние (image) 36
-  50d1a315                 1/25  слияние (image) 24
-  50d1a291                 1/21  слияние (image) 20
-  05c763f0                 0/18  spurious_box 1, слияние (chart) 18
-  fc0928a3                 1/17  spurious_box 1, слияние (image) 16
-  50d1a2c1                 1/15  слияние (image) 14
-  50d1a231                 1/14  слияние (image) 13
-  412e362d                 0/11  spurious_box 1, слияние (display_formula) 9, срез (table) 2
-  50d1a279                 1/10  слияние (chart) 9
-  471410a8                 0/8  spurious_box 1, слияние (image) 8
-  50d1a2cd                 1/8  слияние (image) 7
-  2b987c5e                 0/6  не увидел (table) 1, съеден текстом (table) 5
-  5e1bcabb                 1/7  spurious_box 1, вложенный дубль 1, слияние (display_formula) 5, срез (table) 1
-  6c1a018d                 0/6  внутри ненайденного 2, не увидел (table) 3, разлив (table) 1, срез (table) 2
-  0e95ee35                 0/5  spurious_box 1, слияние (image) 5
-  3830bee5                 1/6  spurious_box 1, слияние (image) 5
-  385f7084                 0/5  съеден текстом (table) 5
-  50d1a2a9                 1/6  слияние (image) 5
-  50d1a2d9                 1/6  слияние (image) 5
-  50d1a2f9                 1/6  слияние (image) 5
-  ea72f640                 5/10  spurious_box 1, на объекте вне замера 2, не увидел (image) 1, слияние (image) 3, срез (table) 1
-  1ea66c01                 5/9  spurious_box 2, слияние (display_formula) 4
-  31ad48aa                 1/5  слияние (image) 4
-  50d1a261                 1/5  слияние (image) 4
-  50d1a2ab                 0/4  срез (table) 4
-  50d1a2ca                 1/5  слияние (chart) 4
-  6fd86f61                 0/4  spurious_box 1, на объекте вне замера 3, слияние (image) 4
-  7b1b915c                 3/7  слияние (image) 4
-  7b36f813                 0/4  spurious_box 1, слияние (chart) 4
-  91cc0237                 0/4  spurious_box 2, рядом, но не совпал (chart) 1, слияние (chart) 3
-  three_column_table       0/3  spurious_box 1, слияние (table) 3
-  09ad1c81                 3/6  spurious_box 1, слияние (image) 3
-  37e71249                 2/5  внутри ненайденного 2, не увидел (image) 1, срез (image) 2
-  43339819                 3/6  срез (table) 3
-  44a9e497                 1/4  spurious_box 2, разлив (display_formula) 1, слияние (chart) 2
-  490d7699                 1/4  spurious_box 1, вложенный дубль 2, рядом, но не совпал (chart) 3
-  4ffd9e40                 0/3  внутри ненайденного 16, дробление (table) 3
-  50d1a23d                 1/4  слияние (image) 3
-  50d1a269                 0/3  spurious_box 1, слияние (image) 3
-  50d1a281                 0/3  spurious_box 1, слияние (image) 3
-  50d1a311                 1/4  слияние (image) 3
-  b59f5250                 1/4  слияние (image) 3
-  b7ca9731                 2/5  spurious_box 2, на объекте вне замера 7, разлив (image) 2, съеден текстом (table) 1
-  b9ce7d10                 0/3  spurious_box 1, слияние (image) 3
-  table_two_side_by_side   0/2  spurious_box 1, слияние (table) 2
-  kat_two_side             0/2  spurious_box 1, слияние (table) 2
-  1138eb54                 5/7  spurious_box 1, слияние (chart) 2
-  1c74febe                 2/4  слияние (image) 2
-  33276b11                 1/3  срез (table) 2
-  38b22fbb                 2/4  съеден текстом (display_formula) 2
-  50d1a242                 0/2  spurious_box 1, слияние (image) 2
-  723b3acb                 1/3  spurious_box 1, слияние (chart) 2
-  82cadde5                 4/6  spurious_box 1, слияние (image) 2
-  b08a6663                 2/4  spurious_box 1, слияние (display_formula) 2
-  ea91eff0                 6/8  spurious_box 1, вложенный дубль 1, слияние (image) 2
-  0794bbfa                 2/3  spurious_box 1, слияние (image) 1
-  1138ebff                 4/5  съеден текстом (display_formula) 1
-  1503a0b8                 6/7  вложенный дубль 1, внутри ненайденного 2, дробление (display_formula) 1
-  26aeb64b                 6/7  внутри ненайденного 1, срез (table) 1
-  6d108673                 2/3  spurious_box 1, слияние (image) 1
-  8c8489c3                 1/2  spurious_box 1, рядом, но не совпал (image) 1
-  c4fbb236                 7/8  spurious_box 1, слияние (image) 1
-  d87a3100                 3/4  spurious_box 1, на объекте вне замера 2, слияние (image) 1
-  f6072e32                 2/3  spurious_box 1, разлив (chart) 1
+text and furniture: blocks 49, found 45 (92%) — counted over 6 pages of 130, text not marked on the rest
+SENSE WHOLE: 274/736 (37%) — cropped 45, merged 366, called text 21, not seen 30 (object inside the box from 0.90, neighbour from 0.50)
+  misses by label: chart 56/105, display_formula 59/129, image 187/446, paragraph_title 1/5, table 13/55
+truth about order: marked 0, not marked 124, NOT SAID 6 of 130 pages
+  'not said' IS NOT 'not marked': 6 truth pages have NO `order_marked` field AT ALL, and a number over them would be taken out of nothing (that is how 'agreed 73%' printed on hard36). Cured by whoever built this bench.
+order of MODEL reading against truth: NOT COMPARED — truth carries no order: not marked on 124, not_said on 6 of 130 pages (this is not zero agreement)
+order of book ASSEMBLY against truth: NOT COMPARED — truth carries no order: not marked on 124, not_said on 6 of 130 pages (this is not zero agreement); our order is built so: not declared (taken as 'model rank')
+excess column jumps: 193 (1.61 per page over 120 counted pages of 130; transitions 331, columns 258 on 94 multi-column pages). boxes counted 1954, out of the count 572 full-width and 206 of other buckets; pages not counted 10 of 130 (fewer boxes than the minimum); grouping: x_overlap_of_narrow_box 0.5, full_width_box_share 0.6, min_boxes_per_page 2, buckets_counted ['artifact', 'text']
+bucket confusion: 16 of 375 pairs
+label confusion: 75 of 375 pairs (one vocabulary: PP-DocLayoutV2) — {'chart->image': 44, 'display_formula->image': 7, 'display_formula->inline_formula': 3, 'figure_title->vision_footnote': 2, 'image->chart': 5, 'image->header_image': 1, 'table->content': 6, 'table->display_formula': 2, 'table->text': 5}
+  73f5527c                 0/45  merge (display_formula) 45, spurious_box 5
+  efc968a3                 1/38  merge (image) 37
+  e8342f90                 0/36  merge (image) 36, spurious_box 1
+  50d1a315                 1/25  merge (image) 24
+  50d1a291                 1/21  merge (image) 20
+  05c763f0                 0/18  merge (chart) 18, spurious_box 1
+  fc0928a3                 1/17  merge (image) 16, spurious_box 1
+  50d1a2c1                 1/15  merge (image) 14
+  50d1a231                 1/14  merge (image) 13
+  412e362d                 0/11  crop (table) 2, merge (display_formula) 9, spurious_box 1
+  50d1a279                 1/10  merge (chart) 9
+  471410a8                 0/8  merge (image) 8, spurious_box 1
+  50d1a2cd                 1/8  merge (image) 7
+  2b987c5e                 0/6  eaten by text (table) 5, not seen (table) 1
+  5e1bcabb                 1/7  crop (table) 1, merge (display_formula) 5, nested duplicate 1, spurious_box 1
+  6c1a018d                 0/6  crop (table) 2, inside a miss 2, not seen (table) 3, spill (table) 1
+  0e95ee35                 0/5  merge (image) 5, spurious_box 1
+  3830bee5                 1/6  merge (image) 5, spurious_box 1
+  385f7084                 0/5  eaten by text (table) 5
+  50d1a2a9                 1/6  merge (image) 5
+  50d1a2d9                 1/6  merge (image) 5
+  50d1a2f9                 1/6  merge (image) 5
+  ea72f640                 5/10  crop (table) 1, merge (image) 3, not seen (image) 1, on an object outside scoring 2, spurious_box 1
+  1ea66c01                 5/9  merge (display_formula) 4, spurious_box 2
+  31ad48aa                 1/5  merge (image) 4
+  50d1a261                 1/5  merge (image) 4
+  50d1a2ab                 0/4  crop (table) 4
+  50d1a2ca                 1/5  merge (chart) 4
+  6fd86f61                 0/4  merge (image) 4, on an object outside scoring 3, spurious_box 1
+  7b1b915c                 3/7  merge (image) 4
+  7b36f813                 0/4  merge (chart) 4, spurious_box 1
+  91cc0237                 0/4  merge (chart) 3, near, but no match (chart) 1, spurious_box 2
+  three_column_table       0/3  merge (table) 3, spurious_box 1
+  09ad1c81                 3/6  merge (image) 3, spurious_box 1
+  37e71249                 2/5  crop (image) 2, inside a miss 2, not seen (image) 1
+  43339819                 3/6  crop (table) 3
+  44a9e497                 1/4  merge (chart) 2, spill (display_formula) 1, spurious_box 2
+  490d7699                 1/4  near, but no match (chart) 3, nested duplicate 2, spurious_box 1
+  4ffd9e40                 0/3  fragmentation (table) 3, inside a miss 16
+  50d1a23d                 1/4  merge (image) 3
+  50d1a269                 0/3  merge (image) 3, spurious_box 1
+  50d1a281                 0/3  merge (image) 3, spurious_box 1
+  50d1a311                 1/4  merge (image) 3
+  b59f5250                 1/4  merge (image) 3
+  b7ca9731                 2/5  eaten by text (table) 1, on an object outside scoring 7, spill (image) 2, spurious_box 2
+  b9ce7d10                 0/3  merge (image) 3, spurious_box 1
+  table_two_side_by_side   0/2  merge (table) 2, spurious_box 1
+  kat_two_side             0/2  merge (table) 2, spurious_box 1
+  1138eb54                 5/7  merge (chart) 2, spurious_box 1
+  1c74febe                 2/4  merge (image) 2
+  33276b11                 1/3  crop (table) 2
+  38b22fbb                 2/4  eaten by text (display_formula) 2
+  50d1a242                 0/2  merge (image) 2, spurious_box 1
+  723b3acb                 1/3  merge (chart) 2, spurious_box 1
+  82cadde5                 4/6  merge (image) 2, spurious_box 1
+  b08a6663                 2/4  merge (display_formula) 2, spurious_box 1
+  ea91eff0                 6/8  merge (image) 2, nested duplicate 1, spurious_box 1
+  0794bbfa                 2/3  merge (image) 1, spurious_box 1
+  1138ebff                 4/5  eaten by text (display_formula) 1
+  1503a0b8                 6/7  fragmentation (display_formula) 1, inside a miss 2, nested duplicate 1
+  26aeb64b                 6/7  crop (table) 1, inside a miss 1
+  6d108673                 2/3  merge (image) 1, spurious_box 1
+  8c8489c3                 1/2  near, but no match (image) 1, spurious_box 1
+  c4fbb236                 7/8  merge (image) 1, spurious_box 1
+  d87a3100                 3/4  merge (image) 1, on an object outside scoring 2, spurious_box 1
+  f6072e32                 2/3  spill (chart) 1, spurious_box 1
   atl_two_views            2/2  spurious_box 1
   0dbe9279                 3/3  spurious_box 1
   1138eb70                 10/10  spurious_box 1
@@ -110,12 +110,12 @@ sha256 сверен: bd65ad0e4a97; растр сверен: 130 страниц, 
   601c4ee6                 2/2  spurious_box 1
   7782da71                 3/3  spurious_box 1
   7ab6b7bb                 4/4  spurious_box 1
-  ae5a2820                 5/5  на объекте вне замера 2
+  ae5a2820                 5/5  on an object outside scoring 2
   b6f3bec0                 2/2  spurious_box 1
-  b9bddb40                 2/2  вложенный дубль 1
-  b9da63f0                 3/3  на объекте вне замера 1
+  b9bddb40                 2/2  nested duplicate 1
+  b9da63f0                 3/3  on an object outside scoring 1
   c13f04bd                 2/2  spurious_box 1
   ca9893f2                 2/2  spurious_box 1
-  e1597603                 4/4  spurious_box 1, вложенный дубль 1
-  ea6e3b50                 2/2  на объекте вне замера 13
-  ea83bf20                 4/4  на объекте вне замера 2
+  e1597603                 4/4  nested duplicate 1, spurious_box 1
+  ea6e3b50                 2/2  on an object outside scoring 13
+  ea83bf20                 4/4  on an object outside scoring 2

@@ -33,26 +33,26 @@ checked at home against a stand-in server: 27 checks, not one cent.
 
 positional arguments:
   {offers,prepare,detect,html,feed,fitness,subset,annopage,score,read,apply,text,overlay,synth,ls,down,reap,doctor,ledger,replay}
-    offers              показать рынок, ничего не арендуя
-    prepare             развернуть djvu в PDF
-    detect              контуры первого уровня, местно
-    html                собрать HTML из каталога books detect
-    feed                что уехало бы в VLM, без обращения к ней
-    fitness             годен ли вывод, чтобы гнать через него OCR
-    subset              выжимка: артефакты бок о бок
-    annopage            золотой стенд из датасета AnnoPage
-    score               метрики контуров против истины стенда
-    read                ВТОРОЙ УРОВЕНЬ: прочитать блоки моделью (платно)
-    apply               второй уровень: разметка вместо картинки, и откат
-    text                метрика чтения: знаки против истины стенда
-    overlay             рамки поверх страниц, чтобы посмотреть глазами
-    synth               синтетический стенд с точной истиной
-    ls                  что сейчас арендовано
-    down                уничтожить инстанс
-    reap                уничтожить всё, что оставили наши прогоны
-    doctor              проверить окружение до того, как тратить деньги
-    ledger              журнал прогонов и оценки по нему
-    replay              полон ли слепок входа для повтора
+    offers              look at the market, renting nothing
+    prepare             unfold djvu into PDF
+    detect              level-one contours, locally
+    html                build HTML from a books detect directory
+    feed                what would go to the VLM, without asking it
+    fitness             is the output fit to run OCR through
+    subset              distillate: artefacts side by side
+    annopage            golden bench from the AnnoPage set
+    score               contour metrics against the bench truth
+    read                LEVEL TWO: read the blocks with a model (paid)
+    apply               level two: markup instead of a picture, and undo
+    text                reading metric: characters against bench truth
+    overlay             boxes over the pages, to look with your own eyes
+    synth               synthetic bench with exact truth
+    ls                  what is rented right now
+    down                destroy an instance
+    reap                destroy everything our runs left behind
+    doctor              check the environment before spending money
+    ledger              run journal and the estimate from it
+    replay              is the input snapshot complete
 
 options:
   -h, --help            show this help message and exit

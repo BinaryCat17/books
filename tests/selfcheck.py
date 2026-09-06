@@ -661,7 +661,7 @@ def battery_summary_without_the_unmeasured(pdf, detect_dir, truth_dir="",
     out = []
     rc = _REAL_FIT_MUT(pdf, detect_dir, truth_dir, log=out.append)
     for line in out:
-        if "нечем мерить" in line or "measured" in line:
+        if "nothing to measure with" in line:
             continue
         log(line)
     return rc
@@ -675,7 +675,7 @@ def battery_that_corrupts_only_the_model(pdf, detect_dir, truth_dir="",
     out = []
     rc = _REAL_FIT_MUT(pdf, detect_dir, truth_dir, log=out.append)
     for line in out:
-        if "истин" in line.lower() or "порог" in line.lower():
+        if "truth" in line.lower() or "threshold" in line.lower():
             continue
         log(line)
     return rc
@@ -1494,7 +1494,7 @@ def measure_scores_silence_as_zero(T, P, *a, **kw):
     """
     r = _real_measure(T, P, *a, **kw)
     for rec in r["per_block"]:
-        if (rec.get("bucket") in ("text", "артефакт по истине")
+        if (rec.get("bucket") in ("text", "artifact_with_truth")
                 and rec.get("CER") is None):
             rec["CER"] = 0.0
     return r
@@ -1506,7 +1506,7 @@ def measure_calls_artefacts_text(T, P, *a, **kw):
     the fix: "CER 0 on all 130 counted of 104" on a book of 104 text blocks."""
     r = _real_measure(T, P, *a, **kw)
     for rec in r["per_block"]:
-        if rec.get("bucket") == "артефакт по истине":
+        if rec.get("bucket") == "artifact_with_truth":
             rec["bucket"] = "text"
     return r
 
@@ -1521,7 +1521,7 @@ def measure_counts_words_in_a_formula(T, P, *a, **kw):
     """
     r = _real_measure(T, P, *a, **kw)
     for rec in r["per_block"]:
-        if (rec.get("bucket") == "артефакт по истине"
+        if (rec.get("bucket") == "artifact_with_truth"
                 and rec.get("CER") is not None):
             rec["WER"] = rec["CER"]
     return r
@@ -3353,9 +3353,8 @@ def mutations():
 
         ("the aging knob advertises a profile that does not exist",
          lambda: one_line("booksmith.run.knobs",
-                          '    Knob("SYNTH_AGING", "old", "\u043f\u0440\u043e\u0444\u0438\u043b\u044c '
-                          '\u0441\u0442\u0430\u0440\u0435\u043d\u0438\u044f \u0441\u0442\u0435\u043d\u0434\u0430: clean|scan|old|decayed"),',
-                          '    Knob("SYNTH_AGING", "old", "profile: clean|scan|old|frail"),'),
+                          '         "bench ageing profile: clean|scan|old|decayed"),',
+                          '         "bench ageing profile: clean|scan|old|frail"),'),
          [("test_knobs",
            "test_the_aging_knob_lists_exactly_the_profiles_that_exist")]),
 

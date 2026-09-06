@@ -92,26 +92,29 @@ KNOBS = (
     # a zero from checking. The run itself IS repeatable -- two repeats at 300
     # dpi gave byte-identical blocks -- so the band is dpi, not noise.
     Knob("PAGE_DPI", "144",
-         "разрешение, с которым страница РЕНДЕРИТСЯ в растр детекции. "
-         "Детектор жмёт растр до 800x800 сам (keep_ratio: false). РАЗНИЦА "
-         "ЕСТЬ, но не в сводных числах: на bench/real/tables20.pdf (20 "
-         "страниц) при dpi 100/140/144/148/200/300/450/580/600/620 рамок "
-         "384/381/379/378/380/379/378/378/379/379 (полоса 378..384, 379 "
-         "выпадает четырежды), чернил под рамками 99.3% всюду и 99.4% при "
-         "100 — оба этих числа к dpi слепы. Прогон повторим: два повтора при "
-         "300 dpi дали блоки, совпадающие побайтово, то есть полоса 378..384 "
-         "— это dpi, а не шум прогона. Различает ЯРЛЫК: paragraph_title "
-         "42/41/39/40/39/38/36/34/32/34 — спад монотонный и вчетверо шире "
-         "шума соседних dpi (39..41 при 140/144/148); text при этом стоит "
-         "(236..241), то есть рамки ТЕРЯЮТСЯ, а не перетекают. Причина не в "
-         "разрешении, а в ФИЛЬТРЕ: адаптер жмёт растр cv2.INTER_CUBIC "
-         "(interp: 2 из весов), при 600 dpi это сжатие в 7.6 раза по "
-         "вертикали, то есть подвыборка — полутонов на входе сети остаётся "
-         "4.3% против 16.6% у INTER_AREA. Подмена интерполяции на INTER_AREA "
-         "при 600 dpi возвращает paragraph_title 32 -> 40, не меняя итога "
-         "(379), и отнимает таблицу (5 -> 4); при 144 dpi та же подмена даёт "
-         "382 рамки и таблиц 3 вместо 5. Таблиц не прибавляет ни одно dpi и "
-         "ни один фильтр. На координаты рамок влияет прямо"),
+         "the resolution a page is RENDERED to for detection. The "
+         "detector squeezes the raster to 800x800 itself (keep_ratio: "
+         "false). THERE IS A DIFFERENCE, just not in the summary numbers: "
+         "on bench/real/tables20.pdf (20 pages) at dpi "
+         "100/140/144/148/200/300/450/580/600/620 the boxes are "
+         "384/381/379/378/380/379/378/378/379/379 (band 378..384, 379 "
+         "falling out four times), ink under boxes 99.3% everywhere and "
+         "99.4% at 100 -- both numbers blind to dpi. The run repeats: two "
+         "repeats at 300 dpi gave byte-identical blocks, so the band "
+         "378..384 is dpi and not run noise. The LABEL tells them apart: "
+         "paragraph_title 42/41/39/40/39/38/36/34/32/34 -- a monotone "
+         "decline four times wider than the noise of neighbouring dpi "
+         "(39..41 at 140/144/148); text meanwhile stands still "
+         "(236..241), so boxes are LOST, not carried over. The cause is "
+         "not the resolution but the FILTER: the adapter squeezes the "
+         "raster with cv2.INTER_CUBIC (interp: 2 from the weights), at "
+         "600 dpi that is a 7.6-fold vertical shrink, i.e. subsampling -- "
+         "4.3% of the halftones reach the net against 16.6% with "
+         "INTER_AREA. Swapping the interpolation for INTER_AREA at 600 "
+         "dpi brings paragraph_title back 32 -> 40 without moving the "
+         "total (379), and takes a table away (5 -> 4); at 144 dpi the "
+         "same swap gives 382 boxes and 3 tables instead of 5. No dpi and "
+         "no filter adds a table. On box coordinates it tells directly"),
 
     # WHAT NOT TO DO, also measured. Raising dpi is pointless: 600 pays four
     # times the raster and twice the time, returns the same 379 boxes and loses
@@ -127,20 +130,21 @@ KNOBS = (
     # paragraph line -- suffers most.
 
     # --- model and weights: without them a run cannot be repeated ---
-    Knob("MODEL_NAME", "PaddleOCR-VL-1.6-0.9B", "имя модели для vLLM и клиента"),
-    Knob("VL_MODEL_DIR", "", "каталог весов VLM; ставит run.sh, читает vLLM"),
+    Knob("MODEL_NAME", "PaddleOCR-VL-1.6-0.9B",
+         "model name for vLLM and for the client"),
+    Knob("VL_MODEL_DIR", "", "VLM weights dir; run.sh sets it, vLLM reads"),
     Knob("LAYOUT_ADAPTER", "doclayout",
-         "какой адаптер детекции звать; список — detect.py:ADAPTERS, их "
-         "четыре: doclayout (PaddleOCR PP-DocLayout*, 25 ярлыков у V2/V3, "
-         "20 у plus-L), docling (IBM heron RT-DETRv2, 17), docling-egret "
-         "(IBM egret D-FINE, 17), yolox (DocLayNet, 11). Разные словари "
-         "ярлыков и разные политики — сравнивать их можно только слепо к "
-         "ярлыку"),
+         "which detection adapter to call; the list is "
+         "detect.py:ADAPTERS, four of them: doclayout (PaddleOCR "
+         "PP-DocLayout*, 25 labels on V2/V3, 20 on plus-L), docling (IBM "
+         "heron RT-DETRv2, 17), docling-egret (IBM egret D-FINE, 17), "
+         "yolox (DocLayNet, 11). Different label dictionaries and "
+         "different policies -- comparable only blind to the label"),
     Knob("YOLOX_WEIGHTS", "",
-         "какие веса YOLOX брать: yolox_l0.05.onnx (по умолчанию) или "
+         "which YOLOX weights to take: yolox_l0.05.onnx (the default) or "
          "yolox_tiny.onnx"),
-    Knob("LAYOUT_MODEL_NAME", "PP-DocLayoutV2", "имя модели детекции макета"),
-    Knob("LAYOUT_MODEL_DIR", "", "каталог весов детекции макета"),
+    Knob("LAYOUT_MODEL_NAME", "PP-DocLayoutV2", "layout model name"),
+    Knob("LAYOUT_MODEL_DIR", "", "layout weights directory"),
     # A threshold for ALL classes at once, and a knob of its own rather than "a
     # table threshold", because in paddlex postprocessing a threshold dict with
     # one class silently gives the rest 0.5 -- so "lower the table threshold"
@@ -158,13 +162,15 @@ KNOBS = (
     # weights -- and their `threshold_drift()` honestly says "nothing to
     # compare against", which is not the same as "no drift".
     Knob("LAYOUT_SCORE_THRESHOLD", "0.5",
-         "порог детекции. У doclayout — общий для всех классов КРОМЕ table "
-         "(24 при 25-классных V2/V3, 19 при 20-классном plus-L), умолчание "
-         "родное у весов. У docling, docling-egret и yolox — один на ВСЕ "
-         "классы, включая table, и родного порога у весов нет"),
+         "detection threshold. On doclayout -- common to every class "
+         "EXCEPT table (24 of the 25 classes on V2/V3, 19 of the 20 on "
+         "plus-L), the default native to the weights. On docling, "
+         "docling-egret and yolox -- one for ALL classes, table included, "
+         "and the weights carry no native threshold at all"),
     Knob("LAYOUT_TABLE_THRESHOLD", "0.5",
-         "родной порог детекции таблиц; читает ТОЛЬКО doclayout — у трёх "
-         "остальных адаптеров таблица идёт по LAYOUT_SCORE_THRESHOLD"),
+         "the native table detection threshold; read by doclayout ONLY -- "
+         "in the other three adapters a table goes by "
+         "LAYOUT_SCORE_THRESHOLD"),
 
     # --- DOCLING VENDOR PIPELINE over heron and egret boxes -----------------
     # `off` -- the model's boxes as they are. `post` -- vendor postprocessing
@@ -290,27 +296,30 @@ KNOBS = (
     # default when the second level shows by a number what it does with a
     # collapsed wrapper.
     Knob("DOCLING_PIPELINE", "off",
-         "вендорский конвейер docling поверх рамок: off | post (его "
-         "постобработка) | full (она же плюс ПРАВИЛА порядка чтения, не "
-         "модель). Читают адаптеры docling и docling-egret; остальным "
-         "несъедобна. Числа при ручке сняты на HERON — у egret цена своя, "
-         "мерена отдельно и другая"),
+         "the docling vendor pipeline over the boxes: off | post (its "
+         "postprocessing) | full (that plus reading-order RULES, not a "
+         "model). Read by the docling and docling-egret adapters; "
+         "indigestible to the rest. The numbers beside this knob were "
+         "taken on HERON -- egret has a price of its own, measured "
+         "separately and different"),
     Knob("ASSEMBLY_ORDER", "ours",
-         "чем складывать книгу, когда у модели НЕТ своего ранга чтения: "
-         "ours (наше правило, сверху вниз и слева направо) | docling "
-         "(reading_order_rb — 740 строк ПРАВИЛ вендора, не модель; нужен "
-         "пакет docling, +54 МБ). Читают plus-L, heron, egret и yolox; у "
-         "PP-DocLayoutV2 и V3 есть СВОЙ ранг, и эта ручка их не касается "
-         "вовсе. Замер на 600 страницах золотого стенда, ОДНИ И ТЕ ЖЕ рамки "
-         "V2, переставленные тремя способами: наше правило 2471 лишний "
-         "прыжок, ранг самой модели 501, правила docling 439. Наше хуже обоих "
-         "УСТОЙЧИВО — по 16 точкам развёртки пределы 3.02..7.04 против "
-         "0.23..1.73 и 0.28..1.57, не пересекаются вовсе. А docling против "
-         "ранга V2 прибор НЕ различает: пара перевёрнута, разница 0.13 при "
-         "размахе линейки 4.02, — потому V2 свой ранг и сохраняет. Умолчание "
-         "ours, а не лучшее по числу, ровно по одной причине: docling это "
-         "пакет, и `books detect --adapter yolox` на свежем окружении не "
-         "должен падать из-за правила сортировки"),
+         "what assembles the book when the model has NO reading rank of "
+         "its own: ours (our rule, top to bottom and left to right) | "
+         "docling (reading_order_rb -- 740 lines of vendor RULES, not a "
+         "model; needs the docling package, +54 MB). Read by plus-L, "
+         "heron, egret and yolox; PP-DocLayoutV2 and V3 have a rank of "
+         "their OWN and this knob does not touch them at all. Measured on "
+         "the 600 pages of the golden bench, THE SAME V2 boxes permuted "
+         "three ways: our rule 2471 extra jumps, the model's own rank "
+         "501, the docling rules 439. Ours is worse than both STEADILY -- "
+         "over 16 sweep points the limits are 3.02..7.04 against "
+         "0.23..1.73 and 0.28..1.57, not overlapping at all. And docling "
+         "against the V2 rank the instrument does NOT tell apart: the "
+         "pair is inverted, difference 0.13 against a ruler span of 4.02 "
+         "-- which is why V2 keeps its own rank. The default is ours and "
+         "not the best by number for exactly one reason: docling is a "
+         "package, and `books detect --adapter yolox` must not fall on a "
+         "fresh environment over a sorting rule"),
     # `PADDLE_PDX_MODEL_SOURCE` WAS REMOVED FROM THE REGISTRY, not marked debt.
     # Its only consumer was an `export` in `models/paddleocr_vl/run.sh`, left
     # from the era when layout was computed ON THE CARD and paddlex pulled
@@ -324,16 +333,18 @@ KNOBS = (
     # 144 dpi a dense table gives 6-7 dots per glyph height and the second
     # level will fail on such a crop. The bench will set it.
     Knob("CROP_DPI", "",
-         "резкость вырезки. Пусто = СОБСТВЕННАЯ резкость скана (сколько в "
-         "файле есть, и ни точкой больше), а если её не определить — как у "
-         "детекции. Здесь стояло «пусто = как PAGE_DPI», и это было неверно по "
-         "обоим шагам; текст ручки уезжает в run.json, то есть слепок описывал "
-         "её ложно. Читают doc/crop.py и doc/feed.py; `books read` НЕ читает — "
-         "там резкость решает окно модели"),
+         "crop sharpness. Empty = the scan's OWN resolution (as much as "
+         "the file holds and not a dot more), and if that cannot be "
+         "determined -- as detection had it. Here stood 'empty = as "
+         "PAGE_DPI', wrong on both counts; a knob's text rides into "
+         "run.json, so the snapshot described it falsely. Read by "
+         "doc/crop.py and doc/feed.py; `books read` does NOT read it -- "
+         "there the model's window decides the resolution"),
     # Zero is a VALUE: the pipeline cuts exactly along the box
     # (layout_unclip_ratio [1.0, 1.0]), and any non-zero margin edits the
     # model's box.
-    Knob("CROP_MARGIN", "0", "поле вокруг рамки при вырезке, в долях рамки"),
+    Knob("CROP_MARGIN", "0",
+         "margin around the box when cropping, in box fractions"),
 
     # --- VLM feed: two hypotheses, neither one checked --------------------
     # `crop` -- one request per text block, as the pipeline does by default
@@ -348,59 +359,68 @@ KNOBS = (
     # the 4096-token answer ceiling against a longest single block of 8207
     # characters. None of the three was taken on a whole masked page -- hence a
     # knob and not a decision.
-    Knob("VLM_INPUT", "crop", "что подавать VLM: crop | masked_page"),
+    Knob("VLM_INPUT", "crop", "what to feed the VLM: crop | masked_page"),
     # Not a constant: white is the least neutral option there is, and it was on
     # blank white that the model invented tables.
-    Knob("MASK_FILL", "white", "заливка дыр при masked_page: white|gray|black"),
+    Knob("MASK_FILL", "white",
+         "hole fill under masked_page: white|gray|black"),
 
     # --- book, rental and ledger: not about parsing, about repeatability ---
     Knob("HTML_MATH", "inline",
-         "чем рисовать формулы в книге: inline (MathJax ВНУТРИ книги, +2.3 МБ "
-         "к файлу) | local (соседним файлом tex-svg.js) | cdn (тянуть из сети "
-         "при каждом открытии) | off (сырой LaTeX). Умолчание `inline`, и "
-         "оплачено это так: при `local` браузер молча НЕ ГРУЗИТ соседний "
-         "скрипт, если книгу открыть по сетевому пути (\\\\wsl.localhost\\... "
-         "из Windows) — Chromium режет подгрузку локального файла, консоль "
-         "молчит, и книга выглядит собранной без формул. Вшитый скрипт этой "
-         "беды не знает вовсе. Замер, ради которого ручка заведена: в книге "
-         "«Технология огнеупоров» 2260 формул из 6080 прочитанных блоков, и "
-         "без отрисовки читатель видит \\[\\mathrm{Al}_{2}\\mathrm{O}_{3}\\] "
-         "вместо формулы"),
+         "how formulas are drawn in the book: inline (MathJax INSIDE the "
+         "book, +2.3 MB to the file) | local (as a neighbouring "
+         "tex-svg.js) | cdn (pulled from the network on every open) | off "
+         "(raw LaTeX). The default is `inline`, and it was paid for like "
+         "this: with `local` the browser silently DOES NOT LOAD the "
+         "neighbouring script when the book is opened over a network path "
+         "(\\\\wsl.localhost\\... from Windows) -- Chromium cuts the local "
+         "file off, the console says nothing, and the book looks built "
+         "without formulas. An embedded script knows no such trouble. The "
+         "measurement this knob was made for: «Технология огнеупоров» "
+         "holds 2260 formulas among 6080 read blocks, and without "
+         "rendering the reader sees "
+         "\\[\\mathrm{Al}_{2}\\mathrm{O}_{3}\\] instead of a formula"),
     Knob("HTML_IMAGES", "inline",
-         "как книга несёт вырезанные артефакты: inline (data:-ссылками ВНУТРИ "
-         "html; файл самодостаточен и открывается по любому пути) | linked "
-         "(ссылками на assets/blocks/*.png). PNG кладутся в assets/blocks в "
-         "ОБОИХ случаях — они нужны правкам, замерам и второму уровню, а не "
-         "только чтению. Цена inline на «Технологии огнеупоров»: 488 вырезок, "
-         "11.2 МБ на диске -> 14.9 МБ в base64, книга 2.3 -> ~19 МБ. Умолчание "
-         "`inline` по той же причине, что у HTML_MATH: книгу открывают по "
-         "сетевому пути, и тогда соседние файлы не грузятся молча"),
+         "how the book carries the cut-out artefacts: inline (data: links "
+         "INSIDE the html; the file is self-contained and opens by any "
+         "path) | linked (links to assets/blocks/*.png). The PNGs are put "
+         "into assets/blocks in BOTH cases -- edits, measurements and the "
+         "second level need them, not reading alone. The price of inline "
+         "on «Технология огнеупоров»: 488 crops, 11.2 MB on disk -> "
+         "14.9 MB in base64, the book 2.3 -> ~19 MB. The default is "
+         "`inline` for the same reason as HTML_MATH: a book gets opened "
+         "over a network path, and then neighbouring files fail to load "
+         "in silence"),
     Knob("HTML_REPEATS", "hide",
-         "что делать с ДОКАЗАННЫМ повтором внутри страницы: hide (не "
-         "показывать читателю; разметка на месте, скрыт только показ) | show "
-         "(показать всё, ничего не пряча). Доказательство одно: тот же текст "
-         "есть у блока, который в книге ОСТАЁТСЯ; сличение ступенью «латех», "
-         "её замер — в `text.NORM_STEPS`. На «Технологии огнеупоров» из 1935 "
-         "вложенных блоков скрыто 728, доля ложных среди скрытых по худшему "
-         "фону 11.7 %. РУЧКА ЗАВЕДЕНА НЕ ДЛЯ КРАСОТЫ: это единственная "
-         "операция сборки, УБИРАЮЩАЯ текст с глаз читателя, и у неё обязан "
-         "быть выключатель — цена ошибки здесь несимметрична, ложное скрытие "
-         "уносит слова, а пропущенный повтор оставляет лишнюю строку"),
+         "what to do with a PROVEN repeat inside a page: hide (not shown "
+         "to the reader; the markup stays, only the display is hidden) | "
+         "show (show everything, hiding nothing). The proof is one: the "
+         "same text belongs to a block that STAYS in the book; compared "
+         "at the latex step, whose measurement is in `text.NORM_STEPS`. "
+         "On «Технология огнеупоров» 728 of 1935 nested blocks are "
+         "hidden, the share of false ones among them 11.7 % by the worst "
+         "background. THE KNOB IS NOT HERE FOR BEAUTY: it is the only "
+         "build operation that TAKES text off the reader's eyes, and it "
+         "must have a switch -- the cost of an error is asymmetric here, "
+         "a false hiding carries words away while a missed repeat leaves "
+         "one line too many"),
     Knob("MIN_LINK_MBPS", "2.0",
-         "порог отбраковки машины по каналу ДО НАС, Мбит/с. Отделяет "
-         "работающую машину от сломанной, а не быструю от медленной: "
-         "между ними два порядка (7 против 0.06). "
-         "ЧИСЛО ЭТО НЕ ВЫВЕДЕНО ИЗ РАБОТЫ, и это надо знать, прежде чем "
-         "винить рынок. Задание `vl-read` на 20 страниц весит 872 КБ: при "
-         "0.34 Мбит/с оно уезжает за 20 с, при 0.062 (та самая сломанная "
-         "машина из докстроки зонда) — за 112 с. То есть для САМОЙ задачи "
-         "порог 2.0 избыточен раз в десять, а отбраковывает он по нему "
-         "машины насовсем. Замер 3 сентября 2026: наш канал по HTTP "
-         "4.6 Мбит/с, а один поток ssh до снятой машины — 0.34, и она ушла "
-         "в вечный чёрный список. Ослаблять порог осознанно — это и есть то, "
-         "ради чего он вынут в реестр; ослабляя, ставьте число ОТ РАЗМЕРА "
-         "ЗАДАНИЯ, а не от вкуса, и помните, что ниже порога машина ещё и "
-         "результат отдаёт медленно"),
+         "the link threshold a machine is rejected by, Mbps, measured TO "
+         "US. It separates a working machine from a broken one, not a "
+         "fast one from a slow one: two orders of magnitude lie between "
+         "them (7 against 0.06). THIS NUMBER IS NOT DERIVED FROM THE "
+         "WORK, and that has to be known before blaming the market. A "
+         "`vl-read` job of 20 pages weighs 872 KB: at 0.34 Mbps it "
+         "travels in 20 s, at 0.062 (that same broken machine from the "
+         "probe's docstring) in 112 s. So for the task ITSELF the "
+         "threshold of 2.0 is tenfold excessive, and by it machines are "
+         "rejected for good. Measured 3 September 2026: our own link over "
+         "HTTP 4.6 Mbps, while a single ssh stream to the rented machine "
+         "gave 0.34, and it went onto the eternal blacklist. Loosening "
+         "the threshold knowingly is exactly what it was put in the "
+         "registry for; loosening it, take the number FROM THE JOB SIZE "
+         "and not from taste, and remember that below the threshold a "
+         "machine returns its result slowly too"),
     # The commit we computed with, FOR A MACHINE THAT HAS NO GIT. Measured: the
     # `vast-base` image carries no git (both layers unpacked), the box root
     # `/root/job` holds no repository, and `stamp.commit()` honestly returns
@@ -409,34 +429,35 @@ KNOBS = (
     # replay --check` returned 0, an empty field counting as a value. The job
     # builder sets the knob from its own `stamp.commit()`.
     Knob("BOOKSMITH_COMMIT", "",
-         "коммит кода для машины без git; пусто = спросить git на месте"),
+         "the commit for a machine without git; empty = ask git in place"),
     Knob("BOOKSMITH_LEDGER", "",
-         "куда писать журнал прогонов; пусто = runs/ledger.jsonl. Рядом с "
-         "журналом живёт и чёрный список машин"),
+         "where to write the run journal; empty = runs/ledger.jsonl. The "
+         "machine blacklist lives beside the journal"),
     # --- VLM feed, continued ------------------------------------------------
     Knob("FEED_DPI", "",
-         "разрешение страницы, уезжающей в VLM; пусто = как PAGE_DPI"),
+         "resolution of the page going to the VLM; empty = as PAGE_DPI"),
 
     # --- synthetic bench ----------------------------------------------------
     # Seed and ageing profile decide which pages come out, hence decide the
     # model's answer: measured, a CLEAN page has no `table` box at all and an
     # aged one grows one. A bench without these two in the snapshot is not
     # reproducible.
-    Knob("SYNTH_SEED", "1", "зерно синтетического стенда"),
-    Knob("SYNTH_AGING", "old", "профиль старения стенда: clean|scan|old|decayed"),
+    Knob("SYNTH_SEED", "1", "seed of the synthetic bench"),
+    Knob("SYNTH_AGING", "old",
+         "bench ageing profile: clean|scan|old|decayed"),
 
     # --- SECOND LEVEL: reading block content --------------------------------
     # The same cut as in `read/__init__.py`: what we ask is a property of the
     # MODEL, how we deliver it a property of the TRANSPORT, and the knobs are
     # split along it.
     Knob("VLM_READER", "paddleocr-vl",
-         "какой адаптер ЧТЕНИЯ звать; список — read/run.py:READERS. Он "
-         "решает, каким промтом спрашивать про какой ярлык и каким видом "
-         "придёт ответ"),
+         "which READING adapter to call; the list is read/run.py:READERS. "
+         "It decides which prompt asks about which label, and in what "
+         "shape the answer arrives"),
     Knob("VLM_TRANSPORT", "http",
-         "как доставлять вопрос; список — read/http.py:build. Аренда НЕ "
-         "третий транспорт: на арендованной карте тот же http смотрит в "
-         "127.0.0.1, куда run.sh поднял vLLM"),
+         "how the question is delivered; the list is read/http.py:build. "
+         "Rental is NOT a third transport: on a rented card the same http "
+         "looks at 127.0.0.1, where run.sh raised vLLM"),
     # AN EMPTY DEFAULT HERE DROPS THE RUN, and that sets this knob apart. Empty
     # defaults number eight (`VL_MODEL_DIR`, `YOLOX_WEIGHTS`,
     # `LAYOUT_MODEL_DIR`, `CROP_DPI`, `BOOKSMITH_COMMIT`, `BOOKSMITH_LEDGER`,
@@ -447,7 +468,8 @@ KNOBS = (
     # and calling a refused connection a silence of the model -- two different
     # zeros.
     Knob("VLM_ENDPOINT", "",
-         "адрес OpenAI-совместимой службы вместе с /v1; умолчания нет"),
+         "address of an OpenAI-compatible service, /v1 included; no "
+         "default"),
     # 4096 is not our number: the stock PaddleOCR-VL pipeline sets it, lowering
     # the model's native 8192. What makes it a knob and not a constant: the
     # longest SINGLE text block in our books is 8207
@@ -455,22 +477,24 @@ KNOBS = (
     # looping, after which `otsl_pad_to_sqr_v2` silently shortens long rows --
     # a torn table comes back plausible. Only the `finish` field tells them
     # apart, and a run is obliged to print it.
-    Knob("VLM_MAX_TOKENS", "4096", "потолок ответа в токенах"),
-    Knob("VLM_TIMEOUT_S", "120", "сколько ждать один ответ, секунд"),
+    Knob("VLM_MAX_TOKENS", "4096", "ceiling of an answer, in tokens"),
+    Knob("VLM_TIMEOUT_S", "120", "how long to wait for one answer, s"),
     # A 200 is never retried whatever it carries: re-asking after an answer
     # repairs the model, and the project rule forbids it -- here the ban is
     # expressed in code (`read/http.py`). The number is about broken links, of
     # which a rented machine has plenty: the ledger remembers 0.06 Mbps.
-    Knob("VLM_RETRIES", "2", "сколько раз повторить ОТКАЗ ДОСТАВКИ (не ответ)"),
+    Knob("VLM_RETRIES", "2",
+         "how many times to repeat a DELIVERY REFUSAL (not an answer)"),
     # vLLM batches on its own and a single stream leaves the card nearly idle;
     # but any number above one makes the order of ANSWERS non-deterministic, so
     # it is declared and rides into the snapshot, and pages are written by
     # anchor rather than by arrival.
-    Knob("VLM_CONCURRENCY", "4", "сколько запросов держать в полёте разом"),
+    Knob("VLM_CONCURRENCY", "4",
+         "how many requests to keep in flight at once"),
 
     # --- generation ---
-    Knob("VLM_TEMPERATURE", "0", "температура VLM; >0 делает разбор "
-                                 "невоспроизводимым нарочно"),
+    Knob("VLM_TEMPERATURE", "0", "VLM temperature; >0 makes the parse "
+                                 "unrepeatable on purpose"),
     # BOTH ARE DECLARED THOUGH AT temperature=0 THEY CHANGE NOTHING. Not
     # pedantry: `books replay --check` demands the snapshot's "generation"
     # field be FILLED and not empty, and it is right -- "top_p was not set" and
@@ -479,21 +503,22 @@ KNOBS = (
     # matching cells of 270, and the two worst pages came first by
     # instability), both start deciding the answer, with nowhere to recover
     # them from afterwards.
-    Knob("VLM_TOP_P", "1.0", "отсечение по вероятности; 1.0 = не отсекать"),
-    Knob("VLM_SEED", "0", "зерно порождения; решает при temperature > 0"),
-    Knob("PASSES", "1", "сколько раз читать; свод — задача раннера, не модели",
-         debt=True),
+    Knob("VLM_TOP_P", "1.0", "probability cutoff; 1.0 = cut nothing"),
+    Knob("VLM_SEED", "0", "generation seed; decides at temperature > 0"),
+    Knob("PASSES", "1",
+         "how many reads; summing up is the runner's job, not the "
+         "model's", debt=True),
 
     # --- observation, NOT intervention ---
     # They go to their own file and never touch the text. This same knob used
     # to insert `⚠` and `<mark>` straight into the markup, i.e. corrected the
     # model's output. Recognised text is now untouchable, and everything
     # observed lives alongside, tied to a block by its number.
-    Knob("LOGPROBS", "1", "записать вероятности токенов рядом со страницей",
+    Knob("LOGPROBS", "1", "record token probabilities beside the page",
          debt=True),
 
     # --- shell ---
-    Knob("PORT", "8118", "порт сервиса vLLM на машине"),
+    Knob("PORT", "8118", "port of the vLLM service on the machine"),
     # A page counts as done by the artefact it was paid for, not by any trace
     # carrying its number. The old implementation took ANY file with a numeric
     # name: a page is written by two calls and the first can fail (measured on
@@ -501,7 +526,7 @@ KNOBS = (
     # lived), `--resume` never recomputed such a page, and `run.json` showed
     # the full count as if all were there. In the book the hole shows only as a
     # paragraph ending mid-word.
-    Knob("RESUME", "1", "продолжать ли прерванный прогон"),
+    Knob("RESUME", "1", "whether to continue an interrupted run"),
     # The default is "0" and not "": that is what `run.sh` does (`${X:-0}`),
     # and while the right-hand side lives there as a second copy the registry
     # has to say the same. It used to be "", so the snapshot would record ""
@@ -509,7 +534,7 @@ KNOBS = (
     # header, only quieter. Zero here is a VALUE: flashinfer compiles its
     # sampler on the spot and fails to build (incompatible cccl headers), so it
     # is off deliberately.
-    Knob("VLLM_USE_FLASHINFER_SAMPLER", "0", "сэмплер flashinfer в vLLM"),
+    Knob("VLLM_USE_FLASHINFER_SAMPLER", "0", "flashinfer sampler in vLLM"),
 )
 KNOB = {k.name: k for k in KNOBS}
 
@@ -519,8 +544,9 @@ def knob(name):
     try:
         k = KNOB[name]
     except KeyError:
-        raise KeyError(f"ручка {name} не объявлена в KNOBS: объяви её там, "
-                       f"а не читай окружение мимо реестра") from None
+        raise KeyError(f"knob {name} is not declared in KNOBS: declare it "
+                       f"there instead of reading the environment past "
+                       f"the registry") from None
     v = os.environ.get(k.name)
     return k.default if v is None else v
 
@@ -564,7 +590,7 @@ def snapshot_with_readers(roles):
     snap = snapshot()
     for name, rec in snap.items():
         who = roles.get(name)
-        rec["read_by"] = who or "НИКТО В ЭТОМ ПРОГОНЕ"
+        rec["read_by"] = who or "NOBODY IN THIS RUN"
         rec["for_this_run"] = who is not None
     return snap
 
@@ -662,9 +688,9 @@ def audit(root=None):
     for k in KNOBS:
         seen = who[k.name]
         if k.debt and seen:
-            out.append(f"{k.name}: объявлена долгом (debt=True), а её читает "
-                       f"{', '.join(seen)} — снимай пометку")
+            out.append(f"{k.name}: declared a debt (debt=True), and yet "
+                       f"{', '.join(seen)} reads it -- drop the mark")
         if not k.debt and not seen:
-            out.append(f"{k.name}: потребителя не нашлось ни одного — либо он "
-                       f"потерян вместе с кодом, либо ставь debt=True")
+            out.append(f"{k.name}: not one consumer found -- either it was "
+                       f"lost together with its code, or set debt=True")
     return out

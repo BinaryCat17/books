@@ -57,11 +57,11 @@ def test_silence_is_not_reported_as_perfect_reading():
     T = _pages([_text_block(0, "первый"), _text_block(1, "второй")])
     P = _pages([_text_block(0, None), _text_block(1, None)])
     s = _say(T, P)
-    assert "сверять было НЕЧЕГО" in s
+    assert "there was NOTHING to compare" in s
     # Утверждения «CER 0 на всех» быть не должно. Ищем именно УТВЕРЖДЕНИЕ:
     # сама поправляющая строка кончается цитатой «это НЕ „CER 0 на всех“», и
     # простое вхождение подстроки красит проверку на верном выводе.
-    assert "блоков с ошибкой знаков нет" not in s
+    assert "no text blocks with an error" not in s
 
 
 def test_perfect_reading_counts_only_text_in_the_text_line():
@@ -75,8 +75,9 @@ def test_perfect_reading_counts_only_text_in_the_text_line():
                side={"1": {"text": "x = 1"}})
     P = _pages([_text_block(0, "проза"), _formula_block(1, "x = 1")])
     s = _say(T, P)
-    assert "блоков с ошибкой знаков нет: CER 0 на всех 1 посчитанных из 1" in s
-    assert "блоков с ошибкой артефактов нет: CER 0 на всех 1 посчитанных из 1" in s
+    assert "no text blocks with an error: CER 0 on all 1 computed of 1" in s
+    assert ("no artifact blocks with an error: CER 0 on all 1 computed "
+            "of 1") in s
 
 
 def test_one_wrong_letter_in_a_formula_does_not_crash():
@@ -88,8 +89,8 @@ def test_one_wrong_letter_in_a_formula_does_not_crash():
                side={"1": {"text": "x = 1"}})
     P = _pages([_text_block(0, "проза"), _formula_block(1, "z = 1")])
     s = _say(T, P)                      # не бросает — это и есть проверка
-    assert "худший блок артефактов" in s
-    assert "WER" not in s.split("худший блок артефактов")[1].split("\n")[0]
+    assert "worst artifact block" in s
+    assert "WER" not in s.split("worst artifact block")[1].split("\n")[0]
 
 
 def test_silent_formulas_are_not_a_measured_one():
@@ -98,7 +99,7 @@ def test_silent_formulas_are_not_a_measured_one():
                side={"1": {"text": "x = 1"}})
     P = _pages([_text_block(0, "проза"), _formula_block(1, None)])
     s = _say(T, P)
-    assert "ОТВЕТА НЕТ НИ НА ОДИН" in s
+    assert "THERE IS NO ANSWER TO A SINGLE ONE" in s
     assert "CER 1.0000" not in s
 
 
@@ -145,7 +146,7 @@ def test_two_truths_on_one_artefact_are_loud():
     try:
         text.measure_pages(T, P)
     except text.TextError as e:
-        assert "И сетка" in str(e) or "сетка" in str(e)
+        assert "BOTH a table grid" in str(e) or "grid" in str(e)
     else:
         raise AssertionError("две истины на одном блоке прошли молча")
 
