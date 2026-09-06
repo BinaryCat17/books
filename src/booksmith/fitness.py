@@ -1,75 +1,61 @@
-"""Годен ли вывод модели, чтобы гнать через него OCR не теряя смысла.
+"""Is the model output fit to push OCR through without losing meaning.
 
-Прежние два числа отвечают на другие вопросы. «Обвёл точно» (двустороннее
-покрытие 0.75) меряет ТОЧНОСТЬ рамки и штрафует за слияние — а для нашего
-конвейера слияние не потеря: во второй уровень уедет картинка пошире, и он
-разберёт её на два блока. «Смысл цел» штрафует слияние тоже. Оба поэтому
-занижают годность, и занижают сильно: на 36 самых трудных страницах золотого
-стенда первое даёт 20%, а объектов, которые доедут до второго уровня
-неповреждёнными, — 91% (цел 365 из 402).
+The two older numbers answer other questions. "Outlined precisely" (two-sided
+cover 0.75) measures the PRECISION of the box and penalises merging, which
+costs this pipeline almost nothing: level two gets a wider picture and splits
+it in two. "Meaning intact" penalises merging too. Both understate fitness
+badly: on the 36 hardest golden-bench pages the first gives 20%, against 91% of
+objects reaching level two undamaged (intact 365 of 402). All 600 golden pages
+are a DIFFERENT bench, never to be mixed with those 36: there one picture cuts
+1014 of 1230 = 82% (intact 1018, 83%), by `books fitness
+bench/annopage/annopage.pdf --detect … --truth …`, on a denominator of 1230 and
+not 1232 because two ink-less truth objects are counted apart.
 
-ЗДЕСЬ СТОЯЛО «82%», И ЭТО ЧИСЛО С ДРУГИХ СТРАНИЦ. 82% — это ВЕСЬ золотой
-стенд, 600 страниц: вырезается одной картинкой 1014 из 1230 (цел 1018, 83%).
-В одном предложении стояли 20% с 36 страниц и 82% с 600, оба приписанные
-тридцати шести, — то есть «вчетверо лучше» сравнивало разные стенды. Замер:
-`books fitness bench/annopage/annopage.pdf --detect … --truth …`; знаменатель
-1230, а не 1232, потому что два объекта истины без чернил считаны отдельно.
+Counted here is what the result depends on:
 
-Здесь считается ровно то, от чего зависит результат:
+  INK. The share of an object's dark pixels lying inside boxes of the artefact
+  role. This settles "the box is tighter than the reference": the margin round
+  a figure holds no ink, a cut-off table row is restored by nothing. dots.ocr
+  leads on strict match (37% against 20%) and TRAILS on ink, 88.6% against
+  94.8%, for exactly that reason.
 
-  ЧЕРНИЛА. Какая доля тёмных пикселей объекта лежит внутри рамок артефактного
-  разряда. Аргумент «рамка теснее эталонной» этим снят раз и навсегда: поле
-  вокруг рисунка чернил не содержит, и его потеря не стоит ничего, а вот
-  отрезанная строка таблицы не восстановится ничем. Замер на золотом стенде
-  показал, чего стоит разница: dots.ocr по строгому совпадению впереди всех
-  (37% против 20%), а по чернилам ПОЗАДИ — 88.6% против 94.8%, потому что
-  обводит теснее эталона и режет содержимое.
+  ONE BOX OR TWO. An object wholly inside ONE box is cut as one picture, with
+  or without a neighbour; spread over two it arrives in two pieces and the
+  table falls apart.
 
-  ОДНОЙ РАМКОЙ ИЛИ ДВУМЯ. Объект, целиком попавший в ОДНУ рамку, вырежется
-  одной картинкой — и неважно, попал ли с ним сосед. Объект, разъехавшийся по
-  двум рамкам, приедет двумя кусками, и таблица распадётся.
+  ROLE. An object covered by text boxes only never reaches level two: it leaves
+  as a line of text, and the structure with it (`_carried_as_text`).
 
-  РАЗРЯД. Объект, накрытый только текстовыми рамками, во второй уровень не
-  поедет вовсе: он уедет строкой текста, и структура пропадёт. Это отдельная
-  беда от «не увиден», и чинится она ярлыком, а не моделью.
+One box over the whole sheet gives 100% of the ink and 100% of the objects
+whole, so AREA UNDER BOXES is printed beside them: without it the metric is won
+by finding nothing.
 
-ЧЕМ ЭТО ЛОМАЕТСЯ. Одна рамка во весь лист даёт 100% чернил и 100% объектов
-целиком. Поэтому рядом печатается ПЛОЩАДЬ ПОД РАМКАМИ: у честной разметки она
-заметно меньше листа, у вырожденной — равна ему. Без этого числа метрику
-можно выиграть, ничего не найдя.
+WHAT THE INSTRUMENT CANNOT SEE, AND SAYS SO IN ITS OWN OUTPUT, before the
+numbers and truth or no truth. Merging neighbouring boxes is barely penalised
+here by construction -- that is the design -- but merging is not free: merged
+into one enclosing box per page, on bench/hard36 nearly every number here
+improves (intact 365 -> 385, torn 28 -> 13, object ink 94.8% -> 96.1%), so the
+worst thing that happens to structure scores as an improvement. On exactly this
+the vendor docling pipeline came out costing "seven objects" instead of a
+hundred and thirty-two.
 
-ЧЕГО ЭТОТ ПРИБОР НЕ ВИДИТ, И ЭТО СКАЗАНО В ЕГО ЖЕ ВЫВОДЕ. Слияние соседних
-рамок здесь почти не штрафуется по построению — в том и замысел, — но из
-этого не следует, что слияние ничего не стоит. Замер: слив все артефактные
-рамки страницы в одну объемлющую, вывод на bench/hard36 улучшает тут почти
-каждое число (цел 365 -> 385, порван 28 -> 13, чернил объектов
-94.8% -> 96.1%), то есть худшее, что бывает со структурой, прибор считает
-улучшением. Ровно на этом вендорский конвейер docling обошёлся «в семь
-объектов» вместо ста тридцати двух.
+  ARRIVED WITH COMPANY exists for that -- the one number here that GROWS with
+  merging, and the battery demands both at once: the older numbers hold, this
+  one rises. Truth objects arriving in a shared box are the work level two will
+  do taking one picture apart: on those 36 pages 309 -> 385 at 32 -> 35 boxes
+  carrying two objects or more. From the same ink by the same "intact"
+  threshold, without a new one; `books score` does not duplicate it, that one
+  checks boxes against truth.
 
-  ПРИЕХАЛ НЕ В ОДИНОЧКУ — единственное здешнее число, которое от слияния
-  РАСТЁТ, и заведено оно ради этого. Сколько объектов истины доехало в общей
-  рамке с соседом: та самая работа, которую придётся делать второму уровню,
-  разбирая одну картинку на части. На тех же 36 страницах 309 -> 385 при
-  32 -> 35 рамках, везущих по два объекта и больше. Считается из тех же
-  чернил тем же порогом «цел», без единого нового порога, и `books score` не
-  дублирует: тот сверяет рамки с истиной, а это — цена слияния в объектах.
+THE UNIT IS THE RASTER PIXEL, so everything here depends on `PAGE_DPI`. On
+bench/real/tables20.pdf with the box geometry unchanged: ink under artefact
+24.83% (144 dpi) -> 25.63% (300) -> 25.99% (600); ink under boxes 99.26 ->
+99.25 -> 99.24%. Small, real and one-directional, so dpi is printed on the
+first line: without it two numbers from two runs are incomparable.
 
-Отчёт называет свою слепоту ВСЛУХ и ДО чисел — в том числе без истины, потому
-что именно так меряют настоящие сканы; батарея держит её отдельной пробой,
-требующей от слияния сразу двух вещей: прежние числа не падают, а «не в
-одиночку» растёт.
-
-ЕДИНИЦА ИЗМЕРЕНИЯ — ПИКСЕЛЬ РАСТРА, то есть всё здесь зависит от `PAGE_DPI`.
-Замер на bench/real/tables20.pdf при неизменной геометрии рамок: чернил под
-артефактом 24.83% (144 dpi) -> 25.63% (300) -> 25.99% (600); чернил под
-рамками 99.26 -> 99.25 -> 99.24%. Сдвиг невелик, но он есть и однонаправлен,
-поэтому dpi печатается первой строкой отчёта: без него два числа из двух
-прогонов несравнимы.
-
-ИСТИНА ЗДЕСЬ НЕ ОБЯЗАТЕЛЬНА. Без неё считается то же по чернилам ВСЕЙ
-страницы: сколько их осталось вне всех рамок вообще, то есть что просто
-исчезнет из HTML. Это работает на любой книге, которую ещё никто не размечал.
+TRUTH IS NOT REQUIRED. Without it the same is counted over the ink of the WHOLE
+page: how much stayed outside every box, i.e. what will vanish from the HTML.
+That works on any book nobody has annotated yet.
 """
 import os
 
@@ -78,119 +64,101 @@ import pymupdf
 
 from . import metrics, policy
 
-# Порог «это чернила»: пиксель темнее — содержимое, светлее — бумага. Тот же
-# INK, что у синтетического стенда, где по нему меряется истина.
-# ВТОРОЙ ЭКЗЕМПЛЯР ЧИСЛА, и это известно: то же 160 стоит в `synth.INK`.
-# Здесь стояло, что свести их импортом нельзя даром, потому что `synth` тянет
-# cv2, — НЕВЕРНО: cv2 там импортируется внутри функций, и `import
-# booksmith.synth` стоит 2 мс против 221 мс у самого `fitness`. Настоящая
-# причина другая: метрика не должна зависеть от того, кто рисует стенд, —
-# `books fitness` работает на настоящих сканах, где никакого `synth` нет.
-# Договор между двумя домами держится проверкой (`test_fitness`) и мутацией к
-# ней, ровно как у правила якоря в `doc/feed`: разойдутся копии — покраснеет.
+# The "this is ink" threshold: darker is content, lighter is paper. The same
+# INK the synthetic bench measures its truth by, and knowingly a SECOND COPY:
+# `synth.INK` holds the same 160. Not merged by an import -- which would cost
+# nothing (2 ms against 221 ms for this module) -- because the metric must not
+# depend on who draws the bench: `books fitness` runs on real scans, where no
+# `synth` exists. The two copies are held together by `test_fitness` and a
+# mutation against it: let them diverge and it goes red.
 INK = 160
-# Доли, по которым объекты разносятся на разряды сохранности. Названы числом
-# и печатаются в отчёте: где кончается «цел» и начинается «надкушен», решаем
-# мы, и решение обязано быть видно.
+# The shares that sort objects into classes of survival. Named by number and
+# printed in the report: where "whole" ends and "bitten" begins is our decision
+# and has to be visible.
 WHOLE, ALMOST, BITTEN = 0.99, 0.95, 0.80
-# Ширина краевой полосы, в долях меньшей стороны листа.
+# Width of the edge band, as a share of the shorter side of the sheet.
 EDGE = 0.04
-# СПЛОШНОЙ ТЁМНЫЙ СТОЛБЕЦ: доля высоты листа, которую пиксельный столбец
-# обязан быть тёмным, чтобы считаться не содержимым, а дефектом скана.
+# SOLID DARK COLUMN: the share of the sheet's height a pixel column must be
+# dark over to count as a scan defect rather than as content.
 #
-# ЗАЧЕМ ЭТО ЗАВЕДЕНО, И ЭТО ЗАМЕР, А НЕ ОПАСЕНИЕ. Краевая полоса (`EDGE`)
-# отвечает на вопрос «не кромка ли это скана» и по построению видит только
-# края листа. Тень переплёта — то же самое явление, но она стоит ВНУТРИ листа:
-# на «Технологии огнеупоров» полосы приходятся на x 658..717 при ширине листа
-# 730, а краевая полоса — последние 29 px. Замер по всем 378 страницам:
-# сплошных тёмных столбцов 261 на 230 страницах, чернил в них 10.5 % ВСЕХ
-# чернил книги, и 7.8 % лежит вне краевой полосы, то есть прежнему счётчику
-# невидимо.
+# WHY, AND THIS IS A MEASUREMENT. `EDGE` sees only the edges of the sheet by
+# construction; the gutter shadow is the same phenomenon INSIDE it. On
+# "Технология огнеупоров" the columns fall at x 658..717 with the sheet 730
+# wide, the edge band being the last 29 px; over all 378 pages, 261 solid dark
+# columns on 230 pages hold 10.5 % of ALL the book's ink, 7.8 % of it outside
+# the edge band and so invisible to the older counter.
 #
-# ЧЕМ ЭТО ОПЛАЧЕНО. Без этого числа прибор НАГРАЖДАЕТ рамку на тени. Опыт:
-# 261 поддельная рамка, поставленная ровно по найденным полосам, — то есть
-# чистая порча, ничего не нашедшая, — поднимает «чернил под рамками»
-# 85.7 % -> 96.2 %, а «исчезнет из HTML» роняет 14.3 % -> 3.8 %, вчетверо.
-# Объявленный сторож («рамка во весь лист выигрывает замер») при этом молчит:
-# площадь под рамками 64 % -> 65 %. Убрать же настоящие 21 рамку `aside_text`
-# прибор считает УХУДШЕНИЕМ (85.7 % -> 85.4 %).
+# WHAT PAID FOR IT. Without this number the instrument REWARDS a box on the
+# shadow: 261 fake boxes along those columns -- pure damage finding nothing --
+# lift "ink under boxes" 85.7 % -> 96.2 % and drop "vanishes from the HTML"
+# 14.3 % -> 3.8 %, while the declared guard (a full-sheet box wins) stays
+# silent: area under boxes 64 % -> 65 %. Removing the 21 real `aside_text`
+# boxes it scores as a WORSENING (85.7 % -> 85.4 %).
 #
-# ЧЕГО ЭТО ЧИСЛО НЕ УТВЕРЖДАЕТ. Оно зовётся по тому, что меряет, — сплошной
-# тёмный столбец, — а не «тень переплёта»: правило структурное и о переплёте
-# не знает. Вертикальная линейка таблицы во всю высоту листа под него
-# подходит, и на этой книге такие ЕСТЬ: из 261 столбца 4 стоят в середине
-# листа (0.2..0.8 ширины), остальные 257 — у краёв. Здесь стояло «ни одной в
-# середине», и это число с ВЫБОРКИ: 90 полос с каждой третьей страницы. На
-# полном прогоне их четыре. Поэтому положения печатаются в отчёте, а не
-# подразумеваются: на другой книге доля середины может оказаться любой, и
-# тогда «тень переплёта» перестанет быть честным именем.
+# WHAT IT DOES NOT CLAIM. Named after what it measures, not "gutter shadow":
+# the rule is structural, and a full-height table rule qualifies. On this book
+# 4 of the 261 columns stand mid-sheet (0.2..0.8 of the width) against 257 at
+# the edges -- four found by the full run where a sample of 90 columns off
+# every third page said none. Hence positions are printed, not assumed: on
+# another book the middle share may be anything, and the honest name would go.
 GUTTER = 0.5
 
 
-# Растр страницы не меняется от прогона к прогону, а батарея гоняет по книге
-# ДВАДЦАТЬ ТРИ прохода (24 вызова `measure`, из них 23 читают растр). Число
-# померено, а не прикинуто: счётчиком обращений на bench/hard36 — 828 рендеров
-# без памяти при 36 страницах, ровно 23 x 36.
+# The page raster does not change between runs, and the battery makes
+# TWENTY-THREE passes over the book (24 `measure` calls, 23 of them reading the
+# raster). Counted on bench/hard36: 828 renders with no cache over 36 pages,
+# exactly 23 x 36.
 #
-# ЦЕНА ТОЖЕ ПОМЕРЕНА, и на СВОБОДНОЙ машине: 120 страниц золотого стенда
-# рендерятся с порогом за 33.4 с — 278 мс на страницу, лучшее из трёх
-# проходов, load average 0.6–1.0 на 16 ядрах. На занятой те же страницы дают
-# втрое больше, и цена, снятая под нагрузкой, врёт втрое. Отсюда на 600
-# страницах: без памяти 23 прохода = 64 минуты, с памятью 3 прохода = 8 минут,
-# выигрыш 7.7-кратный.
+# THE COST IS MEASURED TOO, on an IDLE machine: 120 golden pages render with
+# thresholding in 33.4 s -- 278 ms a page, best of three, load average 0.6-1.0
+# on 16 cores. A busy machine takes three times that, so a cost taken under
+# load lies threefold. Over 600 pages: no cache, 23 passes = 64 minutes; cache,
+# 3 passes = 8 minutes, a 7.7-fold gain.
 #
-# ПОЧЕМУ ТРИ ПРОХОДА, А НЕ ОДИН. Порог чернил входит в ключ памяти (иначе
-# батарея не смогла бы проверить, жив ли он), а пробы `INK=0` и `INK=256`
-# рендерят книгу заново каждая — их маски и правда другие. Замер: 108 рендеров
-# с памятью на тех же 36 страницах, ровно 3 x 36.
+# WHY THREE PASSES AND NOT ONE. The ink threshold is part of the cache key
+# (else the battery could not check it alive), and the probes `INK=0` and
+# `INK=256` re-render the book each -- their masks really are different: 108
+# renders with the cache over the same 36 pages, exactly 3 x 36.
 #
-# ПОТОЛОК В БАЙТАХ, маски упакованы по биту, ВЫТЕСНЯЮТСЯ ЧУЖИЕ КНИГИ, СВОЯ
-# ДЕРЖИТСЯ. Здесь трижды стояла память, не экономившая того, ради чего
-# заведена, и каждый раз по своей причине:
+# A CAP IN BYTES, masks packed by the bit, FOREIGN BOOKS EVICTED, OUR OWN HELD.
+# Two earlier caches evicted our own pages -- 64 pages with a full flush, then
+# a byte cap dropping the oldest -- and saved nothing, the walk being
+# sequential; a third evicted nothing, which holds our book but leaves a second
+# book in the same process not a byte, and eight benches in a row in one process
+# is what both people and checks do. Simulated on the REAL access trace (23
+# passes off the battery, with their thresholds) and REAL page shapes
+# (bench/*/truth), cap 512 MiB:
 #
-#   * потолок в 64 страницы с полной очисткой — обход последовательный, и к
-#     началу следующего прохода вычищено ровно его начало;
-#   * потолок в байтах с вытеснением старейшего — то же самое, но по байтам;
-#   * потолок в байтах БЕЗ вытеснения вовсе — своя книга держится, но вторая
-#     книга в том же процессе не получает ни байта, а восемь стендов подряд в
-#     одном процессе меряют и люди, и проверки.
+#                              no cache      evicting     holding     as here
+#   one book (600 pp.)             13800          2400        1800        1800
+#   two books running (600+600)    27600          4200       15600        3600
+#   two BIG books (375+375)        27600          4800       15600        3600
 #
-# Симуляция на НАСТОЯЩЕМ следе обращений (23 прохода, снятые с батареи, с их
-# порогами) и НАСТОЯЩИХ формах страниц (bench/*/truth), потолок 512 МиБ:
+# The ideal is 1800 and 3600 (three passes a book), reached in both regimes,
+# and no regime was found where this is worse than either older one.
 #
-#                              без памяти   вытеснением  удержанием   как здесь
-#   одна книга (600 стр.)           13800          2400        1800        1800
-#   две книги подряд (600+600)      27600          4200       15600        3600
-#   две БОЛЬШИЕ книги (375+375)     27600          4800       15600        3600
+# THE LIMIT IS NARROW: the cap was derived for `PAGE_DPI = 144`. Same bench,
+# same cap:
 #
-# Идеал — 1800 и 3600 (три прохода на книгу), и он достигнут в обоих режимах.
-# Ни одного режима, где нынешнее решение хуже любого из двух прежних, в
-# развёртке не нашлось.
+#     dpi   bench, MiB   pages that fit   renders   ideal   no cache
+#     144          375       600 of 600       1800    1800      13800
+#     300         1626       134 of 600      11040    1800      13800
+#     600         6505        30 of 600      13160    1800      13800
 #
-# ГРАНИЦА ПРИМЕНИМОСТИ, И ОНА УЗКАЯ: потолок выведен под `PAGE_DPI = 144` и
-# работает в полную силу только при нём. Тот же стенд, тот же потолок:
+# So at 300 dpi the cache saves 20%, at 600 -- 5%, and there is nothing to
+# raise the cap with: the full bench at 300 dpi is 1.6 GiB. The project's real
+# scans are 300-600 dpi, so the battery stays expensive there -- known before
+# the run, not after.
 #
-#     dpi   стенд, МиБ   влезает страниц   рендеров   идеал   без памяти
-#     144          375         600 из 600       1800    1800        13800
-#     300         1626         134 из 600      11040    1800        13800
-#     600         6505          30 из 600      13160    1800        13800
-#
-# То есть при 300 dpi память экономит 20%, при 600 — 5%, и поднимать потолок
-# под них нечем: полный кеш стенда при 300 dpi это 1.6 ГиБ. Настоящие сканы
-# проекта как раз 300–600 dpi, так что на них батарея по-прежнему дорога, и
-# это надо знать до, а не после запуска.
-#
-# Само число 512 МиБ — по замеру: золотой стенд при 144 dpi это 2998 МиБ
-# булевыми масками и 375 МиБ упакованными, запас 1.37x. (Здесь стояло «460 и
-# 58 МБ, влезают целиком» — мимо в шесть с половиной раз, и не влезали:
-# 256 МиБ держат 362 страницы из 600.)
+# The 512 MiB is measured: the golden bench at 144 dpi is 2998 MiB as boolean
+# masks and 375 MiB packed, 1.37x of headroom; 256 MiB would hold 362 of 600.
 _INK_CACHE = {}
 _INK_CACHE_BYTES = 0
 _INK_CACHE_MAX_BYTES = 512 << 20
 
 
 def _evict_foreign(pdf):
-    """Выбросить одну страницу ЧУЖОЙ книги. False — чужих больше нет."""
+    """Drop one page of a FOREIGN book. False -- no foreign pages left."""
     global _INK_CACHE_BYTES
     for k in _INK_CACHE:
         if k[0] != pdf:
@@ -200,20 +168,20 @@ def _evict_foreign(pdf):
 
 
 def _ink_of(pdf, doc, i, dpi):
-    """Маска чернил страницы, с памятью. Ключ включает ПОРОГ."""
+    """The page ink mask, cached. The key includes the THRESHOLD."""
     global _INK_CACHE_BYTES
-    # Порог в ключе не для красоты: батарея двигает INK, проверяя, жив ли он, и
-    # без порога в ключе возвращалась бы маска, посчитанная СТАРЫМ порогом —
-    # живой порог выглядел бы мёртвым, а проба обвинила бы метрику зря.
+    # The threshold is in the key for a reason: the battery moves INK to check
+    # it is alive, and without it a mask computed with the OLD threshold would
+    # come back -- a live threshold would look dead and the probe would blame
+    # the metric for nothing.
     key = (pdf, i, int(dpi), INK)
     hit = _INK_CACHE.get(key)
     if hit is None:
         m = _ink(doc[i], dpi)
         packed = np.packbits(m)
-        # Место освобождается ЗА СЧЁТ ДРУГИХ КНИГ и только их. Внутри книги
-        # обход последовательный, и вытеснять своё же — значит выбрасывать
-        # ровно то, что понадобится на следующем проходе; между книгами всё
-        # наоборот — прежняя книга не понадобится больше никогда.
+        # Room is freed AT THE EXPENSE OF OTHER BOOKS and of them only: the
+        # walk within a book is sequential, so our own page is exactly what the
+        # next pass needs, while the previous book is needed never again.
         while (_INK_CACHE_BYTES + packed.nbytes > _INK_CACHE_MAX_BYTES
                and _evict_foreign(pdf)):
             pass
@@ -233,27 +201,21 @@ def _ink(page, dpi):
 
 
 def _clip(shape, box):
-    """Рамка, обрезанная по листу, парой срезов; None — если её на листе нет.
+    """The box clipped to the sheet, as a pair of slices; None if it is off it.
 
-    Обрезка ЯВНАЯ, а не «numpy сам подрежет». Numpy подрезает только сверху:
-    срез `[:int(y1) + 1]` при отрицательном `y1` отсчитывается ОТ КОНЦА, и
-    рамка, уехавшая за левый верхний угол, накрывает почти весь лист.
-    Замер: `_mask((100, 100), [[-40, -40, -20, -20]])` давал 6561 пиксель из
-    10000 — две трети листа «под рамкой» от рамки, которой на листе нет вовсе.
-    ЗДЕСЬ СТОЯЛО «ни одной рамки целиком за листом», И ЭТО БЫЛО НЕВЕРНО:
-    считалось по одному краю. Полный обход всех разметок в git — 42 565 рамок,
-    3187 страниц — даёт 516 рамок целиком вне листа, из них 514 в
-    `bench/annopage-lite/dots-pages`, то есть в выводе `dots.ocr`, которым
-    померены 636 страниц макета.
+    Clipping is EXPLICIT, not "numpy will trim it". Numpy trims from the top
+    only: `[:int(y1) + 1]` with a negative `y1` counts FROM THE END, so a box
+    off the top-left corner covers almost the whole sheet -- `_mask((100, 100),
+    [[-40, -40, -20, -20]])` gave 6561 pixels of 10000. A full walk of every
+    annotation in git (42 565 boxes, 3187 pages) finds 516 boxes wholly off the
+    sheet, 514 of them in `bench/annopage-lite/dots-pages`, the `dots.ocr`
+    output that measured 636 layout pages.
 
-    Испорчено ли этим хоть одно записанное число — ПРОВЕРЕНО, а не предположено:
-    все 516 уехали ВНИЗ (`y0 >= высота`), с отрицательным дальним краем нет ни
-    одной, а старая нарезка ломалась только на отрицательном дальнем крае — при
-    `y0 >= высота` numpy отдавал пустой срез и тогда. Сверка старой и новой
-    нарезки по маскам на всех 3187 страницах: страниц с расхождением НОЛЬ, то
-    есть побитово то же самое. Ни одно число не пострадало, но по счастливой
-    причине, а не по той, что была здесь написана. Метрику, которую можно
-    выиграть мусором, нельзя предъявлять как довод — проба на это заведена.
+    Whether that spoiled a recorded number was CHECKED, not assumed: all 516 ran
+    DOWN (`y0 >= height`), none has a negative far edge, and the old slicing
+    broke on a negative far edge only. Old against new by mask over all 3187
+    pages: pages that differ ZERO. Not one number was hurt, but by luck. A
+    metric that can be won with rubbish is no argument -- hence the probe.
     """
     h, w = shape
     x0, y0, x1, y1 = (int(v) for v in box)
@@ -274,43 +236,36 @@ def _mask(shape, boxes):
 
 
 def _carried_as_text(sub, arte, rest, tot):
-    """Держат ли объект рамки ВООБЩЕ — пусть и текстовые.
+    """Do boxes hold the object AT ALL -- text ones included.
 
-    Диагноз, а не разряд: объект, которого рамки артефактов не держат, но
-    какие-то держат целиком, не потерян — он поедет строкой, и пропадёт
-    структура. Чинится ярлыком, а не моделью, и потому стоит дешевле потери.
+    A diagnosis, not a class: an object no artefact box holds, but some box
+    holds whole, is not lost -- it leaves as a line and the structure goes with
+    it. Cured by a label rather than by a model, so cheaper than a loss.
 
-    ОБЪЕДИНЕНИЕ, А НЕ СУММА, и у правила ровно один дом. Здесь стояло
-    `t_kept + kept` прямо в теле замера, и пиксель, накрытый и артефактной
-    рамкой, и текстовой, считался ДВАЖДЫ.
+    A UNION, NOT A SUM, and the rule has one home. `t_kept + kept` stood inline
+    in the measurement, and a pixel under an artefact box and a text box both
+    counted TWICE.
 
-    ЭТО НЕ ГИПОТЕЗА, И ЦЕНА ПОМЕРЕНА НА НАСТОЯЩЕМ ВЫВОДЕ. Прежде здесь стояло
-    «на PP-DocLayoutV2 ложных срабатываний 0» — так вышло на семи МАЛЫХ
-    стендах, а полный проход по двум большим дал шесть записей:
-    `bench/annopage` 90 -> 86, `bench/hard` 44 -> 42.
+    THE COST IS MEASURED ON REAL OUTPUT. "Zero false positives on
+    PP-DocLayoutV2" came off seven SMALL benches; a full pass over the two big
+    ones gives six records -- `bench/annopage` 90 -> 86, `bench/hard` 44 -> 42
+    -- over four DISTINCT objects, `bench/hard` being built from the same books.
+    One of the four is real trouble: annopage p. 94, `table` -- 0.666 of its ink
+    under artefact boxes, 0.860 under boxes of any kind, sum 1.167. Fourteen
+    percent covered by NOTHING, which the old count called "not lost, cured by a
+    label": an expensive trouble rewritten as a cheap one. The other three are
+    borderline (0.981, 0.990, 0.989 against 0.99). What matters more: the seven
+    small benches had NONE, and by that zero the defect was declared harmless.
 
-    Записей шесть, а РАЗНЫХ объектов четыре: `bench/hard` собран из тех же
-    книг, и обе его записи — это те же два объекта со стр. 94 annopage. Из
-    четырёх настоящая беда ОДНА, и она названа поимённо: annopage стр. 94,
-    `table` — под артефактными рамками 0.666 чернил, под всеми вообще 0.860,
-    сумма 1.167. У таблицы четырнадцать процентов чернил не накрыты НИЧЕМ, а
-    старый счёт звал её «не потеряна, чинится ярлыком»: дорогая беда
-    переписывалась в дешёвую. Остальные три — пограничные, под всеми рамками
-    0.981, 0.990 и 0.989 при пороге 0.99, и выдавать их за ту же беду нельзя.
-
-    Одна настоящая на два больших стенда — немного; важно другое: на семи
-    малых их НОЛЬ, и по этому нулю дефект был объявлен неопасным. Ровно тот
-    случай, когда выборка не находит того, что находит полный прогон.
-
-    Задвоенная разметка — не выдумка: у сырого `docling-heron` 4435
-    задвоенных пар. Замер на bench/hard36: отдай каждую артефактную рамку ещё
-    раз текстовой — «уехал текстом» рос с 21 до 31.
+    Doubled annotation is no invention: raw `docling-heron` has 4435 doubled
+    pairs. On bench/hard36, handing every artefact box out again as text grew
+    "left as text" from 21 to 31.
     """
     return int((sub & (arte | rest)).sum()) / tot >= WHOLE
 
 
 def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
-    """Годность вывода модели. Истина не обязательна."""
+    """Fitness of the model output. Truth is not required."""
     if not os.path.exists(pdf):
         raise metrics.MetricError(f"нет {pdf}")
     M = metrics._load(detect_dir)
@@ -320,15 +275,15 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
            "ink_total": 0, "ink_under_boxes": 0,
            "ink_under_artifact": 0, "sheet_area": 0, "boxes_area": 0,
            "ink_outside_boxes_at_edge": 0,
-           # ДВА ЧИСЛА, А НЕ ОДНО: второе — та часть, которой краевая полоса
-           # не видит по построению. Без него добавка выглядела бы уже
-           # посчитанной.
+           # TWO NUMBERS, NOT ONE: the second is the part the edge band cannot
+           # see by construction. Without it the addition would look already
+           # counted.
            "ink_in_dark_columns": 0,
            "ink_in_dark_columns_off_edge": 0,
            "dark_columns": 0, "pages_with_dark_column": 0,
-           # Куда они пришлись — списком долей ширины листа. Правило
-           # структурное и о переплёте не знает; положение — единственное,
-           # по чему видно, тень это или линейка таблицы.
+           # Where they fell, as a list of width shares. The rule is
+           # structural and knows nothing of gutters; position is the only
+           # thing that tells a shadow from a table rule.
            "dark_columns_positions": [],
            "objects": 0, "object_ink": 0, "object_ink_in_boxes": 0,
            "intact": 0, "almost_intact": 0, "bitten": 0, "torn": 0,
@@ -356,19 +311,19 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
                 if policy.role(b["label"]) != "artifact"]
         ma, mr = _mask(ink.shape, arte), _mask(ink.shape, rest)
         both = ma | mr
-        # Кто в какой рамке приехал: ключ — номер артефактной рамки, значение —
-        # сколько объектов истины она везёт целиком. Отсюда «приехал не в
-        # одиночку» — единственное число прибора, которое от слияния РАСТЁТ.
+        # Who arrived in which box: key is the artefact box, value is how many
+        # truth objects it carries whole. Hence "arrived with company", the one
+        # number of this instrument that GROWS with merging.
         riders = {}
         dpis.add(int(p["dpi"]))
         res["page_count"] += 1
         res["ink_total"] += int(ink.sum())
         res["ink_under_boxes"] += int((ink & both).sum())
         res["ink_under_artifact"] += int((ink & ma).sum())
-        # Половина «потерянных» чернил золотого стенда лежит в четырёхпроцентной
-        # полосе у края листа — это тёмная кромка скана, а не содержимое.
-        # Считаем её отдельно: без этого числа чёрная кайма читается как
-        # «модель потеряла четверть книги».
+        # Half the golden bench's "lost" ink lies in the four-percent band at
+        # the edge -- the dark rim of the scan, not content. Counted apart:
+        # without it a black border reads as "the model lost a quarter of the
+        # book".
         out = ink & ~both
         h, w = ink.shape
         k = max(1, int(min(h, w) * EDGE))
@@ -376,16 +331,16 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
         edge[:k] = edge[-k:] = True
         edge[:, :k] = edge[:, -k:] = True
         res["ink_outside_boxes_at_edge"] += int((out & edge).sum())
-        # СПЛОШНЫЕ ТЁМНЫЕ СТОЛБЦЫ — отдельной величиной, разбор при `GUTTER`.
-        # Считаются по ВСЕМ чернилам листа, а не по потерянным: рамка на тени
-        # переводит эти чернила в «найденное», и именно там они и врут.
+        # SOLID DARK COLUMNS as a quantity of their own, reasoning at `GUTTER`.
+        # Counted over ALL the ink of the sheet, not over the lost: a box on the
+        # shadow turns that ink into "found", and that is where it lies.
         columns = ink.sum(axis=0) > h * GUTTER
         if columns.any():
             res["ink_in_dark_columns"] += int(ink[:, columns].sum())
-            # СВОЯ маска столбцов, а не строка из `edge`: та двумерная, и её
-            # первые `k` СТРОК залиты целиком, так что `edge[0]` — сплошь
-            # True. Взяв её, «вне края» вышло бы нулём всегда, и добавка
-            # молча ничего бы не значила.
+            # ITS OWN column mask, not a row of `edge`: that one is
+            # two-dimensional and its first `k` ROWS are filled solid, so
+            # `edge[0]` is all True. Taken from there, "off the edge" would be
+            # zero always and the addition would silently mean nothing.
             row_edge = np.zeros(w, bool)
             row_edge[:k] = row_edge[-k:] = True
             res["ink_in_dark_columns_off_edge"] += int(
@@ -406,11 +361,11 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
             sub = ink[win] if win else np.zeros((0, 0), bool)
             tot = int(sub.sum())
             if tot == 0:
-                # Объект без чернил — это дефект СТЕНДА, а не модели, и он
-                # обязан считаться отдельно: спрятав его в «цел», мы дали бы
-                # модели незаслуженное очко, а спрятав в «порван» — незаслуженный
-                # промах. Сюда же попадает объект истины, уехавший за лист
-                # целиком: чернил у него нет по построению, и это тоже стенд.
+                # An object with no ink is a defect of the BENCH, not of the
+                # model, and is counted apart: hidden in "intact" it gives the
+                # model an unearned point, in "torn" an unearned miss. A truth
+                # object wholly off the sheet lands here too -- no ink by
+                # construction, and that is the bench again.
                 res["empty_objects"] += 1
                 continue
             res["objects"] += 1
@@ -420,22 +375,19 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
             r = kept / tot
             res["intact" if r >= WHOLE else "almost_intact" if r >= ALMOST
                 else "bitten" if r >= BITTEN else "torn"] += 1
-            # «Одной рамкой» СЧИТАЕТСЯ ПО ТЕМ ЖЕ ЧЕРНИЛАМ, что и «цел», разница
-            # только в том, сколько рамок держит объект: объединение или одна.
-            # Оттого числа вложены строго — целых не меньше, чем вырезаемых
-            # одной картинкой, — и разность между ними имеет имя.
+            # "One box" IS COUNTED BY THE SAME INK as "intact", the difference
+            # being only how many boxes hold the object -- their union, or one.
+            # So the numbers nest strictly, never fewer intact than cut as one
+            # picture. The older revision counted "one box" by box GEOMETRY and
+            # "intact" by ink, and the nesting broke: 92 golden-bench objects
+            # were "without loss" without being "cut whole", and as many the
+            # other way round.
             #
-            # Прежняя редакция считала «одной рамкой» по ГЕОМЕТРИИ рамки, а
-            # «цел» по чернилам, и вложенность ломалась: 92 объекта золотого
-            # стенда были «без потерь», не будучи «вырезаемыми целиком», и
-            # столько же наоборот. Два числа на разных основаниях в одной
-            # строке — это не строгость, а путаница.
-            #
-            # Пересечение двух прямоугольников — прямоугольник, поэтому чернила
-            # под одной рамкой считаются прямо в окне объекта. Прежде на каждую
-            # артефактную рамку КАЖДОГО объекта строилась булева маска во весь
-            # лист и тут же выбрасывалась — на золотом стенде это гигабайты
-            # аллокаций ради счёта в окне размером с таблицу.
+            # The intersection of two rectangles is a rectangle, so ink under
+            # one box is counted right in the object's window. Before, a
+            # full-sheet boolean mask was built for every artefact box of EVERY
+            # object and thrown away at once -- gigabytes of allocation on the
+            # golden bench for a count in a window the size of a table.
             ys, xs = win
             best, best_j = 0, -1
             for j, x in enumerate(arte):
@@ -455,7 +407,7 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
                         break
             if best / tot >= WHOLE:
                 res["in_one_box"] += 1
-                # Объект едет в ЭТОЙ рамке — именно её вырежет `books crop`.
+                # The object rides in THIS box -- the one `books crop` will cut.
                 riders[best_j] = riders.get(best_j, 0) + 1
             elif r >= WHOLE:
                 res["split_between_boxes"] += 1
@@ -473,21 +425,11 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
 def report(res: dict, log=print) -> None:
     n, s = res["objects"], res["page_count"]
     ink = res["ink_total"]
-    # ЛИНЕЙКА ОБЪЯВЛЯЕТСЯ ЦЕЛИКОМ И В ПЕРВОЙ СТРОКЕ. Здесь печатался один
-    # порог из четырёх, хотя соседний комментарий обещал «печатаются в отчёте»
-    # про все; ALMOST и BITTEN не печатались вовсе, а по ним разнесены столбцы
-    # «почти цел» и «надкушен».
-    # DPI печатается по той же причине, и это не формальность: те же рамки в
-    # точках страницы, наложенные на растр разной резкости, дают разные числа.
-    # Замер на bench/real/tables20.pdf, геометрия неизменна, меняется только
-    # растр: чернил под артефактом 24.83% (144 dpi) -> 25.63% (300) -> 25.99%
-    # (600). Единица измерения тут — пиксель растра, и без dpi два числа из
-    # двух прогонов несравнимы.
-    # Пороги берутся ИЗ ОТВЕТА, а не из модуля: печатается линейка, которой
-    # мерили, а не та, что стоит в модуле к мигу печати. Разница не выдуманная —
-    # батарея двигает эти же глобали, и отчёт, читающий их, врал бы про свой
-    # собственный замер. До правки словарь `res["пороги"]` не читал никто вовсе:
-    # величина считалась и выбрасывалась, а печаталась соседняя.
+    # THE RULER IS DECLARED WHOLE AND ON THE FIRST LINE: all four shares, where
+    # ALMOST and BITTEN -- which split two of the printed columns -- appeared
+    # nowhere, plus dpi, for the reason measured in the header. Read FROM THE
+    # ANSWER, not from the module: the battery moves these very globals, and a
+    # report reading them would lie about its own measurement.
     t = res["thresholds"]
     log(f"страниц {s}, растр {'/'.join(map(str, res['dpi'])) or '?'} dpi; "
         f"порог чернил {t['ink']}; доли чернил объекта: "
@@ -496,21 +438,21 @@ def report(res: dict, log=print) -> None:
     log(f"площадь под рамками {res['boxes_area'] / max(1, res['sheet_area']) * 100:.0f}% "
         f"листа — при 100% числа ниже ничего не значат: рамка во весь лист "
         f"выигрывает замер, не найдя ничего")
-    # СЛЕПОТА ОБЪЯВЛЯЕТСЯ ДО ЧИСЕЛ И БЕЗ ВСЯКИХ УСЛОВИЙ. Прежде эта строка
-    # стояла ПОСЛЕ обоих `return` по истине — то есть в режиме, которым файл сам
-    # хвалится («истина здесь не обязательна, работает на любой книге, которую
-    # ещё никто не размечал»), про слепоту не печаталось ни слова. Ровно в этом
-    # режиме и меряют настоящие сканы. И числа в ней стояли вшитые, чужого
-    # прогона; свои — ниже, строкой «приехало не в одиночку».
+    # BLINDNESS IS DECLARED BEFORE THE NUMBERS AND UNCONDITIONALLY. This line
+    # stood AFTER both truth `return`s, so in the truth-less mode -- the one
+    # real scans are measured in -- not a word of it was printed, and its
+    # numbers were someone else's run hardwired. Ours are on the "arrived with
+    # company" line below.
     log("ЧЕМ ЭТОТ ПРИБОР ВЫИГРЫВАЕТСЯ: слияние соседних рамок он почти не "
         "штрафует по построению — слитая рамка улучшает тут и чернила, и «цел», "
         "и «вырезается одной картинкой». Не слиплось ли — спрашивать у `books "
         "score`; по одному этому отчёту модель не выбирают")
     if not ink:
-        # НОЛЬ ОТ НЕПОНИМАНИЯ, А НЕ ОТ ЗАМЕРА. Прежде пустой растр печатался
-        # как «вне всех рамок 100.0% — это то, что исчезнет из HTML»: делитель
-        # подменялся на `max(1, 0)`, и «мерить нечего» выходило под видом
-        # «потеряна вся книга». Воспроизводится белой страницей в один вызов.
+        # A ZERO FROM NOT UNDERSTANDING, NOT FROM MEASUREMENT. An empty raster
+        # used to print as "outside every box 100.0% -- that is what vanishes
+        # from the HTML": the divisor was swapped for `max(1, 0)`, so "nothing
+        # to measure" came out as "the whole book is lost". Reproducible with a
+        # white page in one call.
         log("чернил не найдено ВОВСЕ: ни одного пикселя темнее порога. Это не "
             "«всё потеряно», а «нечего мерить» — пустой растр, не тот порог "
             "или не та книга")
@@ -521,25 +463,19 @@ def report(res: dict, log=print) -> None:
         f"вне всех рамок "
         f"{(1 - res['ink_under_boxes'] / ink) * 100:.1f}% — это то, "
         f"что исчезнет из HTML")
-    # ПЯТЫЙ ПОРОГ ОБЪЯВЛЯЕТСЯ БЕЗУСЛОВНО. Строка печаталась только при
-    # `lost > 0`, и `EDGE` оставался единственным порогом, который можно было
-    # выкинуть из отчёта, не покраснев ни одной проверкой, — в файле, который
-    # объявляет починенным ровно это («из пяти порогов отчёт объявлял один»).
-    # Когда терять нечего, полоса всё равно называется: линейка не зависит от
-    # того, что ею померили.
+    # THE FIFTH THRESHOLD IS DECLARED UNCONDITIONALLY. The line printed only
+    # when `lost > 0`, leaving `EDGE` droppable from the report without a check
+    # going red. With nothing to lose the band is named all the same: a ruler
+    # does not depend on what was measured with it.
     lost = ink - res["ink_under_boxes"]
     log(f"  полоса у края листа {t['edge_band'] * 100:.0f}% меньшей стороны; "
         + (f"из потерянного в ней {res['ink_outside_boxes_at_edge'] / lost * 100:.0f}% "
            f"— обычно это тёмная кромка скана, а не содержимое"
            if lost > 0 else "терять нечего: чернила все под рамками"))
-    # ШЕСТОЙ ПОРОГ, И ОН ПЕЧАТАЕТСЯ БЕЗУСЛОВНО — по той же причине, что пятый:
-    # линейка не зависит от того, что ею померили, а порог, которого нет в
-    # отчёте, можно выкинуть, не покраснев ни одной проверкой.
-    #
-    # ЧИСЛО СТОИТ ЗДЕСЬ, А НЕ СРЕДИ ПОТЕРЬ, потому что оно про НАЙДЕННОЕ.
-    # Тёмный столбец под рамкой засчитывается прибору как сохранённое
-    # содержимое: 261 поддельная рамка ровно по этим полосам поднимает строку
-    # выше с 85.7 % до 96.2 %, ничего не найдя.
+    # THE SIXTH THRESHOLD, likewise unconditional, and standing here rather than
+    # among the losses because it is about what was FOUND: a dark column under a
+    # box scores as preserved content, and the box that covered it lifts the
+    # line above having found nothing (`GUTTER`).
     cols = res["dark_columns"]
     pos = res["dark_columns_positions"]
     middle = sum(1 for x in pos if 0.2 <= x <= 0.8)
@@ -554,9 +490,9 @@ def report(res: dict, log=print) -> None:
            if cols else "их нет — эта книга сканирована без тени переплёта")
         + ". Рамка, накрывшая такой столбец, ПОВЫШАЕТ число под рамками, "
           "ничего не найдя")
-    # ТРИ РАЗНЫХ НУЛЯ, И РАНЬШЕ ОНИ БЫЛИ ОДНИМ. «Истина не подана» печаталось
-    # и тогда, когда истина подана, а артефактов в ней нет ни одного, — то есть
-    # оператору сообщали, что он забыл `--truth`, который он передал.
+    # THREE DIFFERENT ZEROS, AND THEY USED TO BE ONE. "Truth not supplied" was
+    # printed when truth was supplied and simply held no artefacts -- telling
+    # the operator he had forgotten the `--truth` he had passed.
     if not res["truth_pages"]:
         log("истина не подана: по объектам сказать нечего — это не ноль потерь")
         return
@@ -574,14 +510,8 @@ def report(res: dict, log=print) -> None:
         f"({res['in_one_box'] / n * 100:.0f}%); "
         f"разорван между рамками {res['split_between_boxes']}; "
         f"уехал текстом {res['left_as_text']}")
-    # ЕДИНСТВЕННОЕ ЧИСЛО ПРИБОРА, КОТОРОЕ ОТ СЛИЯНИЯ РАСТЁТ. Все прочие от него
-    # улучшаются, и это не оговорка, а замер: слив все артефактные рамки
-    # страницы в одну, на bench/hard36 получаем цел 365 -> 385, порван 28 -> 13,
-    # чернил объектов 94.8% -> 96.1%. Здесь же 309 -> 385 при 32 -> 35 рамках.
-    # Считается из тех же чернил тем же порогом «цел», без единого нового, и
-    # `books score` не дублирует: тот сверяет рамки с истиной, а это — сколько
-    # работы переложено на второй уровень, который будет разбирать общую
-    # картинку на части.
+    # THE ONE NUMBER OF THIS INSTRUMENT THAT GROWS WITH MERGING; every other one
+    # improves under it. Figures and reasoning in the header.
     log(f"приехало не в одиночку {res['arrived_with_company']} "
         f"({res['arrived_with_company'] / n * 100:.0f}%), "
         f"рамок с двумя объектами и больше: "
@@ -592,14 +522,12 @@ def report(res: dict, log=print) -> None:
             f"это дефект стенда, они не считаны ни в цел, ни в порван")
 
 
-# ------------------------------------------------- батарея порчи
-# Числу верить нельзя, пока не показано, что оно умеет упасть. Каждая проба
-# портит ОДНУ вещь и называет, чему полагается сдвинуться.
-#
-# ПОРЧА ТРЁХСТОРОННЯЯ — так же, как у `metrics.mutations()`, и здесь двух
-# сторон из трёх не было вовсе: портился только ВЫВОД МОДЕЛИ. Ни ИСТИНА (а
-# метрика, безразличная к истине, меряет один свой вход), ни СВОИ ПОРОГИ (а
-# мёртвый порог печатается в отчёте наравне с живым и выглядит линейкой).
+# ------------------------------------------------- the spoiling battery
+# A number is not to be trusted until shown able to fall. Each probe spoils ONE
+# thing and names what is due to move. THREE-SIDED, as in `metrics.mutations()`,
+# and two sides of three were missing here: only the MODEL OUTPUT was spoiled.
+# Not the TRUTH (a metric indifferent to truth measures one of its own inputs),
+# not OUR OWN THRESHOLDS (a dead one prints beside a live one, looking a ruler).
 def _edit(M, fn):
     return {i: {**p, "blocks": [b for b in map(fn, p["blocks"]) if b]}
             for i, p in M.items()}
@@ -613,32 +541,31 @@ def _scale(b, f):
 
 
 def _shift(b, f=0.5):
-    """Рамку — вниз на долю её собственной высоты."""
+    """The box down by a share of its own height."""
     x0, y0, x1, y1 = b["box"]
     d = (y1 - y0) * f
     return {**b, "box": [x0, y0 + d, x1, y1 + d]}
 
 
 def _offpage(b):
-    """Рамку — целиком за левый верхний угол листа, впритык к нему.
+    """The box wholly off the top-left corner of the sheet, right against it.
 
-    Именно ВПРИТЫК, а не за тридевять земель: беда была в отрицательном конце
-    среза, а он ломает тем сильнее, чем ближе к нулю. Рамка, кончающаяся на
-    -20, у прежнего кода накрывала лист без двадцати пикселей; рамка,
-    кончающаяся на -10000, не накрывала ничего, и проба, отодвинувшая её
-    подальше, ничего бы не поймала.
+    RIGHT against it: the trouble is the negative end of the slice, which breaks
+    the harder the nearer to zero. Under the old code a box ending at -20
+    covered the sheet bar twenty pixels, one ending at -10000 covered nothing --
+    so a probe pushing it further off would catch nothing.
     """
     x0, y0, x1, y1 = b["box"]
     return {**b, "box": [x0 - x1 - 20.0, y0 - y1 - 20.0, -20.0, -20.0]}
 
 
 def _merge(M):
-    """Все артефактные рамки страницы — в ОДНУ объемлющую.
+    """Every artefact box of a page into ONE enclosing box.
 
-    Это худшее, что бывает со структурой: три таблицы приедут одной картинкой.
-    Проба заведена не для того, чтобы число упало, — оно вырастет, — а чтобы
-    слепота прибора стояла в его же выводе ВЕЛИЧИНОЙ. Пока она не названа,
-    отчёт читается как оценка модели целиком, и однажды так и прочитался.
+    The worst thing that happens to structure: three tables arrive as one
+    picture. The probe exists not to make a number fall -- it will rise -- but
+    to put the instrument's blindness into its own output AS A QUANTITY.
+    Unnamed, the report reads as a verdict on the model whole, and once was.
     """
     out = {}
     for i, p in M.items():
@@ -653,7 +580,7 @@ def _merge(M):
 
 
 def _double(M):
-    """Каждую артефактную рамку отдать ВТОРОЙ раз, уже как текстовую."""
+    """Hand every artefact box out a SECOND time, now as a text one."""
     out = {}
     for i, p in M.items():
         add = [{**b, "label": "text", "block_id": 10 ** 6 + j}
@@ -664,7 +591,7 @@ def _double(M):
 
 
 def _at(name, value, fn):
-    """Подвинуть СВОЙ порог на время пробы и вернуть как было."""
+    """Move OUR OWN threshold for the probe and put it back."""
     old = globals()[name]
     globals()[name] = value
     try:
@@ -674,7 +601,7 @@ def _at(name, value, fn):
 
 
 def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
-    """Подать в метрику заведомо испорченное и убедиться, что число упало."""
+    """Feed the metric knowingly spoiled input and see that the number fell."""
     import json
     import shutil
     import tempfile
@@ -694,30 +621,28 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
         return d
 
     def R(M):
-        """Померить по ИСПОРЧЕННОМУ выводу модели."""
+        """Measure against SPOILED model output."""
         return measure(pdf, _dump(M), truth_dir)
 
     def RT(T):
-        """Померить по испорченной ИСТИНЕ. Вывод модели при этом целый."""
+        """Measure against spoiled TRUTH. The model output stays whole."""
         return measure(pdf, detect_dir, _dump(T))
 
     art = lambda b: policy.role(b["label"]) == "artifact"
-    # Рамка во весь лист и ЗАВЕДОМО артефактная. Прежде сюда шёл ярлык первого
-    # блока страницы, каким бы он ни был: попадись текстовый — вырожденный
-    # ответ проверялся бы вполсилы, потому что по объектам он тогда не выигрывал
-    # ничего. А выигрывает он именно там.
+    # A full-sheet box, and DELIBERATELY an artefact. It used to take the label
+    # of the page's first block: a text one, and the degenerate answer is tested
+    # at half strength, winning nothing on objects -- where it wins most.
     full = {i: {**p, "blocks": [{"box": [0, 0, p["width"], p["height"]],
                                  "label": "image", "block_id": 0, "order": 0,
                                  "score": None, "content": None,
                                  "kind": "none"}]}
             for i, p in M0.items()}
     def _halve(M):
-        """Каждую рамку артефакта — на две половины впритык.
+        """Every artefact box into two halves, flush against each other.
 
-        Чернила при этом не теряются: объединение накрывает ровно то же. А вот
-        ОДНОЙ картинкой объект уже не вырежется — он приедет двумя кусками.
-        Проба целится ровно в разницу между «без потерь» и «вырежется целиком»:
-        без неё эту разницу нечем было бы проверить.
+        No ink is lost -- the union covers the same -- but the object no longer
+        cuts as ONE picture: it arrives in two pieces. Without this there would
+        be nothing to check the difference between "no loss" and "cuts whole".
         """
         out = {}
         for i, p in M.items():
@@ -733,8 +658,8 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
             out[i] = {**p, "blocks": bl}
         return out
 
-    # Порча, к которой обращаются по две пробы, считается ОДИН раз: на золотом
-    # стенде каждый лишний `measure` — это 600 отрендеренных страниц.
+    # Damage that two probes both reach for is computed ONCE: on the golden
+    # bench every extra `measure` is 600 rendered pages.
     halved = R(_halve(M0)) if base["objects"] else None
     as_text = R(_edit(M0, lambda b: {**b, "label": "text"}))
     moved = RT(_edit(T0, _shift)) if base["objects"] else None
@@ -747,30 +672,25 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
          lambda: None if not base["objects"] else
                  halved["object_ink_in_boxes"]
                  >= base["object_ink_in_boxes"]),
-        # Сторож `None if not base["объектов"]` — тот же, что у соседей, и здесь
-        # его не было. Без `--truth` обе стороны нули, `0 <= 0` даёт True, и
-        # батарея печатала «ok» про вложенность, которой не проверила: ноль от
-        # непонимания под видом сошедшегося условия. Это зеркало соседней беды
-        # десятью строками ниже — там ноль давал ложное «НЕ поймана».
+        # The guard `None if not base["objects"]` is the neighbours' and was
+        # missing here. Without `--truth` both sides are zero, `0 <= 0` is True,
+        # and the battery printed "ok" about a nesting it had not checked: a
+        # zero from not understanding, dressed as a satisfied condition. Mirror
+        # of the trouble ten lines below, where a zero gave a false "НЕТ" line.
         ("вложенность", "вырезаемых одной картинкой не больше, чем целых",
          lambda: None if not base["objects"] else
                  base["in_one_box"] <= base["intact"]),
         ("рамок нет вовсе", "чернил под рамками ноль",
          lambda: R(_edit(M0, lambda b: None))["ink_under_boxes"] == 0),
-        # Рамка, уехавшая за левый верхний угол, у прежней нарезки накрывала
-        # почти весь лист: отрицательный конец среза отсчитывается ОТ КОНЦА.
-        # Без этой пробы метрику можно было выиграть мусором, ничего не найдя,
-        # и ни одна из восьми проб этого не видела.
+        # Without this probe the metric could be won with rubbish, finding
+        # nothing (`_clip`), and not one of the eight probes saw it.
         ("рамки уехали за левый верхний угол", "чернил под рамками ноль",
          lambda: R(_edit(M0, _offpage))["ink_under_boxes"] == 0),
-        # Сторож `None if not base["объектов"]` — тот же, что у соседей выше и
-        # ниже, и здесь его не было. Цена пропуска: без `--truth` объектов
-        # нет, «чернил объектов в рамках» равно нулю и до порчи, и после,
-        # `0 < 0` даёт False, и батарея печатала «НЕ поймана» — то есть
-        # обвиняла прибор там, где мерить нечем. Замер: шесть книг из шести,
-        # `books fitness … --selfcheck` без `--truth` возвращал 1. Это ровно
-        # слитые два нуля, о которых предупреждает отчёт в этом же файле:
-        # «истина не подана: по объектам сказать нечего — это не ноль потерь».
+        # The same guard, missing here too. The price: without `--truth` there
+        # are no objects, "object ink in boxes" is zero before the damage and
+        # after, `0 < 0` is False, and the battery printed the "НЕТ" mark --
+        # accusing the instrument where there is nothing to measure. Six books
+        # of six, `books fitness … --selfcheck` without `--truth` returned 1.
         ("рамки сжаты вдвое", "чернил объектов сохранено меньше",
          lambda: None if not base["objects"] else
                  R(_edit(M0, lambda b: _scale(b, 0.5)))["object_ink_in_boxes"]
@@ -783,27 +703,24 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
         ("рамки выкинуты, кроме текстовых", "целых меньше",
          lambda: None if not base["objects"] else
                  R(_edit(M0, lambda b: None if art(b) else b))["intact"] < base["intact"]),
-        # Сторож вырожденного ответа: рамка во весь лист выигрывает по чернилам
-        # и обязана быть видна по площади. Без этой пробы метрику можно взять
-        # одной рамкой, не найдя ничего.
+        # Without this probe the metric could be taken with one box, having
+        # found nothing.
         ("одна рамка во весь лист", "чернил 100%, но и площадь 100%",
          lambda: (lambda r: r["ink_under_boxes"] == r["ink_total"]
                   and r["boxes_area"] == r["sheet_area"])(R(full))),
-        # ...и по ОБЪЕКТАМ он выигрывает тоже, а прежняя проба смотрела только
-        # на чернила страницы. Главная строка отчёта — «чернил объектов
-        # сохранено» — берётся одной рамкой целиком, и это обязано быть в
-        # батарее, а не только в шапке файла.
+        # ...and it wins on OBJECTS too, where the older probe looked at page
+        # ink only: the headline line of the report is taken whole by one box,
+        # and that belongs in the battery, not in the header alone.
         ("одна рамка во весь лист", "и объектов цел ВСЕ — вот чем метрика берётся",
          lambda: None if not base["objects"] else
                  (lambda r: r["intact"] == r["objects"]
                   and r["in_one_box"] == r["objects"])(R(full))),
-        # ПРИЗНАННАЯ СЛЕПОТА, И ОДНО ЗРЯЧЕЕ ЧИСЛО. Проба требует сразу двух
-        # вещей: что прежние числа от слияния НЕ падают (слепота названа
-        # величиной, а не оговоркой) и что «приехал не в одиночку» РАСТЁТ —
-        # иначе прибор снова стал бы слеп целиком и молча.
-        # Сторож на «нечем мерить» тут особый: слить в одну нечего, если ни на
-        # одной странице нет двух объектов сразу. Книга из одной таблицы —
-        # честное «нет данных», а не провал прибора.
+        # ADMITTED BLINDNESS, AND ONE SEEING NUMBER: the older numbers must NOT
+        # fall under merging (blindness named as a quantity, not as an aside)
+        # and "arrived with company" must GROW, else the instrument would go
+        # blind whole and silently again. The "nothing to measure" guard is
+        # special here -- there is nothing to merge if no page holds two objects
+        # at once, and a book of one table is an honest "no data".
         ("все артефактные рамки слиты в одну",
          "прежние числа не падают, а «не в одиночку» растёт",
          lambda: None if not base["objects"] else
@@ -818,13 +735,11 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
                              f"не в одиночку {base['arrived_with_company']} -> "
                              f"{r['arrived_with_company']}"))(
                      R(_merge(M0)))),
-        # ЗАДВОЕНИЕ. Та же область отдана и артефактом, и текстом — так ведёт
-        # себя сырой docling-heron, у него 4435 задвоенных пар. Объединение
-        # рамок при этом НЕ меняется, значит не имеет права измениться ни одно
-        # число по объектам. Проба заведена на конкретный пойманный дефект:
-        # «уехал текстом» считался суммой `t_kept + kept`, и пиксель под двумя
-        # рамками шёл за два. Замер на bench/hard36: 21 -> 31, десять объектов
-        # с половиной чернил под открытым небом объявлялись «не потеряны».
+        # DOUBLING, as raw docling-heron does it with its 4435 doubled pairs.
+        # The union of boxes does NOT change, so no object number has the right
+        # to move. Made for a caught defect: "left as text" was `t_kept + kept`,
+        # a pixel under two boxes going for two. On bench/hard36: 21 -> 31, ten
+        # objects with half their ink under open sky declared "not lost".
         ("каждая артефактная рамка отдана ещё и текстовой",
          "по объектам не меняется НИЧЕГО: пиксель под двумя рамками — один пиксель",
          lambda: None if not base["objects"] else
@@ -832,9 +747,10 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
                                 ("intact", "almost_intact", "bitten", "torn",
                                  "in_one_box", "left_as_text",
                                  "object_ink_in_boxes")))(R(_double(M0)))),
-        # --- вторая сторона порчи: СВОИ пороги -----------------------------
-        # Крайности, а не «сдвинем и поглядим»: сдвиг мог бы ничего не изменить
-        # на стенде, где все объекты и так целы, и мёртвый порог прошёл бы.
+        # --- the second side of the spoiling: OUR OWN thresholds -----------
+        # Extremes, not "nudge it and see": a nudge could change nothing on a
+        # bench where every object is whole anyway, and a dead threshold would
+        # pass.
         ("порог чернил обнулён и задран", "чернил то ноль, то весь лист",
          lambda: _at("INK", 0, lambda: measure(pdf, detect_dir)["ink_total"]) == 0
                  and _at("INK", 256, lambda: (lambda r: r["ink_total"]
@@ -846,17 +762,14 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
                      measure(pdf, detect_dir, truth_dir)))
                  and _at("WHOLE", 1.01,
                          lambda: measure(pdf, detect_dir, truth_dir)["intact"] == 0)),
-        # ПОРОГОВ ПЯТЬ, А НЕ ДВА. Здесь стояли пробы только на INK и WHOLE, а
-        # ALMOST, BITTEN и EDGE не проверял никто: убей любой из них по
-        # отдельности — батарея зелёная, хотя печатаемые числа съезжают (почти
-        # цел 3 -> 0 и надкушен 5 -> 8; надкушен 5 -> 0; чернил у края
-        # 26076 -> 529). Ровно та беда, которой оправдана вторая сторона порчи:
-        # мёртвый порог печатается в отчёте наравне с живым и выглядит линейкой.
-        #
-        # Пороги сводятся К СОСЕДЯМ, а не двигаются наугад: разряд между двумя
-        # порогами обязан переехать ЦЕЛИКОМ, и это проверяемо на любом стенде,
-        # где в разряде хоть кто-то есть. Сторож на пустой разряд — тот же,
-        # что у соседей: пустому мерить нечем, и это «нет данных», не «ok».
+        # THERE ARE FIVE THRESHOLDS, NOT TWO. Only INK and WHOLE were probed;
+        # kill ALMOST, BITTEN or EDGE alone and the battery stays green while
+        # the printed numbers slide (almost whole 3 -> 0 and bitten 5 -> 8;
+        # bitten 5 -> 0; ink at the edge 26076 -> 529). Thresholds are brought
+        # TO THEIR NEIGHBOURS rather than nudged at random: the class between
+        # two must move ENTIRELY, checkable on any bench where the class holds
+        # anyone. Guard on an empty class as the neighbours': nothing to measure
+        # is "no data", not "ok".
         ("порог «почти цел» сведён к соседям",
          "разряд между «цел» и «надкушен» переезжает целиком",
          lambda: None if not base["almost_intact"] + base["bitten"] else
@@ -871,22 +784,21 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
                      lambda: measure(pdf, detect_dir, truth_dir)["torn"] == 0)
                  and _at("BITTEN", ALMOST,
                          lambda: measure(pdf, detect_dir, truth_dir)["bitten"] == 0)),
-        # EDGE — тоже линейка, и печатается тоже: «из потерянного N% лежит в
-        # полосе у края». Раздув полосу до половины меньшей стороны, накрываем
-        # лист целиком, и у края обязано оказаться ВСЁ потерянное.
-        # Истина передаётся, хотя полоса у края от неё не зависит: без неё
-        # `measure` обходит ВСЕ страницы разметки, а `base` — только страницы
-        # истины, и «потерянное» считалось бы на разных знаменателях. Проба
-        # падала ровно на этом.
-        # Раздувается до 1.0, а не до 0.5: `int(min(h, w) * 0.5)` округляет
-        # ВНИЗ, и при нечётной стороне посреди листа остаётся непокрытая
-        # полоска в один пиксель — на hard36 это 83 пикселя чернил, и проба
-        # падала на них, обвиняя живой порог.
-        # ШЕСТОЙ ПОРОГ ПРОБУЕТСЯ ТАК ЖЕ, КАК ПЯТЫЙ, и по той же причине: порог
-        # без пробы — это число, которое нельзя опровергнуть. Раздуваем до
-        # 0.0 (тёмным столбцом объявляется КАЖДЫЙ, где есть хоть один тёмный
-        # пиксель) и сжимаем до 1.0 (столбец обязан быть тёмным во всю высоту
-        # листа, включая поля, — таких не бывает).
+        # EDGE is a ruler too, and printed: "of what was lost, N% lies in the
+        # band at the edge". Blown up to half the shorter side it covers the
+        # sheet, so ALL the lost ink must land at the edge. Truth is passed
+        # although the band does not depend on it: without it `measure` walks
+        # EVERY annotated page while `base` walks the truth pages only, and
+        # "lost" would run on different denominators -- the probe failed on
+        # that. Blown to 1.0 and not 0.5 because `int(min(h, w) * 0.5)` rounds
+        # DOWN, leaving an uncovered one-pixel strip across an odd-sided sheet
+        # -- 83 pixels of ink on hard36, and the probe failed on them, accusing
+        # a live threshold.
+        # THE SIXTH THRESHOLD IS PROBED LIKE THE FIFTH: a threshold without a
+        # probe is a number that cannot be refuted. Blown to 0.0 (every column
+        # holding a single dark pixel is a dark column) and squeezed to 1.0
+        # (dark over the full height of the sheet, margins included -- no such
+        # thing exists).
         ("тёмный столбец раздут и сжат",
          "то все чернила в столбцах, то ни одного",
          lambda: (_at("GUTTER", 0.0, lambda: measure(pdf, detect_dir, truth_dir)
@@ -901,15 +813,13 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
                   and _at("EDGE", 0.0, lambda: measure(pdf, detect_dir, truth_dir)
                           ["ink_outside_boxes_at_edge"]) < lost)(
                      base["ink_total"] - base["ink_under_boxes"])),
-        # --- третья сторона порчи: ИСТИНА ----------------------------------
-        # Метрика, безразличная к истине, меряет один свой вход и выдаёт это за
-        # оценку модели. Портим истину, вывод модели не трогаем.
-        # Спрашивается ЧИСЛО ЧЕРНИЛ ОБЪЕКТОВ, а не доля сохранённых: доля на
-        # идеально обведённой книге не двинется от сдвига истины и без всякой
-        # беды, и проба обвинила бы прибор там, где мерить нечем (ровно эта
-        # ошибка ловится на игрушечной странице, где рамка модели совпадает с
-        # объектом: 100% -> 100%). Число же чернил под сдвинутой рамкой другое
-        # всегда, кроме однородно закрашенного листа.
+        # --- the third side of the spoiling: THE TRUTH ---------------------
+        # Spoil the truth, leave the output alone. What is asked is the NUMBER
+        # of object ink, not the share preserved: on a perfectly outlined book
+        # the share does not move when truth shifts, and the probe would accuse
+        # the instrument where there is nothing to measure (caught on a toy page
+        # whose model box coincides with the object: 100% -> 100%). The number
+        # under a shifted box differs always, save on a uniformly filled sheet.
         ("истина сдвинута на пол-объекта вниз", "чернил объектов стало другое",
          lambda: None if not base["objects"] else
                  (moved["object_ink"] != base["object_ink"],
@@ -940,13 +850,12 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
     finally:
         for d in trash:
             shutil.rmtree(d, ignore_errors=True)
-    # ВЕЛИЧИНА, А НЕ СЛОВО «ГОТОВО». Здесь стояло «проб 9, непойманных 0» — и
-    # без `--truth` эта же строка печаталась при пяти пробах из девяти, не
-    # померивших ничего: батарея выглядела зелёной, померив меньше половины.
-    # Причина молчания у проб РАЗНАЯ, и валить их в «нужна истина» значило бы
-    # соврать той самой заменой одного нуля другим: истины может не быть, а
-    # может быть пуст разряд «почти цел» или не найтись страницы с двумя
-    # объектами сразу. Какая именно — сказано в строке самой пробы.
+    # A QUANTITY, NOT THE WORD "DONE". This said "probes 9, uncaught 0" while
+    # without `--truth` five of the nine measured nothing: green, having
+    # measured less than half. The reason for silence VARIES -- no truth, an
+    # empty "almost whole" class, no page with two objects at once -- so lumping
+    # them into "needs truth" would swap one zero for another. Which it is, the
+    # probe's own line says.
     log(f"батарея годности: проб {len(probes)}, померено {len(probes) - mute}, "
         f"нечем мерить {mute} (см. строки «нет данных»), непойманных {bad}")
     return bad
