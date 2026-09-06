@@ -120,3 +120,10 @@ bench/*/truth.new/
 bench/*/truth.previous/
 bench/*/*.pdf.new
 bench/*/manifest.json.new
+
+# WHAT `books bench all` WRITES: one JSON of records per bench and run. Not
+# tracked yet: the runs it measures are themselves untracked (the pages are
+# behind `bench/*/detect/pages/` above), so a result here says nothing a
+# fresh clone can check. Step 5 of docs/plan.md decides what is kept and
+# generates docs/results.md from it.
+bench/results/

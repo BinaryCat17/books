@@ -28,10 +28,33 @@ def _map_text():
     return open(schema.DOC_MAP, encoding="utf-8").read()
 
 
+def _declared(src):
+    """Every command the CLI declares, nested ones as "group sub".
+
+    A parser made by `sub.add_parser` is a top command; a parser made on any
+    other subparsers object is nested under the top command whose
+    `add_subparsers` made that object. Read in source order, which is how
+    argparse builds it.
+    """
+    out, groups, last_top = set(), {}, None
+    for m in re.finditer(r'(\w+)\s*=\s*(\w+)\.add_parser\("([a-z-]+)"'
+                         r'|(\w+)\s*=\s*(\w+)\.add_subparsers\(', src):
+        var, on, name, subvar, parent = m.groups()
+        if name is not None:
+            if on == "sub":
+                out.add(name)
+                last_top = name
+            elif on in groups:
+                out.add(f"{groups[on]} {name}")
+        elif subvar is not None and parent != "ap":
+            groups[subvar] = last_top
+    return out
+
+
 def test_every_command_the_cli_declares_is_named_in_the_map():
     """A command absent from the map is a command nobody finds."""
     src = open(os.path.join(support.SRC, "cli.py"), encoding="utf-8").read()
-    declared = set(re.findall(r'add_parser\("([a-z-]+)"', src))
+    declared = _declared(src)
     assert declared, "no subcommands found in cli.py -- the search broke"
     text = _map_text()
     missing = sorted(c for c in declared if f"books {c}" not in text)
@@ -41,8 +64,11 @@ def test_every_command_the_cli_declares_is_named_in_the_map():
 def test_the_map_names_no_command_that_does_not_exist():
     """The other direction: a map that offers a command the CLI lost."""
     src = open(os.path.join(support.SRC, "cli.py"), encoding="utf-8").read()
-    declared = set(re.findall(r'add_parser\("([a-z-]+)"', src))
-    named = set(re.findall(r'^books ([a-z]+)', _map_text(), re.M))
+    declared = _declared(src)
+    groups = {c.split()[0] for c in declared if " " in c}
+    named = set()
+    for first, second in re.findall(r'^books ([a-z]+)(?: ([a-z]+))?', _map_text(), re.M):
+        named.add(f"{first} {second}" if first in groups and second else first)
     ghosts = sorted(named - declared)
     assert not ghosts, f"the map offers commands the CLI does not have: {ghosts}"
 

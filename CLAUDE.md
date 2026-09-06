@@ -85,7 +85,6 @@ src/booksmith/
                (__init__), transport to any OpenAI-compatible address (http),
                the book driver (run). Its product is THE SAME `pages/*.json`
                detection makes, with `content` and `kind` filled in
-  cyr.py       -> tree/cyr.py
   acceptance.py  reports and raw-result records compared against
                `bench/expected/`
   detect.py    level one: page contours, locally and free
@@ -136,6 +135,8 @@ books score truth/ boxes/    contour metrics; --selfcheck runs the battery
 books text truth/ pages/     the reading metric; --selfcheck too
 books fitness book.pdf --detect …   will the meaning arrive: ink, not boxes
 books overlay book.pdf …     truth and model disagreements over the pages
+books bench all bench/<book>  every applicable metric on one run: one table,
+                             one JSON under bench/results/
 ```
 
 ## Knobs

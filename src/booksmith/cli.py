@@ -386,7 +386,6 @@ def cmd_read(a):
     pages = None
     if a.pages:
         from .detect import parse_pages
-        import pymupdf
         with raster.open_pdf(_pdf_of(a.dir)) as d:
             pages = set(parse_pages(a.pages, d.page_count))
 
@@ -410,7 +409,6 @@ def cmd_feed(a):
     """Prepare what would go to the VLM. Not one call to the model."""
     import glob
     import json as _json
-    import pymupdf
     from .doc import feed
     from booksmith.core.page import Page
 
@@ -464,7 +462,6 @@ def cmd_overlay(a):
         # (3) Bounds. A number past the end of the book `detect` declares out
         #     loud; here an empty set gave a silent "differences on 0 pages" —
         #     a zero from not understanding, in the final line.
-        import pymupdf
         doc = raster.open_pdf(a.pdf)
         total = doc.page_count
         doc.close()
@@ -564,6 +561,26 @@ def cmd_synth(a):
 def shlex_quote(s):
     import shlex
     return shlex.quote(s)
+
+
+def cmd_bench_all(a):
+    """Every applicable metric on one bench and one run: one table, one JSON.
+
+    The numbers used to land on stdout only, three commands with three
+    argument shapes, and every comparison between detectors was typed into
+    prose by hand -- four times, the prose records, wrongly. This is the
+    first command that writes them down.
+    """
+    from booksmith.datasets import table
+    from booksmith.datasets.bench import Bench
+    b = Bench.open(a.bench)
+    run = b.run(a.run)
+    which = a.only.split(",") if a.only else None
+    recs = table.rows(b, run, which, log=log)
+    table.render(recs, log=log)
+    path = a.json or table.results_path(b, run)
+    table.write_json(recs, path, log=log)
+    return 0
 
 
 def cmd_ls(_a):
@@ -1028,6 +1045,18 @@ def main(argv=None):
                    help="which cases, comma-separated; all by default")
     p.set_defaults(fn=cmd_synth)
 
+    p = sub.add_parser("bench", help="the benches: every metric on one run, side by side")
+    bs = p.add_subparsers(dest="bench_cmd", required=True)
+    q = bs.add_parser("all", help="every applicable metric on one bench and run, as one table and one JSON")
+    q.add_argument("bench", help="the bench directory, e.g. bench/slovar")
+    q.add_argument("--run", default="detect",
+                   help="the run under the bench root (default: detect)")
+    q.add_argument("--only", default="",
+                   help="comma-separated metric names, instead of every applicable one")
+    q.add_argument("--json", default="",
+                   help="where to write the records (default: bench/results/<bench>-<run>.json)")
+    q.set_defaults(fn=cmd_bench_all)
+
     p = sub.add_parser("ls", help="what is rented right now")
     p.set_defaults(fn=cmd_ls)
 
@@ -1057,7 +1086,6 @@ def main(argv=None):
     p.set_defaults(fn=replay_mod.cmd_replay)
 
     a = ap.parse_args(argv)
-    from booksmith.core.errors import Refusal
     try:
         return a.fn(a) or 0
     except _tool_errors() as e:
