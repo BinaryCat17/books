@@ -59,6 +59,17 @@ from booksmith import acceptance                           # noqa: E402
 
 # --- what we break with ----------------------------------------------------
 
+def _label_map_that_refuses(self):
+    """`label_map` stops granting its default: every adapter must define it.
+
+    The contract documents an empty dict as "the model's vocabulary is the
+    common one", and `DoclingEgret` relies on that. Make the contract refuse
+    and the selection of "members with no default" must widen -- if it does
+    not, it is reading something other than what the contract does.
+    """
+    raise NotImplementedError
+
+
 @contextmanager
 def redeclare(obj, add=None, drop=()):
     """Add and REMOVE class members for the duration of a mutation.
@@ -66,19 +77,38 @@ def redeclare(obj, add=None, drop=()):
     `attrs` can only swap what already has a name, so it cannot damage a
     DECLARATION: dropping a member of a contract and adding one nobody reads
     are the two ways such a list goes wrong, and neither is a value change.
+
+    ANNOTATIONS COUNT AS DECLARATIONS. `Recognizer` states `dir: str` with no
+    value on purpose -- a forgotten one must be an AttributeError, not a
+    silent empty string -- so `vars()` does not hold it and dropping it from
+    there damaged nothing. The mutation went uncaught and said so.
+
+    Anything ADDED is restored to what it was, not deleted: deleting a name
+    that already existed would take the original away for the rest of the
+    battery run, and later mutations would then be green or red for a reason
+    nobody wrote down.
     """
+    ann = getattr(obj, "__annotations__", {})
     gone = {k: vars(obj)[k] for k in drop if k in vars(obj)}
+    gone_ann = {k: ann[k] for k in drop if k in ann}
+    had = {k: vars(obj)[k] for k in (add or {}) if k in vars(obj)}
     for k in gone:
         delattr(obj, k)
+    for k in gone_ann:
+        del ann[k]
     for k, v in (add or {}).items():
         setattr(obj, k, v)
     try:
         yield
     finally:
         for k in (add or {}):
-            delattr(obj, k)
+            if k in had:
+                setattr(obj, k, had[k])
+            else:
+                delattr(obj, k)
         for k, v in gone.items():
             setattr(obj, k, v)
+        ann.update(gone_ann)
 
 
 @contextmanager
@@ -3529,6 +3559,25 @@ def mutations():
          [("test_models_contract",
            "test_the_contract_declares_everything_the_pipeline_asks_for")]),
 
+        ("the contract forgets a dict key the pipeline indexes",
+         lambda: attrs(basemod.Recognizer, PAGE_META_REQUIRED=("rank_ties",)),
+         [("test_models_contract",
+           "test_the_contract_declares_every_dict_key_the_pipeline_indexes")]),
+
+        ("the contract names a fingerprint key nobody indexes",
+         lambda: attrs(basemod.Recognizer,
+                       FINGERPRINT_REQUIRED=("sha256_weights", "invented")),
+         [("test_models_contract",
+           "test_the_contract_declares_every_dict_key_the_pipeline_indexes"),
+          ("test_models_contract",
+           "test_every_adapter_fills_the_keys_the_contract_names")]),
+
+        ("the required members are chosen by their docstrings again",
+         lambda: attrs(basemod.Recognizer,
+                       label_map=_label_map_that_refuses),
+         [("test_models_contract",
+           "test_every_adapter_we_ship_satisfies_the_contract")]),
+
         ("the contract grows a term nobody asks for",
          lambda: redeclare(basemod.Recognizer,
                            add={"nobody_reads_this": ""}),
@@ -3545,11 +3594,14 @@ def mutations():
          [("test_data_contract",
            "test_the_code_emits_exactly_the_declared_html_classes")]),
 
+        # ONE TARGET, AND IT IS THE ONE THAT NEVER SKIPS. The book-side check
+        # skips where `processed/` is absent -- and `processed/` is not in git,
+        # so on a fresh clone it skips, `reddens` counts a skip as not red, and
+        # this mutation printed UNCAUGHT on a machine that had done nothing
+        # wrong. "Caught here" is not "caught".
         ("the book is asked for a class it never carried",
          lambda: attrs(schema, HTML_CLASSES=schema.HTML_CLASSES + ("nonesuch",)),
          [("test_data_contract",
-           "test_the_built_book_carries_the_declared_classes"),
-          ("test_data_contract",
            "test_the_code_emits_exactly_the_declared_html_classes")]),
 
         ("an html attribute the code writes is not declared",

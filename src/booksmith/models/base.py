@@ -124,20 +124,44 @@ class Recognizer:
     name: str = ""
 
     # WHERE THE WEIGHTS CAME FROM, printed into the detection log and the
-    # snapshot. An instance field, set in `__init__` -- declared here so that
-    # "the adapter has no `dir`" is a missing implementation and not an
-    # AttributeError from the middle of a run.
-    dir: str = ""
+    # snapshot. ANNOTATED, NOT DEFAULTED -- the first edition wrote `dir = ""`,
+    # which turned "this adapter forgot its weights directory" into a silent
+    # `weights 0 MB` in the log. That is the argument this file makes for
+    # `knobs_read` and `threshold_drift` having no default, applied here too:
+    # an adapter silent out of forgetfulness must be indistinguishable from
+    # nothing, which is what an AttributeError is.
+    dir: str
 
     # THE MODEL'S OWN VOCABULARY, in the model's own spelling. `detect.py`
-    # counts it and hands it to `policy.check`, so an empty one is not "no
-    # labels" but "this adapter did not say".
-    labels: tuple[str, ...] = ()
+    # counts it and hands it to `policy.check`; annotated for the same reason.
+    labels: tuple[str, ...]
+
+    # THE WEIGHTS FILE, whose size `books doctor` prints. Asked for softly --
+    # `getattr(det, "onnx", "")` in `cli.py` -- and therefore invisible to a
+    # check that only looked at `detect.py` and only at attribute nodes. All
+    # three adapters set it; the contract had never said so, and the cost of
+    # forgetting is a confident `weights 0 MB`.
+    onnx: str
 
     # Which policy describes that vocabulary. Empty means "work it out from
     # the labels" -- `detect.py` does exactly that and writes the answer back,
     # so this is the one member of the contract the pipeline may fill in.
     policy_name: str = ""
+
+    # WHAT `read` MUST PUT IN A PAGE'S `meta`, AND WHAT `fingerprint` MUST
+    # RETURN. Declaring the METHODS was not enough, and a skeptic proved it by
+    # writing an adapter to the contract as documented: it imported cleanly,
+    # ran, and fell three times in a row on `page.meta["rank_ties"]`,
+    # `page.meta["best_rejected_by_class"]` and `fingerprint()["sha256_
+    # weights"]` -- subscripts, which no list of attribute names can see.
+    #
+    # These are REQUIRED, meaning the pipeline indexes them without a default
+    # and falls where they are missing. The soft ones -- `model`, `input`,
+    # `native_threshold`, `boxes_accepted` -- are read with `.get` and degrade
+    # to a poorer log; they are not listed, because listing them would say
+    # they are load-bearing when they are not.
+    PAGE_META_REQUIRED = ("rank_ties", "best_rejected_by_class")
+    FINGERPRINT_REQUIRED = ("sha256_weights",)
 
     def fingerprint(self) -> dict:
         """What tells this run from another: weights, prompts, versions.

@@ -147,6 +147,17 @@ def test_the_code_emits_exactly_the_declared_html_attributes():
         f"declaration names {sorted(declared - found)} the code never writes")
 
 
+def _code_only(src: str) -> str:
+    """The source with docstrings and comments removed, roughly.
+
+    Only good enough to tell an emission from a mention: triple-quoted blocks
+    go whole and comments go by line. A `class=` surviving both is code.
+    """
+    text = re.sub(r'"""(?:.|\n)*?"""', "", src)
+    text = re.sub(r"\'\'\'(?:.|\n)*?\'\'\'", "", text)
+    return "\n".join(re.sub(r"#.*$", "", ln) for ln in text.split("\n"))
+
+
 def test_the_code_emits_exactly_the_declared_html_classes():
     """The same pairing for the CLASS names, which nothing guarded at all.
 
@@ -159,17 +170,40 @@ def test_the_code_emits_exactly_the_declared_html_classes():
     MathJax writes classes of its own into the same file, so the CODE is the
     side compared here -- `books html` emits exactly one, and the built book
     is checked for the same name below.
+
+    AND EVERY `class=` IS ACCOUNTED FOR, not only the ones a regexp can read.
+    A pattern for `class="literal"` misses a single-quoted attribute, an
+    f-string hole, a concatenation, a `%s`, a `.format`, an unquoted value and
+    a split literal -- eight forms, each of which would have left this check
+    green over an undeclared class. It cannot parse them, so it REFUSES to
+    judge them: any `class=` it cannot read as a plain declared literal fails
+    and says so, which is the difference between "checked" and "did not look".
+    The whole `doc/` package is read, not three files of it.
     """
     src = ""
-    for name in ("html.py", "apply.py", "swap.py"):
-        src += open(os.path.join(support.SRC, "doc", name),
-                    encoding="utf-8").read()
-    found = {c for c in re.findall(r'class="([\wЀ-ӿ -]+)"', src)}
+    for name in sorted(os.listdir(os.path.join(support.SRC, "doc"))):
+        if name.endswith(".py"):
+            src += open(os.path.join(support.SRC, "doc", name),
+                        encoding="utf-8").read()
+    plain = re.compile(r'class="([\wЀ-ӿ-]+)"')
+    found = set(plain.findall(src))
     declared = set(schema.HTML_CLASSES)
     assert found == declared, (
         f"code emits classes {sorted(found - declared)} that are not "
         f"declared; declaration names {sorted(declared - found)} the code "
         f"never writes")
+
+    # Every `class=` in the package must be one this check could read. Prose
+    # is stripped first: a comment naming a class is not an emission, and a
+    # check that reddens on prose gets switched off.
+    code = _code_only(src)
+    seen = len(plain.findall(code))
+    total = len(re.findall(r"class=", code))
+    assert seen == total, (
+        f"{total - seen} of {total} `class=` in doc/ are not a plain declared "
+        f"literal -- an apostrophe-quoted attribute, an f-string hole, a "
+        f"concatenation, or two classes in one attribute. This check cannot "
+        f"read those, and will not claim to have checked them")
 
 
 def test_the_built_book_carries_the_declared_classes():
