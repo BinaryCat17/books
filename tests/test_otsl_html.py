@@ -84,8 +84,8 @@ def test_no_cell_disappears_in_translation():
     s = "<fcel>a<fcel>b<fcel>c<nl><fcel>1<lcel><fcel>3<nl>"
     g, _ = otsl.parse(s)
     cs, t = otsl.layout(s)
-    адресов = sum(c["rows"] * c["cols"] for c in cs)
-    assert адресов == len(g) == 6, (адресов, len(g))
+    address_count = sum(c["rows"] * c["cols"] for c in cs)
+    assert address_count == len(g) == 6, (address_count, len(g))
     assert otsl.to_html(s).count("<td") == 5
 
 
@@ -135,14 +135,14 @@ def test_one_walk_serves_both_readers():
 
     import support
     t = support.tree("otsl.py")
-    for имя in ("parse", "layout", "to_html"):
+    for name in ("parse", "layout", "to_html"):
         fn = next(n for n in ast.walk(t)
-                  if isinstance(n, ast.FunctionDef) and n.name == имя)
-        свои = [n for n in ast.walk(fn)
+                  if isinstance(n, ast.FunctionDef) and n.name == name)
+        ours = [n for n in ast.walk(fn)
                 if isinstance(n, ast.Attribute)
                 and isinstance(n.value, ast.Name) and n.value.id == "_TOK"]
-        assert not свои, (
-            f"{имя} разбирает теги сам (строка {свои[0].lineno}) — это второй "
+        assert not ours, (
+            f"{name} разбирает теги сам (строка {ours[0].lineno}) — это второй "
             f"экземпляр обхода, и он разойдётся с первым")
 
 

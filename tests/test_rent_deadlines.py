@@ -39,7 +39,7 @@ class _FakeSsh(rbox.Box):
     _addr = "root@nowhere"
 
 
-class _Поток:
+class _Stream:
     """Труба, отдающая байты с заданной скоростью. Заменяет ssh к машине."""
 
     def __init__(self, mbps, total=None):
@@ -49,17 +49,17 @@ class _Поток:
 
     def read(self, n):
         # Сколько байт «успело прийти» к этому моменту при заданной скорости.
-        должно = int(self.mbps * 1e6 / 8 * (time.time() - self.t0))
+        must_be = int(self.mbps * 1e6 / 8 * (time.time() - self.t0))
         if self.total is not None:
-            должно = min(должно, self.total)
-        дать = min(n, max(0, должно - self.sent))
-        if дать == 0:
+            must_be = min(must_be, self.total)
+        give = min(n, max(0, must_be - self.sent))
+        if give == 0:
             if self.total is not None and self.sent >= self.total:
                 return b""          # поток кончился
             time.sleep(0.01)
             return b"\x00"          # ещё не накопилось — но труба жива
-        self.sent += дать
-        return b"\x00" * дать
+        self.sent += give
+        return b"\x00" * give
 
     def kill(self):
         pass
@@ -71,12 +71,12 @@ class _Поток:
 def _probe_at(mbps, seconds=0.6, total=None):
     """Прогнать настоящий `Box.probe` против трубы заданной скорости."""
     import subprocess
-    было = subprocess.Popen
-    subprocess.Popen = lambda *a, **k: _Поток(mbps, total)
+    was = subprocess.Popen
+    subprocess.Popen = lambda *a, **k: _Stream(mbps, total)
     try:
         return _FakeSsh().probe(seconds=seconds)
     finally:
-        subprocess.Popen = было
+        subprocess.Popen = was
 
 
 def test_a_narrow_channel_is_measured_not_called_broken():
@@ -90,11 +90,11 @@ def test_a_narrow_channel_is_measured_not_called_broken():
 
     Умеет провалиться: верните счёт «пришло ли ровно mb мегабайт».
     """
-    узкий = _probe_at(1.16)
-    assert узкий > 0.5, (
-        f"канал 1.16 Мбит/с измерен как {узкий:.2f} — зонд снова путает "
+    narrow = _probe_at(1.16)
+    assert narrow > 0.5, (
+        f"канал 1.16 Мбит/с измерен как {narrow:.2f} — зонд снова путает "
         f"«мы медленные» со «машина сломана»")
-    assert узкий < 3.0, f"измерено {узкий:.2f} вместо ~1.16 — зонд врёт вверх"
+    assert narrow < 3.0, f"измерено {narrow:.2f} вместо ~1.16 — зонд врёт вверх"
 
 
 def test_a_broken_machine_still_gives_a_number_below_any_floor():
@@ -104,13 +104,13 @@ def test_a_broken_machine_still_gives_a_number_below_any_floor():
     половиной минут. Сделав зонд честным, легко было сделать его слепым:
     здесь он ГОНЯЕТСЯ против такой трубы и обязан вернуть число НИЖЕ порога.
     """
-    сломанная = _probe_at(0.062)
-    assert сломанная < 0.3, (
-        f"машина с 62 кбит/с измерена как {сломанная:.2f} Мбит/с — зонд "
+    broken = _probe_at(0.062)
+    assert broken < 0.3, (
+        f"машина с 62 кбит/с измерена как {broken:.2f} Мбит/с — зонд "
         f"перестал отличать сломанную от медленной")
-    здоровая = _probe_at(50.0)
-    assert здоровая > 10.0, (
-        f"здоровая машина измерена как {здоровая:.1f} Мбит/с — зонд занижает")
+    healthy = _probe_at(50.0)
+    assert healthy > 10.0, (
+        f"здоровая машина измерена как {healthy:.1f} Мбит/с — зонд занижает")
 
 
 def test_a_dead_channel_is_the_only_zero():
@@ -176,12 +176,12 @@ def _blame_with(link, best, ours, limit=None):
     `limit` в подписи нет вовсе — и это тоже проверяется: решение о вечном
     списке не смеет зависеть от порога отбраковки.
     """
-    занесённые = []
+    recorded = []
     runner.blame_machine({"machine_id": 777}, "проба", ours=ours, link=link,
                          best_link=best,
-                         mark=lambda mid, why: занесённые.append((mid, why)),
+                         mark=lambda mid, why: recorded.append((mid, why)),
                          say=lambda *a: None)
-    return занесённые
+    return recorded
 
 
 def test_a_machine_is_blamed_only_with_a_witness():
@@ -210,9 +210,9 @@ def test_the_verdict_cannot_depend_on_the_rejection_floor():
     Теперь её нет в подписи вовсе — это и есть самая крепкая форма запрета.
     """
     import inspect
-    имена = set(inspect.signature(runner.blame_machine).parameters)
-    assert "limit" not in имена and "floor" not in имена, (
-        f"порог вернулся в сторож вечного списка: {sorted(имена)}. Ослабляя "
+    names = set(inspect.signature(runner.blame_machine).parameters)
+    assert "limit" not in names and "floor" not in names, (
+        f"порог вернулся в сторож вечного списка: {sorted(names)}. Ослабляя "
         f"порог, чтобы пропустить машины, мы снова начнём легче их банить")
 
 
@@ -246,12 +246,12 @@ def test_destroy_backs_off_instead_of_hammering():
     попытки дольше её отсрочки — значит платить за ожидание впустую.
     """
     from booksmith.remote.vast import Vast
-    шаги = list(Vast.RETRY_S)
-    assert шаги == sorted(шаги) and шаги[-1] > шаги[0] * 4, (
-        f"отступы не растут: {шаги}. На отказ по частоте нельзя отвечать той "
+    steps = list(Vast.RETRY_S)
+    assert steps == sorted(steps) and steps[-1] > steps[0] * 4, (
+        f"отступы не растут: {steps}. На отказ по частоте нельзя отвечать той "
         f"же частотой")
-    assert sum(шаги) < 900, (
-        f"сумма отступов {sum(шаги)} с не меньше отсрочки дозора мертвеца "
+    assert sum(steps) < 900, (
+        f"сумма отступов {sum(steps)} с не меньше отсрочки дозора мертвеца "
         f"(900 с) — ждём дольше, чем машина живёт сама")
 
 
@@ -267,20 +267,20 @@ def test_a_refusal_of_access_is_named_apart_from_a_stubborn_machine():
 
     from booksmith.remote import vast as vmod
 
-    было_sleep, было_log = _t.sleep, vmod.log
-    сказано = []
+    was_sleep, was_log = _t.sleep, vmod.log
+    stated = []
     v = vmod.Vast.__new__(vmod.Vast)
     v.v = _FakeVastApi("403 Client Error: Forbidden")
     _t.sleep = lambda s: None
-    vmod.log = сказано.append
+    vmod.log = stated.append
     try:
         assert v.destroy(1) is False
     finally:
-        _t.sleep, vmod.log = было_sleep, было_log
-    всё = "\n".join(сказано)
-    assert "ОТКАЗ ДОСТУПА" in всё, (
-        f"403 назван как обычная неудача уничтожения:\n{всё[:400]}")
-    assert "спросить некого" in всё, (
+        _t.sleep, vmod.log = was_sleep, was_log
+    everything = "\n".join(stated)
+    assert "ОТКАЗ ДОСТУПА" in everything, (
+        f"403 назван как обычная неудача уничтожения:\n{everything[:400]}")
+    assert "спросить некого" in everything, (
         "«жив» после отказа доступа выдаётся за наблюдение")
 
 
@@ -291,20 +291,20 @@ class _BoxThatFailsAfterPulse:
     заводится ДО первой сетевой команды, а падает она штатно.
     """
 
-    заведённые: list = []
+    declared: list = []
 
     def __init__(self, *a, **kw):
-        self.пульс = False
-        _BoxThatFailsAfterPulse.заведённые.append(self)
+        self.pulse = False
+        _BoxThatFailsAfterPulse.declared.append(self)
 
     def wait_ready(self, **kw):
         pass
 
     def start_heartbeat(self):
-        self.пульс = True
+        self.pulse = True
 
     def stop_heartbeat(self):
-        self.пульс = False
+        self.pulse = False
 
     def check_deadman(self):
         raise OSError("ssh замолчал сразу после пульса")
@@ -326,8 +326,8 @@ def test_a_failed_connect_leaves_no_machine_with_a_live_pulse():
     Ни одной строки в журнал при этом не печаталось, то есть беда была
     невидима и по выводу.
     """
-    _BoxThatFailsAfterPulse.заведённые = []
-    было = runner.Box
+    _BoxThatFailsAfterPulse.declared = []
+    was = runner.Box
     runner.Box = _BoxThatFailsAfterPulse
     try:
         for iid in (1001, 1002):
@@ -337,15 +337,15 @@ def test_a_failed_connect_leaves_no_machine_with_a_live_pulse():
             except OSError:
                 pass
     finally:
-        runner.Box = было
+        runner.Box = was
 
-    заведено = _BoxThatFailsAfterPulse.заведённые
-    assert len(заведено) == 2, (
-        f"подставная машина заведена {len(заведено)} раз вместо двух — "
+    declared_n = _BoxThatFailsAfterPulse.declared
+    assert len(declared_n) == 2, (
+        f"подставная машина заведена {len(declared_n)} раз вместо двух — "
         f"проверка не дошла до места, которое стережёт")
-    живые = [i for i, b in enumerate(заведено, 1) if b.пульс]
-    assert not живые, (
-        f"после отказа связи пульс остался жив у машин {живые}. Наш поток "
+    live = [i for i, b in enumerate(declared_n, 1) if b.pulse]
+    assert not live, (
+        f"после отказа связи пульс остался жив у машин {live}. Наш поток "
         f"будет оживлять брошенную машину до конца прогона, и дозор мертвеца "
         f"на ней выключен — гасить обязан тот, кто завёл")
 

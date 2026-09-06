@@ -99,13 +99,13 @@ def test_both_copies_of_parse_pages_agree():
     from booksmith.detect import parse_pages as canon
     other = _dots_parse_pages()
 
-    расхождения = []
+    mismatches = []
     for value in TABLE:
         a, b = _outcome(canon, value), _outcome(other, value)
         if a != b:
-            расхождения.append(f"  «{value}»: detect {a} != dots {b}")
-    assert not расхождения, (
-        "копии разбора `--pages` разошлись:\n" + "\n".join(расхождения)
+            mismatches.append(f"  «{value}»: detect {a} != dots {b}")
+    assert not mismatches, (
+        "копии разбора `--pages` разошлись:\n" + "\n".join(mismatches)
         + "\nПравка в одной обязана повторяться в другой: "
           "`detect.parse_pages` и `models/dots_ocr/entrypoint.parse_pages`. "
           "Разбирается это на арендованной карте, где отказ стоит денег.")
@@ -142,10 +142,10 @@ def test_a_space_separates_pages_in_both_copies():
     from booksmith.detect import parse_pages as canon
     other = _dots_parse_pages()
 
-    for fn, имя in ((canon, "detect"), (other, "dots_ocr")):
+    for fn, name in ((canon, "detect"), (other, "dots_ocr")):
         assert _outcome(fn, "1 3") == ("pages", [0, 2]), (
-            f"{имя}: «1 3» не понято как две страницы. Пробел обязан "
+            f"{name}: «1 3» не понято как две страницы. Пробел обязан "
             f"разделять так же, как запятая")
         assert _outcome(fn, "x") == ("отказ вслух", None), (
-            f"{имя}: мусор в `--pages` обязан быть отказом ВСЛУХ, с образцом "
+            f"{name}: мусор в `--pages` обязан быть отказом ВСЛУХ, с образцом "
             f"и кодом возврата, а не трассировкой")

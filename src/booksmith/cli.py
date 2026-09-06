@@ -235,7 +235,7 @@ def cmd_html(a):
     #
     # `наш_каталог` живёт в `doc/html.py` рядом с тем, кто слепок пишет.
     if (not a.out and os.path.isdir(out) and os.listdir(out)
-            and not html_mod.наш_каталог(out)):
+            and not html_mod.is_our_dir(out)):
         raise SystemExit(
             f"в {out} уже лежит что-то не наше: нет ни "
             f"`{html_mod.ASSETS}/run.json`, ни `run.json` в корне — значит "

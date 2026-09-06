@@ -162,14 +162,14 @@ def test_veto_does_not_depend_on_the_height_of_the_scan():
     где скан вышел в 599 строк) и не получили 8 (601 и 604). Решала высота
     скана, а не содержимое листа.
     """
-    ответы = []
+    answers = []
     for rows in (599, 601):
         doc, pg = _spread(rows=rows, draw=[(0, 0, WIDE, 3)])
-        ответы.append(_cut(doc, pg) is None)
-    assert ответы[0] == ответы[1], (
-        f"проба 599 строк -> вето {ответы[0]}, проба 601 строка -> "
-        f"вето {ответы[1]}: решение зависит от высоты скана, а не от листа")
-    assert not ответы[0], "кромка листа не должна запрещать разрез вовсе"
+        answers.append(_cut(doc, pg) is None)
+    assert answers[0] == answers[1], (
+        f"проба 599 строк -> вето {answers[0]}, проба 601 строка -> "
+        f"вето {answers[1]}: решение зависит от высоты скана, а не от листа")
+    assert not answers[0], "кромка листа не должна запрещать разрез вовсе"
 
 
 def test_rule_near_the_edge_of_the_body_still_vetoes():

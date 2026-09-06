@@ -281,11 +281,11 @@ def dark_rows(pix, x):
     промеру нужны обе величины сырыми, иначе он перестанет показывать, что
     именно случилось на листе.
     """
-    сквозные, короткие = [], []
+    full_width, short = [], []
     need = pix.width * RULE_RUN
     for y, ln in dark_runs(pix, x):
-        (сквозные if ln >= need else короткие).append(y)
-    return сквозные, короткие
+        (full_width if ln >= need else short).append(y)
+    return full_width, short
 
 
 def body_band(pix):
@@ -361,18 +361,18 @@ def to_pdf(src, dst=None, split="auto", log=print):
     src = os.path.abspath(src)
     if dst is None:
         dst = os.path.splitext(src)[0] + ".pdf"
-    метка = f"{src}|{split}"
+    mark = f"{src}|{split}"
     if (os.path.exists(dst)
             and os.path.getmtime(dst) >= os.path.getmtime(src)):
-        готовый = pymupdf.open(dst)
-        было = (готовый.metadata or {}).get("keywords") or ""
-        n = готовый.page_count
-        готовый.close()
-        if было == метка:
+        ready = pymupdf.open(dst)
+        was = (ready.metadata or {}).get("keywords") or ""
+        n = ready.page_count
+        ready.close()
+        if was == mark:
             log(f"уже развёрнут: {os.path.basename(dst)} ({n} стр.)")
             return dst
         log(f"пересобираю {os.path.basename(dst)}: собран "
-            + (f"из другого входа ({было})" if было else "прежней версией"))
+            + (f"из другого входа ({was})" if was else "прежней версией"))
 
     n_src = pages(src)
     log(f"{os.path.basename(src)}: страниц в файле {n_src}")
@@ -420,7 +420,7 @@ def to_pdf(src, dst=None, split="auto", log=print):
             made += 1
     # ДО save, а не после: метаданные, поставленные после записи, на диск не
     # попадают вовсе, и проверка свежести тихо перестаёт работать.
-    out.set_metadata({"keywords": метка})
+    out.set_metadata({"keywords": mark})
     out.save(dst, garbage=3, deflate=True)
     out.close()
     doc.close()

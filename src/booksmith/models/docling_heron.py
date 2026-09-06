@@ -489,10 +489,10 @@ class _DoclingPipeline:
                 # артефакт (formula) уехал в обёртку-КАРТИНКУ, которую второй
                 # уровень вырежет целиком.
                 if policy.role(lab) == "text":
-                    арт = [k for k in ch
+                    art = [k for k in ch
                            if policy.role(k["label"]) == "artifact"]
-                    arte_in_text += len(арт)
-                    arte_lost += sum(1 for k in арт
+                    arte_in_text += len(art)
+                    arte_lost += sum(1 for k in art
                                      if k["id_before_pipeline"] not in top)
             out.append(Block(
                 block_id=i,
@@ -773,19 +773,19 @@ class DoclingHeron(Recognizer):
         # журнале, не сверяется с ожидаемой — на чём проект уже терял вечера.
         if self._pipe is not None and self._pipe.pages:
             it = self._pipe.fingerprint()["summary"]
-            доля = (100.0 * it["boxes_after"] / it["boxes_before"]
+            share = (100.0 * it["boxes_after"] / it["boxes_before"]
                     if it["boxes_before"] else 0.0)
-            правила = (str(it["reordered_by_order_rules"])
+            rules = (str(it["reordered_by_order_rules"])
                        if self._pipe.mode == "full" else "— (не звались)")
             # `post` порядок МЕНЯЕТ: сортировка постобработчика идёт по точным
             # (верх, лево), а не по нашему ключу round(y/20).
-            порядок = ("ПРАВИЛА ВЕНДОРА (reading_order_rb, не модель)"
+            order = ("ПРАВИЛА ВЕНДОРА (reading_order_rb, не модель)"
                        if self._pipe.mode == "full" else
                        "пересортирован постобработчиком docling по "
                        "(верх, лево), ранга модели нет")
             print(f"конвейер docling {self._pipe.mode}: страниц "
                   f"{it['page_count']}, рамок {it['boxes_before']} -> "
-                  f"{it['boxes_after']} ({доля:.1f}%), ушло в дети "
+                  f"{it['boxes_after']} ({share:.1f}%), ушло в дети "
                   f"{it['moved_to_children']}, из них артефактов в текстовых "
                   f"обёртках {it['artifact_boxes_in_text_wrappers']} "
                   f"(пропало из верхнего списка "
@@ -794,7 +794,7 @@ class DoclingHeron(Recognizer):
                   f"{it['boxes_reordered']} (сортировка постобработчика "
                   f"сдвинула "
                   f"{it['reordered_by_postprocessor_sort']}, правила "
-                  f"переставили {правила}); порядок чтения {порядок}")
+                  f"переставили {rules}); порядок чтения {order}")
         return {
             "name": self.name,
             "model": getattr(self, "полное_имя",
@@ -928,10 +928,10 @@ class DoclingEgret(DoclingHeron):
     """
     name = "docling-egret"
     policy_name = "Docling-egret"
-    архитектура = "D-FINE"
+    architecture = "D-FINE"
 
     def __init__(self, model_dir: str | None = None):
-        self.полное_имя = "docling-layout-egret-medium (D-FINE)"
+        self.full_name = "docling-layout-egret-medium (D-FINE)"
         super().__init__(model_dir or os.path.join(MODELS, "docling-egret_onnx"))
         names = [i.name for i in self.sess.get_inputs()]
         if names != ["pixel_values"]:

@@ -309,27 +309,27 @@ class Vast:
     RETRY_S = (4, 8, 16, 32, 60)
 
     def destroy(self, iid: int) -> bool:
-        for attempt, пауза in enumerate(self.RETRY_S):
-            отказ = None
+        for attempt, pause in enumerate(self.RETRY_S):
+            refusal = None
             try:
                 self.v.destroy_instance(id=int(iid))
             except Exception as e:
-                отказ = e
+                refusal = e
                 # ОТКАЗ ДОСТУПА — ЭТО ДРУГАЯ БЕДА, и звать её надо иначе.
                 # «Уничтожение не сработало» значит «машина не послушалась»;
                 # 403 и 429 значат «нас не пускают», и тогда бессмысленна не
                 # только эта попытка, но и проверка `alive` следом — она
                 # вернёт «жив» просто потому, что спросить некого.
-                нас_не_пускают = any(k in str(e) for k in ("403", "429"))
+                we_are_refused = any(k in str(e) for k in ("403", "429"))
                 log(f"  попытка {attempt+1} уничтожить не удалась: {e}"
                     + ("  — это ОТКАЗ ДОСТУПА, а не отказ машины: дальше жду "
-                       "дольше, чтобы не долбить" if нас_не_пускают else ""))
-            time.sleep(пауза)
+                       "дольше, чтобы не долбить" if we_are_refused else ""))
+            time.sleep(pause)
             if not self.alive(iid):
                 log(f"инстанс {iid} УНИЧТОЖЕН, проверено — деньги больше не идут")
                 return True
             log(f"  всё ещё жив после попытки {attempt+1}"
-                + (" (или спросить некого)" if отказ else "") + ", повторяю")
+                + (" (или спросить некого)" if refusal else "") + ", повторяю")
         log(f"!!! НЕ СМОГ УНИЧТОЖИТЬ {iid} — С ТЕБЯ ПРОДОЛЖАЮТ БРАТЬ ДЕНЬГИ.\n"
             f"!!! Убей вручную: vastai destroy instance {iid} -y\n"
             f"!!! или https://cloud.vast.ai/instances/")

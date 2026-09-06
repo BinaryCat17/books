@@ -349,12 +349,12 @@ def test_model_bytes_are_untouched():
     import tempfile
     tmp = tempfile.mkdtemp()
     _book(tmp)
-    грязь = "  <b>не закрыт &amp;\n\tпробелы  "
-    out, _ = _run(tmp, {"OCR:": {"text": грязь},
+    dirt = "  <b>не закрыт &amp;\n\tпробелы  "
+    out, _ = _run(tmp, {"OCR:": {"text": dirt},
                         "Table Recognition:": {"text": "<fcel>a<nl>"}})
     with open(os.path.join(out, "pages", "0000.json"), encoding="utf-8") as f:
         p = Page.from_json(json.load(f))
-    assert p.blocks[0].content == грязь
+    assert p.blocks[0].content == dirt
 
 
 def test_observed_lives_beside_not_inside():

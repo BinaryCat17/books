@@ -195,17 +195,17 @@ NORM_REFUSED = ("головная пунктуация (снимает 139, вр
 #
 # Списки объявлены поимённо, а не правилом «всё, что похоже на команду»:
 # `\alpha` смыслом ЯВЛЯЕТСЯ, и выбросить его было бы порчей.
-_НАЧЕРТАНИЕ = ("mathrm", "mathbf", "mathit", "mathsf", "mathtt", "text",
+_TYPEFACE = ("mathrm", "mathbf", "mathit", "mathsf", "mathtt", "text",
                "textrm", "textbf", "textit", "boldsymbol", "operatorname",
                "left", "right", "displaystyle", "limits",
                "bf", "rm", "it", "mbox", "hbox")
 # Команды, которые в наборе И ЕСТЬ пробел. Снять их без следа значило бы
 # склеить слова, которые автор развёл.
-_ПРОБЕЛ = ("quad", "qquad")
-_ОБЁРТКА = re.compile(r"^\s*(?:\\\[|\\\(|\$\$|\$)|(?:\\\]|\\\)|\$\$|\$)\s*$")
-_НАЧ = re.compile(r"\\(" + "|".join(_НАЧЕРТАНИЕ) + r")(?![a-zA-Z])")
-_ПРОБ = re.compile(r"\\(" + "|".join(_ПРОБЕЛ) + r")(?![a-zA-Z])")
-_ИНДЕКС = re.compile(r"[_^]\{([^{}]*)\}")
+_SPACE = ("quad", "qquad")
+_WRAPPER = re.compile(r"^\s*(?:\\\[|\\\(|\$\$|\$)|(?:\\\]|\\\)|\$\$|\$)\s*$")
+_HEAD = re.compile(r"\\(" + "|".join(_TYPEFACE) + r")(?![a-zA-Z])")
+_SP = re.compile(r"\\(" + "|".join(_SPACE) + r")(?![a-zA-Z])")
+_INDEX = re.compile(r"[_^]\{([^{}]*)\}")
 
 
 def bare_math(s: str) -> str:
@@ -220,12 +220,12 @@ def bare_math(s: str) -> str:
     s = s.strip()
     # Обёртка снимается дважды: `\[` слева и `\]` справа — два разных конца.
     for _ in range(2):
-        s = _ОБЁРТКА.sub("", s).strip()
+        s = _WRAPPER.sub("", s).strip()
     s = (s.replace("^{\\circ}", "°").replace("^\\circ", "°")
          .replace("\\circ", "°"))
-    s = _ПРОБ.sub(" ", s)
-    s = _НАЧ.sub("", s)
-    s = _ИНДЕКС.sub(r"\1", s)
+    s = _SP.sub(" ", s)
+    s = _HEAD.sub("", s)
+    s = _INDEX.sub(r"\1", s)
     s = re.sub(r"[_^]", "", s)
     s = (s.replace("\\%", "%").replace("\\cdot", "·")
          .replace("\\times", "x"))
@@ -1502,7 +1502,7 @@ def _anchor_all(P):
     return Q
 
 
-def _anchor_all_paged(P, сдвиг=0):
+def _anchor_all_paged(P, shift=0):
     """Якорь ПОСТРАНИЧНОЙ метки `p0042-b17` — той, что пишет `doc/html`.
 
     Отдельно от `_anchor_all`, и это не удобство: голый номер страницы не
@@ -1516,7 +1516,7 @@ def _anchor_all_paged(P, сдвиг=0):
     """
     Q = copy.deepcopy(P)
     for i, _, b in _blocks(Q):
-        b.setdefault("meta", {})["anchor"] = f"p{i + сдвиг:04d}-b{b.get('block_id')}"
+        b.setdefault("meta", {})["anchor"] = f"p{i + shift:04d}-b{b.get('block_id')}"
     return Q
 
 
@@ -1834,14 +1834,14 @@ def mutations(truth_dir: str, pages_dir: str, log=print) -> int:
     # в сравнение не лезет.
     def anchor_gate():
         A = _anchor_all(P)
-        было = M(A)["matching"]
+        was = M(A)["matching"]
         # Ломать нечего: по якорю не сведён НИ ОДИН блок. Так бывает, когда
         # рамки ответа и без сдвига мимо истины — затвор уже сработал на всех,
         # и расти счётчику некуда. Первая редакция этой пробы требовала здесь
         # ПАДЕНИЯ ДОЛИ, а доля в таком входе уже ноль и ниже не идёт: батарея
         # печатала «НЕТ» на исправном приборе тем вернее, чем хуже прочитала
         # модель. Замер: доля 0.0 -> 0.0 при счётчике 0 -> 523.
-        if not было["by_anchor"]:
+        if not was["by_anchor"]:
             return None
         # Порча не состоялась: сдвиг на 0.9 меньшей стороны тонет в допуске
         # `metrics.TOL_PX` = 6 px, и при рамке до 6 px включительно ни одна не
@@ -1855,7 +1855,7 @@ def mutations(truth_dir: str, pages_dir: str, log=print) -> int:
                    for x, y in ((_box(a), _box(s)),)):
             return None
         return grew(M(S)["matching"]["anchor_box_mismatch"],
-                    было["anchor_box_mismatch"])
+                    was["anchor_box_mismatch"])
 
     probes.append(("с якорями рамки сдвинуты на 0.9",
                    "«якорь мимо рамки» растёт",
@@ -1874,13 +1874,13 @@ def mutations(truth_dir: str, pages_dir: str, log=print) -> int:
     # второй уровень находит, что заменять.
     def anchor_page_gate():
         A = _anchor_all_paged(P)
-        было = M(A)["matching"]
-        if not было["by_anchor"]:
+        was = M(A)["matching"]
+        if not was["by_anchor"]:
             return None
-        m = M(_anchor_all_paged(P, сдвиг=1))["matching"]
-        return (fell(m["share"], было["share"])
+        m = M(_anchor_all_paged(P, shift=1))["matching"]
+        return (fell(m["share"], was["share"])
                 and grew(m["anchor_wrong_page"],
-                         было["anchor_wrong_page"]))
+                         was["anchor_wrong_page"]))
 
     probes.append(("якорь называет соседнюю страницу при верном номере блока",
                    "сопоставление падает, «якорь на чужую страницу» растёт",

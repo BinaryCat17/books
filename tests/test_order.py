@@ -102,7 +102,7 @@ def test_an_unknown_rule_dies_loudly():
     одна метрика рамок этого не заметила бы.
     """
     import os
-    было = os.environ.get("ASSEMBLY_ORDER")
+    was = os.environ.get("ASSEMBLY_ORDER")
     os.environ["ASSEMBLY_ORDER"] = "сверхуВниз"
     try:
         order.rule()
@@ -111,10 +111,10 @@ def test_an_unknown_rule_dies_loudly():
     else:
         raise AssertionError("незнакомое правило принято молча")
     finally:
-        if было is None:
+        if was is None:
             os.environ.pop("ASSEMBLY_ORDER", None)
         else:
-            os.environ["ASSEMBLY_ORDER"] = было
+            os.environ["ASSEMBLY_ORDER"] = was
 
 
 def test_no_adapter_sorts_by_itself_any_more():
@@ -178,22 +178,22 @@ def test_the_ruler_measures_the_same_rule_the_book_is_built_with():
               None)
     assert fn is not None, "в metrics.py не стало _by_reading — сборщик снят?"
 
-    свои = [n.lineno for n in ast.walk(fn)
+    ours = [n.lineno for n in ast.walk(fn)
             if isinstance(n, ast.Call)
             and ((isinstance(n.func, ast.Name) and n.func.id == "sorted")
                  or (isinstance(n.func, ast.Attribute) and n.func.attr == "sort"))]
-    assert not свои, (
-        f"`_by_reading` снова сортирует сам (строки {свои}). Правило сборки "
+    assert not ours, (
+        f"`_by_reading` снова сортирует сам (строки {ours}). Правило сборки "
         f"живёт в `order.py`; вторая копия разойдётся с первой МОЛЧА, а на "
         f"этом сборщике стоит вывод «наше правило проиграло»")
 
-    зовёт = [n for n in ast.walk(fn)
+    calls = [n for n in ast.walk(fn)
              if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
              and n.func.attr == "permutation"]
-    assert зовёт, (
+    assert calls, (
         "`_by_reading` не зовёт `order.permutation` — прибор мерит не то "
         "правило, которым собирается книга")
-    named = {k.arg: k.value for c in зовёт for k in c.keywords}
+    named = {k.arg: k.value for c in calls for k in c.keywords}
     which = named.get("which")
     assert isinstance(which, ast.Constant) and which.value == "ours", (
         "`order.permutation` позван без `which=\"ours\"`. Без явного имени "

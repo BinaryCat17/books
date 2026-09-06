@@ -379,24 +379,24 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
         # СПЛОШНЫЕ ТЁМНЫЕ СТОЛБЦЫ — отдельной величиной, разбор при `GUTTER`.
         # Считаются по ВСЕМ чернилам листа, а не по потерянным: рамка на тени
         # переводит эти чернила в «найденное», и именно там они и врут.
-        колонки = ink.sum(axis=0) > h * GUTTER
-        if колонки.any():
-            res["ink_in_dark_columns"] += int(ink[:, колонки].sum())
+        columns = ink.sum(axis=0) > h * GUTTER
+        if columns.any():
+            res["ink_in_dark_columns"] += int(ink[:, columns].sum())
             # СВОЯ маска столбцов, а не строка из `edge`: та двумерная, и её
             # первые `k` СТРОК залиты целиком, так что `edge[0]` — сплошь
             # True. Взяв её, «вне края» вышло бы нулём всегда, и добавка
             # молча ничего бы не значила.
-            край_ст = np.zeros(w, bool)
-            край_ст[:k] = край_ст[-k:] = True
+            row_edge = np.zeros(w, bool)
+            row_edge[:k] = row_edge[-k:] = True
             res["ink_in_dark_columns_off_edge"] += int(
-                ink[:, колонки & ~край_ст].sum())
-            край_кол = np.diff(np.r_[0, колонки.astype(np.int8), 0])
-            нач = np.flatnonzero(край_кол == 1)
-            кон = np.flatnonzero(край_кол == -1)
-            res["dark_columns"] += len(нач)
+                ink[:, columns & ~row_edge].sum())
+            col_edge = np.diff(np.r_[0, columns.astype(np.int8), 0])
+            start = np.flatnonzero(col_edge == 1)
+            end = np.flatnonzero(col_edge == -1)
+            res["dark_columns"] += len(start)
             res["pages_with_dark_column"] += 1
             res["dark_columns_positions"].extend(
-                round(float(a + b) / 2 / w, 2) for a, b in zip(нач, кон))
+                round(float(a + b) / 2 / w, 2) for a, b in zip(start, end))
         res["sheet_area"] += ink.size
         res["boxes_area"] += int(both.sum())
         for b in T.get(i, {}).get("blocks", []):
@@ -540,18 +540,18 @@ def report(res: dict, log=print) -> None:
     # Тёмный столбец под рамкой засчитывается прибору как сохранённое
     # содержимое: 261 поддельная рамка ровно по этим полосам поднимает строку
     # выше с 85.7 % до 96.2 %, ничего не найдя.
-    столбцов = res["dark_columns"]
-    поз = res["dark_columns_positions"]
-    середина = sum(1 for x in поз if 0.2 <= x <= 0.8)
-    log(f"  сплошных тёмных столбцов {столбцов} на "
+    cols = res["dark_columns"]
+    pos = res["dark_columns_positions"]
+    middle = sum(1 for x in pos if 0.2 <= x <= 0.8)
+    log(f"  сплошных тёмных столбцов {cols} на "
         f"{res['pages_with_dark_column']} стр. (столбец тёмен более чем на "
         f"{GUTTER * 100:.0f}% высоты листа); чернил в них "
         f"{res['ink_in_dark_columns'] / ink * 100:.1f}% ВСЕХ, из них "
         f"{res['ink_in_dark_columns_off_edge'] / ink * 100:.1f}% вне "
         f"краевой полосы — этого строка выше не видит по построению. "
-        + (f"В середине листа (0.2..0.8 ширины) {середина} из {столбцов}: "
-           f"{'вероятно линейки таблиц, а не дефект скана' if середина else 'ни одного, то есть это края и переплёт'}"
-           if столбцов else "их нет — эта книга сканирована без тени переплёта")
+        + (f"В середине листа (0.2..0.8 ширины) {middle} из {cols}: "
+           f"{'вероятно линейки таблиц, а не дефект скана' if middle else 'ни одного, то есть это края и переплёт'}"
+           if cols else "их нет — эта книга сканирована без тени переплёта")
         + ". Рамка, накрывшая такой столбец, ПОВЫШАЕТ число под рамками, "
           "ничего не найдя")
     # ТРИ РАЗНЫХ НУЛЯ, И РАНЬШЕ ОНИ БЫЛИ ОДНИМ. «Истина не подана» печаталось

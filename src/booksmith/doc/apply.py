@@ -88,9 +88,9 @@ def load_journal(out_dir: str) -> dict:
         # 412 замен, на `ru20.read/html` — 17. Хуже, следующая замена завела
         # бы ВТОРОЙ журнал, а первый остался бы недостижим — ровно та беда,
         # от которой предостерегает докстрока выше, только с другой стороны.
-        старый = os.path.join(out_dir, "swaps.json")
-        if os.path.exists(старый):
-            p = старый
+        old = os.path.join(out_dir, "swaps.json")
+        if os.path.exists(old):
+            p = old
         else:
             return {"book": "book.html", "swaps": {}}
     try:
@@ -133,9 +133,9 @@ def save_journal(out_dir: str, j: dict) -> str:
     # два журнала: прочитанный в корне и записанный в `assets/`, — и стопка
     # отката разъехалась бы по двум файлам молча.
     p = os.path.join(out_dir, JOURNAL)
-    старый = os.path.join(out_dir, "swaps.json")
-    if not os.path.exists(p) and os.path.exists(старый):
-        p = старый
+    old = os.path.join(out_dir, "swaps.json")
+    if not os.path.exists(p) and os.path.exists(old):
+        p = old
     # Кухня могла ещё не появиться: `books html` её создаёт, а замена умеет
     # работать и над книгой, собранной не им. Журнал — наш файл, и заводить
     # для него каталог наше дело; отказ здесь означал бы «замена не удалась»
@@ -352,7 +352,7 @@ def _wrap_fragment(anchor: str, fragment: str, kind: str, source: str,
             + "</div>")
 
 
-def _счесть_в_книге(tally: dict, misshapen: list, anchor: str,
+def _count_in_book(tally: dict, misshapen: list, anchor: str,
                     body: str, kind: str) -> None:
     """Что легло в КНИГУ — числом. Отдельной функцией ради батареи порчи.
 
@@ -374,14 +374,14 @@ def _счесть_в_книге(tally: dict, misshapen: list, anchor: str,
         return
     from .. import otsl as _otsl
     cells, t = _otsl.layout(body)
-    объявлено = t.get("merges", 0)
+    announced = t.get("merges", 0)
     # ОБЪЯВЛЕНО и ВСТАЛО считаются ПОРОЗНЬ, из разных источников: первое —
     # метки модели, второе — клетки, реально получившие спан. Приравнять их
     # значит лишить прибор единственного способа показать потерю перевода.
-    встало = sum(1 for c in cells if c["rows"] > 1 or c["cols"] > 1)
-    tally["merges_declared"] += объявлено
-    tally["merges_in_book"] += встало
-    tally["tables_with_merges"] += bool(объявлено)
+    placed = sum(1 for c in cells if c["rows"] > 1 or c["cols"] > 1)
+    tally["merges_declared"] += announced
+    tally["merges_in_book"] += placed
+    tally["tables_with_merges"] += bool(announced)
 
 
 def _grid_tally(fragment: str, kind: str) -> dict | None:
@@ -498,13 +498,13 @@ def put(out_dir: str, anchor: str, fragment: str, kind: str = "html",
         # вернуть «поставлено 0» было бы вторым нулём от непонимания: «блок
         # уже несёт ровно это» и «замена не удалась» — разные ответы.
         j = load_journal(out_dir)
-        глубина = len(j["swaps"].get(anchor, []))
+        depth = len(j["swaps"].get(anchor, []))
         log(f"{anchor}: УЖЕ СТОИТ ровно это ({kind}, "
             f"{source or 'руками'}) — книга не тронута, стопка отката "
-            f"{глубина}")
+            f"{depth}")
         return {"anchor": anchor, "placed": 0, "already_placed": True,
                 "removed": 0, "anchor_count": len(swap.anchors(html)),
-                "undo_depth": глубина}
+                "undo_depth": depth}
     taken = entry["removed"]
     j = load_journal(out_dir)
     j["swaps"].setdefault(anchor, []).append(entry)
@@ -656,22 +656,22 @@ def source_of(out_dir: str) -> str | None:
     # каталога на другую машину. В слепке записан АБСОЛЮТНЫЙ путь, и он врёт
     # ровно тогда, когда книгу куда-то скопировали, — то есть в самый частый
     # случай.
-    свой = os.path.join(out_dir, SOURCE)
-    if os.path.isdir(os.path.join(свой, "pages")):
-        return свой
+    own = os.path.join(out_dir, SOURCE)
+    if os.path.isdir(os.path.join(own, "pages")):
+        return own
 
     p = os.path.join(out_dir, ASSETS, "run.json")
     if not os.path.exists(p):
         return None
     try:
         with open(p, encoding="utf-8") as f:
-            снимок = json.load(f)
+            snapshot = json.load(f)
     except ValueError:
         return None
-    путь = ((снимок.get("args") or {}).get("detect") or "").strip()
-    if not путь or not os.path.isdir(os.path.join(путь, "pages")):
+    path = ((snapshot.get("args") or {}).get("detect") or "").strip()
+    if not path or not os.path.isdir(os.path.join(path, "pages")):
         return None
-    return путь
+    return path
 
 
 def from_read(out_dir: str, read_dir: str, only_role: str = "artifact",
@@ -780,7 +780,7 @@ def from_read(out_dir: str, read_dir: str, only_role: str = "artifact",
             # `put_into` ОТКАЗАЛСЯ ставить, то есть говорил о книге то, чего
             # в ней нет. Верное место одно: после сторожей, до `continue` по
             # «уже стоит», — тогда число описывает КНИГУ, а не работу прогона.
-            _счесть_в_книге(tally, misshapen, anchor, body,
+            _count_in_book(tally, misshapen, anchor, body,
                             b.get("kind") or "html")
             if entry is None:            # уже лежит ровно это
                 tally["already_placed"] += 1
@@ -789,8 +789,8 @@ def from_read(out_dir: str, read_dir: str, only_role: str = "artifact",
             # Сверяем по sha ОТВЕТА МОДЕЛИ, а не по готовому телу: тело
             # различается ровно нашей обёрткой, и сравнивать надо то, за что
             # платили на карте.
-            прежние = j["swaps"].get(anchor) or []
-            if прежние and прежние[-1].get("sha256_model_answer") == \
+            previous = j["swaps"].get(anchor) or []
+            if previous and previous[-1].get("sha256_model_answer") == \
                     entry.get("sha256_model_answer"):
                 tally["rewrapped"] += 1
             j["swaps"].setdefault(anchor, []).append(entry)
@@ -867,15 +867,15 @@ def from_read(out_dir: str, read_dir: str, only_role: str = "artifact",
         # читает книгу ОДИН раз», заведённый после шестиминутного прогона.
         # Проверка на предупреждение не должна стоить того, о чём
         # предупреждает.
-        _книга = html
-        нет = [имя for имя, правило in
+        _book = html
+        absent = [name for name, rule in
                (("пометки обрыва", "[data-truncated]"),
                 ("рамки таблиц", "border-collapse"),
                 ("прокрутка широкой таблицы", 'div[data-level="2"]'))
-               if правило not in _книга]
-        if нет:
+               if rule not in _book]
+        if absent:
             log(f"  ВНИМАНИЕ: книга собрана прежним CSS — в ней нет правил для "
-                f"{', '.join(нет)}. Пометки и слияния в разметке ЕСТЬ, но "
+                f"{', '.join(absent)}. Пометки и слияния в разметке ЕСТЬ, но "
                 f"глазом их не видно. Пересоберите: `books html "
                 f"{os.path.join(out_dir, SOURCE)} --out {out_dir}` и повторите "
                 f"`books apply --from` (повтор бесплатен)")

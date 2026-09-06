@@ -25,12 +25,12 @@ from booksmith.doc import html as H
 from booksmith.models.base import Block, Page
 
 
-def _стр(*блоки):
+def _page(*blocks):
     return Page(index=0, width=100.0, height=100.0, dpi=144,
-                blocks=list(блоки))
+                blocks=list(blocks))
 
 
-def _б(i, box, content, label="text"):
+def _b(i, box, content, label="text"):
     return Block(block_id=i, box=box, label=label, score=0.9, order=i,
                  content=content, kind="text")
 
@@ -41,10 +41,10 @@ _covered = H._covered
 
 def test_a_nested_block_found_in_a_remaining_one_is_proven():
     """Формула внутри абзаца, чей текст её несёт, — доказанный повтор."""
-    абзац = _б(0, (0, 0, 100, 20), r"плавится при $1728^{\circ}\mathrm{C}$ вот")
-    формула = _б(1, (10, 5, 40, 12), r"\[1728^{\circ}\mathrm{C}\]",
+    para = _b(0, (0, 0, 100, 20), r"плавится при $1728^{\circ}\mathrm{C}$ вот")
+    formula = _b(1, (10, 5, 40, 12), r"\[1728^{\circ}\mathrm{C}\]",
                  label="inline_formula")
-    r = H.repeats_on(_стр(абзац, формула), _covered)
+    r = H.repeats_on(_page(para, formula), _covered)
     assert 1 in r and r[1][1] == "дословно", r
     # Хозяин назван по номеру блока, а не угадан.
     assert r[1][0] == 0, r
@@ -58,10 +58,10 @@ def test_a_nested_block_whose_text_is_absent_is_not_hidden():
     Спрятать недоказанное значило бы потерять текст молча. Два чтения одного
     места расходятся в транскрипции, но могут нести и разное.
     """
-    абзац = _б(0, (0, 0, 100, 20), "совсем про другое")
-    формула = _б(1, (10, 5, 40, 12), r"\[1728^{\circ}\mathrm{C}\]",
+    para = _b(0, (0, 0, 100, 20), "совсем про другое")
+    formula = _b(1, (10, 5, 40, 12), r"\[1728^{\circ}\mathrm{C}\]",
                  label="inline_formula")
-    r = H.repeats_on(_стр(абзац, формула), _covered)
+    r = H.repeats_on(_page(para, formula), _covered)
     assert r[1][1] == "расходится", r
 
 
@@ -70,9 +70,9 @@ def test_a_block_is_never_compared_with_itself():
 
     Ровно эта ошибка дала 99.0 % там, где верно 21.4 %.
     """
-    абзац = _б(0, (0, 0, 100, 20), "пусто")
-    один = _б(1, (10, 5, 40, 12), "уникальный текст", label="inline_formula")
-    r = H.repeats_on(_стр(абзац, один), _covered)
+    para = _b(0, (0, 0, 100, 20), "пусто")
+    one = _b(1, (10, 5, 40, 12), "уникальный текст", label="inline_formula")
+    r = H.repeats_on(_page(para, one), _covered)
     assert r[1][1] == "расходится", (
         "блок объявлен повтором, хотя его текста нет нигде, кроме него "
         f"самого — сличение идёт с самим собой: {r}")
@@ -84,10 +84,10 @@ def test_two_equal_nested_blocks_are_not_hidden_together():
     Каждый «есть у соседа», и наивное правило спрятало бы оба — текст исчез
     бы из книги совсем. Сличение поэтому идёт только с ОСТАЮЩИМИСЯ.
     """
-    абзац = _б(0, (0, 0, 100, 20), "рамка без этих слов")
-    a = _б(1, (10, 5, 40, 12), "одно и то же", label="inline_formula")
-    b = _б(2, (50, 5, 80, 12), "одно и то же", label="inline_formula")
-    r = H.repeats_on(_стр(абзац, a, b), _covered)
+    para = _b(0, (0, 0, 100, 20), "рамка без этих слов")
+    a = _b(1, (10, 5, 40, 12), "одно и то же", label="inline_formula")
+    b = _b(2, (50, 5, 80, 12), "одно и то же", label="inline_formula")
+    r = H.repeats_on(_page(para, a, b), _covered)
     assert r[1][1] == "расходится" and r[2][1] == "расходится", (
         f"оба повтора спрятаны — в книге не осталось ни одного: {r}")
 
@@ -102,14 +102,14 @@ def test_a_block_nested_in_an_artefact_is_not_a_candidate():
     # Содержимое подобрано так, чтобы текст формулы В НЁМ БЫЛ: иначе порча
     # «судить артефакт наравне с текстом» прошла бы незамеченной — тексты и
     # так не совпали бы, и проверка осталась бы зелёной ни на чём.
-    таблица = Block(block_id=0, box=(0, 0, 100, 20), label="table", score=0.9,
+    table = Block(block_id=0, box=(0, 0, 100, 20), label="table", score=0.9,
                     content=r"<fcel>1728^{\circ}\mathrm{C}<nl>", kind="otsl")
-    формула = _б(1, (10, 5, 40, 12), r"\[1728^{\circ}\mathrm{C}\]",
+    formula = _b(1, (10, 5, 40, 12), r"\[1728^{\circ}\mathrm{C}\]",
                  label="inline_formula")
     from booksmith import text as T
-    assert T.normalize(формула.content, "latex") in T.normalize(
-        таблица.content, "latex"), "фикстура не проверяет то, ради чего заведена"
-    r = H.repeats_on(_стр(таблица, формула), _covered)
+    assert T.normalize(formula.content, "latex") in T.normalize(
+        table.content, "latex"), "фикстура не проверяет то, ради чего заведена"
+    r = H.repeats_on(_page(table, formula), _covered)
     assert r.get(1, (None, ""))[1] != "дословно", (
         "блок объявлен повтором артефакта — но артефакт едет картинкой, и "
         f"если замена не придёт, текста в книге не останется вовсе: {r}")
@@ -117,9 +117,9 @@ def test_a_block_nested_in_an_artefact_is_not_a_candidate():
 
 def test_an_empty_block_is_not_a_candidate():
     """Блок без содержимого повтором не объявляется: сличать нечем."""
-    абзац = _б(0, (0, 0, 100, 20), "text")
-    пусто = _б(1, (10, 5, 40, 12), None, label="inline_formula")
-    r = H.repeats_on(_стр(абзац, пусто), _covered)
+    para = _b(0, (0, 0, 100, 20), "text")
+    blank = _b(1, (10, 5, 40, 12), None, label="inline_formula")
+    r = H.repeats_on(_page(para, blank), _covered)
     assert 1 not in r, r
 
 
@@ -159,10 +159,10 @@ def test_the_typeset_form_is_not_traded_for_the_raw_one():
     значило бы ухудшить вид страницы, ничего не выиграв: знаков столько же,
     вёрстки меньше.
     """
-    носитель = _б(0, (0, 0, 100, 20), "Рис. V.5. Диаграмма системы FeO-SiO_{2}")
-    формула = _б(1, (10, 5, 40, 12), r"\[\mathrm{FeO}-\mathrm{SiO}_{2}\]",
+    carrier = _b(0, (0, 0, 100, 20), "Рис. V.5. Диаграмма системы FeO-SiO_{2}")
+    formula = _b(1, (10, 5, 40, 12), r"\[\mathrm{FeO}-\mathrm{SiO}_{2}\]",
                  label="inline_formula")
-    r = H.repeats_on(_стр(носитель, формула), _covered)
+    r = H.repeats_on(_page(carrier, formula), _covered)
     assert r[1][1] == "вёрстка", (
         f"свёрстанная формула спрятана, а сырой латех оставлен: {r}")
 
@@ -173,11 +173,11 @@ def test_the_answer_names_the_carrier_not_the_enclosing_frame():
     Замер: у 23 из 841 названная рамка этого текста не содержала вовсе —
     проверяющий шёл по ссылке и текста не находил.
     """
-    рамка = _б(0, (0, 0, 60, 20), "пустая объемлющая рамка")
-    носитель = _б(1, (0, 0, 100, 40), "тут стоит 1728°C и точка")
-    формула = _б(2, (5, 5, 40, 12), r"\[1728^{\circ}\mathrm{C}\]",
+    box = _b(0, (0, 0, 60, 20), "пустая объемлющая рамка")
+    carrier = _b(1, (0, 0, 100, 40), "тут стоит 1728°C и точка")
+    formula = _b(2, (5, 5, 40, 12), r"\[1728^{\circ}\mathrm{C}\]",
                  label="inline_formula")
-    r = H.repeats_on(_стр(рамка, носитель, формула), _covered)
+    r = H.repeats_on(_page(box, carrier, formula), _covered)
     assert r[2][1] == "дословно", r
     assert r[2][0] == 1, (
         f"назван блок 0 (объемлющая рамка), а текст лежит в блоке 1: {r}")
@@ -190,9 +190,9 @@ def test_a_two_character_match_is_not_evidence():
     Порог объявлен именем `REPEAT_MIN`, его развёртка — при `repeats_on`.
     """
     assert H.REPEAT_MIN >= 3, H.REPEAT_MIN
-    носитель = _б(0, (0, 0, 100, 20), "при 50°C и далее")
-    коротыш = _б(1, (10, 5, 40, 12), r"\[50\]", label="inline_formula")
-    r = H.repeats_on(_стр(носитель, коротыш), _covered)
+    carrier = _b(0, (0, 0, 100, 20), "при 50°C и далее")
+    tiny = _b(1, (10, 5, 40, 12), r"\[50\]", label="inline_formula")
+    r = H.repeats_on(_page(carrier, tiny), _covered)
     assert r[1][1] == "расходится", (
         f"двузначное совпадение принято за доказательство: {r}")
 
@@ -204,11 +204,11 @@ def test_a_match_across_the_seam_of_two_blocks_is_not_evidence():
     ни в одном блоке: конец одного плюс начало другого. Текста при этом в
     книге нет, а блок будет спрятан.
     """
-    первый = _б(0, (0, 0, 100, 20), "конец строки абв")
-    второй = _б(1, (0, 20, 100, 40), "гдеж начало")
+    first = _b(0, (0, 0, 100, 20), "конец строки абв")
+    second = _b(1, (0, 20, 100, 40), "гдеж начало")
     # «абвгдеж» есть только на стыке: ни в одном блоке целиком его нет.
-    кандидат = _б(2, (5, 5, 40, 12), "абвгдеж", label="inline_formula")
-    r = H.repeats_on(_стр(первый, второй, кандидат), _covered)
+    candidate = _b(2, (5, 5, 40, 12), "абвгдеж", label="inline_formula")
+    r = H.repeats_on(_page(first, second, candidate), _covered)
     assert r[2][1] == "расходится", (
         "совпадение через шов принято за доказательство — такого текста в "
         f"книге нет ни в одном блоке: {r}")

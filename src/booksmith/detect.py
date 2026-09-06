@@ -368,15 +368,15 @@ def run(pdf, outdir, pages_spec=None, log=print):
             if pm:
                 pipe["page_count"] += 1
                 pipe["modes"].add(pm.get("mode"))
-                for ключ, поле in (("boxes_before", "before"),
+                for key, margin in (("boxes_before", "before"),
                                    ("boxes_after", "after"),
                                    ("moved_to_children", "children"),
                                    ("boxes_reordered", "reordered")):
-                    v = pm.get(ключ)
+                    v = pm.get(key)
                     if v is None:
-                        pipe["missing_numbers"].add(ключ)
+                        pipe["missing_numbers"].add(key)
                     else:
-                        pipe[поле] += int(v)
+                        pipe[margin] += int(v)
             with open(os.path.join(pagedir, f"{i:04d}.json"), "w",
                       encoding="utf-8") as f:
                 json.dump(page.to_json(), f, ensure_ascii=False)
@@ -402,18 +402,18 @@ def run(pdf, outdir, pages_spec=None, log=print):
 
     took = time.time() - t0
     total = sum(counts.values())
-    режим = "/".join(sorted(str(m) for m in pipe["modes"]))
-    был_конвейер = bool(pipe["page_count"])
+    mode = "/".join(sorted(str(m) for m in pipe["modes"]))
+    had_pipeline = bool(pipe["page_count"])
     # Пометка про этап ставится ТОЛЬКО когда конвейер и вправду работал: при
     # выключенном все числа и так от модели, и лишнее слово в строке сделало
     # бы прежние прогоны несравнимыми глазами на ровном месте.
-    этап_рамок = (f"после конвейера docling {режим}" if был_конвейер
+    box_stage = (f"после конвейера docling {mode}" if had_pipeline
                   else "у модели, конвейера над рамками не было")
     log(f"рамок {total} на {len(idxs)} страницах "
         f"({total/len(idxs):.1f} на страницу), артефактов {artefacts}, "
         f"связок рангов {ties}, {took:.1f} с ({took/len(idxs):.2f} с/страница)"
-        + (f" — все числа рамок ПОСЛЕ конвейера docling {режим}"
-           if был_конвейер else ""))
+        + (f" — все числа рамок ПОСЛЕ конвейера docling {mode}"
+           if had_pipeline else ""))
 
     # СНЯТОЕ КОНВЕЙЕРОМ — ОТДЕЛЬНАЯ ВЕЛИЧИНА, А НЕ ПОПРАВКА К «ПРИНЯТО».
     # Пока её не было, «text принято 130» при включённой ручке было
@@ -427,11 +427,11 @@ def run(pdf, outdir, pages_spec=None, log=print):
         log(f"ВНИМАНИЕ: на {mute_pages} страницах из {len(idxs)} адаптер "
             f"{det.name} не сказал «рамок принято» — сколько отдала сама "
             f"модель, сверить нечем; сложенное ниже неполно на эти страницы")
-    if был_конвейер:
-        снял = pipe["before"] - pipe["after"]
-        доля = 100.0 * снял / pipe["before"] if pipe["before"] else 0.0
-        log(f"конвейер docling {режим}: модель отдала рамок {pipe['before']}, "
-            f"он снял {снял} ({доля:.1f}%), в книгу пошло {pipe['after']}, "
+    if had_pipeline:
+        took = pipe["before"] - pipe["after"]
+        share = 100.0 * took / pipe["before"] if pipe["before"] else 0.0
+        log(f"конвейер docling {mode}: модель отдала рамок {pipe['before']}, "
+            f"он снял {took} ({share:.1f}%), в книгу пошло {pipe['after']}, "
             f"ушло в дети {pipe['children']}, переставлено {pipe['reordered']}, "
             f"страниц через него {pipe['page_count']} из {len(idxs)}")
         # По ярлыкам снятое НЕ разложено, и молчать об этом нельзя: иначе
@@ -488,26 +488,26 @@ def run(pdf, outdir, pages_spec=None, log=print):
     # числа об одном ярлыке в одной строке про разные этапы читатель
     # складывает в одно — и получает «рамка была на 0.02 ниже порога» там,
     # где она была принята моделью и снята потом вендором.
-    if был_конвейер:
-        log(f"    по классам ДВА ЭТАПА: «принято» — {этап_рамок}; «лучший "
+    if had_pipeline:
+        log(f"    по классам ДВА ЭТАПА: «принято» — {box_stage}; «лучший "
             f"отвергнутый» — порог модели ДО него. Складывать их нельзя.")
     else:
-        log(f"    по классам, оба числа от модели ({этап_рамок}): «принято» "
+        log(f"    по классам, оба числа от модели ({box_stage}): «принято» "
             f"— рамки выше порога, «лучший отвергнутый» — лучшая ниже него")
-    метка = " (после конвейера)" if был_конвейер else ""
-    метка_отв = ", ДО конвейера" if был_конвейер else ""
+    mark = " (после конвейера)" if had_pipeline else ""
+    answer_mark = ", ДО конвейера" if had_pipeline else ""
     for lab in shown:
-        line = f"    {lab:18s} принято{метка} {counts.get(lab, 0):5d}"
+        line = f"    {lab:18s} принято{mark} {counts.get(lab, 0):5d}"
         if lab in rej_best:
             line += (f", лучший отвергнутый {rej_best[lab]:.3f} "
-                     f"(стр. {rej_pages[lab]}{метка_отв})")
+                     f"(стр. {rej_pages[lab]}{answer_mark})")
         log(line)
     rest = {l: v for l, v in rej_best.items() if l not in shown}
     if rest:
         top = max(rest.items(), key=lambda kv: kv[1])
         log(f"    прочих классов отвергнуто {len(rest)}, "
             f"выше всех {top[0]} {top[1]:.3f}"
-            + (" (всё — порогом модели, ДО конвейера)" if был_конвейер
+            + (" (всё — порогом модели, ДО конвейера)" if had_pipeline
                else ""))
 
     if total == 0:
@@ -570,7 +570,7 @@ def run(pdf, outdir, pages_spec=None, log=print):
                  # реестре ручек, а числа в «итоге» — этапом.
                  "stages": {
                      "box_counts_stage":
-                         этап_рамок,
+                         box_stage,
                      "best_rejected_stage":
                          "порогом модели, ДО конвейера вендора",
                      # Неполная сумма — это НЕ величина: страница, о которой
@@ -582,7 +582,7 @@ def run(pdf, outdir, pages_spec=None, log=print):
                      "pages_without_boxes_accepted":
                          mute_pages,
                      "vendor_pipeline": {
-                         "stage_ran": был_конвейер,
+                         "stage_ran": had_pipeline,
                          "modes": sorted(str(m) for m in pipe["modes"]),
                          "pages_through_it": pipe["page_count"],
                          "pages_in_run": len(idxs),

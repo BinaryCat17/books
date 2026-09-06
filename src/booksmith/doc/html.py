@@ -189,10 +189,10 @@ def why_empty(o: dict | None) -> str:
         return "читали ли — сказать нечем: answers/ рядом нет"
     if o.get("error"):
         return f"ответа не было: {o['error']}"
-    чем = o.get("outcome")
-    if чем is None:
+    by_what = o.get("outcome")
+    if by_what is None:
         return "не спрашивали: маршрут пуст с объявленной причиной"
-    if чем == "length":
+    if by_what == "length":
         return "ответ оборван потолком длины"
     return "модель промолчала: ответ пришёл пустым"
 
@@ -225,7 +225,7 @@ def _figure(anchor, b, role, src, info, inside=None, mark="", why=None):
             f'<figcaption>{_html.escape(cap)}</figcaption></figure>')
 
 
-def наш_каталог(out_dir: str) -> bool:
+def is_our_dir(out_dir: str) -> bool:
     """Собран ли каталог `books html`. Признак — слепок, который пишет он сам.
 
     Старую раскладку (`run.json` в корне) признаём ТОЖЕ: книги, собранные до
@@ -268,27 +268,27 @@ def _keep_source(detect_dir: str, out_dir: str, log) -> dict:
     dst = os.path.join(out_dir, SOURCE)
     if os.path.abspath(detect_dir) == os.path.abspath(dst):
         return {"taken": "уже на месте"}
-    было = {}
+    was = {}
     if os.path.isdir(dst):
         shutil.rmtree(dst)
     os.makedirs(dst, exist_ok=True)
-    for имя in ("pages", "answers"):
-        src = os.path.join(detect_dir, имя)
+    for name in ("pages", "answers"):
+        src = os.path.join(detect_dir, name)
         if os.path.isdir(src):
-            shutil.copytree(src, os.path.join(dst, имя))
-            было[имя] = len(os.listdir(src))
-    for имя in ("run.json", "read_with.json"):
-        src = os.path.join(detect_dir, имя)
+            shutil.copytree(src, os.path.join(dst, name))
+            was[name] = len(os.listdir(src))
+    for name in ("run.json", "read_with.json"):
+        src = os.path.join(detect_dir, name)
         if os.path.isfile(src):
-            shutil.copy2(src, os.path.join(dst, имя))
-            было[имя] = 1
-    вес = sum(os.path.getsize(os.path.join(dp, f))
+            shutil.copy2(src, os.path.join(dst, name))
+            was[name] = 1
+    weight = sum(os.path.getsize(os.path.join(dp, f))
               for dp, _, fs in os.walk(dst) for f in fs)
     log(f"источник сохранён в {SOURCE}: "
-        + ", ".join(f"{k} {v}" for k, v in было.items())
-        + f"; {вес / 1e6:.1f} МБ. Книга пересобирается без него — "
+        + ", ".join(f"{k} {v}" for k, v in was.items())
+        + f"; {weight / 1e6:.1f} МБ. Книга пересобирается без него — "
           f"`books html {os.path.join(out_dir, SOURCE)}`")
-    return было
+    return was
 
 
 def observed(detect_dir: str) -> dict:
@@ -395,34 +395,34 @@ def repeats_on(page, covered) -> dict:
     первое значит оставить читателю `FeO-SiO_{2}` вместо формулы. Таких на
     книге 66, и они остаются видимыми.
     """
-    из_текста = [b for b in page.blocks
+    from_text = [b for b in page.blocks
                  if policy.role(b.label) != "artifact" and (b.content or "").strip()]
-    вложен = {b.block_id for b in из_текста
+    nested = {b.block_id for b in from_text
               if any(o.block_id != b.block_id and covered(b.box, o.box)
-                     for o in из_текста)}
+                     for o in from_text)}
     # ОСТАЮЩИЕСЯ — и только они. Кандидат, сличённый с другим кандидатом,
     # позволил бы спрятать обоих: каждый «есть у соседа», а в книге не
     # остаётся ни одного.
-    остаются = [b for b in из_текста if b.block_id not in вложен]
-    норма = {b.block_id: booktext.normalize(b.content, "latex") for b in остаются}
+    kept = [b for b in from_text if b.block_id not in nested]
+    norm = {b.block_id: booktext.normalize(b.content, "latex") for b in kept}
     out = {}
-    for b in из_текста:
-        if b.block_id not in вложен:
+    for b in from_text:
+        if b.block_id not in nested:
             continue
-        свой = booktext.normalize(b.content, "latex")
+        own = booktext.normalize(b.content, "latex")
         # НОСИТЕЛЬ, А НЕ РАМКА: тот блок, в котором доказательство и лежит.
-        носитель = next((o for o in остаются
-                         if len(свой) >= REPEAT_MIN and свой in норма[o.block_id]),
+        carrier = next((o for o in kept
+                         if len(own) >= REPEAT_MIN and own in norm[o.block_id]),
                         None)
-        почему = "расходится"
-        if носитель is not None:
-            почему = ("вёрстка" if _сырьё_у(носитель.content, b.content)
+        why = "расходится"
+        if carrier is not None:
+            why = ("вёрстка" if _raw_latex_at(carrier.content, b.content)
                       else "дословно")
-        out[b.block_id] = (носитель.block_id if носитель else None, почему)
+        out[b.block_id] = (carrier.block_id if carrier else None, why)
     return out
 
 
-def _сырьё_у(носитель: str, свой: str) -> bool:
+def _raw_latex_at(carrier: str, own: str) -> bool:
     r"""Носитель несёт то же СЫРЫМ латехом, а прячем мы свёрстанное.
 
     Отдельной функцией ради батареи порчи. Замер: 66 блоков книги, где
@@ -430,12 +430,12 @@ def _сырьё_у(носитель: str, свой: str) -> bool:
     `\[\mathrm{FeO}-\mathrm{SiO}_{2}\]`. Спрятать второе значило бы
     ухудшить вид страницы, ничего не выиграв.
     """
-    матем = ("\\[", "\\(", "$")
-    if not any(m in свой for m in матем):
+    math = ("\\[", "\\(", "$")
+    if not any(m in own for m in math):
         return False
-    if any(m in носитель for m in матем):
+    if any(m in carrier for m in math):
         return False
-    return bool(re.search(r"[_^]\{|\\[a-zA-Z]+", носитель))
+    return bool(re.search(r"[_^]\{|\\[a-zA-Z]+", carrier))
 
 
 def torn_of(o: dict | None) -> bool | None:
@@ -454,8 +454,8 @@ def torn_of(o: dict | None) -> bool | None:
     последним двум одно и то же `False` — то есть поле, заведённое ПРОТИВ
     слияния двух нулей, само их сливало.
     """
-    чем = (o or {}).get("outcome")
-    return None if чем is None else (чем == "length")
+    by_what = (o or {}).get("outcome")
+    return None if by_what is None else (by_what == "length")
 
 
 def torn_grid(grid: dict | None) -> str | None:
@@ -773,8 +773,8 @@ def _math(out_dir: str) -> tuple[str, str]:
     # разбиваем последовательность — приём старый и безопасный: для JS это
     # та же строка, для разборщика HTML — уже не конец тега.
     with open(MATHJAX, encoding="utf-8") as f:
-        код = f.read().replace("</script>", "<\\/script>")
-    return (cfg + f'<script id="MathJax-script">{код}</script>',
+        code = f.read().replace("</script>", "<\\/script>")
+    return (cfg + f'<script id="MathJax-script">{code}</script>',
             f"формулы рисует MathJax ВНУТРИ книги "
             f"(+{os.path.getsize(MATHJAX)/1e6:.1f} МБ) — ни сети, ни соседних "
             f"файлов не нужно")
@@ -843,7 +843,7 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
               "начнёт врать. Собирай в другой каталог либо убери swaps.json, "
               "если замены больше не нужны.")
 
-    ждём = []          # якоря в том порядке, в каком книга обязана их нести
+    expected = []          # якоря в том порядке, в каком книга обязана их нести
     files = sorted(glob.glob(os.path.join(detect_dir, "pages", "*.json")))
     if not files:
         raise SystemExit(f"в {detect_dir} нет страниц — сначала books detect")
@@ -926,7 +926,7 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
     # повторов на «Технологии огнеупоров», то есть у девятнадцати блоков
     # рамка вложена, а текст не сошёлся — и выбросить их из книги было бы
     # потерей.
-    повторов = расходится = вёрсткой = 0
+    repeat_count = differs = by_layout = 0
     # ЧЕЙ ПОРЯДОК СОБРАН — главное свойство книги и до сих пор нигде не
     # названное. `Block.order` у трёх адаптеров из четырёх не ранг модели, а
     # наша сортировка сверху вниз и слева направо; адаптер честно говорит об
@@ -943,7 +943,7 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
         order_src = _order_src(page)
         order_src_n[order_src] = order_src_n.get(order_src, 0) + 1
         arts = [b for b in page.blocks if policy.role(b.label) == "artifact"]
-        повторы_стр = repeats_on(page, _covered)
+        repeats_page = repeats_on(page, _covered)
         sheet = float(page.width) * float(page.height)
         share = _union_share([b.box for b in arts], sheet)
         # Чем плох лист — одним словом и одним правилом (`_sheet_trouble`).
@@ -968,12 +968,12 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
         # книги помечены глазу все (пустая вырезка, обрыв, пустой лист), а
         # единственная, которая УБИРАЕТ ТЕКСТ, оказалась немой: 728 блоков
         # исчезали без единого следа на странице.
-        скрыто_тут = sum(1 for v in повторы_стр.values() if v[1] == "дословно")
+        hidden_here = sum(1 for v in repeats_page.values() if v[1] == "дословно")
         body.append(
             f'<hr class="sheet" data-sheet="{page.index}" '
             f'data-image-share="{share:.2f}"'
-            + (f' data-repeats-hidden="{скрыто_тут}"'
-               if скрыто_тут and repeats_how == "hide" else "")
+            + (f' data-repeats-hidden="{hidden_here}"'
+               if hidden_here and repeats_how == "hide" else "")
             + (f' data-{trouble}="yes"' if trouble else '') + '>')
         cuts = []
         # ЧЕГО ЖДЁМ, И ПОЧЕМУ НЕ ВНУТРИ ЦИКЛА. Первая редакция копила
@@ -982,7 +982,7 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
         # порчами (reversed, сдвиг на один, потеря последнего) — НИ ОДНА не
         # поймалась. Ожидание обязано выводиться из `page.blocks` само по
         # себе, независимо от того, как их потом обходят.
-        ждём.extend(anchor_of(page.index, b.block_id) for b in page.blocks)
+        expected.extend(anchor_of(page.index, b.block_id) for b in page.blocks)
         for b in page.blocks:
             a = anchor_of(page.index, b.block_id)
             role = policy.role(b.label)
@@ -993,26 +993,26 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
             # Та же мерка вложения, но по ТЕКСТОВЫМ рамкам: слова, уехавшие в
             # книгу дважды, двумя <p>. Себя блок не накрывает; артефакты уже
             # посчитаны строкой выше и второй раз сюда не попадают.
-            снаружи = [o for o in page.blocks
+            outside = [o for o in page.blocks
                        if o.block_id != b.block_id
                        and policy.role(o.label) != "artifact"
                        and _covered(b.box, o.box)]
-            if role != "artifact" and снаружи:
+            if role != "artifact" and outside:
                 dup_in_text += 1
                 if role == "text" and any(policy.role(o.label) == "text"
-                                           for o in снаружи):
+                                           for o in outside):
                     dup_in_text_strict += 1
             # Решение о повторе принято ДО цикла, для всей страницы разом:
             # оно требует знать, какие блоки останутся, а внутри обхода это
             # ещё неизвестно.
-            повтор = повтор_текст = None
-            if b.block_id in повторы_стр:
-                хозяин_id, повтор_текст = повторы_стр[b.block_id]
-                повтор = (anchor_of(page.index, хозяин_id)
-                          if хозяин_id is not None else "page")
-                повторов += повтор_текст == "дословно"
-                расходится += повтор_текст == "расходится"
-                вёрсткой += повтор_текст == "вёрстка"
+            repeat = repeat_text = None
+            if b.block_id in repeats_page:
+                owner_id, repeat_text = repeats_page[b.block_id]
+                repeat = (anchor_of(page.index, owner_id)
+                          if owner_id is not None else "page")
+                repeat_count += repeat_text == "дословно"
+                differs += repeat_text == "расходится"
+                by_layout += repeat_text == "вёрстка"
             counts[role] += 1
             # ЧТО СКАЗАЛО ЧТЕНИЕ ПРО ЭТОТ БЛОК. Атрибут, а не правка текста:
             # `content` едет байтами модели, наблюдённое — рядом.
@@ -1020,14 +1020,14 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
             torn = torn_of(o)
             shape = torn_grid(o.get("otsl_grid"))
             mark = ' data-truncated="yes"' if torn else ""
-            if повтор:
+            if repeat:
                 # ПРИ `show` ПОМЕТКА ОСТАЁТСЯ, А СОКРЫТИЯ НЕТ: наблюдённое
                 # никуда не девается, выключается только его последствие.
-                вид = (повтор_текст if repeats_how == "hide"
+                kind = (repeat_text if repeats_how == "hide"
                        else ("показан по HTML_REPEATS=show"
-                             if повтор_текст == "дословно" else повтор_текст))
-                mark += (f' data-repeat="{повтор}"'
-                         f' data-repeat-text="{вид}"')
+                             if repeat_text == "дословно" else repeat_text))
+                mark += (f' data-repeat="{repeat}"'
+                         f' data-repeat-text="{kind}"')
             if shape:
                 mark += f' data-table-shape="{_html.escape(shape, quote=True)}"'
             if torn:
@@ -1074,8 +1074,8 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
                        # их сливало. Теперь `None` только там, где ответа не
                        # было: рядом нет `answers/` либо блок не спрашивали.
                        "hit_ceiling": torn,
-                       "repeat_of": повтор,
-                       "repeat_verdict": повтор_текст,
+                       "repeat_of": repeat,
+                       "repeat_verdict": repeat_text,
                        "table_shape": shape,
                        "label": b.label, "score": b.score,
                        # Поле звалось «ранг модели» и врало на трёх адаптерах
@@ -1174,16 +1174,16 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
     # Сверка стоит одного прохода по строке и ловит любую перестановку, не
     # только переворот. В отказе — МЕСТО расхождения: «книга собралась не в
     # том порядке» без места чинить нечем.
-    вышло = swap.anchors(page_html)
-    if вышло != ждём:
-        где = next((i for i, (a, b) in enumerate(zip(вышло, ждём)) if a != b),
-                   min(len(вышло), len(ждём)))
+    got = swap.anchors(page_html)
+    if got != expected:
+        where = next((i for i, (a, b) in enumerate(zip(got, expected)) if a != b),
+                   min(len(got), len(expected)))
         raise SystemExit(
             f"книга сложена НЕ в том порядке, в каком её обходили: якорей "
-            f"ждали {len(ждём)}, вышло {len(вышло)}; первое расхождение на "
-            f"месте {где} — ждали "
-            f"{ждём[где] if где < len(ждём) else '(конец)'}, вышло "
-            f"{вышло[где] if где < len(вышло) else '(конец)'}. Порядок книги "
+            f"ждали {len(expected)}, вышло {len(got)}; первое расхождение на "
+            f"месте {where} — ждали "
+            f"{expected[where] if where < len(expected) else '(конец)'}, вышло "
+            f"{got[where] if where < len(got) else '(конец)'}. Порядок книги "
             f"— это порядок чтения; перепутав его, документ остаётся "
             f"исправным на вид и нечитаемым по существу.")
 
@@ -1193,11 +1193,11 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
     # тихо перестаёт быть правдой, а у книги появляются два `blocks.json`,
     # и разные читатели берут разные. Сами не убираем: это чужие файлы с
     # чужой работой, и стереть их может только человек.
-    остатки = [n for n in ("blocks", "blocks.json", "run.json", "tex-svg.js")
+    leftovers = [n for n in ("blocks", "blocks.json", "run.json", "tex-svg.js")
                if os.path.exists(os.path.join(out_dir, n))]
-    if остатки:
+    if leftovers:
         log(f"ВНИМАНИЕ: в корне книги остались файлы прежней раскладки: "
-            f"{', '.join(остатки)}. Кухня теперь в `{ASSETS}/`, и эти —"
+            f"{', '.join(leftovers)}. Кухня теперь в `{ASSETS}/`, и эти —"
             f" второй, никем не читаемый экземпляр. Уберите их руками; "
             f"журнал замен `swaps.json` в корне при этом ЧИТАЕТСЯ и трогать "
             f"его нельзя.")
@@ -1278,10 +1278,10 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
                  # ОДНА ВЕЛИЧИНА — ОДНО ИМЯ. Здесь стояли два имени на каждое
                  # число, и второе («повтор текста ХОЗЯИНА») называло ровно то,
                  # чего правило не проверяет.
-                 "repeats_proven": повторов,
+                 "repeats_proven": repeat_count,
                  "repeats_mode": repeats_how,
-                 "nested_but_text_differs": расходится,
-                 "repeats_kept_for_layout": вёрсткой,
+                 "nested_but_text_differs": differs,
+                 "repeats_kept_for_layout": by_layout,
                  "comparison_normalization": booktext.norm_note("latex"),
                  "text_inside_text_box_strict":
                      dup_in_text_strict,
@@ -1361,7 +1361,7 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
     # ПРЯТАТЬ ДОКАЗАННОЕ МОЖНО, НЕДОКАЗАННОЕ — НЕЛЬЗЯ, и число каждого
     # печатается отдельно: иначе «спрятали 1935» звучало бы одинаково и там,
     # где сличение сошлось, и там, где нет.
-    if повторов + расходится + вёрсткой == 0:
+    if repeat_count + differs + by_layout == 0:
         # НОЛЬ ОТ НЕПОНИМАНИЯ, НАЗВАННЫЙ ВСЛУХ. На каталоге детекции без
         # чтения (`bench/slovar`) вложенных рамок 233, а содержимого нет ни у
         # одной — сличать нечем. Прежде строка печатала «доказано 0,
@@ -1369,12 +1369,12 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
         log(f"повторы: СЛИЧАТЬ НЕЧЕМ — вложенных рамок {dup_in_text}, "
             f"а содержимого нет ни у одной. Это не «повторов не найдено»")
     else:
-        log(f"из них ПОВТОР: доказано сличением {повторов} "
+        log(f"из них ПОВТОР: доказано сличением {repeat_count} "
             + ("(в книге СКРЫТЫ, разметка и источник на месте)"
                if repeats_how == "hide"
                else "(ПОКАЗАНЫ ВСЕ: HTML_REPEATS=show)")
-            + f", текст разошёлся у {расходится} (ПОКАЗАНЫ и "
-            f"помечены — доказать повтор нечем), у {вёрсткой} доказан, но "
+            + f", текст разошёлся у {differs} (ПОКАЗАНЫ и "
+            f"помечены — доказать повтор нечем), у {by_layout} доказан, но "
             f"ОСТАВЛЕН: носитель несёт то же сырым латехом, и прятать "
             f"свёрстанное значило бы ухудшить вид. Сличается НЕ с хозяином, а "
             f"с блоками, которые ОСТАЮТСЯ; ступень «латех» — см. "

@@ -236,7 +236,7 @@ class YoloXLayout(Recognizer):
         # СКОЛЬКО ВОШЛО В ПОДАВЛЕНИЕ. Величина, которой в журнале не было
         # вовсе, а гасит наша же строка 196..333 рамки на страницу (замер, 5
         # страниц slovar: 318->39, 340->57, 402->69, 253->57, 311->45).
-        до_nms = len(keep_idx)
+        before_nms = len(keep_idx)
         keep_idx = _nms(boxes[keep_idx], best[keep_idx], cls[keep_idx],
                         keep_idx, NMS_IOU, by_class=NMS_BY_CLASS)
 
@@ -293,8 +293,8 @@ class YoloXLayout(Recognizer):
                   # «в журнал — величину, а не слово „готово"».
                   "duplicate_suppression": {"method": "NMS", "iou": NMS_IOU,
                                         "by_class": NMS_BY_CLASS,
-                                        "boxes_in": до_nms,
-                                        "suppressed": до_nms - len(keep_idx)},
+                                        "boxes_in": before_nms,
+                                        "suppressed": before_nms - len(keep_idx)},
                   "best_rejected_by_class": rejected})
 
 

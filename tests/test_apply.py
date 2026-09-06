@@ -355,32 +355,32 @@ def test_bulk_reads_the_book_once_not_once_per_block():
 
     with tempfile.TemporaryDirectory() as tmp:
         _bulk_stand(tmp, blocks=6)
-        считано = {"book": 0, "blocks": 0}
-        было = builtins.open
+        counted = {"book": 0, "blocks": 0}
+        was = builtins.open
 
-        def счётчик(f, *a, **kw):
-            имя = os.path.basename(str(f))
+        def counter(f, *a, **kw):
+            name = os.path.basename(str(f))
             mode = (a[0] if a else kw.get("mode", "r"))
             if "r" in mode and "w" not in mode:
-                if имя == "book.html":
-                    считано["book"] += 1
-                elif имя == "blocks.json":
-                    считано["blocks"] += 1
-            return было(f, *a, **kw)
+                if name == "book.html":
+                    counted["book"] += 1
+                elif name == "blocks.json":
+                    counted["blocks"] += 1
+            return was(f, *a, **kw)
 
-        builtins.open = счётчик
+        builtins.open = counter
         try:
             res = ap.from_read(tmp, os.path.join(tmp, "read"),
                                log=lambda *_: None)
         finally:
-            builtins.open = было
+            builtins.open = was
 
     assert res["placed"] == 6, f"поставлено {res['placed']} из 6"
-    assert считано["book"] == 1, (
-        f"книга прочитана {считано['book']} раз на 6 замен — правило снова "
+    assert counted["book"] == 1, (
+        f"книга прочитана {counted['book']} раз на 6 замен — правило снова "
         f"слито с вводом-выводом, и на шести тысячах блоков это шесть минут")
-    assert считано["blocks"] <= 1, (
-        f"blocks.json прочитан {считано['blocks']} раз — разряды берутся по "
+    assert counted["blocks"] <= 1, (
+        f"blocks.json прочитан {counted['blocks']} раз — разряды берутся по "
         f"одному вместо одного чтения на всю книгу")
 
 
@@ -422,28 +422,28 @@ def test_putting_the_same_markup_twice_changes_nothing():
     """
     with tempfile.TemporaryDirectory() as tmp:
         book(tmp)
-        первый = ap.put(tmp, A, "<p>раз</p>", kind="html", source="м1",
+        first = ap.put(tmp, A, "<p>раз</p>", kind="html", source="м1",
                         log=lambda *_: None)
-        снимок = open(os.path.join(tmp, "book.html"), encoding="utf-8").read()
+        snapshot = open(os.path.join(tmp, "book.html"), encoding="utf-8").read()
 
-        второй = ap.put(tmp, A, "<p>раз</p>", kind="html", source="м1",
+        second = ap.put(tmp, A, "<p>раз</p>", kind="html", source="м1",
                         log=lambda *_: None)
-        assert второй.get("already_placed") is True, (
-            f"повтор не опознан: {второй}. Он вырастит стопку отката на "
+        assert second.get("already_placed") is True, (
+            f"повтор не опознан: {second}. Он вырастит стопку отката на "
             f"ступень, не изменив книги")
-        assert второй["placed"] == 0, второй
-        assert первый["undo_depth"] == второй["undo_depth"] == 1, (
-            f"стопка отката выросла с повтором: {первый['undo_depth']} -> "
-            f"{второй['undo_depth']}")
-        стало = open(os.path.join(tmp, "book.html"), encoding="utf-8").read()
-        assert стало == снимок, "книга изменилась от повторной той же замены"
+        assert second["placed"] == 0, second
+        assert first["undo_depth"] == second["undo_depth"] == 1, (
+            f"стопка отката выросла с повтором: {first['undo_depth']} -> "
+            f"{second['undo_depth']}")
+        now = open(os.path.join(tmp, "book.html"), encoding="utf-8").read()
+        assert now == snapshot, "книга изменилась от повторной той же замены"
 
         # А ДРУГОЙ источник — работа, и стопка обязана вырасти: иначе
         # переделать блок другой моделью стало бы нельзя.
-        третий = ap.put(tmp, A, "<p>раз</p>", kind="html", source="м2",
+        third = ap.put(tmp, A, "<p>раз</p>", kind="html", source="м2",
                         log=lambda *_: None)
-        assert третий["undo_depth"] == 2, (
-            f"замена от другого источника не встала: {третий}. Повтором "
+        assert third["undo_depth"] == 2, (
+            f"замена от другого источника не встала: {third}. Повтором "
             f"считается совпадение ТЕЛА, а тело несёт и источник")
 
 
@@ -473,8 +473,8 @@ def test_the_source_inside_the_book_beats_the_recorded_path():
             "путь из слепка принят, хотя каталога нет — команда упала бы "
             "внутри вместо внятного отказа")
 
-        свой = os.path.join(tmp, ap.SOURCE, "pages")
-        os.makedirs(свой)
+        own = os.path.join(tmp, ap.SOURCE, "pages")
+        os.makedirs(own)
         assert ap.source_of(tmp) == os.path.join(tmp, ap.SOURCE), (
             f"источник внутри книги не найден: {ap.source_of(tmp)!r}. Книга, "
             f"перенесённая на другую машину, перестанет собираться")
@@ -494,18 +494,18 @@ def test_the_book_remembers_where_it_was_built_from():
             "источник найден там, где слепка нет вовсе — команда пошла бы "
             "ставить неизвестно что")
 
-        читение = os.path.join(tmp, "read")
-        os.makedirs(os.path.join(читение, "pages"))
+        reading = os.path.join(tmp, "read")
+        os.makedirs(os.path.join(reading, "pages"))
         os.makedirs(os.path.join(tmp, ap.ASSETS), exist_ok=True)
         with open(os.path.join(tmp, ap.ASSETS, "run.json"), "w",
                   encoding="utf-8") as f:
-            json.dump({"args": {"detect": читение}}, f, ensure_ascii=False)
-        assert ap.source_of(tmp) == читение, (
+            json.dump({"args": {"detect": reading}}, f, ensure_ascii=False)
+        assert ap.source_of(tmp) == reading, (
             f"источник из слепка не прочитан: {ap.source_of(tmp)!r}")
 
         # Каталог исчез — источника НЕТ, и это не то же, что «слепок пуст»:
         # оба дают None, но команда назовёт путь в отказе.
-        os.rmdir(os.path.join(читение, "pages"))
+        os.rmdir(os.path.join(reading, "pages"))
         assert ap.source_of(tmp) is None, (
             "исчезнувший каталог чтения выдан за источник — команда упала бы "
             "внутри, вместо внятного отказа")
@@ -529,12 +529,12 @@ def test_a_journal_from_the_old_layout_is_seen_not_declared_empty():
         book(tmp)
         ap.put(tmp, A, "<p>раз</p>", kind="html", source="м1",
                log=lambda *_: None)
-        новый = os.path.join(tmp, ap.JOURNAL)
-        assert os.path.exists(новый), "журнал не в кухне — правка не применилась"
+        new = os.path.join(tmp, ap.JOURNAL)
+        assert os.path.exists(new), "журнал не в кухне — правка не применилась"
 
         # Переносим журнал в корень: так выглядит книга прежней раскладки.
-        старый = os.path.join(tmp, "swaps.json")
-        os.replace(новый, старый)
+        old = os.path.join(tmp, "swaps.json")
+        os.replace(new, old)
         j = ap.load_journal(tmp)
         assert len(j["swaps"]) == 1, (
             f"журнал из корня не прочитан: {j['swaps']}. Книга объявила бы "
@@ -543,7 +543,7 @@ def test_a_journal_from_the_old_layout_is_seen_not_declared_empty():
         # Вторая замена обязана лечь В ТОТ ЖЕ файл, а не завести второй.
         ap.put(tmp, B, "<p>два</p>", kind="html", source="м1",
                log=lambda *_: None)
-        assert not os.path.exists(новый), (
+        assert not os.path.exists(new), (
             "заведён ВТОРОЙ журнал в кухне при живом журнале в корне — "
             "стопка отката разъехалась по двум файлам")
         assert len(ap.load_journal(tmp)["swaps"]) == 2, (

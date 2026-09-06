@@ -103,13 +103,13 @@ def test_pages_are_counted_from_one_like_detect():
                            ("1 3", [0, 2])):
             out = os.path.join(d, f"p{spec.replace(' ', '_')}.pdf")
             said = []
-            было = cli.log
+            was = cli.log
             cli.log = said.append          # `log` в cli — импортированное имя
             try:
                 assert cli.main(["overlay", pdf, "--truth", t,
                                  "--pages", spec, "--out", out]) == 0
             finally:
-                cli.log = было
+                cli.log = was
             # В выходе лежат ТОЛЬКО запрошенные листы (иначе `--pages 102` на
             # золотом стенде давал бы 494 МБ), поэтому счёт сверяем двумя
             # величинами: сколько листов вышло и КАКАЯ страница книги стала
@@ -295,8 +295,8 @@ def test_a_changed_label_is_not_painted_like_an_extra_box():
 
     Умеет провалиться: сведите цвета обратно.
     """
-    assert overlay.ЯРЛЫК != overlay.ЛИШНЯЯ, (
+    assert overlay.LABEL != overlay.SPURIOUS, (
         "смена ярлыка красится как лишняя рамка — оранжевый перестаёт "
         "значить «модель нашла лишнее», и настоящая лишняя в нём тонет")
-    assert overlay.ЯРЛЫК != overlay.СОВПАЛО, (
+    assert overlay.LABEL != overlay.MATCHED, (
         "подпись слилась с рамкой, к которой относится")

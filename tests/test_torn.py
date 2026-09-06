@@ -65,10 +65,10 @@ def test_torn_grid_falls_on_deliberately_broken_input():
 
     Настоящая сетка книги, у которой отняли строки (упор в потолок обрывает
     ответ до первого `<nl>`), обязана перестать быть законной."""
-    целая = {"rows": 9, "grid_cells": 63}
-    assert H.torn_grid(целая) is None
-    порченая = dict(целая, rows=1)
-    assert H.torn_grid(порченая) is not None, (
+    whole = {"rows": 9, "grid_cells": 63}
+    assert H.torn_grid(whole) is None
+    damaged = dict(whole, rows=1)
+    assert H.torn_grid(damaged) is not None, (
         "таблица, у которой обрыв съел все переводы строк, объявлена "
         "законной — правило слепо ровно к тому, ради чего заведено")
 
@@ -143,12 +143,12 @@ def test_the_mark_survives_the_replacement():
     не роняло ни одной из 217 проверок.
     """
     from booksmith.doc import apply as ap
-    цел = ap._wrap_fragment("p1-b0", "<fcel>a<fcel>b<nl>", "otsl", "проба",
+    intact = ap._wrap_fragment("p1-b0", "<fcel>a<fcel>b<nl>", "otsl", "проба",
                             torn=False)
-    рван = ap._wrap_fragment("p1-b0", "<fcel>a<fcel>b<nl>", "otsl", "проба",
+    torn = ap._wrap_fragment("p1-b0", "<fcel>a<fcel>b<nl>", "otsl", "проба",
                              torn=True)
-    assert "data-truncated" not in цел, цел
-    assert 'data-truncated="yes"' in рван, рван
+    assert "data-truncated" not in intact, intact
+    assert 'data-truncated="yes"' in torn, torn
 
 
 def test_unknown_is_not_whole():
@@ -159,8 +159,8 @@ def test_unknown_is_not_whole():
     умолчанию либо, наоборот, объявить блок целым.
     """
     from booksmith.doc import apply as ap
-    никак = ap._wrap_fragment("p1-b0", "<fcel>a<nl>", "otsl", "руками")
-    assert "data-truncated" not in никак, никак
+    nothing = ap._wrap_fragment("p1-b0", "<fcel>a<nl>", "otsl", "руками")
+    assert "data-truncated" not in nothing, nothing
 
 
 def test_from_read_asks_the_sidecar_for_the_reason():
@@ -175,17 +175,17 @@ def test_from_read_asks_the_sidecar_for_the_reason():
     t = support.tree("doc/apply.py")
     fn = next(n for n in ast.walk(t)
               if isinstance(n, ast.FunctionDef) and n.name == "from_read")
-    зовёт = [n for n in ast.walk(fn)
+    calls = [n for n in ast.walk(fn)
              if isinstance(n, ast.Call)
              and isinstance(n.func, ast.Name) and n.func.id == "observed"]
-    assert зовёт, (
+    assert calls, (
         "`from_read` не зовёт `observed` — признак обрыва взять неоткуда, и "
         "пометка пропадёт у тех самых блоков, что доехали разметкой")
-    передаёт = [n for n in ast.walk(fn)
+    passes = [n for n in ast.walk(fn)
                 if isinstance(n, ast.Call)
                 and isinstance(n.func, ast.Name) and n.func.id == "put_into"
                 and any(k.arg == "torn" for k in n.keywords)]
-    assert передаёт, (
+    assert passes, (
         "`from_read` зовёт `put_into` без `torn=` — наблюдённое прочитано и "
         "выброшено, что хуже, чем не читать его вовсе")
 
@@ -211,9 +211,9 @@ def test_the_torn_field_tells_three_states_apart():
         # Зовём ПРАВИЛО, а не повторяем его здесь: проверка, повторяющая
         # проверяемое, тавтологична и порчу пропускает. Так и вышло — порча
         # «не спрашивали считается дочитанным» прошла мимо первой редакции.
-        состояние = {a: H.torn_of(v) for a, v in o.items()}
-        assert состояние == {"p0001-b0": True, "p0001-b1": False,
-                             "p0001-b2": None}, состояние
+        state = {a: H.torn_of(v) for a, v in o.items()}
+        assert state == {"p0001-b0": True, "p0001-b1": False,
+                             "p0001-b2": None}, state
         # И отсутствие наблюдения — тоже «сказать нечем», а не «цел».
         assert H.torn_of(None) is None and H.torn_of({}) is None
 
@@ -225,7 +225,7 @@ def test_the_torn_field_tells_three_states_apart():
 # покраснеет. Ровно то состояние, в котором «104 таблицы при colspan 0»
 # прожили целый прогон. Ниже — стенд, на котором каждая из них умеет упасть.
 
-def _стенд(tmp, куски, обрыв=()):
+def _bench(tmp, chunks, cut=()):
     """Книга на N блоков, каталог чтения и наблюдённое рядом."""
     import json as _j
     import os as _o
@@ -234,25 +234,25 @@ def _стенд(tmp, куски, обрыв=()):
     with open(_o.path.join(tmp, "book.html"), "w", encoding="utf-8") as f:
         f.write("<!doctype html><html><body>\n" + "\n".join(
             swap.wrap(f"p0000-b{i}", f'<figure id="p0000-b{i}">кар</figure>')
-            for i in range(len(куски))) + "\n</body></html>\n")
+            for i in range(len(chunks))) + "\n</body></html>\n")
     _o.makedirs(_o.path.join(tmp, ap.ASSETS), exist_ok=True)
     with open(_o.path.join(tmp, ap.ASSETS, "blocks.json"), "w",
               encoding="utf-8") as f:
         _j.dump({f"p0000-b{i}": {"role": "artifact"}
-                 for i in range(len(куски))}, f)
+                 for i in range(len(chunks))}, f)
     _o.makedirs(_o.path.join(tmp, "read", "pages"), exist_ok=True)
     with open(_o.path.join(tmp, "read", "pages", "0000.json"), "w",
               encoding="utf-8") as f:
         _j.dump({"index": 0, "blocks": [
             {"block_id": i, "kind": "otsl", "content": c}
-            for i, c in enumerate(куски)]}, f)
+            for i, c in enumerate(chunks)]}, f)
     _o.makedirs(_o.path.join(tmp, "read", "answers"), exist_ok=True)
     with open(_o.path.join(tmp, "read", "answers", "p0000.json"), "w",
               encoding="utf-8") as f:
         _j.dump({"page": 0, "answers": [
             {"anchor": f"p0000-b{i}",
-             "outcome": ("length" if i in обрыв else "stop"),
-             "observed": {}} for i in range(len(куски))]}, f)
+             "outcome": ("length" if i in cut else "stop"),
+             "observed": {}} for i in range(len(chunks))]}, f)
 
 
 def test_bulk_counts_spans_declared_and_placed():
@@ -264,7 +264,7 @@ def test_bulk_counts_spans_declared_and_placed():
     import tempfile
     from booksmith.doc import apply as ap
     with tempfile.TemporaryDirectory() as tmp:
-        _стенд(tmp, ["<fcel>ш<lcel><nl><fcel>1<fcel>2<nl>",     # 1 слияние
+        _bench(tmp, ["<fcel>ш<lcel><nl><fcel>1<fcel>2<nl>",     # 1 слияние
                      "<fcel>a<fcel>b<nl><fcel>1<fcel>2<nl>",    # без слияний
                      # НЕПРЯМОУГОЛЬНОЕ: объявлено 1, а встать не может —
                      # без этого случая числа совпадают, и приравнять их
@@ -289,7 +289,7 @@ def test_bulk_counts_the_impossible_shape_of_the_book_not_of_the_run():
     import tempfile
     from booksmith.doc import apply as ap
     with tempfile.TemporaryDirectory() as tmp:
-        _стенд(tmp, ["<fcel>a<fcel>b<fcel>c<fcel>d<fcel>e<nl>",  # 1x5 — нельзя
+        _bench(tmp, ["<fcel>a<fcel>b<fcel>c<fcel>d<fcel>e<nl>",  # 1x5 — нельзя
                      "<fcel>a<fcel>b<nl><fcel>1<fcel>2<nl>"])
         first = ap.from_read(tmp, os.path.join(tmp, "read"),
                              log=lambda *_: None)
@@ -308,14 +308,14 @@ def test_bulk_marks_the_torn_block_in_the_book():
     import tempfile
     from booksmith.doc import apply as ap
     with tempfile.TemporaryDirectory() as tmp:
-        _стенд(tmp, ["<fcel>a<fcel>b<nl><fcel>1<fcel>2<nl>",
-                     "<fcel>c<fcel>d<nl><fcel>3<fcel>4<nl>"], обрыв={1})
+        _bench(tmp, ["<fcel>a<fcel>b<nl><fcel>1<fcel>2<nl>",
+                     "<fcel>c<fcel>d<nl><fcel>3<fcel>4<nl>"], cut={1})
         ap.from_read(tmp, os.path.join(tmp, "read"), log=lambda *_: None)
-        книга = open(os.path.join(tmp, "book.html"), encoding="utf-8").read()
-        assert книга.count('data-truncated="yes"') == 1, книга
+        book = open(os.path.join(tmp, "book.html"), encoding="utf-8").read()
+        assert book.count('data-truncated="yes"') == 1, book
         # И помечен ИМЕННО оборванный, а не первый попавшийся.
-        i = книга.index("p0000-b1")
-        assert 'data-truncated="yes"' in книга[i:i + 200], книга[i:i + 200]
+        i = book.index("p0000-b1")
+        assert 'data-truncated="yes"' in book[i:i + 200], book[i:i + 200]
 
 
 def test_bulk_names_the_rewrap_apart_from_new_work():
@@ -328,26 +328,26 @@ def test_bulk_names_the_rewrap_apart_from_new_work():
     import tempfile
     from booksmith.doc import apply as ap
     with tempfile.TemporaryDirectory() as tmp:
-        _стенд(tmp, ["<fcel>a<fcel>b<nl><fcel>1<fcel>2<nl>"])
+        _bench(tmp, ["<fcel>a<fcel>b<nl><fcel>1<fcel>2<nl>"])
         t1 = ap.from_read(tmp, os.path.join(tmp, "read"), log=lambda *_: None)
         assert t1["placed"] == 1 and t1["rewrapped"] == 0, (
             "первая замена — настоящая работа, а не переобёртка")
         # ПЕРЕОБЁРТКА НАСТОЯЩАЯ: байты модели те же, обёртка другая. Так
         # выглядит книга, собранная прежней редакцией кода, после нового
         # `apply`: на «Технологии огнеупоров» это 63 блока из 412.
-        было = ap._wrap_fragment
+        was = ap._wrap_fragment
 
-        def другая_обёртка(anchor, fragment, kind, source, role="неизвестен",
+        def other_wrapper(anchor, fragment, kind, source, role="неизвестен",
                            torn=None):
-            return было(anchor, fragment, kind, source, role=role,
+            return was(anchor, fragment, kind, source, role=role,
                         torn=torn).replace("<div ", '<div data-проба="1" ', 1)
 
-        ap._wrap_fragment = другая_обёртка
+        ap._wrap_fragment = other_wrapper
         try:
             t2 = ap.from_read(tmp, os.path.join(tmp, "read"),
                               log=lambda *_: None)
         finally:
-            ap._wrap_fragment = было
+            ap._wrap_fragment = was
         assert t2["placed"] == 1, t2
         assert t2["rewrapped"] == 1, (
             "смена НАШЕЙ обёртки записана как новая работа — «поставлено» "
@@ -380,7 +380,7 @@ def test_a_refused_block_is_not_counted_as_being_in_the_book():
     import tempfile
     from booksmith.doc import apply as ap
     with tempfile.TemporaryDirectory() as tmp:
-        _стенд(tmp, ["<fcel>a<fcel>b<nl><fcel>1<fcel>2<nl>",
+        _bench(tmp, ["<fcel>a<fcel>b<nl><fcel>1<fcel>2<nl>",
                      # 1x5 — форма невозможна, И кусок будет отвергнут.
                      "<fcel>a<fcel>b<fcel>c<fcel>d<fcel>e<nl>"
                      "<!--bs:p0000-b9-->"])
@@ -400,14 +400,14 @@ def test_the_caption_names_which_zero_it_was():
     не читали». Пять нулей `books read` сводились в один, и говорящий из них
     врал.
     """
-    промолчала = H.why_empty({"outcome": "stop", "error": None})
-    не_спрошено = H.why_empty({"outcome": None, "error": None})
-    отказ = H.why_empty({"outcome": None, "error": "таймаут"})
-    оборвано = H.why_empty({"outcome": "length", "error": None})
-    нечем = H.why_empty(None)
-    все = [промолчала, не_спрошено, отказ, оборвано, нечем]
-    assert len(set(все)) == 5, (
-        f"два разных нуля названы одинаково: {все}")
-    assert "промолчала" in промолчала
-    assert "не спрашивали" in не_спрошено
-    assert "таймаут" in отказ
+    stayed_silent = H.why_empty({"outcome": "stop", "error": None})
+    not_asked = H.why_empty({"outcome": None, "error": None})
+    refusal = H.why_empty({"outcome": None, "error": "таймаут"})
+    truncated = H.why_empty({"outcome": "length", "error": None})
+    nothing_to = H.why_empty(None)
+    all = [stayed_silent, not_asked, refusal, truncated, nothing_to]
+    assert len(set(all)) == 5, (
+        f"два разных нуля названы одинаково: {all}")
+    assert "промолчала" in stayed_silent
+    assert "не спрашивали" in not_asked
+    assert "таймаут" in refusal

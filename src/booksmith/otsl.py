@@ -240,27 +240,27 @@ def layout(s):
     if not cells:
         return [], tally
     owner, tag_of = own["owner"], own["tag"]
-    свои = {}
+    ours = {}
     for addr, root in owner.items():
-        свои.setdefault(root, []).append(addr)
+        ours.setdefault(root, []).append(addr)
     out = []
-    for root in sorted(свои):
-        адреса = свои[root]
+    for root in sorted(ours):
+        addresses = ours[root]
         r0, c0 = root
-        rs = {r for r, _ in адреса}
-        cs = {c for _, c in адреса}
+        rs = {r for r, _ in addresses}
+        cs = {c for _, c in addresses}
         h, w = max(rs) - min(rs) + 1, max(cs) - min(cs) + 1
         # КОРЕНЬ ВСЕГДА ЛЕВЫЙ ВЕРХНИЙ СВОИХ АДРЕСОВ, и проверять это незачем.
         # `<lcel>` опирается на (r, c-1), `<ucel>` на (r-1, c) — то есть
         # хозяин любого адреса стоит не правее и не ниже него. Здесь стояло
         # `and min(rs) == r0 and min(cs) == c0`: на 235 726 корнях книги
         # исключений 0, и снятие этих условий не роняло ни одной проверки.
-        прямоуг = len(адреса) == h * w
+        rect = len(addresses) == h * w
         if h * w > 1:
             tally["merges"] += 1
-            if not прямоуг:
+            if not rect:
                 tally["non_rectangular_merges"] += 1
-        if h * w > 1 and прямоуг:
+        if h * w > 1 and rect:
             out.append({"row": r0, "col": c0, "rows": h,
                         "cols": w, "text": cells.get(root, ""),
                         "tag": tag_of.get(root, "fcel")})
@@ -279,11 +279,11 @@ def layout(s):
             # и оно не срабатывало ни разу на 236 758 корнях книги. Ключ берём
             # прямо: нарушение этого договора — беда, о которой надо падать
             # вслух, а не подставлять свой тег молча.
-            корневой = tag_of[root]
-            for a in sorted(адреса):
+            root_one = tag_of[root]
+            for a in sorted(addresses):
                 out.append({"row": a[0], "col": a[1], "rows": 1,
                             "cols": 1, "text": cells.get(a, ""),
-                            "tag": tag_of.get(a, корневой)})
+                            "tag": tag_of.get(a, root_one)})
     out.sort(key=lambda d: (d["row"], d["col"]))
     return out, tally
 
@@ -356,14 +356,14 @@ def to_html(s) -> str:
     # тождественно. Проверено перебором 40 000 случайных входов — ни одного
     # срабатывания, и снятие `max` не роняло ни одной проверки. Защита,
     # которая не может сработать, — это не защита, а вид на неё.
-    по_строкам = {}
+    by_rows = {}
     for c in cs:
-        по_строкам.setdefault(c["row"], []).append(c)
-    строк = t["rows"]
+        by_rows.setdefault(c["row"], []).append(c)
+    rows = t["rows"]
     out = ["<table>"]
-    for r in range(строк):
+    for r in range(rows):
         out.append("<tr>")
-        for cell in по_строкам.get(r, ()):
+        for cell in by_rows.get(r, ()):
             tag = "th" if cell["tag"] in HEADER else "td"
             span = ""
             if cell["cols"] > 1:

@@ -617,16 +617,16 @@ def source_swap(rel, old, new):
         raise AssertionError(
             f"мутация не наложилась: в {rel} нет строки {old!r} — "
             f"проверяемое место переписали, а батарея этого не знает")
-    было = support.tree
-    def подменённый(r):
+    was = support.tree
+    def swapped(r):
         if r == rel:
             return ast.parse(src.replace(old, new, 1), filename=r)
-        return было(r)
-    support.tree = подменённый
+        return was(r)
+    support.tree = swapped
     try:
         yield
     finally:
-        support.tree = было
+        support.tree = was
 
 
 def io_open_src(rel):
@@ -710,8 +710,8 @@ def veto_measures_the_share_of_rows(pix, x):
     3/599 = 0.005008 даёт вето, 3/601 = 0.004992 не даёт. Замер: из 379
     разворотов «Справочника» 102 (27%) решались ОДНОЙ строкой.
     """
-    сквозные, _ = djvu.dark_rows(pix, x)
-    return djvu.RULE_RUN if len(сквозные) / max(1, pix.height) > 0.005 else 0.0
+    full_width, _ = djvu.dark_rows(pix, x)
+    return djvu.RULE_RUN if len(full_width) / max(1, pix.height) > 0.005 else 0.0
 
 
 def veto_looks_at_the_whole_probe(pix, x):
@@ -1034,16 +1034,16 @@ def parse_keeps_only_the_span_root(s):
     g, t = _real_parse(s)
     if not g:
         return g, t
-    из_тегов = otsl._TOK.findall(s)
-    свои, r, c = {}, 0, 0
-    for name in из_тегов:
+    from_tags = otsl._TOK.findall(s)
+    ours, r, c = {}, 0, 0
+    for name in from_tags:
         if name in otsl.BREAK:
             r, c = r + 1, 0
             continue
         if name not in otsl.SPAN:
-            свои[(r, c)] = g.get((r, c), "")
+            ours[(r, c)] = g.get((r, c), "")
         c += 1
-    return (свои or None), t
+    return (ours or None), t
 
 
 def to_html_is_a_stub(s):
@@ -1144,20 +1144,20 @@ def to_html_pads_short_rows(s):
     cs, t = _o.layout(s)
     if not cs:
         return ""
-    по = {}
+    by = {}
     for c in cs:
-        по.setdefault(c["row"], []).append(c)
-    строк = max(t["rows"], max(по) + 1)
-    шире = max((c["col"] + c["cols"] for c in cs), default=0)
+        by.setdefault(c["row"], []).append(c)
+    rows = max(t["rows"], max(by) + 1)
+    wider = max((c["col"] + c["cols"] for c in cs), default=0)
     out = ["<table>"]
-    for r in range(строк):
+    for r in range(rows):
         out.append("<tr>")
-        занято = 0
-        for cell in по.get(r, ()):
+        taken = 0
+        for cell in by.get(r, ()):
             tag = "th" if cell["tag"] in _o.HEADER else "td"
             out.append(f"<{tag}>" + _h.escape(cell["text"]) + f"</{tag}>")
-            занято += cell["cols"]
-        out.extend(["<td></td>"] * max(0, шире - занято))
+            taken += cell["cols"]
+        out.extend(["<td></td>"] * max(0, wider - taken))
         out.append("</tr>")
     out.append("</table>")
     return "".join(out)
@@ -1247,13 +1247,13 @@ def shape_of_a_placed_block_is_never_asked(g):
     return None
 
 
-def rewrap_is_counted_as_new_work(прежние, entry):
+def rewrap_is_counted_as_new_work(previous, entry):
     """«Переобёрнуто» сверяется с ПЕРВОЙ ступенью стопки, а не с последней.
 
     После двух замен подряд первая ступень чужая, и настоящая переобёртка
     считается новой работой.
     """
-    return bool(прежние) and прежние[0].get("sha256_model_answer") == \
+    return bool(previous) and previous[0].get("sha256_model_answer") == \
         entry.get("sha256_model_answer")
 
 
@@ -1263,21 +1263,21 @@ def repeats_compare_the_block_with_itself(page, covered):
     Даёт 99.0 % там, где верно 21.4 %, и повтором объявляется ЛЮБОЙ
     вложенный блок — включая тот, чьего текста нет больше нигде.
     """
-    из_текста = [b for b in page.blocks
+    from_text = [b for b in page.blocks
                  if policy.role(b.label) != "artifact" and (b.content or "").strip()]
-    вложен = {b.block_id for b in из_текста
+    nested = {b.block_id for b in from_text
               if any(o.block_id != b.block_id and covered(b.box, o.box)
-                     for o in из_текста)}
-    вся = " ".join(booktext.normalize(b.content, "latex") for b in из_текста)
+                     for o in from_text)}
+    whole_page = " ".join(booktext.normalize(b.content, "latex") for b in from_text)
     out = {}
-    for b in из_текста:
-        if b.block_id not in вложен:
+    for b in from_text:
+        if b.block_id not in nested:
             continue
-        хозяева = [o for o in из_текста
+        owners = [o for o in from_text
                    if o.block_id != b.block_id and covered(b.box, o.box)]
-        свой = booktext.normalize(b.content, "latex")
-        out[b.block_id] = (хозяева[0].block_id if хозяева else None,
-                           "дословно" if len(свой) >= 2 and свой in вся
+        own = booktext.normalize(b.content, "latex")
+        out[b.block_id] = (owners[0].block_id if owners else None,
+                           "дословно" if len(own) >= 2 and own in whole_page
                            else "расходится")
     return out
 
@@ -1288,22 +1288,22 @@ def repeats_compare_with_other_candidates_too(page, covered):
     Два одинаковых повтора прячут друг друга, и в книге не остаётся ни
     одного: каждый «есть у соседа».
     """
-    из_текста = [b for b in page.blocks
+    from_text = [b for b in page.blocks
                  if policy.role(b.label) != "artifact" and (b.content or "").strip()]
-    вложен = {b.block_id for b in из_текста
+    nested = {b.block_id for b in from_text
               if any(o.block_id != b.block_id and covered(b.box, o.box)
-                     for o in из_текста)}
+                     for o in from_text)}
     out = {}
-    for b in из_текста:
-        if b.block_id not in вложен:
+    for b in from_text:
+        if b.block_id not in nested:
             continue
-        прочие = " ".join(booktext.normalize(o.content, "latex")
-                          for o in из_текста if o.block_id != b.block_id)
-        хозяева = [o for o in из_текста
+        others = " ".join(booktext.normalize(o.content, "latex")
+                          for o in from_text if o.block_id != b.block_id)
+        owners = [o for o in from_text
                    if o.block_id != b.block_id and covered(b.box, o.box)]
-        свой = booktext.normalize(b.content, "latex")
-        out[b.block_id] = (хозяева[0].block_id if хозяева else None,
-                           "дословно" if len(свой) >= 2 and свой in прочие
+        own = booktext.normalize(b.content, "latex")
+        out[b.block_id] = (owners[0].block_id if owners else None,
+                           "дословно" if len(own) >= 2 and own in others
                            else "расходится")
     return out
 
@@ -1321,40 +1321,40 @@ def bare_math_eats_the_command_name(s):
     return _re.sub(r"[{}\\$\[\]^_]", "", s).strip().casefold()
 
 
-def _repeats_variant(page, covered, *, артефакты=False, пустые=False,
-                     всегда=None, порог=None):
+def _repeats_variant(page, covered, *, artifacts=False, empty=False,
+                     always=None, threshold=None):
     """Общий подпорченный вариант правила повтора: одна беда за раз."""
-    из_текста = [b for b in page.blocks
-                 if (артефакты or policy.role(b.label) != "artifact")
-                 and (пустые or (b.content or "").strip())]
-    вложен = {b.block_id for b in из_текста
+    from_text = [b for b in page.blocks
+                 if (artifacts or policy.role(b.label) != "artifact")
+                 and (empty or (b.content or "").strip())]
+    nested = {b.block_id for b in from_text
               if any(o.block_id != b.block_id and covered(b.box, o.box)
-                     for o in из_текста)}
-    остаётся = " ".join(booktext.normalize(b.content or "", "latex")
-                        for b in из_текста if b.block_id not in вложен)
+                     for o in from_text)}
+    stays = " ".join(booktext.normalize(b.content or "", "latex")
+                        for b in from_text if b.block_id not in nested)
     out = {}
-    for b in из_текста:
-        if b.block_id not in вложен:
+    for b in from_text:
+        if b.block_id not in nested:
             continue
-        хозяева = [o for o in из_текста
+        owners = [o for o in from_text
                    if o.block_id != b.block_id and covered(b.box, o.box)]
-        свой = booktext.normalize(b.content or "", "latex")
-        мин = порог if порог is not None else dhtml.REPEAT_MIN
-        вывод = (всегда if всегда else
-                 ("дословно" if len(свой) >= мин and свой in остаётся
+        own = booktext.normalize(b.content or "", "latex")
+        lo = threshold if threshold is not None else dhtml.REPEAT_MIN
+        out = (always if always else
+                 ("дословно" if len(own) >= lo and own in stays
                   else "расходится"))
-        out[b.block_id] = (хозяева[0].block_id if хозяева else None, вывод)
+        out[b.block_id] = (owners[0].block_id if owners else None, out)
     return out
 
 
 def repeats_never_prove_anything(page, covered):
     """Ничто не признаётся повтором — прибор молчит и книга не худеет."""
-    return _repeats_variant(page, covered, всегда="расходится")
+    return _repeats_variant(page, covered, always="расходится")
 
 
 def repeats_prove_everything(page, covered):
     """Повтором объявляется всё вложенное, без сличения вовсе."""
-    return _repeats_variant(page, covered, всегда="дословно")
+    return _repeats_variant(page, covered, always="дословно")
 
 
 def repeats_count_the_artefact_as_a_neighbour(page, covered):
@@ -1363,12 +1363,12 @@ def repeats_count_the_artefact_as_a_neighbour(page, covered):
     Прятать его нельзя: если замена не придёт, картинка останется
     единственной формой этого текста.
     """
-    return _repeats_variant(page, covered, артефакты=True)
+    return _repeats_variant(page, covered, artifacts=True)
 
 
 def repeats_take_the_empty_block_too(page, covered):
     """Пустой блок объявляется кандидатом — сличать в нём нечего."""
-    return _repeats_variant(page, covered, пустые=True)
+    return _repeats_variant(page, covered, empty=True)
 
 
 def why_empty_says_unread_for_everything(o):
@@ -1383,27 +1383,27 @@ def repeats_join_without_a_gap(page, covered):
     ложно. Порча объявленная: приёмщик показал, что её не ловила ни одна из
     восьми проверок.
     """
-    из_текста = [b for b in page.blocks
+    from_text = [b for b in page.blocks
                  if policy.role(b.label) != "artifact" and (b.content or "").strip()]
-    вложен = {b.block_id for b in из_текста
+    nested = {b.block_id for b in from_text
               if any(o.block_id != b.block_id and covered(b.box, o.box)
-                     for o in из_текста)}
-    остаются = [b for b in из_текста if b.block_id not in вложен]
-    склей = "".join(booktext.normalize(b.content, "latex") for b in остаются)
+                     for o in from_text)}
+    kept = [b for b in from_text if b.block_id not in nested]
+    glue = "".join(booktext.normalize(b.content, "latex") for b in kept)
     out = {}
-    for b in из_текста:
-        if b.block_id not in вложен:
+    for b in from_text:
+        if b.block_id not in nested:
             continue
-        свой = booktext.normalize(b.content, "latex")
-        нашёлся = len(свой) >= dhtml.REPEAT_MIN and свой in склей
-        out[b.block_id] = (остаются[0].block_id if остаются else None,
-                           "дословно" if нашёлся else "расходится")
+        own = booktext.normalize(b.content, "latex")
+        found_one = len(own) >= dhtml.REPEAT_MIN and own in glue
+        out[b.block_id] = (kept[0].block_id if kept else None,
+                           "дословно" if found_one else "расходится")
     return out
 
 
 def repeats_have_no_length_floor(page, covered):
     """Порог длины снят: двузначное совпадение принимается за доказательство."""
-    return _repeats_variant(page, covered, порог=1)
+    return _repeats_variant(page, covered, threshold=1)
 
 
 def repeats_trade_typeset_for_raw(page, covered):
@@ -1416,16 +1416,16 @@ def repeats_trade_typeset_for_raw(page, covered):
 def repeats_name_the_enclosing_frame(page, covered):
     """В ответе стоит объемлющая рамка, а не носитель доказательства."""
     out = dhtml.repeats_on(page, covered)
-    из_текста = [b for b in page.blocks
+    from_text = [b for b in page.blocks
                  if policy.role(b.label) != "artifact" and (b.content or "").strip()]
-    новое = {}
-    for k, (_, почему) in out.items():
-        свой = next(b for b in из_текста if b.block_id == k)
-        хозяева = [o for o in из_текста
-                   if o.block_id != k and covered(свой.box, o.box)]
-        рамка = min(хозяева, key=lambda o: o.area()) if хозяева else None
-        новое[k] = (рамка.block_id if рамка else None, почему)
-    return новое
+    fresh = {}
+    for k, (_, why) in out.items():
+        own = next(b for b in from_text if b.block_id == k)
+        owners = [o for o in from_text
+                   if o.block_id != k and covered(own.box, o.box)]
+        box = min(owners, key=lambda o: o.area()) if owners else None
+        fresh[k] = (box.block_id if box else None, why)
+    return fresh
 
 
 def torn_of_calls_the_unasked_whole(o):
@@ -2425,9 +2425,9 @@ def mutations():
 
         ("отказ доступа зовётся отказом машины",
          lambda: one_line("booksmith.remote.vast",
-                          '                нас_не_пускают = any(k in str(e) '
+                          '                we_are_refused = any(k in str(e) '
                           'for k in ("403", "429"))',
-                          "                нас_не_пускают = False"),
+                          "                we_are_refused = False"),
          [("test_rent_deadlines",
            "test_a_refusal_of_access_is_named_apart_from_a_stubborn_machine")]),
 
@@ -2510,7 +2510,7 @@ def mutations():
            "test_the_sheet_shouts_at_exactly_what_the_number_calls_extra")]),
 
         ("смена ярлыка красится как лишняя рамка",
-         lambda: attrs(overlay, ЯРЛЫК=overlay.ЛИШНЯЯ),
+         lambda: attrs(overlay, LABEL=overlay.SPURIOUS),
          [("test_overlay",
            "test_a_changed_label_is_not_painted_like_an_extra_box")]),
 
@@ -2553,7 +2553,7 @@ def mutations():
         # ни одна. Разбор АСТ в проверке требует, чтобы оно жило снаружи.
         ("ожидание порядка снова копится внутри цикла",
          lambda: one_line("booksmith.doc.html",
-                          "        ждём.extend(anchor_of(page.index, b.block_id) for b in page.blocks)",
+                          "        expected.extend(anchor_of(page.index, b.block_id) for b in page.blocks)",
                           "        pass"),
          [("test_html_order",
            "test_the_book_carries_blocks_in_the_order_it_walked_them")]),
@@ -2566,7 +2566,7 @@ def mutations():
         # меньше, чем сама порча.
         ("сборщик перестал сверять порядок книги",
          lambda: sources("doc/html.py",
-                         "    if вышло != ждём:",
+                         "    if got != expected:",
                          "    if False:"),
          [("test_html_order",
            "test_the_book_carries_blocks_in_the_order_it_walked_them")]),
@@ -2575,8 +2575,8 @@ def mutations():
         # три нашла перекрёстная проверка, а не разбор кода.
         ("журнал прежней раскладки снова невидим",
          lambda: one_line("booksmith.doc.apply",
-                          '        старый = os.path.join(out_dir, "swaps.json")',
-                          '        старый = os.path.join(out_dir, "нет.json")'),
+                          '        old = os.path.join(out_dir, "swaps.json")',
+                          '        old = os.path.join(out_dir, "absent.json")'),
          [("test_apply",
            "test_a_journal_from_the_old_layout_is_seen_not_declared_empty")]),
 
@@ -2597,7 +2597,7 @@ def mutations():
         # абсолютному пути из слепка, которого на новой машине нет.
         ("источник внутри книги перестал быть главнее пути из слепка",
          lambda: one_line("booksmith.doc.apply",
-                          '    if os.path.isdir(os.path.join(свой, "pages")):',
+                          '    if os.path.isdir(os.path.join(own, "pages")):',
                           "    if False:"),
          [("test_apply",
            "test_the_source_inside_the_book_beats_the_recorded_path")]),
@@ -2606,8 +2606,8 @@ def mutations():
         # не знал бы, что ставить, и умолчание пришлось бы отменить.
         ("книга перестала помнить свой источник",
          lambda: one_line("booksmith.doc.apply",
-                          '    путь = ((снимок.get("args") or {}).get("detect") or "").strip()',
-                          '    путь = ""'),
+                          '    path = ((snapshot.get("args") or {}).get("detect") or "").strip()',
+                          '    path = ""'),
          [("test_apply", "test_the_book_remembers_where_it_was_built_from")]),
 
         # --- книга обязана нести себя сама ---------------------------------
@@ -3052,23 +3052,23 @@ def mutations():
         ("слияния в книге приравнены к объявленным",
          lambda: one_line(
              "booksmith.doc.apply",
-             "    встало = sum(1 for c in cells if c[\"rows\"] > 1 "
+             "    placed = sum(1 for c in cells if c[\"rows\"] > 1 "
              "or c[\"cols\"] > 1)",
-             "    встало = объявлено"),
+             "    placed = announced"),
          [("test_torn", "test_bulk_counts_spans_declared_and_placed")]),
 
         ("переобёртка сверяется с ПЕРВОЙ ступенью стопки",
          lambda: one_line(
              "booksmith.doc.apply",
-             "            if прежние and прежние[-1].get(\"sha256_model_answer\") == \\",
-             "            if прежние and прежние[0].get(\"sha256_model_answer\") == \\"),
+             "            if previous and previous[-1].get(\"sha256_model_answer\") == \\",
+             "            if previous and previous[0].get(\"sha256_model_answer\") == \\"),
          [("test_torn", "test_bulk_names_the_rewrap_apart_from_new_work")]),
 
         ("отказанный блок считается лежащим в книге",
          lambda: one_line(
              "booksmith.doc.apply",
              "                tally[\"refused\"] += 1",
-             "                _счесть_в_книге(tally, misshapen, anchor, body,"
+             "                _count_in_book(tally, misshapen, anchor, body,"
              " b.get(\"kind\") or \"html\"); tally[\"refused\"] += 1"),
          [("test_torn", "test_a_refused_block_is_not_counted_as_being_in_"
                         "the_book")]),

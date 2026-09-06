@@ -444,7 +444,7 @@ def test_derivable_shape_still_requires_every_value():
 _SH_OPEN = re.compile(r'\$\{([A-Z_][A-Z0-9_]*):-')
 
 
-def _sh_scan(текст):
+def _sh_scan(text):
     """Пары (имя, умолчание) из `${ИМЯ:-…}`, СО СЧЁТОМ СКОБОК.
 
     Регэксп `[^}]*` здесь не годится, и это не педантизм: в `run.sh` стоит
@@ -454,48 +454,48 @@ def _sh_scan(текст):
     (9999 против 8118 в реестре) прошёл незамеченным, и проверка объявила
     себя исправной. Сторож, слепой к вложенности, стережёт не то, что обещает.
     """
-    пары = []
-    for m in _SH_OPEN.finditer(текст):
-        имя = m.group(1)
-        i, глубина = m.end(), 1
-        while i < len(текст) and глубина:
-            if текст.startswith("${", i):
-                глубина += 1
+    pairs = []
+    for m in _SH_OPEN.finditer(text):
+        name = m.group(1)
+        i, depth = m.end(), 1
+        while i < len(text) and depth:
+            if text.startswith("${", i):
+                depth += 1
                 i += 2
                 continue
-            if текст[i] == "}":
-                глубина -= 1
-                if not глубина:
+            if text[i] == "}":
+                depth -= 1
+                if not depth:
                     break
             i += 1
-        пары.append((имя, текст[m.end():i]))
-    return пары
+        pairs.append((name, text[m.end():i]))
+    return pairs
 
 
 def _sh_defaults():
     """Все `${ИМЯ:-умолчание}` из скриптов, что уезжают на арендованную карту."""
     out = {}
-    корень = os.path.join(support.SRC, "models")
-    for каталог, _, файлы in os.walk(корень):
-        for f in sorted(файлы):
+    root = os.path.join(support.SRC, "models")
+    for directory, _, files in os.walk(root):
+        for f in sorted(files):
             if not f.endswith(".sh"):
                 continue
-            путь = os.path.join(каталог, f)
-            with open(путь, encoding="utf-8") as fh:
-                текст = fh.read()
+            path = os.path.join(directory, f)
+            with open(path, encoding="utf-8") as fh:
+                text = fh.read()
             # КОММЕНТАРИИ ОТБРАСЫВАЮТСЯ, и это не мелочь. В `run.sh` те же
             # `${PORT:-8118}` стоят ВТОРОЙ раз — в прозе, объясняющей правило.
             # Сверяя прозу наравне с кодом, сторож падал бы от правки
             # комментария, то есть от того, что поведения не меняет. Проверено:
             # порча ТОЛЬКО примера в комментарии роняла проверку.
-            без_прозы = "\n".join(
-                l for l in текст.split("\n") if not l.lstrip().startswith("#"))
-            for имя, умолчание in _sh_scan(без_прозы):
+            without_prose = "\n".join(
+                l for l in text.split("\n") if not l.lstrip().startswith("#"))
+            for name, default in _sh_scan(without_prose):
                 # `${X:-…}` — образец из комментария, а не переменная.
-                if имя == "X":
+                if name == "X":
                     continue
-                out.setdefault(имя, []).append(
-                    (os.path.relpath(путь, support.SRC), умолчание))
+                out.setdefault(name, []).append(
+                    (os.path.relpath(path, support.SRC), default))
     return out
 
 
@@ -527,8 +527,8 @@ def test_shell_defaults_agree_with_the_registry():
     на `/models/xxx` проходит молча, и это проверено мутацией. Иначе нельзя:
     хозяин значения объявлен оболочкой, и второго места для него нет.
     """
-    реестр = {k.name: k for k in knobs.KNOBS}
-    найдено = _sh_defaults()
+    registry = {k.name: k for k in knobs.KNOBS}
+    found = _sh_defaults()
 
     # ЗНАМЕНАТЕЛЬ, БЕЗ КОТОРОГО ПРОВЕРКА ЗЕЛЕНА НИ НА ЧЁМ. Не найдись ни
     # одного `.sh` — `_sh_defaults()` вернёт пустоту, `беды` останутся
@@ -536,32 +536,32 @@ def test_shell_defaults_agree_with_the_registry():
     # Проверено исполнением: при пустом каталоге `models` проверка была
     # зелёной. Это «ноль от проверки против нуля от непонимания», и соседняя
     # проверка этого же файла защищается ровно так же — числом.
-    сверено = sorted(n for n in найдено if n in реестр)
-    assert len(сверено) >= 4, (
-        f"сверено всего {len(сверено)} имён ({сверено}) — проверка зелена ни "
+    checked = sorted(n for n in found if n in registry)
+    assert len(checked) >= 4, (
+        f"сверено всего {len(checked)} имён ({checked}) — проверка зелена ни "
         f"на чём. Ждём хотя бы четыре: скрипты, уезжающие на карту, читают "
         f"MODEL_NAME, PORT, RESUME, VLLM_USE_FLASHINFER_SAMPLER и "
         f"VL_MODEL_DIR. Пусто здесь значит, что `.sh` не нашлись или разбор "
         f"перестал их видеть, а не что расхождений нет")
 
-    беды = []
-    for имя, места in sorted(найдено.items()):
-        k = реестр.get(имя)
+    troubles = []
+    for name, places in sorted(found.items()):
+        k = registry.get(name)
         if k is None:
             continue
-        for файл, умолчание in места:
+        for file, default in places:
             if k.default:
-                if умолчание != k.default:
-                    беды.append(
-                        f"  {имя}: в {файл} умолчание {умолчание!r}, "
+                if default != k.default:
+                    troubles.append(
+                        f"  {name}: в {file} умолчание {default!r}, "
                         f"в реестре {k.default!r}")
             elif "run.sh" not in k.what and "оболочк" not in k.what:
-                беды.append(
-                    f"  {имя}: реестр умолчания не даёт, а {файл} подставляет "
-                    f"{умолчание!r}, и запись реестра об этом молчит "
+                troubles.append(
+                    f"  {name}: реестр умолчания не даёт, а {file} подставляет "
+                    f"{default!r}, и запись реестра об этом молчит "
                     f"(«{k.what[:60]}»)")
-    assert not беды, (
-        "умолчания оболочки разошлись с реестром:\n" + "\n".join(беды)
+    assert not troubles, (
+        "умолчания оболочки разошлись с реестром:\n" + "\n".join(troubles)
         + "\nУ умолчания одно место жительства. Разойдясь, слепок пишет одно, "
           "а арендованная карта считает другим — и узнать об этом можно "
           "только по счёту.")
@@ -585,19 +585,19 @@ def test_replay_finds_the_snapshot_in_both_layouts():
     from booksmith.doc.html import ASSETS
     from booksmith.run import replay
 
-    снимок = {"knobs": {"PAGE_DPI": {"value": "144"}}}
+    snapshot = {"knobs": {"PAGE_DPI": {"value": "144"}}}
     with tempfile.TemporaryDirectory() as tmp:
         assert replay.facts(tmp) == {}, "слепок найден там, где его нет"
 
         with open(os.path.join(tmp, "run.json"), "w", encoding="utf-8") as f:
-            _json.dump(снимок, f)
-        assert replay.facts(tmp) == снимок, "слепок в корне не прочитан"
+            _json.dump(snapshot, f)
+        assert replay.facts(tmp) == snapshot, "слепок в корне не прочитан"
 
     with tempfile.TemporaryDirectory() as tmp:
         os.makedirs(os.path.join(tmp, ASSETS))
         with open(os.path.join(tmp, ASSETS, "run.json"), "w",
                   encoding="utf-8") as f:
-            _json.dump(снимок, f)
-        assert replay.facts(tmp) == снимок, (
+            _json.dump(snapshot, f)
+        assert replay.facts(tmp) == snapshot, (
             "слепок в кухне не прочитан — `books replay --check` на каталоге "
             "книги скажет «слепка нет вовсе» при лежащем рядом слепке")

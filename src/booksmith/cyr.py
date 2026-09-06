@@ -166,13 +166,17 @@ def py_areas(paths, prefix, counter):
                     counter[prefix + ".literals.latin"] += latin(n.value)
             elif isinstance(n, ast.Name):
                 counter[prefix + ".names"] += cyr(n.id)
+                counter[prefix + ".names.latin"] += latin(n.id)
             elif isinstance(n, ast.arg):
                 counter[prefix + ".names"] += cyr(n.arg)
+                counter[prefix + ".names.latin"] += latin(n.arg)
             elif isinstance(n, ast.Attribute):
                 counter[prefix + ".names"] += cyr(n.attr)
+                counter[prefix + ".names.latin"] += latin(n.attr)
             elif isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef,
                                 ast.ClassDef)):
                 counter[prefix + ".names"] += cyr(n.name)
+                counter[prefix + ".names.latin"] += latin(n.name)
             elif isinstance(n, ast.keyword) and n.arg:
                 counter[prefix + ".names"] += cyr(n.arg)
 
@@ -211,7 +215,7 @@ def count():
               "tools.literals", "tools.names", "docs", "config",
               "bench_data", "book_prose"):
         c.setdefault(k, 0)
-        if k not in ("bench_data", "book_prose") and not k.endswith(".names"):
+        if k not in ("bench_data", "book_prose"):
             c.setdefault(k + ".latin", 0)
     return dict(c)
 

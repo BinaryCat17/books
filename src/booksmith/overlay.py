@@ -34,10 +34,10 @@ import pymupdf
 # пустотой: по какой из двух разметок рамка — было не отличить.
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 
-СОВПАЛО = (0.55, 0.55, 0.55)      # серым и тонко: смотреть тут не на что
-НЕ_НАШЛА = (0.85, 0.10, 0.10)     # красным: есть в истине, нет у модели
-ЛИШНЯЯ = (0.95, 0.55, 0.00)       # оранжевым: есть у модели, нет в истине
-ОДНА = (0.15, 0.35, 0.85)         # синим: разметка одна, сравнивать не с чем
+MATCHED = (0.55, 0.55, 0.55)      # серым и тонко: смотреть тут не на что
+NOT_FOUND = (0.85, 0.10, 0.10)     # красным: есть в истине, нет у модели
+SPURIOUS = (0.95, 0.55, 0.00)       # оранжевым: есть у модели, нет в истине
+ONE = (0.15, 0.35, 0.85)         # синим: разметка одна, сравнивать не с чем
 # Ярлык РАЗОШЁЛСЯ — это не «лишняя рамка», и цвет у него теперь свой. Прежде
 # подпись «ярлык: A -> B» бралась той же оранжевой константой, что и «ЛИШНЯЯ»,
 # и висела над СЕРОЙ рамкой: цвет подписи противоречил цвету рамки, к которой
@@ -47,7 +47,7 @@ FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 # другой, и настоящая «ЛИШНЯЯ» рядом становится невидимой. Бедствие при этом
 # узкое — ≥10 подписей всего на 5 листах из 859, и все пять slovar, — но
 # лечится оно цветом, а не терпением.
-ЯРЛЫК = (0.45, 0.25, 0.65)        # фиолетовым: рамка та же, имя другое
+LABEL = (0.45, 0.25, 0.65)        # фиолетовым: рамка та же, имя другое
 
 
 class OverlayError(RuntimeError):
@@ -69,7 +69,7 @@ def _same_book(pdf: str, marks) -> str:
     mine = _sha256(pdf)
     said, unchecked = [], []
     for d, tag in marks:
-        было = len(said)
+        was = len(said)
         up = os.path.dirname(d.rstrip("/"))
         for name, path_in in (("manifest.json", ("sha256 pdf",)),
                               ("run.json", ("source", "sha256"))):
@@ -93,7 +93,7 @@ def _same_book(pdf: str, marks) -> str:
                 # при `manifest.json` и `run.json` в одном каталоге строка
                 # выходила «sha256 сверен для И, М, М».
                 said.append(tag)
-        if len(said) == было:
+        if len(said) == was:
             unchecked.append(tag)
     # НЕСВЕРЕННОЕ НАЗЫВАЕТСЯ ВСЛУХ. Прежде печаталось «sha256 сверен для И», и
     # о том, что «М» не сверен вовсе, не говорилось ни слова: половина
@@ -283,8 +283,8 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
                 f"не той пропорции, что лист — рамки лягут растянутыми.")
         if len(sets) == 1:
             for b in p0["blocks"]:
-                _rect(page, b["box"], k, ОДНА, 1.1)
-                _label(page, b["box"], k, ОДНА, f"{b['label']}")
+                _rect(page, b["box"], k, ONE, 1.1)
+                _label(page, b["box"], k, ONE, f"{b['label']}")
                 drawn += 1
             sheets += 1
             continue
@@ -357,25 +357,25 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
             # почти совпадающие рамки с двумя подписями над каждой и делали
             # лист нечитаемым. Ярлык, если он разошёлся, — единственное, что
             # тут стоит сказать.
-            _rect(page, x["box"], k, СОВПАЛО, 0.7)
+            _rect(page, x["box"], k, MATCHED, 0.7)
             if b["label"] != x["label"]:
-                _label(page, x["box"], k, ЯРЛЫК,
+                _label(page, x["box"], k, LABEL,
                        f"ярлык: {b['label']} -> {x['label']}")
             drawn += 1
         for b in lost:
-            _rect(page, b["box"], k, НЕ_НАШЛА, 1.6)
-            _label(page, b["box"], k, НЕ_НАШЛА, f"НЕ НАШЛА  {b['label']}")
+            _rect(page, b["box"], k, NOT_FOUND, 1.6)
+            _label(page, b["box"], k, NOT_FOUND, f"НЕ НАШЛА  {b['label']}")
             drawn += 1
         for x in quiet:
             # Тонко, синим и без подписи. Совсем не рисовать нельзя: лист
             # тогда молчал бы о том, что модель вообще что-то нашла, — и это
             # был бы ноль от непонимания, выданный за чистую страницу.
-            _rect(page, x["box"], k, ОДНА, 0.5, dashes="[1 2] 0")
+            _rect(page, x["box"], k, ONE, 0.5, dashes="[1 2] 0")
             drawn += 1
         for x in loud:
-            _rect(page, x["box"], k, ЛИШНЯЯ, 1.6, dashes="[3 3] 0")
+            _rect(page, x["box"], k, SPURIOUS, 1.6, dashes="[3 3] 0")
             s = f" {x['score']:.2f}" if x.get("score") is not None else ""
-            _label(page, x["box"], k, ЛИШНЯЯ, f"ЛИШНЯЯ  {x['label']}{s}",
+            _label(page, x["box"], k, SPURIOUS, f"ЛИШНЯЯ  {x['label']}{s}",
                    above=False)
             drawn += 1
 
@@ -422,11 +422,11 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
             f"расхождения на {len(counts['pages'])} страницах")
     # Пропуски — величиной и поимённо, иначе неполный вывод модели выглядит
     # как чистый лист.
-    for кто, ключ in (("истины", "missing_in_truth"), ("модели", "missing_in_model")):
-        if counts[ключ]:
-            п = counts[ключ]
-            log(f"  У {кто} НЕТ {len(п)} страниц, которые есть у другой "
-                f"разметки: {п[:8]}{' …' if len(п) > 8 else ''}. Эти листы "
+    for who, key in (("истины", "missing_in_truth"), ("модели", "missing_in_model")):
+        if counts[key]:
+            p = counts[key]
+            log(f"  У {who} НЕТ {len(p)} страниц, которые есть у другой "
+                f"разметки: {p[:8]}{' …' if len(p) > 8 else ''}. Эти листы "
                 f"НЕ сличались, и их рамки в числа выше не вошли — сравнивать "
                 f"лист с числом здесь нельзя")
     # Величина, а не молчание, и говорится всегда, когда есть неразмечающие

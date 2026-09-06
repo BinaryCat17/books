@@ -448,9 +448,9 @@ def test_the_book_is_alone_at_the_root_and_carries_itself():
         out = os.path.join(tmp, "html")
         H.build(det, out, log=lambda *_: None)
 
-        в_корне = sorted(os.listdir(out))
-        assert в_корне == ["assets", "book.html"], (
-            f"в корне сборки {в_корне}, а ожидается только book.html и "
+        in_root = sorted(os.listdir(out))
+        assert in_root == ["assets", "book.html"], (
+            f"в корне сборки {in_root}, а ожидается только book.html и "
             f"assets/. Всё, кроме книги, — кухня")
 
         with open(os.path.join(out, "book.html"), encoding="utf-8") as f:
@@ -459,11 +459,11 @@ def test_the_book_is_alone_at_the_root_and_carries_itself():
         # скриптов плюс таблицы стилей. Обычный `<a href="https://…">` не
         # ловим — их два, оба внутри диалога «О программе» самого MathJax,
         # и на чтение книги без сети они не влияют никак.
-        грузит = [u for u in re.findall(r'\ssrc="([^"]+)"', s)
+        loads = [u for u in re.findall(r'\ssrc="([^"]+)"', s)
                   if not u.startswith("data:")]
-        грузит += re.findall(r'<link[^>]+href="([^"]+)"', s)
-        assert not грузит, (
-            f"книга подгружает со стороны: {грузит[:5]}. По сетевому пути "
+        loads += re.findall(r'<link[^>]+href="([^"]+)"', s)
+        assert not loads, (
+            f"книга подгружает со стороны: {loads[:5]}. По сетевому пути "
             f"(\\\\wsl.localhost\\...) браузер эти файлы молча не загрузит, и "
             f"книга откроется без формул и картинок, выглядя исправной")
 
@@ -493,17 +493,17 @@ def test_the_builder_recognises_its_own_directory():
     import tempfile
 
     with tempfile.TemporaryDirectory() as tmp:
-        assert not H.наш_каталог(tmp), "пустой каталог признан нашим"
+        assert not H.is_our_dir(tmp), "пустой каталог признан нашим"
 
         os.makedirs(os.path.join(tmp, H.ASSETS))
         open(os.path.join(tmp, H.ASSETS, "run.json"), "w").close()
-        assert H.наш_каталог(tmp), (
+        assert H.is_our_dir(tmp), (
             "каталог со слепком в кухне не признан своим — пересборка на "
             "месте откажет, и совет из журнала сборки станет невыполним")
 
     with tempfile.TemporaryDirectory() as tmp:
         open(os.path.join(tmp, "run.json"), "w").close()
-        assert H.наш_каталог(tmp), (
+        assert H.is_our_dir(tmp), (
             "книга ПРЕЖНЕЙ раскладки объявлена чужой — она наша, просто "
             "собрана до переезда слепка")
 
@@ -566,12 +566,12 @@ def test_the_book_carries_blocks_in_the_order_it_walked_them():
         out = os.path.join(tmp, "html")
         H.build(det, out, log=lambda *_: None)
         with open(os.path.join(out, "book.html"), encoding="utf-8") as f:
-            книга = f.read()
+            book = f.read()
 
-        ждали = [H.anchor_of(0, i) for i in range(3)]
-        assert swap.anchors(книга) == ждали, (
-            f"книга сложена не в порядке блоков: {swap.anchors(книга)} против "
-            f"{ждали}. Порядок книги — это порядок чтения")
+        wanted = [H.anchor_of(0, i) for i in range(3)]
+        assert swap.anchors(book) == wanted, (
+            f"книга сложена не в порядке блоков: {swap.anchors(book)} против "
+            f"{wanted}. Порядок книги — это порядок чтения")
 
     # ОЖИДАНИЕ НЕ СМЕЕТ ВЫВОДИТЬСЯ ИЗ ОБХОДА. Разбором исходника: исполнением
     # тавтологию не поймать — сторож, выведенный из обхода, на здоровом коде
@@ -579,16 +579,16 @@ def test_the_book_carries_blocks_in_the_order_it_walked_them():
     t = support.tree("doc/html.py")
     fn = next(n for n in ast.walk(t)
               if isinstance(n, ast.FunctionDef) and n.name == "build")
-    циклы = [n for n in ast.walk(fn) if isinstance(n, ast.For)]
-    for c in циклы:
-        внутри = [n for n in ast.walk(c)
+    loops = [n for n in ast.walk(fn) if isinstance(n, ast.For)]
+    for c in loops:
+        inside = [n for n in ast.walk(c)
                   if isinstance(n, ast.Call)
                   and isinstance(n.func, ast.Attribute)
                   and isinstance(n.func.value, ast.Name)
-                  and n.func.value.id == "ждём"
+                  and n.func.value.id == "expected"
                   and n.func.attr == "append"]
-        assert not внутри, (
-            f"ожидание порядка копится ВНУТРИ цикла (строка {внутри[0].lineno}"
+        assert not inside, (
+            f"ожидание порядка копится ВНУТРИ цикла (строка {inside[0].lineno}"
             f") — сторож стал тавтологичным: перевернёшь обход, перевернётся "
             f"и ожидание. Так уже было, и три порчи не поймались ни одна")
 
@@ -597,11 +597,11 @@ def test_the_book_carries_blocks_in_the_order_it_walked_them():
     # книга-то соберётся верно. А сторож нужен не ей, а настоящему прогону —
     # там сравнивать некому. Проверено порчей: `if вышло != ждём` -> `if
     # False` не роняет ни одной проверки.
-    сверок = [n for n in ast.walk(fn)
+    check_count = [n for n in ast.walk(fn)
               if isinstance(n, ast.Compare)
-              and isinstance(n.left, ast.Name) and n.left.id == "вышло"
+              and isinstance(n.left, ast.Name) and n.left.id == "got"
               and any(isinstance(o, ast.NotEq) for o in n.ops)]
-    assert сверок, (
+    assert check_count, (
         "в `build` не осталось сверки `вышло != ждём` — сборщик перестал "
         "проверять, в том ли порядке сложилась книга. Настоящему прогону "
         "сравнивать нечем: приборы мерят страницы детекции, а не документ")
