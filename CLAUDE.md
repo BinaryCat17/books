@@ -86,9 +86,11 @@ src/booksmith/
                and order against truth; text.py characters and cells against
                truth; fitness.py the ink metric's battery and Record;
                assembly.py excess column jumps, needing no truth; snapshot.py
-               is the run's snapshot complete), make/ (synth.py the synthetic bench with truth
-               measured by ink, books/ its six book kinds, annopage.py the
-               golden bench of 600 real pages, subset.py the distillate),
+               is the run's snapshot complete), make/ (synth/ the synthetic bench with truth
+               measured by ink -- draw.py the drawers, age.py the aging,
+               truth.py the measured truth, books/ the six book kinds --,
+               annopage.py the golden bench of 600 real pages, subset.py the
+               distillate),
                look.py boxes drawn over the pages, table.py every metric on
                one run side by side, accept.py reports and records against
                bench/expected/

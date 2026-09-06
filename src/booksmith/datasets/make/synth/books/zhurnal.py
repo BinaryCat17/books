@@ -13,7 +13,7 @@ The control is `zh_two_col_plain`, an ordinary two-column page with no feature
 at all. Without it, "little was found" on a busy page cannot be told from the
 book failing as a whole.
 """
-from booksmith.datasets.make.synth import (
+from booksmith.datasets.make.synth.draw import (
     PROSE_EN,
     _box_insert,
     _caption,

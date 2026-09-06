@@ -587,7 +587,7 @@ def cmd_synth(a):
     from booksmith.core import knobs
     out = a.out or f"bench/{a.book}"
     cases = a.cases.split(",") if a.cases else None
-    from booksmith.datasets.make.books import load
+    from booksmith.datasets.make.synth.books import load
     log(f"book {a.book}: cases {len(cases or load(a.book).CASES)}, "
         f"ageing {knobs.knob('SYNTH_AGING')}, "
         f"seed {knobs.knob('SYNTH_SEED')}")

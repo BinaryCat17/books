@@ -12,7 +12,7 @@ table and figure are not neighbours here, they are nested.
 The control page `atl_plate_only` carries neither. Without it, "found the
 figure" on a stamped page cannot be told from "boxed everything at once".
 """
-from booksmith.datasets.make.synth import (
+from booksmith.datasets.make.synth.draw import (
     PROSE_EN,
     _callouts,
     _caption,

@@ -25,10 +25,8 @@ NAMES = ("spravochnik", "slovar", "matematika", "atlas", "katalog", "zhurnal")
 
 
 def load(name: str):
-    """A book's module. `spravochnik` lives in `synth`, where it was born."""
+    """A book's module, by name; `spravochnik` is one of them since the
+    generator became a package and the handbook's cases got a file."""
     if name not in NAMES:
         raise KeyError(f"no book {name!r}: there are {NAMES}")
-    if name == "spravochnik":
-        from booksmith.datasets.make import synth
-        return synth
     return importlib.import_module(f".{name}", __package__)

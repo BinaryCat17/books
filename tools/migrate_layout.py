@@ -134,8 +134,16 @@ ALIASES = {"page": "booksmith.core.page", "textnorm": "booksmith.core.textnorm",
            "book": "booksmith.core.book",
            "fitmet": "booksmith.datasets.metrics.fitness"}
 
+# STEP 2c: the synthetic generator became a package (`synth.py` cut by hand
+# into `synth/{__init__,draw,age,truth}.py` and `synth/books/spravochnik.py`)
+# and the book kinds moved under it. Recorded here; the cut itself was not a
+# move the script could do, and the proof of it is the byte identity of every
+# truth file and PDF of the six books before and after.
+STEP3_PACKAGES = {"booksmith.datasets.make.books": "booksmith.datasets.make.synth.books"}
+
 STEPS = {1: (STEP1_MOVES, {}, STEP1_SYMBOLS, STEP1_ATTRS),
-         2: (STEP2_MOVES, STEP2_PACKAGES, STEP2_SYMBOLS, STEP2_ATTRS)}
+         2: (STEP2_MOVES, STEP2_PACKAGES, STEP2_SYMBOLS, STEP2_ATTRS),
+         3: ({}, STEP3_PACKAGES, {}, {})}
 MOVES, PACKAGES, SYMBOLS, ATTR_RETARGET = STEP1_MOVES, {}, STEP1_SYMBOLS, STEP1_ATTRS
 NEW_ALIASES = ALIASES
 

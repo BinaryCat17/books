@@ -18,7 +18,7 @@ indistinguishable by eye: the same grid, TEXT (an index) in the first and a
 TABLE in the second. The price of a label error on indistinguishable pages is
 what the pair exists to show.
 """
-from booksmith.datasets.make.synth import (
+from booksmith.datasets.make.synth.draw import (
     ENTRY_EN,
     ENTRY_RU,
     SynthError,
