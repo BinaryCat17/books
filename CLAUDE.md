@@ -105,8 +105,10 @@ tests/         collusions between files, own runner (there is no pytest in
                the mutations, ALL of which must be caught. DO NOT ASK THIS
                PROSE FOR THE NUMBERS -- ask the runner, it prints them on its
                last line
-tools/         cyr.py, acceptance.py, prose_only.py, keymap*.json,
-               migrate_*.py -- the instruments and the record of the rename
+tools/         cyr.py (Cyrillic ratchet and the residue lock), anchors.py
+               (do the battery's source patches still land), acceptance.py,
+               prose_only.py, keymap*.json, migrate_*.py -- the instruments
+               and the record of the rename
 ```
 
 ## Commands
