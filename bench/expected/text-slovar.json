@@ -1,7 +1,7 @@
 {
  "inputs": {
-  "bench/slovar/manifest.json": "7430ed0e72ad41736012470b2925e34ce51846df059e3df3342f2c8ba86fec2a",
-  "bench/slovar/truth": "ebb920054056611e9eec3e5d6a5dd9dd97051ff46d9724d691781aa95073893e"
+  "bench/slovar/manifest.json": "f79ea233fce40804a9f9db625bed4e21ca19abd0fa7f53c2dc8632e04e245af3",
+  "bench/slovar/truth": "a98e4953964725e8df41c8572c74086f7bf88567ea8917911093401f2e1e8af4"
  },
  "result": {
   "answer_kind_wrong": 0,

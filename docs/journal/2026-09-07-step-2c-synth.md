@@ -32,3 +32,36 @@ its PDF the same hash. The split changed no pixel and no box.
 
 The ratchet exempts book prose by the `_RU` suffix of the constant's name,
 not by file, so the constants' move to `draw.py` did not disturb it.
+
+## Second half: the truth says its order is known
+
+The synthetic truth wrote `order` on every block and never `order_marked`,
+so the one bench where reading order is exact printed NOT SAID on every
+page and the metric could not score it. The generator writes
+`order_marked: true` now: the drawers append blocks in the order a reader
+takes them, and that index is the order. A case that draws out of reading
+order is a truth defect for the eyes.
+
+The six benches were rebuilt in place (seed 1, aging old). What moved:
+
+* the truth files' `meta` (one key), and so the tracked lock of slovar's
+  truth hashes;
+* the six tracked manifests: the generator recorded as a package of four
+  hashed files plus the book module, the commit marker in the writers'
+  shared form, and the knob descriptions in English at last (they were the
+  Russian of the build that made them, a record the ratchet exempted);
+* the two records taken against slovar said INPUTS MOVED, the manifest and
+  the truth, and "the result is the same to the last key" -- the shape the
+  step-0 review asked for, on its first real use;
+* the contour battery on slovar measures 30 probes of 33 instead of 26:
+  the three order probes and the erased-flag probe have something to
+  measure with;
+* the table on slovar: model order 0.886 and assembly order 0.886 over 13
+  of 13 pages, where both were absent with a footnote.
+
+That last number is the first measurement of reading order against a
+truth that knows it. On the handbook, the dictionary and the four others
+the same figure is one `books bench all` away. `bench/hard`, the distillate,
+still carries the synthetic pages' old meta (NOT SAID on its six synthetic
+pages): it is tracked, and the plan's 3b rebuilds it when its manifest gains
+`derived_from`.

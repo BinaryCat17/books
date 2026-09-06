@@ -305,6 +305,16 @@ def _build(out_dir, cases, seed, aging, book, log) -> dict:
                                 # block of role text and service has
                                 # characters; one silent hole and it says no.
                                 "text_marked": not no_chars,
+                                # THE READING ORDER IS KNOWN BY CONSTRUCTION:
+                                # the drawers append blocks in the order a
+                                # reader takes them, and `order` above is
+                                # that index. The flag was missing, and the
+                                # one bench where order is exact could not
+                                # score it: thirteen pages of slovar printed
+                                # NOT SAID (the audit of 2026-09-06). A case
+                                # that draws out of reading order is a truth
+                                # defect for the eyes and `books look`.
+                                "order_marked": True,
                                 "char_truth": chars,
                                 "text_layer_check": check,
                                 # ARTIFACT truth: beside, by block number. For

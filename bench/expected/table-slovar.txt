@@ -10,8 +10,8 @@ bench slovar, run detect
   contour  text_furniture_found        0.990           515/520           13/13 pages
   contour  label_errors                  207                                        
   contour  role_errors                     1                                        
-  contour  model_order                     —                              0/13 pages  [1]
-  contour  assembly_order                  —                              0/13 pages  [2]
+  contour  model_order                 0.886                             13/13 pages
+  contour  assembly_order              0.886                             13/13 pages
   contour  excess_jumps_per_page      10.833                             12/13 pages
   contour  params: COVER_MATCH=0.75, TOUCH=0.1, TOL_PX=6.0, SENSE_WHOLE=0.9, SENSE_NEIGHBOUR=0.5, COLUMN_x_overlap_of_narrow_box=0.5, COLUMN_full_width_box_share=0.6, COLUMN_min_boxes_per_page=2, COLUMN_buckets_counted=['artifact', 'text']
   fitness  ink_under_boxes             0.976   1032695/1057663                      
@@ -28,14 +28,14 @@ bench slovar, run detect
   text     paired                      0.989           517/523                      
   text     CER                         1.000                                        
   text     WER                         1.000                                        
-  text     CER_answered                    —                            0/520 blocks  [3]
+  text     CER_answered                    —                            0/520 blocks  [1]
   text     no_answer                   0.990           515/520                      
-  text     cells_matched                   —             0/227                        [4]
-  text     CER_cells                       —                             0/227 cells  [5]
+  text     cells_matched                   —             0/227                        [2]
+  text     CER_cells                       —                             0/227 cells  [3]
   text     tables_given_as_text        0.000               0/2                      
   text     baits_read                  0.000               0/1                      
-  text     CER_artefacts                   —                                          [6]
-  text     CER_artefacts_answered          —                              0/0 blocks  [7]
+  text     CER_artefacts                   —                                          [4]
+  text     CER_artefacts_answered          —                              0/0 blocks  [5]
   text     params: normalization=boundary, geometry_two_way_coverage=0.75, geometry_tolerance_px=6.0
   assembly excess_jumps_per_page      10.833                             12/13 pages
   assembly excess_jumps                  130                                        
@@ -46,11 +46,9 @@ bench slovar, run detect
   snapshot missing                         4              4/55                      
   snapshot empty                          14             14/55                      
   snapshot fingerprint_verified            0                                        
-  [1] contour/model_order: truth carries no order: not_said on 13 of 13 pages
-  [2] contour/assembly_order: truth carries no order: not_said on 13 of 13 pages
-  [3] text/CER_answered: no answered text block
-  [4] text/cells_matched: no table answered
-  [5] text/CER_cells: no table answered
-  [6] text/CER_artefacts: no artefact with character truth
-  [7] text/CER_artefacts_answered: no answered artefact with character truth
+  [1] text/CER_answered: no answered text block
+  [2] text/cells_matched: no table answered
+  [3] text/CER_cells: no table answered
+  [4] text/CER_artefacts: no artefact with character truth
+  [5] text/CER_artefacts_answered: no answered artefact with character truth
 5 records written to /dev/null
