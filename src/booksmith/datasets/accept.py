@@ -49,7 +49,8 @@ import re
 import subprocess
 import sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__)))))
 EXPECTED = os.path.join(ROOT, "bench", "expected")
 
 # name -> (argv after `books`, paths that must exist for it to run at all)
@@ -104,19 +105,19 @@ COMMANDS = {
 # reports: the dict is the thing, not what a command prints about it.
 RECORDS = {
     "score-annopage": (
-        ("metrics", "compare", ["bench/annopage/truth",
+        ("datasets.metrics.contour", "compare", ["bench/annopage/truth",
                                 "bench/annopage/detect/pages"]),
         ["bench/annopage/truth", "bench/annopage/manifest.json",
          "bench/annopage/detect/pages"]),
     "score-hard": (
-        ("metrics", "compare", ["bench/hard/truth", "bench/hard/detect/pages"]),
+        ("datasets.metrics.contour", "compare", ["bench/hard/truth", "bench/hard/detect/pages"]),
         ["bench/hard/truth", "bench/hard/manifest.json",
          "bench/hard/detect/pages"]),
     "text-slovar": (
-        ("text", "measure", ["bench/slovar/truth", "bench/slovar/truth"]),
+        ("datasets.metrics.text", "measure", ["bench/slovar/truth", "bench/slovar/truth"]),
         ["bench/slovar/truth", "bench/slovar/manifest.json"]),
     "fitness-slovar": (
-        ("fitness", "measure", ["bench/slovar/slovar.pdf",
+        ("processing.assess.ink", "measure", ["bench/slovar/slovar.pdf",
                                 "bench/slovar/detect/pages",
                                 "bench/slovar/truth"]),
         ["bench/slovar/slovar.pdf", "bench/slovar/truth",

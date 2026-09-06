@@ -287,14 +287,14 @@ RESIDUE = {
     "src/booksmith/djvu.py": (226, "TITLE and DATA: four books, and the three "
                               "table captions split across the gutter"),
     "src/booksmith/core/raster.py": (20, "TITLE"),
-    "src/booksmith/fitness.py": (20, "TITLE"),
+    "src/booksmith/processing/assess/ink.py": (20, "TITLE"),
     "src/booksmith/core/otsl.py": (94, "TITLE and DATA: a column header and a "
                               "grade designation from the book"),
     "src/booksmith/read/run.py": (39, "TITLE, two of them"),
     "src/booksmith/core/knobs.py": (60, "TITLE, three knob descriptions"),
     "src/booksmith/core/textnorm.py": (20, "TITLE: the book whose 1935 nested blocks "
                                         "measured the latex step"),
-    "src/booksmith/text.py": (5, "TITLE, and the name of the dead truth key "
+    "src/booksmith/datasets/metrics/text.py": (5, "TITLE, and the name of the dead truth key "
                               "this file stopped reading"),
     "tests/test_data_contract.py": (4, "TOOL: the bounds of the Cyrillic "
                                     "block, in two regexps hunting Russian "

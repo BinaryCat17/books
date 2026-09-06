@@ -38,9 +38,7 @@ IMPORTERS_OF_REMOTE = ("remote", "cli", "processing", "models")
 # and `tests/test_imports.py` demands that every name in it still exists at
 # the top of the package, so a placed module cannot stay exempt by
 # forgetfulness. Empty after step 3c.
-UNPLACED = ("metrics", "text", "fitness", "overlay", "annopage", "subset",
-            "synth", "books", "acceptance", "detect", "djvu", "models", "doc",
-            "read", "cli")
+UNPLACED = ("detect", "djvu", "models", "doc", "read", "cli")
 
 
 def _module(path, root, name):

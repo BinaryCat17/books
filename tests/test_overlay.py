@@ -37,7 +37,7 @@ import support
 from booksmith.core import stamp
 from booksmith.core.errors import Refusal
 
-from booksmith import overlay
+from booksmith.datasets import look as overlay
 
 
 def _stand(d, pages=3, model_skip=()):
@@ -239,7 +239,7 @@ def test_the_sheet_shouts_at_exactly_what_the_number_calls_extra():
     """
     import json as _j
 
-    from booksmith import metrics
+    from booksmith.datasets.metrics import contour as metrics
 
     with tempfile.TemporaryDirectory() as d:
         pdf = _stand(d, pages=1)

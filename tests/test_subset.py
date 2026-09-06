@@ -14,7 +14,7 @@ import tempfile
 import pymupdf
 import support
 from booksmith.core import stamp
-from booksmith import subset
+from booksmith.datasets.make import subset
 
 
 def _truth(index, meta=None):

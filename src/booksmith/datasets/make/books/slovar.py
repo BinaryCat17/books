@@ -18,9 +18,20 @@ indistinguishable by eye: the same grid, TEXT (an index) in the first and a
 TABLE in the second. The price of a label error on indistinguishable pages is
 what the pair exists to show.
 """
-from ..synth import (ENTRY_EN, ENTRY_RU, SynthError, _entries, _figure,
-                     _grid, _line, _page, _put, _running_head, _say, _table,
-                     _text_w)
+from booksmith.datasets.make.synth import (
+    ENTRY_EN,
+    ENTRY_RU,
+    SynthError,
+    _entries,
+    _figure,
+    _grid,
+    _line,
+    _page,
+    _put,
+    _running_head,
+    _say,
+    _table,
+    _text_w)
 
 # Pocket format: narrower and shorter than the handbook, aspect 0.588 vs 0.690.
 SHEET = (680, 1156)

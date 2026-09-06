@@ -76,8 +76,24 @@ src/booksmith/
                contract (Recognizer), doclayout.py (PP-DocLayout*),
                docling_heron.py (heron and egret), yolox_layout.py;
                paddleocr_vl/ and dots_ocr/ deliver a VLM to a rented machine
-  books/       bench books: reference, dictionary, mathematics, atlas,
-               catalogue, article collection -- each a different format
+  processing/  MODULE 1, one book stage by stage (being filled by step 3 of
+               docs/plan.md): assess/ink.py, the ink measurement -- will the
+               meaning reach the second level; needs no truth
+  datasets/    MODULE 2, many books, truth, numbers: bench.py (Bench, Run:
+               the one loader and the one identity check), metrics/ (base.py
+               the contract -- Metric, Record, Scalar, the one battery loop;
+               contour.py boxes and order against truth; text.py characters
+               and cells against truth; fitness.py the ink metric's battery
+               and Record), make/ (synth.py the synthetic bench with truth
+               measured by ink, books/ its six book kinds, annopage.py the
+               golden bench of 600 real pages, subset.py the distillate),
+               look.py boxes drawn over the pages, table.py every metric on
+               one run side by side, accept.py reports and records against
+               bench/expected/
+  models/      detection adapters, all ONNX on the CPU: base.py is the
+               contract (Recognizer), doclayout.py (PP-DocLayout*),
+               docling_heron.py (heron and egret), yolox_layout.py;
+               paddleocr_vl/ and dots_ocr/ deliver a VLM to a rented machine
   doc/         contours into HTML: feed, html; swap and apply are level two --
                one picture replaced by markup at a time, with an undo;
                mathjax/ ships MathJax beside the book, knob `HTML_MATH`
@@ -85,17 +101,7 @@ src/booksmith/
                (__init__), transport to any OpenAI-compatible address (http),
                the book driver (run). Its product is THE SAME `pages/*.json`
                detection makes, with `content` and `kind` filled in
-  acceptance.py  reports and raw-result records compared against
-               `bench/expected/`
   detect.py    level one: page contours, locally and free
-  synth.py     the synthetic bench: pages with truth measured by ink
-  annopage.py  the golden bench: 600 real pages, truth by librarians
-  subset.py    the distillate: pages where artifacts stand side by side
-  metrics.py   contour metrics and the mutation battery
-  fitness.py   fitness of the output for the pipeline, BY INK; needs no truth
-  text.py      the READING metric: characters against the bench truth, CER/WER
-               and the table grid by cell address; its own damage battery
-  overlay.py   boxes over the pages -- to look with your own eyes
   djvu.py      djvu -> PDF with spreads cut apart
   cli.py       books <command>
 tests/         collusions between files, own runner (there is no pytest in

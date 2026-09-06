@@ -173,7 +173,7 @@ def test_the_ruler_measures_the_same_rule_the_book_is_built_with():
     agree today, which is why they lived on as copies. What must be checked is
     that a second rule does not exist.
     """
-    t = support.tree("metrics.py")
+    t = support.tree("datasets/metrics/contour.py")
     fn = next((n for n in ast.walk(t)
                if isinstance(n, ast.FunctionDef) and n.name == "_by_reading"),
               None)

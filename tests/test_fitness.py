@@ -43,7 +43,9 @@ import numpy as np                                          # noqa: E402
 import pymupdf                                              # noqa: E402
 
 import support                                              # noqa: E402
-from booksmith import fitness                               # noqa: E402
+from booksmith.core import book
+from booksmith.datasets.metrics import fitness as fitmet
+from booksmith.processing.assess import ink as fitness  # noqa: E402
 
 
 # --- what we measure with ---------------------------------------------------
@@ -264,7 +266,7 @@ def test_the_ink_threshold_has_one_meaning_in_both_homes():
     functions, `import booksmith.synth` costs 2 ms), but the metric must not
     depend on whoever draws the bench.
     """
-    from booksmith import synth
+    from booksmith.datasets.make import synth
     assert fitness.INK == synth.INK, (fitness.INK, synth.INK)
 
 
@@ -471,7 +473,7 @@ def test_battery_counts_what_it_could_not_measure():
     """
     def counts(*a):
         out = []
-        bad = fitness.mutations(*a, log=out.append)
+        bad = fitmet.mutations(*a, log=out.append)
         tail = out[-1]
         got = dict(zip(("probes", "measured", "unmeasurable"),
                        (int(w) for w in tail.replace(",", " ").split()
@@ -509,7 +511,7 @@ def test_battery_corrupts_all_three_sides():
         det = _pages([((20, 20, 120, 120), "table")], tmp, "det")
         truth = _pages([((20, 20, 120, 120), "table")], tmp, "truth")
         out = []
-        fitness.mutations(pdf, det, truth, log=out.append)
+        fitmet.mutations(pdf, det, truth, log=out.append)
         said = "\n".join(out)
         assert "truth shifted" in said, said          # the third side
         assert "ink threshold" in said, said          # the second

@@ -614,7 +614,7 @@ def test_the_aging_knob_lists_exactly_the_profiles_that_exist():
     description is not a comment: it is copied verbatim into every run
     snapshot, so the wrong value travels with the record of the run.
     """
-    from booksmith import synth
+    from booksmith.datasets.make import synth
     knob = [k for k in knobs.KNOBS if k.name == "SYNTH_AGING"][0]
     listed = knob.what.split(": ")[1].split("|")
     assert listed == list(synth.AGING), (

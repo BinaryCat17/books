@@ -15,9 +15,22 @@ Glyphs are checked BEFORE drawing: a missing glyph is drawn by DejaVu not as
 emptiness but as a .notdef box -- ink -- and `_measure` would calmly take that
 for a formula. The page would come out full of squares and the numbers healthy.
 """
-from ..synth import (PROSE_EN, SynthError, _fill, _flow, _formula, _grid,
-                     _line, _matrix, _page, _put, _rect, _refs, _say, _table,
-                     _text_w)
+from booksmith.datasets.make.synth import (
+    PROSE_EN,
+    SynthError,
+    _fill,
+    _flow,
+    _formula,
+    _grid,
+    _line,
+    _matrix,
+    _page,
+    _put,
+    _rect,
+    _refs,
+    _say,
+    _table,
+    _text_w)
 
 SHEET = (936, 1324)
 PT = 0.5

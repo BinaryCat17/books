@@ -38,7 +38,7 @@ re-saves it having read that line.
 import os
 
 import support
-from booksmith import acceptance
+from booksmith.datasets import accept as acceptance
 
 
 def _one(name):

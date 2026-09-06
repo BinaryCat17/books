@@ -15,8 +15,17 @@ The control is `kat_two_stacked`, two tables one under the other. The handbook
 passes that pair correctly, so a failure here is about the bare page and not
 about the pair itself.
 """
-from ..synth import (PROSE_EN, _flow, _grid, _line, _page, _put,
-                     _running_head, _say, _table, _text_w)
+from booksmith.datasets.make.synth import (
+    PROSE_EN,
+    _flow,
+    _grid,
+    _line,
+    _page,
+    _put,
+    _running_head,
+    _say,
+    _table,
+    _text_w)
 
 SHEET = (1012, 1466)
 PT = 0.5

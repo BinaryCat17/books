@@ -22,34 +22,10 @@ from dataclasses import dataclass, field
 
 from booksmith.core import policy
 from booksmith.core.errors import Unmeasurable
+from booksmith.core.page import load_pages  # noqa: F401  (the loader; re-exported for the tests)
 
 TRAITS = ("order_marked", "text_marked")
 TRAIT_STATES = ("yes", "no", "not_said")
-
-
-def load_pages(d: str, what: str = "pages") -> dict:
-    """Pages of a directory keyed by index: `*.json` except the snapshots.
-
-    A directory of foreign json would yield a plausible number about
-    nothing, so every file must carry `blocks` and `index`; a directory with
-    none is `Unmeasurable`, not an empty result, because an empty result
-    reads as "matched zero", which is another thing.
-    """
-    if not os.path.isdir(d):
-        raise Unmeasurable(f"{what}: no directory {d}")
-    out = {}
-    for name in sorted(os.listdir(d)):
-        if not name.endswith(".json") or name in ("run.json", "manifest.json"):
-            continue
-        with open(os.path.join(d, name), encoding="utf-8") as f:
-            p = json.load(f)
-        if not (isinstance(p, dict) and "blocks" in p and "index" in p):
-            raise Unmeasurable(f"{what}: {name} in {d} does not look like a "
-                               f"markup page (no blocks/index)")
-        out[int(p["index"])] = p
-    if not out:
-        raise Unmeasurable(f"{what}: no markup pages in {d}")
-    return out
 
 
 def trait_state(meta: dict, key: str) -> str:

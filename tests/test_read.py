@@ -202,7 +202,7 @@ def test_otsl_grid_matches_html_grid_cell_for_cell():
     # pulls a grid out of a model answer with. The first edition called
     # `otsl.grid` and `_html_grid` separately, and the mutation "blind to OTSL
     # again" passed it by: a broken `_answer_grid` never touched the check.
-    from booksmith import text as booktext
+    from booksmith.datasets.metrics import text as booktext
     want = {(0, 0): "A", (0, 1): "B", (1, 0): "1", (1, 1): "2"}
     g1 = booktext._answer_grid("<fcel>A<fcel>B<nl><fcel>1<fcel>2<nl>", "otsl")
     g2 = booktext._answer_grid("<table><tr><td>A</td><td>B</td></tr>"

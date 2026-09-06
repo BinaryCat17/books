@@ -27,17 +27,18 @@ if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
 import support
+from booksmith.datasets.metrics import fitness as fitmet
 from booksmith.core.errors import Refusal                                              # noqa: E402
-from booksmith import metrics  # noqa: E402
+from booksmith.datasets.metrics import contour as metrics  # noqa: E402
 from booksmith.core import otsl, policy
-from booksmith import fitness as fit                        # noqa: E402
+from booksmith.processing.assess import ink as fit  # noqa: E402
 from booksmith.remote import vast as vastmod
 from booksmith.remote import runner as runnermod
 from booksmith.core import order
-from booksmith import annopage                              # noqa: E402
-from booksmith import overlay                               # noqa: E402
+from booksmith.datasets.make import annopage  # noqa: E402
+from booksmith.datasets import look as overlay  # noqa: E402
 from booksmith import djvu                                  # noqa: E402
-from booksmith import subset                                # noqa: E402
+from booksmith.datasets.make import subset  # noqa: E402
 from booksmith.models import base as basemod                # noqa: E402
 from booksmith.models import yolox_layout as yolox          # noqa: E402
 from booksmith.doc import apply as ap                       # noqa: E402
@@ -49,14 +50,14 @@ from booksmith.models import base as mbase                  # noqa: E402
 from booksmith.models import docling_heron as dh            # noqa: E402
 from booksmith.core import knobs, replay, stamp  # noqa: E402
 from booksmith.models import doclayout                      # noqa: E402
-from booksmith import text as booktext                      # noqa: E402
+from booksmith.datasets.metrics import text as booktext  # noqa: E402
 from booksmith.read import Reader, Route, Said              # noqa: E402
 from booksmith.read import http as vhttp                    # noqa: E402
 from booksmith.read import run as vrun                      # noqa: E402
 from booksmith.models.paddleocr_vl.reader import PaddleOcrVl  # noqa: E402
 from booksmith.tree import cyr as cyrmod  # noqa: E402
 from booksmith.core import schema  # noqa: E402
-from booksmith import acceptance                           # noqa: E402
+from booksmith.datasets import accept as acceptance  # noqa: E402
 from booksmith.core import page
 from booksmith.core import textnorm
 from booksmith.core import book
@@ -140,7 +141,7 @@ COPY = ("models/doclayout.py", "models/docling_heron.py",
         "models/dots_ocr/entrypoint.py",
         # Contour ruler: `test_order` parses its `_by_reading` and demands the
         # assembly rule be asked of `order.py`, not repeated here.
-        "metrics.py",
+        "datasets/metrics/contour.py",
         # Script that ships to the rented card: `test_knobs` compares its
         # `${NAME:-default}` against the knob registry.
         "models/paddleocr_vl/run.sh",
@@ -760,7 +761,7 @@ def one_line(modname, old, new):
         setattr(parent, leaf, mod)
 
 
-_REAL_FIT_MUT = fit.mutations
+_REAL_FIT_MUT = fitmet.mutations
 
 
 def battery_summary_without_the_unmeasured(pdf, detect_dir, truth_dir="",
@@ -839,7 +840,7 @@ def route_check_forgives(self, label):
 
 def grid_only_from_html(s, kind=None):
     """Defect restored: a table is parsed from HTML only; OTSL goes blind."""
-    from booksmith import text as _t
+    from booksmith.datasets.metrics import text as _t
     return _t._html_grid(s)
 
 
@@ -2416,9 +2417,9 @@ def mutations():
 
         # --- line-level: `attrs` cannot reach these places ------------------
         ("the guard on the model's silence is gone",
-         lambda: one_line("booksmith.fitness",
+         lambda: one_line("booksmith.processing.assess.ink",
                           "        if i not in M:\n"
-                          "            raise metrics.MetricError(",
+                          "            raise Unmeasurable(",
                           "        if i not in M:\n"
                           "            continue\n"
                           "        if False:\n"
@@ -2426,7 +2427,7 @@ def mutations():
          [("test_fitness", "test_page_the_model_did_not_mark_is_loud")]),
 
         ("a box hanging over the edge is rejected whole",
-         lambda: one_line("booksmith.fitness",
+         lambda: one_line("booksmith.processing.assess.ink",
                           "    x0, y0 = max(0, x0), max(0, y0)\n"
                           "    x1, y1 = min(w - 1, x1), min(h - 1, y1)",
                           "    if x0 < 0 or y0 < 0 or x1 > w - 1 or y1 > h - 1:\n"
@@ -2434,7 +2435,7 @@ def mutations():
          [("test_fitness", "test_box_hanging_over_the_edge_is_cut_by_the_sheet")]),
 
         ("a box half again wider than the object does not carry it",
-         lambda: one_line("booksmith.fitness",
+         lambda: one_line("booksmith.processing.assess.ink",
                           "                if one > best:",
                           "                if (x[2] - x[0]) > 1.5 * "
                           "(b['box'][2] - b['box'][0]):\n"
@@ -2449,7 +2450,7 @@ def mutations():
         # multi-object boxes are 33 against 35 when merged, the objects
         # themselves 309 against 385.
         ("'not alone' counts boxes instead of objects",
-         lambda: one_line("booksmith.fitness",
+         lambda: one_line("booksmith.processing.assess.ink",
                           '                res["arrived_with_company"] += k',
                           '                res["arrived_with_company"] += 1'),
          [("test_fitness", "test_the_number_that_grows_when_boxes_merge")]),
@@ -2463,11 +2464,11 @@ def mutations():
          [("test_fitness", "test_ink_threshold_is_part_of_the_memory_key")]),
 
         ("the battery summary does not count the unmeasured",
-         lambda: attrs(fit, mutations=battery_summary_without_the_unmeasured),
+         lambda: attrs(fitmet, mutations=battery_summary_without_the_unmeasured),
          [("test_fitness", "test_battery_counts_what_it_could_not_measure")]),
 
         ("the battery corrupts only the model's output",
-         lambda: attrs(fit, mutations=battery_that_corrupts_only_the_model),
+         lambda: attrs(fitmet, mutations=battery_that_corrupts_only_the_model),
          [("test_fitness", "test_battery_corrupts_all_three_sides")]),
 
         # Back to `put` inside the loop: the book is re-read per replacement.
@@ -2543,14 +2544,14 @@ def mutations():
          [("test_subset", "test_the_traits_reach_the_manifest_and_the_log")]),
 
         ("the pdf is written into place while the truth waits aside",
-         lambda: one_line("booksmith.subset",
+         lambda: one_line("booksmith.datasets.make.subset",
                           "    doc.save(wpdf, garbage=3, deflate=True)",
                           "    doc.save(pdf, garbage=3, deflate=True)"),
          [("test_subset",
            "test_truth_pdf_and_manifest_are_swapped_together")]),
 
         ("the golden bench is built with the pdf written in place",
-         lambda: one_line("booksmith.annopage",
+         lambda: one_line("booksmith.datasets.make.annopage",
                           "        doc.save(wpdf, garbage=3, deflate=True)",
                           "        doc.save(pdf, garbage=3, deflate=True)"),
          [("test_annopage",
@@ -2572,14 +2573,14 @@ def mutations():
          [("test_subset", "test_the_carry_over_keeps_every_truth_field")]),
 
         ("the aside truth is copied into place instead of renamed",
-         lambda: one_line("booksmith.subset",
+         lambda: one_line("booksmith.datasets.make.subset",
                           "    os.rename(work, tdir)",
                           "    shutil.copytree(work, tdir)"),
          [("test_subset",
            "test_the_build_leaves_no_working_directory_behind")]),
 
         ("a distillate field may overwrite a truth field",
-         lambda: one_line("booksmith.subset", "    if clash:", "    if False:"),
+         lambda: one_line("booksmith.datasets.make.subset", "    if clash:", "    if False:"),
          [("test_subset",
            "test_a_field_of_ours_may_not_overwrite_a_truth_field")]),
 
@@ -2835,7 +2836,7 @@ def mutations():
 
         # The mirror side of the same guard: it fixed both, checked one.
         ("a page the truth does not have is skipped in silence",
-         lambda: one_line("booksmith.overlay",
+         lambda: one_line("booksmith.datasets.look",
                           'counts["missing_in_truth"].append(i)',
                           "pass"),
          [("test_overlay",
@@ -2843,7 +2844,7 @@ def mutations():
 
         ("the sheet shouts by label instead of by the metric's rule",
          lambda: one_line(
-             "booksmith.overlay",
+             "booksmith.datasets.look",
              '                (loud if kind == "spurious_box" '
              'else quiet).append(x)',
              '                loud.append(x)'),
@@ -2987,7 +2988,7 @@ def mutations():
         # corruption battery measures a truncated string while reporting the
         # whole one.
         ("a table cell is unescaped again",
-         lambda: one_line("booksmith.text",
+         lambda: one_line("booksmith.datasets.metrics.text",
                           '            out.append("<td>" + _html.escape('
                           'g.get((r, c), "")) + "</td>")',
                           '            out.append("<td>" + g.get((r, c), "")'
@@ -3001,7 +3002,7 @@ def mutations():
         # project's main conclusion was drawn on this builder (2471 jumps
         # against 501 and 439).
         ("the instrument sorts by its own copy of the rule again",
-         lambda: sources("metrics.py",
+         lambda: sources("datasets/metrics/contour.py",
                          '        idx = order.permutation(',
                          '        idx = _naive_reading_order('),
          [("test_order",
@@ -3066,14 +3067,14 @@ def mutations():
          [("test_overlay", "test_pages_are_counted_from_one_like_detect")]),
 
         ("a page the model does not have is skipped in silence",
-         lambda: one_line("booksmith.overlay",
+         lambda: one_line("booksmith.datasets.look",
                           'counts["missing_in_model"].append(i)',
                           "pass"),
          [("test_overlay", "test_a_page_missing_from_one_markup_is_named")]),
 
         ("the summary names the book's pages, not the sheets drawn",
          lambda: one_line(
-             "booksmith.overlay",
+             "booksmith.datasets.look",
              'log(f"{out}: sheets drawn {sheets} of {n} in the book, '
              'boxes {drawn}")',
              'log(f"{out}: sheets drawn {n} of {n} in the book, '
@@ -3086,7 +3087,7 @@ def mutations():
 
         ("one markup reports itself as three zeros",
          lambda: one_line(
-             "booksmith.overlay",
+             "booksmith.datasets.look",
              'log(f"  one markup, {sets[0][1]}: these {drawn} boxes have '
              'NOTHING "',
              'log(f"  matched 0, NOT FOUND 0, EXTRA 0 {sets[0][1]} {drawn} "'),
@@ -3094,7 +3095,7 @@ def mutations():
            "test_one_markup_says_there_is_nothing_to_compare")]),
 
         ("an unchecked markup is not named",
-         lambda: one_line("booksmith.overlay", "unchecked.append(tag)", "pass"),
+         lambda: one_line("booksmith.datasets.look", "unchecked.append(tag)", "pass"),
          [("test_overlay", "test_what_was_not_checked_by_sha256_is_named")]),
 
         # --- the golden bench: a builder that had not one check -----------
@@ -3105,7 +3106,7 @@ def mutations():
 
         # The truth is written straight into place again.
         ("the truth is written in place, before the guards",
-         lambda: one_line("booksmith.annopage",
+         lambda: one_line("booksmith.datasets.make.annopage",
                           'work = tdir + ".new"',
                           'work = tdir'),
          [("test_annopage",
@@ -3113,7 +3114,7 @@ def mutations():
 
         # The sheet scale is a number again, not the knob.
         ("the bench sheet size is wired in instead of taken from PAGE_DPI",
-         lambda: one_line("booksmith.annopage",
+         lambda: one_line("booksmith.datasets.make.annopage",
                           "page = doc.new_page(width=w * scale, "
                           "height=h * scale)",
                           "page = doc.new_page(width=w * 0.5, height=h * 0.5)"),

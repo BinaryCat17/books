@@ -41,8 +41,21 @@ script that resolved each alias to its module and each name to its owner).
 Running it again on the moved tree changes nothing (dry run: 0 imports, 0
 strings, 0 moves).
 
-    python3 tools/migrate_layout.py --dry-run    print what would change
-    python3 tools/migrate_layout.py              apply, with counts
+    python3 tools/migrate_layout.py --step 2 --dry-run    print what would change
+    python3 tools/migrate_layout.py --step 2              apply, with counts
+
+STEP 2 (datasets) adds: the three metrics into `datasets/metrics/`, the
+ink metric SPLIT (measurement to `processing/assess/ink.py`, the battery to
+`datasets/metrics/fitness.py`), the bench builders into `datasets/make/`,
+the overlay into `datasets/look.py`, the acceptance into
+`datasets/accept.py`, and the `books` package under `datasets/make/`. The
+wrapper classes step 2a wrote into `datasets/metrics/{contour,text,
+fitness}.py` are merged into the moved files BY HAND after the script (the
+script refuses to overwrite an existing file). The alias pass at the end is
+what step 1 did by a second script: a name that moved is retargeted where a
+test or the battery reaches it THROUGH A MODULE ALIAS (`fitness.mutations`
+-> `fitmet.mutations`), because the import rewrite cannot see attribute
+uses.
 """
 import ast
 import os
@@ -53,8 +66,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "src")
 PKG = os.path.join(SRC, "booksmith")
 
-# Whole modules: old dotted name -> new dotted name.
-MOVES = {
+# Whole modules: old dotted name -> new dotted name, per step.
+STEP1_MOVES = {
     "booksmith.run.knobs": "booksmith.core.knobs",
     "booksmith.run.stamp": "booksmith.core.stamp",
     "booksmith.run.replay": "booksmith.core.replay",
@@ -66,9 +79,22 @@ MOVES = {
     "booksmith.doc.crop": "booksmith.core.raster",
     "booksmith.cyr": "booksmith.tree.cyr",
 }
+STEP2_MOVES = {
+    "booksmith.metrics": "booksmith.datasets.metrics.contour",
+    "booksmith.text": "booksmith.datasets.metrics.text",
+    "booksmith.fitness": "booksmith.processing.assess.ink",
+    "booksmith.overlay": "booksmith.datasets.look",
+    "booksmith.acceptance": "booksmith.datasets.accept",
+    "booksmith.annopage": "booksmith.datasets.make.annopage",
+    "booksmith.subset": "booksmith.datasets.make.subset",
+    "booksmith.synth": "booksmith.datasets.make.synth",
+}
+# Packages moved whole: every module under them follows.
+STEP2_PACKAGES = {"booksmith.books": "booksmith.datasets.make.books"}
 
-# Names that leave a module that otherwise stays: (old module, name) -> new.
-SYMBOLS = {
+# Names that leave a module that otherwise stays or moves elsewhere:
+# (old module, name) -> new module.
+STEP1_SYMBOLS = {
     ("booksmith.models.base", "Block"): "booksmith.core.page",
     ("booksmith.models.base", "Page"): "booksmith.core.page",
     ("booksmith.models.base", "ours_order"): "booksmith.core.page",
@@ -86,22 +112,61 @@ SYMBOLS = {
     ("booksmith.doc.html", "JOURNAL"): "booksmith.core.book",
     ("booksmith.doc.html", "journal_path"): "booksmith.core.book",
 }
+# The ink metric's battery follows the metric, its measurement the signal.
+STEP2_SYMBOLS = {("booksmith.fitness", n): "booksmith.datasets.metrics.fitness"
+                 for n in ("mutations", "_edit", "_scale", "_shift", "_offpage",
+                           "_merge", "_double", "_at")}
 
-# `attrs(alias, NAME=...)` in the battery whose NAME moved with a symbol:
-# (alias, name) -> the alias of the module that owns it now. The aliases on
-# the right are added to the battery's import block by this script.
-ATTR_RETARGET = {
+# `attrs(alias, NAME=...)` in the battery, and `alias.NAME` anywhere in the
+# tests, whose NAME moved with a symbol: (alias, name) -> the alias of the
+# module that owns it now. The aliases on the right are added to the
+# importing file.
+STEP1_ATTRS = {
     ("mbase", "ours_order"): "page",
     ("ap", "KINDS"): "page",
     ("booktext", "bare_math"): "textnorm",
     ("dhtml", "journal_path"): "book",
 }
-NEW_ALIASES = {"page": "booksmith.core.page", "textnorm": "booksmith.core.textnorm",
-               "book": "booksmith.core.book"}
+STEP2_ATTRS = {(alias, n): "fitmet" for alias in ("fit", "fitness", "ink")
+               for n in ("mutations", "_edit", "_scale", "_shift", "_offpage",
+                         "_merge", "_double", "_at")}
+ALIASES = {"page": "booksmith.core.page", "textnorm": "booksmith.core.textnorm",
+           "book": "booksmith.core.book",
+           "fitmet": "booksmith.datasets.metrics.fitness"}
+
+STEPS = {1: (STEP1_MOVES, {}, STEP1_SYMBOLS, STEP1_ATTRS),
+         2: (STEP2_MOVES, STEP2_PACKAGES, STEP2_SYMBOLS, STEP2_ATTRS)}
+MOVES, PACKAGES, SYMBOLS, ATTR_RETARGET = STEP1_MOVES, {}, STEP1_SYMBOLS, STEP1_ATTRS
+NEW_ALIASES = ALIASES
+
+
+def use_step(n):
+    """Point the module-level tables at one step's; packages expand to the
+    modules under them, read from the tree."""
+    global MOVES, PACKAGES, SYMBOLS, ATTR_RETARGET, PATH_MOVES, REPO_PATH_MOVES
+    MOVES, PACKAGES, SYMBOLS, ATTR_RETARGET = STEPS[n]
+    MOVES = dict(MOVES)
+    for old, new in PACKAGES.items():
+        d = os.path.join(SRC, *old.split("."))
+        MOVES[old] = new
+        for fn in sorted(os.listdir(d)) if os.path.isdir(d) else []:
+            if fn.endswith(".py") and fn != "__init__.py":
+                MOVES[f"{old}.{fn[:-3]}"] = f"{new}.{fn[:-3]}"
+    # A package's bare directory name is NOT rewritten as a literal: "books"
+    # is also the command's name (`prog="books"`, the repeat_command argv),
+    # and the first run of step 2 turned five of those into a path. Only
+    # `.py` paths and repository paths are literals anyone writes.
+    PATH_MOVES = {rel_of(o): rel_of(n) for o, n in MOVES.items()
+                  if rel_of(o).endswith(".py")}
+    REPO_PATH_MOVES = {"src/booksmith/" + rel_of(o): "src/booksmith/" + rel_of(n)
+                       for o, n in MOVES.items()}
 
 
 def rel_of(mod):
-    """`booksmith.doc.crop` -> `doc/crop.py`, the path tests and the battery use."""
+    """`booksmith.doc.crop` -> `doc/crop.py`, the path tests and the battery use;
+    a package maps to its directory."""
+    if mod in PACKAGES or mod in PACKAGES.values():
+        return os.path.join(*mod.split(".")[1:])
     return os.path.join(*mod.split(".")[1:]) + ".py"
 
 
@@ -229,15 +294,50 @@ def rewrite_strings(path):
 
 
 def retarget_attrs(text):
-    """`attrs(mbase, ours_order=` -> `attrs(page, ours_order=` in the battery."""
+    """`attrs(mbase, ours_order=` -> `attrs(page, ours_order=`, and every
+    `alias.NAME` use, for the names whose owner changed."""
+    import re
     n = 0
     for (alias, name), new in ATTR_RETARGET.items():
-        old = f"attrs({alias}, {name}="
-        c = text.count(old)
+        for old, rep in ((f"attrs({alias}, {name}=", f"attrs({new}, {name}="),):
+            c = text.count(old)
+            if c:
+                text = text.replace(old, rep)
+                n += c
+        pat = rf"(?<![\w.]){re.escape(alias)}\.{name}\b"
+        c = len(re.findall(pat, text))
         if c:
-            text = text.replace(old, f"attrs({new}, {name}=")
+            text = re.sub(pat, f"{new}.{name}", text)
             n += c
     return text, n
+
+
+def add_aliases(path, text):
+    """Import lines for the aliases the retargeted uses need, after the
+    file's import block (or after `import support` in a test)."""
+    import re
+    needed = [a for a in NEW_ALIASES
+              if re.search(rf"(?<![\w.]){a}\.", text)
+              and not re.search(rf"^\s*from {re.escape(NEW_ALIASES[a].rsplit('.', 1)[0])} import .*\b{a}\b", text, re.M)
+              and not re.search(rf"^\s*import .*\bas {a}\b", text, re.M)]
+    if not needed:
+        return text
+    lines = "".join(f"from {NEW_ALIASES[a].rsplit('.', 1)[0]} import {NEW_ALIASES[a].rsplit('.', 1)[1]}"
+                    + (f" as {a}" if NEW_ALIASES[a].rsplit('.', 1)[1] != a else "") + "\n"
+                    for a in needed)
+    m = re.search(r"^import support[^\n]*\n", text, re.M)
+    if m:
+        return text[:m.end()] + lines + text[m.end():]
+    tree = ast.parse(text)
+    last = 0
+    for node in tree.body:
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            last = node.end_lineno
+        elif last and not isinstance(node, ast.Expr):
+            break
+    src = text.splitlines(keepends=True)
+    src.insert(last, lines)
+    return "".join(src)
 
 
 def add_battery_imports(text):
@@ -269,6 +369,8 @@ def git_mv(old, new, dry):
 
 def main(argv):
     dry = "--dry-run" in argv
+    step = int(argv[argv.index("--step") + 1]) if "--step" in argv else max(STEPS)
+    use_step(step)
     counts = {"imports": 0, "strings": 0, "files": 0, "moves": 0, "attrs": 0}
     # 1. rewrite imports and strings in place, BEFORE moving (module_of() reads
     #    the old layout), then move the files.
@@ -278,37 +380,53 @@ def main(argv):
             if os.path.abspath(path) == os.path.abspath(__file__):
                 continue
             text, n_imp = rewrite_imports(path, is_src)
-            if n_imp:
-                if not dry:
-                    open(path, "w", encoding="utf-8").write(text)
+            if n_imp and not dry:
+                open(path, "w", encoding="utf-8").write(text)
             text2, n_str = rewrite_strings(path)
             if n_str and not dry:
                 open(path, "w", encoding="utf-8").write(text2)
-            if n_imp or n_str:
+            # 2. attribute uses through an alias, for the split names
+            text3 = open(path, encoding="utf-8").read() if not dry else text2
+            text4, n_att = retarget_attrs(text3)
+            if n_att:
+                text4 = add_aliases(path, text4)
+                counts["attrs"] += n_att
+                if not dry:
+                    open(path, "w", encoding="utf-8").write(text4)
+            if n_imp or n_str or n_att:
                 counts["files"] += 1
                 counts["imports"] += n_imp
                 counts["strings"] += n_str
                 if dry:
-                    print(f"  {os.path.relpath(path, ROOT)}: imports {n_imp}, strings {n_str}")
-    battery = os.path.join(ROOT, "tests", "selfcheck.py")
-    text = open(battery, encoding="utf-8").read()
-    text, n = retarget_attrs(text)
-    text = add_battery_imports(text)
-    counts["attrs"] = n
-    if not dry:
-        open(battery, "w", encoding="utf-8").write(text)
+                    print(f"  {os.path.relpath(path, ROOT)}: imports {n_imp}, "
+                          f"strings {n_str}, attrs {n_att}")
+    # 3. move packages, then modules
+    for old, new in PACKAGES.items():
+        o = os.path.join(SRC, *old.split("."))
+        nw = os.path.join(SRC, *new.split("."))
+        if os.path.isdir(o):
+            git_mv(o, nw, dry)
+            counts["moves"] += 1
     for old, new in MOVES.items():
+        if old in PACKAGES or any(old.startswith(p + ".") for p in PACKAGES):
+            continue
         o = os.path.join(SRC, *old.split(".")) + ".py"
         nw = os.path.join(SRC, *new.split(".")) + ".py"
         if os.path.exists(o):
+            if os.path.exists(nw):
+                raise SystemExit(f"refusing to overwrite {nw}: move it aside first")
             git_mv(o, nw, dry)
             counts["moves"] += 1
-    for pkg in ("core", "tree"):
-        init = os.path.join(PKG, pkg, "__init__.py")
-        if not os.path.exists(init) and not dry:
-            open(init, "w").write("")
-            subprocess.run(["git", "-C", ROOT, "add", init], check=True)
-    print("migrate_layout:", ", ".join(f"{k} {v}" for k, v in counts.items()),
+    for pkg in {new.split(".")[1] for new in MOVES.values()} | {"core", "tree"}:
+        for sub in (pkg,) + tuple(
+                ".".join(n.split(".")[1:-1]) for n in MOVES.values()
+                if n.split(".")[1] == pkg and len(n.split(".")) > 3):
+            d = os.path.join(PKG, *sub.split("."))
+            init = os.path.join(d, "__init__.py")
+            if os.path.isdir(d) and not os.path.exists(init) and not dry:
+                open(init, "w").write("")
+                subprocess.run(["git", "-C", ROOT, "add", init], check=True)
+    print(f"migrate_layout step {step}:", ", ".join(f"{k} {v}" for k, v in counts.items()),
           "(dry run)" if dry else "")
     return 0
 

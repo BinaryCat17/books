@@ -132,7 +132,7 @@ def _pair(truth, model):
     `policy.role`: a label the policy does not describe must behave here as it
     does in score, or sheet and number diverge again, now on the exception.
     """
-    from .metrics import _pick, _area
+    from booksmith.datasets.metrics.contour import _pick, _area
     from booksmith.core import policy
     arte = set(policy.artefacts())
     pairs, lost, extra = [], [], []
@@ -309,7 +309,7 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
         #
         # The `out_of_scope` field had NEVER been read here, though it lies
         # right beside: non-empty on 288 golden-bench pages of 600, 904 objects.
-        from .metrics import extra_kind
+        from booksmith.datasets.metrics.contour import extra_kind
         from booksmith.core import policy as _pol
         _arte = set(_pol.artefacts())
         tb = [b for b in p0["blocks"] if b["label"] in _arte]

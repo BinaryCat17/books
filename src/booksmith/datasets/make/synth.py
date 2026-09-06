@@ -1612,7 +1612,7 @@ def _build(out_dir, cases, seed, aging, book, log) -> dict:
 
     if aging not in AGING:
         raise SynthError(f"ageing profile {aging!r}: I know only {tuple(AGING)}")
-    from .books import load
+    from booksmith.datasets.make.books import load
     mod = load(book)
     B_CASES = mod.CASES
     B_SPREADS = getattr(mod, "SPREADS", set())
@@ -1917,10 +1917,13 @@ def _build(out_dir, cases, seed, aging, book, log) -> dict:
             "words_in_text_layer_total": total_of("text_layer_check",
                                            "words_in_layer")}
 
-    src = os.path.join(os.path.dirname(os.path.abspath(__file__)), "synth.py")
+    # The generator hashes ITSELF by its own `__file__`, not by a path built
+    # beside it: the package move rewrote the sibling name once and the hash
+    # would have pointed at a file that is not there.
+    src = os.path.abspath(__file__)
     man = {"book": book, "about": getattr(mod, "ABOUT", ""),
            "page_count": len(pages), "synth_seed": seed, "aging": aging,
-           "generator": {"file": "synth.py", "sha256": stamp.sha256(src),
+           "generator": {"file": "datasets/make/synth.py", "sha256": stamp.sha256(src),
                          "commit": stamp.commit(),
                          "cases": names, "book": book,
                          "sha256_book_module": stamp.sha256(mod.__file__),

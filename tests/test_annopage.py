@@ -38,7 +38,7 @@ import tempfile
 import support
 from booksmith.core import stamp
 
-from booksmith import annopage
+from booksmith.datasets.make import annopage
 
 
 def _mini(root, names=None, yaml_names=None, pages=2):

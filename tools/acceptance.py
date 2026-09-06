@@ -10,7 +10,7 @@ import sys
 sys.path.insert(0, os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
-from booksmith import acceptance                            # noqa: E402
+from booksmith.datasets import accept as acceptance  # noqa: E402
 
 if __name__ == "__main__":
     sys.exit(acceptance.main(sys.argv[1:]))

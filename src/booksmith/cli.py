@@ -44,6 +44,8 @@ from booksmith.core import knobs
 from booksmith.core import replay as replay_mod
 from booksmith.core.errors import Refusal
 from booksmith.core import raster
+from booksmith.core import book
+from booksmith.datasets.metrics import fitness as fitmet
 
 
 def _host_args(ap):
@@ -442,7 +444,8 @@ def cmd_feed(a):
 
 def cmd_overlay(a):
     """Boxes over the pages: truth solid, the model's guess dashed."""
-    from . import detect, overlay
+    from booksmith import detect
+    from booksmith.datasets import look as overlay
     marks = [(_pages_dir(a.truth, "--truth"), "T")] if a.truth else []
     if a.detect:
         marks.append((_pages_dir(a.detect, "--detect"), "M"))
@@ -472,7 +475,7 @@ def cmd_overlay(a):
 
 def cmd_score(a):
     """Contour metrics: truth against the model output."""
-    from . import metrics
+    from booksmith.datasets.metrics import contour as metrics
     truth = _pages_dir(a.truth, "truth")
     det = _pages_dir(a.detect, "model boxes")
     if a.selfcheck:
@@ -487,7 +490,7 @@ def text_norm_default():
     A second copy is what the knob registry's header warns of: a changed value
     never reaches the consumer until somebody remembers this file.
     """
-    from . import text
+    from booksmith.datasets.metrics import text
     return text.NORM
 
 
@@ -499,7 +502,7 @@ def cmd_text(a):
     instrument here already lied — "reading order agreed 73%" on a bench where
     order is not annotated at all.
     """
-    from . import text
+    from booksmith.datasets.metrics import text
     truth = _pages_dir(a.truth, "truth")
     pages = _pages_dir(a.pages, "what was read")
     if a.selfcheck:
@@ -510,18 +513,18 @@ def cmd_text(a):
 
 def cmd_fitness(a):
     """Fitness of the output: will the meaning reach level two. By ink."""
-    from . import fitness
+    from booksmith.processing.assess import ink as fitness
     det = _pages_dir(a.detect, "--detect")
     truth = _pages_dir(a.truth, "--truth") if a.truth else ""
     if a.selfcheck:
-        return 1 if fitness.mutations(a.pdf, det, truth, log=log) else 0
+        return 1 if fitmet.mutations(a.pdf, det, truth, log=log) else 0
     fitness.report(fitness.measure(a.pdf, det, truth), log=log)
     return 0
 
 
 def cmd_subset(a):
     """Bench distillate: pages where two artefacts of one label stand side by side."""
-    from . import subset
+    from booksmith.datasets.make import subset
     books = [x.strip() for x in (a.books or
              "spravochnik,slovar,matematika,atlas,katalog,zhurnal,annopage"
              ).split(",") if x.strip()]
@@ -531,7 +534,7 @@ def cmd_subset(a):
 
 def cmd_annopage(a):
     """The golden bench from AnnoPage: real pages, librarians' truth."""
-    from . import annopage
+    from booksmith.datasets.make import annopage
     out = a.out or "bench/annopage"
     log(f"AnnoPage from {a.root}, split {a.split}")
     annopage.build(a.root, out, split=a.split, limit=a.limit,
@@ -543,11 +546,11 @@ def cmd_annopage(a):
 
 def cmd_synth(a):
     """Build a synthetic book with exact truth. Local and free."""
-    from . import synth
+    from booksmith.datasets.make import synth
     from booksmith.core import knobs
     out = a.out or f"bench/{a.book}"
     cases = a.cases.split(",") if a.cases else None
-    from .books import load
+    from booksmith.datasets.make.books import load
     log(f"book {a.book}: cases {len(cases or load(a.book).CASES)}, "
         f"ageing {knobs.knob('SYNTH_AGING')}, "
         f"seed {knobs.knob('SYNTH_SEED')}")

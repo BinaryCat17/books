@@ -29,6 +29,6 @@ def load(name: str):
     if name not in NAMES:
         raise KeyError(f"no book {name!r}: there are {NAMES}")
     if name == "spravochnik":
-        from .. import synth
+        from booksmith.datasets.make import synth
         return synth
     return importlib.import_module(f".{name}", __package__)

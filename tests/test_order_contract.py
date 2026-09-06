@@ -21,7 +21,7 @@ import os
 import shutil
 
 import support
-from booksmith import metrics
+from booksmith.datasets.metrics import contour as metrics
 from booksmith.core import order
 from booksmith.models import doclayout, docling_heron, yolox_layout
 
