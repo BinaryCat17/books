@@ -85,7 +85,15 @@ COPY = ("models/doclayout.py", "models/docling_heron.py",
         "models/paddleocr_vl/run.sh",
         # Сборщик книги: `test_html_order` разбирает его `build` и требует,
         # чтобы сверка порядка была на месте и не выводилась из обхода.
-        "doc/html.py")
+        "doc/html.py",
+        # Разбор таблиц: `test_otsl_html` требует ОДНОГО обхода тегов на два
+        # потребителя. Второй экземпляр обхода разошёлся бы с первым молча.
+        "otsl.py",
+        # Замена в книге: `test_torn` требует, чтобы `from_read` спрашивал
+        # наблюдённое и передавал признак обрыва в обёртку. Эта половина
+        # правила уже отваливалась молча — пометку теряли ровно те блоки,
+        # что доехали до читателя разметкой.
+        "doc/apply.py")
 
 
 @contextmanager
@@ -780,6 +788,9 @@ _real_read_book = vrun.read_book
 _real_sniff = vrun._sniff
 _real_detect_facts = vrun._detect_facts
 _real_parse, _real_grid = otsl.parse, otsl.grid
+# Настоящая обёртка замены — до всякой порчи: порча зовёт её же,
+# подменив один аргумент, иначе она проверяла бы не то место.
+_real_wrap = ap._wrap_fragment
 _real_routes = PaddleOcrVl.routes
 _real_reader_fingerprint = PaddleOcrVl.fingerprint
 _real_measure = booktext.measure_pages
@@ -958,6 +969,513 @@ def parse_pads_like_the_vendor(s):
     правдоподобной."""
     g, t = _real_parse(s)
     return g, dict(t, **{"строк разной длины": 0, "продолжений в никуда": 0})
+
+
+def torn_grid_trusts_the_tearing_counters(g):
+    """«Рваность посчитана — значит, форму проверять незачем».
+
+    Ровно та ошибка, из-за которой `p0055-b11` доехала до книги: у неё все
+    счётчики рваности чисты, потому что в ответе нет ни одного `<nl>`, а
+    клеток 2047 в одной строке. Нуль от непонимания вместо нуля от проверки.
+    """
+    if not g:
+        return None
+    if g.get("продолжений в никуда") or g.get("строк разной длины"):
+        return "рваная сетка"
+    return None
+
+
+def torn_grid_calls_any_single_row_impossible(g):
+    """«Одна строка — уже подозрительно, порог ни к чему».
+
+    Обратная порча: правило без границы объявляет невозможной законную
+    однострочную шапку `1x2`, и число перестаёт что-либо значить.
+    """
+    if not g:
+        return None
+    if (g.get("строк") or 0) == 1:
+        return "одна строка"
+    return None
+
+
+def observed_swallows_a_broken_answers_file(detect_dir):
+    """«Один битый файл — бросим всё наблюдённое».
+
+    Тихая потеря сбоку: книга собирается, `оборвано потолком` печатает 0, и
+    ноль этот от непонимания.
+    """
+    import glob as _g
+    import json as _j
+    out = {}
+    for fp in sorted(_g.glob(os.path.join(detect_dir, "answers", "*.json"))):
+        with open(fp, encoding="utf-8") as f:
+            try:
+                recs = _j.load(f).get("ответы") or []
+            except ValueError:
+                return {}
+        for r in recs:
+            if r.get("якорь"):
+                out[r["якорь"]] = {"чем кончилось": r.get("чем кончилось"),
+                                   "сетка otsl": (r.get("наблюдённое") or {}
+                                                  ).get("сетка otsl")}
+    return out
+
+
+def parse_keeps_only_the_span_root(s):
+    """«Продолжение — не клетка, адреса ему не нужны».
+
+    Ломает договор, на котором стоит прибор чтения: шапка на две колонки
+    перестаёт занимать вторую, и сдвиг строки сравнивается с пустотой —
+    прибор печатает верное число из неверных соображений.
+    """
+    g, t = _real_parse(s)
+    if not g:
+        return g, t
+    из_тегов = otsl._TOK.findall(s)
+    свои, r, c = {}, 0, 0
+    for name in из_тегов:
+        if name in otsl.BREAK:
+            r, c = r + 1, 0
+            continue
+        if name not in otsl.SPAN:
+            свои[(r, c)] = g.get((r, c), "")
+        c += 1
+    return (свои or None), t
+
+
+def to_html_is_a_stub(s):
+    """ТА САМАЯ ПОРЧА, которая проходила незамеченной.
+
+    Скептик подменил `to_html` заглушкой и прогнал батарею: 202 проверки, 0
+    провалов, 181 мутация — ни одна не покраснела. При том что этой функцией
+    построены ВСЕ 104 таблицы книги (сверено побайтово). Порча оставлена в
+    батарее навсегда: непокрытость обязана быть видна числом, а не памятью.
+    """
+    return "<table><tr><td>ТРУХА</td></tr></table>"
+
+
+def to_html_flattens_every_span(s):
+    """Прежнее поведение: спаны разворачиваются в повторы.
+
+    Ровно то, из-за чего в книге 104 таблицы при `colspan` 0 и `rowspan` 0, а
+    шапка «Годы» печаталась шесть раз подряд.
+    """
+    import html as _h
+    g, _ = _real_parse(s)
+    if not g:
+        return ""
+    rows = max(r for r, _ in g) + 1
+    cols = max(c for _, c in g) + 1
+    out = ["<table>"]
+    for r in range(rows):
+        out.append("<tr>")
+        for c in range(cols):
+            out.append("<td>" + _h.escape(g.get((r, c), "")) + "</td>")
+        out.append("</tr>")
+    out.append("</table>")
+    return "".join(out)
+
+
+def to_html_merges_equal_neighbours(s):
+    """Догадка вместо метки: одинаковые соседи считаются слиянием.
+
+    На этой книге такая догадка соврала бы в 13 таблицах из 62 — там
+    одинаковые соседние ячейки стоят БЕЗ единого `<lcel>`.
+    """
+    import html as _h
+    g, _ = _real_parse(s)
+    if not g:
+        return ""
+    rows = max(r for r, _ in g) + 1
+    cols = max(c for _, c in g) + 1
+    out = ["<table>"]
+    for r in range(rows):
+        out.append("<tr>")
+        c = 0
+        while c < cols:
+            v = g.get((r, c), "")
+            w = 1
+            while c + w < cols and g.get((r, c + w), "") == v:
+                w += 1
+            out.append(f'<td colspan="{w}">' if w > 1 else "<td>")
+            out.append(_h.escape(v) + "</td>")
+            c += w
+        out.append("</tr>")
+    out.append("</table>")
+    return "".join(out)
+
+
+def to_html_opens_a_row_only_where_a_root_is(s):
+    """Прежний обход: `<tr>` открывается на смене номера строки у КЛЕТОК.
+
+    Строка, сплошь состоящая из продолжений, своего `<tr>` не получает, и
+    следующие строки уезжают вправо на число слитых столбцов.
+    """
+    import html as _h
+    from booksmith import otsl as _o
+    cs, _ = _o.layout(s)
+    if not cs:
+        return ""
+    out, r = ["<table>"], None
+    for cell in cs:
+        if cell["строка"] != r:
+            if r is not None:
+                out.append("</tr>")
+            out.append("<tr>")
+            r = cell["строка"]
+        tag = "th" if cell["тег"] in _o.HEADER else "td"
+        span = ""
+        if cell["столбцов"] > 1:
+            span += f' colspan="{cell["столбцов"]}"'
+        if cell["строк"] > 1:
+            span += f' rowspan="{cell["строк"]}"'
+        out.append(f"<{tag}{span}>" + _h.escape(cell["текст"]) + f"</{tag}>")
+    out.append("</tr></table>")
+    return "".join(out)
+
+
+def to_html_pads_short_rows(s):
+    """Короткая строка добивается пустыми клетками — выдумка на месте рваности."""
+    import html as _h
+    from booksmith import otsl as _o
+    cs, t = _o.layout(s)
+    if not cs:
+        return ""
+    по = {}
+    for c in cs:
+        по.setdefault(c["строка"], []).append(c)
+    строк = max(t["строк"], max(по) + 1)
+    шире = max((c["столбец"] + c["столбцов"] for c in cs), default=0)
+    out = ["<table>"]
+    for r in range(строк):
+        out.append("<tr>")
+        занято = 0
+        for cell in по.get(r, ()):
+            tag = "th" if cell["тег"] in _o.HEADER else "td"
+            out.append(f"<{tag}>" + _h.escape(cell["текст"]) + f"</{tag}>")
+            занято += cell["столбцов"]
+        out.extend(["<td></td>"] * max(0, шире - занято))
+        out.append("</tr>")
+    out.append("</table>")
+    return "".join(out)
+
+
+def layout_gives_the_split_span_our_default_tag(s):
+    """Развёрнутому слиянию подставляется наш `fcel` вместо тега корня."""
+    from booksmith import otsl as _o
+    cs, t = _o.layout(s)
+    out = []
+    for c in cs:
+        if c["строк"] == 1 and c["столбцов"] == 1:
+            out.append(dict(c, **{"тег": "fcel"}))
+        else:
+            out.append(c)
+    return out, t
+
+
+def to_html_calls_the_first_row_a_header(s):
+    """Догадка «первая строка — всегда шапка» вместо метки `<ched>`."""
+    import html as _h
+    from booksmith import otsl as _o
+    cs, _ = _o.layout(s)
+    if not cs:
+        return ""
+    out, r = ["<table>"], None
+    for cell in cs:
+        if cell["строка"] != r:
+            if r is not None:
+                out.append("</tr>")
+            out.append("<tr>")
+            r = cell["строка"]
+        tag = "th" if cell["строка"] == 0 else "td"
+        span = ""
+        if cell["столбцов"] > 1:
+            span += f' colspan="{cell["столбцов"]}"'
+        if cell["строк"] > 1:
+            span += f' rowspan="{cell["строк"]}"'
+        out.append(f"<{tag}{span}>" + _h.escape(cell["текст"]) + f"</{tag}>")
+    out.append("</tr></table>")
+    return "".join(out)
+
+
+def layout_straightens_a_torn_span(s):
+    """Непрямоугольное слияние выпрямляется молча — починка модели.
+
+    Вендорский `otsl_pad_to_sqr_v2` поступает именно так, и порванная таблица
+    возвращается у него правдоподобной.
+    """
+    from booksmith import otsl as _o
+    cs, t = _o.layout(s)
+    return cs, dict(t, **{"слияний не прямоугольных": 0})
+
+
+def wrap_fragment_drops_the_torn_mark(anchor, fragment, kind, source,
+                                      role="неизвестен", torn=None):
+    """Обёртка замены снимает пометку обрыва — ровно как было до правки.
+
+    В книге оставалось 10 пометок из 14, и терялись те четыре, что доехали
+    до читателя разметкой: оборванная таблица, оборванная формула,
+    оборванный график.
+    """
+    return _real_wrap(anchor, fragment, kind, source, role=role, torn=None)
+
+
+def wrap_fragment_marks_everything_torn(anchor, fragment, kind, source,
+                                        role="неизвестен", torn=None):
+    """Обратная порча: «не спрашивали» выдаётся за «оборвано».
+
+    Пометка на всём — то же самое, что пометки нет: она перестаёт что-либо
+    означать, а `books read` при этом честно знает разницу.
+    """
+    return _real_wrap(anchor, fragment, kind, source, role=role, torn=True)
+
+
+def spans_placed_equals_declared(cells_and_tally):
+    """«Сколько объявлено, столько и встало» — величина без наблюдения.
+
+    Расхождение между объявленным и поставленным и есть потеря перевода;
+    приравняв их, счётчик перестаёт мочь её показать.
+    """
+    return cells_and_tally
+
+
+def shape_of_a_placed_block_is_never_asked(g):
+    """Форма поставленного куска не судится вовсе."""
+    return None
+
+
+def rewrap_is_counted_as_new_work(прежние, entry):
+    """«Переобёрнуто» сверяется с ПЕРВОЙ ступенью стопки, а не с последней.
+
+    После двух замен подряд первая ступень чужая, и настоящая переобёртка
+    считается новой работой.
+    """
+    return bool(прежние) and прежние[0].get("sha256 ответа модели") == \
+        entry.get("sha256 ответа модели")
+
+
+def repeats_compare_the_block_with_itself(page, covered):
+    """ТА САМАЯ ОШИБКА: блок ищется в прозе, в которую входит он сам.
+
+    Даёт 99.0 % там, где верно 21.4 %, и повтором объявляется ЛЮБОЙ
+    вложенный блок — включая тот, чьего текста нет больше нигде.
+    """
+    из_текста = [b for b in page.blocks
+                 if policy.role(b.label) != "артефакт" and (b.content or "").strip()]
+    вложен = {b.block_id for b in из_текста
+              if any(o.block_id != b.block_id and covered(b.box, o.box)
+                     for o in из_текста)}
+    вся = " ".join(booktext.normalize(b.content, "латех") for b in из_текста)
+    out = {}
+    for b in из_текста:
+        if b.block_id not in вложен:
+            continue
+        хозяева = [o for o in из_текста
+                   if o.block_id != b.block_id and covered(b.box, o.box)]
+        свой = booktext.normalize(b.content, "латех")
+        out[b.block_id] = (хозяева[0].block_id if хозяева else None,
+                           "дословно" if len(свой) >= 2 and свой in вся
+                           else "расходится")
+    return out
+
+
+def repeats_compare_with_other_candidates_too(page, covered):
+    """Сличение со ВСЕМИ блоками, включая прочих кандидатов.
+
+    Два одинаковых повтора прячут друг друга, и в книге не остаётся ни
+    одного: каждый «есть у соседа».
+    """
+    из_текста = [b for b in page.blocks
+                 if policy.role(b.label) != "артефакт" and (b.content or "").strip()]
+    вложен = {b.block_id for b in из_текста
+              if any(o.block_id != b.block_id and covered(b.box, o.box)
+                     for o in из_текста)}
+    out = {}
+    for b in из_текста:
+        if b.block_id not in вложен:
+            continue
+        прочие = " ".join(booktext.normalize(o.content, "латех")
+                          for o in из_текста if o.block_id != b.block_id)
+        хозяева = [o for o in из_текста
+                   if o.block_id != b.block_id and covered(b.box, o.box)]
+        свой = booktext.normalize(b.content, "латех")
+        out[b.block_id] = (хозяева[0].block_id if хозяева else None,
+                           "дословно" if len(свой) >= 2 and свой in прочие
+                           else "расходится")
+    return out
+
+
+def bare_math_eats_the_command_name(s):
+    """Оформительские команды снимаются вместе с содержательными.
+
+    `\alpha` и `\beta` становятся пустотой и совпадают, то есть прибор
+    объявляет равными две разные формулы.
+    """
+    import re as _re
+    if not s:
+        return ""
+    s = _re.sub(r"\\[a-zA-Z]+", " ", s.strip())
+    return _re.sub(r"[{}\\$\[\]^_]", "", s).strip().casefold()
+
+
+def _repeats_variant(page, covered, *, артефакты=False, пустые=False,
+                     всегда=None, порог=None):
+    """Общий подпорченный вариант правила повтора: одна беда за раз."""
+    из_текста = [b for b in page.blocks
+                 if (артефакты or policy.role(b.label) != "артефакт")
+                 and (пустые or (b.content or "").strip())]
+    вложен = {b.block_id for b in из_текста
+              if any(o.block_id != b.block_id and covered(b.box, o.box)
+                     for o in из_текста)}
+    остаётся = " ".join(booktext.normalize(b.content or "", "латех")
+                        for b in из_текста if b.block_id not in вложен)
+    out = {}
+    for b in из_текста:
+        if b.block_id not in вложен:
+            continue
+        хозяева = [o for o in из_текста
+                   if o.block_id != b.block_id and covered(b.box, o.box)]
+        свой = booktext.normalize(b.content or "", "латех")
+        мин = порог if порог is not None else dhtml.REPEAT_MIN
+        вывод = (всегда if всегда else
+                 ("дословно" if len(свой) >= мин and свой in остаётся
+                  else "расходится"))
+        out[b.block_id] = (хозяева[0].block_id if хозяева else None, вывод)
+    return out
+
+
+def repeats_never_prove_anything(page, covered):
+    """Ничто не признаётся повтором — прибор молчит и книга не худеет."""
+    return _repeats_variant(page, covered, всегда="расходится")
+
+
+def repeats_prove_everything(page, covered):
+    """Повтором объявляется всё вложенное, без сличения вовсе."""
+    return _repeats_variant(page, covered, всегда="дословно")
+
+
+def repeats_count_the_artefact_as_a_neighbour(page, covered):
+    """Вложенный в артефакт блок судится наравне с текстовым.
+
+    Прятать его нельзя: если замена не придёт, картинка останется
+    единственной формой этого текста.
+    """
+    return _repeats_variant(page, covered, артефакты=True)
+
+
+def repeats_take_the_empty_block_too(page, covered):
+    """Пустой блок объявляется кандидатом — сличать в нём нечего."""
+    return _repeats_variant(page, covered, пустые=True)
+
+
+def why_empty_says_unread_for_everything(o):
+    """Все пять нулей сводятся в один — как было до правки."""
+    return "не прочитан"
+
+
+def repeats_join_without_a_gap(page, covered):
+    """Остающиеся склеиваются БЕЗ пробела — совпадение через шов.
+
+    Кандидат начинает «находиться» на стыке двух чужих блоков и прячется
+    ложно. Порча объявленная: приёмщик показал, что её не ловила ни одна из
+    восьми проверок.
+    """
+    из_текста = [b for b in page.blocks
+                 if policy.role(b.label) != "артефакт" and (b.content or "").strip()]
+    вложен = {b.block_id for b in из_текста
+              if any(o.block_id != b.block_id and covered(b.box, o.box)
+                     for o in из_текста)}
+    остаются = [b for b in из_текста if b.block_id not in вложен]
+    склей = "".join(booktext.normalize(b.content, "латех") for b in остаются)
+    out = {}
+    for b in из_текста:
+        if b.block_id not in вложен:
+            continue
+        свой = booktext.normalize(b.content, "латех")
+        нашёлся = len(свой) >= dhtml.REPEAT_MIN and свой in склей
+        out[b.block_id] = (остаются[0].block_id if остаются else None,
+                           "дословно" if нашёлся else "расходится")
+    return out
+
+
+def repeats_have_no_length_floor(page, covered):
+    """Порог длины снят: двузначное совпадение принимается за доказательство."""
+    return _repeats_variant(page, covered, порог=1)
+
+
+def repeats_trade_typeset_for_raw(page, covered):
+    """Свёрстанное прячется, даже если носитель несёт сырой латех."""
+    out = dhtml.repeats_on(page, covered)
+    return {k: (v[0], "дословно" if v[1] == "вёрстка" else v[1])
+            for k, v in out.items()}
+
+
+def repeats_name_the_enclosing_frame(page, covered):
+    """В ответе стоит объемлющая рамка, а не носитель доказательства."""
+    out = dhtml.repeats_on(page, covered)
+    из_текста = [b for b in page.blocks
+                 if policy.role(b.label) != "артефакт" and (b.content or "").strip()]
+    новое = {}
+    for k, (_, почему) in out.items():
+        свой = next(b for b in из_текста if b.block_id == k)
+        хозяева = [o for o in из_текста
+                   if o.block_id != k and covered(свой.box, o.box)]
+        рамка = min(хозяева, key=lambda o: o.area()) if хозяева else None
+        новое[k] = (рамка.block_id if рамка else None, почему)
+    return новое
+
+
+def torn_of_calls_the_unasked_whole(o):
+    """«Нет причины остановки — значит, дочитано».
+
+    Сливает 69 неспрошенных рисунков с 6073 честно дочитанными блоками.
+    """
+    return (o or {}).get("чем кончилось") == "length"
+
+
+def torn_grid_column_rule_has_no_floor(g):
+    """У правила столбца отнят порог: законная колонка из двух клеток
+    объявляется невозможной таблицей."""
+    if not g:
+        return None
+    rows, cells = g.get("строк") or 0, g.get("клеток") or 0
+    if rows == 1 and cells > 3:
+        return f"вся таблица в одной строке: {cells} клеток"
+    cols = (cells // rows) if rows else 0
+    if cols == 1 and rows > 1:
+        return f"вся таблица в одном столбце: {rows} строк"
+    return None
+
+
+def observed_invents_a_clean_bill_when_there_is_nothing(detect_dir):
+    """«Нет `answers/` — значит, читали и всё хорошо».
+
+    Каталог детекции без второго уровня не имеет наблюдённого ПО
+    ПОСТРОЕНИЮ. Выдать за него благополучие значит напечатать «оборвано 0»
+    там, где верный ответ — «сказать нечем».
+    """
+    return {"p0001-b0": {"чем кончилось": "stop", "сетка otsl": None}}
+
+
+def observed_keeps_anchors_and_drops_the_reason(detect_dir):
+    """«Хватит и списка якорей».
+
+    Наблюдённое доезжает пустым: блоки названы, а почему они плохие — нет.
+    Ровно то состояние, в котором тракт и жил.
+    """
+    import glob as _g
+    import json as _j
+    out = {}
+    for fp in sorted(_g.glob(os.path.join(detect_dir, "answers", "*.json"))):
+        try:
+            with open(fp, encoding="utf-8") as f:
+                recs = _j.load(f).get("ответы") or []
+        except (ValueError, OSError):
+            continue
+        for r in recs:
+            if r.get("якорь"):
+                out[r["якорь"]] = {}
+    return out
 
 
 def grid_of_prose_is_an_empty_table(s):
@@ -1739,9 +2257,10 @@ def mutations():
         ("пакетная замена читает книгу на каждый блок",
          lambda: one_line(
              "booksmith.doc.apply",
-             "                html, entry, _ = put_into(html, anchor, body,",
+             "                html, entry, _ = put_into(",
              "                put(out_dir, anchor, body, source=src,\n"
-             "                    log=lambda *a: None); entry = {}; _x = ("),
+             "                    log=lambda *a: None)\n"
+             "                html, entry, _ = put_into("),
          [("test_apply", "test_bulk_reads_the_book_once_not_once_per_block")]),
 
         ("разряды блоков берутся по одному",
@@ -2282,6 +2801,214 @@ def mutations():
         ("не-OTSL возвращается пустой сеткой вместо None",
          lambda: attrs(otsl, grid=grid_of_prose_is_an_empty_table),
          [("test_read", "test_not_otsl_is_none_not_empty")]),
+
+        # ---- перевод OTSL в HTML: строит ВСЕ таблицы книги -------------
+        # Первая из пяти — та самая, что проходила незамеченной: подмена всей
+        # функции заглушкой не роняла ни одной из 202 проверок.
+        ("перевод таблицы подменён заглушкой",
+         lambda: attrs(otsl, to_html=to_html_is_a_stub),
+         [("test_otsl_html", "test_declared_colspan_survives_the_translation"),
+          ("test_otsl_html", "test_no_cell_disappears_in_translation"),
+          ("test_otsl_html", "test_not_a_table_is_empty_string_not_a_"
+                             "broken_tag")]),
+
+        ("слияния разворачиваются в повторы (как было)",
+         lambda: attrs(otsl, to_html=to_html_flattens_every_span),
+         [("test_otsl_html", "test_declared_colspan_survives_the_translation"),
+          ("test_otsl_html", "test_span_chain_resolves_to_the_root_not_to_"
+                             "the_neighbour")]),
+
+        ("слияние угадывается по совпадению текста соседей",
+         lambda: attrs(otsl, to_html=to_html_merges_equal_neighbours),
+         [("test_otsl_html", "test_equal_neighbours_without_a_tag_are_not_"
+                             "merged")]),
+
+        ("шапкой объявляется первая строка, а не метка модели",
+         lambda: attrs(otsl, to_html=to_html_calls_the_first_row_a_header),
+         [("test_otsl_html", "test_header_cells_come_from_the_model_"
+                             "dictionary_not_from_the_row_number")]),
+
+        ("строка получает <tr> только там, где есть корень",
+         lambda: attrs(otsl, to_html=to_html_opens_a_row_only_where_a_root_is),
+         [("test_otsl_html", "test_a_row_of_continuations_still_gets_its_row"),
+          ("test_otsl_html", "test_an_empty_grid_row_is_not_swallowed")]),
+
+        ("короткая строка добивается пустыми клетками",
+         lambda: attrs(otsl, to_html=to_html_pads_short_rows),
+         [("test_otsl_html", "test_a_short_row_is_not_padded_out")]),
+
+        ("развёрнутому слиянию подставляется наш тег вместо тега корня",
+         lambda: attrs(otsl, layout=layout_gives_the_split_span_our_default_tag),
+         [("test_otsl_html", "test_a_split_span_keeps_one_tag_for_all_its_"
+                             "addresses")]),
+
+        ("рваное слияние выпрямляется молча (по-вендорски)",
+         lambda: attrs(otsl, layout=layout_straightens_a_torn_span),
+         [("test_otsl_html", "test_torn_span_is_left_flat_not_straightened")]),
+
+        ("сквозная клетка перестала занимать все свои адреса",
+         lambda: attrs(otsl, parse=parse_keeps_only_the_span_root),
+         [("test_otsl_html", "test_parse_keeps_its_old_contract"),
+          ("test_read", "test_otsl_span_occupies_all_its_addresses")]),
+
+        ("layout завёл СВОЙ обход тегов, второй экземпляр правила",
+         lambda: sources("otsl.py",
+                         "    cells, own, tally = _walk(s)",
+                         "    _ = _TOK.findall(s)\n"
+                         "    cells, own, tally = _walk(s)"),
+         [("test_otsl_html", "test_one_walk_serves_both_readers")]),
+
+        # ---- обрыв по потолку: наблюдённое доезжает до книги -----------
+        ("форма таблицы проверяется счётчиками рваности",
+         lambda: attrs(dhtml, torn_grid=torn_grid_trusts_the_tearing_counters),
+         [("test_torn", "test_torn_grid_catches_the_shape_no_tearing_"
+                        "counter_can_see"),
+          ("test_torn", "test_torn_grid_falls_on_deliberately_broken_input")]),
+
+        ("любая однострочная сетка объявляется невозможной",
+         lambda: attrs(dhtml,
+                       torn_grid=torn_grid_calls_any_single_row_impossible),
+         [("test_torn", "test_torn_grid_zero_from_absence_is_not_zero_"
+                        "from_checking")]),
+
+        ("битый файл answers/ уносит всё наблюдённое",
+         lambda: attrs(dhtml, observed=observed_swallows_a_broken_answers_file),
+         [("test_torn", "test_broken_answers_file_does_not_silently_"
+                        "erase_the_others")]),
+
+        ("отсутствие answers/ выдаётся за благополучие",
+         lambda: attrs(dhtml,
+                       observed=observed_invents_a_clean_bill_when_there_is_nothing),
+         [("test_torn", "test_no_answers_is_silence_not_a_clean_bill")]),
+
+        ("обёртка замены снимает пометку обрыва",
+         lambda: attrs(ap, _wrap_fragment=wrap_fragment_drops_the_torn_mark),
+         [("test_torn", "test_the_mark_survives_the_replacement")]),
+
+        ("«не спрашивали» выдаётся за «оборвано»",
+         lambda: attrs(ap, _wrap_fragment=wrap_fragment_marks_everything_torn),
+         [("test_torn", "test_unknown_is_not_whole")]),
+
+        ("from_read перестал спрашивать наблюдённое",
+         lambda: sources("doc/apply.py",
+                         "    obs = observed(read_dir)",
+                         "    obs = {}"),
+         [("test_torn", "test_from_read_asks_the_sidecar_for_the_reason")]),
+
+        # ---- повтор внутри страницы: что доказано, а что только вложено --
+        ("повтор сличается с самим собой",
+         lambda: attrs(dhtml, repeats_on=repeats_compare_the_block_with_itself),
+         [("test_repeat", "test_a_block_is_never_compared_with_itself")]),
+
+        ("повтор сличается и с прочими кандидатами",
+         lambda: attrs(dhtml,
+                       repeats_on=repeats_compare_with_other_candidates_too),
+         [("test_repeat", "test_two_equal_nested_blocks_are_not_hidden_"
+                          "together")]),
+
+        ("повтор не доказывается никогда",
+         lambda: attrs(dhtml, repeats_on=repeats_never_prove_anything),
+         [("test_repeat", "test_a_nested_block_found_in_a_remaining_one_"
+                          "is_proven")]),
+
+        ("повтором объявляется всё вложенное, без сличения",
+         lambda: attrs(dhtml, repeats_on=repeats_prove_everything),
+         [("test_repeat", "test_a_nested_block_whose_text_is_absent_is_"
+                          "not_hidden")]),
+
+        ("вложенный в артефакт судится наравне с текстовым",
+         lambda: attrs(dhtml,
+                       repeats_on=repeats_count_the_artefact_as_a_neighbour),
+         [("test_repeat", "test_a_block_nested_in_an_artefact_is_not_a_"
+                          "candidate")]),
+
+        ("пустой блок берётся в кандидаты",
+         lambda: attrs(dhtml, repeats_on=repeats_take_the_empty_block_too),
+         [("test_repeat", "test_an_empty_block_is_not_a_candidate")]),
+
+        ("остающиеся склеены без пробела — совпадение через шов",
+         lambda: attrs(dhtml, repeats_on=repeats_join_without_a_gap),
+         [("test_repeat", "test_a_match_across_the_seam_of_two_blocks_is_"
+                          "not_evidence")]),
+
+        ("у повтора снят порог длины",
+         lambda: attrs(dhtml, repeats_on=repeats_have_no_length_floor),
+         [("test_repeat", "test_a_two_character_match_is_not_evidence")]),
+
+        ("свёрстанное прячется ради сырого латеха",
+         lambda: attrs(dhtml, repeats_on=repeats_trade_typeset_for_raw),
+         [("test_repeat", "test_the_typeset_form_is_not_traded_for_the_"
+                          "raw_one")]),
+
+        ("в ответе стоит объемлющая рамка, а не носитель",
+         lambda: attrs(dhtml, repeats_on=repeats_name_the_enclosing_frame),
+         [("test_repeat", "test_the_answer_names_the_carrier_not_the_"
+                          "enclosing_frame")]),
+
+        ("ступень латеха съедает имена команд",
+         lambda: attrs(booktext, bare_math=bare_math_eats_the_command_name),
+         [("test_repeat", "test_the_latex_stage_falls_on_deliberately_"
+                          "broken_input"),
+          ("test_repeat", "test_the_latex_stage_is_declared_with_its_"
+                          "measurement")]),
+
+        # --- величины замены: закрыты были ТОЛЬКО ПО ФОРМЕ ---------------
+        # Приёмщик показал семью порчами, что счётчики можно сломать, не
+        # покраснев ни одной из 225 проверок. Ниже — их шов.
+        ("признак обрыва не доезжает до пакетной замены",
+         lambda: attrs(ap, torn_of=lambda o: None),
+         [("test_torn", "test_bulk_marks_the_torn_block_in_the_book")]),
+
+        ("форма поставленного куска не судится",
+         lambda: attrs(ap, torn_grid=shape_of_a_placed_block_is_never_asked),
+         [("test_torn", "test_bulk_counts_the_impossible_shape_of_the_book_"
+                        "not_of_the_run")]),
+
+        # `one_line`, а не `sources`: первый пересобирает МОДУЛЬ и меняет
+        # поведение, второй подменяет исходник для проверок, читающих дерево.
+        # Порча поведения через `sources` не доезжает до кода вовсе — и обе
+        # эти мутации сперва были написаны так и прошли впустую.
+        ("слияния в книге приравнены к объявленным",
+         lambda: one_line(
+             "booksmith.doc.apply",
+             "    встало = sum(1 for c in cells if c[\"строк\"] > 1 "
+             "or c[\"столбцов\"] > 1)",
+             "    встало = объявлено"),
+         [("test_torn", "test_bulk_counts_spans_declared_and_placed")]),
+
+        ("переобёртка сверяется с ПЕРВОЙ ступенью стопки",
+         lambda: one_line(
+             "booksmith.doc.apply",
+             "            if прежние and прежние[-1].get(\"sha256 ответа модели\") == \\",
+             "            if прежние and прежние[0].get(\"sha256 ответа модели\") == \\"),
+         [("test_torn", "test_bulk_names_the_rewrap_apart_from_new_work")]),
+
+        ("отказанный блок считается лежащим в книге",
+         lambda: one_line(
+             "booksmith.doc.apply",
+             "                tally[\"отказано\"] += 1",
+             "                _счесть_в_книге(tally, misshapen, anchor, body,"
+             " b.get(\"kind\") or \"html\"); tally[\"отказано\"] += 1"),
+         [("test_torn", "test_a_refused_block_is_not_counted_as_being_in_"
+                        "the_book")]),
+
+        ("причина пустоты сводится к «не прочитан»",
+         lambda: attrs(dhtml, why_empty=why_empty_says_unread_for_everything),
+         [("test_torn", "test_the_caption_names_which_zero_it_was")]),
+
+        ("«не спрашивали» считается дочитанным",
+         lambda: attrs(dhtml, torn_of=torn_of_calls_the_unasked_whole),
+         [("test_torn", "test_the_torn_field_tells_three_states_apart")]),
+
+        ("у правила столбца отнят порог",
+         lambda: attrs(dhtml, torn_grid=torn_grid_column_rule_has_no_floor),
+         [("test_torn", "test_torn_grid_zero_from_absence_is_not_zero_"
+                        "from_checking")]),
+
+        ("наблюдённое доезжает без причины остановки",
+         lambda: attrs(dhtml,
+                       observed=observed_keeps_anchors_and_drops_the_reason),
+         [("test_torn", "test_observed_carries_the_reason_the_block_is_bad")]),
 
         # ---- книга: замена, журнал, якорь -----------------------------
         ("конец блока ищется по последней закрывающей метке",
