@@ -56,7 +56,7 @@ def _data_uri(path: str) -> tuple[str, int]:
     if ext not in MIME:
         raise ValueError(
             f"{path}: I do not know this image kind. I know {sorted(MIME)}; "
-            f"crops are written by `doc/crop.py`, and those are .png")
+            f"crops are written by `core/raster.py`, and those are .png")
     raw = open(path, "rb").read()
     if not raw:
         raise ValueError(

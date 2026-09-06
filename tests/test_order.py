@@ -106,7 +106,7 @@ def test_an_unknown_rule_dies_loudly():
     os.environ["ASSEMBLY_ORDER"] = "topToBottom"
     try:
         order.rule()
-    except (SystemExit, Refusal) as e:
+    except Refusal as e:
         assert "ASSEMBLY_ORDER" in str(e) and "ours" in str(e), e
     else:
         raise AssertionError("an unknown rule was accepted in silence")

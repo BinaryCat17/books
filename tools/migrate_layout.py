@@ -1,10 +1,11 @@
 """The package move, as a table and a script: what went where, and the record.
 
 Step 1 of docs/plan.md moves the kernel under `booksmith.core` and the tree
-instruments under `booksmith.tree`. A move by hand of twenty-nine files with
-one hundred and four relative imports, sixty literal module strings in the
-mutation battery and a dozen literal paths in the tests is not a move, it is
-a hundred and eighty chances to leave one behind. So the table lives here,
+instruments under `booksmith.tree`. A move by hand of ten modules and five
+split ones, with 111 import statements in 43 files, 16 literal module
+strings and paths in the battery and the tests, and five attribute swaps
+that must follow their symbol, is not a move, it is a hundred and eighty
+chances to leave one behind. So the table lives here,
 the script applies it, and the table STAYS as the record of the rename, the
 way `tools/keymap.json` records the key rename.
 
@@ -26,11 +27,19 @@ WHAT IT REWRITES.
   moved: the patch must land on the module that now OWNS the name, or the
   named check goes on passing over a mutation that reaches nothing.
 
-WHAT IT DOES NOT DO, and is done by hand in the same commit: create the new
-modules (`core/page.py`, `core/textnorm.py`, `core/book.py`, `core/errors.py`,
-`core/log.py`, `tree/imports.py`), cut the moved symbols out of their old
-files, fix the paths computed from `__file__` in the moved files, and
-replace `raise SystemExit` by `raise Refusal`.
+WHAT IT DOES NOT DO, and was done by hand in the same commit: create the
+new modules (`core/page.py`, `core/textnorm.py`, `core/book.py`,
+`core/errors.py`, `core/log.py`, `tree/imports.py`), cut the moved symbols
+out of their old files, fix the paths computed from `__file__` in the moved
+files, replace `raise SystemExit` by `raise Refusal` and rebase the
+per-module error classes, delete the seven hash copies, the four log copies,
+the three `WeightsMissing` and synth's `commit()`, route the read path's
+rendering through `raster.render`/`open_pdf`, rewrite `cli._tool_errors`
+and add the usage-error exit code, re-key `cyr.RESIDUE`, and retarget the
+attribute uses that tests make through a module alias (a second pass, by a
+script that resolved each alias to its module and each name to its owner).
+Running it again on the moved tree changes nothing (dry run: 0 imports, 0
+strings, 0 moves).
 
     python3 tools/migrate_layout.py --dry-run    print what would change
     python3 tools/migrate_layout.py              apply, with counts
@@ -83,13 +92,8 @@ SYMBOLS = {
 # the right are added to the battery's import block by this script.
 ATTR_RETARGET = {
     ("mbase", "ours_order"): "page",
-    ("basemod", "ours_order"): "page",
     ("ap", "KINDS"): "page",
     ("booktext", "bare_math"): "textnorm",
-    # Found by the battery on the first run after the move: two more names
-    # the reading metric no longer owns.
-    ("booktext", "_TYPEFACE"): "textnorm",
-    ("booktext", "NORM_STEPS"): "textnorm",
     ("dhtml", "journal_path"): "book",
 }
 NEW_ALIASES = {"page": "booksmith.core.page", "textnorm": "booksmith.core.textnorm",

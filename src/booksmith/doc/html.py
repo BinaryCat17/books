@@ -715,7 +715,6 @@ def _math(out_dir: str) -> tuple[str, str]:
 
 def build(detect_dir: str, out_dir: str, log=print) -> dict:
     """Build HTML from a `books detect` directory. Returns the build's numbers."""
-    import pymupdf
 
     detect_dir = os.path.abspath(detect_dir)
     out_dir = os.path.abspath(out_dir)

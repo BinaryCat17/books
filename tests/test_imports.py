@@ -78,3 +78,29 @@ def test_relative_imports_resolve_by_depth():
     assert ("booksmith.processing.read.driver", "booksmith.core.page") in e, e
     assert ("booksmith.processing.read.driver", "booksmith.processing.read") in e, e
     assert ("booksmith.processing.read", "booksmith.processing.read.driver") in e, e
+
+
+def test_the_unplaced_list_names_only_what_still_stands_at_the_top():
+    """A module that moved must leave the exemption with it."""
+    top = set()
+    for n in os.listdir(imports.PKG):
+        if n.endswith(".py") and n != "__init__.py":
+            top.add(n[:-3])
+        elif os.path.isfile(os.path.join(imports.PKG, n, "__init__.py")):
+            top.add(n)
+    stale = [n for n in imports.UNPLACED if n not in top]
+    assert not stale, f"placed, still exempt: {stale}"
+    placed = {"core", "tree", "remote", "processing", "datasets"}
+    assert not placed & set(imports.UNPLACED)
+
+
+def test_the_root_package_imports_nothing():
+    """`import booksmith` is invisible to the resolver (the root has no top
+    package), so the root must stay empty of imports: `stamp.commit` does
+    exactly that import to find the package on disk, and a root that pulled
+    in, say, the renting client would make every command import it."""
+    import ast
+    src = open(os.path.join(imports.PKG, "__init__.py"), encoding="utf-8").read()
+    tree = ast.parse(src)
+    bad = [n.lineno for n in ast.walk(tree) if isinstance(n, (ast.Import, ast.ImportFrom))]
+    assert not bad, f"booksmith/__init__.py imports at lines {bad}"

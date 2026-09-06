@@ -91,7 +91,7 @@ def test_unknown_mode_dies_loudly():
     """
     try:
         dh._DoclingPipeline("on", list(dh.DEFAULT_LABELS), "docling")
-    except (SystemExit, Refusal) as e:
+    except Refusal as e:
         assert "off" in str(e) and "post" in str(e) and "full" in str(e)
     else:
         raise AssertionError("an unknown knob mode was accepted silently")
@@ -127,7 +127,7 @@ def test_unknown_label_dies_at_construction():
     dh._DoclingPipeline("post", good, "docling")   # whole weight vocabulary
     try:
         dh._DoclingPipeline("post", good + ["Chart"], "docling")
-    except (SystemExit, Refusal) as e:
+    except Refusal as e:
         assert "Chart" in str(e), f"the complaint omits the label itself: {e}"
         assert "EGRET_TO_DOCLING" in str(e), (
             f"the complaint does not say WHERE to fix it: {e}")

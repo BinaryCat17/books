@@ -45,7 +45,7 @@ MONEY. The ceiling is hard and small: `budget_usd` and `timeout_minutes` are
 the line at which the machine dies, whatever is still running.
 
 TWO KNOBS ARE READ PAST THE REGISTRY -- `DOTS_DIR` and `DOTS_MAX_PIXELS`, in
-the shell scripts. A knob outside `run/knobs.py` does not reach the snapshot,
+the shell scripts. A knob outside `core/knobs.py` does not reach the snapshot,
 so a run using them is silently unrepeatable. Declaring them belongs with the
 CLI branch, not before it.
 """

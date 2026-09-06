@@ -112,7 +112,7 @@ class Recognizer:
         nor yolox reads it. The snapshot was formally COMPLETE and `books
         replay --check` returned 0 -- more dangerous than a gap, since the
         value is named confidently and belongs to another run. The `VL_MODEL_DIR`
-        disease from the head of `run/knobs.py`, quieter: there the knob went
+        disease from the head of `core/knobs.py`, quieter: there the knob went
         past the registry, here past the consumer.
 
         WHY DECLARED, NOT DERIVED. The one catcher that derived the list by

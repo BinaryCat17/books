@@ -387,7 +387,7 @@ def test_swapped_pdf_stops_the_run():
         f.write(b"% extra byte\n")   # no non-ASCII byte goes in a b"" literal
     try:
         _run(tmp, {"OCR:": {"text": "x"}})
-    except (SystemExit, Refusal) as e:
+    except Refusal as e:
         assert "sha256" in str(e)
     else:
         raise AssertionError("the reading went on against a swapped book")
@@ -418,7 +418,7 @@ def test_empty_run_is_not_a_success():
     _book(tmp)
     try:
         _run(tmp, {"OCR:": {"text": "x"}}, pages_want={999})
-    except (SystemExit, Refusal) as e:
+    except Refusal as e:
         assert "empty" in str(e)
     else:
         raise AssertionError("an empty page set passed in silence")

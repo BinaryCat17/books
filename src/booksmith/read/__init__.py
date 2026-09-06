@@ -84,7 +84,7 @@ class Ask:
     appending "now do it better" to the prompt would get a plausible answer to
     a DIFFERENT question while the snapshot held the first.
 
-    `image` is the path to the crop `doc/crop.py` has already made; the bytes
+    `image` is the path to the crop `core/raster.py` has already made; the bytes
     are the transport's business, since deliveries carry them differently. The
     image `sha256` rides back beside the answer -- without it "the model read
     the wrong thing" cannot be told from "we sent the wrong crop", which has

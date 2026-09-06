@@ -47,7 +47,7 @@ reasons, both required: the vendor code is called unedited (we merge and move
 no box ourselves) and it is switched on by a declared knob, not silently. A
 patch is when WE fix a box.
 
-What it buys and what it costs, in full: `run/knobs.py`, `DOCLING_PIPELINE`.
+What it buys and what it costs, in full: `core/knobs.py`, `DOCLING_PIPELINE`.
 Briefly, on 600 golden pages (`off` against `full`): boxes 15689 -> 9867,
 duplicate pairs at IoU>=0.9 4435 -> 19, VLM requests 23.0 -> 14.6 per page,
 extra column jumps 2718 -> 471 IN COUNT (over all 600 pages that is 4.53 ->

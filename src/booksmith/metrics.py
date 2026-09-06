@@ -513,7 +513,7 @@ def _model_has_rank(page) -> bool:
     259..300, plainly no list position. Accepted, but NOT SILENTLY: our order
     rule prints as its own field.
     """
-    # "Is this our order" lives in ONE place, `models/base.ours_order`, with
+    # "Is this our order" lives in ONE place, `core/page.ours_order`, with
     # the contract and the price of drift. Only the default is local: a missing
     # field means "model rank" here, "unknown" in `doc/html`.
     from booksmith.core.page import ours_order

@@ -77,7 +77,7 @@ DEFAULT = "ours"
 
 # Words for the page `meta`, and also what `metrics._model_has_rank` reads:
 # `ours` MUST stay the first word of the string (case is folded for it in
-# `models/base.ours_order`), or the metric takes a foreign rule for a model
+# `core/page.ours_order`), or the metric takes a foreign rule for a model
 # rank and prints an agreement percentage out of nothing.
 WORDS = {
     "ours": "ours_top_down_left_right",

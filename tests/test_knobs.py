@@ -654,7 +654,7 @@ def test_no_numeric_knob_takes_a_value_that_is_not_a_number():
                 os.environ[name] = bad
                 try:
                     got = knobs.number(name)
-                except (SystemExit, Refusal):
+                except Refusal:
                     continue
                 raise AssertionError(
                     f"{name}={bad!r} was accepted as {got!r}. Every guard "

@@ -35,7 +35,7 @@ from booksmith.core.page import Block, Page
 from booksmith.models.base import Recognizer
 from booksmith.core import order
 from booksmith.core import stamp
-from booksmith.core.errors import Refusal, WeightsMissing
+from booksmith.core.errors import WeightsMissing
 
 # Where paddlex keeps its official weights: a foreign library's convention, not
 # a setting of ours. `LAYOUT_MODEL_DIR` is empty exactly to say "take them
@@ -423,7 +423,7 @@ class DocLayout(Recognizer):
                   #
                   # THE WORD `ours` MUST COME FIRST: that prefix is the whole
                   # signal by which the guard knows our order
-                  # (`models/base.ours_order`, one place for the project). Case
+                  # (`core/page.ours_order`, one place for the project). Case
                   # it strips deliberately, so lower case is convention, not
                   # condition. Changing these words, keep `ours` first.
                   "reading_order": ("model_rank" if self.has_order else

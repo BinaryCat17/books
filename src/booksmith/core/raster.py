@@ -22,6 +22,7 @@ The measurements behind both defaults are in `params` below.
 import os
 
 from booksmith.core import knobs
+from booksmith.core.errors import Refusal
 
 # Box comparison tolerance, in PDF points. ONE for the whole file, and not to
 # taste: pymupdf holds coordinates in single precision and runs intersection
@@ -262,7 +263,7 @@ def cut(doc, page_index: int, box, page_dpi: float, dst: str,
             f"{tuple(round(v,1) for v in page.rect)}")
 
     os.makedirs(os.path.dirname(os.path.abspath(dst)), exist_ok=True)
-    pix = page.get_pixmap(dpi=int(dpi), clip=clip)
+    pix = render(page, dpi, clip=clip)
     pix.save(dst)
     return {"file": os.path.basename(dst), "dpi": int(dpi), "margin": margin,
             "width": pix.width, "height": pix.height,

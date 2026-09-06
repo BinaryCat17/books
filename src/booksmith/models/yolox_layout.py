@@ -36,7 +36,7 @@ from booksmith.models.base import Recognizer
 from booksmith.core import order
 from booksmith.core import knobs
 from booksmith.core import stamp
-from booksmith.core.errors import Refusal, WeightsMissing
+from booksmith.core.errors import WeightsMissing
 
 MODELS = os.path.expanduser("~/.paddlex/official_models")
 # Class order -- DocLayNet alphabetical, the way unstructured numbers them.

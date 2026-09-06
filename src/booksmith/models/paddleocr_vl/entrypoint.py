@@ -114,12 +114,16 @@ if __name__ == "__main__":
     try:
         sys.exit(main())
     except Exception as e:                                   # noqa: BLE001
-        # A refusal from the package (`booksmith.core.errors`) is ONE LINE and
-        # exit 1 here as at home. Matched by the class's module, not by an
-        # import: this script starts before `--pkg` is on `sys.path`, so it
-        # cannot name `Refusal` at the top. Anything else is a traceback,
-        # which is evidence, and stays one.
-        if type(e).__module__.startswith("booksmith."):
+        # A refusal from the package is ONE LINE and exit 1 here as at home.
+        # The class is imported HERE and not at the top: this script starts
+        # before `--pkg` is on `sys.path`. By the time an exception arrives
+        # the package is importable, or the error is that it is not, and
+        # then it is a traceback, which is evidence, and stays one.
+        try:
+            from booksmith.core.errors import BooksmithError
+        except ImportError:
+            raise e from None
+        if isinstance(e, BooksmithError):
             print(f"{type(e).__name__}: {e}", flush=True)
             sys.exit(1)
         raise

@@ -42,3 +42,11 @@ class WeightsMissing(Unmeasurable):
     were three of these, one per adapter, and the command line listed all
     three by module path to map them to exit code 2.
     """
+
+
+class TextError(Unmeasurable):
+    """The reading metric could not count: no pages, a normalisation level
+    nobody declared, a truth it cannot pair. Declared here and not in the
+    metric because `core.textnorm` raises it too, and core imports nothing
+    above itself.
+    """

@@ -580,7 +580,7 @@ def test_a_floor_that_is_not_a_number_is_refused_before_any_money():
         os.environ["MIN_LINK_MBPS"] = bad
         try:
             runner._min_link_mbps()
-        except (SystemExit, Refusal) as e:
+        except Refusal as e:
             assert "MIN_LINK_MBPS" in str(e), e
         else:
             raise AssertionError(

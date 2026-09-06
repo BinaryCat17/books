@@ -8,6 +8,8 @@ measurements from different days are incomparable in silence.
 import re
 import unicodedata
 
+from booksmith.core.errors import TextError
+
 # --------------------------------------------------------- normalisation
 #
 # The level is a VALUE: it travels into the returned dict, or two measurements

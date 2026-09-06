@@ -15,12 +15,14 @@ Both halves are false -- `import booksmith.detect` passes with `onnxruntime`,
 `models/paddleocr_vl/constraints.txt`. One argument is left, and it is
 checkable: three writers.
 
-WHAT IS STILL NOT HERE. A third `_commit` lives in `synth.py` and says it in
-OTHER words -- "(dirty tree)" in brackets against "+dirty tree" here, and
-`'not a repository'` instead of `None` -- so the snapshots of `books synth`
-and `books detect` about one tree already read differently. And `def _sha256`
-occurs nine times in the tree. Merging that is work, not a line, and it is not
-done; said here so it does not count as done.
+WHAT USED TO STAND HERE, and was done on 2026-09-07 with the package move:
+a third `_commit` in `synth.py` that said "(dirty tree)" in brackets where
+this file says "+dirty tree", and `"not a repository"` where this file says
+`None`; and `def _sha256` nine times in the tree. The synthetic manifests
+tracked in `bench/` still carry the old marker until they are rebuilt; the
+seven file hashers are gone and `apply._sha256` (over TEXT) and
+`replay._sha256` (`None` on OSError, a value the check branches on) stay
+because they are not copies.
 """
 import hashlib
 import os

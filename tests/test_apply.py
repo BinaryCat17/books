@@ -568,7 +568,7 @@ def test_a_journal_from_the_old_layout_is_seen_not_declared_empty():
         # on the one layout that needed it.
         try:
             dhtml.build(tmp, tmp, log=lambda *_: None)
-        except (SystemExit, Refusal) as e:
+        except Refusal as e:
             assert "swap journal" in str(e), (
                 f"the rebuild refused, but not about the journal: {e}")
         else:

@@ -72,7 +72,7 @@ def load_journal(out_dir: str) -> dict:
     # declared "no swaps: the second level has not walked this book yet" where
     # the undo stack of all the paid work lay: 412 swaps on `ruall.read/html`,
     # 17 on `ru20.read/html`. Worse, the next swap would start a SECOND journal
-    # and leave the first unreachable. The rule is `html.journal_path`, asked
+    # and leave the first unreachable. The rule is `book.journal_path`, asked
     # by the rebuild guard too -- it used to have a third copy that looked only
     # under `assets/`.
     p = book.journal_path(out_dir)

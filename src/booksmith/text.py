@@ -58,17 +58,14 @@ import html as _html
 import json
 import os
 import re
-import unicodedata
 from html.parser import HTMLParser
 
 from booksmith import metrics
 from booksmith.core import otsl, policy
 from booksmith.core.textnorm import NORM, norm_note, normalize
-from booksmith.core.errors import Unmeasurable
+from booksmith.core.errors import TextError
 
 
-class TextError(Unmeasurable):
-    pass
 
 
 # ----------------------------------------------------------------- distance

@@ -1,4 +1,3 @@
-from booksmith.core.errors import Unmeasurable
 """What level one does with a block: `text`, `artifact` or `furniture`.
 
 OURS, not the model's, and so declared outright, whole, and carried into the
@@ -20,6 +19,7 @@ measurement, so it is marked and kept: the mark costs nothing, the dropped
 could not be restored. The bench decides.
 """
 
+from booksmith.core.errors import Unmeasurable
 # SEVERAL POLICIES -- one per LABEL VOCABULARY. With one detector the policy
 # was one, and "is another model better" could not even be measured: a foreign
 # label felled the run. Now each vocabulary is declared apart and whole, and

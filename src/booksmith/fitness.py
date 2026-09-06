@@ -60,7 +60,6 @@ That works on any book nobody has annotated yet.
 import os
 
 import numpy as np
-import pymupdf
 
 from booksmith import metrics
 from booksmith.core import policy

@@ -14,6 +14,7 @@ from booksmith.core import knobs
 from booksmith.tree import cyr
 from booksmith import acceptance
 from booksmith.models import paddleocr_vl
+from booksmith.remote import ledger
 
 
 def _is_repo_root(p):
@@ -56,3 +57,7 @@ def test_the_rented_job_ships_the_whole_package():
     """`spec()` copies `PKG` to the box; two `dirname`s from a file that
     moves is a partial package shipped in silence, learnt on a rented card."""
     assert _is_package(paddleocr_vl.PKG), paddleocr_vl.PKG
+
+
+def test_ledger_root_is_the_repository():
+    assert _is_repo_root(ledger._ROOT), ledger._ROOT

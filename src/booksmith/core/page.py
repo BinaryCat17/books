@@ -1,10 +1,11 @@
 """THE ON-DISK PAGE: what level one returns and level two fills in.
 
 One shape for a detected page, a truth page and a read page: `Page` with
-`Block`s. Truth files under `bench/*/truth/`, detection under
-`detect/<label>/pages/` and reading under `read/<label>/pages/` all carry
-exactly `Page.to_json()`, which is why one metric can compare any two of
-them. The rules about what may be done to a block are in
+`Block`s. Truth files under `bench/*/truth/`, detection under a run's
+`pages/` and reading under its own run's `pages/` all carry exactly
+`Page.to_json()`, which is why one metric can compare any two of them.
+(Runs live under `<book>/detect/` and `<book>.detect.read/` today; the plan's
+step 3b puts them under `detect/<label>/` and `read/<label>/`.) The rules about what may be done to a block are in
 `models/base.py`, beside the adapter contract; this file is the shape only.
 
 `KINDS` names what a read block's `content` may be treated as, minus `none`,
@@ -76,7 +77,7 @@ class Page:
         # `box` must come back a TUPLE: json returns a list, and a block
         # written to disk and read back would be unequal to its original,
         # `(1,2,3,4) != [1,2,3,4]`. For a layer whose declared job is making
-        # two runs comparable that is material; `run/knobs.py` says the same
+        # two runs comparable that is material; `core/knobs.py` says the same
         # about string defaults.
         blocks = [Block(**{**b, "box": tuple(b["box"])})
                   for b in d.get("blocks", [])]

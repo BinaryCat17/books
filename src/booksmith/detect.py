@@ -147,7 +147,7 @@ def _knob_roles(det):
         raise Refusal(
             f"adapter {det.name} declared knobs the registry does not hold: "
             f"{unknown}. Either a typo, or the environment is read past "
-            f"run/knobs.py -- both troubles are silent.")
+            f"core/knobs.py -- both troubles are silent.")
     roles = {}
     for n in knobs.names():
         if n in mine:

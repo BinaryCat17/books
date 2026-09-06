@@ -33,7 +33,7 @@ live names -- `LAYOUT_ADAPTER` and `YOLOX_WEIGHTS` among them, and every
 silently, and people decide by it. So `readers()` counts, and one line prints
 the tally:
 
-    python -c "from booksmith.run import knobs; r = knobs.readers(); print(len(knobs.KNOBS), sum(1 for v in r.values() if v), len(knobs.debts()))"
+    python -c "from booksmith.core import knobs; r = knobs.readers(); print(len(knobs.KNOBS), sum(1 for v in r.values() if v), len(knobs.debts()))"
 
 The numbers are its to print and absent here ON PURPOSE: a number written in
 goes stale silently, and this file has twice been the example. Readers
@@ -339,7 +339,7 @@ KNOBS = (
          "determined -- as detection had it. Here stood 'empty = as "
          "PAGE_DPI', wrong on both counts; a knob's text rides into "
          "run.json, so the snapshot described it falsely. Read by "
-         "doc/crop.py and doc/feed.py; `books read` does NOT read it -- "
+         "core/raster.py and doc/feed.py; `books read` does NOT read it -- "
          "there the model's window decides the resolution"),
     # Zero is a VALUE: the pipeline cuts exactly along the box
     # (layout_unclip_ratio [1.0, 1.0]), and any non-zero margin edits the
