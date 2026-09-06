@@ -1996,6 +1996,16 @@ def _table_missing_a_format():
     return {"help": acceptance.COMMANDS["help"]}
 
 
+def _record_differs_blind_to_inputs(name):
+    """The previous shape: compare results and never look at what they were
+    taken against, so a rebuilt bench reads as a bench with moved numbers."""
+    import json
+    with open(acceptance.record_path(name), encoding="utf-8") as f:
+        want = json.load(f)
+    got = acceptance.record(name)
+    return acceptance._walk_diff(want["result"], got["result"], "", [])
+
+
 def mutations():
     m = [
         ("the journal does not save what it removed",
@@ -3781,6 +3791,38 @@ def mutations():
          [("test_acceptance",
            "test_the_reading_probe_battery_reports_the_same"),
           ("test_acceptance", "test_the_built_book_reports_the_same_swaps")]),
+
+        # The two batteries that had no lock, and the raw-dict records beside
+        # the reports: a table that quietly loses them is the blind spot the
+        # step-0 locks were added against.
+        ("the contour and fitness batteries drop out of the acceptance table",
+         lambda: attrs(acceptance, COMMANDS={
+             k: v for k, v in acceptance.COMMANDS.items()
+             if k not in ("score-selfcheck", "fitness-selfcheck")}),
+         [("test_acceptance",
+           "test_the_contour_probe_battery_reports_the_same"),
+          ("test_acceptance",
+           "test_the_fitness_probe_battery_reports_the_same")]),
+        ("the record table is empty",
+         lambda: attrs(acceptance, RECORDS={}),
+         [("test_acceptance",
+           "test_the_contour_record_on_annopage_is_the_same_dict"),
+          ("test_acceptance",
+           "test_the_contour_record_on_hard_is_the_same_dict"),
+          ("test_acceptance",
+           "test_the_reading_record_on_slovar_is_the_same_dict"),
+          ("test_acceptance",
+           "test_the_fitness_record_on_slovar_is_the_same_dict"),
+          ("test_acceptance",
+           "test_a_record_against_other_inputs_says_inputs_moved_not_changed")]),
+        ("the record tolerance swallows any number",
+         lambda: attrs(acceptance, TOLERANCE=1e9),
+         [("test_acceptance",
+           "test_the_record_diff_sees_a_moved_number_and_a_lost_key")]),
+        ("a record against other inputs reads as an ordinary change",
+         lambda: attrs(acceptance, record_differs=_record_differs_blind_to_inputs),
+         [("test_acceptance",
+           "test_a_record_against_other_inputs_says_inputs_moved_not_changed")]),
     ]
     return [(t + ("",))[:4] if len(t) == 3 else t for t in m]
 

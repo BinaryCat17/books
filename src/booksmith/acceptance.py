@@ -28,10 +28,21 @@ that way through any damage. `bench/hard` mixes 124 AnnoPage pages with 6
 synthetic ones, and it is the only tracked bench where the caption "counted
 over 6 pages of 130" exists to be lost.
 
-WHY THESE FIVE COMMANDS. Together they touch every format the migration
+WHY THESE COMMANDS. Together they touch every format the migration
 rewrites: truth and detect pages (`score`), truth content (`text`), the run
-snapshot (`replay`), and the user-facing surface (`--help`), which nothing else
-in the suite reads at all.
+snapshot (`replay`), the built book (`apply --status`), the three probe
+batteries (`--selfcheck`, whose probe NAMES are the only lock on them), and
+the user-facing surface (`--help`), which nothing else in the suite reads at
+all. The table started at five and grew as defects were found outside it.
+
+THE RECORDS BESIDE THE REPORTS. A report is prose, and prose can be
+rearranged without a number moving -- the instrument for that is `--numbers`.
+The reverse also happens: a result dict grows a key no report prints, or a
+key the report rounds. So `RECORDS` keeps the RAW RESULT DICTS of the three
+metrics as JSON, floats rounded to six places, compared key by key at 1e-6,
+each with the sha256 of the truth and manifest it was taken against. That is
+the lock the package move is measured with: a metric moved to another file
+must return the same dict to the last key.
 """
 import os
 import re
@@ -71,8 +82,48 @@ COMMANDS = {
     "apply-status": (
         ["apply", "processed/ogneupory-vl2", "--status"],
         ["processed/ogneupory-vl2/assets/swaps.json"]),
+    # The contour and fitness batteries had no lock at all: their probe names
+    # were quoted in prose (33 and 21) and verified by nothing. `fitness` on
+    # slovar returns 1 (one probe uncaught by construction, the dark column);
+    # the report is compared as text and the code is not looked at.
+    "score-selfcheck": (
+        ["score", "bench/slovar/truth", "bench/slovar/detect/pages",
+         "--selfcheck"],
+        ["bench/slovar/truth", "bench/slovar/detect/pages"]),
+    "fitness-selfcheck": (
+        ["fitness", "bench/slovar/slovar.pdf", "--detect",
+         "bench/slovar/detect/pages", "--truth", "bench/slovar/truth",
+         "--selfcheck"],
+        ["bench/slovar/slovar.pdf", "bench/slovar/detect/pages",
+         "bench/slovar/truth"]),
     "help": (["--help"], []),
 }
+
+# name -> (how to compute the raw result dict, the inputs whose sha256 it is
+# taken against, paths that must exist). Computed IN PROCESS, unlike the
+# reports: the dict is the thing, not what a command prints about it.
+RECORDS = {
+    "score-annopage": (
+        ("metrics", "compare", ["bench/annopage/truth",
+                                "bench/annopage/detect/pages"]),
+        ["bench/annopage/truth", "bench/annopage/manifest.json",
+         "bench/annopage/detect/pages"]),
+    "score-hard": (
+        ("metrics", "compare", ["bench/hard/truth", "bench/hard/detect/pages"]),
+        ["bench/hard/truth", "bench/hard/manifest.json",
+         "bench/hard/detect/pages"]),
+    "text-slovar": (
+        ("text", "measure", ["bench/slovar/truth", "bench/slovar/truth"]),
+        ["bench/slovar/truth", "bench/slovar/manifest.json"]),
+    "fitness-slovar": (
+        ("fitness", "measure", ["bench/slovar/slovar.pdf",
+                                "bench/slovar/detect/pages",
+                                "bench/slovar/truth"]),
+        ["bench/slovar/slovar.pdf", "bench/slovar/truth",
+         "bench/slovar/manifest.json", "bench/slovar/detect/pages"]),
+}
+
+TOLERANCE = 1e-6
 
 
 def missing(name):
@@ -118,6 +169,117 @@ def run(name):
 
 def path(name):
     return os.path.join(EXPECTED, name + ".txt")
+
+
+def record_path(name):
+    return os.path.join(EXPECTED, name + ".json")
+
+
+def record_missing(name):
+    _, inputs = RECORDS[name]
+    return [p for p in inputs if not os.path.exists(os.path.join(ROOT, p))]
+
+
+def _clean(o):
+    """JSON-ready: floats rounded, tuples listed, sets sorted, numpy unboxed."""
+    if isinstance(o, bool):
+        return o
+    if isinstance(o, float):
+        return round(o, 6)
+    if isinstance(o, dict):
+        return {str(k): _clean(v) for k, v in o.items()}
+    if isinstance(o, (list, tuple)):
+        return [_clean(v) for v in o]
+    if isinstance(o, (set, frozenset)):
+        return sorted(_clean(v) for v in o)
+    if hasattr(o, "item"):
+        return _clean(o.item())
+    return o
+
+
+def _sha256_of_inputs(paths):
+    """One hash over every input file, in a fixed order, so the record says
+    what it was taken against and a rebuilt bench cannot pass as the same."""
+    import hashlib
+    h = hashlib.sha256()
+    for rel in paths:
+        p = os.path.join(ROOT, rel)
+        files = ([p] if os.path.isfile(p) else
+                 sorted(os.path.join(d, f) for d, _, fs in os.walk(p)
+                        for f in fs))
+        for f in files:
+            h.update(os.path.relpath(f, ROOT).encode())
+            with open(f, "rb") as fh:
+                for chunk in iter(lambda: fh.read(1 << 20), b""):
+                    h.update(chunk)
+    return h.hexdigest()
+
+
+def record(name):
+    """{"inputs": sha256, "result": the raw dict} for one record, computed now."""
+    import importlib
+    (modname, fn, args), inputs = RECORDS[name]
+    mod = importlib.import_module("booksmith." + modname)
+    res = getattr(mod, fn)(*[os.path.join(ROOT, a) for a in args])
+    return {"inputs": _sha256_of_inputs(inputs), "result": _clean(res)}
+
+
+def _walk_diff(want, got, at, out):
+    """Every path where two cleaned dicts differ beyond TOLERANCE."""
+    if isinstance(want, dict) and isinstance(got, dict):
+        for k in sorted(set(want) | set(got)):
+            if k not in want:
+                out.append(f"{at}/{k}: new key")
+            elif k not in got:
+                out.append(f"{at}/{k}: key gone")
+            else:
+                _walk_diff(want[k], got[k], f"{at}/{k}", out)
+    elif isinstance(want, list) and isinstance(got, list):
+        if len(want) != len(got):
+            out.append(f"{at}: {len(want)} items -> {len(got)}")
+        for i, (a, b) in enumerate(zip(want, got)):
+            _walk_diff(a, b, f"{at}[{i}]", out)
+    elif (isinstance(want, (int, float)) and isinstance(got, (int, float))
+          and not isinstance(want, bool) and not isinstance(got, bool)):
+        if abs(want - got) > TOLERANCE:
+            out.append(f"{at}: {want} -> {got}")
+    elif want != got:
+        out.append(f"{at}: {want!r} -> {got!r}")
+    return out
+
+
+def record_differs(name):
+    """[] if the record matches its snapshot; else the differing paths.
+
+    An input that moved is reported FIRST and alone: a record taken against
+    other truth is not "changed", it is incomparable, and the two must not
+    read alike.
+    """
+    import json
+    with open(record_path(name), encoding="utf-8") as f:
+        want = json.load(f)
+    got = record(name)
+    if want["inputs"] != got["inputs"]:
+        return [f"INPUTS MOVED: the snapshot was taken against "
+                f"{want['inputs'][:12]}, the tree holds {got['inputs'][:12]}"]
+    return _walk_diff(want["result"], got["result"], "", [])
+
+
+def save_records(names=None):
+    import json
+    os.makedirs(EXPECTED, exist_ok=True)
+    done, skipped = [], []
+    for name in names or RECORDS:
+        gone = record_missing(name)
+        if gone:
+            skipped.append((name, gone))
+            continue
+        rec = record(name)
+        with open(record_path(name), "w", encoding="utf-8") as f:
+            json.dump(rec, f, indent=1, sort_keys=True, ensure_ascii=False)
+            f.write("\n")
+        done.append((name, len(json.dumps(rec))))
+    return done, skipped
 
 
 def save(names=None):
@@ -179,13 +341,42 @@ def main(argv):
                 print(f"  same numbers  {name}")
         return rc
     if "--save" in argv:
-        done, skipped = save()
+        # `--save NAME...` saves only those; bare `--save` saves everything.
+        # Naming them matters: a blanket save blesses every other report
+        # blind, which is the failure `_TREE_HASH` above was written against.
+        only = [a for a in argv if not a.startswith("--")]
+        done, skipped = save([n for n in only if n in COMMANDS] or None
+                             if only else None)
         for name, n in done:
             print(f"  saved {name}: {n} lines")
         for name, gone in skipped:
             print(f"  SKIPPED {name}: missing {', '.join(gone)}")
+        wanted = [n for n in only if n in RECORDS]
+        if not only or wanted:
+            done, skipped = save_records(wanted or None)
+            for name, n in done:
+                print(f"  saved record {name}: {n} bytes")
+            for name, gone in skipped:
+                print(f"  SKIPPED record {name}: missing {', '.join(gone)}")
         return 0
     rc = 0
+    for name in RECORDS:
+        gone = record_missing(name)
+        if gone:
+            print(f"  SKIPPED record {name}: missing {', '.join(gone)}")
+            continue
+        if not os.path.isfile(record_path(name)):
+            print(f"  NO RECORD {name}: run --save")
+            rc = 1
+            continue
+        d = record_differs(name)
+        if d:
+            print(f"  CHANGED record {name}: {len(d)} paths")
+            for ln in d[:20]:
+                print("    " + ln)
+            rc = 1
+        else:
+            print(f"  same record {name}")
     for name in COMMANDS:
         gone = missing(name)
         if gone:

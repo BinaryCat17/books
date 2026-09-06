@@ -20,8 +20,14 @@ deleted the line "on an object outside scoring: 350", and the diff named both.
 
 A missing bench is a SKIP WITH A REASON, never a pass. Most of what these
 commands read is behind .gitignore -- `bench/*/detect/pages` and the six
-synthetic books -- so on a fresh clone three of the five cannot run. The runner
+synthetic books -- so on a fresh clone most of them cannot run. The runner
 counts skips as their own number for exactly this case.
+
+THE RECORDS. Beside each report the raw result dict is kept as JSON
+(`acceptance.RECORDS`), computed in process and compared key by key at 1e-6.
+A report can stay identical while a key nobody prints moves; the record sees
+it. And a record taken against other truth is reported as INPUTS MOVED, not
+as a change: the two must not read alike.
 """
 import os
 
@@ -101,6 +107,84 @@ def test_the_reading_probe_battery_reports_the_same():
     this line moved: "UNCAUGHT 0" became 1.
     """
     _one("text-selfcheck")
+
+
+def _record(name):
+    gone = acceptance.record_missing(name)
+    if gone:
+        support.skip(f"no input: {', '.join(gone)}")
+    if not os.path.isfile(acceptance.record_path(name)):
+        support.skip(f"no record {acceptance.record_path(name)}: "
+                     "take one with `python3 tools/acceptance.py --save`")
+    d = acceptance.record_differs(name)
+    assert not d, (f"record {name} diverged from its snapshot:\n"
+                   + "\n".join(d[:40]))
+
+
+def test_the_contour_probe_battery_reports_the_same():
+    """33 probe names were quoted in prose and verified by nothing."""
+    _one("score-selfcheck")
+
+
+def test_the_fitness_probe_battery_reports_the_same():
+    """21 probe names, one of them uncaught on slovar by construction.
+
+    The command returns 1 there (the dark column probe); the lock is the text,
+    and a probe that silently changed its name or its verdict moves the text.
+    """
+    _one("fitness-selfcheck")
+
+
+def test_the_contour_record_on_annopage_is_the_same_dict():
+    _record("score-annopage")
+
+
+def test_the_contour_record_on_hard_is_the_same_dict():
+    _record("score-hard")
+
+
+def test_the_reading_record_on_slovar_is_the_same_dict():
+    _record("text-slovar")
+
+
+def test_the_fitness_record_on_slovar_is_the_same_dict():
+    _record("fitness-slovar")
+
+
+def test_a_record_against_other_inputs_says_inputs_moved_not_changed():
+    """A rebuilt bench must not pass as the same bench with a moved number."""
+    import json
+    import tempfile
+    name = "text-slovar"
+    if acceptance.record_missing(name) or not os.path.isfile(
+            acceptance.record_path(name)):
+        support.skip("no text-slovar record to test against")
+    with open(acceptance.record_path(name), encoding="utf-8") as f:
+        want = json.load(f)
+    want["inputs"] = "0" * 64
+    with tempfile.TemporaryDirectory() as tmp:
+        fake = os.path.join(tmp, name + ".json")
+        with open(fake, "w", encoding="utf-8") as f:
+            json.dump(want, f)
+        real = acceptance.record_path
+        try:
+            acceptance.record_path = lambda n: fake
+            d = acceptance.record_differs(name)
+        finally:
+            acceptance.record_path = real
+    assert len(d) == 1 and d[0].startswith("INPUTS MOVED"), d
+
+
+def test_the_record_diff_sees_a_moved_number_and_a_lost_key():
+    a = {"x": {"n": 1.0, "s": "a", "l": [1, 2]}, "gone": 0}
+    b = {"x": {"n": 1.0000001, "s": "b", "l": [1, 2, 3]}, "new": 0}
+    out = acceptance._walk_diff(a, b, "", [])
+    assert "/x/n" not in " ".join(out), "1e-7 is inside the tolerance"
+    moved = acceptance._walk_diff({"n": 1.0}, {"n": 1.001}, "", [])
+    assert moved == ["/n: 1.0 -> 1.001"], f"1e-3 must be caught: {moved}"
+    assert any(p.startswith("/x/s") for p in out)
+    assert any(p.startswith("/x/l") for p in out)
+    assert "/gone: key gone" in out and "/new: new key" in out
 
 
 def test_the_built_book_reports_the_same_swaps():

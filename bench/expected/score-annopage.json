@@ -1,0 +1,4103 @@
+{
+ "inputs": "461516d918e401f8159f7385e3940839a6d1617b9857a82ec1b96b6d368f83e6",
+ "result": {
+  "assembly_order": {
+   "agreement": null,
+   "page_count": 0,
+   "pages_total": 600,
+   "pairs": 0,
+   "pairs_possible": 0,
+   "why": "truth carries no order: not marked on 600 of 600 pages"
+  },
+  "book": "sha256 checked: 94cf0349275b; raster checked: 600 pages, sizes agree",
+  "by_case": {
+   "00f200d3": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "00fd2380": {
+    "artifacts": 2,
+    "found": 1,
+    "troubles": {
+     "crop (table)": 1
+    }
+   },
+   "0138c512": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "01496680": {
+    "artifacts": 10,
+    "found": 10,
+    "troubles": {}
+   },
+   "02a7c11d": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "spurious_box": 1
+    }
+   },
+   "02ab7053": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "02c2a750": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {
+     "spurious_box": 1
+    }
+   },
+   "0309e931": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "spurious_box": 1
+    }
+   },
+   "03372969": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "035958d3": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 4
+    }
+   },
+   "043b174f": {
+    "artifacts": 4,
+    "found": 4,
+    "troubles": {}
+   },
+   "046d3d4a": {
+    "artifacts": 5,
+    "found": 5,
+    "troubles": {
+     "spurious_box": 2
+    }
+   },
+   "05c763f0": {
+    "artifacts": 18,
+    "found": 0,
+    "troubles": {
+     "merge (chart)": 18,
+     "spurious_box": 1
+    }
+   },
+   "065e4bc0": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "072b4280": {
+    "artifacts": 1,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1,
+     "spill (image)": 1
+    }
+   },
+   "0794bbfa": {
+    "artifacts": 3,
+    "found": 2,
+    "troubles": {
+     "merge (image)": 1,
+     "spurious_box": 1
+    }
+   },
+   "09ad1c81": {
+    "artifacts": 6,
+    "found": 3,
+    "troubles": {
+     "merge (image)": 3,
+     "spurious_box": 1
+    }
+   },
+   "0aaa3f77": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "0ad41cee": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "0ae63eec": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "0b977a1c": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "0bafee0f": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "0c2baff5": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "0c6bb275": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "0c6f3a9e": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {
+     "on an object outside scoring": 5
+    }
+   },
+   "0c914b87": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "spurious_box": 1
+    }
+   },
+   "0cbce720": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "0d12a60f": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "0d3e778d": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "0d4e2fd0": {
+    "artifacts": 3,
+    "found": 3,
+    "troubles": {}
+   },
+   "0dbe9279": {
+    "artifacts": 3,
+    "found": 3,
+    "troubles": {
+     "spurious_box": 1
+    }
+   },
+   "0df36157": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "0e95ee35": {
+    "artifacts": 5,
+    "found": 0,
+    "troubles": {
+     "merge (image)": 5,
+     "spurious_box": 1
+    }
+   },
+   "0ece9b80": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "0ee32533": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "0f4909da": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "0f7893e0": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "1138eb54": {
+    "artifacts": 7,
+    "found": 5,
+    "troubles": {
+     "merge (chart)": 2,
+     "spurious_box": 1
+    }
+   },
+   "1138eb70": {
+    "artifacts": 10,
+    "found": 10,
+    "troubles": {
+     "spurious_box": 1
+    }
+   },
+   "1138eba7": {
+    "artifacts": 3,
+    "found": 3,
+    "troubles": {}
+   },
+   "1138ebff": {
+    "artifacts": 5,
+    "found": 4,
+    "troubles": {
+     "eaten by text (display_formula)": 1
+    }
+   },
+   "1138ec0c": {
+    "artifacts": 5,
+    "found": 5,
+    "troubles": {}
+   },
+   "1138ec50": {
+    "artifacts": 4,
+    "found": 4,
+    "troubles": {
+     "nested duplicate": 2
+    }
+   },
+   "1138ecd0": {
+    "artifacts": 10,
+    "found": 10,
+    "troubles": {
+     "spurious_box": 1
+    }
+   },
+   "1173161f": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "1209d19e": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "120ca7d6": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 6
+    }
+   },
+   "12242444": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "12bdb6f0": {
+    "artifacts": 4,
+    "found": 2,
+    "troubles": {
+     "crop (table)": 1,
+     "eaten by text (display_formula)": 1
+    }
+   },
+   "12bdb7d6": {
+    "artifacts": 7,
+    "found": 7,
+    "troubles": {}
+   },
+   "1341b682": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "13958e9d": {
+    "artifacts": 4,
+    "found": 2,
+    "troubles": {
+     "crop (table)": 1,
+     "eaten by text (display_formula)": 1,
+     "inside a miss": 1
+    }
+   },
+   "142f3550": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "146f4aaf": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "148e1579": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "1503a0b8": {
+    "artifacts": 7,
+    "found": 6,
+    "troubles": {
+     "fragmentation (display_formula)": 1,
+     "inside a miss": 2,
+     "nested duplicate": 1
+    }
+   },
+   "15216f50": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 2
+    }
+   },
+   "1594cb49": {
+    "artifacts": 1,
+    "found": 0,
+    "troubles": {
+     "crop (table)": 1
+    }
+   },
+   "16174dab": {
+    "artifacts": 2,
+    "found": 1,
+    "troubles": {
+     "crop (table)": 1,
+     "spurious_box": 2
+    }
+   },
+   "17608b51": {
+    "artifacts": 3,
+    "found": 2,
+    "troubles": {
+     "eaten by text (table)": 1
+    }
+   },
+   "178cb652": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "17dbfcc8": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "17fc8b63": {
+    "artifacts": 2,
+    "found": 1,
+    "troubles": {
+     "fragmentation (table)": 1,
+     "inside a miss": 3
+    }
+   },
+   "192cd678": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "1b84d5ce": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "1c127000": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 2
+    }
+   },
+   "1c74febe": {
+    "artifacts": 4,
+    "found": 2,
+    "troubles": {
+     "merge (image)": 2
+    }
+   },
+   "1c865f62": {
+    "artifacts": 4,
+    "found": 4,
+    "troubles": {}
+   },
+   "1cc8806e": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "1ce57285": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "1d20218f": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "1d706074": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "1d9a598b": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "1da25f50": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "1ea66c01": {
+    "artifacts": 9,
+    "found": 5,
+    "troubles": {
+     "merge (display_formula)": 4,
+     "spurious_box": 2
+    }
+   },
+   "1ea66c72": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "1efef6e6": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "1f0bac66": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "1f4d6dd7": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "200219ae": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "215cdc00": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "21d0d133": {
+    "artifacts": 3,
+    "found": 3,
+    "troubles": {
+     "on an object outside scoring": 3,
+     "spurious_box": 5
+    }
+   },
+   "21d12b93": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "220214e0": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {
+     "spurious_box": 1
+    }
+   },
+   "223e3020": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "2252dfe0": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "22689c06": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "22b7cb88": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "240166f0": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "243ca3b5": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "24770d45": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "24a85259": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "24ed6f1d": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "24f6864f": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "26aeb64b": {
+    "artifacts": 7,
+    "found": 6,
+    "troubles": {
+     "crop (table)": 1,
+     "inside a miss": 1
+    }
+   },
+   "26da4c8f": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "2811d30b": {
+    "artifacts": 5,
+    "found": 4,
+    "troubles": {
+     "crop (table)": 1
+    }
+   },
+   "28ab956c": {
+    "artifacts": 3,
+    "found": 3,
+    "troubles": {}
+   },
+   "292d6f27": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "2995748b": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "29cda941": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "2b52f19d": {
+    "artifacts": 6,
+    "found": 1,
+    "troubles": {
+     "near, but no match (image)": 1,
+     "on an object outside scoring": 8,
+     "spill (image)": 4
+    }
+   },
+   "2b987c5e": {
+    "artifacts": 6,
+    "found": 0,
+    "troubles": {
+     "eaten by text (table)": 5,
+     "not seen (table)": 1
+    }
+   },
+   "2bfcf190": {
+    "artifacts": 5,
+    "found": 5,
+    "troubles": {}
+   },
+   "2c644030": {
+    "artifacts": 4,
+    "found": 4,
+    "troubles": {
+     "spurious_box": 1
+    }
+   },
+   "2dce71d8": {
+    "artifacts": 3,
+    "found": 3,
+    "troubles": {
+     "spurious_box": 1
+    }
+   },
+   "2e8b2751": {
+    "artifacts": 1,
+    "found": 0,
+    "troubles": {
+     "spill (seal)": 1
+    }
+   },
+   "30971e6e": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {
+     "nested duplicate": 1
+    }
+   },
+   "311b40ac": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "31ad48aa": {
+    "artifacts": 5,
+    "found": 1,
+    "troubles": {
+     "merge (image)": 4
+    }
+   },
+   "31b07a30": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {
+     "spurious_box": 2
+    }
+   },
+   "325a0a0e": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "32873729": {
+    "artifacts": 1,
+    "found": 0,
+    "troubles": {
+     "crop (table)": 1,
+     "on an object outside scoring": 1
+    }
+   },
+   "32d1cd65": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "32f69401": {
+    "artifacts": 1,
+    "found": 0,
+    "troubles": {
+     "eaten by text (table)": 1
+    }
+   },
+   "33276b11": {
+    "artifacts": 3,
+    "found": 1,
+    "troubles": {
+     "crop (table)": 2
+    }
+   },
+   "3349853e": {
+    "artifacts": 1,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1,
+     "spill (table)": 1
+    }
+   },
+   "3431bb55": {
+    "artifacts": 3,
+    "found": 3,
+    "troubles": {}
+   },
+   "3431bbe8": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "349186f0": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "34db2510": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "351ef56d": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {
+     "nested duplicate": 1
+    }
+   },
+   "355e5084": {
+    "artifacts": 3,
+    "found": 3,
+    "troubles": {
+     "spurious_box": 1
+    }
+   },
+   "359422f3": {
+    "artifacts": 3,
+    "found": 3,
+    "troubles": {}
+   },
+   "362f4492": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "364c6370": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "37501b31": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "37e71249": {
+    "artifacts": 5,
+    "found": 2,
+    "troubles": {
+     "crop (image)": 2,
+     "inside a miss": 2,
+     "not seen (image)": 1
+    }
+   },
+   "38004852": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "3830bee5": {
+    "artifacts": 6,
+    "found": 1,
+    "troubles": {
+     "merge (image)": 5,
+     "spurious_box": 1
+    }
+   },
+   "385f7084": {
+    "artifacts": 5,
+    "found": 0,
+    "troubles": {
+     "eaten by text (table)": 5
+    }
+   },
+   "3888d077": {
+    "artifacts": 2,
+    "found": 1,
+    "troubles": {
+     "eaten by text (table)": 1
+    }
+   },
+   "38b22fbb": {
+    "artifacts": 4,
+    "found": 2,
+    "troubles": {
+     "eaten by text (display_formula)": 2
+    }
+   },
+   "38b7a294": {
+    "artifacts": 3,
+    "found": 2,
+    "troubles": {
+     "near, but no match (display_formula)": 1,
+     "spurious_box": 1
+    }
+   },
+   "3915908f": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1,
+     "spurious_box": 1
+    }
+   },
+   "3a14af6b": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "3aeece93": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "3b10f309": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 6
+    }
+   },
+   "3b150b50": {
+    "artifacts": 1,
+    "found": 0,
+    "troubles": {
+     "spill (image)": 1,
+     "spurious_box": 1
+    }
+   },
+   "3b26bb43": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "3b284dc0": {
+    "artifacts": 3,
+    "found": 1,
+    "troubles": {
+     "crop (table)": 1,
+     "spill (seal)": 1,
+     "spurious_box": 1
+    }
+   },
+   "3b57f684": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "3bbdfa89": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "3bc33980": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "3c6e878e": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "3dc40e56": {
+    "artifacts": 6,
+    "found": 6,
+    "troubles": {}
+   },
+   "3dced683": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "3e068c71": {
+    "artifacts": 1,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1,
+     "spill (seal)": 1
+    }
+   },
+   "3e71eb2c": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "3e7552fc": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "3ea2dbcf": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "3efda2c5": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "3f6f1c80": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "3ffd0448": {
+    "artifacts": 7,
+    "found": 7,
+    "troubles": {
+     "spurious_box": 1
+    }
+   },
+   "40311c40": {
+    "artifacts": 4,
+    "found": 4,
+    "troubles": {}
+   },
+   "409896f0": {
+    "artifacts": 1,
+    "found": 0,
+    "troubles": {
+     "not seen (image)": 1,
+     "on an object outside scoring": 4
+    }
+   },
+   "412e362d": {
+    "artifacts": 11,
+    "found": 0,
+    "troubles": {
+     "crop (table)": 2,
+     "merge (display_formula)": 9,
+     "spurious_box": 1
+    }
+   },
+   "4264afe8": {
+    "artifacts": 1,
+    "found": 0,
+    "troubles": {
+     "not seen (seal)": 1,
+     "on an object outside scoring": 1
+    }
+   },
+   "4297eb8b": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "43339819": {
+    "artifacts": 6,
+    "found": 3,
+    "troubles": {
+     "crop (table)": 3
+    }
+   },
+   "435048f0": {
+    "artifacts": 3,
+    "found": 1,
+    "troubles": {
+     "crop (seal)": 2
+    }
+   },
+   "44657e02": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "44a9e497": {
+    "artifacts": 4,
+    "found": 1,
+    "troubles": {
+     "merge (chart)": 2,
+     "spill (display_formula)": 1,
+     "spurious_box": 2
+    }
+   },
+   "44ab4637": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "456e7040": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "4571c978": {
+    "artifacts": 3,
+    "found": 3,
+    "troubles": {}
+   },
+   "45efc10c": {
+    "artifacts": 1,
+    "found": 0,
+    "troubles": {
+     "spill (image)": 1,
+     "spurious_box": 1
+    }
+   },
+   "4648b5a3": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "46c5e88a": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "471410a8": {
+    "artifacts": 8,
+    "found": 0,
+    "troubles": {
+     "merge (image)": 8,
+     "spurious_box": 1
+    }
+   },
+   "478fb809": {
+    "artifacts": 3,
+    "found": 2,
+    "troubles": {
+     "eaten by text (display_formula)": 1
+    }
+   },
+   "47a22d71": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "490d7699": {
+    "artifacts": 4,
+    "found": 1,
+    "troubles": {
+     "near, but no match (chart)": 3,
+     "nested duplicate": 2,
+     "spurious_box": 1
+    }
+   },
+   "497d77d2": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "4a43c390": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "4a7ac234": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "4b654df0": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "4b85d42c": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 2
+    }
+   },
+   "4bc0775b": {
+    "artifacts": 5,
+    "found": 4,
+    "troubles": {
+     "eaten by text (table)": 1
+    }
+   },
+   "4bfd21d7": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "4c3bb18a": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "4ca9d23a": {
+    "artifacts": 3,
+    "found": 3,
+    "troubles": {}
+   },
+   "4d90f2a4": {
+    "artifacts": 3,
+    "found": 3,
+    "troubles": {
+     "spurious_box": 1
+    }
+   },
+   "4e415777": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "4e443877": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "4e46b157": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "4e6325c4": {
+    "artifacts": 4,
+    "found": 4,
+    "troubles": {}
+   },
+   "4f9999be": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "4fcf736e": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "4ffd9e40": {
+    "artifacts": 3,
+    "found": 0,
+    "troubles": {
+     "fragmentation (table)": 3,
+     "inside a miss": 16
+    }
+   },
+   "506cc768": {
+    "artifacts": 2,
+    "found": 1,
+    "troubles": {
+     "spill (chart)": 1,
+     "spurious_box": 1
+    }
+   },
+   "50d1a208": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {
+     "on an object outside scoring": 3
+    }
+   },
+   "50d1a20a": {
+    "artifacts": 2,
+    "found": 1,
+    "troubles": {
+     "near, but no match (image)": 1,
+     "on an object outside scoring": 1,
+     "spurious_box": 1
+    }
+   },
+   "50d1a216": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a219": {
+    "artifacts": 1,
+    "found": 0,
+    "troubles": {
+     "near, but no match (image)": 1,
+     "spurious_box": 1
+    }
+   },
+   "50d1a21e": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a222": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a225": {
+    "artifacts": 1,
+    "found": 0,
+    "troubles": {
+     "near, but no match (image)": 1,
+     "spurious_box": 1
+    }
+   },
+   "50d1a22a": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a22e": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a231": {
+    "artifacts": 14,
+    "found": 1,
+    "troubles": {
+     "merge (image)": 13
+    }
+   },
+   "50d1a236": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a237": {
+    "artifacts": 8,
+    "found": 8,
+    "troubles": {}
+   },
+   "50d1a23a": {
+    "artifacts": 1,
+    "found": 0,
+    "troubles": {
+     "not seen (image)": 1
+    }
+   },
+   "50d1a23d": {
+    "artifacts": 4,
+    "found": 1,
+    "troubles": {
+     "merge (image)": 3
+    }
+   },
+   "50d1a240": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {
+     "nested duplicate": 1
+    }
+   },
+   "50d1a242": {
+    "artifacts": 2,
+    "found": 0,
+    "troubles": {
+     "merge (image)": 2,
+     "spurious_box": 1
+    }
+   },
+   "50d1a245": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a246": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a24e": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a252": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a255": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a259": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a261": {
+    "artifacts": 5,
+    "found": 1,
+    "troubles": {
+     "merge (image)": 4
+    }
+   },
+   "50d1a266": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a268": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a269": {
+    "artifacts": 3,
+    "found": 0,
+    "troubles": {
+     "merge (image)": 3,
+     "spurious_box": 1
+    }
+   },
+   "50d1a270": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a272": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a276": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a279": {
+    "artifacts": 10,
+    "found": 1,
+    "troubles": {
+     "merge (chart)": 9
+    }
+   },
+   "50d1a27e": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a281": {
+    "artifacts": 3,
+    "found": 0,
+    "troubles": {
+     "merge (image)": 3,
+     "spurious_box": 1
+    }
+   },
+   "50d1a282": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a284": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "50d1a285": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a28c": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a28e": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a291": {
+    "artifacts": 21,
+    "found": 1,
+    "troubles": {
+     "merge (image)": 20
+    }
+   },
+   "50d1a299": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a29d": {
+    "artifacts": 2,
+    "found": 0,
+    "troubles": {
+     "merge (chart)": 2,
+     "spurious_box": 1
+    }
+   },
+   "50d1a2a9": {
+    "artifacts": 6,
+    "found": 1,
+    "troubles": {
+     "merge (image)": 5
+    }
+   },
+   "50d1a2aa": {
+    "artifacts": 3,
+    "found": 2,
+    "troubles": {
+     "crop (table)": 1,
+     "inside a miss": 1
+    }
+   },
+   "50d1a2ab": {
+    "artifacts": 4,
+    "found": 0,
+    "troubles": {
+     "crop (table)": 4
+    }
+   },
+   "50d1a2b2": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a2b5": {
+    "artifacts": 4,
+    "found": 1,
+    "troubles": {
+     "merge (image)": 3
+    }
+   },
+   "50d1a2b8": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a2ba": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a2bd": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a2be": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a2c1": {
+    "artifacts": 15,
+    "found": 1,
+    "troubles": {
+     "merge (image)": 14
+    }
+   },
+   "50d1a2ca": {
+    "artifacts": 5,
+    "found": 1,
+    "troubles": {
+     "merge (chart)": 4
+    }
+   },
+   "50d1a2cd": {
+    "artifacts": 8,
+    "found": 1,
+    "troubles": {
+     "merge (image)": 7
+    }
+   },
+   "50d1a2d2": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a2d6": {
+    "artifacts": 1,
+    "found": 0,
+    "troubles": {
+     "near, but no match (image)": 1,
+     "spurious_box": 1
+    }
+   },
+   "50d1a2d9": {
+    "artifacts": 6,
+    "found": 1,
+    "troubles": {
+     "merge (image)": 5
+    }
+   },
+   "50d1a2dd": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a2e2": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a2ea": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a2ee": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a2f1": {
+    "artifacts": 1,
+    "found": 0,
+    "troubles": {
+     "spill (image)": 1,
+     "spurious_box": 1
+    }
+   },
+   "50d1a2f6": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a2f9": {
+    "artifacts": 6,
+    "found": 1,
+    "troubles": {
+     "merge (image)": 5
+    }
+   },
+   "50d1a2fb": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a305": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a306": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a311": {
+    "artifacts": 4,
+    "found": 1,
+    "troubles": {
+     "merge (image)": 3
+    }
+   },
+   "50d1a312": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a315": {
+    "artifacts": 25,
+    "found": 1,
+    "troubles": {
+     "merge (image)": 24
+    }
+   },
+   "50d1a31a": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "50d1a31c": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "50d1a31d": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "510ad8f8": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "516e9cf0": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "52080b0d": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "521d84fb": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 3
+    }
+   },
+   "521f74e4": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "521f7554": {
+    "artifacts": 3,
+    "found": 3,
+    "troubles": {}
+   },
+   "5273dbce": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 8
+    }
+   },
+   "5286bff0": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "5391dc25": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "557ac870": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "56e0fdae": {
+    "artifacts": 1,
+    "found": 0,
+    "troubles": {
+     "spill (seal)": 1
+    }
+   },
+   "5733f832": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "576ab190": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "57cce54c": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "5804fb5a": {
+    "artifacts": 4,
+    "found": 4,
+    "troubles": {}
+   },
+   "58c53131": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "591257cd": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "59ca9a2a": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "5bb15b66": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "5d313062": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "5e1bcabb": {
+    "artifacts": 7,
+    "found": 1,
+    "troubles": {
+     "crop (table)": 1,
+     "merge (display_formula)": 5,
+     "nested duplicate": 1,
+     "spurious_box": 1
+    }
+   },
+   "5e951b14": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "5eefda82": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "5f124d7f": {
+    "artifacts": 5,
+    "found": 5,
+    "troubles": {}
+   },
+   "5f4284ea": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "5f91b46a": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "5fbd1542": {
+    "artifacts": 11,
+    "found": 2,
+    "troubles": {
+     "eaten by text (display_formula)": 8,
+     "merge (display_formula)": 1,
+     "spurious_box": 1
+    }
+   },
+   "601c4ee6": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {
+     "spurious_box": 1
+    }
+   },
+   "60e6ee5d": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "6164d958": {
+    "artifacts": 2,
+    "found": 1,
+    "troubles": {
+     "eaten by text (image)": 1,
+     "on an object outside scoring": 1
+    }
+   },
+   "61980af9": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "62257abd": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "62eb118c": {
+    "artifacts": 4,
+    "found": 4,
+    "troubles": {}
+   },
+   "63c651b3": {
+    "artifacts": 4,
+    "found": 1,
+    "troubles": {
+     "crop (table)": 1,
+     "eaten by text (table)": 1,
+     "merge (image)": 1,
+     "on an object outside scoring": 1
+    }
+   },
+   "6490ff9e": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "655e1572": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "66a629d4": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 2
+    }
+   },
+   "6966b0d0": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {
+     "on an object outside scoring": 2
+    }
+   },
+   "6ab94aaf": {
+    "artifacts": 1,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1,
+     "spill (seal)": 1
+    }
+   },
+   "6b1108e5": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "6b6da460": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "6bacd032": {
+    "artifacts": 5,
+    "found": 2,
+    "troubles": {
+     "merge (display_formula)": 3,
+     "spurious_box": 1
+    }
+   },
+   "6be07ad5": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 5
+    }
+   },
+   "6be0a1ed": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 5
+    }
+   },
+   "6c1a018d": {
+    "artifacts": 6,
+    "found": 0,
+    "troubles": {
+     "crop (table)": 2,
+     "inside a miss": 2,
+     "not seen (table)": 3,
+     "spill (table)": 1
+    }
+   },
+   "6d108673": {
+    "artifacts": 3,
+    "found": 2,
+    "troubles": {
+     "merge (image)": 1,
+     "spurious_box": 1
+    }
+   },
+   "6f62a950": {
+    "artifacts": 1,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1,
+     "spill (table)": 1
+    }
+   },
+   "6fd86f61": {
+    "artifacts": 4,
+    "found": 0,
+    "troubles": {
+     "merge (image)": 4,
+     "on an object outside scoring": 3,
+     "spurious_box": 1
+    }
+   },
+   "6feea257": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "7064773a": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1,
+     "spurious_box": 1
+    }
+   },
+   "7080e1f6": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "723b3acb": {
+    "artifacts": 3,
+    "found": 1,
+    "troubles": {
+     "merge (chart)": 2,
+     "spurious_box": 1
+    }
+   },
+   "72e4ba46": {
+    "artifacts": 3,
+    "found": 1,
+    "troubles": {
+     "crop (table)": 1,
+     "on an object outside scoring": 5,
+     "spill (image)": 1
+    }
+   },
+   "73f5527c": {
+    "artifacts": 45,
+    "found": 0,
+    "troubles": {
+     "merge (display_formula)": 45,
+     "spurious_box": 5
+    }
+   },
+   "757dc06b": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {
+     "spurious_box": 2
+    }
+   },
+   "76e13869": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "777a77dc": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "7782da71": {
+    "artifacts": 3,
+    "found": 3,
+    "troubles": {
+     "spurious_box": 1
+    }
+   },
+   "7a8a503d": {
+    "artifacts": 4,
+    "found": 4,
+    "troubles": {}
+   },
+   "7ab6b7bb": {
+    "artifacts": 4,
+    "found": 4,
+    "troubles": {
+     "spurious_box": 1
+    }
+   },
+   "7b1b915c": {
+    "artifacts": 7,
+    "found": 3,
+    "troubles": {
+     "merge (image)": 4
+    }
+   },
+   "7b36f813": {
+    "artifacts": 4,
+    "found": 0,
+    "troubles": {
+     "merge (chart)": 4,
+     "spurious_box": 1
+    }
+   },
+   "7d909709": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {
+     "on an object outside scoring": 3
+    }
+   },
+   "7dbf1573": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "7f1e4c20": {
+    "artifacts": 1,
+    "found": 0,
+    "troubles": {
+     "crop (table)": 1,
+     "on an object outside scoring": 1
+    }
+   },
+   "7f1f8a7c": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "821a4870": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "827d06ad": {
+    "artifacts": 8,
+    "found": 0,
+    "troubles": {
+     "crop (table)": 7,
+     "eaten by text (table)": 1
+    }
+   },
+   "828ac9ad": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "82cadde5": {
+    "artifacts": 6,
+    "found": 4,
+    "troubles": {
+     "merge (image)": 2,
+     "spurious_box": 1
+    }
+   },
+   "82d62e8b": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "83257b03": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "83d66fa7": {
+    "artifacts": 5,
+    "found": 5,
+    "troubles": {
+     "nested duplicate": 1
+    }
+   },
+   "8401135c": {
+    "artifacts": 2,
+    "found": 1,
+    "troubles": {
+     "merge (table)": 1,
+     "spurious_box": 1
+    }
+   },
+   "84663a19": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "84e6a4a3": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "858b2088": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "89a54e18": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "89c5d3b7": {
+    "artifacts": 4,
+    "found": 4,
+    "troubles": {}
+   },
+   "8a2b2879": {
+    "artifacts": 4,
+    "found": 4,
+    "troubles": {}
+   },
+   "8ac3d986": {
+    "artifacts": 10,
+    "found": 10,
+    "troubles": {}
+   },
+   "8c8489c3": {
+    "artifacts": 2,
+    "found": 1,
+    "troubles": {
+     "near, but no match (image)": 1,
+     "spurious_box": 1
+    }
+   },
+   "8ce6b1fd": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "8ce6d62a": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "8e4da86b": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "8f2fce70": {
+    "artifacts": 3,
+    "found": 1,
+    "troubles": {
+     "eaten by text (seal)": 2
+    }
+   },
+   "8fc8f984": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "91668c65": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "91cc0237": {
+    "artifacts": 4,
+    "found": 0,
+    "troubles": {
+     "merge (chart)": 3,
+     "near, but no match (chart)": 1,
+     "spurious_box": 2
+    }
+   },
+   "92fc6400": {
+    "artifacts": 4,
+    "found": 4,
+    "troubles": {}
+   },
+   "94f0dd59": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "94ff40d6": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "953bc30f": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "953bc6aa": {
+    "artifacts": 3,
+    "found": 3,
+    "troubles": {}
+   },
+   "97ff1275": {
+    "artifacts": 3,
+    "found": 3,
+    "troubles": {}
+   },
+   "9961afba": {
+    "artifacts": 1,
+    "found": 0,
+    "troubles": {
+     "eaten by text (table)": 1,
+     "spurious_box": 6
+    }
+   },
+   "9a78edac": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "9b3cf593": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "9b65e053": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "9b79c649": {
+    "artifacts": 1,
+    "found": 0,
+    "troubles": {
+     "not seen (seal)": 1,
+     "on an object outside scoring": 2
+    }
+   },
+   "9c0d8256": {
+    "artifacts": 3,
+    "found": 1,
+    "troubles": {
+     "eaten by text (seal)": 1,
+     "merge (seal)": 1,
+     "on an object outside scoring": 1,
+     "spurious_box": 1
+    }
+   },
+   "9d25dc3d": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "a18c298d": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "a3d8eac6": {
+    "artifacts": 3,
+    "found": 3,
+    "troubles": {}
+   },
+   "a9969df0": {
+    "artifacts": 3,
+    "found": 3,
+    "troubles": {}
+   },
+   "a9d2c751": {
+    "artifacts": 3,
+    "found": 3,
+    "troubles": {}
+   },
+   "aa5286da": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "abaf96b0": {
+    "artifacts": 3,
+    "found": 3,
+    "troubles": {}
+   },
+   "abedecb1": {
+    "artifacts": 1,
+    "found": 0,
+    "troubles": {
+     "crop (table)": 1
+    }
+   },
+   "adca6a97": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "ae5a2820": {
+    "artifacts": 5,
+    "found": 5,
+    "troubles": {
+     "on an object outside scoring": 2
+    }
+   },
+   "b076c88b": {
+    "artifacts": 5,
+    "found": 5,
+    "troubles": {}
+   },
+   "b08a6663": {
+    "artifacts": 4,
+    "found": 2,
+    "troubles": {
+     "merge (display_formula)": 2,
+     "spurious_box": 1
+    }
+   },
+   "b1926436": {
+    "artifacts": 3,
+    "found": 3,
+    "troubles": {}
+   },
+   "b20f1d60": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "b3f7be07": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "b4f8b210": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "b50498f0": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "b519f5b0": {
+    "artifacts": 2,
+    "found": 1,
+    "troubles": {
+     "fragmentation (image)": 1,
+     "inside a miss": 2
+    }
+   },
+   "b52abe90": {
+    "artifacts": 1,
+    "found": 0,
+    "troubles": {
+     "spill (seal)": 1
+    }
+   },
+   "b5343470": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "b53b6060": {
+    "artifacts": 1,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1,
+     "spill (seal)": 1
+    }
+   },
+   "b557e910": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "b563cff0": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "b56afbe0": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "b57227d0": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "b5878490": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "b5936b70": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "b59f5250": {
+    "artifacts": 4,
+    "found": 1,
+    "troubles": {
+     "merge (image)": 3
+    }
+   },
+   "b5a323b5": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "b5a8c830": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "b5b26520": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "b5b99110": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "b5df4ca0": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "b613e610": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "b61d8300": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "b62969e0": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "b63ec6a0": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "b6544a70": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "b6603150": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "b671ab33": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "b6758e10": {
+    "artifacts": 1,
+    "found": 0,
+    "troubles": {
+     "crop (seal)": 1,
+     "inside a miss": 1
+    }
+   },
+   "b67718fe": {
+    "artifacts": 3,
+    "found": 3,
+    "troubles": {}
+   },
+   "b67f03f0": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "b69216c0": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "b69bb3b0": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "b6a9e480": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "b6b83c60": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "b6c42340": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "b6ebb0a5": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "b6f3bec0": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {
+     "spurious_box": 1
+    }
+   },
+   "b6ffa5a0": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "b72a8630": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "b733fc10": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "b73fe2f0": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "b752f5c0": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "b76ac380": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "b776aa60": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "b7829140": {
+    "artifacts": 3,
+    "found": 1,
+    "troubles": {
+     "merge (image)": 1,
+     "merge (seal)": 1,
+     "on an object outside scoring": 1
+    }
+   },
+   "b78e7820": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "b7a645e0": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "b7b476b0": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "b7c05d90": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "b7ca9731": {
+    "artifacts": 5,
+    "found": 2,
+    "troubles": {
+     "eaten by text (table)": 1,
+     "on an object outside scoring": 7,
+     "spill (image)": 2,
+     "spurious_box": 2
+    }
+   },
+   "b7e68330": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "b7f4db10": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "b8305d70": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "b8c3eae0": {
+    "artifacts": 2,
+    "found": 1,
+    "troubles": {
+     "spill (seal)": 1
+    }
+   },
+   "b93152b0": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "b9577850": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "b96a92dd": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "b96f4610": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "b978bbf0": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "b97976f1": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "b9bddb40": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {
+     "nested duplicate": 1
+    }
+   },
+   "b9c50730": {
+    "artifacts": 3,
+    "found": 3,
+    "troubles": {}
+   },
+   "b9ce7d10": {
+    "artifacts": 3,
+    "found": 0,
+    "troubles": {
+     "merge (image)": 3,
+     "spurious_box": 1
+    }
+   },
+   "b9da63f0": {
+    "artifacts": 3,
+    "found": 3,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "b9f6eca0": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "ba3c0bf0": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "ba47f2d0": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "ba53d9b0": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "ba8f5c10": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "ba9b42f0": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "baa06b19": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "bdd456e0": {
+    "artifacts": 2,
+    "found": 1,
+    "troubles": {
+     "on an object outside scoring": 1,
+     "spill (image)": 1,
+     "spurious_box": 2
+    }
+   },
+   "c00b94ac": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {
+     "on an object outside scoring": 2
+    }
+   },
+   "c04dc650": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "c0a55970": {
+    "artifacts": 3,
+    "found": 3,
+    "troubles": {}
+   },
+   "c13f04bd": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {
+     "spurious_box": 1
+    }
+   },
+   "c1b0ced5": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "c254fd38": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "c287af15": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "c2a80ff7": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "c38f5ca0": {
+    "artifacts": 4,
+    "found": 1,
+    "troubles": {
+     "merge (display_formula)": 2,
+     "near, but no match (display_formula)": 1,
+     "spurious_box": 2
+    }
+   },
+   "c4fbb236": {
+    "artifacts": 8,
+    "found": 7,
+    "troubles": {
+     "merge (image)": 1,
+     "spurious_box": 1
+    }
+   },
+   "c601c820": {
+    "artifacts": 2,
+    "found": 1,
+    "troubles": {
+     "crop (table)": 1,
+     "on an object outside scoring": 1
+    }
+   },
+   "ca9893f2": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {
+     "spurious_box": 1
+    }
+   },
+   "cd06f723": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "cdd1d0e8": {
+    "artifacts": 1,
+    "found": 0,
+    "troubles": {
+     "not seen (image)": 1
+    }
+   },
+   "cdfa1090": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "d00e9dbe": {
+    "artifacts": 1,
+    "found": 0,
+    "troubles": {
+     "eaten by text (table)": 1
+    }
+   },
+   "d197f096": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "d2c5fb4c": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "d34733d0": {
+    "artifacts": 4,
+    "found": 3,
+    "troubles": {
+     "crop (table)": 1,
+     "on an object outside scoring": 9
+    }
+   },
+   "d3f0114a": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "d413cbe8": {
+    "artifacts": 3,
+    "found": 3,
+    "troubles": {}
+   },
+   "d5ad795c": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "d613eaeb": {
+    "artifacts": 9,
+    "found": 9,
+    "troubles": {}
+   },
+   "d87a3100": {
+    "artifacts": 4,
+    "found": 3,
+    "troubles": {
+     "merge (image)": 1,
+     "on an object outside scoring": 2,
+     "spurious_box": 1
+    }
+   },
+   "d9322933": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "d97ba15a": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "da12e5e1": {
+    "artifacts": 1,
+    "found": 0,
+    "troubles": {
+     "not seen (image)": 1
+    }
+   },
+   "db8e221c": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "dbcb74b8": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "dc7d5694": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "df02c5aa": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "df35ca1d": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "df6c08a1": {
+    "artifacts": 5,
+    "found": 2,
+    "troubles": {
+     "spill (display_formula)": 3,
+     "spurious_box": 5
+    }
+   },
+   "e05a2fb1": {
+    "artifacts": 2,
+    "found": 1,
+    "troubles": {
+     "eaten by text (seal)": 1,
+     "on an object outside scoring": 1
+    }
+   },
+   "e1597603": {
+    "artifacts": 4,
+    "found": 4,
+    "troubles": {
+     "nested duplicate": 1,
+     "spurious_box": 1
+    }
+   },
+   "e184bcf3": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 3
+    }
+   },
+   "e3103daa": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "e50ba096": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "e6d613c0": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "e75f4d3f": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "e8342f90": {
+    "artifacts": 36,
+    "found": 0,
+    "troubles": {
+     "merge (image)": 36,
+     "spurious_box": 1
+    }
+   },
+   "e86747c0": {
+    "artifacts": 2,
+    "found": 0,
+    "troubles": {
+     "eaten by text (seal)": 1,
+     "not seen (seal)": 1,
+     "on an object outside scoring": 6
+    }
+   },
+   "e870e4b0": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "e87810a0": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 2
+    }
+   },
+   "e87f1580": {
+    "artifacts": 3,
+    "found": 2,
+    "troubles": {
+     "crop (table)": 1,
+     "on an object outside scoring": 3
+    }
+   },
+   "e883f780": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "e88afc60": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "e88fde60": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "e896e340": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "e89bc540": {
+    "artifacts": 1,
+    "found": 0,
+    "troubles": {
+     "not seen (image)": 1
+    }
+   },
+   "e8a7ac20": {
+    "artifacts": 1,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1,
+     "spill (table)": 1
+    }
+   },
+   "e8b39300": {
+    "artifacts": 1,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1,
+     "spill (table)": 1
+    }
+   },
+   "e8b93f28": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "e8bd08e0": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "e8c1c3d0": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "e8c8efc0": {
+    "artifacts": 1,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1,
+     "spill (table)": 1
+    }
+   },
+   "e8d265a0": {
+    "artifacts": 1,
+    "found": 0,
+    "troubles": {
+     "crop (image)": 1,
+     "inside a miss": 1
+    }
+   },
+   "e8d747a0": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 2
+    }
+   },
+   "e8dc0290": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "e8e0bd80": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "e8eca460": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 2
+    }
+   },
+   "e8f88b40": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "e8fd4630": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "e9047220": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "e912ca00": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "e919cee0": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 5
+    }
+   },
+   "e91eb0e0": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {
+     "on an object outside scoring": 2
+    }
+   },
+   "e925b5c0": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "e92a97c0": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "e92f52b0": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 2
+    }
+   },
+   "e9367ea0": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "e93b3990": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 2
+    }
+   },
+   "e93ff480": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 2
+    }
+   },
+   "e9472070": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "e94bdb60": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 2
+    }
+   },
+   "e9509650": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "e9555140": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 6
+    }
+   },
+   "e95a3340": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "e9602ef6": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "e9613820": {
+    "artifacts": 2,
+    "found": 1,
+    "troubles": {
+     "merge (image)": 1,
+     "spurious_box": 1
+    }
+   },
+   "e9661a20": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "e96ad510": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "e96f9000": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "e97de7e0": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 2
+    }
+   },
+   "e982a2d0": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "e9875dc0": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 2
+    }
+   },
+   "e98e89b0": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 3
+    }
+   },
+   "e997ff90": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "e99f2b80": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "e9a8a160": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 6
+    }
+   },
+   "e9ad8360": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 2
+    }
+   },
+   "e9b48840": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 3
+    }
+   },
+   "e9bbb430": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "e9c2e020": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 4
+    }
+   },
+   "e9c79b10": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 3
+    }
+   },
+   "e9cc5600": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "e9d381f0": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "e9d83ce0": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 2
+    }
+   },
+   "e9df68d0": {
+    "artifacts": 1,
+    "found": 0,
+    "troubles": {
+     "fragmentation (table)": 1,
+     "inside a miss": 3,
+     "on an object outside scoring": 1
+    }
+   },
+   "e9e423c0": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 4
+    }
+   },
+   "e9e905c0": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "e9edc0b0": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "e9f033a0": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "e9f27ba0": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 3
+    }
+   },
+   "e9f73690": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "e9fe6280": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "ea031d70": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 2
+    }
+   },
+   "ea07d860": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 2
+    }
+   },
+   "ea0cba60": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 2
+    }
+   },
+   "ea13bf40": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 2
+    }
+   },
+   "ea18a140": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "ea1fa620": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 2
+    }
+   },
+   "ea248820": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "ea294310": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "ea32b8f0": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 2
+    }
+   },
+   "ea3773e0": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "ea3e9fd0": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "ea435ac0": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 5
+    }
+   },
+   "ea483cc0": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 6
+    }
+   },
+   "ea4cf7b0": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 2
+    }
+   },
+   "ea5423a0": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 6
+    }
+   },
+   "ea58de90": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 6
+    }
+   },
+   "ea64c570": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "ea6e3b50": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {
+     "on an object outside scoring": 13
+    }
+   },
+   "ea72f640": {
+    "artifacts": 10,
+    "found": 5,
+    "troubles": {
+     "crop (table)": 1,
+     "merge (image)": 3,
+     "not seen (image)": 1,
+     "on an object outside scoring": 2,
+     "spurious_box": 1
+    }
+   },
+   "ea77d840": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "ea83bf20": {
+    "artifacts": 4,
+    "found": 4,
+    "troubles": {
+     "on an object outside scoring": 2
+    }
+   },
+   "ea91eff0": {
+    "artifacts": 8,
+    "found": 6,
+    "troubles": {
+     "merge (image)": 2,
+     "nested duplicate": 1,
+     "spurious_box": 1
+    }
+   },
+   "ea991be0": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 3
+    }
+   },
+   "ea9dd6d0": {
+    "artifacts": 2,
+    "found": 0,
+    "troubles": {
+     "crop (table)": 2,
+     "on an object outside scoring": 2
+    }
+   },
+   "eaa773c0": {
+    "artifacts": 1,
+    "found": 0,
+    "troubles": {
+     "spill (seal)": 1
+    }
+   },
+   "edbc0746": {
+    "artifacts": 2,
+    "found": 0,
+    "troubles": {
+     "not seen (image)": 2
+    }
+   },
+   "ee62acb2": {
+    "artifacts": 5,
+    "found": 4,
+    "troubles": {
+     "spill (display_formula)": 1,
+     "spurious_box": 1
+    }
+   },
+   "ee9ba277": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {
+     "on an object outside scoring": 2,
+     "spurious_box": 1
+    }
+   },
+   "eeaf2ccb": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "eeb278a1": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "ef4c78c6": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "efc968a3": {
+    "artifacts": 38,
+    "found": 1,
+    "troubles": {
+     "merge (image)": 37
+    }
+   },
+   "f12bda65": {
+    "artifacts": 3,
+    "found": 3,
+    "troubles": {}
+   },
+   "f14bda5f": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "f245ca96": {
+    "artifacts": 2,
+    "found": 2,
+    "troubles": {}
+   },
+   "f254b7df": {
+    "artifacts": 1,
+    "found": 0,
+    "troubles": {
+     "near, but no match (image)": 1,
+     "spurious_box": 1
+    }
+   },
+   "f25a743a": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "f3a1b97c": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "f6072e32": {
+    "artifacts": 3,
+    "found": 2,
+    "troubles": {
+     "spill (chart)": 1,
+     "spurious_box": 1
+    }
+   },
+   "f745ba6c": {
+    "artifacts": 0,
+    "found": 0,
+    "troubles": {}
+   },
+   "f748194a": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {
+     "on an object outside scoring": 1
+    }
+   },
+   "f815b05b": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "f85a17fa": {
+    "artifacts": 1,
+    "found": 1,
+    "troubles": {}
+   },
+   "f888641f": {
+    "artifacts": 3,
+    "found": 3,
+    "troubles": {}
+   },
+   "fb809cf9": {
+    "artifacts": 4,
+    "found": 4,
+    "troubles": {}
+   },
+   "fc0928a3": {
+    "artifacts": 17,
+    "found": 1,
+    "troubles": {
+     "merge (image)": 16,
+     "spurious_box": 1
+    }
+   }
+  },
+  "by_label": {
+   "chart": {
+    "bucket": "artifact",
+    "found": 114,
+    "truth": 166
+   },
+   "display_formula": {
+    "bucket": "artifact",
+    "found": 136,
+    "truth": 229
+   },
+   "image": {
+    "bucket": "artifact",
+    "found": 382,
+    "truth": 673
+   },
+   "seal": {
+    "bucket": "artifact",
+    "found": 18,
+    "truth": 40
+   },
+   "table": {
+    "bucket": "artifact",
+    "found": 48,
+    "truth": 124
+   }
+  },
+  "jumps": {
+   "boxes_counted": 7891,
+   "boxes_other_buckets": 936,
+   "by_page": {
+    "10": 4,
+    "101": 18,
+    "103": 4,
+    "104": 1,
+    "106": 3,
+    "111": 2,
+    "113": 3,
+    "118": 2,
+    "120": 2,
+    "123": 3,
+    "124": 2,
+    "125": 1,
+    "127": 2,
+    "132": 1,
+    "134": 4,
+    "135": 1,
+    "138": 3,
+    "14": 1,
+    "144": 1,
+    "147": 3,
+    "148": 1,
+    "15": 2,
+    "153": 1,
+    "16": 4,
+    "164": 3,
+    "168": 2,
+    "172": 1,
+    "176": 1,
+    "178": 1,
+    "181": 2,
+    "182": 2,
+    "183": 8,
+    "184": 2,
+    "186": 2,
+    "187": 1,
+    "191": 3,
+    "192": 1,
+    "196": 2,
+    "197": 2,
+    "200": 2,
+    "204": 2,
+    "210": 2,
+    "213": 2,
+    "215": 2,
+    "216": 2,
+    "220": 4,
+    "225": 2,
+    "226": 2,
+    "227": 2,
+    "228": 2,
+    "231": 2,
+    "235": 3,
+    "241": 2,
+    "242": 2,
+    "245": 2,
+    "247": 2,
+    "252": 4,
+    "253": 4,
+    "254": 2,
+    "258": 2,
+    "261": 4,
+    "265": 3,
+    "267": 1,
+    "272": 3,
+    "276": 10,
+    "282": 1,
+    "285": 4,
+    "294": 5,
+    "298": 2,
+    "3": 5,
+    "303": 3,
+    "306": 2,
+    "310": 3,
+    "313": 1,
+    "315": 2,
+    "317": 2,
+    "321": 3,
+    "326": 2,
+    "327": 1,
+    "331": 1,
+    "336": 1,
+    "342": 1,
+    "347": 3,
+    "348": 1,
+    "351": 1,
+    "354": 1,
+    "358": 1,
+    "366": 1,
+    "371": 1,
+    "372": 2,
+    "373": 3,
+    "374": 3,
+    "376": 5,
+    "38": 1,
+    "380": 1,
+    "39": 1,
+    "40": 5,
+    "404": 3,
+    "41": 16,
+    "415": 1,
+    "419": 2,
+    "420": 1,
+    "425": 1,
+    "43": 5,
+    "430": 1,
+    "439": 2,
+    "441": 1,
+    "443": 9,
+    "448": 3,
+    "455": 2,
+    "457": 7,
+    "459": 1,
+    "463": 2,
+    "466": 4,
+    "469": 1,
+    "470": 6,
+    "471": 9,
+    "472": 2,
+    "482": 5,
+    "485": 7,
+    "487": 1,
+    "488": 5,
+    "489": 3,
+    "491": 1,
+    "492": 7,
+    "5": 6,
+    "500": 1,
+    "513": 4,
+    "514": 2,
+    "518": 1,
+    "520": 3,
+    "533": 2,
+    "537": 7,
+    "538": 2,
+    "542": 3,
+    "545": 1,
+    "547": 3,
+    "550": 1,
+    "551": 2,
+    "553": 5,
+    "554": 2,
+    "557": 2,
+    "559": 2,
+    "561": 1,
+    "562": 3,
+    "569": 4,
+    "57": 2,
+    "570": 1,
+    "571": 2,
+    "572": 7,
+    "573": 3,
+    "574": 5,
+    "577": 1,
+    "58": 9,
+    "580": 1,
+    "581": 1,
+    "582": 1,
+    "583": 1,
+    "586": 1,
+    "588": 1,
+    "592": 3,
+    "598": 1,
+    "599": 4,
+    "62": 1,
+    "66": 1,
+    "67": 1,
+    "70": 2,
+    "74": 11,
+    "75": 1,
+    "77": 2,
+    "80": 2,
+    "85": 2,
+    "9": 21,
+    "90": 1,
+    "91": 1,
+    "96": 4,
+    "97": 1
+   },
+   "columns": 893,
+   "excess_jumps": 501,
+   "full_width_boxes": 1920,
+   "page_count": 600,
+   "pages_counted": 464,
+   "pages_not_counted_too_few_boxes": 136,
+   "pages_with_2plus_columns": 290,
+   "params": {
+    "buckets_counted": [
+     "artifact",
+     "text"
+    ],
+    "full_width_box_share": 0.6,
+    "min_boxes_per_page": 2,
+    "x_overlap_of_narrow_box": 0.5
+   },
+   "per_page": 1.079741,
+   "transitions": 930,
+   "why": ""
+  },
+  "label_confusion": {
+   "chart->chart": 33,
+   "chart->image": 80,
+   "chart->table": 1,
+   "display_formula->display_formula": 129,
+   "display_formula->image": 7,
+   "display_formula->inline_formula": 11,
+   "image->chart": 5,
+   "image->header_image": 1,
+   "image->image": 376,
+   "seal->footer_image": 1,
+   "seal->image": 6,
+   "seal->seal": 11,
+   "seal->text": 3,
+   "table->content": 7,
+   "table->display_formula": 5,
+   "table->reference": 1,
+   "table->table": 43,
+   "table->text": 11
+  },
+  "model_order": {
+   "agreement": null,
+   "page_count": 0,
+   "pages_total": 600,
+   "pairs": 0,
+   "pairs_possible": 0,
+   "why": "truth carries no order: not marked on 600 of 600 pages"
+  },
+  "order_rule": "not declared (taken as 'model rank')",
+  "order_truth": {
+   "page_count": 600,
+   "states": {
+    "not marked": 600
+   }
+  },
+  "sense": {
+   "called_text": 44,
+   "cropped": 85,
+   "intact": 646,
+   "merged": 375,
+   "not_seen": 82,
+   "objects": 1232,
+   "share": 0.524351,
+   "threshold_fits": 0.9,
+   "threshold_neighbour": 0.5
+  },
+  "text_and_furniture": {
+   "block_count": 0,
+   "found": 0,
+   "pages_total": 600,
+   "pages_with_text_markup": 0,
+   "share": null
+  },
+  "totals": {
+   "artifacts": 1232,
+   "found": 698,
+   "share": 0.566558
+  },
+  "troubles": {
+   "crop (image)": 3,
+   "crop (seal)": 3,
+   "crop (table)": 41,
+   "eaten by text (display_formula)": 14,
+   "eaten by text (image)": 1,
+   "eaten by text (seal)": 5,
+   "eaten by text (table)": 19,
+   "fragmentation (display_formula)": 1,
+   "fragmentation (image)": 1,
+   "fragmentation (table)": 5,
+   "inside a miss": 35,
+   "merge (chart)": 46,
+   "merge (display_formula)": 71,
+   "merge (image)": 258,
+   "merge (seal)": 2,
+   "merge (table)": 1,
+   "near, but no match (chart)": 4,
+   "near, but no match (display_formula)": 2,
+   "near, but no match (image)": 7,
+   "nested duplicate": 13,
+   "not seen (image)": 9,
+   "not seen (seal)": 3,
+   "not seen (table)": 4,
+   "on an object outside scoring": 350,
+   "spill (chart)": 2,
+   "spill (display_formula)": 5,
+   "spill (image)": 12,
+   "spill (seal)": 9,
+   "spill (table)": 6,
+   "spurious_box": 110
+  }
+ }
+}

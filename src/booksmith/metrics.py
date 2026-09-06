@@ -1402,7 +1402,12 @@ def mutations(truth_dir: str, detect_dir: str, log=print) -> int:
     # its own list of names, not the metric.
     m_arte = [b["label"] for p in M.values() for b in p["blocks"]
               if b["label"] in arte]
-    pick = max(set(m_arte), key=m_arte.count) if m_arte else None
+    # SORTED before `max`: on a tie `max` keeps the first candidate it meets,
+    # and over a set that is hash order -- different in every process. On
+    # slovar `table` and `image` tie, and the probe line read "label table
+    # replaced by chart" in one run and "label image ..." in the next; the
+    # acceptance lock on this battery's text caught it on its first day.
+    pick = max(sorted(set(m_arte)), key=m_arte.count) if m_arte else None
     # The second label comes FROM THE SAME VOCABULARY as the first, or `table`
     # is replaced by docling's `Code`: a label this model does not have checks
     # the wrong thing.
@@ -1412,7 +1417,7 @@ def mutations(truth_dir: str, detect_dir: str, log=print) -> int:
     # A text label of the same vocabulary, for "artefacts called text".
     m_txt = [b["label"] for p in M.values() for b in p["blocks"]
              if b["label"] not in arte]
-    plain = max(set(m_txt), key=m_txt.count) if m_txt else None
+    plain = max(sorted(set(m_txt)), key=m_txt.count) if m_txt else None
     base = compare_pages(T, M)
     b_found = base["totals"]["share"]
     b_text = base["text_and_furniture"]["share"]

@@ -18,6 +18,16 @@ This asks the same question in under a second, and about ALL of them at once.
 WHAT IT CANNOT SEE. Only calls whose arguments are literal strings; a mutation
 that builds its patch at run time is skipped, and skipped is printed, never
 counted as landed.
+
+THE THIRD PATCHER. `attrs(obj, NAME=...)` swaps an attribute in memory. It
+reads the attribute first, so a NAME that moved raises `AttributeError` and
+the battery aborts on the first one -- after the minutes it takes to get
+there, with everything after it unmeasured. Measured on the plan for the
+package move: 209 such calls on some forty objects, and no instrument looked
+at them. So this tool imports the battery (its module level only captures
+attributes that exist, it runs nothing) and asks `hasattr` for every
+`attrs()` target it can resolve by name. A target that is a local variable
+inside a function cannot be resolved here and is printed as such.
 """
 import ast
 import os
@@ -53,6 +63,78 @@ def calls():
             continue
         target, old = literal(node.args[0]), literal(node.args[1])
         yield node.lineno, kind, target, old
+
+
+def _dotted(node):
+    """`a.b.c` as a string, or None when the target is not a plain name chain."""
+    parts = []
+    while isinstance(node, ast.Attribute):
+        parts.append(node.attr)
+        node = node.value
+    if not isinstance(node, ast.Name):
+        return None
+    parts.append(node.id)
+    return ".".join(reversed(parts))
+
+
+def attr_swaps():
+    """(line, target, [names]) for every `attrs(target, NAME=...)` in the battery."""
+    src = open(BATTERY, encoding="utf-8").read()
+    tree = ast.parse(src, filename=BATTERY)
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                and node.func.id == "attrs" and node.args):
+            continue
+        yield node.lineno, _dotted(node.args[0]), [k.arg for k in node.keywords]
+
+
+def battery_namespace():
+    """The battery's globals, so `dh.DoclingHeron` resolves the way it does there."""
+    import importlib.util
+    for d in (os.path.join(ROOT, "src"), os.path.join(ROOT, "tests")):
+        if d not in sys.path:
+            sys.path.insert(0, d)
+    spec = importlib.util.spec_from_file_location("selfcheck", BATTERY)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["selfcheck"] = mod
+    spec.loader.exec_module(mod)
+    return vars(mod)
+
+
+def check_attrs(show):
+    """How many attrs() targets resolve and carry every name they swap."""
+    ns = battery_namespace()
+    ok = missing = local = 0
+    for line, target, names in attr_swaps():
+        if target is None:
+            local += 1
+            print(f"  NOT A NAME selfcheck.py:{line}: attrs() on a computed target")
+            continue
+        head = target.split(".")[0]
+        if head not in ns:
+            local += 1
+            if show:
+                print(f"  local    selfcheck.py:{line}: {target} is not a module-level name")
+            continue
+        obj = ns[head]
+        try:
+            for part in target.split(".")[1:]:
+                obj = getattr(obj, part)
+        except AttributeError as e:
+            missing += 1
+            print(f"  NO TARGET selfcheck.py:{line}: {target}: {e}")
+            continue
+        gone = [n for n in names if not hasattr(obj, n)]
+        if gone:
+            missing += 1
+            print(f"  NO ATTR  selfcheck.py:{line}: {target} has no {', '.join(gone)}")
+        else:
+            ok += 1
+            if show:
+                print(f"  has      {target}: {', '.join(names)}")
+    print(f"attrs {ok + missing + local}: resolve {ok}, do not resolve {missing}, "
+          f"local {local}")
+    return missing
 
 
 def source_of(kind, target):
@@ -92,7 +174,8 @@ def main(argv):
                   f"{old.strip()[:60]!r} more than once")
     print(f"\nanchors {lands + missed + skipped}: land {lands}, "
           f"do not land {missed}, not literal {skipped}")
-    return 1 if missed else 0
+    unresolved = check_attrs(show)
+    return 1 if (missed or unresolved) else 0
 
 
 if __name__ == "__main__":

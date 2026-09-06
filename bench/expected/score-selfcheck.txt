@@ -1,0 +1,38 @@
+baseline: artefacts 67%, text 99%, model order —, assembly order —, excess jumps 130 on 12 multi-column pages, label errors 207, bucket errors 1, merges 0, fragmentations 0, nested duplicates 0, inside a miss 0
+         ok   boxes shifted by a third of their size: fell
+         ok   boxes inflated 1.5x (spill): fell
+         ok   boxes shrunk 0.6x (crop): fell
+         ok   artefacts dropped altogether: zero
+         ok   artefacts called text: zero
+         ok   boxes duplicated: did not grow
+         ok   markup shifted by one page: fell
+     no data  model ranks reversed: model order fell
+     no data  model ranks reversed: assembly order UNCHANGED
+     no data  assembly order reversed (block list): fell
+         ok   two columns interleaved: more excess jumps
+         ok   all boxes into one column: excess jumps zero
+         ok   a page with one counted box: the quantity is a DASH, not a zero
+     no data  the page's artefacts merged into one: more merges
+         ok   every artefact cut in half: more fragmentations
+         ok   boxes duplicated: more nested duplicates
+         ok   every artefact cut in half: more inside a miss
+         ok   label image replaced by chart: more label errors
+         ok   artefacts called text: more bucket errors
+         ok   label image replaced by chart: localisation UNCHANGED
+     no data  the page's artefacts merged into one: sense whole falls
+         ok   boxes shrunk 0.85x: more cropped
+         ok   boxes shrunk by half: fewer intact
+         ok   artefacts dropped altogether: no intact left
+         ok   truth shifted by a third of the box size: fell
+         ok   truth inflated 1.5x: fell
+     no data  the order-marked flag erased from truth: NOT COMPARED, not a number
+         ok   text and furniture dropped from truth: text zero
+         ok   COVER_MATCH is monotone: stricter 67%, base 67%, softer 67%: stricter no more, softer no less
+     no data  COVER_MATCH is not dead (worst cover of a matched pair 1.00 at threshold 0.75): moved at least one way; 'no data' means that on THIS book every pair is far from the border
+         ok   TOL_PX x8 (67% against 67%): no less
+         ok   TOUCH=1.01 (not seen 1 against 0): more 'not seen' troubles
+  column grouping sweep (per_page): default 10.83, over 16 points it roams 10.00..10.83 (range 0.83, that is 8% of the default); lowest at 'full-width box 1.01', highest at 'full-width box 0.7'; dashes 0
+  the order of assembly variants is STABLE over the whole sweep: 4 variants, 6 pairs, not one flipped at 16 points; distinguishes 6 pairs of 6. Ruler play over the sweep 3.37: a pair parted at the default by less than this is NOT SETTLED by the quantity. The closest pair here is top_down_left_right against round_robin_columns, difference 3.92. Ranges: as_model_gave 10.00..10.83; top_down_left_right 36.85..39.92; column_by_column 0.00..0.00; round_robin_columns 40.46..43.83
+  ok   shift by 3 pixels: 0 boxes of 3 moved; tolerance 1 — that many pairs sit right on the cover border
+what this battery does NOT catch: a wrong TRUTH (only the eyes and `books overlay` stand against it); a wrong coordinate transform by the model (truth and output are checked against each other, not against the raster); a swapped book when no snapshot lies beside; a label error INSIDE a bucket, if truth and model make it alike.
+contour battery: probes 33, measured 26, nothing to measure with 7 (see the 'no data' lines), uncaught 0
