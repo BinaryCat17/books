@@ -6,9 +6,12 @@ OpenAI-compatible endpoint answering to order; it does not read the picture
 and does not pretend to.
 
 WHY BEFORE THE FIRST PAID RUN. The order of work here is the reverse of the
-usual: bench and instrument first, model after. The previous second level was
+usual: bench and instrument first, model after. The PREVIOUS second level was
 debugged on a rented card -- thirteen launches, $0.52, two of them useful --
-and every trap turned out to be ours, not one the model's.
+and every trap turned out to be ours, not the model's. That tally belongs to
+the deleted pipeline and matches no job in the ledger today; the current
+reading is `vl-read`, 8 rentals of which 2 succeeded, $0.545. Ask the ledger,
+not this line: `books ledger`.
 """
 import json
 import os
