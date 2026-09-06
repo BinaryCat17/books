@@ -50,6 +50,15 @@ class Run:
     cpu_cores: float = 0.0
     cpu_ghz: float = 0.0
     link_mbps: float = 0.0         # MEASURED link to us, not advertised
+    # OUR OWN downlink at the time of the run, measured over HTTPS. Recorded
+    # because it DECIDES: the rejection floor is `min(limit, 0.5*ours)`, and
+    # the permanent blacklist refuses to act when it is zero. It was decided
+    # by and never written down, so the only record of it was prose -- and the
+    # prose disagreed with itself, 1.8 Mbit/s in `tests/test_rent_deadlines.py`
+    # against 2.8 in `remote/box.py`, both about 3 September 2026, with the
+    # 119 rows of this ledger unable to settle it. `None` means NOT MEASURED,
+    # which is not 0.0.
+    our_downlink_mbps: float | None = None
     # Speed from the world. `None` means NOT MEASURED, which is not 0.0, "the
     # probe failed". The field used to be `float = 0.0` and both troubles were
     # written as one zero: the probe runs only when the link to us clears a
@@ -89,8 +98,23 @@ class Run:
     # the live one; the copy is gone.
 
 
-def append(run: Run, path: str = LEDGER) -> None:
+def _ensure_dir(path: str) -> None:
+    """The directory `path` will be written into, `.` when it has none.
+
+    ONE COPY, because there were two and only one of them was right. `append`
+    wrote `os.path.dirname(path) or "."` and `mark_bad` wrote
+    `os.path.dirname(path)`, and `BOOKSMITH_LEDGER` legitimately accepts a bare
+    file name -- `bad-machines.json` then has an empty dirname and
+    `os.makedirs("")` raises `FileNotFoundError`. Out of the middle of `_rent`,
+    with the machine already taken and billing, on the path that runs when a
+    machine is being blacklisted. The same shape as the `int(None)` failure
+    recorded twenty lines below, which had already cost a run.
+    """
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+
+
+def append(run: Run, path: str = LEDGER) -> None:
+    _ensure_dir(path)
     d = asdict(run)
     d["started_iso"] = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(run.started))
     with open(path, "a") as f:
@@ -289,7 +313,7 @@ def mark_bad(machine_id: int | None, reason: str, path: str = BAD) -> None:
             f"aside as {keep}, starting a clean one. Its machines return "
             f"to rentals until it is repaired by hand")
     data[key] = {"reason": reason, "ts": time.time()}
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+    _ensure_dir(path)
     tmp = path + ".tmp"
     with open(tmp, "w") as f:
         json.dump(data, f, ensure_ascii=False, indent=1)

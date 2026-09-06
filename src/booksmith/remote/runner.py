@@ -362,6 +362,12 @@ def _min_link_mbps() -> float:
 # six 12 MiB chunks of a 20.2 MB file: TWO streams of six downloaded, the other
 # four got 416 and zero bytes (`box.probe_download`). Old numbers are
 # incomparable with new -- do not set a threshold from them.
+#
+# AT 0.0 THIS REJECTS NOTHING, and that is the current state: no run has ever
+# been refused for its downlink from the world. Kept as a named constant
+# because the quantity IS measured and does reach the ledger; raise it and the
+# branch below starts firing, which is why that branch is now the negation of
+# the acceptance test rather than a catch-all.
 MIN_DOWNLOAD_MBPS = 0.0
 MAX_ATTEMPTS = 5
 
@@ -421,12 +427,30 @@ def blame_machine(offer: dict, reason: str, *, ours: float, link: float,
     Hence the instrument's own hint, carried through: "if it happens to every
     machine in a row, it may be OUR channel". Blame the machine only with a
     WITNESS: another machine that gave us three times more over the same ssh.
+
+    AND A WITNESS OF ZERO IS NOT A WITNESS. `best_link < 3 * link` was the
+    whole test, and at `link == 0.0` it reads `0.0 < 0.0` -- False -- so the
+    machine went onto the permanent list with nothing to compare it against.
+    That is the case the probe returns most often when OUR path is dead: the
+    probe measures by time, so a broken path at our end gives zero from every
+    machine, and every one of them would have been banned forever on the first
+    attempt. The 3 September incident, arriving down the other branch.
+
+    So the two silences are named apart, as everywhere else in this project:
+    "nobody has ever given us anything over ssh" is not "the best we have seen
+    is not three times this one".
     """
     mark = mark or ledger.mark_bad
     say = say or log
     if not ours:
         say("  our channel is not measured -- NOT blacklisting: the "
             "probe's zero may have been ours")
+        return False
+    if best_link <= 0:
+        say(f"  NOT blacklisting: NO machine has yet given us anything over "
+            f"ssh, so this one's {link:.2f} Mbit/s has no witness at all. "
+            f"This is not 'the machine is the worst we have seen', it is "
+            f"'we have seen nothing', and the list is forever")
         return False
     if best_link < 3 * link:
         say(f"  NOT blacklisting: the best ever given us over ssh is "
@@ -480,6 +504,11 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
     ours = _our_downlink_mbps()
     limit = _min_link_mbps()
     floor = limit
+    # WRITTEN DOWN BECAUSE IT DECIDES. `ours` sets the rejection floor and
+    # gates the permanent blacklist, and until now it existed only in the log
+    # line below -- so the two prose accounts of the 3 September incident could
+    # disagree (1.8 against 2.8 Mbit/s) with no record able to settle it.
+    rec.our_downlink_mbps = ours or None
     if ours:
         # A machine cannot give us more than we can take. Demanding over half
         # of our own channel from it is the limit of sense.
@@ -666,9 +695,23 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
             log(f"channel to us only {link:.2f} Mbit/s "
                 f"(need {floor:.2f} or more) -- taking another")
             _blame(offer, f"channel to us {link:.2f} Mbit/s")
-        elif link:
+        elif down is not None and down < MIN_DOWNLOAD_MBPS:
             log(f"machine pulls only {down:.0f} Mbit/s from the world "
                 f"(need {MIN_DOWNLOAD_MBPS:.0f} or more) -- taking another")
+        else:
+            # A REJECTION WITH NO REASON NAMED. The branch above used to be a
+            # bare `elif link:`, i.e. a catch-all wearing the downlink
+            # rejection's words -- and since `MIN_DOWNLOAD_MBPS` is 0.0 the
+            # real downlink test can never fail, so anything landing here got
+            # "pulls only N (need 0 or more)" printed over it. Now the four
+            # branches say what they mean and this one says that they did not
+            # cover the case, which is the difference between a zero from a
+            # check and a zero from not understanding.
+            log(f"machine rejected and THE REASON WAS NOT NAMED: to us "
+                f"{link:.2f} Mbit/s against a floor of {floor:.2f}, from the "
+                f"world {down if down is not None else 'not measured'} "
+                f"against {MIN_DOWNLOAD_MBPS}. This is a hole in the branches "
+                f"above, not a property of the machine")
         # The pulse must stop BEFORE the machine is abandoned: otherwise our
         # own thread keeps reviving it and the dead-man's watch never fires.
         #

@@ -2411,6 +2411,34 @@ def mutations():
          [("test_rent_deadlines",
            "test_a_machine_is_blamed_only_with_a_witness")]),
 
+        # The zero case, which the ratio test alone lets through: `0.0 < 0.0`
+        # is False, so a probe of zero was blamed with nothing to compare it
+        # against.
+        # The two journal writers had two copies of one line, and the
+        # unguarded one runs while a machine is billing.
+        ("our own channel stops reaching the ledger",
+         lambda: one_line("booksmith.remote.ledger",
+                          "    our_downlink_mbps: float | None = None",
+                          "    our_downlink_mbps_unwritten: float = 0.0"),
+         [("test_rent_deadlines",
+           "test_the_channel_that_decides_reaches_the_ledger")]),
+
+        ("the blacklist writer stops guarding its directory",
+         lambda: one_line("booksmith.remote.ledger",
+                          '    os.makedirs(os.path.dirname(path) or ".", '
+                          'exist_ok=True)',
+                          "    os.makedirs(os.path.dirname(path), "
+                          "exist_ok=True)"),
+         [("test_rent_deadlines",
+           "test_both_journal_writers_survive_a_bare_file_name")]),
+
+        ("a witness of zero counts as a witness",
+         lambda: one_line("booksmith.remote.runner",
+                          "    if best_link <= 0:",
+                          "    if False:"),
+         [("test_rent_deadlines",
+           "test_a_zero_probe_with_no_witness_at_all_blames_nobody")]),
+
         ("a dead pipe passes for a live channel",
          lambda: one_line("booksmith.remote.box",
                           "        return got * 8 / 1e6 / dt",

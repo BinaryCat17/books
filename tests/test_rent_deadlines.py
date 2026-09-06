@@ -6,10 +6,17 @@ good machines binned in a row, $0.081 and 13 minutes out of 60 before it was
 stopped by hand.
 
 THE PROBE COULD NOT KEEP UP WITH ITS OWN FLOOR. The rejection floor in
-`runner` follows our own channel (`min(limit, 0.5*ours)` = 0.90 Mbit/s), while
-the probe's deadline was wired in: 4 MB in 25 s. On our 1.8 Mbit/s channel
-32 megabits take 18 s at best and do not fit into 25 with the ssh handshake.
-The probe returned 0 -- a "timeout" no different from a dead machine.
+`runner` follows our own channel (`min(limit, 0.5*ours)`), while the probe's
+deadline was wired in: 4 MB in 25 s. At the floor of 0.90 Mbit/s seen that
+evening, `ours` was 1.8; 32 megabits take 18 s at best and do not fit into 25
+with the ssh handshake. The probe returned 0 -- a "timeout" no different from
+a dead machine.
+
+`remote/box.py` recounts the same evening with `ours` at 2.8 and the floor at
+1.42. Both cannot describe one attempt, and neither can be checked: until the
+fix beside `test_the_channel_that_decides_reaches_the_ledger`, our own
+downlink was measured on every rental and written down nowhere. It is a ledger
+field now, so the next run settles it instead of the next argument.
 
 A CEILING INSIDE A CEILING. Container start was cut by `min(BOOT_LIMIT_S,
 remaining)` = `min(120, 480)` = 120 s. Machine 49873851 was pulling the image
@@ -25,6 +32,7 @@ import time
 import support
 
 from booksmith.remote import box as rbox
+from booksmith.remote import ledger
 from booksmith.remote import runner
 
 
@@ -203,6 +211,79 @@ def test_a_machine_is_blamed_only_with_a_witness():
         "against its 0.25 -- this is exactly the machine's fault")
     assert _blame_with(link=0.25, best=7.0, ours=0.0) == [], (
         "listed while our own channel was not measured")
+
+
+def test_a_zero_probe_with_no_witness_at_all_blames_nobody():
+    """The commonest zero, and the one the arithmetic used to let through.
+
+    `best_link < 3 * link` reads `0.0 < 0.0` at a zero probe -- False -- so the
+    machine went onto the PERMANENT list with nothing to compare it against.
+    That is the shape of a dead path at OUR end: the probe measures by time, so
+    every machine returns zero, and every one of them would have been banned
+    forever, starting with the first.
+
+    Both directions, because only one of them was ever wrong: a zero with no
+    witness blames nobody, and a zero beside a machine that DID deliver is the
+    machine's fault and must still be listed.
+    """
+    assert _blame_with(link=0.0, best=0.0, ours=4.6) == [], (
+        "machine listed FOREVER on a zero probe while NO machine had yet "
+        "given us anything over ssh -- there is no witness at all, and this "
+        "is how a dead path at our end bans the whole market")
+    assert _blame_with(link=0.0, best=5.0, ours=4.6), (
+        "machine NOT listed on a zero probe although another gave 5.0 over "
+        "the same ssh -- that witness is exactly what the list is for")
+
+
+def test_both_journal_writers_survive_a_bare_file_name():
+    """`BOOKSMITH_LEDGER` may be a bare name, and both writers must cope.
+
+    `os.path.dirname("bad-machines.json")` is `""`, and `os.makedirs("")`
+    raises `FileNotFoundError`. `append` guarded with `or "."` and `mark_bad`
+    did not -- two copies of one line, one of them right. The unguarded one
+    runs from the MIDDLE of `_rent`, with the machine taken and billing, on
+    the path that blacklists a machine.
+
+    Both are called here, not read: a check that greps for `or "."` would pass
+    on a third copy written a fourth way.
+    """
+    import os
+    import tempfile
+    tmp = tempfile.mkdtemp()
+    was = os.getcwd()
+    os.chdir(tmp)
+    try:
+        ledger.mark_bad(4242, "trial", path="bad-machines.json")
+        assert os.path.isfile(os.path.join(tmp, "bad-machines.json")), (
+            "mark_bad wrote nothing where a bare file name was given")
+        ledger.append(ledger.Run(job="trial", image="none", gpu="none"),
+                      path="ledger.jsonl")
+        assert os.path.isfile(os.path.join(tmp, "ledger.jsonl")), (
+            "append wrote nothing where a bare file name was given")
+    finally:
+        os.chdir(was)
+
+
+def test_the_channel_that_decides_reaches_the_ledger():
+    """`ours` sets the floor and gates the blacklist, so it must be recorded.
+
+    It was not. The only record of it was prose, and the prose disagreed with
+    itself about the same evening -- 1.8 Mbit/s in the header of this file
+    against 2.8 in `remote/box.py`, both about 3 September 2026 -- while the
+    119 rows of the ledger could not settle it, because the quantity was never
+    written down. A number that decides a PERMANENT ban and lives only in a
+    comment is the "log the quantity" rule broken at the source.
+
+    The field is asked of the record, not of the code: `asdict` is what
+    reaches the file, and a property would not.
+    """
+    from dataclasses import asdict
+    row = asdict(ledger.Run(job="t", image="i", gpu="g"))
+    assert "our_downlink_mbps" in row, (
+        f"the ledger row does not carry our own downlink: {sorted(row)}")
+    assert row["our_downlink_mbps"] is None, (
+        "the default is not None -- NOT MEASURED would be written as 0.0, and "
+        "0.0 is what makes `blame_machine` refuse to act")
 
 
 def test_the_verdict_cannot_depend_on_the_rejection_floor():
