@@ -1981,7 +1981,9 @@ def mutations():
 
         ("ключ конвейера уехал в конец meta",
          lambda: sources("models/docling_heron.py",
-                         "                  **pipe_meta,\n", ""),
+                         '                  **pipe_meta,\n'
+                         '                  "best_rejected_by_class": rejected})',
+                         '                  "best_rejected_by_class": rejected})'),
          [("test_docling_pipeline",
            "test_off_keeps_meta_key_order_byte_for_byte")]),
 
@@ -2639,7 +2641,8 @@ def mutations():
         # default in the script that ships to the rented card.
         ("умолчание в run.sh разошлось с реестром",
          lambda: sources("models/paddleocr_vl/run.sh",
-                         "${PORT:-8118}", "${PORT:-9999}"),
+                         'PORT="${PORT_ARG:-${PORT:-8118}}"',
+                         'PORT="${PORT_ARG:-${PORT:-9999}}"'),
          [("test_knobs", "test_shell_defaults_agree_with_the_registry")]),
 
         # --- the grid round trip may not lose content ---------------------
@@ -2673,9 +2676,18 @@ def mutations():
         # /root/.alive`, and the dead-man's watch on the card depends on
         # neither our key nor our process.
         ("пульс не гасится, когда связь оборвалась после него",
-         lambda: one_line("booksmith.remote.runner",
-                          "            box.stop_heartbeat()",
-                          "            pass"),
+         lambda: one_line(
+             "booksmith.remote.runner",
+             "    except BaseException:\n"
+             "        # `BaseException`, not `Exception`: on Ctrl-C the pulse"
+             " must fall\n"
+             "        # silent too, else an interrupted run leaves the machine"
+             " immortal.\n"
+             "        try:\n"
+             "            box.stop_heartbeat()",
+             "    except BaseException:\n"
+             "        try:\n"
+             "            pass"),
          [("test_rent_deadlines",
            "test_a_failed_connect_leaves_no_machine_with_a_live_pulse")]),
 
