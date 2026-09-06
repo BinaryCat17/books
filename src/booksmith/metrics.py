@@ -1,102 +1,77 @@
-"""Метрики контуров: насколько верно модель обвела таблицы, рисунки, графики.
+"""Contour metrics: how correctly the model outlined tables, figures, charts.
 
-Три числа, и они РАЗДЕЛЬНЫЕ. Одно сводное лечится подгонкой одной беды за
-счёт другой и потому ничего не говорит:
+Three numbers, kept SEPARATE -- one combined score is cured by trading one
+fault for another:
 
-1. **локализация** — слепая к ярлыку: нашлась ли рамка там, где артефакт;
-2. **путаница ярлыков** — на найденных: назвала ли модель таблицу таблицей;
-3. **порядок чтения** — и он тоже РАЗДЕЛЬНЫЙ: вопросов тут три, и
-   слитые в одно число они молчали про все три разом.
-   * порядок МОДЕЛИ против истины — оценка модели; считается, только когда
-     настоящий ранг несут ОБЕ стороны;
-   * порядок СБОРКИ против истины — то, что увидит читатель: книгу собирает
-     `doc/html.py` циклом `for b in page.blocks`, сортировки там нет, и в
-     книгу попадает позиция блока в списке, а не ранг. Считается всегда,
-     когда истина размечена, даже если ранга у модели нет вовсе;
-   * лишние прыжки между колонками — та же сборка, но БЕЗ ИСТИНЫ вовсе, для
-     настоящих сканов, которых никто не размечал.
+1. **localisation**, blind to the label: is a box where the artefact is;
+2. **label confusion**, on what was found: was a table called a table;
+3. **reading order**, itself three: the MODEL rank against truth, only when
+   both sides carry a real rank; the ASSEMBLY order against truth, which is
+   what the reader sees, since `doc/html.py` runs `for b in page.blocks` and
+   never sorts, so the book gets the list position and not the rank; and
+   excess column jumps, the same assembly with NO TRUTH, for the real scans
+   nobody annotated.
 
-К ним — ИМЕННЫЕ счётчики бед. Без них «нашлось 0 из 3» читается как «модель
-их не видит», а модель видит и склеивает в одну рамку: беда другая и цена
-другая. Каждый недобор обязан быть назван по имени, иначе отчёт врёт
-умолчанием.
+Beside them, NAMED trouble counters: "found 0 of 3" alone reads as "does not
+see them", where the model sees them and merges them into one box.
 
-ЧТО ЗДЕСЬ УЖЕ БЫЛО СЛОМАНО, И ПОЧЕМУ ОБ ЭТОМ НАПИСАНО В ШАПКЕ.
+WHAT WAS BROKEN HERE, AND WHY IT STAYS IN THE HEADER.
 
-* **Затвор по IoU был мёртв по построению.** При двустороннем покрытии `c`
-  площади ограничены сверху, и IoU не может быть ниже `c/(2-c)`: при c=0.75
-  это 0.6. Порог `IOU_MATCH = 0.5` не срабатывал НИКОГДА. Перебор от 0.01 до
-  0.8 давал одно и то же «найдено 36» — то есть прогон выглядел проверенным
-  на чувствительность к порогу, а порог не был подключён. Теперь затвор один
-  и назван: двустороннее покрытие. IoU остался только тем, чем он полезен, —
-  ранжированием кандидатов.
+* **The IoU gate was dead by construction.** Two-sided cover `c` bounds IoU
+  below by `c/(2-c)` -- 0.6 at c=0.75 -- so `IOU_MATCH = 0.5` never fired and a
+  sweep 0.01..0.8 gave the same "found 36". One named gate now, two-sided
+  cover; IoU only ranks candidates.
 
-* **Пустой список кандидатов проходил порог.** `max(cand, default=(0.0, -1))`
-  при пустом `cand` давал `(0.0, -1)`, и `mb[-1]` сшивал истину с ПОСЛЕДНЕЙ
-  рамкой страницы, к ней не относящейся. Ровно эту ветку включала мутация
-  «пороги обнулены»: она печатала 100% и рапортовала «выросло», хотя выросло
-  от ошибки индекса, а не от снятия порога. На стенде `ветхий`, где у одной
-  страницы артефактных рамок нет вовсе, та же строка роняла всю батарею
-  IndexError на шестой пробе из девяти — и отчёт обрывался, не дойдя до
-  остальных. Проба, обязанная уметь провалиться, не умела ни провалиться, ни
-  доработать до конца.
+* **An empty candidate list passed the gate.** `max(cand, default=(0.0, -1))`
+  made `mb[-1]` stitch truth to the LAST box on the page: the mutation
+  "thresholds zeroed" printed 100% and reported "grew" off an index bug, and on
+  `decayed`, one page of which has no artefact boxes, that line killed the
+  battery with IndexError on probe six of nine.
 
-* **Отсутствие признака читалось как его наличие.** `_has_order` брал
-  умолчание `True`, и истина, ничего не сказавшая про свой порядок чтения,
-  считалась размеченной. Семь стендов из девяти печатали по такой истине
-  процент: hard36 «пар 211, согласовано 73%» (признака нет ни в одном из 36
-  файлов), slovar 89%, matematika 100%, spravochnik 99%, katalog 99%,
-  atlas 95%, zhurnal 96%. Те же самые страницы в `bench/hard`, где признак
-  проставлен и равен `false`, честно молчали. Это ноль от непонимания,
-  выданный здоровым процентом, — и по нему уже ранжировались детекторы.
-  Теперь ответов три: «размечен», «не размечен», «не сказано», и последние
-  два печатаются РАЗНЫМИ строками: первый не чинится вовсе, второй чинится
-  одной строкой у того, кто собрал стенд.
+* **A missing flag was read as a present one.** `_has_order` defaulted to
+  `True`, so truth silent about its reading order counted as annotated, and
+  seven benches of nine printed a percentage off it: hard36 "pairs 211, agreed
+  73%" (no flag in any of its 36 files), slovar 89%, matematika 100%,
+  spravochnik 99%, katalog 99%, atlas 95%, zhurnal 96%. Detectors had been
+  ranked by that. Three answers now: marked, not marked, not said.
 
-* **Величина без параметров своей линейки не сравнима ни с чем.** В отчёт
-  оператору попало «лишних прыжков 7.0 -> 1.3, вчетверо лучше». На ТЕХ ЖЕ
-  сохранённых рамках (600 страниц золотого стенда, docling `off` против
-  `full`) сегодня выходит 2718 -> 471 прыжка, то есть 4.53 -> 0.79 на все 600
-  страниц и 5.24 -> 1.06 на страницу в счёте. Прежней редакции метрики в git
-  нет — восстановить нечего. Перекрёстная развёртка её параметров, 216 точек
-  (перекрытие 0.30..0.99, сквозная рамка 0.50..1.01, минимум рамок 1..5, два
-  знаменателя), пары «7.0 -> 1.3» не даёт НИ В ОДНОЙ: ближайшие 7.04 -> 1.55
-  и 6.45 -> 1.33. Зато КАЖДУЮ ПОЛОВИНУ порознь даёт легко — 7.0 при
-  «перекрытие 0.9, сквозная 0.5», 1.3 при «перекрытие 0.95, сквозная 0.5».
-  Ровно поэтому параметры группировки теперь объявлены поимённо, уезжают в
-  ответ и в печать, а батарея печатает развёртку числом и проверяет, держится
-  ли на ней ПОРЯДОК сравниваемых вариантов.
+* **A quantity without its ruler's parameters compares to nothing.** The
+  operator was told "excess jumps 7.0 -> 1.3, four times better"; the SAME
+  saved boxes (600 golden pages, docling `off` against `full`) give 2718 ->
+  471, i.e. 4.53 -> 0.79 over all 600 pages and 5.24 -> 1.06 per counted page,
+  and the old revision is not in git. A 216-point cross sweep (overlap
+  0.30..0.99, full-width 0.50..1.01, minimum boxes 1..5, two denominators)
+  gives "7.0 -> 1.3" at NO point -- nearest 7.04 -> 1.55 and 6.45 -> 1.33 --
+  though each half alone comes easily: 7.0 at "overlap 0.9, wide 0.5", 1.3 at
+  "overlap 0.95, wide 0.5". Hence named parameters riding into the answer and
+  the printout, and a battery that prints the sweep and checks the variant
+  ORDER survives it.
 
-ПРО СПОСОБНОСТЬ ПРОВАЛИТЬСЯ. `mutations()` кормит метрику заведомо порченым
-входом и требует, чтобы число просело. Порча трёхсторонняя: вывод модели,
-ИСТИНА (метрика, безразличная к истине, меряет один свой вход) и СВОИ
-пороги — каждый порознь, потому что двинутые разом они прячут инертный.
+ON THE ABILITY TO FAIL. `mutations()` feeds spoiled input and demands the
+number sag. Three-sided -- model output, TRUTH (a metric indifferent to truth
+measures one input and is always right), OUR OWN thresholds -- each apart,
+since moved together they hide the inert one.
 """
-import hashlib
 import json
 import os
 
 from . import policy
 
-# Затвор совпадения. ОДИН, и он назван: рамка модели обязана накрыть истину
-# (не срез) и сама лежать внутри неё (не разлив). Проверено на стенде: таблица
-# через корешок разорвана надвое, левая половина давала IoU 0.51 и проходила
-# как «найдено», хотя половины таблицы в ней нет.
+# The match gate. ONE, and named: the model box must cover truth (no crop) and
+# lie inside it (no spill). Measured: a table torn by the gutter gave IoU 0.51
+# on its left half and passed as "found", half the table missing.
 COVER_MATCH = 0.75
-# Ниже этой доли перекрытия рамки считаются вовсе не пересекающимися: доля
-# нужна, чтобы касание углом не считалось «моделью видит».
+# Below this overlap share boxes count as not intersecting; without it a corner
+# touch reads as "the model sees it".
 TOUCH = 0.10
-# Допуск по КРАЮ, в пикселях растра. Доля площади на мелком блоке врёт: у
-# колонцифры 24x12 модель отдала [485,83,514,100] против истины
-# [488,86,512,98] — расхождение по три пикселя на сторону, на глаз то же
-# место, а покрытие 0.58 при пороге 0.75, и в отчёте стояло «найдено 0 из 11».
-# Поэтому совпадением считается ЛИБО двустороннее покрытие, ЛИБО совпадение
-# всех четырёх краёв в пределах допуска.
+# EDGE tolerance, in raster pixels. An area share lies on a small block: for a
+# 24x12 folio the model gave [485,83,514,100] against truth [488,86,512,98] --
+# three pixels a side, the same place to the eye, cover 0.58 against threshold
+# 0.75, and the report said "found 0 of 11".
 TOL_PX = 6.0
-# ЕДИНИЦЫ: пиксели растра, в которых записаны и истина, и вывод модели, то
-# есть при PAGE_DPI. Поднимут PAGE_DPI вдвое — допуск станет вдвое строже, и
-# число сдвинется без единой правки метрики. Доля страницы была бы честнее,
-# но на мелких блоках доля и подвела; здесь выбрано «строго и заметно».
+# UNITS: raster pixels, i.e. PAGE_DPI. Double PAGE_DPI and the tolerance
+# doubles in strictness with no edit here. A share of the page would be fairer,
+# but a share is what failed on small blocks.
 
 
 class MetricError(RuntimeError):
@@ -120,11 +95,11 @@ def _load(d):
 
 
 def _same_book(truth_dir: str, detect_dir: str) -> str:
-    """Про один ли PDF истина и вывод модели.
+    """Are truth and model output about the same PDF.
 
-    Без этой сверки `books score` спокойно считает истину одной книги против
-    рамок другой и печатает осмысленное число. Оба слепка хранят sha256
-    исходного PDF — сверяем их, а не имена каталогов.
+    Without it `books score` scores one book's truth against another's boxes
+    and prints a sensible-looking number. Both snapshots carry the source PDF
+    sha256; we compare those, not directory names.
     """
     man = os.path.join(os.path.dirname(truth_dir.rstrip("/")), "manifest.json")
     run = os.path.join(os.path.dirname(detect_dir.rstrip("/")), "run.json")
@@ -161,67 +136,50 @@ def iou(a, b):
 
 
 def cover(a, b):
-    """Какая доля `a` накрыта `b`. Двусторонняя пара cover(t,m)/cover(m,t)
-    отличает срез (первая мала) от разлива (мала вторая)."""
+    """What share of `a` is covered by `b`. The two-sided pair
+    cover(t,m)/cover(m,t) tells a crop (first small) from a spill (second)."""
     s = _area(a)
     return 0.0 if s <= 0 else _inter(a, b) / s
 
 
 
 def extra_kind(box, paired, unpaired, outside, tb) -> str:
-    """Как ЗВАТЬ артефактную рамку модели, у которой нет пары в истине.
+    """What to CALL a model artefact box with no partner in truth.
 
-    ВЫНЕСЕНО НАРУЖУ РАДИ ВТОРОГО ПОТРЕБИТЕЛЯ, и потребитель этот — `overlay`,
-    прибор, которым в проекте смотрят глазами. Он делил рамки на крикливые и
-    тихие по ОДНОМУ признаку — артефактный ли ярлык, — и потому кричал
-    оранжевым на всё подряд: на золотом стенде 508 рамок, из которых 350 (69%)
-    сам `books score` нарочно не считает лишними («на объекте вне замера»), а
-    настоящих лишних 110. Лист говорил 508 там, где число говорит 110, и
-    человек, посмотрев, выносил приговор модели по числу, которое прибор
-    рядом опровергает.
-
-    Второй экземпляр этого правила был бы хуже: расхождение двух копий — беда,
-    за которую проект уже платил (реестр ручек против сборщика задания, 13
-    имён из 17). Поэтому правило одно, а зовут его двое.
-
-    Порядок имён — ЦЕПОЧКА, и он значим: рамка внутри засчитанной истины это
-    дубль ещё до того, как спрашивать про «вне замера».
+    PUBLIC FOR A SECOND CONSUMER: `overlay`, which we look at by eye. It sorted
+    boxes by one sign, is the label an artefact, and shouted orange at
+    everything -- 508 boxes on the golden bench, of which `books score`
+    deliberately does not count 350 (69%) as spurious ("on an object outside
+    scoring"), leaving 110. A second copy of the rule would be worse: copies
+    drifting apart is a trouble already paid for (knob registry against job
+    builder, 13 names of 17). The order of the names is a CHAIN -- a box inside
+    scored truth is a duplicate before we ask about "outside scoring".
     """
     if any(cover(box, b) >= 0.9 for b in paired):
         return "вложенный дубль"
     if any(cover(box, b) >= 0.9 for b in unpaired):
         return "внутри ненайденного"
     if (any(cover(box, b) >= 0.5 or cover(b, box) >= 0.5 for b in outside)
-            # …но НЕ тогда, когда та же рамка накрывает ещё и артефакты
-            # истины: рамка во весь лист пересекается с любой буквицей, и
-            # амнистия прощала бы ей заодно съеденные таблицы.
+            # ...but NOT when the same box also covers truth artefacts: a
+            # full-page box meets any drop cap, and the amnesty would forgive
+            # it the tables it swallowed too.
             and sum(1 for b in tb if cover(b["box"], box) >= 0.6) < 2):
         return "на объекте вне замера"
     return "spurious_box"
 
 
 def cover_many(a, boxes) -> float:
-    """Какая доля `a` накрыта ОБЪЕДИНЕНИЕМ рамок.
+    """What share of `a` the UNION of the boxes covers.
 
-    Считается точно, а не выборкой: координаты обрезанных прямоугольников
-    сжимаются в сетку, и площадь берётся по занятым клеткам. Приблизительная
-    доля тут была бы хуже отсутствующей — по этому числу решается, пропала
-    часть объекта совсем или лишь разъехалась по двум рамкам.
+    Exact, not sampled: clipped rectangles compressed into a coordinate grid,
+    area over occupied cells. An approximation is worse than nothing -- this
+    number tells "part of the object is gone" from "split across two boxes".
 
-    НЕ ЗОВЁТСЯ НИОТКУДА, И ЭТО НЕ ЗАБЫТЫЙ МУСОР — ДОЛГ С ИЗВЕСТНЫМ АДРЕСОМ.
-    Она вычёркивалась как мёртвая, и скептик отвёл вычёркивание: `sense()`
-    ниже считает покрытие ПО ОДНОЙ рамке (`cover(b["box"], x)` в цикле), и
-    объект, разъехавшийся на две рамки по половине каждая, попадает в
-    «обрезан» — то есть в «содержимое потеряно», — хотя объединение накрывает
-    его целиком. Эта функция и есть недостающая половина: она отличает
-    «пропало» от «разъехалось». Соседний `books fitness` тот же вопрос уже
-    считает, но ПО ЧЕРНИЛАМ и отдельным счётчиком «разорван между рамками»,
-    то есть дублем логики, а не этим кодом.
-
-    Подключать её к `sense()` — не уборка, а смена метрики: столбец «обрезан
-    85» на золотом стенде сдвинется, и число надо будет снять заново и
-    объяснить. Поэтому она ждёт здесь, а не удаляется молча: удалённое число
-    не всплывает при чтении, и через месяц на его место встаёт догадка.
+    UNCALLED, AND A DEBT WITH A KNOWN ADDRESS: struck out as dead once, and a
+    sceptic reversed the strike. `sense()` covers one box at a time, so a
+    half-and-half split lands in "cropped" though the union covers the object
+    whole; this is the missing half. Wiring it in moves the golden-bench column
+    "cropped 85" -- a change of metric to measure and explain, not a tidy-up.
     """
     ax0, ay0, ax1, ay1 = a
     aw, ah = ax1 - ax0, ay1 - ay0
@@ -250,25 +208,21 @@ def _pad(b, d):
 
 
 def matches(t_box, m_box) -> bool:
-    """Совпадение: двустороннее покрытие, считанное С ДОПУСКОМ ПО КРАЮ.
+    """A match: two-sided cover measured WITH AN EDGE TOLERANCE.
 
-    Допуск входит в покрытие, а не стоит отдельной веткой «все четыре края в
-    пределах TOL_PX». Отдельная ветка давала ОБРЫВ: пара, у которой края
-    расходились на 4-5 пикселей, проходила по допуску, а от сдвига ещё на три
-    выпадала сразу в покрытие — и на книге формул сдвиг вывода модели на ТРИ
-    пикселя ронял долю с 70% до 59%. Метрика, дрожащая от пиксельного
-    дрожания, объявит дефектом любой прогон.
+    The tolerance goes into the cover, not into a separate "all four edges
+    within TOL_PX" branch, which gave a CLIFF: a pair differing by 4-5 pixels
+    passed on tolerance and, three pixels further, dropped out through cover --
+    on the formula book a three-pixel shift took the share from 70% to 59%.
     """
     return (cover(t_box, _pad(m_box, TOL_PX)) >= COVER_MATCH
             and cover(m_box, _pad(t_box, TOL_PX)) >= COVER_MATCH)
 
 
 def _pick(b, boxes, used):
-    """Лучший непойманный кандидат к блоку `b`, или None.
-
-    Пустой список кандидатов ОБЯЗАН давать None. Прежняя редакция отдавала
-    `(0.0, -1)` и брала `boxes[-1]`.
-    """
+    """The best uncaught candidate for block `b`, or None. An empty candidate
+    list MUST give None; the old revision returned `(0.0, -1)` and took
+    `boxes[-1]`."""
     cand = [(iou(b["box"], x["box"]), j) for j, x in enumerate(boxes)
             if j not in used and matches(b["box"], x["box"])]
     if not cand:
@@ -277,7 +231,7 @@ def _pick(b, boxes, used):
 
 
 def _diagnose(t, mine, others_truth, arte):
-    """Назвать беду по имени. Порядок ветвей — от определённой к общей."""
+    """Name the trouble. Branches run from the specific to the general."""
     touching = [m for m in mine if cover(t["box"], m["box"]) >= TOUCH
                 or cover(m["box"], t["box"]) >= TOUCH]
     if not touching:
@@ -288,9 +242,9 @@ def _diagnose(t, mine, others_truth, arte):
              if o is not t and cover(o["box"], best["box"]) >= 0.6]
     if eaten and ct >= 0.6:
         return "слияние"
-    # Дробление — только АРТЕФАКТНЫМИ рамками. Прежняя редакция набирала его
-    # из текстовых, и «модель не увидела таблицу, но покрыла её текстом»
-    # получало имя самой дешёвой беды вместо самой дорогой.
+    # Fragmentation counts ARTEFACT boxes only. Counting text ones gave
+    # "missed the table but covered it with text" the name of the cheapest
+    # trouble instead of the dearest.
     inside = [m for m in touching if m["label"] in arte
               and cover(m["box"], t["box"]) >= 0.7]
     if len(inside) >= 2:
@@ -305,24 +259,18 @@ def _diagnose(t, mine, others_truth, arte):
 
 
 def _same_raster(T: dict, M: dict) -> str:
-    """В одном ли растре записаны координаты обеих сторон.
+    """Are both sides' coordinates written in the same raster.
 
-    Рамка — пиксели растра страницы, и растр себя выдаёт своим размером:
-    `width` x `height`. Сверялся до сих пор только sha256 книги, а растр — ничем.
-    Замер на `spravochnik`: тот же вывод той же модели, пересчитанный со 144
-    dpi на 150, даёт долю 0.69 против 0.76 и беды «рядом, но не совпал 2»,
-    «срез 1» — здоровое на вид число и обычный на вид список бед. На 180 dpi
-    доля 0.00, и это уже ноль от непонимания входа, читаемый как ноль модели.
-
-    Сверяется РАЗМЕР, а не `dpi`. `dpi` — ярлык растра, а не он сам: ту же
-    страницу 1021x1402 даёт PDF вдвое меньших пунктов при вдвое большем dpi,
-    координаты совпадают полностью, и отказ по разошедшемуся ярлыку был бы
-    выдуманной бедой. Поэтому разный ярлык при совпавшем размере только
-    называется вслух, в ту же строку отчёта, где стоит sha256.
-
-    Батарея мутаций сюда НЕ ходит, и это намеренно: проба «разметка сдвинута
-    на страницу» подставляет соседнюю страницу целиком, вместе с её размером,
-    и растры там расходятся законно — на `spravochnik` на 4 страницах из 36.
+    A box is page-raster pixels, and the raster betrays itself by its size;
+    until now only the book sha256 was checked. Measured on `spravochnik`: the
+    same output rescaled from 144 dpi to 150 gives share 0.69 against 0.76 over
+    an ordinary-looking trouble list, and at 180 dpi 0.00 -- zero from
+    misunderstanding the input, read as the model's zero. SIZE is compared, not
+    `dpi`: the same 1021x1402 page comes from a PDF of half the points at twice
+    the dpi, so a differing label at a matching size is only said aloud, on the
+    sha256 line. The battery does NOT come here -- its probe "markup shifted by
+    one page" substitutes a whole page, size included, and rasters diverge
+    lawfully on 4 pages of 36.
     """
     common = sorted(set(T) & set(M))
     if any(k not in p for i in common for p in (T[i], M[i])
@@ -348,7 +296,7 @@ def _same_raster(T: dict, M: dict) -> str:
 
 
 def compare(truth_dir: str, detect_dir: str) -> dict:
-    """Сверить вывод модели с истиной. Возвращает числа и именные счётчики."""
+    """Score model output against truth. Numbers and named counters."""
     T, M = _load(truth_dir), _load(detect_dir)
     note = f"{_same_book(truth_dir, detect_dir)}; {_same_raster(T, M)}"
     res = compare_pages(T, M)
@@ -364,15 +312,15 @@ def compare_pages(T: dict, M: dict) -> dict:
             f"Пустой отчёт тут выглядел бы как «совпало ноль», а это другое.")
 
     arte = set(policy.artefacts())
-    # Порядок сверяется ТОЛЬКО по страницам, истина которых сама объявила,
-    # что порядок на ней размечен. Отсутствие признака — не разрешение.
+    # Order is scored ONLY on pages whose truth declared it annotated. A
+    # missing flag is not permission.
     states = {}
     for p in T.values():
         st = _truth_order_state(p)
         states[st] = states.get(st, 0) + 1
-    # Правило НАШЕГО порядка печатается всегда: вторая строка отчёта сверяет
-    # позицию в списке блоков, и без объявленного правила непонятно, чем эта
-    # позиция получена — рангом модели или нашей нумерацией сверху вниз.
+    # OUR order rule always prints: the second report line scores the list
+    # position, and undeclared there is no telling whether the model rank or
+    # our top-down numbering produced it.
     rules = sorted({str((M[i].get("meta") or {}).get(
         "reading_order", "не объявлено (принято «ранг модели»)"))
         for i in T if i in M})
@@ -380,15 +328,14 @@ def compare_pages(T: dict, M: dict) -> dict:
     per_case, conf, ranks = {}, {}, []
     ceiling = order_pages = 0
     tot = {"artifacts": 0, "found": 0}
-    # Полнота текста считается ТОЛЬКО по страницам, где текст размечен.
-    # Выжимка `bench/hard` смешала 6 синтетических страниц (текст размечен) и
-    # 124 страницы AnnoPage (не размечен), и общая доля печаталась как будто
-    # посчитана по всем 130 — то есть по знаменателю, которого нет.
+    # Text completeness counts ONLY pages where text is annotated.
+    # `bench/hard` mixes 6 synthetic pages (annotated) with 124 AnnoPage ones
+    # (not), and the share printed as if taken over all 130.
     txt = {"block_count": 0, "found": 0, "pages_with_text_markup": 0,
            "pages_total": 0}
-    # Полнота по КАЖДОМУ ярлыку истины. Без неё отчёт молчал о трёх четвертях
-    # блоков: «текста 94%» — одно число на тринадцать разных ярлыков, и
-    # `header` при нуле находок в нём неотличим от `text` при полной.
+    # Completeness per truth LABEL. Without it the report was silent about
+    # three quarters of the blocks: "text 94%" is one number over thirteen
+    # labels, and `header` at zero finds looks like `text` at full.
     per_label = {}
     beds = {}
     for i, t in sorted(T.items()):
@@ -422,42 +369,34 @@ def compare_pages(T: dict, M: dict) -> dict:
                 per_label.setdefault(b["label"], [0, 0])[0] += 1
                 continue
             bed(f"{_diagnose(b, mall, tb, arte)} ({b['label']})")
-        # Артефактные рамки модели без пары в истине. Вложенный дубль —
-        # отдельная беда: сырой вывод хранится без подавления, и рамка внутри
-        # уже засчитанной это НЕ выдумка модели на пустом месте.
-        #
-        # ДУБЛЬ ЧЕГО. Только ЗАСЧИТАННОГО, поэтому вложенность считается
-        # относительно рамок истины, У КОТОРЫХ ЕСТЬ ПАРА. Прежняя редакция
-        # брала все рамки истины подряд, и обломок артефакта, которого модель
-        # не нашла вовсе, звался дублём при отсутствующем оригинале: 162
-        # случая из 664 на девяти стендах, из них 111 — куски раздробленной
-        # рамки, 48 — единственная срезанная. Имя обещало лишнюю работу
-        # подавления там, где беда ровно обратная — недобор.
-        #
-        # Отдельное имя, а НЕ «лишняя рамка»: рамка внутри ненайденного
-        # артефакта стоит на настоящем артефакте, и звать её лишней значило бы
-        # наказать модель за то, что этот артефакт она как раз видела. Сумма
-        # двух имён равна прежнему счётчику, «лишняя рамка» и «на объекте вне
-        # замера» не двигаются ни на единицу.
+        # Model artefact boxes with no partner in truth. A nested duplicate is
+        # its own trouble: raw output is unsuppressed, so a box inside a scored
+        # one is no invention. Nesting is measured against truth boxes THAT
+        # HAVE A PARTNER; against every truth box, a fragment of an artefact
+        # never found was called a duplicate of a missing original -- 162 cases
+        # of 664 on nine benches, 111 pieces of a fragmented box, 48 a single
+        # cropped one, a name promising suppression where the trouble was a
+        # miss. "Inside a miss" is its own name and not "spurious box": such a
+        # box stands on a real artefact. The two names sum to the old counter.
         paired = [b["box"] for b, x in pairs if x is not None]
         unpaired = [b["box"] for b, x in pairs if x is None]
-        # Рамки на объектах ВНЕ ЗАМЕРА лишними не считаются. На золотом
-        # стенде часть категорий истины нашей моделью невыразима (буквица,
-        # виньетка) или спорна (реклама, ноты); объявить её находку лишней
-        # значило бы наказать модель за границу, которую провели мы.
+        # Boxes on objects OUTSIDE SCORING are not spurious: golden-bench
+        # categories inexpressible for our model (drop cap, vignette) or
+        # arguable (advert, sheet music) are a boundary we drew, not a fault of
+        # the model.
         outside = [o["box"] for o in
                    (t.get("meta", {}).get("out_of_scope") or [])]
         for j, x in enumerate(mb):
             if j in used:
                 continue
-            # Правило живёт в `extra_kind`, здесь только счёт: у него ВТОРОЙ
-            # потребитель — `overlay`, и разойдись они, лист и число стали бы
-            # говорить разное об одной и той же рамке.
+            # The rule lives in `extra_kind`, here only the counting: with
+            # `overlay` as its second consumer, drift would make picture and
+            # number say different things about one box.
             bed(extra_kind(x["box"], paired, unpaired, outside, tb))
 
-        # Проход Б: сличение ВСЕХ блоков, слепое к ярлыку. Порядок чтения по
-        # одним артефактам не считается: их на странице бывает один, и число
-        # выходило из пяти пар на весь стенд.
+        # Pass B: ALL blocks matched, blind to the label. Artefacts alone will
+        # not do -- a page often holds one, and the number came out of five
+        # pairs for a whole bench.
         page_ranks, taken = [], set()
         for b in sorted(t["blocks"], key=lambda z: -_area(z["box"])):
             j = _pick(b, mall, taken)
@@ -466,19 +405,17 @@ def compare_pages(T: dict, M: dict) -> dict:
             taken.add(j)
             x = mall[j]
             conf[(b["label"], x["label"])] = conf.get((b["label"], x["label"]), 0) + 1
-            # Третьим членом — ПОЗИЦИЯ рамки в списке блоков страницы: именно
-            # ею собирается книга. `j` это индекс в `mall`, а `mall` и есть
-            # тот список, по которому идёт `doc/html.py`.
+            # Third member: the box POSITION in `mall`, the page block list
+            # `doc/html.py` walks and the book is assembled by.
             page_ranks.append((b.get("order"), x.get("order"), j))
             if (b["label"] not in arte
                     and (t.get("meta") or {}).get("text_marked", True)):
                 txt["found"] += 1
-                # Полнота по АРТЕФАКТНЫМ ярлыкам берётся из прохода А, а не
-                # отсюда: проход Б слеп к ярлыку, и таблица, пойманная рамкой
-                # `text`, считалась бы найденной. На золотом стенде это давало
-                # 731 против 698 в заголовке того же отчёта — два числа об
-                # одном, отвечающие по-разному, причём строка «недобор по
-                # ярлыкам» строилась на завышенном.
+                # Completeness for ARTEFACT labels comes from pass A: pass B
+                # is blind to the label, so a table caught by a `text` box
+                # would count as found. That gave 731 against 698 in the same
+                # golden-bench report, and "misses by label" was built on the
+                # inflated one.
                 per_label.setdefault(b["label"], [0, 0])[0] += 1
         for b in t["blocks"]:
             per_label.setdefault(b["label"], [0, 0])[1] += 1
@@ -487,24 +424,21 @@ def compare_pages(T: dict, M: dict) -> dict:
             txt["pages_with_text_markup"] += 1
             txt["block_count"] += len([b for b in t["blocks"]
                                   if b["label"] not in arte])
-        # Порядок чтения сверяется ВНУТРИ страницы: ранг модели — номер строки
-        # в её выводе по этой странице, у следующей он начинается с другого
-        # числа. Сложенные в один список, они дали 33% согласия — «хуже
-        # монетки», то есть признак не модели, а сравнения через страницу.
+        # Reading order is scored WITHIN a page: the model rank is a row number
+        # in its output for that page, and the next page starts elsewhere.
+        # Piled into one list they gave 33% agreement, worse than a coin.
         if _truth_order_state(t) == ORDER_MARKED:
             ranks.append(page_ranks)
             ceiling += _pairs_ceiling(t)
             order_pages += 1
 
     tot["share"] = (tot["found"] / tot["artifacts"]) if tot["artifacts"] else 0.0
-    # Ноль блоков — НЕ ноль полноты. На золотом стенде AnnoPage размечены
-    # только нетекстовые объекты, текстовых в истине нет вовсе; «текста 0%»
-    # читалось бы как «модель потеряла весь текст», а означает «сверять
-    # было нечего». Ровно то правило про два разных нуля.
+    # Zero blocks is NOT zero completeness: AnnoPage annotates only non-text
+    # objects, so golden-bench truth holds no text, and "text 0%" would read as
+    # "the model lost all the text".
     txt["share"] = (txt["found"] / txt["block_count"]) if txt["block_count"] else None
-    # Причина молчания называется ПОИМЁННО и разделяет два нуля: «не размечен»
-    # (стенд отвечает «порядка тут нет») и «не сказано» (стенд не отвечает
-    # вовсе). Первое — свойство стенда, второе — дыра в том, кто его собрал.
+    # The reason for silence is NAMED: "not marked" (the bench answers "no
+    # order here") is the bench, "not said" (no answer) a hole in its builder.
     why_order = ""
     if not order_pages:
         why_order = ("истина порядка не несёт: " + ", ".join(
@@ -520,10 +454,9 @@ def compare_pages(T: dict, M: dict) -> dict:
             "label_confusion": {f"{a}->{b}": n for (a, b), n in sorted(conf.items())},
             "order_truth": {"states": states, "page_count": len(T)},
             "order_rule": ", ".join(rules) or "нечего объявлять",
-            # ДВА ВОПРОСА — ДВЕ ВЕЛИЧИНЫ. Первая про модель и потому требует
-            # настоящего ранга с обеих сторон. Вторая про КНИГУ: порядок
-            # сборки есть всегда, даже когда ранга у модели нет вовсе, и
-            # молчать про него значит молчать про то, что читатель увидит.
+            # TWO QUESTIONS, TWO QUANTITIES. The first is about the model and
+            # demands a real rank on both sides. The second is about the BOOK,
+            # where an assembly order always exists, rank or not.
             "model_order": _order_agree(
                 ranks, 1, ceiling, order_pages, len(T),
                 why_order or ("" if model_rank else
@@ -533,31 +466,26 @@ def compare_pages(T: dict, M: dict) -> dict:
             "jumps": column_jumps(M)}
 
 
-# ------------------------------------------------------------ ПОРЯДОК ЧТЕНИЯ
-# Три ответа вместо двух. Прежнее `bool(m.get("порядок размечен", True))`
-# читало ОТСУТСТВИЕ признака как «размечен» — и печатало по такой истине
-# число: на `bench/hard36` «пар 211, согласовано 73%», хотя признака нет ни в
-# одном из 36 файлов. Те же самые страницы в `bench/hard` (там признак есть и
-# равен `false` у 124 из 130) честно печатали «НЕ СВЕРЯЕТСЯ». По этим 73% уже
-# ранжировались детекторы.
-#
-# «Не сказано» и «не размечен» — РАЗНЫЕ нули, и чинятся они разным. Первый —
-# дыра в стенде: файл истины не отвечает на вопрос, и чинится это одной
-# строкой у того, кто стенд собрал (сегодня молчат обе выжимки и все шесть
-# синтетических книг — 36 из 36 страниц hard36, 13 из 13 slovar). Второй —
-# свойство самого стенда: AnnoPage порядка не размечает вовсе, просить
-# нечего. Поэтому в отчёте это РАЗНЫЕ строки, а не общее «порядка нет».
+# ------------------------------------------------------------- READING ORDER
+# Three answers instead of two. A MISSING flag read as `True` made truth that
+# never mentioned its reading order count as annotated, and printed a
+# percentage off it -- "pairs 211, agreed 73%" on `bench/hard36`, where the
+# flag is in none of the 36 files, and detectors had been ranked by that.
+# "Not said" and "not marked" are DIFFERENT zeros: the first a hole in the
+# bench, one line from its builder away (today 36 of 36 pages of hard36 and 13
+# of 13 of slovar are silent); the second the bench itself, since AnnoPage
+# annotates no order at all. Hence separate report lines.
 ORDER_MARKED = "размечен"
 ORDER_UNMARKED = "не размечен"
 ORDER_SILENT = "not_said"
 
 
 def _truth_order_state(page) -> str:
-    """Что ИСТИНА говорит о своём порядке чтения: одно из трёх состояний.
+    """What TRUTH says about its own reading order: one of three states.
 
-    Умолчания здесь нет и быть не может: отсутствие признака — ответ «файл не
-    сказал», а не «размечен». Сторона модели устроена иначе, и почему —
-    в `_model_has_rank`.
+    No default here, and none possible: a missing flag answers "the file did
+    not say", not "annotated". The model side differs; why is in
+    `_model_has_rank`.
     """
     m = page.get("meta") or {}
     if "order_marked" not in m:
@@ -566,38 +494,35 @@ def _truth_order_state(page) -> str:
 
 
 def _model_has_rank(page) -> bool:
-    """Несёт ли вывод модели НАСТОЯЩИЙ ранг, а не нашу нумерацию.
+    """Does the model output carry a REAL rank rather than our numbering.
 
-    Адаптеры пишут в meta страницы поле `порядок чтения`: либо «ранг модели»,
-    либо честное «наш, сверху вниз и слева направо». Три детектора стенда
-    ранга не дают вовсе, и сверка нашей же нумерации с истиной давала 86% у
-    YOLOX — лучший результат из шести при вдвое худшей находимости.
+    Adapters write `reading_order` into the page meta: the model rank, or an
+    honest "ours, top down and left to right". Three bench detectors give no
+    rank, and scoring our own numbering against truth gave YOLOX 86% -- best of
+    six, at twice the worst find rate.
 
-    УМОЛЧАНИЕ ЗДЕСЬ ОСТАЁТСЯ, и это не та же беда, что была у истины. Поле
-    завели позже самих слепков: его не пишет НИ ОДИН из девяти лежащих
-    прогонов `bench/*/detect` (0 страниц из 859). Сделай умолчание строгим —
-    и строка «порядок модели» умрёт разом на всех наших прогонах, включая те,
-    где ранг настоящий: у `bench/slovar` на странице в 42 рамки ранги идут
-    259..300, то есть это заведомо не позиция в списке. Умолчание поэтому
-    принимается, но НЕ МОЛЧА: правило нашего порядка печатается в отчёте
-    отдельным полем, и «не объявлено» в нём видно.
+    THE DEFAULT STAYS, and it is not the trouble truth had: the field came
+    after the snapshots, and NOT ONE of the nine `bench/*/detect` runs writes
+    it (0 pages of 859). Strict, it would kill the "model order" line on every
+    run we have, real ranks included -- `bench/slovar` ranks a 42-box page
+    259..300, plainly no list position. Accepted, but NOT SILENTLY: our order
+    rule prints as its own field.
     """
-    # Правило «наш ли порядок» живёт в ОДНОМ месте — `models/base.ours_order`,
-    # там же, где договор и цена его расхождения. Здесь остаётся только
-    # умолчание, и оно СВОЁ: отсутствие поля тут значит «ранг модели» по
-    # причине, изложенной выше, а в `doc/html` — «неизвестно».
+    # "Is this our order" lives in ONE place, `models/base.ours_order`, with
+    # the contract and the price of drift. Only the default is local: a missing
+    # field means "model rank" here, "unknown" in `doc/html`.
     from .models.base import ours_order
     v = (page.get("meta") or {}).get("reading_order", "model_rank")
     return not ours_order(v)
 
 
 def _pairs_ceiling(t) -> int:
-    """Сколько пар блоков истина этой страницы могла бы дать вообще.
+    """How many block pairs this page's truth could yield at all.
 
-    Знаменатель обязан стоять рядом с долей: 99% на половине книги неотличимо
-    от 99% на всей. Считаются пары с РАЗНЫМ рангом — пара с одинаковым не
-    сверяется по построению, и включать её в потолок значило бы обещать
-    измерение, которого не бывает.
+    A denominator stands beside its share: 99% over half a book looks like 99%
+    over all of it. Pairs of DIFFERENT rank are counted -- an equal-rank pair
+    is not scored by construction, and in the ceiling it would promise a
+    measurement that never happens.
     """
     o = [b.get("order") for b in t["blocks"]
          if isinstance(b.get("order"), (int, float))]
@@ -607,13 +532,12 @@ def _pairs_ceiling(t) -> int:
 
 def _order_agree(by_page, idx: int, ceiling: int, pages: int,
                  of_pages: int, why: str = "") -> dict:
-    """Доля согласованных пар, страница за страницей.
+    """The share of agreeing pairs, page by page.
 
-    `idx` говорит, ЧЕЙ порядок сверяется с истиной: 1 — ранг модели, 2 —
-    позиция блока в списке страницы. Второе не прихоть: книгу собирает
-    `doc/html.py` циклом `for b in page.blocks`, сортировки там нет — в книгу
-    попадает позиция в списке, а не ранг. Одна величина на два вопроса
-    молчала про ОБА, стоило модели не дать ранга.
+    `idx` says WHOSE order is scored: 1 the model rank, 2 the block position in
+    the page list, which `doc/html.py` never sorts and the book therefore gets.
+    One quantity for two questions was silent about BOTH the moment a model
+    gave no rank.
     """
     if why:
         return {"pairs": 0, "agreement": None, "pairs_possible": ceiling,
@@ -637,71 +561,60 @@ def _order_agree(by_page, idx: int, ceiling: int, pages: int,
             "pages_total": of_pages, "blocks_without_rank": norank}
 
 
-# -------------------------------------- ЛИШНИЕ ПРЫЖКИ МЕЖДУ КОЛОНКАМИ
-# Порядок сборки БЕЗ ИСТИНЫ — то же, чем `books fitness` меряет годность
-# рамок. Нужен он ровно там, где истины нет и не будет: наши собственные
-# сканы в `bench/real` не размечены руками ни на строку, а порядок сборки
-# уедет в книгу и оттуда.
+# ------------------------------------- EXCESS JUMPS BETWEEN COLUMNS
+# The assembly order WITHOUT TRUTH, needed exactly where truth does not exist
+# and will not: `bench/real` is unannotated, and the assembly order reaches the
+# book from there too.
 #
-# Величина: сколько раз сборка перескакивает из колонки в колонку СВЕРХ
-# неизбежного. Обойти k колонок нельзя дешевле чем за k-1 переход, поэтому
-# вычитается ровно k-1, и ноль означает «каждая колонка прочитана подряд».
-# Двухколоночный словарь, прочитанный строка-слева-строка-справа, даст здесь
-# столько же прыжков, сколько строк, — и это ровно та беда, из-за которой
-# книгу нельзя читать.
+# How many times assembly jumps between columns BEYOND the unavoidable. Walking
+# k columns costs no less than k-1 transitions, so k-1 is subtracted and zero
+# means every column was read straight through. A two-column dictionary read
+# line-left-line-right yields as many jumps as lines -- the fault that makes a
+# book unreadable.
 #
-# ПАРАМЕТРЫ ГРУППИРОВКИ ОБЪЯВЛЕНЫ ЗДЕСЬ, УЕЗЖАЮТ В ОТВЕТ И В ПЕЧАТЬ — ВСЕ ТРИ.
-# Это уже стоило замера, который не воспроизводится: оператору было объявлено
-# «лишних прыжков 7.0 -> 1.3, вчетверо лучше», а те же самые сохранённые рамки
-# дают сегодня 4.53 -> 0.79 (эталонный вход 4.49 -> 0.79). Прежней редакции
-# метрики в git нет — восстанавливать нечего, и спорить не о чем: величина без
-# названных параметров не сравнима с другой такой же, потому что падение может
-# оказаться сменой линейки. Насколько именно оно линейка — считает
-# `column_jumps_sweep`, и её ответ печатается батареей `--selfcheck`.
-COLUMN_OVERLAP = 0.5   # доля ширины УЗКОЙ из двух рамок, которую обязано
-                       # перекрыть их пересечение по x, чтобы счесть их одной
-                       # колонкой. 0.5 — рамка должна лежать в колонке хотя бы
-                       # наполовину; при 0.1 колонки слипаются от выступающей
-                       # буквицы, при 0.9 колонка распадается от абзацного
-                       # отступа.
-COLUMN_WIDE = 0.60     # с какой доли ширины листа рамка считается СКВОЗНОЙ.
-                       # Сквозная (шапка, таблица во всю полосу) пересекает
-                       # обе колонки и склеивает их в одну группу — метрика
-                       # тогда молча печатает 0 ровно на тех страницах, ради
-                       # которых заведена. Такие рамки не входят в счёт вовсе:
-                       # они не принадлежат ни одной колонке.
-COLUMN_MIN_BOXES = 2   # МИНИМУМ РАМОК В СЧЁТЕ НА СТРАНИЦЕ. Прыжок бывает
-                       # только МЕЖДУ рамками: на странице, где в счёт попала
-                       # одна рамка (или ни одной), величина НЕ ОПРЕДЕЛЕНА, и
-                       # ноль по такой странице был бы нулём от непонимания.
-                       # Такая страница не входит ни в числитель, ни в
-                       # знаменатель; если их нет ВОВСЕ, величина отдаётся
-                       # прочерком (None), а не нулём.
-COLUMN_ROLES = ("artifact", "text")  # разряды, участвующие в счёте.
-                       # Служебное (колонцифра, колонтитул) стоит в поле и на
-                       # середине листа: снизу по центру оно перекрывает обе
-                       # колонки и склеивает их, в поле — образует свою третью
-                       # колонку. И то и другое — прыжки от разметки полей, а
-                       # не от порядка чтения.
+# THE GROUPING PARAMETERS ARE DECLARED HERE AND RIDE INTO THE ANSWER AND THE
+# PRINTOUT, ALL THREE. That already cost one unreproducible measurement (see
+# the header): "7.0 -> 1.3" where the same saved boxes give 4.53 -> 0.79 today,
+# reference input 4.49 -> 0.79. How much of a difference is the ruler and not
+# the data is answered by `column_jumps_sweep`, printed by `--selfcheck`.
+COLUMN_OVERLAP = 0.5   # share of the NARROWER box width their x-intersection
+                       # must cover for the two to count as one column. At 0.5
+                       # a box lies at least half in the column; at 0.1 columns
+                       # fuse over a protruding drop cap, at 0.9 a column falls
+                       # apart over a paragraph indent.
+COLUMN_WIDE = 0.60     # from what share of page width a box counts as
+                       # FULL-WIDTH. Such a box (header, full-measure table)
+                       # crosses both columns and glues them into one group,
+                       # and the metric then silently prints 0 on exactly the
+                       # pages it was made for. Left out of the count: they
+                       # belong to no column.
+COLUMN_MIN_BOXES = 2   # MINIMUM BOXES COUNTED ON A PAGE. A jump happens only
+                       # BETWEEN boxes: with one counted box, or none, the
+                       # quantity is UNDEFINED and a zero would be a zero from
+                       # misunderstanding. Such a page enters neither numerator
+                       # nor denominator; with none at all the answer is a dash
+                       # (None).
+COLUMN_ROLES = ("artifact", "text")  # buckets taking part in the count.
+                       # Furniture (folio, running head) stands in the margin
+                       # and at mid-page: centred at the foot it overlaps both
+                       # columns and glues them, in the margin it forms a third
+                       # column. Jumps from page furniture, not reading order.
 #
-# ЧЕГО ЭТА ВЕЛИЧИНА НЕ УМЕЕТ, И ЭТО ПОМЕРЕНО. Колонка тут — геометрия, а не
-# смысл, и законный порядок «формула — её номер у правого поля — следующая
-# формула» она считает прыжками: на `bench/matematika` все 10 лишних прыжков
-# ровно такие, номера формул стоят отдельной «колонкой» шириной в 35
-# пикселей. Правится это не подгонкой порогов (подгонка спрячет заодно и
-# настоящую беду), а тем, что число печатается вместе с параметрами
-# группировки и рядом со своим знаменателем: 10 прыжков на 1 многоколоночной
-# странице — не то же самое, что 130 на 12, где на `bench/slovar`
-# трёхколоночная страница и правда приходит от модели построчно поперёк
-# колонок (47 лишних прыжков на одной странице).
+# WHAT THIS QUANTITY CANNOT DO, AND IT IS MEASURED. A column here is geometry,
+# not meaning, so the lawful "formula -- its number at the right margin -- next
+# formula" counts as jumps: on `bench/matematika` all 10 excess jumps are that,
+# the formula numbers standing as their own 35-pixel "column". The cure is not
+# tuned thresholds, which would hide the real fault too, but printing the
+# number with its parameters and denominator: 10 jumps on 1 multi-column page
+# is not 130 on 12, where a three-column `bench/slovar` page really does arrive
+# row by row across the columns (47 on one page).
 
 
 def column_params(overlap=None, wide=None, min_boxes=None, roles=None) -> dict:
-    """ДЕЙСТВУЮЩИЕ параметры группировки, а не объявленные умолчания.
+    """The grouping parameters IN FORCE, not the declared defaults.
 
-    Отдельной функцией, потому что уезжают они в три места сразу — в счёт, в
-    возвращаемый словарь и в печать, — и второй экземпляр этого списка
-    разошёлся бы с первым молча.
+    Its own function because they ride into three places at once -- count,
+    returned dict, printout -- and a second copy would drift in silence.
     """
     return {"x_overlap_of_narrow_box":
             COLUMN_OVERLAP if overlap is None else overlap,
@@ -713,12 +626,11 @@ def column_params(overlap=None, wide=None, min_boxes=None, roles=None) -> dict:
 
 
 def _columns(boxes, overlap=None) -> list:
-    """Номер колонки для каждой рамки: связные группы по перекрытию x.
+    """A column number for each box: connected groups by x-overlap.
 
-    Связность, а не кластеризация по центрам: колонка — это то, что стоит
-    друг под другом, и цепочка «А перекрывает Б, Б перекрывает В» держит
-    колонку целой при плавающем краю набора. Номера идут слева направо,
-    чтобы разбор читался глазом.
+    Connectivity, not clustering by centres: a column is what stands one under
+    another, and the chain "A overlaps B, B overlaps C" keeps it whole when the
+    setting edge floats. Numbers run left to right so it reads by eye.
     """
     ov = COLUMN_OVERLAP if overlap is None else overlap
     n = len(boxes)
@@ -747,15 +659,13 @@ def _columns(boxes, overlap=None) -> list:
 
 def column_jumps(M: dict, overlap=None, wide=None, min_boxes=None,
                  roles=None) -> dict:
-    """Лишние прыжки между колонками у ПОРЯДКА СБОРКИ. Истина не нужна.
+    """Excess column jumps of the ASSEMBLY ORDER. No truth needed.
 
-    Порядок берётся тот же, что попадёт в книгу, — позиция блока в списке
-    страницы: `doc/html.py` идёт по нему и не сортирует.
-
-    ДВА РАЗНЫХ НУЛЯ РАЗВЕДЕНЫ. Ноль прыжков — посчитанная величина: рамок в
-    счёте хватало, колонки прочитаны подряд. Страница, где в счёт попала одна
-    рамка, величины не даёт ВОВСЕ: прыгать не между чем. Если таких страниц
-    весь стенд, ответ — прочерк (`None`) и поле «почему», а не ноль.
+    The order taken is the one that reaches the book: the block position in the
+    page list, which `doc/html.py` walks without sorting. Zero jumps is a
+    computed value; a page with one counted box yields NO value, there being
+    nothing to jump between, and a whole bench of them answers with a dash
+    (`None`) and a "why" field.
     """
     par = column_params(overlap, wide, min_boxes, roles)
     ov = par["x_overlap_of_narrow_box"]
@@ -778,8 +688,8 @@ def column_jumps(M: dict, overlap=None, wide=None, min_boxes=None,
             part.append(b["box"])
         pages += 1
         in_count += len(part)
-        # Страница, где рамок в счёте меньше минимума, не даёт величины: ноль
-        # по ней означал бы «прыжков нет», а на деле их негде взять.
+        # Below the box minimum a page yields no value: a zero would claim
+        # "no jumps" where there is nowhere to take them from.
         if len(part) < mn:
             thin += 1
             continue
@@ -787,9 +697,8 @@ def column_jumps(M: dict, overlap=None, wide=None, min_boxes=None,
         seq = _columns(part, ov)
         ncols = len(set(seq))
         trans = sum(1 for k in range(1, len(seq)) if seq[k] != seq[k - 1])
-        # Перескок в новую колонку неизбежен k-1 раз; всё сверх — лишнее.
-        # Отрицательным это быть не может: чтобы побывать в k группах,
-        # переходов нужно не меньше k-1.
+        # k-1 transitions into a new column are unavoidable; the rest is
+        # excess, and it cannot go negative.
         excess = trans - (ncols - 1)
         tot_trans += trans
         tot_cols += ncols
@@ -804,17 +713,17 @@ def column_jumps(M: dict, overlap=None, wide=None, min_boxes=None,
         f"{wide_n} сквозных и {other} иных разрядов) — прыгать не между чем. "
         f"Это НЕ ноль прыжков.")
     return {"excess_jumps": tot_excess if ok else None,
-            # Доля обязана стоять рядом со своим знаменателем, и знаменатель
-            # тут НЕ «все страницы»: страницы без счёта в него не входят.
+            # A share stands beside its denominator, and that denominator is
+            # NOT "all pages": uncounted pages stay out of it.
             "per_page": (tot_excess / counted) if ok else None,
             "transitions": tot_trans, "columns": tot_cols, "page_count": pages,
             "pages_counted": counted,
-            # Страница, где рамок меньше минимума, названа отдельно: без неё
-            # знаменатель «страниц в счёте» выглядел бы опечаткой.
+            # Pages below the box minimum are named apart, or the "pages
+            # counted" denominator looks like a typo.
             "pages_not_counted_too_few_boxes": thin,
-            # Одноколоночная страница даёт ноль ПО ПОСТРОЕНИЮ (одна группа —
-            # ни одного перехода). Без этого числа ноль от «всё прочитано
-            # подряд» неотличим от нуля «мерить было не на чем».
+            # A one-column page gives zero BY CONSTRUCTION: one group, no
+            # transitions, indistinguishable without this count from "nothing
+            # to measure on".
             "pages_with_2plus_columns": multi,
             "boxes_counted": in_count, "full_width_boxes": wide_n,
             "boxes_other_buckets": other,
@@ -823,15 +732,13 @@ def column_jumps(M: dict, overlap=None, wide=None, min_boxes=None,
             "params": par}
 
 
-# ------------------------------------- РАЗВЁРТКА ПО ПАРАМЕТРАМ ГРУППИРОВКИ
-# Объявить параметры мало: пока не сказано, НАСКОЛЬКО величина от них зависит,
-# читатель не знает, что значит разница двух прогонов. Развёртка отвечает
-# числом — в каких пределах гуляет величина, если двигать параметры по одному
-# от объявленного умолчания.
-#
-# По ОДНОМУ, а не всё разом: перекрёстная сетка прячет инертный параметр (его
-# движение теряется среди чужого), а нам надо знать про каждый, рычаг он или
-# нет. Перекрёстная сетка доступна ключом `cross=True` для отдельного разбора.
+# --------------------------- SWEEP OVER THE GROUPING PARAMETERS
+# Until it is said BY HOW MUCH the quantity depends on the parameters, a
+# difference between two runs means nothing. The sweep answers with a number:
+# the range the quantity roams over as they move one at a time off the declared
+# default. ONE at a time, because a cross grid hides an inert parameter among
+# the others and of each we need to know whether it is a lever; `cross=True`
+# gives the grid anyway.
 COLUMN_SWEEP = {"overlap": (0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90),
                 "wide": (0.50, 0.60, 0.70, 0.80, 1.01),
                 "min_boxes": (2, 3, 5)}
@@ -840,8 +747,8 @@ _SWEEP_RU = {"overlap": "перекрытие x", "wide": "сквозная ра
 
 
 def _sweep_points(grid: dict, cross: bool) -> list:
-    """Точки развёртки. Первая — объявленное умолчание: от неё отсчитывается
-    разброс, и без неё непонятно, от чего он отсчитан."""
+    """Sweep points. The first is the declared default: the spread is measured
+    from it, and without it there is no telling from what."""
     if cross:
         pts = [{}]
         for k in sorted(grid):
@@ -852,11 +759,11 @@ def _sweep_points(grid: dict, cross: bool) -> list:
 
 def column_jumps_sweep(M: dict, grid: dict = None, cross: bool = False,
                        key: str = "per_page") -> dict:
-    """В каких пределах гуляет величина, если двигать параметры группировки.
+    """The range the quantity roams over as the grouping parameters move.
 
-    Возвращает базу (при объявленных умолчаниях), минимум, максимум и все
-    точки поимённо. Прочерк (`None`) — законный ответ точки: при минимуме
-    рамок 5 стенд может не дать ни одной страницы в счёте, и это не ноль.
+    Baseline at declared defaults, minimum, maximum, every point by name. A
+    dash (`None`) is a lawful answer for a point: at a box minimum of 5 a bench
+    may yield no counted page at all, which is no zero.
     """
     pts = []
     for p in _sweep_points(grid or COLUMN_SWEEP, cross):
@@ -873,7 +780,7 @@ def column_jumps_sweep(M: dict, grid: dict = None, cross: bool = False,
 
 
 def _fmt_point(shift: dict) -> str:
-    """Назвать точку развёртки словами: ЧТО сдвинуто от умолчания."""
+    """Name a sweep point in words: WHAT is shifted off the default."""
     if not shift:
         return "default"
     return ", ".join(f"{_SWEEP_RU.get(k, k)} {v}"
@@ -881,9 +788,9 @@ def _fmt_point(shift: dict) -> str:
 
 
 def _ranking_rule(rk: dict) -> str:
-    """Правило для пар, которых на развёртке не было: тесную пару эта величина
-    не решает. Мерой тесноты берётся РАЗМАХ САМОЙ ВЕЛИЧИНЫ по развёртке — та
-    самая игра линейки, которой оплачена бы любая разница меньше неё."""
+    """The rule for pairs the sweep never saw: this quantity does not settle a
+    close pair. Closeness is the quantity's OWN range over the sweep -- the
+    play of the ruler any smaller gap would be paid in."""
     play, near = rk.get("ruler_play"), rk.get("closest_pair_at_default")
     if play is None:
         return ""
@@ -899,40 +806,32 @@ def _ranking_rule(rk: dict) -> str:
 
 def column_jumps_ranking(variants: dict, grid: dict = None,
                          cross: bool = False, key: str = "per_page") -> dict:
-    """Держится ли ПОРЯДОК вариантов на всей развёртке параметров.
+    """Does the ORDER of the variants hold across the whole parameter sweep.
 
-    Вопрос, ради которого величина и считается: по ней выбирают, чей порядок
-    сборки лучше. Если на одной точке развёртки А лучше Б, а на другой Б
-    лучше А, то выбирать по этой величине НЕЛЬЗЯ, и знать об этом надо до
-    выбора, а не после.
+    The question the quantity exists for: it picks the better assembly order.
+    If A beats B at one point and B beats A at another, choosing by it is
+    FORBIDDEN, and that must be known before the choice. A pair counts as
+    flipped only on a STRICT change of sign.
 
-    Пара считается перевёрнутой только при СТРОГОЙ смене знака: ничья,
-    ставшая порядком, порядка не переворачивает.
-
-    ВАРИАНТ ПЕРЕСОБИРАЕТСЯ В КАЖДОЙ ТОЧКЕ, и это не украшение. Вариант,
-    сложенный ИЗ КОЛОНОК (пол «колонка за колонкой», потолок «по кругу»),
-    зависит от тех же параметров, по которым его потом меряют: сложенный при
-    умолчании и померенный при «перекрытие x 0.9» пол давал 1.93 прыжка на
-    страницу против 1.73 у самой модели — перевернувшаяся пара была
-    линейкой, а не данными (замер: `bench/annopage`, 600 страниц, 16 точек,
-    1 перевёрнутая пара из 6, и та единственная с полом; после пересборки
-    перевёрнутых пар нет). Поэтому значением словаря принимается СБОРЩИК —
-    вызываемое, которому точка передаётся целиком. Готовые страницы тоже
-    принимаются: вариант, от параметров не зависящий, пересобирать не в чем.
+    A VARIANT IS REBUILT AT EVERY POINT, because one folded OUT OF COLUMNS (the
+    floor "column by column", the ceiling "round robin") depends on the very
+    parameters it is measured by: folded at the default and measured at "x
+    overlap 0.9", the floor gave 1.93 jumps per page against 1.73 for the model
+    -- the flip was the ruler, not the data (600 pages, `bench/annopage`, 16
+    points, 1 flipped pair of 6, the only one with the floor; refolded, none).
+    So a dict value is a BUILDER handed the whole point; ready pages are
+    accepted too, having nothing to rebuild.
     """
     names = list(variants)
     pts = _sweep_points(grid or COLUMN_SWEEP, cross)
     vals = {n: [] for n in names}
-    # Пересборка стоит времени, и цена замерена на золотом стенде (600
-    # страниц): эта строка была 18с готовыми страницами, 103с с пересборкой в
-    # каждой точке и 34с с памятью ниже. Память даровая — точки,
-    # различающиеся только `min_boxes`, дают ОДНУ И ТУ ЖЕ сборку (минимум
-    # рамок решает, считать ли страницу, а не как её сложить), а точки
-    # «перекрытие 0.5» и «сквозная 0.6» совпадают с умолчанием. Ключ берётся
-    # по ДЕЙСТВУЮЩИМ параметрам, а не по сдвигу: иначе `{}` и
-    # `{"overlap": 0.5}` считались бы разными. Сборок на умолчательной
-    # развёртке выходит 11 вместо 16, а приговор от памяти не меняется —
-    # проверено прогоном до и после (пределы совпали до сотой).
+    # Rebuilding costs time, measured on the golden bench (600 pages): 18s with
+    # ready pages, 103s rebuilding everywhere, 34s with the memo below. The
+    # memo is free -- points differing only in `min_boxes` give the SAME build,
+    # and "overlap 0.5" and "wide 0.6" coincide with the default. Its key is
+    # the parameters IN FORCE, not the shift, or `{}` and `{"overlap": 0.5}`
+    # would differ. 11 builds instead of 16, verdict unchanged: run before and
+    # after, the ranges matched to the hundredth.
     made = {}
     for p in pts:
         par = column_params(**p)
@@ -960,16 +859,14 @@ def column_jumps_ranking(variants: dict, grid: dict = None,
             if len(signs) > 1:
                 flips.append(f"{na} против {nb}")
             elif not signs:
-                # НИЧЬЯ НА ВСЕХ ТОЧКАХ — не устойчивость, а немота. Пара, у
-                # которой величина ни разу не различила варианты, не
-                # подтверждает выбор: она в нём не участвует. Считать её
-                # «не перевернувшейся» значило бы записать молчание в
-                # доказательство.
+                # A TIE AT EVERY POINT is muteness, not stability: a pair the
+                # quantity never told apart takes no part in the choice, and
+                # calling it "not flipped" enters silence as proof.
                 ties.append(f"{na} против {nb}")
-    # ЗАПАС БЛИЖАЙШЕЙ ПАРЫ ПРОТИВ РАЗМАХА ЛИНЕЙКИ. Устойчивость проверена на
-    # тех парах, что есть; следующая пара может оказаться теснее. Поэтому
-    # рядом печатается правило, годное и для пар, которых тут не было:
-    # разошлись меньше, чем гуляет сама величина от параметров, — не решается.
+    # THE CLOSEST PAIR AGAINST THE PLAY OF THE RULER. Stability is checked on
+    # the pairs that exist and the next may be closer, so a rule for pairs that
+    # were not here prints beside it: a gap smaller than the quantity's own
+    # play over the parameters is not settled.
     play = max((mx - mn for mn, mx in
                 ((min([v for v in vals[n] if v is not None], default=None),
                   max([v for v in vals[n] if v is not None], default=None))
@@ -1001,33 +898,28 @@ def column_jumps_ranking(variants: dict, grid: dict = None,
 
 
 def _fits(labels) -> list:
-    """Какие объявленные словари содержат ВСЕ эти ярлыки целиком."""
+    """Which declared vocabularies hold ALL of these labels at once."""
     have = set(labels)
     return sorted(n for n, t in policy.POLICIES.items() if have <= set(t))
 
 
 def label_alphabet(res: dict) -> list:
-    """Один ли СЛОВАРЬ у истины и у модели на совпавших парах.
+    """Do truth and model speak ONE VOCABULARY on the matched pairs.
 
-    Путаница ярлыков сравнивает СТРОКИ, и без этой проверки она мерила
-    орфографию чужого словаря вместо модели. Истина стендов записана в
-    PP-DocLayoutV2 (`table`, `image`), а Docling-egret и DocLayNet отвечают
-    `Table`, `Picture`: общих ярлыков у них с PP-DocLayoutV2 РОВНО НОЛЬ, и
-    диагональ пуста по построению. Замер: egret 698/698 и yolox 379/379 пар
-    на золотом стенде, 100% на всех шести синтетических — число, которое не
-    может быть иным, что бы модель ни сделала.
+    Label confusion compares STRINGS; without this check it measured the
+    spelling of a foreign vocabulary instead of the model. Bench truth is
+    PP-DocLayoutV2 (`table`, `image`), Docling-egret and DocLayNet answer
+    `Table`, `Picture` -- EXACTLY ZERO labels in common, the diagonal empty by
+    construction: egret 698/698 and yolox 379/379 pairs on the golden bench,
+    100% on all six synthetic books, whatever the model did. Worse than
+    useless, such confusion CANNOT FAIL -- "label Table replaced by Code"
+    demands MORE errors, above 100% there are none, and the battery printed
+    "NO" and "uncaught damage: 1" on egret and yolox.
 
-    Хуже, чем бесполезно: такая путаница НЕ УМЕЕТ ПРОВАЛИТЬСЯ. Проба «ярлык
-    Table подменён на Code» требует, чтобы ошибок стало БОЛЬШЕ, а больше
-    100% не бывает — батарея печатала «НЕТ» и «не пойманных порч: 1» на
-    egret и yolox. Мёртвой была не модель, а величина.
-
-    Словарь считается общим, только если ХОТЬ ОДИН объявленный в policy
-    содержит все ярлыки обеих сторон разом. Тогда каждый из них значит на
-    обеих сторонах одно и то же — это проверено при импорте policy, где
-    ярлык, означающий в двух словарях разное, роняет прогон. ПЕРЕВОДА между
-    словарями здесь нет и не будет: `picture` = `image` мы решили бы за
-    модель, а `chart` словарём Docling не выразить вовсе.
+    A vocabulary counts as shared only when some declared policy holds every
+    label of both sides at once; policy import checks that. There is no
+    TRANSLATION between vocabularies: `picture` = `image` would decide for the
+    model, and `chart` is inexpressible in Docling's.
     """
     seen = set()
     for k in res["label_confusion"]:
@@ -1038,11 +930,11 @@ def label_alphabet(res: dict) -> list:
 
 
 def label_errors(res: dict):
-    """Ошибок ярлыка, или None — «сверять нечем».
+    """Label errors, or None -- "nothing to compare with".
 
-    None и ноль — РАЗНЫЕ: ноль значит «модель ни разу не перепутала», None —
-    «истина и модель отвечают в разных словарях». Число здесь выдало бы
-    непонимание за замер, ровно как «глав 0» вместо «я их не узнал».
+    Zero means the model never confused a label, None that the sides answer in
+    different vocabularies. A number would pass misunderstanding off as
+    measurement, as "0 chapters" stood for "I did not recognise them".
     """
     if not label_alphabet(res):
         return None
@@ -1051,15 +943,13 @@ def label_errors(res: dict):
 
 
 def role_errors(res: dict) -> int:
-    """Путаница РАЗРЯДОВ: назвала ли модель артефакт артефактом.
+    """BUCKET confusion: did the model call an artefact an artefact.
 
-    Это то, что от путаницы ярлыков остаётся через границу словарей, и оно
-    сверяется всегда. Разряд объявлен в policy для КАЖДОГО словаря целиком и
-    уезжает в слепок, поэтому `Table` -> `артефакт` не наша догадка на месте,
-    а объявленная политика.
-
-    Грубее ярлыка нарочно: `table` -> `chart` внутри одного разряда сюда не
-    попадает. Тем и честна — она не притворяется, что перевела словари.
+    What survives of label confusion across a vocabulary border, and always
+    scored: the bucket is declared in policy for EVERY vocabulary as a whole
+    and rides into the snapshot, so `Table` -> `artifact` is policy, not a
+    guess. Coarser than the label deliberately -- `table` -> `chart` inside one
+    bucket never lands here -- and that is its honesty.
     """
     return sum(n for k, n in res["label_confusion"].items()
                if policy.role(k.split("->", 1)[0])
@@ -1067,13 +957,12 @@ def role_errors(res: dict) -> int:
 
 
 def _report_order(res: dict, log) -> None:
-    """Порядок чтения: несколько строк вместо одной, и каждая отвечает своё.
+    """Reading order: several lines instead of one, each answering its own.
 
-    Что известно про порядок в истине (и отдельной строкой — «не сказано»,
-    если истина молчит); порядок МОДЕЛИ, он же её оценка; порядок СБОРКИ, он
-    же то, что увидит читатель; и лишние прыжки между колонками — та же
-    сборка без всякой истины. Слитые в одно число, первые два молчали про
-    оба вопроса разом, стоило модели не дать ранга.
+    What truth knows about order (and, separately, "not said"); the MODEL rank,
+    its verdict; the ASSEMBLY order, what the reader will see; excess column
+    jumps, the same assembly without truth. Fused, the first two were silent
+    about both questions the moment a model gave no rank.
     """
     st = res["order_truth"]
     n, c = st["page_count"], st["states"]
@@ -1081,9 +970,8 @@ def _report_order(res: dict, log) -> None:
         log(f"истина о порядке: размечен {c.get(ORDER_MARKED, 0)}, "
             f"не размечен {c.get(ORDER_UNMARKED, 0)}, "
             f"НЕ СКАЗАНО {c.get(ORDER_SILENT, 0)} из {n} страниц")
-    # ОТДЕЛЬНАЯ строка, а не хвост предыдущей: «не сказано» лечится не там,
-    # где «не размечен». Первое чинится одной строкой у сборщика стенда,
-    # второе не чинится вовсе — стенду просто нечего сказать.
+    # ITS OWN line: "not said" takes one line from whoever built the bench,
+    # "not marked" is not curable at all.
     if c.get(ORDER_SILENT):
         log(f"  «не сказано» — ЭТО НЕ «не размечен»: у {c[ORDER_SILENT]} "
             f"страниц истины поля «порядок размечен» НЕТ ВОВСЕ, и число по "
@@ -1107,16 +995,15 @@ def _report_order(res: dict, log) -> None:
 
 
 def _report_jumps(j: dict, log) -> None:
-    """Лишние прыжки — ТРИ разных ответа, и путать их нельзя.
+    """Excess jumps -- THREE answers, never to be confused.
 
-    * прочерк — величины нет вовсе: страниц, где в счёте набралось хотя бы
-      `COLUMN_MIN_BOXES` рамок, не нашлось ни одной. Прыгать не между чем;
-    * ноль при одной колонке — величина ПОСЧИТАНА и равна нулю, но ноль этот
-      дан построением: одна группа не даёт ни одного перехода;
-    * число при двух и более колонках — то самое, ради чего величина заведена.
+    * a dash -- no quantity: no page reached `COLUMN_MIN_BOXES` counted boxes;
+    * zero at one column -- computed, and zero by construction: one group
+      yields no transitions;
+    * a number at two or more columns -- what the quantity exists for.
 
-    Параметры группировки печатаются в КАЖДОМ из трёх случаев: «12 прыжков»
-    без них не сравнимо с «9 прыжков» другого прогона.
+    The parameters print in ALL THREE: "12 jumps" without them does not compare
+    with another run's "9 jumps".
     """
     par = ", ".join(f"{k} {v}" for k, v in j["params"].items())
     if j["excess_jumps"] is None:
@@ -1150,9 +1037,9 @@ def report(res: dict, log=print) -> None:
         f"({t['share']*100:.0f}%)")
     for why, n in res["troubles"].items():
         log(f"  {why}: {n}")
-    # Текст и служебное — три четверти блоков истины. Без этой строки они не
-    # входили НИ В ОДНО печатаемое число, то есть стенд молчал о 337 блоках
-    # из 382 и выглядел при этом полным.
+    # Text and furniture are three quarters of truth's blocks. Without this
+    # line they entered NO printed number: the bench was silent about 337
+    # blocks of 382 and looked complete doing it.
     if x["block_count"]:
         note = ""
         if x.get("pages_with_text_markup", 0) < x.get("pages_total", 0):
@@ -1177,8 +1064,8 @@ def report(res: dict, log=print) -> None:
             f"{k} {v['found']}/{v['truth']}" for k, v in miss.items()))
     _report_order(res, log)
     n_pairs = sum(res["label_confusion"].values())
-    # Разряды печатаются ВСЕГДА: это единственная часть путаницы, которая
-    # переживает границу словарей.
+    # Buckets ALWAYS print: the only part of the confusion that survives a
+    # vocabulary border.
     log(f"путаница разрядов: {role_errors(res)} из {n_pairs} пар")
     voc = label_alphabet(res)
     if not voc:
@@ -1202,17 +1089,16 @@ def report(res: dict, log=print) -> None:
                 + ", ".join(f"{k} {v}" for k, v in sorted(c["troubles"].items())))
 
 
-# --------------------------------------------------------------- мутации
-# Число, которое не умеет упасть, ничего не меряет. Батарея кормит метрику
-# заведомо порченым входом и требует, чтобы число просело.
-#
-# ПОРЧА ТРЁХСТОРОННЯЯ, и это не педантизм:
-#  * вывод модели — очевидная сторона;
-#  * ИСТИНА — метрика, безразличная к истине, меряет один свой вход и всегда
-#    будет «права»;
-#  * СВОИ пороги, каждый ПОРОЗНЬ. Прежняя редакция двигала оба разом, и
-#    инертный порог был неотличим от рабочего: `IOU_MATCH` не срабатывал
-#    никогда, а батарея девять пробегов подряд рапортовала «упало».
+# --------------------------------------------------------------- mutations
+# A number that cannot fall measures nothing. The battery feeds the metric
+# deliberately spoiled input and demands the number sag. THE DAMAGE IS
+# THREE-SIDED:
+#  * the model output -- the obvious side;
+#  * TRUTH -- a metric indifferent to truth measures one input and is always
+#    "right";
+#  * OUR OWN thresholds, each APART. Moved together, an inert threshold looks
+#    like a working one: `IOU_MATCH` never fired while the battery reported
+#    "fell" nine runs in a row.
 
 def _map_boxes(M, fn):
     return {i: {**p, "blocks": [{**b, "box": list(fn(b["box"]))}
@@ -1224,12 +1110,12 @@ def _shift(M, dx, dy):
 
 
 def _shift_rel(M, frac):
-    """Сдвиг НА ДОЛЮ размера рамки, а не на постоянные сорок пикселей.
+    """A shift BY A FRACTION of the box size, not by a constant forty pixels.
 
-    Постоянный сдвиг ничего не проверяет на крупных артефактах: рамка
-    900x400, сдвинутая на 40, накрывает истину на 96% и проходит порог. На
-    книге, где артефакты крупные, проба «сдвиг на 40» рапортовала «НЕ УПАЛО»
-    — и была права: упасть было не с чего.
+    A constant shift checks nothing on large artefacts: a 900x400 box moved by
+    40 still covers truth by 96% and passes, and on a book of large artefacts
+    the probe "shift by 40" reported "DID NOT FALL" -- rightly, there was
+    nothing to fall from.
     """
     def g(b):
         d = frac * max(4.0, min(b[2] - b[0], b[3] - b[1]))
@@ -1265,24 +1151,22 @@ def _reverse_order(M):
 
 
 def _reverse_blocks(M):
-    """Перевернуть СПИСОК блоков, не трогая ранги.
+    """Reverse the block LIST, leaving the ranks alone.
 
-    Порча целит ровно в порядок СБОРКИ и ни во что больше: книгу собирает
-    список (`doc/html.py`, `for b in page.blocks`), а `order` остаётся, каким
-    был. Без такой порчи новая строка отчёта не прикрыта ничем: `order`
-    можно было бы читать вместо позиции в списке, и никто бы не заметил.
+    The damage aims at the ASSEMBLY order and nothing else: the book is built
+    from the list (`doc/html.py`) while `order` stays. Without it, `order`
+    could be read in place of the list position and nobody would notice.
     """
     return {i: {**p, "blocks": list(reversed(p["blocks"]))}
             for i, p in M.items()}
 
 
 def _columns_of(p, wide=None, roles=None):
-    """Разбить блоки страницы на участников счёта колонок и остальных.
+    """Split a page's blocks into those counted for columns and the rest.
 
-    Параметры принимаются, а не берутся из умолчаний молча: варианты сборки,
-    СЛОЖЕННЫЕ из этой разбивки, меряются потом на всей развёртке, и вариант,
-    сложенный под одни параметры и померенный при других, перестаёт быть тем,
-    чем назван. Чем это оплачено — см. `_order_variants`.
+    The parameters are taken, not silently defaulted: variants FOLDED from this
+    split are measured across the whole sweep, and one folded under some
+    parameters and measured under others stops being what it is called.
     """
     w = float(p.get("width") or 0.0)
     wd = COLUMN_WIDE if wide is None else wide
@@ -1298,16 +1182,13 @@ def _columns_of(p, wide=None, roles=None):
 
 
 def _mix_columns(M, overlap=None, wide=None, min_boxes=None, roles=None):
-    """Колонки перемешать: блоки выдаются по кругу — левый, средний, правый,
-    снова левый. Это худший порядок сборки при тех же самых рамках, и ровно
-    так выглядит настоящая беда: на `bench/slovar` трёхколоночная страница
-    приходит от модели построчно поперёк колонок, 47 лишних прыжков.
-
-    Параметры группировки принимаются: верхний конец шкалы обязан быть
-    верхним при ТЕХ ЖЕ параметрах, при которых его меряют. `min_boxes` в
-    построении не участвует (он про то, считать ли страницу, а не про то, как
-    её сложить) и принимается лишь затем, чтобы точку развёртки можно было
-    передать сюда целиком."""
+    """Shuffle the columns: blocks dealt round robin -- left, middle, right, left
+    again. The worst assembly order at these very boxes, and what the real
+    fault looks like: on `bench/slovar` a three-column page arrives from the
+    model row by row across the columns, 47 excess jumps. The parameters are
+    taken because the top of the scale must be the top AT THE PARAMETERS it is
+    measured at; `min_boxes` takes no part in the folding and is accepted only
+    so a sweep point can be handed here whole."""
     out = {}
     for i, p in M.items():
         part, rest = _columns_of(p, wide, roles)
@@ -1324,11 +1205,10 @@ def _mix_columns(M, overlap=None, wide=None, min_boxes=None, roles=None):
 
 
 def _one_column(M):
-    """Все рамки в одну колонку: x-интервал у всех один и тот же.
-
-    Ширина взята 0.4 листа НАРОЧНО: при 0.6 и выше рамка стала бы сквозной,
-    выпала бы из счёта вовсе, и ноль вышел бы от пустого счёта, а не от
-    единственной колонки — проба проверяла бы сама себя."""
+    """All boxes into one column: every box gets the same x-interval. The width
+    is 0.4 of the page ON PURPOSE -- at 0.6 and above a box counts as
+    full-width, drops out of the count, and the zero would come from an empty
+    count rather than the single column."""
     out = {}
     for i, p in M.items():
         w = float(p.get("width") or 0.0) or 1000.0
@@ -1340,16 +1220,13 @@ def _one_column(M):
 
 
 def _one_box(M):
-    """Оставить на странице ОДНУ рамку в счёте, остальные участники — вон.
+    """Leave ONE counted box on the page; the other participants go.
 
-    Величина обязана стать ПРОЧЕРКОМ, а не нулём. Прыжок бывает только МЕЖДУ
-    рамками: на странице из одной рамки его негде взять, и ноль тут читался бы
-    как «сборка идёт подряд», хотя сборки нет вовсе. Это ровно то правило про
-    два разных нуля, только про порядок, а не про находки.
-
-    Рамки ВНЕ счёта (служебное, сквозные) оставлены на месте нарочно: убери их
-    — и страница опустеет совсем, прочерк выйдет от пустого счёта, а не от
-    единственной рамки, и проба станет проверять не то, что обещает.
+    The quantity must become a DASH, not a zero: a jump happens only BETWEEN
+    boxes, and a zero would read as "assembly runs straight through" where
+    there is no assembly at all. Boxes OUTSIDE the count (furniture,
+    full-width) stay on purpose -- remove them and the dash would come from an
+    empty count rather than the single box.
     """
     out = {}
     for i, p in M.items():
@@ -1359,26 +1236,21 @@ def _one_box(M):
 
 
 def _by_reading(M, overlap=None, wide=None, min_boxes=None, roles=None):
-    """Наше правило сборки — СПРОШЕННОЕ У `order.py`, а не повторённое здесь.
+    """Our assembly rule -- ASKED OF `order.py`, not repeated here.
 
-    Параметры группировки в правиле не участвуют — оно чисто геометрическое,
-    колонок не знает, — и принимаются они только затем, чтобы точка развёртки
-    передавалась всем сборщикам одинаково.
+    The parameters take no part (the rule is purely geometric); they are
+    accepted only so a sweep point reaches every builder alike.
 
-    ЗДЕСЬ СТОЯЛА ВТОРАЯ КОПИЯ: `sorted(key=(box[1], box[0]))` вместе с
-    докстрокой «тот самый порядок, который адаптеры объявляют словом „наш"».
-    Ключи совпадали, `order` этот файл не импортировал вовсе, и НИ ОДНА
-    проверка их не связывала. Цена копии не гипотетическая: на этом сборщике
-    снят главный вывод проекта — «наше правило замерено и проиграло», 2471
-    лишний прыжок против 501 у ранга модели и 439 у правил docling (раздел 20
-    `docs/contour-notes.md`). Правка `order.permutation` оставила бы прибор
-    мерить ПРЕЖНЕЕ правило, объявляя его нынешним, — ровно та болезнь, ради
-    которой `order.py` и заведён: правило жило в четырёх местах трёх
-    адаптеров, и в двух сортировало не тем ключом, что объявляло.
-
-    `which="ours"` названо явно, а не взято из ручки `ASSEMBLY_ORDER`: здесь
-    меряется ИМЕННО наш вариант, один из нескольких сравниваемых, и подмена
-    его ручкой сделала бы столбцы развёртки несравнимыми между прогонами.
+    A SECOND COPY STOOD HERE: `sorted(key=(box[1], box[0]))` under a docstring
+    calling it "the order the adapters declare as ours". The keys matched, this
+    file never imported `order`, and NO check tied them -- while this builder
+    produced the headline finding "our rule was measured and lost", 2471 excess
+    jumps against 501 for the model rank and 439 for docling's rules (section
+    20 of `docs/contour-notes.md`). Editing `order.permutation` would have left
+    the instrument measuring the OLD rule under the current name, the illness
+    `order.py` cures. `which="ours"` is explicit and not read from
+    `ASSEMBLY_ORDER`: the knob would make sweep columns incomparable between
+    runs.
     """
     from . import order
     out = {}
@@ -1393,18 +1265,16 @@ def _by_reading(M, overlap=None, wide=None, min_boxes=None, roles=None):
 
 
 def _by_columns(M, overlap=None, wide=None, min_boxes=None, roles=None):
-    """Колонка за колонкой, внутри колонки сверху вниз: лучший возможный
-    порядок сборки при ЭТИХ рамках — лишних прыжков в нём ноль по построению.
-    Он и служит нижним концом шкалы, когда проверяется, различает ли величина
-    варианты вообще.
+    """Column by column, top down inside a column: the best assembly order
+    possible at THESE boxes, zero excess jumps by construction, and so the
+    bottom of the scale when checking whether the quantity tells variants apart
+    at all.
 
-    «ПО ПОСТРОЕНИЮ» ВЕРНО ТОЛЬКО ПРИ ТЕХ ЖЕ ПАРАМЕТРАХ, ПРИ КОТОРЫХ СЛОЖЕНО.
-    Пол, сложенный по колонкам с перекрытием 0.5, при перекрытии 0.9 уже не
-    пол: колонки там режутся иначе, и порядок, безупречный для одной
-    группировки, для другой полон прыжков. Замер на золотом стенде: пол,
-    собранный при умолчании, давал 1.81 и 1.93 прыжка на страницу в точках
-    «перекрытие x 0.8» и «0.9» — БОЛЬШЕ, чем сама модель (1.69 и 1.73), и
-    ровно эта пара переворачивалась. Отсюда и параметры в подписи."""
+    "BY CONSTRUCTION" HOLDS ONLY AT THE PARAMETERS IT WAS FOLDED AT. A floor
+    folded at overlap 0.5 is no floor at 0.9, where columns are cut
+    differently: on the golden bench such a floor gave 1.81 and 1.93 jumps per
+    page at "x overlap 0.8" and "0.9" -- MORE than the model itself (1.69 and
+    1.73), and that is the pair that flipped."""
     out = {}
     for i, p in M.items():
         part, rest = _columns_of(p, wide, roles)
@@ -1417,27 +1287,20 @@ def _by_columns(M, overlap=None, wide=None, min_boxes=None, roles=None):
 
 
 def _order_variants(M):
-    """Четыре порядка сборки НА ОДНИХ И ТЕХ ЖЕ рамках — СБОРЩИКАМИ, а не
-    готовыми страницами.
+    """Four assembly orders over THE SAME boxes, as BUILDERS, not ready pages.
 
-    Именно между такими вариантами величиной и выбирают: рамки те же, разное
-    только правило сборки. Если развёртка параметров группировки меняет их
-    ПОРЯДОК МЕЖДУ СОБОЙ, величиной выбирать нельзя, и знать об этом надо до
-    выбора.
+    These are the variants the quantity chooses between: same boxes, different
+    assembly rule. If the sweep changes their ORDER AMONG THEMSELVES, choosing
+    by this quantity is forbidden, and that must be known beforehand.
 
-    ПОЧЕМУ СБОРЩИКИ. Два варианта из четырёх — пол («колонка за колонкой») и
-    потолок («по кругу через колонки») — СКЛАДЫВАЮТСЯ из тех же самых
-    колонок, по которым потом считаются прыжки. Готовыми страницами они
-    складывались при УМОЛЧАНИИ параметров, а мерились на всей развёртке — и
-    пол переставал быть полом везде, где точка от умолчания отошла. Замер на
-    золотом стенде (600 страниц, `bench/annopage`): в точках «перекрытие x
-    0.8» и «0.9» пол давал 1.81 и 1.93 прыжка на страницу против 1.69 и 1.73
-    у самой модели, и на этом батарея печатала «ВЫБИРАТЬ модель или правило
-    сборки по этой величине НЕЛЬЗЯ» — приговор, порождённый линейкой прибора,
-    а не данными, и противоречащий разделу 18 `docs/contour-notes.md`.
-    Перевернулась ровно 1 пара из 6 на 16 точках, и та единственная, где
-    участвует пол. Со сборщиками пол пересобирается В КАЖДОЙ ТОЧКЕ под её
-    параметры, и переворотов нет.
+    WHY BUILDERS: the floor and the ceiling are FOLDED from the same columns
+    the jumps are counted over, so as ready pages folded at the DEFAULTS the
+    floor stopped being a floor wherever a point left them (numbers in
+    `_by_columns`). On that the battery printed "you MUST NOT choose a model or
+    an assembly rule by this quantity" -- a verdict from the ruler, not the
+    data, contradicting section 18 of `docs/contour-notes.md`. Exactly 1 pair
+    of 6 flipped over 16 points, the one with the floor. Refolded at every
+    point, nothing flips.
     """
     return {"as_model_gave": lambda **par: M,
             "top_down_left_right": lambda **par: _by_reading(M, **par),
@@ -1446,8 +1309,8 @@ def _order_variants(M):
 
 
 def _forget_order_mark(T):
-    """Стереть у истины признак разметки порядка — ту самую дыру, из которой
-    hard36 печатал «согласовано 73%»."""
+    """Erase truth's order-annotation flag -- the hole hard36 printed
+    "agreed 73%" out of."""
     out = {}
     for i, p in T.items():
         m = dict(p.get("meta") or {})
@@ -1457,21 +1320,21 @@ def _forget_order_mark(T):
 
 
 def _duplicate(M):
-    """Каждую рамку продублировать. Доля найденного расти НЕ должна."""
+    """Duplicate every box. The found share must NOT grow."""
     return {i: {**p, "blocks": [c for b in p["blocks"] for c in (b, dict(b))]}
             for i, p in M.items()}
 
 
 def _shuffle_pages(M):
-    """Разметку сдвинуть на страницу вперёд по кругу: сверка идёт по индексу
-    страницы, и подмена соседней обязана всё уронить."""
+    """Shift the markup one page forward, cyclically: scoring goes by page
+    index, and substituting a neighbour must bring everything down."""
     keys = sorted(M)
     return {k: {**M[keys[(n + 1) % len(keys)]], "index": k}
             for n, k in enumerate(keys)}
 
 
 def _merge_all(M, arte):
-    """Все артефактные рамки страницы слить в одну описанную."""
+    """Merge all artefact boxes of a page into one bounding box."""
     out = {}
     for i, p in M.items():
         a = [b for b in p["blocks"] if b["label"] in arte]
@@ -1485,7 +1348,7 @@ def _merge_all(M, arte):
 
 
 def _split_all(M, arte):
-    """Каждую артефактную рамку разрезать пополам по вертикали."""
+    """Cut every artefact box in half vertically."""
     out = {}
     for i, p in M.items():
         bs = []
@@ -1502,8 +1365,8 @@ def _split_all(M, arte):
 
 
 def _grew(now, was):
-    """Выросло ли число, которого может не быть. None на любом входе — «нет
-    данных»: несравнимое молча не считается ни ростом, ни его отсутствием."""
+    """Did a number that may not exist grow. None on either input means "no
+    data": the incomparable counts as neither growth nor its absence."""
     return None if (now is None or was is None) else now > was
 
 
@@ -1512,32 +1375,31 @@ def _beds(res, prefix):
 
 
 def _multi(T, arte):
-    """Есть ли страница, где артефактов истины больше одного: без такой
-    страницы пробу на слияние ставить не на чем."""
+    """Is there a page with more than one truth artefact: without one there is
+    nothing to stage the merge probe on."""
     return any(sum(1 for b in p["blocks"] if b["label"] in arte) > 1
                for p in T.values())
 
 
 def mutations(truth_dir: str, detect_dir: str, log=print) -> int:
-    """Прогнать батарею. Возвращает число НЕ пойманных порч (0 — метрика жива)."""
+    """Run the battery. Returns uncaught damage count (0 -- metric alive)."""
     global COVER_MATCH, TOUCH, TOL_PX
     T, M = _load(truth_dir), _load(detect_dir)
     arte = set(policy.artefacts())
-    # Ярлык для пробы «переименовать один класс» берётся ИЗ ДАННЫХ, а не
-    # зашивается: `table` есть у PP-DocLayout*, а у Docling он `Table`, у
-    # DocLayNet тоже `Table`. Зашитое имя давало ложное «НЕТ» на трёх
-    # детекторах из шести — то есть батарея объявляла метрику мёртвой там,
-    # где мёртв был её собственный список имён.
+    # The label for the "rename one class" probe comes FROM THE DATA, not
+    # hard-coded: `table` in PP-DocLayout*, `Table` in Docling and DocLayNet. A
+    # hard-coded name gave a false "NO" on three detectors of six -- dead was
+    # its own list of names, not the metric.
     m_arte = [b["label"] for p in M.values() for b in p["blocks"]
               if b["label"] in arte]
     pick = max(set(m_arte), key=m_arte.count) if m_arte else None
-    # Второй ярлык — ИЗ ТОГО ЖЕ СЛОВАРЯ, что и первый. Иначе `table`
-    # подменялся на `Code` из чужого словаря docling: подмена на ярлык,
-    # которого у этой модели нет, проверяет не то.
+    # The second label comes FROM THE SAME VOCABULARY as the first, or `table`
+    # is replaced by docling's `Code`: a label this model does not have checks
+    # the wrong thing.
     same = next((t for t in policy.POLICIES.values() if pick in t), {})
     other = next((l for l in sorted(same)
                   if l != pick and same[l] == "artifact"), None)
-    # Текстовый ярлык того же словаря — для пробы «артефакты названы текстом».
+    # A text label of the same vocabulary, for "artefacts called text".
     m_txt = [b["label"] for p in M.values() for b in p["blocks"]
              if b["label"] not in arte]
     plain = max(set(m_txt), key=m_txt.count) if m_txt else None
@@ -1545,21 +1407,20 @@ def mutations(truth_dir: str, detect_dir: str, log=print) -> int:
     b_found = base["totals"]["share"]
     b_text = base["text_and_furniture"]["share"]
     b_text_s = "—" if b_text is None else f"{b_text*100:.0f}%"
-    # `согласовано` законно бывает None — когда порядок не размечен. Умножать
-    # его на сто нельзя: строка отчёта роняла всю батарею TypeError'ом ровно
-    # на золотом стенде, то есть там, где батарея нужнее всего.
+    # `agreement` is lawfully None when order is not annotated, and must not be
+    # multiplied by a hundred: that line killed the whole battery with a
+    # TypeError on the golden bench, where it is needed most.
     b_ord = base["model_order"]["agreement"]
     b_ord_s = "—" if b_ord is None else f"{b_ord*100:.0f}%"
-    # Порядок СБОРКИ — вторая величина того же участка, и она обязана быть
-    # прикрыта своими пробами: именно он попадёт в книгу.
+    # The ASSEMBLY order is the second quantity here and needs probes of its
+    # own: it is the one that reaches the book.
     b_asm = base["assembly_order"]["agreement"]
     b_asm_s = "—" if b_asm is None else f"{b_asm*100:.0f}%"
     b_jump = base["jumps"]["excess_jumps"]
     b_multi = base["jumps"]["pages_with_2plus_columns"]
-    # `ошибок ярлыка` законно бывает None: у Docling-egret и DocLayNet общих
-    # ярлыков с PP-DocLayoutV2 ноль, и сверять диагональ не с чем. Печатать
-    # тут число значило бы выдать непонимание за замер, а сравнивать его в
-    # пробе — TypeError.
+    # `label errors` is lawfully None: Docling-egret and DocLayNet share zero
+    # labels with PP-DocLayoutV2, so there is no diagonal. A number would pass
+    # misunderstanding off as measurement; comparing it would be a TypeError.
     b_lab = label_errors(base)
     b_lab_s = "не сверяется (словари разные)" if b_lab is None else str(b_lab)
     b_role = role_errors(base)
@@ -1581,18 +1442,15 @@ def mutations(truth_dir: str, detect_dir: str, log=print) -> int:
         return R(mm, tt)["totals"]["share"]
 
     def mergeable():
-        """Есть ли страница, где СЛИТАЯ рамка модели и правда накроет больше
-        одного артефакта ИСТИНЫ.
+        """Will a merged model box really cover more than one TRUTH artefact.
 
-        Сторож обязан смотреть на ОБА входа: порча правит вывод модели, а
-        беду считают по истине. Прежний сторож спрашивал одну истину и
-        объявлял пробу применимой там, где мерить нечем: у YOLOX на
-        `matematika` артефактных рамок больше одной нет НИ НА ОДНОЙ странице
-        — слияние выходит пустой операцией; у Heron на `katalog` слитая
-        рамка накрывает таблицы истины на 0.27, и беда честно зовётся
-        разливом, а не слиянием. Обе печатали «НЕТ», то есть «метрика
-        мертва»: 3 ложных приговора на 33 парах истина/детектор. Порог 0.6 —
-        тот же, что у `eaten` в `_diagnose`.
+        The guard must look at BOTH inputs: the damage edits model output while
+        the trouble is counted against truth. Asking truth alone declared the
+        probe applicable where nothing could be measured -- YOLOX on
+        `matematika` has more than one artefact box on NO page, and Heron on
+        `katalog` merges into a box covering truth tables by 0.27, honestly a
+        spill. Both printed "NO", i.e. "the metric is dead": 3 false verdicts
+        over 33 truth/detector pairs. The 0.6 threshold is `eaten`'s.
         """
         for i, t in T.items():
             mb = [b["box"] for b in M[i]["blocks"] if b["label"] in arte]
@@ -1606,14 +1464,12 @@ def mutations(truth_dir: str, detect_dir: str, log=print) -> int:
         return False
 
     def nested_pair():
-        """Есть ли ЗАСЧИТАННАЯ пара, у которой рамка модели лежит внутри
-        рамки истины (порог тот же 0.9, что и у счётчика).
-
-        Ровно она и делает пробу «рамки продублированы» применимой: копия
-        такой рамки останется без пары и ляжет внутрь НАЙДЕННОГО артефакта,
-        то есть даст дубль. Без неё дублировать нечего: у YOLOX на
-        `matematika` артефактных рамок нет ВОВСЕ, и «не выросло» сказало бы
-        о книге, а не о метрике."""
+        """Is there a SCORED pair whose model box lies inside the truth box (the
+        counter's own 0.9 threshold). It makes "boxes duplicated" applicable: a
+        copy of such a box is left unpaired and falls inside a FOUND artefact.
+        Without one there is nothing to duplicate -- YOLOX on `matematika` has
+        NO artefact boxes at all, and "did not grow" would speak of the book,
+        not the metric."""
         for i, t in T.items():
             mb = [b for b in M[i]["blocks"] if b["label"] in arte]
             used = set()
@@ -1627,17 +1483,15 @@ def mutations(truth_dir: str, detect_dir: str, log=print) -> int:
         return False
 
     def _mixable():
-        """Меняет ли перемешивание колонок хоть что-нибудь.
+        """Does shuffling the columns change anything at all.
 
-        Порча по кругу (левый, правый, левый) на странице, где модель И ТАК
-        отдаёт блоки по кругу, — пустая операция, и «не выросло» скажет о
-        книге, а не о метрике. На `bench/matematika` ровно этот случай: на
-        единственной многоколоночной странице стоят шесть выключных формул и
-        шесть их номеров у правого поля, формула-номер-формула-номер, то есть
-        уже максимальное чередование — 10 лишних прыжков и все десять
-        законные. Сторож смотрит на ПОРЯДОК БЛОКОВ, а не на величину, поэтому
-        мёртвую метрику он не прикроет: та дала бы «НЕТ» на всякой книге, где
-        порядок и правда сменился.
+        Round-robin damage on a page where the model ALREADY deals blocks round
+        robin is empty, and "did not grow" would speak of the book, not the
+        metric. `bench/matematika` is that case: its one multi-column page
+        holds six display formulas and their six numbers at the right margin,
+        already maximal alternation -- 10 excess jumps, all ten lawful. The
+        guard looks at the BLOCK ORDER, not the quantity, so it cannot cover a
+        dead metric, which would say "NO" on any book that really changed.
         """
         mixed = _mix_columns(M)
         return any([b["box"] for b in _columns_of(mixed[i])[0]]
@@ -1645,17 +1499,16 @@ def mutations(truth_dir: str, detect_dir: str, log=print) -> int:
                    for i, p in M.items())
 
     def halves_inside():
-        """Ляжет ли хоть одна половинка внутрь артефакта истины: без этого
-        проба на «внутри ненайденного» пуста. Пару разрезанного артефакта не
-        спрашиваем: половина накрывает истину примерно наполовину, до порога
-        COVER_MATCH ей не дотянуть ни при каком допуске, кроме рамок в
-        считанные пиксели, каких среди артефактов не бывает."""
+        """Will any half land inside a truth artefact: without one the "inside a
+        miss" probe is empty. The cut artefact's own pair is not asked -- a
+        half covers truth by about a half and cannot reach COVER_MATCH under
+        any tolerance."""
         return _nested(_split_all(M, arte))
 
     def one_box_dash():
-        """Прочерк — это `None` во ВСЕХ трёх местах разом: сама величина, доля
-        на страницу и знаменатель. Проверять одно из трёх мало: величина,
-        забывшая обнулить знаменатель, напечатала бы «0 на 600 страницах»."""
+        """A dash is `None` in ALL THREE places at once: the quantity, the
+        per-page share, the denominator. One of three is not enough -- a
+        quantity that forgot its denominator would print "0 on 600 pages"."""
         j = R(_one_box(M))["jumps"]
         return (j["excess_jumps"] is None and j["per_page"] is None
                 and j["pages_counted"] == 0)
@@ -1669,13 +1522,11 @@ def mutations(truth_dir: str, detect_dir: str, log=print) -> int:
                     return True
         return False
 
-    # Проба, которой не за что зацепиться на этой книге, — НЕ провал, а
-    # «нет данных». Ноль от проверки и ноль от непонимания — разные нули:
-    # «слияний не стало больше» на книге, где артефакты по одному на
-    # страницу и слить нечего, ничего не говорит о метрике. Такие пробы
-    # возвращают None и печатаются отдельной пометкой.
+    # A probe with nothing to grip on this book is NOT a failure but "no data":
+    # "no more merges" on a book with one artefact per page says nothing about
+    # the metric. Such probes return None and print under a mark of their own.
     probes = [
-        # --- порча вывода модели
+        # --- damage to the model output
         ("сдвиг рамок на треть их размера", "упало",
          lambda: found(_shift_rel(M, 0.34)) < b_found),
         ("рамки раздуты в 1.5 раза (разлив)", "упало",
@@ -1684,9 +1535,9 @@ def mutations(truth_dir: str, detect_dir: str, log=print) -> int:
          lambda: found(_grow(M, 0.6)) < b_found),
         ("артефакты выкинуты вовсе", "ноль",
          lambda: found(_only(M, lambda b: b["label"] not in arte)) == 0.0),
-        # Подменяем на ТЕКСТОВЫЙ ярлык из того же словаря, а не на выдуманный:
-        # выдуманный роняет `policy.role` в диагнозе, то есть проба падала бы
-        # чужой ошибкой вместо своего ответа.
+        # A TEXT label of the same vocabulary, not an invented one: an
+        # invented one breaks `policy.role` in the diagnosis, so the probe
+        # would fail with someone else's error instead of its answer.
         (f"артефакты названы {plain}", "ноль",
          lambda: None if not plain
                  else found(_relabel(M, lambda l: plain if l in arte else l)) == 0.0),
@@ -1698,9 +1549,9 @@ def mutations(truth_dir: str, detect_dir: str, log=print) -> int:
          lambda: None if b_ord is None
                  else R(_reverse_order(M))["model_order"]["agreement"]
                       < b_ord),
-        # Та же порча — и вторая величина обязана НЕ шелохнуться: ранги и
-        # список это разные вещи, и если сборка считается по рангу, здесь
-        # видно сразу.
+        # The same damage, and the second quantity must NOT budge: ranks and
+        # the list are different things, and scoring assembly by rank would
+        # show here at once.
         ("ранги модели перевёрнуты", "порядок сборки НЕ изменился",
          lambda: None if b_asm is None
                  else R(_reverse_order(M))["assembly_order"]["agreement"]
@@ -1709,31 +1560,29 @@ def mutations(truth_dir: str, detect_dir: str, log=print) -> int:
          lambda: None if b_asm is None
                  else R(_reverse_blocks(M))["assembly_order"]["agreement"]
                       < b_asm),
-        # --- порча, целящая в порядок БЕЗ ИСТИНЫ
+        # --- damage aimed at order WITHOUT TRUTH
         ("две колонки перемешаны", "лишних прыжков больше",
          lambda: None if not (b_multi and _mixable())
                  else R(_mix_columns(M))["jumps"]["excess_jumps"] > b_jump),
         ("все рамки в одну колонку", "лишних прыжков ноль",
          lambda: None if not b_jump
                  else R(_one_column(M))["jumps"]["excess_jumps"] == 0),
-        # ДВА РАЗНЫХ НУЛЯ, И КАЖДОМУ СВОЯ ПРОБА. Предыдущая требует, чтобы
-        # величина УПАЛА ДО НУЛЯ там, где она посчитана: рамок много, колонка
-        # одна, перескоков нет. Эта требует, чтобы величины НЕ БЫЛО ВОВСЕ там,
-        # где мерить не на чем: на странице из одной рамки прыгать не между
-        # чем. Ноль на месте прочерка соврал бы «сборка идёт подряд».
+        # TWO ZEROS, A PROBE FOR EACH. The previous one demands the quantity
+        # FALL TO ZERO where it is computed -- many boxes, one column, no
+        # transitions. This one demands NO QUANTITY AT ALL on a one-box page,
+        # where a zero would lie "assembly runs straight through".
         ("страница из одной рамки в счёте", "величина ПРОЧЕРК, а не ноль",
          one_box_dash),
-        # --- порча, целящая в ИМЕННЫЕ счётчики
+        # --- damage aimed at the NAMED counters
         ("артефакты страницы слиты в один", "слияний больше",
          lambda: None if not mergeable()
                  else _beds(R(_merge_all(M, arte)), "слияние") > b_merge),
         ("каждый артефакт разрезан пополам", "дроблений больше",
          lambda: _beds(R(_split_all(M, arte)), "дробление") > b_split),
-        # У вложенной рамки ДВА имени, и проба нужна каждому: одна порча,
-        # поднимающая оба разом, не отличила бы живой счётчик от слипшегося
-        # с соседом. Копия засчитанной рамки — это дубль; половинка рамки,
-        # чей артефакт после разреза уже не найден, — это «внутри
-        # ненайденного», и оригинала у неё нет.
+        # A nested box has TWO names, each needing its probe: one damage
+        # lifting both could not tell a live counter from one stuck to its
+        # neighbour. A copy of a scored box is a duplicate; a half whose
+        # artefact is no longer found is "inside a miss", with no original.
         ("рамки продублированы", "вложенных дублей больше",
          lambda: None if not nested_pair()
                  else _beds(R(_duplicate(M)), "вложенный дубль") > b_dup),
@@ -1741,22 +1590,19 @@ def mutations(truth_dir: str, detect_dir: str, log=print) -> int:
          lambda: None if not halves_inside()
                  else _beds(R(_split_all(M, arte)),
                             "внутри ненайденного") > b_in),
-        # --- порча, целящая в ПУТАНИЦУ ЯРЛЫКОВ (вторая из трёх величин)
+        # --- damage aimed at LABEL CONFUSION (the second of the three)
         #
-        # «Нет данных», а не «НЕТ», когда словари сторон разные. Больше 100%
-        # ошибок не бывает, и на egret/yolox эта проба печатала «НЕТ» —
-        # приговор метрике за беду сравнения: 698/698 пар были ошибками ещё
-        # до всякой порчи. Теперь величина там честно не считается, и проба
-        # честно не ставится.
+        # "No data", not "NO", when the sides speak different vocabularies:
+        # above 100% errors there are none, and on egret/yolox this probe
+        # printed "NO" for a fault of comparison, 698/698 pairs being errors
+        # before any damage. Now the quantity is honestly not computed there.
         (f"ярлык {pick} подменён на {other}", "ошибок ярлыка больше",
          lambda: _grew(label_errors(R(_relabel(
                      M, lambda l: other if l == pick else l))), b_lab)
                  if (pick and other) else None),
-        # Путаница РАЗРЯДОВ — величина, живущая через границу словарей, и она
-        # обязана уметь провалиться так же, как остальные. Порча берётся не
-        # внутриразрядная (`table`->`chart` разряда не меняет и сдвинуть это
-        # число не может по построению), а через разряд: артефакты названы
-        # текстовым ярлыком того же словаря.
+        # BUCKET confusion lives across the vocabulary border and must be able
+        # to fail like the rest. The damage is across a bucket, not within one:
+        # `table`->`chart` cannot move this number by construction.
         (f"артефакты названы {plain}", "ошибок разряда больше",
          lambda: None if not (plain and any(
                      policy.role(k.split("->", 1)[0]) == "artifact"
@@ -1766,32 +1612,31 @@ def mutations(truth_dir: str, detect_dir: str, log=print) -> int:
         (f"ярлык {pick} подменён на {other}", "локализация НЕ изменилась",
          lambda: None if not (pick and other)
                  else found(_relabel(M, lambda l: other if l == pick else l)) == b_found),
-        # --- новая величина «смысл цел» обязана быть прикрыта пробой
+        # --- the "sense whole" quantity needs a probe too
         ("артефакты страницы слиты в один", "смысл цел падает",
          lambda: None if not _multi(T, arte)
                  else R(_merge_all(M, arte))["sense"]["merged"]
                       > base["sense"]["merged"]),
-        # 0.85 по стороне — это 0.72 площади: объект уже не помещается
-        # (порог 0.90), но ещё виден (порог соседа 0.5), то есть ОБРЕЗАН.
-        # Сжатие сильнее уводило бы его в «не увиден», и проба мерила бы
-        # другую потерю, чем обещает её имя.
+        # 0.85 per side is 0.72 of the area: the object no longer fits
+        # (threshold 0.90) but is still visible (neighbour 0.5), i.e. CROPPED.
+        # A stronger squeeze drives it into "not seen", another loss than the
+        # probe name promises.
         ("рамки сжаты в 0.85 раза", "обрезанных больше",
          lambda: R(_grow(M, 0.85))["sense"]["cropped"] > base["sense"]["cropped"]),
         ("рамки сжаты вдвое", "целых меньше",
          lambda: R(_grow(M, 0.5))["sense"]["intact"] < base["sense"]["intact"]),
-        # Выкинув артефакты, оставляем текстовые рамки — потому объекты
-        # уходят в «назван текстом» и «не увиден», и проба смотрит на сумму.
+        # Dropping the artefacts leaves the text boxes, so objects go into
+        # "called text" and "not seen"; the probe looks at the sum.
         ("артефакты выкинуты вовсе", "целых не осталось",
          lambda: R(_only(M, lambda b: b["label"] not in arte))["sense"]["intact"] == 0),
-        # --- порча ИСТИНЫ: метрика обязана смотреть на оба входа
+        # --- damage to TRUTH: the metric must look at both its inputs
         ("истина сдвинута на треть размера рамки", "упало",
          lambda: found(tt=_shift_rel(T, 0.34)) < b_found),
         ("истина раздута в 1.5 раза", "упало",
          lambda: found(tt=_grow(T, 1.5)) < b_found),
-        # Признак разметки порядка — вход метрики наравне с рамками, и порча
-        # его обязана давать МОЛЧАНИЕ, а не число. Прежняя редакция на этой
-        # порче печатала бы то же самое согласие: умолчание `True` делало
-        # стёртый признак неотличимым от объявленного.
+        # The order-annotation flag is an input like the boxes, and damaging it
+        # must yield SILENCE, not a number: the `True` default made an erased
+        # flag indistinguishable from a declared one.
         ("у истины стёрт признак разметки порядка", "НЕ СВЕРЯЕТСЯ, а не число",
          lambda: None if b_asm is None
                  else all(R(tt=_forget_order_mark(T))[k]["agreement"] is None
@@ -1804,17 +1649,17 @@ def mutations(truth_dir: str, detect_dir: str, log=print) -> int:
     ]
     bad = mute = seen = 0
     for name, want, probe in probes:
-        # ИСКЛЮЧЕНИЕ В ПРОБЕ — НЕ ПАДЕНИЕ БАТАРЕИ. Шапка этого файла помнит,
-        # как строка отчёта роняла весь прогон TypeError'ом на золотом
-        # стенде: строки после неё не печатались, итоговая величина не
-        # выходила вовсе. У `fitness` ловушка была, здесь — нет.
+        # AN EXCEPTION IN A PROBE IS NOT A FALLEN BATTERY. The header remembers
+        # a report line killing a whole run with a TypeError on the golden
+        # bench, nothing after it printed and no total at all. `fitness` had
+        # the trap; here there was none.
         try:
             ok = probe()
         except Exception as e:                                  # noqa: BLE001
             ok = False
-            # НЕ словом «упало»: у семи проб `want` и есть «упало» (там
-            # это ожидание — «величина обязана упасть»), и выходило бы
-            # «упало — упало: ValueError». Разные вещи — разные слова.
+            # NOT the word "fell": seven probes have "fell" for their `want`
+            # (there it means "the quantity must fall"), and it would come out
+            # "fell -- fell: ValueError". Different things, different words.
             want = f"{want} — ПРОБА БРОСИЛА {type(e).__name__}: {e}"
         mark = "нет данных" if ok is None else ("ok " if ok else "НЕТ")
         log(f"  {mark:>10}  {name}: {want}")
@@ -1822,11 +1667,11 @@ def mutations(truth_dir: str, detect_dir: str, log=print) -> int:
         mute += ok is None
         seen += 1
 
-    # --- порча СВОИХ порогов, каждого ПОРОЗНЬ
+    # --- damage to OUR OWN thresholds, each one APART
     keep_c, keep_t, keep_p = COVER_MATCH, TOUCH, TOL_PX
 
     def at(cover=None, touch=None, tol=None):
-        """Посчитать долю при ОДНОМ изменённом пороге, остальные на месте."""
+        """The share at ONE changed threshold, the others left in place."""
         global COVER_MATCH, TOUCH, TOL_PX
         try:
             COVER_MATCH = keep_c if cover is None else cover
@@ -1836,27 +1681,20 @@ def mutations(truth_dir: str, detect_dir: str, log=print) -> int:
         finally:
             COVER_MATCH, TOUCH, TOL_PX = keep_c, keep_t, keep_p
 
-    # ПРОБЫ НА СОБСТВЕННЫЕ ПОРОГИ. Прежние две сравнивали ПОТОЛОК САМ С СОБОЙ:
-    # при COVER_MATCH=0 доля по построению равна потолку, а пропуск ставился
-    # ровно при «доля уже на потолке», то есть проба читалась «потолок больше
-    # доли, если доля меньше потолка» и проходила всегда. Плюс TOL_PX не
-    # восстанавливался, и порог 0.99 мерился при нулевом допуске — два порога
-    # двинуты разом, ровно то, в чём батарея упрекает других.
+    # PROBES ON OUR OWN THRESHOLDS. The previous two compared THE CEILING WITH
+    # ITSELF: at COVER_MATCH=0 the share equals the ceiling by construction and
+    # the skip fired at "the share is already at the ceiling", so the probe
+    # always passed; TOL_PX was not restored either, so threshold 0.99 was
+    # measured at zero tolerance -- two thresholds moved at once, the fault
+    # this battery reproaches others for. A threshold must now be a MONOTONE
+    # lever: stricter never more, softer never less, one inequality strict.
     #
-    # Теперь порог обязан быть МОНОТОННЫМ рычагом: строже — не больше, мягче
-    # — не меньше, и хоть одно неравенство строгое. Это проверяемо и не
-    # выполняется само собой.
-    # ОСТАЛЬНЫЕ ДВЕ ГРУППЫ ПРОБ — ПОД ТОЙ ЖЕ ЛОВУШКОЙ, ЧТО И ЦИКЛ ВЫШЕ.
-    # Первая редакция этой правки прикрыла ОДНУ группу из трёх, которые сама
-    # же считает: пороговая и одиночный сдвиг на 3 px остались голыми, а
-    # величины для них (`at(...)`, `_beds`) считаются ДО всякого цикла.
-    # Перекрёстная проверка это и показала: сломанная пороговая проба дала
-    # 28 напечатанных строк из 33 и НИ ОДНОЙ итоговой — то есть ровно ту
-    # беду, ради которой ловушка заводилась.
-    #
-    # Отказ здесь — «НЕТ» с именем и обрубленный знаменатель, а не тишина:
-    # «проб 20» при 33 объявленных само по себе кричит, что батарея не
-    # доехала. Молчащая батарея неотличима от исправной.
+    # THE OTHER TWO GROUPS SIT UNDER THE SAME TRAP AS THE LOOP ABOVE. The first
+    # version of this fix left the thresholds and the lone 3 px shift bare,
+    # though their quantities are computed BEFORE any loop: a broken threshold
+    # probe then gave 28 printed lines of 33 and NOT ONE total. A refusal here
+    # is a named "NO" and a truncated denominator, not silence -- "probes 20"
+    # against 33 declared shouts that the battery did not arrive.
     try:
         hi, lo = min(0.95, keep_c + 0.15), max(0.05, keep_c - 0.35)
         c_hi = at(cover=hi)["totals"]["share"]
@@ -1865,23 +1703,19 @@ def mutations(truth_dir: str, detect_dir: str, log=print) -> int:
         blind = _beds(at(touch=1.01), "не увидел")
         base_blind = _beds(base, "не увидел")
 
-        # ДВА РАЗНЫХ ВОПРОСА, И ИХ НЕЛЬЗЯ ЗАДАВАТЬ ОДНОЙ ПРОБОЙ.
-        #
-        # «Монотонен ли порог» — свойство МЕТРИКИ: строже не может дать больше,
-        # мягче не может дать меньше. Это обязано выполняться на любой книге.
-        #
-        # «Не мёртв ли порог» — свойство КНИГИ: на выборке, где все совпавшие пары
-        # лежат далеко от границы, сдвигать нечего, и «не двинулось» говорит о
-        # книге. Предсказать это заранее не выходит точнее самой метрики: жадное
-        # сопоставление при другом пороге переставляет пары, и любая прикидка
-        # врёт. Поэтому здесь НЕ ГАДАЕМ: если ни в одну сторону не двинулось,
-        # печатаем «нет данных» и говорим, где рычаг проверен по-настоящему.
-        #
-        # Инертный порог этим не спрячешь: он дал бы «нет данных» на ВСЕХ книгах
-        # сразу, а `books score --selfcheck` гоняется по всем девяти.
+        # TWO QUESTIONS, AND ONE PROBE MUST NOT ASK BOTH. "Is the threshold
+        # monotone" is a property of the METRIC -- stricter cannot give more,
+        # softer cannot give less -- and holds on any book. "Is the threshold
+        # dead" is a property of the BOOK: where every matched pair lies far
+        # from the border there is nothing to move, and "did not budge" speaks
+        # of the book. Predicting that is no more accurate than the metric
+        # itself, since greedy matching reshuffles pairs at another threshold,
+        # so we do NOT guess: nothing moved either way prints "no data" and
+        # says where the lever is truly checked. An inert threshold cannot hide
+        # there -- it would give "no data" on ALL nine books at once.
         moved = (c_hi < b_found) or (c_lo > b_found)
-        # Наименьшее двустороннее покрытие среди совпавших пар — величина, а не
-        # проба: по ней видно, насколько выборка вообще близка к границе.
+        # The smallest two-sided cover among matched pairs is a quantity, not a
+        # probe: it shows how close to the border the sample comes at all.
         worst = 1.0
         for i, t in sorted(T.items()):
             mb = [b for b in M[i]["blocks"] if b["label"] in arte]
@@ -1912,16 +1746,13 @@ def mutations(truth_dir: str, detect_dir: str, log=print) -> int:
             mute += ok is None
             seen += 1
 
-        # --- РАЗВЁРТКА ПО ПАРАМЕТРАМ ГРУППИРОВКИ КОЛОНОК
+        # --- SWEEP OVER THE COLUMN GROUPING PARAMETERS
         #
-        # Объявить параметр мало. Пока не сказано ЧИСЛОМ, насколько величина от
-        # него зависит, «4.53 против 0.79» читается как приговор модели, хотя это
-        # может быть разница линеек. Про эту величину так уже вышло: оператору
-        # объявили «7.0 -> 1.3», а на тех же рамках выходит 4.53 -> 0.79, и
-        # прежней редакции метрики нет даже в git.
-        #
-        # Развёртка не проба и в счёт непойманных порч не идёт: она не про
-        # способность величины упасть, а про то, что значит её разница.
+        # Until it is said AS A NUMBER how much the quantity depends on a
+        # parameter, "4.53 against 0.79" reads as a verdict on the model when
+        # it may be a difference of rulers -- as already happened here, see the
+        # file header. The sweep is not a probe and does not count towards
+        # uncaught damage: it is about what a difference MEANS.
         sw = column_jumps_sweep(M)
         lo, hi, b0 = sw["min"], sw["max"], sw["baseline"]
         if lo is None:
@@ -1931,10 +1762,10 @@ def mutations(truth_dir: str, detect_dir: str, log=print) -> int:
             pt = {p["value"]: _fmt_point(p["shifted"])
                   for p in sw["by_point"]
                   if p["value"] is not None}
-            # Умолчание бывает НУЛЁМ и бывает ПРОЧЕРКОМ, и делить на него нельзя:
-            # на `katalog` величина при умолчании ноль, и доля размаха «в
-            # процентах от умолчания» уронила бы всю батарею делением на ноль
-            # ровно на том стенде, где мерить и так почти не на чем.
+            # The default can be ZERO and can be a DASH, so dividing by it is
+            # forbidden: on `katalog` it is zero, and a range "in percent of
+            # the default" would kill the battery by zero division on the bench
+            # with least to measure anyway.
             b0s = "прочерк" if b0 is None else f"{b0:.2f}"
             pct = ("" if not b0 else
                    f", то есть {(hi - lo) / b0 * 100:.0f}% от умолчания")
@@ -1942,16 +1773,16 @@ def mutations(truth_dir: str, detect_dir: str, log=print) -> int:
                 f"{b0s}, по {sw['points']} точкам гуляет {lo:.2f}..{hi:.2f} "
                 f"(размах {hi - lo:.2f}{pct}); ниже всего при «{pt[lo]}», выше "
                 f"всего при «{pt[hi]}»; прочерков {sw['dashes']}")
-        # А ВОТ ЭТО — ГЛАВНЫЙ ВОПРОС К ЧУВСТВИТЕЛЬНОСТИ. Разброс сам по себе не
-        # запрещает величину: если он двигает ВСЕ варианты разом, выбор между
-        # ними держится. Запрещает её другое — перестановка вариантов местами.
+        # THE MAIN QUESTION ABOUT SENSITIVITY. Spread alone does not forbid the
+        # quantity: moving ALL variants together, the choice between them
+        # holds. What forbids it is variants swapping places.
         rk = column_jumps_ranking(_order_variants(M))
         span = "; ".join(
             f"{n} {a:.2f}..{b:.2f}" if a is not None else f"{n} прочерк"
             for n, (a, b) in rk["ranges"].items())
         if rk["stable"]:
-            # Ничья на всех точках в доказательство НЕ идёт: пара, которую
-            # величина ни разу не различила, ничего про выбор не говорит.
+            # A tie at every point is NOT proof: a pair the quantity never
+            # told apart says nothing about the choice.
             log(f"  порядок вариантов сборки на всей развёртке УСТОЙЧИВ: "
                 f"{rk['variants']} варианта, {rk['pairs']} пар, ни одна не "
                 f"перевернулась на {rk['points']} точках; различает "
@@ -1969,28 +1800,25 @@ def mutations(truth_dir: str, detect_dir: str, log=print) -> int:
                 f"не на данных, а на наших параметрах. {_ranking_rule(rk)} "
                 f"Пределы: {span}")
 
-        # --- малая порча ловиться НЕ должна
+        # --- small damage must NOT be caught
         #
-        # Требование ТОЧНОГО равенства годилось, пока стенд был на сотню
-        # артефактов: там одна переехавшая рамка это процент, и её видно. На
-        # золотом стенде их 1232, и сдвиг на три пикселя переставил две штуки —
-        # проба закричала «ИСТЕРИТ» при разнице в 0.16%. Это не дрожание метрики,
-        # а её законная зернистость. Порог допуска назван числом и печатается: он
-        # ЕСТЬ наше решение, и прятать его нельзя.
+        # EXACT equality was fine while a bench held a hundred artefacts, where
+        # one moved box is a percent. The golden bench has 1232, and a
+        # three-pixel shift moved two -- the probe screamed "HYSTERICAL" at
+        # 0.16%, which is lawful granularity, not jitter. The tolerance is
+        # named as a number and printed: it IS our decision.
         tiny = found(_shift(M, 3, 3))
         n = base["totals"]["artifacts"]
         moved = abs(tiny - b_found) * n
-        # ДОПУСК СЧИТАЕТСЯ, А НЕ НАЗНАЧАЕТСЯ. Прежде стояло max(1, 0.5% от числа
-        # артефактов) — величина ниоткуда. Правильная мера — сколько пар СИДИТ НА
-        # ГРАНИЦЕ: пара с покрытием 0.75 при пороге 0.75 опрокидывается сдвигом в
-        # три пикселя не потому, что метрика дрожит, а потому что данные там
-        # ровно на грани. У dots.ocr таких пар шесть, и проба кричала на метрику
-        # за свойство модели.
-        # Окно хрупкости ВЫВОДИТСЯ ИЗ САМОГО СДВИГА, а не назначается. Сдвиг на
-        # d пикселей меняет двустороннее покрытие пары не более чем на d/ширину
-        # плюс d/высоту — то есть у мелкой рамки на порядок сильнее, чем у
-        # крупной. Пара, у которой запас до порога меньше этой величины,
-        # опрокидывается ПО ПОСТРОЕНИЮ, и считать это дрожанием метрики нельзя.
+        # THE TOLERANCE IS COMPUTED, NOT DECREED. It used to be max(1, 0.5% of
+        # the artefact count), a figure out of nowhere. The right measure is
+        # how many pairs SIT ON THE BORDER: a pair at cover 0.75 with threshold
+        # 0.75 tips on a three-pixel shift because the data is on the edge, not
+        # because the metric shakes -- dots.ocr has six such pairs, and the
+        # probe blamed the metric for a property of the model. The window
+        # FOLLOWS FROM THE SHIFT: d pixels change two-sided cover by at most
+        # d/width plus d/height, and a pair with less headroom tips BY
+        # CONSTRUCTION.
         d = 3.0
         fragile = 0
         for i, t in sorted(T.items()):
@@ -2025,44 +1853,40 @@ def mutations(truth_dir: str, detect_dir: str, log=print) -> int:
         "вывод сверяются друг с другом, а не с растром); подмену книги при "
         "отсутствии слепка рядом; ошибку ярлыка ВНУТРИ разряда, если она "
         "одинакова у истины и модели.")
-    # ВЕЛИЧИНА, А НЕ СЛОВО «ГОТОВО» — как в `fitness` и `text`. Здесь стояло
-    # одно «не пойманных порч: N», и семь проб из тридцати трёх, не померивших
-    # НИЧЕГО, в эту строку не попадали вовсе: батарея печатала ноль, померив
-    # меньше четырёх пятых.
-    #
-    # ЗНАМЕНАТЕЛЬ СЧИТАЕТСЯ ПО НАПЕЧАТАННОМУ (`seen`), а не выводится
-    # арифметикой из `len(probes)`. Проб здесь ТРИ группы — основной цикл,
-    # пороги и одиночный сдвиг на 3 px, — и первая же попытка сложить их
-    # руками дала «проб 32» при 33 напечатанных исходах. Прибор, врущий
-    # собственным знаменателем, — ровно то, в чём эта батарея упрекает других.
+    # A QUANTITY, NOT THE WORD "DONE", as in `fitness` and `text`: one
+    # "uncaught damage: N" line left out the seven probes of thirty-three that
+    # measured NOTHING, so the battery printed a zero having measured less than
+    # four fifths. THE DENOMINATOR IS COUNTED FROM WHAT WAS PRINTED (`seen`),
+    # not derived from `len(probes)` -- there are THREE groups (main loop,
+    # thresholds, lone 3 px shift), and adding them by hand gave "probes 32"
+    # against 33 printed outcomes.
     log(f"батарея контуров: проб {seen}, померено {seen - mute}, "
         f"нечем мерить {mute} (см. строки «нет данных»), непойманных {bad}")
     return bad
 
-# ------------------------------------------------- СМЫСЛ ЦЕЛ
-# Третье число, и для нашего конвейера — главное.
+# ------------------------------------------------- SENSE WHOLE
+# The third number, and for our pipeline the main one. "Outlined correctly"
+# (two-sided cover 0.75) answers about the precision of the box; the second
+# level needs another: IS THE OBJECT'S SENSE WHOLE. A box roomier than needed
+# does no harm, the second level deals with the extra air, but a cut-off corner
+# cannot be restored and glued objects cannot be separated -- they ride into
+# the crop as one picture.
 #
-# «Обвёл верно» (двустороннее покрытие 0.75) отвечает на вопрос точности
-# рамки. Для второго уровня важен другой: ЦЕЛ ЛИ СМЫСЛ объекта. Рамка
-# просторнее нужного не мешает — лишний воздух второй уровень разберёт. А вот
-# отрезанный угол не восстановить, и склеенные объекты не разделить, потому
-# что в вырезку они уедут одной картинкой.
+# So an object is whole when a box was found that it FITS INTO (not cropped)
+# and that no neighbouring truth object got into (not merged). Losses are named
+# and differ in price:
+#   cropped    -- content outside the box, nothing to restore it with;
+#   merged     -- two objects in one box, the second level reads them as one;
+#   not seen   -- no box at all, the dearest loss.
 #
-# Поэтому объект считается целым, если нашлась рамка, в которую он ПОМЕЩАЕТСЯ
-# (не обрезан) и в которую НЕ ПОПАЛ соседний объект истины (не слит). Потери
-# именные и разные по цене:
-#   обрезан    — часть содержимого вне рамки, восстановить нечем;
-#   слит       — в рамке два объекта, второй уровень разберёт их как один;
-#   не увиден  — рамки нет вовсе, самая дорогая потеря.
-#
-# Порог «помещается» назван числом и вынесен в ручку: где кончается поле и
-# начинается содержимое, решаем мы, и это решение обязано быть видно.
-SENSE_WHOLE = 0.90     # какая доля объекта обязана лежать внутри рамки
-SENSE_NEIGHBOUR = 0.5  # с какой доли соседа рамка считается слитой
+# The "fits" threshold is a named number and a knob: where the margin ends and
+# content begins is our decision, and it has to be visible.
+SENSE_WHOLE = 0.90     # what share of the object must lie inside the box
+SENSE_NEIGHBOUR = 0.5  # from what share of a neighbour a box counts as merged
 
 
 def sense(T: dict, M_: dict) -> dict:
-    """Цел ли смысл объекта: не обрезан, не слит с соседом, не назван текстом."""
+    """Is the object's sense whole: not cropped, not merged, not called text."""
     arte = set(policy.artefacts())
     out = {"objects": 0, "intact": 0, "cropped": 0, "merged": 0,
            "called_text": 0, "not_seen": 0,
@@ -2071,11 +1895,10 @@ def sense(T: dict, M_: dict) -> dict:
         if i not in M_:
             continue
         mb = [b["box"] for b in M_[i]["blocks"] if b["label"] in arte]
-        # Рамки НЕ артефактных разрядов держим отдельно: объект, обведённый
-        # верно, но названный текстом, потерян иначе, чем не увиденный вовсе.
-        # Для конвейера это разные беды: первую чинит ярлык, вторую — модель.
-        # Слить их в один счётчик значило бы объявить 67 таблиц AnnoPage
-        # «невидимыми», хотя рамка у пятидесяти четырёх из них есть.
+        # Non-artefact boxes are kept apart: outlined correctly but called
+        # text is lost differently from never seen -- the first cured by a
+        # label, the second by the model. Fusing them would declare 67 AnnoPage
+        # tables "invisible" when fifty-four have a box.
         ob = [b["box"] for b in M_[i]["blocks"] if b["label"] not in arte]
         tb = [b for b in t["blocks"] if b["label"] in arte]
         for b in tb:

@@ -1,27 +1,20 @@
-"""Продукт первого уровня: читаемый HTML из контуров.
+"""First-level product: readable HTML from the contours.
 
-Текст идёт разметкой, артефакты — картинками на своих местах, в порядке
-чтения, который дала модель. Второй уровень заменит картинки разметкой по
-одной, через `swap.py`.
+Text as markup, artifacts as images in place, in the model's reading order. The
+second level swaps images for markup one at a time, via `swap.py`.
 
-ЧТО ЗДЕСЬ ЧЕГО НЕ КАСАЕТСЯ, И ЭТО ПРАВИЛО, А НЕ ВКУС.
+WHAT NEVER TOUCHES WHAT — a rule, not taste. The observed is NOT written into
+the text: score, label, rank, a clipped box live in `blocks.json`, tied by
+anchor. Such marks (`⚠`, `≠`, `<mark>`, a scan link) once went into the markup,
+editing the model's output in place, and it cost: the marker landed in cells
+before the table caption was read and the box stopped recognising its own
+table — 9 misses out of 33. `data-*` sits on OUR `<figure>`/`<p>` wrapper.
 
-Наблюдённое НЕ пишется в текст. Уверенность модели, её ярлык, ранг, срез
-рамки листом — всё это живёт в `blocks.json` рядом и связано с блоком по
-якорю. Прежде такие пометки (`⚠`, `≠`, `<mark>`, ссылка на скан) дописывались
-прямо в разметку, то есть правили вывод модели на месте, и это стоило
-конкретно: маркер дописывался в ячейки раньше, чем считалась подпись к
-таблице, и рамка переставала узнавать собственную таблицу — 9 пропусков из 33.
-
-Атрибуты `data-*` стоят на НАШЕЙ обёртке `<figure>`/`<p>`, а не внутри
-содержимого модели. Обёртку писали мы, её и метим; байты модели неприкосновенны.
-
-ПОЧЕМУ СЕЙЧАС КАРТИНКАМИ СТАНОВИТСЯ И ТЕКСТ. Распознавателя текста ещё нет:
-`books detect` даёт контуры, а `Block.content` пуст у всех блоков. Блок, для
-которого текста нет, выводится вырезкой и помечается `data-text="не прочитан"`
-— честно и сразу полезно: по такой странице глазом видно, верны ли контуры и
-порядок чтения, ДО того как соглашения о них закрепит метрика. Когда появится
-чтение текста, те же блоки поедут текстом, и ни строки здесь менять не придётся.
+WHY TEXT TOO BECOMES AN IMAGE FOR NOW: `books detect` gives contours only and
+`Block.content` is empty everywhere, so a textless block goes out as a crop
+tagged `data-text="не прочитан"` — the eye can check contours and reading order
+BEFORE a metric fixes them. Once reading exists those blocks travel as text,
+with no change here.
 """
 import glob
 import html as _html
@@ -35,9 +28,9 @@ import time
 from .. import policy
 from .. import text as booktext
 
-# Кратчайшая норма, которую вообще считаем свидетельством. Развёртка и довод —
-# при `repeats_on`: кривая доли ложных плоская (9.3..12.0 % на разбеге 2..8),
-# поэтому значение выбрано доводом, а не подгонкой.
+# Shortest normalised text accepted as evidence. Sweep at `repeats_on`: the
+# false-positive curve is flat (9.3..12.0 % over 2..8), so this is argued, not
+# tuned.
 REPEAT_MIN = 3
 from ..models.base import Page
 from ..run import knobs
@@ -45,15 +38,12 @@ from ..run import knobs
 
 from . import crop, swap
 
-# КУХНЯ КНИГИ. В корне каталога сборки лежит РОВНО ОДИН файл — `book.html`, и
-# он самодостаточен. Всё прочее — вырезки, наблюдённое сбоку, слепок, журнал
-# замен — уезжает сюда. Причина не в опрятности: книгу открывают двойным
-# щелчком из проводника, и корень, где кроме книги лежат четыре json и
-# двухмегабайтный js, заставляет читателя выбирать, что из этого открыть.
-#
-# Вырезки при этом остаются файлами ДАЖЕ КОГДА вшиты в книгу
-# (`HTML_IMAGES=inline`): они нужны правкам, замерам и второму уровню, а не
-# только чтению, и второй экземпляр внутри книги их не заменяет.
+# THE BOOK'S KITCHEN. The build root holds EXACTLY ONE file, `book.html`, and it
+# is self-contained; crops, the observed, the snapshot and the swap journal move
+# here. Not tidiness: the book is opened by double-click, and a root with four
+# json files and a two-megabyte js makes the reader choose what to open. Crops
+# stay files EVEN WHEN inlined (`HTML_IMAGES=inline`): edits, measurements and
+# the second level need them, not just reading.
 ASSETS = "assets"
 SOURCE = os.path.join(ASSETS, "source")
 
@@ -169,21 +159,18 @@ hr.sheet[data-repeats-hidden]::after{
 
 
 def anchor_of(page_index: int, block_id: int) -> str:
-    """Якорь блока. ПОСТРАНИЧНЫЙ: `block_id` считается заново на каждой стр."""
+    """Block anchor. PER PAGE: `block_id` restarts on every page."""
     return f"p{page_index:04d}-b{block_id}"
 
 
 def why_empty(o: dict | None) -> str:
-    """ПОЧЕМУ у блока нет текста — словами, а не одним «не прочитан».
+    """WHY a block has no text — in words, not one flat "не прочитан".
 
-    `books read` считает ПЯТЬ нулей порознь и хранит их в `answers/`; книга
-    сводила их в один. Замер, ради которого правило заведено: у `p0024-b23`
-    (полоса тени переплёта, 12x408 px) в `answers/` стоит `чем кончилось:
-    stop`, `отказ: null`, текст пустой — то есть модель ОТВЕТИЛА ПУСТЫМ. А
-    подпись в книге говорила «не прочитан», что читается как «мы его не
-    читали». Разные нули, и говорящий из них врал.
-
-    `None` на входе — «наблюдённого рядом нет»: шестой случай, и он тоже свой.
+    `books read` counts FIVE zeros apart in `answers/`; the book collapsed them
+    into one. Measured: `p0024-b23` (gutter-shadow strip, 12x408 px) has outcome
+    `stop`, error `null`, empty text — the model ANSWERED EMPTY, while the
+    caption said "не прочитан", i.e. "we never read it". `None` on input is a
+    sixth case: nothing observed alongside.
     """
     if o is None:
         return "читали ли — сказать нечем: answers/ рядом нет"
@@ -198,22 +185,20 @@ def why_empty(o: dict | None) -> str:
 
 
 def _figure(anchor, b, role, src, info, inside=None, mark="", why=None):
-    """Артефакт картинкой. `src` — ГОТОВЫЙ источник, а не путь.
+    """Artifact as an image. `src` is a READY source, not a path.
 
-    Здесь стоял `rel` и `_html.escape(rel)` внутри: путь экранировался на
-    месте. Теперь источником может быть и `data:image/png;base64,…` длиной в
-    полмегабайта, экранировать его незачем и накладно, а собирает его
-    `_img_src` — там же, где решается, вшивать вырезку или ссылаться.
+    It may be a half-megabyte `data:image/png;base64,…`, which is pointless and
+    costly to escape; `_img_src` builds it, where the inline-or-link choice is
+    made.
     """
     cap = (f"{b.label} {b.score:.2f}" if b.score is not None else b.label)
     if inside:
         cap = f"деталь {inside} · " + cap
     if info.get("clipped_by_sheet"):
         cap += " · рамка вышла за лист"
-    # Собираем атрибут отдельно: обратный слэш внутри f-строки — синтаксис
-    # Python 3.12, а пакет заявляет 3.10.
-    # ПОЧЕМУ пусто — в подписи, а не одним словом «не прочитан». Прежде здесь
-    # стоял глухой атрибут, и книга называла молчание модели непрочитанным.
+    # A separate attribute: a backslash inside an f-string is Python 3.12 syntax
+    # and the package declares 3.10. WHY it is empty goes into the caption: a
+    # mute attribute made the book call the model's silence unread.
     unread = "" if role == "artifact" else ' data-text="не прочитан"'
     if role != "artifact" and why:
         cap += " · " + why
@@ -226,44 +211,32 @@ def _figure(anchor, b, role, src, info, inside=None, mark="", why=None):
 
 
 def is_our_dir(out_dir: str) -> bool:
-    """Собран ли каталог `books html`. Признак — слепок, который пишет он сам.
+    """Was this directory built by `books html`? The tell is its own snapshot.
 
-    Старую раскладку (`run.json` в корне) признаём ТОЖЕ: книги, собранные до
-    переезда слепка в `assets/`, свои — затирать их без спроса нельзя, но и
-    объявлять чужими неверно.
-
-    Живёт здесь, а не в `cli.py`, по одной причине: пишет слепок сборщик, и
-    знать, где он лежит, должен он же. Набранная в другом файле строка
-    разошлась бы молча — так и вышло, когда слепок переехал.
+    The old layout (`run.json` in the root) counts TOO: books built before the
+    snapshot moved into `assets/` are ours — neither to overwrite unasked nor to
+    call foreign. Lives here, not in `cli.py`: the builder writes the snapshot
+    and must own where it lies. A path retyped elsewhere drifts silently, as it
+    did when the snapshot moved.
     """
     return (os.path.exists(os.path.join(out_dir, ASSETS, "run.json"))
             or os.path.exists(os.path.join(out_dir, "run.json")))
 
 
 def _keep_source(detect_dir: str, out_dir: str, log) -> dict:
-    """Положить рядом с книгой ТО, ИЗ ЧЕГО ОНА СОБРАНА.
+    """Put beside the book WHAT IT WAS BUILT FROM.
 
-    ЗАЧЕМ, И ЭТО НЕ ОПРЯТНОСТЬ. Каталог книги держал всё, чтобы её ЧИТАТЬ, и
-    не всё, чтобы ПЕРЕСОБРАТЬ: `blocks.json` несёт пятнадцать полей на блок —
-    рамку, ярлык, порядок, роль, — но `content` среди них нет. Прочитанный
-    текст жил только разметкой внутри `book.html` и в чужом каталоге чтения,
-    за который заплачено на арендованной карте. Снеси тот каталог, и книгу
-    нечем собрать иначе как новой арендой: на «Технологии огнеупоров» это
-    915 078 знаков и $0.545.
+    NOT TIDINESS: `blocks.json` carries fifteen fields per block but not
+    `content`, so the read text lived only as markup inside `book.html` and in a
+    foreign read directory paid for on a rented card. Delete that and the only
+    way back is a new rental — on "Технология огнеупоров", 915 078 characters
+    and $0.545. THE SECOND WIN MATTERS MORE: `books apply` with no keys takes
+    the source from the book's snapshot, where an ABSOLUTE path is recorded, so
+    moving the book or the read directory left it not knowing what to place.
 
-    ВТОРОЙ ВЫИГРЫШ ВАЖНЕЕ ПЕРВОГО. `books apply` без ключей берёт источник из
-    слепка книги, а там записан АБСОЛЮТНЫЙ путь. Скопируй книгу на другую
-    машину или просто передвинь каталог чтения — и команда перестанет знать,
-    что ставить. С источником внутри книга самодостаточна и как продукт, и
-    как заготовка.
-
-    Копия, а не перенос: одно чтение годится для нескольких сборок (разные
-    `HTML_IMAGES`, разная резкость вырезки), и съедать его сборкой нельзя.
-
-    `answers/` берём тоже, хотя пересборке они не нужны: это наблюдённое
-    сбоку — секунды, токены, причина остановки, — то есть единственный ответ
-    на вопрос «почему этот блок плохой». Правило проекта держать наблюдённое
-    рядом с блоком, а не в тексте, стоит того, чтобы наблюдённое не терялось.
+    Copy, not move: one read serves several builds (`HTML_IMAGES`, crop
+    sharpness). `answers/` comes too — seconds, tokens, stop reason are the only
+    answer to "why is this block bad".
     """
     dst = os.path.join(out_dir, SOURCE)
     if os.path.abspath(detect_dir) == os.path.abspath(dst):
@@ -277,17 +250,13 @@ def _keep_source(detect_dir: str, out_dir: str, log) -> dict:
         if os.path.isdir(src):
             shutil.copytree(src, os.path.join(dst, name))
             was[name] = len(os.listdir(src))
-    # НАЗВАННОЕ ЗДЕСЬ ОБЯЗАНО НАЙТИСЬ, и молчание про пропажу уже стоило
-    # книге памяти о том, чем её прочитали. Файл переименовали
-    # (`чем читали.json` -> `read_with.json`), старое имя осталось на диске, и
-    # эта строка тихо его пропустила: 2945 байт отпечатка чтения — имя модели,
-    # репозиторий, sha256 весов, 25 промтов — просто не переехали в `source/`.
-    # Приёмка при этом показала прежние 412 замен: пропажу видно было только
-    # по одному недостающему слову в строке журнала.
-    #
-    # Дороже второе: `books read --resume` сверяет «читали другим» через
-    # наличие этого файла, и без него смена модели на возобновлённом ПЛАТНОМ
-    # прогоне перестаёт быть заметной.
+    # WHAT IS NAMED HERE MUST BE FOUND. After a rename (`чем читали.json` ->
+    # `read_with.json`) the old name stayed on disk and this line skipped it
+    # quietly: 2945 bytes of reading fingerprint — model name, repo, weights
+    # sha256, 25 prompts — never moved into `source/`, while acceptance still
+    # showed the same 412 swaps. Costlier: `books read --resume` detects "read
+    # by something else" through this file, so without it a model change on a
+    # resumed PAID run stops being visible.
     for name, required in (("run.json", True), ("read_with.json", False)):
         src = os.path.join(detect_dir, name)
         if os.path.isfile(src):
@@ -309,44 +278,32 @@ def _keep_source(detect_dir: str, out_dir: str, log) -> dict:
 
 
 def observed(detect_dir: str) -> dict:
-    """Наблюдённое ЧТЕНИЯ по якорю: то, что `books read` уже записал сбоку.
+    """READING observations by anchor: what `books read` already wrote aside.
 
-    ЗАЧЕМ, И ЭТО НЕ УДОБСТВО. `books read` считает пять нулей порознь и
-    называет их вслух — в слепке чтения стоит «оборвано потолком: 14» и все
-    четырнадцать якорей списком. Дальше это знание пропадало целиком: в
-    `pages/*.json` у блока семь полей (`block_id, box, label, score, order,
-    content, kind`), признака обрыва среди них нет, `blocks.json` нёс
-    двенадцать — и тоже без него (теперь пятнадцать, три прибавила эта
-    правка), а `html.py` и `apply.py` про
-    `finish_reason` не знали вовсе (`grep` по дереву давал ноль вне `read/`).
+    `books read` counts five zeros apart and names them ("оборвано потолком: 14"
+    with all fourteen anchors), and that knowledge then vanished: a
+    `pages/*.json` block has seven fields and no truncation flag, `blocks.json`
+    carried twelve and none either (fifteen now), `finish_reason` appeared
+    nowhere outside `read/`.
 
-    ЦЕНА МОЛЧАНИЯ ИЗМЕРЕНА, на «Технологии огнеупоров». Оборванных ответов
-    14 из 6156 — 0.23 % блоков и 118 471 знак, то есть 12.95 % всего
-    прочитанного текста книги (915 078). В книгу вошли все четырнадцать:
-    четыре поставил `books apply` (две таблицы, формула, график), десять
-    напечатала сборка обычными `<p>` — и ни один не отличим на вид от
-    целого. Худший, `p0055-b11`, на скане таблица 4x4, а в книге `<table>` с
-    2047 `<td>` в ОДНОЙ строке: одна эта строка держит 36 % всех ячеек
-    книги.
+    THE COST OF SILENCE, on "Технология огнеупоров": 14 truncated of 6156
+    blocks — 0.23 %, 118 471 characters, 12.95 % of the book's read text
+    (915 078). All fourteen entered the book, four via `books apply` (two
+    tables, a formula, a chart) and ten as ordinary `<p>`, none distinguishable
+    from a whole one. The worst, `p0055-b11`, is 4x4 on the scan and a `<table>`
+    with 2047 `<td>` in ONE row in the book — 36 % of the book's cells.
 
-    ПОЧЕМУ ЭТО НЕ ПРАВКА РАСПОЗНАННОГО. `content` не трогаем ни байтом —
-    наблюдённое едет отдельным полем и отдельным атрибутом, связанное с
-    блоком по якорю. Ровно то, чего требует правило проекта, и ровно то, что
-    обещает докстрока `_keep_source`: «`answers/` — единственный ответ на
-    вопрос, почему этот блок плохой».
-
-    Отсутствие `answers/` — НЕ ошибка: каталог детекции без чтения их не
-    имеет по построению. Пустой словарь означает «читали ли эти блоки,
-    сказать нечем», и сборка говорит это вслух отдельной строкой, а не
-    печатает «оборвано 0» — второй ноль был бы от непонимания.
+    `content` is untouched byte for byte: the observed travels as its own field,
+    tied by anchor. A missing `answers/` is NOT an error — a detect directory
+    has none by construction — and the empty dict means "cannot say whether
+    these were read", said aloud rather than printed as "truncated 0".
     """
     out = {}
     for fp in sorted(glob.glob(os.path.join(detect_dir, "answers", "*.json"))):
-        # ЛОВИМ И «НЕ ТОТ JSON». Файл, разбирающийся в СПИСОК, а не в объект,
-        # даёт `AttributeError` на `.get` — и ронял бы сборку целиком там, где
-        # верный ответ «наблюдённого по этой странице нет». Битый и чужой
-        # файл — одна беда с точки зрения соседних страниц: они обязаны
-        # доехать.
+        # CATCH "WRONG JSON" TOO: a file parsing into a LIST raises
+        # `AttributeError` on `.get` and would kill the whole build where the
+        # right answer is "nothing observed for this page". The neighbouring
+        # pages must still arrive.
         try:
             with open(fp, encoding="utf-8") as f:
                 recs = json.load(f).get("answers") or []
@@ -369,57 +326,40 @@ def observed(detect_dir: str) -> dict:
 
 
 def repeats_on(page, covered) -> dict:
-    """Какие блоки страницы — повтор уже напечатанного. По `block_id`.
+    """Which blocks of the page repeat what is already printed. By `block_id`.
 
-    ЧТО ЗДЕСЬ ДОКАЗЫВАЕТСЯ, И ЭТО УЖЕ РАЗ БЫЛО ДОКАЗАНО НЕВЕРНО. Утверждение
-    одно: «если этот блок не показать, ни один знак со страницы не пропадёт».
-    Сличается он поэтому НЕ с хозяином и НЕ со всей страницей, а с теми
-    блоками, которые в книге ОСТАЮТСЯ.
+    ONE CLAIM, ONCE PROVED WRONG: "hide this block and no character of the page
+    is lost". So a block is compared NOT with its owner and NOT with the whole
+    page, but with the blocks that REMAIN.
 
-    ЧИСЛА НА «ТЕХНОЛОГИИ ОГНЕУПОРОВ», 1935 кандидатов: СКРЫТО 728 (37.6 %),
-    оставлено ради вёрстки 65, разошлось 1142. Фон против чужой страницы —
-    85 (сдвиг +1), 38 (+5), 36 (+37), 17 (+200). Доля ложных СРЕДИ СКРЫТЫХ по
-    худшему фону 11.7 %, и именно она здесь мерка: прячем мы блоки, и цена
-    ошибки считается от спрятанного, а не от всех кандидатов.
+    1935 candidates on "Технология огнеупоров": HIDDEN 728 (37.6 %), kept for
+    layout 65, differs 1142; background on a foreign page 85 (+1), 38 (+5), 36
+    (+37), 17 (+200). The measure is the false share AMONG THE HIDDEN at the
+    worst background, 11.7 %. Rejected: a block compared with ITSELF gave 99.0 %
+    against a 1.9-6.7 % background where self-match is impossible.
 
-    ЗДЕСЬ ДВАЖДЫ СТОЯЛИ ЧУЖИЕ ЧИСЛА, и оба раза при самом правиле. Сперва
-    «99.0 %» — блок сличался САМ С СОБОЙ, входя в ту прозу, где его искали;
-    рядом стоял «фон» 1.9-6.7 %, снятый со сдвигом на чужую страницу, где
-    самосовпадения нет по построению, — сравнивались не два правила, а
-    правило с самим собой. Потом «414 из 1935, отношение 9.9x» — числа
-    редакции, снимавшей начертание пробелом, оставшиеся после её замены.
-    Опровергнутое самосовпадение (1916 повторов, 19 «нигде») в этом файле
-    больше не фигурирует нигде.
+    GEOMETRY IS NO SUBSTITUTE: a nested block has its text in THAT SAME owner
+    for only 476 of 1935, another 140 elsewhere on the page. So the answer names
+    the CARRIER of the proof; naming the enclosing box, 23 of 841 named one
+    without that text.
 
-    ГЕОМЕТРИЯ СЛИЧЕНИЮ НЕ ЗАМЕНА, и это тоже замер. У блока, вложенного
-    рамкой в другой, текст находится в ТОМ ЖЕ хозяине лишь у 476 из 1935;
-    ещё у 140 он есть на странице, но в другом блоке. (Здесь стояло 1439 —
-    число из того же тавтологичного счёта.) То есть рамка, объемлющая
-    формулу, и абзац, несущий её текст, — разные блоки, и прятать по рамке
-    значило бы прятать недоказанное. Поэтому в ответе стоит НОСИТЕЛЬ
-    доказательства, а не объемлющая рамка: прежде поле называло рамку, и у
-    23 блоков из 841 названный блок этого текста не содержал вовсе.
+    THE LENGTH THRESHOLD IS A WEAK LEVER: 2/3/4/5/6/8 give false shares 11.7 /
+    10.7 / 11.0 / 12.0 / 9.8 / 9.3 % at 841 / 793 / 672 / 591 / 461 / 227 hidden
+    — flat, so choosing by it chases noise. A two-character match ("°c", "50")
+    is coincidence.
 
-    ПОРОГ ДЛИНЫ — СЛАБЫЙ РЫЧАГ, и знать это важнее его значения. Развёртка
-    2/3/4/5/6/8 даёт долю ложных 11.7 / 10.7 / 11.0 / 12.0 / 9.8 / 9.3 % при
-    841 / 793 / 672 / 591 / 461 / 227 скрытых: кривая плоская, и выбирать по
-    ней значило бы гнаться за шумом. Значение выбрано доводом, а не подгонкой:
-    совпадение в два знака («°c», «50») ничего не доказывает — это не
-    свидетельство, а совпадение.
-
-    ВЁРСТКУ НА СЫРЬЁ НЕ МЕНЯЕМ. Если блок несёт математику разделителями, а
-    носитель — тот же текст СЫРЫМ латехом без разделителей, то спрятать
-    первое значит оставить читателю `FeO-SiO_{2}` вместо формулы. Таких на
-    книге 66, и они остаются видимыми.
+    LAYOUT IS NOT TRADED FOR RAW SOURCE: where the carrier holds the same text
+    as raw latex, hiding the typeset block shows `FeO-SiO_{2}` instead of a
+    formula. 66 such stay visible.
     """
     from_text = [b for b in page.blocks
                  if policy.role(b.label) != "artifact" and (b.content or "").strip()]
     nested = {b.block_id for b in from_text
               if any(o.block_id != b.block_id and covered(b.box, o.box)
                      for o in from_text)}
-    # ОСТАЮЩИЕСЯ — и только они. Кандидат, сличённый с другим кандидатом,
-    # позволил бы спрятать обоих: каждый «есть у соседа», а в книге не
-    # остаётся ни одного.
+    # THE REMAINING — and only them. A candidate matched against another
+    # candidate would let both be hidden: each "exists at the neighbour", and
+    # neither stays in the book.
     kept = [b for b in from_text if b.block_id not in nested]
     norm = {b.block_id: booktext.normalize(b.content, "latex") for b in kept}
     out = {}
@@ -427,7 +367,6 @@ def repeats_on(page, covered) -> dict:
         if b.block_id not in nested:
             continue
         own = booktext.normalize(b.content, "latex")
-        # НОСИТЕЛЬ, А НЕ РАМКА: тот блок, в котором доказательство и лежит.
         carrier = next((o for o in kept
                          if len(own) >= REPEAT_MIN and own in norm[o.block_id]),
                         None)
@@ -440,12 +379,12 @@ def repeats_on(page, covered) -> dict:
 
 
 def _raw_latex_at(carrier: str, own: str) -> bool:
-    r"""Носитель несёт то же СЫРЫМ латехом, а прячем мы свёрстанное.
+    r"""The carrier holds the same text as RAW latex, and we hide the typeset.
 
-    Отдельной функцией ради батареи порчи. Замер: 66 блоков книги, где
-    носитель показывает `FeO-SiO_{2}` там, где в спрятанном блоке стоит
-    `\[\mathrm{FeO}-\mathrm{SiO}_{2}\]`. Спрятать второе значило бы
-    ухудшить вид страницы, ничего не выиграв.
+    A separate function for the mutation battery. Measured: 66 blocks of the
+    book where the carrier shows `FeO-SiO_{2}` and the hidden block holds
+    `\[\mathrm{FeO}-\mathrm{SiO}_{2}\]`. Hiding the second worsens the page and
+    wins nothing.
     """
     math = ("\\[", "\\(", "$")
     if not any(m in own for m in math):
@@ -456,73 +395,58 @@ def _raw_latex_at(carrier: str, own: str) -> bool:
 
 
 def torn_of(o: dict | None) -> bool | None:
-    """Оборван ли ответ: ТРИ состояния, а не два.
+    """Was the answer truncated: THREE states, not two.
 
-    `True` — упор в потолок (`finish_reason == "length"`). `False` — модель
-    дочитала сама. `None` — спросить не у кого: рядом нет `answers/` либо блок
-    НЕ СПРАШИВАЛИ вовсе (рисунки, маршрут пуст с объявленной причиной).
+    `True` — hit the ceiling (`finish_reason == "length"`). `False` — finished
+    by itself. `None` — nobody to ask: no `answers/` alongside, or the block was
+    NEVER ASKED (figures, an empty route with a declared reason).
 
-    ОТДЕЛЬНОЙ ФУНКЦИЕЙ, А НЕ СТРОКОЙ В ЦИКЛЕ, ровно ради батареи порчи: без
-    шва это правило нечем сломать, а проверка, которую нельзя сломать, не
-    доказана. То же соображение, что у `apply._same`.
-
-    Замер, ради которого третье состояние заведено: из 6156 блоков книги 14
-    оборваны, 6073 дочитаны и 69 не спрашивали. Правило без `None` печатало
-    последним двум одно и то же `False` — то есть поле, заведённое ПРОТИВ
-    слияния двух нулей, само их сливало.
+    A separate function for the mutation battery: a check that cannot be broken
+    is not proved (as `apply._same`). Of 6156 blocks 14 are truncated, 6073
+    finished, 69 never asked; without `None` the last two both printed `False` —
+    a field made AGAINST merging two zeros was merging them itself.
     """
     by_what = (o or {}).get("outcome")
     return None if by_what is None else (by_what == "length")
 
 
 def torn_grid(grid: dict | None) -> str | None:
-    """Сетка OTSL, которая НЕ МОЖЕТ быть настоящей таблицей, — одной фразой.
+    """An OTSL grid that CANNOT be a real table, in one phrase.
 
-    ПОЧЕМУ ЭТОГО МАЛО БЫЛО СЧИТАТЬ РВАНОСТЬЮ. `otsl.parse` считает
-    продолжения в никуда, строки разной длины и текст мимо тегов, и на
-    оборванной `p0055-b11` ВСЕ ЭТИ СЧЁТЧИКИ ЧИСТЫ — потому что в ответе нет
-    ни одного `<nl>`: строка одна, разной длины быть не с чем, продолжениям
-    некуда деться. Это ноль от непонимания, и принимать его за ноль от
-    проверки нельзя. Сама же сетка при этом кричит: 2047 клеток в одной
-    строке.
+    TORNNESS WAS NOT ENOUGH: `otsl.parse` counts continuations to nowhere, rows
+    of unequal length and text outside tags, and on the truncated `p0055-b11`
+    all of them are CLEAN — the answer holds not one `<nl>`. A zero from not
+    knowing, while the grid screams 2047 cells in a row.
 
-    Правило поэтому смотрит не на рваность, а на ФОРМУ, и обе половины
-    проверены порчей (`tests/selfcheck.py`): таблица в одну строку шире
-    трёх клеток и таблица в один столбец глубже трёх. На «Технологии
-    огнеупоров» под каждое правило подпадает РОВНО ОДНА таблица из 104:
-    `p0055-b11` (2047 клеток в строке) и `p0166-b2` (7 строк по одной
-    клетке). Здесь стояло «под второе ни одной», и это опровергалось
-    собственной находкой файла двумя абзацами ниже. Медианная ширина таблицы
-    книги — 5 клеток, вторая по ширине строка 11.
+    So the rule looks at SHAPE, both halves checked by mutation
+    (`tests/selfcheck.py`): one row wider than three cells, one column deeper
+    than three. On "Технология огнеупоров" EXACTLY ONE table of 104 falls under
+    each — `p0055-b11` (2047 cells in a row), `p0166-b2` (7 rows of one cell).
+    Median width 5 cells, second-widest row 11.
 
-    ПОРОГ НА ЭТОЙ КНИГЕ ПОЧТИ НИ НА ЧТО НЕ ВЛИЯЕТ, и знать это важнее самого
-    порога: развёртка 1..11 даёт две находки при 1..6 и одну при 7..11 —
-    `p0166-b2` ровно семистрочная и отваливается на своём же числе. Здесь
-    стояло «1..5 одно и то же, только с 10 вторая пропадает»: граница названа
-    неверно вдвое. Ложных срабатываний нет ни на одном пороге — но померено
-    это на ОДНОЙ книге и 104 таблицах.
+    THE THRESHOLD BARELY MATTERS HERE: a sweep 1..11 gives two finds at 1..6 and
+    one at 7..11, `p0166-b2` falling off at its own number. No false positives
+    at any threshold, but measured on ONE book and 104 tables.
 
-    Возвращает ПРИЧИНУ словами или None. `None` здесь — «форма не
-    запрещена», а не «таблица хороша»: о содержимом ячеек это правило не
-    знает ничего и знать не может.
+    Returns the REASON in words, or None — "the shape is not forbidden", not
+    "the table is good": cell contents are outside this rule.
     """
     if not grid:
         return None
     rows, cells = grid.get("rows") or 0, grid.get("grid_cells") or 0
     if rows == 1 and cells > 3:
         return f"вся таблица в одной строке: {cells} клеток"
-    # ГОВОРИМ РОВНО ТО, ЧТО МЕРЯЕМ. Здесь стояло «вся таблица в одном
-    # столбце», а судило правило по СРЕДНЕМУ (`клеток // строк`): сетка
-    # 10 строк / 19 клеток — двухстолбцовая таблица без одной клетки —
-    # объявлялась одностолбцовой. Утверждать о столбцах по среднему нельзя,
-    # а назвать наблюдение можно: клеток ровно столько же, сколько строк.
+    # SAY EXACTLY WHAT IS MEASURED. Judging by the AVERAGE (`cells // rows`)
+    # called a 10-row / 19-cell grid — a two-column table missing one cell —
+    # single-column. An average claims nothing about columns; the observation
+    # can: exactly as many cells as rows.
     if rows > 3 and cells == rows:
         return f"на {rows} строк всего {cells} клеток — по одной на строку"
     return None
 
 
 def _repeats_how() -> str:
-    """`HTML_REPEATS`: прятать доказанный повтор или показывать всё."""
+    """`HTML_REPEATS`: hide a proven repeat, or show everything."""
     from ..run import knobs
     how = (knobs.knob("HTML_REPEATS") or "hide").strip()
     if how not in ("hide", "show"):
@@ -534,7 +458,7 @@ def _repeats_how() -> str:
 
 
 def _img_how() -> str:
-    """`HTML_IMAGES`: вшивать вырезки в книгу или ссылаться на файлы."""
+    """`HTML_IMAGES`: inline the crops into the book, or link to the files."""
     from ..run import knobs
     how = (knobs.knob("HTML_IMAGES") or "inline").strip()
     if how not in ("inline", "linked"):
@@ -546,12 +470,12 @@ def _img_how() -> str:
 
 
 def _img_src(path: str, rel: str, how: str) -> str:
-    """Чем книга сошлётся на вырезку: путём или своими байтами.
+    """How the book points at a crop: by path or by its own bytes.
 
-    `inline` — `data:image/png;base64,…`. Дороже на треть (base64), зато
-    книга открывается ПО ЛЮБОМУ пути. `linked` даёт файл вчетверо меньше, но
-    по сетевому пути (`\\\\wsl.localhost\\...`) браузер соседние файлы
-    молча не грузит, и читатель видит книгу без единой иллюстрации.
+    `inline` — `data:image/png;base64,…`: a third larger, but the book opens
+    FROM ANY path. `linked` is four times smaller, yet over a network path
+    (`\\\\wsl.localhost\\...`) the browser silently refuses neighbouring files
+    and the reader sees a book without a single picture.
     """
     if how == "linked":
         return _html.escape(rel)
@@ -561,8 +485,8 @@ def _img_src(path: str, rel: str, how: str) -> str:
 
 
 def _union_share(boxes, sheet):
-    """Доля листа под артефактами — по ОБЪЕДИНЕНИЮ, а не суммой площадей:
-    вложенные рамки иначе считались бы дважды."""
+    """Share of the sheet under artifacts, by UNION rather than a sum of areas:
+    nested boxes would otherwise count twice."""
     from .feed import _union_area
     if not boxes or sheet <= 0:
         return 0.0
@@ -570,28 +494,25 @@ def _union_share(boxes, sheet):
 
 
 def _nesting(arts) -> dict:
-    """Кто внутри кого. Возвращает {block_id внутренней: block_id внешней}.
+    """Who is inside whom. Returns {inner block_id: outer block_id}.
 
-    НИЧЕГО НЕ ВЫБРАСЫВАЕТ — только называет отношение. Внешней считается
-    большая по площади; при равных площадях (а так бывает: `image` и `table`
-    приезжают на ОДНОМ прямоугольнике) внешней зовётся та, что у модели
-    раньше по её собственному рангу. Ранг взят потому, что он ЕЁ, а не наш.
+    THROWS NOTHING AWAY — it only names the relation. The larger area is outer;
+    on equal areas (it happens: `image` and `table` arrive on ONE rectangle) the
+    outer is the one earlier by the model's own rank — its rank, not ours.
     """
     def area(b):
         return max(0.0, b.box[2] - b.box[0]) * max(0.0, b.box[3] - b.box[1])
 
     def rank(b):
-        """Место блока в порядке модели — КЛЮЧОМ, а не голым `order`.
+        """The block's place in the model's order as a KEY, not a bare `order`.
 
-        `Block.order = None` контракт `models/base.py` разрешает прямо: ранга
-        не даёт ни один адаптер из трёх (yolox и оба docling), а у четвёртого
-        он пуст ровно у того, что первый уровень вырезает картинками — 100% у
-        `image`, `figure_title`, `table`. Прежняя строка сравнивала кортежи
-        `(o.order, o.block_id)` напрямую и на паре «ранг есть / ранга нет»
-        роняла ВСЮ сборку книги: `TypeError: '>=' not supported between
-        instances of 'NoneType' and 'int'`. Ранга нет — сравниваем по
-        `block_id`, а безранговый идёт ПОСЛЕ ранжированного: это порядок
-        разбора, а не наша выдумка о модели.
+        `models/base.py` allows `Block.order = None`: three adapters of four
+        give no rank (yolox, both docling), and on the fourth it is empty for
+        exactly what the first level cuts as images — 100 % of `image`,
+        `figure_title`, `table`. Comparing `(o.order, o.block_id)` directly
+        killed the WHOLE build on a ranked / unranked pair (`TypeError: '>=' not
+        supported between instances of 'NoneType' and 'int'`). Unranked compares
+        by `block_id`, AFTER the ranked: parse order, not our invention.
         """
         return (b.order is None, b.order or 0, b.block_id)
 
@@ -607,14 +528,14 @@ def _nesting(arts) -> dict:
                 continue
             inner[b.block_id] = o.block_id
             break
-    # Цепочку рвём: внешняя, сама лежащая внутри третьей, остаётся внешней для
-    # своей внутренней — иначе подпись «деталь» указывала бы в пустоту.
+    # The chain is cut: an outer box that itself lies inside a third stays outer
+    # for its own inner one, or the "деталь" caption would point at nothing.
     return inner
 
 
 def _covered(inner, outer, part=0.9):
-    """Доля `inner`, накрытая `outer`. Ровно то, что решает, исчезнет ли блок
-    внутри чужой картинки."""
+    """Share of `inner` covered by `outer` — exactly what decides whether a
+    block disappears inside someone else's picture."""
     x0, y0 = max(inner[0], outer[0]), max(inner[1], outer[1])
     x1, y1 = min(inner[2], outer[2]), min(inner[3], outer[3])
     i = max(0.0, x1 - x0) * max(0.0, y1 - y0)
@@ -623,11 +544,11 @@ def _covered(inner, outer, part=0.9):
 
 
 def _twice_area(boxes):
-    """Площадь, накрытая ДВУМЯ рамками и более. Развёртка по вертикали, как
-    `_union_area`; тройное накрытие не считается трижды.
+    """Area covered by TWO boxes or more. Vertical sweep, as in `_union_area`;
+    triple cover is not counted three times.
 
-    Ровно эти чернила уезжают в книгу дважды: и своей вырезкой, и внутри
-    чужой. Касание (`x1` одной равен `x0` другой) не пересечение и даёт 0.
+    Exactly this ink reaches the book twice: in its own crop and inside someone
+    else's. Touching (one box's `x1` equal to another's `x0`) gives 0.
     """
     if len(boxes) < 2:
         return 0.0
@@ -653,38 +574,34 @@ def _twice_area(boxes):
 
 
 def _sheet_trouble(blocks, arts) -> str | None:
-    """Чем плох лист: `empty` | `no-text` | `furniture-only` | None.
+    """What is wrong with the sheet: `empty` | `no-text` | `furniture-only` | None.
 
-    ОТКАЗОВ ТРИ, А ПОМЕТКИ БЫЛО ДВЕ, и третий печатался чужой. «Без текста»
-    значило просто «блоки есть, текста среди них нет», поэтому лист с одной
-    колонцифрой (`footer`, разряд «служебное») получал красное «вся полоса
-    ушла в картинки» при `data-image-share="0.00"` — элемент
-    противоречил сам себе. Замер: `bench/atlas` стр. 0, один блок `footer`,
-    доля 0.00, пометка про картинки; на всей книге «страниц без единого
-    текстового блока» стояло 9 при восьми настоящих.
+    THREE FAILURES, TWO MARKS, and the third printed someone else's: "no text"
+    meant only "blocks exist, none of them text", so a sheet with one folio
+    (`footer`, bucket "служебное") got the red "вся полоса ушла в картинки" at
+    `data-image-share="0.00"` — `bench/atlas` p. 0, and over the book "pages
+    with no text block" read 9 against eight real.
 
-    ОТДЕЛЬНОЙ ФУНКЦИЕЙ, а не тремя строками в `build`, ровно ради батареи
-    порчи: правило, зашитое в тело сборки, нечем сломать, а сторож, которого
-    нельзя сломать, не доказан. Возвращаемое слово — оно же имя атрибута
-    (`data-empty`, `data-no-text`, `data-furniture-only`): второй копии
-    этих имён в файле нет.
+    A separate function, not three lines in `build`, for the mutation battery: a
+    guard that cannot be broken is not proved. THE RETURNED WORD IS ALSO THE
+    ATTRIBUTE NAME (`data-empty`, `data-no-text`, `data-furniture-only`): there
+    is no second copy of these names in this file.
     """
     if not blocks:
-        return "empty"                # модель не нашла на листе ничего
+        return "empty"
     if any(policy.role(b.label) == "text" for b in blocks):
         return None
     return "no-text" if arts else "furniture-only"
 
 
 def _order_src(page) -> str:
-    """Откуда у блоков этой страницы взялся `order` — словами адаптера.
+    """Where this page's `order` came from, in the adapter's own words.
 
-    Три состояния, и путать их нельзя. Поля НЕТ вовсе — слепок молчит (так во
-    всех девяти каталогах стенда, сделанных до появления поля); поле есть, а в
-    нём `null` — адаптер сказал «не знаю»; строка — он назвал источник.
-    Умолчание «ранг модели» при отсутствии поля живёт в стороже метрики
-    (`metrics._has_order`) и здесь НЕ повторяется: выдать неизвестное за
-    модельное — ровно та подмена, из-за которой этот участок и чинится.
+    Three states, never confused: NO field — the snapshot is silent (all nine
+    bench directories predate it); `null` — the adapter said "don't know"; a
+    string — it named the source. The "model rank" default for a missing field
+    lives in `metrics._has_order` and is NOT repeated here: passing the unknown
+    off as the model's is the substitution being fixed.
     """
     m = page.meta or {}
     if "reading_order" not in m:
@@ -696,50 +613,47 @@ def _order_src(page) -> str:
 
 
 def _ours(v) -> bool:
-    """Наш ли это порядок. Правило одно на весь проект — `models.base`.
+    """Is this order ours? One rule for the whole project — `models.base`.
 
-    Своя копия этой проверки стояла здесь и разошлась бы с копией в
-    `metrics` при первой же правке текста; договор и цена его расхождения
-    записаны там, где поле пишется, — в контракте адаптера.
+    A local copy of this check would drift from the one in `metrics` at the
+    first wording change; the contract and the cost of drift are recorded where
+    the field is written, in the adapter contract.
     """
     from ..models.base import ours_order
     return ours_order(v)
 
 
-# Отрисовщик формул. Вариант SVG выбран НЕ по вкусу: он единственный из
-# трёх, который живёт ОДНИМ файлом и не тянет отдельных шрифтов, а книга
-# обязана открываться без сети — её кладут на диск и читают через полгода.
-# KaTeX весит меньше (268 КБ против 2.11 МБ), но требует тридцати файлов
-# шрифтов; MathJax в chtml — того же семейства беда.
+# Formula renderer. SVG is not taste: of the three it alone lives in ONE file
+# and pulls no separate fonts, and the book must open offline — it goes on a
+# disk and is read half a year later. KaTeX weighs less (268 KB against 2.11 MB)
+# but wants thirty font files; MathJax in chtml, the same.
 MATHJAX = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                        "mathjax", "tex-svg.js")
 
-# `pre` ВЫЧЕРКНУТ ИЗ ПРОПУСКАЕМЫХ НАРОЧНО. Умолчание MathJax пропускает
-# `pre`, а второй уровень кладёт формулу-артефакт именно в `<pre>`
-# (`doc/apply.render`, вид `latex`). С умолчанием ровно те блоки, ради
-# которых всё и делается, остались бы исходником: на «Технологии огнеупоров»
-# это 2260 формул из 6080 прочитанных блоков.
+# `pre` IS STRUCK FROM THE SKIP LIST ON PURPOSE: MathJax skips it by default,
+# while the second level puts a formula artifact into exactly `<pre>`
+# (`doc/apply.render`, kind `latex`). The default would leave the very blocks
+# this is built for as source — 2260 formulas of 6080 read blocks on
+# "Технология огнеупоров".
 _SKIP = ("script", "noscript", "style", "textarea", "code", "annotation",
          "annotation-xml")
 
-# `$...$` включён, а у MathJax по умолчанию его НЕТ (только `\\(...\\)`).
-# Модель же пишет встроенную математику долларами: «где $\\alpha$ — коэффи‐
-# циент». Без этой строки такие места остались бы с долларами наружу.
-# МЕНЮ ВЫКЛЮЧЕНО, И ЭТО НЕ ПРИДИРКА К УДОБСТВУ. Меню MathJax (`ui/menu`) и
-# модуль доступности (`a11y/assistive-mml`) в бандл не входят — они
-# ПОДГРУЖАЮТСЯ отдельными файлами. У вшитого скрипта база пути пуста, адрес
-# складывается в адрес самой книги, и браузер отвечает:
+# `$...$` is on; MathJax has it OFF by default (only `\\(...\\)`), and the model
+# writes inline maths in dollars — «где $\\alpha$ — коэффициент».
+#
+# THE MENU IS OFF, AND NOT FUSSINESS. The MathJax menu (`ui/menu`) and
+# `a11y/assistive-mml` are not in the bundle: they LOAD as separate files. In an
+# inlined script the path base is empty, the address resolves against the book,
+# and the browser answers:
 #
 #   Unsafe attempt to load URL …/book.html from frame with URL …/book.html.
 #   'file:' URLs are treated as unique security origins.
 #
-# Формулы при этом рисуются — но книга, которую читают с диска, не должна
-# ходить в сеть ни за чем, и красная строка в консоли на каждом открытии
-# приучает не смотреть в консоль вовсе.
-#
-# ЦЕНА: правым щелчком по формуле больше не показать её исходный TeX. Байты
-# модели при этом никуда не делись — они лежат в `assets/source/pages` и в
-# `assets/swaps.json` полем «ответ модели».
+# Formulas render anyway, but a book read off a disk must go to the network for
+# nothing, and a red console line on every open teaches one to ignore the
+# console. THE PRICE: right-click no longer shows a formula's source TeX; the
+# model's bytes remain in `assets/source/pages` and the «ответ модели» field of
+# `assets/swaps.json`.
 _MATH_CFG = ('window.MathJax={tex:{inlineMath:[["$","$"],["\\\\(","\\\\)"]],'
              'displayMath:[["\\\\[","\\\\]"],["$$","$$"]]},'
              'options:{enableMenu:false,skipHtmlTags:'
@@ -747,12 +661,12 @@ _MATH_CFG = ('window.MathJax={tex:{inlineMath:[["$","$"],["\\\\(","\\\\)"]],'
 
 
 def _math(out_dir: str) -> tuple[str, str]:
-    """Чем рисовать формулы. Ручка `HTML_MATH`: local | cdn | off.
+    """What renders the formulas. Knob `HTML_MATH`: local | cdn | off.
 
-    Умолчание `local` — книга самодостаточна: 2.11 МБ рядом с ней, и она
-    откроется без сети когда угодно. `cdn` оставлен для случая, когда лишний
-    вес важнее независимости, и он ОБЪЯВЛЯЕТСЯ в журнале, а не подразумевается.
-    `off` — сырой LaTeX, как было до появления этой ручки.
+    Default `local` keeps the book self-contained: 2.11 MB beside it, opening
+    without a network whenever. `cdn` is for when the extra weight matters more
+    than independence, and it is DECLARED in the log, not implied. `off` is raw
+    LaTeX, as before this knob.
     """
     import shutil
 
@@ -786,9 +700,9 @@ def _math(out_dir: str) -> tuple[str, str]:
                 f"({os.path.getsize(MATHJAX)/1e6:.1f} МБ). ВНИМАНИЕ: по "
                 f"сетевому пути (\\\\wsl.localhost\\...) браузер этот файл "
                 f"молча не загрузит, и формул не будет")
-    # inline: ВШИВАЕМ. `</script>` внутри бандла разорвал бы наш тег, поэтому
-    # разбиваем последовательность — приём старый и безопасный: для JS это
-    # та же строка, для разборщика HTML — уже не конец тега.
+    # inline: WE EMBED. A `</script>` inside the bundle would tear our tag, so
+    # the sequence is split — an old, safe trick: the same string to JS, no
+    # longer a tag end to the HTML parser.
     with open(MATHJAX, encoding="utf-8") as f:
         code = f.read().replace("</script>", "<\\/script>")
     return (cfg + f'<script id="MathJax-script">{code}</script>',
@@ -798,7 +712,7 @@ def _math(out_dir: str) -> tuple[str, str]:
 
 
 def build(detect_dir: str, out_dir: str, log=print) -> dict:
-    """Собрать HTML из каталога `books detect`. Возвращает величины сборки."""
+    """Build HTML from a `books detect` directory. Returns the build's numbers."""
     import pymupdf
 
     detect_dir = os.path.abspath(detect_dir)
@@ -813,15 +727,13 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
             f"HTML собирается из PDF, а не из растра детекции — вырезка "
             f"плотной таблицы при {page_dpi:.0f} dpi нечитаема.")
 
-    # СВЕРКА ИСХОДНИКА СТОИТ ЗДЕСЬ, а не в конце, и это цена опыта. Прежде
-    # sha256 считался после всей работы: 568 вырезок `slovar` уже нарезаны,
-    # book.html и blocks.json уже на диске, — и только тогда летел ValueError.
-    # Подмена PDF по тому же пути (djvu пересобран другим разрезом разворотов,
-    # другая книга с тем же именем) давала ровно худший исход: на диске книга
-    # из ЧУЖОГО файла, БЕЗ слепка — run.json пишется ниже и до него не
-    # доходило, — а оператору трассировка вместо объяснения. Теперь падаем до
-    # первой вырезки и тем же способом, что две беды выше: SystemExit с
-    # текстом.
+    # THE SOURCE CHECK STANDS HERE, not at the end, and that cost experience.
+    # sha256 used to run after all the work: `slovar`'s 568 crops cut, book.html
+    # and blocks.json on disk, and only then a ValueError. A PDF swapped under
+    # the same path (a djvu rebuilt with another spread cut, another book of the
+    # same name) gave the worst outcome — a book made from a FOREIGN file and
+    # WITHOUT a snapshot, run.json being written below and never reached — plus
+    # a traceback instead of an explanation.
     from .. import detect as _detect        # _sha256, _commit, _packages
     said = (snap.get("source") or {}).get("sha256")
     now = _detect._sha256(pdf)
@@ -831,21 +743,19 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
             f"{said[:12]}, сейчас {now[:12]}. Вырезки шли бы из одного файла, "
             f"а рамки — из другого. Пересчитайте books detect либо верните "
             f"тот PDF, по которому считались рамки.")
-    # Величина, а не «сошлось», — и два разных нуля рядом. Слепок детекции
-    # БЕЗ поля sha256 это НЕ «сверено и совпало», а «сверять не с чем», и так и
-    # написано. Здесь стояло, что таковы все девять каталогов стенда, — неверно:
-    # все девять `bench/*/detect/run.json` поле несут и непустое. Ветка нужна
-    # для слепков, снятых до появления поля; в дереве таких сейчас нет.
+    # A number, not "matched". A snapshot WITHOUT the sha256 field is not
+    # "checked and equal" but "nothing to check against", and it says so. The
+    # branch serves snapshots predating the field; all nine
+    # `bench/*/detect/run.json` carry it non-empty, so nothing reaches it now.
     log(f"исходник {os.path.basename(pdf)} sha256 {now[:12]}"
         + (" — сошёлся со слепком детекции" if said
            else " — слепок детекции sha256 не назвал, сверять не с чем"))
 
-    # ЖУРНАЛ ЗАМЕН ВТОРОГО УРОВНЯ. Пересборка в тот же каталог стирает книгу
-    # вместе со всеми заменами, а `swaps.json` остаётся и начинает врать:
-    # он утверждает «заменено N» про книгу, где снова стоят картинки, а
-    # `books apply --undo` по такому якорю ставит ложный диагноз «книгу правили
-    # мимо журнала». Правил не человек, а эта самая команда — поэтому она и
-    # обязана сказать. Молчать тут дешевле всего и потому опаснее всего.
+    # THE SECOND LEVEL'S SWAP JOURNAL. Rebuilding into the same directory wipes
+    # the book with every swap while `swaps.json` survives and starts lying: it
+    # claims "N swapped" about a book showing pictures again, and `books apply
+    # --undo` then misdiagnoses "the book was edited past the journal". It was
+    # edited by this very command, so this command must say so.
     _j = os.path.join(out_dir, ASSETS, "swaps.json")
     if os.path.exists(_j):
         try:
@@ -860,15 +770,15 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
               "начнёт врать. Собирай в другой каталог либо убери swaps.json, "
               "если замены больше не нужны.")
 
-    expected = []          # якоря в том порядке, в каком книга обязана их нести
+    expected = []          # anchors in the order the book must carry them
     files = sorted(glob.glob(os.path.join(detect_dir, "pages", "*.json")))
     if not files:
         raise SystemExit(f"в {detect_dir} нет страниц — сначала books detect")
 
     doc = pymupdf.open(pdf)
-    # Ручку спрашиваем ДО цикла, а не в нём: иначе она читалась бы раз на
-    # каждую вырезку (488 на книге), и — хуже — правка окружения посреди
-    # прогона дала бы книгу, часть картинок в которой вшита, а часть нет.
+    # Read BEFORE the loop, not inside: otherwise once per crop (488 on the
+    # book) and — worse — an environment edit mid-run would give a book with
+    # some pictures inlined and some not.
     img_how = _img_how()
     repeats_how = _repeats_how()
     blockdir = os.path.join(out_dir, ASSETS, "blocks")
@@ -879,77 +789,51 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
     body, side = [], {}
     counts = {r: 0 for r in policy.ROLES}
     cut_n = clipped = 0
-    # Три беды, каждая из которых МОЛЧА портит книгу, и все три обязаны быть
-    # величиной, а не обнаружиться при чтении готового HTML.
+    # Three troubles that SILENTLY spoil the book; all must be numbers, not
+    # discoveries made while reading the finished HTML.
     #
-    #  * ЧЕРНИЛА ДВАЖДЫ — доля листа под двумя вырезками и более. Рамкам
-    #    модели пересекаться не запрещено, а режем мы по каждой: где рамки
-    #    налезли, те же строки уезжают в книгу двумя картинками.
-    #    Здесь стоял счётчик `съедено текстом`, и журнал утверждал, что такие
-    #    абзацы «в HTML не попали вовсе». Это неправда: в цикле ниже блок
-    #    выводится независимо от того, лежит ли он внутри чужой рамки, — на
-    #    стенде hard36 792 блока дали 792 якоря и 792 вырезки, не пропал ни
-    #    один. Беда обратна потере, и мерить её надо площадью, а не счётом
-    #    блоков: на стенде `slovar` рамки `reference` и `reference_content`
-    #    налезают друг на друга 166 раз (одна `reference` накрывает до 20
-    #    соседних), колонка выходит в книгу дважды — 23.45% всей бумаги, — а
-    #    прежние два счётчика печатали там 0 и 0, потому что оба смотрят
-    #    только на артефактные рамки.
-    #  * `вложенных артефактов` — две артефактные рамки, одна внутри другой.
-    #    Сырой вывод хранится без подавления, и обе доезжают до сборки. Кому
-    #    отдавать блок — решение, которое пока не объявлено, и потому его
-    #    надо видеть числом отдельно от общей площади.
-    #  * СТРАНИЦА БЕЗ ТЕКСТА — самая дорогая беда стенда: вся полоса ушла в
-    #    одну рамку `table`, и в книгу страница вышла единственным <figure>
-    #    без единой строки. Ни двойные чернила, ни вложенность её не видят
-    #    (рамка там одна, пересекаться не с чем), поэтому рядом стоят два
-    #    своих числа: страниц без текста вовсе и наибольшая доля листа в
-    #    одной рамке.
+    #  * INK TWICE — sheet share under two crops or more. Boxes may overlap and
+    #    we cut by every one, so the same lines reach the book as two pictures.
+    #    Opposite of a loss, so measure area, not blocks: hard36 gave 792 blocks,
+    #    792 anchors, 792 crops, none lost. On `slovar`, `reference` and
+    #    `reference_content` overlap 166 times (one covers up to 20 neighbours),
+    #    a column reaches the book twice — 23.45% of all paper — where two
+    #    earlier counters printed 0 and 0, both seeing only artifact boxes.
+    #  * `nested artifacts` — two artifact boxes, one inside the other; raw
+    #    output is unsuppressed and both reach the build. Which one gets the
+    #    block is undeclared, so it needs its own number.
+    #  * A PAGE WITHOUT TEXT — the bench's costliest: the whole column in one
+    #    `table` box, the page a single <figure> with not one line. Double ink
+    #    and nesting are blind to it, so two numbers stand apart: pages with no
+    #    text, and the largest share of a sheet in one box.
     dup_text = nested = no_text = no_blocks = only_service = 0
-    # НАБЛЮДЁННОЕ ЧТЕНИЯ — сбоку и по якорю; разбор при `observed()`.
     obs = observed(detect_dir)
     torn_n = shape_n = 0
     torn_a, shape_a = [], []
-    # ВТОРАЯ ПОЛОВИНА ТОГО ЖЕ ВОПРОСА, и до сих пор её не считал никто.
-    # `dup_text` — текст внутри АРТЕФАКТНОЙ рамки: его чернила уехали ещё и в
-    # картинку. Комментарий ниже (при подсчёте двойных чернил) предсказал, что
-    # с появлением чтения появится вторая беда, которой это число слепо по
-    # построению: текст внутри ТЕКСТОВОЙ рамки — те же слова двумя <p>, и обе
-    # вырезки для них не режутся вовсе. Предсказание сбылось и померено: на
-    # «Технологии огнеупоров» первое число 175, второе 1935 — в одиннадцать
-    # раз больше. Подавляющее большинство — `inline_formula` (1847 из 1935):
-    # встроенная в строку математика, обведённая своей рамкой поверх абзаца,
-    # прочитанная вторично и напечатанная отдельным <p>. Печатать одно без
-    # другого значит показывать меньшую беду и молчать о большей.
+    # THE OTHER HALF OF THE SAME QUESTION, counted by nobody until now.
+    # `dup_text` is text inside an ARTIFACT box; this is text inside a TEXT box —
+    # the same words as two <p>, no crops cut, so the first number is blind to it
+    # by construction. Measured on "Технология огнеупоров": 175 against 1935,
+    # eleven times more, almost all `inline_formula` (1847 of 1935) — inline
+    # maths boxed over the paragraph, read twice, printed as its own <p>.
     #
-    # ЗНАМЕНАТЕЛЬ НАЗВАН В ИМЕНИ, а не только здесь. Считается вложение в
-    # ЛЮБУЮ неартефактную рамку — то есть текст и служебное вместе. Строгое
-    # прочтение (разряд «текст» с обеих сторон) считается рядом и печатается
-    # рядом же: на «Технологии огнеупоров» 1935 против 1879, разница 56.
-    # Здесь стояло «1850… разница 85» — оба числа взяты на глаз; потом
-    # строгое число печаталось В ЖУРНАЛ КОНСТАНТОЙ, и на `bench/slovar` строка
-    # обещала 1879 при собственных 233. Оба раза беда одна: величина, взятая
-    # не у той книги, которую меряют.
+    # THE DENOMINATOR IS NAMED IN THE NAME: nesting into ANY non-artifact box,
+    # text and furniture together. The strict reading (bucket "text" both sides)
+    # is printed beside it: 1935 against 1879, difference 56.
     dup_in_text = 0
-    # ВТОРОЕ ПРОЧТЕНИЕ ТОГО ЖЕ, И СЧИТАЕТСЯ ОНО ЗДЕСЬ, А НЕ ПОМНИТСЯ. В журнал
-    # печаталось «получишь 1879 на этой книге» — число «Технологии огнеупоров»,
-    # выданное за замер ЛЮБОЙ книги: на `bench/slovar` строка честно печатала
-    # 233 и тут же обещала 1879. Ровно та порода, против которой заведено
-    # правило «в журнал — величину, а не слово»: величина была, но чужая.
+    # COUNTED HERE RATHER THAN REMEMBERED: the strict number was once printed
+    # INTO THE LOG AS A CONSTANT, so on `bench/slovar` the line honestly printed
+    # 233 and promised 1879 in the same breath — a number from another book.
     dup_in_text_strict = 0
-    # ПОВТОР — НЕ ПРОСТО ВЛОЖЕНИЕ, и различать их обязательно. Вложение —
-    # факт о РАМКАХ модели; повтор — утверждение о ТЕКСТЕ, и оно требует
-    # сличения. Считаем оба и печатаем оба: 1935 вложенных против 1916
-    # повторов на «Технологии огнеупоров», то есть у девятнадцати блоков
-    # рамка вложена, а текст не сошёлся — и выбросить их из книги было бы
-    # потерей.
+    # A REPEAT IS NOT MERE NESTING: nesting is a fact about the model's BOXES, a
+    # repeat a claim about TEXT needing comparison. Both counted, both printed:
+    # 1935 nested against 1916 repeats — nineteen blocks nest by box while their
+    # text did not match, and dropping them would be a loss.
     repeat_count = differs = by_layout = 0
-    # ЧЕЙ ПОРЯДОК СОБРАН — главное свойство книги и до сих пор нигде не
-    # названное. `Block.order` у трёх адаптеров из четырёх не ранг модели, а
-    # наша сортировка сверху вниз и слева направо; адаптер честно говорит об
-    # этом в meta страницы полем «порядок чтения». Считаем страницы по этому
-    # полю, а не по одному значению на книгу: страницы приходят из одного
-    # прогона, но каталог собирается руками и может оказаться смешанным.
+    # WHOSE ORDER WAS ASSEMBLED — the book's chief property, named nowhere until
+    # now. On three adapters of four `Block.order` is our top-down left-to-right
+    # sort, not the model's rank, and the adapter says so in the page meta field
+    # "порядок чтения". Counted per page: a hand-assembled directory can be mixed.
     order_src_n = {}
     ink2 = sheet_pt_all = 0.0
     worst2 = (0.0, None)
@@ -963,10 +847,9 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
         repeats_page = repeats_on(page, _covered)
         sheet = float(page.width) * float(page.height)
         share = _union_share([b.box for b in arts], sheet)
-        # Чем плох лист — одним словом и одним правилом (`_sheet_trouble`).
-        # Отказов три, и путать их нельзя: «модель не увидела ничего»,
-        # «увидела одно на всё» и «увидела только служебное». Разбор и цена
-        # каждого — при самом правиле, второй копии здесь нет.
+        # One word, one rule (`_sheet_trouble`). Three failures, never confused:
+        # "saw nothing", "saw one thing covering everything", "saw only
+        # furniture". Reasoning and cost live at the rule; no second copy here.
         trouble = _sheet_trouble(page.blocks, arts)
         empty = trouble == "empty"
         blank = trouble == "no-text"
@@ -977,15 +860,13 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
             one = ((b.box[2] - b.box[0]) * (b.box[3] - b.box[1])) / sheet
             if one > biggest[0]:
                 biggest = (one, page.index)
-        # ПРАВИЛО 1: вложенная рамка подчиняется внешней, но не пропадает.
         nested_in = _nesting(arts)
         nested += len(nested_in)
-        # ПРАВИЛО 2: полоса, ушедшая в картинки целиком, помечена на листе.
-        # СКОЛЬКО СКРЫТО НА ЭТОМ ЛИСТЕ — ВИДИМОЙ ПОМЕТКОЙ. Прочие сокращения
-        # книги помечены глазу все (пустая вырезка, обрыв, пустой лист), а
-        # единственная, которая УБИРАЕТ ТЕКСТ, оказалась немой: 728 блоков
-        # исчезали без единого следа на странице.
-        hidden_here = sum(1 for v in repeats_page.values() if v[1] == "дословно")
+        # RULE 2: a column wholly gone into pictures is marked on the sheet, and
+        # so is HOW MUCH IS HIDDEN HERE. Every other shortening is visible
+        # (empty crop, truncation, empty sheet); the only one that REMOVES TEXT
+        # was mute — 728 blocks vanished without a trace.
+        hidden_here = sum(1 for v in repeats_page.values() if v[1] == "verbatim")
         body.append(
             f'<hr class="sheet" data-sheet="{page.index}" '
             f'data-image-share="{share:.2f}"'
@@ -993,12 +874,10 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
                if hidden_here and repeats_how == "hide" else "")
             + (f' data-{trouble}="yes"' if trouble else '') + '>')
         cuts = []
-        # ЧЕГО ЖДЁМ, И ПОЧЕМУ НЕ ВНУТРИ ЦИКЛА. Первая редакция копила
-        # ожидание тут же, при обходе, — и сторож стал тавтологичным:
-        # перевернёшь обход, перевернётся и ожидание. Проверено тремя
-        # порчами (reversed, сдвиг на один, потеря последнего) — НИ ОДНА не
-        # поймалась. Ожидание обязано выводиться из `page.blocks` само по
-        # себе, независимо от того, как их потом обходят.
+        # NOT INSIDE THE LOOP: building the expectation during the walk made the
+        # guard tautological — reverse the walk and the expectation reverses
+        # too. Three mutations (reversed, shift by one, drop the last) — NOT ONE
+        # was caught. It must follow from `page.blocks` on its own.
         expected.extend(anchor_of(page.index, b.block_id) for b in page.blocks)
         for b in page.blocks:
             a = anchor_of(page.index, b.block_id)
@@ -1007,9 +886,9 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
                       if o.block_id != b.block_id and _covered(b.box, o.box)]
             if role != "artifact" and inside:
                 dup_text += 1
-            # Та же мерка вложения, но по ТЕКСТОВЫМ рамкам: слова, уехавшие в
-            # книгу дважды, двумя <p>. Себя блок не накрывает; артефакты уже
-            # посчитаны строкой выше и второй раз сюда не попадают.
+            # The same nesting measure over TEXT boxes: words that reached the
+            # book twice, as two <p>. A block does not cover itself; artifacts
+            # were counted above.
             outside = [o for o in page.blocks
                        if o.block_id != b.block_id
                        and policy.role(o.label) != "artifact"
@@ -1019,30 +898,29 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
                 if role == "text" and any(policy.role(o.label) == "text"
                                            for o in outside):
                     dup_in_text_strict += 1
-            # Решение о повторе принято ДО цикла, для всей страницы разом:
-            # оно требует знать, какие блоки останутся, а внутри обхода это
-            # ещё неизвестно.
+            # Decided BEFORE the loop, for the whole page at once: it needs to
+            # know which blocks remain, unknown inside the walk.
             repeat = repeat_text = None
             if b.block_id in repeats_page:
                 owner_id, repeat_text = repeats_page[b.block_id]
                 repeat = (anchor_of(page.index, owner_id)
                           if owner_id is not None else "page")
-                repeat_count += repeat_text == "дословно"
-                differs += repeat_text == "расходится"
-                by_layout += repeat_text == "вёрстка"
+                repeat_count += repeat_text == "verbatim"
+                differs += repeat_text == "differs"
+                by_layout += repeat_text == "layout"
             counts[role] += 1
-            # ЧТО СКАЗАЛО ЧТЕНИЕ ПРО ЭТОТ БЛОК. Атрибут, а не правка текста:
-            # `content` едет байтами модели, наблюдённое — рядом.
+            # WHAT READING SAID: an attribute, not an edit — `content` travels
+            # as the model's bytes, the observed alongside.
             o = obs.get(a) or {}
             torn = torn_of(o)
             shape = torn_grid(o.get("otsl_grid"))
             mark = ' data-truncated="yes"' if torn else ""
             if repeat:
-                # ПРИ `show` ПОМЕТКА ОСТАЁТСЯ, А СОКРЫТИЯ НЕТ: наблюдённое
-                # никуда не девается, выключается только его последствие.
+                # UNDER `show` THE MARK STAYS AND THE HIDING DOES NOT: the
+                # observed remains, only its consequence is switched off.
                 kind = (repeat_text if repeats_how == "hide"
                        else ("показан по HTML_REPEATS=show"
-                             if repeat_text == "дословно" else repeat_text))
+                             if repeat_text == "verbatim" else repeat_text))
                 mark += (f' data-repeat="{repeat}"'
                          f' data-repeat-text="{kind}"')
             if shape:
@@ -1059,10 +937,10 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
                 rel = f"{ASSETS}/blocks/{a}.png"
                 info = crop.cut(doc, page.index, b.box, page_dpi,
                                 os.path.join(out_dir, rel))
-                # ВЫРЕЗКА ЛЕЖИТ ФАЙЛОМ ВСЕГДА, а в книгу едет либо ссылкой на
-                # неё, либо своими байтами. Второй экземпляр внутри книги
-                # первый не отменяет: файлы нужны правкам, замерам и второму
-                # уровню, книга — чтению по любому пути.
+                # A CROP IS ALWAYS A FILE, reaching the book as a link or as its
+                # own bytes; the second copy does not cancel the first. Files
+                # serve edits, measurements and the second level; the book
+                # serves reading from any path.
                 src = _img_src(os.path.join(out_dir, rel), rel, img_how)
                 cut_n += 1
                 clipped += bool(info["clipped_by_sheet"])
@@ -1078,29 +956,23 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
                     a, f'<p id="{a}" data-role="{role}" '
                        f'data-label="{b.label}"{mark}>'
                        f'{_html.escape(b.content)}</p>'))
-            # Наблюдённое — сбоку, по якорю. В текст не лезет ничего.
             side[a] = {"page": page.index, "block_id": b.block_id,
-                       # Что сказало ЧТЕНИЕ. `None` у всего разом означает
-                       # «`answers/` рядом нет», а не «прочитано без бед»:
-                       # каталог детекции без второго уровня их не имеет.
+                       # `None` across the board means "no `answers/`
+                       # alongside", not "read without trouble".
                        "reading": (o or None),
-                       # ТРИ ЗНАЧЕНИЯ, А НЕ ДВА. Здесь стояло `torn or None`,
-                       # и `null` означал разом «прочитано целым» (6073
-                       # блока) и «не спрашивали вовсе» (69 рисунков) — то
-                       # есть поле, заведённое ПРОТИВ слияния двух нулей, само
-                       # их сливало. Теперь `None` только там, где ответа не
-                       # было: рядом нет `answers/` либо блок не спрашивали.
+                       # THREE VALUES, NOT TWO. `torn or None` made `null` mean
+                       # both "read whole" (6073 blocks) and "never asked" (69
+                       # figures) — a field made AGAINST merging two zeros
+                       # merged them itself.
                        "hit_ceiling": torn,
                        "repeat_of": repeat,
                        "repeat_verdict": repeat_text,
                        "table_shape": shape,
                        "label": b.label, "score": b.score,
-                       # Поле звалось «ранг модели» и врало на трёх адаптерах
-                       # из четырёх: там это НАША позиция в списке. Ровно эта
-                       # болезнь — своё, названное чужим, — печатала метрике
-                       # порядка проценты из ничего (86% у YOLOX, который
-                       # ранга не даёт вовсе). Имя стало нейтральным, а рядом
-                       # лежит источник — то самое значение meta страницы.
+                       # The field was called "model rank" and lied on three
+                       # adapters of four, where it is OUR position in the list.
+                       # Ours named theirs printed the order metric percentages
+                       # out of nothing — 86% for YOLOX, which has no rank.
                        "order": b.order, "order_source": order_src,
                        "role": role,
                        "box": list(b.box), "crop": info or None,
@@ -1110,18 +982,15 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
                        "contains": [anchor_of(page.index, k)
                                     for k, v in nested_in.items()
                                     if v == b.block_id] or None}
-        # Считаем по рамкам, которые РЕАЛЬНО порезаны, и в пунктах листа, а
-        # не по `b.box`: у вырезки своё поле (`CROP_MARGIN`) и свой срез
-        # краем листа, и уезжает в книгу именно она.
-        # ЧЕГО ЭТО ЧИСЛО НЕ ВИДИТ, и это надо знать заранее: оно про вырезки,
-        # а не про чернила вообще. Сейчас режется всё подряд, потому что
-        # текста ещё никто не читает, и на `slovar` все 166 налезаний — текст
-        # на тексте (`reference` поверх `reference_content`, оба «текст» по
-        # политике). Когда появится чтение, такие блоки поедут строками,
-        # вырезок для них не будет и число упадёт до нуля — но слова
-        # останутся задвоенными, уже двумя <p>. Тот ноль будет от
-        # непонимания, и к нему понадобится своя величина, по всем блокам, а
-        # не по вырезкам.
+        # Counted over boxes ACTUALLY cut, in sheet points rather than `b.box`:
+        # a crop has its own margin (`CROP_MARGIN`) and its own clip by the sheet
+        # edge, and it is the crop that reaches the book.
+        # WHAT THIS NUMBER CANNOT SEE: crops, not ink in general. On `slovar`
+        # all 166 overlaps are text over text (`reference` over
+        # `reference_content`, both "text" by policy). Once reading exists such
+        # blocks travel as lines, no crops are cut and this falls to zero — while
+        # the words stay doubled, as two <p>. That zero will be a zero from not
+        # knowing, needing its own number over all blocks, not over crops.
         r = doc[page.index].rect
         sheet_pt = float(r.width) * float(r.height)
         twice = min(_twice_area(cuts), sheet_pt)
@@ -1131,37 +1000,27 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
             worst2 = (twice / sheet_pt, page.index)
     doc.close()
 
-    # ВТОРАЯ СВЕРКА, ПОСЛЕ РАБОТЫ. Первая (до вырезок) отвечает на вопрос
-    # «тот ли это файл, по которому считались рамки»; эта — на другой: «не
-    # подменили ли его, ПОКА мы резали». Замер, ради которого она здесь:
-    # копия каталога `slovar/detect`, подмена PDF через 1.5 с после старта —
-    # сборка доходила до конца без единой жалобы, 568 вырезок резались из
-    # двух разных файлов, слепок клялся хэшем первого, а `replay --check`
-    # печатал «41 из 41» и возвращал 0. То есть слепок объявлял прогон
-    # повторимым, будучи лживым, — ровно то, чего первая сверка не ловит по
-    # построению: она смотрит на файл до того, как его читали.
+    # THE SECOND CHECK, AFTER THE WORK. The first asks "is this the file the
+    # boxes were computed on"; this one, "was it swapped WHILE we cut". Measured
+    # on a copy of `slovar/detect`, PDF swapped 1.5 s in: the build ran to the
+    # end without a complaint, 568 crops came from two files, the snapshot swore
+    # by the first one's hash, `replay --check` printed "41 из 41" and returned
+    # 0 — a lying run declared repeatable, which the first check cannot catch by
+    # construction. Cost: one pass, `slovar.pdf` is 10.7 MB and hashes in
+    # 0.010 s against 6.1 s for the build.
     #
-    # Файл читается второй раз намеренно. Цена — один проход по PDF:
-    # `slovar.pdf` это 10.7 МБ, и хеш считается 0.010 с против 6.1 с всей
-    # сборки. (Здесь стояло «34 МБ, 0.06 с против 12 с»: 34 МБ — это ВЕСЬ
-    # каталог `bench/slovar`, а не книга, и остальные две величины тоже мимо.
-    # Вывод «ничтожно» от пересчёта только окреп.) Плата за отсутствие сверки —
-    # книга, про которую нельзя сказать, из чего она сделана.
-    #
-    # ЧЕГО ЭТА ПАРА СВЕРОК НЕ ЛОВИТ, и молчать об этом нельзя: подмену «туда и
-    # обратно». Замер: PDF подменён на залитый чёрным с 1.2-й по 3.2-ю секунду
-    # сборки (вся сборка 6.3 с) и возвращён до конца — сборка прошла с кодом 0,
-    # 476 вырезок из 568 отличаются от эталонных, 367 чисто чёрные, все три
-    # хеша в слепке совпали, и `books replay --check` напечатал «42 из 42».
-    # Обе сверки смотрят на КРАЯ работы, середина им не видна по построению.
-    # Закрыть это можно только хешированием по ходу нарезки — хеш страницы
-    # рядом с каждой вырезкой; пока не сделано.
+    # WHAT THE PAIR STILL MISSES: a there-and-back swap. The PDF replaced by an
+    # all-black one from second 1.2 to 3.2 of a 6.3 s build and restored before
+    # the end: exit code 0, 476 crops of 568 differ from the reference, 367 pure
+    # black, all three snapshot hashes matched, `books replay --check` printed
+    # "42 из 42". Both checks look at the EDGES; the middle is invisible to
+    # them. Only a page hash beside every crop closes it; not done.
     try:
         after = _detect._sha256(pdf)
     except OSError as e:
-        # Файл читается ВТОРОЙ раз, и за время сборки он мог исчезнуть. Первая
-        # сверка на ту же беду отвечает SystemExit с текстом; здесь была бы
-        # трассировка, то есть одна и та же беда говорила бы по-разному.
+        # A SECOND read, and the file may have vanished meanwhile. The first
+        # check answers the same trouble with SystemExit and text; a traceback
+        # here would make one trouble speak in two voices.
         raise SystemExit(
             f"{pdf} пропал во время сборки: {type(e).__name__}: {e}. "
             f"Книга не записана.") from None
@@ -1179,18 +1038,13 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
                  f"<title>{_html.escape(os.path.basename(pdf))}</title>"
                  f"<style>{CSS}</style>{math_head}</head>\n<body>\n"
                  + "\n".join(body) + "\n</body></html>\n")
-    # ПОРЯДОК КНИГИ СВЕРЯЕТСЯ, А НЕ ПОДРАЗУМЕВАЕТСЯ.
-    #
-    # Сборщик обходит `page.blocks` как есть, и книга наследует их порядок —
-    # тот, что дала модель рангом либо наше правило `order.py`. Проверялось
-    # это НИЧЕМ: скептик перевернул обход одной строкой (`reversed`), и полная
-    # батарея осталась зелёной — 201 проверка, 0 провалов. Книга читалась бы
-    # задом наперёд, а все три прибора мерят СТРАНИЦЫ детекции, а не
-    # собранный документ, и потому молчат по построению.
-    #
-    # Сверка стоит одного прохода по строке и ловит любую перестановку, не
-    # только переворот. В отказе — МЕСТО расхождения: «книга собралась не в
-    # том порядке» без места чинить нечем.
+    # THE BOOK'S ORDER IS CHECKED, NOT ASSUMED. The builder walks `page.blocks`
+    # as they are and the book inherits their order — the model's rank or our
+    # `order.py`. NOTHING checked that: a sceptic reversed the walk with one word
+    # (`reversed`) and the full battery stayed green, 201 checks, 0 failures,
+    # because all three instruments measure detect PAGES, not the assembled
+    # document. One pass over the string catches any permutation, and the failure
+    # names the PLACE of divergence: without it there is nothing to fix.
     got = swap.anchors(page_html)
     if got != expected:
         where = next((i for i, (a, b) in enumerate(zip(got, expected)) if a != b),
@@ -1204,12 +1058,11 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
             f"— это порядок чтения; перепутав его, документ остаётся "
             f"исправным на вид и нечитаемым по существу.")
 
-    # ОСТАТКИ СТАРОЙ РАСКЛАДКИ — ВСЛУХ, А НЕ МОЛЧА. Пересборка в каталог,
-    # собранный до переезда кухни, кладёт `assets/` РЯДОМ со старыми
-    # `blocks/`, `blocks.json`, `run.json`. Обещание «в корне один файл»
-    # тихо перестаёт быть правдой, а у книги появляются два `blocks.json`,
-    # и разные читатели берут разные. Сами не убираем: это чужие файлы с
-    # чужой работой, и стереть их может только человек.
+    # LEFTOVERS OF THE OLD LAYOUT — ALOUD, NOT SILENTLY. Rebuilding into a
+    # directory made before the kitchen moved puts `assets/` BESIDE the old
+    # `blocks/`, `blocks.json`, `run.json`: "one file in the root" quietly stops
+    # being true, the book gains two `blocks.json`, and readers take different
+    # ones. We do not remove them — someone else's work, only a human may erase.
     leftovers = [n for n in ("blocks", "blocks.json", "run.json", "tex-svg.js")
                if os.path.exists(os.path.join(out_dir, n))]
     if leftovers:
@@ -1219,8 +1072,8 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
             f"журнал замен `swaps.json` в корне при этом ЧИТАЕТСЯ и трогать "
             f"его нельзя.")
 
-    # Источник — ПОСЛЕ того, как книга сложилась без отказов: копировать
-    # 22 МБ ради сборки, которая сейчас упадёт, незачем.
+    # The source goes AFTER the book assembled without a refusal: no point
+    # copying 22 MB for a build that is about to fail.
     _keep_source(detect_dir, out_dir, log)
     out_html = os.path.join(out_dir, "book.html")
     with open(out_html, "w", encoding="utf-8") as f:
@@ -1229,10 +1082,10 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
               encoding="utf-8") as f:
         json.dump(side, f, ensure_ascii=False, indent=1)
 
-    # Свой слепок, а не «наследуем детекцию». У сборки есть собственные
-    # ручки (`CROP_DPI`, `CROP_MARGIN`) и собственная политика, и без них
-    # нельзя ответить, какой резкостью вырезаны эти картинки. Планка одна:
-    # `books replay --check` обязан вернуть 0 и здесь.
+    # Its own snapshot, not "inherit detection": the build has its own knobs
+    # (`CROP_DPI`, `CROP_MARGIN`) and policy, without which nothing says at what
+    # sharpness these pictures were cut. `books replay --check` must return 0
+    # here too.
     here = os.path.dirname(os.path.abspath(__file__))
     snap_out = {
         "when": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
@@ -1240,30 +1093,24 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
         "raster": dict(snap["raster"]),
         "args": {"detect": detect_dir, "out": out_dir},
         "commit": _detect._commit(),
-        # sha256 ПЕРЕСЧИТАН, а не переписан из слепка детекции. Прежняя
-        # редакция копировала чужое значение: PDF по тому же пути можно
-        # пересобрать (другой разрез разворотов, другая версия pymupdf, просто
-        # другая книга с тем же именем) — вырезки резались бы из нового файла,
-        # слепок клялся бы старым, а `replay --check` печатал бы «полон» и
-        # возвращал 0. Слепок объявлял бы прогон повторимым, будучи лживым.
-        # Число то же самое, что сверено ДО первой вырезки, и файл читается
-        # один раз вместо трёх: прежде sha256 считался дважды подряд здесь и
-        # один раз для сверки.
+        # sha256 RECOMPUTED, not copied from the detect snapshot: a PDF at the
+        # same path can be rebuilt (another spread cut, another pymupdf, another
+        # book of the same name), crops would come from the new file, the
+        # snapshot would swear by the old, and `replay --check` would print
+        # "full" and return 0 — a lying run declared repeatable. Same number as
+        # checked BEFORE the first crop; the file is read once, not thrice.
         "source": {**snap["source"], "sha256": now,
                      "sha256_per_detect_snapshot": said,
-                     # Обе величины, а не одна: «совпало до и после» — это
-                     # утверждение о ЦЕЛОМ прогоне, а одно число до работы
-                     # утверждает лишь про её начало.
+                     # Both, not one: "equal before and after" claims about the
+                     # WHOLE run; one number before the work, only its start.
                      "sha256_after_build": after},
-        # Что решает вид этой сборки: три модуля и слепок детекции целиком.
         "adapter": {
             "name": "doc.html",
-            # ИМЯ МОДУЛЯ — то, по чему `books replay --check` находит
-            # писателя этого слепка и сверяет отпечаток с сегодняшним кодом.
-            # Без него проверка на выходе сборки печатала «отпечаток не
-            # сверен вовсе», а `--selfcheck` возвращал 1: шаг, делающий саму
-            # книгу, слепком не проверялся ни разу, хотя все остальные
-            # проверялись. Ключ тот же, что кладёт `detect.py`.
+            # THE MODULE NAME is how `books replay --check` finds this
+            # snapshot's writer and matches its fingerprint against today's
+            # code. Without it the check printed "fingerprint never verified"
+            # and `--selfcheck` returned 1: the step that makes the book was
+            # the only one never verified. Same key `detect.py` writes.
             "module": "booksmith.doc.html",
             "sha256": _detect._sha256(os.path.join(here, "html.py")),
             "sha256_crop_code": _detect._sha256(os.path.join(here, "crop.py")),
@@ -1272,7 +1119,7 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
                 os.path.join(detect_dir, "run.json"))},
         "policy": policy.snapshot(),
         "crop": crop.params(page_dpi),
-        # У сборки нет ни промтов, ни порождения, ни весов — это ЗНАЧЕНИЯ.
+        # The build has no prompts, no generation, no weights — these are VALUES.
         "prompts": {},
         "generation": {"temperature": None, "max_tokens": None,
                        "top_p": None, "seed": None},
@@ -1288,13 +1135,6 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
                      if worst2[1] is not None else None),
                  "text_inside_artifact_boxes": dup_text,
                  "text_inside_non_artifact_box": dup_in_text,
-                 # ВЛОЖЕНИЕ И ПОВТОР — РАЗНЫЕ ВЕЛИЧИНЫ. Первое про рамки
-                 # модели, второе про текст и требует сличения. На
-                 # «Технологии огнеупоров» 1935 против 1916: у девятнадцати
-                 # блоков рамка вложена, а текст не сошёлся.
-                 # ОДНА ВЕЛИЧИНА — ОДНО ИМЯ. Здесь стояли два имени на каждое
-                 # число, и второе («повтор текста ХОЗЯИНА») называло ровно то,
-                 # чего правило не проверяет.
                  "repeats_proven": repeat_count,
                  "repeats_mode": repeats_how,
                  "nested_but_text_differs": differs,
@@ -1302,14 +1142,13 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
                  "comparison_normalization": booktext.norm_note("latex"),
                  "text_inside_text_box_strict":
                      dup_in_text_strict,
-                 # Наблюдённое чтения — величиной, а не только атрибутом.
-                 # `null` (а не 0) значит «`answers/` рядом нет, сказать
-                 # нечем»: ноль от непонимания обязан отличаться от нуля от
-                 # проверки и в слепке, а не только в журнале.
+                 # A number, not only an attribute. `null` (not 0) means "no
+                 # `answers/` alongside, nothing to say": the two zeros must
+                 # differ in the snapshot too, not only in the log.
                  "reading_observed": bool(obs) or None,
                  "hit_ceiling": torn_n if obs else None,
-                 # Урезание ОБЪЯВЛЕНО, а не молчаливо: список из двадцати
-                 # при двадцати одной беде читался бы как полный.
+                 # Truncation is DECLARED, not silent: a list of twenty for
+                 # twenty-one troubles would read as complete.
                  "truncated_anchors": (
                      (torn_a[:20] + (["…и ещё %d" % (torn_n - 20)]
                                      if torn_n > 20 else []))
@@ -1332,22 +1171,18 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
               encoding="utf-8") as f:
         json.dump(snap_out, f, ensure_ascii=False, indent=1)
 
-    # Число, а не «готово»: по разрядам видно, во что превратилась книга.
     log(f"страниц {len(files)}, блоков {sum(counts.values())} "
         f"(текст {counts['text']}, артефакты {counts['artifact']}, "
         f"служебное {counts['furniture']})")
-    # Резкость вырезки печатается ТА, ЧТО ПРИМЕНЕНА. Прежде здесь стояло
-    # `crop.params()` без аргумента, то есть пустой `CROP_DPI` раскрывался в
-    # `PAGE_DPI` текущего процесса. Замер: детекция `bench/atlas` при
-    # `PAGE_DPI=150`, сборка при умолчании — строка утверждала «вырезок 26 при
-    # 144 dpi», хотя координаты пересчитывались из 150; теперь 150, и рядом
-    # сказано, откуда число взято.
+    # THE SHARPNESS APPLIED, not the default. `crop.params()` with no argument
+    # let an empty `CROP_DPI` expand to the process's `PAGE_DPI`: `bench/atlas`
+    # detected at `PAGE_DPI=150` and built at the default claimed "26 crops at
+    # 144 dpi" while coordinates were rescaled from 150.
     _cp = crop.params(page_dpi)
     log(f"вырезок {cut_n} при {_cp['dpi']:.0f} dpi ({_cp['dpi_source']}), "
         f"поле {_cp['margin']}, срезано листом {clipped}")
-    # Ноль от проверки и ноль от непонимания: «0.00%» здесь значит «сверили
-    # все вырезки, пересечений нет», а нулевой знаменатель — «сверять нечем»,
-    # и так и написано.
+    # "0.00%" means "all crops compared, no intersections"; a zero denominator
+    # means "nothing to compare with", and it says so.
     if sheet_pt_all > 0:
         log(f"чернил дважды {ink2 / sheet_pt_all * 100:.2f}% площади листов"
             + (f", худший лист стр. {worst2[1]}: {worst2[0] * 100:.0f}%"
@@ -1359,8 +1194,6 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
         f"(они в HTML ЕСТЬ, но их чернила уехали ещё и в картинку "
         f"артефакта), вложенных артефактов {nested} (подчинены внешней и "
         f"помечены data-inside; ни один не выброшен)")
-    # ВТОРАЯ ПОЛОВИНА, и она больше первой. Печатается рядом нарочно: два
-    # числа об одной беде, разнесённые по журналу, сравнить некому.
     log(f"текстовых блоков внутри НЕАРТЕФАКТНОЙ рамки {dup_in_text} — те же "
         f"слова уехали в книгу дважды, двумя <p>; вырезок для них нет, и "
         f"счётчик двойных чернил их не видит по построению. Знаменатель в "
@@ -1370,19 +1203,14 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
            if dup_in_text == dup_in_text_strict else
            f", разница {dup_in_text - dup_in_text_strict} приходится на "
            f"служебные рамки"))
-    # ВЛОЖЕНИЕ И ПОВТОР — РАЗНЫЕ УТВЕРЖДЕНИЯ, и печатаются они порознь.
-    # Первое — факт о рамках модели, второе — о тексте, и второе требует
-    # сличения. Здесь стояли ДВЕ строки об одном и том же, и первая несла
-    # числа тавтологичного замера («1916 из 1935, фон 1.9..6.7 %»).
-    #
-    # ПРЯТАТЬ ДОКАЗАННОЕ МОЖНО, НЕДОКАЗАННОЕ — НЕЛЬЗЯ, и число каждого
-    # печатается отдельно: иначе «спрятали 1935» звучало бы одинаково и там,
-    # где сличение сошлось, и там, где нет.
+    # HIDING THE PROVEN IS ALLOWED, THE UNPROVEN IS NOT, so each count is
+    # printed apart: "1935 hidden" would sound the same where the comparison
+    # matched and where it did not.
     if repeat_count + differs + by_layout == 0:
-        # НОЛЬ ОТ НЕПОНИМАНИЯ, НАЗВАННЫЙ ВСЛУХ. На каталоге детекции без
-        # чтения (`bench/slovar`) вложенных рамок 233, а содержимого нет ни у
-        # одной — сличать нечем. Прежде строка печатала «доказано 0,
-        # разошлось 0», и это читалось как «повторов не найдено».
+        # A ZERO FROM NOT KNOWING, SAID ALOUD. On a detect directory without
+        # reading (`bench/slovar`) there are 233 nested boxes and content in
+        # none — nothing to compare — where "proven 0, differs 0" read as "no
+        # repeats found".
         log(f"повторы: СЛИЧАТЬ НЕЧЕМ — вложенных рамок {dup_in_text}, "
             f"а содержимого нет ни у одной. Это не «повторов не найдено»")
     else:
@@ -1396,8 +1224,6 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
             f"свёрстанное значило бы ухудшить вид. Сличается НЕ с хозяином, а "
             f"с блоками, которые ОСТАЮТСЯ; ступень «латех» — см. "
             f"text.NORM_STEPS")
-    # ЧТО СКАЗАЛО ЧТЕНИЕ. Два разных нуля названы по именам: «читали и бед не
-    # нашли» и «читали ли вообще — сказать нечем».
     if obs:
         log(f"наблюдённое чтения: {len(obs)} ответов рядом; оборвано потолком "
             f"{torn_n}, форма таблицы невозможна {shape_n}"
@@ -1420,10 +1246,9 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
         f"(вся полоса ушла в картинки), наибольшая доля листа в одной "
         f"рамке {biggest[0]*100:.0f}%"
         + (f" на стр. {biggest[1]}" if biggest[1] is not None else ""))
-    # ЧЕЙ ПОРЯДОК — величиной. Без этой строки книга собиралась молча, и
-    # «текст идёт в порядке чтения, который дала модель» (шапка файла) было
-    # утверждением, которое никто не проверял: у yolox и обоих docling порядок
-    # НАШ, и на глаз это неотличимо.
+    # WHOSE ORDER — as a number. Without it the header's "in the model's reading
+    # order" was a claim nobody checked: with yolox and both docling the order
+    # is OURS, and the eye cannot tell.
     ours = sum(n for v, n in order_src_n.items() if _ours(v))
     if len(order_src_n) == 1:
         v, n = next(iter(order_src_n.items()))
@@ -1440,15 +1265,11 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
             + f"; наш, а не модели, на {ours} стр. из {len(files)}")
     log(f"якорей в документе {len(swap.anchors(page_html))}, "
         f"наблюдений сбоку {len(side)}")
-    # Величина, а не молчание: книга с неотрисованными формулами выглядит
-    # исправной ровно до того мига, как её откроют.
     log(f"формулы: {math_note}")
     log(f"{out_html} ({os.path.getsize(out_html)/1024:.0f} КБ), "
         f"вырезки в {blockdir}")
     return {"page_count": len(files), "by_bucket": counts, "crop_count": cut_n,
             "clipped_by_sheet": clipped, "html": out_html,
-            # Чей порядок — величина того же ранга, что число вырезок: без неё
-            # вызывающий не может сказать, что именно он собрал.
             "block_order": {
                 "by_page_meta": dict(sorted(order_src_n.items())),
                 "pages_with_our_order": ours},

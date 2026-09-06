@@ -747,12 +747,6 @@ def route_check_forgives(self, label):
     return None
 
 
-def kind_sniffed_from_the_answer(text, *a, **kw):
-    """Вид берётся из ОТВЕТА, а не из промта — запрещённая починка модели."""
-    from booksmith.read import run as vrun
-    return vrun._sniff(text or "")
-
-
 def grid_only_from_html(s, kind=None):
     """Возврат дефекта: таблица разбирается только из HTML, OTSL слепнет."""
     from booksmith import text as _t
@@ -1233,28 +1227,9 @@ def wrap_fragment_marks_everything_torn(anchor, fragment, kind, source,
     return _real_wrap(anchor, fragment, kind, source, role=role, torn=True)
 
 
-def spans_placed_equals_declared(cells_and_tally):
-    """«Сколько объявлено, столько и встало» — величина без наблюдения.
-
-    Расхождение между объявленным и поставленным и есть потеря перевода;
-    приравняв их, счётчик перестаёт мочь её показать.
-    """
-    return cells_and_tally
-
-
 def shape_of_a_placed_block_is_never_asked(g):
     """Форма поставленного куска не судится вовсе."""
     return None
-
-
-def rewrap_is_counted_as_new_work(previous, entry):
-    """«Переобёрнуто» сверяется с ПЕРВОЙ ступенью стопки, а не с последней.
-
-    После двух замен подряд первая ступень чужая, и настоящая переобёртка
-    считается новой работой.
-    """
-    return bool(previous) and previous[0].get("sha256_model_answer") == \
-        entry.get("sha256_model_answer")
 
 
 def repeats_compare_the_block_with_itself(page, covered):
@@ -1838,8 +1813,15 @@ def _baseline_of_deleted_prose():
     """
     import tempfile
     base = json.loads(open(cyrmod.BASELINE, encoding="utf-8").read())
+    now = cyrmod.count()
     for area in ("src.comments", "src.docstrings"):
         base[area] = base.get(area, 0) + 20000
+        # AND the Latin side is pinned to what the tree holds right now.
+        # Without that the mutation is toothless: while a real translation is
+        # under way the Latin count rises on its own, covers the invented
+        # loss, and the check stays honestly quiet. Caught by this very
+        # battery, mid-translation.
+        base[area + ".latin"] = now.get(area + ".latin", 0)
     fd, path = tempfile.mkstemp(suffix=".json")
     with os.fdopen(fd, "w", encoding="utf-8") as f:
         json.dump(base, f, ensure_ascii=False)

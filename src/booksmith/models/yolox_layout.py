@@ -34,7 +34,6 @@ YOLOX — свёрточный детектор без якорей, с плот
 под чужим (paddle) порогом, применённым к модели, у которой своего нет.
 """
 import hashlib
-import json
 import os
 
 from .base import Block, Page, Recognizer

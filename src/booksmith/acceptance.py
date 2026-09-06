@@ -144,7 +144,40 @@ def differs(name):
                                               lineterm="", n=1)]
 
 
+NUMBER = re.compile(r"-?\d+(?:\.\d+)?")
+
+
+def numbers_moved(name):
+    """Numbers in the report that are not in the snapshot, and the reverse.
+
+    THE INSTRUMENT THE TRANSLATION NEEDS. Once the report TEXT is being
+    translated, `differs` fires on every line and the only honest question
+    left is whether any MEASUREMENT moved. Compared as multisets, because
+    renaming a bucket reorders an alphabetical list without changing a value:
+    that reordering alone made a first attempt at this check report 1936
+    differences where there were none.
+    """
+    import collections
+    want = collections.Counter(NUMBER.findall(
+        open(path(name), encoding="utf-8").read()))
+    got = collections.Counter(NUMBER.findall(run(name)))
+    return sorted((want - got).items()), sorted((got - want).items())
+
+
 def main(argv):
+    if "--numbers" in argv:
+        rc = 0
+        for name in COMMANDS:
+            if missing(name) or not os.path.isfile(path(name)):
+                print(f"  SKIPPED {name}")
+                continue
+            gone, came = numbers_moved(name)
+            if gone or came:
+                rc = 1
+                print(f"  MOVED   {name}: lost {gone[:6]}, gained {came[:6]}")
+            else:
+                print(f"  same numbers  {name}")
+        return rc
     if "--save" in argv:
         done, skipped = save()
         for name, n in done:

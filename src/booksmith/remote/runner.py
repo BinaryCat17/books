@@ -370,7 +370,6 @@ def _min_link_mbps() -> float:
     return float(knobs.knob("MIN_LINK_MBPS"))
 
 
-MIN_LINK_MBPS = _min_link_mbps()
 
 # Скорость машины «из мира» пока НЕ отбраковывает, а только пишется в
 # журнал.  Первая версия зонда мерила один поток и дала обратную

@@ -19,8 +19,8 @@ def env(name: str, default: str | None = None) -> str | None:
         return os.environ[name]
     # Один путь, а не два. Запасной `tools/.env` держал в живых расхождение
     # трёх мест: образец учил класть в `tools/.env`, шапка этого файла
-    # говорила «в корне», сообщение `require()` печатало третье. Пока
-    # запасной путь работал, расхождение никого не било и потому не чинилось.
+    # говорила «в корне», а третье место называло свой. Пока запасной путь
+    # работал, расхождение никого не било и потому не чинилось.
     for path in (ENV_FILE,):
         if os.path.exists(path):
             for line in open(path):
@@ -28,22 +28,6 @@ def env(name: str, default: str | None = None) -> str | None:
                 if line.startswith(name + "="):
                     return line.split("=", 1)[1].strip()
     return default
-
-
-def require(*names: str) -> dict[str, str]:
-    got, missing = {}, []
-    for n in names:
-        v = env(n)
-        (got.setdefault(n, v) if v else missing.append(n))
-    if missing:
-        raise SystemExit(
-            f"не хватает: {', '.join(missing)}.\n"
-            f"Впиши их сам, в своём терминале, чтобы они не попали в переписку:\n"
-            f"    umask 077\n"
-            + "".join(f"    echo '{n}=...' >> {ENV_FILE}\n" for n in missing))
-    return got
-
-
 def ssh_key(path: str | None = None) -> str | None:
     p = path or DEFAULT_SSH_KEY
     return p if os.path.exists(p) else None

@@ -1,101 +1,57 @@
-"""Метрика чтения: сверка прочитанного текста с известным текстом.
+"""Reading metric: what the model read, against text that is known.
 
-Прежние числа качества чтения мерились против вывода Mistral OCR — то есть
-против другой модели, а не против известного текста, — и потому недействительны
-все до одного (шапка `docs/ocr-notes.md`). Этот файл существует, чтобы такого
-больше не вышло: он сверяет ответ модели с ИСТИНОЙ и умеет провалиться.
+The old reading figures were measured against Mistral OCR output -- another
+model, not known text -- and are void to the last one (`docs/ocr-notes.md`).
+This file compares an answer against TRUTH and can fail. It measures
+CHARACTERS and CELL ADDRESSES; boxes are `metrics.py`, delivery to the second
+level is `fitness.py`, and one combined number would only trade one defect for
+another.
 
-ЧТО ОН МЕРЯЕТ И ЧЕГО НЕ МЕРЯЕТ. Он меряет ЗНАКИ и АДРЕСА ЯЧЕЕК. Он не меряет
-ни рамки (это `metrics.py`), ни доезжаемость смысла до второго уровня (это
-`fitness.py`). Разделение не стилистическое: одно сводное число лечится
-подгонкой одной беды за счёт другой и потому ничего не говорит.
+FOUR ZEROS THAT MUST NOT BE CONFUSED -- half the code below is for them.
 
-ЧЕТЫРЕ РАЗНЫХ НУЛЯ, И ИХ НЕЛЬЗЯ ПУТАТЬ — ради них половина кода ниже.
+  * AN ARTIFACT: silence is the right answer.
+  * THE MODEL WAS SILENT: its cheapest defect, since silence earns CER 0 over
+    the answered subset. Counted wholly wrong in the book CER; CER over
+    answered is a separate line.
+  * TRUTH NOT ANNOTATED: out of the denominator, own line.
+  * NOT PAIRED: unknowable, counted at the full length of truth.
 
-  * `content` пуст, ПОТОМУ ЧТО АРТЕФАКТ. Истина говорит «здесь текста нет,
-    здесь картинка». Молчание модели тут — правильный ответ, а не пропуск.
-  * `content` пуст, ПОТОМУ ЧТО МОДЕЛЬ НЕ ОТВЕТИЛА. Это беда, и самая дешёвая
-    для модели: не ответив, она получает CER 0 на отвеченном подмножестве.
-    Поэтому книжный CER считает неотвеченный блок ПОЛНОСТЬЮ неверным, а CER
-    «на отвеченных» печатается ОТДЕЛЬНОЙ строкой рядом.
-  * `content` пуст В ИСТИНЕ на текстовом блоке — истина не размечена. Сверять
-    нечем; такой блок в знаменатель не идёт и печатается своей строкой. Это
-    ноль от проверки, а не ноль чтения.
-  * блок не сопоставлен ВОВСЕ. Пары нет, и знать, что модель ответила, нельзя.
-    Печатается числом и входит в книжный CER полной длиной истины.
+PAIRING, three stages in falling trust: anchor verified by box -> ids agreeing
+wholesale, box-verified too -> geometry (`_match`, `_anchor_num`). The report
+names each: 100% by anchor and 100% by geometry are worth different things.
+There is NO fallback -- a rejected anchor consumes the answer block, since
+pairing a block whose anchor points elsewhere passes off a foreign answer as
+this one's (flawless boxes, anchors swapped: share 0.0, by anchor 0, by number
+0, by geometry 0, anchor off box 2). Anchors lie, and so does geometry: two
+columns side by side walk a pair to the neighbour. So THE SHARE PAIRED AND THE
+STAGE THAT PAIRED IT ARE ALWAYS PRINTED -- CER 0.02 over two blocks of forty
+otherwise reads as "the model reads well". The gate is `metrics.matches`
+unchanged (two-way coverage 0.75, 6 px), so "box found" and "block paired"
+cannot drift apart.
 
-ПО ЧЕМУ СВОДЯТСЯ БЛОКИ. Ступеней ТРИ, и они по убыванию доверия: якорь,
-СВЕРЕННЫЙ рамкой -> поголовно совпавший номер, тоже сверенный рамкой ->
-геометрия. Каждая называется в отчёте своим именем: «100% по якорю» и «100%
-по геометрии» — числа разной цены.
+THE NORMALISATION BOUNDARY IS DECLARED AND TRAVELS INTO THE RESULT, refusals
+and all (`NORM_REFUSED`, printed above every report). Six books, 32 634 cells
+(`docs/lessons-from-deleted-code.md`): NFKC and spaces remove 127 mismatches at
+harm 0, case 90 at 0, dash/hyphen/minus 376 at 0, decimal comma 42 at 0,
+trailing punctuation 147 at 0. Past that it harms: leading punctuation 139 at
+harm 4, all punctuation 504 at harm 108, Cyrillic/Latin lookalikes 14 finds of
+29 with the step against 16 of 29 without it (lifts 2.70 and 3.06), and here a
+lookalike IS the recognition error. Hyphenation is not joined either: it is a rule of the MODEL's output, and joining while comparing
+would clear a model that glued where it must not.
 
-Здесь стояло «по якорю, если он есть; иначе по геометрии», и это неверно
-дважды. Ступеней три, а не две — средняя описана ниже в этой же шапке. И
-отката «иначе по геометрии» НЕТ: отвергнутый якорь съедает блок ответа, к
-геометрии он не возвращается. Замер — рамки ответа безупречны, якоря
-переставлены местами: доля 0.0, по якорю 0, по номеру 0, по геометрии 0, а
-«якорь мимо рамки» 2. Так и задумано: свести блок, чей якорь указывает не
-туда, значит выдать чужой ответ за здешний.
+A ROW SHIFT IN A TABLE is the leading invisible damage, so cells are compared
+BY ADDRESS: the bag of cells is identical before and after a shift (equal as a
+Counter) while the share matched by address falls 0.89 -> 0.33, 8 of 9 against
+3 of 9.
 
-Якорь — номер блока истины, который модель несёт при себе (`meta["якорь"]`,
-`anchor`, `truth_block_id` — на блоке или в его `meta`). Второй уровень читает
-ВЫРЕЗКУ конкретного блока, поэтому якорь у него есть по построению — но НА
-ВЕРУ ОН НЕ ПРИНИМАЕТСЯ. Здесь стояло «единственный способ сопоставления,
-который не врёт», и это прямо противоречило `_match`: там ступень якоря
-сверяет и номер страницы, и рамку, ровно потому, что объявленный якорь врать
-умеет. Замер на `bench/slovar`: из 568 якорей в цель попадает 101 (18%).
-
-Геометрия врать умеет: две колонки текста рядом, рамки почти одинаковые, и
-пара уезжает к соседу — CER тогда меряет не чтение, а сопоставление. Поэтому
-ДОЛЯ СОПОСТАВЛЕННЫХ И СПОСОБ, КАКИМ ОНИ СВЕДЕНЫ, ПЕЧАТАЮТСЯ ВСЕГДА: без них
-CER 0.02 по двум блокам из сорока читается как «модель читает отлично».
-
-Затвор совпадения по геометрии берётся ГОТОВЫЙ — `metrics.matches`
-(двустороннее покрытие 0.75 с допуском 6 пикселей по краю). Свой порог здесь
-означал бы, что «нашлась рамка» в отчёте контуров и «сведён блок» в отчёте
-чтения — про разное, а объяснять эту разницу будет некому.
-
-СРЕДНЯЯ СТУПЕНЬ — НОМЕР БЛОКА, СВЕРЕННЫЙ ГЕОМЕТРИЕЙ. Когда ответ собран по
-той же разметке (а так и будет: второй уровень заполняет `content` в тех же
-блоках), `block_id` совпадает с обеих сторон. Верить ему на слово нельзя —
-номера могли совпасть случайно, — поэтому маршрут включается, только если
-номера совпали ПОГОЛОВНО и каждая пара при этом проходит геометрический
-затвор. Проверенный номер, а не вера в номер.
-
-ГРАНИЦА НОРМАЛИЗАЦИИ ОБЪЯВЛЕНА И УЕЗЖАЕТ В ОТВЕТ. Замер из
-`docs/lessons-from-deleted-code.md` на шести книгах, 32 634 ячейки: NFKC и
-пробелы снимают 127 расхождений при вреде 0, регистр 90 при 0, тире/дефис/
-минус 376 при 0, десятичная запятая 42 при 0, хвостовая пунктуация 147 при 0.
-ДАЛЬШЕ ГРАНИЦА: головная пунктуация снимает 139, но вредит 4 раза (`.850`
-== `850`), вся пунктуация — 504 при вреде 108 (`6—2` == `6,2`). Двойники
-кириллица/латиница отвергнуты замером: со ступенью 14 находок из 29 (лифт
-2.70), без неё 16 из 29 (лифт 3.06) — подмена двойника В ЭТОМ корпусе есть
-сама ошибка распознавания, а не разнопись.
-
-ПЕРЕНОСЫ МЕТРИКА НЕ СКЛЕИВАЕТ. Склейка переносов — правило вывода МОДЕЛИ, и
-если её делать при сличении, то модель, склеившая там, где склеивать было
-нельзя, получит те же числа, что и правильная. Батарея это и проверяет пробой
-«склеены переносы».
-
-СДВИГ СТРОКИ В ТАБЛИЦЕ. CLAUDE.md называет его ведущим видом незаметной порчи,
-и «≠» его не видит по построению. Здесь он виден по построению: ячейки
-сверяются ПО АДРЕСУ (строка, столбец), а не мешком. Замер на примере ниже:
-мешок ячеек до и после сдвига ОДИН И ТОТ ЖЕ (совпадает как Counter), а доля
-совпавших по адресу падает 0.89 -> 0.33, ячеек 8 из 9 против 3 из 9.
-
-ЧЕМ ЭТО ПРОВЕРЕНО, ПОКА ИСТИНЫ ТЕКСТА НЕТ. Истину текста пишут отдельно; здесь
-она ещё не появилась, и потому замеры сделаны на крошечном рукописном примере
-(две страницы, четыре текстовых блока, таблица 3x3, рисунок-приманка,
-неразмеченный колонтитул) во временном каталоге, в стенд он не положен:
-
-  * батарея — НЕ ПОЙМАННЫХ ПОРЧ 0 (числа проб у прозы не спрашивай:
-    их печатает последняя строка самой батареи);
-  * батарея умеет и провалиться: если нормализации разрешить склеивать
-    переносы (запрещённая заплатка), она печатает «не пойманных порч: 2»;
-  * расстояние сверено с прямым DP на 700 случайных парах — расхождений 0;
-  * на настоящем `bench/slovar/truth` (13 страниц, 523 блока) метрика
-    печатает не «CER 0», а «текст НЕ РАЗМЕЧЕН... это не ноль чтения»: 520
-    блоков без истины, 3 артефакта-приманки, сопоставлено 523 из 523.
+`books text bench/slovar/truth bench/slovar/truth` compares truth with itself
+and prints three of the four zeros at once: 523 of 523 blocks paired by number,
+text 520 blocks and 56578 characters at CER 0.0000, tables 2 blocks and 227
+cells with NO ANSWER AT ALL (not "0% matched"), one bait silent, truth unmarked
+0. Identity is only a floor; that the numbers can move is said by the mutation
+battery, which can fail too -- let normalisation glue hyphens (the forbidden
+patch) and it reports 2 uncaught. Distance is checked against direct DP on 700
+random pairs, 0 discrepancies.
 """
 import copy
 import html as _html
@@ -112,10 +68,10 @@ class TextError(RuntimeError):
     pass
 
 
-# ------------------------------------------------------------ нормализация
+# --------------------------------------------------------- normalisation
 #
-# Уровень — ЗНАЧЕНИЕ, а не зашитое поведение: он уезжает в возвращаемый словарь,
-# иначе два замера разных дней несравнимы и об этом никто не узнает.
+# The level is a VALUE: it travels into the returned dict, or two measurements
+# from different days are incomparable in silence.
 NORM = "boundary"
 
 _DASHES = "‐‑‒–—―−­-"
@@ -127,80 +83,54 @@ NORM_STEPS = {
     "none": [],
     "boundary": ["NFKC и пробелы", "регистр", "тире/дефис/минус",
                 "десятичная запятая", "хвостовая пунктуация"],
-    # ШЕСТАЯ СТУПЕНЬ, И ЗАМЕР У НЕЁ СВОЙ. Всё, что выше, померено на ЯЧЕЙКАХ
-    # (32 634 на шести книгах) и к сличению формулы с прозой отношения не
-    # имеет: модель отдаёт встроенную математику в `\[...\]`, а тот же
-    # кусок внутри абзаца — в `$...$` либо простыми знаками («1728°C»).
-    # Сравнивать их «границей» бесполезно — совпадений 0 по построению.
+    # SIXTH STEP, MEASURED SEPARATELY. Everything above was measured on CELLS
+    # (32 634 over six books) and says nothing about matching a formula against
+    # prose: display maths arrives as `\[...\]`, the same fragment inside a
+    # paragraph as `$...$` or plain characters (`1728°C`), and at "boundary"
+    # they match 0 times by construction.
     #
-    # ЗАМЕР НА «ТЕХНОЛОГИИ ОГНЕУПОРОВ», 1935 блоков, вложенных рамкой в
-    # другой текстовый блок. Текст блока найден среди блоков, которые в книге
-    # ОСТАЮТСЯ, у 841 (43.5 %) при худшем фоне 98 (5.1 %); отношение 8.6.
-    # Прежняя редакция, снимавшая начертание ПРОБЕЛОМ, давала 414 (21.4 %)
-    # при фоне 42 (2.2 %) и отношении 9.9 — отношение выше, но доля ложных
-    # СРЕДИ СКРЫТЫХ почти та же (42/414 = 10.1 % против 98/841 = 11.7 %), а
-    # находок вдвое меньше. Выбрано по второму числу: прячем мы блоки, и
-    # цена ошибки считается от спрятанного, а не от всех кандидатов.
+    # "Технология огнеупоров", 1935 blocks nested by box inside a text block:
+    # the text is found among blocks that REMAIN in the book for 841 (43.5 %)
+    # at a worst background of 98 (5.1 %), ratio 8.6. Stripping typeface with a
+    # SPACE gave 414 (21.4 %) at background 42 (2.2 %), ratio 9.9 -- better
+    # ratio, near-equal share of false among the hidden (10.1 % against
+    # 11.7 %), half the finds. Chosen by the second number: we hide blocks, so
+    # the cost of error counts from what is hidden. (A block searched in prose
+    # that contains it self-matches at 99.0 %; excluding it, 35.1 %.)
     #
-    # ЗДЕСЬ СТОЯЛО 99.0 %, И ЭТО БЫЛО САМОСОВПАДЕНИЕ. Блок входил в ту самую
-    # прозу, в которой его искали, — то есть сличался сам с собой. Рядом при
-    # этом стоял «фон» 1.9-6.7 %, снятый со сдвигом на чужую страницу, где
-    # самосовпадения нет по построению: сравнивались не два правила, а
-    # правило с самим собой, и разрыв в пятнадцать раз был целиком выдуман.
-    # Исключив блок, получаем 35.1 %; исключив ещё и прочих кандидатов — те
-    # самые 21.4 %.
+    # REJECTED -- stripping spaces entirely on top of this: signal 1268
+    # (65.5 %) against 841, background 162 (8.4 %) against 98, order holding on
+    # all four shifts (6.5/5.7/2.9 against 5.1/4.6/2.4). Profitable too, net
+    # 1106 against 743, +363 correct hides for +64 false, 5.7 to 1, and refused
+    # because a false hide takes text out of the book while a missed repeat
+    # only leaves a line.
     #
-    # ОТВЕРГНУТО ЗАМЕРОМ — ступень «снять пробелы целиком» поверх нынешней.
-    # Сигнал 1268 (65.5 %) против 841, фон 162 (8.4 %) против 98; доля ложных
-    # среди скрытых 12.8 % против 11.7 %, и порядок держится на всех четырёх
-    # сдвигах (6.5/5.7/2.9 против 5.1/4.6/2.4).
-    #
-    # ЧЕСТНО ПРО ЦЕНУ, потому что первая редакция написала «прибавка куплена
-    # шумом», а числа говорят не это: чистых находок (сигнал минус фон) 1106
-    # против 743, то есть +363 верных скрытия ценой +64 ложных — 5.7 к 1.
-    # Отвергнута не потому, что невыгодна, а потому, что цена ошибки здесь
-    # несимметрична: ложное скрытие уносит текст из книги, а пропущенный
-    # повтор только оставляет лишнюю строку.
-    #
-    # ЧТО СНИМАЕТСЯ: обёртка математики, оформительские команды (`\mathrm`,
-    # `\text`, `\left`, `\quad`…), индексы и степени в строку, `^{\circ}`
-    # в градус. ЧТО НЕ СНИМАЕТСЯ И ПОЧЕМУ: ИМЕНА содержательных команд —
-    # `\alpha` становится `alpha`, а не пустотой. Агрессивный вариант
-    # (выбросить все команды) даёт на 90 совпадений больше, но поднимает фон
-    # 3.4 % -> 4.6 %: отношение сигнала к фону падает с 20.1 до 15.9, то есть
-    # прибавка куплена шумом. Отвергнуто замером.
+    # STRIPPED: wrapper, typeface commands, indices inlined, `^{\circ}` to a
+    # degree sign; KEPT: command NAMES, `\alpha` -> `alpha`. Dropping all
+    # commands gives 90 more matches and lifts the background 3.4 % -> 4.6 %,
+    # signal to background 20.1 -> 15.9: noise. Rejected.
     "latex": ["обёртка математики", "оформительские команды", "индексы в строку",
               "^{\\circ} -> °", "далее ступени границы"],
-    # Отвергнутое печатается рядом с числом — по тому же правилу, что и
-    # `NORM_REFUSED` выше: иначе первым предложением будет «а давайте снимем
-    # ещё и пробелы».
+    # What was rejected is printed beside the number; see `NORM_REFUSED`.
 }
-# Печатается рядом с числом. Иначе «CER 0.03» через месяц будет означать что
-# угодно, и первым предложением будет «а давайте снимем ещё и пунктуацию».
+# Printed beside the number. Otherwise "CER 0.03" will mean anything at all a
+# month from now, and the first proposal will be to strip punctuation too.
 NORM_REFUSED = ("головная пунктуация (снимает 139, вредит 4: '.850' == '850'), "
                 "вся пунктуация (504 при вреде 108: '6—2' == '6,2'), "
                 "двойники кир/лат (лифт 2.70 против 3.06 без неё)")
 
 
-# Оформительские команды латеха: они меняют НАЧЕРТАНИЕ, а не смысл, и потому
-# снимаются. Список объявлен поимённо, а не правилом «всё, что похоже на
-# команду»: `\alpha` смыслом является, и выбросить его было бы порчей.
-# НАЧЕРТАНИЕ снимается БЕЗ СЛЕДА, ПРОБЕЛ — пробелом, и это не мелочь.
-# Первая редакция заменяла пробелом ВСЕ оформительские команды, и
-# `\mathrm{C}` давало « C» там, где в прозе стоит «C» вплотную: `1728° c`
-# против `1728°c`. Совпадений это стоило вдвое — 414 против 841 на 1935
-# кандидатах, — и мимо проходил ровно тот случай, ради которого правило
-# заведено: «а-Кристобалит устойчив в интервале 1470—1728°C» и отдельный
-# блок `\[1728^{\circ}\mathrm{C}\]` не сличались.
-#
-# Списки объявлены поимённо, а не правилом «всё, что похоже на команду»:
-# `\alpha` смыслом ЯВЛЯЕТСЯ, и выбросить его было бы порчей.
+# LaTeX typeface commands change the SHAPE, not the meaning, so they go; the
+# lists are named one by one, since `\alpha` IS meaning. Typeface goes WITHOUT
+# A TRACE, a spacing command becomes a space: a space for every typeface
+# command made `\mathrm{C}` into " C" where prose has `1470—1728°C` tight,
+# halving the matches, 414 against 841 over 1935 candidates.
 _TYPEFACE = ("mathrm", "mathbf", "mathit", "mathsf", "mathtt", "text",
                "textrm", "textbf", "textit", "boldsymbol", "operatorname",
                "left", "right", "displaystyle", "limits",
                "bf", "rm", "it", "mbox", "hbox")
-# Команды, которые в наборе И ЕСТЬ пробел. Снять их без следа значило бы
-# склеить слова, которые автор развёл.
+# Commands that ARE a space in typesetting. Stripping them without a trace
+# would glue together words the author had separated.
 _SPACE = ("quad", "qquad")
 _WRAPPER = re.compile(r"^\s*(?:\\\[|\\\(|\$\$|\$)|(?:\\\]|\\\)|\$\$|\$)\s*$")
 _HEAD = re.compile(r"\\(" + "|".join(_TYPEFACE) + r")(?![a-zA-Z])")
@@ -209,16 +139,15 @@ _INDEX = re.compile(r"[_^]\{([^{}]*)\}")
 
 
 def bare_math(s: str) -> str:
-    """Снять с куска латеха обёртку и оформление, сохранив ИМЕНА команд.
+    """Strip wrapper and typeface off a LaTeX fragment, keeping command NAMES.
 
-    Отдельной функцией, а не строкой внутри `normalize`, ровно ради батареи
-    порчи: без шва эту ступень нечем сломать. Замер, за неё уплаченный, — при
-    `NORM_STEPS["латех"]`.
+    A function, not a line inside `normalize`: with no seam the battery has
+    nothing to break. Measured at `NORM_STEPS["latex"]`.
     """
     if not s:
         return ""
     s = s.strip()
-    # Обёртка снимается дважды: `\[` слева и `\]` справа — два разных конца.
+    # Twice: `\[` on the left and `\]` on the right are two different ends.
     for _ in range(2):
         s = _WRAPPER.sub("", s).strip()
     s = (s.replace("^{\\circ}", "°").replace("^\\circ", "°")
@@ -229,15 +158,15 @@ def bare_math(s: str) -> str:
     s = re.sub(r"[_^]", "", s)
     s = (s.replace("\\%", "%").replace("\\cdot", "·")
          .replace("\\times", "x"))
-    # ИМЯ содержательной команды СОХРАНЯЕТСЯ: `\alpha` -> `alpha`.
+    # The NAME of a meaningful command survives: `\alpha` -> `alpha`.
     s = re.sub(r"\\([a-zA-Z]+)", r"\1", s)
     return re.sub(r"[{}\\]", "", s)
 
 
 def normalize(s: str, level: str = NORM) -> str:
-    """Привести строку к виду, в котором две записи одного считаются равными.
+    """Bring a string to a form where two spellings of one thing count equal.
 
-    Ступени ровно те, у которых замер показал вред 0. Ни одной сверх.
+    Exactly the steps measured at harm 0, and not one beyond them.
     """
     if level not in NORM_STEPS:
         raise TextError(f"уровень нормализации {level!r} не объявлен; "
@@ -256,10 +185,8 @@ def normalize(s: str, level: str = NORM) -> str:
     return s.rstrip(_TAIL)
 
 
-# Отвергнутое У КАЖДОГО УРОВНЯ СВОЁ. `NORM_REFUSED` — отказы ЯЧЕЕЧНОГО
-# замера (32 634 ячейки, шесть книг), и печатать их рядом с латех-числом
-# значило бы назвать отказы не с той книги: сличение формулы с прозой этих
-# ступеней не касается вовсе.
+# Rejections are PER LEVEL: `NORM_REFUSED` holds those of the CELL
+# measurement, which says nothing about matching a formula against prose.
 REFUSED = {
     "boundary": NORM_REFUSED,
     "latex": ("снять пробелы целиком (сигнал 1268 против 841, но ложных среди "
@@ -273,26 +200,24 @@ def norm_note(level: str = NORM) -> dict:
             "not_stripped": REFUSED.get(level, NORM_REFUSED)}
 
 
-# --------------------------------------------------------------- расстояние
+# ----------------------------------------------------------------- distance
 #
-# Расстояние Левенштейна, точное, битовой строкой (Майерс, 1999): столбец
-# матрицы держится двумя целыми, и работа идёт словами по 64 бита разом.
+# Levenshtein, exact, bit-parallel (Myers, 1999): a matrix column in two
+# integers, 64 bits at a time. Direct DP is 4 million cells on a pair of
+# 2000-character paragraphs, and there are six hundred pages; on 500 pairs of
+# 869 characters at 5% corruption, Ukkonen band 30.5 s against bit-parallel
+# 1.04 s, same distances on 700 random pairs. A metric too slow to run measures
+# nothing.
 #
-# ЗАЧЕМ, ЧИСЛОМ. Прямой DP — 4 млн клеток на паре абзацев в 2000 знаков, а
-# страниц шестьсот. Замер на 500 парах по 869 знаков с порчей 5%: полосой
-# Укконена 30.5 с, битовой строкой 1.04 с — те же расстояния до единицы на
-# 700 случайных парах (проверено против прямого DP, расхождений 0). Медленная
-# метрика не гоняется, а негоняемая метрика ничего не меряет.
-#
-# Бюджет всё равно объявлен: пара строк по 100 тысяч знаков — это 10^10
-# клеток и полминуты на одну пару. За бюджетом расстояние честно называется
-# ОЦЕНКОЙ СВЕРХУ и печатается отдельной строкой отчёта. Оценка, выданная за
-# точную, сделала бы CER непадающим ровно на самых длинных блоках.
-_BUDGET = 300_000_000     # клеток на одну пару, около секунды счёта
+# The budget stands regardless: 100 000 characters against 100 000 is 10^10
+# cells, half a minute for one pair. Past it the distance is called an UPPER
+# BOUND on its own line -- an estimate passed off as exact would make CER
+# unable to fall on exactly the longest blocks.
+_BUDGET = 300_000_000     # cells per pair, about a second of counting
 
 
 def _myers(a, b):
-    """Точное расстояние; маска шириной в `a`, проход по `b`."""
+    """Exact distance; mask the width of `a`, one pass over `b`."""
     m = len(a)
     peq = {}
     for i, c in enumerate(a):
@@ -317,7 +242,8 @@ def _myers(a, b):
 
 
 def _dist(a, b):
-    """(расстояние, точно ли). Второе поле — не украшение: см. бюджет выше."""
+    """(distance, is it exact). The second field is not decoration: see the
+    budget above."""
     if a == b:
         return 0, True
     n, m = len(a), len(b)
@@ -326,21 +252,20 @@ def _dist(a, b):
     if n * m > _BUDGET:
         return max(n, m), False
     if n > m:
-        a, b = b, a          # расстояние симметрично, маска — по короткой
+        a, b = b, a          # distance is symmetric; mask the shorter one
     return _myers(a, b), True
 
 
-# ------------------------------------------------------------------ таблицы
+# ------------------------------------------------------------------- tables
 #
-# Структурная истина таблицы приходит в `meta` блока. Формат принимаем в двух
-# видах — списком строк и списком адресованных ячеек, — но НЕ УГАДЫВАЕМ: если
-# в `meta` есть табличные ключи, а разобрать их нельзя, это ошибка вслух.
-# Молчаливый пропуск дал бы «ячеек 0» — ноль, читаемый как «таблиц нет».
+# Structural truth arrives in `meta`, as a list of rows or of addressed cells;
+# nothing is GUESSED, and unparsable table keys are a loud error, since
+# skipping prints "cells 0", read as "there are no tables".
 _CELLS_KEYS = ("cells", "rows")
 
 
 def _cells_from(obj):
-    """{(строка, столбец): текст} из списка строк или списка адресов."""
+    """{(row, column): text} from a list of rows or a list of addresses."""
     if isinstance(obj, dict):
         for k in _CELLS_KEYS:
             if k in obj:
@@ -368,20 +293,14 @@ SIDE_KEYS = ("artifact_truth", "artefact truth")
 
 
 def page_side(page) -> dict:
-    """Истина артефактов, лежащая СБОКУ у страницы и связанная по номеру блока.
+    """Artifact truth living BESIDE the page, linked by block id.
 
-    Мост, которого не было, и его отсутствие стоило прибора целиком. `synth`
-    кладёт сетку таблицы в `meta` СТРАНИЦЫ ключом-строкой номера блока —
-    ровно по правилу проекта «всё наблюдённое живёт сбоку и связано с блоком
-    по его номеру», — а `_truth_grid` искала её в `meta` БЛОКА, которого у
-    `Block` нет вовсе (`models/base.py`: block_id, box, label, score, order,
-    content, kind — и всё). Замер на свежем `katalog`: `books synth` печатал
-    «таблиц с сеткой 13, ячеек 3982», а `text.report` в ту же секунду —
-    «структурной истины в этой книге нет». Два верных модуля и ни одной
-    таблицы между ними.
-
-    Ключ приводится к строке НАРОЧНО: json делает ключи строками, а в памяти
-    номер блока целый, и `side[3]` промахивался бы по `side["3"]` молча.
+    `synth` puts the grid in the PAGE's `meta` under the block id as a string
+    key; `_truth_grid` looked in the BLOCK's `meta`, which `Block` does not
+    have. On a fresh `katalog`, `books synth` printed 13 tables with a grid and
+    3982 cells while `text.report` said the book has no structural truth. The
+    key is coerced to a string deliberately: json makes keys strings, the id in
+    memory is an int, and `side[3]` would miss `side["3"]` silently.
     """
     m = (page.get("meta") or {}) if isinstance(page, dict) else {}
     for k in SIDE_KEYS:
@@ -392,19 +311,15 @@ def page_side(page) -> dict:
 
 
 def _truth_grid(b, side=None):
-    """Сетка истины таблицы, или None — таблица без структурной истины.
+    """Grid of a table's truth, or None -- a table with no structural truth.
 
-    `side` — истина артефактов страницы (см. `page_side`). Сетка ищется и в
-    `meta` блока, и сбоку: первое на случай разметки, пришедшей с сеткой
-    внутри блока, второе — то, что даёт наш стенд.
+    Looked for in the block's `meta` and in the page's artifact truth (`side`):
+    markup may carry the grid inside, our bench puts it aside.
     """
-    # ДВА МЕСТА СМОТРЯТСЯ НЕЗАВИСИМО, и это не педантизм. Прежде стояло
-    # `if not m and side` — сайдкар читался ТОЛЬКО у блока с пустой `meta`.
-    # Замер: дописать 523 блокам любой посторонний ключ
-    # (`meta={"пометка": "проверено библиотекарем"}`) — и «таблицы: блоков 2,
-    # ячеек 227» превращалось в «структурной истины в этой книге нет», а сами
-    # таблицы уезжали в приманки. Одна чужая пометка стирала всю сетку молча,
-    # а докстрока при этом обещала искать в обоих местах.
+    # THE TWO PLACES ARE READ INDEPENDENTLY. Under `if not m and side` the
+    # sidecar was read only for a block with empty `meta`: any unrelated key on
+    # 523 blocks turned "tables: 2 blocks, 227 cells" into "no structural
+    # truth", the tables reclassified as baits, silently.
     m = b.get("meta") or {}
     aside = (side or {}).get(str(b.get("block_id"))) or {}
 
@@ -418,8 +333,8 @@ def _truth_grid(b, side=None):
 
     src, from_side = _pick(m), _pick(aside)
     if src is not None and from_side is not None and src != from_side:
-        # Обе стороны говорят, и говорят РАЗНОЕ. Взять любую молча значит
-        # выбрать за оператора, какой истине верить; сказать вслух дешевле.
+        # Both sides speak and disagree. Taking either silently chooses for
+        # the operator which truth to believe.
         raise TextError(
             f"блок {b.get('block_id')}: сетка есть и в meta блока, и сбоку у "
             f"страницы, и они не совпадают. Какой верить — решать не метрике.")
@@ -438,17 +353,12 @@ def _truth_grid(b, side=None):
 
 
 def _truth_text(b, side=None):
-    """ЗНАКИ артефакта, лежащие сбоку у страницы, или None.
+    """The artifact's CHARACTERS, lying beside the page, or None.
 
-    Тот же мост, что `_truth_grid`, только для нетабличной истины. `synth`
-    кладёт её рядом с сеткой и тем же ключом — `истина артефактов` в `meta`
-    СТРАНИЦЫ, по номеру блока, — и до сих пор её не читал никто: прибор искал
-    там только таблицу. Замер того, чего это стоило, — в ветке артефакта в
-    `measure_pages`.
-
-    `None` значит «истины знаков у этого артефакта нет», то есть блок и
-    вправду приманка. Пустая строка — НЕ то же самое: это объявленная пустота,
-    и она сверяется как пустота.
+    The same bridge as `_truth_grid`, for truth the instrument read only as a
+    table grid (the cost is in the artifact branch of `measure_pages`). `None`
+    means no character truth, so the block is a bait; an empty string is
+    declared emptiness, compared as emptiness.
     """
     aside = (side or {}).get(str(b.get("block_id"))) or {}
     if not isinstance(aside, dict):
@@ -461,14 +371,8 @@ def _truth_text(b, side=None):
 
 
 def _truth_both(b, side=None):
-    """Сетка И знаки у ОДНОГО артефакта — отказ вслух, а не тихий выбор.
-
-    Соседний `_truth_grid` уже кричит, когда сетка есть в двух местах и они
-    разные: «какой верить — решать не метрике». Здесь то же самое другой
-    парой: если у блока есть и таблица, и знаки, ветка таблицы стоит первой и
-    знаки молча выбрасываются. Тихо выбрать за оператора, какую истину
-    считать, — то же самое, только незаметнее.
-    """
+    """Grid AND characters on ONE artifact: refuse aloud. The table branch
+    comes first and would drop the characters silently."""
     if _truth_grid(b, side) is not None and _truth_text(b, side) is not None:
         raise TextError(
             f"блок {b.get('block_id')}: сбоку лежит И сетка таблицы, И знаки. "
@@ -477,11 +381,11 @@ def _truth_both(b, side=None):
 
 
 class _TableHTML(HTMLParser):
-    """Сетка из HTML-таблицы: tr/td/th, colspan и rowspan.
+    """Grid out of an HTML table: tr/td/th, colspan and rowspan.
 
-    Сквозная ячейка занимает все свои адреса — иначе сдвиг строки в таблице со
-    сквозной шапкой сравнивался бы с пустотой и «падал» бы по другой причине,
-    чем объявлено пробой.
+    A spanning cell occupies all of its addresses, or a row shift under a
+    spanning header would be compared against emptiness and fall for the wrong
+    reason.
     """
 
     def __init__(self):
@@ -538,7 +442,7 @@ class _TableHTML(HTMLParser):
 
 
 def _html_grid(s):
-    """Сетка из ответа модели, или None — разметки таблицы в ответе нет."""
+    """Grid out of the model's answer, or None -- no table markup in it."""
     if not s or "<t" not in s.lower():
         return None
     p = _TableHTML()
@@ -551,30 +455,19 @@ def _html_grid(s):
 
 
 def _answer_grid(s, kind=None):
-    """Сетка из ответа модели, каким бы видом он ни пришёл.
+    """Grid out of the model's answer, whatever shape it arrived in.
 
-    ЗАЧЕМ ЭТО ЗДЕСЬ, И ЦЕНА ИЗМЕРЕНА. Прибор объявлял `kind="otsl"` годным
-    видом ответа для таблицы (строка ниже, `ans.get("kind") not in ("html",
-    "otsl")`), а сетку разбирал ТОЛЬКО из HTML. Замер на `bench/slovar`
-    (2 таблицы, 227 ячеек) — одна и та же БЕЗОШИБОЧНО прочитанная таблица,
-    поданная двумя видами:
+    `kind="otsl"` was once a valid answer for a table while the grid was parsed
+    from HTML ONLY. On `bench/slovar` (2 tables, 227 cells), one flawlessly
+    read table fed both ways:
 
-        ответ в HTML: совпало по адресу 227 (100%), CER ячеек 0.0000, отдана текстом 0
-        ответ в OTSL: совпало по адресу   0 (0%),   CER ячеек 1.0000, отдана текстом 2
+        HTML: matched 227 (100%), cell CER 0.0000, given as text 0
+        OTSL: matched   0 (0%),   cell CER 1.0000, given as text 2
 
-    PaddleOCR-VL — модель, ради которой всё затевается, — отдаёт таблицы
-    именно в OTSL. То есть её безупречное чтение получало ноль и обвинение
-    «таблица отдана прозой»: обвинение МОДЕЛИ в дефекте НАШЕГО разбора, ровно
-    то, ради невозможности чего заведено правило «модель никто не чинит».
-
-    Разбор OTSL живёт отдельным файлом (`booksmith/otsl.py`) и хэшируется в
-    слепок отдельно: он решает числа не меньше модели, и вопрос «почему число
-    плохое» обязан иметь три раздельных ответа — модель промолчала, наш разбор
-    не сложился, знаки не те.
-
-    `kind` — то, чем ответ ОБЪЯВЛЕН промтом. Он подсказывает порядок попыток,
-    но не запрещает вторую: модель, спрошенная про таблицу и ответившая HTML,
-    прочла таблицу, и наказывать её за формат значило бы мерить не чтение.
+    PaddleOCR-VL returns OTSL: flawless reading earned a zero and the charge
+    "given as prose", our parser's defect billed to the model. Parsing lives in
+    `booksmith/otsl.py`, hashed separately, because "why is the number bad"
+    needs three answers -- silence, a failed parse, wrong characters.
     """
     if not s:
         return None
@@ -584,37 +477,18 @@ def _answer_grid(s, kind=None):
 
 
 def _grid_html(g):
-    """Сетка обратно в HTML. Нужна батарее: порчу удобно делать над сеткой,
-    а метрика обязана получить ровно то, что получала бы от модели.
+    """Grid back into HTML, for the battery: corruption is convenient over a
+    grid, and the metric must get exactly what a model would send.
 
-    ЯЧЕЙКА ЭКРАНИРУЕТСЯ, и это не косметика. Без экранирования круговой ход
-    «сетка -> HTML -> сетка» ТЕРЯЕТ содержимое: ячейка `a<b&c` приезжала
-    обратно как `a` — разборщик считал `<b&c` открывающим тегом. Порча в
-    батарее делается НАД СЕТКОЙ, а метрике подаётся эта строка, значит
-    испорченная ячейка усекалась ДО внесения порчи, и батарея мерила не ту
-    строку, о которой отчитывалась. Соседний `otsl.to_html` экранирует с
-    первого дня — здесь была вторая, разошедшаяся копия того же цикла.
-
-    ЧТО ЗДЕСЬ БЫЛО НАПИСАНО НЕВЕРНО, И ЧЕМ Я ЭТО МЕРИЛ. Стояло: «ни одна
-    ячейка из 6812 прочитанных настоящей моделью блоков не содержит ни `<`,
-    ни `&`; первая же книга по химии это изменит». Оба утверждения ложны.
-    Книга в корпусе И ЕСТЬ книга по химии («Технология огнеупоров»), и в ней:
-
-        249 блоков из 6812 несут `<` или `&` (text 65, latex 77, otsl 107)
-        24 ЯЧЕЙКИ из 5726, разобранных `otsl.grid`, — тоже: `< 3`, `<1,0`,
-        `<28 (Al2O3)`, `>60 MgO; 5—18 (Cr2O3)` — скобки TeX убраны
-
-    Ноль получился потому, что мерил я регэкспом `<fcel>([^<]*)` — то есть
-    ПРИБОРОМ С ТЕМ ЖЕ ДЕФЕКТОМ, который чинил: он обрывается на `<` и
-    показывает кусок ДО него, где никакого `<` уже нет. Круговой довод,
-    подтверждающий сам себя. Настоящий разборщик (`otsl.grid`) даёт 24.
-
-    Верная мера риска другая, и она померена: ни одна из этих 24 ячеек от
-    отсутствия экранирования НЕ портилась — браузерный разбор считает `<`
-    литералом, когда следом не буква (`< 3`, `<1,0`, `<28`). Опасно `<`
-    ПЕРЕД БУКВОЙ, и таких в корпусе нет. Правка верна и безвредна; неверным
-    было её обоснование. У истины стендов ноль настоящий: 1211 блоков, ни
-    одного `<` и `&` — это я проверял не тем регэкспом, а прямо по строке.
+    THE CELL IS ESCAPED. Unescaped, `a<b&c` came back as `a` (`<b&c` read as a
+    tag): the corrupted cell was truncated BEFORE the corruption went in, and
+    the battery measured a string it never reported. On the chemistry book, 249 blocks of 6812 carry `<` or `&` (text 65,
+    latex 77, otsl 107), and 24 of the 5726 cells parsed by `otsl.grid` (`< 3`,
+    `<1,0`, `<28 (Al2O3)`, `>60 MgO; 5—18 (Cr2O3)`); an
+    earlier zero was counted with a regex carrying the same defect, stopping at
+    `<`. None of the 24 was in fact corrupted -- browsers take `<` as a literal
+    unless a letter follows -- and bench truth has a genuine zero, 1211 blocks
+    with no `<` and no `&`.
     """
     if not g:
         return "<table></table>"
@@ -636,35 +510,21 @@ def _shape(g):
     return (max(r for r, _ in g) + 1, max(c for _, c in g) + 1)
 
 
-# ------------------------------------------------------------- сопоставление
+# ------------------------------------------------------------------- pairing
 _ANCHOR_RE = re.compile(r"^p(\d+)-b(\d+)$")
 
 
 def _anchor_num(v):
-    """Номер блока из якоря. Понимает и число, и метку проекта `p0042-b17`.
+    """Block number out of an anchor: a bare int or the label `p0042-b17`.
 
-    Метку понимать ОБЯЗАТЕЛЬНО: ровно её пишет сборщик книги (`doc/html.py`,
-    `anchor_of`), ровно она стоит в `blocks.json` и ровно ею второй уровень
-    находит, что заменять. Прежняя редакция принимала только число и на
-    настоящем выводе конвейера падала `TextError`; сопоставление по якорю
-    работало ноль раз из ноль, а всё сводилось геометрией — то есть
-    объявленная первой ступень не выполнялась никогда.
-
-    ВОЗВРАЩАЕТ ПАРУ (страница, блок), и страница НЕ отбрасывается. Здесь
-    стояло, что отбросить её можно, «а расхождение поймает ступень якорь в
-    никуда». Замер опроверг: якорь `p0007-b3`, проставленный блоку 0 страницы
-    0, был сведён с блоком 3 ЭТОЙ ЖЕ страницы и засчитан «по якорю», при
-    `якорь в никуда 0`. Ступень ловит только отсутствие НОМЕРА БЛОКА на
-    странице, а про страницу не знает ничего.
-
-    Цена молчания измерена на настоящем прогоне: из 568 якорей, которые
-    порождает `doc/html.anchor_of` по выводу детекции, в тот же объект истины
-    попадает 101 (18%) — детектор нашёл 42 блока там, где в истине 40. То есть
-    82% якорей свели бы ответ не с тем блоком, а отчёт напечатал бы
-    «сопоставлено 100% по якорю» — самое доверенное своё число.
-
-    `None` страницей значит «якорь её не назвал» (голое число): такой якорь
-    по странице не сверяется, и это ЗНАЧЕНИЕ, а не совпадение.
+    The label is mandatory -- `doc/html.anchor_of` writes it and the second
+    level replaces by it; numbers only raised `TextError` on real output, so
+    anchor pairing worked zero times out of zero. RETURNS (page, block), the
+    page NOT discarded: `p0007-b3` on block 0 of page 0 was once paired with
+    block 3 of that page at "anchor to nowhere 0". Of 568 anchors from
+    detection output only 101 (18%) hit the same truth object -- 42 blocks
+    found where truth has 40 -- so 82% would pair the wrong block under "100%
+    by anchor".
     """
     if isinstance(v, bool):
         return None
@@ -683,7 +543,7 @@ def _anchor_num(v):
 
 
 def _anchor(b):
-    """Номер блока истины, объявленный самим ответом, или None."""
+    """The truth block number the answer declares for itself, or None."""
     for src in (b, b.get("meta") or {}):
         if not isinstance(src, dict):
             continue
@@ -708,18 +568,10 @@ def _box(b):
 
 
 def _match(tb, pb, page_index=None):
-    """Пары (индекс истины, индекс ответа, чем сведены) и остатки.
+    """Pairs (truth index, answer index, how paired) and the leftovers.
 
-    Порядок ступеней: якорь -> поголовно совпавший номер, сверенный
-    геометрией -> геометрия. Каждая ступень называется в отчёте своим именем:
-    доля сопоставленных 100% по якорю и 100% по геометрии — разной цены числа.
-
-    ЯКОРЬ СВЕРЯЕТСЯ, А НЕ ПРИНИМАЕТСЯ НА ВЕРУ, и это две отдельные сверки.
-    Прежде ступень якоря не делала НИ ОДНОЙ: номер страницы отбрасывался, а
-    рамки не сравнивались вовсе — при том что соседняя ступень «номер» делает
-    ровно это и по записанной рядом причине («совпасть номера могут и
-    случайно, а рамки на другой книге — нет»). Два правила для одного и того
-    же в одном файле.
+    Stages: anchor -> ids agreeing wholesale -> geometry, the anchor verified
+    on page number and box exactly as the `number` stage is.
     """
     pairs, dead, off_page, off_box = [], 0, 0, 0
     t_by_id = {}
@@ -733,20 +585,19 @@ def _match(tb, pb, page_index=None):
             continue
         pg_, num = a
         if pg_ is not None and page_index is not None and pg_ != page_index:
-            # Якорь назвал ЧУЖУЮ страницу. Свести его с блоком этой — значит
-            # выдать чужой ответ за здешний и назвать это «по якорю».
+            # The anchor names ANOTHER page. Pairing it with a block of this
+            # one passes off a foreign answer as this one's, "by anchor".
             off_page += 1
             used_p.add(j)
             continue
         i = t_by_id.get(num)
         if i is None or i in used_t:
-            dead += 1          # якорь в никуда: громкая беда, не тихий промах
+            dead += 1          # anchor to nowhere: loud, not a quiet miss
             used_p.add(j)
             continue
         x, y = _box(tb[i]), _box(pb[j])
         if x is not None and y is not None and not metrics.matches(x, y):
-            # Номер сошёлся, рамки — нет. Тот же затвор, что у ступени
-            # «номер»: проверенный якорь, а не вера в якорь.
+            # Number agrees, boxes do not: a checked anchor, not faith.
             off_box += 1
             used_p.add(j)
             continue
@@ -754,8 +605,8 @@ def _match(tb, pb, page_index=None):
         used_p.add(j)
         pairs.append((i, j, "anchor"))
 
-    # Поголовный номер — только когда якорей нет ВОВСЕ: смешивать объявленный
-    # якорь с угаданным номером значит потерять, чем сведён блок.
+    # Wholesale ids only when there are NO anchors at all: mixing a declared
+    # anchor with a guessed id loses what actually paired the block.
     if not any(a is not None for _, a in anchored) and len(tb) == len(pb):
         ids_t = [b.get("block_id") for b in tb]
         ids_p = [b.get("block_id") for b in pb]
@@ -766,8 +617,8 @@ def _match(tb, pb, page_index=None):
             for i, b in enumerate(tb):
                 j = p_by_id[b["block_id"]]
                 x, y = _box(b), _box(pb[j])
-                # Номер верим ТОЛЬКО сверенный: совпасть номера могут и
-                # случайно, а рамки на другой книге — нет.
+                # Only a verified id is believed: ids can agree by accident,
+                # boxes from another book cannot.
                 if x is None or y is None or not metrics.matches(x, y):
                     cand = None
                     break
@@ -775,8 +626,7 @@ def _match(tb, pb, page_index=None):
             if cand:
                 return cand, [], [], (dead, off_page, off_box)
 
-    # Геометрия: жадно по IoU сверху вниз. Сортировка с отрывом по номерам —
-    # чтобы два прогона на одних данных давали одни пары.
+    # Greedy by IoU, ties broken by index so two runs give the same pairs.
     cand = []
     for i, b in enumerate(tb):
         if i in used_t:
@@ -802,13 +652,12 @@ def _match(tb, pb, page_index=None):
     return pairs, lost_t, lost_p, (dead, off_page, off_box)
 
 
-# ------------------------------------------------------------------- замер
+# ----------------------------------------------------------------- measuring
 def _load(d):
-    """Страницы каталога, ключ — индекс страницы.
+    """Pages of a directory, keyed by page index.
 
-    Свой, а не `metrics._load`: там ошибка зовётся MetricError и говорит про
-    рамки, здесь беды другие. Проверка та же и по той же причине — каталог с
-    чужими json'ами дал бы правдоподобное число ни о чём.
+    Ours rather than `metrics._load`, whose error speaks of boxes: a directory
+    of foreign jsons yields a plausible number about nothing.
     """
     if not os.path.isdir(d):
         raise TextError(f"нет каталога {d}")
@@ -826,14 +675,11 @@ def _load(d):
 
 
 def measure(truth_dir: str, pages_dir: str, norm: str = NORM) -> dict:
-    """Сверить прочитанное с истиной. Числа — в возвращаемом словаре."""
+    """Compare what was read against truth. The numbers are in the result."""
     T, P = _load(truth_dir), _load(pages_dir)
-    # Сверка книги и растра — готовая, из метрики контуров: беда та же (истина
-    # одной книги против ответа другой; координаты в разных растрах), и ответ
-    # обязан быть тот же. Берётся через getattr нарочно: это внутренние имена
-    # чужого файла, и если их однажды переименуют, метрика чтения обязана
-    # сказать «НЕ СВЕРЕНО» вслух, а не упасть AttributeError в стороне от дела
-    # и не промолчать.
+    # Book and raster checks come ready-made from the contour metric. Through
+    # getattr deliberately: these are private names of another file, and a
+    # rename must produce a loud NOT CHECKED, not an AttributeError.
     def _check(name, *a):
         fn = getattr(metrics, name, None)
         if fn is None:
@@ -848,7 +694,7 @@ def measure(truth_dir: str, pages_dir: str, norm: str = NORM) -> dict:
 
 
 def measure_pages(T: dict, P: dict, norm: str = NORM) -> dict:
-    """То же, но над уже загруженными страницами: этим кормится батарея."""
+    """The same over pages already loaded: this is what the battery feeds."""
     txt = {"block_count": 0, "truth_chars": 0, "truth_words": 0,
            "char_distance": 0, "word_distance": 0,
            "char_distance_answered": 0,
@@ -859,30 +705,27 @@ def measure_pages(T: dict, P: dict, norm: str = NORM) -> dict:
            "cell_distance": 0, "no_answer": 0, "given_as_text": 0,
            "structure_not_parsed": 0, "grid_shape_differs": 0,
            "unmatched": 0}
-    # Артефакт С ИСТИНОЙ ЗНАКОВ — своя мерка, отдельно от приманки. Формула,
-    # подпись, надпись на схеме: их читать НАДО, и прочитанное сверяется, а не
-    # засчитывается выдумкой.
+    # An artifact WITH CHARACTER TRUTH has its own scale, apart from baits: a
+    # formula or a caption MUST be read, and what was read is compared.
     art = {"block_count": 0, "truth_chars": 0, "char_distance": 0,
            "truth_chars_answered": 0,
            "char_distance_answered": 0,
            "no_answer": 0, "unmatched": 0,
-           # Истина артефакта — ПУСТАЯ СТРОКА, а модель что-то написала.
-           # В CER это не видно вовсе (делить не на что), а прежде такой блок
-           # был приманкой и ловился как «ПРОЧИТАНО». Свой счётчик, иначе
-           # выдумка на объявленной пустоте пропадает молча.
+           # Truth is an EMPTY STRING and the model wrote something:
+           # invisible to CER (nothing to divide by), and once a bait
+           # counted as READ.
            "invented_on_empty_truth": 0}
     bait = {"artifacts": 0, "read": 0, "stayed_silent": 0,
             "unmatched": 0}
     mt = {"truth_blocks": 0, "by_anchor": 0, "by_number": 0, "by_geometry": 0,
           "unmatched_truth": 0, "extra_in_answer": 0,
-          # ТРИ РАЗНЫЕ БЕДЫ ЯКОРЯ, и слитые в одну они молчат про все три:
-          # номера блока нет на странице / якорь назвал чужую страницу /
-          # номер сошёлся, а рамки разошлись. Вторая и третья прежде не
-          # считались вовсе — якорь принимался на веру.
+          # THREE DIFFERENT ANCHOR FAILURES, silent about all three once
+          # merged: no such block number / another page / boxes disagree. The
+          # last two went uncounted while anchors were trusted.
           "anchor_to_nowhere": 0, "anchor_wrong_page": 0,
           "anchor_box_mismatch": 0, "answer_without_box": 0}
     pg = {"truth": len(T), "answer": len(P), "no_answer": 0, "spurious": 0}
-    unmarked = 0          # истина не размечена — НЕ ноль чтения
+    unmarked = 0          # truth not annotated -- NOT a zero of reading
     unmarked_answered = 0
     kind_bad = 0
     per_block = []
@@ -895,8 +738,8 @@ def measure_pages(T: dict, P: dict, norm: str = NORM) -> dict:
         side = page_side(t)
         mt["truth_blocks"] += len(tb)
         if p is None:
-            # Страницы нет в ответе. Её блоки не «прочитаны на ноль», их не
-            # сопоставили вовсе — и это отдельная строка отчёта.
+            # The page is absent from the answer. Its blocks were not "read
+            # to zero", they were never paired -- its own report line.
             pg["no_answer"] += 1
             pairs, lost_t, lost_p, dead = [], list(range(len(tb))), [], (0, 0, 0)
             pb = []
@@ -917,12 +760,12 @@ def measure_pages(T: dict, P: dict, norm: str = NORM) -> dict:
             ans = pb[j_] if j_ is not None else None
             rec = {"page": i, "block_id": b.get("block_id"),
                    "label": b.get("label"), "matched_by": how or "нет пары"}
-            _truth_both(b, side)          # обе истины разом — отказ вслух
+            _truth_both(b, side)          # both truths at once: refuse aloud
             grid = _truth_grid(b, side)
             content = b.get("content")
             role = policy.role(b["label"])
 
-            if grid is not None:                       # ---------- таблица
+            if grid is not None:                       # ------------ table
                 tab["block_count"] += 1
                 rec["bucket"] = "table"
                 cells = {k: normalize(v, norm) for k, v in grid.items()}
@@ -941,9 +784,10 @@ def measure_pages(T: dict, P: dict, norm: str = NORM) -> dict:
                         if c is None or not c.strip():
                             tab["no_answer"] += 1
                         else:
-                            # Таблица, отданная прозой: адреса ячеек пропали, а
-                            # знаки остались. Это НЕ то же, что молчание, и
-                            # цена другая — структуру не восстановить.
+                            # A table given as prose: the cell addresses are
+                            # gone, the characters remain. NOT the same as
+                            # silence, and dearer -- structure is not
+                            # recoverable.
                             tab["given_as_text"] += 1
                 if mg is None:
                     tab["cell_distance"] += chars
@@ -969,7 +813,7 @@ def measure_pages(T: dict, P: dict, norm: str = NORM) -> dict:
                 per_block.append(rec)
                 continue
 
-            if isinstance(content, str) and content.strip():   # ------ текст
+            if isinstance(content, str) and content.strip():   # ------- text
                 txt["block_count"] += 1
                 rec["bucket"] = "text"
                 ref = normalize(content, norm)
@@ -1010,7 +854,7 @@ def measure_pages(T: dict, P: dict, norm: str = NORM) -> dict:
                 per_block.append(rec)
                 continue
 
-            if isinstance(content, str):        # ---- истина пуста строкой
+            if isinstance(content, str):        # ---- truth is empty string
                 txt["truth_empty"] += 1
                 rec["bucket"] = "truth_empty"
                 per_block.append(rec)
@@ -1018,9 +862,9 @@ def measure_pages(T: dict, P: dict, norm: str = NORM) -> dict:
 
             if role == "artifact":
                 aside_text = _truth_text(b, side)
-                if aside_text is None:                    # ------- приманка
-                    # У артефакта НЕТ истины знаков: читать тут нечего, и
-                    # всякий текст в ответе — выдумка. Это и есть приманка.
+                if aside_text is None:                    # ----------- bait
+                    # No character truth: nothing to read, so any text in the
+                    # answer is invention. That is what a bait is.
                     bait["artifacts"] += 1
                     rec["bucket"] = "приманка"
                     if ans is None:
@@ -1035,16 +879,10 @@ def measure_pages(T: dict, P: dict, norm: str = NORM) -> dict:
                             bait["stayed_silent"] += 1
                     per_block.append(rec)
                     continue
-                # ---- артефакт С ИСТИНОЙ: формула, подпись, надпись на схеме.
-                # ЦЕНА РАЗЛИЧЕНИЯ ИЗМЕРЕНА. Прежде вся эта ветка была
-                # приманкой, а истину артефактов прибор читал ТОЛЬКО как
-                # табличную сетку. Замер на `bench/matematika`: 26 формул,
-                # заполненных истиной ПОБАЙТОВО, давали
-                #     приманки: артефактов 26, ПРОЧИТАНО 26 (100%), промолчано 0
-                # то есть безупречное чтение объявлялось стопроцентной
-                # выдумкой, а сами 26 истин не сверялись ни с чем. Второй
-                # уровень, которому формулы и отдавать, получил бы за верную
-                # работу худшее из возможных чисел.
+                # ---- an artifact WITH TRUTH: formula, caption, diagram label.
+                # THE PRICE IS MEASURED: this branch used to be a bait, and on
+                # `bench/matematika` 26 formulas answered BYTE-FOR-BYTE from
+                # truth gave "26 artifacts, READ 26 (100%), silent 0".
                 art["block_count"] += 1
                 rec["bucket"] = "артефакт по истине"
                 ref = normalize(aside_text, norm)
@@ -1076,14 +914,13 @@ def measure_pages(T: dict, P: dict, norm: str = NORM) -> dict:
                 per_block.append(rec)
                 continue
 
-            # content null на текстовом блоке — истина НЕ РАЗМЕЧЕНА.
             unmarked += 1
             rec["bucket"] = "truth_unmarked"
             if ans is None:
                 mt["unmatched_truth"] += 1
             elif (ans.get("content") or "").strip():
-                # Модель тут что-то прочла, а сверить не с чем. Ни в CER, ни в
-                # приманки это не идёт: и то и другое было бы выдумкой.
+                # The model read something and there is nothing to check it
+                # against. Neither CER nor baits: both would be invention.
                 unmarked_answered += 1
             per_block.append(rec)
 
@@ -1091,14 +928,12 @@ def measure_pages(T: dict, P: dict, norm: str = NORM) -> dict:
         return (a / b) if b else None
 
     def table_ratios(tab):
-        """Доли по таблицам — или None, когда судить не по чему.
+        """Table shares -- or None when there is nothing to judge by.
 
-        Отвеченных блоков ноль значит «сверять нечего», а не «совпало ноль
-        процентов». Прежде делили на все ячейки, и на входе, где модель не
-        ответила ни разу, выходило «совпало 0 (0%), CER ячеек 1.0000» — ноль
-        от непонимания в виде измеренного. У ветки текста сторож был, у
-        таблиц нет. Хуже того, это клало на пол базу батареи: проба «в истине
-        испорчена ячейка» не могла уронить CER, уже равный единице.
+        Zero answered blocks means "nothing to compare", not "zero per cent
+        matched": dividing by all cells printed "matched 0 (0%), cell CER
+        1.0000" where the model never answered, and floored the battery, whose
+        probe "a cell corrupted in truth" cannot lower a CER already 1.
         """
         answered = tab["block_count"] - tab["no_answer"] - tab["unmatched"]
         if answered <= 0:
@@ -1124,13 +959,8 @@ def measure_pages(T: dict, P: dict, norm: str = NORM) -> dict:
                           txt["truth_chars_answered"]),
                          "share_no_answer": frac(txt["no_answer"],
                                                  txt["block_count"])}),
-        # ЗНАМЕНАТЕЛЬ ЗДЕСЬ — НЕ ЧИСЛО ЯЧЕЕК, а число ячеек В ОТВЕЧЕННЫХ
-        # блоках. Прежде делили на все, и на входе, где модель не ответила ни
-        # разу, выходило «совпало по адресу 0 (0%), CER ячеек 1.0000» —
-        # ноль от непонимания, напечатанный как измеренный. У ветки текста
-        # сторож есть («НЕ РАЗМЕЧЕН… это не ноль чтения»), у таблиц не было.
-        # Хуже того, это клало на пол базу батареи: проба «в истине испорчена
-        # ячейка» не могла уронить CER, уже равный единице.
+        # The denominator is cells IN ANSWERED blocks, not all cells; see
+        # `table_ratios` for what dividing by all of them cost.
         "tables": dict(tab, **table_ratios(tab)),
         "artifacts_with_truth": dict(
             art,
@@ -1146,7 +976,7 @@ def measure_pages(T: dict, P: dict, norm: str = NORM) -> dict:
     return res
 
 
-# ------------------------------------------------------------------- отчёт
+# ------------------------------------------------------------------ report
 def report(res: dict, log=print) -> None:
     if res.get("book"):
         log(res["book"])
@@ -1157,8 +987,8 @@ def report(res: dict, log=print) -> None:
     log(f"страниц: истины {p['truth']}, ответа {p['answer']}, "
         f"без ответа {p['no_answer']}, лишних {p['spurious']}")
     d = s["share"]
-    # Доля сопоставленных печатается ПЕРВОЙ и всегда: CER, посчитанный по двум
-    # блокам из сорока, — число про сопоставление, а не про чтение.
+    # The share paired is printed FIRST and always: a CER over two blocks of
+    # forty is a figure about pairing, not about reading.
     log(f"сопоставлено {s['matched_total']}/{s['truth_blocks']}"
         f" ({'—' if d is None else f'{d*100:.0f}%'}): по якорю {s['by_anchor']}, "
         f"по номеру {s['by_number']}, по геометрии {s['by_geometry']}")
@@ -1193,9 +1023,8 @@ def report(res: dict, log=print) -> None:
         log("таблицы: структурной истины в этой книге нет — "
             "сверять нечего (это не ноль по ячейкам)")
     elif not b.get("answered_blocks"):
-        # Третий исход, и он не тот же, что первый: истина ЕСТЬ, а ответа нет.
-        # Прежде тут печаталось «совпало по адресу 0 (0%), CER ячеек 1.0000» —
-        # ноль от непонимания в виде измеренного.
+        # A third outcome, not the same as the first: truth EXISTS and the
+        # answer does not.
         log(f"таблицы: блоков {b['block_count']}, ячеек {b['cell_count']}, но ОТВЕТА "
             f"НЕТ НИ НА ОДИН — сверять нечего, и это НЕ «совпало 0%»")
         log(f"  без ответа {b['no_answer']}, отдана текстом "
@@ -1215,9 +1044,8 @@ def report(res: dict, log=print) -> None:
         c, ca = ar["CER"], ar["cer_answered"]
         answered = ar["block_count"] - ar["no_answer"] - ar["unmatched"]
         if not answered:
-            # Тот же разбор нулей, что у таблиц. Прежде здесь печаталось
-            # «CER 1.0000» — величина, посчитанная из ничего и читающаяся как
-            # измеренная: модель промолчала на ВСЕХ, и сверять было нечего.
+            # As for tables: silence on ALL of them once printed "CER
+            # 1.0000", computed from nothing and read as measured.
             log(f"артефакты С ИСТИНОЙ (формулы, подписи): блоков "
                 f"{ar['block_count']}, знаков {ar['truth_chars']}, но ОТВЕТА НЕТ "
                 f"НИ НА ОДИН — сверять нечего, и это НЕ «CER 1.0»")
@@ -1244,24 +1072,13 @@ def report(res: dict, log=print) -> None:
         f"с ответом модели {res['answers_on_unmarked']} — сверять их не с "
         f"чем, это НЕ ноль чтения; вид ответа не тот: "
         f"{res['answer_kind_wrong']}")
-    # Только блоки С ОШИБКОЙ: строка «худший блок: CER 0.000» — не худший блок,
-    # а признание, что печатать нечего, и место в отчёте она занимает как
-    # настоящая.
-    # ТЕКСТ И АРТЕФАКТЫ СЧИТАЮТСЯ ПОРОЗНЬ, и это оплачено дважды за один день.
-    #
-    # Первое: числитель и знаменатель разошлись. `scored` собирал ВСЕ записи с
-    # посчитанным CER — то есть текст И артефакты, — а делил на одни текстовые
-    # блоки, и на `matematika` выходило «CER 0 на всех 130 посчитанных из 104»,
-    # 130 больше 104. Хуже: сторож «сверять было НЕЧЕГО» не срабатывал НИКОГДА
-    # на книге с артефактами, и молчащая модель снова получала
-    # «блоков с ошибкой знаков нет» — тот самый ноль от непонимания, ради
-    # которого сторож и заводился, воскрешённый соседней правкой.
-    #
-    # Второе: запись артефакта не несёт `WER` (сверять слова в формуле нечего),
-    # а строка «худший блок» его печатала. Одна неверная буква в одной формуле
-    # роняла `books text` целиком — `KeyError: 'WER'` — ровно тогда, когда
-    # прибору есть что сказать. На платном прогоне это значит: деньги
-    # потрачены, ответы записаны, отчёта нет.
+    # Only blocks WITH AN ERROR: "worst block: CER 0.000" admits there is
+    # nothing to print. TEXT AND ARTIFACTS COUNT APART, paid for twice in one
+    # day: `scored` took both and divided by text blocks alone, printing "CER 0
+    # on all 130 scored out of 104" on `matematika`, where the guard "NOTHING
+    # to compare" then never fired. And an artifact record has no `WER`, which
+    # this line printed: one wrong letter in one formula brought `books text`
+    # down with `KeyError: 'WER'` -- money spent, answers written, no report.
     txt_rec = [r for r in res["per_block"] if r.get("bucket") == "text"]
     art_rec = [r for r in res["per_block"] if r.get("bucket") == "артефакт по истине"]
     for name, rec, total in (("знаков", txt_rec, res["text"]["block_count"]),
@@ -1277,24 +1094,21 @@ def report(res: dict, log=print) -> None:
             log(f"  блоков с ошибкой {name} нет: CER 0 на всех "
                 f"{len(scored)} посчитанных из {total}")
         for r in sorted(err, key=lambda r: -r["CER"])[:3]:
-            # `WER` есть только у текста: в формуле слов не считают. Печатаем
-            # то, что посчитано, а не то, что ожидалось увидеть.
+            # `WER` exists for text only. Print what was computed, not what
+            # was expected to be there.
             wer = (f", WER {r['WER']:.3f}" if r.get("WER") is not None else "")
             log(f"  худший блок {name} с.{r['page']} б.{r['block_id']} "
                 f"({r['label']}, {r['matched_by']}): CER {r['CER']:.3f}{wer}, "
                 f"знаков {r.get('chars', 0)}")
 
 
-# ----------------------------------------------------------------- мутации
+# ---------------------------------------------------------------- mutations
 #
-# Число, которое не умеет упасть, ничего не меряет. Порча ТРЁХСТОРОННЯЯ:
-# ответ модели, ИСТИНА (метрика, безразличная к истине, меряет один свой вход
-# и всегда «права») и НАШЕ СОБСТВЕННОЕ сопоставление — оно тоже вход, и оно
-# тоже обязано уметь сломаться.
-#
-# Каждая проба портит РОВНО ОДНО. Две порчи разом не отличают живую величину
-# от слипшейся с соседней: в метрике контуров ровно так девять пробегов подряд
-# рапортовали «упало» при мёртвом пороге.
+# A number that cannot fall measures nothing, and corruption is THREE-SIDED:
+# the answer, the TRUTH (a metric blind to it is always "right"), and OUR
+# pairing. Each probe corrupts EXACTLY ONE thing: two at once cannot tell a
+# live figure from one stuck to its neighbour -- nine runs in a row reported
+# "fell" in the contour metric with the threshold dead.
 def _pages(P):
     return sorted(P)
 
@@ -1306,11 +1120,10 @@ def _blocks(P):
 
 
 def _pick_text(P, T, want=None):
-    """Первый блок ответа, у которого в истине есть непустой текст.
+    """The first answer block whose truth holds non-empty text.
 
-    `want` сужает выбор: проба «подменена одна цифра» на блоке без цифр честно
-    печатала «нет данных» — сторож не соврал, но и пробы не было. Портить надо
-    там, где есть что портить, иначе батарея объявит «нет данных».
+    `want` narrows it: "one digit replaced" on a block with no digits printed
+    "no data" -- an honest guard, but no probe.
     """
     for i in _pages(T):
         if i not in P:
@@ -1337,11 +1150,9 @@ def _pick_table(P, T):
         side = page_side(T[i])
         for j, b in enumerate(P[i]["blocks"]):
             t = ids.get(b.get("block_id"))
-            # `_answer_grid`, а не `_html_grid`: ответ настоящей модели придёт
-            # в OTSL, и на нём проба молчала бы «нет данных» — вместе с
-            # четырьмя соседними, а батарея всё равно рапортовала бы ноль.
-            # То есть на ПЕРВОМ ЖЕ платном прогоне табличная половина батареи
-            # погасла бы целиком, не сказав об этом.
+            # `_answer_grid`, not `_html_grid`: a real model answers in OTSL,
+            # where this probe and four neighbours would say "no data" while
+            # the battery still reported zero uncaught.
             if t is not None and _truth_grid(t, side) is not None \
                     and _answer_grid(b.get("content"), b.get("kind")):
                 return i, j
@@ -1358,11 +1169,9 @@ def _pick_bait(P, T):
             t = ids.get(b.get("block_id"))
             if t is None or t.get("content") is not None:
                 continue
-            # И СЕТКИ НЕТ, И ЗНАКОВ НЕТ. Проверка знаков добавлена после
-            # того, как новый разряд «артефакт по истине» увёл часть блоков:
-            # проба брала для порчи ФОРМУЛУ с известной истиной, доля приманок
-            # не двигалась, и батарея печатала «НЕ ПОЙМАНА» на исправной
-            # метрике. Красное или зелёное решал порядок блоков на странице.
+            # NO GRID AND NO CHARACTERS. Without the character check the
+            # probe corrupted a FORMULA with known truth, the bait share held,
+            # and the battery reddened against a healthy metric.
             if (_truth_grid(t, side) is None and _truth_text(t, side) is None
                     and policy.role(t["label"]) == "artifact"):
                 return i, j
@@ -1377,7 +1186,7 @@ def _edit(P, i, j, fn):
 
 
 def _drop10(s):
-    """Выброшен каждый десятый знак."""
+    """Every tenth character dropped."""
     return "".join(c for k, c in enumerate(s) if (k + 1) % 10)
 
 
@@ -1401,15 +1210,14 @@ _HYPH = re.compile(r"(\w)-\s*\n\s*(\w)")
 
 
 def _glue(s):
-    """Склеить переносы там, где их не было: дефис на конце строки съеден
-    вместе с переводом строки. Ровно то, что делает модель, приученная
-    склеивать, — и метрика обязана это увидеть."""
+    """Glue hyphenation where there was none. Exactly what a model trained to
+    glue does, and the metric must see it."""
     out = _HYPH.sub(r"\1\2", s)
     return None if out == s else out
 
 
 def _grid_otsl(g):
-    """Сетка обратно в OTSL. Пара к `_grid_html`, и нужна ровно затем же."""
+    """Grid back into OTSL. The pair to `_grid_html`, needed for the same."""
     if not g:
         return "<nl>"
     rows, cols = _shape(g)
@@ -1418,23 +1226,18 @@ def _grid_otsl(g):
 
 
 def _regrid(src, g):
-    """Порченую сетку — обратно В ТОМ ЖЕ ВИДЕ, в каком пришёл ответ.
+    """The corrupted grid back IN THE SHAPE the answer arrived in.
 
-    Иначе проба меняет ДВЕ вещи разом: и содержимое, и формат, — а число,
-    сдвинувшееся от такой порчи, не говорит, от какой её половины. Замер, из-за
-    которого это написано: на ответе целиком в OTSL (а именно так и ответит
-    PaddleOCR-VL) пять табличных проб печатали «нет данных», потому что
-    порчу умели делать только над HTML, — и батарея всё равно рапортовала
-    «не пойманных порч: 0». То есть на первом же настоящем прогоне табличная
-    половина батареи погасла бы целиком, не сказав об этом.
+    Otherwise a probe changes content and format at once. On an answer wholly
+    in OTSL, five table probes printed "no data" and the battery still reported
+    0 uncaught.
     """
     return _grid_otsl(g) if otsl.looks_like(src) else _grid_html(g)
 
 
 def _shift_rows(html):
-    """СДВИГ СТРОКИ В ТАБЛИЦЕ. Первый столбец (подписи строк) на месте,
-    данные съезжают на строку вниз по кругу. Набор ячеек тот же, каждое
-    значение приписано чужой строке — ведущий вид незаметной порчи."""
+    """A ROW SHIFT IN A TABLE: labels stay, data rolls one row down. The same
+    cells, every value attributed to the wrong row."""
     g = _answer_grid(html)
     if not g:
         return None
@@ -1448,7 +1251,7 @@ def _shift_rows(html):
 
 
 def _detable(html):
-    """Таблица отдана простым текстом: разметка снята, знаки целы."""
+    """Table given as plain text: markup gone, characters intact."""
     g = _answer_grid(html)
     if not g:
         return None
@@ -1468,8 +1271,8 @@ def _blank_cell(html):
 
 
 def _digit(s):
-    """Подменить одну цифру. Порча содержательная и мелкая: если она не видна,
-    значит нормализация съела больше, чем объявлено."""
+    """Replace one digit. Small and meaningful: if it does not show, then
+    normalisation ate more than it declares."""
     for k, c in enumerate(s):
         if c.isdigit():
             return s[:k] + ("8" if c != "8" else "3") + s[k + 1:]
@@ -1477,8 +1280,8 @@ def _digit(s):
 
 
 def _spelling(s):
-    """Разнопись, которую граница ОБЯЗАНА снять: регистр, вид тире, ширина
-    знака (NFKC), точка на конце. Число тут двигаться не должно."""
+    """Spelling variance the boundary MUST remove: case, dash kind, character
+    width (NFKC), trailing full stop. The figure must not move."""
     out = s.upper().replace("-", "—") + "."
     out = out.replace("A", "Ａ")
     return out if out != s else None
@@ -1503,17 +1306,9 @@ def _anchor_all(P):
 
 
 def _anchor_all_paged(P, shift=0):
-    """Якорь ПОСТРАНИЧНОЙ метки `p0042-b17` — той, что пишет `doc/html`.
-
-    Отдельно от `_anchor_all`, и это не удобство: голый номер страницы не
-    несёт, и затвор «якорь на чужую страницу» на нём не срабатывает по
-    построению. Проверить его можно только меткой проекта — той самой, что
-    порождает сборщик книги и по которой второй уровень находит, что менять.
-
-    `сдвиг` — порча: якорь называет СОСЕДНЮЮ страницу при верном номере
-    блока. Так выглядит ответ, склеенный из двух прогонов или сдвинутый на
-    страницу при подаче, и свести его значит выдать чужой ответ за здешний.
-    """
+    """Anchors as the PER-PAGE label `p0042-b17` that `doc/html` writes: a bare
+    number carries no page, so the "another page" gate cannot fire on it.
+    `shift` names the neighbouring page with the block number right."""
     Q = copy.deepcopy(P)
     for i, _, b in _blocks(Q):
         b.setdefault("meta", {})["anchor"] = f"p{i + shift:04d}-b{b.get('block_id')}"
@@ -1521,7 +1316,7 @@ def _anchor_all_paged(P, shift=0):
 
 
 def _shuffle_pages(P):
-    """Ответ сдвинут на страницу по кругу: сверка идёт по индексу страницы."""
+    """The answer rolled one page along: comparison goes by page index."""
     ks = _pages(P)
     if len(ks) < 2:
         return None
@@ -1530,8 +1325,8 @@ def _shuffle_pages(P):
 
 
 def _corrupt_truth(T, fn):
-    """Порча САМОЙ ИСТИНЫ. Метрика, безразличная к истине, меряет один свой
-    вход — и всегда будет права."""
+    """Corrupting THE TRUTH ITSELF. A metric blind to truth measures one of
+    its inputs -- and will always be right."""
     Q = copy.deepcopy(T)
     for i, _, b in _blocks(Q):
         c = b.get("content")
@@ -1544,16 +1339,11 @@ def _corrupt_truth(T, fn):
 
 
 def _corrupt_truth_cell(T):
-    """Испортить одну ячейку САМОЙ ИСТИНЫ. Метрика обязана упасть и здесь.
+    """Corrupt one cell OF THE TRUTH. The metric must fall here too.
 
-    Проба существует потому, что метрика, слепая к порче эталона, мерит не то,
-    что думает: она сравнивает ответ с чем-то, а с чем именно — не знает.
-
-    Сетка живёт СБОКУ у страницы (`meta["истина артефактов"]`, ключ — номер
-    блока строкой), а не в блоке: у `Block` поля `meta` нет вовсе. Прежняя
-    редакция правила `meta` блока и потому не портила ничего — проба честно
-    печатала бы «нет данных», то есть батарея ставила бы себе зачёт за
-    непроведённый опыт.
+    The grid lives BESIDE the page, keyed by block id as a string: `Block` has
+    no `meta`. The earlier edition edited the block's `meta`, corrupted
+    nothing, and credited itself for an experiment never run.
     """
     Q = copy.deepcopy(T)
     for i, _, b in _blocks(Q):
@@ -1601,14 +1391,11 @@ def _drop_block(P):
 
 
 def _add_block(P):
-    """Лишний блок в ответе — рамкой поверх существующей, чтобы он проходил
-    затвор и всё-таки оставался лишним: пара уже занята.
+    """A spurious answer block, boxed over an existing one so that it clears
+    the gate and still stays spurious.
 
-    ЯКОРЬ У КОПИИ СНИМАЕТСЯ, и это не мелочь. Копия несла якорь оригинала, и
-    на входе с якорями лишний блок попадал не в «лишних в ответе», а в «якорь
-    в никуда»: проба била в счётчик, который не двигался, и печаталась как
-    НЕ ПОЙМАННАЯ. Выдуманный моделью блок якоря истины не несёт по построению
-    — он же выдуман, — так что снятие ещё и вернее по смыслу.
+    THE COPY'S ANCHOR IS STRIPPED: with it, the extra block landed in "anchor
+    to nowhere" instead of "spurious in answer" and printed NOT CAUGHT.
     """
     i = _pages(P)[0]
     Q = copy.deepcopy(P)
@@ -1627,7 +1414,7 @@ def _dead_anchor(P):
 
 
 def mutations(truth_dir: str, pages_dir: str, log=print) -> int:
-    """Прогнать батарею. Возвращает число НЕ пойманных порч (0 — метрика жива)."""
+    """Run the battery. Returns uncaught corruptions (0 -- the metric lives)."""
     T, P = _load(truth_dir), _load(pages_dir)
     base = measure_pages(T, P)
     b_cer = base["text"]["CER"]
@@ -1665,7 +1452,7 @@ def mutations(truth_dir: str, pages_dir: str, log=print) -> int:
         return M(pp, tt)["text"]["CER"]
 
     def one(fn):
-        """Порча ОДНОГО текстового блока ответа; None — портить нечего."""
+        """Corrupt ONE text block of the answer; None -- nothing to corrupt."""
         if ti is None:
             return None
         old = P[ti]["blocks"][tj].get("content")
@@ -1694,7 +1481,7 @@ def mutations(truth_dir: str, pages_dir: str, log=print) -> int:
 
     probes = []
 
-    # --- порча ОТВЕТА модели: знаки
+    # --- corrupting the model ANSWER: characters
     probes.append(("выброшен каждый десятый знак", "CER вырос",
                    lambda: cer_up(one(_drop10))))
     probes.append(("переставлены две строки внутри блока", "CER вырос",
@@ -1707,8 +1494,8 @@ def mutations(truth_dir: str, pages_dir: str, log=print) -> int:
                    lambda: cer_up(one(_glue))))
 
     def digit():
-        """Порча содержательная и мелкая: если она не видна, значит
-        нормализация съела больше, чем объявлено границей."""
+        """Small and meaningful: if it does not show, normalisation ate more
+        than the boundary declares."""
         if di is None:
             return None
         new = _digit(P[di]["blocks"][dj]["content"])
@@ -1728,9 +1515,8 @@ def mutations(truth_dir: str, pages_dir: str, log=print) -> int:
                             and r["text"]["share_no_answer"] == 1.0)(
                        M(_map_all(P, lambda c: None)))))
 
-    # Ответ от СОСЕДНЕГО блока: подстановка чужого текста целиком. Ловится
-    # только сравнением с истиной ЭТОГО блока — метрика, считающая «похоже на
-    # текст вообще», такое пропустит.
+    # A NEIGHBOUR's answer substituted whole. Caught only by comparing against
+    # THIS block's truth: a metric that scores "looks like text" misses it.
     def neighbour():
         if ti is None:
             return None
@@ -1746,7 +1532,7 @@ def mutations(truth_dir: str, pages_dir: str, log=print) -> int:
 
     probes.append(("ответ от СОСЕДНЕГО блока целиком", "CER вырос", neighbour))
 
-    # --- порча ОТВЕТА: таблица
+    # --- corrupting the ANSWER: table
     probes.append(("СДВИГ СТРОКИ В ТАБЛИЦЕ (набор ячеек тот же)",
                    "совпавших ячеек меньше",
                    lambda: (lambda mm: None if mm is None else
@@ -1765,7 +1551,7 @@ def mutations(truth_dir: str, pages_dir: str, log=print) -> int:
                             grew(M(mm)["tables"]["cer_cells"], b_cellcer))(
                        one_tab(_detable))))
 
-    # --- порча ОТВЕТА: приманка
+    # --- corrupting the ANSWER: bait
     def bait():
         if ai is None:
             return None
@@ -1775,24 +1561,13 @@ def mutations(truth_dir: str, pages_dir: str, log=print) -> int:
     probes.append(("артефакту дописан текст (приманка)", "приманок больше",
                    bait))
 
-    # --- порча НАШЕГО СОПОСТАВЛЕНИЯ: оно тоже вход
-    # ПРИМЕНИМА ВСЕГДА — с тех пор как якорь СВЕРЯЕТСЯ рамкой (затвор
-    # «якорь мимо рамки» в `_match`). Геометрия решает теперь на всех трёх
-    # ступенях, значит и сдвиг рамок бьёт по всем трём.
-    #
-    # ЗДЕСЬ СТОЯЛ СТОРОЖ ПРИМЕНИМОСТИ: на входе, сведённом одними якорями,
-    # проба говорила «нет данных», потому что «геометрия не решает ничего, и
-    # сдвиг рамок обязан не менять НИЧЕГО». Довод был верен ДО затвора и
-    # умер вместе с ним, а сторож остался — и подавлял ГОДНЫЙ замер. Мера на
-    # `bench/slovar` (523 блока, якорь проставлен всем): сторож срабатывает,
-    # а доля при сдвиге падает 1.0000 -> 0.0038 и «якорь мимо рамки» растёт
-    # 0 -> 521. То есть печаталось «нечем мерить» там, где мерить есть чем, —
-    # ноль от непонимания вместо величины.
-    #
-    # Сегодня на стендах сторож всё равно не срабатывал (сводится по номеру,
-    # `по якорю` = 0), поэтому снятие ни одного числа не двигает. Он опасен
-    # не тем, что делает, а тем, что сделал бы на первом же входе с якорями —
-    # то есть на выводе `books read`, ради которого якоря и заведены.
+    # --- corrupting OUR OWN PAIRING: it is an input too
+    # ALWAYS APPLICABLE now that the anchor is verified against the box:
+    # geometry decides on all three stages. An applicability guard stood here,
+    # true only BEFORE that gate; on `bench/slovar` (523 blocks, all anchored)
+    # it fires while the share falls 1.0000 -> 0.0038 and "anchor off box"
+    # rises 0 -> 521. Today's benches pair by number, so dropping it moves no
+    # number; it was dangerous for the output of `books read`.
     def shifted():
         return fell(M(_shift_boxes(P))["matching"]["share"], b_match)
 
@@ -1813,41 +1588,24 @@ def mutations(truth_dir: str, pages_dir: str, log=print) -> int:
     probes.append(("ответ сдвинут на страницу", "CER вырос",
                    lambda: (lambda mm: None if mm is None else cer_up(mm))(
                        _shuffle_pages(P))))
-    # СТОРОЖ ЗАТВОРА «якорь мимо рамки»: объявленный якорь СВЕРЯЕТСЯ рамкой, а
-    # не принимается на веру (`_match`), — и проба требует, чтобы сдвиг рамок
-    # ломал сопоставление ДАЖЕ ТАМ, ГДЕ ВСЁ СВЕДЕНО ПО ЯКОРЮ.
-    #
-    # Здесь стояло обратное — «объявленный якорь сильнее геометрии, и сдвиг
-    # рамок его не ломает», `== b_match`. Это был договор ДО затвора, и после
-    # его появления батарея печатала «не пойманных порч: 1» на всех шести
-    # стендах: прибор объявлял себя сломанным на входе, где он как раз стал
-    # строже. Замер на `bench/slovar`: доля 1.0000 -> 0.0038, «якорь мимо
-    # рамки» 0 -> 521 из 523 блоков.
-    #
-    # Проба нужна ещё и потому, что счётчик «якорь мимо рамки» не был прикрыт
-    # НИЧЕМ: он копится (`text.py`, `mt[...] += dead[2]`) и печатается в
-    # отчёте, а порчу, ради которой заведён, батарея не видела. Снимут
-    # затвор — покраснеет здесь.
-    # ПРИМЕНИМА НЕ ВСЕГДА, и оба случая померены, а не выдуманы. Сравнивается
-    # вход С ЯКОРЯМИ до сдвига с ним же после — тогда сдвиг остаётся
-    # единственным отличием, а базовая величина батареи (снятая БЕЗ якорей)
-    # в сравнение не лезет.
+    # GUARD OVER THE "anchor off box" GATE: an anchor is verified, not trusted,
+    # so a box shift must break pairing EVEN WHERE ALL WAS PAIRED BY ANCHOR.
+    # The opposite contract (`== b_match`) predates the gate; after it the
+    # battery printed 1 uncaught on all six benches. Nothing else covers that
+    # counter. NOT ALWAYS APPLICABLE: the anchored input before the shift is
+    # compared against itself after, so the shift is the only difference.
     def anchor_gate():
         A = _anchor_all(P)
         was = M(A)["matching"]
-        # Ломать нечего: по якорю не сведён НИ ОДИН блок. Так бывает, когда
-        # рамки ответа и без сдвига мимо истины — затвор уже сработал на всех,
-        # и расти счётчику некуда. Первая редакция этой пробы требовала здесь
-        # ПАДЕНИЯ ДОЛИ, а доля в таком входе уже ноль и ниже не идёт: батарея
-        # печатала «НЕТ» на исправном приборе тем вернее, чем хуже прочитала
-        # модель. Замер: доля 0.0 -> 0.0 при счётчике 0 -> 523.
+        # Nothing to break: NOT ONE block paired by anchor, as when boxes miss
+        # truth even unshifted. The first edition demanded A FALL IN SHARE,
+        # already zero there: 0.0 -> 0.0 with the counter 0 -> 523, red against
+        # a healthy instrument.
         if not was["by_anchor"]:
             return None
-        # Порча не состоялась: сдвиг на 0.9 меньшей стороны тонет в допуске
-        # `metrics.TOL_PX` = 6 px, и при рамке до 6 px включительно ни одна не
-        # уходит за допуск. Спрашиваем это У ВХОДА, а не у прибора: иначе
-        # «порча не дошла» и «затвор снят» дают одинаковый ответ, и проба
-        # перестаёт уметь провалиться.
+        # The corruption did not land: 0.9 of the shorter side sinks into the
+        # `metrics.TOL_PX` = 6 px tolerance. Asked OF THE INPUT, or "did not
+        # land" and "gate gone" answer alike and the probe cannot fail.
         S = _shift_boxes(A)
         if not any(x is not None and y is not None
                    and not metrics.matches(x, y)
@@ -1861,17 +1619,9 @@ def mutations(truth_dir: str, pages_dir: str, log=print) -> int:
                    "«якорь мимо рамки» растёт",
                    anchor_gate))
 
-    # ВТОРОЙ ЗАТВОР ТОЙ ЖЕ СТУПЕНИ, И ОН БЫЛ НЕ ПРИКРЫТ НИЧЕМ. Ступень якоря
-    # сверяет две вещи: номер страницы и рамку. Рамку стережёт проба выше, а
-    # страницу не стерегло ничто — счётчик «якорь на чужую страницу» копился и
-    # печатался в отчёте, а порчу, ради которой заведён, батарея не видела.
-    # Нашла это перекрёстная проверка: снятый затвор `off_page` давал
-    # «не пойманных порч: 0».
-    #
-    # Порча ОБЯЗАНА идти постраничной меткой `p0042-b17`: голый номер страницы
-    # не несёт, и на нём затвор не срабатывает по построению. Метка эта не
-    # выдумана для пробы — ровно её пишет `doc/html.anchor_of`, и ровно ею
-    # второй уровень находит, что заменять.
+    # THE SECOND GATE OF THE SAME STAGE, COVERED BY NOTHING: with the
+    # `off_page` gate removed the battery still reported 0 uncaught. The
+    # corruption must use the label `p0042-b17`; a bare number carries no page.
     def anchor_page_gate():
         A = _anchor_all_paged(P)
         was = M(A)["matching"]
@@ -1886,7 +1636,7 @@ def mutations(truth_dir: str, pages_dir: str, log=print) -> int:
                    "сопоставление падает, «якорь на чужую страницу» растёт",
                    anchor_page_gate))
 
-    # --- порча ИСТИНЫ: метрика обязана смотреть на ОБА входа
+    # --- corrupting TRUTH: the metric must look at BOTH inputs
     def truth_chars():
         tt, ok = _corrupt_truth(T, _drop10)
         return None if (not ok or b_cer is None) else cer(tt=tt) > b_cer
@@ -1899,39 +1649,32 @@ def mutations(truth_dir: str, pages_dir: str, log=print) -> int:
                             fell(M(tt=tt[0])["tables"]["share_cells_matched"],
                                  b_cell))(_corrupt_truth_cell(T))))
 
-    # --- ОБРАТНЫЕ пробы: число обязано СТОЯТЬ
+    # --- REVERSE probes: the figure must STAY PUT
     probes.append(("вход не испорчен вовсе", "все числа на месте",
                    lambda: M() == base))
     probes.append(("разнопись внутри границы (регистр, тире, NFKC, точка)",
                    "CER не изменился",
                    lambda: (lambda mm: None if mm is None
                             else cer(mm) == b_cer)(one(_spelling))))
-    # Та же разнопись при уровне «none» ОБЯЗАНА двигать число: иначе
-    # нормализация мертва, и предыдущая проба хвалит не работу, а бездействие.
+    # The same variance at level "none" MUST move the figure: otherwise
+    # normalisation is dead and the probe above praises inaction, not work.
     probes.append(("та же разнопись при нормализации «none»", "CER изменился",
                    lambda: (lambda mm: None if mm is None else
                             measure_pages(T, mm, norm="none")["text"]["CER"]
                             != measure_pages(T, P, norm="none")["text"]["CER"])(
                        one(_spelling))))
 
-    # ---- ВТОРОЙ УРОВЕНЬ: то, чем будут судить чтение моделью ------------
-    # Три пробы, и каждая закрывает дефект, который прибор УЖЕ имел и который
-    # обошёлся бы дорого на первом же платном прогоне.
+    # ---- SECOND LEVEL: what model reading will be judged by --------------
+    # Three probes, each closing a defect costly on the first paid run.
 
     def _same_numbers_in_otsl():
-        """Таблица, отданная в OTSL, считается ТАК ЖЕ, как в HTML.
-
-        Замер до починки, `bench/slovar`, одна и та же безошибочная таблица:
-        HTML давал «совпало 227 (100%), CER 0.0000», OTSL — «0 (0%), CER
-        1.0000, отдана текстом 2». PaddleOCR-VL отдаёт таблицы именно в OTSL,
-        то есть её безупречное чтение получало ноль и обвинение «отдана
-        прозой»: дефект НАШЕГО разбора, предъявленный как дефект модели.
-        """
+        """A table in OTSL scores THE SAME as one in HTML. Measured before the
+        fix at `_answer_grid`: 100% as HTML, 0% as OTSL."""
         if bi is None:
             return None
         src = P[bi]["blocks"][bj].get("content") or ""
         if otsl.looks_like(src):
-            return None          # он УЖЕ в OTSL — сравнивать не с чем
+            return None          # ALREADY OTSL -- nothing to compare with
         g = _answer_grid(src)
         if not g:
             return None
@@ -1942,20 +1685,14 @@ def mutations(truth_dir: str, pages_dir: str, log=print) -> int:
                 and a["given_as_text"] == b["given_as_text"])
 
     def _artefact_truth(fn, field):
-        """Порча артефакта, у которого истина знаков ЕСТЬ.
+        """Corrupt an artifact that HAS character truth.
 
-        ДВА ПРАВИЛА, ОБА УЖЕ ЗАПИСАНЫ У СОСЕДЕЙ (`one`, `one_tab`), и первая
-        редакция этой функции нарушила оба.
-
-        Первое: ищем блок, который ЕСТЬ ЧЕМ ПОРТИТЬ, а не бросаем поиск на
-        первом подошедшем. Молчание модели ровно на первой формуле из
-        двадцати шести гасило ОБЕ новые пробы разом — «нет данных», — и
-        батарея печатала ноль непойманных.
-
-        Второе: порча обязана что-то ИЗМЕНИТЬ. Порча тут — подмена первого
-        знака на `#`, а ответ модели на формулу вполне может с `#` и
-        начинаться; тогда `fn(old) == old`, входы совпадают, число не
-        шевелится, и проба краснеет на исправном приборе.
+        TWO RULES ALREADY AT THE NEIGHBOURS (`one`, `one_tab`), both broken
+        here once. Keep looking until a block there is something to corrupt in:
+        silence on the first of twenty-six formulas put out BOTH new probes at
+        once and the battery printed zero uncaught. And the corruption must
+        CHANGE something: an answer may already begin with `#`, and the probe
+        then reddens against a healthy instrument.
         """
         for i in sorted(T):
             if i not in P:
@@ -1969,7 +1706,7 @@ def mutations(truth_dir: str, pages_dir: str, log=print) -> int:
                         continue
                     old = pb.get("content")
                     if not old or fn(old) == old:
-                        continue                    # портить нечем — ищем дальше
+                        continue                    # nothing to corrupt here
                     return M(_edit(P, i, k, lambda _: fn(old)))[
                         "artifacts_with_truth"][field]
         return None
@@ -1988,25 +1725,15 @@ def mutations(truth_dir: str, pages_dir: str, log=print) -> int:
 
     bad = mute = seen = 0
     for name, want, probe in probes:
-        # ИСКЛЮЧЕНИЕ В ПРОБЕ — НЕ ПАДЕНИЕ БАТАРЕИ. Без этой ловушки первая же
-        # споткнувшаяся проба уносит весь прогон: строки после неё не
-        # печатаются, итоговая величина не выходит вовсе, и отличить «прибор
-        # цел» от «батарея не доехала» можно только по коду возврата. Мера:
-        # подменённая `measure_pages`, бросающая на 12-й пробе из 28, давала
-        # 16 напечатанных строк и НИ ОДНОЙ итоговой. У `fitness` эта ловушка
-        # есть с самого начала, здесь её не было.
+        # AN EXCEPTION IN A PROBE IS NOT A FALL OF THE BATTERY: `measure_pages`
+        # throwing on the 12th probe of 28 gave 16 printed lines and NOT ONE
+        # total, leaving exit code the only witness.
         try:
             ok = probe()
         except Exception as e:                                  # noqa: BLE001
             ok = False
-            # НЕ словом «упало». В `metrics.py` у семи проб `want` и есть
-            # «упало» (там это ожидание — «величина обязана упасть»), и
-            # выходило бы «упало — упало: ValueError». Здесь таких проб НЕТ
-            # ни одной, и формулировка держится ради единообразия с соседом:
-            # два прибора, печатающие одну беду разными словами, читаются как
-            # две разные беды. Здесь стоял довод про «семь проб» дословно —
-            # скопированный из `metrics.py` вместе с его основанием, которого
-            # в этом файле нет.
+            # NOT the word "fell": seven probes in `metrics.py` have "fell" as
+            # their `want`, which would read "fell -- fell: ValueError".
             want = f"{want} — ПРОБА БРОСИЛА {type(e).__name__}: {e}"
         mark = "нет данных" if ok is None else ("ok " if ok else "НЕТ")
         log(f"  {mark:>10}  {name}: {want}")
@@ -2019,18 +1746,11 @@ def mutations(truth_dir: str, pages_dir: str, log=print) -> int:
         "ошибку внутри границы нормализации — она снята нарочно и замером; "
         "чтение, потерянное ДО метрики, если блока нет ни в истине, ни в "
         "ответе.")
-    # ВЕЛИЧИНА, А НЕ СЛОВО «ГОТОВО» — та же поправка, что уже сделана в
-    # `fitness`. Здесь стояло одно «не пойманных порч: N», и десять-одиннадцать
-    # проб из двадцати восьми, не померивших НИЧЕГО, в эту строку не попадали
-    # вовсе: батарея выглядела зелёной, померив меньше двух третей. Случай не
-    # выдуманный — сломанный помощник самой пробы (`_anchor_all`) уводит её в
-    # «нет данных», и без этого числа поломка неотличима от исправности.
-    # ЗНАМЕНАТЕЛЬ ПО НАПЕЧАТАННОМУ (`seen`), а не `len(probes)`. Сегодня это
-    # одно и то же — все пробы здесь идут одним циклом, — но соседний
-    # `metrics.mutations` объявляет `len(probes)` недопустимым: там проб три
-    # группы, и попытка сложить их руками дала «проб 32» при 33 исходах.
-    # Правило в двух приборах обязано быть одно, иначе первая же проба вне
-    # цикла соврёт знаменателем и здесь.
+    # A FIGURE, NOT THE WORD "DONE", as in `fitness`: a lone "uncaught: N" hid
+    # ten or eleven probes of twenty-eight that measured NOTHING, and a broken
+    # helper (`_anchor_all`) sends a probe to "no data", where breakage looks
+    # like health. THE DENOMINATOR IS WHAT WAS PRINTED (`seen`): adding groups
+    # by hand gave `metrics.mutations` "probes 32" against 33 outcomes.
     log(f"батарея чтения: проб {seen}, померено {seen - mute}, "
         f"нечем мерить {mute} (см. строки «нет данных»), непойманных {bad}")
     return bad

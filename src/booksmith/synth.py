@@ -49,7 +49,6 @@ import os
 from .run import knobs
 
 W, H = 1012, 1466                 # как страница bench при 144 dpi
-SHEET = (W, H)
 DPI = 144.0
 PT = 72.0 / DPI                   # пиксель -> пункт
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf"
