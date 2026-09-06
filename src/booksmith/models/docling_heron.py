@@ -1,104 +1,82 @@
-"""Второй детектор контуров: docling heron (IBM), RT-DETRv2 на ResNet-50.
+"""Second contour detector: docling heron (IBM), RT-DETRv2 on ResNet-50.
 
-ЗАЧЕМ ВТОРАЯ МОДЕЛЬ, ЕСЛИ МЫ НЕ СОБИРАЕМСЯ МЕНЯТЬ ПЕРВУЮ. Стенд померил у
-PP-DocLayoutV2 дефект: две таблицы, стоящие бок о бок, она сливает в одну
-рамку — 0 разделённых из 3 страниц, при 100% на `image`, `chart` и `header`.
-Отличить «беда архитектуры DETR с однозначным сопоставлением» от «беда
-обучающей выборки, где таблиц 1.18% и почти все одиночные» нельзя, глядя на
-одну модель. Нужна вторая, независимая: другая архитектура (RT-DETRv2 против
-RT-DETR-L), другие данные (150 тыс. документов IBM против 30 тыс. Baidu),
-другой вход (640 против 800).
+WHY A SECOND MODEL WHEN THE FIRST IS NOT BEING REPLACED. The bench measured a
+defect in PP-DocLayoutV2: two tables side by side merge into one box -- 0 split
+of 3 pages, against 100% on `image`, `chart` and `header`. "A flaw of DETR
+one-to-one matching" and "a flaw of a training set where tables are 1.18% and
+nearly all single" cannot be told apart from one model, so the second has to be
+independent: another architecture (RT-DETRv2 against RT-DETR-L), other data
+(150k IBM documents against 30k Baidu), another input (640/800).
 
-ЧЕГО ЭТА МОДЕЛЬ НЕ УМЕЕТ, И ЭТО НАДО ЗНАТЬ ДО ЗАМЕРА:
+WHAT IT CANNOT DO, TO BE KNOWN BEFORE MEASURING:
 
-* **Порядка чтения нет.** В конвейере docling его считают правилами, отдельно
-  от модели. `Block.order` здесь — позиция в нашем списке, и это ЗНАЧЕНИЕ,
-  честно объявленное в отпечатке, а не ранг модели. Метрику порядка по ней
-  считать нельзя.
-* **Класса `chart` нет вовсе** — графики уходят в `picture`. Наш `chart` ей
-  нечем выразить, и это не её ошибка, а разница словарей.
-* **Отдельного номера страницы нет** — он внутри `page_footer`.
+* **No reading order.** docling computes it by rules, apart from the model.
+  `Block.order` here is the position in our list -- a VALUE declared as such in
+  the fingerprint, not a model rank. The order metric may not be run on it.
+* **No `chart` class at all** -- charts leave as `picture`. A difference of
+  vocabularies, not an error of the model.
+* **No page number of its own** -- it lives inside `page_footer`.
 
-Постобработки docling (`LayoutPostprocessor`: пороги по классам, три итерации
-уточнения рамок, слияние вложенных) при `DOCLING_PIPELINE=off` здесь НЕТ НИ
-СТРОКИ, и это умолчание. Мы зовём граф напрямую: правило проекта — что модель
-отдала, то и меряется.
+At `DOCLING_PIPELINE=off`, the default, NOT ONE LINE of docling postprocessing
+runs here (`LayoutPostprocessor`: per-class thresholds, three box-refinement
+passes, merging of nested boxes). We call the graph directly: project rule,
+what the model gave is what gets measured.
 
-КОНВЕЙЕР DOCLING — РУЧКА, А НЕ УМОЛЧАНИЕ.
+THE DOCLING PIPELINE IS A KNOB, NOT A DEFAULT. `post|full` turns on two VENDOR
+classes, called as they are, with no edit of ours inside:
 
-`DOCLING_PIPELINE=post|full` включает два класса ВЕНДОРА, вызванных как есть,
-без единой нашей правки внутри:
+* `docling.utils.layout_postprocessor.LayoutPostprocessor` -- thresholds PER
+  CLASS (SEVENTEEN of them: 0.5 for caption, footnote, formula, list_item,
+  page_footer, page_header, picture, table, text; 0.45 for section_header,
+  title, code, document_index, form, key_value_region, checkbox_selected,
+  checkbox_unselected), overlap resolution over three ranks (regular/picture/
+  wrapper, each with its own area_threshold and conf_threshold), suppression
+  of coincident pairs at IoU > 0.8, `TITLE -> SECTION_HEADER`, and boxes that
+  fall inside a wrapper going INTO ITS CHILDREN (734 of 15689 on the golden
+  bench). The thresholds are the pipeline's first act and here they remove not
+  one box -- that, and what the children cost, is measured at
+  `_DoclingPipeline.apply`.
+* `docling.models.postprocessing.reading_order_rb.ReadingOrderPredictor` --
+  "rb" is RULE-BASED, and that has to be said aloud: 740 lines of RULES over
+  boxes, not one weight. heron predicts no reading order with the knob or
+  without it; the pipeline swaps OUR sorting rule for THEIRS, which is why our
+  answers still begin with "ours" (the contract is at `ORDER_RULE`).
 
-* `docling.utils.layout_postprocessor.LayoutPostprocessor` — пороги ПО КЛАССАМ
-  (их СЕМНАДЦАТЬ, и перечень тут был неполон: 0.5 у caption, footnote,
-  formula, list_item, page_footer, page_header, picture, table, text; 0.45 у
-  section_header, title, code, document_index, form, key_value_region,
-  checkbox_selected, checkbox_unselected), разрешение налезаний по трём
-  разрядам (regular/picture/wrapper, свои area_threshold и conf_threshold),
-  гашение совпадающих пар при IoU > 0.8, `TITLE -> SECTION_HEADER` и уход
-  рамок, попавших внутрь обёртки, В ДЕТИ этой обёртки. Пороги — первое дело
-  конвейера, и у нас они НЕ СНИМАЮТ НИ ОДНОЙ РАМКИ: самый высокий из
-  семнадцати ровно 0.5, столько же, сколько наш `LAYOUT_SCORE_THRESHOLD`, и
-  рамка ниже к ним просто не доезжает (числа — при `_DoclingPipeline.apply`).
-  Уход в дети — не потеря сам по себе, но и не мелочь: 734 рамки из 15689 на
-  золотом стенде становятся детьми, и чтобы «схлопнул» не читалось как
-  «выбросил», каждая пишется в meta страницы полем «дети» — ярлыком и рамкой,
-  а не одним номером в чужой нумерации. ПОТЕРЯ ТУТ НЕ У ВСЕХ: из верхнего
-  списка вендор снимает детей только у обёрток-таблиц и картинок, а у `form`
-  и `key_value_region` ребёнок остаётся и наверху — meta называет и то и
-  другое двумя разными числами.
-* `docling.models.postprocessing.reading_order_rb.ReadingOrderPredictor`.
+The project rule "nobody fixes the model" is NOT broken, for exactly two
+reasons, both required: the vendor code is called unedited (we merge and move
+no box ourselves) and it is switched on by a declared knob, not silently. A
+patch is when WE fix a box.
 
-«rb» ЗНАЧИТ RULE-BASED, и это надо говорить вслух. Файл — 740 строк ПРАВИЛ над
-рамками, ни одного веса. Порядка чтения heron не предсказывает ни с ручкой, ни
-без неё; конвейер меняет НАШЕ правило сортировки (сверху вниз, слева направо)
-на ИХ правило. Назвать это «моделью порядка чтения» — соврать, и соврать
-метрике: `metrics._model_has_rank` решает по слову «наш» в поле meta «порядок
-чтения», сверять ли порядок с истиной или печатать НЕ СВЕРЯЕТСЯ. Поэтому все
-три наших ответа начинаются со слова «наш» — и с конвейером тоже. Цена
-обратного известна: на hard36 семь стендов печатали проценты порядка по
-истине, которая про порядок молчала вовсе.
+What it buys and what it costs, in full: `run/knobs.py`, `DOCLING_PIPELINE`.
+Briefly, on 600 golden pages (`off` against `full`): boxes 15689 -> 9867,
+duplicate pairs at IoU>=0.9 4435 -> 19, VLM requests 23.0 -> 14.6 per page,
+extra column jumps 2718 -> 471 IN COUNT (over all 600 pages that is 4.53 ->
+0.79, while today's `metrics.column_jumps` divides by the pages that made the
+count and prints 5.24 -> 1.06: the same counts, another denominator -- which
+is why counts stand here).
 
-Правило проекта «модель никто не чинит» этим НЕ нарушено, и ровно по двум
-причинам, обе обязательные: код вендора зовётся без правок (мы не сливаем и не
-двигаем рамок сами) и включается объявленной ручкой, а не молча. Заплатка —
-это когда рамку правим МЫ.
+Ink is not the whole price, and that is the point of the paragraph. In ink:
+whole objects 1049 -> 1042 of 1230, outside every box 24.6% -> 26.3%, TORN 127
+-> 135. By the measure that penalises merging it is three times dearer:
+artefacts found 694 -> 562, meaning intact 602 -> 500, MERGES 366 -> 461.
+`books fitness` does not penalise merging by construction, so judging the
+pipeline by ink alone would name a price of seven objects instead of a hundred
+and thirty-two. Exactly why the knob defaults to OFF and the book is based on
+PP-DocLayoutV2: its reading rank is its own, and its merges 375 against 461.
 
-Что это даёт и чем платится — числами, развёрнуто: `run/knobs.py`, ручка
-`DOCLING_PIPELINE`. Коротко, на 600 страницах золотого стенда (`off` против
-`full`): рамок 15689 -> 9867, пар дублей IoU>=0.9 4435 -> 19, запросов к VLM
-23.0 -> 14.6 на страницу, лишних прыжков между колонками 2718 -> 471 ШТУК
-(на все 600 страниц это 4.53 -> 0.79, а сегодняшняя `metrics.column_jumps`
-делит на страницы, попавшие в счёт, и печатает 5.24 -> 1.06: штуки те же,
-знаменатель разный — и потому здесь стоят штуки).
-
-Платится не только чернилами, и это главное в абзаце. Чернилами: целых
-объектов 1049 -> 1042 из 1230, вне всех рамок 24.6% -> 26.3%, ПОРВАННЫХ
-127 -> 135. А по мерке, которая штрафует слияние, — втрое дороже: найдено
-артефактов 694 -> 562, смысл цел 602 -> 500, СЛИЯНИЙ 366 -> 461. Слияние
-`books fitness` по построению не штрафует, и оценивать конвейер одними
-чернилами значило бы назвать цену в семь объектов вместо ста тридцати двух.
-Ровно поэтому умолчание ручки — ВЫКЛЮЧЕНО, а основой книги назначен
-PP-DocLayoutV2: у него ранг чтения свой, и слияний 375 против 461.
-
-`post` ПОРЯДОК ТОЖЕ МЕНЯЕТ, и здесь стояло обратное. Постобработчик не только
-прореживает: последним делом он сортирует список сам — `_sort_clusters(mode=
-"id")`, — а ключ этой сортировки на наших входных данных вырождается в точные
-`(верх, лево)`: первый его член `min(cell.index)` не работает, клеток у нас нет
-вовсе (`skip_cell_assignment=True`). Замер на 13 страницах `bench/slovar`:
-вывод `post` совпал с сортировкой по (t, l) на 13 страницах из 13, а с нашим
-ключом `(round(y/20), x)` — на 3; не на своём месте 237 рамок на 10 страницах.
-И это не бесплатно: лишних прыжков между колонками у порядка `post` 474, а у
-тех же самых рамок, пересортированных нашим ключом, — 453. То есть `post`
-порядок УХУДШАЕТ. Чинит его только `full` — 0.79 прыжка на страницу.
-
-ОБА ЧИСЛА ЭТОГО АБЗАЦА СНЯТЫ НА КЛЮЧЕ `(round(y/20), x)`, КОТОРОГО ПРИ `off`
-БОЛЬШЕ НЕТ. Правило сборки переехало в `booksmith/order.py` (раздел 20
-`docs/contour-notes.md`), и при `off` действует объявленное `(y0, x0)` либо
-правила docling — по ручке `ASSEMBLY_ORDER`. Корзинный ключ остался ровно в
-одном месте и ровно для одной работы: НУМЕРАЦИЯ перед вендорским конвейером,
-`Cluster.id`, по нему вендор сшивает детей с обёрткой. Числа `post` (474) это
-не двигает — там сортирует вендор; число 453 стало историческим.
+`post` CHANGES THE ORDER TOO: its last act is to sort the list itself, by
+exact `(top, left)` (the key, and why it degenerates, at `ORDER_RULE`). On 13
+pages of `bench/slovar` its output matched a sort by (t, l) on 13 of 13 and
+our key `(round(y/20), x)` on 3, with 237 boxes out of place on 10 pages; and
+it is not free -- 474 extra column jumps under `post` against 453 for the very
+same boxes resorted by our key. So `post` makes the order WORSE; only `full`
+repairs it, 0.79 jumps per page. BOTH THOSE NUMBERS WERE TAKEN ON THE KEY
+`(round(y/20), x)`, WHICH AT `off` NO LONGER EXISTS: the assembly rule moved
+to `booksmith/order.py` (section 20 of `docs/contour-notes.md`), where at `off`
+the declared `(y0, x0)` or the docling rules act by `ASSEMBLY_ORDER`; the
+bucket key survives for one job only, the numbering before the vendor pipeline
+(`_our_order`). The `post` number 474 is not moved by that -- the vendor sorts
+there -- and 453 is historical.
 """
 import hashlib
 import json
@@ -106,11 +84,10 @@ import os
 import sys
 
 from .base import Block, Page, Recognizer
-# Разряд ярлыка — НАША политика и живёт в одном месте. Здесь она нужна ради
-# одного числа: сколько артефактных рамок вендор увёл в дети ТЕКСТОВОЙ
-# обёртки, то есть потерял для книги. Считать это «своим» списком классов
-# значило бы завести второй словарь разрядов, а они в этом проекте уже
-# расходились.
+# The role of a label is OUR policy and lives in one place. Needed here for
+# one number: artefact boxes the vendor took into the children of a TEXT
+# wrapper, that is, lost for the book. A list of classes of our own here would
+# be a second vocabulary of roles, and those have diverged before.
 from .. import order
 from .. import policy
 from ..run import knobs
@@ -130,16 +107,15 @@ def _sha256(path: str) -> str:
     return h.hexdigest()
 
 
-# --- вендорский конвейер docling: перевод ярлыков ---------------------------
+# --- docling vendor pipeline: label translation ----------------------------
 
-# Словарь egret и словарь heron — ОДИН И ТОТ ЖЕ набор из 17 классов docling,
-# записанный в весах по-разному: heron снейк-кейсом (`page_header`), egret
-# витринными именами (`Page-header`, `Document Index`, `Key-Value Region`).
-# Перевод объявлен ПОИМЁННО, а не выведен правилом «в нижний регистр, дефис в
-# подчёркивание»: правило молча приняло бы восемнадцатый класс новых весов и
-# подсунуло бы его вендору под выдуманным именем — ровно та беда, от которой
-# `read()` защищается словами «выдуманный ярлык хуже отказа». Ярлык, которого
-# здесь нет, роняет прогон вслух — как в `policy.py`.
+# The egret and heron vocabularies are ONE set of 17 docling classes written
+# differently in the weights: heron in snake_case (`page_header`), egret in
+# display names (`Page-header`, `Document Index`, `Key-Value Region`). The
+# translation is declared BY NAME, not derived by "lowercase it, hyphen into
+# underscore": such a rule would silently accept an eighteenth class of new
+# weights and hand it to the vendor under an invented name, and an invented
+# label is worse than a refusal. A label missing here fails the run aloud.
 EGRET_TO_DOCLING = {
     "Caption": "caption",
     "Checkbox-Selected": "checkbox_selected",
@@ -160,13 +136,12 @@ EGRET_TO_DOCLING = {
     "Title": "title",
 }
 
-# Что умеет ручка. `off` — рамки модели как есть; `post` — только
-# постобработка (рамки меняются, порядок остаётся нашим); `full` — она же плюс
-# правила порядка чтения. ДВА включающих значения, а не одно «вкл», потому что
-# эффекты разные и их надо уметь развести: `post` двигает и схлопывает рамки
-# (15643 -> 9817), `full` сверх того переставляет их местами, геометрии не
-# трогая вовсе. Слитые в одно, они дали бы «стало лучше» без ответа на вопрос,
-# от чего именно.
+# What the knob can do. `off` -- the model boxes as they are; `post` -- the
+# postprocessor alone (it changes the boxes and resorts them itself); `full`
+# -- that plus the reading-order rules. TWO enabling values and not one "on",
+# because the effects differ and have to be separable: `post` moves and
+# collapses boxes (15643 -> 9817), `full` on top of that permutes them without
+# touching geometry. Merged, they would say "better" without saying from what.
 PIPELINE_MODES = ("off", "post", "full")
 
 _PIP_INSTALL = ('pip install -e ".[docling]"  (docling-slim==2.123.1 и rtree; '
@@ -174,31 +149,29 @@ _PIP_INSTALL = ('pip install -e ".[docling]"  (docling-slim==2.123.1 и rtree; '
 
 
 class _DoclingPipeline:
-    """Два вендорских класса docling над рамками нашего адаптера.
+    """Two vendor docling classes over the boxes of our adapter.
 
-    Здесь НЕТ НИ ОДНОЙ НАШЕЙ ПРАВКИ ВНУТРИ ЧУЖОГО КОДА. Наше в этом файле
-    ровно три вещи, и каждая молчаливо опасна, поэтому названа отдельно.
+    NOT ONE EDIT OF OURS INSIDE THE FOREIGN CODE. Ours here is exactly three
+    things, each of them silently dangerous, so each is named apart.
 
-    1. НАЧАЛО ОТСЧЁТА. Наши рамки идут от ЛЕВОГО ВЕРХНЕГО угла (`base.py`), а
-       правила порядка сравнивают элементы через `self.b > other.b`, то есть
-       ждут отсчёта СНИЗУ. Подать наши координаты как есть — получить книгу,
-       прочитанную снизу вверх, и НИ ОДНА метрика рамок этого не заметит:
-       рамки-то те же. Перевод делает сам docling
-       (`models/stages/reading_order/readingorder_model.py:69`), делаем и мы —
-       `bbox.to_bottom_left_origin(высота страницы)`.
-    2. ПЕРЕВОД ЯРЛЫКОВ (`EGRET_TO_DOCLING`), поимённый, и сверяется он СРАЗУ
-       по всему словарю весов, а не по ярлыкам, которые встретились на
-       странице. Разница в цене: непереводимый класс уронит прогон на нулевой
-       странице, а не на четырёхсотой после двадцати минут счёта.
-    3. КЛЕТОК ТЕКСТА У НАС НЕТ. Мы считаем по растру, а не по текстовому слою
-       PDF, поэтому `skip_cell_assignment=True`: иначе постобработчик стал бы
-       подгонять рамки под клетки, которых нет, — и это была бы уже не его
-       работа, а наша выдумка его руками.
+    1. THE ORIGIN. Our boxes count from the TOP LEFT corner (`base.py`), while
+       the order rules compare elements through `self.b > other.b`, that is,
+       expect a BOTTOM origin. Feed ours as they are and the book is read
+       bottom up, and NO box metric notices: the boxes are the same. docling
+       converts it itself
+       (`models/stages/reading_order/readingorder_model.py:69`), so do we --
+       `bbox.to_bottom_left_origin(page height)`.
+    2. THE LABEL TRANSLATION (`EGRET_TO_DOCLING`), by name, checked whole at
+       construction rather than page by page (why, at the check itself).
+    3. WE HAVE NO TEXT CELLS. We count on the raster, not on the PDF text
+       layer, hence `skip_cell_assignment=True`: otherwise the postprocessor
+       would fit boxes to cells that do not exist -- no longer its work but
+       our invention by its hands.
 
-    НАРУЖУ ЯРЛЫК ВОЗВРАЩАЕТСЯ В НАПИСАНИИ АДАПТЕРА. `policy.py` знает словари
-    `Docling` и `Docling-egret` порознь, и подмена написания уронила бы прогон
-    egret на своём же стенде: `detect.py` зовёт `policy.check` по словарю
-    модели. Перевод — только на вход вендору и обратно.
+    OUTWARD THE LABEL COMES BACK IN THE ADAPTER'S SPELLING: `policy.py` knows
+    the `Docling` and `Docling-egret` vocabularies apart and `detect.py` calls
+    `policy.check` by the model's, so substituting the spelling would kill the
+    egret run on its own bench. Translation goes to the vendor and back only.
     """
 
     def __init__(self, mode: str, labels, adapter: str):
@@ -207,9 +180,9 @@ class _DoclingPipeline:
                              f"{PIPELINE_MODES}")
         self.mode = mode
         self.adapter = adapter
-        # Ленивый импорт и внятный отказ. Без ручки адаптер обязан считать и
-        # вовсе без пакета — вот почему импорт здесь, а не в шапке файла;
-        # с ручкой и без пакета он обязан падать вслух и называть, что ставить.
+        # Lazy import and a clear refusal: without the knob the adapter must
+        # count with no package at all, with the knob and no package it must
+        # fail aloud and name what to install.
         try:
             import docling
             from docling.datamodel.base_models import Cluster, Page as DlPage
@@ -230,25 +203,25 @@ class _DoclingPipeline:
             BoundingBox, DocItemLabel, Size)
         self._LayoutPostprocessor = LayoutPostprocessor
         self._RoElement = RoElement
-        # Предсказатель порядка держится ОДИН на прогон: конструктор ставит два
-        # своих числа (`dilated_page_element`, порог горизонтального
-        # расширения 0.15), и заводить его заново на каждой странице значило бы
-        # обещать, что они могут разъехаться.
+        # The order predictor is held ONE per run: its constructor sets two
+        # numbers of its own (`dilated_page_element`, horizontal expansion
+        # threshold 0.15), and rebuilding it per page would promise they drift.
         self._ro = ReadingOrderPredictor() if mode == "full" else None
         self.options = BaseLayoutPostprocessorOptions(skip_cell_assignment=True)
 
-        # Перевод ярлыков ПРОВЕРЯЕТСЯ ЦЕЛИКОМ, СРАЗУ И ПО ТОМУ СЛОВАРЮ,
-        # КОТОРЫЙ У НАС ДЕЙСТВИТЕЛЬНО СПРОСЯТ. Здесь стояла сверка с
-        # `DocItemLabel`, а в нём 30 имён против семнадцати, которые знает
-        # постобработчик (`LayoutPostprocessor.CONFIDENCE_THRESHOLDS`), и порог
-        # он берёт из этого словаря БЕЗ УМОЛЧАНИЯ. Тринадцать имён проходили
-        # молча — chart, paragraph, reference, handwritten_text, marker,
-        # grading_scale, empty_value и шесть field_*, — а первая же страница
-        # падала голым `KeyError <DocItemLabel.CHART>` уже после поднятия
-        # графа. Воспроизведено: `_DoclingPipeline("post",
-        # DEFAULT_LABELS+["chart"], "docling-heron")` строился МОЛЧА (18
-        # ярлыков), падал на нулевой странице. `chart` — ровно тот класс,
-        # который шапка этого файла называет главной разницей словарей.
+        # THE LABEL TRANSLATION IS CHECKED WHOLE, AT ONCE, AND AGAINST THE
+        # VOCABULARY THAT WILL ACTUALLY BE ASKED -- an untranslatable class
+        # then kills the run on page zero, not on page four hundred after
+        # twenty minutes. `DocItemLabel` is not that vocabulary: it holds 30
+        # names against the seventeen the postprocessor knows
+        # (`LayoutPostprocessor.CONFIDENCE_THRESHOLDS`), and the threshold is
+        # taken from that dict WITH NO DEFAULT. Thirteen names passed silently
+        # -- chart, paragraph, reference, handwritten_text, marker,
+        # grading_scale, empty_value and six field_* -- and the first page died
+        # with a bare `KeyError <DocItemLabel.CHART>` after the graph was up.
+        # Reproduced: `_DoclingPipeline("post", DEFAULT_LABELS+["chart"],
+        # "docling-heron")` built SILENTLY (18 labels) and died on page zero.
+        # `chart` is exactly the class the header calls the main difference.
         known = {lab.value for lab in
                  LayoutPostprocessor.CONFIDENCE_THRESHOLDS}
         self.to_docling = {lab: EGRET_TO_DOCLING.get(lab, lab) for lab in labels}
@@ -277,53 +250,43 @@ class _DoclingPipeline:
                 f"именем.")
         self.back = {v: k for k, v in self.to_docling.items() if v != k}
 
-        # sha256 ОБОИХ файлов: они и есть правила. Правка правила у вендора
-        # сменит наши рамки и наш порядок молча, а версия пакета при этом может
-        # и не двинуться (правка в ветке, локальный патч, `pip install -e`).
+        # sha256 of BOTH files: they are the rules. A vendor edit changes our
+        # boxes and our order silently, while the package version need not move
+        # at all (an edit in a branch, a local patch, `pip install -e`).
         self.files = {}
         for cls in (LayoutPostprocessor, ReadingOrderPredictor):
             path = sys.modules[cls.__module__].__file__
             self.files[os.path.basename(path)] = _sha256(path)
         self.version = getattr(docling, "__version__", None)
 
-        # Счётчики прогона. Числа, а не «готово»: без них «конвейер включён»
-        # неотличимо от «конвейер включён и ничего не сделал».
-        #
-        # «ПЕРЕСТАВЛЕНО» СЧИТАЕТСЯ ДВАЖДЫ, потому что переставляют ДВОЕ.
-        # Здесь был один счётчик, и считался он ТОЛЬКО внутри ветки `full`, —
-        # значит при `post` в meta каждой страницы, в журнал и в `run.json`
-        # уезжал ноль от непроверки, напечатанный как ноль от замера. А
-        # постобработчик рамки как раз пересортировывает, и на `bench/slovar`
-        # не на своём месте оказывались 237 рамок из 531.
+        # Run counters. Numbers, not "done": without them "the pipeline is on"
+        # is indistinguishable from "the pipeline is on and did nothing".
+        # "REORDERED" IS COUNTED TWICE, because TWO things reorder. One
+        # counter, and it counted only inside the `full` branch, sent a zero
+        # from no-check into the meta of every page, into the log and into
+        # `run.json`, printed as a zero from measurement -- while the
+        # postprocessor does resort: on `bench/slovar` 237 boxes of 531.
         self.pages = self.before = self.after = self.kids = 0
-        self.displaced = 0           # итог: не на своём месте против нашего
-        self.resorted = 0            # сортировка постобработчика: оба режима
-        self.reordered = 0           # правила порядка чтения: только `full`
-        self.arte_in_text = 0        # артефакт уехал в дети ТЕКСТОВОЙ обёртки
-        self.arte_lost = 0           # ...и не остался в верхнем списке
+        self.displaced = 0           # total: out of place against ours
+        self.resorted = 0            # postprocessor sort: both modes
+        self.reordered = 0           # reading-order rules: `full` only
+        self.arte_in_text = 0        # artefact into a TEXT wrapper's children
+        self.arte_lost = 0           # ...and not left on the top level
 
-    # Строка про порядок ОБЯЗАНА начинаться со слова «наш»: по нему
-    # `metrics._model_has_rank` понимает, что ранга модели здесь нет, и не
-    # печатает процент из ничего. Правило при этом названо поимённо — чтобы
-    # «наш» не читалось как «сверху вниз», когда он уже не сверху вниз.
+    # The order line MUST begin with the word "ours": by it
+    # `metrics._model_has_rank` learns there is no model rank here and prints
+    # no percentage out of nothing. The rule is named by name as well, so that
+    # "ours" is not read as "top down" when it is no longer top down.
     ORDER_RULE = {
-        # `post` ПОРЯДОК МЕНЯЕТ. Здесь стояло «сортирует по Cluster.id, то есть
-        # по нашему же порядку», и эта неправда уезжала в meta КАЖДОЙ страницы,
-        # в `run.json`, в `books html` и в `books score`.
-        # `LayoutPostprocessor._sort_clusters(mode="id")` берёт ключ из
-        # трёх членов: `min(cell.index) if cluster.cells else sys.maxsize`,
-        # затем `bbox.t`, затем `bbox.l`. А `cluster.cells` у нас ПУСТЫ
-        # ВСЕГДА — `skip_cell_assignment=True` ставим мы сами. Первый член
-        # ключа вырождается в константу, и остаются точные `(верх, лево)` —
-        # НЕ наши полосы `round(y/20)`.
-        # Замер (13 страниц `bench/slovar`, heron): вывод `post` совпал с
-        # сортировкой по (t, l) на 13 страницах из 13, с нашим ключом — на 3;
-        # не на своём месте 237 рамок на 10 страницах. Цена видна метрикой без
-        # истины: лишних прыжков между колонками 474 у порядка `post` против
-        # 453 у тех же рамок, пересортированных нашим ключом.
-        # Слово «наш» в начале строки ОБЯЗАНО остаться, и оно тут не про
-        # правило: `metrics._model_has_rank` читает его как «ранга модели нет»
-        # и потому не печатает процент порядка по истине из ничего.
+        # `post` CHANGES THE ORDER.
+        # `LayoutPostprocessor._sort_clusters(mode="id")` takes a key of three
+        # members: `min(cell.index) if cluster.cells else sys.maxsize`, then
+        # `bbox.t`, then `bbox.l`. Our `cluster.cells` are ALWAYS empty --
+        # `skip_cell_assignment=True` is set by us -- so the first member
+        # degenerates into a constant and exact `(top, left)` remain, NOT our
+        # `round(y/20)` bands. The price of calling a foreign order ours was
+        # paid on hard36, where seven benches printed "pairs 211, agreed 73%"
+        # over a truth that marks no reading order on any page at all.
         "post": "ours_only_in_the_sense_that_the_model_gave_no_rank: the rule "
                 "is FOREIGN -- the docling postprocessor resorted the boxes "
                 "by (top, left), exact coordinates, not by our round(y/20) "
@@ -333,12 +296,11 @@ class _DoclingPipeline:
     }
 
     def _label(self, raw):
-        """Ярлык адаптера -> ярлык docling. Неизвестный — вслух, а не KeyError.
+        """Adapter label -> docling label. An unknown one aloud, not KeyError.
 
-        Дотянуться сюда с чужим ярлыком можно только мимо `read()` (он держит
-        индекс класса в границах словаря весов), но сообщение «KeyError:
-        'Chart'» не сказало бы, ЧТО чинить, а чинится это одной строкой в
-        `EGRET_TO_DOCLING`.
+        Reaching here with a foreign label is only possible past `read()`, but
+        "KeyError: 'Chart'" would not say WHAT to fix, and the fix is one line
+        in `EGRET_TO_DOCLING`.
         """
         try:
             return self._DocItemLabel(self.to_docling[raw])
@@ -349,7 +311,7 @@ class _DoclingPipeline:
                 f"EGRET_TO_DOCLING поимённо.") from None
 
     def apply(self, blocks, width, height, index):
-        """Рамки адаптера -> рамки после вендора. Возвращает (блоки, meta)."""
+        """Adapter boxes -> boxes after the vendor. Returns (blocks, meta)."""
         clusters = [
             self._Cluster(
                 id=b.block_id, label=self._label(b.label),
@@ -362,31 +324,29 @@ class _DoclingPipeline:
         if self.mode in ("post", "full"):
             page = self._DlPage(page_no=index)
             page.size = self._Size(width=float(width), height=float(height))
-            # ПЕРВОЕ ДЕЛО ПОСТОБРАБОТЧИКА — ПОРОГИ ПО КЛАССАМ — У НАС МЁРТВОЕ,
-            # и знать это надо, чтобы не приписывать ему чужую работу. Все
-            # семнадцать вендорских порогов не выше 0.5, а наш отбор в
-            # `read()` уже отрезал по `LAYOUT_SCORE_THRESHOLD`, и его
-            # умолчание — те же 0.5. Замер (matematika + slovar, heron и
-            # egret, четыре прогона `off`): рамок 1948, ниже своего
-            # вендорского порога НОЛЬ, минимальная уверенность 0.50033 при
-            # самом высоком вендорском пороге ровно 0.5. Шаг оживёт только при
-            # `LAYOUT_SCORE_THRESHOLD` ниже 0.45 — тогда 0.45-е классы
-            # (section_header, title, code, document_index, form,
-            # key_value_region, checkbox_*) начнут терять рамки первыми.
+            # THE POSTPROCESSOR'S FIRST ACT -- THE PER-CLASS THRESHOLDS -- IS
+            # DEAD HERE, so that its work is not credited with someone else's.
+            # All seventeen vendor thresholds are at most 0.5, while our
+            # selection in `read()` has already cut by
+            # `LAYOUT_SCORE_THRESHOLD`, whose default is the same 0.5. Measured
+            # (matematika + slovar, heron and egret, four `off` runs): 1948
+            # boxes, ZERO below their own vendor threshold, minimum confidence
+            # 0.50033 against the highest vendor threshold of exactly 0.5. The
+            # step comes alive only below 0.45, where the eight 0.45 classes
+            # lose boxes first.
             clusters = self._LayoutPostprocessor(
                 page, clusters, self.options).postprocess()
-            # СКОЛЬКО РАМОК ПЕРЕСОРТИРОВАЛ САМ ПОСТОБРАБОТЧИК. Считается в
-            # ОБОИХ режимах, потому что сортирует он в обоих: `_sort_clusters`
-            # без клеток вырождается в точные (верх, лево), а НАШ порядок —
-            # это порядок номеров (`Cluster.id`). Сравнение идёт с ним, а не с
-            # длиной списка: прореживание сдвигает всех, и мерить надо
-            # перестановку выживших, а не их убыль.
+            # HOW MANY BOXES THE POSTPROCESSOR ITSELF RESORTED, counted in
+            # BOTH modes because it sorts in both. The comparison is against
+            # our numbers (`Cluster.id`), not against the length of the list:
+            # thinning shifts everyone, and what must be measured is the
+            # permutation of the survivors, not their loss.
             ids = [c.id for c in clusters]
             resorted = sum(1 for a, b in zip(ids, sorted(ids)) if a != b)
 
-        # Правила порядка чтения при `post` НЕ ЗОВУТСЯ ВОВСЕ — значит их число
-        # тут прочерк, а не ноль. Ноль от непроверки и ноль от замера — разные
-        # нули, и прежде здесь печатался первый под видом второго.
+        # At `post` the reading-order rules are NOT CALLED AT ALL, so their
+        # number here is a dash: a zero from no-check and a zero from
+        # measurement are different zeros, and the first stood here as second.
         moved = 0 if self.mode == "full" else None
         if self.mode == "full" and clusters:
             size = self._Size(width=float(width), height=float(height))
@@ -397,35 +357,32 @@ class _DoclingPipeline:
                     cid=i, text="", page_no=index, page_size=size,
                     label=c.label, l=bb.l, r=bb.r, b=bb.b, t=bb.t,
                     coord_origin=bb.coord_origin))
-            # ПОРЯДОК ЗАВИСИТ ОТ ВЕРСИИ ПИТОНА — беда не наша, но забота наша.
-            # Нетранзитивных `sorted()` в `reading_order_rb.py` ДВА, и оба
-            # сортируют `PageElement` одним и тем же `__lt__`: «перекрываются
-            # по горизонтали — сравнивай по низу, иначе по левому краю».
-            # Строка 535 — `_find_heads(sorted(head_page_elems))`, строка 556 —
-            # `_sort_ud_maps(sorted(child_provs))`. Здесь была названа одна
-            # 535, а разошлась на замере как раз 556. Для
-            # непоследовательного сравнения ответ `sorted` зависит от того, в
-            # каком порядке реализация сравнивает пары. Замер: те же 600
-            # страниц, тот же docling 2.123.1, те же pydantic 2.13.5 и numpy
-            # 2.5.2 — на python 3.12.3 и 3.13.13 порядок разошёлся на ТРЁХ
-            # страницах из 600 (0001, 0129, 0482). Рамки при этом до последнего
-            # знака те же, набор тот же — переставлены места, и ни одна метрика
-            # рамок этого не увидит.
-            # НА ДВУХ НАШИХ КНИГАХ БЕДЫ НЕ ВИДНО ВОВСЕ, и это замеренный ноль,
-            # а не пропущенная проверка: подменив имя `sorted` в пространстве
-            # имён вендорского модуля (сам код вендора не тронут) на 25
-            # страницах slovar+matematika, получили 75 вызовов `_find_heads`
-            # (7 списков от трёх элементов) против 684 вызовов `_sort_ud_maps`
-            # (13 списков) — и нетранзитивных троек 0 и там, и там. То есть
-            # ловить расхождение надо на стенде побольше, а не на этих двух.
-            # Внутри одного питона повторяется побайтово (проверено тремя
-            # прогонами). Версия питона уезжает в слепок
-            # (`detect.py:_packages`) — значит, расхождение хотя бы видно.
+            # THE ORDER DEPENDS ON THE PYTHON VERSION -- not our trouble, but
+            # our care. `reading_order_rb.py` holds TWO non-transitive
+            # `sorted()` calls, both sorting `PageElement` by the same
+            # `__lt__` ("overlapping horizontally -- compare by the bottom,
+            # else by the left edge"): line 535 `_find_heads`, line 556
+            # `_sort_ud_maps`, and 556 is the one that diverged in the
+            # measurement. For an inconsistent comparison the answer of
+            # `sorted` depends on the order in which pairs get compared.
+            # Measured: the same 600 pages, docling 2.123.1, pydantic 2.13.5,
+            # numpy 2.5.2 -- on python 3.12.3 and 3.13.13 the order diverged on
+            # THREE pages of 600 (0001, 0129, 0482), the boxes the same to the
+            # last digit and the set the same, only the places permuted, which
+            # no box metric sees. ON OUR TWO BOOKS IT IS INVISIBLE, and that is
+            # a measured zero, not a skipped check: substituting the name
+            # `sorted` in the vendor module's namespace (its code untouched)
+            # over 25 pages of slovar+matematika gave 75 calls of `_find_heads`
+            # (7 lists of three elements or more) against 684 of
+            # `_sort_ud_maps` (13 lists) -- 0 non-transitive triples in either,
+            # so hunt it on a bigger bench. Within one python it repeats byte
+            # for byte (three runs); the version goes into the fingerprint
+            # (`detect.py:_packages`), so a divergence is at least visible.
             order = [e.cid for e in self._ro.predict_reading_order(els)]
-            # Перестановка обязана быть перестановкой. Правила разводят
-            # колонтитулы и тело по трём спискам и сшивают обратно; потеряйся
-            # там элемент — рамка исчезла бы из книги молча, а число рамок
-            # «после» выглядело бы просто чуть меньшим.
+            # A permutation must be a permutation. The rules split running
+            # heads and body into three lists and sew them back; lose an
+            # element there and a box would vanish from the book silently,
+            # while the count "after" would merely look a little smaller.
             if sorted(order) != list(range(len(clusters))):
                 raise RuntimeError(
                     f"правила порядка docling вернули не перестановку на "
@@ -434,60 +391,55 @@ class _DoclingPipeline:
             moved = sum(1 for i, j in enumerate(order) if i != j)
             clusters = [clusters[i] for i in order]
 
-        # СОВОКУПНОЕ СМЕЩЕНИЕ ПРОТИВ НАШЕГО ПОРЯДКА — одним числом и по
-        # окончательному списку: сколько выживших рамок стоят НЕ там, куда их
-        # поставила бы наша нумерация (`Cluster.id`, он же наш ключ
-        # `(round(y/20), x)`). Оно и уезжает в `detect.py` полем «переставлено
-        # рамок»: тот складывает его по страницам и печатает итогом, а разложат
-        # смещение на причины два поля ниже.
+        # TOTAL DISPLACEMENT AGAINST OUR ORDER -- one number, over the final
+        # list: how many surviving boxes stand elsewhere than our numbering
+        # (`Cluster.id`, our `(round(y/20), x)` key) would put them. This goes
+        # to `detect.py` as "boxes reordered", which sums it over pages and
+        # prints the total; the two fields below split it into causes.
         final_ids = [c.id for c in clusters]
         displaced = sum(1 for a, b in zip(final_ids, sorted(final_ids))
                         if a != b)
-        # Кто ОСТАЛСЯ НАВЕРХУ. Уйти в дети и пропасть из книги — не одно и то
-        # же, и разводит их только этот набор: вендор снимает детей с верхнего
-        # списка лишь у обёрток-таблиц и картинок (`TABLE_TYPES`, `PICTURE`), а
-        # у `form` и `key_value_region` ребёнок остаётся и наверху тоже.
-        # Проверено подстановкой: `document_index <- formula` — наверху одна
-        # рамка `document_index`, формулы нет вовсе; `key_value_region <-
-        # formula` — наверху обе.
+        # WHO STAYED ON TOP. Going into children and vanishing from the book
+        # are not the same thing, and only this set tells them apart: the
+        # vendor takes children off the top list for table and picture
+        # wrappers only (`TABLE_TYPES`, `PICTURE`). Checked by substitution:
+        # `document_index <- formula` leaves one `document_index` box on top
+        # and no formula at all; `key_value_region <- formula` leaves both.
         top = set(final_ids)
 
         out, kids, arte_in_text, arte_lost = [], {}, 0, 0
         for i, c in enumerate(clusters):
             lab = self.back.get(c.label.value, c.label.value)
-            # ДЕТИ ОПИСЫВАЮТСЯ САМИ СОБОЙ, А НЕ НОМЕРОМ В ЧУЖОЙ НУМЕРАЦИИ.
-            # Здесь лежал `{i: [k.id, ...]}` — ключ послеконвейерный (позиция в
-            # ЭТОМ списке), значения доконвейерные (`Cluster.id`), а имя поля
-            # предупреждало только про вторую половину. Связать одно с другим
-            # было нечем: сами рамки перенумерованы с нуля, доконвейерный номер
-            # в них не хранится вовсе, и восстановить его можно было только
-            # вторым прогоном с `DOCLING_PIPELINE=off`. Теперь ключ — позиция
-            # обёртки в этом же списке (её видно рядом), а ребёнок несёт свой
-            # ярлык и свою рамку, и номер его назван полем, а не догадкой.
+            # CHILDREN DESCRIBE THEMSELVES, NOT BY A NUMBER IN A FOREIGN
+            # NUMBERING. Here lay `{i: [k.id, ...]}`: the key from after the
+            # pipeline, the values from before it, and nothing tying one to
+            # the other -- the boxes are renumbered from zero and keep no
+            # pre-pipeline number, so it could be recovered only by a second
+            # run with `DOCLING_PIPELINE=off`. Now the key is the wrapper's
+            # position in this same list, and the child carries its own label,
+            # box and number, each named by a field.
             ch = [{"id_before_pipeline": int(k.id),
                    "label": self.back.get(k.label.value, k.label.value),
                    "box": [k.bbox.l, k.bbox.t, k.bbox.r, k.bbox.b]}
                   for k in c.children]
             if ch:
                 kids[i] = ch
-                # ПОТЕРЯ СТРУКТУРЫ — ОТДЕЛЬНЫМ ЧИСЛОМ, И ЧИСЕЛ ДВА. Первое:
-                # артефакт (таблица, картинка, формула, код) уехал в дети
-                # ТЕКСТОВОЙ обёртки — `document_index`, `form`,
-                # `key_value_region`. Второе, строже: его при этом не стало и
-                # в верхнем списке, то есть обёртка уедет текстом, а вырезать
-                # артефакт из неё уже некому. Разводить их обязательно:
-                # проверено подстановкой, что у `form` и `key_value_region`
-                # ребёнок остаётся наверху (потери нет), а у `document_index`
-                # — единственной ТЕКСТОВОЙ обёртки из TABLE_TYPES — пропадает
-                # совсем. Разбор 734 детей золотого стенда ПО ОБЁРТКАМ:
-                # picture 526, key_value_region 161, document_index 26,
-                # table 21; артефактных рамок в текстовых обёртках среди них 6.
-                # На выжимке `bench/hard36` (36 страниц, heron, post) это
-                # число НОЛЬ, и ноль посчитанный: детей 60 — 49 в обёртках
-                # `picture`, 11 в `key_value_region`; по ярлыкам text 40,
-                # caption 10, section_header 9, formula 1, и единственный
-                # артефакт (formula) уехал в обёртку-КАРТИНКУ, которую второй
-                # уровень вырежет целиком.
+                # LOSS OF STRUCTURE IS A NUMBER OF ITS OWN, AND THERE ARE TWO
+                # OF THEM. First: an artefact (table, picture, formula, code)
+                # went into the children of a TEXT wrapper -- `document_index`,
+                # `form`, `key_value_region`. Second, stricter: it is gone from
+                # the top list as well, so the wrapper leaves as text and
+                # no one is left to cut the artefact out of it (which wrappers
+                # lose their children is measured just above). The 734
+                # children of the golden bench BY WRAPPER: picture 526,
+                # key_value_region 161, document_index 26, table 21;
+                # artefact boxes in text wrappers among them 6. On
+                # `bench/hard36` (36 pages, heron, post) that number is
+                # ZERO, and a counted zero: 60 children, 49 in `picture`
+                # wrappers and 11 in `key_value_region`; by label text 40,
+                # caption 10, section_header 9, formula 1, and the one
+                # artefact (formula) went into a PICTURE wrapper, which level
+                # two cuts whole.
                 if policy.role(lab) == "text":
                     art = [k for k in ch
                            if policy.role(k["label"]) == "artifact"]
@@ -513,31 +465,23 @@ class _DoclingPipeline:
             "boxes_before": len(blocks),
             "boxes_after": len(out),
             "moved_to_children": sum(len(v) for v in kids.values()),
-            # ТРИ ЧИСЛА ВМЕСТО ОДНОГО, И КАЖДОЕ ОТВЕЧАЕТ НА СВОЙ ВОПРОС.
-            # Первое — итог: сколько рамок стоят не там, где стояли бы в нашем
-            # порядке. Его читает `detect.py` и складывает по книге, поэтому
-            # имя поля прежнее. Прежде оно считалось ТОЛЬКО внутри ветки
-            # `full`, то есть при `post` было нулём по построению — нулём от
-            # непроверки, напечатанным как ноль от замера.
-            # Второе и третье называют ПРИЧИНЫ, но НЕ СКЛАДЫВАЮТСЯ в
-            # первое и складываться не должны: они меряны на разных шагах —
-            # сортировка постобработчика (в обоих режимах) на своём выходе,
-            # правила порядка (только в `full`) на своём. На slovar это видно
-            # числами: итог 354, сортировка 237, правила 372.
-            # Прочерк в третьем при `post` — не ноль: правила там не звались
-            # ни разу.
+            # THREE NUMBERS INSTEAD OF ONE, EACH ANSWERING ITS OWN QUESTION.
+            # The first is the total: how many boxes stand elsewhere than our
+            # order would put them; `detect.py` reads it and sums it over the
+            # book, so the field keeps its name. The second and the third name
+            # the CAUSES, and they DO NOT ADD UP to the first, nor should
+            # they: they are measured at different steps -- the postprocessor
+            # sort (both modes) on its own output, the order rules (`full`
+            # only) on theirs. On slovar: total 354, sort 237, rules 372.
             "boxes_reordered": displaced,
             "reordered_by_postprocessor_sort": resorted,
             "reordered_by_order_rules": moved,
-            # Ключ — позиция обёртки В ЭТОМ списке; у каждого ребёнка свой
-            # доконвейерный номер назван полем внутри. Обе нумерации названы,
-            # смешать их больше нечем.
+            # The key is the wrapper's position IN THIS list; every child
+            # carries its own pre-pipeline number in a field. Both are named.
             "children_by_box_index": kids,
-            # Не «сколько схлопнулось», а сколько при этом ПОТЕРЯНО. Первое
-            # число — артефакты, уехавшие в дети ТЕКСТОВОЙ обёртки; второе —
-            # те из них, кого в верхнем списке уже нет вовсе, то есть прямая
-            # потеря структуры: обёртка уедет текстом, а вырезать артефакт из
-            # неё некому.
+            # Not "how much collapsed" but how much was LOST by it: artefacts
+            # taken into the children of a TEXT wrapper, and those of them no
+            # longer on the top list at all -- a direct loss of structure.
             "artifact_boxes_in_text_wrappers": arte_in_text,
             "of_those_lost_from_top_level": arte_lost,
         }
@@ -562,8 +506,8 @@ class _DoclingPipeline:
                      "boxes_after": self.after, "moved_to_children": self.kids,
                      "boxes_reordered": self.displaced,
                      "reordered_by_postprocessor_sort": self.resorted,
-                     # Прочерк, а не ноль: при `post` правила порядка не
-                     # звались ни разу.
+                     # A dash, not a zero: at `post` the order rules
+                     # were never called.
                      "reordered_by_order_rules":
                          self.reordered if self.mode == "full" else None,
                      "artifact_boxes_in_text_wrappers":
@@ -593,17 +537,17 @@ class DoclingHeron(Recognizer):
         with open(cfg_path, encoding="utf-8") as f:
             cfg = json.load(f)
         i2l = cfg.get("id2label") or {}
-        # Словарь ярлыков ОБЯЗАН приехать из весов. У ONNX-сборки heron его в
-        # config.json нет — тогда берём объявленный здесь список и падаем, если
-        # модель вернёт индекс за его пределами: выдуманный ярлык хуже отказа.
+        # The label vocabulary MUST come from the weights. The ONNX build of
+        # heron has none in `config.json` -- then the list declared here, and
+        # an index beyond it fails: an invented label is worse than a refusal.
         self.labels = ([i2l[str(i)] for i in range(len(i2l))] if i2l
                        else list(DEFAULT_LABELS))
-        # Ручка читается ЗДЕСЬ И ОДИН РАЗ на прогон, а не на каждой странице:
-        # `os.environ` живой, и прогон, у которого половина страниц посчитана
-        # одним правилом, а половина другим, был бы неповторим, а `run.json`
-        # назвал бы одно значение. Строится конвейер ДО сессии ONNX: отказ
-        # «нет пакета docling» стоит миллисекунды, а поднятие графа — секунды,
-        # и падать надо на дешёвом.
+        # The knob is read HERE AND ONCE per run, not on every page:
+        # `os.environ` is alive, and a run with half its pages counted by one
+        # rule and half by another would be irreproducible while `run.json`
+        # named a single value. The pipeline is built BEFORE the ONNX session:
+        # refusing with "no docling package" costs milliseconds and raising
+        # the graph costs seconds, so failing must happen on the cheap one.
         self.pipeline = knobs.knob("DOCLING_PIPELINE")
         self._pipe = (None if self.pipeline == "off"
                       else _DoclingPipeline(self.pipeline, self.labels,
@@ -613,11 +557,11 @@ class DoclingHeron(Recognizer):
         size = pre.get("size") or {}
         self.target_h = int(size.get("height", 640))
         self.target_w = int(size.get("width", 640))
-        # ФИЛЬТР ПЕРЕВОДИТСЯ, А НЕ ПЕРЕДАЁТСЯ НОМЕРОМ. В весах `resample`
-        # записан кодом PIL, а мы жмём через cv2, и номера у них РАЗНЫЕ:
-        # PIL 2 это BILINEAR, а cv2 2 — INTER_CUBIC. Молча передав число, мы
-        # ужимали страницу другим фильтром, чем ужимали при обучении, и
-        # заметить это было нечем: рамки остаются правдоподобными.
+        # THE FILTER IS TRANSLATED, NOT PASSED ON AS A NUMBER. The weights
+        # record `resample` as a PIL code, we resize through cv2, and their
+        # numbers DIFFER: PIL 2 is BILINEAR, cv2 2 is INTER_CUBIC. Passing the
+        # number silently, we shrank the page with a filter other than the one
+        # used in training, and nothing could catch it: boxes stay plausible.
         pil = int(pre.get("resample", 2))
         # PIL: 0 NEAREST, 1 LANCZOS, 2 BILINEAR, 3 BICUBIC, 4 BOX, 5 HAMMING
         # cv2: 0 NEAREST, 1 LINEAR, 2 CUBIC, 3 AREA, 4 LANCZOS4
@@ -643,30 +587,30 @@ class DoclingHeron(Recognizer):
         self.uint8_input = "uint8" in kinds.get("images", "")
 
     def _our_order(self, kept, w, h, index):
-        """Наш порядок сборки — и ТОЛЬКО там, где он вправду наш.
+        """Our assembly order -- and ONLY where it is truly ours.
 
-        ДВА РАЗНЫХ СЛУЧАЯ, И ПРЕЖДЕ ОНИ БЫЛИ ОДНИМ. При `DOCLING_PIPELINE=off`
-        этот список и есть книга, значит порядок надо брать из `order.py` —
-        общий на проект и объявленный ручкой `ASSEMBLY_ORDER`. При `post` и
-        `full` порядок задаёт ВЕНДОР: постобработчик сортирует список сам
-        (`_sort_clusters(mode="id")`), а `full` вдобавок зовёт правила чтения.
-        Наша сортировка там — не порядок чтения, а НУМЕРАЦИЯ: номер рамки это
-        `Cluster.id`, по нему вендор сшивает детей с обёрткой, и переставь мы
-        порядок потом — «дети» указывали бы в пустоту.
+        TWO DIFFERENT CASES, AND THEY USED TO BE ONE. At
+        `DOCLING_PIPELINE=off` this list IS the book, so the order comes from
+        `order.py` -- one rule for the project, declared by `ASSEMBLY_ORDER`.
+        At `post` and `full` the order is set by the VENDOR: the postprocessor
+        sorts the list itself, and `full` calls the reading rules on top. Our
+        sort there is not a reading order but a NUMBERING: the box number is
+        `Cluster.id`, by which the vendor stitches children to their wrapper,
+        and were we to permute afterwards the "children" would point nowhere.
 
-        Поэтому при включённом конвейере ключ остаётся ПРЕЖНИМ, побайтово:
-        `(round(y/20), x)`. Он корзинный и для порядка чтения негоден — но
-        здесь от него нужна только устойчивая нумерация, а сменить его значило
-        бы сдвинуть все числа разделов 18 и 19, которые сняты на нём. Менять
-        замеренное заодно с починкой нельзя: тогда неизвестно, что из
-        изменившегося чьё.
+        So with the pipeline on the key stays byte for byte as it was:
+        `(round(y/20), x)`. A bucket key, no good as a reading order, but only
+        a stable numbering is wanted from it here, and changing it would shift
+        every number of sections 18 and 19, which were taken on it -- and
+        changing what has been measured along with a fix leaves it unknown
+        which of the changes belongs to whom.
         """
         if self._pipe is not None:
             kept.sort(key=lambda t: (round(t[2][1] / 20), t[2][0]))
             return kept
-        # Правило спрашивается ОДИН раз и передаётся дальше: две отдельные
-        # `rule()` читали бы окружение дважды за страницу, и правка ручки
-        # посреди прогона развела бы сторожа с сортировкой.
+        # The rule is asked ONCE and passed on: two separate `rule()` calls
+        # would read the environment twice per page, and an edit of the knob
+        # mid-run would part the guard from the sort.
         which = order.rule()
         order.cover(self.labels, which)
         perm = order.permutation([t[0] for t in kept], [t[2] for t in kept],
@@ -674,25 +618,23 @@ class DoclingHeron(Recognizer):
         return [kept[i] for i in perm]
 
     def _run_pipeline(self, blocks, w, h, index):
-        """Рамки модели -> рамки после вендора. Возвращает (блоки, meta).
+        """Model boxes -> boxes after the vendor. Returns (blocks, meta).
 
-        При `off` не делает ничего и возвращает наш прежний порядок — сверху
-        вниз и слева направо. Строка про порядок отдаётся ОТСЮДА всегда, а не
-        пишется в `read()` константой: константа пережила бы включение
-        конвейера и соврала бы метрике, что порядок наш прежний, когда он уже
-        чужой.
+        At `off` it does nothing and returns our previous order. The order
+        line is handed out FROM HERE always, not written in `read()` as a
+        constant: a constant would survive the pipeline being switched on and
+        would lie to the metric that the order is still ours.
 
-        Числа в журнал каждые десять страниц — той же частотой, что и у самой
-        команды `books detect`. Печатается `print`-ом, а не её `log`: у
-        адаптера нет доступа к журналу команды, а молчать нельзя — «конвейер
-        включён» без чисел неотличимо от «включён и ничего не сделал».
+        Numbers into the log every ten pages, at the rate of `books detect`
+        itself, by `print` and not by its `log`: the adapter has no access to
+        the command's log, and "the pipeline is on" without numbers is
+        indistinguishable from "on and did nothing".
         """
         if self._pipe is None:
-            # Что СТОЯЛО ЗДЕСЬ И БЫЛО НЕВЕРНО: константа «наш, сверху вниз и
-            # слева направо» при сортировке `(round(y/20), x)` — корзинами по
-            # двадцать пикселей растра. Два разных правила под одним именем, и
-            # заметить это можно было только чтением обоих мест сразу. Теперь
-            # правило одно (`order.py`) и называется тем, чем является.
+            # The words come from `order.py`, not from a constant here: a
+            # constant once said "ours, top down and left to right" while the
+            # sort was `(round(y/20), x)`, buckets of twenty raster pixels --
+            # two rules under one name, catchable only by reading both places.
             return blocks, {"reading_order": order.WORDS[order.rule()]}
         blocks, m = self._pipe.apply(blocks, w, h, index)
         pp = self._pipe
@@ -709,76 +651,76 @@ class DoclingHeron(Recognizer):
                         "docling_pipeline": m}
 
     def thresholds(self) -> dict[str, float]:
-        """Порог по каждому классу. Родного `draw_threshold` у этой сборки нет,
-        поэтому берём общую ручку — и объявляем это прямо, чтобы число не
-        выглядело чужим умолчанием."""
+        """The threshold per class. This build has no native `draw_threshold`,
+        so the common knob is taken -- and said outright, so that the number
+        does not look like a foreign default."""
         common = float(knobs.knob("LAYOUT_SCORE_THRESHOLD"))
         return {lab: common for lab in self.labels}
 
     def threshold_drift(self) -> list[str]:
-        """Чем действующий порог отличается от родного порога весов.
+        """How the acting threshold differs from the native one of the weights.
 
-        У этой сборки родного порога НЕТ: в `config.json` нет `draw_threshold`,
-        а docling держит свои семнадцать порогов в коде конвейера, а не в
-        весах. Поэтому сторож честно говорит, что сравнивать не с чем, —
-        и это не то же самое, что «расхождения нет».
+        This build HAS no native threshold: `config.json` holds no
+        `draw_threshold`, and docling keeps its seventeen thresholds in the
+        pipeline code, not in the weights. So the guard says honestly that
+        there is nothing to compare with -- which is not the same as "no
+        drift".
         """
         return [f"родного порога у весов нет; действует "
                 f"LAYOUT_SCORE_THRESHOLD={knobs.knob('LAYOUT_SCORE_THRESHOLD')} "
                 f"на все {len(self.labels)} классов"]
 
     def knobs_read(self) -> tuple[str, ...]:
-        """Ручка здесь ОДНА, и это сверено grep-ом по файлу.
+        """Exactly the two below, and that is checked by grep over the file.
 
-        `knobs.knob()` в `docling_heron.py` зовётся дважды и оба раза с
-        `LAYOUT_SCORE_THRESHOLD` (`thresholds`, `threshold_drift`). Чего тут
-        НЕТ и почему: каталог весов зашит в `__init__` (`docling-heron_onnx`
-        рядом с `MODELS`), поэтому `LAYOUT_MODEL_DIR` и `LAYOUT_MODEL_NAME`
-        сюда не доходят вовсе; `LAYOUT_TABLE_THRESHOLD` не читается ничем —
-        класс `table` берёт тот же общий порог, что и остальные шестнадцать.
-        До этого объявления слепок прогона heron называл все три величины, и
-        `LAYOUT_MODEL_NAME` в нём стоял `PP-DocLayoutV2` — имя чужой модели.
+        `knobs.knob()` is called three times here: twice with
+        LAYOUT_SCORE_THRESHOLD (`thresholds`, `threshold_drift`) and once with
+        DOCLING_PIPELINE (`__init__`, once per run). What is NOT here and why:
+        the weights directory is hardwired in `__init__`, so LAYOUT_MODEL_DIR
+        and LAYOUT_MODEL_NAME never reach this file; LAYOUT_TABLE_THRESHOLD is
+        read by nothing -- `table` takes the same common threshold as the other
+        sixteen. Before this declaration the fingerprint of a heron run named
+        all three, LAYOUT_MODEL_NAME reading `PP-DocLayoutV2`, a foreign model.
 
-        `DoclingEgret` наследует список не по лени: своих `knob()` в нём нет
-        ни одного, порог он берёт тем же `self.thresholds()`, а конвейер —
-        тем же `__init__`.
+        `DoclingEgret` inherits the list not out of laziness: it has no
+        `knob()` of its own, takes the threshold through the same
+        `self.thresholds()` and the pipeline through the same `__init__`.
 
-        Вторая ручка — `DOCLING_PIPELINE` — добавлена вместе с вендорским
-        конвейером и читается в `__init__` (один раз на прогон). Не объявить
-        её значило бы вернуть слепку ту самую болезнь, ради которой это поле
-        заведено: `run.json` двух прогонов, отличающихся ВСЕМ — 15643 рамки
-        против 9817 и чужое правило порядка вместо нашего, — стал бы
-        неотличим, потому что величина, решившая разницу, в нём помечена «к
-        этому прогону не относится».
+        Leaving DOCLING_PIPELINE undeclared would give the fingerprint back the
+        disease this field exists against: the `run.json` of two runs differing
+        in EVERYTHING -- 15643 boxes against 9817, a foreign order rule instead
+        of ours -- would become indistinguishable, because the value that
+        decided the difference is marked in it "not relevant to this run".
         """
         return ("LAYOUT_SCORE_THRESHOLD", "DOCLING_PIPELINE")
 
     def label_map(self) -> dict[str, str]:
-        """Ярлыки НЕ переводятся в словарь PP-DocLayoutV2.
+        """Labels are NOT translated into the PP-DocLayoutV2 vocabulary.
 
-        Свести `picture` к `image`, а `formula` к `display_formula` значило бы
-        стереть разницу словарей: у docling нет `chart` вовсе, и после свода
-        «график назван картинкой» стало бы неотличимо от «график найден».
-        Сличение идёт слепо к ярлыку, а сами ярлыки хранятся как есть.
+        Reducing `picture` to `image` and `formula` to `display_formula` would
+        erase the difference of vocabularies: docling has no `chart` at all,
+        and after such a reduction "a chart called a picture" would be
+        indistinguishable from "a chart found". Matching is blind to the
+        label, and the labels themselves are stored as they are.
         """
         return {}
 
     def fingerprint(self) -> dict:
-        # ИТОГ КОНВЕЙЕРА — ЧИСЛОМ И В ЖУРНАЛ, ровно один раз за прогон. Хука
-        # «прогон окончен» у адаптера нет, а `detect.py` зовёт `fingerprint()`
-        # четырежды: трижды ДО цикла страниц (счётчик пуст — печатать нечего) и
-        # один раз ПОСЛЕ, перед записью `run.json`. Условие «страниц > 0» и
-        # ставит эту строку в единственное правильное место. Без неё «конвейер
-        # включён» пришлось бы читать из json, а величина, которую не видно в
-        # журнале, не сверяется с ожидаемой — на чём проект уже терял вечера.
+        # THE PIPELINE TOTAL -- AS A NUMBER AND INTO THE LOG, exactly once per
+        # run. The adapter has no "run finished" hook, and `detect.py` calls
+        # `fingerprint()` four times: three BEFORE the page loop (the counter
+        # is empty, nothing to print) and once AFTER, before writing
+        # `run.json`; the condition "pages > 0" puts this line in the only
+        # right place. A value invisible in the log is not checked against the
+        # expected one, on which this project has already lost evenings.
         if self._pipe is not None and self._pipe.pages:
             it = self._pipe.fingerprint()["summary"]
             share = (100.0 * it["boxes_after"] / it["boxes_before"]
                     if it["boxes_before"] else 0.0)
             rules = (str(it["reordered_by_order_rules"])
                        if self._pipe.mode == "full" else "— (не звались)")
-            # `post` порядок МЕНЯЕТ: сортировка постобработчика идёт по точным
-            # (верх, лево), а не по нашему ключу round(y/20).
+            # `post` DOES change the order: the postprocessor sorts by exact
+            # (top, left), not by our round(y/20) key.
             order = ("ПРАВИЛА ВЕНДОРА (reading_order_rb, не модель)"
                        if self._pipe.mode == "full" else
                        "пересортирован постобработчиком docling по "
@@ -797,7 +739,7 @@ class DoclingHeron(Recognizer):
                   f"переставили {rules}); порядок чтения {order}")
         return {
             "name": self.name,
-            "model": getattr(self, "полное_имя",
+            "model": getattr(self, "full_name",
                               "docling-layout-heron (RT-DETRv2 R50)"),
             "architecture": getattr(self, "architecture", "RT-DETRv2 R50"),
             "weights_dir": self.dir,
@@ -810,24 +752,24 @@ class DoclingHeron(Recognizer):
                      "input_uint8": self.uint8_input,
                      "divide_by_255": self.do_rescale,
                      "normalization": self.do_normalize},
-            # Родного порога у сборки нет — это ЗНАЧЕНИЕ, а не пропуск.
+            # The weights have no native threshold -- a VALUE, not an omission.
             "native_threshold": None,
             "thresholds_by_class": self.thresholds(),
-            # Не пустой список: сторож `threshold_drift` говорит, что родного
-            # порога у сборки НЕТ и действует наш. Пустое поле рядом с ним
-            # читалось как «расхождения нет», то есть слепок противоречил
-            # собственному сторожу.
+            # Not an empty list: the `threshold_drift` guard says the build has
+            # NO native threshold and that ours acts. An empty field beside it
+            # read as "no drift", the fingerprint contradicting its own guard.
             "threshold_drift": self.threshold_drift(),
             "label_vocabulary": self.labels,
             "label_map": self.label_map(),
             "prompts": {},
-            # Порядка чтения модель не даёт вовсе. Объявлено значением, чтобы
-            # «порядок 100%» по ней нельзя было принять за заслугу модели.
+            # The model gives no reading order at all. Declared as a value, so
+            # that "order 100%" by it cannot be taken for the model's merit.
             "reading_order": None,
-            # Конвейер вендора назван и при `off` — ЗНАЧЕНИЕМ, а не пропуском.
-            # Пустое место читалось бы как «не смотрели», а это «смотрели и
-            # выключено»: без этой записи два прогона с разницей в 5826 рамок
-            # различались бы в слепке одной строкой в реестре ручек.
+            # The vendor pipeline is named at `off` too -- as a VALUE, not an
+            # omission. An empty place would read as "not looked at", and this
+            # is "looked at and switched off": without it two runs 5826 boxes
+            # apart would differ in the fingerprint by one line of the knob
+            # registry.
             "docling_pipeline": (self._pipe.fingerprint() if self._pipe else {
                 "mode": "off",
                 "what_is_it": ("вендорская постобработка и правила порядка "
@@ -860,11 +802,11 @@ class DoclingHeron(Recognizer):
             x = np.ascontiguousarray(x.transpose(2, 0, 1)[None])
         labels, boxes, scores = self.sess.run(
             None, {"images": x,
-                   # (ШИРИНА, ВЫСОТА), а не наоборот. Проверено на листе
-                   # 1012x1466: при обратном порядке колонтитул уезжал на
-                   # x=1269, то есть за правый край листа, — и метрика честно
-                   # дала ноль совпадений из ста десяти. Ноль был про наш
-                   # порядок осей, а не про модель.
+                   # (WIDTH, HEIGHT), not the other way round. Checked on a
+                   # 1012x1466 sheet: reversed, the running foot went to
+                   # x=1269, past the right edge of the sheet -- and the metric
+                   # honestly gave zero matches out of a hundred and ten. The
+                   # zero was about our axis order, not about the model.
                    "orig_target_sizes": np.array([[w, h]], np.int64)})
         labels, boxes, scores = labels[0], boxes[0], scores[0]
 
@@ -882,13 +824,13 @@ class DoclingHeron(Recognizer):
                     rejected[lab] = sc
                 continue
             kept.append((lab, sc, [float(v) for v in box]))
-        # Порядка модель не даёт — значит он наш, и живёт он в `order.py`.
+        # The model gives no order, so it is ours, and it lives in `order.py`.
         kept = self._our_order(kept, w, h, index)
         blocks = [Block(block_id=i, box=tuple(b), label=lab, score=sc, order=i)
                   for i, (lab, sc, b) in enumerate(kept)]
-        # Конвейер идёт ПОСЛЕ нашей сортировки и нумерации, а не до: номер
-        # рамки — это `Cluster.id`, по нему вендор сшивает детей с обёрткой, и
-        # переставь мы порядок потом — «дети» указывали бы в пустоту.
+        # The pipeline runs AFTER our sort and numbering, not before: the box
+        # number is `Cluster.id`, by which the vendor stitches children to
+        # their wrapper (see `_our_order`).
         blocks, pipe_meta = self._run_pipeline(blocks, w, h, index)
         return Page(
             index=index, width=w, height=h, dpi=dpi, blocks=blocks,
@@ -896,16 +838,16 @@ class DoclingHeron(Recognizer):
                  "all_rows": [[float(c), float(s), *[float(v) for v in b]]
                                 for c, b, s in zip(labels, boxes, scores)]},
             meta={"detector": self.name, "raster": image_path,
-                  # Это число — МОДЕЛИ: сколько рамок она отдала выше порога.
-                  # Сколько их осталось после вендора, говорит «конвейер
-                  # docling» -> «рамок после», и путать их нельзя.
+                  # This number is the MODEL's: how many boxes it gave above
+                  # the threshold. How many remain after the vendor is said by
+                  # "docling pipeline" -> "boxes after"; not to be confused.
                   "boxes_accepted": len(kept),
                   "rank_ties": 0,
-                  # МЕСТО В СЛОВАРЕ НЕ КОСМЕТИКА: `порядок чтения` стоит там
-                  # же, где стоял до конвейера, и при `off` страница выходит
-                  # ПОБАЙТОВО той же, что и раньше. Иначе сверка «ручка
-                  # выключена — ничего не изменилось» спотыкалась бы о
-                  # порядок ключей json, а не о рамки.
+                  # THE PLACE IN THE DICT IS NOT COSMETIC: the reading order
+                  # stands where it stood before the pipeline, so at `off` the
+                  # page comes out BYTE FOR BYTE as before. Otherwise the check
+                  # "the knob is off, nothing changed" would stumble over the
+                  # order of json keys instead of over the boxes.
                   **pipe_meta,
                   "best_rejected_by_class": rejected})
 
@@ -918,13 +860,13 @@ DEFAULT_LABELS = (
 
 
 class DoclingEgret(DoclingHeron):
-    """docling egret-medium: **D-FINE**, третья архитектура на стенде.
+    """docling egret-medium: **D-FINE**, the third architecture on the bench.
 
-    Отличие от heron не в весах, а в ВЫХОДЕ: этот граф отдаёт СЫРЫЕ логиты и
-    рамки в нормированных cxcywh, а не готовые тройки. Разбор логитов — часть
-    инференса самой D-FINE (сигмоида, отбор лучших запросов, перевод в углы),
-    а не наша постобработка: мы не двигаем и не сливаем рамок, а лишь читаем
-    то, что граф не дочитал сам.
+    It differs from heron not in the weights but in the OUTPUT: this graph
+    gives RAW logits and boxes in normalised cxcywh, not finished triples.
+    Decoding them is part of D-FINE's own inference (sigmoid, picking the best
+    queries, converting to corners), not our postprocessing: we move and merge
+    no boxes, we only read what the graph left unread.
     """
     name = "docling-egret"
     policy_name = "Docling-egret"
@@ -955,47 +897,46 @@ class DoclingEgret(DoclingHeron):
         x = np.ascontiguousarray(x.transpose(2, 0, 1)[None])
         logits, boxes = self.sess.run(None, {"pixel_values": x})
         logits, boxes = logits[0], boxes[0]          # [Q, C], [Q, 4] cxcywh
-        prob = 1.0 / (1.0 + np.exp(-logits))          # focal loss -> сигмоида
+        prob = 1.0 / (1.0 + np.exp(-logits))          # focal loss -> sigmoid
         nq, nc = prob.shape
         if nc != len(self.labels):
             raise RuntimeError(
                 f"граф отдал {nc} классов, а словарь знает "
                 f"{len(self.labels)}: выдуманный ярлык хуже отказа.")
-        # ОТБОР ИДЁТ ПО ПРАВИЛУ САМОЙ D-FINE, А НЕ ПО НАШЕМУ argmax.
-        # Прежде здесь стоял argmax по классам — «один запрос, один ярлык».
-        # Так себя не дочитывает ни одна модель семейства DETR: сигмоида,
-        # topk по РАЗВЁРНУТЫМ Q*C, ярлык = i % C, запрос = i // C. Тот же
-        # кусок дословно лежит в постобработке RT-DETR и PP-DocLayoutV2
-        # (`num_top_queries = logits.shape[1]`), а граф heron дочитывает себя
-        # сам ровно им: 300 строк на страницу, одна и та же рамка приходит с
-        # несколькими ярлыками — до 14 на atlas[0]; повтора КЛАССА внутри
-        # одной рамки нет ни разу (0 групп из 13964), то есть группа — это
-        # один запрос, а не две находки.
-        # ЧЕМ РАСХОДИЛИСЬ ПРАВИЛА. На сыром выводе heron, где обе развязки
-        # считаются по одним и тем же строкам: правило графа 1797 рамок,
-        # argmax 1488, расходятся 22 страницы из 93. На egret по 24 страницам
-        # шести стендов при пороге 0.5: argmax 470 рамок, правило D-FINE 529,
-        # расходятся 6 страниц; все 59 добавленных — ВТОРОЙ ярлык на уже
-        # принятой рамке (54 из них List-item рядом с Text), новой геометрии
-        # не появляется ни одной. Пока правила были разные, сравнение heron с
-        # egret меряло наши разборы наравне с архитектурами.
-        # Длина topk НЕ наша ручка и не порог: это Q — столько строк отдал бы
-        # сам граф, будь он экспортирован вместе с постобработкой (в весах
-        # это `num_queries = 300`).
+        # THE SELECTION FOLLOWS D-FINE'S OWN RULE, NOT argmax over classes
+        # ("one query, one label"). No model of the DETR family finishes
+        # reading itself that way: sigmoid, topk over the FLATTENED Q*C, label
+        # = i % C, query = i // C. The same piece lies verbatim in the
+        # postprocessing of RT-DETR and PP-DocLayoutV2 (`num_top_queries =
+        # logits.shape[1]`), and the heron graph finishes reading itself by
+        # exactly it: 300 rows per page, the same box arriving with several
+        # labels -- up to 14 on atlas[0]; a CLASS never repeats inside one box
+        # (0 groups of 13964), so a group is one query, not two findings.
+        # HOW THE RULES DIVERGED, both decodings counted over the same rows: on
+        # raw heron output the graph rule gives 1797 boxes and argmax 1488,
+        # diverging on 22 pages of 93; on egret over 24 pages of six benches at
+        # threshold 0.5 argmax gives 470 and the D-FINE rule 529, diverging on
+        # 6 pages, and all 59 added are a SECOND label on an already accepted
+        # box (54 of them List-item next to Text), with not one new geometry.
+        # While the rules differed, comparing heron with egret measured our
+        # decodings alongside the architectures. The topk length is NOT our
+        # knob and not a threshold: it is Q, as many rows as the graph would
+        # give had it been exported together with its postprocessing (in the
+        # weights `num_queries = 300`).
         flat = prob.reshape(-1)
         top = np.argsort(-flat, kind="stable")[:nq]
 
         thr = self.thresholds()
-        # Сколько строк ВЫШЕ СВОЕГО ПОРОГА отрезал сам topk. Отрез — часть
-        # правила модели, а не наша поправка, но молчать о нём нельзя:
-        # правило D-FINE не только добавляет ярлыки, оно и режет, чего у
-        # argmax быть не могло. LAYOUT_SCORE_THRESHOLD — ручка, и когда её
-        # опускают, отрез начинает кусаться. Замер на 24 страницах шести
-        # стендов: при 0.5 и 0.3 отрезано НОЛЬ (300-е значение развёртки не
-        # поднимается выше 0.142), при 0.1 — 206 строк на katalog[2], где
-        # страница упирается ровно в потолок: принято 300 = длине topk.
-        # «Добавочных ярлыков» об этой потере не говорит ничего. Ноль здесь
-        # считается на КАЖДОЙ странице и означает «topk ничего не отрезал».
+        # How many rows ABOVE THEIR OWN THRESHOLD the topk itself cut off. The
+        # cut is part of the model's rule, not our correction, but it must not
+        # be passed over in silence: the D-FINE rule does not only add labels,
+        # it also cuts, which argmax could never do. LAYOUT_SCORE_THRESHOLD is
+        # a knob, and lowered it makes the cut bite. Measured over 24 pages of
+        # six benches: at 0.5 and 0.3 ZERO was cut (the 300th value of the
+        # sweep does not rise above 0.142), at 0.1 -- 206 rows on katalog[2],
+        # where the page hits the ceiling exactly: 300 accepted = the topk
+        # length. "Extra labels" says nothing about that loss. The zero here is
+        # counted on EVERY page and means "topk cut nothing".
         thr_row = np.array([thr[lab] for lab in self.labels], np.float32)
         inside = np.zeros(nq * nc, bool)
         inside[top] = True
@@ -1016,21 +957,22 @@ class DoclingEgret(DoclingHeron):
         kept = self._our_order(kept, w, h, index)
         blocks = [Block(block_id=i, box=tuple(b), label=lab, score=s, order=i)
                   for i, (lab, s, b) in enumerate(kept)]
-        # Совпадающая геометрия считается ДО конвейера — это свойство ответа
-        # модели, а гасит такие пары как раз вендор (IoU > 0.8). Считай мы её
-        # после, число говорило бы о постобработке, а называлось бы правилом
-        # отбора D-FINE.
+        # Coincident geometry is counted BEFORE the pipeline: it is a property
+        # of the model's answer, while the one that suppresses such pairs is
+        # the vendor (IoU > 0.8). Counted after, the number would speak of the
+        # postprocessing while being called the selection rule of D-FINE.
         geom = [tuple(b) for _, _, b in kept]
         blocks, pipe_meta = self._run_pipeline(blocks, w, h, index)
         return Page(
             index=index, width=w, height=h, dpi=dpi, blocks=blocks,
-            # Ответ графа ЦЕЛИКОМ, до нашего отбора. Хранить один класс и одну
-            # сигмоиду на запрос значило бы положить в улику уже разобранное:
-            # опустить порог по одному классу нельзя, не зная его сигмоиды у
-            # запросов, где выиграл сосед. Замер на katalog[1]: развёртка
-            # порога до 0.3 по прежнему raw давала 11 рамок из 14, до 0.2 —
-            # 17 из 21; три и четыре рамки были не «ниже порога», а невидимы
-            # по построению улики.
+            # The graph's answer WHOLE, before our selection. Keeping one class
+            # and one sigmoid per query would put something already decoded
+            # into the evidence: a threshold cannot be lowered for one class
+            # without knowing its sigmoid on the queries where a neighbour won.
+            # Measured on katalog[1]: sweeping down to 0.3 over the old raw
+            # gave 11 boxes of 14, down to 0.2 -- 17 of 21; three and four
+            # boxes were not "below the threshold" but invisible by the
+            # construction of the evidence.
             raw={"output_rows": int(nq),
                  "class_count": int(nc),
                  "logits": [[float(v) for v in r] for r in logits],
@@ -1039,24 +981,23 @@ class DoclingEgret(DoclingHeron):
                  "raw_row_coords": "cxcywh, нормированные"},
             meta={"detector": self.name, "raster": image_path,
                   "boxes_accepted": len(kept), "rank_ties": 0,
-                  # См. heron: место ключа держит побайтовое совпадение при
-                  # выключенной ручке.
+                  # See heron: the place of the key keeps the byte-for-byte
+                  # match when the knob is off.
                   **pipe_meta,
-                  # Правило отбора — величиной, а не словом, и рядом число, по
-                  # которому видно, что оно и вправду работало: у прежнего
-                  # argmax добавочных ярлыков не бывает по построению, так что
-                  # ноль здесь означает «на этой странице правила совпали», а
-                  # не «правило не применилось».
+                  # The selection rule as a value, not a word, and beside it a
+                  # number showing it really worked: the old argmax cannot
+                  # produce extra labels by construction, so a zero here means
+                  # "the rules agreed on this page", not "the rule sat idle".
                   "selection_rule": f"topk {nq} по развёрнутым Q*C, "
                                     f"ярлык = i % {nc} (как в D-FINE/RT-DETR)",
                   "extra_labels_on_shared_boxes":
                       len(geom) - len(set(geom)),
                   "rows_above_threshold_outside_topk": cut,
-                  # ОСТОРОЖНО: это поле сменило смысл вместе с правилом. Было
-                  # «лучшее отвергнутое среди победителей argmax», стало
-                  # «лучшее отвергнутое среди строк topk». Отсутствие класса
-                  # в словаре читается «не попал в topk», а НЕ «такого класса
-                  # у модели нет». Охват от смены вырос: было 4-8 классов на
-                  # страницу, стало 4-16 (24 страницы шести стендов, 0.5).
+                  # CAREFUL: this field changed meaning with the rule. It was
+                  # "the best rejected among the argmax winners", it is now
+                  # "the best rejected among the topk rows". A class missing
+                  # from the dict reads as "did not make the topk", NOT as
+                  # "the model has no such class". Coverage grew: 4-8 classes
+                  # per page before, 4-16 now (24 pages of six benches, 0.5).
                   "best_rejected_by_class": rejected})
 

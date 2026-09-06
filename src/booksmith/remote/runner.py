@@ -1,9 +1,9 @@
-"""Жизненный цикл прогона: снять машину, посчитать, забрать, уничтожить.
+"""Life cycle of a run: rent a machine, compute, fetch, destroy.
 
-Уничтожение — самое важное здесь, поэтому оно продублировано трижды:
-`finally` на любом выходе, перехват SIGINT/SIGTERM (иначе `finally` не
-выполнится) и сторожевой поток по бюджету (на случай, если основной поток
-залип в ssh, который не отвечает).
+Destroying is the important part here, so it is done three ways over: `finally`
+on any exit, SIGINT/SIGTERM caught (without which `finally` never runs), and a
+watchdog thread on the budget (for when the main thread hangs in an ssh that
+does not answer).
 """
 import json
 import os
@@ -21,26 +21,25 @@ from .vast import Vast, log
 
 
 class Budget:
-    """Жёсткий потолок: и по деньгам, и по времени.
+    """A hard ceiling, on money and on time both.
 
-    Дедлайн считается по цене конкретного оффера, а не по абстрактным минутам:
-    $1.00 на карте за $0.34/час — это 2.9 часа, на карте за $2 — 30 минут.
+    The deadline follows the price of THIS offer, not abstract minutes: $1.00
+    on a $0.34/hour card is 2.9 hours, on a $2 card 30 minutes.
     """
 
     def __init__(self, spec: JobSpec, dph: float, t0: float | None = None):
         self.started = time.time()
-        # Время отсчитывается от начала ПРОГОНА (`t0`), а не от начала
-        # попытки.  Прежде `Budget` заводился внутри цикла попыток, и каждая
-        # отбракованная машина дарила прогону ещё один полный срок: четыре
-        # попытки по 480 с сдвигали потолок на 32 минуты.  Деньги, наоборот,
-        # считаются по ЭТОЙ машине — уничтоженная больше не берёт.
+        # Time runs from the start of the RUN (`t0`), not of the attempt.
+        # Built inside the attempt loop, `Budget` gave every rejected machine
+        # another full term: four attempts of 480 s pushed the ceiling out by
+        # 32 minutes. Money counts THIS machine: a destroyed one bills no more.
         self.t0 = self.started if t0 is None else t0
         self.eaten = self.started - self.t0
         by_money = spec.budget_usd / max(dph, 1e-6) * 3600
         by_time = spec.timeout_minutes * 60 - self.eaten
-        # Отрицательный остаток — не «нулевой бюджет», а беда выше по течению:
-        # мы уже сняли машину, на которую времени нет.  Молчать нельзя, иначе
-        # сторож просто убьёт её и всё будет выглядеть как плохой рынок.
+        # A negative remainder is trouble upstream, not "zero budget": the
+        # machine is already rented. Silence lets the watchdog kill it, and the
+        # whole thing looks like a bad market.
         if by_time <= 0:
             raise SystemExit(
                 f"бюджет времени исчерпан ДО начала счёта: на попытки ушло "
@@ -49,18 +48,14 @@ class Budget:
         self.seconds = min(by_money, by_time)
         self.dph = dph
         self.limited_by = "деньгам" if by_money < by_time else "времени"
-        # РУЧКА, КОТОРАЯ НИЧЕГО НЕ ОГРАНИЧИВАЕТ, ХУЖЕ ОТСУТСТВУЮЩЕЙ, и здесь
-        # ровно такая.  Дороже, чем `max_dph * timeout_minutes`, прогон выйти
-        # не может по построению: при умолчаниях это $0.60/час x 1.5 ч =
-        # $0.90 против объявленных $1.00, то есть `budget_usd` не срабатывает
-        # НИКОГДА и `limited_by` печатает «времени» на любом рынке.  Не
-        # чиним — потолок цены и срок и есть настоящая защита, — но говорим
-        # вслух, чтобы никто не считал себя защищённым бюджетом.
-        #
-        # Оговорка, которая делает разрыв больше названного: `Budget` считает
-        # ОДНУ машину.  Отбракованные машины в него не входят вовсе, а стоят
-        # они денег (`rec.reject_usd`), так что прогон способен потратить
-        # больше `max_dph * timeout_minutes`.
+        # A KNOB THAT LIMITS NOTHING IS WORSE THAN A MISSING ONE. A run cannot
+        # cost more than `max_dph * timeout_minutes` by construction: at the
+        # defaults $0.60/hour x 1.5 h = $0.90 against the declared $1.00, so
+        # `budget_usd` NEVER fires and `limited_by` prints "времени" on any
+        # market. Not fixed -- the price cap and the term are the real defence
+        # -- but said aloud, so nobody thinks the budget protects him. The gap
+        # is wider still: `Budget` counts ONE machine, while rejected ones cost
+        # money (`rec.reject_usd`) outside it.
         self.ceiling_usd = spec.host.max_dph * spec.timeout_minutes / 60
         self.money_unreachable = self.ceiling_usd <= spec.budget_usd
 
@@ -73,8 +68,8 @@ class Budget:
         return self.dph * (time.time() - self.started) / 3600
 
     def describe(self) -> str:
-        # Число, а не «готово»: по съеденному на попытки видно, почему
-        # потолок оказался короче объявленного.
+        # A number, not "done": what the attempts ate shows why the ceiling
+        # came out shorter than declared.
         return (f"бюджет: ${self.dph:.3f}/час, потолок по {self.limited_by} — "
                 f"{self.seconds/60:.0f} мин"
                 + (f" (на попытки уже ушло {self.eaten/60:.0f} мин)"
@@ -86,11 +81,11 @@ class Budget:
 
 
 def _watchdog(vast: Vast, get_iid, budget: Budget, done: threading.Event):
-    """Убить инстанс по истечении бюджета, что бы ни делал основной поток.
+    """Kill the instance once the budget is out, whatever the main thread does.
 
-    Тело обёрнуто целиком: исключение здесь убивало бы поток молча, а это
-    последний рубеж — основной поток в этот момент может висеть в ssh.
-    И одной попытки мало: если уничтожить не вышло, надо пробовать снова.
+    The body is wrapped whole: an exception here would kill the thread in
+    silence, and this is the last line of defence -- the main thread may be
+    hanging in ssh. One try is not enough either: if destroying failed, repeat.
     """
     fired = False
     while not done.wait(15):
@@ -105,7 +100,7 @@ def _watchdog(vast: Vast, get_iid, budget: Budget, done: threading.Event):
                 fired = True
             if vast.destroy(int(iid)):
                 return
-        except Exception as e:                     # noqa: BLE001 — рубеж падать не вправе
+        except Exception as e:                     # noqa: BLE001 -- a last line may not fall
             log(f"  сторож: {type(e).__name__}: {e}")
 
 
@@ -114,9 +109,9 @@ class _Interrupted(Exception):
 
 
 def _install_signals():
-    """Ctrl-C и SIGTERM должны разворачиваться в исключение.
+    """Ctrl-C and SIGTERM must unfold into an exception.
 
-    Иначе процесс умрёт мимо `finally`, и инстанс останется работать.
+    Otherwise the process dies past `finally` and the instance keeps running.
     """
     def handler(signum, _frame):
         raise _Interrupted(f"сигнал {signum}")
@@ -125,7 +120,7 @@ def _install_signals():
         try:
             old[s] = signal.signal(s, handler)
         except ValueError:
-            pass                       # не главный поток — и не надо
+            pass                       # not the main thread -- no need
     return old
 
 
@@ -138,11 +133,11 @@ def _restore_signals(old):
 
 
 def _ignore_signals():
-    """Отключить обработчик на время уборки.
+    """Turn the handler off for the duration of the cleanup.
 
-    Второй Ctrl-C — рефлекс, когда первый выглядит зависшим.  Раньше он
-    прилетал прямо в `destroy` (пять попыток по 4с) и уносил процесс мимо
-    уничтожения: инстанс оставался жив и продолжал биллиться.
+    A second Ctrl-C is a reflex once the first looks hung. It used to land
+    straight in `destroy` (five tries of 4 s) and carry the process past the
+    destruction: the instance stayed alive and kept billing.
     """
     for s in (signal.SIGINT, signal.SIGTERM):
         try:
@@ -152,10 +147,11 @@ def _ignore_signals():
 
 
 def _run_facts(outdir: str) -> dict:
-    """Что задача сама сообщила о прогоне — в журнал, для подгонки модели.
+    """What the job itself reported about the run -- into the ledger, to tune
+    the model.
 
-    Раннер про OCR ничего не знает и знать не должен: он просто подбирает
-    небольшие json-файлы, которые задача оставила в каталоге результата.
+    The runner knows nothing about OCR and must not: it just picks up the small
+    json files the job left in the result directory.
     """
     facts = {}
     for name in ("run.json", "vllm.json", "progress.json"):
@@ -171,30 +167,28 @@ def _run_facts(outdir: str) -> dict:
 
 
 def _warm(spec: JobSpec) -> list[int]:
-    """Машины, где наш образ уже поднимался.
+    """Machines where our image has already come up.
 
-    Ценность не в кеше самого образа — он 54 МБ и едет секунды.  Ценность в
-    том, что vast на свежей машине достраивает поверх него свой слой с ssh, а
-    это индекс Debian и под сотню пакетов: шесть минут против тридцати
-    четырёх секунд на машине, где эта достройка уже собрана.
-
-    Я это предпочтение однажды выключил, решив, что при маленьком образе оно
-    не нужно, — и ошибся: дорого не выкачивание образа, дорога достройка.
+    The value is not the image cache -- 54 MB, seconds. It is that on a fresh
+    machine vast builds its own ssh layer on top, a Debian index and near a
+    hundred packages: six minutes against thirty-four seconds where that build
+    is already done. I once switched this preference off, reasoning that a
+    small image made it pointless, and was wrong: the download is cheap, the
+    build-up is not.
     """
     bad = set(ledger.bad_machines())
-    # Порядок важен: сначала те, кого мы видели быстрыми, по возрастанию
-    # времени счёта; потом остальные прогретые, свежие первыми.  Заявленная
-    # скорость оффера — реклама, и по журналу она врёт втрое.
+    # Order matters: the fast first by ascending compute time, then the rest of
+    # the warm ones, freshest first. An offer's advertised speed is
+    # advertising: by the ledger it lies threefold.
     fast = [m for m in ledger.fast_machines(spec.image, job=spec.name)
             if m not in bad]
     slow = set(ledger.slow_machines(spec.image, job=spec.name))
     warm = [m for m in ledger.warm_machines(spec.image)
             if m not in bad and m not in fast and m not in slow]
-    # Число, а не молчание.  Отбраковка по времени работает только внутри
-    # одной задачи, и у первого прогона новой книги истории нет — тогда `slow`
-    # пуст не потому, что все машины хороши.  Прежде здесь стоял хардкод по
-    # имени стенда, и он молча выбирал ноль записей ровно так же; разница в
-    # том, что теперь это видно.
+    # A number, not silence. Rejection by time works only within one job, and a
+    # new book's first run has no history -- `slow` is then empty for a reason
+    # other than every machine being good. A hardcoded bench name used to pick
+    # zero records just as silently; now it shows.
     log(f"предпочтение машин: быстрых {len(fast)}, прогретых {len(warm)}, "
         f"отбраковано медленных {len(slow)}"
         + ("" if slow else f" (истории по задаче «{spec.name}» нет — "
@@ -204,66 +198,60 @@ def _warm(spec: JobSpec) -> list[int]:
 
 def connect(vast: Vast, iid: int, spec: JobSpec, ssh_key: str | None,
             attempt_limit: float = 480.0) -> Box:
-    """Дождаться машины и ssh.  Срок ОДИН на всю попытку, а не на её части.
+    """Wait for the machine and for ssh. ONE term for the whole attempt.
 
-    Раньше он уходил только в wait_running, а wait_ready ждал по своему
-    умолчанию в 420 с, плюс привязка ключа и зонды.  Одна негодная попытка
-    стоила до десяти минут аренды, а лог при этом писал «не поднялась за
-    2 мин».  Замер того вечера: пять попыток съели пятнадцать минут.
+    It used to go to wait_running alone while wait_ready waited its own default
+    of 420 s, plus the key attach and the probes: one bad attempt cost up to
+    ten minutes of rental while the log said "не поднялась за 2 мин". Five
+    attempts ate fifteen minutes that evening.
 
-    ВТОРОЙ ПОТОЛОК ВНУТРИ ПЕРВОГО УБРАН, и вот чем он обошёлся. Был параметр
-    `boot_limit`, и подъём контейнера резался по `min(boot_limit, остаток)`
-    = `min(120, 480)` = 120 с. Комментарий у `ATTEMPT_LIMIT_S` при этом прямо
-    предупреждал: «сжать всё в 120 с нельзя: vast достраивает образ своим
-    слоем ssh минуты по три». Платный прогон 3 сентября 2026: машина 49873851
-    успешно качала образ («Download complete», «Pull complete») и была срезана
-    на 2:12 — при неизрасходованных 360 с бюджета попытки. Общий срок и так
-    ограничен `t_end`; внутренний потолок не защищал ничего, а отбраковывал
-    годное.
+    A SECOND CEILING INSIDE THE FIRST IS GONE, and here is what it cost.
+    `boot_limit` cut the container boot to `min(120, 480)` = 120 s, against the
+    warning at `ATTEMPT_LIMIT_S` that vast builds its ssh layer for some three
+    minutes. Paid run of 3 September 2026: machine 49873851 was pulling the
+    image fine ("Download complete", "Pull complete") and was cut off at 2:12
+    with 360 s of the attempt budget unspent. `t_end` bounds the attempt
+    anyway; the inner ceiling defended nothing and rejected the good.
     """
     t_end = time.time() + attempt_limit
-    # Ожидание запуска — ВНУТРИ общего срока и без своего потолка. Чем
-    # обошёлся потолок внутри потолка, сказано в докстроке выше; повторять
-    # число здесь незачем, а вот тридцать секунд снизу нужны: без них
-    # попытка, начатая на исходе срока, не успевала бы даже спросить статус.
+    # The boot wait is INSIDE the common term and has no ceiling of its own
+    # (what one cost is above). The thirty-second floor is needed: without it
+    # an attempt begun at the end of the term could not even ask for status.
     vast.wait_running(iid, timeout=max(30.0, t_end - time.time()))
-    # Привязка ключа сразу после создания инстанса — гонка: контейнера ещё
-    # нет, и vast достраивает его своим слоем с ssh минуты по три.  Ключ,
-    # привязанный до этого, до authorized_keys иногда не доезжает, и мы
-    # получаем `Permission denied (publickey)` уже после того, как заплатили
-    # за старт.  Повторяем, когда контейнер точно существует; привязка
-    # идемпотентна, лишний вызов ничего не портит.
+    # Attaching the key straight after creating the instance is a race: the
+    # container is not there yet, and a key attached before it sometimes never
+    # reaches authorized_keys -- `Permission denied (publickey)` after we have
+    # paid for the start. Repeat once the container exists; attaching is
+    # idempotent.
     if ssh_key:
         vast.attach_key(iid, ssh_key)
     user, host, port = vast.ssh_target(iid)
     log(f"ssh {user}@{host}:{port}")
     box = Box(user, host, port, ssh_key, spec.workdir)
     box.wait_ready(timeout=max(60.0, t_end - time.time()))
-    # Пульс — сразу после ssh: с этого момента машина знает, что оператор
-    # жив, и уничтожит себя сама, если он замолчит.  См. ONSTART в vast.py.
+    # The pulse right after ssh: from now on the machine destroys itself if the
+    # operator falls silent (ONSTART in vast.py).
     box.start_heartbeat()
-    # КТО ЗАВЁЛ ПУЛЬС, ТОТ ЕГО И ГАСИТ, ЕСЛИ ДАЛЬШЕ НЕ ЗАДАЛОСЬ. Всё, что
-    # ниже, ходит в сеть и падает штатно, а `box` до `return` вызывающему не
-    # виден: его переменная в `_rent` остаётся НЕ ПРИВЯЗАНА (либо держит
-    # машину ПРОШЛОЙ попытки). Отсюда беда, воспроизведённая подставным
-    # `connect`: `_rent` ловит отказ, зовёт `box.stop_heartbeat()`, получает
-    # `UnboundLocalError`, глушит его своим `except Exception: pass` — и
-    # машина уезжает в `undead` С ЖИВЫМ ПУЛЬСОМ. Наш поток стучит
-    # `touch /root/.alive` каждые 30 секунд до конца прогона, то есть
-    # ВЫКЛЮЧАЕТ дозор мертвеца ровно на брошенной машине: единственный из
-    # четырёх способов гашения, который не зависит ни от нашего ключа, ни от
-    # нашего процесса. При второй попытке хуже вдвое — гасился бы пульс
-    # предыдущей машины, а не этой.
+    # WHOEVER STARTED THE PULSE STOPS IT IF THINGS GO WRONG. Everything below
+    # goes to the network, and `box` reaches the caller only at `return`: its
+    # variable in `_rent` stays UNBOUND, or holds the PREVIOUS attempt's
+    # machine. Reproduced with a stub `connect`: `_rent` catches the failure,
+    # calls `box.stop_heartbeat()`, gets `UnboundLocalError`, swallows it in
+    # `except Exception: pass`, and the machine leaves for `undead` WITH A LIVE
+    # PULSE -- our thread knocks `touch /root/.alive` every 30 seconds to the
+    # end of the run, DISABLING the dead-man's watch on exactly the abandoned
+    # machine, the one kill path of four that needs neither our key nor our
+    # process. On a second attempt it stops the previous machine's pulse
+    # instead: twice as bad.
     try:
-        # И сразу же — взведён ли тот, кому этот пульс адресован.  Проверка
-        # стоит одной короткой команды по уже поднятому мультиплексированному
-        # соединению и делается ДО того, как на машину что-то зальют: узнать,
-        # что последнего рубежа нет, надо в первую минуту аренды, а не по
-        # счёту.
+        # And at once: is the one this pulse is addressed to armed? One short
+        # command over the already multiplexed connection, BEFORE anything is
+        # uploaded -- a missing last line of defence must be learnt in the
+        # first minute of rental, not from the bill.
         box.check_deadman()
     except BaseException:
-        # `BaseException`, а не `Exception`: по Ctrl-C пульс тоже обязан
-        # смолкнуть, иначе прерванный прогон оставляет машину бессмертной.
+        # `BaseException`, not `Exception`: on Ctrl-C the pulse must fall
+        # silent too, else an interrupted run leaves the machine immortal.
         try:
             box.stop_heartbeat()
         except Exception as e:                                  # noqa: BLE001
@@ -274,7 +262,7 @@ def connect(vast: Vast, iid: int, spec: JobSpec, ssh_key: str | None,
 
 def execute(box: Box, spec: JobSpec, outdir: str,
             deadline: float | None = None) -> int:
-    """Залить вход, посчитать, забрать выход.  Машина уже поднята."""
+    """Upload the input, compute, fetch the output. The machine is up already."""
     rc, out = box.run(f"mkdir -p {spec.workdir} && echo ok", stream=False)
     if rc != 0:
         raise RuntimeError(f"не создаётся {spec.workdir}: {out}")
@@ -286,14 +274,12 @@ def execute(box: Box, spec: JobSpec, outdir: str,
         box.push(local, remote_rel)
         log(f"  {os.path.basename(local)} -> {remote_rel}")
 
-    # На прогретой машине от прошлого прогона остаётся каталог с результатом,
-    # и задача считает работу сделанной: возобновление видит 20 готовых страниц
-    # и досчитывает одну.  Прогон при этом выглядит успешным и стоит денег.
-    # Поэтому чистим — кроме случая, когда возобновление и задумано.
+    # A warm machine still holds the last run's result directory and the job
+    # counts the work done: resume sees 20 finished pages and computes one, and
+    # the run looks successful and costs money.
     if not spec.resume:
-        # Со сроком и С ПРОВЕРКОЙ.  Незамеченная неудача здесь означает, что
-        # результат прошлого прогона остался на месте, а `--resume` его
-        # засчитает: прогон выглядит успешным, страницы чужие.
+        # With a term and WITH A CHECK: an unnoticed failure leaves the last
+        # run's result in place for `--resume` to count as this run's.
         rc, out = box.run(f"rm -rf {spec.workdir}/{spec.outputs}",
                           stream=False, deadline=deadline)
         if rc != 0:
@@ -308,14 +294,12 @@ def execute(box: Box, spec: JobSpec, outdir: str,
     box.start_sync(spec.outputs, outdir, exclude=spec.pull_exclude)
     try:
         log("запускаю задачу...")
-        # Значения ручек ЭКРАНИРУЮТСЯ.  Строка собирается для чужой оболочки,
-        # а приезжает сюда из `knobs.passthrough()`, то есть из окружения
-        # оператора: значение с пробелом рвало команду на две, а значение с
-        # `;` или `$(...)` выполнялось бы на арендованной машине как код.
-        # Имя ручки при этом не экранируется никак — оно обязано быть
-        # законным именем переменной оболочки, и если это не так, лучше
-        # отказаться ЗДЕСЬ, до денег, чем получить синтаксическую ошибку в
-        # чужой оболочке после подъёма vLLM.
+        # Knob values are SHELL-QUOTED. The string is built for a foreign shell
+        # out of `knobs.passthrough()`, i.e. the operator's environment: a
+        # value with a space tore the command in two, one with `;` or `$(...)`
+        # would run on the rented machine as code. The NAME is not quoted -- it
+        # must be a legal shell variable name, and refusing HERE, before the
+        # money, beats a syntax error after vLLM is up.
         bad = [k for k in spec.env if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", k)]
         if bad:
             raise SystemExit(f"имена ручек не годятся для оболочки: {bad}")
@@ -324,10 +308,9 @@ def execute(box: Box, spec: JobSpec, outdir: str,
         rc, _ = box.run(cmd, deadline=deadline)
     finally:
         box.stop_sync()
-        # Сколько стоит каждое исключение — ДО того, как оно сработает, и
-        # числом.  Прежде исключения стояли молча, и «экономия» в 0.8%
-        # выгрузки, стоившая четырём книгам постраничной разметки, ни разу не
-        # была названа вслух.  Замер вхолостую, ноль переданных байт.
+        # What each exclusion costs, BEFORE it fires and as a number. Silent
+        # exclusions once "saved" 0.8% of the download and cost four books
+        # their per-page markup. Measured dry, zero bytes transferred.
         if spec.pull_exclude:
             try:
                 box.weigh_exclude(spec.outputs, spec.pull_exclude, outdir)
@@ -336,124 +319,107 @@ def execute(box: Box, spec: JobSpec, outdir: str,
         log("забираю результат целиком...")
         if box.pull(spec.outputs, outdir,
                     exclude=spec.pull_exclude) != 0 and rc == 0:
-            # Задача отработала, а результат не доехал — это не успех.
-            # Раньше такой прогон возвращал 0, и оператор получал неполный
-            # разбор как готовый; вместе с нечищенным каталогом это было
-            # неотличимо от нормы.
+            # The job finished and the result did not arrive -- no success.
+            # Such a run used to return 0 and hand the operator an incomplete
+            # parse as a finished one, indistinguishable from normal.
             log("ВНИМАНИЕ: результат выкачался не полностью")
             rc = 75
     return rc
 
 
-# Пять попыток, а не три: отбраковка теперь стоит около двух минут, а рынок
-# бывает и таким, что три машины подряд оказываются негодными — так и вышло,
-# все три из одного кластера в Нидерландах.
+# Five attempts, not three: a rejection now costs about two minutes, and the
+# market can be such that three machines in a row are unusable -- which
+# happened, all three from one cluster in the Netherlands.
 #
-# Ниже этого машина непригодна: заявленные хостом мегабиты — про его
-# собственный доступ в интернет, а не про путь до нас.  Замер: машина с
-# обещанными 1188 Мбит/с приняла 3.5 МБ входного файла за семь с половиной
-# минут, то есть 62 кбит/с.  Пятнадцать минут аренды ушли впустую.
+# Below this floor a machine is unusable: a host's advertised megabits are
+# about its own internet access, not the path to us. Measured: a machine
+# promising 1188 Mbit/s took a 3.5 MB input file in seven and a half minutes,
+# i.e. 62 kbit/s, and fifteen minutes of rental went to waste.
 #
-# Порог низкий намеренно.  Один поток ssh даёт немного даже на здоровой
-# машине — шифрование плюс окно потока на длинном маршруте: удачный прогон
-# заливал те же 3.5 МБ за 4 секунды, это ~7 Мбит/с.  Первая версия порога
-# стояла на 25 и отбраковала пять машин подряд, все годные.  Отделять надо
-# не быстрых от медленных, а работающих от сломанных, а между ними два
-# порядка: 7 Мбит/с против 0.06.
-# ОБЪЯВЛЕНА В РЕЕСТРЕ. Прежде это была константа модуля, и вот чем она
-# обошлась: при нашем канале 4.7 Мбит/с порог считается как
-# `min(2.0, 0.5*ours)` = 2.0, а машины рынка отдавали 1.9 — пять аренд подряд
-# отбракованы полностью, и ослабить порог осознанно было нечем. Хуже того,
-# порог не попадал в слепок: прогон, снявший машину при одном пороге, и
-# прогон, отказавшийся при другом, выглядели одинаково.
+# The floor is deliberately low. One ssh stream gives little even on a healthy
+# machine -- encryption plus the stream window on a long route: a good run
+# pushed the same 3.5 MB in 4 seconds, some 7 Mbit/s. The first threshold stood
+# at 25 and rejected five good machines in a row. Separate not fast from slow
+# but working from broken: between them lie two orders, 7 Mbit/s against 0.06.
+# DECLARED IN THE REGISTRY. As a module constant it cost this: at our
+# 4.7 Mbit/s the floor computes as `min(2.0, 0.5*ours)` = 2.0 while the market
+# gave 1.9 -- five rentals in a row rejected entirely, with no way to loosen it
+# deliberately. And it missed the snapshot: renting at one threshold and
+# refusing at another looked the same.
 def _min_link_mbps() -> float:
     return float(knobs.knob("MIN_LINK_MBPS"))
 
 
 
-# Скорость машины «из мира» пока НЕ отбраковывает, а только пишется в
-# журнал.  Первая версия зонда мерила один поток и дала обратную
-# зависимость с реальным временем установки колёс; порог 150 при этом
-# отбраковал пять машин подряд, весь доступный рынок.  Зонд переписан на
-# несколько потоков, но ставить порог по двум точкам — та же ошибка, что
-# уже была сделана дважды.  Ждём данных в журнале.
+# Speed "from the world" does NOT reject yet, it only goes to the ledger. The
+# first probe measured one stream and gave an inverse relation to the real
+# wheel-install time; a threshold of 150 then rejected five machines in a row,
+# the whole available market. The probe now uses several streams, but setting a
+# threshold off two points is the mistake already made twice.
 #
-# ЖДАТЬ ПРИДЁТСЯ ЗАНОВО.  Всё, что уже лежит в журнале, померено зондом,
-# который просил шесть кусков по 12 МиБ у файла в 20.2 МБ: качали ДВА потока
-# из шести, остальные четыре получали 416 и ноль байт (`box.probe_download`,
-# разбор там же).  Старые числа с новыми несравнимы — порог по ним не
-# ставить.
+# THE WAIT STARTS OVER. Everything in the ledger was measured by a probe asking
+# six 12 MiB chunks of a 20.2 MB file: TWO streams of six downloaded, the other
+# four got 416 and zero bytes (`box.probe_download`). Old numbers are
+# incomparable with new -- do not set a threshold from them.
 MIN_DOWNLOAD_MBPS = 0.0
 MAX_ATTEMPTS = 5
 
-# Сколько ждать контейнера, прежде чем взять другую машину.
+# How long to wait for a container before taking another machine.
 #
-# Две минуты — по журналу, а не на глаз: из тринадцати подъёмов одиннадцать
-# уложились в две минуты при медиане 1.4.  Не уложились ровно две машины, и
-# обе оказались негодными — одна из них та, что потом принимала входной файл
-# со скоростью 62 кбит/с.
+# Two minutes by the ledger, not by eye: of thirteen boots eleven fitted into
+# two minutes at a median of 1.4. Exactly two did not, and both machines proved
+# unusable -- one of them the 62 kbit/s one.
 #
-# Дольше бывает законно: наш образ на 54 МБ приезжает за секунды, но следом
-# vast достраивает свой слой с ssh — индекс Debian и под сотню пакетов.
-# Поэтому машина, брошенная по этому потолку, НЕ считается плохой навсегда:
-# достройка на ней доберётся до конца и в следующий раз машина поднимется
-# за полминуты.  В вечный список идут только те, у кого сломан канал.
-# `BOOT_LIMIT_S` УБРАНА, а не помечена долгом: она ограничивала подъём
-# контейнера отдельным потолком внутри потолка попытки, и этим отбраковывала
-# машины, которые исправно качали образ. Потребитель у неё БЫЛ и исчез вместе
-# с работой — разбор в докстроке `connect` выше.
+# Longer is legitimate: the 54 MB image arrives in seconds, but vast then
+# builds its ssh layer on top (see `_warm`). So a machine abandoned on this
+# ceiling is NOT bad forever -- the build-up finishes and next time it comes up
+# in half a minute. Only a broken channel earns the permanent list.
+# `BOOT_LIMIT_S` IS GONE, not marked as debt: it rejected machines that were
+# pulling the image fine (see `connect`).
 
-# Общий потолок одной попытки: запуск контейнера ПЛЮС ssh.  Раньше в connect
-# уходил только BOOT_LIMIT_S, а wait_ready ждал по своим 420 с, и негодная
-# попытка стоила до десяти минут.  Но и сжать всё в 120 с нельзя: vast
-# достраивает образ своим слоем ssh минуты по три, и такой срок отбраковывает
-# годные машины — проверено, два прогона подряд не нашли ни одной из десяти.
-# Пять минут оказались слишком жёсткими: vast числит контейнер запущенным
-# раньше, чем ssh-демон начинает слушать, и «Connection refused» тянется
-# минуты по четыре с половиной.  Две годные машины подряд были отбракованы.
-# Раньше на ssh отводилось 420 с отдельно, то есть попытка могла идти до
-# девяти минут; восемь — середина, которая не душит и не разоряет.
+# The ceiling of one attempt: container start PLUS ssh. 120 s is impossible --
+# vast builds its ssh layer for some three minutes, and two runs in a row then
+# found none of ten machines. Five minutes proved too harsh too: vast counts
+# the container started before sshd listens, and "Connection refused" drags on
+# for some four and a half minutes -- two good machines in a row rejected.
+# Earlier ssh had its own 420 s, so an attempt could run nine minutes; eight is
+# the middle that neither strangles nor ruins.
 ATTEMPT_LIMIT_S = 480.0
 
-# Срок дозора мертвеца при --keep: машина оставлена нарочно, но не навсегда.
-# Четыре часа — столько, чтобы вернуться к прогретой машине в тот же вечер,
-# и не столько, чтобы забытый инстанс проел бюджет за ночь.
+# The dead-man's term under --keep: the machine is left on purpose, but not
+# forever. Four hours -- enough to come back to a warm machine the same
+# evening, not enough for a forgotten instance to eat the budget overnight.
 KEEP_GRACE_S = 4 * 3600
 
 
 def blame_machine(offer: dict, reason: str, *, ours: float, link: float,
                   best_link: float, mark=None, say=None) -> bool:
-    """В ВЕЧНЫЙ чёрный список — но только когда виновата МАШИНА.
+    """Onto the PERMANENT blacklist -- but only when the MACHINE is at fault.
 
-    НА УРОВНЕ МОДУЛЯ, А НЕ ЗАМЫКАНИЕМ ВНУТРИ `_rent`, и это не косметика:
-    запертый в замыкании сторож нельзя ни позвать из проверки, ни испортить
-    мутацией — батарея объявляла его проверенным, вытаскивая тело разбором
-    исходника, то есть проверяла ТЕКСТ, а не поведение.
+    AT MODULE LEVEL, NOT A CLOSURE INSIDE `_rent`, and not for tidiness: a
+    guard locked in a closure can neither be called from a check nor spoilt by
+    a mutation -- the battery declared it checked while pulling its body out by
+    parsing the source, i.e. it checked TEXT, not behaviour.
 
-    Зонд меряет путь ОТ машины ДО нас и упирается в нас же. Вечером
-    20 августа наш канал просел до 2.3 Мбит/с, и две попытки аренды подряд,
-    по пять машин каждая, были отбракованы целиком — машины при этом были
-    годные. Занеси мы их в ВЕЧНЫЙ список, рынок кончился бы насовсем, а
-    причина осталась бы у нас.
+    The probe measures the path FROM the machine TO us and runs into us. On the
+    evening of 20 August our channel sagged to 2.3 Mbit/s and two rentals in a
+    row, five machines each, were rejected entirely -- good machines. On the
+    PERMANENT list they would have ended the market for good, with the cause
+    still at our end.
 
-    ЗДЕСЬ СТОЯЛО `ours < 2 * limit`, И ЭТО БЫЛО НЕВЕРНО ДВАЖДЫ.
+    THE RULE WAS `ours < 2 * limit`, AND IT WAS WRONG TWICE. First, `ours` is
+    an HTTPS download from Cloudflare while the probe is A SINGLE SSH STREAM,
+    and our gap between the transports is tenfold: 3 September 2026, HTTP 4.6
+    and 2.4 Mbit/s against ssh 0.34 and 0.25 from two DIFFERENT machines in a
+    row -- our own path, not coincidence, and both were blacklisted for nothing
+    and taken off by hand. Second, the comparison was tied to `limit`, THE SAME
+    KNOB that sets rejection: loosening the floor to let machines through made
+    a permanent ban EASIER. One knob pulling two ways, and only paying showed
+    it.
 
-    Во-первых, `ours` меряется загрузкой по HTTPS с Cloudflare, а зонд —
-    ОДНИМ ПОТОКОМ SSH. Это разные транспорты, и разрыв между ними у нас
-    десятикратный: замер 3 сентября 2026 — HTTP 4.6 и 2.4 Мбит/с против ssh
-    0.34 и 0.25 с двух РАЗНЫХ машин подряд. Две независимые машины, одинаково
-    низко, при вдесятеро большем HTTP — это объясняется нашим путём, а не
-    совпадением. Обе ушли в вечный список ни за что и сняты оттуда руками.
-
-    Во-вторых, порог сравнения был привязан к `limit` — К ТОЙ ЖЕ РУЧКЕ, что
-    задаёт отбраковку. Ослабляешь порог, чтобы пропустить машины, — и тем же
-    движением делаешь вечную блокировку ЛЕГЧЕ. Одна ручка тянула в две
-    противоположные стороны, и заметить это можно было только заплатив.
-
-    Теперь правило — собственная подсказка прибора, доведённая до дела:
-    «если так подряд у всех машин, дело может быть в НАШЕМ канале». Виним
-    машину, только когда есть СВИДЕТЕЛЬ — другая машина, давшая нам по тому
-    же ssh хотя бы втрое больше. Нет свидетеля — нет и вины.
+    Hence the instrument's own hint, carried through: "if it happens to every
+    machine in a row, it may be OUR channel". Blame the machine only with a
+    WITNESS: another machine that gave us three times more over the same ssh.
     """
     mark = mark or ledger.mark_bad
     say = say or log
@@ -472,24 +438,22 @@ def blame_machine(offer: dict, reason: str, *, ours: float, link: float,
 
 
 def _our_downlink_mbps(timeout: float = 20.0, mb: int = 1) -> float:
-    """Скорость НАШЕГО канала вниз, чтобы не винить в ней машины.
+    """The speed of OUR own downlink, so machines are not blamed for it.
 
-    Зонд канала меряет путь от машины к нам и потому упирается в нас же.
-    Отличить «машина плохая» от «мы медленные» он не может, а порог стоял
-    ровно на нашем потолке: вечером 20 августа наш канал просел до 2.3 Мбит,
-    и две попытки аренды подряд по пять машин каждая были отбракованы —
-    молча, и выглядело это как «плохой рынок».
+    The channel probe measures the path from the machine to us and runs into
+    us: it cannot tell "the machine is bad" from "we are slow", and the floor
+    used to sit at our own ceiling -- the 20 August sag, see `blame_machine`.
 
-    Ноль означает «не смогли измерить»; тогда порог остаётся прежним.
+    Zero means "could not measure"; the floor then stays as it was.
     """
     import urllib.request
     try:
         t0 = time.time()
-        # Мегабайта достаточно и он укладывается даже в узкий канал: три
-        # мегабайта на 2.3 Мбит/с не влезали в срок, и замер возвращал ноль —
-        # то есть страховка от узкого канала сама им же и ломалась.
-        # Заголовок обязателен: без него Cloudflare отвечает 403, замер
-        # возвращает ноль, и страховка от узкого канала молча выключается.
+        # A megabyte is enough and fits a narrow channel: three megabytes at
+        # 2.3 Mbit/s did not fit the term and the measurement returned zero --
+        # the insurance against a narrow channel broke on one. The header is
+        # mandatory too: without it Cloudflare answers 403, the measurement is
+        # zero again, and the insurance switches itself off in silence.
         req = urllib.request.Request(
             f"https://speed.cloudflare.com/__down?bytes={mb * 1000000}",
             headers={"User-Agent": "booksmith/1.0"})
@@ -503,29 +467,29 @@ def _our_downlink_mbps(timeout: float = 20.0, mb: int = 1) -> float:
 
 def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
           rec, guards: list, t0: float, undead: list | None = None):
-    """Снять машину, дождаться ssh и проверить канал до неё.
+    """Rent a machine, wait for ssh and measure the channel to it.
 
-    Плохая машина отсеивается здесь за двадцать секунд, а не через пятнадцать
-    минут на заливке входных файлов.  У каждой попытки свой сторож: сторож от
-    брошенной попытки нельзя оставлять живым, иначе он дождётся своего
-    дедлайна и уничтожит уже следующую, чужую машину.
+    A bad machine is filtered out here in twenty seconds instead of fifteen
+    minutes into uploading input files. Each attempt gets its own watchdog: an
+    abandoned one left alive reaches its deadline and destroys the next
+    machine, which belongs to someone else.
     """
-    # Отбракованные машины исключаются навсегда, а не на один прогон: без
-    # этого предпочтение прогретых ведёт обратно на ту же грабли.
+    # Rejected machines are excluded for good, not for one run: without that,
+    # preferring warm machines leads back onto the same rake.
     ours = _our_downlink_mbps()
     limit = _min_link_mbps()
     floor = limit
     if ours:
-        # Машина не может отдать нам быстрее, чем мы принимаем.  Требовать с
-        # неё больше половины нашего же канала — предел разумного.
+        # A machine cannot give us more than we can take. Demanding over half
+        # of our own channel from it is the limit of sense.
         floor = min(limit, 0.5 * ours)
         log(f"наш канал вниз ≈ {ours:.1f} Мбит/с, "
             f"порог отбраковки машин {floor:.2f} Мбит/с")
         if ours < 2 * limit:
             log("ВНИМАНИЕ: наш канал узкий — выкачивание результата будет долгим")
 
-    # Лучшее, что вообще давал НАМ хоть кто-то по ssh. Пусто, пока никто не
-    # померен: `blame_machine` без этого свидетеля никого не винит.
+    # The best anyone has ever given US over ssh. Empty until someone is
+    # measured: without this witness `blame_machine` blames nobody.
     best_link = [0.0]
 
     def _blame(offer: dict, reason: str) -> None:
@@ -535,13 +499,13 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
     avoid: list[int] = list(ledger.bad_machines())
     undead = undead if undead is not None else []
     for attempt in range(1, MAX_ATTEMPTS + 1):
-        # Не снимать машину, на которую не осталось времени.  Внесено вместе
-        # с отсчётом бюджета от `t0` и ловит его же изнанку: при коротком
-        # `timeout_minutes` остаток уходил в минус, `Budget` отдавал дедлайн
-        # В ПРОШЛОМ, и сторож уничтожал свежеснятую машину через 15 секунд.
-        # Замер: timeout_minutes=30, попытки по 480 с — на пятой потолок
-        # −2 мин.  Платить за машину, которую сами же убьём, хуже, чем
-        # сказать вслух, что времени нет.
+        # Do not rent a machine there is no time left for -- the flip side of
+        # counting the budget from `t0`: at a short `timeout_minutes` the
+        # remainder went negative, `Budget` handed out a deadline IN THE PAST,
+        # and the watchdog destroyed a freshly rented machine 15 seconds later
+        # (timeout_minutes=30, attempts of 480 s: on the fifth the ceiling is
+        # -2 min). Paying for a machine we kill ourselves is worse than saying
+        # aloud that there is no time.
         left = spec.timeout_minutes * 60 - (time.time() - t0)
         if left <= ATTEMPT_LIMIT_S:
             raise SystemExit(
@@ -568,16 +532,16 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
         guard = threading.Event()
         guards.append(guard)
         budget = Budget(spec, dph, t0)
-        # Своя ячейка на попытку, а не общий `state`.  Сторож брошенной
-        # попытки переживает её намеренно — когда `destroy` не удался, ветка
-        # ниже оставляет его добивать машину.  Но `state["iid"]` к тому
-        # времени уже указывал на СЛЕДУЮЩУЮ машину, и, дождавшись своего
-        # дедлайна, старый сторож уничтожал её посреди работы — ровно то, что
-        # запрещает докстринг этой функции.
+        # A cell of its own per attempt, not the shared `state`. The watchdog
+        # of an abandoned attempt outlives it on purpose -- when `destroy`
+        # failed, the branch below leaves it to finish the machine off. But
+        # `state["iid"]` by then pointed at the NEXT machine, and the old
+        # watchdog destroyed that one mid-work, exactly what this function's
+        # docstring forbids.
         #
-        # `m=mine` не украшение: замыкание в цикле держит ПЕРЕМЕННУЮ, а не
-        # значение, и без привязки по умолчанию все сторожа смотрели бы в
-        # ячейку последней попытки — та же беда, только тише.
+        # `m=mine` is not decoration: a closure in a loop holds the VARIABLE,
+        # not the value; without it every watchdog would look into the last
+        # attempt's cell -- the same trouble, quieter.
         mine: dict = {"iid": None, "t_create": None}
         threading.Thread(target=_watchdog,
                          args=(vast, lambda m=mine: m["iid"], budget, guard),
@@ -585,49 +549,49 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
 
         def _remember(new_id: int, m=mine):
             state["iid"] = m["iid"] = new_id
-            # Момент СОЗДАНИЯ удавшейся машины: от него, а не от начала
-            # прогона, считается setup_s.  Своя копия на попытку — по ней
-            # считается, сколько стоила ОТБРАКОВАННАЯ машина.
+            # The moment the successful machine was CREATED: `setup_s` counts
+            # from here, and a copy per attempt tells what the REJECTED machine
+            # cost.
             state["t_create"] = m["t_create"] = time.time()
             rec.instance_id = new_id
 
         def _charge(m=mine, price=dph):
-            """Записать в журнал деньги, съеденные этой попыткой.
+            """Write down the money this attempt ate.
 
-            Отбракованная машина биллится с секунды создания, и до этой правки
-            её аренда не попадала в `cost_usd` ВООБЩЕ: `rec.dph` присваивается
-            уже после удачной аренды, и сорвавшийся прогон уходил в журнал с
-            `dph` = 0.  В нынешнем журнале 13 таких записей: 9268 секунд
-            прогонов на $0.102 в сумме — то есть один трафик и ни секунды
-            аренды пяти снятых машин.
+            A rejected machine bills from the second it was created, and until
+            this fix its rental never entered `cost_usd` AT ALL: `rec.dph` is
+            assigned only after a successful rental, so a run that fell through
+            reached the ledger with `dph` = 0. The ledger holds 13 such
+            records: 9268 seconds of runs for $0.102 -- traffic alone, and not
+            one second of rental for five machines taken.
             """
             t = m.get("t_create")
             if t is None:
-                return 0.0                 # инстанс так и не создан — платить не за что
+                return 0.0                 # no instance was created -- nothing to pay for
             spent = price * (time.time() - t) / 3600
             rec.reject_usd += spent
             rec.reject_n += 1
-            m["t_create"] = None           # второй раз ту же секунду не считаем
+            m["t_create"] = None           # the same second is not counted twice
             log(f"  отбракованная машина обошлась в ${spent:.4f} "
                 f"({(time.time() - t)/60:.1f} мин по ${price:.3f}/час); "
                 f"всего на отбраковку ${rec.reject_usd:.4f} за {rec.reject_n} шт")
             return spent
 
-        # ОФФЕР МОГ УМЕРЕТЬ между поиском и созданием: рынок разбирают за
-        # секунды, и vast отвечает 400 на чужой уже ask. Прежде это исключение
-        # роняло ВЕСЬ прогон, хотя оставалось четыре попытки и полный рынок
-        # рядом; повтор той же командой брал тот же мёртвый оффер и падал
-        # снова. Считаем это одной неудачной попыткой, а не отказом.
+        # THE OFFER MAY HAVE DIED between the search and the creation: the
+        # market is taken apart in seconds and vast answers 400 on someone
+        # else's ask. This used to kill the WHOLE run with four attempts left
+        # and a full market next door, and a repeat of the same command took
+        # the same dead offer. One failed attempt, not a refusal.
         try:
             vast.create(int(offer["id"]), spec, on_created=_remember)
         except Exception as e:
             log(f"оффер #{offer['id']} не снялся ({type(e).__name__}: "
                 f"{str(e)[:90]}) — беру следующий")
-            _charge()          # обычно ноль: инстанса не создали
-            # `or 0` здесь означало «машину без machine_id избегаем как
-            # машину номер ноль» — то есть не избегаем никого, зато отсеиваем
-            # чужой оффер, если у него machine_id действительно 0.  Пустое
-            # поле надо называть вслух, а не превращать в число.
+            _charge()          # usually zero: no instance was created
+            # `or 0` here meant "avoid a machine without a machine_id as
+            # machine number zero" -- avoid nobody, while filtering out a
+            # foreign offer whose machine_id really is 0. An empty field is
+            # named aloud, not turned into a number.
             mid = offer.get("machine_id")
             if mid is None:
                 log(f"  у оффера #{offer['id']} нет machine_id — "
@@ -644,16 +608,17 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
         try:
             box = connect(vast, state["iid"], spec, ssh_key,
                           attempt_limit=ATTEMPT_LIMIT_S)
-            # Зонд меряет ЗА ВРЕМЯ и возвращает честную скорость: ложных
-            # нулей больше нет, разбор в его докстроке. Прежде он просил
-            # ровно 4 МБ за 25 с и при недоборе отдавал 0.0 — «мы не успели
-            # принять» записывалось как «машина сломана».
+            # The probe measures BY TIME and returns an honest speed -- no
+            # false zeros (see its docstring). It used to ask for exactly 4 MB
+            # within 25 s and return 0.0 on a shortfall: "we failed to receive"
+            # written down as "the machine is broken".
             link = box.probe()
-            # Порог здесь ДЕЙСТВУЮЩИЙ (`floor`), а не реестровый (`limit`).
-            # С реестровым машина, прошедшая по ослабленному нашим узким
-            # каналом порогу, уезжала в журнал с `download_mbps` = 0.0 —
-            # неотличимо от «зонд не сработал».  Теперь всё, что мы
-            # ПРИНИМАЕМ, всегда померено, а `None` значит «не мерили».
+            # The floor here is the EFFECTIVE one (`floor`), not the registry
+            # `limit`. With the registry one, a machine that passed a floor
+            # loosened by our narrow channel went into the ledger with
+            # `download_mbps` = 0.0 -- indistinguishable from "the probe did
+            # not work". Now everything we ACCEPT is measured, and `None` means
+            # "not measured".
             down = box.probe_download() if link >= floor else None
             connect_failed = False
         except (RuntimeError, OSError) as e:
@@ -663,36 +628,35 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
             link, down = 0.0, None
         best_link[0] = max(best_link[0], link)
         rec.link_mbps = link
-        rec.download_mbps = down          # None = НЕ МЕРИЛИ, а не «ноль»
+        rec.download_mbps = down          # None = NOT MEASURED, not "zero"
         if link >= floor and (down is None or down >= MIN_DOWNLOAD_MBPS):
-            # ДВА ЗНАКА, А НЕ НОЛЬ. Строка отказа рядом печатает `.2f`, а эта
-            # печатала `.0f` — и всё, что меньше единицы, показывалось нулём.
-            # Замер 3 сентября 2026: принятая машина отрапортовала «до нас
-            # 0 Мбит/с» при пороге 0.15, то есть строка приёмки утверждала
-            # ровно то, за что соседняя строка отбраковывает. Величина,
-            # уничтоженная при показе, — тот же дефект, что «готово» вместо
-            # числа, только с другого конца.
+            # TWO DECIMALS, NOT A ZERO. The rejection line next door prints
+            # `.2f`, this one printed `.0f` -- anything below one showed as
+            # zero. Measured 3 September 2026: an accepted machine reported "to
+            # us 0 Mbit/s" against a floor of 0.15, i.e. the acceptance line
+            # claimed exactly what its neighbour rejects for. A quantity
+            # destroyed at the printout is "done" instead of a number, from the
+            # other end.
             log(f"канал: до нас {link:.2f} Мбит/с, из мира "
                 + (f"{down:.0f} Мбит/с" if down is not None else "не мерян"))
             return box, dph, budget
 
         if not link and connect_failed:
-            pass          # причина уже названа выше, второй раз незачем
+            pass          # the reason is already named above
         elif not link:
-            # Ноль — это тайм-аут зонда, а не «неизвестно».  Раньше при нуле
-            # обе ветки ниже были ложны, и машина уничтожалась молча: в
-            # журнале ssh готов за 5 с, дальше пусто, а через полминуты
-            # «УНИЧТОЖЕН». Пять таких подряд выглядели как «рынок плохой».
+            # A zero is the probe timing out, not "unknown". Both branches
+            # below used to be false at zero and the machine died silently: ssh
+            # ready in 5 s in the log, then nothing, then "УНИЧТОЖЕН" half a
+            # minute later. Five in a row looked like "the market is bad".
             log(f"канал до нас НОЛЬ байт за отведённое время — беру другую. "
                 f"Это уже про машину: зонд меряет за время и при живом канале "
                 f"вернул бы настоящее число, пусть и маленькое")
-            # И в вечный список — ровно тот случай, ради которого список
-            # заведён.  Машина с 62 кбит/с не отдаёт 4 МБ за 25 секунд, то
-            # есть `probe` возвращает 0.0 и попадает СЮДА, а не в ветку
-            # `link < floor` ниже, где стоял единственный `mark_bad`.  Пока
-            # этой строки не было, из всех отбракованных по каналу машин в
-            # список не попадала ни одна с мёртвым каналом — а прогретой
-            # такая машина считается наравне с прочими.
+            # And onto the permanent list -- the case the list was made for. A
+            # 62 kbit/s machine does not give 4 MB in 25 seconds, so `probe`
+            # returns 0.0 and lands HERE, not in the `link < floor` branch
+            # below where the only `mark_bad` used to stand. Until this line no
+            # machine with a dead channel ever reached the list -- and such a
+            # machine counts as warm alongside the rest.
             _blame(offer, f"канал до нас ноль байт за отведённое время "
                           f"(порог {floor:.2f} Мбит/с)")
         elif link < floor:
@@ -702,36 +666,34 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
         elif link:
             log(f"машина тянет из мира всего {down:.0f} Мбит/с "
                 f"(нужно от {MIN_DOWNLOAD_MBPS:.0f}) — беру другую")
-        # Пульс надо остановить ДО того, как бросить машину: иначе наш же
-        # поток продолжит её оживлять, и дозор мертвеца не сработает.
+        # The pulse must stop BEFORE the machine is abandoned: otherwise our
+        # own thread keeps reviving it and the dead-man's watch never fires.
         #
-        # МОЛЧАЩИЙ `except Exception: pass` СТОЯЛ ЗДЕСЬ И ПРЯТАЛ РОВНО ЭТУ
-        # БЕДУ. Когда `connect` падал ПОСЛЕ `start_heartbeat`, `box` тут
-        # оставался не привязан, вызов давал `UnboundLocalError`, глушился —
-        # и машина уходила в `undead` с живым пульсом, без единой строки в
-        # журнале. Теперь пульс гасит сам `connect` (там же, где заводит), а
-        # здесь остаётся страховка, и она ГОВОРИТ.
+        # A SILENT `except Exception: pass` STOOD HERE AND HID EXACTLY THAT --
+        # the story is in `connect`: unbound `box`, `UnboundLocalError`
+        # swallowed, machine off to `undead` with a live pulse and not a line
+        # in the log. `connect` now stops what it started; this is a backstop,
+        # and it SPEAKS.
         try:
             box.stop_heartbeat()
         except Exception as e:                                  # noqa: BLE001
             log(f"ВНИМАНИЕ: пульс брошенной машины не погашен ({e}) — "
                 f"дозор мертвеца на ней может быть выключен нашим же "
                 f"потоком; проверьте `books ls`")
-        # Результат уничтожения не выбрасываем: при неудаче машина жива, и
-        # обнулять её id нельзя — блок finally её уже не тронет, а сторожа
-        # мы бы погасили. Такой инстанс остаётся вообще без присмотра.
+        # The destruction result is not thrown away: on failure the machine is
+        # alive and its id must not be cleared -- `finally` would not touch it
+        # and its watchdog would be silenced, leaving nobody watching at all.
         if vast.destroy(int(state["iid"])):
-            _charge()                      # деньги этой машины — в журнал
+            _charge()                      # this machine's money into the ledger
             state["iid"] = mine["iid"] = None
             guard.set()
         else:
             log(f"инстанс {state['iid']} уничтожить не удалось — "
                 f"оставляю сторожа и добью в конце")
-            # Считаем деньги ДО этой секунды и передаём цену дальше: машина
-            # биллится и после нашей неудачной попытки, а добивают её в
-            # `finally`.  Там же дописывается остаток — иначе брошенная
-            # машина стоила бы в журнале ровно ноль, то есть тем же нулём,
-            # что и несозданная.
+            # Money counted up TO this second and the price passed on: the
+            # machine bills after our failed attempt too and is finished off in
+            # `finally`, where the remainder is added -- otherwise an abandoned
+            # machine would cost the same zero as one never created.
             _charge()
             undead.append({"iid": int(state["iid"]), "dph": dph,
                            "since": time.time()})
@@ -751,27 +713,25 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
             dry_run: bool = False, report: dict | None = None,
             keep_until: float | None = None,
             keep_usd: float | None = None) -> int:
-    """Полный прогон.  Возвращает код возврата задачи.
+    """A full run. Returns the job's return code.
 
-    `report` — необязательный словарь, куда кладётся `instance_id` ЖИВОЙ
-    машины (то есть только при `keep`; иначе там `None`), её цена в час и
-    потраченное.  Идентификатор нужен, чтобы второй и третий проходы попали
-    на ту же машину; цена и трата — чтобы цепочка проходов знала, сколько
-    бюджета осталось, и не заводила себе новый на каждом проходе.  Трата
-    считается ВМЕСТЕ с отбракованными машинами: без этого цепочка думала бы,
-    что неудачная аренда ей ничего не стоила.
+    `report` is an optional dict taking the `instance_id` of the LIVE machine
+    (i.e. only under `keep`, else `None`), its hourly price and the spend. The
+    id puts the second and third passes on the same machine; price and spend
+    let a chain of passes know how much budget is left instead of starting a
+    new one each pass. The spend counts rejected machines TOO, or the chain
+    would think a failed rental cost it nothing.
 
-    `keep_until` — АБСОЛЮТНЫЙ срок, до которого имеет смысл держать машину при
-    `--keep`, и `keep_usd` — сколько денег осталось цепочке до этого прохода.
-    Умолчание дозора — четыре часа, под «вернусь к прогретой машине вечером».
-    Между проходами одной команды это слишком много: упади наш процесс в
-    промежутке, карта биллится до утра.
+    `keep_until` is the ABSOLUTE moment up to which holding the machine under
+    `--keep` makes sense, `keep_usd` the money the chain has left. The default
+    four-hour watch is far too much between passes of one command: if our
+    process dies in between, the card bills until morning.
 
-    Именно абсолютный срок, а не длительность: первая редакция считала остаток
-    в начале прохода, а ставила дозор в конце — то есть машина, начавшая
-    последний проход с остатком в минуту, получала дозор на сто минут ПОСЛЕ
-    его окончания.  И именно с деньгами: дозор, посчитанный из одних минут, на
-    карте за $2/час превращал потолок в $1.00 в фактические девять.
+    Absolute, not a duration: the first revision counted the remainder at the
+    start of a pass and set the watch at the end, so a machine that began the
+    last pass with a minute left got a hundred-minute watch AFTER it finished.
+    And with money in it: computed from minutes alone, the watch turned a $1.00
+    ceiling into an actual nine on a $2/hour card.
     """
     vast = Vast()
     outdir = os.path.abspath(outdir)
@@ -780,8 +740,8 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
                      image_gb=spec.image_gb)
     old_signals = _install_signals()
     t0 = time.time()
-    # id держим в изменяемой ячейке: сторож и блок уборки должны видеть его
-    # сразу после создания инстанса, а не после возврата из create().
+    # The id lives in a mutable cell: the watchdog and the cleanup must see it
+    # right after the instance is created, not after create() returns.
     state = {"iid": reuse}
     offer, done = None, threading.Event()
 
@@ -798,37 +758,34 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
         _restore_signals(old_signals)
         return 0
 
-    # Локальный каталог тоже надо чистить, а не только удалённый: rsync идёт
-    # без --delete, и страницы прошлого прогона оставались лежать вперемешку
-    # с новыми.  Хуже того, _run_facts подхватывал старые run.json и
-    # progress.json и писал их в журнал как данные нового прогона — то есть
-    # подделывались ещё и числа, по которым выбирается машина.
+    # The local directory needs cleaning too: rsync runs without --delete, so
+    # the last run's pages stayed among the new ones -- and _run_facts picked
+    # up the old run.json and progress.json and wrote them into the ledger as
+    # this run's data, forging the very numbers a machine is chosen by.
     if not spec.resume and os.path.isdir(outdir) and os.listdir(outdir):
         import shutil
         shutil.rmtree(outdir)
         log(f"локальный каталог {outdir} очищен от прошлого прогона")
     os.makedirs(outdir, exist_ok=True)
     guards: list[threading.Event] = []
-    # Машины, которые пришлось бросить, но уничтожить не удалось: добиваем в
-    # конце, иначе они биллятся до своего дозора мертвеца.
+    # Machines that had to be abandoned but could not be destroyed: finished
+    # off at the end, or they bill until their own dead-man's watch.
     undead: list[int] = []
-    # `box` объявляется ДО try. Уборка гасит по нему пульс, а машину можно не
-    # снять вовсе — например, когда за пять попыток не нашлось машины с
-    # приемлемым каналом. Тогда `box` не существовал, и в уборке вылезало
-    # «cannot access local variable 'box'» ПОВЕРХ настоящей причины отказа,
-    # то есть настоящая причина пряталась за нашей же ошибкой.
+    # `box` is declared BEFORE the try: the cleanup stops the pulse through it,
+    # and a machine may not be rented at all (five attempts finding no
+    # acceptable channel). Then `box` did not exist and the cleanup raised
+    # "cannot access local variable 'box'" over the real reason for refusing.
     box = None
     try:
-        # Оставленная машина живёт не вечно: дозор мертвеца гасит её через
-        # KEEP_GRACE_S.  Без этой проверки --reuse на погибший инстанс уходил
-        # ждать его появления до boot_limit, то есть тридцать пять минут в
-        # никуда, повторяя "статус=None".
+        # A machine left behind does not live forever: the watch kills it after
+        # KEEP_GRACE_S. Without this check `--reuse` on a dead instance waited
+        # for it up to boot_limit -- thirty-five minutes of "статус=None".
         if reuse:
             try:
                 gone = vast.instance(reuse) is None
             except Exception as exc:
-                # Не смогли спросить — считаем, что машина жива.  Иначе мы
-                # снимем вторую карту, а первая продолжит биллиться.
+                # Could not ask -- take the machine to be alive. Otherwise we
+                # rent a second card while the first keeps billing.
                 log(f"не удалось проверить инстанс {reuse} ({exc}) — "
                     f"считаю, что он жив")
                 gone = False
@@ -840,23 +797,23 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
         if reuse:
             log(f"переиспользую инстанс {reuse} — холодного старта нет")
             inst = vast.instance(reuse) or {}
-            # Цену не выдумываем.  Прежде стояло `or 0.5`, и из выдуманного
-            # числа строился ПОТОЛОК.  Замер при умолчаниях JobSpec
-            # (budget_usd=1.00, timeout_minutes=90): карта за $2.00/час
-            # получала 90 минут вместо 30 — втрое больше объявленного, и
-            # только потому, что срок упирался в таймаут; без него было бы
-            # вчетверо.  А `or` вдобавок глотал законный 0.0.  Ноль от
-            # непонимания не должен молча становиться замером.
+            # The price is not invented. `or 0.5` used to stand here and a
+            # CEILING was built out of the invented number: at the JobSpec
+            # defaults (budget_usd=1.00, timeout_minutes=90) a $2.00/hour card
+            # got 90 minutes instead of 30 -- three times the declared, and
+            # only because the term hit the timeout; without it, four. And `or`
+            # swallowed a legal 0.0 on top: a zero from not knowing must not
+            # become a measurement.
             raw_dph = inst.get("dph_total")
             if raw_dph is None:
                 raise SystemExit(
                     f"инстанс {reuse} не сообщает цену (dph_total) — "
                     f"считать бюджет не из чего. Посмотрите: books ls")
             dph = float(raw_dph)
-            # Цена — в запись СРАЗУ, а не после удачного подключения: машина
-            # уже биллится, и прогон, сорвавшийся на ssh к ней, иначе уходил
-            # бы в журнал бесплатным.  Та же беда, что с отбракованными
-            # машинами, только на ветке `--reuse`.
+            # The price into the record AT ONCE, not after a successful
+            # connect: the machine already bills, and a run that fell through
+            # on ssh would otherwise reach the ledger free -- the rejected-
+            # machine trouble again, on the `--reuse` branch.
             rec.dph = dph
             rec.instance_id, rec.machine_id = reuse, inst.get("machine_id")
             budget = Budget(spec, dph, t0)
@@ -866,9 +823,9 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
                              daemon=True).start()
             log(budget.describe())
             log("жду выкачивания образа и старта контейнера...")
-            # Тот же потолок попытки, что и в ветке аренды.  Без него сюда
-            # уходил `boot_limit` = 2100 с: тридцать пять минут ожидания на
-            # машине, которая уже биллится.
+            # The same attempt ceiling as on the rental branch. Without it
+            # `boot_limit` = 2100 s went here: thirty-five minutes of waiting
+            # on a machine that already bills.
             box = connect(vast, reuse, spec, ssh_key,
                           attempt_limit=ATTEMPT_LIMIT_S)
         else:
@@ -876,18 +833,17 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
                                      guards, t0, undead)
 
         rec.dph = dph
-        # Взведён ли последний рубеж — В ЖУРНАЛ, а не только в лог того
-        # вечера.  Прогон на машине без дозора отличается от прогона на
-        # машине с дозором ровно тем, что забытая машина будет биллиться до
-        # ручного вмешательства; такую разницу надо уметь предъявить потом.
+        # Whether the last line of defence is armed -- INTO THE LEDGER, not
+        # only into that evening's log: a run on a machine without the watch
+        # differs from one with it in that a forgotten machine bills until
+        # someone kills it by hand, and that must be provable afterwards.
         rec.extra["deadman"] = box.deadman
-        # setup_s — от СОЗДАНИЯ удавшейся машины до готового ssh, как и
-        # объявлено полем в журнале. Прежняя редакция мерила весь разбег
-        # прогона: замер нашего канала, все отбракованные попытки, каждый
-        # поиск предложений и оба зонда. Оценка `fit()` делила на это
-        # постоянные 0.06 ГБ образа и печатала «эффективность канала 0.0052»
-        # против константы 0.05 — расхождение в десять раз, целиком
-        # арифметическое. Время на отбраковку теперь отдельным числом.
+        # setup_s runs from the CREATION of the successful machine to a ready
+        # ssh, as the ledger field declares. The previous revision measured the
+        # whole run-up -- our channel probe, every rejected attempt, every
+        # offer search, both probes -- and `fit()` divided a constant 0.06 GB
+        # of image by that, printing "channel efficiency 0.0052" against a
+        # constant of 0.05: a tenfold discrepancy, purely arithmetic.
         t_create = state.get("t_create") or t0
         rec.setup_s = time.time() - t_create
         rec.reject_s = t_create - t0
@@ -897,9 +853,9 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
         t1 = time.time()
         rc = execute(box, spec, outdir, deadline=budget.deadline)
         if rc != 0:
-            # Смотрим в журнал vLLM: «CUDA unknown error» — это сломанная
-            # карта на хосте, а не наша беда, и такая машина вернётся снова.
-            # Канал у неё при этом хороший, так что зонд её пропускает.
+            # Look into the vLLM log: "CUDA unknown error" is a broken card on
+            # the host, not our trouble, and such a machine will come back. Its
+            # channel is fine, so the probe lets it through.
             try:
                 vl = os.path.join(outdir, "vllm.log")
                 if os.path.exists(vl):
@@ -924,21 +880,21 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
         log(f"прервано ({e}) — прибираю за собой")
         return 130
     except (Exception, SystemExit) as e:
-        # SystemExit ловим НАРОЧНО.  Он BaseException, мимо `except Exception`
-        # проходил насквозь, и авария — «нет офферов», «цены нет», «времени не
-        # осталось» — уезжала в журнал с пустой пометкой и нулевой ценой, то
-        # есть выглядела как бесплатный успех.  Ноль от непонимания.
+        # SystemExit is caught ON PURPOSE: a BaseException, it passed straight
+        # through `except Exception`, and a failure -- "no offers", "no price",
+        # "no time left" -- reached the ledger with an empty note and a zero
+        # price, looking like a free success. A zero from not knowing.
         rec.note = f"{type(e).__name__}: {e}"
         raise
     finally:
-        _ignore_signals()          # первым делом: уборку нельзя прерывать
+        _ignore_signals()          # first of all: the cleanup must not be interrupted
         done.set()
-        for g in guards:           # сторожа всех попыток, включая брошенные
+        for g in guards:           # watchdogs of every attempt, abandoned ones too
             g.set()
         for dead in undead:
-            # Остаток аренды брошенной машины: с секунды, до которой уже
-            # посчитано в `_rent`, и по эту.  Иначе минуты между «уничтожить
-            # не удалось» и добиванием в конце не стоили бы ничего.
+            # The rest of an abandoned machine's rental: from the second
+            # already counted in `_rent` to this one, or the minutes between
+            # "could not destroy" and the finishing off cost nothing.
             rec.reject_usd += dead["dph"] * (time.time() - dead["since"]) / 3600
             if vast.destroy(int(dead["iid"])):
                 log(f"брошенный инстанс {dead['iid']} добит")
@@ -949,77 +905,65 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
         iid = state["iid"]
         elapsed = time.time() - t0
         rec.total_s = elapsed
-        # Аренда считается от СОЗДАНИЯ удавшейся машины, а не от начала
-        # прогона: до неё она не существовала.  А отбракованные машины
-        # считаются отдельным слагаемым — своё время по своей цене.
-        #
-        # Прежде здесь стояло `rec.dph * elapsed`, и это было неверно дважды.
-        # Удавшейся машине приписывались минуты, когда её ещё не было (в
-        # журнале есть прогон с 211 с отбраковки), а сорвавшийся на аренде
-        # прогон уходил бесплатным: `rec.dph` в нём остаётся нулём, и пять
-        # снятых машин обходились в $0.000. Таких записей 13 из 111.
+        # Rental counts from the CREATION of the successful machine, not from
+        # the start of the run: before that it did not exist. Rejected machines
+        # are a separate term, their own time at their own price. `rec.dph *
+        # elapsed` was wrong twice: it charged the successful machine minutes
+        # when it did not yet exist (a run in the ledger carries 211 s of
+        # rejection), and a run that fell through on renting went free at
+        # `rec.dph` = 0 and five machines taken cost $0.000 -- 13 records
+        # out of 111, see `_charge`.
         alive_s = time.time() - (state.get("t_create") or t0)
-        # Трафик считаем с полезной нагрузкой, а не с одним образом: колёса и
-        # веса это 7.2 ГБ против 0.06, и без них цифра в журнале занижалась
-        # примерно в сто раз.  Оценщик в pricing.py считает так же.
+        # Traffic counts the payload, not the image alone: wheels and weights
+        # are 7.2 GB against 0.06, and without them the ledger figure was some
+        # hundredfold low. The estimator in pricing.py counts the same way.
         rec.cost_usd = (rec.dph * alive_s / 3600 + rec.reject_usd
                         + rec.per_tb * (spec.image_gb + spec.payload_gb) / 1024)
-        # Пульс гасим ПЕРЕД `destroy` удавшейся машины — то есть последним из
-        # локальных способов, а не первым делом уборки. Дозор мертвеца на
-        # самой карте единственный из четырёх не ходит ни через наш ключ, ни
-        # через наш процесс, и пока наш поток стучит `touch /root/.alive`
-        # каждые 30 секунд, он выключен.
+        # The pulse stops BEFORE the successful machine is destroyed -- last of
+        # the local ways, not first thing in the cleanup. The dead-man's watch
+        # on the card is the one of the four that needs neither our key nor our
+        # process, and our thread's `touch /root/.alive` every 30 seconds keeps
+        # it off.
         #
-        # ЗДЕСЬ СТОЯЛО «гасим ПЕРВЫМ делом уборки», и это расходилось с кодом
-        # на сорок строк: выше уже прошли `_ignore_signals`, гашение сторожей
-        # и цикл добивания брошенных машин. ПЕРЕСТАВЛЯТЬ НЕ НАДО, и вот
-        # почему — довод посчитан, а не на глаз:
+        # DO NOT MOVE IT EARLIER. The argument is computed, not eyeballed:
         #
-        #   * `stop_heartbeat` делает `join(timeout=2)` (`box.py`), то есть
-        #     БЛОКИРУЕТ. Поставленный до `_ignore_signals()`, он отдаёт эти
-        #     две секунды под Ctrl-C, а строка «уборку нельзя прерывать»
-        #     стоит там не зря;
-        #   * цикл `undead` выше добивает до MAX_ATTEMPTS = 5 машин, и у
-        #     каждой `Vast.RETRY_S` = (4, 8, 16, 32, 60) — до 120 с пауз на
-        #     машину, до 600 с на цикл. Срок дозора DEADMAN_GRACE_S = 900, и
-        #     `tests/test_rent_deadlines.py` стережёт `sum(RETRY_S) < 900`
-        #     для ОДНОГО destroy, а не для пяти. Погасив пульс раньше, мы
-        #     запускаем часы дозора перед этими минутами;
-        #   * `box.py` рядом с `SHORT_CMD_S` прямо описывает, чем кончалось
-        #     хождение в сеть из `finally` на замолчавшей машине.
+        #   * `stop_heartbeat` does `join(timeout=2)` (`box.py`), i.e. it
+        #     BLOCKS; before `_ignore_signals()` it hands those two seconds to
+        #     Ctrl-C, and "the cleanup must not be interrupted" stands there
+        #     for a reason;
+        #   * the `undead` loop above finishes off up to MAX_ATTEMPTS = 5
+        #     machines at `Vast.RETRY_S` = (4, 8, 16, 32, 60) -- up to 120 s of
+        #     pauses each, 600 s per loop, against DEADMAN_GRACE_S = 900 that
+        #     `tests/test_rent_deadlines.py` guards for ONE destroy, not five.
+        #     An earlier stop starts the watch's clock before those minutes;
+        #   * `box.py`, next to `SHORT_CMD_S`, tells how going to the network
+        #     from a `finally` on a silent machine used to end.
         #
-        # Брошенные машины при этом без присмотра не остаются — но стало это
-        # правдой только вместе с починкой в `connect`. Здесь стояло это же
-        # утверждение БЕЗ неё, и перекрёстная проверка его опровергла
-        # исполнением: `connect` падал после `start_heartbeat`, `box` до
-        # `_rent` не доезжал, гашение давало `UnboundLocalError` и глохло в
-        # молчащем `except`. Обе машины уезжали в `undead` с живым пульсом.
-        # Теперь гасит тот, кто завёл, страховка в `_rent` говорит вслух, а
-        # стережёт это `test_a_failed_connect_leaves_no_machine_with_a_live_pulse`.
-        #
-        # Вызовов `stop_heartbeat` в проекте три: `connect` при отказе,
-        # `_rent` перед тем как бросить машину, и этот. Здесь стояло «во всём
-        # проекте ровно один, и не здесь».
+        # Abandoned machines stay watched only since the fix in `connect`:
+        # before it both left for `undead` with a live pulse. Three
+        # `stop_heartbeat` calls exist -- `connect` on failure, `_rent` before
+        # abandoning, this one -- and
+        # `test_a_failed_connect_leaves_no_machine_with_a_live_pulse` guards
+        # that.
         try:
             if box is not None:
                 box.stop_heartbeat()
         except Exception as e:
             log(f"пульс не погашен: {e}")
         if iid and not keep:
-            # Результат разбирается, как и везде.  Это был единственный
-            # `destroy` во всём файле без проверки: пять неудачных попыток
-            # печатали «НЕ СМОГ УНИЧТОЖИТЬ», а строкой ниже прогон рапортовал
-            # «итого N мин» и возвращал 0 — при живой биллящейся машине.
+            # The result is inspected, as everywhere else: this was the one
+            # `destroy` in the file without a check, and five failed tries
+            # printed "НЕ СМОГ УНИЧТОЖИТЬ" while the next line reported "итого
+            # N мин" and returned 0 -- with a live billing machine.
             if not vast.destroy(int(iid)):
                 log(f"ВНИМАНИЕ: инстанс {iid} НЕ УНИЧТОЖЕН и продолжает "
                     f"биллиться — убейте вручную: books down {iid}")
                 rec.note = ((rec.note + "; ") if rec.note else "") + \
                     f"инстанс {iid} не уничтожен, ${rec.dph:.3f}/час"
         elif iid:
-            # Оператор уходит нарочно, но дозор мертвеца на машине об этом не
-            # знает и через свои 15 минут уничтожит инстанс.  Даём ему срок
-            # побольше: --keep нужен, чтобы вернуться к машине следующим
-            # прогоном, а не чтобы платить за неё сутками.
+            # The operator leaves on purpose; the watch on the machine does not
+            # know it and would destroy the instance in its 15 minutes. A
+            # longer term: --keep is for the next run, not for days of paying.
             if keep_until is None:
                 grace = KEEP_GRACE_S
             else:
@@ -1028,8 +972,8 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
                     left_usd = keep_usd - rec.cost_usd
                     left_s = min(left_s,
                                  left_usd / max(rec.dph, 1e-6) * 3600)
-                # Десять минут на пересменку — столько, чтобы следующий проход
-                # успел подключиться, и не столько, чтобы это стоило заметного.
+                # Ten minutes for the changeover -- enough for the next pass to
+                # connect, not enough to cost anything noticeable.
                 grace = max(300.0, left_s + 600)
             try:
                 box.set_deadman(grace)
@@ -1041,19 +985,19 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
             log(f"--keep: инстанс {iid} ОСТАВЛЕН И БИЛЛИТСЯ. "
                 f"Следующий прогон: --reuse {iid}; убить: books down {iid}")
         if report is not None:
-            # ЖИВАЯ машина, а не последняя виденная.  `state["iid"]` после
-            # уничтожения не обнуляется, и отчёт называл уничтоженную машину
-            # живой: следующий проход брал её как `--reuse`, шёл ждать её
-            # появления и стоял до потолка попытки — на пустом месте.  Живой
-            # инстанс остаётся ровно при `--keep`; если уничтожить НЕ удалось,
-            # машина тоже жива, но переиспользовать её нельзя — оператору уже
-            # сказано убить её вручную, и в `note` это записано.
+            # The LIVE machine, not the last one seen. `state["iid"]` is not
+            # cleared after a destruction, and the report called a destroyed
+            # machine live: the next pass took it as `--reuse` and stood
+            # waiting for it until the attempt ceiling, over nothing. A live
+            # instance remains exactly under `--keep`; a machine that FAILED to
+            # be destroyed is alive too but must not be reused -- the operator
+            # has been told to kill it by hand and `note` records it.
             report["instance_id"] = iid if (keep and iid) else None
             report["dph"] = rec.dph
             report["cost_usd"] = rec.cost_usd
         ledger.append(rec)
-        # Величина, а не «готово», и по слагаемым: одна сумма прячет, что
-        # половина денег ушла на машины, которые мы даже не приняли.
+        # A quantity, not "done", and by its terms: one sum hides that half the
+        # money went on machines we never even accepted.
         log(f"итого {elapsed/60:.1f} мин ≈ ${rec.cost_usd:.3f} "
             f"(аренда {alive_s/60:.1f} мин по ${rec.dph:.3f}/час = "
             f"${rec.dph * alive_s / 3600:.3f}"

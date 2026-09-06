@@ -1,89 +1,79 @@
-"""Реестр ручек: всё, что влияет на разбор, объявлено здесь и только здесь.
+"""Knob registry: everything affecting a run is declared here and only here.
 
-Механизм перенесён из прежнего `jobs/paddleocr/entrypoint.py`. Правила те же:
+Carried over from the old `jobs/paddleocr/entrypoint.py` with its rules:
 
-* `knob()` на незаявленное имя бросает, а не возвращает пустую строку.
-  Ручка мимо реестра не попадёт и в слепок — значит, прогон станет
-  неповторимым молча, а молчаливую беду здесь ловить нечем.
-* умолчание хранится СТРОКОЙ, ровно в том виде, в каком приезжало бы из
-  окружения. Иначе слепок пишет `2.0` там, где прогон видел `"2"`, и сверка
-  двух прогонов спотыкается о тип, а не о значение.
-* умолчание живёт в одном месте — здесь. Второй его экземпляр в сборщике
-  задания означал бы, что смена умолчания в коде не доезжает до машины,
-  пока кто-нибудь не вспомнит про тот файл.
+* `knob()` raises on an undeclared name instead of returning "". A knob read
+  past the registry misses the snapshot too: the run turns unrepeatable
+  silently, and silent trouble has no catcher here.
+* a default is stored as a STRING, as the environment would hand it over.
+  Otherwise the snapshot writes `2.0` where the run saw `"2"`, and comparing
+  two runs trips over the type, not the value.
+* a default lives in one place, here. A second copy in the job builder would
+  mean a changed default never reaches the machine until someone remembers
+  that file.
 
-ЧЕГО ЭТОТ ФАЙЛ НЕ УМЕЕТ, И ЭТО ВАЖНЕЕ ТОГО, ЧТО УМЕЕТ.
+WHAT THIS FILE CANNOT DO, WHICH MATTERS MORE THAN WHAT IT CAN.
 
-Знаменитый случай `VL_MODEL_DIR` — ручки, решавшей, какие веса поднимет
-vLLM, — поймал НЕ реестр. Поймала его удалённая проверка
-`tests/test_knobs_registry.py`, разбиравшая исходники и `run.sh` деревом:
-ручку ставит `export` в оболочке, через `knob()` она не проходит вовсе, и
-`KeyError` её увидеть не может по построению. Приписывать заслугу реестру —
-значит считать себя защищённым там, где защиты нет. Ловец восстановлен
-НАПОЛОВИНУ: `readers()` ниже разбирает дерево исходников и видит обе формы
-чтения — `knob("ИМЯ")` в питоне и `$ИМЯ` в оболочке, — но только для имён,
-УЖЕ объявленных здесь. Имя, которого в реестре нет вовсе (болезнь
-`VL_MODEL_DIR`), ей по-прежнему невидимо: чтобы его поймать, нужен список
-законных переменных оболочки, и его нет.
+`VL_MODEL_DIR` -- the knob deciding which weights vLLM raises -- was NOT
+caught by the registry but by the deleted `tests/test_knobs_registry.py`,
+which parsed sources and `run.sh` as trees: the shell sets that knob by
+`export`, it never passes through `knob()`, and `KeyError` cannot see it by
+construction. Crediting the registry means believing yourself guarded where
+there is no guard. The catcher is back HALFWAY: `readers()` walks the tree and
+sees both forms -- `knob("NAME")` in python, `$NAME` in shell -- but only for
+names ALREADY declared here. A name absent from the registry (the
+`VL_MODEL_DIR` disease) stays invisible; catching it needs a list of legal
+shell variables, and there is none.
 
-СКОЛЬКО ИХ И КТО ИХ ЧИТАЕТ — НЕ СПРАШИВАЙ У ЭТОЙ ПРОЗЫ. Здесь стояло
-«Ручек двадцать. Одиннадцать читает живой потребитель: ...» с поимённым
-списком, и на 2026-08-29 не сошлось ни одно из двух чисел, ни сам список:
-ручек 26, читает их питон 17, и пяти читаемых имён — `LAYOUT_ADAPTER`,
-`YOLOX_WEIGHTS`, `MIN_LINK_MBPS`, `BOOKSMITH_LEDGER`, `FEED_DPI` — в списке
-не значилось вовсе, хотя первые два берёт КАЖДЫЙ прогон `books detect`.
-Список, набранный руками, врёт через полгода и молча: с него списывают,
-принимая решения. Поэтому кто кого читает — считает `readers()`, а свод
-печатается одной строкой (её же зовёт `audit()`):
+HOW MANY AND WHO READS THEM -- DO NOT ASK THIS PROSE. A hand-typed tally
+stood here twice and went stale both times; the second edition even carried
+two counts of the same thing that could not both be true. What it missed were
+live names -- `LAYOUT_ADAPTER` and `YOLOX_WEIGHTS` among them, and every
+`books detect` takes those two. A list typed by hand lies within half a year,
+silently, and people decide by it. So `readers()` counts, and one line prints
+the tally:
 
     python -c "from booksmith.run import knobs; r = knobs.readers(); print(len(knobs.KNOBS), sum(1 for v in r.values() if v), len(knobs.debts()))"
 
-Числа она печатает сама, и здесь их нет НАРОЧНО: вписанное сюда число
-устаревает молча, и этот файл уже дважды был тому примером. Читателей
-больше, чем питонских: часть ручек берёт `models/paddleocr_vl/run.sh`, и для
-`readers()` оболочка такой же потребитель, как код, — `$ИМЯ` решает прогон
-так же, как `knob()`.
+The numbers are its to print and absent here ON PURPOSE: a number written in
+goes stale silently, and this file has twice been the example. Readers
+outnumber the python ones -- `models/paddleocr_vl/run.sh` takes some, and to
+`readers()` the shell is as much a consumer as code.
 
-ДВА — `PASSES` и `LOGPROBS` — объявленный ДОЛГ. Здесь стояло «три», третьим
-назывался `VLM_TEMPERATURE`; долг с него снят вместе с появлением второго
-уровня, а строка осталась в настоящем времени — то есть файл, чья шапка велит
-не спрашивать чисел у прозы, сам назвал неверное. Свод считает `debts()`. Долг помечен в самом реестре
-полем `debt=True`, а не только этой прозой: «ручка объявлена, но мертва»
-теперь показывается числом `len(debts())` и уезжает в слепок полем «долг».
-`PASSES` вдобавок под вопросом: чистый лист замерил, что рамки блоков
-побайтово одинаковы во всех трёх проходах, то есть на локализацию проходы не
-влияют вовсе.
+TWO -- `PASSES` and `LOGPROBS` -- are declared DEBT, counted by `debts()`.
+Here stood "three", `VLM_TEMPERATURE` third; that debt was cleared when the
+second level arrived while the sentence stayed in the present tense. The debt
+is a field, `debt=True`, not prose alone: "declared but dead" is the number
+`len(debts())` and rides into the snapshot. `PASSES` is doubly in question --
+the clean slate measured block boxes byte-identical across all three passes,
+so passes do not affect localisation at all. Debt disagreeing with the tree is
+caught by `audit()` from `books replay --check --selfcheck`, which prints the
+count of disagreements as its own value rather than drowning it in "done".
 
-Расхождение объявленного долга с найденным в дереве ловит `audit()`; её
-зовёт `books replay --check --selfcheck`, и число расхождений печатается там
-отдельной величиной, а не тонет в общем «готово».
+THE LIST WAS EMPTIED ON PURPOSE. The old registry held twenty-three knobs, six
+-- `MULTIVIEW`, `VIEW_NMS`, `PREFER_TABLES`, `SPLIT_COLUMNS`, `REASK`,
+`KEEP_INNER_FILTER` -- switching on our patches over the model. Gone: the
+model gives what it gives, and nobody downstream corrects its boxes. A knob
+returns not because the model has one, but when the bench has shown it changes
+something.
 
-СПИСОК ОБНУЛЁН НАРОЧНО. В прежнем реестре стояло двадцать три ручки, из них
-шесть — `MULTIVIEW`, `VIEW_NMS`, `PREFER_TABLES`, `SPLIT_COLUMNS`, `REASK`,
-`KEEP_INNER_FILTER` — включали наши заплатки поверх модели. Их больше нет:
-модель отдаёт то, что отдаёт, и ниже по течению её рамки не правит никто.
-Ручка возвращается в реестр не потому, что она есть у модели, а когда стенд
-показал, что она на что-то влияет.
-
-Порог `LAYOUT_TABLE_THRESHOLD` вернулся к родному 0.5, а не к нашему 0.05.
-Прежнее значение подобрано замером «3/6/9 таблиц при порогах 0.5/0.2/0.05»,
-где таблицы считались против вывода Mistral OCR. Эталон удалён, а
-знаменатель того замера был с отбором: таблица, которую Mistral не нашёл, в
-него не входила. Значение унаследовать не от чего — пусть его назначит стенд.
+`LAYOUT_TABLE_THRESHOLD` went back to the native 0.5, not our 0.05, which came
+from "3/6/9 tables at thresholds 0.5/0.2/0.05" counted against Mistral OCR
+output. That reference is deleted and the denominator was selective -- a table
+Mistral missed never entered it. Nothing to inherit; let the bench set it.
 """
 import os
 import re
 
 
 class Knob:
-    """Одна ручка: имя, умолчание строкой, зачем она и есть ли потребитель.
+    """One knob: name, default as a string, what for, and has it a consumer.
 
-    `debt=True` — «объявлена, но не читает никто»: осознанный долг, а не
-    работающая настройка. Прежде это жило прозой в шапке — три имени в
-    тексте, который никто не сверяет с делом. Теперь это поле: его считает
-    `debts()`, его сверяет с деревом исходников `audit()`, и оно уезжает в
-    слепок. Разница не косметическая: прозу читают глазами и по памяти, а
-    поле можно предъявить числом.
+    `debt=True` means "declared, read by nobody" -- a deliberate debt, not a
+    working setting. It used to be prose in the header: three names in a text
+    nobody checks against the code. As a field it is counted by `debts()`,
+    checked against the tree by `audit()`, and carried into the snapshot: prose
+    is read by eye and from memory, a field can be produced as a number.
     """
     __slots__ = ("name", "default", "what", "debt")
 
@@ -93,17 +83,14 @@ class Knob:
 
 
 KNOBS = (
-    # --- подача: единственное, что мерилось без эталона и дало результат ---
-    # ЧТО ЗДЕСЬ СТОЯЛО И ПОЧЕМУ БЫЛО НЕВЕРНО. Стояло «замер разницы между 144,
-    # 300 и 600 не показал (379 рамок и 99.3% чернил во всех трёх)». Замер
-    # этого не показывал: он показывал совпадение ДВУХ СВОДНЫХ ЧИСЕЛ, которые к
-    # dpi слепы оба. Постранично рамок разное число на 15 страницах из 20, а
-    # 379 не инвариант — по десяти значениям dpi выходит полоса 378..384. Это
-    # был ноль от непонимания, выданный за ноль от проверки, и держался он
-    # ровно на том, что мерилось не то.
-    #
-    # Прогон при этом ПОВТОРИМ: два повтора при 300 dpi дали блоки,
-    # совпадающие побайтово. Значит полоса 378..384 — это dpi, а не шум.
+    # --- feed: the only thing measured without a reference that yielded ---
+    # WHAT STOOD HERE AND WHY IT WAS WRONG: "measuring 144, 300 and 600 showed
+    # no difference (379 boxes and 99.3% ink in all three)". It showed TWO
+    # SUMMARY NUMBERS agreeing, and both are blind to dpi. Per page the box
+    # count differs on 15 pages of 20, and 379 is no invariant: across ten dpi
+    # values the band is 378..384. A zero from not understanding, passed off as
+    # a zero from checking. The run itself IS repeatable -- two repeats at 300
+    # dpi gave byte-identical blocks -- so the band is dpi, not noise.
     Knob("PAGE_DPI", "144",
          "разрешение, с которым страница РЕНДЕРИТСЯ в растр детекции. "
          "Детектор жмёт растр до 800x800 сам (keep_ratio: false). РАЗНИЦА "
@@ -126,25 +113,22 @@ KNOBS = (
          "382 рамки и таблиц 3 вместо 5. Таблиц не прибавляет ни одно dpi и "
          "ни один фильтр. На координаты рамок влияет прямо"),
 
-    # ЧЕГО ДЕЛАТЬ НЕ НАДО, и это тоже результат замера. Поднимать dpi незачем:
-    # 600 платит вчетверо большим растром и вдвое большим временем, отдаёт те
-    # же 379 рамок и теряет восемь заголовков. Менять интерполяцию в адаптере —
-    # тоже нет: `interp: 2` записан в `inference.yml` весов, и подмена была бы
-    # нашей заплаткой поверх чужой предобработки, а платит она таблицей (5 -> 4
-    # при 600, 5 -> 3 при 144) — то есть ровно тем, ради чего проект и заведён.
+    # WHAT NOT TO DO, also measured. Raising dpi is pointless: 600 pays four
+    # times the raster and twice the time, returns the same 379 boxes and loses
+    # eight headings. Changing the interpolation in the adapter, likewise:
+    # `interp: 2` is written in the weights' `inference.yml`, the swap would be
+    # our patch over someone else's preprocessing, and it pays a table (5 -> 4
+    # at 600, 5 -> 3 at 144) -- the very thing the project exists for.
     #
-    # ОТДЕЛЬНО, И ЭТО НЕ ЗАВИСИТ ОТ dpi ВОВСЕ: при `keep_ratio: false` лист
-    # 506x733 сжимается по вертикали в 1.4486 раза сильнее, чем по горизонтали.
-    # Сеть видит его в 78.6 dpi по вертикали против 113.8 по горизонтали.
-    # Межстрочный интервал — единственный признак, по которому строка таблицы
-    # без линеек отличается от строки абзаца, — страдает сильнее всего.
+    # SEPARATELY, AND NOT dpi-DEPENDENT AT ALL: under `keep_ratio: false` a
+    # 506x733 sheet is squeezed 1.4486 times harder vertically than
+    # horizontally, so the net sees it at 78.6 dpi vertically against 113.8.
+    # Line spacing -- the only cue by which a ruleless table row differs from a
+    # paragraph line -- suffers most.
 
-    # --- модель и веса: без них прогон не повторить ---
+    # --- model and weights: without them a run cannot be repeated ---
     Knob("MODEL_NAME", "PaddleOCR-VL-1.6-0.9B", "имя модели для vLLM и клиента"),
     Knob("VL_MODEL_DIR", "", "каталог весов VLM; ставит run.sh, читает vLLM"),
-    # Здесь было названо ДВА адаптера из четырёх — `doclayout` и `docling`, —
-    # и `docling-egret` с `yolox` выглядели незаявленными, хотя их знает
-    # `detect.py:ADAPTERS` и у каждого свой словарь и своя политика.
     Knob("LAYOUT_ADAPTER", "doclayout",
          "какой адаптер детекции звать; список — detect.py:ADAPTERS, их "
          "четыре: doclayout (PaddleOCR PP-DocLayout*, 25 ярлыков у V2/V3, "
@@ -157,25 +141,22 @@ KNOBS = (
          "yolox_tiny.onnx"),
     Knob("LAYOUT_MODEL_NAME", "PP-DocLayoutV2", "имя модели детекции макета"),
     Knob("LAYOUT_MODEL_DIR", "", "каталог весов детекции макета"),
-    # Порог для ВСЕХ классов сразу.  Отдельной ручкой, а не «порогом таблиц»,
-    # потому что в постобработке paddlex словарь порогов с одним классом молча
-    # ставит остальным 0.5 — то есть «понизить порог таблиц» меняло поведение
-    # всех двадцати пяти классов V2. Наш отбор перечисляет классы поимённо, и
-    # общий порог обязан быть назван.
+    # A threshold for ALL classes at once, and a knob of its own rather than "a
+    # table threshold", because in paddlex postprocessing a threshold dict with
+    # one class silently gives the rest 0.5 -- so "lower the table threshold"
+    # changed all twenty-five V2 classes. Our selection names classes one by
+    # one, so the common threshold has to be named too.
     #
-    # ЗДЕСЬ СТОЯЛО «для 24 классов макета, КРОМЕ table», и это верно ровно у
-    # ОДНОГО адаптера из четырёх — и то не всегда. `LAYOUT_TABLE_THRESHOLD`
-    # читает только `models/doclayout.py`; у `docling_heron.py` (heron и
-    # egret) и у `yolox_layout.py` порог один на ВСЕ классы, включая `table`
-    # («table» у docling, «Table» у DocLayNet), — см. их `thresholds()`:
-    # `{lab: common for lab in self.labels}`, второй ручки там нет вовсе.
-    # Число 24 держится и того меньше: оно про 25-классный V2/V3, а у
-    # `PP-DocLayout_plus-L` классов 20, то есть «прочих» 19.
+    # `LAYOUT_TABLE_THRESHOLD` is read by `models/doclayout.py` alone; in
+    # `docling_heron.py` (heron and egret) and `yolox_layout.py` one threshold
+    # covers ALL classes, `table` included ("table" in docling, "Table" in
+    # DocLayNet) -- see their `thresholds()`: `{lab: common for lab in
+    # self.labels}`, no second knob there at all.
     #
-    # Умолчание — родной `draw_threshold` из весов PP-DocLayout; у docling и
-    # yolox родного порога НЕТ вовсе (в весах его никто не записал), и их
-    # `threshold_drift()` честно говорит «сравнивать не с чем» — что не то же
-    # самое, что «расхождения нет».
+    # The default is the native `draw_threshold` of the PP-DocLayout weights.
+    # docling and yolox have NO native threshold -- nobody wrote one into the
+    # weights -- and their `threshold_drift()` honestly says "nothing to
+    # compare against", which is not the same as "no drift".
     Knob("LAYOUT_SCORE_THRESHOLD", "0.5",
          "порог детекции. У doclayout — общий для всех классов КРОМЕ table "
          "(24 при 25-классных V2/V3, 19 при 20-классном plus-L), умолчание "
@@ -185,146 +166,129 @@ KNOBS = (
          "родной порог детекции таблиц; читает ТОЛЬКО doclayout — у трёх "
          "остальных адаптеров таблица идёт по LAYOUT_SCORE_THRESHOLD"),
 
-    # --- ВЕНДОРСКИЙ КОНВЕЙЕР DOCLING поверх рамок heron и egret -------------
-    # `off` — рамки модели как есть. `post` — вендорская постобработка
-    # (`docling.utils.layout_postprocessor`: пороги ПО КЛАССАМ, разрешение
-    # налезаний, гашение совпадающих пар при IoU > 0.8, уход вложенных рамок в
-    # дети обёртки). `full` — она же плюс порядок чтения из
-    # `docling/models/postprocessing/reading_order_rb.py`; «rb» значит
-    # RULE-BASED: 740 строк ПРАВИЛ над рамками, ни одного веса. Порядка чтения
-    # heron не даёт ни с ручкой, ни без неё — конвейер меняет НАШЕ правило
-    # сортировки на ИХ, и называть это моделью нельзя.
+    # --- DOCLING VENDOR PIPELINE over heron and egret boxes -----------------
+    # `off` -- the model's boxes as they are. `post` -- vendor postprocessing
+    # (`docling.utils.layout_postprocessor`: PER-CLASS thresholds, overlap
+    # resolution, coincident pairs killed at IoU > 0.8, nested boxes moved into
+    # the wrapper's children). `full` -- that plus reading order from
+    # `docling/models/postprocessing/reading_order_rb.py`; "rb" is RULE-BASED:
+    # 740 lines of RULES over boxes, not one weight. heron gives no reading
+    # order either way -- the pipeline replaces OUR sorting rule with THEIRS,
+    # and that may not be called a model.
     #
-    # ВСЁ, ЧТО НИЖЕ, — ЧИСЛА HERON. Ручку читают ДВА адаптера (`docling` и
-    # `docling-egret`), а замерена она на одном. У egret и рамки другие, и
-    # цена другая; его числа — отдельным пунктом в конце, не смешивать.
+    # ALL NUMBERS BELOW ARE HERON'S. TWO adapters read the knob (`docling` and
+    # `docling-egret`), it is measured on one. egret has other boxes and
+    # another price: separate item at the end, not to be mixed in.
     #
-    # СТЕНД ПОКАЗАЛ, ЧТО ОНА ВЛИЯЕТ — вот на что. Золотой стенд, 600 настоящих
-    # страниц AnnoPage, heron на процессоре, один прогон `off` и один `full`
-    # (2026-08-29, python 3.13.13, docling 2.123.1). `post` и `full` отдают
-    # ОДИН И ТОТ ЖЕ набор рамок — 9867 штук, совпадающих до координаты, — и
-    # различаются только порядком; поэтому всё, кроме прыжков и перестановки,
-    # у них одинаково, и «-> ...» ниже читается как «post и full»:
-    #     рамок                      15689 -> 9867   (734 ушло в дети обёрток)
-    #     дублей IoU>=0.9, пар         4435 -> 19
-    #     запросов к VLM на страницу   23.0 -> 14.6
-    #     артефактов                  1869 -> 1095
-    #     лишних прыжков, ШТУК          2718 -> 471   (у `post` 2243: он
-    #                                                 прореживает И переставляет,
-    #                                                 но переставляет ХУЖЕ — см.
-    #                                                 ниже)
-    #     они же на страницу           4.53 -> 0.79 — это штуки, делённые на
-    #                                  все 600 страниц; сегодняшняя
-    #                                  `metrics.column_jumps` делит на
-    #                                  страницы, попавшие в счёт (519 и 443),
-    #                                  и печатает 5.24 -> 1.06. Штуки те же,
-    #                                  разошёлся ЗНАМЕНАТЕЛЬ
-    #     переставлено рамок           ? -> 6232 из 9867 — у `full`.
-    #                                  У `post` здесь стоял НОЛЬ, и это был
-    #                                  ноль от непроверки: счётчик считался
-    #                                  только внутри ветки `full`. После
-    #                                  починки замерено на трёх стендах:
-    #                                  slovar 237 из 531, matematika 8 из 153,
-    #                                  hard36 162 из 708. На золотом стенде
-    #                                  число не пересчитано — это стоит
-    #                                  сорока пяти минут прогона heron, — и
-    #                                  потому стоит знаком вопроса, а не
-    #                                  цифрой. Вопрос честнее нуля.
-    #     чернил объектов сохранено   94.5% -> 94.4%
-    #     объектов доехало целыми      1049 -> 1042 из 1230
-    #     чернил вне всех рамок       24.6% -> 26.3%
-    #     ПОРВАННЫХ объектов            127 -> 135
-    # Порванные растут, а не падают, и строка эта здесь потому, что ниже она
-    # стояла перевёрнутой («порванных становится 127 вместо 135») — в абзаце
-    # про ЦЕНУ, где читалась как выгода. Соседние числа того абзаца сходились
-    # до единицы, поэтому место и не перечитывали.
+    # THE BENCH SHOWED IT MATTERS. Gold bench, 600 real AnnoPage pages, heron
+    # on CPU, one `off` run and one `full` (2026-08-29, python 3.13.13, docling
+    # 2.123.1). `post` and `full` return THE SAME 9867 boxes, matching to the
+    # coordinate, and differ only in order; so "-> ..." reads as "post and
+    # full" for everything but jumps and reordering:
+    #     boxes                    15689 -> 9867  (734 into wrapper children)
+    #     duplicate pairs IoU>=0.9  4435 -> 19
+    #     VLM requests per page     23.0 -> 14.6
+    #     artefacts                 1869 -> 1095
+    #     extra jumps, COUNT        2718 -> 471  (`post` 2243: it thins AND
+    #                               reorders, but reorders WORSE)
+    #     boxes reordered           ? -> 6232 of 9867, for `full`
+    #     object ink kept          94.5% -> 94.4%
+    #     objects arriving whole    1049 -> 1042 of 1230
+    #     ink outside every box    24.6% -> 26.3%
+    #     TORN objects               127 -> 135, i.e. they GROW
     #
-    # ЦЕНА ПО МЕРКЕ, КОТОРАЯ ШТРАФУЕТ СЛИЯНИЕ, — ГЛАВНОГО ЗДЕСЬ НЕ БЫЛО ВОВСЕ.
-    # Всё, что выше, снято `books fitness`, а он слияние НЕ штрафует по
-    # построению: рамка пошире для него не потеря. Оттого цена и выходила
-    # «семь объектов». Те же два прогона, та же истина, мерка другая
-    # (`books score bench/annopage/truth <прогон>/pages`, 600 страниц):
-    #     найдено артефактов из 1232   694 -> 562   (-132)
-    #     смысл цел из 1232            602 -> 500   (-102)
-    #     СЛИТО                         366 -> 461   (+95)
-    #     обрезан 139 -> 138, назван текстом 56 -> 58, не увиден 69 -> 75
-    # Сто тридцать два объекта против семи — девятнадцатикратная разница, и
-    # умолчание решает она, а не чернила. Проект уже платил за метрику,
-    # отвечающую не на наш вопрос (строгое совпадение штрафовало слияние,
-    # которое конвейеру дёшево); здесь та же ошибка с другого конца — мягкая
-    # мерка там, где вопрос был ПРО слияние.
+    # JUMPS COMPARE BY COUNT AND BY NOTHING ELSE. `off`/`post`/`full` give
+    # 2718 / 2243 / 471; over all 600 pages that is 4.53 / 3.74 / 0.79, but
+    # today's `metrics.column_jumps` divides by the pages that entered the
+    # count (519 / 443 / 443) and prints 5.24 / 5.06 / 1.06. Same counts,
+    # diverged DENOMINATOR: numbers from different days reconcile only as
+    # counts.
     #
-    # ЧИСЛА ПЕРЕСЧИТАНЫ, И ВОТ ПОЧЕМУ. Первая их запись (15643 -> 9817, дублей
-    # 4392 -> 22, цел 1050 -> 1041, вне рамок 24.8% -> 26.3%) снята с прогона,
-    # сделанного ДО починки фильтра ужатия в самом адаптере: `resample` из
-    # весов передавался в cv2 номером PIL, то есть страница жалась CUBIC вместо
-    # BILINEAR. Починка дала на том же стенде 15689 сырых рамок вместо 15643 —
-    # 46 штук разницы, и дальше всё поехало от них. На СОХРАНЁННЫХ сырых рамках
-    # того прогона нынешний код воспроизводит прежние числа до единицы (рамок
-    # 9817, в дети 770, дублей 22, артефактов 1093, чернил 94.3%, цел 1041) —
-    # значит разошёлся не конвейер, а вход. Один пункт не сходится ни так, ни
-    # эдак: «лишних прыжков 7.0 -> 1.3». `metrics.column_jumps` в её утренней
-    # редакции на тех же сохранённых рамках даёт 4.49 -> 0.79, и ни одна
-    # развёртка её параметров (перекрытие 0.5..0.99, сквозная 0.6..1.01) в
-    # «7.0 -> 1.3» не попадает. Сама метрика — незакоммиченная работа, её
-    # прежняя редакция не восстановима; направление и кратность падения при
-    # этом те же (5.7 раза против 5.4). А К ВЕЧЕРУ 2026-08-29 та же функция
-    # сменила ЗНАМЕНАТЕЛЬ: на прогонах `off`/`post`/`full` она даёт 2718 /
-    # 2243 / 471 ШТУКИ лишних прыжков — ровно те, из которых получены 4.53 /
-    # 3.74 / 0.79 делением на все 600 страниц, — но делит их теперь на
-    # страницы, попавшие в счёт (519 / 443 / 443), и печатает 5.24 / 5.06 /
-    # 1.06. Числа прыжков, снятые в разные дни, сверяются ТОЛЬКО штуками.
+    # THE REORDERED CELL IS A QUESTION MARK, NOT A DIGIT. `post` had a ZERO
+    # there, and it was a zero from not checking: the counter ran only inside
+    # the `full` branch. Fixed, then measured on three benches -- slovar 237 of
+    # 531, matematika 8 of 153, hard36 162 of 708 -- but not on the gold one,
+    # which costs forty-five minutes of heron. A question is honester than a
+    # zero.
     #
-    # УМОЛЧАНИЕ `off`, И ЭТО НЕ РОБОСТЬ. Четыре причины, у каждой цена.
-    # 1. Все шесть детекторов стенда меряются СЫРЫМИ. Включи конвейер
-    #    умолчанием — и два из шести поедут с чужой постобработкой, а сравнение
-    #    архитектур станет сравнением наших сборок. Этим уже болел egret: наш
-    #    argmax против родного правила D-FINE давал 470 рамок против 529, и
-    #    пока правила были разные, сравнение heron с egret меряло наши разборы
-    #    наравне с моделями.
-    # 2. Он ПЛАТИТ СОДЕРЖИМЫМ, и по обеим меркам сразу. По слиянию (`books
-    #    score`, оно и есть главное): находится на 132 артефакта меньше,
-    #    694 -> 562 из 1232, слияний на 95 больше, 366 -> 461. По чернилам
-    #    (`books fitness`): семь объектов из 1230 перестают доезжать целыми
-    #    (1049 -> 1042), доля чернил вне всех рамок растёт на 1.7 пункта
-    #    (24.6% -> 26.3%), а ПОРВАННЫХ становится 135 вместо 127 — конвейер
-    #    добавляет восемь порванных. Здесь стояло «127 вместо 135», числами
-    #    наоборот, и цена читалась как выгода: замер (`books fitness
-    #    bench/annopage/annopage.pdf --detect <прогон>/pages --truth
-    #    bench/annopage/truth`) даёт порван 127 при `off` и 135 при `post` и
-    #    при `full`. Чего первый уровень не обвёл, того в книге не будет; что
-    #    он слил — то второй уровень получит одной картинкой на двоих.
-    # 3. С `full` порядок — правило ВЕНДОРА. Подменять молча одно правило
-    #    другим нельзя: метрика читает поле «порядок чтения» и по слову «наш»
-    #    решает, сверять или печатать НЕ СВЕРЯЕТСЯ.
-    # 4. У EGRET ЦЕНА СВОЯ, А РЕШАЛИ БЫ ПО HERON. Ручку читают ОБА адаптера,
-    #    а весь замер выше снят на одном. Прогон egret (`LAYOUT_ADAPTER=
-    #    docling-egret`, прочие ручки те же, 2026-08-29) сделан на ПЕРВЫХ 150
-    #    страницах того же стенда, и рядом стоит heron на ТЕХ ЖЕ 150 — иначе
-    #    числа несравнимы:
+    # THE PRICE BY A RULER THAT PENALISES MERGING -- missing here entirely.
+    # Everything above is `books fitness`, which by construction does not
+    # penalise merging: a wider box is no loss to it, which is why the price
+    # kept coming out as "seven objects". Same two runs, same truth, another
+    # ruler (`books score bench/annopage/truth <run>/pages`, 600 pages):
+    #     artefacts found of 1232   694 -> 562  (-132)
+    #     meaning whole of 1232     602 -> 500  (-102)
+    #     MERGED                    366 -> 461  (+95)
+    #     cropped 139 -> 138, called text 56 -> 58, unseen 69 -> 75
+    # A hundred and thirty-two objects against seven -- nineteenfold, and it
+    # decides the default, not the ink. The project has already paid for a
+    # ruler answering the wrong question; this is that mistake from the other
+    # end -- a soft ruler where the question was ABOUT merging.
+    #
+    # WHY THE NUMBERS WERE RECOUNTED. Their first record (15643 -> 9817,
+    # duplicates 4392 -> 22, whole 1050 -> 1041, outside 24.8% -> 26.3%) came
+    # from a run made BEFORE the shrink-filter fix in the adapter itself:
+    # `resample` from the weights went to cv2 as a PIL number, so the page was
+    # squeezed CUBIC instead of BILINEAR. The fix gave 15689 raw boxes instead
+    # of 15643 -- 46 of difference, and everything downstream moved with them.
+    # On that run's SAVED raw boxes today's code reproduces the old numbers to
+    # the unit (9817 boxes, 770 into children, 22 duplicates, 1093 artefacts,
+    # ink 94.3%, whole 1041): the input diverged, not the pipeline. One item
+    # reconciles neither way, "extra jumps 7.0 -> 1.3": `metrics.column_jumps`
+    # in its morning edition gives 4.49 -> 0.79 on those same saved boxes, and
+    # no sweep of its parameters (overlap 0.5..0.99, through 0.6..1.01) lands
+    # there. That metric was uncommitted work and its former edition is
+    # unrecoverable; direction and factor of the fall match anyway, 5.7 times
+    # against 5.4.
+    #
+    # THE DEFAULT IS `off`, AND NOT OUT OF TIMIDITY. Four reasons with a price.
+    # 1. All six bench detectors are measured RAW. On by default, two of the
+    #    six run with someone else's postprocessing and a comparison of
+    #    architectures turns into a comparison of our builds. egret already
+    #    suffered this: our argmax against the native D-FINE rule gave 470
+    #    boxes against 529, and while the rules differed, heron against egret
+    #    measured our parsers alongside the models.
+    # 2. It PAYS IN CONTENT by both rulers; the figures are in the tables
+    #    above. `books score`: 132 fewer artefacts found, 95 more merges.
+    #    `books fitness`: seven objects of 1230 stop arriving whole, ink
+    #    outside every box grows 1.7 points, eight more come back TORN. Here
+    #    stood "127 instead of 135", reversed, and the price read as a gain;
+    #    the measurement (`books fitness bench/annopage/annopage.pdf --detect
+    #    <run>/pages --truth bench/annopage/truth`) gives 127 torn at `off`,
+    #    135 at `post` and at `full`. What the first level did not outline will
+    #    not be in the book; what it merged, the second level gets as one
+    #    picture for two.
+    # 3. With `full` the order is the VENDOR's rule, and swapping one rule for
+    #    another silently is not allowed: the metric reads the "reading order"
+    #    field and, on the word "ours", decides whether to compare or to print
+    #    NOT COMPARED.
+    # 4. EGRET'S PRICE IS ITS OWN AND WE WOULD DECIDE BY HERON. Both adapters
+    #    read the knob, the measurement above is from one. The egret run
+    #    (`LAYOUT_ADAPTER=docling-egret`, other knobs the same, 2026-08-29)
+    #    covers the FIRST 150 pages, with heron beside it on THE SAME 150 --
+    #    otherwise incomparable:
     #                            egret off -> full    heron off -> full
-    #       рамок                  4145 -> 3025         4387 -> 3044
-    #       дублей IoU>=0.9         766 -> 3            1008 -> 3
-    #       найдено из 313          190 -> 159           201 -> 156
-    #       смысл цел из 313        155 -> 131           154 -> 121
-    #       слито                    65 -> 86             57 -> 87
-    #       чернил вне рамок       22.8% -> 26.8%       24.3% -> 24.5%
-    #       порвано из 312           32 -> 36             38 -> 41
-    #    Чернилами egret платит несравнимо дороже: +4.0 пункта против +0.2 у
-    #    heron на ОДНИХ И ТЕХ ЖЕ страницах. По слиянию, наоборот, он теряет
-    #    меньше (-31 найденного против -45). Четверть стенда — не стенд: у
-    #    heron на всех 600 страницах доля вне рамок растёт на 1.7 пункта, а на
-    #    этой четверти на 0.2, то есть по четверти нельзя судить о целом ни
-    #    для того, ни для другого. Надёжно одно: у второго читателя ручки цена
-    #    ДРУГАЯ, и решать за него heron-овскими числами нечестно.
-    # Что говорит ЗА `full`, когда потребителем станет конвейер, а не стенд:
-    # 4435 пар дублей против 19 и 23.0 запроса к VLM на страницу против 14.6 —
-    # это деньги за чтение, почти вдвое. Запрос здесь — не-артефактная рамка,
-    # и `books feed` считает их ровно столько же; но число это СРЕДНЕЕ по всем
-    # 600 страницам: на первых десяти `books feed` насчитал 59.7 и 47.4
-    # запроса на страницу, так что по горстке страниц о цене чтения не судят.
-    # Умолчание пересматривать тогда, когда второй уровень покажет числом, что
-    # он делает со схлопнутой обёрткой.
+    #       boxes                  4145 -> 3025         4387 -> 3044
+    #       duplicates IoU>=0.9     766 -> 3            1008 -> 3
+    #       found of 313            190 -> 159           201 -> 156
+    #       meaning whole of 313    155 -> 131           154 -> 121
+    #       merged                   65 -> 86             57 -> 87
+    #       ink outside boxes      22.8% -> 26.8%       24.3% -> 24.5%
+    #       torn of 312              32 -> 36             38 -> 41
+    #    In ink egret pays incomparably more, +4.0 points against +0.2 on THE
+    #    SAME pages; by merging it loses less, -31 found against -45. And a
+    #    quarter of the bench is not the bench: heron's share outside boxes
+    #    grows 1.7 points over all 600 pages and 0.2 over this quarter. Firm
+    #    only: the knob's second reader has a DIFFERENT price, and deciding for
+    #    it by heron's numbers is dishonest.
+    # FOR `full`, once the consumer is the pipeline and not the bench: 4435
+    # duplicate pairs against 19, and 23.0 VLM requests per page against 14.6
+    # -- money for reading, nearly double. A request is a non-artefact box and
+    # `books feed` counts exactly as many; but that is an AVERAGE over 600
+    # pages -- on the first ten `books feed` counted 59.7 and 47.4 per page, so
+    # a handful of pages says nothing about the price of reading. Revisit the
+    # default when the second level shows by a number what it does with a
+    # collapsed wrapper.
     Knob("DOCLING_PIPELINE", "off",
          "вендорский конвейер docling поверх рамок: off | post (его "
          "постобработка) | full (она же плюс ПРАВИЛА порядка чтения, не "
@@ -347,23 +311,18 @@ KNOBS = (
          "ours, а не лучшее по числу, ровно по одной причине: docling это "
          "пакет, и `books detect --adapter yolox` на свежем окружении не "
          "должен падать из-за правила сортировки"),
-    # `PADDLE_PDX_MODEL_SOURCE` УБРАНА ИЗ РЕЕСТРА, а не помечена долгом. Её
-    # единственным потребителем был `export` в `models/paddleocr_vl/run.sh`,
-    # оставшийся от эпохи, когда макет считался НА КАРТЕ и paddlex тянул туда
-    # веса. Теперь детекция делается дома, а на бокс приезжает готовый каталог
-    # `detect/`; тянуть paddlex там нечему и незачем.
-    #
-    # Долгом помечать было бы неверно: долг — это «объявлена, но потребителя
-    # ещё нет», а здесь потребитель БЫЛ и исчез вместе с работой. Правило
-    # файла прямое: ручка возвращается в реестр не потому, что она есть у
-    # вендора, а когда стенд показал, что она на что-то влияет. Поймал это
-    # `books replay --check --selfcheck` (`audit()`), а не человек.
+    # `PADDLE_PDX_MODEL_SOURCE` WAS REMOVED FROM THE REGISTRY, not marked debt.
+    # Its only consumer was an `export` in `models/paddleocr_vl/run.sh`, left
+    # from the era when layout was computed ON THE CARD and paddlex pulled
+    # weights there; detection now happens at home and the box receives a ready
+    # `detect/` directory. Debt is the wrong mark for it: debt is "declared,
+    # consumer not there YET", and here the consumer EXISTED and vanished with
+    # the work. Caught by `audit()`, not by a human.
 
-    # --- вырезка артефактов: обе величины умолчанием равны «как у модели» ---
-    # Резкость вырезки. Пусто = взять PAGE_DPI, то есть ровно то, что видел
-    # детектор. Любое другое число было бы выбрано нами, а не замерено —
-    # притом что при 144 dpi плотная таблица даёт 6-7 точек на высоту знака,
-    # и второй уровень на такой вырезке провалится. Назначит стенд.
+    # --- artefact crops: both values default to "as the model saw it" ---
+    # Any other value would be chosen by us and not measured -- even though at
+    # 144 dpi a dense table gives 6-7 dots per glyph height and the second
+    # level will fail on such a crop. The bench will set it.
     Knob("CROP_DPI", "",
          "резкость вырезки. Пусто = СОБСТВЕННАЯ резкость скана (сколько в "
          "файле есть, и ни точкой больше), а если её не определить — как у "
@@ -371,33 +330,30 @@ KNOBS = (
          "обоим шагам; текст ручки уезжает в run.json, то есть слепок описывал "
          "её ложно. Читают doc/crop.py и doc/feed.py; `books read` НЕ читает — "
          "там резкость решает окно модели"),
-    # Поле вокруг рамки, в долях её размера. Ноль здесь ЗНАЧЕНИЕ: пайплайн
-    # режет ровно по рамке (layout_unclip_ratio [1.0, 1.0]), а всякое
-    # ненулевое поле есть правка рамки модели.
+    # Zero is a VALUE: the pipeline cuts exactly along the box
+    # (layout_unclip_ratio [1.0, 1.0]), and any non-zero margin edits the
+    # model's box.
     Knob("CROP_MARGIN", "0", "поле вокруг рамки при вырезке, в долях рамки"),
 
-    # --- подача в VLM: две гипотезы, ни одна не проверена -----------------
-    # `crop` — по запросу на текстовый блок, как штатно делает пайплайн
-    # (замер: 409 запросов на 25 страниц, шестнадцать на страницу).
-    # `masked_page` — один запрос на страницу, артефакты замазаны: вшестнадцать
-    # раз меньше вызовов и связный текст целиком.
+    # --- VLM feed: two hypotheses, neither one checked --------------------
+    # `crop` -- one request per text block, as the pipeline does by default
+    # (measured: 409 requests over 25 pages, sixteen per page). `masked_page`
+    # -- one request per page with artefacts masked out: sixteen times fewer
+    # calls and the connected text whole.
     #
-    # Умолчание `crop` не потому, что она лучше, а потому что она — поведение
-    # модели как есть, а `masked_page` наша выдумка. Замеры, известные ПРОТИВ
-    # неё: пустой белый лист даёт пять разных китайских таблиц за пять попыток;
-    # изоляция столбца читалась ВЕРНЕЕ, чем полная страница; потолок ответа
-    # 4096 токенов при самом длинном одиночном блоке в 8207 знаков. Ни один
-    # из трёх не снят на целой замазанной странице — потому и ручка, а не
-    # решение.
+    # The default is `crop` not because it is better but because it is the
+    # model's behaviour as it is, while `masked_page` is our invention. Known
+    # AGAINST it: a blank white sheet yields five different Chinese tables in
+    # five attempts; an isolated column read MORE correctly than a whole page;
+    # the 4096-token answer ceiling against a longest single block of 8207
+    # characters. None of the three was taken on a whole masked page -- hence a
+    # knob and not a decision.
     Knob("VLM_INPUT", "crop", "что подавать VLM: crop | masked_page"),
-    # Чем замазывать дыры. Не константа: белое — наименее нейтральное из
-    # возможного, именно на пустом белом модель и сочиняла таблицы.
+    # Not a constant: white is the least neutral option there is, and it was on
+    # blank white that the model invented tables.
     Knob("MASK_FILL", "white", "заливка дыр при masked_page: white|gray|black"),
 
-    # --- аренда и журнал: не про разбор, но про повторимость прогона -------
-    # Стояли под заголовком «синтетический стенд», сразу за объяснением про
-    # зерно и старение, — то есть заголовок описывал не те ручки, что под ним
-    # лежат. Заголовок, который врёт, ничем не лучше числа, которое врёт.
+    # --- book, rental and ledger: not about parsing, about repeatability ---
     Knob("HTML_MATH", "inline",
          "чем рисовать формулы в книге: inline (MathJax ВНУТРИ книги, +2.3 МБ "
          "к файлу) | local (соседним файлом tex-svg.js) | cdn (тянуть из сети "
@@ -445,33 +401,34 @@ KNOBS = (
          "ради чего он вынут в реестр; ослабляя, ставьте число ОТ РАЗМЕРА "
          "ЗАДАНИЯ, а не от вкуса, и помните, что ниже порога машина ещё и "
          "результат отдаёт медленно"),
-    # Коммит, которым считали, ДЛЯ МАШИНЫ, ГДЕ НЕТ GIT. Замер: в образе
-    # `vast-base` git отсутствует (разобраны оба слоя), корень на боксе —
-    # `/root/job`, репозитория там нет, и `stamp.commit()` честно отдаёт
-    # `None`. То есть единственный прогон, ради которого всё писалось —
-    # платный, — оказался бы единственным без записи, каким кодом считан, а
-    # `books replay --check` вернул бы 0: пустое поле он числит значением.
-    # Ставит её сборщик задания из своего же `stamp.commit()`.
+    # The commit we computed with, FOR A MACHINE THAT HAS NO GIT. Measured: the
+    # `vast-base` image carries no git (both layers unpacked), the box root
+    # `/root/job` holds no repository, and `stamp.commit()` honestly returns
+    # `None`. So the one run all this was written for -- the paid one -- would
+    # be the one without a record of which code computed it, while `books
+    # replay --check` returned 0, an empty field counting as a value. The job
+    # builder sets the knob from its own `stamp.commit()`.
     Knob("BOOKSMITH_COMMIT", "",
          "коммит кода для машины без git; пусто = спросить git на месте"),
     Knob("BOOKSMITH_LEDGER", "",
          "куда писать журнал прогонов; пусто = runs/ledger.jsonl. Рядом с "
          "журналом живёт и чёрный список машин"),
-    # --- подача в VLM: продолжение ------------------------------------------
+    # --- VLM feed, continued ------------------------------------------------
     Knob("FEED_DPI", "",
          "разрешение страницы, уезжающей в VLM; пусто = как PAGE_DPI"),
 
-    # --- синтетический стенд -----------------------------------------------
-    # Зерно и профиль старения решают, какие именно страницы получатся, то
-    # есть решают ответ модели: замер показал, что на ЧИСТОЙ странице рамки
-    # `table` нет вовсе, а на состаренной она появляется. Стенд без этих
-    # величин в слепке невоспроизводим.
+    # --- synthetic bench ----------------------------------------------------
+    # Seed and ageing profile decide which pages come out, hence decide the
+    # model's answer: measured, a CLEAN page has no `table` box at all and an
+    # aged one grows one. A bench without these two in the snapshot is not
+    # reproducible.
     Knob("SYNTH_SEED", "1", "зерно синтетического стенда"),
     Knob("SYNTH_AGING", "old", "профиль старения стенда: clean|scan|old|ветхий"),
 
-    # --- ВТОРОЙ УРОВЕНЬ: чтение содержимого блоков ------------------------
-    # Разрез тот же, что в `read/__init__.py`: что просим — свойство МОДЕЛИ,
-    # как доставляем — свойство ТРАНСПОРТА, и ручки разведены по нему же.
+    # --- SECOND LEVEL: reading block content --------------------------------
+    # The same cut as in `read/__init__.py`: what we ask is a property of the
+    # MODEL, how we deliver it a property of the TRANSPORT, and the knobs are
+    # split along it.
     Knob("VLM_READER", "paddleocr-vl",
          "какой адаптер ЧТЕНИЯ звать; список — read/run.py:READERS. Он "
          "решает, каким промтом спрашивать про какой ярлык и каким видом "
@@ -480,87 +437,85 @@ KNOBS = (
          "как доставлять вопрос; список — read/http.py:build. Аренда НЕ "
          "третий транспорт: на арендованной карте тот же http смотрит в "
          "127.0.0.1, куда run.sh поднял vLLM"),
-    # ПУСТОЕ УМОЛЧАНИЕ ЗДЕСЬ РОНЯЕТ ПРОГОН, и этим ручка отличается от прочих.
-    # Пустых умолчаний в реестре восемь (`VL_MODEL_DIR`, `YOLOX_WEIGHTS`,
-    # `LAYOUT_MODEL_DIR`, `CROP_DPI`,
-    # `BOOKSMITH_LEDGER`, `FEED_DPI` и эта), и здесь стояло «единственная
-    # такая ручка» — неверно; то же число печатает свой же прибор,
-    # `books replay --check`: «ручек без значения 8». Особая она не пустотой,
-    # а тем, что пустота НЕ пропускается дальше: молчаливый
-    # `http://127.0.0.1:8118/v1` заставил бы прогон дома стучаться в никуда и
-    # объявить отказ связи молчанием модели — два разных нуля.
+    # AN EMPTY DEFAULT HERE DROPS THE RUN, and that sets this knob apart. Empty
+    # defaults number eight (`VL_MODEL_DIR`, `YOLOX_WEIGHTS`,
+    # `LAYOUT_MODEL_DIR`, `CROP_DPI`, `BOOKSMITH_COMMIT`, `BOOKSMITH_LEDGER`,
+    # `FEED_DPI` and this one); here stood "the only such knob", wrong, and
+    # `books replay --check` prints the same 8. It is special not by being
+    # empty but by the emptiness NOT being passed on: a silent
+    # `http://127.0.0.1:8118/v1` would have a run at home knocking at nothing
+    # and calling a refused connection a silence of the model -- two different
+    # zeros.
     Knob("VLM_ENDPOINT", "",
          "адрес OpenAI-совместимой службы вместе с /v1; умолчания нет"),
-    # Потолок ответа. 4096 — не наше число: столько ставит штатный пайплайн
-    # PaddleOCR-VL, опуская родные 8192 модели. Замер, из-за которого это
-    # ручка, а не константа: самый длинный ОДИН текстовый блок в наших книгах
-    # 8207 знаков, то есть вдвое выше потолка, а обрыв у этой модели выглядит
-    # не как обрыв, а как зацикливание, и `otsl_pad_to_sqr_v2` затем молча
-    # укорачивает длинные строки — порванная таблица возвращается
-    # правдоподобной. Отличить её можно только полем `finish` в ответе, и
-    # прогон обязан это число печатать.
+    # 4096 is not our number: the stock PaddleOCR-VL pipeline sets it, lowering
+    # the model's native 8192. What makes it a knob and not a constant: the
+    # longest SINGLE text block in our books is 8207
+    # characters, twice the ceiling, and truncation in this model looks like
+    # looping, after which `otsl_pad_to_sqr_v2` silently shortens long rows --
+    # a torn table comes back plausible. Only the `finish` field tells them
+    # apart, and a run is obliged to print it.
     Knob("VLM_MAX_TOKENS", "4096", "потолок ответа в токенах"),
     Knob("VLM_TIMEOUT_S", "120", "сколько ждать один ответ, секунд"),
-    # Повторяем ТОЛЬКО отказ доставки, до ответа. Ответ 200 не повторяется
-    # никогда, что бы в нём ни лежало: переспрос после ответа — это починка
-    # модели, и правило проекта его запрещает. Здесь запрет выражен кодом
-    # (`read/http.py`), а число — про обрывы связи, которых на арендованной
-    # машине хватает: журнал прогонов помнит канал в 0.06 Мбит/с.
+    # A 200 is never retried whatever it carries: re-asking after an answer
+    # repairs the model, and the project rule forbids it -- here the ban is
+    # expressed in code (`read/http.py`). The number is about broken links, of
+    # which a rented machine has plenty: the ledger remembers 0.06 Mbps.
     Knob("VLM_RETRIES", "2", "сколько раз повторить ОТКАЗ ДОСТАВКИ (не ответ)"),
-    # Сколько вопросов держать в полёте разом. vLLM батчит сам, и один поток
-    # оставляет карту почти простаивать; но всякое число больше единицы
-    # делает порядок ОТВЕТОВ недетерминированным, поэтому оно объявлено и
-    # уезжает в слепок, а страницы пишутся по якорю, а не по порядку прихода.
+    # vLLM batches on its own and a single stream leaves the card nearly idle;
+    # but any number above one makes the order of ANSWERS non-deterministic, so
+    # it is declared and rides into the snapshot, and pages are written by
+    # anchor rather than by arrival.
     Knob("VLM_CONCURRENCY", "4", "сколько запросов держать в полёте разом"),
 
-    # --- порождение ---
+    # --- generation ---
     Knob("VLM_TEMPERATURE", "0", "температура VLM; >0 делает разбор "
                                  "невоспроизводимым нарочно"),
-    # ОБЕ ОБЪЯВЛЕНЫ, ХОТЯ ПРИ temperature=0 НИ НА ЧТО НЕ ВЛИЯЮТ. Причина не в
-    # педантизме: `books replay --check` требует, чтобы поле «порождение» в
-    # слепке было ЗАПОЛНЕНО, а не пусто, и он прав — «top_p не задавали» и
-    # «top_p не смотрели» разные прогоны. А как только температуру поднимут
-    # (самосогласованность трёх чтений при 0.4 ловила выдумку: 217 совпавших
-    # ячеек из 270, и две худшие страницы оказались первыми по
-    # неустойчивости), обе величины начнут решать ответ, и задним числом
-    # выяснить их будет неоткуда.
+    # BOTH ARE DECLARED THOUGH AT temperature=0 THEY CHANGE NOTHING. Not
+    # pedantry: `books replay --check` demands the snapshot's "generation"
+    # field be FILLED and not empty, and it is right -- "top_p was not set" and
+    # "top_p was not looked at" are different runs. The moment the temperature
+    # is raised (self-consistency of three reads at 0.4 caught invention: 217
+    # matching cells of 270, and the two worst pages came first by
+    # instability), both start deciding the answer, with nowhere to recover
+    # them from afterwards.
     Knob("VLM_TOP_P", "1.0", "отсечение по вероятности; 1.0 = не отсекать"),
     Knob("VLM_SEED", "0", "зерно порождения; решает при temperature > 0"),
     Knob("PASSES", "1", "сколько раз читать; свод — задача раннера, не модели",
          debt=True),
 
-    # --- наблюдение, НЕ вмешательство ---
-    # Вероятности пишутся в свой файл рядом со страницей и в текст не лезут.
-    # Прежде та же ручка вставляла `⚠` и `<mark>` прямо в разметку, то есть
-    # правила вывод модели. Теперь распознанный текст неприкосновенен, а всё
-    # наблюдённое живёт сбоку и связано с блоком по его номеру.
+    # --- observation, NOT intervention ---
+    # They go to their own file and never touch the text. This same knob used
+    # to insert `⚠` and `<mark>` straight into the markup, i.e. corrected the
+    # model's output. Recognised text is now untouchable, and everything
+    # observed lives alongside, tied to a block by its number.
     Knob("LOGPROBS", "1", "записать вероятности токенов рядом со страницей",
          debt=True),
 
-    # --- оболочка ---
+    # --- shell ---
     Knob("PORT", "8118", "порт сервиса vLLM на машине"),
-    # Готовность страницы считают по тому артефакту, ради которого платили,
-    # а не по любому следу с этим номером. Прежняя реализация брала ЛЮБОЙ
-    # файл с числовым именем: страница пишется двумя вызовами, первый может
-    # упасть (замер на «Справочнике»: 3 страницы из 760 остались без `.md`
-    # при живом `.json`), и `--resume` такую страницу не пересчитывал
-    # никогда, а `run.json` показывал полное число, будто всё на месте. В
-    # книге дыра видна только тем, что абзац кончается на полуслове.
+    # A page counts as done by the artefact it was paid for, not by any trace
+    # carrying its number. The old implementation took ANY file with a numeric
+    # name: a page is written by two calls and the first can fail (measured on
+    # the "Spravochnik": 3 pages of 760 left without `.md` while the `.json`
+    # lived), `--resume` never recomputed such a page, and `run.json` showed
+    # the full count as if all were there. In the book the hole shows only as a
+    # paragraph ending mid-word.
     Knob("RESUME", "1", "продолжать ли прерванный прогон"),
-    # Умолчание "0", а не "": так исполняет `run.sh` (`${X:-0}`), и пока
-    # правая часть живёт там вторым экземпляром, реестр обязан говорить то же
-    # самое.  Прежде здесь стояло "", и слепок записал бы "" там, где прогон
-    # видел "0", — ровно та болезнь `VL_MODEL_DIR`, о которой предупреждает
-    # шапка этого файла, только тише.  Ноль здесь ЗНАЧЕНИЕ: flashinfer
-    # компилирует сэмплер на месте и не собирается (несовместимость заголовков
-    # cccl), поэтому он выключен намеренно.
+    # The default is "0" and not "": that is what `run.sh` does (`${X:-0}`),
+    # and while the right-hand side lives there as a second copy the registry
+    # has to say the same. It used to be "", so the snapshot would record ""
+    # where the run saw "0" -- the `VL_MODEL_DIR` disease of this file's
+    # header, only quieter. Zero here is a VALUE: flashinfer compiles its
+    # sampler on the spot and fails to build (incompatible cccl headers), so it
+    # is off deliberately.
     Knob("VLLM_USE_FLASHINFER_SAMPLER", "0", "сэмплер flashinfer в vLLM"),
 )
 KNOB = {k.name: k for k in KNOBS}
 
 
 def knob(name):
-    """Значение ручки: из окружения, иначе умолчание из реестра."""
+    """A knob's value: from the environment, else the registry default."""
     try:
         k = KNOB[name]
     except KeyError:
@@ -571,20 +526,19 @@ def knob(name):
 
 
 def snapshot():
-    """Все ручки разом: что стояло, что было бы по умолчанию, задавали ли.
+    """Every knob at once: what stood, what the default was, was it set.
 
-    Поле «долг» добавлено, а не заменило собой ничего: потребители слепка
-    читают «значение» и на лишний ключ не смотрят. Зато по `run.json`
-    любого прогона теперь СЧИТАЕТСЯ, сколько ручек в нём мертво, — прежде
-    это можно было только вычитать из прозы в шапке этого файла, где оно и
-    протухло.
+    The "debt" field was added, not substituted for anything: snapshot
+    consumers read "value" and ignore the extra key. In exchange any run's
+    `run.json` now YIELDS the count of dead knobs in it -- before, that could
+    only be subtracted from this file's header prose, where it went off.
 
-    «Долг» и поле «кто читает», которое дописывает сверху `detect.py`, —
-    РАЗНЫЕ вопросы, и сводить их в одно нельзя. «Кто читает» про ЭТОТ
-    прогон: `LAYOUT_TABLE_THRESHOLD` в прогоне heron не читает никто, но
-    ручка живая — её читает `doclayout.py`. «Долг» про дерево целиком:
-    потребителя нет НИ У КОГО. Слить их значило бы объявить мёртвым всё,
-    чего не коснулся сегодняшний адаптер.
+    "Debt" and the "read by" field `detect.py` adds on top are DIFFERENT
+    questions. "Read by" is about THIS run: nobody reads
+    `LAYOUT_TABLE_THRESHOLD` in a heron run, yet the knob is alive --
+    `doclayout.py` reads it. "Debt" is about the whole tree: NOBODY has a
+    consumer. Merging them would declare dead everything today's adapter did
+    not touch.
     """
     return {k.name: {"value": knob(k.name), "default": k.default,
                      "set_externally": k.name in os.environ, "what": k.what,
@@ -593,20 +547,19 @@ def snapshot():
 
 
 def snapshot_with_readers(roles):
-    """Слепок ручек, где у каждой сказано, КТО ЕЁ ЧИТАЕТ в этом прогоне.
+    """The knob snapshot, each knob saying WHO READS IT in this run.
 
-    ЖИВЁТ ЗДЕСЬ, ПОТОМУ ЧТО СНИМАЮЩИХ ДВОЕ. Была частной у `detect.py`; со
-    вторым уровнем понадобилась и `read/run.py`, и вторая её редакция успела
-    получиться ДРУГОЙ ФОРМЫ — три вложенных ведра вместо плоской карты. Форму
-    эту молча забраковал `books replay --check`: он ищет `ручки/ИМЯ/значение`
-    и на вложенной печатал «нет ручки/VLM_SEED/значение» — то есть слепок,
-    где записано всё, объявлялся НЕПОЛНЫМ. Третьей редакции не будет.
+    IT LIVES HERE BECAUSE THERE ARE TWO SNAPPERS. Private to `detect.py` once;
+    the second level needed it in `read/run.py`, and that second edition came
+    out A DIFFERENT SHAPE -- three nested buckets instead of a flat map.
+    `books replay --check` rejected it silently: it looks for
+    `knobs/NAME/value` and on the nested one printed "no knobs/VLM_SEED/value",
+    declaring INCOMPLETE a snapshot that held everything. No third edition.
 
-    Ручки НЕ выбрасываются: полнота слепка — условие повторимости. Но полный
-    слепок без пометки читается как тридцать действующих величин, а
-    действующих в прогоне heron ровно три из двадцати. Поэтому рядом со
-    значением стоит и хозяин, и признак: строку читает человек, признак —
-    машина.
+    Knobs are NOT dropped -- a complete snapshot is a condition of
+    repeatability. But without the mark it reads as if every value were in
+    force, while a heron run has exactly three. Hence an owner and a flag
+    beside the value: the string for a human, the flag for a machine.
     """
     snap = snapshot()
     for name, rec in snap.items():
@@ -617,7 +570,7 @@ def snapshot_with_readers(roles):
 
 
 def debts():
-    """Ручки, объявленные долгом: потребителя нет и пока не должно быть."""
+    """Knobs declared debt: no consumer, and none due yet."""
     return tuple(k.name for k in KNOBS if k.debt)
 
 
@@ -626,47 +579,47 @@ def names():
 
 
 def passthrough():
-    """Что пробросить на арендованную машину: только ЗАДАННОЕ оператором.
+    """What to pass to the rented machine: only what the OPERATOR set.
 
-    Умолчания не подставляем — у них одно место жительства, этот файл.
-    Список строится из реестра, а не пишется руками: писанный руками он уже
-    расходился с реестром, в нём было 13 имён из 17, и четыре ручки, решающие
-    выбор весов, на машину не уезжали вовсе.
+    Defaults are not substituted -- they have one place of residence, this
+    file. The list is built from the registry rather than typed by hand:
+    hand-typed it had already diverged, holding 13 names of 17, with four knobs
+    deciding the choice of weights never reaching the machine at all.
     """
     return {n: os.environ[n] for n in names() if n in os.environ}
 
 
-# Каталог исходников: `src/booksmith`. Отсюда, а не от рабочего каталога
-# процесса, — иначе `readers()` из другого cwd молча находила бы ноль
-# потребителей у всех ручек сразу, и `audit()` заорала бы на весь реестр.
+# The source directory, `src/booksmith`. From here rather than from the
+# process's working directory -- otherwise `readers()` run from another cwd
+# would silently find zero consumers for every knob, and `audit()` would howl
+# at the whole registry.
 SRC = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def readers(root=None):
-    """Кто РЕАЛЬНО читает каждую ручку: имя -> кортеж файлов. Разбором дерева.
+    """Who REALLY reads each knob: name -> tuple of files, by walking the tree.
 
-    Зачем считать, а не помнить. Прозаический список в шапке этого файла
-    протух молча: он называл 11 живых потребителей при 16 и не знал про пять
-    ручек, читаемых каждым прогоном `books detect`. Числа в комментариях
-    подчиняются тому же правилу проекта, что и числа в журнале: величина, а
-    не слово, и величина — считанная.
+    Counted, not remembered: the header's prose list named 11 live consumers
+    when there were 16, and missed five knobs read by every `books detect`.
+    Numbers in comments obey the rule numbers in the ledger do: a value, not a
+    word, and a value counted.
 
-    ЧТО ЭТА ПРОВЕРКА ВИДИТ И ЧЕГО НЕ ВИДИТ. В `.py` ищется ТОЛЬКО прямая
-    форма `knob("ИМЯ")`; чтение через переменную (имя приехало в цикле)
-    найдено не будет, и ручка покажется мёртвой — то есть `audit()` заорёт
-    ложной тревогой. Перекос выбран нарочно: ложная тревога стоит минуты, а
-    молчаливое «всё в порядке» стоило проекту `VL_MODEL_DIR`. В `.sh`
-    ищется `$ИМЯ` и `${ИМЯ}` — ровно так ручку берёт оболочка на
-    арендованной машине, мимо `knob()` и мимо любого `KeyError`.
+    WHAT IT SEES AND WHAT IT DOES NOT. In `.py` only the direct form
+    `knob("NAME")`; a read through a variable (the name arrived in a loop) is
+    not found, the knob looks dead, and `audit()` howls a false alarm. The bias
+    is deliberate: a false alarm costs a minute, a silent "all is well" cost
+    the project `VL_MODEL_DIR`. In `.sh` it searches `$NAME` and `${NAME}` --
+    exactly how the shell on the rented machine takes a knob, past `knob()` and
+    past any `KeyError`.
 
-    Сам этот файл из обхода исключён: он называет все имена по построению и
-    иначе был бы потребителем каждой ручки.
+    This file is excluded from the walk: it names every name by construction
+    and would otherwise consume every knob.
 
-    Объявления `knobs_read()` у адаптеров эта функция сама не сверяет — но с
-    2026-08-29 их сверяет `tests/test_knobs.py`, и там же лежит цена ошибки:
-    список, набранный руками («сверено grep-ом по файлу» в doclayout,
-    docling_heron, yolox), расходится с деревом молча, а слепок после этого
-    называет действующей величину, которой прогон не видел.
+    The adapters' `knobs_read()` declarations are not checked here, but since
+    2026-08-29 `tests/test_knobs.py` checks them, and the cost is there too: a
+    hand-typed list ("verified by grep over the file" in doclayout,
+    docling_heron, yolox) diverges from the tree silently, and the snapshot
+    then calls a value in force that the run never saw.
     """
     root = root or SRC
     me = os.path.abspath(__file__)
@@ -696,13 +649,13 @@ def readers(root=None):
 
 
 def audit(root=None):
-    """Расхождения объявленного долга с найденным в дереве. Пусто — согласны.
+    """Declared debt against what the tree holds. Empty means they agree.
 
-    Две беды, обе тихие. Первая: ручку начали читать, а `debt=True` с неё не
-    сняли — реестр врёт, что настройка мертва, и её перестают пробрасывать.
-    Вторая: последнего потребителя удалили вместе с кодом, а ручка осталась
-    стоять как живая — ровно так в шапке и накопилось расхождение на пять
-    имён, замеченное только вычиткой.
+    Two troubles, both quiet. A knob started being read and `debt=True` was not
+    taken off it -- the registry lies that the setting is dead and people stop
+    passing it through. Or the last consumer was deleted with its code while
+    the knob stayed standing as alive -- exactly how the header accumulated its
+    five-name discrepancy, noticed only by proofreading.
     """
     who = readers(root)
     out = []
