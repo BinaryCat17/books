@@ -125,6 +125,12 @@ HTML_ATTRS = (
     "data-furniture-only", "data-level", "data-table-shape",
     "data-placed-by", "data-label",
 )
+# THE CLASS NAMES, and until now nothing read this line. It was declared for
+# the same reason as the attributes above and then guarded by nothing, and it
+# drifted exactly as predicted: it named the pre-migration Russian word while
+# `doc/html.py` emitted `sheet`. The one name in the book format that no check
+# watched is the one that went stale. Both directions are checked now, against
+# the code and against a built book.
 HTML_CLASSES = ("sheet",)
 
 # The four that EVERY built book must carry, whatever is on its pages. The

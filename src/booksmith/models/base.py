@@ -103,12 +103,41 @@ class Page:
 class Recognizer:
     """What a model adapter must be able to do.
 
-    Exactly two things: name itself so the run is reproducible (`fingerprint`
-    plus `knobs_read`), and read a page. Renting, passes and the ledger are the
-    runner's business, assembling the document is level two's.
+    THE LIST USED TO BE SHORTER THAN THE TRUTH, and that is the defect this
+    docstring records. It said "exactly two things" and declared five members
+    while `detect.py` asked for eight: `dir`, `labels`, `policy_name` and
+    `threshold_drift` were used by the pipeline and appeared nowhere in the
+    contract. An adapter written to the contract as documented would have got
+    through import and fallen at the first run -- and the four missing names
+    are exactly the ones with no default anywhere to catch them.
+
+    The contract is now checked against the pipeline rather than believed:
+    `tests/test_models_contract.py` reads every attribute `detect.py` asks of
+    an adapter and requires it here, and requires every name here to be asked
+    for somewhere. It fails in both directions, which a list nobody compares
+    cannot do.
+
+    Renting, passes and the ledger are the runner's business; assembling the
+    document is level two's.
     """
 
     name: str = ""
+
+    # WHERE THE WEIGHTS CAME FROM, printed into the detection log and the
+    # snapshot. An instance field, set in `__init__` -- declared here so that
+    # "the adapter has no `dir`" is a missing implementation and not an
+    # AttributeError from the middle of a run.
+    dir: str = ""
+
+    # THE MODEL'S OWN VOCABULARY, in the model's own spelling. `detect.py`
+    # counts it and hands it to `policy.check`, so an empty one is not "no
+    # labels" but "this adapter did not say".
+    labels: tuple[str, ...] = ()
+
+    # Which policy describes that vocabulary. Empty means "work it out from
+    # the labels" -- `detect.py` does exactly that and writes the answer back,
+    # so this is the one member of the contract the pipeline may fill in.
+    policy_name: str = ""
 
     def fingerprint(self) -> dict:
         """What tells this run from another: weights, prompts, versions.
@@ -160,6 +189,18 @@ class Recognizer:
         translation error stays separable from a model error.
         """
         return {}
+
+    def threshold_drift(self) -> tuple[str, ...]:
+        """Lines about a threshold that is NOT the weights' own, or ().
+
+        NO DEFAULT ON PURPOSE, like `knobs_read` beside it. An adapter silent
+        out of forgetfulness would be indistinguishable from one whose
+        threshold is genuinely the vendor's, and the difference is the whole
+        point: YOLOX has no native selection threshold at all, so ours acts,
+        and the adapter says so out loud rather than letting a reader assume a
+        vendor default. `detect.py` prints every line this returns.
+        """
+        raise NotImplementedError
 
 
 # --------------------------------------------------------------- order ---

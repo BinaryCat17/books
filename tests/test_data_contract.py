@@ -145,6 +145,48 @@ def test_the_code_emits_exactly_the_declared_html_attributes():
         f"declaration names {sorted(declared - found)} the code never writes")
 
 
+def test_the_code_emits_exactly_the_declared_html_classes():
+    """The same pairing for the CLASS names, which nothing guarded at all.
+
+    `HTML_CLASSES` was declared and read by nobody -- and it had gone stale
+    exactly as the comment above it warns: it named the pre-migration Russian
+    word while `doc/html.py` was emitting `sheet`. The one name in the book
+    format that no check watched is the one that drifted, which is the whole
+    argument for declaring it in the first place.
+
+    MathJax writes classes of its own into the same file, so the CODE is the
+    side compared here -- `books html` emits exactly one, and the built book
+    is checked for the same name below.
+    """
+    src = ""
+    for name in ("html.py", "apply.py", "swap.py"):
+        src += open(os.path.join(support.SRC, "doc", name),
+                    encoding="utf-8").read()
+    found = {c for c in re.findall(r'class="([\wЀ-ӿ -]+)"', src)}
+    declared = set(schema.HTML_CLASSES)
+    assert found == declared, (
+        f"code emits classes {sorted(found - declared)} that are not "
+        f"declared; declaration names {sorted(declared - found)} the code "
+        f"never writes")
+
+
+def test_the_built_book_carries_the_declared_classes():
+    """And the book on disk carries them. Skipped with a reason, never passed.
+
+    `processed/` is not in git, so a fresh clone has nothing to compare.
+    """
+    books = sorted(glob.glob(os.path.join(
+        os.path.dirname(os.path.dirname(support.SRC)),
+        "processed", "*", "book.html")))
+    if not books:
+        support.skip("no built book: processed/ is not in git")
+    html = open(books[-1], encoding="utf-8").read()
+    for name in schema.HTML_CLASSES:
+        assert f'class="{name}"' in html, (
+            f"{books[-1]}: the book carries no class {name!r}, and the code "
+            f"declares it. The declaration and the book have parted")
+
+
 def test_the_built_book_carries_the_declared_attributes():
     """The other half: what is on disk must be what the code speaks.
 

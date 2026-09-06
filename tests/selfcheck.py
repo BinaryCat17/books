@@ -35,6 +35,8 @@ from booksmith import annopage                              # noqa: E402
 from booksmith import overlay                               # noqa: E402
 from booksmith import djvu                                  # noqa: E402
 from booksmith import subset                                # noqa: E402
+from booksmith.models import base as basemod                # noqa: E402
+from booksmith.models import yolox_layout as yolox          # noqa: E402
 from booksmith.doc import apply as ap                       # noqa: E402
 from booksmith.doc import crop                              # noqa: E402
 from booksmith.doc import feed                              # noqa: E402
@@ -55,6 +57,28 @@ from booksmith import acceptance                           # noqa: E402
 
 
 # --- what we break with ----------------------------------------------------
+
+@contextmanager
+def redeclare(obj, add=None, drop=()):
+    """Add and REMOVE class members for the duration of a mutation.
+
+    `attrs` can only swap what already has a name, so it cannot damage a
+    DECLARATION: dropping a member of a contract and adding one nobody reads
+    are the two ways such a list goes wrong, and neither is a value change.
+    """
+    gone = {k: vars(obj)[k] for k in drop if k in vars(obj)}
+    for k in gone:
+        delattr(obj, k)
+    for k, v in (add or {}).items():
+        setattr(obj, k, v)
+    try:
+        yield
+    finally:
+        for k in (add or {}):
+            delattr(obj, k)
+        for k, v in gone.items():
+            setattr(obj, k, v)
+
 
 @contextmanager
 def attrs(obj, **kw):
@@ -3405,6 +3429,35 @@ def mutations():
         ("book content is no longer weighed apart",
          lambda: attrs(cyrmod, CONTENT_SUFFIX="PROSE_RU"),
          [("test_cyrillic_ratchet", "test_book_content_did_not_move")]),
+
+        # --- the adapter contract, compared with the pipeline ------------
+        ("the contract drops a member the pipeline asks for",
+         lambda: redeclare(basemod.Recognizer, drop=("dir",)),
+         [("test_models_contract",
+           "test_the_contract_declares_everything_the_pipeline_asks_for")]),
+
+        ("the contract grows a term nobody asks for",
+         lambda: redeclare(basemod.Recognizer,
+                           add={"nobody_reads_this": ""}),
+         [("test_models_contract",
+           "test_the_contract_declares_nothing_nobody_asks_for")]),
+
+        ("an adapter leans on the contract's own threshold_drift",
+         lambda: redeclare(yolox.YoloXLayout, drop=("threshold_drift",)),
+         [("test_models_contract",
+           "test_every_adapter_we_ship_satisfies_the_contract")]),
+
+        ("an html class the code writes is not declared",
+         lambda: attrs(schema, HTML_CLASSES=()),
+         [("test_data_contract",
+           "test_the_code_emits_exactly_the_declared_html_classes")]),
+
+        ("the book is asked for a class it never carried",
+         lambda: attrs(schema, HTML_CLASSES=schema.HTML_CLASSES + ("nonesuch",)),
+         [("test_data_contract",
+           "test_the_built_book_carries_the_declared_classes"),
+          ("test_data_contract",
+           "test_the_code_emits_exactly_the_declared_html_classes")]),
 
         ("an html attribute the code writes is not declared",
          lambda: attrs(schema, HTML_ATTRS=schema.HTML_ATTRS[1:]),

@@ -292,9 +292,9 @@ RESIDUE = {
     "src/booksmith/run/knobs.py": (60, "TITLE, three knob descriptions"),
     "src/booksmith/text.py": (25, "TITLE, and the name of the dead truth key "
                               "this file stopped reading"),
-    "tests/test_data_contract.py": (2, "TOOL: the bounds of the Cyrillic "
-                                    "block, in a regexp hunting Russian "
-                                    "`data-` attributes"),
+    "tests/test_data_contract.py": (4, "TOOL: the bounds of the Cyrillic "
+                                    "block, in two regexps hunting Russian "
+                                    "`data-` attributes and class names"),
     "tests/test_djvu.py": (68, "TITLE, four of them"),
     "tests/test_otsl_html.py": (146, "TITLE and DATA: the real table this "
                                 "check is built from"),
