@@ -1,53 +1,49 @@
-"""`books overlay` — посмотреть глазами на то, что померено числом.
+"""`books overlay` -- look with your eyes at what the number measured.
 
-Зачем отдельная команда. Стенд, который проверяет себя числами, но которого
-никто не видел, — не прибор. За одну сессию этот стенд соврал рамками шесть
-раз, и ни разу число не выглядело больным: пустые рамки текста, половина
-разворота за краем листа, «чертёж» из сорока семи параллельных линий, рамка
-формулы шире формулы, строка вместо абзаца, одна рамка на колонтитул из двух.
-Все шесть видно на листе и ни одной — в отчёте.
+A bench that checks itself by numbers and that nobody has seen is not an
+instrument. In one session this bench lied with boxes six times and the number
+never looked ill: empty text boxes, half a spread off the sheet, a "drawing" of
+forty-seven parallel lines, a formula box wider than its formula, a line for a
+paragraph, one box over a running head of two. All six show on the sheet, none
+in the report.
 
-ПОКАЗЫВАЕМ РАСХОЖДЕНИЯ, А НЕ ВСЁ ПОДРЯД. Первая редакция рисовала обе
-разметки целиком: на странице, где модель права, выходило две сотни почти
-совпадающих прямоугольников с двумя подписями над каждым — и лист переставал
-читаться ровно там, где читать было нечего. Теперь совпавшая пара рисуется
-одной тонкой серой рамкой без подписи, а криком выделено только то, что
-разошлось: чего модель не нашла и что она нашла лишнего. На хорошей странице
-лист почти чист, на плохой видно ровно беду.
+WE SHOW DIVERGENCES, NOT EVERYTHING. The first edition drew both markups whole:
+on a page where the model is right, two hundred nearly coincident rectangles
+with two captions over each -- the sheet stopped being readable exactly where
+there was nothing to read. Now a matched pair is one thin grey box without a
+caption, and only the divergence is shouted: what the model missed and what it
+found that is not there.
 
-ЛЕГЕНДЫ НЕТ. Врисованная в угол, она ложилась поверх первых блоков страницы;
-отдельным листом — лишний лист, который никто не смотрит. Цвета говорят сами:
-серое тонкое — совпало, красное толстое — не нашла, оранжевый пунктир —
-лишняя. Подпись стоит только там, где есть что сказать.
+THERE IS NO LEGEND. In a corner it lay over the first blocks of the page; on a
+sheet of its own it is one more sheet nobody looks at. The colours below speak
+for themselves, and a caption stands only where there is something to say.
 
-ПУНКТИР ЗАДАЁТСЯ СТРОКОЙ, а не кортежем. Первая редакция передавала
-`dashes=(0, 3)`; pymupdf ждёт строку вида `"[3 3] 0"` и молча рисовал
-СПЛОШНУЮ — то есть обе разметки выглядели одинаково, и отличить их было
-нельзя вообще ничем.
+DASHES ARE GIVEN AS A STRING, not a tuple. The first edition passed
+`dashes=(0, 3)`; pymupdf wants `"[3 3] 0"` and silently drew SOLID -- both
+markups looked identical, and nothing whatever told them apart.
 """
 import json
 import os
 
 import pymupdf
 
-# Шрифт подписей. Встроенный `helv` кириллицы не знает, и подписи рисовались
-# пустотой: по какой из двух разметок рамка — было не отличить.
+# Caption font: the built-in `helv` knows no Cyrillic and drew captions as
+# emptiness -- which of the two markups a box came from was unreadable.
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 
-MATCHED = (0.55, 0.55, 0.55)      # серым и тонко: смотреть тут не на что
-NOT_FOUND = (0.85, 0.10, 0.10)     # красным: есть в истине, нет у модели
-SPURIOUS = (0.95, 0.55, 0.00)       # оранжевым: есть у модели, нет в истине
-ONE = (0.15, 0.35, 0.85)         # синим: разметка одна, сравнивать не с чем
-# Ярлык РАЗОШЁЛСЯ — это не «лишняя рамка», и цвет у него теперь свой. Прежде
-# подпись «ярлык: A -> B» бралась той же оранжевой константой, что и «ЛИШНЯЯ»,
-# и висела над СЕРОЙ рамкой: цвет подписи противоречил цвету рамки, к которой
-# она относится, читатель искал оранжевый прямоугольник и не находил. На
-# `bench/slovar` таких подписей 207 из 517 пар (40%), а на одном листе — 56 из
-# 56; замер глазами: подпись шире своей рамки в 1.47 раза, 61 из 62 накрыта
-# другой, и настоящая «ЛИШНЯЯ» рядом становится невидимой. Бедствие при этом
-# узкое — ≥10 подписей всего на 5 листах из 859, и все пять slovar, — но
-# лечится оно цветом, а не терпением.
-LABEL = (0.45, 0.25, 0.65)        # фиолетовым: рамка та же, имя другое
+MATCHED = (0.55, 0.55, 0.55)      # grey and thin: nothing to look at here
+NOT_FOUND = (0.85, 0.10, 0.10)     # red: in truth, absent from the model
+SPURIOUS = (0.95, 0.55, 0.00)       # orange: in the model, absent from truth
+ONE = (0.15, 0.35, 0.85)         # blue: one markup, nothing to compare with
+# A DIVERGENT LABEL is not "a spurious box" and has its own colour now. The
+# caption «ярлык: A -> B» took the same orange as «ЛИШНЯЯ» and hung over a GREY
+# box: its colour contradicted its own box, and the reader hunted an orange
+# rectangle that was not there. On `bench/slovar` 207 of 517 pairs (40%) carry
+# it, on one sheet 56 of 56; by eye a caption is 1.47 times wider than its box,
+# 61 of 62 are covered by another, and a real «ЛИШНЯЯ» beside them goes
+# invisible. Narrow -- 10 or more captions on 5 sheets of 859, all slovar -- but
+# colour cures it, patience does not.
+LABEL = (0.45, 0.25, 0.65)        # purple: same box, different name
 
 
 class OverlayError(RuntimeError):
@@ -64,8 +60,8 @@ def _sha256(path):
 
 
 def _same_book(pdf: str, marks) -> str:
-    """Про тот ли PDF разметка. Без сверки чужая истина ложится молча и
-    выглядит бедой модели — а это беда каталога."""
+    """Is the markup about this PDF. Unchecked, a foreign truth lies down
+    silently and looks like the model's trouble -- it is the directory's."""
     mine = _sha256(pdf)
     said, unchecked = [], []
     for d, tag in marks:
@@ -88,17 +84,17 @@ def _same_book(pdf: str, marks) -> str:
                     f"sha256 {j[:12]}, а у {pdf} — {mine[:12]}. Нарисованные "
                     f"рамки выглядели бы дефектом модели.")
             if tag not in said:
-                # ОДИН РАЗ НА РАЗМЕТКУ, а не на каждый найденный слепок.
-                # Прежде `said.append` стоял внутри цикла по двум файлам, и
-                # при `manifest.json` и `run.json` в одном каталоге строка
-                # выходила «sha256 сверен для И, М, М».
+                # ONCE PER MARKUP, not per snapshot found. `said.append` used to
+                # sit inside the loop over the two files, and with both
+                # `manifest.json` and `run.json` in one directory the line came
+                # out «sha256 сверен для И, М, М».
                 said.append(tag)
         if len(said) == was:
             unchecked.append(tag)
-    # НЕСВЕРЕННОЕ НАЗЫВАЕТСЯ ВСЛУХ. Прежде печаталось «sha256 сверен для И», и
-    # о том, что «М» не сверен вовсе, не говорилось ни слова: половина
-    # сторожа читалась как весь сторож. Это тот же ноль от непонимания —
-    # «не смотрели» под видом «сошлось».
+    # WHAT WAS NOT CHECKED IS NAMED ALOUD. It used to print «sha256 сверен для
+    # И» and say not a word about «М» being unchecked: half a guard read as the
+    # whole guard. The same zero from not understanding -- "we did not look"
+    # dressed as "it matched".
     ok = f"sha256 сверен для {', '.join(said)}" if said else None
     no = (f"НЕ СВЕРЕН для {', '.join(unchecked)}: слепка рядом нет, про ту "
           f"ли книгу эта разметка — сказать нечем") if unchecked else None
@@ -123,24 +119,22 @@ def _pages(d: str) -> dict:
 
 
 def _pair(truth, model):
-    """Сопоставить рамки одной страницы. Возвращает (пары, лишние_истины,
-    лишние_модели). Совпадение — то же, чем меряет `books score`: иначе лист
-    показывал бы одно, а число говорило другое.
+    """Match one page's boxes: (pairs, truth left over, model left over). The
+    match is what `books score` measures by, or sheet and number say different
+    things.
 
-    СОПОСТАВЛЯЕМ АРТЕФАКТ С АРТЕФАКТОМ, а не всё подряд. `books score` ищет
-    артефакт истины только среди АРТЕФАКТНЫХ рамок модели (проход А), а слепой
-    к ярлыку проход у него служит порядку чтения и тексту, а не итоговой доле.
-    Слепое сопоставление здесь рисовало таблицу, накрытую рамкой `text`, тонким
-    серым «совпало», считало её совпавшей в итоговой строке и не заносило
-    страницу в расхождения — ровно там, где число звало её потерянной: 51
-    артефакт на девяти стендах (33 на annopage, 14 на hard, 2 на matematika, по
-    одному на atlas и hard36), из них 31 таблица, съеденная текстовой рамкой
-    (table->text 17, table->content 13, table->reference 1).
+    ARTEFACT IS MATCHED WITH ARTEFACT. `books score` looks for a truth artefact
+    only among the model's ARTEFACT boxes (pass A); its label-blind pass serves
+    reading order and text, not the final share. Blind matching drew a table
+    covered by a `text` box in thin grey «совпало», counted it matched and kept
+    the page out of the divergences -- where the number called it lost: 51
+    artefacts over nine benches (33 annopage, 14 hard, 2 matematika, one each
+    atlas and hard36), 31 of them tables eaten by a text box (table->text 17,
+    table->content 13, table->reference 1).
 
-    Сторона считается тем же `label in arte`, что и в `compare_pages`, а не
-    через `policy.role`: ярлык, политикой не описанный, обязан вести себя тут
-    ТАК ЖЕ, как в score, иначе лист и число опять разойдутся — теперь на
-    исключении.
+    The side comes from the same `label in arte` as in `compare_pages`, not from
+    `policy.role`: a label the policy does not describe must behave here as it
+    does in score, or sheet and number diverge again, now on the exception.
     """
     from .metrics import _pick, _area
     from . import policy
@@ -149,10 +143,9 @@ def _pair(truth, model):
     for side in (True, False):
         t = [b for b in truth if (b["label"] in arte) == side]
         m = [x for x in model if (x["label"] in arte) == side]
-        # Порядок жадности взят у той же стороны `books score`: артефакты — в
-        # порядке разметки, как в проходе А, остальное — от крупных к мелким,
-        # как в проходе Б. При одном правиле совпадения, но другом порядке
-        # пары расходились бы на спорных местах.
+        # The greed order comes from the same side of `books score`: artefacts
+        # in markup order as in pass A, the rest largest first as in pass B. One
+        # rule with another order would part the pairs on contested places.
         if not side:
             t = sorted(t, key=lambda z: -_area(z["box"]))
         used = set()
@@ -182,43 +175,40 @@ def _label(page, box, k, color, text, above=True):
 
 def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
           log=print) -> dict:
-    """Наложить разметку на страницы PDF, ПОКАЗЫВАЯ РАСХОЖДЕНИЯ.
+    """Lay markup over the PDF pages, SHOWING THE DIVERGENCES.
 
-    `marks` — список пар (каталог, метка). Две разметки сличаются; одна
-    рисуется целиком, потому что сличать не с чем.
+    `marks` is a list of (directory, tag). Two markups are compared; a single
+    one is drawn whole, because there is nothing to compare it with.
 
-    ЧЕГО ИСТИНА НЕ РАЗМЕЧАЕТ, ТО НЕ «ЛИШНЕЕ». Истина объявляет это сама —
-    полем meta «текст размечен»; нет поля — считаем, что размечает. Рамки
-    неразмечаемых разрядов рисуются синим волоском без подписи (синий здесь
-    значит то же, что и у одиночной разметки: сравнивать не с чем) и идут
-    отдельной величиной, а не в «лишних».
+    WHAT TRUTH DOES NOT MARK UP IS NOT "SPURIOUS". Truth declares that itself,
+    by the meta field `text_marked`; no field means it does mark up. Boxes of
+    unmarked classes are drawn as a blue hairline without a caption and go into
+    a quantity of their own, not into "spurious".
 
-    ПРО ЭТО ГОВОРИТСЯ ВСЕГДА, а не только когда такие рамки нашлись. «Вне
-    разметки 0» бывает двух видов: истина текст размечает и лишнего нет —
-    и истина текста не размечает, а модель его не выдала. Молчание здесь
-    выдавало бы второе за первое, то есть ноль от непонимания за ноль от
-    проверки.
+    THIS IS SAID ALWAYS, not only when such boxes turn up. "Outside the markup
+    0" has two kinds: truth marks text up and nothing is extra -- and truth
+    marks no text while the model produced none. Silence passes the second for
+    the first, a zero from not understanding for a zero from a check.
     """
     from . import policy
 
     def role(label: str) -> str:
-        # Неизвестный политике ярлык не прячем: пусть остаётся кричащим.
+        # A label unknown to the policy is not hidden: let it stay loud.
         try:
             return policy.role(label)
         except policy.UnknownLabel:
             return "artifact"
 
     def die(msg: str):
-        """Закрыть документ и упасть СВОИМ сообщением.
+        """Close the document and fail with OUR message.
 
-        Сообщение собирается на стороне вызова — то есть ДО того, как сюда
-        зашли и закрыли документ. Прежде каждая защита писала `doc.close()`
-        строкой выше, чем `raise OverlayError(... doc.page_count ...)`, а
-        pymupdf 1.28.2 обращение к закрытому документу роняет: `page_count`
-        даёт ValueError «document closed», `page.rotation` — AssertionError
-        «page is None». Наружу вылетало это, а не объяснение, и вылетало
-        голым следом стека: в cli.py `overlay.build` ничем не обёрнут.
-        Проверено на всех четырёх защитах, где после close читался документ.
+        The message is built at the call site, BEFORE the document is closed.
+        Guards used to `doc.close()` a line above `raise OverlayError(...
+        doc.page_count ...)`, and pymupdf 1.28.2 throws on a closed document --
+        `page_count` a ValueError "document closed", `page.rotation` an
+        AssertionError "page is None". That flew out instead of the explanation,
+        and as a bare stack trace: `overlay.build` is wrapped in nothing in
+        cli.py. Checked on all four guards that read after closing.
         """
         doc.close()
         raise OverlayError(msg)
@@ -240,22 +230,21 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
 
     counts = {"matched": 0, "missed": 0, "spurious": 0, "outside_markup": 0,
               "pages_without_text_markup": 0, "pages_compared": 0,
-              # ПРОПУСКИ СЧИТАЮТСЯ ПОИМЁННО. Прежде страница, которой нет у
-              # одной из разметок, молча пропускалась обеими ветками
-              # `continue`, и лист выглядел полным. Замер: убрал у модели 3
-              # страницы из 13 на slovar — «НЕ НАШЛА 6» не дрогнуло, а
-              # «расхождений» стало МЕНЬШЕ (10 -> 7), то есть модель на вид
-              # улучшилась оттого, что часть её ответа пропала. `books score`
-              # на том же входе отказывается считать вслух: «модель не
-              # разметила страницы [0, 5, 11]: сверять нечего».
+              # MISSES ARE COUNTED BY NAME. A page absent from one markup used
+              # to be skipped by both `continue` branches in silence, and the
+              # sheet looked complete. Measured: drop 3 pages of 13 from the
+              # model on slovar and «НЕ НАШЛА 6» does not flinch while
+              # divergences get FEWER (10 -> 7) -- the model improved by losing
+              # part of its answer. `books score` on that input refuses to count
+              # aloud: «модель не разметила страницы [0, 5, 11]: сверять нечего».
               "missing_in_truth": [], "missing_in_model": [], "in_neither": 0,
               "pages": []}
-    # ДВЕ ВЕЛИЧИНЫ, и прежде была одна. `drawn` считает РАМКИ (во всех
-    # ветках, и на нём стоит сторож «ни одна не легла»); `sheets` — ЛИСТЫ,
-    # до которых дело дошло. Итог печатал `doc.page_count`, то есть третью
-    # величину: `--pages 102` на золотом стенде давало «листов 600» при одном
-    # нарисованном. Три разные вещи под одним словом — то же самое, что
-    # «глав 0» вместо «я их не узнал».
+    # TWO QUANTITIES, and there used to be one. `drawn` counts BOXES (in every
+    # branch, and the "not one landed" guard stands on it); `sheets` counts the
+    # SHEETS reached. The summary printed `doc.page_count`, a third quantity:
+    # `--pages 102` on the golden bench gave «листов 600» with one drawn. Three
+    # things under one word is the trouble of «глав 0» standing for "I did not
+    # recognise them".
     drawn = 0
     sheets = 0
     for i, page in enumerate(doc):
@@ -267,10 +256,10 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
         page.insert_font(fontname="L", fontfile=FONT)
         p0 = sets[0][0].get(i)
         if p0 is None:
-            # Страницы нет у ПЕРВОЙ разметки. Если её нет и у второй — это
-            # просто лист, которого никто не размечал (обычное дело при
-            # частичном `books detect`). Если у второй она ЕСТЬ — это дыра
-            # именно в первой, и молчать о ней нельзя.
+            # Missing from the FIRST markup. Missing from the second too, it is
+            # a sheet nobody marked up (ordinary with a partial `books detect`).
+            # Present in the second, it is a hole in the first, and silence
+            # about that is not allowed.
             if len(sets) > 1 and sets[1][0].get(i) is not None:
                 counts["missing_in_truth"].append(i)
             else:
@@ -292,39 +281,38 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
         if p1 is None:
             counts["missing_in_model"].append(i)
             continue
-        # Масштаб у КАЖДОЙ разметки свой. Прежде брался коэффициент первой и
-        # молча применялся ко второй: если растр вывода модели отличается от
-        # растра истины хоть на пиксель, рамки ложатся смещёнными, а лист
-        # выглядит убедительно.
+        # EACH MARKUP HAS ITS OWN SCALE. The first one's coefficient used to be
+        # taken and applied to the second in silence: if the model's output
+        # raster differs from truth's by even a pixel, the boxes lie shifted and
+        # the sheet looks convincing.
         if (p1["width"], p1["height"]) != (p0["width"], p0["height"]):
             die(f"страница {i}: растр истины {p0['width']}x{p0['height']}, "
                 f"растр модели {p1['width']}x{p1['height']} — рамки лягут "
                 f"в разных системах координат.")
         sheets += 1
         pairs, lost, extra = _pair(p0["blocks"], p1["blocks"])
-        # Признак берётся у ИСТИНЫ и у каждой страницы свой; нет поля —
-        # размечает, и всё остаётся как было. Своё на каждой странице он не
-        # от педантизма: на стенде hard36 текст размечен на одной странице
-        # из тридцати шести, и признак «на весь стенд» соврал бы про обе
-        # половины сразу.
+        # The sign comes from TRUTH and is per page; no field means it marks up.
+        # Per page is not pedantry: on the hard36 bench text is marked on one
+        # page of thirty-six, and a sign "for the whole bench" would lie about
+        # both halves at once.
         marked = bool((p0.get("meta") or {}).get("text_marked", True))
         counts["pages_compared"] += 1
         counts["pages_without_text_markup"] += 0 if marked else 1
-        # КРИЧИМ ТОЛЬКО НА ТО, ЧТО И ЧИСЛО ЗОВЁТ ЛИШНИМ. Прежде признак был
-        # один — артефактный ли ярлык, — и лист кричал оранжевым на всё
-        # подряд: на золотом стенде 508 рамок, из которых сам `books score`
-        # зовёт лишними 110, а 350 (69%) НАРОЧНО оправдывает — «на объекте вне
-        # замера»: истина сама вывела эти объекты за границу замера, и винить
-        # модель за находку там значило бы наказать её за границу, которую
-        # провели мы. Человек смотрел и выносил модели приговор по числу,
-        # которое прибор рядом опровергает.
+        # WE SHOUT ONLY AT WHAT THE NUMBER ALSO CALLS SPURIOUS. The sign used to
+        # be one -- is the label an artefact -- and the sheet shouted orange at
+        # everything: 508 boxes on the golden bench, of which `books score`
+        # itself calls 110 spurious and DELIBERATELY forgives 350 (69%) as «на
+        # объекте вне замера». Truth put those objects beyond the scored
+        # boundary; blaming the model for a find there punishes it for a line WE
+        # drew, and a person sentenced the model by a number the instrument
+        # beside it refutes.
         #
-        # Правило берётся у `metrics.extra_kind` — ОДНО на лист и на число, а
-        # не второй экземпляр: расхождение двух копий уже стоило проекту
-        # тринадцати имён из семнадцати.
+        # The rule comes from `metrics.extra_kind` -- ONE for sheet and number,
+        # not a second copy: copies drifting apart has already cost this project
+        # thirteen names of seventeen.
         #
-        # Поле «вне замера» до сих пор не читалось здесь НИ РАЗУ, хотя лежит
-        # рядом: непусто на 288 страницах золотого стенда из 600, 904 объекта.
+        # The `out_of_scope` field had NEVER been read here, though it lies
+        # right beside: non-empty on 288 golden-bench pages of 600, 904 objects.
         from .metrics import extra_kind
         from . import policy as _pol
         _arte = set(_pol.artefacts())
@@ -336,11 +324,10 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
         loud, quiet = [], []
         for x in extra:
             if x["label"] in _arte:
-                # `marked` тут не участвует: он про ТЕКСТОВУЮ разметку, а
-                # артефакт размечен всегда. Прежняя дизъюнкция делала его
-                # мёртвым в другую сторону — на золотом стенде «текст
-                # размечен» равно false на 600 страницах из 600, и решал
-                # всегда второй член.
+                # `marked` plays no part here: it is about TEXT markup, and an
+                # artefact is always marked. The old disjunction made it dead
+                # the other way -- on the golden bench `text_marked` is false on
+                # 600 pages of 600, so the second term always decided.
                 kind = extra_kind(x["box"], paired, unpaired, outside, tb)
                 x = dict(x, _trouble=kind)
                 (loud if kind == "spurious_box" else quiet).append(x)
@@ -353,10 +340,10 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
         if lost or loud:
             counts["pages"].append(i)
         for b, x in pairs:
-            # Совпавшую пару рисуем ОДНОЙ тонкой рамкой и без подписи: две
-            # почти совпадающие рамки с двумя подписями над каждой и делали
-            # лист нечитаемым. Ярлык, если он разошёлся, — единственное, что
-            # тут стоит сказать.
+            # A matched pair is drawn as ONE thin box with no caption: two
+            # nearly coincident boxes with two captions over each are what made
+            # the sheet unreadable. The label, where it diverged, is the only
+            # thing worth saying here.
             _rect(page, x["box"], k, MATCHED, 0.7)
             if b["label"] != x["label"]:
                 _label(page, x["box"], k, LABEL,
@@ -367,9 +354,9 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
             _label(page, b["box"], k, NOT_FOUND, f"НЕ НАШЛА  {b['label']}")
             drawn += 1
         for x in quiet:
-            # Тонко, синим и без подписи. Совсем не рисовать нельзя: лист
-            # тогда молчал бы о том, что модель вообще что-то нашла, — и это
-            # был бы ноль от непонимания, выданный за чистую страницу.
+            # Not drawing these at all is not an option: the sheet would say
+            # nothing about the model having found anything -- a zero from not
+            # understanding, passed off as a clean page.
             _rect(page, x["box"], k, ONE, 0.5, dashes="[1 2] 0")
             drawn += 1
         for x in loud:
@@ -383,16 +370,17 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
         die(f"ни одна страница разметки не легла на {pdf}: в PDF "
             f"{doc.page_count} страниц, а индексы разметки другие")
     n = doc.page_count
-    # ВЫХОД НЕСЁТ ТОЛЬКО ЗАПРОШЕННОЕ. Прежде сохранялся весь документ: `--pages
-    # 102` на золотом стенде давал файл 494 МБ — на 417 КБ БОЛЬШЕ исходника, —
-    # и умолчание `--out` клало эти 494 МБ прямо в `bench/annopage/`. `only`
-    # управлял одним лишь циклом рисования. Замер: `doc.select([102])` даёт
-    # 658 КБ за 0.1 с — в 751 раз меньше и в 50 раз быстрее.
+    # THE OUTPUT CARRIES ONLY WHAT WAS ASKED FOR. The whole document used to be
+    # saved: `--pages 102` on the golden bench gave a 494 MB file, 417 KB LARGER
+    # than the source, and the default `--out` put those 494 MB into
+    # `bench/annopage/`. `only` governed the drawing loop alone. Measured:
+    # `doc.select([102])` gives 658 KB in 0.1 s -- 751 times smaller, 50 times
+    # faster.
     #
-    # НУМЕРАЦИЯ ПРИ ЭТОМ СЪЕЗЖАЕТ, и об этом говорится вслух: в выходном файле
-    # запрошенные листы идут подряд с первого. Молчаливый сдвиг номеров в
-    # приборе, которым смотрят глазами, был бы той же бедой, что и сдвиг
-    # `--pages` на единицу, только с другой стороны.
+    # THE NUMBERING SHIFTS BY THIS, said aloud: in the output file the requested
+    # sheets run consecutively from the first. A silent renumbering in an
+    # instrument meant for the eye is the `--pages` off-by-one from the other
+    # side.
     picked = None
     if only is not None and len(only) < n:
         picked = sorted(only)
@@ -400,19 +388,17 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
     doc.save(out, garbage=3, deflate=True)
     doc.close()
     log(note)
-    # «Листов» — НАРИСОВАННЫХ, а не сколько их в PDF. Прежде печаталось
-    # `doc.page_count`: `--pages 102` на золотом стенде давало «листов 600»
-    # при одном нарисованном. Обе величины нужны, и обе названы.
     log(f"{out}: листов нарисовано {sheets} из {n} в книге, рамок {drawn}")
     if picked:
         log(f"  в файл вошли только запрошенные листы, и НУМЕРАЦИЯ В НЁМ "
             f"СВОЯ: лист 1 выхода — это страница {picked[0] + 1} книги"
             + (f", последний — {picked[-1] + 1}" if len(picked) > 1 else ""))
     if len(sets) == 1:
-        # СРАВНИВАТЬ НЕ С ЧЕМ — и это не «совпало 0, НЕ НАШЛА 0, ЛИШНИХ 0».
-        # Прежде печаталось именно так, при нарисованных рамках: три нуля и
-        # «расхождения на 0 страницах» читались как «всё сошлось», хотя
-        # сличения не было вовсе. Ноль от непонимания в итоговой строке.
+        # NOTHING TO COMPARE WITH -- and that is not «совпало 0, НЕ НАШЛА 0,
+        # ЛИШНИХ 0», which is what it used to print with boxes drawn: three
+        # zeros and "divergences on 0 pages" read as "everything agreed" though
+        # no comparison happened. A zero from not understanding, in the summary
+        # line.
         log(f"  одна разметка «{sets[0][1]}»: сличать эти {drawn} рамок НЕ "
             f"С ЧЕМ. Это не «расхождений нет» — второй разметки не подали "
             f"вовсе")
@@ -420,8 +406,8 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
         log(f"  совпало {counts['matched']}, "
             f"НЕ НАШЛА {counts['missed']}, ЛИШНИХ {counts['spurious']}; "
             f"расхождения на {len(counts['pages'])} страницах")
-    # Пропуски — величиной и поимённо, иначе неполный вывод модели выглядит
-    # как чистый лист.
+    # Misses as a quantity and by name, or an incomplete model output looks
+    # like a clean sheet.
     for who, key in (("истины", "missing_in_truth"), ("модели", "missing_in_model")):
         if counts[key]:
             p = counts[key]
@@ -429,9 +415,9 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
                 f"разметки: {p[:8]}{' …' if len(p) > 8 else ''}. Эти листы "
                 f"НЕ сличались, и их рамки в числа выше не вошли — сравнивать "
                 f"лист с числом здесь нельзя")
-    # Величина, а не молчание, и говорится всегда, когда есть неразмечающие
-    # страницы: «ЛИШНИХ 508» без этой строки читалось бы как «весь лист
-    # сверен», хотя текст на этих страницах не сверялся вовсе.
+    # A quantity rather than silence: «ЛИШНИХ 508» without this line would read
+    # as "the whole sheet was checked", though text on these pages was not
+    # checked at all.
     if counts["pages_without_text_markup"]:
         log(f"  текста истина НЕ размечает на "
             f"{counts['pages_without_text_markup']} страницах из "

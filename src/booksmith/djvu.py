@@ -1,76 +1,72 @@
-"""DjVu на входе: развернуть в PDF и разрезать развороты.
+"""DjVu on the way in: unfold to PDF and cut the spreads.
 
-Конвейер умеет читать только PDF, и это правильно: распознаватель рендерит
-страницы сам, а формат исходника его не касается.  Значит djvu надо развернуть
-до прогона — местно, бесплатно и проверяемо глазами, а не на арендованной
-карте, где ошибка стоит денег.
+The pipeline reads only PDF: the recognizer renders the pages itself, so the
+source format is none of its business.  djvu is therefore unfolded before the
+run -- locally, free and checkable by eye, not on a rented card where a mistake
+costs money.
 
-ГЛАВНОЕ, ЧЕГО ЗДЕСЬ НЕЛЬЗЯ ПРОПУСТИТЬ: **сканы книг в djvu часто лежат
-разворотами.**  Из трёх добавленных книг две именно такие: в файле 189 и 381
-«страница», а книжных — 378 и 760 (у второй два листа портретные: 379 x 2 + 2;
-здесь стояло «762» — счёт по всем листам файла, а не по альбомным).  Отдать
-такой файл распознавателю значит велеть ему прочитать две страницы как одну:
-детектор макета увидит две колонки там, где их нет, порядок чтения
-перепутается, а колонцифры двух разных страниц окажутся в одном блоке.
-Проверить это дёшево (посмотреть на страницу), а не проверить — дорого: беда
-выглядит как «модель плохо читает».
+WHAT MUST NOT BE MISSED: **djvu book scans often lie as spreads.**  Two of the
+three books added are such: 189 and 381 "pages" in the file against 378 and 760
+in the book (the second has two portrait sheets: 379 x 2 + 2; it said "762" here,
+a count of every sheet in the file rather than of the landscape ones).  Such a
+file tells the recognizer to read two pages as one: the layout detector sees
+two columns where there are none, the reading order scrambles, and the folios
+of two pages land in one block.  Checking is cheap (look at a page), not
+checking is dear -- the trouble looks like "the model reads badly".
 
-Признак разворота — ширина больше высоты.  Он грубый, но здесь достаточный:
-книжная страница почти всегда выше, чем шире, а разворот почти всегда шире, чем
-выше.  Решение принимается ПО КНИГЕ, а не по странице: если разворотов
-большинство, режем все альбомные, а редкие портретные (обложка, вклейки)
-оставляем целыми.  Наоборот тоже верно — в книге одиночных страниц случайная
-альбомная страница это таблица на всю ширину, и резать её нельзя.
+A spread is recognized by width greater than height: crude, but a book page is
+almost always taller than wide.  The decision is PER BOOK -- if spreads are the
+majority, cut every landscape sheet and leave the rare portrait ones (cover,
+inserts) whole.  The converse holds too: in a book of single pages a stray
+landscape page is a full-width table, and cutting it is forbidden.
 
-Линия реза ищется по чернилам, а не берётся посередине: у сканов разворот
-редко приходится ровно на половину.  Берём столбец с наименьшим количеством
-чернил в средней пятой части листа.  На середину падаем только тогда, когда
-проба слишком узка, чтобы что-то сказать.
-
-А вот если на месте корешка лежит СОДЕРЖИМОЕ — таблица во весь разворот, —
-не режем вовсе и отдаём лист целым.  Прежде здесь стояло обещание «падаем
-обратно на середину, хуже не станет», и оно было ложным дважды: кода отката
-не существовало, а середина при таблице во всю ширину — худшее из мест.
+The cut line is found by ink, not taken at the middle: in scans the gutter
+rarely falls exactly on the half.  We take the column with the least ink in the
+middle fifth of the sheet, and fall back to the middle only when the probe is
+too narrow to say anything.  And if CONTENT lies where the gutter should be --
+a table across the whole spread -- we do not cut at all.  This used to promise a
+"fall back to the middle, no worse than before", false twice over: there was no
+fallback code, and with a full-width table the middle is the worst place there
+is.
 """
 import os
 import re
 import shutil
 import subprocess
 
-MIN_SPREAD_RATIO = 1.15     # шире высоты во столько раз — считаем разворотом
-GUTTER_BAND = 0.20          # где искать линию реза: середина ± десятая часть
-PROBE_DPI = 72              # чернила считаем по уменьшенной странице. БЫЛО 36,
-                            # и при 36 признак НЕРАЗДЕЛИМ НИ ПРИ КАКОМ ПОРОГЕ:
-                            # на 379 разворотах «Справочника» самое чёрное
-                            # место книги 0.109 — клякса скана (разв. 17), — а
-                            # три настоящие таблицы через корешок дают 0.000,
-                            # 0.043 и 0.038, то есть ложное СИЛЬНЕЕ верного.
-                            # При 72 разрыв полный: 0.376 у таблицы (разв. 193)
-                            # и РОВНО 0.000 у всех остальных 378. Цена 15%:
-                            # проба книги 32с -> 37с. Пересборка «Справочника»
-                            # 760 -> 759 страниц (спасён один разворот),
-                            # «Огнеупоров» 378 -> 378 без изменений: там вето
-                            # не срабатывает ни при каком dpi. Проверки в
-                            # tests/test_djvu.py считают шаг ОТ ЭТОЙ ручки, а
-                            # не от числа 36: иначе её нельзя было бы двинуть.
-RULE_BAND = 0.012           # полоса вокруг реза, в долях ширины разворота
-RULE_INK = 96               # насколько тёмен пиксель, чтобы счесть его чернотой
-RULE_RUN = 0.25             # чернота через эту долю ширины разворота — линейка
-                            # Порог стоит В ПРОПАСТИ, и это не «запас 2.3x».
-                            # Прежняя запись мерена при PROBE_DPI = 36 и мерена
-                            # НАД ПРОПУЩЕННЫМ ПОЛОЖИТЕЛЬНЫМ: 0.109 — клякса
-                            # скана, а таблицы через корешок в тот замер не
-                            # попали вовсе, потому что давали ноль. При 72
-                            # величина на 568 разворотах двух книг принимает ДВА
-                            # значения: 0.376 у единственной видимой таблицы
-                            # через корешок и 0.000 у всех прочих 567
-RULE_EDGE = 0.03            # приграничная полоса пробы: чёрная кромка скана, а
-                            # не содержимое. Развёртка по 568 разворотам:
-                            # ложные вето кончаются при отступе в 10 строк из
-                            # 599 (1.67% высоты), ближайшая настоящая линейка
-                            # стоит на 33-й строке (5.5%), и между ними нет НИ
-                            # ОДНОЙ. Порог взят посередине разрыва (в
-                            # логарифме): запас 1.8x в обе стороны
+MIN_SPREAD_RATIO = 1.15     # wider than tall by this much -- call it a spread
+GUTTER_BAND = 0.20          # where to look for the cut: middle ± a tenth
+PROBE_DPI = 72              # ink counted on a reduced page.  IT WAS 36, where
+                            # the signal is INSEPARABLE AT ANY THRESHOLD: over
+                            # 379 spreads of the "Справочник" the blackest place
+                            # in the book is 0.109, a scan blot (spread 17),
+                            # while three real tables across the gutter give
+                            # 0.000, 0.043 and 0.038 -- the false one stronger
+                            # than the true.  At 72 the gap is complete: 0.376
+                            # at the table (spread 193), EXACTLY 0.000 at the
+                            # other 378.  Cost 15%: the book probe 32 s -> 37 s.
+                            # Rebuilt, the "Справочник" went 760 -> 759 pages
+                            # (one spread saved), "Огнеупоры" 378 -> 378 (there
+                            # the veto fires at no dpi).  tests/test_djvu.py
+                            # counts the step FROM THIS KNOB, not from 36, or it
+                            # could not be moved
+RULE_BAND = 0.012           # band around the cut, in fractions of spread width
+RULE_INK = 96               # how dark a pixel must be to count as black
+RULE_RUN = 0.25             # black across this fraction of the width is a rule.
+                            # The threshold stands IN A CHASM, not with "2.3x
+                            # headroom": that old note was measured at
+                            # PROBE_DPI = 36 and OVER A MISSED POSITIVE -- 0.109
+                            # is a scan blot, and the tables across the gutter
+                            # never entered it at all, because they gave zero.
+                            # At 72 the quantity over 568 spreads of two books
+                            # takes TWO values: 0.376 at the one visible table
+                            # across the gutter, 0.000 at the other 567
+RULE_EDGE = 0.03            # border band of the probe: the black edge of the
+                            # scan, not content.  Over 568 spreads false vetoes
+                            # end at an inset of 10 rows out of 599 (1.67% of
+                            # height) and the nearest real rule stands on row 33
+                            # (5.5%), NOT ONE in between; the threshold is the
+                            # middle of that gap (in the log), 1.8x both ways
 
 
 class NoDjvuTools(SystemExit):
@@ -90,7 +86,7 @@ def _tool(name):
 
 
 def pages(path):
-    """Сколько страниц в файле djvu (страниц файла, не книги)."""
+    """How many pages in the djvu file (file pages, not book pages)."""
     out = subprocess.run([_tool("djvused"), "-e", "n", path],
                          capture_output=True, text=True, timeout=120)
     m = re.search(r"\d+", out.stdout)
@@ -100,106 +96,90 @@ def pages(path):
 
 
 def _gutter(page, rect):
-    """Где резать разворот — и резать ли вообще.
+    """Where to cut the spread -- and whether to cut at all.
 
-    Возвращает `None`, если резать нельзя: на месте предполагаемого корешка
-    лежит содержимое, и разрез уничтожит его.
+    Returns `None` when cutting is forbidden: content lies where the gutter was
+    supposed to be, and the cut would destroy it.
 
-    ЧЕГО ЗДЕСЬ НЕ БЫЛО И ЧТО ЭТО СТОИЛО.  Докстринг модуля обещал откат на
-    середину, «если чернил всюду поровну», — а в коде не было НИ ОДНОГО
-    сравнения с порогом: `argmin` возвращал столбец с наименьшими чернилами
-    всегда, то есть при широкой таблице во весь разворот резал её по самому
-    разреженному столбцу.  Замер по рамкам блоков: **439 страниц из 1138
-    разрезанных (38.6%) имеют блок вплотную к резу** (ближе 1% ширины) против
-    **0 из 3740** краёв на трёх нерезаных книгах; таблица вплотную — 165
-    страниц.  Три книги в djvu — это 1693 страницы из 3268, половина
-    библиотеки.
+    WHAT WAS NOT HERE AND WHAT IT COST.  The module docstring promised a
+    fallback to the middle "if the ink is even everywhere"; the code held NOT
+    ONE comparison against a threshold, so `argmin` cut a table across the whole
+    spread along its sparsest column.  Measured over block frames: **439 pages
+    of the 1138 cut (38.6%) have a block flush against the cut** (closer than 1%
+    of width) against **0 of 3740** edges on three uncut books; a table flush
+    against it, 165 pages.  Three djvu books are 1693 pages of 3268, half the
+    library.
 
-    ДВА ПРИЗНАКА, И ОНИ РАЗНЫЕ.  Мало чернил — не значит «здесь корешок»: у
-    таблицы между колонками тоже белые просветы, и порог по чернилам ловит
-    лишь 31% контрольных страниц.  Работает СКВОЗНАЯ ГОРИЗОНТАЛЬНАЯ ЛИНЕЙКА:
-    доля строк, где через выбранный столбец (± полоса) идёт сплошная чернота.
-    У настоящих корешков она почти нулевая (медиана 0.17%, 99-й процентиль
-    0.67%), у страниц, занятых таблицей во всю ширину, — медиана 0.83%.
+    TWO SIGNALS, AND THEY DIFFER.  Little ink is not "the gutter is here" -- a
+    table has white gaps between its columns too, and an ink threshold catches
+    31% of the control pages.  What works is a CONTINUOUS HORIZONTAL RULE: the
+    share of rows where solid black crosses the chosen column (± a band), nearly
+    nil at real gutters (median 0.17%, 99th percentile 0.67%) against a median
+    of 0.83% on pages taken by a full-width table.  The cost is ASYMMETRIC and
+    the threshold follows it: a spurious refusal hands over a two-column spread,
+    pages whole; a cut through a table destroys the numbers for good.
 
-    Цена ошибки НЕСИММЕТРИЧНА, и порог выбран под неё: лишний отказ отдаёт
-    распознавателю двухколоночный разворот — беда поправимая, страницы целы;
-    разрез по таблице уничтожает числа безвозвратно.
+    FIRST CORRECTION.  The first edition declared "a 0.5% threshold catches 84%
+    of the controls while refusing 1-2% of real gutters"; nothing checks that
+    number today, the script that computed it never entered the tree.  On
+    "Огнеупоры" the veto fired on **11 spreads of 189 (5.8%), all eleven
+    false** -- dark rows at probe positions 0..2, the black edge of the scan.
+    Precision 0 of 11.  Not the threshold's fault: the black was the BINDING
+    SHADOW in the top rows of the gutter, and "continuous" the code never
+    checked at all (see `dark_rows`).  The gauge now lives in
+    `tools/spread_probe.py`, so the next claim has a way to fail.
 
-    ПОПРАВКА, И ОНА ЖЕ УРОК.  Первая редакция этого вето объявляла «порог
-    0.5% ловит 84% контрольных при отказе на 1–2% настоящих корешков».
-    Проверить это число сегодня нечем: скрипт, которым его считали, в дерево
-    не попал.  Прогон по живой книге даёт другое: на «Огнеупорах» вето
-    сработало на **11 разворотах из 189 (5.8%)**, и **все одиннадцать ложные**
-    — тёмные строки стояли на позициях 0..2 пробы, то есть это чёрная кромка
-    скана, а не линейка таблицы.  Точность 0 из 11.
+    SECOND CORRECTION.  "Continuous" was not enough.  On the "Справочник по
+    чугунному литью" the veto fired **44 times of 379 spreads (11.6%)** -- 716
+    pages instead of 760 -- and all forty-four false: that scan's BLACK EDGE OF
+    THE SHEET runs 214..782 px at a width of 773..790, 27..100% of the spread,
+    straight through the `RULE_RUN` = 25% threshold.  All 391 continuous rows of
+    the book lie within 8 rows of the edge of the probe (204 on row 0); in the
+    BODY of the sheet, NOT ONE.
 
-    Причина оказалась не в пороге: чернота шла от ТЕНИ ПЕРЕПЛЁТА в верхних
-    строках корешка, а слово «сквозная» код не проверял вовсе — см.
-    `dark_rows`.  Промер, которым это меряется, теперь лежит в
-    `tools/spread_probe.py`: чтобы у следующего утверждения был способ
-    провалиться.
+    THIRD CORRECTION, DEARER THAN BOTH.  It said here that no table in these
+    books runs across the gutter.  FALSE: the "Справочник" has at least three,
+    two of them seen by eye --
 
-    ВТОРАЯ ПОПРАВКА, И ОНА ЖЕ ВТОРОЙ ТОТ ЖЕ УРОК.  Слова «сквозная» оказалось
-    мало.  На «Справочнике по чугунному литью» вето сработало **44 раза из 379
-    разворотов (11.6%)** — пересборка давала 716 страниц вместо 760, — и все
-    сорок четыре ложные.  Чернота у этого скана идёт от ЧЁРНОЙ КРОМКИ ЛИСТА:
-    прогон 214..782 px при ширине 773..790, то есть 27..100% ширины разворота,
-    и порог `RULE_RUN` = 25% она проходит насквозь.  Все 391 сквозная строка
-    книги лежат не дальше 8 строк от края пробы (204 — прямо на строке 0), в
-    ТЕЛЕ листа — НИ ОДНОЙ.
+        spread 49   "Таблица I.38 … алюми|ниевых чугунов …", pp. 98-99, the
+                    heading torn mid-word;
+        spread 193  "Таблица V.13 … покрытий, | поставляемых …", pp. 386-387,
+                    the row `ГП-2 ... 5,5` on the left continuing on the right
+                    as `35  1,30-1,35  20  95  1,0  80`;
+        spread 195  "Таблица V.15 … самотвердеющих | противопригарных …".
 
-    ТРЕТЬЯ ПОПРАВКА, И ОНА ДОРОЖЕ ДВУХ ПЕРВЫХ.  Здесь стояло «ни одна таблица
-    в этих книгах через корешок не идёт».  Это НЕВЕРНО.  В «Справочнике по
-    чугунному литью» их по меньшей мере три, и на две посмотрели глазами:
+    -- and the claim came FROM THE SILENCE OF THE INSTRUMENT, silent for a
+    reason of its own: at PROBE_DPI = 36 these gave 0.000, 0.043 and 0.038,
+    below the scan blot.  A zero from not understanding written down as a zero
+    from a check.  Hence the knob at 72.
 
-        разв. 49   «Таблица I.38. Характерные отливки из конструкционных
-                   алюми|ниевых чугунов и применяемые для них составы [27]»,
-                   стр. 98-99 — заголовок разорван посреди слова;
-        разв. 193  «Таблица V.13. Составы и свойства водных противопригарных
-                   покрытий, | поставляемых в виде паст и порошкообразных
-                   композиций», стр. 386-387 — строка `ГП-2 ... 5,5` слева
-                   продолжается справа `35  1,30-1,35  20  95  1,0  80`;
-        разв. 195  «Таблица V.15. Примеры составов самовысыхающих и
-                   самотвердеющих | противопригарных покрытий».
+    TWO OF THE THREE ARE CAUGHT AT NO THRESHOLD, and that must not be kept
+    quiet.  At 72 dpi spread 193 gives 0.376 and stays whole; 49 and 195 give
+    0.000 and are cut, because there EACH HALF CARRIES ITS OWN CLOSED FRAME --
+    rules stop against it and only the torn TEXT of the heading crosses.  The
+    signal is blind to them by construction and the other one is not written, so
+    the count reads "1 of 3 known caught", not "0 false".
 
-    Утверждение было выведено ИЗ МОЛЧАНИЯ ПРИБОРА, а прибор молчал по своей
-    причине: при PROBE_DPI = 36 они давали 0.000, 0.043 и 0.038 — ниже кляксы
-    скана.  Ноль от непонимания записали как ноль от проверки, ровно тот
-    случай, о котором предупреждает CLAUDE.md.  Отсюда ручка и поднята до 72.
+    POSITION SEPARATES THEM NOW, not length.  The scan edge lies at the edge of
+    the sheet, a table rule in the body, and the gap between them is measured:
+    false vetoes end at an inset of 1.67% of height (10 rows of 599), the
+    nearest real rule stands at 5.5% (row 33), and over 379 spreads there is no
+    black in between.  On the other two books the nearest rule is further still:
+    8.1% ("Кристаллизация", 555 scans) and 7.7% ("Биохимия").  `RULE_EDGE` = 3%
+    is the middle of that gap, and the gauge self-check reddens at a shift in
+    BOTH directions.
 
-    ДВА ИЗ ТРЁХ НЕ ЛОВЯТСЯ НИ ПРИ КАКОМ ПОРОГЕ, и молчать об этом нельзя.
-    При 72 dpi разв. 193 даёт 0.376 и остаётся целым, а разв. 49 и 195 дают
-    0.000 и режутся.  Причина видна глазами: у этих двух КАЖДАЯ ПОЛОСА НЕСЁТ
-    СВОЮ ЗАМКНУТУЮ РАМКУ, линейки упираются в неё и корешок не пересекают —
-    через корешок идёт только разорванный ТЕКСТ заголовка.  Признак «сплошная
-    чернота через корешок» к ним слеп по построению; поймать их можно лишь
-    другим признаком, и он не написан.  Счёт вето поэтому читается «поймано 1
-    из 3 известных», а не «ложных 0».
-
-    ЧТО РАЗЛИЧАЕТ ТЕПЕРЬ — ПОЛОЖЕНИЕ, а не длина.  Кромка скана лежит У КРАЯ
-    ЛИСТА, линейка таблицы — в теле страницы, и между ними измеренный разрыв:
-    ложные вето кончаются при отступе в 1.67% высоты (10 строк из 599),
-    ближайшая настоящая линейка стоит на 5.5% (33-я строка), а в промежутке
-    нет ни одного блока черноты на 379 разворотах.  На двух других книгах
-    ближайшая линейка ещё дальше от края: 8.1% («Кристаллизация», 555 сканов)
-    и 7.7% («Биохимия»).  Порог `RULE_EDGE` = 3% взят посередине разрыва, и
-    самопроверка промера краснеет от сдвига в ОБЕ стороны — иначе его можно
-    было бы двигать в удобную сторону сколько угодно.
-
-    И ВЕЛИЧИНА ДРУГАЯ.  Прежде мерилась ДОЛЯ СКВОЗНЫХ СТРОК от высоты пробы
-    против `RULE_MAX` = 0.005 — на пробе в 599 строк это «три строки и ни
-    строкой меньше».  Величина грубо квантованная, и решала она одной строкой:
-    из 379 разворотов **63 стояли ровно на двух сквозных строках, 39 — ровно
-    на трёх**, то есть 102 (27%) решались одной строкой.  Хуже того, решала
-    ВЫСОТА СКАНА: при трёх строках 3/599 = 0.005008 — вето, а 3/601 = 0.004992
-    — нет, и восемь разворотов из тех тридцати девяти уцелели только потому,
-    что скан вышел на две строки выше.  И ещё: настоящая линейка на 36 dpi
-    занимает ОДНУ строку (703 блока из 882 в «Справочнике», медиана 1), то
-    есть порог «три строки» по настоящей линейке не сработал бы никогда.
-    Теперь меряется длина самой длинной черноты через корешок в теле листа, в
-    долях ширины, — величина непрерывная, от высоты пробы не зависящая и
-    толщине линейки безразличная.
+    AND THE QUANTITY IS ANOTHER.  It was the share of continuous rows in the
+    probe height against `RULE_MAX` = 0.005 -- on a 599-row probe "three rows and
+    not one fewer", so coarse that one row decided: of 379 spreads **63 stood at
+    exactly two continuous rows, 39 at exactly three**, 102 (27%) hanging on
+    one.  The SCAN HEIGHT decided too -- 3/599 = 0.005008 vetoes,
+    3/601 = 0.004992 does not, and eight of those thirty-nine survived only
+    because the scan came out two rows taller -- while a real rule at 36 dpi
+    occupies ONE row (703 blocks of 882 in the "Справочник", median 1), so
+    "three rows" would never have fired on one.  Now the longest black across
+    the gutter in the body of the sheet is measured, in fractions of width:
+    continuous, independent of probe height, indifferent to rule thickness.
     """
     import pymupdf
     pix = page.get_pixmap(dpi=PROBE_DPI, colorspace=pymupdf.csGRAY, clip=rect)
@@ -223,7 +203,7 @@ def _gutter(page, rect):
 
 
 def _run_len(pix, x, y):
-    """Длина непрерывного чёрного прогона по горизонтали через точку (x, y)."""
+    """Length of the continuous black run horizontally through (x, y)."""
     data, row = pix.samples, y * pix.stride
     if 255 - data[row + x] < RULE_INK:
         return 0
@@ -237,13 +217,13 @@ def _run_len(pix, x, y):
 
 
 def dark_runs(pix, x):
-    """Тёмные строки через столбец `x`: список (строка, длина прогона).
+    """Dark rows through column `x`: a list of (row, run length).
 
-    Строка идёт в счёт, только если чернота держится через всю полосу
-    `RULE_BAND` вокруг `x`.  Без этого условия в счёт попал бы прогон, целиком
-    лежащий по одну сторону от корешка, — то есть линейка таблицы на ОДНОЙ
-    странице разворота, которая разрезу не мешает вовсе: таких линеек в
-    «Справочнике» 659 блоков против нуля пересекающих корешок.
+    A row counts only if the black holds across the whole `RULE_BAND` around
+    `x`.  Without that condition a run lying entirely on one side of the gutter
+    would count -- a table rule on ONE page of the spread, which does not hinder
+    the cut at all: 659 such blocks in the "Справочник" against zero crossing
+    the gutter.
     """
     half = max(1, int(pix.width * RULE_BAND / 2))
     lo, hi = max(0, x - half), min(pix.width, x + half + 1)
@@ -256,30 +236,29 @@ def dark_runs(pix, x):
 
 
 def dark_rows(pix, x):
-    """Тёмные строки через столбец `x`, разделённые на сквозные и короткие.
+    """Dark rows through column `x`, split into continuous and short.
 
-    Возвращает (сквозные, короткие).  Обе величины, а не только итог: без
-    второй нельзя отличить «линеек нет» от «чернота была и вся оказалась
-    короткой», а это разные ответы.
+    Returns (continuous, short).  Both, not just the total: without the second,
+    "there are no rules" cannot be told from "there was black and all of it
+    short", and those are different answers.
 
-    ЧТО РАЗЛИЧАЕТ И ПОЧЕМУ ИМЕННО ЭТО.  Докстринг вето обещал «сквозную
-    горизонтальную линейку», а код проверял полосу шириной около пяти
-    пикселей — то есть слова «сквозная» не проверял вовсе.  Оттого в вето
-    попадала ТЕНЬ ПЕРЕПЛЁТА: у сканов разворота верхние строки корешка
-    чернее всего, и пятно там сплошное на всю узкую полосу.  Тень переплёта
-    — улика корешка, прямо противоположная по смыслу тому, что вето ищет.
+    WHAT SEPARATES THEM AND WHY THIS.  The veto docstring promised a "continuous
+    horizontal rule" while the code checked a band about five pixels wide -- it
+    never checked "continuous" at all.  So the BINDING SHADOW got into the veto:
+    in spread scans the top rows of the gutter are the blackest of all and the
+    blot there is solid across the whole narrow band, evidence OF a gutter and
+    the exact opposite of what the veto looks for.  Measured on "Огнеупоры", all
+    11 false vetoes: a black run of 8..29 px at a probe width of 344..356,
+    **3.5-8.1% of the spread width**, while a rule crossing the gutter runs
+    through both pages and takes tens of percent.  `RULE_RUN` = 25% stands three
+    times above that noise.
 
-    Замер на «Огнеупорах», все 11 ложных вето: прогон черноты 8..29 px при
-    ширине пробы 344..356, то есть **3.5–8.1 % ширины разворота**.  Линейка,
-    пересекающая корешок, идёт через обе страницы и занимает десятки
-    процентов.  Порог `RULE_RUN` = 25 % стоит втрое выше того шума.
-
-    ДЛИНЫ ОДНОЙ, ОДНАКО, НЕ ХВАТИЛО, и это разряд, который здесь НЕ считается:
-    ГДЕ строка лежит.  У «Справочника» чёрная кромка листа даёт прогон в
-    27..100 % ширины и проходит порог насквозь — 391 сквозная строка на 379
-    разворотов, все у края.  Отсекает их `gutter_rule`, а не эта функция:
-    промеру нужны обе величины сырыми, иначе он перестанет показывать, что
-    именно случилось на листе.
+    LENGTH ALONE WAS NOT ENOUGH, and the class this does NOT count is WHERE the
+    row lies: in the "Справочник" the black edge of the sheet runs 27..100% of
+    the width and passes the threshold clean through -- 391 continuous rows over
+    379 spreads, all at the edge.  `gutter_rule` cuts those off, not this
+    function: the gauge needs both quantities raw, or it stops showing what
+    happened on the sheet.
     """
     full_width, short = [], []
     need = pix.width * RULE_RUN
@@ -289,31 +268,31 @@ def dark_rows(pix, x):
 
 
 def body_band(pix):
-    """Границы ТЕЛА листа: (первая строка, за последней).
+    """Bounds of the sheet BODY: (first row, one past the last).
 
-    Приграничные строки пробы вырезаны: там лежит чёрная кромка скана.  Полоса
-    отмеряется от высоты пробы, а не в пикселях, — иначе она поехала бы вслед
-    за `PROBE_DPI`, а кромка привязана к листу, не к разрешению.
+    The border rows of the probe are cut away: the black edge of the scan lies
+    there.  The band is measured off the probe height rather than in pixels --
+    otherwise it would drift after `PROBE_DPI`, while the edge is tied to the
+    sheet, not to the resolution.
     """
     edge = int(pix.height * RULE_EDGE)
     return edge, pix.height - edge
 
 
 def gutter_rule(pix, x):
-    """Самая длинная чернота через корешок В ТЕЛЕ листа, в долях ширины.
+    """The longest black across the gutter IN THE BODY of the sheet, in
+    fractions of width.
 
-    Ноль здесь значит «в теле листа черноты через корешок не нашлось», и это
-    не тот же ноль, что «чернота была, да вся на кромке»: второй виден по
-    `dark_rows`, и промер печатает оба.
+    Zero means "no black across the gutter was found in the body", and that is
+    not the zero of "there was black, all of it on the edge": the second is
+    visible through `dark_rows`, and the gauge prints both.
 
-    Величина НЕПРЕРЫВНАЯ, и это главное её свойство.  Прежняя — доля сквозных
-    строк от высоты пробы — квантовалась шагом 1/599 при пороге 0.005, то есть
-    решала «три строки и ни строкой меньше»: 102 разворота из 379 стояли в
-    одной строке от порога, а восемь решались тем, вышел скан в 599 строк или
-    в 601.  Здесь у порога `RULE_RUN` = 0.25 запас не «2.3x», а разрыв: на 568
-    разворотах двух книг величина принимает 0.376 у одного разворота и ровно
-    0.000 у остальных 567, промежуточных нет.  Прежняя запись про 0.109 мерена
-    при `PROBE_DPI` = 36 и мерена над кляксой скана, а не над линейкой.
+    The quantity is CONTINUOUS, and that is the point of it.  The old one, the
+    share of continuous rows in the probe height, was quantized in steps of
+    1/599 at a threshold of 0.005 -- see `_gutter` for what one row decided
+    there.  Here `RULE_RUN` = 0.25 has not "2.3x" of headroom but a chasm: over
+    568 spreads of two books the quantity is 0.376 at one spread and exactly
+    0.000 at the other 567, with nothing in between.
     """
     lo, hi = body_band(pix)
     runs = [ln for y, ln in dark_runs(pix, x) if lo <= y < hi]
@@ -321,7 +300,7 @@ def gutter_rule(pix, x):
 
 
 def _forced_gutter(page, rect):
-    """Рез по чернилам без вето — для `--split yes`."""
+    """Cut by ink with no veto -- for `--split yes`."""
     import pymupdf
     pix = page.get_pixmap(dpi=PROBE_DPI, colorspace=pymupdf.csGRAY, clip=rect)
     if pix.width < 8:
@@ -340,21 +319,20 @@ def _forced_gutter(page, rect):
 
 
 def to_pdf(src, dst=None, split="auto", log=print):
-    """Развернуть djvu в PDF, разрезав развороты.
+    """Unfold djvu into PDF, cutting the spreads.
 
-    `split`: `auto` — решать по книге, `yes` — резать все альбомные, `no` — не
-    резать вовсе.  Возвращает путь к готовому PDF.
+    `split`: `auto` decides per book, `yes` cuts every landscape sheet, `no`
+    does not cut at all.  Returns the path to the finished PDF.
 
-    Готовый файл не переделываем: развёртка идёт минуты, а вызывают её и
-    `books prepare`, и рука.
-
-    ЧЕМ СВЕЖЕСТЬ МЕРИТСЯ.  Одного времени изменения мало, и это проверено:
-    при явном `--out` файл, собранный из ДРУГОЙ книги, отдавался как готовый,
-    а `--split yes` поверх уже развёрнутого `--split no` не делал ровно
-    ничего — режим в проверку не входил, и флаг был украшением. Поэтому в
-    метаданные готового PDF пишется, из чего и как он собран, и сверяется
-    именно это. Старый файл без метки считается несвежим: пересобрать минуту
-    дешевле, чем отдать не ту книгу.
+    A finished file is not redone: unfolding takes minutes, and both `books
+    prepare` and a hand call it.  Modification time alone is not enough to call
+    it finished, and that is tested: with an explicit `--out` a file built from
+    ANOTHER book came back as ready, and `--split yes` over an already unfolded
+    `--split no` did nothing at all -- the mode was not part of the check, so the
+    flag was decoration.  The PDF now carries in its metadata what it was built
+    from and how, and that is what is compared; a file with no mark counts as
+    stale, a minute of rebuilding being cheaper than handing back the wrong
+    book.
     """
     import pymupdf
 
@@ -399,17 +377,17 @@ def to_pdf(src, dst=None, split="auto", log=print):
         if cut and r.width > r.height * MIN_SPREAD_RATIO:
             x = _gutter(page, r)
             if x is None and split == "yes":
-                # `yes` — воля оператора, и она сильнее вето: докстринг
-                # обещает «резать все альбомные», а вето молча оставляло
-                # книгу неразрезанной вопреки явно заданному режиму.
-                # Единственный способ его перебить, иначе флаг — украшение.
+                # `yes` is the operator's will, and it beats the veto: the
+                # docstring promises "cut every landscape sheet", while the veto
+                # silently left the book uncut against an explicitly given mode.
+                # The only way to override it, or the flag is decoration.
                 x = _forced_gutter(page, r)
                 forced.append(page.number + 1)
             if x is None:
-                # На месте корешка лежит содержимое: разворот занят таблицей
-                # во всю ширину.  Отдаём его распознавателю целым — он
-                # прочтёт две колонки хуже, чем две страницы, но прочтёт;
-                # разрезанная таблица не восстанавливается ничем.
+                # Content lies where the gutter should be: the spread is
+                # taken by a full-width table.  We hand it to the recognizer
+                # whole -- it will read two columns worse than two pages, but it
+                # will read them; a cut table is restored by nothing.
                 spared.append(page.number + 1)
             else:
                 halves = [pymupdf.Rect(r.x0, r.y0, x, r.y1),
@@ -418,8 +396,8 @@ def to_pdf(src, dst=None, split="auto", log=print):
             np = out.new_page(width=h.width, height=h.height)
             np.show_pdf_page(np.rect, doc, page.number, clip=h)
             made += 1
-    # ДО save, а не после: метаданные, поставленные после записи, на диск не
-    # попадают вовсе, и проверка свежести тихо перестаёт работать.
+    # BEFORE save, not after: metadata set after the write never reaches the
+    # disk at all, and the freshness check quietly stops working.
     out.set_metadata({"keywords": mark})
     out.save(dst, garbage=3, deflate=True)
     out.close()
@@ -429,8 +407,8 @@ def to_pdf(src, dst=None, split="auto", log=print):
         log(f"разрезано вопреки вето (--split yes): {len(forced)}, "
             f"листы {forced[:12]}" + (" …" if len(forced) > 12 else ""))
     if spared:
-        # Число, а не «готово»: по нему видно, разумно ли вето сработало.
-        # Много отказов на книге сплошной прозы — признак сбитого порога.
+        # A number, not "done": it shows whether the veto fired sensibly.
+        # Many refusals on a book of solid prose signal a broken threshold.
         log(f"не разрезано (содержимое на линии реза): {len(spared)} "
             f"из {wide}, листы {spared[:12]}"
             + (" …" if len(spared) > 12 else ""))

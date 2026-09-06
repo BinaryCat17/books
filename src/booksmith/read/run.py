@@ -1,47 +1,44 @@
-"""`books read` — второй уровень: пройти книгу и заполнить содержимое блоков.
+"""`books read` -- second level: walk the book and fill in block content.
 
-ПРОДУКТ — ТОТ ЖЕ `pages/*.json`, ЧТО У ДЕТЕКЦИИ, и это главное решение здесь.
-Не новый формат, а тот же самый: те же рамки, те же ярлыки, тот же порядок,
-только `content` и `kind` заполнены. Отсюда всё остальное достаётся даром и
-проверено по коду, а не обещано:
+THE PRODUCT IS THE SAME `pages/*.json` AS DETECTION, and that decision carries
+the file: same boxes, labels and order, with `content` and `kind` filled in.
+Everything downstream then costs nothing, and it is code, not a promise:
 
-    books html  — печатает <p> при непустом `content` У ТЕКСТОВОГО блока,
-                  картинку иначе. Здесь стояло, что это верно для всех
-                  блоков, — неверно: артефакт рисуется картинкой независимо
-                  от содержимого (`if role == "артефакт" or not b.content`),
-                  и это ВЕРНО по замыслу. Замена артефакта обязана быть
-                  обратимой и записанной в журнал, а пересборка книги журнала
-                  не знает. Прочитанные таблицы и формулы ставит
-                  `books apply --from`, по одной и с откатом
-    books text  — `measure(truth_dir, pages_dir)` читает ровно такой каталог
-    books score, books fitness, books overlay, books replay — тоже
+    books html  -- <p> when a TEXT block has content, an image otherwise. An
+                   artefact stays an image whatever its content (`if role ==
+                   "artifact" or not b.content`), by design: a swap must be
+                   reversible and journalled, and a rebuild knows nothing of
+                   the journal. Read tables and formulas go in through
+                   `books apply --from`, one at a time and undoable
+    books text  -- `measure(truth_dir, pages_dir)` reads exactly this directory,
+                   and so do books score, fitness, overlay and replay
 
-Всякий свой формат стоил бы шести переходников. Их здесь нет.
+A format of our own would have cost six adapters.
 
-НАБЛЮДЁННОЕ ЖИВЁТ СБОКУ. `content` несёт БАЙТЫ МОДЕЛИ и ничего больше.
-Секунды, токены, причина остановки, догадка о виде, отказ доставки — всё в
-`answers/*.json` рядом, связано с блоком по якорю. Правило проекта, и оно уже
-стоило девяти пропусков из тридцати трёх, когда пометки дописывались в текст.
+WHAT IS OBSERVED LIVES BESIDE. `content` carries THE MODEL'S BYTES and nothing
+more; seconds, tokens, finish reason, kind guess and delivery refusal go to
+`answers/*.json`, tied to the block by its anchor. The rule cost nine misses
+out of thirty-three when marks were written into the text instead.
 
-ЧТО ЗДЕСЬ ОБЯЗАНО ПАДАТЬ ВСЛУХ, А НЕ МОЛЧАТЬ:
+WHAT MUST FAIL ALOUD ON THIS PATH:
 
-  * ярлык, которому чтец не назначил маршрута (`Reader.cover`) — иначе класс
-    новых весов поехал бы не тем промтом и записался чтением;
-  * адрес, отвечающий ЧУЖИМ именем модели (`Transport.check`) — иначе слепок
-    назовёт одну модель при ответах другой;
-  * ноль блоков к чтению — пустой прогон не должен выглядеть успешным;
-  * каталог детекции без `run.json` или с чужими страницами;
-  * PDF, чей sha256 разошёлся со слепком детекции: рамки считаны по одному
-    файлу, а режем из другого.
+  * a label the reader routes nowhere (`Reader.cover`): a new weights class
+    would ride the wrong prompt and be filed as reading;
+  * an endpoint answering with ANOTHER model's name (`Transport.check`): the
+    snapshot would name one model while another answered;
+  * zero blocks to read -- an empty run must not look successful;
+  * a detection directory with no `run.json`, or with another book's pages;
+  * a PDF whose sha256 differs from the detection snapshot: boxes measured on
+    one file, crops cut from another.
 
-ПЯТЬ РАЗНЫХ НУЛЕЙ, И ОНИ СЧИТАЮТСЯ ПОРОЗНЬ. Слить их значит напечатать
-«прочитано 0» там, где смысл каждый раз другой:
+FIVE DIFFERENT ZEROS, COUNTED APART. Merged, they all print "прочитано 0"
+while meaning something different every time:
 
-    не спрошено       — маршрут пуст с объявленной причиной (рисунки)
-    отказ доставки    — ответа не было вовсе: обрыв, таймаут, код не 200
-    модель промолчала — ответ пришёл, а в нём пусто
-    оборвано потолком — `finish="length"`; порванный OTSL выглядит целым
-    прочитано         — единственный случай, когда `content` непуст
+    not asked        -- route empty with a declared reason (figures)
+    delivery failed  -- no answer at all: broken link, timeout, not 200
+    model silent     -- an answer came, and it was empty
+    hit the ceiling  -- `finish="length"`; torn OTSL looks whole
+    read             -- the only case where `content` is non-empty
 """
 import glob
 import json
@@ -58,9 +55,9 @@ from ..doc import crop
 from ..models.base import Page
 from ..run import knobs, stamp
 
-# Реестр чтецов. Объявлен списком по той же причине, что и реестр детекторов:
-# пока имя модели зашито в импорт, вопрос «а не лучше ли другая» нельзя даже
-# поставить. Новый чтец — строка здесь и один файл рядом с моделью.
+# Reader registry, a list for the same reason the detector one is: while a
+# model name is wired into an import, "would another be better" cannot even be
+# asked. A new reader is a line here and one file beside the model.
 READERS = ("paddleocr-vl",)
 
 
@@ -80,14 +77,13 @@ def build_reader(policy_name: str) -> Reader:
 
 
 def _sniff(text: str) -> str:
-    """ДОГАДКА о виде ответа. Живёт СБОКУ и ничего не решает.
+    """A GUESS at the kind of answer. Lives BESIDE and decides nothing.
 
-    Вид содержимого объявляет ПРОМТ (см. `read/__init__.py`), а не ответ:
-    нюхать его значило бы чинить модель — таблица, отданная прозой, молча
-    переехала бы в разряд текста, и ошибка ЯРЛЫКА при верной рамке
-    растворилась бы в «модель так читает». Поэтому догадка не подменяет
-    объявленное, а лишь ложится рядом; её расхождение с объявленным — именной
-    счётчик, по которому и станет видно, что пора менять объявление.
+    The PROMPT declares the kind (`read/__init__.py`), not the answer: sniffing
+    it would be fixing the model -- a table returned as prose would slip into
+    text, and a LABEL error on a correct box dissolve into "that is how the
+    model reads". Where guess and declaration disagree, that is a named counter,
+    and it is what shows the declaration itself needs changing.
     """
     if not text:
         return "empty"
@@ -96,12 +92,12 @@ def _sniff(text: str) -> str:
         return "otsl"
     if "<table" in t.lower() or "<td" in t.lower():
         return "html"
-    # ЛАТЕХ УЗНАЁТСЯ ШИРЕ, чем по трём приметам. Замер прежней редакции: из
-    # восьми правдоподобных ответов модели на формулу шесть объявлялись
-    # «text» (`x^{2}+y^{2}=z^{2}`, `\\alpha + \\beta`, `\\sum_{i=1}^{n} a_i`,
-    # `A_{ij} = B_{ij}`), и счётчик «вид не тот, что обещан» рос на каждой
-    # формуле, требуя поменять ВЕРНОЕ объявление. Прибор, врущий в сторону
-    # тревоги, ничем не лучше врущего в сторону покоя.
+    # LATEX IS RECOGNISED WIDER than by three tells. Measured on the previous
+    # edition: of eight plausible answers to a formula, six came out `text`
+    # (`x^{2}+y^{2}=z^{2}`, `\\alpha + \\beta`, `\\sum_{i=1}^{n} a_i`,
+    # `A_{ij} = B_{ij}`), and "kind not as promised" grew on every formula,
+    # demanding a change to a CORRECT declaration. An instrument that lies
+    # towards alarm is no better than one lying towards calm.
     if (t.startswith("$") or re.search(r"\\[A-Za-z]{2,}", t)
             or re.search(r"[_^]\{", t) or re.search(r"[A-Za-z0-9)\]]\^[A-Za-z0-9{]", t)):
         return "latex"
@@ -110,49 +106,45 @@ def _sniff(text: str) -> str:
 
 def crop_dpi_for(box, page_dpi: float, native: float | None,
                  window, sheet=None) -> tuple[float, str]:
-    """Какой резкостью резать ИМЕННО ЭТОТ блок, и почему именно такой.
+    """What resolution to cut THIS block at, and why that one.
 
-    ПРАВИЛО, А НЕ ЧИСЛО. Столько, сколько в скане ЕСТЬ (`native`), но не
-    больше, чем модель съест (`window` — её собственные границы). Ни одна из
-    трёх величин не выбрана нами: резкость приходит от скана, границы от
-    модели, размер рамки от детектора.
+    A RULE, NOT A NUMBER. As much as the scan HAS (`native`), no more than the
+    model eats (`window`, its own bounds). None of the three is ours: sharpness
+    comes from the scan, bounds from the model, box size from the detector.
 
-    Почему не «побольше»: выше своей решётки прибавляются не чернила, а
-    догадка растеризатора, и модель всё равно ужмёт вырезку обратно — мы
-    платили бы вдвое за то, чтобы сжать выдуманное. Почему не «поменьше»:
-    замер на `bench/slovar` при резкости детекции — 555 вырезок из 566 ниже
-    нижней границы модели, то есть в девяти случаях из десяти она растягивала
-    наши чернила сама.
+    Not more: above its own grid what gets added is the rasteriser's guess, not
+    ink, and the model shrinks the crop back anyway -- paying twice to compress
+    an invention. Not less: on `bench/slovar` at detection resolution 555 crops
+    of 566 fall below the model's lower bound, so nine times in ten it stretched
+    our ink itself.
 
-    ВВЕРХ ВЫШЕ СВОЕЙ РЕШЁТКИ НЕ ПОДНИМАЕМСЯ НИКОГДА, даже когда блок мельче
-    нижней границы. Поднять значило бы выдумать точки и назвать это чтением;
-    вместо этого случай считается числом («мельче окна модели»), и пусть его
-    объяснит стенд.
+    AND NEVER ABOVE THE GRID even when the block is smaller than the lower
+    bound: that would be inventing dots and calling it reading. The case
+    becomes a number (`below_model_min`) for the bench to explain.
     """
     base = float(native or page_dpi)
     if not window:
-        return base, "своя резкость скана (границ модели нет)"
+        return base, "native_scan_dpi_no_model_bounds"
     lo, hi = window
-    # СЧИТАЕМ ПО ТОМУ, ЧТО ВПРАВДУ ВЫРЕЖЕТСЯ. Рамка модели может вылезти за
-    # лист, а `crop.cut` режет ПЕРЕСЕЧЕНИЕ с ним; считая резкость по полной
-    # рамке, мы зажимали бы её под размер, которого на бумаге нет, и сильно
-    # вылезшая рамка получала бы резкость НИЖЕ той, что позволяет окно модели.
-    # На стенде таких рамок 28 из 33 640 и вылеты не больше 4.8 пикселя, так
-    # что настоящими данными это пока не поймано — но правило должно считать по
-    # тому же прямоугольнику, по которому режет, иначе два числа разойдутся
-    # молча и без предупреждения.
+    # COUNT BY WHAT WILL ACTUALLY BE CUT. A model box can hang off the sheet and
+    # `crop.cut` cuts the INTERSECTION; sizing by the full box clamps the crop to
+    # a size that is not on paper, and a badly overhanging box then gets LESS
+    # resolution than the model's window allows. On the bench that is 28 boxes of
+    # 33 640, overhangs no larger than 4.8 pixels -- real data has not caught it
+    # yet, but the rule must measure the rectangle it cuts, or two numbers drift
+    # apart in silence.
     x0, y0, x1, y1 = box
     if sheet is not None:
         sx0, sy0, sx1, sy1 = sheet
         x0, y0 = max(x0, sx0), max(y0, sy0)
         x1, y1 = min(x1, sx1), min(y1, sy1)
-    w = (x1 - x0) / page_dpi                  # дюймы
+    w = (x1 - x0) / page_dpi                  # inches
     h = (y1 - y0) / page_dpi
     if w <= 0 or h <= 0:
         return base, "native_scan_dpi"
     at_base = w * base * h * base
     if at_base > hi:
-        # Ужать до верхней границы модели: всё, что сверх, она выбросит сама.
+        # Down to the model's upper bound: it discards the excess itself.
         return (hi / (w * h)) ** 0.5, "downscaled_to_model_max"
     if at_base < lo:
         return base, "below_model_min"
@@ -160,7 +152,8 @@ def crop_dpi_for(box, page_dpi: float, native: float | None,
 
 
 def _gen_params() -> dict:
-    """Параметры порождения. Уезжают в слепок целиком, полем «порождение»."""
+    """Generation parameters. They ride into the snapshot whole, as
+    `generation`."""
     return {"temperature": float(knobs.knob("VLM_TEMPERATURE")),
             "max_tokens": int(knobs.knob("VLM_MAX_TOKENS")),
             "top_p": float(knobs.knob("VLM_TOP_P")),
@@ -181,13 +174,13 @@ def _detect_facts(detect_dir: str) -> dict:
 def read_book(detect_dir: str, out_dir: str, reader: Reader,
               transport: Transport, resume: bool = True,
               pages_want=None, log=log, pdf: str | None = None) -> dict:
-    """Пройти книгу и заполнить содержимое блоков. Возвращает величины.
+    """Walk the book and fill in block content. Returns quantities.
 
-    `pdf` — где книга лежит СЕЙЧАС. Слепок детекции хранит путь, по которому
-    её читали, и на арендованной машине этого пути нет: каталог там свой, а
-    файл приезжает под именем `input.pdf`. Поэтому путь можно назвать, а вот
-    СВЕРКА sha256 остаётся обязательной при любом пути — она про то, та ли это
-    книга, а не про то, где она лежит.
+    `pdf` is where the book lies NOW. The detection snapshot keeps the path it
+    was read at, and on a rented machine that path does not exist: the working
+    directory is its own and the file arrives as `input.pdf`. So the path may be
+    given; the sha256 CHECK stays mandatory whatever it is, being about which
+    book this is, not where it lies.
     """
     import pymupdf
 
@@ -207,10 +200,10 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
     if not files:
         raise SystemExit(f"в {detect_dir} нет страниц — сначала books detect")
 
-    # ЧУЖИЕ СТРАНИЦЫ ОТ ПРОШЛОЙ КНИГИ. Каталог `out` собирается руками и
-    # переиспользуется; страница `0007.json` от другой книги пережила бы
-    # прогон и уехала в `books html`, `books text` и `books score` как часть
-    # этой. Шапка обещала падать на таком, и не падала.
+    # ANOTHER BOOK'S PAGES. The `out` directory is assembled by hand and reused;
+    # `0007.json` from a different book would survive the run and ride into
+    # `books html`, `books text` and `books score` as part of this one. The
+    # header promised a failure on that, and there was none.
     _pages_dir = os.path.join(out_dir, "pages")
     if os.path.isdir(_pages_dir):
         mine_ = {os.path.basename(f) for f in files}
@@ -228,7 +221,7 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
     os.makedirs(crops_dir, exist_ok=True)
 
     routes = reader.routes()
-    # Полнота маршрутов — ДО первого цента и до первой вырезки.
+    # Route completeness BEFORE the first cent and the first crop.
     labels = set()
     pages = []
     for fp in files:
@@ -244,18 +237,18 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
 
     params = _gen_params()
     window = reader.pixels()
-    # ЧЕМ ЧИТАЛИ В ПРОШЛЫЙ РАЗ. Возобновление обязано сверять это, а не только
-    # наличие файла. Замер до сверки: сменить модель, потолок токенов или
-    # промты — и ни один блок не переспрашивался, а `run.json` объявлял НОВЫЕ
-    # величины действующими. То есть слепок «полон и недействующий» — ровно та
-    # болезнь, которой посвящены шапки этого файла и `read/__init__.py`.
-    # Вдобавок единственная запись о том, за что заплачено (секунды, токены),
-    # затиралась вторым, бесплатным запуском.
+    # WHAT WE READ WITH LAST TIME. Resuming must compare this, not merely that a
+    # file exists. Measured before the comparison: change the model, the token
+    # ceiling or the prompts and not one block was re-asked, while `run.json`
+    # declared the NEW values in force -- a snapshot "complete and not in
+    # effect", the disease this header is written against. And the only record of
+    # what was paid for (seconds, tokens) was overwritten by the second, free
+    # run.
     setup = {"reader": reader.fingerprint(), "generation": params,
              "transport": {k: v for k, v in transport.fingerprint().items()
-                           # адрес меняется от прогона к прогону (порт
-                           # подставного сервера, петля на боксе) и ответ
-                           # модели не решает; имя модели — решает.
+                           # the address moves from run to run (stand-in server
+                           # port, a loopback on the box) and does not decide
+                           # the model's answer; the model name does.
                            if k in ("transport", "model_asked")}}
     setup_path = os.path.join(out_dir, "read_with.json")
     same_setup = True
@@ -271,26 +264,23 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
     with open(setup_path, "w", encoding="utf-8") as f:
         json.dump(setup, f, ensure_ascii=False, indent=1)
     doc = pymupdf.open(pdf)
-    # СОБСТВЕННАЯ РЕЗКОСТЬ — ПО КАЖДОЙ СТРАНИЦЕ, а не по первой на всю книгу.
+    # OWN RESOLUTION PER PAGE, not the first page's for the whole book.
     #
-    # Здесь стояло «по первой, и её довольно: лист у книги один и тот же», а
-    # рядом довод «считать по каждой значило бы звать `get_images` на шестистах
-    # страницах». Оба неверны, и оба опровергнуты замером.
+    # The sheet is NOT one and the same: "Фейнмановские лекции" carry 255
+    # distinct sheet sizes over 260 pages, "Технология огнеупоров" 178 over 378.
     #
-    # Лист НЕ один и тот же: у «Фейнмановских лекций» 255 разных размеров листа
-    # на 260 страниц, у «Технологии огнеупоров» — 178 на 378.
+    # Per page costs nothing: the answer is memoised here, one `get_images` per
+    # page rather than per block. The 15 601 calls against 600 pages that made
+    # this "saving" negative were `crop.cut` asking `native_dpi` on every block
+    # and dropping the answer; it stopped asking once `dpi` is passed, which on
+    # this path it always is.
     #
-    # Считать по каждой ничего не стоит, потому что это УЖЕ делается: `crop.cut`
-    # зовёт `native_dpi(doc[page_index])` на КАЖДОМ блоке и ответ выбрасывает —
-    # на стенде это 15 601 вызов вместо шестисот. Экономия была не только
-    # ложной, но и отрицательной.
-    #
-    # Цена ошибки замерена. У «Фейнмана» страницы 0-2 векторные (титул), а
-    # 257 из 260 несут растр 300 dpi. Резкость первой страницы — `None`, и вся
-    # книга резалась при 144: пикселей 15.1 млн вместо 59.0 млн, чернил 2.69
-    # млн вместо 9.38 млн (3.89x и 3.49x), а вырезок мельче нижней границы
-    # модели 125 из 177 вместо 79. Книга такая одна из девяти — но именно она
-    # и показывает, что правило «по первой» держалось на совпадении.
+    # The price of the error is measured. Feynman pages 0-2 are vector (the
+    # title) and 257 of 260 carry a 300 dpi raster; the first page's resolution
+    # is `None`, so the whole book was cut at 144: 15.1 million pixels instead
+    # of 59.0, 2.69 million of ink instead of 9.38 (3.89x and 3.49x), 125 crops
+    # of 177 below the model's lower bound instead of 79. One book in nine, and
+    # the one showing that "by the first page" rested on a coincidence.
     native_of = {}
 
     def _native(i):
@@ -304,12 +294,12 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
              "not_asked": 0, "read": 0, "model_silent": 0,
              "delivery_failed": 0, "hit_ceiling": 0,
              "kind_not_as_promised": 0, "reused_from_previous_run": 0,
-             # ШЕСТОЙ НОЛЬ, и у него до сих пор не было имени. Транспорт может
-             # вернуть ответ с ЧУЖИМ якорем (спутанный порядок, шлюз,
-             # переписавший запрос), и тогда блок оставался без записи вовсе:
-             # ни один из пяти счётчиков не шевелился, `answers/` был пуст,
-             # `content` пуст, а деньги за ответ уплачены. Замер: три ответа с
-             # чужими якорями дали «сумма исходов 0 при блоках 3».
+             # THE SIXTH ZERO, nameless until now. The transport can return an
+             # answer under SOMEONE ELSE'S anchor (shuffled order, a gateway
+             # that rewrote the request), and the block was then left without
+             # any record: none of the five counters moved, `answers/` empty,
+             # `content` empty, the answer paid for. Measured: three answers
+             # with foreign anchors gave "sum of outcomes 0 with 3 blocks".
              "answer_wrong_anchor": 0, "asked_no_answer": 0,
              "crop_failed": 0, "crop_dpi_reason_counts": {},
              "native_book_dpi": native,
@@ -340,7 +330,7 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
                 tally["reused_from_previous_run"] += 1
                 continue
             rel = os.path.join(crops_dir, f"{anchor}.png")
-            # Лист в пикселях ТОГО ЖЕ растра, в котором лежат рамки.
+            # The sheet in pixels of THE SAME raster the boxes live in.
             _r = doc[pg.index].rect
             sheet = (0.0, 0.0, _r.width * page_dpi / 72.0,
                      _r.height * page_dpi / 72.0)
@@ -350,22 +340,22 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
             tally["crop_dpi_reason_counts"][why] = (
                 tally["crop_dpi_reason_counts"].get(why, 0) + 1)
             try:
-                # ВОЗВРАТ НЕ ВЫБРАСЫВАЕТСЯ. `crop.cut` считает ширину, высоту,
-                # «срезано листом» и ЧЕСТНЫЙ dpi (тот, которым резали, а не тот,
-                # который просили), а этот проход их терял: про вырезку,
-                # уехавшую в модель обкусанной краем листа, в `answers/` не было
-                # ни слова. Замер: срезано листом 28 из 15 601 рамки стенда
-                # (0.18%), но на настоящем скане 8 из 177 — 4.5%.
+                # THE RETURN IS NOT THROWN AWAY. `crop.cut` reports width,
+                # height, `clipped_by_sheet` and the HONEST dpi (cut at, not
+                # asked for), and this pass used to lose them: about a crop that
+                # went to the model bitten off by the sheet edge, `answers/`
+                # said nothing. Measured: clipped by sheet 28 of 15 601 bench
+                # boxes (0.18%), but 8 of 177 on a real scan -- 4.5%.
                 cut_info[anchor] = crop.cut(doc, pg.index, b.box, page_dpi,
                                             rel, dpi=cdpi)
             except (ValueError, IndexError, RuntimeError) as e:
-                # РАМКУ МОДЕЛИ НЕ ЧИНИМ, но и книгу из-за неё не бросаем.
-                # Вырожденная рамка, рамка за листом, страница за пределами
-                # PDF — дефекты модели или чужого каталога, и прежде каждый из
-                # них ронял прогон голой трассой НА СЕРЕДИНЕ книги: всё уже
-                # прочитанное оставалось без слепка, то есть деньги уплачены, а
-                # предъявить нечего. Теперь это ВЕЛИЧИНА со своим счётчиком, и
-                # прогон идёт дальше.
+                # THE MODEL'S BOX IS NOT REPAIRED, nor is the book abandoned over
+                # it. A degenerate box, a box off the sheet, a page beyond the
+                # PDF are defects of the model or of a foreign directory, and
+                # each used to drop the run with a bare traceback MID-BOOK:
+                # everything already read left without a snapshot, money spent
+                # and nothing to show. Now it is a QUANTITY with a counter and
+                # the run goes on.
                 tally["crop_failed"] += 1
                 bad_crops.append(f"{anchor}: {type(e).__name__}: {e}")
                 nocrop[anchor] = f"{type(e).__name__}: {e}"
@@ -385,9 +375,9 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
                         continue
                     said[s.anchor] = s
 
-        # Собираем страницу. Порядок блоков — исходный, а не порядок ответов:
-        # при VLM_CONCURRENCY > 1 ответы приходят вразнобой, и складывать по
-        # приходу значило бы молча переставить книгу.
+        # Assemble the page. Block order is the ORIGINAL one, not the order the
+        # answers came in: with VLM_CONCURRENCY > 1 they arrive shuffled, and
+        # filing by arrival would silently reorder the book.
         answers = []
         for b in pg.blocks:
             anchor = f"{tag}-b{b.block_id}"
@@ -397,8 +387,8 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
                 answers.append({"anchor": anchor, "not_asked": silent[anchor]})
                 continue
             if anchor in nocrop:
-                # Блок НЕ спрашивали: вырезать было нечего. Это не «спросили, а
-                # ответа нет» — иначе одна беда считалась бы двумя.
+                # The block was NOT asked: there was nothing to cut. This is not
+                # "asked and no answer" -- one trouble would count as two.
                 b.content, b.kind = None, "none"
                 answers.append({"anchor": anchor,
                                 "crop_failed": nocrop[anchor]})
@@ -408,8 +398,9 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
             else:
                 s = said.get(anchor)
                 if s is None:
-                    # Спрашивали, а ответа под этим якорем нет. Молчать нельзя:
-                    # блок ушёл бы из книги и из `answers/` без единой записи.
+                    # Asked, and no answer under this anchor. Silence is not
+                    # allowed: the block would leave the book and `answers/`
+                    # without a single record.
                     tally["asked_no_answer"] += 1
                     b.content, b.kind = None, "none"
                     answers.append({"anchor": anchor,
@@ -417,13 +408,14 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
                                             "не пришло"})
                     continue
                 rec = s.to_json()
-                rec["label"] = b.label          # чей это блок — видно в ответе
+                rec["label"] = b.label
                 if anchor in cut_dpi:
-                    # dpi берётся ИЗ ВЫРЕЗКИ, а не из правила: `crop.cut`
-                    # рендерит при `int(dpi)`, а правило даёт дробное, и
-                    # запись `round` расходилась с делом у 328 рамок из 379.
-                    # Расхождение стоит одного dpi (0.13% ширины) — но число в
-                    # журнале обязано быть тем, которым резали.
+                    # dpi comes FROM THE CROP, not from the rule: `crop.cut`
+                    # renders at `int(dpi)` while the rule gives a fraction,
+                    # and the recorded `round` disagreed with the deed on 328
+                    # boxes of 379. The disagreement is worth one dpi (0.13% of
+                    # width) -- but the number in the journal must be the one it
+                    # was cut at.
                     info = cut_info.get(anchor) or {}
                     rec["observed"]["crop_dpi"] = info.get(
                         "dpi", cut_dpi[anchor][0])
@@ -432,11 +424,11 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
                     rec["observed"]["crop_dpi_reason"] = cut_dpi[anchor][1]
                     rec["observed"]["crop"] = info or None
                 rec["observed"]["kind_sniffed"] = _sniff(s.text or "")
-                # СЧЁТ РВАНОСТИ OTSL — сбоку, у ответа. Прежде `otsl.parse`
-                # считал строки разной длины, продолжения в никуда и текст
-                # мимо тегов, и всё это выбрасывалось: ни один прогон не мог
-                # напечатать числа, ради которых отличают порванную по потолку
-                # таблицу от целой. Теперь они лежат рядом с ответом.
+                # OTSL TORNNESS IS COUNTED BESIDE the answer. `otsl.parse`
+                # already counted rows of unequal length, continuations to
+                # nowhere and text outside the tags, and threw it all away: no
+                # run could print the numbers that tell a table torn at the
+                # ceiling from a whole one.
                 if rt.kind == "otsl" and s.text:
                     g, t = otsl.parse(s.text)
                     rec["observed"]["otsl_grid"] = t
@@ -454,7 +446,7 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
             else:
                 tally["read"] += 1
                 tally["chars"] += len(txt)
-                # БАЙТЫ МОДЕЛИ, без единой правки. Вид — объявленный промтом.
+                # THE MODEL'S BYTES, unedited. The kind is the prompt's.
                 b.content, b.kind = txt, rt.kind
                 by_kind[rt.kind] = by_kind.get(rt.kind, 0) + 1
                 if rec["observed"].get("kind_sniffed") not in (rt.kind, None):
@@ -462,11 +454,11 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
             if rec.get("outcome") == "length":
                 tally["hit_ceiling"] += 1
                 worst.append(anchor)
-            # СЧИТАЕМ ТОЛЬКО НАСТОЯЩИЕ ВОПРОСЫ. Прежде сюда попадали и блоки,
-            # взятые из прошлого прогона: `books read` вторым разом печатал
-            # «спрошено 567» при НУЛЕ обращений к службе, и на это же число
-            # делились «секунды на блок». Две величины с одним именем
-            # расходились по построению.
+            # ONLY REAL QUESTIONS COUNT. Blocks taken from a previous run landed
+            # here too: a second `books read` printed «спрошено 567» with ZERO
+            # calls to the service, and "seconds per block" divided by that same
+            # number. Two quantities under one name, drifting apart by
+            # construction.
             if anchor in asked_now:
                 tally["asked"] += 1
 
@@ -492,7 +484,7 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
 
 
 def report(t: dict, log=log) -> None:
-    """Величины, а не «готово». Пять нулей печатаются порознь."""
+    """Quantities, not "done". The five zeros are printed apart."""
     log(f"страниц {t['page_count']}, блоков {t['block_count']}: спрошено "
         f"{t['asked']}, не спрошено {t['not_asked']}")
     if t["reused_from_previous_run"]:
@@ -504,8 +496,9 @@ def report(t: dict, log=log) -> None:
         f"{t['native_book_dpi'] and round(t['native_book_dpi']) or '—'} dpi, "
         f"окно модели {t['model_window'] or 'не объявлено'}; "
         f"{t['crop_dpi_reason_counts'] or '—'}")
-    # Пять бед печатаются ВСЕГДА, в том числе нулями: строка, исчезающая при
-    # нуле, читается как «такого не бывает», а не как «в этот раз не было».
+    # The five troubles are printed ALWAYS, zeros included: a line that
+    # disappears at zero reads as "this never happens" rather than "it did not
+    # happen this time".
     log(f"  модель промолчала {t['model_silent']}, отказов доставки "
         f"{t['delivery_failed']}, оборвано потолком {t['hit_ceiling']}, "
         f"ответ мимо якоря {t['answer_wrong_anchor']}, спрошено без ответа "
@@ -533,13 +526,13 @@ def report(t: dict, log=log) -> None:
 
 
 def _repeat_line(detect_dir: str, out_dir: str, args: dict) -> str:
-    """Строка повтора. ИСПОЛНИМАЯ и ПОЛНАЯ.
+    """The repeat line. EXECUTABLE and COMPLETE.
 
-    Без `--pages` и `--policy` она повторяет ДРУГОЙ прогон: у `books detect`
-    `--pages` в повторе есть, и расхождение двух команд тут ничем не оправдано.
-    Экранирование обязательно: в `raw/` пять файлов из девяти несут пробелы и
-    скобки, и неэкранированная строка повтора — не строка повтора, а её
-    описание.
+    Without `--pages` and `--policy` it repeats a DIFFERENT run; `books detect`
+    puts `--pages` into its own, and two commands disagreeing here is
+    indefensible. Quoting is mandatory: five files of nine in `raw/` carry
+    spaces and brackets, and an unquoted repeat line is not a repeat line but a
+    description of one.
     """
     argv = ["books", "read", detect_dir, "--out", out_dir]
     if args.get("pages"):
@@ -551,7 +544,8 @@ def _repeat_line(detect_dir: str, out_dir: str, args: dict) -> str:
 
 def snapshot(detect_dir: str, out_dir: str, reader: Reader,
              transport: Transport, tally: dict, args: dict) -> str:
-    """Слепок входа: те же поля, что у детекции, и наконец непустые «промты»."""
+    """Input snapshot: the same fields as detection, and at last a non-empty
+    `prompts`."""
     facts = _detect_facts(detect_dir)
     read_knobs = {**{n: "адаптер чтения" for n in reader.knobs_read()},
                   **{n: "transport" for n in transport.knobs_read()}}
@@ -561,7 +555,7 @@ def snapshot(detect_dir: str, out_dir: str, reader: Reader,
         "raster": facts["raster"],
         "args": args,
         "commit": stamp.commit(),
-        # Книга та же, что у детекции, и хэш сверен ДО работы (см. read_book).
+        # The same book as detection, hash checked BEFORE the work (read_book).
         "source": facts["source"],
         "detection": {"dir": os.path.abspath(detect_dir),
                      "commit": facts.get("commit"),
@@ -575,9 +569,9 @@ def snapshot(detect_dir: str, out_dir: str, reader: Reader,
                     "sha256_command": stamp.sha256(
                         os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                      "run.py")),
-                    # Разбор OTSL — НАШ код, и он решает числа не меньше
-                    # модели. Без его хэша два прогона с разным разбором
-                    # выглядели бы одинаковыми.
+                    # OTSL parsing is OUR code and decides the numbers no less
+                    # than the model does. Without its hash two runs with
+                    # different parsers would look identical.
                     "sha256_otsl_parser": stamp.sha256(
                         os.path.join(os.path.dirname(os.path.dirname(
                             os.path.abspath(__file__))), "otsl.py"))},
@@ -587,18 +581,15 @@ def snapshot(detect_dir: str, out_dir: str, reader: Reader,
         "packages": stamp.packages(stamp.READ_PACKAGES),
         "weights": {"vl": reader.fingerprint().get("weights"),
                  "layout": facts.get("weights", {}).get("layout")},
-        # ОТПЕЧАТОК — ЭТО ОТПЕЧАТОК ЧТЕЦА, без обёртки. `run/replay.py`
-        # выводит требуемую форму разбором метода `fingerprint()` активного
-        # адаптера и ищет её поля прямо здесь; вложенный «чтец» давал шесть
-        # строк «нет отпечаток/промты», то есть слепок объявлялся НЕПОЛНЫМ,
-        # хотя всё было записано. Транспорт — своим полем: он не адаптер
-        # модели, и смешивать их значило бы объявить два отпечатка одним.
+        # THE FINGERPRINT IS THE READER'S, unwrapped. `run/replay.py` derives the
+        # required shape from the active adapter's `fingerprint()` and looks for
+        # its fields right here; nested under a "reader" key they gave six lines
+        # of "no fingerprint/prompts" -- the snapshot declared INCOMPLETE while
+        # everything was written. The transport gets its own field: it is no
+        # model adapter, and mixing them declares two fingerprints one.
         "fingerprint": reader.fingerprint(),
         "transport_fingerprint": transport.fingerprint(),
         "summary": tally,
-        # Строка обязана быть ИСПОЛНИМОЙ и полной: без `--pages` и `--policy`
-        # она повторяет ДРУГОЙ прогон. У `books detect` `--pages` в повторе
-        # есть, и расхождение двух команд тут ничем не оправдано.
         "repeat_command": _repeat_line(detect_dir, out_dir, args),
     }
     p = os.path.join(out_dir, "run.json")
@@ -608,28 +599,27 @@ def snapshot(detect_dir: str, out_dir: str, reader: Reader,
 
 
 def _knobs_snapshot(read_by_adapter) -> dict:
-    """Ручки с пометкой, кто их читает. Форма — общая с детекцией.
+    """Knobs marked with who reads them. Shape shared with detection.
 
-    Разделение не украшение: слепок, где все ручки лежат в одной куче, ПОЛОН
-    и недействующий. Прогон heron клялся `LAYOUT_MODEL_NAME=PP-DocLayoutV2` —
-    величиной, которой этот адаптер не читает вовсе, — и `books replay
-    --check` это одобрял.
+    The split is not decoration: a snapshot with every knob in one heap is
+    COMPLETE and not in effect. A heron run swore `LAYOUT_MODEL_NAME=
+    PP-DocLayoutV2` -- a value that adapter does not read at all -- and `books
+    replay --check` approved it.
     """
-    # `CROP_DPI` ЗДЕСЬ НЕТ, и это не забывчивость. Путь чтения её не читает
-    # вовсе: резкость каждой вырезки решает `crop_dpi_for` (скан плюс окно
-    # модели), а `crop.cut` зовётся с явным `dpi=`. Проверено: `CROP_DPI=72` и
-    # `CROP_DPI=1200` не меняют вырезку `books read` ни на пиксель, тогда как
-    # `books html` и `books feed` слушаются. Объявить её действующей значило бы
-    # повторить болезнь, против которой этот самый слепок и написан: прогон
-    # heron клялся `LAYOUT_MODEL_NAME`, которого не читает.
+    # `CROP_DPI` IS ABSENT HERE, and not out of forgetfulness. The reading path
+    # does not read it at all: each crop's resolution is decided by
+    # `crop_dpi_for` (scan plus model window), and `crop.cut` is called with an
+    # explicit `dpi=`. Checked: `CROP_DPI=72` and `CROP_DPI=1200` do not move a
+    # `books read` crop by a pixel, while `books html` and `books feed` obey it.
+    # Declaring it in force would repeat the disease above.
     mine = ("VLM_READER", "VLM_TRANSPORT", "VLM_CONCURRENCY",
             "VLM_TEMPERATURE", "VLM_MAX_TOKENS", "VLM_TOP_P", "VLM_SEED",
             "CROP_MARGIN", "PAGE_DPI")
-    # РАЗРЕЗ «ЧТО ПРОСИМ / КАК ДОСТАВЛЯЕМ» ЖИВ И В СЛЕПКЕ. Прежде роли
-    # складывались в один кортеж и всем ставилось «адаптер чтения» — то есть
-    # `VLM_ENDPOINT`, `VLM_RETRIES` и `VLM_TIMEOUT_S`, которые читает
-    # транспорт, приписывались модели. Разрез, ради которого написан весь
-    # `read/__init__.py`, в слепке стирался.
+    # THE "WHAT WE ASK / HOW WE DELIVER" SEAM LIVES IN THE SNAPSHOT TOO. Roles
+    # used to be folded into one tuple with «адаптер чтения» on all of them --
+    # so `VLM_ENDPOINT`, `VLM_RETRIES` and `VLM_TIMEOUT_S`, read by the
+    # transport, were credited to the model. The seam the whole of
+    # `read/__init__.py` exists for was erased in the snapshot.
     roles = dict(read_by_adapter)
     for n in mine:
         roles.setdefault(n, "сама команда `books read`")

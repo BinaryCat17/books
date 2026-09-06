@@ -272,7 +272,7 @@ def test_crop_dpi_takes_the_ink_that_exists_and_invents_none():
     assert abs(px - W[1]) < 1 and why == "downscaled_to_model_max", (d, why, px)
     # границ модель не объявила — режем своей резкостью и ничего не правим
     d, why = crop_dpi_for((0, 0, 540, 700), 144.0, 601.0, None)
-    assert d == 601.0 and "границ модели нет" in why, (d, why)
+    assert d == 601.0 and why == "native_scan_dpi_no_model_bounds", (d, why)
 
 
 def test_nesting_survives_blocks_without_a_model_rank():

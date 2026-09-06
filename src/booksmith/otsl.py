@@ -1,63 +1,64 @@
-"""OTSL: разбор табличной разметки, которой отвечают модели чтения.
+"""OTSL: parsing the table markup the reading models answer in.
 
-ЗАЧЕМ ОТДЕЛЬНЫЙ ФАЙЛ, А НЕ ДВЕ СТРОКИ В `text.py`. Разбор ответа — НАШ код, а
-не модельный, и вопрос «почему число плохое» обязан иметь три раздельных
-ответа: модель промолчала / наш разбор не сложился / знаки не те. Пока разбор
-живёт внутри прибора, третий ответ съедает второй.
+WHY A FILE OF ITS OWN AND NOT TWO LINES IN `text.py`. Parsing the answer is OUR
+code, not the model's, and "why is the number bad" must have three separate
+answers: the model stayed silent / our parse did not come together / the
+characters are wrong. While the parse lives inside the instrument, the third
+answer swallows the second.
 
-ЧЕМ ЭТО ОПЛАЧЕНО, И ЦЕНА ИЗМЕРЕНА. `text.py` объявлял `kind="otsl"` годным
-видом ответа для таблицы, а сетку разбирал ТОЛЬКО из HTML. Замер на
-`bench/slovar` (2 таблицы, 227 ячеек), одна и та же БЕЗОШИБОЧНО прочитанная
-таблица, поданная двумя видами:
+WHAT PAID FOR IT, PRICE MEASURED. `text.py` declared `kind="otsl"` a valid kind
+of answer for a table while building the grid ONLY from HTML. Measured on
+`bench/slovar` (2 tables, 227 cells), one and the same FLAWLESSLY read table
+fed in two kinds:
 
-    ответ в HTML: совпало по адресу 227 (100%), CER ячеек 0.0000, отдана текстом 0
-    ответ в OTSL: совпало по адресу   0 (0%),   CER ячеек 1.0000, отдана текстом 2
+    answer in HTML: matched by address 227 (100%), cell CER 0.0000, as text 0
+    answer in OTSL: matched by address   0 (0%),   cell CER 1.0000, as text 2
 
-То есть безупречное чтение PaddleOCR-VL — а она отдаёт таблицы именно в
-OTSL — получало ноль и обвинение «таблица отдана прозой». Обвинение модели в
-дефекте нашего разбора; ровно то, ради невозможности чего в проекте заведено
-правило «модель никто не чинит», прочитанное с другого конца.
+Impeccable reading by PaddleOCR-VL -- which returns tables in exactly OTSL --
+scored zero and was accused of "the table came back as prose": the model blamed
+for a defect of our parse, the rule "nobody repairs the model" read from the
+other end.
 
-ЧТО ТАКОЕ OTSL. Последовательность тегов, по одному на клетку сетки, плюс
-перевод строки. Девять имён, и они не наши — это словарь `docling_core`
-(`types/doc/tokens.py`), которым пользуются и PaddleOCR-VL, и docling:
+WHAT OTSL IS. A sequence of tags, one per grid cell, plus a line break. Nine
+names, not ours -- the `docling_core` vocabulary (`types/doc/tokens.py`), used
+by PaddleOCR-VL and docling alike:
 
-    <fcel>  клетка с содержимым          <ched>  клетка шапки столбца
-    <ecel>  клетка пустая                <rhed>  клетка шапки строки
-    <lcel>  продолжение соседа СЛЕВА     <srow>  клетка строки-раздела
-    <ucel>  продолжение соседа СВЕРХУ
-    <xcel>  продолжение и слева, и сверху
-    <nl>    конец строки
+    <fcel>  cell with content            <ched>  column header cell
+    <ecel>  empty cell                   <rhed>  row header cell
+    <lcel>  continuation of the LEFT     <srow>  section-row cell
+    <ucel>  continuation of the ABOVE
+    <xcel>  continuation of both
+    <nl>    end of row
 
-Текст клетки — всё, что стоит МЕЖДУ её тегом и следующим тегом, побайтово.
+A cell's text is everything BETWEEN its tag and the next one, byte for byte.
 
-СКВОЗНАЯ КЛЕТКА ЗАНИМАЕТ ВСЕ СВОИ АДРЕСА, а не один. Правило взято у
-`text._TableHTML`, разбирающего `colspan`/`rowspan`, и взято НАРОЧНО: иначе
-сдвиг строки в таблице со сквозной шапкой сравнивался бы с пустотой и «падал»
-по другой причине, чем объявлено пробой, а прибор печатал бы верное число из
-неверных соображений.
+A SPANNING CELL OCCUPIES ALL ITS ADDRESSES, not one. The rule comes from
+`text._TableHTML`, which parses `colspan`/`rowspan`, and comes DELIBERATELY:
+otherwise a row shift in a table with a spanning header would be compared
+against emptiness and "fail" for a different reason than the probe declares --
+a right number out of wrong reasoning.
 
-ЧЕГО ЭТОТ РАЗБОР НЕ ДЕЛАЕТ. Он не чинит рваный OTSL. Строка короче соседей,
-`<lcel>` в первом столбце, `<ucel>` в первой строке — всё это остаётся как
-есть и считается СЧЁТЧИКОМ (`tally`), а не выравнивается. Вендорский
-`otsl_pad_to_sqr_v2` поступает наоборот — молча дополняет и укорачивает, — и
-именно поэтому порванная по потолку ответа таблица возвращается у него
-правдоподобной. Здесь она остаётся порванной и видной.
+WHAT THIS PARSE DOES NOT DO: repair torn OTSL. A row shorter than its
+neighbours, `<lcel>` in the first column, `<ucel>` in the first row all stay as
+they are and become a COUNTER (`tally`) instead of being levelled. The vendor's
+`otsl_pad_to_sqr_v2` does the opposite, padding and truncating in silence, which
+is exactly why a table torn at the answer ceiling comes back plausible from it.
+Here it stays torn and visible.
 """
 import html as _html
 import re
 
-# Девять имён словаря docling_core. Список ОБЪЯВЛЕН поимённо, а не выведен
-# правилом «всё, что похоже на <?cel>»: десятое имя новых весов должно быть
-# видно как незнакомое, а не разобрано наугад.
-CONTENT = ("fcel", "ched", "rhed", "srow")   # клетка несёт свой текст
-EMPTY = ("ecel",)                            # клетка пуста, и это значение
-SPAN = ("lcel", "ucel", "xcel")              # клетка — продолжение соседа
+# The nine `docling_core` names. DECLARED one by one rather than derived by a
+# rule "anything shaped like <?cel>": the tenth name of new weights must show up
+# as unknown, not be parsed on a guess.
+CONTENT = ("fcel", "ched", "rhed", "srow")   # the cell carries its own text
+EMPTY = ("ecel",)                            # the cell is empty, and that is a value
+SPAN = ("lcel", "ucel", "xcel")              # the cell continues a neighbour
 BREAK = ("nl",)
-# Клетки ШАПКИ — по словарю модели, а не по номеру строки. Отдельный список,
-# а не проверка `name in ("ched", "rhed")` внутри перевода: имена словаря
-# объявляются в одном месте, иначе десятое имя новых весов придётся искать по
-# всему файлу.
+# HEADER cells by the model's vocabulary, not by row number. A list rather than
+# a `name in ("ched", "rhed")` inside the translation: vocabulary names are
+# declared in one place, or the tenth name of new weights has to be hunted
+# through the whole file.
 HEADER = ("ched", "rhed")
 TAGS = CONTENT + EMPTY + SPAN + BREAK
 
@@ -65,14 +66,14 @@ _TOK = re.compile(r"<(" + "|".join(TAGS) + r")>")
 
 
 def looks_like(s) -> bool:
-    """Похоже ли это на OTSL вообще. Дешёвая проверка ДО разбора.
+    """Does this look like OTSL at all. A cheap check BEFORE parsing.
 
-    ОДНОГО ТЕГА МАЛО, и это не строгость ради строгости. Проза с одиноким
-    `<lcel>` (а модель, спрошенная про таблицу, вполне может ответить прозой,
-    помянув тег) разбиралась в сетку 1x1 из пустоты, и блок переставал
-    считаться «отданным текстом» — то есть терялся счётчик дорогого дефекта,
-    у которого структуру не восстановить. Таблица без единого `<nl>` — это не
-    таблица; таблица из одной клетки — тоже повод усомниться.
+    ONE TAG IS NOT ENOUGH, and not out of pedantry. Prose with a lone `<lcel>`
+    -- and a model asked about a table may well answer in prose, mentioning a
+    tag -- parsed into a 1x1 grid out of nothing, and the block stopped counting
+    as "returned as text", losing the counter of an expensive defect whose
+    structure cannot be recovered. A table without a single `<nl>` is no table;
+    a one-cell table is reason enough to doubt.
     """
     if not isinstance(s, str):
         return False
@@ -81,53 +82,50 @@ def looks_like(s) -> bool:
 
 
 def grid(s):
-    """{(строка, столбец): текст} или None, если тегов OTSL нет вовсе.
+    """{(row, col): text}, or None when there are no OTSL tags at all.
 
-    `None` значит «это не OTSL», а не «таблица пустая». Различать их обязан
-    вызывающий, и до сих пор не мог: `'<nl>'` (теги есть, клеток нет) и проза
-    давали ОДИН И ТОТ ЖЕ `None`. Теперь второй случай отличим —
-    `parse()` вернёт `(None, счёт)` со `строк: 1`, а на прозе `looks_like`
-    ложен и счёт пуст. Кому нужна разница, тот зовёт `parse`.
+    `None` means "this is not OTSL", not "the table is empty", and until now the
+    caller could not tell: `'<nl>'` (tags present, no cells) and prose both gave
+    THE SAME `None`. `parse` now separates them -- `(None, tally)` with `rows: 1`
+    on the first, an empty tally on the second -- and whoever needs the
+    difference calls it.
     """
     return parse(s)[0] if looks_like(s) else None
 
 
 def parse(s):
-    """(сетка, счётчик). Счётчик — то, чего разбор НЕ понял, числом.
+    """(grid, tally). The tally is what the parse did NOT understand, as numbers.
 
-    Возвращает всё, что наблюдено, а не «получилось»: строки разной длины,
-    продолжения, которым не на что опереться, текст до первого тега. По этим
-    числам отличают рваный ответ от целого, не заглядывая в него глазами.
+    Everything observed rather than "it worked": rows of unequal length,
+    continuations with nothing to lean on, text before the first tag. By these
+    numbers a torn answer is told from a whole one without looking at it.
     """
     cells, _, tally = _walk(s)
     return cells, tally
 
 
 def _walk(s):
-    """ОДИН обход тегов на весь файл: (сетка, хозяева адресов, счёт).
+    """ONE walk of the tags for the whole file: (grid, address owners, tally).
 
-    ВТОРОГО ОБХОДА ЗДЕСЬ НЕ БУДЕТ, и это не вкус. `parse` отдаёт сетку с
-    РАЗМНОЖЕННЫМ текстом сквозной клетки — по правилу «клетка занимает все
-    свои адреса», без которого прибор чтения сравнивал бы шапку с пустотой.
-    Но по такой сетке уже нельзя сказать, где слияние, а где два соседа,
-    совпавших текстом: замер по этой самой книге — 13 таблиц из 62, у которых
-    соседние ячейки одинаковы, а `<lcel>` в ответе модели нет ВОВСЕ (марка
-    «ⅢЛА-1,3» и значение «1,3» просто совпали). Знаменатель 62 — это таблицы,
-    где есть одинаковые соседи ПО ГОРИЗОНТАЛИ; всего таблиц 104. Из этих 62
-    без `<lcel>` — 13, без любой метки слияния — тоже 13, то есть числитель и
-    есть та самая доля. Здесь стояло «55 и 46»: это счёт по всем 104, а не по
-    62, — знаменатель подменён посреди фразы. Догадка по равенству текста
-    врала бы в каждой пятой таблице.
+    THERE WILL BE NO SECOND WALK. `parse` returns a grid with a spanning cell's
+    text MULTIPLIED across its addresses, by the rule at the head of this file,
+    and such a grid can no longer tell a merge from two neighbours that merely
+    share text: measured on this very book, 13 tables of 62 carry identical
+    neighbouring cells with NO `<lcel>` anywhere in the model's answer (the grade
+    «ⅢЛА-1,3» and the value «1,3» simply coincided). The denominator 62 is the
+    tables with equal neighbours HORIZONTALLY, out of 104 in all; of those 62, 13
+    have no `<lcel>` and 13 no merge mark of any kind. Over all 104 the same
+    figures read 55 and 46 -- a denominator swapped mid-sentence. A guess from
+    equal text would lie in every fifth table.
 
-    Поэтому обход возвращает ещё и `owner`: адрес -> адрес КОРНЯ, которому он
-    принадлежит. Корень — тот адрес, где стоял `<fcel>`/`<ched>`/`<ecel>`;
-    продолжения (`<lcel>`, `<ucel>`, `<xcel>`) ссылаются на соседа, и цепочка
-    прослеживается до корня. Это слияние, ОБЪЯВЛЕННОЕ МОДЕЛЬЮ меткой, а не
-    выведенное нами из совпадения знаков.
+    So the walk returns `owner` too: address -> address of the ROOT it belongs
+    to, the address where `<fcel>`/`<ched>`/`<ecel>` stood. That is a merge
+    DECLARED BY THE MODEL with a mark, not inferred by us from characters that
+    happen to match.
 
-    Заводить две копии обхода — беда, за которую проект уже платил
-    расхождением двух экземпляров одного правила. Поэтому `parse` и `layout`
-    зовут этот обход, а сами не разбирают ни одного тега.
+    Two copies of the walk would be the trouble already paid for here -- two
+    instances of one rule drifting apart -- so `parse` and `layout` call this
+    walk and parse not a single tag themselves.
     """
     tally = {"grid_cells": 0, "rows": 0, "with_content": 0, "empty": 0,
              "continuations": 0, "continuations_to_nowhere": 0,
@@ -139,21 +137,21 @@ def _walk(s):
     toks = list(_TOK.finditer(s))
     head = s[:toks[0].start()].strip()
     if head:
-        # Модель предварила таблицу прозой («Here is the table:»). Это её
-        # ответ, и он остаётся в `content` побайтово; мы лишь считаем, что
-        # такое было — иначе разбор молча съедал бы часть ответа.
+        # The model prefaced the table with prose ("Here is the table:"). That
+        # is its answer and stays in `content` byte for byte; we only count that
+        # it happened -- otherwise the parse would silently eat part of it.
         tally["text_before_first_tag"] = len(head)
-    # ХВОСТ ПОСЛЕ ПОСЛЕДНЕГО `<nl>` СЧИТАЕТСЯ ТОЖЕ, и прежде не считался:
-    # симметрии не было, хотя шапка обещала «иначе разбор молча съедал бы
-    # часть ответа». Ответ вида «…<nl> I could not read the rest» или подпись
-    # после таблицы проходили как целые.
+    # THE TAIL AFTER THE LAST `<nl>` IS COUNTED TOO, and used to not be: no
+    # symmetry, though the header promised the parse would eat nothing in
+    # silence. An answer like "…<nl> I could not read the rest", or a caption
+    # after the table, passed for whole.
     tail = s[toks[-1].end():] if toks[-1].group(1) in BREAK else ""
     if tail.strip():
         tally["text_after_last_tag"] = len(tail.strip())
 
     cells, r, c = {}, 0, 0
-    owner = {}                  # адрес -> адрес корня, которому он подчинён
-    tag_of = {}                 # адрес корня -> тег, которым он объявлен
+    owner = {}                  # address -> address of the root it obeys
+    tag_of = {}                 # root address -> the tag declaring it
     widths = []
     for i, m in enumerate(toks):
         name = m.group(1)
@@ -174,7 +172,7 @@ def _walk(s):
             owner[(r, c)] = (r, c)
             tag_of[(r, c)] = name
             tally["empty"] += 1
-        else:                                   # продолжение соседа
+        else:                                   # continuation of a neighbour
             tally["continuations"] += 1
             left, up = (r, c - 1), (r - 1, c)
             if name == "lcel":
@@ -185,24 +183,25 @@ def _walk(s):
                 src = left if left in cells else up
             if src in cells:
                 cells[(r, c)] = cells[src]
-                # ЦЕПОЧКА ПРОСЛЕЖИВАЕТСЯ ДО КОРНЯ, а не до соседа: `<fcel>`,
-                # за которым идут пять `<lcel>`, — это ОДНА клетка на шесть
-                # адресов, и второй `<lcel>` опирается на первый, а не на
-                # `<fcel>`. Без прослеживания слияние распалось бы на пары.
+                # THE CHAIN IS FOLLOWED TO THE ROOT, not to the neighbour: an
+                # `<fcel>` followed by five `<lcel>` is ONE cell over six
+                # addresses, and the second `<lcel>` leans on the first, not on
+                # the `<fcel>`. Unfollowed, the merge would fall into pairs.
                 owner[(r, c)] = owner.get(src, src)
             else:
-                # Продолжению не на что опереться: `<lcel>` первым в строке
-                # или `<ucel>` в первой строке. Клетка ЗАВОДИТСЯ пустой, а не
-                # пропускается: пропуск сдвинул бы все правые адреса и превратил
-                # одну беду модели в целую строку расхождений.
+                # The continuation has nothing to lean on: `<lcel>` first in a
+                # row, or `<ucel>` in the first row. The cell IS CREATED empty
+                # rather than skipped: skipping would shift every address to the
+                # right and turn one defect of the model into a whole row of
+                # divergences.
                 cells[(r, c)] = ""
-                # И хозяином себе она становится сама: подчинить её несуществующему
-                # соседу значило бы потерять адрес при переводе в HTML.
+                # And it owns itself: subordinating it to a neighbour that does
+                # not exist would lose the address in the HTML translation.
                 owner[(r, c)] = (r, c)
                 tag_of[(r, c)] = name
                 tally["continuations_to_nowhere"] += 1
         c += 1
-    if c:                       # последняя строка без завершающего <nl>
+    if c:                       # last row with no closing <nl>
         widths.append(c)
     tally["grid_cells"] = len(cells)
     tally["rows"] = len(widths)
@@ -213,27 +212,24 @@ def _walk(s):
 
 
 def layout(s):
-    """(клетки со слияниями, счёт): где КОРЕНЬ слияния и насколько он тянется.
+    """(cells with merges, tally): where a merge's ROOT is and how far it runs.
 
-    Отдаёт список записей `{"строка", "столбец", "строк", "столбцов", "текст",
-    "тег"}` — по одной на КЛЕТКУ, а не на адрес. Продолжений в списке нет:
-    они и есть та самая клетка, взятая за другой адрес.
+    Returns records `{"row", "col", "rows", "cols", "text", "tag"}`, one per
+    CELL rather than per address. Continuations are not in the list: they are
+    that same cell taken by another address.
 
-    ЗАЧЕМ ЭТО ЗАВЕДЕНО, И ЦЕНА ИЗМЕРЕНА. `to_html` печатал безусловный `<td>`
-    в двойном цикле по всем адресам, и слияния разворачивались в повторы. На
-    «Технологии огнеупоров»: 104 таблицы в книге, `colspan` 0, `rowspan` 0 —
-    при том что модель объявила слияния метками на 58 таблицах из 104, 235
-    слитых клеток на 403 поглощённых адреса (193 `<lcel>` и 210 `<ucel>`).
-    Шапка «Годы» над шестью колонками печаталась шесть раз подряд.
+    WHY IT EXISTS, PRICE MEASURED. `to_html` printed an unconditional `<td>` in
+    a double loop over all addresses, and merges unfolded into repeats. On
+    "Технология огнеупоров": 104 tables, `colspan` 0, `rowspan` 0 -- while the
+    model had declared merges by mark on 58 tables of 104, 235 merged cells over
+    403 swallowed addresses (193 `<lcel>` and 210 `<ucel>`). The header «Годы»
+    over six columns printed six times in a row.
 
-    ЧТО ЭТО НЕ ДОГАДКА. Слияние берётся из МЕТКИ модели, а не из совпадения
-    текста соседей; про цену догадки по тексту сказано при `_walk`.
-
-    НЕПРЯМОУГОЛЬНОЕ СЛИЯНИЕ НЕ ВЫПРЯМЛЯЕТСЯ. Рваный ответ может дать корню
-    набор адресов, не складывающийся в прямоугольник (`<ucel>` под правой
-    половиной двухклеточной шапки и ничего под левой). Такая клетка печатается
-    БЕЗ спана, каждый её адрес отдельной клеткой, и считается в
-    `слияний не прямоугольных`. Выпрямить значило бы починить модель.
+    A NON-RECTANGULAR MERGE IS NOT STRAIGHTENED. A torn answer can give a root
+    addresses that do not fold into a rectangle (`<ucel>` under the right half
+    of a two-cell header and nothing under the left). Such a cell is printed
+    WITHOUT a span, every address a cell of its own, and counted in
+    `non_rectangular_merges`. Straightening would be repairing the model.
     """
     cells, own, tally = _walk(s)
     tally = dict(tally, **{"merges": 0, "non_rectangular_merges": 0})
@@ -250,11 +246,11 @@ def layout(s):
         rs = {r for r, _ in addresses}
         cs = {c for _, c in addresses}
         h, w = max(rs) - min(rs) + 1, max(cs) - min(cs) + 1
-        # КОРЕНЬ ВСЕГДА ЛЕВЫЙ ВЕРХНИЙ СВОИХ АДРЕСОВ, и проверять это незачем.
-        # `<lcel>` опирается на (r, c-1), `<ucel>` на (r-1, c) — то есть
-        # хозяин любого адреса стоит не правее и не ниже него. Здесь стояло
-        # `and min(rs) == r0 and min(cs) == c0`: на 235 726 корнях книги
-        # исключений 0, и снятие этих условий не роняло ни одной проверки.
+        # THE ROOT IS ALWAYS THE TOP-LEFT OF ITS ADDRESSES, and checking that is
+        # pointless. `<lcel>` leans on (r, c-1), `<ucel>` on (r-1, c), so the
+        # owner of any address stands no further right and no lower than it. The
+        # guard `and min(rs) == r0 and min(cs) == c0` had 0 exceptions over the
+        # book's 235 726 roots, and dropping it failed no check.
         rect = len(addresses) == h * w
         if h * w > 1:
             tally["merges"] += 1
@@ -265,20 +261,17 @@ def layout(s):
                         "cols": w, "text": cells.get(root, ""),
                         "tag": tag_of.get(root, "fcel")})
         else:
-            # Либо одиночная клетка, либо непрямоугольное слияние: каждый
-            # адрес сам за себя, ни один не пропадает.
-            # ТЕГ БЕРЁТСЯ У КОРНЯ, а не у адреса. У продолжения своего тега
-            # нет, и подстановка нашего умолчания `fcel` разрывала одну клетку
-            # модели пополам: `<ched>шапка<lcel>` в непрямоугольном случае
-            # давал `<th>шапка</th><td>шапка</td>` — половина шапка, половина
-            # нет. Умолчание оставлено только на случай адреса без корня
-            # (`продолжение в никуда`), где тега нет ни у кого.
-            # У КОРНЯ ТЕГ ЕСТЬ ВСЕГДА: `_walk` заводит `tag_of` в тот же миг,
-            # что и `owner`, для всех трёх видов корня — содержимого, пустой
-            # клетки и продолжения в никуда. Здесь стояло умолчание `"fcel"`,
-            # и оно не срабатывало ни разу на 236 758 корнях книги. Ключ берём
-            # прямо: нарушение этого договора — беда, о которой надо падать
-            # вслух, а не подставлять свой тег молча.
+            # Either a single cell or a non-rectangular merge: every address
+            # stands for itself, none is lost.
+            # THE TAG COMES FROM THE ROOT, not from the address. A continuation
+            # has no tag of its own, and our `fcel` default tore one cell of the
+            # model in half: `<ched>шапка<lcel>` non-rectangular gave
+            # `<th>шапка</th><td>шапка</td>`, half header and half not. A ROOT
+            # ALWAYS HAS A TAG -- `_walk` sets `tag_of` at the same instant as
+            # `owner`, for content, empty cell and continuation to nowhere alike
+            # -- and the `"fcel"` default never fired on the book's 236 758 roots.
+            # So the key is taken directly: breaking that contract is trouble to
+            # fail aloud about, not to paper over with a tag of ours.
             root_one = tag_of[root]
             for a in sorted(addresses):
                 out.append({"row": a[0], "col": a[1], "rows": 1,
@@ -289,73 +282,67 @@ def layout(s):
 
 
 def to_html(s) -> str:
-    """OTSL -> HTML-таблица. ПЕРЕВОД, а не починка: клеток столько же.
+    """OTSL -> an HTML table. A TRANSLATION, not a repair: the same cell count.
 
-    Нужен книге, а не прибору: прибор судит сетку и в OTSL (`grid`), а вот
-    браузеру `<fcel>` показать нечего. Байты модели при этом никуда не
-    деваются — они лежат в `content` страницы и в ответе сбоку, и по ним
-    перевод всегда можно переиграть.
+    Needed by the book, not by the instrument: the instrument judges the grid in
+    OTSL too (`grid`), but a browser has nothing to show for `<fcel>`. The
+    model's bytes stay in the page's `content` and in the answer beside it, so
+    the translation can always be replayed.
 
-    СКВОЗНАЯ КЛЕТКА СХЛОПЫВАЕТСЯ В `colspan`/`rowspan`. Здесь стояло обратное
-    — «повторённое значение видно как повторённое, и это честнее догадки о
-    том, где кончается спан», — и неверна была сама посылка: догадки нет.
-    Модель объявляет слияние МЕТКОЙ (`<lcel>` — продолжение соседа слева,
-    `<ucel>` — сверху), и её слово ничем не хуже её же слова о тексте клетки.
-    Догадкой было бы обратное — выводить спан из совпадения текста соседей, и
-    цена такой догадки измерена: на этой книге 13 таблиц из 62 несут
-    одинаковые соседние ячейки БЕЗ единого `<lcel>` в ответе.
-
-    Цена прежнего решения тоже измерена, и она в самом продукте: 104 таблицы
-    книги, `colspan` 0, `rowspan` 0, при 403 поглощённых адресах и 235 слитых
-    клетках, объявленных моделью. Шапка «Годы» над шестью колонками
-    печаталась шестью отдельными ячейками — и на экране это читалось как
+    A SPANNING CELL COLLAPSES INTO `colspan`/`rowspan`. The case for printing
+    the repeat instead -- "a repeated value shows as repeated, honester than
+    guessing where the span ends" -- had a false premise: there is no guess. The
+    model declares the merge by MARK (`<lcel>` continues the left neighbour,
+    `<ucel>` the one above), and its word here is no worse than its word about
+    the cell's text. The guess would be the opposite, a span derived from
+    neighbours sharing text; that price is measured at `_walk`. The price of the
+    old decision is measured at `layout` and sits in the product: the header
+    «Годы» over six columns printed as six separate cells, reading on screen
     «Годы Годы Годы Годы Годы Годы».
 
-    ВТОРОЕ ИЗМЕНЕНИЕ ПЕРЕВОДА, и его надо назвать отдельно, иначе оно
-    прячется внутри первого. Прежний обход шёл по прямоугольнику
-    `rows x cols` и ДОБИВАЛ короткую строку пустыми `<td>`; нынешний печатает
-    строку такой, какой её отдала модель. На книге `<td>` стало меньше на
-    407, и это НЕ 407 схлопнутых слияний: 396 схлопнуто, а 11 — исчезнувшие
-    добивки на трёх таблицах (`p0175-b0` 8, `p0232-b2` 2, `p0331-b23` 1).
-    Направление то же, что у всего файла: клеток не выдумываем, рваная строка
-    остаётся рваной и видной, а её длина уже посчитана в `строк разной
-    длины`.
+    THE SECOND CHANGE TO THE TRANSLATION, named apart or it hides inside the
+    first. The old walk went over the `rows x cols` rectangle and PADDED a short
+    row with empty `<td>`; this one prints the row as the model gave it. In the
+    book `<td>` fell by 407, and that is NOT 407 collapsed merges: 396 collapsed
+    and 11 are padding gone from three tables (`p0175-b0` 8, `p0232-b2` 2,
+    `p0331-b23` 1). Same direction as the whole file: no cells invented, a torn
+    row torn and visible, its length already counted in
+    `rows_of_unequal_length`.
 
-    `<th>` СТАВИТСЯ ПО МЕТКЕ МОДЕЛИ, а не по номеру строки: `<ched>` и
-    `<rhed>` словаря `docling_core` — это и есть «клетка шапки». Догадки
-    «первая строка — всегда шапка» здесь нет, и `<thead>` не ставится вовсе:
-    его модель не объявляет ничем. ОГОВОРКА, БЕЗ КОТОРОЙ ЭТО ВРЁТ: в
-    «Технологии огнеупоров» шапочных меток нет НИ ОДНОЙ — перепись тегов по
-    всем 104 таблицам даёт `fcel` 5099, `lcel` 193, `ucel` 210, `ecel` 164,
-    `nl` 729 и ноль `ched`/`rhed`/`srow`/`xcel`. То есть эта ветка написана по
-    словарю, а не по замеру, и на настоящей книге не проверена ни разу.
+    `<th>` IS SET BY THE MODEL'S MARK, not by row number: `<ched>` and `<rhed>`
+    of the `docling_core` vocabulary ARE "header cell". No "the first row is
+    always the header" guess, and no `<thead>` at all -- the model declares it by
+    nothing. THE CAVEAT WITHOUT WHICH THIS LIES: "Технология огнеупоров" carries
+    NOT ONE header mark; a tag census over all 104 tables gives `fcel` 5099,
+    `lcel` 193, `ucel` 210, `ecel` 164, `nl` 729 and zero
+    `ched`/`rhed`/`srow`/`xcel`. This branch is written from the vocabulary
+    rather than from a measurement, and has never been checked on a real book.
     """
     cs, t = layout(s)
     if not cs:
         return ""
-    # СТРОКА ТАБЛИЦЫ — ЭТО СТРОКА СЕТКИ, а не «строка, в которой нашёлся
-    # корень». Здесь стоял обход по клеткам с открытием `<tr>` на смене
-    # номера строки, и он терял `<tr>` у строк, СПЛОШЬ состоящих из
-    # продолжений: `<fcel>A<fcel>B<nl><ucel><ucel><nl><fcel>c<fcel>d<nl>` —
-    # три строки сетки, а выходило два `<tr>`. Адреса при этом не пропадали,
-    # но слоты (1,0) и (1,1) в HTML заняты чужими `rowspan`, и `c` с `d`
-    # уезжали в третий и четвёртый столбцы. Проверка на потерю клеток этого
-    # не видела: она считает `<td>`, а их ровно столько же.
+    # A TABLE ROW IS A GRID ROW, not "a row where a root turned up". A walk over
+    # cells opening `<tr>` on a change of row number lost the `<tr>` of rows made
+    # ENTIRELY of continuations:
+    # `<fcel>A<fcel>B<nl><ucel><ucel><nl><fcel>c<fcel>d<nl>` is three grid rows
+    # and came out as two. No address was lost, but slots (1,0) and (1,1) in HTML
+    # are held by other cells' `rowspan`, so `c` and `d` drifted into the third
+    # and fourth columns. The cell-loss check could not see it: it counts `<td>`,
+    # and there are exactly as many.
     #
-    # Фаззинг нашёл беду в 2327 случаях из 40000 случайных OTSL; на
-    # «Технологии огнеупоров» — НИ ОДНОГО (731 `<tr>` до правки и 731 после),
-    # то есть дефект был скрытым, а не действующим.
+    # Fuzzing found the trouble in 2327 of 40000 random OTSL inputs; on
+    # "Технология огнеупоров" in NOT ONE (731 `<tr>` before the fix and 731
+    # after), so the defect was latent rather than active.
     #
-    # Тем же обходом чинится и пустая строка сетки (`<nl><nl>`): прежний
-    # перевод её проглатывал молча — тихое подравнивание рваного ответа,
-    # ровно то, за что в шапке этого файла осуждён `otsl_pad_to_sqr_v2`.
-    # СТРОК СТОЛЬКО, СКОЛЬКО ИХ НАСЧИТАЛ ОБХОД. Здесь стояло
-    # `max(t["строк"], max(по_строкам) + 1)`, и второй половины не бывает:
-    # номер строки растёт только на `<nl>`, а `_walk` дописывает последнюю
-    # строку без `<nl>` сам, значит `max(по_строкам) + 1 <= t["строк"]`
-    # тождественно. Проверено перебором 40 000 случайных входов — ни одного
-    # срабатывания, и снятие `max` не роняло ни одной проверки. Защита,
-    # которая не может сработать, — это не защита, а вид на неё.
+    # The same walk fixes an empty grid row (`<nl><nl>`), swallowed in silence by
+    # the old translation -- the quiet levelling of a torn answer this file's
+    # header condemns `otsl_pad_to_sqr_v2` for.
+    # THERE ARE AS MANY ROWS AS THE WALK COUNTED. `max(t["rows"],
+    # max(by_rows) + 1)` stood here, and the second half cannot occur: the row
+    # number grows only on `<nl>`, and `_walk` appends the last row without
+    # `<nl>` itself, so `max(by_rows) + 1 <= t["rows"]` identically. Checked
+    # over 40 000 random inputs -- not one firing, and removing the `max` failed
+    # no check. A guard that cannot fire is not a guard but a view of one.
     by_rows = {}
     for c in cs:
         by_rows.setdefault(c["row"], []).append(c)

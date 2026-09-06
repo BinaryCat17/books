@@ -1,36 +1,32 @@
-"""Детектор макета как самостоятельный распознаватель контуров.
+"""The layout detector as a contour recogniser in its own right.
 
-Это ПЕРВАЯ ПОЛОВИНА первого уровня: рамки, ярлыки и порядок чтения, без
-единого обращения к VLM.  Гоняется местно, на процессоре, бесплатно — вес
-модели 214 МБ, страница считается пару секунд.  Тем и ценен: метрику контуров
-можно проверять на настоящем выводе настоящей модели, не арендуя карту.
+The FIRST HALF of the first level: boxes, labels and reading order, no VLM call.
+Local, on the CPU, free -- 214 MB of weights, a couple of seconds a page. Its
+worth: contour metrics get checked on a real model's real output without
+renting a card.
 
-ПОЧЕМУ МИМО ПАЙПЛАЙНА PADDLEX.  Не из любви к низкому уровню — по замеру.
-Постобработка пайплайна **стирает порядок чтения у всего, что мы собираемся
-вырезать**: на 539 страницах одной книги `block_order` равен `null` у 683 из
-683 блоков `image`, 695 из 695 `figure_title`, 584 из 584 `table`, 534 из 534
-`number` — и у 0 из 6431 `text`.  Сырой выход даёт ранг ВСЕМ рамкам: 1254 из
-1254 на 65 страницах `bench/`.  Порядок есть, его выбрасывают выборочно.
+WHY PAST THE PADDLEX PIPELINE. By measurement, not from love of the low level.
+Its postprocessing ERASES THE READING ORDER OF EXACTLY WHAT WE CUT OUT: over
+539 pages of one book `block_order` is `null` for 683 of 683 `image`, 695 of
+695 `figure_title`, 584 of 584 `table`, 534 of 534 `number` -- and 0 of 6431
+`text`. The raw output ranks EVERY box: 1254 of 1254 over 65 pages of `bench/`.
+The order is there; it is thrown away selectively. It deletes boxes too: over
+six books (3268 pages) `image` 2660 -> 1872, `inline_formula` 15541 -> 14.
+Geometry it barely touches -- boxes match the detector's byte for byte -- so
+the stages select, they do not reshape.
 
-Она же удаляет рамки: по шести книгам (3268 страниц) `image` 2660 -> 1872,
-`inline_formula` 15541 -> 14.  Геометрию при этом почти не трогает — рамки
-совпадают с детекторными побайтово, — то есть ступени отбирают, а не
-переформовывают.
+WHAT THESE NUMBERS CANNOT JUDGE. Those runs carried our own patch layer: the
+same directories' `job.log` lists "layout detection in twelve looks" and "text
+blocks resembling a table go for a re-ask". So the pipeline's TABLE COUNT is
+not comparable with ours -- theirs came of relabelling by our own hand, not of
+the library. Only what the patches never touched compares: reading order and
+box deletion, above.
 
-ЧЕГО ПО ЭТИМ ЧИСЛАМ СУДИТЬ НЕЛЬЗЯ.  Сохранённые прогоны считались с нашим
-слоем заплаток: `job.log` тех же каталогов перечисляет «детекция макета в
-двенадцать взглядов» и «блоки text, похожие на таблицу, идут на переспрос».
-Поэтому сравнивать ЧИСЛО ТАБЛИЦ у пайплайна и у нас бессмысленно: у
-пайплайна оно получено переименованием ярлыков нашей же рукой, а не
-библиотекой.  Сравнимо только то, что заплатки не трогали, — порядок чтения и
-удаление рамок, оба пункта выше.
-
-ЧЕГО ЭТОТ МОДУЛЬ НЕ ДЕЛАЕТ И НЕ ДОЛЖЕН.  Не сливает рамки, не режет их
-поперёк межколонника, не переспрашивает, не разрешает конфликт `{table,
-text}`.  Отбор по порогу — единственное, что здесь происходит, и порог берётся
-из самих весов.  Сырой ответ графа сохраняется ЦЕЛИКОМ, до отбора: иначе
-порог, единственное наше вмешательство, нельзя переиграть, не заплатив за
-пересчёт.
+WHAT THIS MODULE MUST NOT DO. Merge boxes, cut across a gutter, re-ask, resolve
+a `{table, text}` conflict. Threshold selection is all that happens here, and
+the threshold comes from the weights. The graph's raw answer is kept WHOLE,
+before selection: otherwise the threshold, our one intervention, cannot be
+replayed without paying for a recount.
 """
 import hashlib
 import os
@@ -39,23 +35,22 @@ from ..run import knobs
 from .base import Block, Page, Recognizer
 from .. import order
 
-# Каталог, куда paddlex складывает официальные веса.  Соглашение чужой
-# библиотеки, а не наша настройка: `LAYOUT_MODEL_DIR` пуст ровно затем, чтобы
-# сказать «возьми там, где они лежат по умолчанию».  Разрешённый путь уезжает
-# в отпечаток — гадать потом не придётся.
+# Where paddlex keeps its official weights: a foreign library's convention, not
+# a setting of ours. `LAYOUT_MODEL_DIR` is empty exactly to say "take them
+# where they lie by default", and the resolved path goes into the fingerprint.
 PADDLEX_MODELS = os.path.expanduser("~/.paddlex/official_models")
 
 
 class WeightsMissing(RuntimeError):
-    """Весов нет или они неполны.  Обычная ошибка, а не выход из программы.
+    """Weights are missing or incomplete. An ordinary error, not an exit.
 
-    Не `SystemExit`: адаптер — библиотека, и стенд обязан уметь поймать это
-    как всякую другую беду, а не умереть вместе с процессом.
+    Not `SystemExit`: the adapter is a library, and the bench must catch this
+    like any other trouble instead of dying with the process.
     """
 
 
 def weights_dir() -> str:
-    """Где лежат веса детекции. Пустая ручка — соглашение paddlex."""
+    """Where the detection weights lie. An empty knob is paddlex's convention."""
     d = knobs.knob("LAYOUT_MODEL_DIR")
     if d:
         return d
@@ -70,43 +65,33 @@ def _sha256(path: str) -> str:
     return h.hexdigest()
 
 
-# ------------------------------------------------------- порядок чтения
-# --------------------------------------------------------- порядок чтения
-# ДВА ШВА, И ОБА ЗАВЕДЕНЫ РАДИ БАТАРЕИ. Она ломает проверяемое место В
-# ПАМЯТИ (копия исходника видна только тем проверкам, что читают его деревом,
-# а порядок сборки проверяется ПОВЕДЕНИЕМ), и без отдельных имён МОДУЛЯ пробы
-# «порядок, которого модель не дала, не задан» и «наше правило вытеснило ранг
-# модели» не наложились бы вовсе. Разбор дерева тут не годится: он увидел бы
-# `.sort(` и согласился бы с любым ключом сортировки.
-#
-# Модуля, а не класса: `setattr` возвращает `staticmethod` на место ОБЫЧНОЙ
-# функцией, и после отката `self.our_order_key(row)` уехал бы вторым
-# аргументом — порча пережила бы мутацию (проверено: TypeError).
+# ---------------------------------------------------------- reading order
+# ONE SEAM, HERE FOR THE BATTERY, which breaks the checked place IN MEMORY. The
+# probe "our rule displaced the model rank" needs a MODULE-level name to patch:
+# assembly order is checked by BEHAVIOUR, and tree parsing would see `.sort(`
+# and agree with any key. Its pair, "an order the model never gave is not set
+# at all", patches `order.permutation`, where the rule now lives. Of the module
+# and not the class: `setattr` puts a `staticmethod` back as a PLAIN function,
+# the call would arrive shifted by an argument, and the damage would outlive
+# the mutation (TypeError).
 
 
 def has_rank(out) -> bool:
-    """Есть ли у весов РАНГ ЧТЕНИЯ. Шесть колонок значат, что нет.
+    """Do the weights carry a READING RANK. Six columns mean they do not.
 
-    У `PP-DocLayout_plus-L` указательной сети ещё не было, её добавил V2:
-    класс, счёт и четыре координаты — и всё. Это ЗНАЧЕНИЕ, а не пропуск,
-    и в отпечаток оно уходит явно.
+    `PP-DocLayout_plus-L` had no pointer net yet -- class, score, four
+    coordinates, and that is all; V2 added it. A VALUE, not an omission, and it
+    goes into the fingerprint explicitly.
     """
     return out.shape[1] >= 7
 
 
-# `our_order_key` УБРАН ОТСЮДА, а не помечен долгом: правило сборки книги
-# переехало целиком в `booksmith/order.py`, вместе с замерами, которыми оно
-# оправдано. Здесь оно было первым из ЧЕТЫРЁХ экземпляров в трёх адаптерах, и
-# два из тех четырёх сортировали не тем ключом, что объявляли. Оставить пустую
-# обёртку значило бы завести пятый.
-
-
 class DocLayout(Recognizer):
-    """PP-DocLayoutV2 (ONNX) напрямую: рамки, ярлыки, порядок чтения.
+    """PP-DocLayoutV2 (ONNX) directly: boxes, labels, reading order.
 
-    `read()` возвращает `Page` без единого символа текста: `content` у всех
-    блоков `None`, `kind` — `"none"`.  Текст читает вторая половина первого
-    уровня, и это отдельный распознаватель.
+    `read()` returns a `Page` without one character of text: `content` `None`
+    on every block, `kind` `"none"`. Text is the first level's second half, a
+    separate recogniser.
     """
 
     name = "doclayout-onnx"
@@ -128,39 +113,37 @@ class DocLayout(Recognizer):
         with open(cfg_path, encoding="utf-8") as f:
             cfg = yaml.safe_load(f)
 
-        # Словарь ярлыков берём из ВЕСОВ, а не из yaml пайплайна: у того
-        # комментарии к индексам врут (там `9: footer`, `13: header`,
-        # `23: text`, а на деле 9 — `footer_image`, 13 — `header_image`,
-        # 23 — `vertical_text`).  Индекс 21 = `table` сходится в обоих,
-        # поэтому ошибку и не замечали.
+        # The label vocabulary comes from the WEIGHTS, not the pipeline yaml,
+        # whose index comments lie: `9: footer`, `13: header`, `23: text`,
+        # where in fact 9 is `footer_image`, 13 `header_image`, 23
+        # `vertical_text`. Index 21 = `table` agrees in both, which is why it
+        # went unnoticed.
         self.labels: list[str] = list(cfg["label_list"])
 
-        # Предобработка — тоже из весов.  Ни одно из этих чисел не наше.
-        #
-        # `target_size` хранится как (ВЫСОТА, ШИРИНА): так его читает
-        # `Resize.generate_scale` в PaddleDetection (`resize_h, resize_w =
-        # self.target_size`).  При 800x800 перестановка невидима, поэтому
-        # держим порядок явно и называем поля по имени — иначе первые же
-        # неквадратные веса дадут перекошенный масштаб, а рамки останутся
-        # правдоподобными.
+        # Preprocessing comes from the weights too; not one number here is
+        # ours. `target_size` is stored as (HEIGHT, WIDTH), the way
+        # `Resize.generate_scale` reads it in PaddleDetection (`resize_h,
+        # resize_w = self.target_size`). At 800x800 the swap is invisible, so
+        # the order stays explicit and the fields are named -- otherwise the
+        # first non-square weights skew the scale while boxes stay plausible.
         rz = next(p for p in cfg["Preprocess"] if p.get("type") == "Resize")
         self.target_h, self.target_w = (int(v) for v in rz["target_size"])
         self.keep_ratio = bool(rz.get("keep_ratio", False))
         if self.keep_ratio:
-            # `read()` жмёт растр ровно в target_h x target_w. При keep_ratio
-            # это неверно: понадобилась бы подложка, и её надо было бы вычесть
-            # из координат обратно. Веса с keep_ratio отказываемся считать
-            # ГРОМКО — молча они дали бы правдоподобные и смещённые рамки.
+            # `read()` squeezes the raster to exactly target_h x target_w.
+            # keep_ratio would need padding, subtracted back out of the
+            # coordinates. Such weights we refuse LOUDLY -- in silence they
+            # would give plausible, shifted boxes.
             raise WeightsMissing(
                 "в весах keep_ratio: true, а адаптер жмёт растр без подложки. "
                 "Рамки вышли бы смещёнными и правдоподобными сразу.")
         self.interp = int(rz.get("interp", 2))
         self.native_threshold = float(cfg.get("draw_threshold", 0.5))
 
-        # Нормализация читается из весов, а не подразумевается. У этих весов
-        # `norm_type: none`, mean 0, std 1 — то есть только деление на 255.
-        # Пока это так, разница невидима; на первых же весах с mean/std
-        # молчаливое подразумевание дало бы правдоподобные, но неверные рамки.
+        # Normalization is read from the weights, not assumed. These have
+        # `norm_type: none`, mean 0, std 1 -- division by 255 and nothing else,
+        # so while that holds the difference is invisible; on the first weights
+        # with mean/std a silent assumption would give plausible wrong boxes.
         nm = next((p for p in cfg["Preprocess"]
                    if p.get("type") == "NormalizeImage"), None)
         self.norm_type = (nm or {}).get("norm_type", "none")
@@ -178,30 +161,30 @@ class DocLayout(Recognizer):
         self.ort_version = ort.__version__
         self.providers = list(self.sess.get_providers())
 
-    # ------------------------------------------------------------- пороги
+    # --------------------------------------------------------- thresholds
     def thresholds(self) -> dict[str, float]:
-        """Порог по КАЖДОМУ из 25 классов, без умолчаний по дороге.
+        """A threshold for EACH of the 25 classes, no default picked up en route.
 
-        Так, а не словарём с одним ключом, и это оплачено: в постобработке
-        paddlex словарь порогов с одним классом молча ставит остальным 0.5,
-        то есть «понизить порог таблиц» меняло поведение всех классов сразу.
-        Здесь отбор пишем мы, и правило то же — перечислить все.
+        Not a one-key dict, and that is paid for: in paddlex postprocessing a
+        threshold dict with one class silently gives the rest 0.5, so "lower
+        the table threshold" moved every class at once. We write the selection
+        here; same rule -- list them all.
 
-        `table` берёт своё значение из `LAYOUT_TABLE_THRESHOLD`, остальные
-        двадцать четыре — из `LAYOUT_SCORE_THRESHOLD`.  Две ручки, а не одна,
-        потому что таблица — единственный класс, чей порог в этом проекте уже
-        подкручивали, и след этого должен быть виден отдельно.
+        `table` comes from `LAYOUT_TABLE_THRESHOLD`, the other twenty-four from
+        `LAYOUT_SCORE_THRESHOLD`. Two knobs because the table is the only class
+        whose threshold this project has already tinkered with, and that trace
+        must stay separately visible.
         """
         common = float(knobs.knob("LAYOUT_SCORE_THRESHOLD"))
         table = float(knobs.knob("LAYOUT_TABLE_THRESHOLD"))
         return {lab: (table if lab == "table" else common) for lab in self.labels}
 
     def threshold_drift(self) -> list[str]:
-        """Чем ДЕЙСТВУЮЩИЕ пороги отличаются от родного порога весов.
+        """How the ACTING thresholds differ from the weights' native one.
 
-        Сравнивается значение, а не умолчание реестра.  Прежняя редакция
-        сверяла `KNOB[...].default` — и `LAYOUT_SCORE_THRESHOLD=0.99` проходил
-        молча, то есть сторож спал ровно в том случае, ради которого написан.
+        The value is compared, not the registry default: the earlier version
+        checked `KNOB[...].default`, so `LAYOUT_SCORE_THRESHOLD=0.99` passed in
+        silence and the guard slept in the one case it was written for.
         """
         out = []
         for name in ("LAYOUT_SCORE_THRESHOLD", "LAYOUT_TABLE_THRESHOLD"):
@@ -211,61 +194,64 @@ class DocLayout(Recognizer):
                            f"draw_threshold={self.native_threshold}")
         return out
 
-    # -------------------------------------------------------------- отпечаток
+    # -------------------------------------------------------- fingerprint
     def model_name(self) -> str:
-        """Имя модели — из ВЕСОВ (`Global.model_name`), а не из ручки.
+        """The model name comes from the WEIGHTS (`Global.model_name`), not the knob.
 
-        `LAYOUT_MODEL_NAME` выбирает лишь каталог по умолчанию (см.
-        `weights_dir`); при заданном `LAYOUT_MODEL_DIR` она к лежащим там
-        весам отношения не имеет вовсе. Замер: с
-        `LAYOUT_MODEL_DIR=~/.paddlex/official_models/PP-DocLayoutV3_onnx` и
-        умолчанием ручки слепок писал «модель: PP-DocLayoutV2» рядом с sha256
-        весов V3, а в журнал шла строка «PP-DocLayoutV2 из ...V3_onnx».
+        `LAYOUT_MODEL_NAME` only picks the default directory (see
+        `weights_dir`); with `LAYOUT_MODEL_DIR` set it has nothing to do with
+        the weights lying there. Measured: with
+        `LAYOUT_MODEL_DIR=~/.paddlex/official_models/PP-DocLayoutV3_onnx` and
+        the knob at its default, the snapshot wrote "model: PP-DocLayoutV2"
+        beside the sha256 of V3 weights, the log "PP-DocLayoutV2 from
+        ...V3_onnx".
 
-        Почему это не ловится ничем другим: словари ярлыков у V2 и V3
-        совпадают ПОБАЙТОВО (по 25 классов), родной `draw_threshold` у обоих
-        0.5 — значит ни сторож политики (`policy.for_labels` выбирает по
-        словарю), ни `threshold_drift` подмену V2 на V3 не видят по
-        построению. У `PP-DocLayout_plus-L` словарь другой (20 классов), его
-        политика зовётся иначе и в журнал попадает — эта подмена видна и без
-        имени; невидима именно пара V2/V3.
+        Nothing else catches it: V2 and V3 label vocabularies match BYTE FOR
+        BYTE (25 classes each) and native `draw_threshold` is 0.5 for both, so
+        by construction neither the policy guard (`policy.for_labels` chooses
+        by vocabulary) nor `threshold_drift` sees V3 put in for V2.
+        `PP-DocLayout_plus-L` has another vocabulary (20 classes) and a
+        differently named policy that reaches the log, so THAT substitution
+        shows without the name. The invisible pair is V2/V3.
         """
         import yaml
 
         cfg_path = os.path.join(self.dir, "inference.yml")
         with open(cfg_path, encoding="utf-8") as f:
             g = yaml.safe_load(f).get("Global") or {}
-        # Веса без имени — это «не объявлено», а не повод подставить ручку:
-        # молчаливая подстановка и есть та самая беда, что здесь чинится.
+        # Weights with no name mean "not declared", not a licence to fall
+        # back on the knob: that silent substitution is what is fixed here.
         return g.get("model_name") or "не объявлено в весах"
 
     def knobs_read(self) -> tuple[str, ...]:
-        """Ручки, которые читает ЭТОТ адаптер. Сверено grep-ом по файлу.
+        """The knobs THIS adapter reads. Verified by grep over the file.
 
-        `knobs.knob()` зовётся здесь пять раз в четыре имени: `LAYOUT_MODEL_DIR`
-        и `LAYOUT_MODEL_NAME` — в `weights_dir()`, `LAYOUT_SCORE_THRESHOLD` и
-        `LAYOUT_TABLE_THRESHOLD` — в `thresholds()` и `threshold_drift()`,
-        `LAYOUT_MODEL_NAME` ещё раз в `fingerprint()` (поле «имя по ручке»).
+        `knobs.knob()` is called five times over four names:
+        `LAYOUT_MODEL_DIR` and `LAYOUT_MODEL_NAME` in `weights_dir()`,
+        `LAYOUT_SCORE_THRESHOLD` and `LAYOUT_TABLE_THRESHOLD` in `thresholds()`
+        and `threshold_drift()`, `LAYOUT_MODEL_NAME` again in `fingerprint()`
+        (the "name by knob" field).
 
-        Обе весовые объявлены БЕЗУСЛОВНО, хотя `weights_dir()` зовётся только
-        при `DocLayout()` без каталога: ручка, действующая хоть на одном пути,
-        действующая. Обратная осторожность стоила бы дороже — «эта ручка вас
-        не касается» на прогоне, где она решила, какие веса подняли.
+        Both weights knobs are declared UNCONDITIONALLY, though `weights_dir()`
+        runs only for `DocLayout()` without a directory: a knob that acts on
+        even one path acts. The opposite caution costs more -- "this knob does
+        not concern you" on a run where it chose the weights.
         """
         return ("LAYOUT_MODEL_NAME", "LAYOUT_MODEL_DIR",
                 "LAYOUT_SCORE_THRESHOLD", "LAYOUT_TABLE_THRESHOLD")
 
     def label_map(self) -> dict[str, str]:
-        """Словарь модели и есть общий: ярлыки никуда не переводятся."""
+        """The model's vocabulary IS the common one: labels are not translated."""
         return {}
 
     def fingerprint(self) -> dict:
-        """Чем этот прогон отличается от другого. Уезжает в слепок целиком."""
+        """What tells this run from another. Travels into the snapshot whole."""
         return {
             "name": self.name,
             "model": self.model_name(),
-            # Ручка стоит рядом с именем из весов НЕ для красоты: их
-            # расхождение и есть подмена весов, и видно её только так.
+            # The knob stands beside the name from the weights NOT for
+            # decoration: their divergence IS a weights substitution, visible
+            # no other way.
             "name_from_knob": knobs.knob("LAYOUT_MODEL_NAME"),
             "weights_dir": self.dir,
             "sha256_weights": _sha256(self.onnx),
@@ -285,16 +271,16 @@ class DocLayout(Recognizer):
             "thresholds_by_class": self.thresholds(),
             "threshold_drift": self.threshold_drift(),
             "label_vocabulary": self.labels,
-            # Свод словарей объявляется, даже когда он пуст: пустой словарь
-            # значит «словарь модели и есть общий», и это ЗНАЧЕНИЕ.
+            # Declared even when empty: an empty dict means "the model's
+            # vocabulary is the common one", and that is a VALUE.
             "label_map": self.label_map(),
-            # Промтов у детектора нет вовсе — тоже значение, а не пропуск.
+            # The detector has no prompts at all -- also a value, not a gap.
             "prompts": {},
         }
 
-    # ------------------------------------------------------------------ счёт
+    # ------------------------------------------------------------ the count
     def read(self, image_path: str, index: int, dpi: float) -> Page:
-        """Прочесть страницу-картинку: рамки, ярлыки, порядок. Текста нет."""
+        """Read a page raster: boxes, labels, order. No text."""
         import cv2
         import numpy as np
 
@@ -304,12 +290,11 @@ class DocLayout(Recognizer):
         h, w = img.shape[:2]
         rz = cv2.resize(img, (self.target_w, self.target_h),
                         interpolation=self.interp)
-        # BGR -> RGB: cv2 читает BGR, PaddleDetection Decode переводит в RGB.
-        # ЧЕМ ЭТО НЕ ПРОВЕРЕНО: синтетический стенд ахроматичен — `_age`
-        # переводит страницу в серое, — а на сером перестановка каналов
-        # невидима. То есть порядок взят из чужого кода и НЕ подтверждён
-        # замером. Проверять его надо на цветной странице, и до тех пор это
-        # соглашение, а не факт.
+        # BGR -> RGB: cv2 reads BGR, PaddleDetection's Decode converts to
+        # RGB. NOTHING CHECKS THIS: the synthetic bench is achromatic (`_age`
+        # greys the page), and on grey a channel swap is invisible. The order
+        # comes from foreign code, NOT from measurement -- it needs a colour
+        # page, and until then it is a convention, not a fact.
         x = rz[:, :, ::-1].astype(np.float32)
         if self.norm_scale:
             x /= 255.0
@@ -317,11 +302,11 @@ class DocLayout(Recognizer):
             x = (x - np.array(self.norm_mean, np.float32)) / np.array(
                 self.norm_std, np.float32)
         x = x.transpose(2, 0, 1)[None]
-        # Число выходов графа НЕ фиксировано. У PP-DocLayoutV2 их два — рамки
-        # [N,8] и счётчик; у PP-DocLayoutV3 три — рамки [N,7], счётчик и
-        # матрица отношений порядка чтения [N,200,200]. Жёсткая распаковка на
-        # два роняла прогон на первой же странице новых весов, то есть
-        # обновление модели упиралось в одну строку.
+        # The number of graph outputs is NOT fixed: PP-DocLayoutV2 has two --
+        # boxes [N,8] and a counter; PP-DocLayoutV3 three -- boxes [N,7], a
+        # counter and a reading-order relation matrix [N,200,200]. Unpacking
+        # two rigidly dropped the run on the first page of the new weights: a
+        # model update ran into one line.
         outs = self.sess.run(None, {
             "image": x,
             "im_shape": np.array([[float(self.target_h),
@@ -344,65 +329,58 @@ class DocLayout(Recognizer):
                 continue
             label = self.labels[cid]
             if score < thr[label]:
-                # Лучший ОТВЕРГНУТЫЙ по классу. Без него «table 0» читается
-                # как «таблиц на странице нет», а означать может «таблица
-                # была, но на 0.03 ниже порога» — разные вещи, и вторая
-                # решается ручкой, а не моделью.
+                # The best REJECTED per class: without it "table 0" reads as
+                # "no table on the page" when it may mean "a table 0.03 below
+                # the threshold", and that one is settled by a knob.
                 if score > rejected.get(label, 0.0):
                     rejected[label] = score
                 continue
             kept.append((row, label, score))
 
-        # Порядок чтения.  Граф отдаёт восемь чисел на рамку: класс, score,
-        # четыре координаты и ранг — дважды, причём шестой столбец есть в
-        # точности округление седьмого (проверено на 6000 строк, совпадение
-        # 6000 из 6000). Сортировка по любому из них даёт один порядок.
+        # Reading order. The graph gives eight numbers per box: class, score,
+        # four coordinates and the rank -- twice, column 6 being exactly the
+        # rounding of column 7 (checked over 6000 rows, 6000 of 6000). Either
+        # sort gives one order.
         #
-        # В `Block.order` кладём РАНГ САМОЙ МОДЕЛИ, а не позицию в нашей
-        # сортировке. Разница существенна дважды:
+        # `Block.order` gets the MODEL'S OWN RANK, not our sort position. That
+        # matters twice:
         #
-        #  * ранги идут с ДЫРАМИ — на месте рамок, снесённых порогом. Наша
-        #    сплошная нумерация стирала след, и два прогона с разными порогами
-        #    давали несравнимые `order` для одной и той же рамки;
-        #  * ранги бывают СВЯЗАНЫ: на 18 страницах из 65 нашлось 48 рамок с
-        #    точно совпадающим рангом, и среди них пары `{table, text}` на
-        #    одном прямоугольнике. Устойчивая сортировка разрешала связку
-        #    молча — то есть мы решали за модель, кто читается раньше, ровно
-        #    там, где обещали не решать. Теперь связка доезжает связкой, и
-        #    разрешать её будет объявленная политика уровнем выше.
-        # Связку рангов НЕ разрешаем: устойчивая сортировка по одному рангу
-        # оставляет связанные рамки в том порядке, в каком их отдал граф.
-        # Прежняя редакция добавляла вторым ключом ЯРЛЫК — и связку {table,
-        # text} на одном прямоугольнике разрешал алфавит: `table` всегда шёл
-        # раньше `text`. Это ровно то решение за модель, которого мы обещали
-        # не принимать, и сборщик HTML брал его как порядок чтения.
+        #  * ranks come with HOLES where the threshold removed a box.
+        #    Continuous numbering erased that trace, and two runs at different
+        #    thresholds gave incomparable `order` for the same box;
+        #  * ranks come TIED: 48 boxes of exactly equal rank on 18 pages of 65,
+        #    among them `{table, text}` pairs on one rectangle. We do NOT
+        #    resolve the tie -- a stable sort on the single rank leaves them as
+        #    the graph handed them over, for a declared policy one level up.
+        #    The earlier version added the LABEL as a second key, so the
+        #    alphabet resolved {table, text} on one rectangle, `table` always
+        #    before `text`, and the HTML builder took that for reading order:
+        #    exactly the decision for the model we promised not to make.
         which = None if self.has_order else order.rule()
         if self.has_order:
             kept.sort(key=lambda t: float(t[0][6]))
         else:
-            # РАНГА У МОДЕЛИ НЕТ — ТОГДА ПОРЯДОК НАШ, И ОН ОБЪЯВЛЕН.
-            # Здесь не стояло ничего, и рамки уходили в книгу в том порядке, в
-            # каком их отдал граф после подавления дублей, — то есть ПО
-            # УБЫВАНИЮ УВЕРЕННОСТИ. Замер (plus-L, 200 страниц
-            # `bench/annopage`, 3354 соседних пары рамок): по убыванию
-            # уверенности 100.0% пар, «сверху вниз и слева направо» около
-            # половины — монетка. Точная цифра ЗДЕСЬ НЕ ПОВТОРЯЕТСЯ нарочно:
-            # она жила в четырёх копиях и разошлась (50.4 против 50.1),
-            # оговорка стоит одна, в разделе 18 `docs/contour-notes.md`. В
-            # `meta` при этом честно стояло «наш, позиция в списке»; честно,
-            # да только позиция в списке — не правило, а случайность, и книга
-            # собиралась ею.
+            # THE MODEL GIVES NO RANK -- THEN THE ORDER IS OURS, AND
+            # DECLARED. Nothing stood here, and boxes went into the book as the
+            # graph handed them over after duplicate suppression: BY DESCENDING
+            # CONFIDENCE. Measured (plus-L, 200 pages of `bench/annopage`, 3354
+            # adjacent box pairs): descending confidence 100.0% of pairs, "top
+            # down and left to right" about half -- a coin. The exact figure is
+            # NOT REPEATED HERE on purpose: it lived in four copies and drifted
+            # (50.4 against 50.1); it is stated once, in section 18 of
+            # `docs/contour-notes.md`. `meta` said "ours, position in the list"
+            # -- honest, but a list position is an accident, not a rule, and
+            # the book was assembled by it.
             #
-            # Правим не рамки модели, а порядок, которого модель не дала:
-            # он наш по определению и обязан быть ОБЪЯВЛЕННЫМ правилом.
-            # ПРАВИЛО ЖИВЁТ В `order.py`, ОДНО НА ПРОЕКТ, и выбирает его
-            # ручка `ASSEMBLY_ORDER`. Прежде здесь стоял `our_order_key`
-            # (первый из четырёх экземпляров правила в трёх адаптерах), а
-            # выбор между ним и порядком графа значился НЕРЕШЁННЫМ. Он решён
-            # замером, и оба проиграли третьему: см. шапку `order.py` — на
-            # одних и тех же рамках V2 наше правило даёт 2471 лишний прыжок,
-            # ранг модели 501, правила docling 439, и наше хуже обоих на всех
-            # 16 точках развёртки.
+            # We fix not the model's boxes but the order the model never gave:
+            # ours by definition, so a DECLARED rule. IT LIVES IN `order.py`,
+            # ONE FOR THE PROJECT, chosen by `ASSEMBLY_ORDER`. `our_order_key`
+            # stood here -- first of FOUR copies across three adapters, two of
+            # which sorted by a key other than the one they declared -- and the
+            # choice between it and the graph order was UNSETTLED. Measurement
+            # settled it, and both lost to a third: on the same V2 boxes our
+            # rule gives 2471 extra jumps, the model rank 501, docling's rules
+            # 439, ours worse than both at all 16 sweep points (`order.py`).
             names = [_l for _r, _l, _s in kept]
             order.cover(self.labels, which)
             perm = order.permutation(
@@ -410,9 +388,9 @@ class DocLayout(Recognizer):
                         for r, _l, _s in kept],
                 w, h, index, self.labels, which)
             kept = [kept[i] for i in perm]
-        # Ранга у модели нет — тогда `order` это позиция в НАШЕЙ сортировке,
-        # и так и записано в отпечатке. Выдать её за ранг модели значило бы
-        # приписать модели порядок, которого она не давала.
+        # No model rank -- then `order` is our sort position, and the
+        # fingerprint says so: calling it a rank would credit the model with an
+        # order it never gave.
         ranks = ([int(round(float(r[6]))) for r, _l, _s in kept]
                  if self.has_order else list(range(len(kept))))
         ties = len(ranks) - len(set(ranks))
@@ -424,9 +402,8 @@ class DocLayout(Recognizer):
 
         return Page(
             index=index, width=w, height=h, dpi=dpi, blocks=blocks,
-            # Ответ графа ЦЕЛИКОМ, до отбора. Порог — единственное наше
-            # вмешательство в этом модуле, и улику под него нельзя выбрасывать:
-            # иначе переиграть порог можно только заплатив за пересчёт.
+            # The graph's answer WHOLE, before selection -- the module
+            # header says why the evidence cannot be thrown away.
             raw={"output_rows": int(out.shape[0]),
                  "columns": int(out.shape[1]),
                  "graph_outputs": len(outs),
@@ -434,31 +411,31 @@ class DocLayout(Recognizer):
             meta={"detector": self.name, "raster": image_path,
                   "boxes_accepted": len(kept),
                   "rank_ties": ties,
-                  # ЧЕЙ ЭТО ПОРЯДОК — говорим МЕТРИКЕ, а не только слепку.
-                  # Отпечаток объявлял это и раньше, но `metrics._has_order`
-                  # читает `meta` СТРАНИЦЫ, а не отпечаток, и без поля берёт
-                  # умолчание «ранг модели». У шестиколоночной сборки
-                  # (PP-DocLayout_plus-L; веса лежат рядом с V2 и включаются
-                  # ручкой LAYOUT_MODEL_DIR) ранга нет вовсе, `order` — наша
-                  # нумерация строк графа, и на лежащих прогонах plus-L
-                  # метрика печатала «согласовано» 29/36/41/44/46/44 % по
-                  # шести стендам вместо «НЕ СВЕРЯЕТСЯ». Это ноль от
-                  # непонимания, выданный процентом, да ещё и низким: он
-                  # читается как «модель читает страницу не в том порядке».
+                  # WHOSE ORDER THIS IS -- told to the METRIC, not only to
+                  # the snapshot: `metrics._model_has_rank` reads the PAGE's
+                  # `meta`, not the fingerprint, and without the field defaults
+                  # to "model rank". The six-column build (PP-DocLayout_plus-L;
+                  # weights beside V2, switched on by LAYOUT_MODEL_DIR) has no
+                  # rank at all, `order` is our numbering of graph rows, and on
+                  # the stored plus-L runs the metric printed "agreed"
+                  # 29/36/41/44/46/44 % over six benches instead of "NOT
+                  # COMPARED" -- a zero from misunderstanding dressed as a
+                  # percentage, and a low one: it reads as "the model reads the
+                  # page in the wrong order".
                   #
-                  # Что это шум, а не оценка, показала сама батарея: проба
-                  # «порядок чтения перевёрнут: упало» на тех же шести
-                  # прогонах давала НЕТ, потому что переворот НАШЕЙ нумерации
-                  # поднимал согласие до 71/64/59/56/54/56 % — величина
-                  # болталась вокруг половины. С этой строкой проба печатает
-                  # «нет данных», и непойманных порч на plus-L стало на одну
-                  # меньше в каждом из шести прогонов; на девяти стендах V2
-                  # (настоящие ранги) как было 0, так и осталось.
+                  # The battery showed it was noise: the probe "reading order
+                  # reversed: it fell" answered NO on those same six runs,
+                  # because reversing OUR numbering raised agreement to
+                  # 71/64/59/56/54/56 % -- wobbling around half. With this line
+                  # the probe prints "no data", and uncaught mutations on
+                  # plus-L fell by one in each of the six runs; on the nine V2
+                  # benches (real ranks) it was 0 and stayed 0.
                   #
-                  # Слово «наш» СО СТРОЧНОЙ — тот самый признак, по которому
-                  # сторож узнаёт наш порядок. С заглавной, как в `fingerprint`
-                  # выше, он его НЕ видит (проверено: `_has_order` на «НАШ...»
-                  # = True). Меняя здесь слова, строчную сохранить.
+                  # THE WORD `ours` MUST COME FIRST: that prefix is the whole
+                  # signal by which the guard knows our order
+                  # (`models/base.ours_order`, one place for the project). Case
+                  # it strips deliberately, so lower case is convention, not
+                  # condition. Changing these words, keep `ours` first.
                   "reading_order": ("model_rank" if self.has_order else
                                      order.WORDS[which]
                                      + ": the model gives no rank"),

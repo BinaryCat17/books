@@ -1,28 +1,27 @@
-"""`books detect` — контуры первого уровня, местно и бесплатно.
+"""`books detect` -- first-level contours, locally and for free.
 
-Что делает: рендерит страницы PDF при `PAGE_DPI`, гоняет по ним детектор
-макета и кладёт рядом `Page` в json — рамки, ярлыки, порядок чтения. Ни VLM,
-ни аренды, ни единого цента. Страница считается пару секунд на процессоре.
+Renders the PDF pages at `PAGE_DPI`, runs a layout detector over them and puts
+a `Page` in json beside each: boxes, labels, reading order. No VLM, no rental,
+not a cent, a couple of seconds a page on the CPU.
 
-Зачем это раньше всего остального. Метрику контуров нельзя проверить на
-выдуманных данных: мутации показывают, что число шевелится, но не показывают,
-что оно меряет то самое. Нужен вывод НАСТОЯЩЕЙ модели на НАСТОЯЩИХ страницах
-— и вот он, без денег и без ожидания.
+Why before everything else. Contour metrics cannot be checked on invented data:
+mutations show that the number moves, not that it measures the thing. What is
+needed is a REAL model's output on REAL pages -- here, without money or
+waiting.
 
-Слепок пишется полным. `books replay --check` на каталоге этой команды обязан
-возвращать 0: у детектора нет ни промтов, ни параметров порождения, ни весов
-VLM — и это ЗНАЧЕНИЯ (`null`), а не пропуски. Разница принципиальная:
-«промтов нет вовсе» и «промты не смотрели» — разные прогоны.
+The snapshot is written FULL. `books replay --check` over this command's
+directory must return 0: the detector has no prompts, no generation parameters,
+no VLM weights -- and those are VALUES (`null`), not gaps. "There are no
+prompts at all" and "nobody looked at the prompts" are different runs.
 
-Полный — не значит действующий, и это отдельная беда. Ручки в слепке
-РАЗДЕЛЕНЫ по тому, кто их читает: активный адаптер, сама команда, никто. До
-разделения прогон heron клялся `LAYOUT_MODEL_NAME=PP-DocLayoutV2`, ручкой,
-которой этот адаптер не читает вовсе, — и проверка полноты это одобряла.
+Full is not the same as acting, and that is a separate trouble. Knobs in the
+snapshot are SPLIT by who reads them: the active adapter, the command itself,
+nobody. What the split cost to learn is in `_knob_roles`.
 
-ЧТО ЗДЕСЬ ОБЯЗАНО ПАДАТЬ, А НЕ МОЛЧАТЬ. Пустой набор страниц, пустой вывод
-модели, чужие страницы в каталоге от прошлого прогона, НАПИСАНИЕ ЯРЛЫКА
-БЛОКА, КОТОРОГО НЕТ В СЛОВАРЕ ПОЛИТИКИ. Каждый из четырёх случаев прежде
-давал код 0 и полный слепок, то есть выглядел успехом.
+WHAT MUST BE LOUD HERE, NOT SILENT. An empty page set, empty model output,
+foreign pages left in the directory by an earlier run, A BLOCK LABEL SPELLED
+THE WAY THE POLICY VOCABULARY DOES NOT KNOW. Each of the four used to give exit
+code 0 and a full snapshot: it looked like success.
 """
 import json
 import os
@@ -34,59 +33,52 @@ from . import policy
 from .models.doclayout import DocLayout
 from .run import knobs, stamp
 
-# Политика «текст / артефакт / служебное» живёт в одном месте — `policy.py`,
-# и оттуда же её берёт сборщик HTML. Два списка разошлись бы: они уже
-# расходились в этом проекте (реестр ручек против сборщика задания, 13 имён
-# из 17).
-# Артефактные ярлыки БЕРУТСЯ ИЗ АКТИВНОЙ ПОЛИТИКИ (в `run`), а не из
-# объединения всех. Объединение печатало в отчёте `picture` при прогоне
-# модели, у которой такого класса нет вовсе, — вечный ноль, который читается
-# как «модель их не нашла».
-# По ТОМУ ЖЕ ОДНОМУ словарю сверяется и написание ярлыка каждого блока —
-# `_check_labels` ниже. Проверка словаря ВЕСОВ (`policy.check`) этого не
-# делает и делать не может: она смотрит, что модель умеет назвать, а не что
-# в блоке написано, а между ними лежит перевод туда и обратно.
+# The "text / artefact / service" policy lives in one place, `policy.py`, and
+# the HTML builder takes it from there too. Two lists would drift; they have
+# drifted here already (the knob registry against the task builder, 13 names of
+# 17).
+# Artefact labels are TAKEN FROM THE ACTIVE POLICY (in `run`), not the union of
+# all. The union printed `picture` in the report while running a model with no
+# such class -- an eternal zero reading as "the model did not find them".
+# The SAME single vocabulary also checks every block's label spelling, which
+# the WEIGHTS check cannot -- `_check_labels` below says why.
 
 
-# Три величины слепка — хэш файла, коммит, версии пакетов — переехали в
-# `run/stamp.py`: пишущих слепок стало трое (эта команда, `doc/html.py` и
-# `read/run.py`), а второй экземпляр — то самое расхождение, за которое проект
-# уже платил (13 имён из 17 в реестре ручек против сборщика задания).
-# Здесь стояло, что на арендованной машине этот файл «не поднимется вовсе, он
-# тянет onnxruntime и opencv»; замер опроверг: импорты ленивые, внутри функций
-# `models/doclayout.py`, а на машине эти пакеты есть.
+# The three snapshot quantities -- file hash, commit, package versions -- moved
+# to `run/stamp.py`: three places write a snapshot now (this command,
+# `doc/html.py` and `read/run.py`), and a second copy is the drift this project
+# has already paid for.
 _sha256 = stamp.sha256
 
 
-# Реестр адаптеров. Пока он был один, вопрос «а не лучше ли другая модель»
-# нельзя было даже поставить: имя модели было зашито в импорт. Адаптеры
-# отличаются не весами, а СЛОВАРЁМ и препроцессом, поэтому выбор объявлен
-# ручкой и уезжает в слепок.
+# The adapter registry. While there was one, "would another model be better"
+# could not be asked: the name was baked into the import. Adapters differ not
+# in weights but in VOCABULARY and preprocessing, so the choice is a declared
+# knob and travels into the snapshot.
 ADAPTERS = ("doclayout", "docling", "docling-egret", "yolox")
 
 
 def _check_labels(page, pol, known, adapter):
-    """Написание ярлыка КАЖДОГО БЛОКА — по названному словарю, и вслух.
+    """EVERY BLOCK's label spelling, against the named vocabulary, out loud.
 
-    ЧЕГО НЕ ПРОВЕРЯЛ НИКТО. `policy.check(det.labels)` сверяет словарь ВЕСОВ:
-    то, что модель умеет назвать. Сюда же приходит то, что в блоке НАПИСАНО, а
-    между этими двумя вещами лежит перевод: адаптер docling переводит ярлык в
-    словарь вендора и обратно, а вендорский конвейер ярлыки ещё и
-    переименовывает сам (`TITLE -> SECTION_HEADER` в его постобработке).
-    Сторожа на этом пути не было ни одного: подмена обратного перевода у egret
-    на шести страницах прошла молча. `policy.role()` тут тоже не спасает — он
-    не падает никогда, потому что `policy.ROLE` это объединение всех пяти
-    словарей, где рядом лежат и `table`, и `Table`.
+    WHAT NOBODY CHECKED. `policy.check(det.labels)` verifies the WEIGHTS
+    vocabulary: what the model can name. What arrives here is what the block
+    SAYS, and between the two lies a translation -- the docling adapter turns a
+    label into the vendor's vocabulary and back, and the vendor pipeline
+    renames labels itself (`TITLE -> SECTION_HEADER` in its postprocessing).
+    Not one guard stood on that path: a swapped reverse translation in egret
+    passed six pages in silence. `policy.role()` never fails either, because
+    `policy.ROLE` is the union of all five vocabularies, where `table` and
+    `Table` lie side by side.
 
-    ЦЕНА МОЛЧАНИЯ — НЕ ПАДЕНИЕ, А НОЛЬ. Артефактные ярлыки берутся из ОДНОГО
-    словаря (`arte` в `run`), и блок, написанный по-чужому, не совпадёт ни с
-    одним из них: «артефактов 0» читается как «модель их не нашла», а значит
-    «мы не узнали её слов». Ровно тот ноль от непонимания, что записан в
-    правилах проекта.
+    THE PRICE OF SILENCE IS NOT A CRASH BUT A ZERO. Artefact labels come from
+    ONE vocabulary (`arte` in `run`), and a foreign-spelled block matches none:
+    "artefacts 0" reads as "the model did not find them" when it means "we did
+    not recognise its words" -- the zero from misunderstanding.
 
-    Проверяется НА КАЖДОЙ СТРАНИЦЕ, а не однажды: переименовать ярлык может
-    вендорский конвейер, а он видит не всякую страницу одинаково — чужое
-    написание способно появиться на четырёхсотой странице и ни разу до неё.
+    Checked ON EVERY PAGE, not once: the vendor pipeline renames labels and
+    does not see every page alike -- a foreign spelling can turn up on page
+    four hundred and never before.
     """
     bad = sorted({b.label for b in page.blocks if b.label not in known})
     if not bad:
@@ -117,27 +109,27 @@ def _adapter():
     raise SystemExit(f"LAYOUT_ADAPTER={which!r}: знаю только {ADAPTERS}")
 
 
-# Ручки, которые читает САМА эта команда, а не адаптер. Разряд третий, и он
-# не украшение: пометить `PAGE_DPI` как «к прогону не относится» было бы враньём
-# ровно того же рода, что называть чужую модель, — только в другую сторону.
-# `LAYOUT_SCORE_THRESHOLD` здесь тоже читается (в отказе «ни одной рамки»), но
-# лишь чтобы напечатать чужое число: действующим его делает адаптер, он же его
-# и объявляет, а два хозяина у одной ручки — два списка, которые разойдутся.
+# Knobs THIS command reads, not the adapter. A third rank, and no ornament:
+# marking `PAGE_DPI` "does not concern this run" would be a lie of the same
+# kind as naming a foreign model, the other way round.
+# `LAYOUT_SCORE_THRESHOLD` is read here too (in the "not one box" refusal) but
+# only to print someone else's number: the adapter makes it act and declares
+# it, and two owners of one knob are two lists that drift.
 COMMAND_KNOBS = ("PAGE_DPI", "LAYOUT_ADAPTER")
 
 
 def _knob_roles(det):
-    """Кто читает каждую ручку реестра В ЭТОМ прогоне: адаптер, команда, никто.
+    """Who reads each registry knob IN THIS RUN: the adapter, the command, nobody.
 
-    До этого разбора слепок прогона `LAYOUT_ADAPTER=docling` уверенно писал
-    `LAYOUT_MODEL_NAME=PP-DocLayoutV2` — имя модели, которую он не поднимал:
-    у heron каталог весов зашит, а ручку эту читает только `doclayout.py`.
-    Полнота слепка тут не спасает, а вредит: `books replay --check` возвращал
-    0 из 41, то есть проверка подтверждала слепок, называющий чужую величину.
+    Before this split, a `LAYOUT_ADAPTER=docling` snapshot confidently wrote
+    `LAYOUT_MODEL_NAME=PP-DocLayoutV2` -- a model it never raised: heron's
+    weights directory is hard-wired and only `doclayout.py` reads that knob.
+    Completeness does not save you here, it hurts: `books replay --check`
+    returned 0 of 41, so the check confirmed a snapshot naming a foreign value.
 
-    Опечатка в объявлении адаптера ловится здесь же и вслух: имя не из реестра
-    означало бы, что список ручек разошёлся с реестром молча — та самая беда,
-    от которой реестр и заведён.
+    A typo in an adapter's declaration is caught here too, out loud: a name
+    outside the registry would mean the knob list had drifted from it in
+    silence -- the very trouble the registry exists against.
     """
     try:
         mine = tuple(det.knobs_read())
@@ -164,9 +156,10 @@ def _knob_roles(det):
     return roles
 
 
-# Форма слепка ручек переехала в реестр (`run/knobs.snapshot_with_readers`):
-# снимающих стало двое — детекция и чтение, — и вторая редакция успела
-# получиться другой формы, которую забраковал `books replay --check`.
+# The shape of the knob snapshot moved into the registry
+# (`run/knobs.snapshot_with_readers`): two takers now, detection and reading,
+# and the second version had already come out a different shape, rejected by
+# `books replay --check`.
 _knobs_snapshot = knobs.snapshot_with_readers
 
 
@@ -178,20 +171,20 @@ def _packages():
 
 
 def parse_pages(spec, total):
-    """`--pages 1,4,7-9` -> набор номеров, считая с единицы.
+    """`--pages 1,4,7-9` -> a set of numbers, counting from one.
 
-    Пустое значение — вся книга. Номер за пределами книги — ошибка вслух.
-    Заданный, но ПУСТОЙ набор (`3-1`) — тоже ошибка: прежде он давал ноль
-    страниц, код возврата 0 и полный слепок, то есть пустой прогон выглядел
-    успешным. Ноль от непонимания.
+    Empty value means the whole book. A number outside the book is an error
+    out loud. A set given but EMPTY (`3-1`) is an error too: it used to give
+    zero pages, exit code 0 and a full snapshot, so an empty run looked like
+    success. A zero from misunderstanding.
     """
     if not spec:
         return list(range(total))
-    # ПРОБЕЛ РАЗДЕЛЯЕТ ТАК ЖЕ, КАК ЗАПЯТАЯ. Прежде `--pages "1 3"` падало
-    # голым `ValueError: invalid literal for int()`, и это ловилось только у
-    # `detect` — у `overlay` был свой разбор, пробелы принимавший. Когда
-    # разборы свели в один, отказ достался обоим: правило «жаловаться вслух»
-    # нарушалось в двух командах вместо одной. Понимать надо обе записи.
+    # A SPACE SEPARATES JUST LIKE A COMMA. `--pages "1 3"` used to fall with a
+    # bare `ValueError: invalid literal for int()`, caught only in `detect` --
+    # `overlay` had its own parser that took spaces. Merging the parsers gave
+    # the refusal to both: the rule "complain out loud" was broken in two
+    # commands, not one. Both spellings have to be understood.
     want = []
     for part in str(spec).replace(" ", ",").split(","):
         part = part.strip()
@@ -213,8 +206,8 @@ def parse_pages(spec, total):
             try:
                 want.append(int(part))
             except ValueError:
-                # Вслух и с образцом, а не следом стека: этот ключ набирают
-                # руками, и опечатка в нём — обычное дело.
+                # Out loud and with a sample, not a stack trace: this flag is
+                # typed by hand, and a typo in it is routine.
                 raise SystemExit(
                     f"в «--pages {spec}» кусок «{part}» — не номер страницы. "
                     f"Ожидается «1,4,7-9» или «1 4 7-9», счёт с единицы.")
@@ -227,13 +220,14 @@ def parse_pages(spec, total):
 
 
 def run(pdf, outdir, pages_spec=None, log=print):
-    """Прогнать детектор по страницам PDF. Возвращает путь к каталогу."""
+    """Run the detector over the PDF pages. Returns the directory path."""
     import pymupdf
 
     dpi_raw = knobs.knob("PAGE_DPI")
     dpi = float(dpi_raw)
-    # Рендерим целым числом, и в слепок пишем ЕГО, а не исходное дробное:
-    # `get_pixmap` дробное усекает, и слепок при `PAGE_DPI=143.5` соврал бы.
+    # We render at an integer and write THAT into the snapshot, not the
+    # fractional original: `get_pixmap` truncates, and at `PAGE_DPI=143.5` the
+    # snapshot would lie.
     dpi_used = int(dpi)
     if dpi_used != dpi:
         log(f"ВНИМАНИЕ: PAGE_DPI={dpi_raw} усечён до {dpi_used} — "
@@ -243,51 +237,47 @@ def run(pdf, outdir, pages_spec=None, log=print):
     outdir = os.path.abspath(outdir)
     pagedir = os.path.join(outdir, "pages")
 
-    # Вход проверяем ДО подъёма детектора: иначе на опечатке в имени файла
-    # оператор ждал загрузки весов, читал словарь ярлыков и получал пять
-    # кадров `pymupdf.FileNotFoundError`. Все соседние команды (`books html`,
-    # `books feed`, `books replay`) на дурном пути говорят одной строкой.
-    # ЭТА ПРОВЕРКА ЛОВИТ ТОЛЬКО ОТСУТСТВИЕ И КАТАЛОГ. Пустой файл, не-PDF и
-    # книга без страниц ею НЕ ловятся — они ловятся ниже, на открытии; здесь
-    # прежде стояло «осталась единственной с трассировкой», и это объявляло
-    # вылеченным то, что вылечено не было (проверено: EmptyFileError и
-    # FileDataError вылезали трассировкой).
+    # The input is checked BEFORE the detector comes up: otherwise a typo in
+    # the file name made the operator wait for the weights, read the label
+    # vocabulary and collect five frames of `pymupdf.FileNotFoundError`. Every
+    # neighbouring command answers a bad path in one line. IT CATCHES ONLY
+    # ABSENCE AND A DIRECTORY: an empty file, a non-PDF and a book with no
+    # pages are caught below, at the open.
     if not os.path.exists(pdf):
         raise SystemExit(f"нет файла {pdf}")
     if os.path.isdir(pdf):
         raise SystemExit(f"{pdf} — каталог, а ожидается PDF одной книги")
 
     det = _adapter()
-    # Политика обязана покрывать словарь весов ЦЕЛИКОМ и не называть лишнего.
-    # Проверяется при каждом прогоне: словарь приезжает из весов, и смена
-    # весов — самый вероятный способ завести двадцать шестой класс.
-    # Политику выбирает СЛОВАРЬ МОДЕЛИ, а не имя весов: имя можно перепутать,
-    # список классов приезжает из самих весов.
+    # The policy must cover the weights vocabulary WHOLE and name nothing
+    # extra. Checked every run: changing weights is the likeliest way to
+    # acquire a twenty-sixth class. The MODEL'S VOCABULARY picks the policy,
+    # not the weights' name -- a name can be confused, the class list comes
+    # from the weights themselves.
     pol = getattr(det, "policy_name", None) or policy.for_labels(det.labels)
     det.policy_name = pol
     policy.check(det.labels, policy=pol)
     arte = tuple(sorted(l for l, r in policy.POLICIES[pol].items()
                         if r == "artifact"))
-    # Тот же один словарь — и для сверки написания ярлыка блока. Объединение
-    # `policy.ROLE` тут не годится ровно потому, что оно объединение: в нём
-    # рядом лежат `table` и `Table`, и чужое написание прошло бы насквозь.
+    # The same single vocabulary, for block label spelling too. The union
+    # `policy.ROLE` is no good here for the reason it is a union.
     known = set(policy.POLICIES[pol])
     for line in det.threshold_drift():
-        # Громко: молчаливое расхождение означает, что прогон поехал на нашем
-        # числе вместо модельного.
+        # Loudly: a silent divergence means the run went on our number
+        # instead of the model's.
         log(f"ВНИМАНИЕ: порог задан не родной — {line}")
 
-    # Заданное оператором — величиной и поимённо, а несъедобное для этого
-    # адаптера — отдельной строкой. Замер до этой строки:
-    # `LAYOUT_ADAPTER=docling LAYOUT_MODEL_NAME=PP-DocLayout_plus-L` давал
-    # 0 упоминаний ручки в журнале на 12 страницах и слепок, где у неё стояло
-    # «задано снаружи: true» рядом со значением, которого heron не видел.
-    # Оператор при этом уверен, что он что-то настроил.
+    # What the operator set, by value and by name; what this adapter cannot
+    # digest, on its own line. Measured before it:
+    # `LAYOUT_ADAPTER=docling LAYOUT_MODEL_NAME=PP-DocLayout_plus-L` gave 0
+    # mentions of the knob in the log over 12 pages and a snapshot marking it
+    # "set externally: true" beside a value heron never saw -- while the
+    # operator is sure they configured something.
     roles = _knob_roles(det)
     given = [n for n in knobs.names() if n in os.environ]
     dead = [n for n in given if roles[n] is None]
-    # Ноль печатается ТОЖЕ: это ноль от проверки («спросили — ничего не
-    # задано»), а не молчание шага, который могли и не выполнить.
+    # The zero is printed TOO: a zero from a check ("we asked, nothing is
+    # set"), not the silence of a step that may not have run.
     log(f"задано снаружи ручек {len(given)}"
         + (f": {', '.join(given)}" if given else ""))
     if dead:
@@ -297,10 +287,10 @@ def run(pdf, outdir, pages_spec=None, log=print):
             f"относится: false»")
     log(f"детектор {det.name}: "
         f"{det.fingerprint().get('model')} из {det.dir}")
-    # Про вход спрашиваем ОТПЕЧАТОК, а не поля конкретного адаптера: у второго
-    # адаптера их не оказалось, и жёсткое обращение к `det.keep_ratio` роняло
-    # прогон на первой же чужой модели. Отпечаток обязан быть у каждого — это
-    # и есть контракт.
+    # About the input we ask the FINGERPRINT, not one adapter's fields: the
+    # second adapter had none, and a hard `det.keep_ratio` dropped the run on
+    # the first foreign model. Every adapter must have a fingerprint -- that is
+    # the contract.
     fp_in = (det.fingerprint().get("input") or {})
     log(f"вход модели {fp_in.get('width')}x{fp_in.get('height')} (ШxВ): "
         + ", ".join(f"{k}={v}" for k, v in fp_in.items()
@@ -309,12 +299,11 @@ def run(pdf, outdir, pages_spec=None, log=print):
         f"классов {len(det.labels)}, "
         f"родной порог {det.fingerprint().get('native_threshold')}")
 
-    # Открытие тоже говорит СТРОКОЙ. Проверка существования выше ловит опечатку
-    # в имени, а этот `try` — три другие беды, которые она пропускает и которые
-    # прежде вылезали трассировкой: пустой файл (`EmptyFileError`), не-PDF под
-    # именем pdf (`FileDataError`) и книга без единой страницы. Все три
-    # проверены; классы исключений чужие и не перечисляются поимённо нарочно —
-    # список у pymupdf свой, и он менялся.
+    # Opening speaks IN A LINE too: the three troubles the check above misses
+    # used to come out as tracebacks -- an empty file (`EmptyFileError`), a
+    # non-PDF under a pdf name (`FileDataError`), a book with no pages. All
+    # three checked; the exception classes are foreign and deliberately not
+    # named -- pymupdf has its own list, and it has changed.
     try:
         doc = pymupdf.open(pdf)
         pages_total = doc.page_count
@@ -325,10 +314,10 @@ def run(pdf, outdir, pages_spec=None, log=print):
         raise SystemExit(f"{pdf} открылся, но страниц в нём ноль — считать нечего")
     idxs = parse_pages(pages_spec, pages_total)
 
-    # Чужие страницы в каталоге — не мелочь. Прошлый прогон мог идти при
-    # другом пороге, другом dpi, других весах; смешавшись, они дадут метрике
-    # выборку из двух разных прогонов, и `run.json` про это не скажет.
-    # Ровно тот урок, что записан в реестре про `RESUME`.
+    # Foreign pages in the directory are no trifle: the earlier run may have
+    # gone at another threshold, dpi or weights, and mixed in they give the
+    # metric a sample from two runs while `run.json` says nothing. Exactly the
+    # lesson the registry records for `RESUME`.
     os.makedirs(pagedir, exist_ok=True)
     stale = [f for f in os.listdir(pagedir) if f.endswith(".json")]
     if stale:
@@ -344,10 +333,10 @@ def run(pdf, outdir, pages_spec=None, log=print):
     counts, rej_best, rej_pages = {}, {}, {}
     artefacts = ties = 0
     spellings = set()
-    # ЭТАПОВ ДВА, И СЧИТАЮТСЯ ОНИ ПОРОЗНЬ. `counts` набирается по блокам,
-    # доехавшим до json, то есть ПОСЛЕ вендорского конвейера, если он включён;
-    # `model_boxes` — сколько рамок отдала сама модель выше порога (её число,
-    # адаптер кладёт его в `meta`), и снятое конвейером есть разность.
+    # THERE ARE TWO STAGES, COUNTED APART. `counts` is gathered over blocks
+    # that reached json, AFTER the vendor pipeline if it is on; `model_boxes`
+    # is what the model gave above the threshold (its own number, put in `meta`
+    # by the adapter). The difference is what the pipeline removed.
     model_boxes = mute_pages = 0
     pipe = {"page_count": 0, "before": 0, "after": 0, "children": 0, "reordered": 0,
             "modes": set(), "missing_numbers": set()}
@@ -355,13 +344,14 @@ def run(pdf, outdir, pages_spec=None, log=print):
         for n, i in enumerate(idxs, 1):
             doc[i].get_pixmap(dpi=dpi_used).save(tmp)
             page = det.read(tmp, i, float(dpi_used))
-            # ДО записи на диск: страница с неузнанным написанием ярлыка не
-            # должна попадать в каталог вовсе — иначе её подберёт метрика.
+            # BEFORE writing to disk: a page with an unrecognised label
+            # spelling must not enter the directory at all -- the metric would
+            # pick it up.
             _check_labels(page, pol, known, det.name)
             spellings.update(b.label for b in page.blocks)
             mk = page.meta.get("boxes_accepted")
             if mk is None:
-                mute_pages += 1          # адаптер не сказал — это не ноль
+                mute_pages += 1          # the adapter did not say: not a zero
             else:
                 model_boxes += int(mk)
             pm = page.meta.get("docling_pipeline")
@@ -384,12 +374,12 @@ def run(pdf, outdir, pages_spec=None, log=print):
             for lab, s in page.meta["best_rejected_by_class"].items():
                 if s > rej_best.get(lab, 0.0):
                     rej_best[lab] = s
-                    rej_pages[lab] = i          # ГДЕ он был лучше всего
-                # «На скольких страницах отвергнуто» отсюда убрано: сырой
-                # вывод несёт три сотни строк на страницу и накрывает почти
-                # все классы почти всегда, так что это число было равно числу
-                # страниц при любом пороге. Оно не умело упасть, а читалось
-                # как замер.
+                    rej_pages[lab] = i          # WHERE it was best
+                # "On how many pages rejected" was dropped from here: the raw
+                # output carries three hundred rows a page and covers almost
+                # every class almost always, so the number equalled the page
+                # count at any threshold. It could not fall, and read as a
+                # measurement.
             for b in page.blocks:
                 counts[b.label] = counts.get(b.label, 0) + 1
                 artefacts += b.label in arte
@@ -404,9 +394,9 @@ def run(pdf, outdir, pages_spec=None, log=print):
     total = sum(counts.values())
     mode = "/".join(sorted(str(m) for m in pipe["modes"]))
     had_pipeline = bool(pipe["page_count"])
-    # Пометка про этап ставится ТОЛЬКО когда конвейер и вправду работал: при
-    # выключенном все числа и так от модели, и лишнее слово в строке сделало
-    # бы прежние прогоны несравнимыми глазами на ровном месте.
+    # The stage note is set ONLY when the pipeline really ran: with it off
+    # every number is the model's anyway, and an extra word would make earlier
+    # runs incomparable by eye for nothing.
     box_stage = (f"после конвейера docling {mode}" if had_pipeline
                   else "у модели, конвейера над рамками не было")
     log(f"рамок {total} на {len(idxs)} страницах "
@@ -415,14 +405,14 @@ def run(pdf, outdir, pages_spec=None, log=print):
         + (f" — все числа рамок ПОСЛЕ конвейера docling {mode}"
            if had_pipeline else ""))
 
-    # СНЯТОЕ КОНВЕЙЕРОМ — ОТДЕЛЬНАЯ ВЕЛИЧИНА, А НЕ ПОПРАВКА К «ПРИНЯТО».
-    # Пока её не было, «text принято 130» при включённой ручке было
-    # неотличимо от «модель нашла 130»: снятое вендором растворялось в том же
-    # числе, и увидеть его можно было только вторым прогоном с выключенной
-    # ручкой. Замер, которым это вскрыто (bench/matematika, docling,
-    # off -> post): text 143 -> 130, section_header 9 -> 7, formula 4 -> 3, а
-    # «лучший отвергнутый» тех же классов (0.480 / 0.425 / 0.476) совпал до
-    # знака, потому что он снят порогом ДО конвейера.
+    # WHAT THE PIPELINE REMOVED IS A QUANTITY OF ITS OWN, NOT A CORRECTION TO
+    # "ACCEPTED". Until it existed, "text accepted 130" with the knob on was
+    # indistinguishable from "the model found 130", visible only through a
+    # second run with the knob off. The measurement that exposed it
+    # (bench/matematika, docling, off -> post): text 143 -> 130,
+    # section_header 9 -> 7, formula 4 -> 3, while the "best rejected" of those
+    # classes (0.480 / 0.425 / 0.476) matched to the digit, being removed by
+    # the threshold BEFORE the pipeline.
     if mute_pages:
         log(f"ВНИМАНИЕ: на {mute_pages} страницах из {len(idxs)} адаптер "
             f"{det.name} не сказал «рамок принято» — сколько отдала сама "
@@ -434,9 +424,10 @@ def run(pdf, outdir, pages_spec=None, log=print):
             f"он снял {took} ({share:.1f}%), в книгу пошло {pipe['after']}, "
             f"ушло в дети {pipe['children']}, переставлено {pipe['reordered']}, "
             f"страниц через него {pipe['page_count']} из {len(idxs)}")
-        # По ярлыкам снятое НЕ разложено, и молчать об этом нельзя: иначе
-        # «table принято 0» при включённой ручке читается как «модель не
-        # нашла», хотя означать может «нашла, а конвейер снял».
+        # The removals are NOT broken down by label, and silence about that
+        # is not allowed: "table accepted 0" with the knob on would read as
+        # "the model found none" when it may mean "it did, the pipeline
+        # removed it".
         log(f"    снятое конвейером по ярлыкам НЕ разложено: адаптер отдаёт "
             f"«рамок до» только итогом ({pipe['before']}), по классам их нет "
             f"(models/docling_heron.py, pipe_meta)")
@@ -456,8 +447,8 @@ def run(pdf, outdir, pages_spec=None, log=print):
                 f"{abs(pipe['before'] - model_boxes)} рамок потеряна между "
                 f"этапами")
     else:
-        # Ноль от проверки, а не молчание шага: сказано, что конвейера НЕ
-        # БЫЛО, и сказано числом страниц, на которых его не было.
+        # A zero from a check, not the silence of a step: it says there WAS
+        # no pipeline, and says it with the number of pages it was not on.
         log(f"конвейер вендора рамок не касался: страниц через него 0 из "
             f"{len(idxs)}, «принято» ниже — рамки самой модели")
         if not mute_pages and model_boxes != total:
@@ -465,29 +456,27 @@ def run(pdf, outdir, pages_spec=None, log=print):
                 f"их {total} при отсутствии конвейера: рамки правит кто-то "
                 f"неназванный")
 
-    # Величина, а не «сверено»: сколько написаний ярлыка встретилось из
-    # скольких известных. Чужих здесь ноль всегда — не потому, что их не
-    # бывает, а потому, что прогон с чужим написанием сюда не доходит
-    # (`_check_labels` роняет его на той же странице).
+    # A quantity, not "verified": how many label spellings met, out of how
+    # many known. Foreign ones are always zero -- not because they do not
+    # happen, but because such a run never gets this far (`_check_labels` drops
+    # it on that very page).
     log(f"написаний ярлыков сверено со словарём «{pol}»: {len(spellings)} "
         f"из {len(known)} известных, чужих 0 — иначе прогон бы упал")
 
-    # По классам — принято И лучшее отвергнутое. Без второго числа «table 0»
-    # читается как «таблиц нет», а означать может «таблица была на 0.03 ниже
-    # порога». Это разные беды: первая к модели, вторая к ручке. Замер на
-    # bench/real/tables20.pdf: при родном пороге таблица находится на 4 страницах
-    # из 20, притом что страницы отобраны именно по таблицам.
-    # Показываем то, что нашлось, и ВСЕ артефактные ярлыки — даже с нулём.
-    # Остальные отвергнутые сводим в строку: двадцать пять классов подряд
-    # топят единственное число, ради которого отчёт и написан.
+    # By class -- accepted AND best rejected. Without the second number
+    # "table 0" reads as "there are no tables" when it may mean "the table was
+    # 0.03 below the threshold": the first trouble is the model's, the second a
+    # knob's. Measured on bench/real/tables20.pdf: at the native threshold a
+    # table is found on 4 pages of 20, and the pages were selected for tables.
+    # We show what was found and ALL artefact labels, even at zero; the rest of
+    # the rejected go into one line, because twenty-five classes in a row drown
+    # the one number the report is written for.
     shown = sorted(set(counts) | set(arte),
                    key=lambda l: (-counts.get(l, 0), l))
-    # ЭТАПЫ НАЗВАНЫ, потому что их два. «Принято» считается по блокам,
-    # доехавшим до json (после конвейера, если он был), «лучший отвергнутый»
-    # приходит из `meta` адаптера и снят порогом модели ДО конвейера. Два
-    # числа об одном ярлыке в одной строке про разные этапы читатель
-    # складывает в одно — и получает «рамка была на 0.02 ниже порога» там,
-    # где она была принята моделью и снята потом вендором.
+    # THE STAGES ARE NAMED because there are two. Two numbers about one label
+    # on one line, about different stages, the reader adds into one -- and gets
+    # "the box was 0.02 below the threshold" where it was accepted by the model
+    # and removed afterwards by the vendor.
     if had_pipeline:
         log(f"    по классам ДВА ЭТАПА: «принято» — {box_stage}; «лучший "
             f"отвергнутый» — порог модели ДО него. Складывать их нельзя.")
@@ -520,11 +509,12 @@ def run(pdf, outdir, pages_spec=None, log=print):
     here = os.path.dirname(os.path.abspath(__file__))
     fp = det.fingerprint()
     snap = {
-        # Дата рядом с числом: замер без неё не сказать, к чему применён.
+        # The date beside the number: without it a measurement cannot say
+        # what it was applied to.
         "when": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "knobs": _knobs_snapshot(roles),
-        # Сводка тем же числом, что и в журнале: читать двадцать записей ради
-        # ответа «а что здесь вообще действовало» никто не станет.
+        # A summary in the same number as the log: nobody reads twenty
+        # entries to answer "what was actually acting here".
         "run_knobs": {
             "read_by_active_adapter": [n for n in knobs.names()
                                         if roles[n] and n not in COMMAND_KNOBS],
@@ -540,12 +530,12 @@ def run(pdf, outdir, pages_spec=None, log=print):
         "args": {"pdf": pdf, "pages": pages_spec, "out": outdir},
         "commit": _commit(),
         "source": {"path": pdf, "sha256": _sha256(pdf)},
-        # Хэшируются ОБА файла, решающих результат. Прежде считался только
-        # адаптер, а политика артефактов и разбор страниц живут здесь.
-        # sha256 ФАЙЛА АКТИВНОГО АДАПТЕРА, а не всегда doclayout.py. Прежде
-        # прогон yolox клялся хэшем чужого модуля: правка в docling_heron.py
-        # или yolox_layout.py была в слепке невидима, то есть два разных
-        # детектора давали неотличимые слепки.
+        # BOTH files that decide the result are hashed: only the adapter used
+        # to be counted, while artefact policy and page parsing live here. And
+        # the sha256 OF THE ACTIVE ADAPTER'S FILE, not always doclayout.py -- a
+        # yolox run used to swear by a foreign module's hash, so an edit in
+        # docling_heron.py or yolox_layout.py was invisible and two detectors
+        # gave indistinguishable snapshots.
         "adapter": {"name": det.name,
                     "module": type(det).__module__,
                     "sha256": _sha256(sys.modules[type(det).__module__].__file__),
@@ -563,20 +553,19 @@ def run(pdf, outdir, pages_spec=None, log=print):
                  "seconds": round(took, 2), "by_label": counts,
                  "best_rejected": rej_best,
                  "pages_with_rejected": rej_pages,
-                 # ЧЕЙ ЭТО ЭТАП — рядом с числами, а не только в журнале.
-                 # «по ярлыкам» и «рамок» сняты ПОСЛЕ вендорского конвейера,
-                 # «лучший отвергнутый» — порогом модели ДО него; без этой
-                 # записи слепок двух прогонов различался бы одной строкой в
-                 # реестре ручек, а числа в «итоге» — этапом.
+                 # WHOSE STAGE THIS IS -- beside the numbers, not only in the
+                 # log: without this record two runs' snapshots would differ by
+                 # one line in the knob registry, and their summary numbers by
+                 # a whole stage.
                  "stages": {
                      "box_counts_stage":
                          box_stage,
                      "best_rejected_stage":
                          "порогом модели, ДО конвейера вендора",
-                     # Неполная сумма — это НЕ величина: страница, о которой
-                     # адаптер промолчал, делает её меньше настоящей ровно на
-                     # столько, сколько мы не знаем. Поэтому либо число, либо
-                     # `null` рядом со счётчиком промолчавших страниц.
+                     # An incomplete sum is NOT a quantity: a page the
+                     # adapter kept quiet about makes it smaller by exactly
+                     # what we do not know. So either a number, or `null`
+                     # beside the count of silent pages.
                      "boxes_from_model":
                          None if mute_pages else model_boxes,
                      "pages_without_boxes_accepted":
@@ -591,9 +580,9 @@ def run(pdf, outdir, pages_spec=None, log=print):
                          "boxes_removed": pipe["before"] - pipe["after"],
                          "moved_to_children": pipe["children"],
                          "boxes_reordered": pipe["reordered"],
-                         # Значение, а не пропуск: снятое по ярлыкам не
-                         # разложено потому, что адаптер отдаёт «рамок до»
-                         # только итогом.
+                         # A value, not a gap: removals are not broken down
+                         # by label because the adapter gives "boxes before"
+                         # only as a total.
                          "removed_by_label": None,
                          "why_removed_by_label_empty":
                              ("адаптер отдаёт «рамок до» одним числом на "
@@ -603,9 +592,9 @@ def run(pdf, outdir, pages_spec=None, log=print):
                              sorted(pipe["missing_numbers"]),
                      },
                  }},
-        # Строка обязана быть исполнимой: в raw/ пять файлов из девяти несут
-        # пробелы и скобки, и неэкранированная строка повтора — не строка
-        # повтора, а её описание.
+        # The line must be runnable: 8 of the 9 files in raw/ carry spaces or
+        # brackets, and an unquoted repeat line is not a repeat line but a
+        # description of one.
         "repeat_command": " ".join(shlex.quote(a) for a in
                            ["books", "detect", pdf, "--out", outdir]
                            + (["--pages", str(pages_spec)] if pages_spec else [])),
