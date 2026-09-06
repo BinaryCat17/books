@@ -93,10 +93,10 @@ def rule() -> str:
     v = (knobs.knob("ASSEMBLY_ORDER") or DEFAULT).strip()
     if v not in RULES:
         raise SystemExit(
-            f"ASSEMBLY_ORDER={v!r}: знаю только {list(RULES)}. Правило сборки "
-            f"книги — не то место, где можно ошибиться молча: перепутанное имя "
-            f"перемешало бы абзацы, а рамки остались бы теми же, и ни одна "
-            f"метрика рамок этого не заметила бы.")
+            f"ASSEMBLY_ORDER={v!r}: I know only {list(RULES)}. The book "
+            f"assembly rule is no place to be wrong in silence: a muddled "
+            f"name would shuffle the paragraphs while the boxes stayed the "
+            f"same, and not one box metric would notice.")
     return v
 
 
@@ -178,9 +178,10 @@ def cover(vocab, which=None) -> str | None:
     name = policy.for_labels(vocab)
     if name not in _LABELS:
         raise SystemExit(
-            f"ASSEMBLY_ORDER=docling, а перевода ярлыков под словарь {name!r} "
-            f"нет: знаю {sorted(_LABELS)}. Правила порядка смотрят на восемь "
-            f"имён, и по чужому словарю колонтитул уехал бы в тело страницы.")
+            f"ASSEMBLY_ORDER=docling, but there is no label translation for "
+            f"the vocabulary {name!r}: I know {sorted(_LABELS)}. The order "
+            f"rules look at eight names, and under a foreign vocabulary a "
+            f"running head would sail into the body of the page.")
     return name
 
 
@@ -198,12 +199,12 @@ def _predictor():
             ReadingOrderPredictor)
     except ImportError as e:
         raise SystemExit(
-            f"ASSEMBLY_ORDER=docling, а пакета docling нет: {e}. Поставить: "
-            f'pip install -e ".[docling]"  (docling-slim и rtree, +54 МБ, без '
-            f"torch). Либо ASSEMBLY_ORDER=ours — тогда книга складывается "
-            f"нашим правилом (y0, x0), которое на 600 страницах золотого "
-            f"стенда даёт 2471 лишний прыжок против 439; выбор хуже, но "
-            f"свободен от пакета.") from None
+            f"ASSEMBLY_ORDER=docling, but there is no docling package: {e}. "
+            f'Install: pip install -e ".[docling]"  (docling-slim and rtree, '
+            f"+54 MB, no torch). Or ASSEMBLY_ORDER=ours -- then the book is "
+            f"folded by our rule (y0, x0), which over the 600 golden pages "
+            f"gives 2471 extra jumps against 439; a worse choice, but free of "
+            f"the package.") from None
     return ReadingOrderPredictor()
 
 
@@ -253,6 +254,7 @@ def permutation(labels, boxes, width, height, index, vocab,
     # merely look a little smaller.
     if sorted(out) != list(range(n)):
         raise RuntimeError(
-            f"правила порядка docling вернули не перестановку на странице "
-            f"{index}: было {n} рамок, вернулось {len(out)} номеров")
+            f"the docling order rules returned something that is not a "
+            f"permutation on page {index}: {n} boxes went in, {len(out)} "
+            f"numbers came back")
     return out

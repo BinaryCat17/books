@@ -97,7 +97,7 @@ class YoloXLayout(Recognizer):
         self.onnx = os.path.join(self.dir, self.weights)
         if not os.path.exists(self.onnx):
             raise WeightsMissing(
-                f"нет {self.onnx}. Скачать из "
+                f"no {self.onnx}. Download from "
                 f"huggingface.co/unstructuredio/yolo_x_layout")
         self.sess = ort.InferenceSession(
             self.onnx, providers=["CPUExecutionProvider"])
@@ -112,23 +112,23 @@ class YoloXLayout(Recognizer):
         want = sum((self.in_h // s) * (self.in_w // s) for s in STRIDES)
         if int(out[1]) != want:
             raise WeightsMissing(
-                f"выход {out}: клеток {out[1]}, а сетка {STRIDES} на входе "
-                f"{self.in_h}x{self.in_w} даёт {want}. Раскладывать наугад "
-                f"значит выдумать рамки.")
+                f"output {out}: {out[1]} cells, while the grid {STRIDES} over "
+                f"the input {self.in_h}x{self.in_w} gives {want}. Laying it "
+                f"out blind means inventing boxes.")
         if int(out[2]) != 5 + len(self.labels):
             raise WeightsMissing(
-                f"выход {out}: колонок {out[2]}, а ждали "
-                f"{5 + len(self.labels)} = 4 координаты + объектность + "
-                f"{len(self.labels)} классов.")
+                f"output {out}: {out[2]} columns, while we expected "
+                f"{5 + len(self.labels)} = 4 coordinates + objectness + "
+                f"{len(self.labels)} classes.")
 
     def thresholds(self) -> dict[str, float]:
         common = float(knobs.knob("LAYOUT_SCORE_THRESHOLD"))
         return {lab: common for lab in self.labels}
 
     def threshold_drift(self) -> list[str]:
-        return [f"родного порога у сборки нет; действует "
+        return [f"this build has no native threshold; "
                 f"LAYOUT_SCORE_THRESHOLD={knobs.knob('LAYOUT_SCORE_THRESHOLD')} "
-                f"на все {len(self.labels)} классов"]
+                f"acts over all {len(self.labels)} classes"]
 
     def knobs_read(self) -> tuple[str, ...]:
         """Two knobs, checked by grep: `knob()` is called here three times.
@@ -185,7 +185,7 @@ class YoloXLayout(Recognizer):
 
         img = cv2.imread(image_path)
         if img is None:
-            raise RuntimeError(f"не читается растр страницы: {image_path}")
+            raise RuntimeError(f"the page raster does not read: {image_path}")
         h, w = img.shape[:2]
         r = min(self.in_h / h, self.in_w / w)
         nh, nw = int(round(h * r)), int(round(w * r))

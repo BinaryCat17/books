@@ -4,9 +4,9 @@ THE HOLE THIS FILLS. Exactly one of the other 243 checks opens a file under
 `bench/`, and it reads two ASCII fields. The rest run on fixtures built by the
 code under test, so the suite cannot see the code and the data drifting apart.
 Every rename in this project fails through that hole, and it fails quietly:
-measured, a rename of `порядок чтения` in the code alone left the runner at
+measured, renaming the reading-order key in the code alone left the runner at
 243/242/0 and the mutation battery at 218/218, both byte-identical to the
-baseline, while the reading-order report went to "не объявлено" on every page
+baseline, while the reading-order report went to "not declared" on every page
 of every book.
 
 WHY THE NAME COMES FROM CODE AND THE NUMBER FROM DISK. A guard that reads both
@@ -40,6 +40,16 @@ def test_every_declared_key_is_present_in_the_data():
     assert not bad, "declared keys missing from the data on disk:\n" + "\n".join(lines)
 
 
+def _before_migration(name):
+    """What this key was called before the rename, from the rename map itself."""
+    path = os.path.join(os.path.dirname(os.path.dirname(support.SRC)),
+                        "tools", "keymap.json")
+    was = [k for k, v in json.load(open(path, encoding="utf-8")).items()
+           if v == name]
+    assert len(was) == 1, f"{name}: {len(was)} old spellings in keymap.json"
+    return was[0]
+
+
 def test_the_guard_can_fail_when_the_code_renames():
     """Direction one, proved rather than asserted.
 
@@ -51,9 +61,14 @@ def test_the_guard_can_fail_when_the_code_renames():
     assert seen.get("reading_order", 0) >= fmt.floors["reading_order"], (
         "the declared name is not in the data: the code renamed, the data "
         "did not")
-    assert seen.get("порядок чтения", 0) == 0, (
-        "the name from before the migration is still on disk in "
-        f"{seen.get('порядок чтения', 0)} places: the rename did not finish")
+    # The pre-migration spelling is NOT typed here. It is looked up in
+    # `tools/keymap.json`, which is the record of the rename: typing it would
+    # put a permanent floor under this file that the translation can never
+    # remove, and would go stale the moment the map is corrected.
+    was = _before_migration("reading_order")
+    assert seen.get(was, 0) == 0, (
+        f"the name from before the migration, {was!r}, is still on disk in "
+        f"{seen.get(was, 0)} places: the rename did not finish")
 
 
 def test_the_guard_can_fail_when_the_data_renames():

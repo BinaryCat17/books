@@ -1,10 +1,9 @@
-"""Секреты и пути.
+"""Secrets and paths.
 
-Секреты живут в `.env` в корне проекта (режим 600, не версионируется).
-Вписывает их пользователь в своём терминале; код только читает файл и
-передаёт значения дальше через stdin или переменные окружения — так они не
-попадают ни в аргументы команд, ни в onstart-скрипты, которые vast.ai хранит
-у себя и показывает в консоли.
+Secrets live in `.env` at the project root (mode 600, not versioned). The user
+types them there in their own terminal; the code only reads the file and passes
+the values on through stdin or the environment -- so they reach neither command
+arguments nor the onstart scripts vast.ai keeps and shows in its console.
 """
 import os
 
@@ -14,13 +13,13 @@ DEFAULT_SSH_KEY = os.path.expanduser("~/.ssh/id_ed25519_vast")
 
 
 def env(name: str, default: str | None = None) -> str | None:
-    """Значение из окружения, иначе из .env, иначе default."""
+    """From the environment, else from .env, else the default."""
     if os.environ.get(name):
         return os.environ[name]
-    # Один путь, а не два. Запасной `tools/.env` держал в живых расхождение
-    # трёх мест: образец учил класть в `tools/.env`, шапка этого файла
-    # говорила «в корне», а третье место называло свой. Пока запасной путь
-    # работал, расхождение никого не било и потому не чинилось.
+    # ONE path, not two. The fallback `tools/.env` kept three places
+    # disagreeing: the sample said put it in `tools/.env`, this file's header
+    # said "at the root", a third named its own. While the fallback worked the
+    # divergence hurt nobody, and so was never fixed.
     for path in (ENV_FILE,):
         if os.path.exists(path):
             for line in open(path):

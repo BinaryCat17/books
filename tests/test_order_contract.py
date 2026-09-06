@@ -137,7 +137,7 @@ def test_guard_ignores_case():
         assert not ours_order(v), f"{v!r} wrongly taken for our order"
 
 
-def test_our_order_values_start_with_lowercase_nash():
+def test_our_order_values_start_with_lowercase_ours():
     """The sign is the word "ours" first; in page meta we write it LOWER CASE.
 
     Case is stripped by the guard (see `test_guard_ignores_case`), so lower

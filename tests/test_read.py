@@ -47,11 +47,11 @@ def test_every_label_of_every_dictionary_has_a_route():
 def test_unknown_label_is_loud():
     r = PaddleOcrVl("PP-DocLayoutV2")
     try:
-        r.cover(["table", "чего-такого-нет"])
+        r.cover(["table", "no_such_thing"])
     except ValueError as e:
-        assert "чего-такого-нет" in str(e)
+        assert "no_such_thing" in str(e)
     else:
-        raise AssertionError("ярлык без маршрута прошёл молча")
+        raise AssertionError("a label with no route passed in silence")
 
 
 def test_kind_comes_from_the_prompt_not_from_the_answer():
@@ -67,16 +67,16 @@ def test_silence_carries_a_reason():
     r = PaddleOcrVl("PP-DocLayoutV2").routes()
     for lab in ("image", "header_image", "footer_image"):
         assert not r[lab].asked()
-        assert r[lab].why, f"{lab} молчит без причины"
+        assert r[lab].why, f"{lab} is silent with no reason given"
 
 
 def test_route_with_unknown_kind_is_loud():
     try:
-        Route("OCR:", "маркдаун").check("text")
+        Route("OCR:", "markdown").check("text")
     except ValueError as e:
-        assert "не объявлен" in str(e)
+        assert "is not declared" in str(e)
     else:
-        raise AssertionError("вид мимо KINDS прошёл молча")
+        raise AssertionError("a kind outside KINDS passed in silence")
 
 
 def test_declared_kinds_agree_with_the_book():
@@ -85,7 +85,7 @@ def test_declared_kinds_agree_with_the_book():
     for name in ("PP-DocLayoutV2", "Docling", "DocLayNet"):
         for rt in PaddleOcrVl(name).routes().values():
             if rt.asked():
-                assert rt.kind in KINDS, f"вид {rt.kind} книге неизвестен"
+                assert rt.kind in KINDS, f"the book does not know the kind {rt.kind}"
 
 
 # ----------------------------------------------------------- transport ---
@@ -103,19 +103,19 @@ def test_transport_asks_who_is_answering():
     of the previous run holding 60 % of the video memory, and the script took
     it for its own.
     """
-    with FakeVlm({"text": "ок"}) as s:
+    with FakeVlm({"text": "ok"}) as s:
         out = _t(s.url).check()
         assert out["matched"] and out["models_on_server"] == [s.model]
 
 
 def test_wrong_model_name_stops_the_run():
-    with FakeVlm({"text": "ок"}, model="совсем-другая") as s:
+    with FakeVlm({"text": "ok"}, model="a-completely-different-one") as s:
         try:
             _t(s.url).check()
         except RuntimeError as e:
-            assert "совсем-другая" in str(e)
+            assert "a-completely-different-one" in str(e)
         else:
-            raise AssertionError("чужое имя модели прошло молча")
+            raise AssertionError("a foreign model name passed in silence")
 
 
 def test_delivery_refusal_is_a_value_not_a_throw(tmp_png=None):
@@ -141,7 +141,7 @@ def test_answer_200_is_never_repeated():
     os.environ["VLM_RETRIES"] = "3"
     with FakeVlm({"text": ""}) as s:
         _t(s.url).send(Ask("p0-b0", png, "OCR:", "text", "text"))
-        assert len(s.seen) == 1, f"на один ответ ушло {len(s.seen)} обращений"
+        assert len(s.seen) == 1, f"one answer took {len(s.seen)} calls"
     os.environ.pop("VLM_RETRIES", None)
 
 
@@ -151,7 +151,7 @@ def test_delivery_refusal_is_repeated():
     os.environ["VLM_RETRIES"] = "2"
     with FakeVlm({"http": 503}) as s:
         _t(s.url).send(Ask("p0-b0", png, "OCR:", "text", "text"))
-        assert len(s.seen) == 3, f"обращений {len(s.seen)}, ждали 3"
+        assert len(s.seen) == 3, f"calls {len(s.seen)}, expected 3"
     os.environ.pop("VLM_RETRIES", None)
 
 
@@ -181,7 +181,7 @@ def test_the_very_crop_reaches_the_model():
     """
     png = _png()
     n = os.path.getsize(png)
-    with FakeVlm({"text": "ок"}) as s:
+    with FakeVlm({"text": "ok"}) as s:
         _t(s.url).send(Ask("p0-b0", png, "Table Recognition:", "otsl", "table"))
         assert s.seen[0]["bytes"] == n
         assert s.seen[0]["prompt"] == "Table Recognition:"
@@ -202,20 +202,20 @@ def test_otsl_grid_matches_html_grid_cell_for_cell():
     # `otsl.grid` and `_html_grid` separately, and the mutation "blind to OTSL
     # again" passed it by: a broken `_answer_grid` never touched the check.
     from booksmith import text as booktext
-    want = {(0, 0): "А", (0, 1): "Б", (1, 0): "1", (1, 1): "2"}
-    g1 = booktext._answer_grid("<fcel>А<fcel>Б<nl><fcel>1<fcel>2<nl>", "otsl")
-    g2 = booktext._answer_grid("<table><tr><td>А</td><td>Б</td></tr>"
+    want = {(0, 0): "A", (0, 1): "B", (1, 0): "1", (1, 1): "2"}
+    g1 = booktext._answer_grid("<fcel>A<fcel>B<nl><fcel>1<fcel>2<nl>", "otsl")
+    g2 = booktext._answer_grid("<table><tr><td>A</td><td>B</td></tr>"
                                "<tr><td>1</td><td>2</td></tr></table>", "html")
     # And the kind declared by the prompt does not lock the parser: a model
     # asked for a table and answering HTML HAS READ THE TABLE.
-    g3 = booktext._answer_grid("<fcel>А<fcel>Б<nl><fcel>1<fcel>2<nl>", "html")
+    g3 = booktext._answer_grid("<fcel>A<fcel>B<nl><fcel>1<fcel>2<nl>", "html")
     assert g1 == g2 == g3 == want
 
 
 def test_otsl_span_occupies_all_its_addresses():
     """A spanning cell occupies every address, as colspan does in HTML."""
-    g = otsl.grid("<ched>шапка<lcel><nl><fcel>1<fcel>2<nl>")
-    assert g[(0, 0)] == g[(0, 1)] == "шапка"
+    g = otsl.grid("<ched>head<lcel><nl><fcel>1<fcel>2<nl>")
+    assert g[(0, 0)] == g[(0, 1)] == "head"
 
 
 def test_torn_otsl_is_counted_not_repaired():
@@ -233,14 +233,14 @@ def test_torn_otsl_is_counted_not_repaired():
 def test_not_otsl_is_none_not_empty():
     """"Not OTSL" and "the table is empty" are different answers."""
     assert otsl.grid("<table><tr><td>x</td></tr></table>") is None
-    assert otsl.grid("просто проза") is None
+    assert otsl.grid("just prose") is None
     assert otsl.grid("") is None
 
 
 def test_sniffed_kind_never_overrides_the_declared_one():
     """A guess at the kind lies BESIDE and decides nothing."""
     assert vrun._sniff("<fcel>a<nl>") == "otsl"
-    assert vrun._sniff("проза") == "text"
+    assert vrun._sniff("prose") == "text"
     assert vrun._sniff("") == "empty"
 
 
@@ -250,7 +250,7 @@ def _png():
     """A real small picture: the transport reads bytes, not a path."""
     import tempfile
     import pymupdf
-    d = os.path.join(tempfile.mkdtemp(), "к.png")
+    d = os.path.join(tempfile.mkdtemp(), "c.png")
     doc = pymupdf.open()
     pg = doc.new_page(width=60, height=30)
     pg.insert_text((5, 20), "abc")
@@ -263,10 +263,10 @@ def _book(tmp):
     """A tiny book and its detect directory: text, table and a picture."""
     import pymupdf
     from booksmith.run import stamp
-    pdf = os.path.join(tmp, "к.pdf")
+    pdf = os.path.join(tmp, "c.pdf")
     doc = pymupdf.open()
     pg = doc.new_page(width=200, height=200)
-    pg.insert_text((20, 40), "строка прозы")
+    pg.insert_text((20, 40), "a line of prose")
     pg.insert_text((20, 120), "table")
     doc.save(pdf, garbage=3, deflate=True)
     doc.close()
@@ -287,7 +287,7 @@ def _book(tmp):
               encoding="utf-8") as f:
         json.dump({"source": {"path": pdf, "sha256": stamp.sha256(pdf)},
                    "raster": {"dpi": 144.0},
-                   "commit": None, "adapter": {"name": "поддельный"},
+                   "commit": None, "adapter": {"name": "a fake one"},
                    "weights": {"layout": None}}, f, ensure_ascii=False)
     return pdf
 
@@ -308,13 +308,13 @@ def test_read_fills_content_in_the_same_page_schema():
     import tempfile
     tmp = tempfile.mkdtemp()
     _book(tmp)
-    out, t = _run(tmp, {"OCR:": {"text": "строка прозы"},
-                        "Table Recognition:": {"text": "<fcel>А<fcel>Б<nl>"}})
+    out, t = _run(tmp, {"OCR:": {"text": "a line of prose"},
+                        "Table Recognition:": {"text": "<fcel>A<fcel>B<nl>"}})
     with open(os.path.join(out, "pages", "0000.json"), encoding="utf-8") as f:
         p = Page.from_json(json.load(f))
     by = {b.block_id: b for b in p.blocks}
-    assert by[0].content == "строка прозы" and by[0].kind == "text"
-    assert by[1].content == "<fcel>А<fcel>Б<nl>" and by[1].kind == "otsl"
+    assert by[0].content == "a line of prose" and by[0].kind == "text"
+    assert by[1].content == "<fcel>A<fcel>B<nl>" and by[1].kind == "otsl"
     # The picture was never asked -- and that is NOT model silence.
     assert by[2].content is None and by[2].kind == "none"
     assert t["not_asked"] == 1 and t["read"] == 2
@@ -351,7 +351,7 @@ def test_model_bytes_are_untouched():
     import tempfile
     tmp = tempfile.mkdtemp()
     _book(tmp)
-    dirt = "  <b>не закрыт &amp;\n\tпробелы  "
+    dirt = "  <b>not closed &amp;\n\twhitespace  "
     out, _ = _run(tmp, {"OCR:": {"text": dirt},
                         "Table Recognition:": {"text": "<fcel>a<nl>"}})
     with open(os.path.join(out, "pages", "0000.json"), encoding="utf-8") as f:
@@ -364,7 +364,7 @@ def test_observed_lives_beside_not_inside():
     import tempfile
     tmp = tempfile.mkdtemp()
     _book(tmp)
-    out, _ = _run(tmp, {"OCR:": {"text": "проза"},
+    out, _ = _run(tmp, {"OCR:": {"text": "prose"},
                         "Table Recognition:": {"text": "<fcel>a<nl>"}})
     with open(os.path.join(out, "answers", "p0000.json"), encoding="utf-8") as f:
         a = {x["anchor"]: x for x in json.load(f)["answers"]}
@@ -374,7 +374,7 @@ def test_observed_lives_beside_not_inside():
     # And not one mark of ours in the text itself.
     with open(os.path.join(out, "pages", "0000.json"), encoding="utf-8") as f:
         p = Page.from_json(json.load(f))
-    assert p.blocks[0].content == "проза"
+    assert p.blocks[0].content == "prose"
 
 
 def test_swapped_pdf_stops_the_run():
@@ -389,7 +389,7 @@ def test_swapped_pdf_stops_the_run():
     except SystemExit as e:
         assert "sha256" in str(e)
     else:
-        raise AssertionError("чтение пошло по подменённой книге")
+        raise AssertionError("the reading went on against a swapped book")
 
 
 def test_resume_does_not_ask_twice():
@@ -397,7 +397,7 @@ def test_resume_does_not_ask_twice():
     import tempfile
     tmp = tempfile.mkdtemp()
     _book(tmp)
-    plan = {"OCR:": {"text": "проза"},
+    plan = {"OCR:": {"text": "prose"},
             "Table Recognition:": {"text": "<fcel>a<nl>"}}
     out, t1 = _run(tmp, plan)
     assert t1["reused_from_previous_run"] == 0
@@ -406,7 +406,7 @@ def test_resume_does_not_ask_twice():
         t2 = vrun.read_book(os.path.join(tmp, "detect"), out,
                             PaddleOcrVl("PP-DocLayoutV2"), vhttp.Http(),
                             resume=True, log=lambda *a: None)
-        assert len(s.seen) == 0, f"переспрошено {len(s.seen)} блоков"
+        assert len(s.seen) == 0, f"{len(s.seen)} blocks were asked again"
     assert t2["reused_from_previous_run"] == 2
 
 
@@ -435,7 +435,7 @@ def test_snapshot_carries_prompts_and_our_parser():
     import tempfile
     tmp = tempfile.mkdtemp()
     _book(tmp)
-    out, t = _run(tmp, {"OCR:": {"text": "проза"},
+    out, t = _run(tmp, {"OCR:": {"text": "prose"},
                         "Table Recognition:": {"text": "<fcel>a<nl>"}})
     with FakeVlm({"text": "x"}) as s:
         os.environ["VLM_ENDPOINT"] = s.url

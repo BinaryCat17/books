@@ -109,7 +109,7 @@ class Vast:
     def offers(self, host: HostReq, image_gb: float, minutes: float,
                payload_gb: float = 0.0, warmup_s: float = 0.0) -> list[dict]:
         q = host.query()
-        log(f"поиск: {q}, диск {host.disk_gb} ГБ")
+        log(f"search: {q}, disk {host.disk_gb} GB")
         # `storage` is the disk the server prices `dph_total` AGAINST
         # (`vastai/api/offers.py`: `q["allocated_storage"] = storage`), SDK
         # default 5.0 GiB. We rent 60, and THREE things hang on that number:
@@ -133,8 +133,8 @@ class Vast:
                                      storage=float(host.disk_gb))
         if not found:
             raise SystemExit(
-                f"нет офферов под {host.gpu} дешевле ${host.max_dph}/час.\n"
-                "Ослабь --max-dph / --min-down или возьми другую карту.")
+                f"no offers for {host.gpu} under ${host.max_dph}/hour.\n"
+                "Loosen --max-dph / --min-down or take another card.")
         return pricing.rank(found, image_gb, minutes, payload_gb, warmup_s)
 
     def pick(self, host: HostReq, image_gb: float, minutes: float,
@@ -145,8 +145,8 @@ class Vast:
         if avoid:
             ranked = [o for o in ranked if o.get("machine_id") not in avoid]
             if not ranked:
-                raise SystemExit("годных офферов не осталось: все проверенные "
-                                 "машины отсеяны по каналу")
+                raise SystemExit("no usable offers left: every machine "
+                                 "checked was rejected on channel")
         if prefer_machines:
             # A priority list, not a set: first comes whoever computed fastest
             # for us. This used to take `ranked[0]` of the intersection, the
@@ -157,10 +157,10 @@ class Vast:
                 by_machine.setdefault(o.get("machine_id"), o)
             for pos, mid in enumerate(prefer_machines, 1):
                 if mid in by_machine:
-                    log(f"машина {mid}: место {pos} в списке предпочтения "
-                        f"(по журналу) — берём её")
+                    log(f"machine {mid}: place {pos} in the preference "
+                        f"list (by the ledger) -- taking it")
                     return by_machine[mid]
-        log("офферы по полной стоимости прогона:")
+        log("offers by the full cost of a run:")
         for o in ranked[:show]:
             log("  " + pricing.describe(o))
         return ranked[0]
@@ -191,8 +191,8 @@ class Vast:
         )
         iid = res.get("new_contract")
         if not iid:
-            raise SystemExit(f"создать инстанс не удалось: {res}")
-        log(f"инстанс {iid} создан")
+            raise SystemExit(f"could not create the instance: {res}")
+        log(f"instance {iid} created")
         if on_created:
             on_created(int(iid))       # before all else: it is already billing
         return int(iid)
@@ -205,17 +205,17 @@ class Vast:
         """
         pub = key_path + ".pub"
         if not os.path.exists(pub):
-            log(f"  публичного ключа нет в {pub}; надеемся на ключи аккаунта")
+            log(f"  no public key at {pub}; hoping for the account keys")
             return False
         pubkey = open(pub).read().strip()
         for attempt in range(5):
             try:
                 self.v.attach_ssh(instance_id=int(iid), ssh_key=pubkey)
-                log("  ssh-ключ привязан к инстансу")
+                log("  ssh key attached to the instance")
                 return True
             except Exception as e:
                 if attempt == 4:
-                    log(f"  привязать ключ не вышло: {e}")
+                    log(f"  could not attach the key: {e}")
                 time.sleep(4)
         return False
 
@@ -247,14 +247,15 @@ class Vast:
             msg = (inst.get("status_msg") or "").strip().splitlines()
             note = msg[-1][:90] if msg else ""
             if (status, note) != last:
-                log(f"  статус={status} {note}")
+                log(f"  status={status} {note}")
                 last = (status, note)
             if status == "running":
                 return inst
             if status in ("exited", "offline"):
-                raise RuntimeError(f"инстанс {iid} умер: {inst.get('status_msg')}")
+                raise RuntimeError(
+                    f"instance {iid} died: {inst.get('status_msg')}")
             time.sleep(10)
-        raise RuntimeError(f"инстанс {iid} не поднялся за {timeout:.0f}с")
+        raise RuntimeError(f"instance {iid} did not come up in {timeout:.0f}s")
 
     def ssh_target(self, iid: int) -> tuple[str, str, str]:
         """The machine's address: direct first, the proxy as fallback.
@@ -274,8 +275,8 @@ class Vast:
         url = str(self.v.ssh_url(id=int(iid))).strip()
         m = re.match(r"ssh://(\w+)@([\w\.\-]+):(\d+)", url)
         if not m:
-            raise RuntimeError(f"не разбирается ssh-url: {url!r}")
-        log("  прямого адреса нет — иду через прокси vast")
+            raise RuntimeError(f"ssh-url does not parse: {url!r}")
+        log("  no direct address -- going through the vast proxy")
         return m.groups()  # user, host, port
 
     # ---------------------------------------------------------- destruction
@@ -312,18 +313,20 @@ class Vast:
                 # attempt is pointless but the `alive` check after it -- it
                 # will answer "alive" merely because there is nobody to ask.
                 we_are_refused = any(k in str(e) for k in ("403", "429"))
-                log(f"  попытка {attempt+1} уничтожить не удалась: {e}"
-                    + ("  — это ОТКАЗ ДОСТУПА, а не отказ машины: дальше жду "
-                       "дольше, чтобы не долбить" if we_are_refused else ""))
+                log(f"  attempt {attempt+1} to destroy failed: {e}"
+                    + ("  -- this is a REFUSAL OF ACCESS, not the machine "
+                       "disobeying: waiting longer now, so as not to "
+                       "hammer" if we_are_refused else ""))
             time.sleep(pause)
             if not self.alive(iid):
-                log(f"инстанс {iid} УНИЧТОЖЕН, проверено — деньги больше не идут")
+                log(f"instance {iid} DESTROYED, checked -- money has stopped")
                 return True
-            log(f"  всё ещё жив после попытки {attempt+1}"
-                + (" (или спросить некого)" if refusal else "") + ", повторяю")
-        log(f"!!! НЕ СМОГ УНИЧТОЖИТЬ {iid} — С ТЕБЯ ПРОДОЛЖАЮТ БРАТЬ ДЕНЬГИ.\n"
-            f"!!! Убей вручную: vastai destroy instance {iid} -y\n"
-            f"!!! или https://cloud.vast.ai/instances/")
+            log(f"  still alive after attempt {attempt+1}"
+                + (" (or there is nobody to ask)" if refusal else "")
+                + ", repeating")
+        log(f"!!! COULD NOT DESTROY {iid} -- YOU ARE STILL BEING CHARGED.\n"
+            f"!!! Kill it by hand: vastai destroy instance {iid} -y\n"
+            f"!!! or https://cloud.vast.ai/instances/")
         return False
 
     def reap(self, prefix: str = "bs-") -> int:
@@ -331,10 +334,10 @@ class Vast:
         rows = self.v.show_instances()
         mine = [i for i in rows if (i.get("label") or "").startswith(prefix)]
         if not mine:
-            log("подбирать нечего")
+            log("nothing to clear away")
             return 0
         for i in mine:
-            log(f"подбираю {i['id']} ({i.get('label')})")
+            log(f"clearing away {i['id']} ({i.get('label')})")
             self.destroy(int(i["id"]))
         return len(mine)
 

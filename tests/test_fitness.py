@@ -183,7 +183,7 @@ def test_page_the_model_did_not_mark_is_loud():
         except Exception as e:
             assert "marked up no page" in str(e), e
         else:
-            assert False, "молчание модели прошло молча"
+            assert False, "the model's silence passed in silence"
 
 
 # --- the ruler --------------------------------------------------------------
@@ -317,7 +317,7 @@ def _memory_probe(pages, cap, passes):
     try:
         for _ in range(passes):
             for i in range(pages):
-                fitness._ink_of("книга.pdf", Doc(), i, 144)
+                fitness._ink_of("book.pdf", Doc(), i, 144)
         return rendered["n"]
     finally:
         fitness._ink = real
@@ -343,8 +343,8 @@ def test_ink_memory_does_not_thrash_on_a_book_bigger_than_the_cap():
     n = _memory_probe(pages, held * page, passes)
     # the first pass pays for everything, then only what did not fit
     assert n == pages + (passes - 1) * (pages - held), n
-    assert n < pages * passes, "память не сэкономила ничего — это промашка"
-    assert n > pages, "стенд подобран так, что потолок не связывает"
+    assert n < pages * passes, "the cache saved nothing -- that is a miss"
+    assert n > pages, "the bench is chosen so the ceiling does not bind"
 
 
 def test_ink_memory_pays_nothing_twice_when_the_book_fits():
@@ -381,7 +381,7 @@ def test_ink_memory_makes_room_for_the_next_book():
     fitness._INK_CACHE.clear()
     fitness._INK_CACHE_BYTES = 0
     try:
-        for book in ("А.pdf", "Б.pdf"):
+        for book in ("a.pdf", "b.pdf"):
             for _ in range(3):
                 for i in range(4):
                     fitness._ink_of(book, Doc(), i, 144)
@@ -411,7 +411,7 @@ def test_the_cap_holds_the_bench_it_was_raised_for():
     import json
     d = os.path.join(os.path.dirname(HERE), "bench", "annopage", "truth")
     if not os.path.isdir(d):
-        support.skip("нет bench/annopage/truth: золотой стенд не собран")
+        support.skip("no bench/annopage/truth: the golden bench is not built")
     packed = 0
     for name in sorted(os.listdir(d)):
         if not name.endswith(".json") or name == "run.json":
@@ -420,8 +420,8 @@ def test_the_cap_holds_the_bench_it_was_raised_for():
             p = json.load(f)
         packed += (p["height"] * p["width"] + 7) // 8
     assert packed <= fitness._INK_CACHE_MAX_BYTES, (
-        f"стенд {packed / 2 ** 20:.0f} МиБ упакованным не влезает в потолок "
-        f"{fitness._INK_CACHE_MAX_BYTES / 2 ** 20:.0f} МиБ")
+        f"the bench, {packed / 2 ** 20:.0f} MiB packed, does not fit the "
+        f"ceiling of {fitness._INK_CACHE_MAX_BYTES / 2 ** 20:.0f} MiB")
 
 
 def test_ink_threshold_is_part_of_the_memory_key():
@@ -442,11 +442,11 @@ def test_ink_threshold_is_part_of_the_memory_key():
     try:
         fitness._INK_CACHE.clear()
         fitness._INK_CACHE_BYTES = 0
-        fitness._ink_of("книга.pdf", Doc(), 0, 144)
-        fitness._ink_of("книга.pdf", Doc(), 0, 144)
+        fitness._ink_of("book.pdf", Doc(), 0, 144)
+        fitness._ink_of("book.pdf", Doc(), 0, 144)
         assert rendered["n"] == 1
         fitness.INK = old + 1
-        fitness._ink_of("книга.pdf", Doc(), 0, 144)
+        fitness._ink_of("book.pdf", Doc(), 0, 144)
         assert rendered["n"] == 2, rendered["n"]
     finally:
         fitness.INK = old

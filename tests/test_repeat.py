@@ -42,7 +42,7 @@ _covered = H._covered
 
 def test_a_nested_block_found_in_a_remaining_one_is_proven():
     """A formula inside a paragraph whose text carries it: a proven repeat."""
-    para = _b(0, (0, 0, 100, 20), r"плавится при $1728^{\circ}\mathrm{C}$ вот")
+    para = _b(0, (0, 0, 100, 20), r"melts at $1728^{\circ}\mathrm{C}$ here")
     formula = _b(1, (10, 5, 40, 12), r"\[1728^{\circ}\mathrm{C}\]",
                  label="inline_formula")
     r = H.repeats_on(_page(para, formula), _covered)
@@ -59,7 +59,7 @@ def test_a_nested_block_whose_text_is_absent_is_not_hidden():
     Hiding the unproved would lose text silently. Two readings of one place
     diverge in transcription, but may carry different things too.
     """
-    para = _b(0, (0, 0, 100, 20), "совсем про другое")
+    para = _b(0, (0, 0, 100, 20), "about something else entirely")
     formula = _b(1, (10, 5, 40, 12), r"\[1728^{\circ}\mathrm{C}\]",
                  label="inline_formula")
     r = H.repeats_on(_page(para, formula), _covered)
@@ -71,12 +71,12 @@ def test_a_block_is_never_compared_with_itself():
 
     Exactly this error gave 99.0 % where 21.4 % is right.
     """
-    para = _b(0, (0, 0, 100, 20), "пусто")
-    one = _b(1, (10, 5, 40, 12), "уникальный текст", label="inline_formula")
+    para = _b(0, (0, 0, 100, 20), "empty")
+    one = _b(1, (10, 5, 40, 12), "a unique text", label="inline_formula")
     r = H.repeats_on(_page(para, one), _covered)
     assert r[1][1] == "differs", (
-        "блок объявлен повтором, хотя его текста нет нигде, кроме него "
-        f"самого — сличение идёт с самим собой: {r}")
+        "the block was declared a repeat although its text exists nowhere "
+        f"but in itself -- it is being compared with itself: {r}")
 
 
 def test_two_equal_nested_blocks_are_not_hidden_together():
@@ -85,12 +85,12 @@ def test_two_equal_nested_blocks_are_not_hidden_together():
     Each "exists at the neighbour", and a naive rule would hide both -- the
     text would vanish from the book.
     """
-    para = _b(0, (0, 0, 100, 20), "рамка без этих слов")
-    a = _b(1, (10, 5, 40, 12), "одно и то же", label="inline_formula")
-    b = _b(2, (50, 5, 80, 12), "одно и то же", label="inline_formula")
+    para = _b(0, (0, 0, 100, 20), "a box without those words")
+    a = _b(1, (10, 5, 40, 12), "one and the same", label="inline_formula")
+    b = _b(2, (50, 5, 80, 12), "one and the same", label="inline_formula")
     r = H.repeats_on(_page(para, a, b), _covered)
     assert r[1][1] == "differs" and r[2][1] == "differs", (
-        f"оба повтора спрятаны — в книге не осталось ни одного: {r}")
+        f"both repeats are hidden -- not one is left in the book: {r}")
 
 
 def test_a_block_nested_in_an_artefact_is_not_a_candidate():
@@ -109,11 +109,12 @@ def test_a_block_nested_in_an_artefact_is_not_a_candidate():
                  label="inline_formula")
     from booksmith import text as T
     assert T.normalize(formula.content, "latex") in T.normalize(
-        table.content, "latex"), "фикстура не проверяет то, ради чего заведена"
+        table.content, "latex"), "the fixture does not test what it exists for"
     r = H.repeats_on(_page(table, formula), _covered)
     assert r.get(1, (None, ""))[1] != "verbatim", (
-        "блок объявлен повтором артефакта — но артефакт едет картинкой, и "
-        f"если замена не придёт, текста в книге не останется вовсе: {r}")
+        "the block was declared a repeat OF AN ARTIFACT -- but an artifact "
+        "travels as a picture, and if no swap arrives no text is left in the "
+        f"book at all: {r}")
 
 
 def test_an_empty_block_is_not_a_candidate():
@@ -160,12 +161,12 @@ def test_the_typeset_form_is_not_traded_for_the_raw_one():
     second would worsen the page and win nothing: the same characters, less
     typesetting.
     """
-    carrier = _b(0, (0, 0, 100, 20), "Рис. V.5. Диаграмма системы FeO-SiO_{2}")
+    carrier = _b(0, (0, 0, 100, 20), "Fig. V.5. Phase diagram of FeO-SiO_{2}")
     formula = _b(1, (10, 5, 40, 12), r"\[\mathrm{FeO}-\mathrm{SiO}_{2}\]",
                  label="inline_formula")
     r = H.repeats_on(_page(carrier, formula), _covered)
     assert r[1][1] == "layout", (
-        f"свёрстанная формула спрятана, а сырой латех оставлен: {r}")
+        f"the typeset formula is hidden and the raw latex is kept: {r}")
 
 
 def test_the_answer_names_the_carrier_not_the_enclosing_frame():
@@ -174,14 +175,14 @@ def test_the_answer_names_the_carrier_not_the_enclosing_frame():
     Measured: for 23 of 841 the named box did not hold that text at all -- a
     reviewer followed the reference and found no text.
     """
-    box = _b(0, (0, 0, 60, 20), "пустая объемлющая рамка")
-    carrier = _b(1, (0, 0, 100, 40), "тут стоит 1728°C и точка")
+    box = _b(0, (0, 0, 60, 20), "an empty enclosing box")
+    carrier = _b(1, (0, 0, 100, 40), "here stands 1728\u00b0C and a full stop")
     formula = _b(2, (5, 5, 40, 12), r"\[1728^{\circ}\mathrm{C}\]",
                  label="inline_formula")
     r = H.repeats_on(_page(box, carrier, formula), _covered)
     assert r[2][1] == "verbatim", r
     assert r[2][0] == 1, (
-        f"назван блок 0 (объемлющая рамка), а текст лежит в блоке 1: {r}")
+        f"block 0 (the enclosing box) was named, and the text lies in block 1: {r}")
 
 
 def test_a_two_character_match_is_not_evidence():
@@ -191,11 +192,11 @@ def test_a_two_character_match_is_not_evidence():
     same. The threshold is named `REPEAT_MIN`, its sweep is at `repeats_on`.
     """
     assert H.REPEAT_MIN >= 3, H.REPEAT_MIN
-    carrier = _b(0, (0, 0, 100, 20), "при 50°C и далее")
+    carrier = _b(0, (0, 0, 100, 20), "at 50\u00b0C and onward")
     tiny = _b(1, (10, 5, 40, 12), r"\[50\]", label="inline_formula")
     r = H.repeats_on(_page(carrier, tiny), _covered)
     assert r[1][1] == "differs", (
-        f"двузначное совпадение принято за доказательство: {r}")
+        f"a two-digit coincidence was taken for proof: {r}")
 
 
 def test_a_match_across_the_seam_of_two_blocks_is_not_evidence():
@@ -205,11 +206,11 @@ def test_a_match_across_the_seam_of_two_blocks_is_not_evidence():
     where no block holds it: the end of one plus the start of another. The
     text is not in the book, and the block would be hidden anyway.
     """
-    first = _b(0, (0, 0, 100, 20), "конец строки абв")
-    second = _b(1, (0, 20, 100, 40), "гдеж начало")
-    # «абвгдеж» exists only across the seam: no single block holds it whole.
-    candidate = _b(2, (5, 5, 40, 12), "абвгдеж", label="inline_formula")
+    first = _b(0, (0, 0, 100, 20), "end of the line abc")
+    second = _b(1, (0, 20, 100, 40), "defg beginning")
+    # "abcdefg" exists only across the seam: no one block holds it whole.
+    candidate = _b(2, (5, 5, 40, 12), "abcdefg", label="inline_formula")
     r = H.repeats_on(_page(first, second, candidate), _covered)
     assert r[2][1] == "differs", (
-        "совпадение через шов принято за доказательство — такого текста в "
-        f"книге нет ни в одном блоке: {r}")
+        "a match across the seam was taken for proof -- no single block in "
+        f"the book holds that text: {r}")

@@ -442,9 +442,9 @@ def cmd_feed(a):
 def cmd_overlay(a):
     """Boxes over the pages: truth solid, the model's guess dashed."""
     from . import detect, overlay
-    marks = [(_pages_dir(a.truth, "--truth"), "И")] if a.truth else []
+    marks = [(_pages_dir(a.truth, "--truth"), "T")] if a.truth else []
     if a.detect:
-        marks.append((_pages_dir(a.detect, "--detect"), "М"))
+        marks.append((_pages_dir(a.detect, "--detect"), "M"))
     if not marks:
         raise SystemExit("nothing to draw: give --truth and/or --detect")
     out = a.out or os.path.splitext(a.pdf)[0] + ".overlay.pdf"

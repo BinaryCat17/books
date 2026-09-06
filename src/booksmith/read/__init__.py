@@ -61,19 +61,21 @@ class Route:
         from ..doc.apply import KINDS
         if self.prompt and not self.kind:
             raise ValueError(
-                f"ярлык {label!r}: промт есть, а вид содержимого не назван. "
-                f"Вид объявляет ПРОМТ, а не ответ, и назвать его обязан "
-                f"адаптер; иначе книга не узнает, что показывать.")
+                f"label {label!r}: there is a prompt but no content kind. "
+                f"The kind is declared by the PROMPT, not by the answer, and "
+                f"the adapter must name it; otherwise the book will not know "
+                f"what to show.")
         if self.prompt and self.kind not in KINDS:
             raise ValueError(
-                f"ярлык {label!r}: вид {self.kind!r} не объявлен, знаю только "
-                f"{KINDS}. Опечатка здесь молча завела бы новый вид, о котором "
-                f"никто не договаривался, и уехала бы в книгу атрибутом.")
+                f"label {label!r}: the kind {self.kind!r} is not declared, I "
+                f"know only {KINDS}. A typo here would silently start a new "
+                f"kind nobody agreed on, and ride into the book as an "
+                f"attribute.")
         if not self.prompt and not self.why:
             raise ValueError(
-                f"ярлык {label!r}: блок не спрашиваем, а причина не названа. "
-                f"«Не спрашиваем» — это ЗНАЧЕНИЕ, и без причины оно "
-                f"неотличимо от забытого ярлыка.")
+                f"label {label!r}: the block is not asked about, and no "
+                f"reason is named. \"Not asked\" is a VALUE, and without a "
+                f"reason it cannot be told from a forgotten label.")
 
 
 @dataclass(frozen=True)
@@ -209,10 +211,11 @@ class Reader:
         for lab in sorted(labels):
             if lab not in r:
                 raise ValueError(
-                    f"чтец {self.name!r} не знает, что спрашивать про ярлык "
-                    f"{lab!r}. Умолчания здесь нет нарочно: спросить «OCR:» "
-                    f"про таблицу значит получить прозу и записать её чтением. "
-                    f"Объяви маршрут — хоть пустой, с причиной.")
+                    f"the reader {self.name!r} does not know what to ask "
+                    f"about the label {lab!r}. There is no default here on "
+                    f"purpose: asking \"OCR:\" about a table means getting "
+                    f"prose and recording it as the reading. Declare a route "
+                    f"-- an empty one with a reason will do.")
             r[lab].check(lab)
 
 

@@ -1,14 +1,15 @@
-"""Продукт первого уровня: HTML и вырезки, и обратимая замена по одной.
+"""The product of level one: HTML and crops, plus a reversible one-at-a-time
+swap.
 
-Здесь и только здесь рождается HTML. Три файла, три разные работы:
+Here and only here is HTML born. Three files, three different jobs:
 
-    crop.py   вырезать артефакт из страницы по рамке модели
-    html.py   собрать страницы в HTML: текст разметкой, артефакты картинками
-    swap.py   ЧИСТЫЕ строки: заменить ОДНУ картинку разметкой — и откатить
-    apply.py  то же самое над файлами: книга, журнал замен, стопка отката
+    crop.py   cut an artifact out of the page by the model's box
+    html.py   fold the pages into HTML: text as markup, artifacts as pictures
+    swap.py   PURE strings: replace ONE picture with markup -- and undo it
+    apply.py  the same over files: the book, the swap journal, the undo stack
 
-Якорь между уровнями — `id` блока, и он ПОСТРАНИЧНЫЙ: `p0042-b17`. Не просто
-`b17`: `block_id` считается заново на каждой странице, и на книге в пятьсот
-страниц вышло бы пятьсот элементов с одним и тем же `id`. Дёшево сейчас,
-дорого после того, как HTML появился.
+The anchor between the levels is the block `id`, and it is PER PAGE:
+`p0042-b17`. Not plain `b17`: `block_id` restarts on every page, so a
+five-hundred-page book would carry five hundred elements with the same `id`.
+Cheap now, dear once the HTML exists.
 """

@@ -94,9 +94,10 @@ def test_a_narrow_channel_is_measured_not_called_broken():
     """
     narrow = _probe_at(1.16)
     assert narrow > 0.5, (
-        f"канал 1.16 Мбит/с измерен как {narrow:.2f} — зонд снова путает "
-        f"«мы медленные» со «машина сломана»")
-    assert narrow < 3.0, f"измерено {narrow:.2f} вместо ~1.16 — зонд врёт вверх"
+        f"a 1.16 Mbit/s channel measured as {narrow:.2f} -- the probe "
+        f"again confuses \"we are slow\" with \"the machine is broken\"")
+    assert narrow < 3.0, (
+        f"measured {narrow:.2f} instead of ~1.16 -- the probe lies upward")
 
 
 def test_a_broken_machine_still_gives_a_number_below_any_floor():
@@ -108,11 +109,12 @@ def test_a_broken_machine_still_gives_a_number_below_any_floor():
     """
     broken = _probe_at(0.062)
     assert broken < 0.3, (
-        f"машина с 62 кбит/с измерена как {broken:.2f} Мбит/с — зонд "
-        f"перестал отличать сломанную от медленной")
+        f"a 62 kbit/s machine measured as {broken:.2f} Mbit/s -- the probe "
+        f"no longer tells a broken one from a slow one")
     healthy = _probe_at(50.0)
     assert healthy > 10.0, (
-        f"здоровая машина измерена как {healthy:.1f} Мбит/с — зонд занижает")
+        f"a healthy machine measured as {healthy:.1f} Mbit/s -- the probe "
+        f"reads low")
 
 
 def test_a_dead_channel_is_the_only_zero():
@@ -121,7 +123,7 @@ def test_a_dead_channel_is_the_only_zero():
     That is the one thing `runner` may answer "take another" to without
     doubting.
     """
-    assert _probe_at(0.0, total=0) == 0.0, "мёртвая труба дала не ноль"
+    assert _probe_at(0.0, total=0) == 0.0, "a dead pipe gave a non-zero"
 
 
 class _FakeVast:
@@ -132,7 +134,7 @@ class _FakeVast:
 
     def wait_running(self, iid, timeout):
         self.boot_timeout = timeout
-        raise RuntimeError("дальше не идём: срок пойман")
+        raise RuntimeError("no further: the deadline is caught")
 
     def attach_key(self, *a):
         pass
@@ -154,16 +156,16 @@ def test_connect_gives_the_boot_the_whole_attempt():
         runner.connect(v, 1, None, None, attempt_limit=480.0)
     except RuntimeError:
         pass
-    assert v.boot_timeout is not None, "wait_running не позвали вовсе"
+    assert v.boot_timeout is not None, "wait_running was never called"
     assert v.boot_timeout > 400.0, (
-        f"подъёму отдано {v.boot_timeout:.0f} с из 480 — внутри попытки снова "
-        f"стоит свой потолок, и он уже отбраковывал машины, успешно качавшие "
-        f"образ")
+        f"the boot got {v.boot_timeout:.0f} s of 480 -- a ceiling of its "
+        f"own is back inside the attempt, and it already rejected "
+        f"machines pulling the image fine")
     assert "boot_limit" not in inspect.signature(runner.connect).parameters, (
-        "в connect вернулся отдельный потолок на подъём контейнера")
+        "a separate ceiling on the container boot is back in connect")
     assert not hasattr(runner, "BOOT_LIMIT_S"), (
-        "BOOT_LIMIT_S вернулась в модуль: она не ограничивала ничего, кроме "
-        "годных машин")
+        "BOOT_LIMIT_S is back in the module: it limited nothing but "
+        "usable machines")
 
 
 def _blame_with(link, best, ours, limit=None):
@@ -177,7 +179,7 @@ def _blame_with(link, best, ours, limit=None):
     signature, and that is checked too.
     """
     recorded = []
-    runner.blame_machine({"machine_id": 777}, "проба", ours=ours, link=link,
+    runner.blame_machine({"machine_id": 777}, "trial", ours=ours, link=link,
                          best_link=best,
                          mark=lambda mid, why: recorded.append((mid, why)),
                          say=lambda *a: None)
@@ -194,13 +196,13 @@ def test_a_machine_is_blamed_only_with_a_witness():
     TWO DIFFERENT machines in a row -- both listed for nothing.
     """
     assert _blame_with(link=0.25, best=0.34, ours=4.6) == [], (
-        "машина занесена НАВСЕГДА при том, что лучшая из виденных дала лишь "
-        "0.34 против её 0.25 — свидетеля, что дело в машине, нет")
+        "machine listed FOREVER although the best one seen gave only 0.34 "
+        "against its 0.25 -- no witness that the machine is at fault")
     assert _blame_with(link=0.25, best=7.0, ours=4.6), (
-        "машина НЕ занесена, хотя другая по тому же ssh дала 7.0 против её "
-        "0.25 — вот это и есть вина машины")
+        "machine NOT listed although another over the same ssh gave 7.0 "
+        "against its 0.25 -- this is exactly the machine's fault")
     assert _blame_with(link=0.25, best=7.0, ours=0.0) == [], (
-        "занесли при неизмеренном своём канале")
+        "listed while our own channel was not measured")
 
 
 def test_the_verdict_cannot_depend_on_the_rejection_floor():
@@ -213,8 +215,8 @@ def test_the_verdict_cannot_depend_on_the_rejection_floor():
     import inspect
     names = set(inspect.signature(runner.blame_machine).parameters)
     assert "limit" not in names and "floor" not in names, (
-        f"порог вернулся в сторож вечного списка: {sorted(names)}. Ослабляя "
-        f"порог, чтобы пропустить машины, мы снова начнём легче их банить")
+        f"the floor is back in the permanent-list guard: {sorted(names)}. "
+        f"Loosening it to let machines through would make banning easier")
 
 
 class _FakeVastApi:
@@ -249,11 +251,11 @@ def test_destroy_backs_off_instead_of_hammering():
     from booksmith.remote.vast import Vast
     steps = list(Vast.RETRY_S)
     assert steps == sorted(steps) and steps[-1] > steps[0] * 4, (
-        f"отступы не растут: {steps}. На отказ по частоте нельзя отвечать той "
-        f"же частотой")
+        f"the backoffs do not grow: {steps}. A refusal by rate must not be "
+        f"answered at the same rate")
     assert sum(steps) < 900, (
-        f"сумма отступов {sum(steps)} с не меньше отсрочки дозора мертвеца "
-        f"(900 с) — ждём дольше, чем машина живёт сама")
+        f"the backoffs sum to {sum(steps)} s, not under the dead man's "
+        f"grace (900 s) -- we wait longer than the machine lives alone")
 
 
 def test_a_refusal_of_access_is_named_apart_from_a_stubborn_machine():
@@ -279,10 +281,10 @@ def test_a_refusal_of_access_is_named_apart_from_a_stubborn_machine():
     finally:
         _t.sleep, vmod.log = was_sleep, was_log
     everything = "\n".join(stated)
-    assert "ОТКАЗ ДОСТУПА" in everything, (
-        f"403 назван как обычная неудача уничтожения:\n{everything[:400]}")
-    assert "спросить некого" in everything, (
-        "«жив» после отказа доступа выдаётся за наблюдение")
+    assert "REFUSAL OF ACCESS" in everything, (
+        f"403 named as an ordinary destroy failure:\n{everything[:400]}")
+    assert "nobody to ask" in everything, (
+        '"alive" after a refusal of access is passed off as an observation')
 
 
 class _BoxThatFailsAfterPulse:
@@ -308,7 +310,7 @@ class _BoxThatFailsAfterPulse:
         self.pulse = False
 
     def check_deadman(self):
-        raise OSError("ssh замолчал сразу после пульса")
+        raise OSError("ssh went silent right after the pulse")
 
 
 def test_a_failed_connect_leaves_no_machine_with_a_live_pulse():
@@ -340,13 +342,13 @@ def test_a_failed_connect_leaves_no_machine_with_a_live_pulse():
 
     declared_n = _BoxThatFailsAfterPulse.declared
     assert len(declared_n) == 2, (
-        f"подставная машина заведена {len(declared_n)} раз вместо двух — "
-        f"проверка не дошла до места, которое стережёт")
+        f"the stub machine was made {len(declared_n)} times instead of two "
+        f"-- the check never reached the place it guards")
     live = [i for i, b in enumerate(declared_n, 1) if b.pulse]
     assert not live, (
-        f"после отказа связи пульс остался жив у машин {live}. Наш поток "
-        f"будет оживлять брошенную машину до конца прогона, и дозор мертвеца "
-        f"на ней выключен — гасить обязан тот, кто завёл")
+        f"after the link failed the pulse stayed alive on machines {live}. "
+        f"Our thread would revive an abandoned machine all run, its "
+        f"dead-man's watch off -- whoever started it must stop it")
 
 
 class _FakeVastReady:

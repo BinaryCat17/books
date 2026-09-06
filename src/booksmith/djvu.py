@@ -77,11 +77,12 @@ def _tool(name):
     p = shutil.which(name)
     if not p:
         raise NoDjvuTools(
-            f"нет {name} — без него djvu не развернуть. Поставьте djvulibre:\n"
+            f"no {name} -- djvu cannot be unfolded without it. Install "
+            f"djvulibre:\n"
             f"    sudo apt install djvulibre-bin\n"
-            f"Если sudo недоступен, её можно распаковать без установки:\n"
+            f"If sudo is out of reach, it unpacks without installing:\n"
             f"    apt-get download djvulibre-bin libdjvulibre21 libjpeg-turbo8\n"
-            f"    dpkg -x <каждый>.deb ~/.local/djvu")
+            f"    dpkg -x <each>.deb ~/.local/djvu")
     return p
 
 
@@ -91,7 +92,8 @@ def pages(path):
                          capture_output=True, text=True, timeout=120)
     m = re.search(r"\d+", out.stdout)
     if not m:
-        raise SystemExit(f"не смог прочитать число страниц: {path}\n{out.stderr}")
+        raise SystemExit(
+            f"could not read the page count: {path}\n{out.stderr}")
     return int(m.group(0))
 
 
@@ -347,13 +349,14 @@ def to_pdf(src, dst=None, split="auto", log=print):
         n = ready.page_count
         ready.close()
         if was == mark:
-            log(f"уже развёрнут: {os.path.basename(dst)} ({n} стр.)")
+            log(f"already unfolded: {os.path.basename(dst)} ({n} pp.)")
             return dst
-        log(f"пересобираю {os.path.basename(dst)}: собран "
-            + (f"из другого входа ({was})" if was else "прежней версией"))
+        log(f"rebuilding {os.path.basename(dst)}: built "
+            + (f"from another input ({was})" if was
+               else "by an older version"))
 
     n_src = pages(src)
-    log(f"{os.path.basename(src)}: страниц в файле {n_src}")
+    log(f"{os.path.basename(src)}: pages in the file {n_src}")
 
     raw = dst + ".raw.pdf"
     subprocess.run([_tool("ddjvu"), "-format=pdf", "-quality=90", src, raw],
@@ -363,8 +366,9 @@ def to_pdf(src, dst=None, split="auto", log=print):
     wide = sum(1 for p in doc if p.rect.width > p.rect.height * MIN_SPREAD_RATIO)
     if split == "auto":
         cut = wide * 2 > doc.page_count
-        log(f"альбомных страниц {wide} из {doc.page_count} — "
-            + ("это развороты, режу" if cut else "разворотов нет, не режу"))
+        log(f"landscape pages {wide} of {doc.page_count} -- "
+            + ("these are spreads, cutting" if cut
+               else "no spreads, not cutting"))
     else:
         cut = split == "yes"
 
@@ -404,14 +408,14 @@ def to_pdf(src, dst=None, split="auto", log=print):
     doc.close()
     os.unlink(raw)
     if forced:
-        log(f"разрезано вопреки вето (--split yes): {len(forced)}, "
-            f"листы {forced[:12]}" + (" …" if len(forced) > 12 else ""))
+        log(f"cut against the veto (--split yes): {len(forced)}, "
+            f"sheets {forced[:12]}" + (" ..." if len(forced) > 12 else ""))
     if spared:
         # A number, not "done": it shows whether the veto fired sensibly.
         # Many refusals on a book of solid prose signal a broken threshold.
-        log(f"не разрезано (содержимое на линии реза): {len(spared)} "
-            f"из {wide}, листы {spared[:12]}"
-            + (" …" if len(spared) > 12 else ""))
-    log(f"развёрнут: {os.path.basename(dst)}, страниц {made} "
-        f"({os.path.getsize(dst) / 1e6:.0f} МБ)")
+        log(f"not cut (content on the cut line): {len(spared)} of {wide}, "
+            f"sheets {spared[:12]}"
+            + (" ..." if len(spared) > 12 else ""))
+    log(f"unfolded: {os.path.basename(dst)}, pages {made} "
+        f"({os.path.getsize(dst) / 1e6:.0f} MB)")
     return dst

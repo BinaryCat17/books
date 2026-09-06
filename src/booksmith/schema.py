@@ -8,19 +8,19 @@ drift is the failure mode of every rename in this project.
 
 FOUR TIMES IT WOULD HAVE BEEN SILENT, each measured by experiment:
 
-  `порядок чтения`  renamed in code only: runner 243/242/0 and the mutation
+  `reading_order`  renamed in code only: runner 243/242/0 and the mutation
       battery 218/218, both byte-identical to the baseline, while the report
-      line flipped from "наш порядок построен так: ранг модели" to "не
-      объявлено" on every page of every book.
-  `текст размечен`  renamed in code only: on `bench/hard` the line "блоков 49,
-      найдено 45 (92%) — считано по 6 страницам из 130" lost its second half.
-      The percentage did not move; the knowledge of what it was computed over
+      line flipped from "our order is built so: model rank" to "not declared"
+      on every page of every book.
+  `text_marked`    renamed in code only: on `bench/hard` the line "blocks 49,
+      found 45 (92%) -- counted over 6 pages of 130" lost its second half. The
+      percentage did not move; the knowledge of what it was computed over
       disappeared.
-  `ручки`           renamed in code only: `books replay --check` went from "38
-      величин в слепке из 55" to 16, and returned 1 both before and after --
-      the return code carries no signal here, only the quantity does.
-  `вне замера`      renamed in data only: "на объекте вне замера: 350"
-      vanished from the report and "лишняя рамка" went 110 -> 460. Three
+  `knobs`          renamed in code only: `books replay --check` went from
+      "values in the snapshot 38 of 55" to 16, and returned 1 both before and
+      after -- the return code carries no signal here, only the quantity does.
+  `out_of_scope`   renamed in data only: "on an object outside scoring: 350"
+      vanished from the report and "spurious_box" went 110 -> 460. Three
       hundred and fifty boxes the bench had excluded from scoring were charged
       to the model instead. All five headline numbers stayed put.
 
@@ -84,10 +84,10 @@ FORMATS = (
         {"detector": 1272, "reading_order": 1272, "downscale": 1272,
          "pass_no": 1236, "prompt": 1236, "input_pixel_ceiling": 1236,
          "out_of_vram": 1236, "parse_error": 1236, "answer": 636},
-        "Paid output: $0.89 for 600 pages on an RTX 4090, and there is no home "
-        "re-parser, so these cannot be regenerated. `порядок чтения` lives here "
-        "1272 times and nowhere else in tracked data -- it is the whole floor "
-        "under danger O1."),
+        "Paid output: $0.89 for 600 pages on an RTX 4090, and there is no "
+        "home re-parser, so these cannot be regenerated. `reading_order` "
+        "lives here 1272 times and nowhere else in tracked data -- it is the "
+        "whole floor under danger O1."),
     Format(
         "detect_run", "bench/*/detect/run.json",
         {"knobs": 3, "value": 72, "default": 72, "what": 72,
@@ -95,16 +95,16 @@ FORMATS = (
          "when": 3, "raster": 3, "commit": 3, "source": 3, "args": 3},
         "Only three detect snapshots are tracked (annopage, hard, hard36); the "
         "other six live behind .gitignore. `books replay --check` walks the "
-        "path ('ручки', <knob>, 'значение') -- danger O3."),
+        "path ('knobs', <knob>, 'value') -- danger O3."),
     Format(
         "manifest", "bench/*/manifest.json",
         {"book": 146, "value": 210, "default": 210, "what": 210,
          "debt": 210, "set_externally": 210, "page_no": 130, "chars": 99,
          "char_truth": 99, "blocks_with_text": 99, "cell_count": 99},
-        "All ten bench manifests are tracked. Note the pair `страниц` (a "
-        "number) and `страницы` (a list) living in the SAME object in seven of "
-        "them: any rename that maps both onto `pages` drops the list silently "
-        "and leaves valid JSON behind."),
+        "All ten bench manifests are tracked. Note the pair `page_count` (a "
+        "number) and `pages` (a list) living in the SAME object in seven of "
+        "them: a rename mapping both onto `pages` drops the list silently and "
+        "leaves valid JSON behind."),
 )
 
 
@@ -125,7 +125,7 @@ HTML_ATTRS = (
     "data-furniture-only", "data-level", "data-table-shape",
     "data-placed-by", "data-label",
 )
-HTML_CLASSES = ("лист",)
+HTML_CLASSES = ("sheet",)
 
 # The four that EVERY built book must carry, whatever is on its pages. The
 # other thirteen are conditional -- `data-no-text` only appears if some

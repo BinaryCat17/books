@@ -12,21 +12,21 @@ book.
 Corruption here is quiet by construction. The markup comes from a model and
 can be anything -- unclosed tags, stray `<`, broken entities -- none visible
 to the eye in a five-hundred-page book. One thing will be: at the NEXT
-replacement, «открывающих 0, закрывающих 1» about another block.
+replacement, "opening 0, closing 1" about another block.
 """
 from booksmith.doc import swap
 
 A, B = "p0042-b17", "p0042-b18"
 
 
-def doc(a_body="таблица картинкой", b_body="рисунок картинкой"):
-    return ("<p>до</p>" + swap.wrap(A, a_body) + "<p>между</p>"
-            + swap.wrap(B, b_body) + "<p>после</p>")
+def doc(a_body="a table as a picture", b_body="a figure as a picture"):
+    return ("<p>before</p>" + swap.wrap(A, a_body) + "<p>between</p>"
+            + swap.wrap(B, b_body) + "<p>after</p>")
 
 
 def test_wrap_and_get_are_inverse():
-    assert swap.get(doc(), A) == "таблица картинкой"
-    assert swap.get(doc(), B) == "рисунок картинкой"
+    assert swap.get(doc(), A) == "a table as a picture"
+    assert swap.get(doc(), B) == "a figure as a picture"
 
 
 def test_anchors_keep_document_order():
@@ -40,7 +40,7 @@ def test_swap_returns_what_it_removed_and_restore_puts_it_back():
     """Rollback must return the document BYTE FOR BYTE."""
     before = doc()
     new, was = swap.swap(before, A, "<table><tr><td>1</td></tr></table>")
-    assert was == "таблица картинкой"
+    assert was == "a table as a picture"
     assert new != before
     assert swap.get(new, A) == "<table><tr><td>1</td></tr></table>"
     assert swap.restore(new, A, was) == before
@@ -48,8 +48,8 @@ def test_swap_returns_what_it_removed_and_restore_puts_it_back():
 
 def test_swap_leaves_the_neighbour_byte_for_byte():
     """The neighbour untouched: "without touching the book" rests on it."""
-    new, _ = swap.swap(doc(), A, "что угодно")
-    assert swap.get(new, B) == "рисунок картинкой"
+    new, _ = swap.swap(doc(), A, "anything at all")
+    assert swap.get(new, B) == "a figure as a picture"
     assert new.count(swap.OPEN.format(B)) == 1
     assert new.count(swap.CLOSE.format(B)) == 1
 
@@ -63,7 +63,7 @@ def test_broken_markup_from_the_model_goes_in_as_is():
     fragment = "<table><tr><td>a < b<td>2</table"
     new, _ = swap.swap(doc(), A, fragment)
     assert swap.get(new, A) == fragment
-    assert swap.get(new, B) == "рисунок картинкой"
+    assert swap.get(new, B) == "a figure as a picture"
 
 
 def test_missing_anchor_is_loud():
@@ -72,7 +72,7 @@ def test_missing_anchor_is_loud():
     except swap.AnchorError as e:
         assert "opening 0" in str(e)
     else:
-        raise AssertionError("замена на месте, которого нет, прошла молча")
+        raise AssertionError("a swap at a place that does not exist passed silently")
 
 
 def test_double_anchor_is_loud():
@@ -80,23 +80,23 @@ def test_double_anchor_is_loud():
 
     "Take the first" means rewriting the wrong block and never learning of it.
     """
-    d = doc() + swap.wrap(A, "он же на другой странице")
+    d = doc() + swap.wrap(A, "the same one on another page")
     try:
         swap.span(d, A)
     except swap.AnchorError as e:
         assert "opening 2" in str(e)
     else:
-        raise AssertionError("две одинаковые метки приняты за одну")
+        raise AssertionError("two identical marks were taken for one")
 
 
 def test_inverted_anchor_is_loud():
-    d = "<p>" + swap.CLOSE.format(A) + "тело" + swap.OPEN.format(A) + "</p>"
+    d = "<p>" + swap.CLOSE.format(A) + "body" + swap.OPEN.format(A) + "</p>"
     try:
         swap.span(d, A)
     except swap.AnchorError as e:
         assert "is inverted" in str(e)
     else:
-        raise AssertionError("закрывающая метка раньше открывающей принята")
+        raise AssertionError("a closing mark before its opening one was accepted")
 
 
 def test_crossed_anchors_are_loud():
@@ -112,11 +112,11 @@ def test_crossed_anchors_are_loud():
         swap.span(d, A)
     except swap.AnchorError as e:
         assert A in str(e) and B in str(e), (
-            f"жалоба не называет обоих участников перекрёста: {e}")
+            f"the complaint does not name both parties to the crossing: {e}")
     else:
         raise AssertionError(
-            "перекрёст меток принят: замена A уничтожила бы границу B, а "
-            "вылезло бы это лишь на B")
+            "a crossing of marks was accepted: swapping A would destroy B's "
+            "boundary, and it would only surface at B")
 
 
 def test_nested_anchors_are_not_a_crossing():
@@ -126,17 +126,17 @@ def test_nested_anchors_are_not_a_crossing():
     neighbour's border, only the neighbour -- seen at once, not a hundred
     pages later.
     """
-    d = (swap.OPEN.format(A) + "до" + swap.wrap(B, "внутренний") + "после"
+    d = (swap.OPEN.format(A) + "before" + swap.wrap(B, "inner") + "after"
          + swap.CLOSE.format(A))
-    assert swap.get(d, B) == "внутренний"
-    assert swap.get(d, A) == "до" + swap.wrap(B, "внутренний") + "после"
+    assert swap.get(d, B) == "inner"
+    assert swap.get(d, A) == "before" + swap.wrap(B, "inner") + "after"
 
 
 def test_unterminated_mark_is_loud():
     """A truncated comment does not read as "no marks"."""
     try:
-        swap.anchors("<p>текст<!--bs:p0001-b1 и всё")
+        swap.anchors("<p>text<!--bs:p0001-b1 and that is all")
     except swap.AnchorError as e:
         assert "not closed" in str(e)
     else:
-        raise AssertionError("оборванная метка молча дала пустой список")
+        raise AssertionError("a truncated mark quietly gave an empty list")

@@ -68,10 +68,10 @@ class Box:
         self._sync_thread: threading.Thread | None = None
         self._stop_hb = threading.Event()
         self._hb_thread: threading.Thread | None = None
-        # The deadman report before it is asked for is "не проверен".  An
-        # empty string here would be the zero of not-understanding: "not asked"
-        # read as "not armed".
-        self.deadman = "не проверен"
+        # The deadman report before it is asked for is "not checked".  An
+        # empty string here would be the zero of not-understanding: "not
+        # asked" read as "not armed".
+        self.deadman = "not checked"
 
     # ------------------------------------------------------------ primitives
     @property
@@ -94,14 +94,15 @@ class Box:
                 # and ssh hangs: normal, not a failure.  The first such attempt
                 # used to kill the run -- after the image was pulled and paid
                 # for.
-                err = "ssh не ответил за 45с"
+                err = "ssh did not answer in 45 s"
                 continue
             if p.returncode == 0:
-                log(f"  ssh готов через {time.time()-t0:.0f}с")
+                log(f"  ssh ready in {time.time()-t0:.0f} s")
                 return
             err = p.stderr.strip()
             time.sleep(8)
-        raise RuntimeError(f"ssh на {self.host}:{self.port} так и не поднялся:\n{err}")
+        raise RuntimeError(
+            f"ssh on {self.host}:{self.port} never came up:\n{err}")
 
     def run(self, cmd: str, stream: bool = True,
             deadline: float | None = None) -> tuple[int, str]:
@@ -121,14 +122,14 @@ class Box:
                 # no orphan on the machine.  The old `max(1.0, ...)` launched
                 # ssh, killed the local client on timeout and moved on while the
                 # remote command kept working.
-                return 124, f"срок вышел до запуска: {cmd[:80]}"
+                return 124, f"deadline gone before the start: {cmd[:80]}"
             limit = None if deadline is None else deadline - time.time()
             try:
                 p = subprocess.run(full, capture_output=True, text=True,
                                    timeout=limit)
             except subprocess.TimeoutExpired:
                 # 124 -- the same code `_rsync` answers with on timeout.
-                return 124, f"ssh не уложился в срок: {cmd[:80]}"
+                return 124, f"ssh missed the deadline: {cmd[:80]}"
             return p.returncode, p.stdout + p.stderr
 
         p = subprocess.Popen(full, stdout=subprocess.PIPE,
@@ -148,7 +149,7 @@ class Box:
                 elif p.poll() is not None:
                     break
                 if deadline and time.time() > deadline:
-                    log("!!! бюджет/таймаут исчерпан — снимаю задачу")
+                    log("!!! budget/timeout spent -- killing the job")
                     p.kill()
                     p.wait(timeout=10)
                     return 124, ""
@@ -306,8 +307,8 @@ class Box:
         except subprocess.TimeoutExpired:
             # `--partial` leaves the unfinished part in place, so the next
             # attempt continues instead of starting over.
-            log(f"  rsync не уложился в "
-                f"{(timeout or self.RSYNC_TIMEOUT_S)/60:.0f} мин — прерван")
+            log(f"  rsync overran "
+                f"{(timeout or self.RSYNC_TIMEOUT_S)/60:.0f} min -- cut off")
             return 124
         if p.returncode != 0:
             log(f"  rsync: {p.stderr.strip()[:200]}")
@@ -359,7 +360,7 @@ class Box:
         dst = local_dir.rstrip("/") + "/"
         full = self._dry_stats(src, dst)
         if full is None:
-            log("  вес исключений измерить не удалось — rsync не ответил")
+            log("  could not weigh the exclusions -- rsync did not answer")
             return []
         rows = []
         for pat in exclude:
@@ -369,16 +370,17 @@ class Box:
                 continue
             rows.append((pat, full[0] - got[0], max(full[1] - got[1], 0)))
         kept = self._dry_stats(src, dst, exclude=tuple(exclude)) if exclude else full
-        log(f"  выгрузка {remote_rel}: всего {full[0]/1e6:.1f} МБ "
-            f"в {full[1]} файлах")
+        log(f"  fetch of {remote_rel}: {full[0]/1e6:.1f} MB total "
+            f"in {full[1]} files")
         for pat, b, f in rows:
             if b is None:
-                log(f"  исключение {pat}: измерить не удалось")
+                log(f"  exclusion {pat}: could not measure")
             else:
-                log(f"  исключение {pat}: {b/1e6:.1f} МБ, {f} файлов "
-                    f"({100.0*b/max(full[0],1):.1f}% выгрузки) — НЕ ПРИЕДЕТ")
+                log(f"  exclusion {pat}: {b/1e6:.1f} MB, {f} files "
+                    f"({100.0*b/max(full[0],1):.1f}% of the fetch) "
+                    f"-- WILL NOT ARRIVE")
         if kept:
-            log(f"  приедет {kept[0]/1e6:.1f} МБ в {kept[1]} файлах")
+            log(f"  arriving: {kept[0]/1e6:.1f} MB in {kept[1]} files")
         return rows
 
     def push(self, local: str, remote_rel: str) -> None:
@@ -423,7 +425,7 @@ class Box:
         rc = self._rsync(src, dst)
         if rc != 0:
             # rsync may be missing from the image despite onstart
-            log("  rsync не сработал, падаю обратно на scp")
+            log("  rsync failed, falling back to scp")
             cmd = ["scp", "-P", self.port] + SSH_OPTS + (
                 ["-i", self.key] if self.key else [])
             scp_src = local
@@ -436,7 +438,8 @@ class Box:
             cmd += [scp_src, f"{self._addr}:{self.workdir}/{remote_rel}"]
             p = subprocess.run(cmd, capture_output=True, text=True)
             if p.returncode != 0:
-                raise RuntimeError(f"заливка {local} не удалась: {p.stderr.strip()}")
+                raise RuntimeError(
+                    f"upload of {local} failed: {p.stderr.strip()}")
 
     def pull(self, remote_rel: str, local_dir: str, quiet: bool = False,
              exclude: tuple[str, ...] = (), timeout: float | None = None) -> int:
@@ -452,7 +455,7 @@ class Box:
         rc = self._rsync(src, local_dir.rstrip("/") + "/", extra or None,
                          timeout=timeout)
         if rc != 0 and not quiet:
-            log(f"  не удалось забрать {remote_rel} (код {rc})")
+            log(f"  could not fetch {remote_rel} (code {rc})")
         return rc
 
     # ------------------------------------------------------------ heartbeat
@@ -527,16 +530,16 @@ class Box:
             # API, the machine's shell and ssh, and UTF-8 integrity on that path
             # cannot be checked without renting.
             if rc == 0 and state.startswith("ARMED"):
-                log(f"  дозор мертвеца взведён: {state}")
+                log(f"  dead-man's watch armed: {state}")
                 self.deadman = state
                 return state
             if i + 1 < max(1, tries):
                 time.sleep(pause)
-        self.deadman = state or "доклада нет"
-        log(f"!!! ДОЗОР МЕРТВЕЦА НЕ ВЗВЕДЁН: {self.deadman}")
-        log(f"!!! Машина {self.host}:{self.port} НЕ УБЬЁТ СЕБЯ САМА, если наш "
-            f"процесс умрёт. Уничтожение держится только на нас: "
-            f"finally, сигналы и сторож бюджета — все три в этом процессе.")
+        self.deadman = state or "no report"
+        log(f"!!! DEAD-MAN'S WATCH NOT ARMED: {self.deadman}")
+        log(f"!!! Machine {self.host}:{self.port} WILL NOT KILL ITSELF if "
+            f"our process dies. Only we destroy it now: finally, signals, "
+            f"budget watchdog -- all three in this process.")
         return self.deadman
 
     def set_deadman(self, seconds: int) -> None:
@@ -556,7 +559,7 @@ class Box:
             deadline=time.time() + self.SHORT_CMD_S)
         if rc != 0:
             raise RuntimeError(
-                f"дозор не переставлен (rc={rc}): {out.strip()[:200]}")
+                f"watch not reset (rc={rc}): {out.strip()[:200]}")
 
     # ------------------------------------------------------ background sync
     def start_sync(self, remote_rel: str, local_dir: str, every: float = 20,
@@ -571,7 +574,8 @@ class Box:
         self._stop_sync.clear()
         self._sync_thread = threading.Thread(target=loop, daemon=True)
         self._sync_thread.start()
-        log(f"  фоновая синхронизация {remote_rel} -> {local_dir} каждые {every:.0f}с")
+        log(f"  background sync {remote_rel} -> {local_dir} "
+            f"every {every:.0f} s")
 
     def stop_sync(self) -> None:
         """Wait out the background fetch before starting the final one.
@@ -583,6 +587,6 @@ class Box:
         if self._sync_thread:
             self._sync_thread.join(timeout=180)
             if self._sync_thread.is_alive():
-                log("  фоновая синхронизация всё ещё идёт, жду ещё")
+                log("  background sync still running, waiting again")
                 self._sync_thread.join(timeout=180)
             self._sync_thread = None

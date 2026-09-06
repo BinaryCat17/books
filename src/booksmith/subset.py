@@ -1,37 +1,35 @@
-"""Выжимка стенда: страницы, где в ИСТИНЕ два артефакта одного класса рядом.
+"""The distillate: bench pages where the TRUTH holds two artifacts of one
+class side by side.
 
-Зачем отдельный стенд. Замер на шести синтетических книгах показал слияние
-одиннадцать раз; на настоящих страницах AnnoPage — 378 недоборов из 534, то
-есть 71% всех промахов. Разница в том, сколько таких страниц в выборке: в
-синтетике их тринадцать, в AnnoPage сто тридцать восемь. Мерить главный
-дефект на выборке, где он почти не встречается, значит мерить его шумом.
+WHY A BENCH OF ITS OWN. Merging showed up eleven times over six synthetic
+books; on real AnnoPage pages it is 378 undercounts of 534 -- 71 % of every
+miss. What differs is how often such pages occur: thirteen in the synthetic
+set, 138 in AnnoPage. Measuring the main defect where it barely happens
+measures noise. Money says the same: 700 pages to a rented model for a defect
+visible on 151 is six times the price of one answer.
 
-Выжимка нужна и по деньгам: подать в арендованную модель 700 страниц ради
-дефекта, который виден на 151, — это заплатить вшестеро за тот же ответ.
+THE ARGUMENT AND THE CODE COUNT DIFFERENT THINGS, which the numbers above need.
+13, 138 and 151 count pages holding ANY TWO artifacts side by side;
+`_side_pairs` below takes a narrower rule -- two artifacts of ONE label -- and
+gives 6, 124 and 130. Both counts reproduce on today's truth (a sweep over 192
+definitions of a pair: same geometry, `v > 0.5*min(h)` and `h <= 0`, differing
+only in "one label" against "any"). "Six times" is the wide count; by the
+narrow one it is 693/130 = 5.3. Declared here, not reconciled: which selection
+rule is right is a question for a measurement, not for editing a docstring.
 
-ДОВОД И КОД СЧИТАЮТ РАЗНОЕ, и это надо знать, читая числа выше. 13, 138 и
-151 — счёт страниц, где рядом стоят ДВА ЛЮБЫХ артефакта; `_side_pairs` ниже
-отбирает по более узкому правилу — два артефакта ОДНОГО ярлыка, — и даёт 6,
-124 и 130. Оба счёта воспроизводятся на нынешней истине (развёртка по 192
-определениям пары: та же геометрия, `v > 0.5*min(h)` и `h <= 0`, отличается
-только «одного ярлыка» против «любых»). Число «вшестеро» посчитано по
-широкому: по узкому выходит 693/130 = 5.3. Здесь эти числа объявлены, а не
-сведены: какое правило отбора верное — вопрос, на который отвечает замер, а
-не правка докстроки.
+Truth is carried over AS IS, the out-of-scope field included: the page does not
+move by a pixel, only its number changes.
 
-Истина переносится КАК ЕСТЬ, вместе с полем «вне замера»: страница не меняется
-ни на пиксель, меняется только её номер.
-
-ПЕРЕНОСЯТСЯ И ПРИЗНАКИ, А НЕ ТОЛЬКО РАМКИ. `порядок размечен`, `текст
-размечен`, `вне замера` — это входы метрики наравне с координатами, и потеря
-любого из них не роняет прогон, а МЕНЯЕТ ЧИСЛО МОЛЧА. Цена померена:
-`bench/hard36` собран внешним скриптом, который донёс рамки и потерял ровно
-`порядок размечен` (в `bench/hard` признак есть у 124 страниц из 130, в
-hard36 — ни у одной из 36). `books score` читал его отсутствие как «порядок
-размечен» и печатал «пар 211, согласовано 73%» — число из ничего, по
-которому уже ранжировались детекторы. Поэтому здесь признаки переносятся
-явно, их состояние считается поимённо и уезжает в манифест: выжимка обязана
-уметь сказать, чего в ней нельзя мерить.
+THE TRAITS TRAVEL TOO, NOT ONLY THE BOXES. `order_marked`, `text_marked` and
+`out_of_scope` are metric inputs on a par with coordinates, and losing one does
+not fell a run -- it CHANGES THE NUMBER SILENTLY. The price is measured:
+`bench/hard36` was built by an outside script that carried the boxes and lost
+exactly `order_marked` (124 pages of 130 carry it in `bench/hard`, none of 36
+in hard36). `books score` read its absence as "order marked" and printed
+"pairs 211, agreed 73 %" -- a number out of nothing, and detectors had already
+been ranked by it. So traits are carried explicitly here, their state counted
+by name and sent into the manifest: a distillate must be able to say what
+cannot be measured in it.
 """
 import hashlib
 import json
@@ -47,8 +45,8 @@ class SubsetError(RuntimeError):
 
 
 def _side_pairs(blocks):
-    """Пары блоков ОДНОГО ярлыка, стоящих бок о бок: вертикали перекрываются
-    больше чем наполовину, по горизонтали не пересекаются вовсе."""
+    """Blocks of ONE label standing side by side: the verticals overlap by
+    more than half, the horizontals not at all."""
     out = []
     for i in range(len(blocks)):
         for j in range(i + 1, len(blocks)):
@@ -62,38 +60,38 @@ def _side_pairs(blocks):
     return out
 
 
-# Признаки истины, без которых метрика молча меняет ответ. Список ЯВНЫЙ:
-# новый признак у стенда должен попасть сюда осознанно, а не быть потерянным
-# по умолчанию.
+# Truth traits without which the metric silently changes its answer. The list
+# is EXPLICIT: a new bench trait lands here deliberately or not at all --
+# never lost by default.
 TRAITS = ("order_marked", "text_marked")
 
 
 def _carry_meta(t: dict, extra: dict, where: str) -> dict:
-    """Meta исходной страницы плюс наши пометки. Ничего не затирая.
+    """The source page's meta plus our marks. Nothing overwritten.
 
-    `t.setdefault("meta", {})` прежней редакции падал бы на странице с
-    `"meta": null` (setdefault вернул бы None) и, что хуже, молча позволял
-    нашим полям встать поверх одноимённых полей истины. Наши три поля —
-    бухгалтерия выжимки, а не истина, и права затирать истину у них нет.
+    The old `t.setdefault("meta", {})` would die on a page with `"meta": null`
+    (setdefault returns None) and, worse, silently let our fields sit over
+    truth fields of the same name. Our three fields are the distillate's
+    bookkeeping, not truth, and have no right to overwrite it.
     """
     src = dict(t.get("meta") or {})
     clash = {k: (src[k], v) for k, v in extra.items()
              if k in src and src[k] != v}
     if clash:
         raise SubsetError(
-            f"{where}: поля выжимки затёрли бы поля истины {clash}. Истина "
-            f"переносится как есть; править её здесь нельзя.")
+            f"{where}: distillate fields would overwrite truth fields "
+            f"{clash}. Truth is carried as is; editing it here is forbidden.")
     meta = {**src, **extra}
     lost = [k for k in src if k not in meta]
     if lost:
-        raise SubsetError(f"{where}: при переносе потеряны признаки {lost}")
+        raise SubsetError(f"{where}: traits lost in the carry-over: {lost}")
     return meta
 
 
 def _trait_state(meta: dict, key: str) -> str:
-    """Три ответа, а не два: «да», «нет», «не сказано». Последнее — не то же
-    самое, что «нет»: страница, где признака НЕТ ВОВСЕ, ничего не утверждает,
-    и метрика по ней обязана молчать, а не считать."""
+    """Three answers, not two: "yes", "no", "not said". The last is NOT
+    "no": a page where the trait is absent asserts nothing, and the metric
+    must stay silent over it rather than count."""
     if key not in meta:
         return "not_said"
     return "yes" if meta[key] else "no"
@@ -108,7 +106,7 @@ def _sha256(path):
 
 
 def build(books, out_dir: str, root: str = "bench", log=print) -> dict:
-    """Собрать выжимку из перечисленных книг стенда."""
+    """Build the distillate out of the named bench books."""
     arte = set(policy.artefacts())
     os.makedirs(out_dir, exist_ok=True)
     tdir = os.path.join(out_dir, "truth")
@@ -122,7 +120,7 @@ def build(books, out_dir: str, root: str = "bench", log=print) -> dict:
     for bk in books:
         pdf = os.path.join(root, bk, f"{bk}.pdf")
         if not os.path.exists(pdf):
-            raise SubsetError(f"нет {pdf}")
+            raise SubsetError(f"no {pdf}")
         src = pymupdf.open(pdf)
         for name in sorted(os.listdir(os.path.join(root, bk, "truth"))):
             if not name.endswith(".json"):
@@ -136,7 +134,7 @@ def build(books, out_dir: str, root: str = "bench", log=print) -> dict:
                 continue
             i = t["index"]
             if not 0 <= i < src.page_count:
-                raise SubsetError(f"{bk}: страницы {i} нет в {pdf}")
+                raise SubsetError(f"{bk}: there is no page {i} in {pdf}")
             doc.insert_pdf(src, from_page=i, to_page=i)
             t["index"] = len(kept)
             t["meta"] = _carry_meta(t, {"from_book": bk,
@@ -153,7 +151,7 @@ def build(books, out_dir: str, root: str = "bench", log=print) -> dict:
             pairs_total += len(pr)
         src.close()
     if not kept:
-        raise SubsetError("ни одной страницы не отобрано")
+        raise SubsetError("not one page was selected")
     pdf = os.path.join(out_dir, "hard.pdf")
     doc.save(pdf, garbage=3, deflate=True)
     doc.close()
@@ -162,22 +160,22 @@ def build(books, out_dir: str, root: str = "bench", log=print) -> dict:
            "page_count": len(kept), "side_by_side_pairs": pairs_total,
            "by_book": per_book, "pages": [{"book": b, "page_no": i}
                                                for b, i in kept],
-           # Состояние признаков — часть паспорта выжимки. По нему видно, что
-           # на ней МОЖНО померить, ещё до первого запуска `books score`.
+           # The trait state is part of the distillate's passport: it says
+           # what CAN be measured here, before the first `books score`.
            "truth_traits": traits,
            "pdf": os.path.basename(pdf), "sha256 pdf": _sha256(pdf)}
     with open(os.path.join(out_dir, "manifest.json"), "w",
               encoding="utf-8") as f:
         json.dump(man, f, ensure_ascii=False, indent=1)
-    log(f"страниц {len(kept)} ({per_book}), пар бок о бок {pairs_total}")
-    # ВЕЛИЧИНА, А НЕ СЛОВО «перенесено». Строка ниже — единственное место, где
-    # видно, что выжимка донесла признаки; молчание тут уже стоило нам 73%,
-    # напечатанных из ничего.
+    log(f"pages {len(kept)} ({per_book}), side-by-side pairs {pairs_total}")
+    # THE QUANTITY, NOT THE WORD "carried". The line below is the only place
+    # showing that the distillate brought the traits over; silence here has
+    # already cost us 73 %, printed out of nothing.
     for key, st in traits.items():
-        log(f"признак «{key}»: да {st['yes']}, нет {st['no']}, "
-            f"НЕ СКАЗАН {st['not_said']} из {len(kept)} страниц"
-            + (f" — на этих {st['not_said']} метрика по нему считаться НЕ "
-               f"БУДЕТ и обязана печатать «НЕ СВЕРЯЕТСЯ»"
+        log(f"trait {key!r}: yes {st['yes']}, no {st['no']}, "
+            f"NOT SAID {st['not_said']} of {len(kept)} pages"
+            + (f" -- on those {st['not_said']} the metric over it will NOT "
+               f"be counted and must print NOT COMPARED"
                if st["not_said"] else ""))
-    log(f"{pdf} ({os.path.getsize(pdf)/1e6:.0f} МБ), истина в {tdir}")
+    log(f"{pdf} ({os.path.getsize(pdf)/1e6:.0f} MB), truth in {tdir}")
     return man

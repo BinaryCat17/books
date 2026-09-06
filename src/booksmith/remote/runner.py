@@ -42,16 +42,16 @@ class Budget:
         # whole thing looks like a bad market.
         if by_time <= 0:
             raise SystemExit(
-                f"бюджет времени исчерпан ДО начала счёта: на попытки ушло "
-                f"{self.eaten/60:.1f} мин при потолке "
-                f"{spec.timeout_minutes:.0f} мин")
+                f"the time budget is spent BEFORE the count begins: "
+                f"attempts ate {self.eaten/60:.1f} min of a "
+                f"{spec.timeout_minutes:.0f} min ceiling")
         self.seconds = min(by_money, by_time)
         self.dph = dph
-        self.limited_by = "деньгам" if by_money < by_time else "времени"
+        self.limited_by = "money" if by_money < by_time else "time"
         # A KNOB THAT LIMITS NOTHING IS WORSE THAN A MISSING ONE. A run cannot
         # cost more than `max_dph * timeout_minutes` by construction: at the
         # defaults $0.60/hour x 1.5 h = $0.90 against the declared $1.00, so
-        # `budget_usd` NEVER fires and `limited_by` prints "времени" on any
+        # `budget_usd` NEVER fires and `limited_by` prints "time" on any
         # market. Not fixed -- the price cap and the term are the real defence
         # -- but said aloud, so nobody thinks the budget protects him. The gap
         # is wider still: `Budget` counts ONE machine, while rejected ones cost
@@ -70,13 +70,13 @@ class Budget:
     def describe(self) -> str:
         # A number, not "done": what the attempts ate shows why the ceiling
         # came out shorter than declared.
-        return (f"бюджет: ${self.dph:.3f}/час, потолок по {self.limited_by} — "
-                f"{self.seconds/60:.0f} мин"
-                + (f" (на попытки уже ушло {self.eaten/60:.0f} мин)"
+        return (f"budget: ${self.dph:.3f}/hour, ceiling by "
+                f"{self.limited_by} -- {self.seconds/60:.0f} min"
+                + (f" (attempts already ate {self.eaten/60:.0f} min)"
                    if self.eaten >= 60 else "")
-                + (f"; ВНИМАНИЕ: budget_usd не ограничивает ничего — дороже "
-                   f"${self.ceiling_usd:.2f} прогон не выйдет и без него "
-                   f"(потолок цены x срок), а объявлено больше"
+                + (f"; WARNING: budget_usd limits nothing -- without it a "
+                   f"run still cannot pass ${self.ceiling_usd:.2f} "
+                   f"(price cap x term), yet more is declared"
                    if self.money_unreachable else ""))
 
 
@@ -96,12 +96,13 @@ def _watchdog(vast: Vast, get_iid, budget: Budget, done: threading.Event):
             if not iid:
                 continue
             if not fired:
-                log(f"!!! БЮДЖЕТ ИСЧЕРПАН (${budget.spent:.3f}) — уничтожаю {iid}")
+                log(f"!!! BUDGET SPENT (${budget.spent:.3f}) -- "
+                    f"destroying {iid}")
                 fired = True
             if vast.destroy(int(iid)):
                 return
         except Exception as e:                     # noqa: BLE001 -- a last line may not fall
-            log(f"  сторож: {type(e).__name__}: {e}")
+            log(f"  watchdog: {type(e).__name__}: {e}")
 
 
 class _Interrupted(Exception):
@@ -114,7 +115,7 @@ def _install_signals():
     Otherwise the process dies past `finally` and the instance keeps running.
     """
     def handler(signum, _frame):
-        raise _Interrupted(f"сигнал {signum}")
+        raise _Interrupted(f"signal {signum}")
     old = {}
     for s in (signal.SIGINT, signal.SIGTERM):
         try:
@@ -189,10 +190,10 @@ def _warm(spec: JobSpec) -> list[int]:
     # new book's first run has no history -- `slow` is then empty for a reason
     # other than every machine being good. A hardcoded bench name used to pick
     # zero records just as silently; now it shows.
-    log(f"предпочтение машин: быстрых {len(fast)}, прогретых {len(warm)}, "
-        f"отбраковано медленных {len(slow)}"
-        + ("" if slow else f" (истории по задаче «{spec.name}» нет — "
-                           f"по времени не отбраковано ничего)"))
+    log(f"machine preference: {len(fast)} fast, {len(warm)} warm, "
+        f"{len(slow)} slow ones rejected"
+        + ("" if slow else f" (no history for job '{spec.name}' -- "
+                           f"nothing rejected by time)"))
     return fast + warm
 
 
@@ -202,8 +203,8 @@ def connect(vast: Vast, iid: int, spec: JobSpec, ssh_key: str | None,
 
     It used to go to wait_running alone while wait_ready waited its own default
     of 420 s, plus the key attach and the probes: one bad attempt cost up to
-    ten minutes of rental while the log said "не поднялась за 2 мин". Five
-    attempts ate fifteen minutes that evening.
+    ten minutes of rental while the log said "did not come up in 2 min".
+    Five attempts ate fifteen minutes that evening.
 
     A SECOND CEILING INSIDE THE FIRST IS GONE, and here is what it cost.
     `boot_limit` cut the container boot to `min(120, 480)` = 120 s, against the
@@ -255,7 +256,7 @@ def connect(vast: Vast, iid: int, spec: JobSpec, ssh_key: str | None,
         try:
             box.stop_heartbeat()
         except Exception as e:                                  # noqa: BLE001
-            log(f"пульс не погашен при отказе связи: {e}")
+            log(f"pulse not stopped after the link failed: {e}")
         raise
     return box
 
@@ -265,12 +266,12 @@ def execute(box: Box, spec: JobSpec, outdir: str,
     """Upload the input, compute, fetch the output. The machine is up already."""
     rc, out = box.run(f"mkdir -p {spec.workdir} && echo ok", stream=False)
     if rc != 0:
-        raise RuntimeError(f"не создаётся {spec.workdir}: {out}")
+        raise RuntimeError(f"cannot create {spec.workdir}: {out}")
 
-    log("заливаю входные файлы...")
+    log("uploading the input files...")
     for local, remote_rel in spec.inputs.items():
         if not os.path.exists(local):
-            raise SystemExit(f"нет файла: {local}")
+            raise SystemExit(f"no such file: {local}")
         box.push(local, remote_rel)
         log(f"  {os.path.basename(local)} -> {remote_rel}")
 
@@ -284,16 +285,16 @@ def execute(box: Box, spec: JobSpec, outdir: str,
                           stream=False, deadline=deadline)
         if rc != 0:
             raise RuntimeError(
-                f"не удалось очистить {spec.workdir}/{spec.outputs} "
+                f"could not clear {spec.workdir}/{spec.outputs} "
                 f"(rc={rc}): {out.strip()[:200]}")
     rc, out = box.run(f"mkdir -p {spec.workdir}/{spec.outputs}", stream=False,
                       deadline=deadline)
     if rc != 0:
-        raise RuntimeError(f"не создаётся каталог результата (rc={rc}): "
+        raise RuntimeError(f"cannot create the result directory (rc={rc}): "
                            f"{out.strip()[:200]}")
     box.start_sync(spec.outputs, outdir, exclude=spec.pull_exclude)
     try:
-        log("запускаю задачу...")
+        log("starting the job...")
         # Knob values are SHELL-QUOTED. The string is built for a foreign shell
         # out of `knobs.passthrough()`, i.e. the operator's environment: a
         # value with a space tore the command in two, one with `;` or `$(...)`
@@ -302,7 +303,7 @@ def execute(box: Box, spec: JobSpec, outdir: str,
         # money, beats a syntax error after vLLM is up.
         bad = [k for k in spec.env if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", k)]
         if bad:
-            raise SystemExit(f"имена ручек не годятся для оболочки: {bad}")
+            raise SystemExit(f"knob names unfit for a shell: {bad}")
         env = " ".join(f"{k}={shlex.quote(str(v))}" for k, v in spec.env.items())
         cmd = f"cd {shlex.quote(spec.workdir)} && {env} {spec.command}".strip()
         rc, _ = box.run(cmd, deadline=deadline)
@@ -315,14 +316,14 @@ def execute(box: Box, spec: JobSpec, outdir: str,
             try:
                 box.weigh_exclude(spec.outputs, spec.pull_exclude, outdir)
             except Exception as e:
-                log(f"  вес исключений не измерен ({e}) — выгрузка идёт как есть")
-        log("забираю результат целиком...")
+                log(f"  exclusions not weighed ({e}) -- fetching as is")
+        log("fetching the whole result...")
         if box.pull(spec.outputs, outdir,
                     exclude=spec.pull_exclude) != 0 and rc == 0:
             # The job finished and the result did not arrive -- no success.
             # Such a run used to return 0 and hand the operator an incomplete
             # parse as a finished one, indistinguishable from normal.
-            log("ВНИМАНИЕ: результат выкачался не полностью")
+            log("WARNING: the result did not arrive in full")
             rc = 75
     return rc
 
@@ -424,14 +425,14 @@ def blame_machine(offer: dict, reason: str, *, ours: float, link: float,
     mark = mark or ledger.mark_bad
     say = say or log
     if not ours:
-        say("  наш канал не измерен — в вечный список НЕ пишу: ноль "
-            "зонда мог быть нашим, а список вечный")
+        say("  our channel is not measured -- NOT blacklisting: the "
+            "probe's zero may have been ours")
         return False
     if best_link < 3 * link:
-        say(f"  в вечный список НЕ пишу: лучшее, что нам вообще отдавали по "
-            f"ssh, — {best_link:.2f} Мбит/с против {link:.2f} у этой. "
-            f"Свидетеля, что дело в машине, нет: похоже, узок наш "
-            f"собственный путь, а список вечный")
+        say(f"  NOT blacklisting: the best ever given us over ssh is "
+            f"{best_link:.2f} Mbit/s against {link:.2f} here -- no "
+            f"witness against the machine, our own path looks narrow, "
+            f"and the list is forever")
         return False
     mark(offer.get("machine_id"), reason)
     return True
@@ -483,10 +484,10 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
         # A machine cannot give us more than we can take. Demanding over half
         # of our own channel from it is the limit of sense.
         floor = min(limit, 0.5 * ours)
-        log(f"наш канал вниз ≈ {ours:.1f} Мбит/с, "
-            f"порог отбраковки машин {floor:.2f} Мбит/с")
+        log(f"our downlink ~ {ours:.1f} Mbit/s, "
+            f"machine rejection floor {floor:.2f} Mbit/s")
         if ours < 2 * limit:
-            log("ВНИМАНИЕ: наш канал узкий — выкачивание результата будет долгим")
+            log("WARNING: our channel is narrow -- the fetch will be slow")
 
     # The best anyone has ever given US over ssh. Empty until someone is
     # measured: without this witness `blame_machine` blames nobody.
@@ -509,12 +510,11 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
         left = spec.timeout_minutes * 60 - (time.time() - t0)
         if left <= ATTEMPT_LIMIT_S:
             raise SystemExit(
-                f"на попытку не осталось времени: до потолка "
-                f"{left/60:.1f} мин, а одна попытка берёт до "
-                f"{ATTEMPT_LIMIT_S/60:.0f} мин "
-                f"(попыток сделано {attempt - 1}). "
-                f"Поднимите timeout_minutes или разберитесь, почему "
-                f"машины отбраковываются.")
+                f"no time left for an attempt: {left/60:.1f} min to the "
+                f"ceiling, one attempt takes up to "
+                f"{ATTEMPT_LIMIT_S/60:.0f} min "
+                f"({attempt - 1} made). Raise timeout_minutes, or find "
+                f"out why machines are rejected.")
         offer = vast.pick(spec.host, spec.image_gb, spec.minutes, _warm(spec),
                           payload_gb=spec.payload_gb, warmup_s=spec.warmup_s,
                           avoid=avoid)
@@ -526,8 +526,9 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
         rec.disk_bw = float(offer.get("disk_bw") or 0)
         rec.cpu_cores = float(offer.get("cpu_cores_effective") or 0)
         rec.cpu_ghz = float(offer.get("cpu_ghz") or 0)
-        log(f"снимаю #{offer['id']} за ${dph:.3f}/час, диск {spec.host.disk_gb} ГБ"
-            + (f" (попытка {attempt})" if attempt > 1 else ""))
+        log(f"taking #{offer['id']} at ${dph:.3f}/hour, "
+            f"disk {spec.host.disk_gb} GB"
+            + (f" (attempt {attempt})" if attempt > 1 else ""))
 
         guard = threading.Event()
         guards.append(guard)
@@ -572,9 +573,10 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
             rec.reject_usd += spent
             rec.reject_n += 1
             m["t_create"] = None           # the same second is not counted twice
-            log(f"  отбракованная машина обошлась в ${spent:.4f} "
-                f"({(time.time() - t)/60:.1f} мин по ${price:.3f}/час); "
-                f"всего на отбраковку ${rec.reject_usd:.4f} за {rec.reject_n} шт")
+            log(f"  the rejected machine cost ${spent:.4f} "
+                f"({(time.time() - t)/60:.1f} min at ${price:.3f}/hour); "
+                f"rejections total ${rec.reject_usd:.4f} "
+                f"over {rec.reject_n} machines")
             return spent
 
         # THE OFFER MAY HAVE DIED between the search and the creation: the
@@ -585,8 +587,8 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
         try:
             vast.create(int(offer["id"]), spec, on_created=_remember)
         except Exception as e:
-            log(f"оффер #{offer['id']} не снялся ({type(e).__name__}: "
-                f"{str(e)[:90]}) — беру следующий")
+            log(f"offer #{offer['id']} not taken ({type(e).__name__}: "
+                f"{str(e)[:90]}) -- taking the next")
             _charge()          # usually zero: no instance was created
             # `or 0` here meant "avoid a machine without a machine_id as
             # machine number zero" -- avoid nobody, while filtering out a
@@ -594,8 +596,8 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
             # named aloud, not turned into a number.
             mid = offer.get("machine_id")
             if mid is None:
-                log(f"  у оффера #{offer['id']} нет machine_id — "
-                    f"эта машина может прийти снова")
+                log(f"  offer #{offer['id']} has no machine_id -- "
+                    f"this machine can come again")
             else:
                 avoid.append(int(mid))
             guard.set()
@@ -604,7 +606,7 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
             vast.attach_key(state["iid"], ssh_key)
 
         log(budget.describe())
-        log("жду выкачивания образа и старта контейнера...")
+        log("waiting for the image download and the container start...")
         try:
             box = connect(vast, state["iid"], spec, ssh_key,
                           attempt_limit=ATTEMPT_LIMIT_S)
@@ -623,8 +625,8 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
             connect_failed = False
         except (RuntimeError, OSError) as e:
             connect_failed = True
-            log(f"машина не дошла до ssh за {ATTEMPT_LIMIT_S/60:.0f} мин "
-                f"({e}) — беру другую")
+            log(f"machine did not reach ssh in "
+                f"{ATTEMPT_LIMIT_S/60:.0f} min ({e}) -- taking another")
             link, down = 0.0, None
         best_link[0] = max(best_link[0], link)
         rec.link_mbps = link
@@ -637,8 +639,9 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
             # claimed exactly what its neighbour rejects for. A quantity
             # destroyed at the printout is "done" instead of a number, from the
             # other end.
-            log(f"канал: до нас {link:.2f} Мбит/с, из мира "
-                + (f"{down:.0f} Мбит/с" if down is not None else "не мерян"))
+            log(f"channel: to us {link:.2f} Mbit/s, from the world "
+                + (f"{down:.0f} Mbit/s" if down is not None
+                   else "not measured"))
             return box, dph, budget
 
         if not link and connect_failed:
@@ -646,26 +649,26 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
         elif not link:
             # A zero is the probe timing out, not "unknown". Both branches
             # below used to be false at zero and the machine died silently: ssh
-            # ready in 5 s in the log, then nothing, then "УНИЧТОЖЕН" half a
+            # ready in 5 s in the log, then nothing, then "DESTROYED" half a
             # minute later. Five in a row looked like "the market is bad".
-            log(f"канал до нас НОЛЬ байт за отведённое время — беру другую. "
-                f"Это уже про машину: зонд меряет за время и при живом канале "
-                f"вернул бы настоящее число, пусть и маленькое")
+            log(f"ZERO bytes to us in the time allowed -- taking another. "
+                f"This is the machine: the probe measures by time, so a "
+                f"live channel would give some number, however small")
             # And onto the permanent list -- the case the list was made for. A
             # 62 kbit/s machine does not give 4 MB in 25 seconds, so `probe`
             # returns 0.0 and lands HERE, not in the `link < floor` branch
             # below where the only `mark_bad` used to stand. Until this line no
             # machine with a dead channel ever reached the list -- and such a
             # machine counts as warm alongside the rest.
-            _blame(offer, f"канал до нас ноль байт за отведённое время "
-                          f"(порог {floor:.2f} Мбит/с)")
+            _blame(offer, f"zero bytes to us in the time allowed "
+                          f"(floor {floor:.2f} Mbit/s)")
         elif link < floor:
-            log(f"канал до нас всего {link:.2f} Мбит/с "
-                f"(нужно от {floor:.2f}) — беру другую")
-            _blame(offer, f"канал до нас {link:.2f} Мбит/с")
+            log(f"channel to us only {link:.2f} Mbit/s "
+                f"(need {floor:.2f} or more) -- taking another")
+            _blame(offer, f"channel to us {link:.2f} Mbit/s")
         elif link:
-            log(f"машина тянет из мира всего {down:.0f} Мбит/с "
-                f"(нужно от {MIN_DOWNLOAD_MBPS:.0f}) — беру другую")
+            log(f"machine pulls only {down:.0f} Mbit/s from the world "
+                f"(need {MIN_DOWNLOAD_MBPS:.0f} or more) -- taking another")
         # The pulse must stop BEFORE the machine is abandoned: otherwise our
         # own thread keeps reviving it and the dead-man's watch never fires.
         #
@@ -677,9 +680,9 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
         try:
             box.stop_heartbeat()
         except Exception as e:                                  # noqa: BLE001
-            log(f"ВНИМАНИЕ: пульс брошенной машины не погашен ({e}) — "
-                f"дозор мертвеца на ней может быть выключен нашим же "
-                f"потоком; проверьте `books ls`")
+            log(f"WARNING: the abandoned machine's pulse still runs "
+                f"({e}) -- our own thread may be holding its dead-man's "
+                f"watch off; check `books ls`")
         # The destruction result is not thrown away: on failure the machine is
         # alive and its id must not be cleared -- `finally` would not touch it
         # and its watchdog would be silenced, leaving nobody watching at all.
@@ -688,8 +691,8 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
             state["iid"] = mine["iid"] = None
             guard.set()
         else:
-            log(f"инстанс {state['iid']} уничтожить не удалось — "
-                f"оставляю сторожа и добью в конце")
+            log(f"instance {state['iid']} could not be destroyed -- "
+                f"leaving its watchdog and finishing it off at the end")
             # Money counted up TO this second and the price passed on: the
             # machine bills after our failed attempt too and is finished off in
             # `finally`, where the remainder is added -- otherwise an abandoned
@@ -702,10 +705,10 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
             avoid.append(mid)
 
     raise RuntimeError(
-        f"за {MAX_ATTEMPTS} попытки не нашлось машины с каналом от "
-        f"{floor:.2f} Мбит/с"
-        + (f"; наш собственный канал при этом {ours:.1f} Мбит/с — "
-           f"возможно, дело в нём" if ours else ""))
+        f"in {MAX_ATTEMPTS} attempts no machine was found with a channel "
+        f"from {floor:.2f} Mbit/s"
+        + (f"; our own channel was {ours:.1f} Mbit/s at the time -- it "
+           f"may be the cause" if ours else ""))
 
 
 def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
@@ -747,14 +750,14 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
 
     if dry_run:
         if reuse:
-            log(f"проверочный запуск: считал бы на инстансе {reuse}")
+            log(f"dry run: would compute on instance {reuse}")
         else:
             warm = _warm(spec)
             offer = vast.pick(spec.host, spec.image_gb, spec.minutes, warm,
                               payload_gb=spec.payload_gb,
                               warmup_s=spec.warmup_s)
-            log(f"проверочный запуск — снял бы #{offer['id']} "
-                f"за ${float(offer['dph_total']):.3f}/час")
+            log(f"dry run -- would take #{offer['id']} "
+                f"at ${float(offer['dph_total']):.3f}/hour")
         _restore_signals(old_signals)
         return 0
 
@@ -765,7 +768,7 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
     if not spec.resume and os.path.isdir(outdir) and os.listdir(outdir):
         import shutil
         shutil.rmtree(outdir)
-        log(f"локальный каталог {outdir} очищен от прошлого прогона")
+        log(f"local directory {outdir} cleared of the previous run")
     os.makedirs(outdir, exist_ok=True)
     guards: list[threading.Event] = []
     # Machines that had to be abandoned but could not be destroyed: finished
@@ -779,23 +782,23 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
     try:
         # A machine left behind does not live forever: the watch kills it after
         # KEEP_GRACE_S. Without this check `--reuse` on a dead instance waited
-        # for it up to boot_limit -- thirty-five minutes of "статус=None".
+        # for it up to boot_limit -- thirty-five minutes of "status=None".
         if reuse:
             try:
                 gone = vast.instance(reuse) is None
             except Exception as exc:
                 # Could not ask -- take the machine to be alive. Otherwise we
                 # rent a second card while the first keeps billing.
-                log(f"не удалось проверить инстанс {reuse} ({exc}) — "
-                    f"считаю, что он жив")
+                log(f"could not check instance {reuse} ({exc}) -- "
+                    f"taking it to be alive")
                 gone = False
             if gone:
-                log(f"инстанс {reuse} уже не существует — снимаю новую машину")
+                log(f"instance {reuse} no longer exists -- taking a new one")
                 reuse = None
                 state["iid"] = None
 
         if reuse:
-            log(f"переиспользую инстанс {reuse} — холодного старта нет")
+            log(f"reusing instance {reuse} -- no cold start")
             inst = vast.instance(reuse) or {}
             # The price is not invented. `or 0.5` used to stand here and a
             # CEILING was built out of the invented number: at the JobSpec
@@ -807,8 +810,8 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
             raw_dph = inst.get("dph_total")
             if raw_dph is None:
                 raise SystemExit(
-                    f"инстанс {reuse} не сообщает цену (dph_total) — "
-                    f"считать бюджет не из чего. Посмотрите: books ls")
+                    f"instance {reuse} reports no price (dph_total) -- "
+                    f"nothing to count a budget from. Look: books ls")
             dph = float(raw_dph)
             # The price into the record AT ONCE, not after a successful
             # connect: the machine already bills, and a run that fell through
@@ -822,7 +825,7 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
                              args=(vast, lambda: state["iid"], budget, done),
                              daemon=True).start()
             log(budget.describe())
-            log("жду выкачивания образа и старта контейнера...")
+            log("waiting for the image download and the container start...")
             # The same attempt ceiling as on the rental branch. Without it
             # `boot_limit` = 2100 s went here: thirty-five minutes of waiting
             # on a machine that already bills.
@@ -847,8 +850,8 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
         t_create = state.get("t_create") or t0
         rec.setup_s = time.time() - t_create
         rec.reject_s = t_create - t0
-        log(f"готово за {rec.setup_s/60:.1f} мин "
-            f"(на отбраковку ушло {rec.reject_s/60:.1f} мин)")
+        log(f"ready in {rec.setup_s/60:.1f} min "
+            f"({rec.reject_s/60:.1f} min went on rejections)")
 
         t1 = time.time()
         rc = execute(box, spec, outdir, deadline=budget.deadline)
@@ -862,22 +865,22 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
                     tail = open(vl, encoding="utf-8", errors="replace").read()
                     if "CUDA unknown error" in tail or "no CUDA-capable device" in tail:
                         ledger.mark_bad(rec.machine_id,
-                                        "карта не инициализируется (CUDA)")
-                        log(f"машина {rec.machine_id} записана в чёрный "
-                            f"список: карта не инициализируется")
+                                        "the card does not initialise (CUDA)")
+                        log(f"machine {rec.machine_id} blacklisted: the "
+                            f"card does not initialise")
             except Exception:
                 pass
         rec.run_s = time.time() - t1
         rec.extra.update(_run_facts(outdir))
         rec.ok = rc == 0
         if rc != 0:
-            rec.note = f"задача вернула {rc}"
-            log(f"задача завершилась с кодом {rc} — результат забран частично")
+            rec.note = f"the job returned {rc}"
+            log(f"the job ended with code {rc} -- result fetched in part")
         return rc
 
     except _Interrupted as e:
-        rec.note = f"прервано: {e}"
-        log(f"прервано ({e}) — прибираю за собой")
+        rec.note = f"interrupted: {e}"
+        log(f"interrupted ({e}) -- cleaning up after myself")
         return 130
     except (Exception, SystemExit) as e:
         # SystemExit is caught ON PURPOSE: a BaseException, it passed straight
@@ -897,10 +900,10 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
             # "could not destroy" and the finishing off cost nothing.
             rec.reject_usd += dead["dph"] * (time.time() - dead["since"]) / 3600
             if vast.destroy(int(dead["iid"])):
-                log(f"брошенный инстанс {dead['iid']} добит")
+                log(f"abandoned instance {dead['iid']} finished off")
             else:
-                log(f"ВНИМАНИЕ: инстанс {dead['iid']} не уничтожен и "
-                    f"продолжает биллиться — убейте вручную: "
+                log(f"WARNING: instance {dead['iid']} not destroyed and "
+                    f"still billing -- kill it by hand: "
                     f"books down {dead['iid']}")
         iid = state["iid"]
         elapsed = time.time() - t0
@@ -949,17 +952,17 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
             if box is not None:
                 box.stop_heartbeat()
         except Exception as e:
-            log(f"пульс не погашен: {e}")
+            log(f"pulse not stopped: {e}")
         if iid and not keep:
             # The result is inspected, as everywhere else: this was the one
             # `destroy` in the file without a check, and five failed tries
-            # printed "НЕ СМОГ УНИЧТОЖИТЬ" while the next line reported "итого
-            # N мин" and returned 0 -- with a live billing machine.
+            # printed "COULD NOT DESTROY" while the next line reported
+            # "total N min" and returned 0 -- with a live billing machine.
             if not vast.destroy(int(iid)):
-                log(f"ВНИМАНИЕ: инстанс {iid} НЕ УНИЧТОЖЕН и продолжает "
-                    f"биллиться — убейте вручную: books down {iid}")
+                log(f"WARNING: instance {iid} NOT DESTROYED and still "
+                    f"billing -- kill it by hand: books down {iid}")
                 rec.note = ((rec.note + "; ") if rec.note else "") + \
-                    f"инстанс {iid} не уничтожен, ${rec.dph:.3f}/час"
+                    f"instance {iid} not destroyed, ${rec.dph:.3f}/hour"
         elif iid:
             # The operator leaves on purpose; the watch on the machine does not
             # know it and would destroy the instance in its 15 minutes. A
@@ -977,13 +980,13 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
                 grace = max(300.0, left_s + 600)
             try:
                 box.set_deadman(grace)
-                log(f"дозор мертвеца на машине переставлен на "
-                    f"{grace/60:.0f} мин без прогонов")
+                log(f"the machine's dead-man's watch reset to "
+                    f"{grace/60:.0f} min without a run")
             except Exception as e:
-                log(f"не смог переставить дозор мертвеца ({e}) — "
-                    f"инстанс уничтожит себя через 15 минут")
-            log(f"--keep: инстанс {iid} ОСТАВЛЕН И БИЛЛИТСЯ. "
-                f"Следующий прогон: --reuse {iid}; убить: books down {iid}")
+                log(f"could not reset the dead-man's watch ({e}) -- the "
+                    f"instance will destroy itself in 15 minutes")
+            log(f"--keep: instance {iid} LEFT ALIVE AND BILLING. "
+                f"Next run: --reuse {iid}; kill it: books down {iid}")
         if report is not None:
             # The LIVE machine, not the last one seen. `state["iid"]` is not
             # cleared after a destruction, and the report called a destroyed
@@ -998,11 +1001,12 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
         ledger.append(rec)
         # A quantity, not "done", and by its terms: one sum hides that half the
         # money went on machines we never even accepted.
-        log(f"итого {elapsed/60:.1f} мин ≈ ${rec.cost_usd:.3f} "
-            f"(аренда {alive_s/60:.1f} мин по ${rec.dph:.3f}/час = "
+        log(f"total {elapsed/60:.1f} min ~ ${rec.cost_usd:.3f} "
+            f"(rent {alive_s/60:.1f} min at ${rec.dph:.3f}/hour = "
             f"${rec.dph * alive_s / 3600:.3f}"
-            + (f"; отбраковано машин {rec.reject_n} на ${rec.reject_usd:.3f}"
+            + (f"; {rec.reject_n} machines rejected for ${rec.reject_usd:.3f}"
                if rec.reject_n else "")
-            + f"; трафик ${rec.per_tb * (spec.image_gb + spec.payload_gb) / 1024:.3f})"
-            + f"; журнал: {ledger.LEDGER}")
+            + (f"; traffic $"
+               f"{rec.per_tb * (spec.image_gb + spec.payload_gb) / 1024:.3f})")
+            + f"; ledger: {ledger.LEDGER}")
         _restore_signals(old_signals)

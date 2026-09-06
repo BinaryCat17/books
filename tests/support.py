@@ -37,7 +37,7 @@ class Skip(Exception):
 # running" has already cost a run. Measured (a fake `pytest` in `sys.modules`
 # with the real contract -- `Skipped(BaseException)` and `skip()`): before the
 # fix the first skip under our runner went past the `run_case` catches and
-# killed the whole run -- the line «проверок 111: прошло …» was not printed AT
+# killed the whole run -- the summary line was not printed AT
 # ALL, so 110 passing checks vanished with one skip. There is no pytest in
 # `.venv` now, and the trouble sleeps.
 OWN_RUNNER = False
@@ -69,8 +69,8 @@ def foreign_skip(e) -> bool:
     The separate branch is needed for this: pytest's `Skipped` inherits
     BaseException, not Exception, and passes THROUGH the runner's ordinary
     catches, KILLING the run. Measured with a fake module of the same
-    contract: under our runner one skip -- and the line «проверок 111: прошло
-    110, …» was not printed at all, exit code 1 from a traceback.
+    contract: under our runner one skip -- and under pytest's the summary
+    line was not printed at all, exit code 1 from a traceback.
 
     The type is taken FROM pytest, not by class name: `Skipped` may name a
     foreign exception, and a failure would then travel into the skips. Both
@@ -98,7 +98,7 @@ class Unresolved(RuntimeError):
 def src_path(rel: str) -> str:
     p = os.path.join(SRC, rel)
     if not os.path.isfile(p):
-        raise AssertionError(f"нет исходника {rel} (искали в {SRC})")
+        raise AssertionError(f"no source {rel} (looked in {SRC})")
     return p
 
 
@@ -112,7 +112,7 @@ def _dotted(node) -> str:
         return node.id
     if isinstance(node, ast.Attribute):
         return _dotted(node.value) + "." + node.attr
-    raise Unresolved(f"не имя и не поле: {ast.dump(node)[:80]}")
+    raise Unresolved(f"neither a name nor an attribute: {ast.dump(node)[:80]}")
 
 
 def _lookup(module, dotted: str):
@@ -120,7 +120,7 @@ def _lookup(module, dotted: str):
     for part in dotted.split("."):
         obj = getattr(obj, part, None)
         if obj is None:
-            raise Unresolved(f"{dotted}: в модуле {module.__name__} такого нет")
+            raise Unresolved(f"{dotted}: module {module.__name__} has no such thing")
     return obj
 
 
@@ -134,7 +134,7 @@ def _values(node, module) -> set:
         obj = _lookup(module, _dotted(node.value))
         if isinstance(obj, dict):
             return set(obj.values())
-        raise Unresolved(f"{_dotted(node.value)} — не словарь, а {type(obj)}")
+        raise Unresolved(f"{_dotted(node.value)} is not a dict but a {type(obj)}")
     # CONCATENATION. `order.WORDS[which] + ": the model gives no rank"`: the
     # rule comes from the shared dictionary and the adapter appends the tail.
     # Expanded into a product -- every left value with every right one --
@@ -143,8 +143,9 @@ def _values(node, module) -> set:
         left, right = _values(node.left, module), _values(node.right, module)
         return {a + b for a in left for b in right}
     raise Unresolved(
-        f"значение «{ORDER_KEY}» вычислить не удалось: {ast.dump(node)[:120]}. "
-        f"Это НЕ «значений нет» — допиши разбор в support._values.")
+        f"the value of {ORDER_KEY!r} could not be computed: "
+        f"{ast.dump(node)[:120]}. This is NOT 'there are no values' -- extend "
+        f"the parse in support._values.")
 
 
 def _walk_but_fingerprint(node):
@@ -207,6 +208,6 @@ def meta_keys(rel: str, cls: str, method: str = "read") -> list:
                         elif isinstance(k, ast.Constant):
                             keys.append(k.value)
                         else:
-                            raise Unresolved(f"ключ meta не литерал в {rel}")
+                            raise Unresolved(f"a meta key is not a literal in {rel}")
                     return keys
-    raise AssertionError(f"{rel}: не нашли Page(meta=…) в {cls}.{method}")
+    raise AssertionError(f"{rel}: no Page(meta=...) found in {cls}.{method}")

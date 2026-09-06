@@ -62,9 +62,9 @@ SEAL = "Seal Recognition:"
 
 # ONE reason, shared by every silent label of every vocabulary -- three of
 # them under PP-DocLayoutV2, one under each of the other four.
-NO_PICTURE = ("чтение внутри рисунков проверено и отвергнуто: выноски не "
-              "прочитаны, выдуманная панграмма на двух страницах, срыв в "
-              "цикл на третьей, +2100 слов мусора на двадцати страницах")
+NO_PICTURE = ("reading inside figures was tried and rejected: callouts "
+              "unread, an invented pangram on two pages, a runaway loop on a "
+              "third, +2100 words of garbage over twenty pages")
 
 # Routes by the DETECTOR'S VOCABULARY. The top-level key is the policy name,
 # exactly as in `policy.POLICIES`: two dictionaries would drift apart, and
@@ -142,8 +142,9 @@ def _weights() -> dict:
     d = knobs.knob("VL_MODEL_DIR")
     if not d or not os.path.isdir(d):
         return {"dir": d or None,
-                "why_empty": "весов рядом нет: считает не эта машина, а та, "
-                                "куда смотрит VLM_ENDPOINT"}
+                "why_empty": "no weights here: the counting is done not by "
+                                "this machine but by the one VLM_ENDPOINT "
+                                "points at"}
     out = {"dir": d, "file_count": len(os.listdir(d))}
     # WHERE THE WEIGHTS CAME FROM is the main field, and `provision.sh` writes
     # it beside them. Here stood only `sha256 config.json`, called the sole
@@ -160,12 +161,13 @@ def _weights() -> dict:
                 "repo")
         except (ValueError, OSError) as e:
             out["repo"] = None
-            out["why_empty"] = f"SOURCE.json не читается: {e}"
+            out["why_empty"] = f"SOURCE.json does not read: {e}"
     else:
         out["repo"] = None
-        out["why_empty"] = ("рядом с весами нет SOURCE.json — его пишет "
-                               "provision.sh; значит веса положены не им, и "
-                               "какие они, сказать нечем")
+        out["why_empty"] = ("no SOURCE.json beside the weights -- "
+                               "provision.sh writes it, so the weights were "
+                               "not put here by it, and there is nothing to "
+                               "say about which they are")
     # We hash the file that DIFFERS between the two repositories, not the one
     # that matches. `config.json` is kept beside it as a second number: it is
     # about the architecture, and its matching is itself a quantity.
@@ -185,9 +187,10 @@ class PaddleOcrVl(Reader):
     def __init__(self, policy_name: str = "PP-DocLayoutV2"):
         if policy_name not in ROUTES:
             raise SystemExit(
-                f"нет маршрутов под словарь ярлыков {policy_name!r}: знаю "
-                f"{sorted(ROUTES)}. Спрашивать по чужому словарю значит вести "
-                f"таблицу промтом текста и записать прозу чтением.")
+                f"no routes for the label vocabulary {policy_name!r}: I know "
+                f"{sorted(ROUTES)}. Asking by a foreign vocabulary means "
+                f"driving a table with the text prompt and recording prose as "
+                f"the reading.")
         self.policy_name = policy_name
 
     def fingerprint(self) -> dict:

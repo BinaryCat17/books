@@ -114,16 +114,16 @@ def test_pages_are_counted_from_one_like_detect():
             # the book came first -- the instrument names the second itself.
             got = _drawn_sheets(out)
             assert got == list(range(len(want))), (
-                f"--pages {spec!r}: в выходе листы {got}, ожидались "
-                f"{list(range(len(want)))} подряд с первого")
+                f"--pages {spec!r}: the output holds sheets {got}, expected "
+                f"{list(range(len(want)))} in a row from the first")
             s = "\n".join(said)
             assert f"sheets drawn {len(want)} of 3" in s, s
             if len(want) < 3:
                 assert f"is page {want[0] + 1} of the book" in s, (
-                    f"--pages {spec!r}: прибор не сказал, какая страница "
-                    f"книги стала первой в файле. `books detect` на том же "
-                    f"вводе взял бы {want} — смотришь не тот лист и не "
-                    f"узнаёшь об этом.\n{s}")
+                    f"--pages {spec!r}: the instrument did not say which "
+                    f"page of the book became the first in the file. `books "
+                    f"detect` on the same input would take {want} -- you look "
+                    f"at the wrong sheet and never find out.\n{s}")
 
 
 def test_a_page_out_of_the_book_is_loud():
@@ -140,9 +140,9 @@ def test_a_page_out_of_the_book_is_loud():
             cli.main(["overlay", pdf, "--truth", t, "--pages", "9",
                       "--out", os.path.join(d, "x.pdf")])
         except SystemExit as e:
-            assert "3 pages" in str(e), f"жалоба не про то: {e}"
+            assert "3 pages" in str(e), f"the complaint is about something else: {e}"
             return
-        raise AssertionError("страница за пределами книги принята молча")
+        raise AssertionError("a page beyond the book was accepted in silence")
 
 
 def test_a_page_missing_from_one_markup_is_named():
@@ -154,8 +154,8 @@ def test_a_page_missing_from_one_markup_is_named():
     """
     with tempfile.TemporaryDirectory() as d:
         pdf = _stand(d, model_skip=(1,))
-        s = _say(pdf, [(os.path.join(d, "truth", "pages"), "И"),
-                       (os.path.join(d, "model", "pages"), "М")])
+        s = _say(pdf, [(os.path.join(d, "truth", "pages"), "T"),
+                       (os.path.join(d, "model", "pages"), "M")])
         assert "the model is MISSING 1 pages" in s and "[1]" in s, s
         assert "sheets drawn 2 of 3" in s, s
 
@@ -170,8 +170,8 @@ def test_a_page_missing_from_the_truth_is_named_too():
     with tempfile.TemporaryDirectory() as d:
         pdf = _stand(d)
         os.unlink(os.path.join(d, "truth", "pages", "0001.json"))
-        s = _say(pdf, [(os.path.join(d, "truth", "pages"), "И"),
-                       (os.path.join(d, "model", "pages"), "М")])
+        s = _say(pdf, [(os.path.join(d, "truth", "pages"), "T"),
+                       (os.path.join(d, "model", "pages"), "M")])
         assert "truth is MISSING 1 pages" in s and "[1]" in s, s
 
 
@@ -184,9 +184,9 @@ def test_one_markup_says_there_is_nothing_to_compare():
     """
     with tempfile.TemporaryDirectory() as d:
         pdf = _stand(d)
-        s = _say(pdf, [(os.path.join(d, "truth", "pages"), "И")])
+        s = _say(pdf, [(os.path.join(d, "truth", "pages"), "T")])
         assert "NOTHING TO COMPARE WITH" in s, s
-        assert "matched 0" not in s, f"итог всё ещё врёт нулями:\n{s}"
+        assert "matched 0" not in s, f"the summary still lies with zeros:\n{s}"
 
 
 def test_the_summary_counts_sheets_not_pages_of_the_book():
@@ -197,14 +197,14 @@ def test_the_summary_counts_sheets_not_pages_of_the_book():
     """
     with tempfile.TemporaryDirectory() as d:
         pdf = _stand(d)
-        s = _say(pdf, [(os.path.join(d, "truth", "pages"), "И")], only=[0])
+        s = _say(pdf, [(os.path.join(d, "truth", "pages"), "T")], only=[0])
         assert "sheets drawn 1 of 3 in the book, boxes 1" in s, s
 
 
 def test_what_was_not_checked_by_sha256_is_named():
     """Unverified markup is NAMED, not passed over in silence.
 
-    It used to print "sha256 checked for И" and not a word about "М" being
+    It used to print "sha256 checked for T" and not a word about "M" being
     unchecked at all: half a guard read as the whole guard.
     """
     with tempfile.TemporaryDirectory() as d:
@@ -212,9 +212,9 @@ def test_what_was_not_checked_by_sha256_is_named():
         with open(os.path.join(d, "truth", "manifest.json"), "w",
                   encoding="utf-8") as f:
             json.dump({"sha256 pdf": overlay._sha256(pdf)}, f)
-        s = _say(pdf, [(os.path.join(d, "truth", "pages"), "И"),
-                       (os.path.join(d, "model", "pages"), "М")])
-        assert "verified for И" in s and "NOT VERIFIED for М" in s, s
+        s = _say(pdf, [(os.path.join(d, "truth", "pages"), "T"),
+                       (os.path.join(d, "model", "pages"), "M")])
+        assert "verified for T" in s and "NOT VERIFIED for M" in s, s
 
 
 def test_the_sheet_shouts_at_exactly_what_the_number_calls_extra():
@@ -262,8 +262,8 @@ def test_the_sheet_shouts_at_exactly_what_the_number_calls_extra():
                 _j.dump(page, f)
         counts = {}
         overlay.build(pdf, os.path.join(d, "o.pdf"),
-                      [(os.path.join(d, "truth", "pages"), "И"),
-                       (os.path.join(d, "model", "pages"), "М")],
+                      [(os.path.join(d, "truth", "pages"), "T"),
+                       (os.path.join(d, "model", "pages"), "M")],
                       log=lambda *a: None)
         c = metrics.compare(os.path.join(d, "truth", "pages"),
                             os.path.join(d, "model", "pages"))
@@ -272,14 +272,15 @@ def test_the_sheet_shouts_at_exactly_what_the_number_calls_extra():
         want = beds.get("spurious_box", 0)
         said = []
         got = overlay.build(pdf, os.path.join(d, "o2.pdf"),
-                            [(os.path.join(d, "truth", "pages"), "И"),
-                             (os.path.join(d, "model", "pages"), "М")],
+                            [(os.path.join(d, "truth", "pages"), "T"),
+                             (os.path.join(d, "model", "pages"), "M")],
                             log=said.append)["spurious"]
-        assert want == 1, f"стенд собран не так: score зовёт лишними {want}"
+        assert want == 1, f"the bench is built wrong: score calls {want} spurious"
         assert got == want, (
-            f"лист кричит про {got} рамок, а число зовёт лишними {want}. "
-            f"Прибор и метрика разошлись на одной и той же рамке — а лист "
-            f"судят глазами и переспросить его нечем")
+            f"the sheet shouts about {got} boxes while the number calls "
+            f"{want} spurious. Instrument and metric diverged on the very "
+            f"same box -- and a sheet is judged by eye, with nothing to ask "
+            f"it again")
 
 
 def test_a_changed_label_is_not_painted_like_an_extra_box():
@@ -294,7 +295,8 @@ def test_a_changed_label_is_not_painted_like_an_extra_box():
     Can fail: bring the colours back together.
     """
     assert overlay.LABEL != overlay.SPURIOUS, (
-        "смена ярлыка красится как лишняя рамка — оранжевый перестаёт "
-        "значить «модель нашла лишнее», и настоящая лишняя в нём тонет")
+        "a changed label is painted as a spurious box -- orange stops "
+        "meaning 'the model found something extra', and a real spurious box "
+        "drowns in it")
     assert overlay.LABEL != overlay.MATCHED, (
-        "подпись слилась с рамкой, к которой относится")
+        "the caption merged with the box it belongs to")

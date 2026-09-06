@@ -107,15 +107,16 @@ def _yaml_names(root):
 def _classes(root):
     p = os.path.join(root, "classes.txt")
     if not os.path.exists(p):
-        raise AnnoPageError(f"нет {p}: это не корень AnnoPage")
+        raise AnnoPageError(f"no {p}: this is not an AnnoPage root")
     names = [l.strip() for l in open(p, encoding="utf-8") if l.strip()]
     known = set(DIRECT) | set(DOUBTFUL) | set(INEXPRESSIBLE)
     unknown = [n for n in names if n not in known]
     if unknown:
         raise AnnoPageError(
-            f"в датасете есть категории, о которых мы не высказались: "
-            f"{unknown}. Умолчания нет нарочно — молчаливое «невыразимо» "
-            f"превратилось бы в вечный недобор без объяснения.")
+            f"the dataset holds categories we have said nothing about: "
+            f"{unknown}. There is no default on purpose -- a silent "
+            f"\"inexpressible\" would turn into an eternal undercount with "
+            f"no explanation.")
     # THE ORDER OF THE LINES IS CHECKED AGAINST A SECOND SOURCE, not taken on
     # faith: until now only the SET of names was checked. The price of missing
     # it: swap `Table` and `Vignette` in `classes.txt` and the build passes in
@@ -130,12 +131,12 @@ def _classes(root):
                  if ymap.get(i) != n]
         if wrong or len(ymap) != len(names):
             raise AnnoPageError(
-                f"classes.txt и dataset.yaml расходятся: имён {len(names)} "
-                f"против {len(ymap)}, первое расхождение "
-                f"{wrong[0] if wrong else '—'} (индекс, classes.txt, "
-                f"dataset.yaml). Метка в разметке — это ИНДЕКС, и при "
-                f"расхождении вся истина стенда собралась бы под чужими "
-                f"ярлыками молча.")
+                f"classes.txt and dataset.yaml disagree: {len(names)} names "
+                f"against {len(ymap)}, first divergence "
+                f"{wrong[0] if wrong else '--'} (index, classes.txt, "
+                f"dataset.yaml). The label in the annotation is an INDEX, and "
+                f"on a divergence the whole bench truth would be folded under "
+                f"foreign labels silently.")
     return names
 
 
@@ -158,14 +159,15 @@ def build(root: str, out_dir: str, split: str = "test", limit: int = 0,
     # through the registry, or the run misses the snapshot.
     dpi = float(knobs.knob("PAGE_DPI"))
     if dpi <= 0:
-        raise AnnoPageError(f"PAGE_DPI = {dpi}: масштаб листа неположителен")
+        raise AnnoPageError(
+            f"PAGE_DPI = {dpi}: the sheet scale is not positive")
     scale = 72.0 / dpi
 
     names = _classes(root)
     ldir = os.path.join(root, "labels", split)
     idir = os.path.join(root, "images", split)
     if not (os.path.isdir(ldir) and os.path.isdir(idir)):
-        raise AnnoPageError(f"нет {ldir} или {idir}")
+        raise AnnoPageError(f"no {ldir} or {idir}")
 
     stems = sorted(f[:-4] for f in os.listdir(ldir) if f.endswith(".txt"))
     os.makedirs(out_dir, exist_ok=True)
@@ -179,7 +181,7 @@ def build(root: str, out_dir: str, split: str = "test", limit: int = 0,
     # were left: 595 destroyed by a refusal meant to protect them. Recovered by
     # `git checkout`, and only because this bench is tracked; in a fresh
     # directory, by nothing.
-    work = tdir + ".новая"
+    work = tdir + ".new"
     if os.path.isdir(work):
         shutil.rmtree(work)
     os.makedirs(work)
@@ -211,7 +213,7 @@ def build(root: str, out_dir: str, split: str = "test", limit: int = 0,
             break
         im = cv2.imread(img_path)
         if im is None:
-            raise AnnoPageError(f"не читается {img_path}")
+            raise AnnoPageError(f"{img_path} does not read")
         h, w = im.shape[:2]
 
         blocks, outside = [], []
@@ -272,15 +274,16 @@ def build(root: str, out_dir: str, split: str = "test", limit: int = 0,
                       "block_count": len(blocks), "out_of_scope": drop})
         used += 1
         if used % 50 == 0:
-            log(f"  {used} страниц")
+            log(f"  {used} pages")
 
     if not pages:
-        raise AnnoPageError("ни одной страницы не собрано")
+        raise AnnoPageError("not one page was assembled")
     pdf = os.path.join(out_dir, "annopage.pdf")
     if truth_only:
         doc.close()
         if not os.path.exists(pdf):
-            raise AnnoPageError(f"нет {pdf}: с --truth-only он должен уже быть")
+            raise AnnoPageError(
+                f"no {pdf}: with --truth-only it must already exist")
         # Page COUNT AND SIZE both: rewriting truth under a foreign pdf is the
         # trouble the sha256 check in `books score` guards, coming in here by
         # the back door.
@@ -290,17 +293,17 @@ def build(root: str, out_dir: str, split: str = "test", limit: int = 0,
             n = chk.page_count
             chk.close()
             raise AnnoPageError(
-                f"в {pdf} страниц {n}, а истина переписана на {len(pages)}: "
-                f"это разные выборки.")
+                f"{pdf} holds {n} pages while the truth was rewritten for "
+                f"{len(pages)}: these are different samples.")
         for rec in pages:
             r = chk[rec["page"]].rect
             w, h = rec["size"]
             if abs(r.width - w * scale) > 0.6 or abs(r.height - h * scale) > 0.6:
                 chk.close()
                 raise AnnoPageError(
-                    f"стр. {rec['page']}: лист {r.width:.0f}x{r.height:.0f} "
-                    f"пт не соответствует растру {w}x{h} — истина не про этот "
-                    f"pdf.")
+                    f"page {rec['page']}: a sheet of "
+                    f"{r.width:.0f}x{r.height:.0f} pt does not match the "
+                    f"raster {w}x{h} -- this truth is not about this pdf.")
         chk.close()
     else:
         doc.save(pdf, garbage=3, deflate=True)
@@ -309,7 +312,7 @@ def build(root: str, out_dir: str, split: str = "test", limit: int = 0,
     # Guards passed -- now it may be swapped. Old aside, new into place, old
     # removed: break in the middle and either the previous truth or the new one
     # is left standing, never emptiness.
-    keep = tdir + ".прежняя"
+    keep = tdir + ".previous"
     if os.path.isdir(keep):
         shutil.rmtree(keep)
     if os.path.isdir(tdir):
@@ -336,9 +339,9 @@ def build(root: str, out_dir: str, split: str = "test", limit: int = 0,
     with open(os.path.join(out_dir, "manifest.json"), "w",
               encoding="utf-8") as f:
         json.dump(man, f, ensure_ascii=False, indent=1)
-    log(f"страниц {len(pages)}, в замер идёт {n_direct} объектов; "
-        f"вне замера: спорных {man['objects_out_of_scope']['doubtful']}, "
-        f"невыразимых {man['objects_out_of_scope']['inexpressible']}")
-    log(f"разметок без картинки пропущено {skipped_no_image}")
-    log(f"{pdf} ({os.path.getsize(pdf)/1e6:.0f} МБ), истина в {tdir}")
+    log(f"pages {len(pages)}, {n_direct} objects enter the scoring; "
+        f"outside it: doubtful {man['objects_out_of_scope']['doubtful']}, "
+        f"inexpressible {man['objects_out_of_scope']['inexpressible']}")
+    log(f"annotations without an image skipped: {skipped_no_image}")
+    log(f"{pdf} ({os.path.getsize(pdf)/1e6:.0f} MB), truth in {tdir}")
     return man

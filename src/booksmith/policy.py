@@ -170,9 +170,10 @@ for _name, _table in POLICIES.items():
     for _lab, _r in _table.items():
         if ROLE.get(_lab, _r) != _r:
             raise RuntimeError(
-                f"ярлык {_lab!r} значит в разных словарях разное: "
-                f"{ROLE[_lab]!r} и {_r!r}. Объединение тут молча выбрало бы "
-                f"одно из двух, и разряд блока зависел бы от порядка импорта.")
+                f"the label {_lab!r} means different things in different "
+                f"vocabularies: {ROLE[_lab]!r} and {_r!r}. The union would "
+                f"silently pick one of the two, and a block's role would "
+                f"depend on the import order.")
         ROLE[_lab] = _r
 
 ROLES = ("text", "artifact", "furniture")
@@ -194,17 +195,21 @@ def check(labels, policy: str = "PP-DocLayoutV2") -> None:
     foreign labels too, and the check would stop catching what it is for.
     """
     if policy not in POLICIES:
-        raise UnknownLabel(f"нет политики {policy!r}: есть {sorted(POLICIES)}")
+        raise UnknownLabel(
+            f"no policy {policy!r}: there are {sorted(POLICIES)}")
     have, mine = set(labels), set(POLICIES[policy])
     if have - mine:
         raise UnknownLabel(
-            f"политика не описывает ярлыки модели: {sorted(have - mine)}. "
-            f"Опишите их в policy.POLICIES[{policy!r}] — умолчания здесь нет нарочно. Дописать в policy.ROLE НЕ поможет: она из POLICIES и выводится.")
+            f"the policy does not describe the model's labels: "
+            f"{sorted(have - mine)}. Describe them in "
+            f"policy.POLICIES[{policy!r}] -- there is no default here on "
+            f"purpose. Adding to policy.ROLE will NOT help: it is derived "
+            f"from POLICIES.")
     if mine - have:
         raise UnknownLabel(
-            f"политика описывает ярлыки, которых нет у модели: "
-            f"{sorted(mine - have)}. Опечатка тут не видна ничем, кроме "
-            f"вечного нуля в отчёте.")
+            f"the policy describes labels the model does not have: "
+            f"{sorted(mine - have)}. A typo here shows in nothing but an "
+            f"eternal zero in the report.")
 
 
 def for_labels(labels) -> str:
@@ -222,17 +227,18 @@ def for_labels(labels) -> str:
         return fit[0]
     if not fit:
         raise UnknownLabel(
-            f"нет политики под словарь из {len(have)} ярлыков: "
-            f"{sorted(have)[:6]}… Опишите его в policy.POLICIES — умолчания "
-            f"здесь нет нарочно.")
-    raise UnknownLabel(f"под этот словарь подходит несколько политик: {fit}")
+            f"no policy for a vocabulary of {len(have)} labels: "
+            f"{sorted(have)[:6]}... Describe it in policy.POLICIES -- there "
+            f"is no default here on purpose.")
+    raise UnknownLabel(f"several policies fit this vocabulary: {fit}")
 
 
 def role(label: str) -> str:
     try:
         return ROLE[label]
     except KeyError:
-        raise UnknownLabel(f"ярлык {label!r} не описан политикой") from None
+        raise UnknownLabel(
+            f"the label {label!r} is not described by the policy") from None
 
 
 def artefacts() -> tuple[str, ...]:

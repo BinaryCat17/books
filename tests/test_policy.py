@@ -25,12 +25,12 @@ def test_unknown_label_raises():
         try:
             policy.check(list(table) + ["Chart_2027"], name)
         except policy.UnknownLabel as e:
-            assert "Chart_2027" in str(e), f"в жалобе нет ярлыка: {e}"
+            assert "Chart_2027" in str(e), f"the complaint has no label: {e}"
         else:
             raise AssertionError(
-                f"политика {name} проглотила незнакомый ярлык: он молча "
-                f"уехал бы в прозу, а число артефактов уменьшилось бы без "
-                f"единого слова")
+                f"policy {name} swallowed an unknown label: it would "
+                f"silently travel into the prose and the artifact count would "
+                f"fall without a word")
 
 
 def test_label_missing_from_model_also_raises():
@@ -43,8 +43,9 @@ def test_label_missing_from_model_also_raises():
             assert sorted(table)[0] in str(e)
         else:
             raise AssertionError(
-                f"политика {name} описывает ярлык, которого у модели нет, и "
-                f"молчит: опечатка тут не видна ничем, кроме вечного нуля")
+                f"policy {name} describes a label the model does not have "
+                f"and keeps quiet: a typo here shows in nothing but a "
+                f"permanent zero")
 
 
 def test_unknown_policy_name_raises():
@@ -53,7 +54,7 @@ def test_unknown_policy_name_raises():
     except policy.UnknownLabel as e:
         assert "PP-DocLayoutV9" in str(e)
     else:
-        raise AssertionError("политика с выдуманным именем принята")
+        raise AssertionError("a policy with an invented name was accepted")
 
 
 def test_check_does_not_use_the_union():
@@ -69,24 +70,25 @@ def test_check_does_not_use_the_union():
         pass
     else:
         raise AssertionError(
-            "чужой ярлык из другого словаря прошёл проверку: значит сверка "
-            "идёт с объединением, и перепутанные веса пройдут молча")
+            "a foreign label from another vocabulary passed the check: the "
+            "comparison is against the union, and swapped weights will pass "
+            "in silence")
 
 
 def test_role_raises_on_unknown():
     try:
-        policy.role("выдуманный_ярлык")
+        policy.role("an_invented_label")
     except policy.UnknownLabel:
         pass
     else:
-        raise AssertionError("`role` вернул разряд ярлыку, которого не знает")
+        raise AssertionError("`role` gave a role to a label it does not know")
 
 
 def test_every_label_has_one_of_three_roles():
     assert policy.ROLES == ("text", "artifact", "furniture")
     for name, table in policy.POLICIES.items():
         for lab, r in table.items():
-            assert r in policy.ROLES, f"{name}/{lab}: разряд {r!r} не из трёх"
+            assert r in policy.ROLES, f"{name}/{lab}: role {r!r} is not one of three"
 
 
 def test_union_agrees_with_every_dictionary():
@@ -98,7 +100,7 @@ def test_union_agrees_with_every_dictionary():
     for name, table in policy.POLICIES.items():
         for lab, r in table.items():
             assert policy.ROLE[lab] == r, (
-                f"{name}/{lab}: в объединении {policy.ROLE[lab]!r}, в словаре "
+                f"{name}/{lab}: {policy.ROLE[lab]!r} in the union, in the vocabulary "
                 f"{r!r}")
     assert set(policy.ROLE) == set().union(*(set(t) for t in
                                              policy.POLICIES.values()))
@@ -115,8 +117,8 @@ def test_for_labels_picks_by_dictionary_not_by_name():
             pass
         else:
             raise AssertionError(
-                f"под словарь из {len(bad)} ярлыков нашлась политика: "
-                f"подходить он не может ни одной")
+                f"a policy was found for a vocabulary of {len(bad)} labels: "
+                f"it can match none")
 
 
 def test_adapters_and_policies_agree():
@@ -131,18 +133,19 @@ def test_adapters_and_policies_agree():
              (yolox_layout.YoloXLayout, list(yolox_layout.LABELS)))
     for cls, labels in pairs:
         assert cls.policy_name in policy.POLICIES, (
-            f"{cls.__name__}.policy_name = {cls.policy_name!r}, а такой "
-            f"политики нет")
+            f"{cls.__name__}.policy_name = {cls.policy_name!r}, and there "
+            f"is no such policy")
         assert policy.for_labels(labels) == cls.policy_name, (
-            f"{cls.__name__}: словарь ярлыков указывает на политику "
-            f"{policy.for_labels(labels)!r}, а объявлено {cls.policy_name!r}")
+            f"{cls.__name__}: the label vocabulary points at policy "
+            f"{policy.for_labels(labels)!r}, and {cls.policy_name!r} is "
+            f"declared")
         policy.check(labels, cls.policy_name)
 
 
 def test_artefacts_are_not_empty_and_are_artefacts():
     """An empty artefact list would silently turn the book into solid text."""
     arte = policy.artefacts()
-    assert arte, "артефактов нет ни одного: второму уровню нечего резать"
+    assert arte, "not one artifact: level two has nothing to cut"
     for lab in arte:
         assert policy.ROLE[lab] == "artifact"
     assert "table" in arte and "Table" in arte
@@ -154,8 +157,8 @@ def test_snapshot_carries_whole_dictionary():
         s = policy.snapshot(name)
         assert s["vocabulary"] == name
         assert s["by_label"] == dict(sorted(table.items())), (
-            f"слепок политики {name} неполон: в нём {len(s['by_label'])} "
-            f"ярлыков из {len(table)}")
+            f"the policy snapshot for {name} is incomplete: "
+            f"{len(s['by_label'])} labels of {len(table)}")
     whole = policy.snapshot()
     assert sorted(whole["vocabularies"]) == sorted(policy.POLICIES)
     assert len(whole["by_label"]) == len(policy.ROLE)

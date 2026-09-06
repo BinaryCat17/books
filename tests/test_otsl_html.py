@@ -3,7 +3,7 @@
 WHY THIS FILE EXISTS. `otsl.to_html` builds EVERY table of the book -- 104 of
 104 on "Технология огнеупоров", compared byte for byte against `book.html` --
 and no check covered it. Proved by corruption: the function replaced whole by
-the stub `<table><tr><td>ТРУХА</td></tr></table>` left the battery green --
+the stub `<table><tr><td>RUBBISH</td></tr></table>` left the battery green --
 202 checks, 0 failures, 181 mutations, none caught. A function turning every
 table of the book into one word broke nothing.
 
@@ -46,9 +46,9 @@ def test_span_chain_resolves_to_the_root_not_to_the_neighbour():
     Without the chain a merge of six addresses would fall into pairs, and
     `colspan` would come out 2 instead of 6.
     """
-    h = otsl.to_html("<fcel>шапка<lcel><lcel><lcel><nl>"
+    h = otsl.to_html("<fcel>head<lcel><lcel><lcel><nl>"
                      "<fcel>1<fcel>2<fcel>3<fcel>4<nl>")
-    assert '<td colspan="4">шапка</td>' in h, h
+    assert '<td colspan="4">head</td>' in h, h
 
 
 def test_equal_neighbours_without_a_tag_are_not_merged():
@@ -69,8 +69,8 @@ def test_header_cells_come_from_the_model_dictionary_not_from_the_row_number():
     and zero ched/rhed. The branch follows the `docling_core` vocabulary, not
     a measurement of this book.
     """
-    h = otsl.to_html("<ched>шапка<lcel><nl><fcel>1<fcel>2<nl>")
-    assert '<th colspan="2">шапка</th>' in h, h
+    h = otsl.to_html("<ched>head<lcel><nl><fcel>1<fcel>2<nl>")
+    assert '<th colspan="2">head</th>' in h, h
     # And an ordinary first row is NOT declared a header.
     assert "<th" not in otsl.to_html("<fcel>a<fcel>b<nl><fcel>1<fcel>2<nl>")
 
@@ -96,7 +96,7 @@ def test_torn_span_is_left_flat_not_straightened():
     """
     # `<ucel>` under the right half of a two-cell header, nothing under the
     # left one.
-    s = "<fcel>шапка<lcel><nl><fcel>левое<ucel><nl>"
+    s = "<fcel>head<lcel><nl><fcel>left<ucel><nl>"
     cs, t = otsl.layout(s)
     assert t["non_rectangular_merges"] == 1, t
     h = otsl.to_html(s)
@@ -113,14 +113,14 @@ def test_parse_keeps_its_old_contract():
     header would be compared against emptiness and "fail" for a reason other
     than declared. The HTML translation takes its own grid, from `layout`.
     """
-    g, t = otsl.parse("<ched>шапка<lcel><nl><fcel>1<fcel>2<nl>")
-    assert g[(0, 0)] == g[(0, 1)] == "шапка"
+    g, t = otsl.parse("<ched>head<lcel><nl><fcel>1<fcel>2<nl>")
+    assert g[(0, 0)] == g[(0, 1)] == "head"
     assert t["grid_cells"] == 4 and t["rows"] == 2
 
 
 def test_not_a_table_is_empty_string_not_a_broken_tag():
     """Prose gives an empty string, not `<table></table>`."""
-    assert otsl.to_html("просто проза") == ""
+    assert otsl.to_html("just prose") == ""
     assert otsl.to_html("") == ""
 
 
@@ -141,8 +141,8 @@ def test_one_walk_serves_both_readers():
                 if isinstance(n, ast.Attribute)
                 and isinstance(n.value, ast.Name) and n.value.id == "_TOK"]
         assert not ours, (
-            f"{name} разбирает теги сам (строка {ours[0].lineno}) — это второй "
-            f"экземпляр обхода, и он разойдётся с первым")
+            f"{name} parses tags on its own (line {ours[0].lineno}) -- a "
+            f"second copy of the walk, and it will diverge from the first")
 
 
 def test_a_row_of_continuations_still_gets_its_row():
@@ -178,12 +178,12 @@ def test_a_split_span_keeps_one_tag_for_all_its_addresses():
     """An expanded non-rectangular merge does not become half a header.
 
     A continuation has no tag of its own, and substituting our `fcel` default
-    tore one model cell in two: `<th>шапка</th><td>шапка</td>`. The tag comes
+    tore one model cell in two: `<th>head</th><td>head</td>`. The tag comes
     from the ROOT.
     """
-    h = otsl.to_html("<ched>шапка<lcel><nl><fcel>левое<ucel><nl>")
-    assert h.count("<th>шапка</th>") == 3, h
-    assert "<td>шапка</td>" not in h, h
+    h = otsl.to_html("<ched>head<lcel><nl><fcel>left<ucel><nl>")
+    assert h.count("<th>head</th>") == 3, h
+    assert "<td>head</td>" not in h, h
 
 
 def test_a_short_row_is_not_padded_out():

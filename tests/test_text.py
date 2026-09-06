@@ -1,20 +1,20 @@
-"""Прибор ЧТЕНИЯ: последняя строка отчёта и разбор нулей.
+"""The READING instrument: the last line of the report, and its zeros.
 
-ПОЧЕМУ ЭТОТ ФАЙЛ ПОЯВИЛСЯ. `text.report` не звался НИ ОДНОЙ проверкой и ни
-одной пробой батареи — а это ровно та функция, которую читает человек. Цена
-неохраняемости выяснилась в тот же день двумя способами сразу:
+WHY THIS FILE EXISTS. `text.report` was called by NOT ONE check and not one
+probe of the battery -- and it is exactly the function a person reads. The
+price of leaving it unguarded showed up the same day, twice over:
 
-  * запись артефакта не несёт `WER` (в формуле слов не считают), а строка
-    «худший блок» его печатала — одна неверная буква в одной формуле роняла
-    `books text` целиком, `KeyError: 'WER'`. На платном прогоне это значит:
-    деньги потрачены, ответы записаны, отчёта нет;
-  * знаменатель последней строки считался по текстовым блокам, а числитель —
-    по текстовым И артефактным, и на книге с формулами выходило «CER 0 на всех
-    130 посчитанных из 104». Сторож «сверять было НЕЧЕГО» при этом не
-    срабатывал никогда: молчащая модель снова получала «блоков с ошибкой нет».
+  * an artifact record carries no `WER` (words are not counted in a formula)
+    and the "worst block" line printed it -- one wrong letter in one formula
+    brought `books text` down with `KeyError: 'WER'`. On a paid run that
+    means: money spent, answers written, no report;
+  * the denominator of the last line was counted over text blocks and the
+    numerator over text AND artifact blocks, so a book with formulas printed
+    "CER 0 on all 130 computed of 104". The guard "there was NOTHING to
+    compare" never fired: a silent model again got "no blocks with an error".
 
-Батарея порчи такое поймать не может по построению — она смотрит на ЧИСЛА, а
-это про печать. Значит проверка.
+The corruption battery cannot catch this by construction -- it looks at
+NUMBERS, and this is about printing. So: a check.
 """
 import os
 import sys
@@ -26,7 +26,7 @@ from booksmith import text                                  # noqa: E402
 
 
 def _pages(blocks, side=None):
-    """Одна страница истины/ответа в схеме `Page`."""
+    """One page of truth or answer, in the `Page` shape."""
     return {0: {"index": 0, "width": 100, "height": 100, "dpi": 144.0,
                 "blocks": blocks,
                 "meta": {"artifact_truth": side} if side else {}}}
@@ -44,36 +44,36 @@ def _formula_block(i, content):
 
 
 def _say(truth, answer):
-    """Отчёт строками. Именно то, что увидит человек."""
+    """The report as lines. Exactly what a person will see."""
     out = []
     text.report(text.measure_pages(truth, answer), log=out.append)
     return "\n".join(out)
 
 
-# ------------------------------------------------------ последняя строка ---
+# ---------------------------------------------------------- the last line ---
 
 def test_silence_is_not_reported_as_perfect_reading():
-    """Модель промолчала на всех — и это НЕ «CER 0 на всех N»."""
-    T = _pages([_text_block(0, "первый"), _text_block(1, "второй")])
+    """The model was silent on all of them -- and that is NOT "CER 0 on all N"."""
+    T = _pages([_text_block(0, "first"), _text_block(1, "second")])
     P = _pages([_text_block(0, None), _text_block(1, None)])
     s = _say(T, P)
     assert "there was NOTHING to compare" in s
-    # Утверждения «CER 0 на всех» быть не должно. Ищем именно УТВЕРЖДЕНИЕ:
-    # сама поправляющая строка кончается цитатой «это НЕ „CER 0 на всех“», и
-    # простое вхождение подстроки красит проверку на верном выводе.
+    # The CLAIM "CER 0 on all" must not appear. The claim is what is looked
+    # for: the correcting line itself ends by quoting "this is NOT 'CER 0 on
+    # all'", so a plain substring test would redden a correct report.
     assert "no text blocks with an error" not in s
 
 
 def test_perfect_reading_counts_only_text_in_the_text_line():
-    """Знаменатель последней строки — текстовые блоки, и только они.
+    """The denominator of the last line is text blocks, and only those.
 
-    Замер до починки: книга с 104 текстовыми блоками и 26 формулами печатала
-    «CER 0 на всех 130 посчитанных из 104» — числитель по обоим разрядам,
-    знаменатель по одному.
+    Measured before the fix: a book of 104 text blocks and 26 formulas printed
+    "CER 0 on all 130 computed of 104" -- the numerator over both roles, the
+    denominator over one.
     """
-    T = _pages([_text_block(0, "проза"), _formula_block(1, None)],
+    T = _pages([_text_block(0, "prose"), _formula_block(1, None)],
                side={"1": {"text": "x = 1"}})
-    P = _pages([_text_block(0, "проза"), _formula_block(1, "x = 1")])
+    P = _pages([_text_block(0, "prose"), _formula_block(1, "x = 1")])
     s = _say(T, P)
     assert "no text blocks with an error: CER 0 on all 1 computed of 1" in s
     assert ("no artifact blocks with an error: CER 0 on all 1 computed "
@@ -81,32 +81,32 @@ def test_perfect_reading_counts_only_text_in_the_text_line():
 
 
 def test_one_wrong_letter_in_a_formula_does_not_crash():
-    """Ошибка в формуле печатается, а не роняет прибор.
+    """An error in a formula is printed, not fatal to the instrument.
 
-    Запись артефакта не несёт `WER`, и строка «худший блок» его печатала.
+    An artifact record carries no `WER`, and the "worst block" line printed it.
     """
-    T = _pages([_text_block(0, "проза"), _formula_block(1, None)],
+    T = _pages([_text_block(0, "prose"), _formula_block(1, None)],
                side={"1": {"text": "x = 1"}})
-    P = _pages([_text_block(0, "проза"), _formula_block(1, "z = 1")])
-    s = _say(T, P)                      # не бросает — это и есть проверка
+    P = _pages([_text_block(0, "prose"), _formula_block(1, "z = 1")])
+    s = _say(T, P)                      # does not throw: that IS the check
     assert "worst artifact block" in s
     assert "WER" not in s.split("worst artifact block")[1].split("\n")[0]
 
 
 def test_silent_formulas_are_not_a_measured_one():
-    """Молчание на ВСЕХ формулах — «сверять нечего», а не «CER 1.0»."""
-    T = _pages([_text_block(0, "проза"), _formula_block(1, None)],
+    """Silence on EVERY formula is "nothing to compare", not "CER 1.0"."""
+    T = _pages([_text_block(0, "prose"), _formula_block(1, None)],
                side={"1": {"text": "x = 1"}})
-    P = _pages([_text_block(0, "проза"), _formula_block(1, None)])
+    P = _pages([_text_block(0, "prose"), _formula_block(1, None)])
     s = _say(T, P)
     assert "THERE IS NO ANSWER TO A SINGLE ONE" in s
     assert "CER 1.0000" not in s
 
 
-# ---------------------------------------------------------- разряды ------
+# --------------------------------------------------------------- roles ------
 
 def test_artefact_with_truth_is_not_a_bait():
-    """У формулы истина ЕСТЬ: прочитать её — работа, а не выдумка."""
+    """A formula HAS a truth: reading it is work, not invention."""
     T = _pages([_formula_block(0, None)], side={"0": {"text": "x = 1"}})
     P = _pages([_formula_block(0, "x = 1")])
     r = text.measure_pages(T, P)
@@ -116,52 +116,54 @@ def test_artefact_with_truth_is_not_a_bait():
 
 
 def test_artefact_without_truth_stays_a_bait():
-    """А у рисунка истины нет: всякий текст в ответе — выдумка."""
+    """A figure has none: any text in the answer is invention."""
     T = _pages([{"block_id": 0, "box": [0, 0, 90, 8], "label": "image",
                  "content": None, "kind": "none"}])
     P = _pages([{"block_id": 0, "box": [0, 0, 90, 8], "label": "image",
-                 "content": "сочинил", "kind": "text"}])
+                 "content": "made up", "kind": "text"}])
     r = text.measure_pages(T, P)
     assert r["baits"]["artifacts"] == 1 and r["baits"]["read"] == 1
     assert r["artifacts_with_truth"]["block_count"] == 0
 
 
 def test_invention_on_declared_emptiness_is_counted():
-    """Истина артефакта — пустая строка, а модель написала: своя величина.
+    """The artifact's truth is an empty string and the model wrote something:
+    a quantity of its own.
 
-    В CER это не видно вовсе (делить не на что), и без счётчика выдумка на
-    объявленной пустоте пропадала бы молча.
+    CER cannot see this at all (there is nothing to divide by), and without a
+    counter, invention on declared emptiness would vanish in silence.
     """
     T = _pages([_formula_block(0, None)], side={"0": {"text": ""}})
-    P = _pages([_formula_block(0, "сочинил четырнадцать")])
+    P = _pages([_formula_block(0, "made up fourteen")])
     r = text.measure_pages(T, P)
     assert r["artifacts_with_truth"]["invented_on_empty_truth"] == 1
 
 
 def test_two_truths_on_one_artefact_are_loud():
-    """И сетка, и знаки у одного блока — отказ вслух, а не тихий выбор."""
+    """Both a grid and characters on one block: a refusal out loud, not a quiet
+    choice."""
     T = _pages([_formula_block(0, None)],
-               side={"0": {"text": "x = 1", "table": [["а", "б"]]}})
+               side={"0": {"text": "x = 1", "table": [["a", "b"]]}})
     P = _pages([_formula_block(0, "x = 1")])
     try:
         text.measure_pages(T, P)
     except text.TextError as e:
         assert "BOTH a table grid" in str(e) or "grid" in str(e)
     else:
-        raise AssertionError("две истины на одном блоке прошли молча")
+        raise AssertionError("two truths on one block passed in silence")
 
 
-# ------------------------------------------------------------- таблицы ---
+# ------------------------------------------------------------- tables ---
 
 def test_table_in_otsl_scores_like_the_same_table_in_html():
-    """Один и тот же верный ответ двумя видами — одни и те же числа."""
-    grid = [["А", "Б"], ["1", "2"]]
+    """The same correct answer in two kinds gives the same numbers."""
+    grid = [["A", "B"], ["1", "2"]]
     T = _pages([{"block_id": 0, "box": [0, 0, 90, 8], "label": "table",
                  "content": None, "kind": "none"}],
                side={"0": {"table": grid}})
-    as_html = ("<table><tr><td>А</td><td>Б</td></tr>"
+    as_html = ("<table><tr><td>A</td><td>B</td></tr>"
                "<tr><td>1</td><td>2</td></tr></table>")
-    as_otsl = "<fcel>А<fcel>Б<nl><fcel>1<fcel>2<nl>"
+    as_otsl = "<fcel>A<fcel>B<nl><fcel>1<fcel>2<nl>"
     got = []
     for body, kind in ((as_html, "html"), (as_otsl, "otsl")):
         P = _pages([{"block_id": 0, "box": [0, 0, 90, 8], "label": "table",
@@ -172,33 +174,34 @@ def test_table_in_otsl_scores_like_the_same_table_in_html():
 
 
 def test_a_cell_with_angle_brackets_survives_the_round_trip():
-    """Ячейка с `<` и `&` возвращается из HTML ТОЙ ЖЕ. Иначе прибор врёт.
+    """A cell with `<` and `&` comes back from HTML THE SAME. Or the
+    instrument lies.
 
-    ЧЕМ ЭТО ОПЛАЧЕНО. `_grid_html` не экранировал, и круговой ход
-    «сетка -> HTML -> сетка» терял содержимое: `a<b&c` приезжал обратно как
-    `a`, потому что разборщик считал `<b&c` открывающим тегом. Батарея порчи
-    делает порчу НАД СЕТКОЙ и подаёт метрике эту строку — значит ячейка
-    усекалась ДО внесения порчи, и число относилось не к той строке, о
-    которой батарея отчитывалась. Соседний `otsl.to_html` экранирует с
-    первого дня; здесь жила вторая, разошедшаяся копия того же цикла.
+    WHAT PAID FOR THIS. `_grid_html` did not escape, so the round trip
+    grid -> HTML -> grid lost content: `a<b&c` came back as `a`, because the
+    parser read `<b&c` as an opening tag. The corruption battery damages THE
+    GRID and hands the metric that string -- so the cell was truncated BEFORE
+    the damage went in, and the number belonged to a different string than the
+    one the battery reported on. The neighbouring `otsl.to_html` has escaped
+    since day one; this was a second, diverged copy of the same loop.
 
-    ЗАМЕР, КОТОРЫМ ЭТО ОБОСНОВЫВАЛОСЬ, БЫЛ НЕВЕРЕН. Здесь стояло «ни одна
-    ячейка из 6812 прочитанных настоящей моделью блоков не содержала ни `<`,
-    ни `&`; первая книга по химии это изменит». На деле книга в корпусе и
-    ЕСТЬ книга по химии, и в ней 24 такие ячейки из 5726 (`< 3`, `<1,0`,
-    `<28 …`). Ноль вышел потому, что ячейки я доставал регэкспом
-    `<fcel>([^<]*)` — прибором с тем же дефектом, который чинил: он
-    обрывается на `<`. Круговой довод.
+    THE MEASUREMENT THAT JUSTIFIED IT WAS WRONG. It said here that not one
+    cell of 6812 blocks read by a real model held `<` or `&`, and that the
+    first chemistry book would change it. In fact the book in the corpus IS a
+    chemistry book, and it holds 24 such cells of 5726 (`< 3`, `<1,0`,
+    `<28 ...`). The zero came out because the cells were extracted with the
+    regexp `<fcel>([^<]*)` -- an instrument carrying the very defect it was
+    fixing: it stops at `<`. A circular argument.
 
-    Правка от этого не отменяется, но её цена другая: ни одна из 24 ячеек
-    НЕ портилась, потому что браузер считает `<` литералом, когда следом не
-    буква. Опасно `<` перед буквой — такого в корпусе нет, и проверка стоит
-    здесь ради первой же таблицы, где оно появится.
+    The fix stands, but its price is different: none of the 24 was corrupted,
+    because a browser treats `<` as a literal when no letter follows.
+    Dangerous is `<` before a letter -- absent from the corpus -- and the check
+    stands here for the first table where it appears.
     """
-    was = {(0, 0): "a<b & c", (0, 1): "простая",
-            (1, 0): '"кавычки"', (1, 1): "5 > 3"}
+    was = {(0, 0): "a<b & c", (0, 1): "plain",
+           (1, 0): '"quoted"', (1, 1): "5 > 3"}
     now = text._html_grid(text._grid_html(was))
     assert now == was, (
-        f"круговой ход сетки потерял содержимое:\n  было  {was}\n"
-        f"  стало {now}\nЯчейка обязана экранироваться — иначе батарея "
-        f"мерит не ту строку, о которой отчитывается")
+        f"the grid round trip lost content:\n  was  {was}\n"
+        f"  now  {now}\nA cell must be escaped -- otherwise the battery "
+        f"measures a different string than the one it reports on")

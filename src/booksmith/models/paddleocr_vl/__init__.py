@@ -66,16 +66,18 @@ def spec(pdf: str, detect_dir: str, pages: str = "",
     two useful.
     """
     for p, what in ((pdf, "book"),
-                    (os.path.join(detect_dir, "pages"), "страницы детекции"),
-                    (os.path.join(detect_dir, "run.json"), "слепок детекции"),
+                    (os.path.join(detect_dir, "pages"), "detection pages"),
+                    (os.path.join(detect_dir, "run.json"),
+                     "detection snapshot"),
                     (os.path.join(HERE, "constraints.txt"),
-                     "закреплённое дерево зависимостей"),
-                    (os.path.join(HERE, "provision.sh"), "разворачивание"),
-                    (os.path.join(HERE, "run.sh"), "запуск на боксе"),
-                    (os.path.join(HERE, "entrypoint.py"), "точка входа бокса"),
-                    (PKG, "пакет booksmith")):
+                     "the pinned dependency tree"),
+                    (os.path.join(HERE, "provision.sh"), "provisioning"),
+                    (os.path.join(HERE, "run.sh"), "the run on the box"),
+                    (os.path.join(HERE, "entrypoint.py"), "the box entry "
+                     "point"),
+                    (PKG, "the booksmith package")):
         if not os.path.exists(p):
-            raise SystemExit(f"нет {p} ({what})")
+            raise SystemExit(f"no {p} ({what})")
     # THE PACKAGE MUST COMPILE, AND THAT IS CHECKED RIGHT BEFORE THE UPLOAD.
     # Measured: during edits the tree failed to parse for half a minute
     # (`SyntaxError` in `read/run.py`), and in that window a book of code that
@@ -85,9 +87,9 @@ def spec(pdf: str, detect_dir: str, pages: str = "",
     import compileall
     if not compileall.compile_dir(PKG, quiet=2, force=True):
         raise SystemExit(
-            f"пакет {PKG} не компилируется целиком — на бокс уехало бы дерево, "
-            f"которое не запускается, и узнали бы мы это за деньги. "
-            f"Разбери ошибку выше и повтори.")
+            f"the package {PKG} does not compile whole -- a tree that will "
+            f"not run would sail to the box, and we would learn it for money. "
+            f"Sort out the error above and retry.")
     return JobSpec(
         name="vl-read",
         image=BASE_IMAGE,

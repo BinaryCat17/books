@@ -3,8 +3,8 @@
 The five figures everyone quotes -- 698/1232 found, 646 whole, 375 merged, 501
 extra jumps, 89.4 % ink -- survived a full rename of all 13 996 Cyrillic keys
 in `bench/annopage` without moving. They also survived the rename being stopped
-halfway. What moved was the prose around them: a line reading "на объекте вне
-замера: 350" simply stopped being printed, and 350 excluded boxes were charged
+halfway. What moved was the prose around them: a line reading "on an object
+outside scoring: 350" stopped being printed, and 350 excluded boxes were charged
 to the model instead.
 
 So these checks compare every line. `booksmith.acceptance` holds the command
@@ -14,9 +14,9 @@ WHAT THESE CHECKS DO NOT SEE. Each report is produced by a SUBPROCESS, so an
 in-memory mutation of `metrics` or `policy` never reaches them. That is the
 right shape for their job -- they are run against the tree after each step of
 the translation, and they compare what the tree actually prints. Proved by
-damaging the tree instead of memory: dropping one lookup of `вне замера` in
-`metrics.py` turned "лишняя рамка: 110" into 460 and deleted the line "на
-объекте вне замера: 350", and the diff named both.
+damaging the tree instead of memory: dropping one lookup of the
+outside-scoring bucket in `metrics.py` turned "spurious_box: 110" into 460 and
+deleted the line "on an object outside scoring: 350", and the diff named both.
 
 A missing bench is a SKIP WITH A REASON, never a pass. Most of what these
 commands read is behind .gitignore -- `bench/*/detect/pages` and the six
@@ -32,12 +32,13 @@ from booksmith import acceptance
 def _one(name):
     gone = acceptance.missing(name)
     if gone:
-        support.skip(f"нет входа: {', '.join(gone)}")
+        support.skip(f"no input: {', '.join(gone)}")
     if not os.path.isfile(acceptance.path(name)):
-        support.skip(f"нет слепка {acceptance.path(name)}: "
-                     "снять `python3 tools/acceptance.py --save`")
+        support.skip(f"no snapshot {acceptance.path(name)}: "
+                     "take one with `python3 tools/acceptance.py --save`")
     d = acceptance.differs(name)
-    assert not d, (f"отчёт {name} разошёлся со слепком:\n" + "\n".join(d[:40]))
+    assert not d, (f"report {name} diverged from its snapshot:\n"
+                   + "\n".join(d[:40]))
 
 
 def test_score_on_annopage_reports_the_same_report():
@@ -48,10 +49,10 @@ def test_score_on_annopage_reports_the_same_report():
 def test_score_on_hard_reports_the_same_report():
     """The only tracked bench that mixes annotated text with unannotated.
 
-    `bench/annopage` annotates no text at all, so its text half reads НЕ
-    РАЗМЕЧЕНЫ whatever happens to it. `bench/hard` is 124 AnnoPage pages plus
-    6 synthetic ones, and it is the only place where the caption "считано по 6
-    страницам из 130" exists to be lost.
+    `bench/annopage` annotates no text at all, so its text half reads NOT
+    MARKED whatever happens to it. `bench/hard` is 124 AnnoPage pages plus 6
+    synthetic ones, and it is the only place where the caption "counted over 6
+    pages of 130" exists to be lost.
     """
     _one("score-hard")
 
@@ -92,12 +93,12 @@ def test_the_command_table_covers_every_format_the_migration_touches():
 def test_the_reading_probe_battery_reports_the_same():
     """A report can be identical while the PROBE behind it has stopped working.
 
-    Measured during the key migration: renaming the normalisation level `нет`
+    Measured during the key migration: renaming the normalisation level
     to `none` in `NORM_STEPS` and not at the place that compares against it
     made `--norm none` do exactly what `boundary` does -- three levels became
     two -- and the probe that guarded that distinction threw `TextError`
     instead of measuring. `text-slovar` was byte-identical throughout. Only
-    this line moved: "непойманных 0" became 1.
+    this line moved: "UNCAUGHT 0" became 1.
     """
     _one("text-selfcheck")
 

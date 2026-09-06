@@ -84,7 +84,7 @@ class Run:
     # returned `None` when there was nothing to measure, but was unreachable by
     # construction: the ledger is written through `asdict(run)`, which takes no
     # properties, so it reached the file NOT ONCE. A second, live copy of the
-    # arithmetic sat in `cli.py` and printed "0 Мбит/с" on an unmeasured run --
+    # arithmetic sat in `cli.py` and printed "0 Mbit/s" on an unmeasured run --
     # of the two copies the dead one held the right semantics. It moved into
     # the live one; the copy is gone.
 
@@ -249,10 +249,10 @@ def _read_bad(path: str) -> tuple[dict, str]:
     try:
         data = json.loads(raw.decode("utf-8"))
     except Exception as e:
-        return {}, f"{type(e).__name__}: {str(e)[:80]} ({len(raw)} байт)"
+        return {}, f"{type(e).__name__}: {str(e)[:80]} ({len(raw)} bytes)"
     if not isinstance(data, dict):
-        return {}, (f"на верхнем уровне {type(data).__name__}, а нужен объект "
-                    f"({len(raw)} байт)")
+        return {}, (f"top level is {type(data).__name__}, an object is "
+                    f"needed ({len(raw)} bytes)")
     return data, ""
 
 
@@ -272,9 +272,9 @@ def mark_bad(machine_id: int | None, reason: str, path: str = BAD) -> None:
     try:
         key = str(int(machine_id))
     except (TypeError, ValueError):
-        log(f"ВНИМАНИЕ: машину в чёрный список НЕ записать — оффер без "
-            f"machine_id ({machine_id!r}); причина была: {reason}. "
-            f"Эта машина может прийти снова")
+        log(f"WARNING: cannot blacklist -- the offer has no machine_id "
+            f"({machine_id!r}); the reason was: {reason}. "
+            f"It can come again")
         return
     data, broken = _read_bad(path)
     if broken:
@@ -284,18 +284,18 @@ def mark_bad(machine_id: int | None, reason: str, path: str = BAD) -> None:
         try:
             os.replace(path, keep)
         except OSError as e:
-            keep = f"(отложить не удалось: {e})"
-        log(f"ВНИМАНИЕ: чёрный список {path} не разбирается ({broken}) — "
-            f"отложен в {keep}, дальше пишу с чистого листа. Машины из него "
-            f"снова пойдут в аренду, пока файл не починят руками")
+            keep = f"(could not set it aside: {e})"
+        log(f"WARNING: blacklist {path} does not parse ({broken}) -- set "
+            f"aside as {keep}, starting a clean one. Its machines return "
+            f"to rentals until it is repaired by hand")
     data[key] = {"reason": reason, "ts": time.time()}
     os.makedirs(os.path.dirname(path), exist_ok=True)
     tmp = path + ".tmp"
     with open(tmp, "w") as f:
         json.dump(data, f, ensure_ascii=False, indent=1)
     os.replace(tmp, path)
-    log(f"машина {key} в чёрном списке навсегда ({reason}); всего в списке "
-        f"{len(data)}")
+    log(f"machine {key} blacklisted forever ({reason}); "
+        f"{len(data)} in the list")
 
 
 def bad_machines(path: str = BAD) -> list[int]:
@@ -305,9 +305,9 @@ def bad_machines(path: str = BAD) -> list[int]:
     """
     data, broken = _read_bad(path)
     if broken:
-        log(f"ВНИМАНИЕ: чёрный список {path} не разбирается ({broken}) — "
-            f"считаю его ПУСТЫМ. Отбракованные машины снова пойдут в аренду; "
-            f"файл на месте, почините руками")
+        log(f"WARNING: blacklist {path} does not parse ({broken}) -- "
+            f"taking it as EMPTY. Rejected machines return to rentals; "
+            f"the file is in place, repair it by hand")
         return []
     out, skipped = [], 0
     for k in data:
@@ -316,8 +316,8 @@ def bad_machines(path: str = BAD) -> list[int]:
         except (TypeError, ValueError):
             skipped += 1
     if skipped:
-        log(f"ВНИМАНИЕ: в чёрном списке {path} непонятных ключей {skipped} "
-            f"из {len(data)} — эти машины не отсеиваются")
+        log(f"WARNING: blacklist {path} holds {skipped} unreadable keys of "
+            f"{len(data)} -- those machines are not filtered out")
     return out
 
 
@@ -361,11 +361,12 @@ def fit(path: str = LEDGER) -> dict:
     skipped = {"skipped_old_setup_s": old_shape} if old_shape else {}
     if len(gbs) < 2:
         return {"samples": len(eff), **skipped, "why_no_estimate":
-                f"размер образа во всех записях один ({sorted(gbs) or '—'}): "
-                f"числитель постоянен, и деление мерило бы знаменатель"}
+                f"one image size in every record ({sorted(gbs) or '--'}): "
+                f"the numerator is constant, and the division would measure "
+                f"the denominator"}
     if len(eff) < 5:
         return {"samples": len(eff), **skipped, "why_no_estimate":
-                "меньше пяти пригодных записей"}
+                "fewer than five usable records"}
     eff.sort()
     return {"samples": len(eff), **skipped, "distinct_image_sizes": len(gbs),
             "link_efficiency_median": eff[len(eff) // 2],

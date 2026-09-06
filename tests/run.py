@@ -1,23 +1,25 @@
-"""Бегун проверок: без сети, без GPU, без аренды.
+"""The check runner: no network, no GPU, no rentals.
 
-    /home/smirn/books/.venv/bin/python tests/run.py              все проверки
-    /home/smirn/books/.venv/bin/python tests/run.py --selfcheck  батарея мутаций
-    /home/smirn/books/.venv/bin/python tests/run.py --slow       и медленные
-    /home/smirn/books/.venv/bin/python tests/run.py test_swap    один файл
+    .venv/bin/python tests/run.py              every check
+    .venv/bin/python tests/run.py --selfcheck  the mutation battery
+    .venv/bin/python tests/run.py --slow       the slow ones too
+    .venv/bin/python tests/run.py test_swap    one file
 
-pytest в `.venv` НЕТ, поэтому бегун свой, но проверки написаны так, что pytest
-их подберёт без правок: файлы `test_*.py`, функции `test_*`, обычный `assert`.
+There is NO pytest in `.venv`, hence a runner of our own -- but the checks are
+written so pytest would collect them unchanged: files `test_*.py`, functions
+`test_*`, a plain `assert`.
 
-ПЕЧАТАЕТСЯ ВЕЛИЧИНА, А НЕ СЛОВО «ГОТОВО»: сколько проверок прошло, сколько
-провалено, сколько ПРОПУЩЕНО и почему, и сколько секунд это заняло. Пропуск
-считается отдельным числом нарочно — ноль от проверки и ноль от непонимания
-разные нули, и «пропущено 5» в строке итога видно так же, как провал.
+IT PRINTS THE QUANTITY, NOT THE WORD "DONE": how many passed, how many failed,
+how many were SKIPPED and why, and how many seconds it took. A skip is a
+number of its own on purpose -- a zero from a check and a zero from not
+understanding are different zeros, and "skipped 5" is as visible in the
+summary line as a failure.
 
-`--selfcheck` — та же мысль, что у `metrics.mutations()`: проверка обязана
-уметь провалиться. Батарея ломает проверяемое место (в памяти или в КОПИИ
-исходника, рабочее дерево не трогается) и требует, чтобы названная проверка
-покраснела. Мутация, которую никто не поймал, печатается как НЕ ПОЙМАНА и
-роняет прогон: зелёная проверка на сломанном коде хуже отсутствующей.
+`--selfcheck` is the same thought as `metrics.mutations()`: a check must be
+able to fail. The battery breaks the place under test (in memory, or in a COPY
+of the source -- the working tree is never touched) and demands that the named
+check go red. A mutation nobody caught prints as UNCAUGHT and fails the run: a
+green check over broken code is worse than no check at all.
 """
 import importlib.util
 import os
@@ -33,10 +35,10 @@ sys.path.insert(0, HERE)
 import support                                              # noqa: E402
 from support import Skip                                    # noqa: E402
 
-# ЭТОТ БЕГУН ОБЪЯВЛЯЕТ СЕБЯ, и делает это до загрузки первого файла проверок.
-# `support.skip()` выбирает форму пропуска по тому, КТО ГОНЯЕТ; прежде он
-# выбирал по тому, что УСТАНОВЛЕНО («импортируется ли pytest»), и стоило бы
-# это всего прогона — см. `support.foreign_skip`.
+# THIS RUNNER DECLARES ITSELF, and does so before the first check file is
+# loaded. `support.skip()` chooses the form of a skip by WHO IS RUNNING; it
+# used to choose by what is INSTALLED ("does pytest import"), and that would
+# have cost a whole run -- see `support.foreign_skip`.
 support.OWN_RUNNER = True
 
 SLOW = "BOOKSMITH_TESTS_SLOW"
@@ -67,28 +69,29 @@ def cases(mod):
 
 
 def run_case(fn):
-    """(состояние, причина/след). Состояния три, и они разные."""
+    """(state, reason or traceback). Three states, and they differ."""
     try:
         fn()
         return "ok", ""
     except Skip as e:
         return "skip", str(e)
     except (Exception, SystemExit):
-        # SystemExit не Exception: отказ адаптера («нет пакета docling»,
-        # «неизвестный режим») прилетает именно им, и проглотить его значило
-        # бы уронить бегун вместо того, чтобы напечатать провал.
+        # SystemExit is not an Exception: an adapter's refusal ("no docling
+        # package", "unknown mode") arrives as exactly that, and swallowing it
+        # would kill the runner instead of printing a failure.
         return "fail", traceback.format_exc()
     except BaseException as e:
-        # Всё, что не Exception и не SystemExit: чужой пропуск засчитываем
-        # пропуском, остальное (KeyboardInterrupt, MemoryError) отдаём наружу
-        # — глотать Ctrl+C значило бы сделать бегун неостановимым.
+        # Anything that is neither Exception nor SystemExit: a foreign skip
+        # counts as a skip, everything else (KeyboardInterrupt, MemoryError)
+        # goes out -- swallowing Ctrl+C would make the runner unstoppable.
         #
-        # Что считать чужим пропуском, решает ОДИН дом — `support`, рядом с
-        # нашим `Skip`. Зовётся через модуль, а не по имени: батарея мутаций
-        # ломает проверяемое место В ПАМЯТИ, и без этого шва проба «бегун не
-        # знает чужого пропуска» не накладывалась бы вовсе.
+        # What counts as a foreign skip is decided in ONE place, `support`,
+        # beside our own `Skip`. It is called through the module and not by
+        # name: the battery breaks the place under test IN MEMORY, and without
+        # that seam the probe "the runner does not know a foreign skip" could
+        # not be applied at all.
         if support.foreign_skip(e):
-            return "skip", f"{e} (объявлен через pytest.skip)"
+            return "skip", f"{e} (declared through pytest.skip)"
         raise
 
 
@@ -106,23 +109,23 @@ def main(argv):
             t = time.time()
             state, why = run_case(fn)
             dt = time.time() - t
-            mark = {"ok": "  ", "skip": "  ПРОПУСК", "fail": "  ПРОВАЛ"}[state]
-            print(f"{mark} {base}::{name}  {dt:.3f}с"
-                  + (f"  — {why}" if state == "skip" else ""))
+            mark = {"ok": "  ", "skip": "  SKIP", "fail": "  FAIL"}[state]
+            print(f"{mark} {base}::{name}  {dt:.3f}s"
+                  + (f"  -- {why}" if state == "skip" else ""))
             if state == "ok":
                 ok += 1
             elif state == "skip":
                 skipped += 1
-                skips.append(f"{base}::{name} — {why}")
+                skips.append(f"{base}::{name} -- {why}")
             else:
                 failed += 1
                 bad.append((f"{base}::{name}", why))
     for name, tb in bad:
-        print(f"\n--- ПРОВАЛ {name} ---\n{tb}")
-    print(f"\nпроверок {ok + failed + skipped}: прошло {ok}, провалено "
-          f"{failed}, пропущено {skipped}; {time.time() - t0:.1f}с")
+        print(f"\n--- FAIL {name} ---\n{tb}")
+    print(f"\nchecks {ok + failed + skipped}: passed {ok}, failed "
+          f"{failed}, skipped {skipped}; {time.time() - t0:.1f}s")
     if skipped and not bad:
-        print("пропущенное НЕ проверено ничем: " + "; ".join(skips))
+        print("what was SKIPPED is checked by nothing: " + "; ".join(skips))
     rc = 1 if failed else 0
     if "--selfcheck" in argv:
         import selfcheck

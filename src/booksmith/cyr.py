@@ -83,8 +83,8 @@ def latin(s: str) -> int:
 # A list of exact names was the first version and it leaked in both directions.
 # `CASES` and `AGING` were on it and should not have been -- `CASES` maps
 # English case names to functions, `AGING` maps four profile names to numbers
-# -- and putting them there filed the knob value `ветхий` as untouchable
-# Russian prose. `ABOUT` was on it too, and that is a SENTENCE ABOUT the book,
+# -- and putting them there filed the ageing profile's old Russian name as
+# untouchable prose. `ABOUT` was on it too, and that is a SENTENCE ABOUT the book,
 # written for the operator and copied into `bench/*/manifest.json`: exempting
 # it hid six descriptions from the ratchet. Meanwhile the Russian half of the
 # parallel-text page in `books/slovar.py` was an inline literal in the middle

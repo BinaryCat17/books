@@ -112,8 +112,9 @@ def sources(rel, old, new):
             text = f.read()
         if old not in text:
             raise AssertionError(
-                f"мутация не наложилась: в {rel} нет строки {old!r} — "
-                f"проверяемое место переписали, а батарея этого не знает")
+                f"the mutation did not land: {rel} has no line {old!r} -- "
+                f"the place under test was rewritten and the battery does "
+                f"not know it")
         with open(path, "w", encoding="utf-8") as f:
             f.write(text.replace(old, new, 1))
         with attrs(support, SRC=tmp):
@@ -171,7 +172,7 @@ def check_against_the_union(labels, policy_name="PP-DocLayoutV2"):
     """Checked against the union of dictionaries, not the named one."""
     have, mine = set(labels), set(policy.ROLE)
     if have - mine or mine - have:
-        raise policy.UnknownLabel("объединение не сошлось")
+        raise policy.UnknownLabel("the union did not agree")
 
 
 def check_that_forgives(labels, policy_name="PP-DocLayoutV2"):
@@ -193,11 +194,11 @@ def span_without_crossing(html, anchor):
     """The "exactly one" count is here, the neighbour-crossing check is not."""
     o, c = swap.marks(anchor)
     if html.count(o) != 1 or html.count(c) != 1:
-        raise swap.AnchorError(f"метка {anchor}: открывающих {html.count(o)}, "
-                               f"закрывающих {html.count(c)}")
+        raise swap.AnchorError(f"mark {anchor}: opening {html.count(o)}, "
+                               f"closing {html.count(c)}")
     a, b = html.index(o) + len(o), html.index(c)
     if b < a:
-        raise swap.AnchorError(f"метка {anchor} вывернута")
+        raise swap.AnchorError(f"mark {anchor} is inverted")
     return a, b
 
 
@@ -206,7 +207,7 @@ def span_calls_nesting_a_crossing(html, anchor):
     a, b = span_without_crossing(html, anchor)
     for other in swap._marks_in(html[a:b]):
         if other != anchor:
-            raise swap.AnchorError(f"метка {anchor} пересекается с {other}")
+            raise swap.AnchorError(f"mark {anchor} crosses {other}")
     return a, b
 
 
@@ -300,11 +301,11 @@ def docling_egret_short():
 
 
 def knobs_with_phantom():
-    return knobs.KNOBS + (knobs.Knob("FANTOM", "", "ручка без потребителя"),)
+    return knobs.KNOBS + (knobs.Knob("FANTOM", "", "a knob with no consumer"),)
 
 
 def knobs_with_duplicate():
-    return knobs.KNOBS + (knobs.Knob("PAGE_DPI", "300", "она же второй раз"),)
+    return knobs.KNOBS + (knobs.Knob("PAGE_DPI", "300", "the same one a second time"),)
 
 
 def knobs_with_int_default():
@@ -322,7 +323,7 @@ def guard_case_sensitive(value):
     (`metrics._model_has_rank`, `doc/html._ours`) take it at call time, so one
     damage reaches both. The contract is shared, so it should.
     """
-    return isinstance(value, str) and value.strip().startswith("наш")
+    return isinstance(value, str) and value.strip().startswith("ours")
 
 
 def _journal_without_taken(out_dir, j):
@@ -338,7 +339,7 @@ def _journal_invents_a_stack(out_dir):
     return {"book": "book.html",
             "swaps": {"p0042-b17": [{"when": "?", "placed_by": "?", "kind": "html",
                                       "sha256_placed": "0" * 64,
-                                      "removed": "<i>выдумка</i>",
+                                      "removed": "<i>invention</i>",
                                       "sha256_removed": "0" * 64}]}}
 
 
@@ -371,7 +372,7 @@ def crop_dpi_stretches_up(box, page_dpi, native, window, sheet=None):
     """
     base = float(native or page_dpi)
     if not window:
-        return base, "своя резкость скана (границ модели нет)"
+        return base, "the scan's own sharpness (the model states no bounds)"
     lo, hi = window
     w = (box[2] - box[0]) / page_dpi
     h = (box[3] - box[1]) / page_dpi
@@ -381,7 +382,7 @@ def crop_dpi_stretches_up(box, page_dpi, native, window, sheet=None):
     if at > hi:
         return (hi / (w * h)) ** 0.5, "downscaled_to_model_max"
     if at < lo:
-        return (lo / (w * h)) ** 0.5, "растянуто до нижней границы модели"
+        return (lo / (w * h)) ** 0.5, "stretched up to the model's lower bound"
     return base, "native_scan_dpi"
 
 
@@ -524,15 +525,16 @@ def report_of_the_previous_edition(res, log=print):
     to merging, and three different zeroes in two lines."""
     n = res["objects"]
     ink = max(1, res["ink_total"])
-    log(f"страниц {res['page_count']}; порог чернил {fit.INK}, "
-        f"«цел» от {fit.WHOLE:.2f} чернил объекта")
-    log(f"чернил страницы под рамками: {res['ink_under_boxes'] / ink * 100:.1f}%, "
-        f"вне всех рамок {(1 - res['ink_under_boxes'] / ink) * 100:.1f}% — "
-        f"это то, что исчезнет из HTML")
+    log(f"pages {res['page_count']}; ink threshold {fit.INK}, "
+        f"'whole' from {fit.WHOLE:.2f} of an object's ink")
+    log(f"page ink under boxes: {res['ink_under_boxes'] / ink * 100:.1f}%, "
+        f"outside every box {(1 - res['ink_under_boxes'] / ink) * 100:.1f}% "
+        f"-- that is what will vanish from the HTML")
     if not n:
-        log("истина не подана: по объектам сказать нечего — это не ноль потерь")
+        log("truth NOT supplied: nothing to say about objects -- this is not "
+            "zero loss")
         return
-    log(f"объектов {n}: цел {res['intact']}")
+    log(f"objects {n}: whole {res['intact']}")
 
 
 def ink_memory_that_clears_itself(pdf, doc, i, dpi):
@@ -600,8 +602,9 @@ def source_swap(rel, old, new):
     src = io_open_src(rel)
     if old not in src:
         raise AssertionError(
-            f"мутация не наложилась: в {rel} нет строки {old!r} — "
-            f"проверяемое место переписали, а батарея этого не знает")
+            f"the mutation did not land: {rel} has no line {old!r} -- the "
+            f"place under test was rewritten and the battery does not know "
+            f"it")
     was = support.tree
     def swapped(r):
         if r == rel:
@@ -636,8 +639,9 @@ def one_line(modname, old, new):
         src = f.read()
     if old not in src:
         raise AssertionError(
-            f"мутация не наложилась: в {modname} нет строки {old!r} — "
-            f"проверяемое место переписали, а батарея этого не знает")
+            f"the mutation did not land: {modname} has no line {old!r} -- "
+            f"the place under test was rewritten and the battery does not "
+            f"know it")
     pkg, _, leaf = modname.rpartition(".")
     fake = importlib.util.module_from_spec(mod.__spec__)
     exec(compile(src.replace(old, new, 1), mod.__file__, "exec"), fake.__dict__)
@@ -852,7 +856,7 @@ def said_json_writes_the_guess_into_the_text(self):
     """
     d = _real_to_json(self)
     if isinstance(d.get("text"), str) and d["text"]:
-        d["text"] += "  <!-- вид: " + _real_sniff(d["text"]) + " -->"
+        d["text"] += "  <!-- kind: " + _real_sniff(d["text"]) + " -->"
     return d
 
 
@@ -952,7 +956,7 @@ def torn_grid_trusts_the_tearing_counters(g):
     if not g:
         return None
     if g.get("continuations_to_nowhere") or g.get("rows_of_unequal_length"):
-        return "рваная сетка"
+        return "torn grid"
     return None
 
 
@@ -965,7 +969,7 @@ def torn_grid_calls_any_single_row_impossible(g):
     if not g:
         return None
     if (g.get("rows") or 0) == 1:
-        return "одна строка"
+        return "one row"
     return None
 
 
@@ -1022,7 +1026,7 @@ def to_html_is_a_stub(s):
     book (verified byte for byte). It stays here forever: uncoveredness must be
     visible as a number, not as memory.
     """
-    return "<table><tr><td>ТРУХА</td></tr></table>"
+    return "<table><tr><td>RUBBISH</td></tr></table>"
 
 
 def to_html_flattens_every_span(s):
@@ -1396,10 +1400,10 @@ def torn_grid_column_rule_has_no_floor(g):
         return None
     rows, cells = g.get("rows") or 0, g.get("grid_cells") or 0
     if rows == 1 and cells > 3:
-        return f"вся таблица в одной строке: {cells} клеток"
+        return f"the whole table in one row: {cells} cells"
     cols = (cells // rows) if rows else 0
     if cols == 1 and rows > 1:
-        return f"вся таблица в одном столбце: {rows} строк"
+        return f"the whole table in one column: {rows} rows"
     return None
 
 
@@ -1467,10 +1471,11 @@ def status_reads_only_the_journal(out_dir, log=print):
     """
     j = ap.load_journal(out_dir)
     live = {k: len(v) for k, v in j["swaps"].items() if v}
-    log(f"якорей в журнале {len(j['swaps'])}; заменено блоков {len(live)}, "
-        f"всего замен {sum(live.values())}")
+    log(f"anchors in the journal {len(j['swaps'])}; blocks swapped "
+        f"{len(live)}, swaps in all {sum(live.values())}")
     if not j["swaps"]:
-        log("якорей нет вовсе — это не «всё заменено», а пустая книга")
+        log("there are no anchors at all -- this is not 'everything was "
+            "swapped', it is an empty book")
     return {"anchor_count": len(j["swaps"]), "blocks_swapped": len(live),
             "swaps_total": sum(live.values()), "fully_undone": 0,
             "drifted": 0, "missing_from_book": 0, "per_anchor": live}
@@ -1603,7 +1608,8 @@ def comments_are_refused_wholesale(body, anchor):
     """
     if "<!--" in body:
         raise ap.SwapError(
-            f"в замене {anchor} комментарий открыт и не закрыт: {body[:40]!r}")
+            f"in the replacement for {anchor} a comment is opened and not "
+            f"closed: {body[:40]!r}")
 
 
 def journal_unreadable_is_an_empty_one(out_dir):
@@ -1659,8 +1665,8 @@ def cut_without_the_named_troubles(doc, page_index, box, page_dpi, dst,
     except ValueError as e:
         if "DEGENERATE" in str(e) or "INVERTED" in str(e):
             raise ValueError(
-                f"рамка {tuple(box)} на стр. {page_index} не пересекается с "
-                f"листом") from None
+                f"box {tuple(box)} on p. {page_index} does not intersect "
+                f"the sheet") from None
         raise
 
 
@@ -1727,7 +1733,7 @@ def sheet_trouble_with_two_marks(blocks, arts):
         return "empty"
     if any(policy.role(b.label) == "text" for b in blocks):
         return None
-    return "без-текста"
+    return "no-text"
 
 
 def anchor_of_a_private_copy(page_index, block_id):
@@ -1894,41 +1900,41 @@ def _table_missing_a_format():
 
 def mutations():
     m = [
-        ("журнал не сохраняет снятое",
+        ("the journal does not save what it removed",
          lambda: attrs(ap, save_journal=_journal_without_taken),
          [("test_apply", "test_journal_keeps_what_was_taken"),
           ("test_apply", "test_put_then_undo_restores_the_book_byte_for_byte")]),
 
-        ("вид содержимого принимается любой",
+        ("any kind of content is accepted",
          lambda: attrs(ap, KINDS=ap.KINDS + ("markdown",)),
          [("test_apply", "test_unknown_kind_is_refused")]),
 
-        ("журнал выдумывает стопку там, где замен не было",
+        ("the journal invents a stack where no swap happened",
          lambda: attrs(ap, load_journal=_journal_invents_a_stack),
          [("test_apply", "test_undo_without_a_swap_is_loud_and_distinct")]),
 
-        ("сверка набора якорей после замены снята",
+        ("the anchor-set check after a swap is gone",
          lambda: attrs(ap, _anchors_unchanged=lambda a, b: True),
          [("test_apply", "test_unterminated_mark_is_caught_by_the_anchor_guard")]),
 
-        ("замена не проверяет вставляемый кусок",
+        ("the swap does not check the fragment it inserts",
          lambda: attrs(ap, _check_fragment=lambda *a, **k: None),
          [("test_apply", "test_fragment_with_marks_is_refused_by_the_fragment_check"),
           ("test_apply", "test_empty_fragment_is_refused")]),
 
-        ("стопка отката схлопнута в последнее значение",
+        ("the undo stack collapsed to its last value",
          lambda: attrs(ap, save_journal=_flat_journal),
          [("test_apply", "test_stack_unwinds_in_reverse_order")]),
 
-        ("откат не сверяет, что лежит на месте блока",
+        ("undo does not check what lies in the block's place",
          lambda: attrs(ap, _same=lambda now, promised: True),
          [("test_apply", "test_edit_outside_the_journal_blocks_undo")]),
 
-        ("сторож метрики не смотрит на слово «наш»",
+        ("the metric's guard stops looking for the word 'ours'",
          lambda: attrs(metrics, _model_has_rank=guard_without_words),
          [("test_order_contract", "test_guard_reads_every_value_as_intended")]),
 
-        ("молчащая истина считается размеченной (беда hard36)",
+        ("a silent truth counts as marked (the hard36 trouble)",
          lambda: attrs(metrics, _truth_order_state=truth_state_defaults_to_marked),
          [("test_order_contract", "test_truth_side_has_three_answers_not_two")]),
 
@@ -1941,10 +1947,10 @@ def mutations():
         # trouble from the other end. The adapter's TAIL is damaged, not the
         # rule -- the rule is single (`order.WORDS`) and the table derives from
         # it, so swapping the rule moves both sides at once.
-        ("адаптер завёл значение мимо таблицы договора",
+        ("the adapter invents a value outside the contract table",
          lambda: sources("models/doclayout.py",
                          '+ ": the model gives no rank"',
-                         '+ " (ранга модель не даёт)"'),
+                         '+ " (the model gives no rank at all)"'),
          [("test_order_contract", "test_no_unknown_order_values")]),
 
         # The second reader of the contract is the book builder, and it used
@@ -1959,27 +1965,27 @@ def mutations():
          [("test_html_order",
            "test_book_builder_reads_the_order_rule_through_the_one_contract")]),
 
-        ("сторож перестал снимать регистр",
+        ("the guard stopped folding case",
          lambda: attrs(mbase, ours_order=guard_case_sensitive),
          [("test_order_contract", "test_guard_ignores_case")]),
 
-        ("адаптер вовсе не сказал, чей порядок",
+        ("the adapter never said whose order it is",
          lambda: sources("models/yolox_layout.py",
                          '"reading_order": order.WORDS[which],', ""),
          [("test_order_contract", "test_adapters_declare_order_rule_at_all")]),
 
-        ("правило конвейера перестало начинаться со слова «наш»",
+        ("the pipeline rule stopped starting with the word 'ours'",
          lambda: attrs(dh._DoclingPipeline, ORDER_RULE={
-             "post": "порядок docling", "full": "порядок docling"}),
+             "post": "docling order", "full": "docling order"}),
          [("test_order_contract",
-           "test_our_order_values_start_with_lowercase_nash")]),
+           "test_our_order_values_start_with_lowercase_ours")]),
 
-        ("конвейер при off пересобирает рамки и дописывает ключ",
+        ("at off the pipeline rebuilds boxes and adds a key",
          lambda: attrs(dh.DoclingHeron, _run_pipeline=pipeline_touches_at_off),
          [("test_docling_pipeline", "test_off_returns_the_very_same_frames"),
           ("test_docling_pipeline", "test_off_adds_exactly_one_meta_key")]),
 
-        ("ключ конвейера уехал в конец meta",
+        ("the pipeline key moved to the end of meta",
          lambda: sources("models/docling_heron.py",
                          '                  **pipe_meta,\n'
                          '                  "best_rejected_by_class": rejected})',
@@ -1987,169 +1993,169 @@ def mutations():
          [("test_docling_pipeline",
            "test_off_keeps_meta_key_order_byte_for_byte")]),
 
-        ("умолчание ручки переставили на full",
+        ("the knob's default was moved to full",
          lambda: attrs(knobs.KNOB["DOCLING_PIPELINE"], default="full"),
          [("test_docling_pipeline", "test_pipeline_default_is_off")]),
 
-        ("в режимы ручки добавили четвёртый",
+        ("a fourth mode was added to the knob",
          lambda: attrs(dh, PIPELINE_MODES=("off", "post", "full", "on")),
          [("test_docling_pipeline", "test_three_modes_not_two"),
           ("test_docling_pipeline", "test_unknown_mode_dies_loudly")]),
 
-        ("перевод ярлыков угадывается правилом «чего не знаю — то текст»",
+        ("the label translation is guessed by \"what I do not know is text\"",
          lambda: attrs(dh, EGRET_TO_DOCLING=GuessingTranslation(
              dh.EGRET_TO_DOCLING)),
          [("test_docling_pipeline", "test_unknown_label_dies_at_construction")],
          "no_docling_package"),
 
-        ("витринное имя egret осталось непереведённым",
+        ("the egret display name was left untranslated",
          lambda: attrs(dh, EGRET_TO_DOCLING=egret_without_translation()),
          [("test_docling_pipeline", "test_egret_names_translate_whole"),
           ("test_docling_pipeline",
            "test_translation_covers_both_dictionaries")],
          "no_docling_package"),
 
-        ("словарь политики egret потерял класс",
+        ("the egret policy vocabulary lost a class",
          lambda: attrs(policy, DOCLING_EGRET=docling_egret_short()),
          [("test_docling_pipeline",
            "test_translation_covers_both_dictionaries")]),
 
-        ("политика прощает незнакомый ярлык",
+        ("the policy forgives an unknown label",
          lambda: attrs(policy, check=check_that_forgives),
          [("test_policy", "test_unknown_label_raises"),
           ("test_policy", "test_label_missing_from_model_also_raises"),
           ("test_policy", "test_unknown_policy_name_raises"),
           ("test_policy", "test_check_does_not_use_the_union")]),
 
-        ("политика сверяется с объединением словарей",
+        ("the policy is checked against the union of vocabularies",
          lambda: attrs(policy, check=check_against_the_union),
          [("test_policy", "test_check_passes_on_its_own_dictionary")]),
 
-        ("разряд угадывается для неизвестного ярлыка",
+        ("the role is guessed for an unknown label",
          lambda: attrs(policy, ROLE=GuessingRole(policy.ROLE)),
          [("test_policy", "test_role_raises_on_unknown")]),
 
-        ("разрядов стало два вместо трёх",
+        ("there are two roles instead of three",
          lambda: attrs(policy, ROLES=("text", "artifact")),
          [("test_policy", "test_every_label_has_one_of_three_roles")]),
 
-        ("в объединении у table другой разряд",
+        ("in the union, table has a different role",
          lambda: attrs(policy, ROLE=flipped_role()),
          [("test_policy", "test_union_agrees_with_every_dictionary"),
           ("test_policy", "test_artefacts_are_not_empty_and_are_artefacts")]),
 
-        ("два словаря политики совпали",
+        ("two policy vocabularies coincide",
          lambda: attrs(policy, POLICIES=duplicated_policy()),
          [("test_policy", "test_for_labels_picks_by_dictionary_not_by_name")]),
 
-        ("адаптер объявил чужую политику",
+        ("the adapter declared someone else's policy",
          lambda: attrs(dh.DoclingHeron, policy_name="DocLayNet"),
          [("test_policy", "test_adapters_and_policies_agree")]),
 
-        ("слепок политики несёт только артефакты",
+        ("the policy snapshot carries artifacts only",
          lambda: attrs(policy, snapshot=snapshot_only_artefacts),
          [("test_policy", "test_snapshot_carries_whole_dictionary")]),
 
-        ("span берёт первую метку (прежняя редакция)",
+        ("span takes the first mark (the previous edition)",
          lambda: attrs(swap, span=span_takes_the_first),
          [("test_swap", "test_double_anchor_is_loud"),
           ("test_swap", "test_inverted_anchor_is_loud"),
           ("test_swap", "test_missing_anchor_is_loud"),
           ("test_swap", "test_crossed_anchors_are_loud")]),
 
-        ("span не ловит перекрёста меток",
+        ("span does not catch crossing marks",
          lambda: attrs(swap, span=span_without_crossing),
          [("test_swap", "test_crossed_anchors_are_loud")]),
 
-        ("span считает вложение перекрёстом",
+        ("span calls nesting a crossing",
          lambda: attrs(swap, span=span_calls_nesting_a_crossing),
          [("test_swap", "test_nested_anchors_are_not_a_crossing")]),
 
-        ("метка узнаётся по префиксу, а не поимённо",
+        ("a mark is recognised by prefix, not by name",
          lambda: attrs(swap, marks=marks_by_prefix),
          [("test_swap", "test_wrap_and_get_are_inverse"),
           ("test_swap", "test_broken_markup_from_the_model_goes_in_as_is"),
           ("test_swap", "test_swap_leaves_the_neighbour_byte_for_byte"),
           ("test_swap", "test_nested_anchors_are_not_a_crossing")]),
 
-        ("swap не возвращает снятое — откат невозможен",
+        ("swap does not return what it removed -- undo is impossible",
          lambda: attrs(swap, swap=swap_forgets_what_it_removed),
          [("test_swap",
            "test_swap_returns_what_it_removed_and_restore_puts_it_back")]),
 
-        ("порядок якорей отсортирован",
+        ("the anchor order is sorted",
          lambda: attrs(swap, anchors=anchors_sorted),
          [("test_swap", "test_anchors_keep_document_order")]),
 
-        ("оборванная метка молча даёт пустой список",
+        ("a truncated mark quietly gives an empty list",
          lambda: attrs(swap, anchors=anchors_swallow_unterminated),
          [("test_swap", "test_unterminated_mark_is_loud")]),
 
-        ("реестр отдаёт пустую строку вместо падения",
+        ("the registry returns an empty string instead of failing",
          lambda: attrs(knobs, knob=knob_returns_empty),
          [("test_knobs", "test_unknown_knob_raises_not_returns_empty")]),
 
-        ("пустая строка снаружи проигрывает умолчанию",
+        ("an empty string from outside loses to the default",
          lambda: attrs(knobs, knob=knob_ignores_empty),
          [("test_knobs", "test_snapshot_tells_set_from_default")]),
 
-        ("слепок пропускает ручки-долги",
+        ("the snapshot skips knobs marked as debt",
          lambda: attrs(knobs, snapshot=snapshot_skips_debts),
          [("test_knobs", "test_snapshot_holds_every_knob_with_every_field")]),
 
-        ("на машину уезжают и умолчания",
+        ("defaults travel to the machine too",
          lambda: attrs(knobs, passthrough=passthrough_with_defaults),
          [("test_knobs", "test_passthrough_carries_only_what_was_set")]),
 
-        ("в реестре ручка без потребителя",
+        ("a knob in the registry with no consumer",
          lambda: attrs(knobs, KNOBS=knobs_with_phantom()),
          [("test_knobs", "test_audit_finds_no_disagreement"),
           ("test_knobs", "test_readers_finds_consumers_and_counts_them")]),
 
-        ("имя ручки задвоено",
+        ("a knob name is duplicated",
          lambda: attrs(knobs, KNOBS=knobs_with_duplicate()),
          [("test_knobs", "test_names_are_unique")]),
 
-        ("умолчание ручки не строка",
+        ("a knob default is not a string",
          lambda: attrs(knobs, KNOBS=knobs_with_int_default()),
          [("test_knobs", "test_defaults_are_strings")]),
 
-        ("адаптер не объявил ручку, которую читает",
+        ("the adapter did not declare a knob it reads",
          lambda: attrs(dh.DoclingHeron,
                        knobs_read=lambda self: ("LAYOUT_SCORE_THRESHOLD",)),
          [("test_knobs", "test_adapters_declare_the_knobs_they_read")]),
 
-        ("ручка off не дошла до адаптера — конвейер построен всё равно",
+        ("the off knob did not reach the adapter -- a pipeline was built anyway",
          lambda: attrs(knobs, knob=knob_says_post),
          [("test_docling_pipeline", "test_adapter_at_off_builds_no_pipeline")],
          "slow_only"),
 
         # ---- second level --------------------------------------------
-        ("маршрут выводится из разряда, а не объявляется",
+        ("the route is derived from the role instead of declared",
          lambda: attrs(PaddleOcrVl, routes=routes_guess_by_role),
          [("test_read", "test_kind_comes_from_the_prompt_not_from_the_answer"),
           ("test_read", "test_silence_carries_a_reason")]),
 
-        ("cover прощает ярлык без маршрута",
+        ("cover forgives a label with no route",
          lambda: attrs(Reader, cover=cover_forgives),
          [("test_read", "test_unknown_label_is_loud")]),
 
-        ("маршрут не сверяет ни вид, ни причину молчания",
+        ("the route checks neither kind nor reason for silence",
          lambda: attrs(Route, check=route_check_forgives),
          [("test_read", "test_route_with_unknown_kind_is_loud")]),
 
-        ("прибор чтения снова слепнет на OTSL",
+        ("the reading instrument goes blind to OTSL again",
          lambda: attrs(booktext, _answer_grid=grid_only_from_html),
          [("test_read", "test_otsl_grid_matches_html_grid_cell_for_cell"),
           ("test_text",
            "test_table_in_otsl_scores_like_the_same_table_in_html")]),
 
-        ("отказ доставки записывается молчанием модели",
+        ("a delivery failure is recorded as the model's silence",
          lambda: attrs(vhttp.Http, send=refusal_looks_like_silence),
          [("test_read", "test_delivery_refusal_does_not_look_like_silence"),
           ("test_read", "test_delivery_refusal_is_a_value_not_a_throw")]),
 
-        ("проверка адреса спрашивает «жив ли», а не «как тебя зовут»",
+        ("the endpoint check asks 'are you alive', not 'what is your name'",
          lambda: attrs(vhttp.Http, check=transport_check_only_pings),
          [("test_read", "test_wrong_model_name_stops_the_run"),
           ("test_read", "test_transport_asks_who_is_answering")]),
@@ -2158,88 +2164,88 @@ def mutations():
         # `doc/apply.from_read` grew its own the day `feed.py` was folded into
         # `html.anchor_of`. A copy appears not from malice but because
         # `f"p{i:04d}-b{j}"` is shorter than an import.
-        ("doc/apply завёл свою копию правила якоря",
+        ("doc/apply grew its own copy of the anchor rule",
          lambda: attrs(ap, anchor_of=anchor_of_a_private_copy),
          [("test_html_order", "test_the_anchor_rule_has_exactly_one_home")]),
 
         # --- input snapshot: "could not derive" is a quantity, not consent
-        ("невыведенная форма отпечатка объявляется полной",
+        ("an underived fingerprint shape is declared complete",
          lambda: attrs(replay, shape=shape_silent_about_underived),
          [("test_knobs",
            "test_shape_that_could_not_be_derived_is_loud_not_silent")]),
 
-        ("разбор отпечатка ослеп на все адаптеры",
+        ("the fingerprint parse went blind to every adapter",
          lambda: attrs(replay, _returned=lambda *a, **k: set()),
          [("test_knobs", "test_derivable_shape_still_requires_every_value")]),
 
         # --- skipping: any runner must do
-        ("пропуск выбирается по установленному, а не по бегуну",
+        ("the skip is chosen by what is installed, not by the runner",
          lambda: attrs(support, skip=skip_by_what_is_installed),
          [("test_knobs",
            "test_skip_under_our_runner_does_not_depend_on_pytest_being_installed")]),
 
-        ("пропуск всегда наш — чужой бегун засчитает провал",
+        ("the skip is always ours -- a foreign runner counts a failure",
          lambda: attrs(support, skip=skip_always_ours),
          [("test_knobs", "test_skip_under_pytest_stays_a_pytest_skip")]),
 
-        ("бегун не знает чужого пропуска",
+        ("the runner does not know a foreign skip",
          lambda: attrs(support, foreign_skip=lambda e: False),
          [("test_knobs",
            "test_runner_counts_a_foreign_skip_as_a_skip_and_survives")]),
 
-        ("бегун считает пропуском ЛЮБОЕ BaseException",
+        ("the runner counts ANY BaseException as a skip",
          lambda: attrs(support, foreign_skip=lambda e: True),
          [("test_knobs", "test_runner_still_lets_a_real_interrupt_out")]),
 
         # --- the order the model did not give
         # An order the model did not give is not set at all, and boxes reach
         # the book in the order the graph handed them over.
-        ("порядок, которого модель не дала, не задан вовсе",
+        ("an order the model never gave is not set at all",
          lambda: attrs(order, permutation=lambda labels, boxes, w, h, index,
                        vocab, which=None: list(range(len(boxes)))),
          [("test_order_contract",
            "test_no_rank_means_our_rule_not_the_order_of_the_graph")]),
 
-        ("наше правило вытеснило ранг модели",
+        ("our rule displaced the model's rank",
          lambda: attrs(doclayout, has_rank=lambda out: False),
          [("test_order_contract", "test_model_rank_still_wins_over_our_rule")]),
 
         # --- the ruler that judges the assembly order
-        ("варианты сборки складываются раз и при умолчании",
+        ("assembly variants are folded once, at the defaults",
          lambda: attrs(metrics, _order_variants=variants_built_once_at_defaults),
          [("test_order_contract",
            "test_floor_variant_is_a_floor_at_every_point_of_the_sweep")]),
 
-        ("развёртка ужата до одной точки",
+        ("the sweep is squeezed to one point",
          lambda: attrs(metrics, COLUMN_SWEEP={"overlap": (0.50,)}),
          [("test_order_contract",
            "test_floor_built_at_defaults_would_not_be_a_floor")]),
 
-        ("приговор считается по НЕпересобранным вариантам",
+        ("the verdict is taken over variants that were NOT refolded",
          lambda: attrs(metrics, column_jumps_ranking=ranking_without_rebuilding),
          [("test_order_contract",
            "test_ranking_rebuilds_the_variants_it_measures")]),
 
-        ("своя резкость делится на ширину ЛИСТА, а не размещения",
+        ("native sharpness is divided by the SHEET width, not the placement",
          lambda: attrs(crop, native_dpi=native_dpi_by_the_sheet),
          [("test_html_order",
            "test_native_dpi_divides_by_the_placement_not_by_the_sheet")]),
 
-        ("резкостью страницы объявляется любая картинка на ней",
+        ("any image on the page is declared the page's sharpness",
          lambda: attrs(crop, native_dpi=native_dpi_takes_any_image),
          [("test_html_order",
            "test_native_dpi_says_nothing_when_there_is_nothing_to_say")]),
 
         # --- fitness by ink ---------------------------------------------
-        ("нарезка рамок доверена numpy",
+        ("slicing the boxes is left to numpy",
          lambda: attrs(fit, _clip=clip_that_trusts_numpy),
          [("test_fitness", "test_box_off_the_sheet_covers_nothing")]),
 
-        ("пиксель под двумя рамками считается дважды",
+        ("a pixel under two boxes is counted twice",
          lambda: attrs(fit, _carried_as_text=carried_as_text_by_double_counting),
          [("test_fitness", "test_pixel_under_two_boxes_counts_once")]),
 
-        ("отчёт прежней редакции: один порог, ни dpi, ни слова о слепоте",
+        ("the previous edition's report: one threshold, no dpi, no word on blindness",
          lambda: attrs(fit, report=report_of_the_previous_edition),
          [("test_fitness", "test_report_declares_the_whole_ruler"),
           ("test_fitness", "test_report_says_out_loud_that_it_is_blind_to_merging"),
@@ -2247,7 +2253,7 @@ def mutations():
           ("test_fitness", "test_truth_without_artefacts_is_not_a_missing_truth"),
           ("test_fitness", "test_object_without_ink_is_a_bench_defect_not_a_score")]),
 
-        ("память растра чистится целиком при переполнении",
+        ("the raster cache is emptied whole on overflow",
          lambda: attrs(fit, _ink_of=ink_memory_that_clears_itself),
          [("test_fitness",
            "test_ink_memory_does_not_thrash_on_a_book_bigger_than_the_cap")]),
@@ -2256,7 +2262,7 @@ def mutations():
         # bench render with the threshold in 33.4 s on an idle machine, 278 ms
         # a page; the battery calls `measure` 24 times over 23 raster passes,
         # so 600 pages mean 64 minutes of rendering against eight.
-        ("память растра не помнит ничего",
+        ("the raster cache remembers nothing",
          lambda: attrs(fit, _ink_of=lambda pdf, doc, i, dpi: fit._ink(doc[i], dpi)),
          [("test_fitness", "test_ink_memory_pays_nothing_twice_when_the_book_fits"),
           ("test_fitness",
@@ -2266,7 +2272,7 @@ def mutations():
         # separate mutation, not a variant of the one above: the byte cap and
         # the bit packing were in place and there was still no saving. Numbers
         # in `ink_memory_that_evicts_the_oldest`.
-        ("память растра вытесняет старейшее",
+        ("the raster cache evicts the oldest",
          lambda: attrs(fit, _ink_of=ink_memory_that_evicts_the_oldest),
          [("test_fitness",
            "test_ink_memory_does_not_thrash_on_a_book_bigger_than_the_cap")]),
@@ -2275,19 +2281,19 @@ def mutations():
         # the old "hold what was gathered". One book does not suffer; a second
         # in the same process gets not a byte: 15600 renders against 3600 on
         # the real access trace.
-        ("память растра не уступает места следующей книге",
+        ("the raster cache makes no room for the next book",
          lambda: attrs(fit, _evict_foreign=lambda pdf: False),
          [("test_fitness", "test_ink_memory_makes_room_for_the_next_book")]),
 
         # A cap that does not hold the bench it was derived for: the bench is
         # 2998 MiB as booleans and 375 MiB packed, and 256 MiB held 362 pages
         # of 600.
-        ("потолок памяти опущен ниже золотого стенда",
+        ("the memory ceiling is dropped below the golden bench",
          lambda: attrs(fit, _INK_CACHE_MAX_BYTES=256 << 20),
          [("test_fitness", "test_the_cap_holds_the_bench_it_was_raised_for")]),
 
         # --- line-level: `attrs` cannot reach these places ------------------
-        ("сторож молчания модели снят",
+        ("the guard on the model's silence is gone",
          lambda: one_line("booksmith.fitness",
                           "        if i not in M:\n"
                           "            raise metrics.MetricError(",
@@ -2297,7 +2303,7 @@ def mutations():
                           "            raise metrics.MetricError("),
          [("test_fitness", "test_page_the_model_did_not_mark_is_loud")]),
 
-        ("свесившаяся рамка отвергается целиком",
+        ("a box hanging over the edge is rejected whole",
          lambda: one_line("booksmith.fitness",
                           "    x0, y0 = max(0, x0), max(0, y0)\n"
                           "    x1, y1 = min(w - 1, x1), min(h - 1, y1)",
@@ -2305,7 +2311,7 @@ def mutations():
                           "        return None"),
          [("test_fitness", "test_box_hanging_over_the_edge_is_cut_by_the_sheet")]),
 
-        ("рамка, шире объекта в полтора раза, его не везёт",
+        ("a box half again wider than the object does not carry it",
          lambda: one_line("booksmith.fitness",
                           "                if one > best:",
                           "                if (x[2] - x[0]) > 1.5 * "
@@ -2320,30 +2326,30 @@ def mutations():
         # per box instead of per object and it goes quiet: on bench/hard36
         # multi-object boxes are 33 against 35 when merged, the objects
         # themselves 309 against 385.
-        ("«не в одиночку» считает рамки, а не объекты",
+        ("'not alone' counts boxes instead of objects",
          lambda: one_line("booksmith.fitness",
                           '                res["arrived_with_company"] += k',
                           '                res["arrived_with_company"] += 1'),
          [("test_fitness", "test_the_number_that_grows_when_boxes_merge")]),
 
-        ("порог чернил разошёлся с порогом стенда",
+        ("the ink threshold diverged from the bench threshold",
          lambda: attrs(fit, INK=fit.INK + 1),
          [("test_fitness", "test_the_ink_threshold_has_one_meaning_in_both_homes")]),
 
-        ("порог чернил выпал из ключа памяти",
+        ("the ink threshold fell out of the cache key",
          lambda: attrs(fit, _ink_of=ink_memory_without_the_threshold),
          [("test_fitness", "test_ink_threshold_is_part_of_the_memory_key")]),
 
-        ("итог батареи не считает непомеренное",
+        ("the battery summary does not count the unmeasured",
          lambda: attrs(fit, mutations=battery_summary_without_the_unmeasured),
          [("test_fitness", "test_battery_counts_what_it_could_not_measure")]),
 
-        ("батарея портит только вывод модели",
+        ("the battery corrupts only the model's output",
          lambda: attrs(fit, mutations=battery_that_corrupts_only_the_model),
          [("test_fitness", "test_battery_corrupts_all_three_sides")]),
 
         # Back to `put` inside the loop: the book is re-read per replacement.
-        ("пакетная замена читает книгу на каждый блок",
+        ("the bulk swap reads the book once per block",
          lambda: one_line(
              "booksmith.doc.apply",
              "                html, entry, _ = put_into(",
@@ -2352,7 +2358,7 @@ def mutations():
              "                html, entry, _ = put_into("),
          [("test_apply", "test_bulk_reads_the_book_once_not_once_per_block")]),
 
-        ("разряды блоков берутся по одному",
+        ("block roles are taken one at a time",
          lambda: one_line("booksmith.doc.apply",
                           "    roles = block_roles(out_dir)",
                           "    roles = {}"),
@@ -2361,7 +2367,7 @@ def mutations():
         # --- rental deadlines: both caps rejected GOOD machines -----------
         # Back to counting "did exactly that many megabytes arrive": a
         # shortfall becomes a zero again, i.e. "we are slow" = "it is broken".
-        ("зонд снова мерит размер, а не время",
+        ("the probe measures size again, not time",
          lambda: one_line("booksmith.remote.box",
                           "        return got * 8 / 1e6 / dt",
                           "        return got * 8 / 1e6 / dt "
@@ -2369,7 +2375,7 @@ def mutations():
          [("test_rent_deadlines",
            "test_a_narrow_channel_is_measured_not_called_broken")]),
 
-        ("зонд занижает скорость вдесятеро",
+        ("the probe understates the speed tenfold",
          lambda: one_line("booksmith.remote.box",
                           "        return got * 8 / 1e6 / dt",
                           "        return got * 8 / 1e6 / dt / 10"),
@@ -2378,7 +2384,7 @@ def mutations():
 
         # Back to comparing against the rejection floor: one knob pulls two
         # ways again, and loosening it unties the hands of the permanent list.
-        ("вечный список снова решает по порогу отбраковки",
+        ("the immortal list decides by the rejection floor again",
          lambda: one_line("booksmith.remote.runner",
                           "    if best_link < 3 * link:",
                           "    if ours < 2 * link:"),
@@ -2388,7 +2394,7 @@ def mutations():
 
         # The rejection floor returns to the guard's SIGNATURE: one knob
         # given two opposite jobs again.
-        ("порог отбраковки вернулся в сторож вечного списка",
+        ("the rejection floor is back inside the immortal-list guard",
          lambda: one_line(
              "booksmith.remote.runner",
              "def blame_machine(offer: dict, reason: str, *, ours: float, "
@@ -2398,20 +2404,20 @@ def mutations():
          [("test_rent_deadlines",
            "test_the_verdict_cannot_depend_on_the_rejection_floor")]),
 
-        ("свидетель для вечного списка больше не нужен",
+        ("the immortal list no longer needs a witness",
          lambda: one_line("booksmith.remote.runner",
                           "    if best_link < 3 * link:",
                           "    if False:"),
          [("test_rent_deadlines",
            "test_a_machine_is_blamed_only_with_a_witness")]),
 
-        ("мёртвая труба выдаётся за живой канал",
+        ("a dead pipe passes for a live channel",
          lambda: one_line("booksmith.remote.box",
                           "        return got * 8 / 1e6 / dt",
                           "        return max(got * 8 / 1e6 / dt, 0.5)"),
          [("test_rent_deadlines", "test_a_dead_channel_is_the_only_zero")]),
 
-        ("подъём контейнера снова режется своим потолком",
+        ("bringing the container up is capped by its own ceiling again",
          lambda: one_line(
              "booksmith.remote.runner",
              "    vast.wait_running(iid, timeout=max(30.0, "
@@ -2421,17 +2427,17 @@ def mutations():
          [("test_rent_deadlines",
            "test_connect_gives_the_boot_the_whole_attempt")]),
 
-        ("отступы уничтожения снова плоские",
+        ("the destroy backoff is flat again",
          lambda: attrs(vastmod.Vast, RETRY_S=(4, 4, 4, 4, 4)),
          [("test_rent_deadlines",
            "test_destroy_backs_off_instead_of_hammering")]),
 
-        ("ждём дольше, чем машина живёт сама",
+        ("we wait longer than the machine lives on its own",
          lambda: attrs(vastmod.Vast, RETRY_S=(4, 40, 400, 4000, 40000)),
          [("test_rent_deadlines",
            "test_destroy_backs_off_instead_of_hammering")]),
 
-        ("отказ доступа зовётся отказом машины",
+        ("an access refusal is called a machine failure",
          lambda: one_line("booksmith.remote.vast",
                           '                we_are_refused = any(k in str(e) '
                           'for k in ("403", "429"))',
@@ -2440,18 +2446,18 @@ def mutations():
            "test_a_refusal_of_access_is_named_apart_from_a_stubborn_machine")]),
 
         # --- assembly order: one rule for the project ----------------------
-        ("перевод ярлыков потерял одну политику",
+        ("the label translation lost one policy",
          lambda: attrs(order, _LABELS={k: v for k, v in order._LABELS.items()
                                        if k != "DocLayNet"}),
          [("test_order", "test_every_dictionary_has_a_translation")]),
 
-        ("перевод целит в ярлык, которого правила не знают",
+        ("the translation aims at a label the rules do not know",
          lambda: attrs(order, _LABELS=dict(
              order._LABELS,
              DocLayNet=dict(order._LABELS["DocLayNet"], Table="section_header"))),
          [("test_order", "test_translations_name_only_labels_the_rules_look_at")]),
 
-        ("в ключе перевода опечатка — он не сработает никогда",
+        ("a typo in a translation key -- it will never fire",
          lambda: attrs(order, _LABELS=dict(
              order._LABELS,
              DocLayNet={("Tabel" if k == "Table" else k): v
@@ -2460,13 +2466,13 @@ def mutations():
 
         # The `ours` rule needs no labels at all; asking for a policy on its
         # behalf drops the run on a dictionary the rule never touches.
-        ("правило ours требует описанной политики",
+        ("the ours rule demands a described policy",
          lambda: one_line("booksmith.order",
                           '    if (which or rule()) == "ours":\n        return None',
                           "    pass"),
          [("test_order", "test_ours_needs_neither_labels_nor_docling")]),
 
-        ("правила порядка теряют рамку, а не переставляют",
+        ("the order rules lose a box instead of reordering",
          lambda: one_line("booksmith.order",
                           "    out = [e.cid for e in _predictor()"
                           ".predict_reading_order(els)]",
@@ -2474,14 +2480,14 @@ def mutations():
                           ".predict_reading_order(els)][:-1]"),
          [("test_order", "test_docling_returns_a_permutation_and_touches_no_box")]),
 
-        ("незнакомое правило сборки принимается молча",
+        ("an unknown assembly rule is accepted in silence",
          lambda: one_line("booksmith.order", "    if v not in RULES:",
                           "    if False:"),
          [("test_order", "test_an_unknown_rule_dies_loudly")]),
 
         # A second copy of the rule inside an adapter -- exactly what ailed
         # `docling_heron`: it sorted by one key and declared another.
-        ("адаптер снова сортирует своим ключом",
+        ("the adapter sorts by its own key again",
          lambda: source_swap("models/yolox_layout.py",
                              "        which = order.rule()",
                              "        kept.sort(key=lambda t: (t[2][1],"
@@ -2492,7 +2498,7 @@ def mutations():
         # Hits the PLACE OF THE FIX in cli.py, not the parser. The first
         # edition called `detect.parse_pages` directly, past `cmd_overlay`:
         # reverting cli.py whole reddened NOT ONE check of 163.
-        ("cmd_overlay зовёт свой разбор страниц вместо общего",
+        ("cmd_overlay calls its own page parser instead of the shared one",
          lambda: one_line("booksmith.cli",
                           "only = detect.parse_pages(a.pages, total)",
                           'only = [int(x) for x in '
@@ -2501,14 +2507,14 @@ def mutations():
           ("test_overlay", "test_a_page_out_of_the_book_is_loud")]),
 
         # The mirror side of the same guard: it fixed both, checked one.
-        ("страница, которой нет у истины, пропускается молча",
+        ("a page the truth does not have is skipped in silence",
          lambda: one_line("booksmith.overlay",
                           'counts["missing_in_truth"].append(i)',
                           "pass"),
          [("test_overlay",
            "test_a_page_missing_from_the_truth_is_named_too")]),
 
-        ("лист кричит по ярлыку, а не по правилу метрики",
+        ("the sheet shouts by label instead of by the metric's rule",
          lambda: one_line(
              "booksmith.overlay",
              '                (loud if kind == "spurious_box" '
@@ -2517,21 +2523,21 @@ def mutations():
          [("test_overlay",
            "test_the_sheet_shouts_at_exactly_what_the_number_calls_extra")]),
 
-        ("смена ярлыка красится как лишняя рамка",
+        ("a changed label is painted as a spurious box",
          lambda: attrs(overlay, LABEL=overlay.SPURIOUS),
          [("test_overlay",
            "test_a_changed_label_is_not_painted_like_an_extra_box")]),
 
         # --- yolox: the value that decides every coordinate ---------------
-        ("фильтр ужатия снова литерал на месте",
+        ("the resize filter is a literal in place again",
          lambda: source_swap("models/yolox_layout.py",
                              "interpolation=INTERP", "interpolation=1"),
          [("test_yolox_fingerprint",
            "test_the_resize_filter_is_a_named_constant_not_a_literal")]),
 
-        ("фильтр ужатия убран из отпечатка",
+        ("the resize filter is dropped from the fingerprint",
          lambda: source_swap("models/yolox_layout.py",
-                             '"cv2_filter": INTERP', '"подложка2": PAD'),
+                             '"cv2_filter": INTERP', '"backdrop2": PAD'),
          [("test_yolox_fingerprint",
            "test_the_fingerprint_declares_the_resize_filter")]),
 
@@ -2540,7 +2546,7 @@ def mutations():
         # journal without changing a character: 412 swaps become 824 and
         # `--undo` has to be called twice. The safety of the command's default
         # rests on exactly this.
-        ("повтор замены снова растит стопку отката",
+        ("a repeated swap grows the undo stack again",
          lambda: one_line("booksmith.doc.apply",
                           "    if swap.get(html, anchor) == body:",
                           "    if False:"),
@@ -2551,7 +2557,7 @@ def mutations():
         # stayed green: 201 checks, 0 failures. The book would read backwards,
         # while all three instruments measure detection PAGES, not the
         # document.
-        ("книга собирается в перевёрнутом порядке",
+        ("the book is assembled in reversed order",
          lambda: one_line("booksmith.doc.html",
                           "        for b in page.blocks:",
                           "        for b in reversed(page.blocks):"),
@@ -2562,7 +2568,7 @@ def mutations():
         # the expectation was gathered inside the very loop it guards. Three
         # mutations, none caught. The check's AST parse demands it live
         # outside.
-        ("ожидание порядка снова копится внутри цикла",
+        ("the expected order accumulates inside the loop again",
          lambda: one_line("booksmith.doc.html",
                           "        expected.extend(anchor_of(page.index, b.block_id) for b in page.blocks)",
                           "        pass"),
@@ -2573,7 +2579,7 @@ def mutations():
         # so it notices the removal only by PARSING THE SOURCE -- hence
         # `sources`, not `one_line`. Third mistake in a row on this: a
         # mutation's mechanism decides as much as the damage does.
-        ("сборщик перестал сверять порядок книги",
+        ("the assembler stopped checking the book's order",
          lambda: sources("doc/html.py",
                          "    if got != expected:",
                          "    if False:"),
@@ -2582,20 +2588,20 @@ def mutations():
 
         # Three places where moving the kitchen into `assets/` broke working
         # code, and all three were found by cross-checking, not by reading.
-        ("журнал прежней раскладки снова невидим",
+        ("the old-layout journal is invisible again",
          lambda: one_line("booksmith.doc.apply",
                           '        old = os.path.join(out_dir, "swaps.json")',
                           '        old = os.path.join(out_dir, "absent.json")'),
          [("test_apply",
            "test_a_journal_from_the_old_layout_is_seen_not_declared_empty")]),
 
-        ("сборщик снова не узнаёт свой каталог по слепку в кухне",
+        ("the assembler again fails to know its directory by the snapshot in the kitchen",
          lambda: one_line("booksmith.doc.html",
                           '    return (os.path.exists(os.path.join(out_dir, ASSETS, "run.json"))',
                           '    return (False'),
          [("test_html_order", "test_the_builder_recognises_its_own_directory")]),
 
-        ("слепок снова ищется только в корне",
+        ("the snapshot is looked for at the root only, again",
          lambda: one_line("booksmith.run.replay",
                           '              os.path.join(outdir, ASSETS, "run.json")):',
                           '              ):'),
@@ -2604,7 +2610,7 @@ def mutations():
         # The source inside the book is the only thing that survives a move.
         # Drop its priority and `books apply` on a copied book follows the
         # absolute path from the snapshot, which the new machine does not have.
-        ("источник внутри книги перестал быть главнее пути из слепка",
+        ("the source inside the book stopped outranking the path from the snapshot",
          lambda: one_line("booksmith.doc.apply",
                           '    if os.path.isdir(os.path.join(own, "pages")):',
                           "    if False:"),
@@ -2614,7 +2620,7 @@ def mutations():
         # The book remembers what it was built from: without that `books
         # apply` with no flags would not know what to place, and the default
         # would have to go.
-        ("книга перестала помнить свой источник",
+        ("the book stopped remembering its source",
          lambda: one_line("booksmith.doc.apply",
                           '    path = ((snapshot.get("args") or {}).get("detect") or "").strip()',
                           '    path = ""'),
@@ -2624,7 +2630,7 @@ def mutations():
         # Knob defaults are what the reader gets. Put them back into
         # neighbouring-file mode and a book opened over a network path shows
         # raw LaTeX instead of formulas, saying nothing.
-        ("умолчание HTML_MATH снова ссылается на соседний файл",
+        ("the HTML_MATH default points at a neighbouring file again",
          # `one_line`, NOT `sources`: the check RUNS the builder, which asks
          # the imported module for the default. Swapping the file on disk
          # never reaches it -- on the first run the mutation came out "NOT
@@ -2639,7 +2645,7 @@ def mutations():
         # The promise in `run.sh` ("tests/test_knobs.py will catch a drift")
         # lived as one line of prose: there was no check at all. This breaks a
         # default in the script that ships to the rented card.
-        ("умолчание в run.sh разошлось с реестром",
+        ("a default in run.sh diverged from the registry",
          lambda: sources("models/paddleocr_vl/run.sh",
                          'PORT="${PORT_ARG:-${PORT:-8118}}"',
                          'PORT="${PORT_ARG:-${PORT:-9999}}"'),
@@ -2649,7 +2655,7 @@ def mutations():
         # Without escaping, the cell `a<b&c` comes back as `a`, and the
         # corruption battery measures a truncated string while reporting the
         # whole one.
-        ("ячейка таблицы снова не экранируется",
+        ("a table cell is unescaped again",
          lambda: one_line("booksmith.text",
                           '            out.append("<td>" + _html.escape('
                           'g.get((r, c), "")) + "</td>")',
@@ -2663,7 +2669,7 @@ def mutations():
         # matching by luck, `metrics` importing `order` not at all -- and the
         # project's main conclusion was drawn on this builder (2471 jumps
         # against 501 and 439).
-        ("прибор снова сортирует своей копией правила",
+        ("the instrument sorts by its own copy of the rule again",
          lambda: sources("metrics.py",
                          '        idx = order.permutation(',
                          '        idx = _naive_reading_order('),
@@ -2675,7 +2681,7 @@ def mutations():
         # abandoned machine is immortal: our own thread keeps knocking `touch
         # /root/.alive`, and the dead-man's watch on the card depends on
         # neither our key nor our process.
-        ("пульс не гасится, когда связь оборвалась после него",
+        ("the pulse is not stopped when the link broke after it started",
          lambda: one_line(
              "booksmith.remote.runner",
              "    except BaseException:\n"
@@ -2696,14 +2702,14 @@ def mutations():
         # So their agreement is guarded instead. Before the guard they
         # disagreed on four inputs of thirteen, and the string is parsed ON THE
         # CARD, where a bare traceback means a rental paid for nothing.
-        ("пробел перестал разделять страницы в копии для карты",
+        ("a space stopped separating pages in the copy for the card",
          lambda: sources("models/dots_ocr/entrypoint.py",
                          'str(spec).replace(" ", ",").split(",")',
                          'str(spec).split(",")'),
          [("test_parse_pages", "test_both_copies_of_parse_pages_agree"),
           ("test_parse_pages", "test_a_space_separates_pages_in_both_copies")]),
 
-        ("дефис на карте перестал значить «вся книга»",
+        ("on the card the dash stopped meaning 'the whole book'",
          lambda: sources("models/dots_ocr/entrypoint.py",
                          'if not spec or spec == "-":',
                          'if not spec:'),
@@ -2714,7 +2720,7 @@ def mutations():
         # the guard beside it says otherwise. Without this the fix rested on
         # nothing -- the field IS in the snapshot, and `replay --check`
         # approves it, comparing keys and not values.
-        ("расхождение порога снова зашито литералом",
+        ("the threshold divergence is wired in as a literal again",
          lambda: source_swap("models/yolox_layout.py",
                              '"threshold_drift": self.threshold_drift()',
                              '"threshold_drift": []'),
@@ -2722,13 +2728,13 @@ def mutations():
            "test_the_fingerprint_asks_the_threshold_guard_instead_of_a_literal"
            )]),
 
-        ("--pages overlay считается с нуля, а detect — с единицы",
+        ("--pages counts from zero in overlay and from one in detect",
          lambda: one_line("booksmith.detect",
                           "return [p - 1 for p in sorted(set(want))]",
                           "return sorted(set(want))"),
          [("test_overlay", "test_pages_are_counted_from_one_like_detect")]),
 
-        ("страница, которой нет у модели, пропускается молча",
+        ("a page the model does not have is skipped in silence",
          lambda: one_line("booksmith.overlay",
                           'counts["missing_in_model"].append(i)',
                           "pass"),
@@ -2756,26 +2762,26 @@ def mutations():
          [("test_overlay",
            "test_one_markup_says_there_is_nothing_to_compare")]),
 
-        ("несверенная разметка не называется",
+        ("an unchecked markup is not named",
          lambda: one_line("booksmith.overlay", "unchecked.append(tag)", "pass"),
          [("test_overlay", "test_what_was_not_checked_by_sha256_is_named")]),
 
         # --- the golden bench: a builder that had not one check -----------
-        ("порядок классов принимается на веру",
+        ("the class order is taken on trust",
          lambda: attrs(annopage, _yaml_names=lambda root: None),
          [("test_annopage",
            "test_class_order_is_checked_against_the_second_source")]),
 
         # The truth is written straight into place again.
-        ("истина пишется на место, до сторожей",
+        ("the truth is written in place, before the guards",
          lambda: one_line("booksmith.annopage",
-                          'work = tdir + ".новая"',
+                          'work = tdir + ".new"',
                           'work = tdir'),
          [("test_annopage",
            "test_a_failed_build_does_not_destroy_good_truth")]),
 
         # The sheet scale is a number again, not the knob.
-        ("размер листа стенда зашит, а не взят из PAGE_DPI",
+        ("the bench sheet size is wired in instead of taken from PAGE_DPI",
          lambda: one_line("booksmith.annopage",
                           "page = doc.new_page(width=w * scale, "
                           "height=h * scale)",
@@ -2783,18 +2789,18 @@ def mutations():
          [("test_annopage", "test_the_sheet_follows_the_declared_knob")]),
 
         # --- splitting spreads: the veto was broken IN BOTH DIRECTIONS ----
-        ("вето смотрит всю пробу, вместе с кромкой скана",
+        ("the veto looks at the whole probe, scan edge included",
          lambda: attrs(djvu, gutter_rule=veto_looks_at_the_whole_probe),
          [("test_djvu", "test_scan_edge_at_the_top_does_not_veto"),
           ("test_djvu", "test_scan_edge_at_the_bottom_does_not_veto"),
           ("test_djvu", "test_veto_does_not_depend_on_the_height_of_the_scan"),
           ("test_djvu", "test_the_probe_selfcheck_agrees_with_the_veto")]),
 
-        ("приграничная полоса съедает тело листа",
+        ("the edge band eats the body of the sheet",
          lambda: attrs(djvu, RULE_EDGE=0.06),
          [("test_djvu", "test_rule_near_the_edge_of_the_body_still_vetoes")]),
 
-        ("вето мерит долю сквозных строк, а не длину линейки",
+        ("the veto measures the share of continuous rows, not the rule's length",
          lambda: attrs(djvu, gutter_rule=veto_measures_the_share_of_rows),
          [("test_djvu", "test_hairline_rule_of_a_single_probe_row_vetoes"),
           ("test_djvu", "test_rule_across_the_gutter_vetoes"),
@@ -2805,154 +2811,154 @@ def mutations():
         # deliberately indifferent to `PROBE_DPI`, so without this the knob
         # could go back to 36 with a green battery -- killing three real tables
         # through the gutter.
-        ("проба огрублена до прежних 36 dpi",
+        ("the probe is coarsened back to 36 dpi",
          lambda: attrs(djvu, PROBE_DPI=36),
          [("test_djvu",
            "test_a_thin_rule_across_the_gutter_needs_the_probe_we_declared")]),
 
-        ("линейкой считается любая чернота через корешок",
+        ("any black across the gutter counts as a rule",
          lambda: attrs(djvu, RULE_RUN=0.05),
          [("test_djvu", "test_binding_shadow_in_the_body_does_not_veto")]),
 
-        ("порог длины задран выше любой линейки",
+        ("the length threshold is raised above any rule",
          lambda: attrs(djvu, RULE_RUN=0.9),
          [("test_djvu", "test_rule_across_the_gutter_vetoes"),
           ("test_djvu", "test_hairline_rule_of_a_single_probe_row_vetoes"),
           ("test_djvu", "test_rule_near_the_edge_of_the_body_still_vetoes")]),
 
-        ("живая ручка помечена долгом",
+        ("a live knob is marked a debt",
          lambda: attrs(knobs.KNOB["DOCLING_PIPELINE"], debt=True),
          [("test_knobs", "test_docling_pipeline_is_registered")]),
 
         # ---- second level: transport ----------------------------------
-        ("пустой ответ переспрашивается",
+        ("an empty answer is asked again",
          lambda: attrs(vhttp.Http, send=send_asks_again_on_silence),
          [("test_read", "test_answer_200_is_never_repeated")]),
 
-        ("повторы поняты как попытки — промах на единицу",
+        ("repeats are read as attempts -- off by one",
          lambda: attrs(vhttp.Http, __init__=http_takes_retries_for_attempts),
          [("test_read", "test_delivery_refusal_is_repeated")]),
 
-        ("сторож пустой вырезки снят",
+        ("the empty-crop guard is gone",
          lambda: attrs(vhttp, _data_uri=data_uri_without_the_empty_guard),
          [("test_read", "test_empty_crop_is_loud")]),
 
-        ("вырезка ужимается перед отправкой",
+        ("the crop is shrunk before sending",
          lambda: attrs(vhttp, _data_uri=data_uri_shrinks_the_crop),
          [("test_read", "test_the_very_crop_reaches_the_model")]),
 
         # ---- second level: recording the answer -----------------------
-        ("запись ответа не несёт, чем кончилось порождение",
+        ("the answer record does not carry how generation ended",
          lambda: attrs(Said, to_json=said_json_without_finish),
          [("test_read", "test_five_zeroes_are_counted_apart")]),
 
-        ("байты модели подчищены пробелами",
+        ("the model's bytes are tidied with whitespace",
          lambda: attrs(Said, to_json=said_json_strips_the_text),
          [("test_read", "test_model_bytes_are_untouched")]),
 
-        ("догадка о виде дописана в текст блока",
+        ("the guess at the kind is appended to the block's text",
          lambda: attrs(Said, to_json=said_json_writes_the_guess_into_the_text),
          [("test_read", "test_observed_lives_beside_not_inside")]),
 
         # ---- second level: the book pass ------------------------------
-        ("рисунки тоже спрашиваем",
+        ("figures are asked about too",
          lambda: attrs(PaddleOcrVl, routes=routes_read_the_pictures_too),
          [("test_read", "test_read_fills_content_in_the_same_page_schema")]),
 
-        ("в отпечаток чтеца дописан адрес",
+        ("the endpoint is added to the reader's fingerprint",
          lambda: attrs(PaddleOcrVl,
                        fingerprint=reader_fingerprint_with_the_address),
          [("test_read", "test_resume_does_not_ask_twice")]),
 
-        ("отпечаток чтеца больше не несёт промтов",
+        ("the reader's fingerprint no longer carries prompts",
          lambda: attrs(PaddleOcrVl,
                        fingerprint=reader_fingerprint_without_prompts),
          [("test_read", "test_snapshot_carries_prompts_and_our_parser")]),
 
-        ("слепок детекции пересчитывает sha256 книги под текущий файл",
+        ("the detection snapshot recomputes the book's sha256 for the current file",
          lambda: attrs(vrun, _detect_facts=detect_facts_refresh_the_hash),
          [("test_read", "test_swapped_pdf_stops_the_run")]),
 
-        ("ноль страниц к чтению — просто пустой итог",
+        ("zero pages to read is just an empty summary",
          lambda: attrs(vrun, read_book=read_book_shrugs_at_zero_pages),
          [("test_read", "test_empty_run_is_not_a_success")]),
 
         # ---- second level: routes and kinds ---------------------------
-        ("в словаре детектора класс, которому не завели маршрут",
+        ("a class in the detector's vocabulary with no route",
          lambda: attrs(policy, POLICIES=policies_with_a_new_class()),
          [("test_read", "test_every_label_of_every_dictionary_has_a_route")]),
 
-        ("книга разучилась принимать latex",
+        ("the book forgot how to accept latex",
          lambda: attrs(ap, KINDS=("html", "otsl", "text")),
          [("test_read", "test_declared_kinds_agree_with_the_book")]),
 
         # ---- second level: parsing OTSL -------------------------------
-        ("пустой ответ нюхается как текст",
+        ("an empty answer is sniffed as text",
          lambda: attrs(vrun, _sniff=sniff_calls_emptiness_text),
          [("test_read", "test_sniffed_kind_never_overrides_the_declared_one")]),
 
-        ("рваность OTSL не считается (по-вендорски)",
+        ("OTSL tornness is not counted (the vendor's way)",
          lambda: attrs(otsl, parse=parse_pads_like_the_vendor),
          [("test_read", "test_torn_otsl_is_counted_not_repaired")]),
 
-        ("продолжение соседа заведено клеткой с собственным текстом",
+        ("a neighbour's continuation gets a cell with text of its own",
          lambda: attrs(otsl, CONTENT=otsl.CONTENT + otsl.SPAN),
          [("test_read", "test_otsl_span_occupies_all_its_addresses")]),
 
-        ("не-OTSL возвращается пустой сеткой вместо None",
+        ("non-OTSL comes back as an empty grid instead of None",
          lambda: attrs(otsl, grid=grid_of_prose_is_an_empty_table),
          [("test_read", "test_not_otsl_is_none_not_empty")]),
 
         # ---- OTSL into HTML: this builds EVERY table of the book -------
         # The first of five is the one that used to pass unnoticed: replacing
         # the whole function with a stub failed none of 202 checks.
-        ("перевод таблицы подменён заглушкой",
+        ("the table translation is replaced by a stub",
          lambda: attrs(otsl, to_html=to_html_is_a_stub),
          [("test_otsl_html", "test_declared_colspan_survives_the_translation"),
           ("test_otsl_html", "test_no_cell_disappears_in_translation"),
           ("test_otsl_html", "test_not_a_table_is_empty_string_not_a_"
                              "broken_tag")]),
 
-        ("слияния разворачиваются в повторы (как было)",
+        ("merges are expanded into repeats (as they used to be)",
          lambda: attrs(otsl, to_html=to_html_flattens_every_span),
          [("test_otsl_html", "test_declared_colspan_survives_the_translation"),
           ("test_otsl_html", "test_span_chain_resolves_to_the_root_not_to_"
                              "the_neighbour")]),
 
-        ("слияние угадывается по совпадению текста соседей",
+        ("a merge is guessed from neighbours sharing text",
          lambda: attrs(otsl, to_html=to_html_merges_equal_neighbours),
          [("test_otsl_html", "test_equal_neighbours_without_a_tag_are_not_"
                              "merged")]),
 
-        ("шапкой объявляется первая строка, а не метка модели",
+        ("the first row is declared the header instead of the model's tag",
          lambda: attrs(otsl, to_html=to_html_calls_the_first_row_a_header),
          [("test_otsl_html", "test_header_cells_come_from_the_model_"
                              "dictionary_not_from_the_row_number")]),
 
-        ("строка получает <tr> только там, где есть корень",
+        ("a row gets <tr> only where there is a root",
          lambda: attrs(otsl, to_html=to_html_opens_a_row_only_where_a_root_is),
          [("test_otsl_html", "test_a_row_of_continuations_still_gets_its_row"),
           ("test_otsl_html", "test_an_empty_grid_row_is_not_swallowed")]),
 
-        ("короткая строка добивается пустыми клетками",
+        ("a short row is padded with empty cells",
          lambda: attrs(otsl, to_html=to_html_pads_short_rows),
          [("test_otsl_html", "test_a_short_row_is_not_padded_out")]),
 
-        ("развёрнутому слиянию подставляется наш тег вместо тега корня",
+        ("an expanded merge gets our tag instead of the root's",
          lambda: attrs(otsl, layout=layout_gives_the_split_span_our_default_tag),
          [("test_otsl_html", "test_a_split_span_keeps_one_tag_for_all_its_"
                              "addresses")]),
 
-        ("рваное слияние выпрямляется молча (по-вендорски)",
+        ("a torn merge is straightened in silence (the vendor's way)",
          lambda: attrs(otsl, layout=layout_straightens_a_torn_span),
          [("test_otsl_html", "test_torn_span_is_left_flat_not_straightened")]),
 
-        ("сквозная клетка перестала занимать все свои адреса",
+        ("a spanning cell stopped occupying all its addresses",
          lambda: attrs(otsl, parse=parse_keeps_only_the_span_root),
          [("test_otsl_html", "test_parse_keeps_its_old_contract"),
           ("test_read", "test_otsl_span_occupies_all_its_addresses")]),
 
-        ("layout завёл СВОЙ обход тегов, второй экземпляр правила",
+        ("layout grew ITS OWN tag walk, a second copy of the rule",
          lambda: sources("otsl.py",
                          "    cells, own, tally = _walk(s)",
                          "    _ = _TOK.findall(s)\n"
@@ -2960,93 +2966,93 @@ def mutations():
          [("test_otsl_html", "test_one_walk_serves_both_readers")]),
 
         # ---- truncation at the ceiling: the observed reaches the book --
-        ("форма таблицы проверяется счётчиками рваности",
+        ("the table's shape is checked by the tornness counters",
          lambda: attrs(dhtml, torn_grid=torn_grid_trusts_the_tearing_counters),
          [("test_torn", "test_torn_grid_catches_the_shape_no_tearing_"
                         "counter_can_see"),
           ("test_torn", "test_torn_grid_falls_on_deliberately_broken_input")]),
 
-        ("любая однострочная сетка объявляется невозможной",
+        ("any single-row grid is declared impossible",
          lambda: attrs(dhtml,
                        torn_grid=torn_grid_calls_any_single_row_impossible),
          [("test_torn", "test_torn_grid_zero_from_absence_is_not_zero_"
                         "from_checking")]),
 
-        ("битый файл answers/ уносит всё наблюдённое",
+        ("one broken file in answers/ carries away everything observed",
          lambda: attrs(dhtml, observed=observed_swallows_a_broken_answers_file),
          [("test_torn", "test_broken_answers_file_does_not_silently_"
                         "erase_the_others")]),
 
-        ("отсутствие answers/ выдаётся за благополучие",
+        ("a missing answers/ passes for everything being well",
          lambda: attrs(dhtml,
                        observed=observed_invents_a_clean_bill_when_there_is_nothing),
          [("test_torn", "test_no_answers_is_silence_not_a_clean_bill")]),
 
-        ("обёртка замены снимает пометку обрыва",
+        ("the swap wrapper drops the truncation mark",
          lambda: attrs(ap, _wrap_fragment=wrap_fragment_drops_the_torn_mark),
          [("test_torn", "test_the_mark_survives_the_replacement")]),
 
-        ("«не спрашивали» выдаётся за «оборвано»",
+        ("'never asked' passes for 'cut off'",
          lambda: attrs(ap, _wrap_fragment=wrap_fragment_marks_everything_torn),
          [("test_torn", "test_unknown_is_not_whole")]),
 
-        ("from_read перестал спрашивать наблюдённое",
+        ("from_read stopped asking for the observed data",
          lambda: sources("doc/apply.py",
                          "    obs = observed(read_dir)",
                          "    obs = {}"),
          [("test_torn", "test_from_read_asks_the_sidecar_for_the_reason")]),
 
         # ---- repeats within a page: proven, or merely nested ------------
-        ("повтор сличается с самим собой",
+        ("a repeat is compared with itself",
          lambda: attrs(dhtml, repeats_on=repeats_compare_the_block_with_itself),
          [("test_repeat", "test_a_block_is_never_compared_with_itself")]),
 
-        ("повтор сличается и с прочими кандидатами",
+        ("a repeat is compared with the other candidates too",
          lambda: attrs(dhtml,
                        repeats_on=repeats_compare_with_other_candidates_too),
          [("test_repeat", "test_two_equal_nested_blocks_are_not_hidden_"
                           "together")]),
 
-        ("повтор не доказывается никогда",
+        ("a repeat is never proved",
          lambda: attrs(dhtml, repeats_on=repeats_never_prove_anything),
          [("test_repeat", "test_a_nested_block_found_in_a_remaining_one_"
                           "is_proven")]),
 
-        ("повтором объявляется всё вложенное, без сличения",
+        ("everything nested is declared a repeat, uncompared",
          lambda: attrs(dhtml, repeats_on=repeats_prove_everything),
          [("test_repeat", "test_a_nested_block_whose_text_is_absent_is_"
                           "not_hidden")]),
 
-        ("вложенный в артефакт судится наравне с текстовым",
+        ("what is nested in an artifact is judged like text",
          lambda: attrs(dhtml,
                        repeats_on=repeats_count_the_artefact_as_a_neighbour),
          [("test_repeat", "test_a_block_nested_in_an_artefact_is_not_a_"
                           "candidate")]),
 
-        ("пустой блок берётся в кандидаты",
+        ("an empty block is taken as a candidate",
          lambda: attrs(dhtml, repeats_on=repeats_take_the_empty_block_too),
          [("test_repeat", "test_an_empty_block_is_not_a_candidate")]),
 
-        ("остающиеся склеены без пробела — совпадение через шов",
+        ("the remainder is joined with no gap -- a match across the seam",
          lambda: attrs(dhtml, repeats_on=repeats_join_without_a_gap),
          [("test_repeat", "test_a_match_across_the_seam_of_two_blocks_is_"
                           "not_evidence")]),
 
-        ("у повтора снят порог длины",
+        ("the length threshold is taken off the repeat",
          lambda: attrs(dhtml, repeats_on=repeats_have_no_length_floor),
          [("test_repeat", "test_a_two_character_match_is_not_evidence")]),
 
-        ("свёрстанное прячется ради сырого латеха",
+        ("the typeset form is hidden in favour of raw latex",
          lambda: attrs(dhtml, repeats_on=repeats_trade_typeset_for_raw),
          [("test_repeat", "test_the_typeset_form_is_not_traded_for_the_"
                           "raw_one")]),
 
-        ("в ответе стоит объемлющая рамка, а не носитель",
+        ("the answer holds the enclosing box, not the carrier",
          lambda: attrs(dhtml, repeats_on=repeats_name_the_enclosing_frame),
          [("test_repeat", "test_the_answer_names_the_carrier_not_the_"
                           "enclosing_frame")]),
 
-        ("ступень латеха съедает имена команд",
+        ("the latex step eats the command names",
          lambda: attrs(booktext, bare_math=bare_math_eats_the_command_name),
          [("test_repeat", "test_the_latex_stage_falls_on_deliberately_"
                           "broken_input"),
@@ -3056,18 +3062,18 @@ def mutations():
         # --- the replacement quantities: guarded BY SHAPE ONLY -----------
         # Acceptance showed with seven mutations that the counters can be
         # broken without reddening one of 225 checks. Their seam is below.
-        ("признак обрыва не доезжает до пакетной замены",
+        ("the truncation flag does not reach the bulk swap",
          lambda: attrs(ap, torn_of=lambda o: None),
          [("test_torn", "test_bulk_marks_the_torn_block_in_the_book")]),
 
-        ("форма поставленного куска не судится",
+        ("the shape of the placed fragment is not judged",
          lambda: attrs(ap, torn_grid=shape_of_a_placed_block_is_never_asked),
          [("test_torn", "test_bulk_counts_the_impossible_shape_of_the_book_"
                         "not_of_the_run")]),
 
         # `one_line`, not `sources`: both of these were first written the
         # other way and ran for nothing.
-        ("слияния в книге приравнены к объявленным",
+        ("merges in the book are equated with the declared ones",
          lambda: one_line(
              "booksmith.doc.apply",
              "    placed = sum(1 for c in cells if c[\"rows\"] > 1 "
@@ -3075,14 +3081,14 @@ def mutations():
              "    placed = announced"),
          [("test_torn", "test_bulk_counts_spans_declared_and_placed")]),
 
-        ("переобёртка сверяется с ПЕРВОЙ ступенью стопки",
+        ("a re-wrap is compared with the FIRST step of the stack",
          lambda: one_line(
              "booksmith.doc.apply",
              "            if previous and previous[-1].get(\"sha256_model_answer\") == \\",
              "            if previous and previous[0].get(\"sha256_model_answer\") == \\"),
          [("test_torn", "test_bulk_names_the_rewrap_apart_from_new_work")]),
 
-        ("отказанный блок считается лежащим в книге",
+        ("a refused block counts as lying in the book",
          lambda: one_line(
              "booksmith.doc.apply",
              "                tally[\"refused\"] += 1",
@@ -3095,103 +3101,103 @@ def mutations():
          lambda: attrs(dhtml, why_empty=why_empty_says_unread_for_everything),
          [("test_torn", "test_the_caption_names_which_zero_it_was")]),
 
-        ("«не спрашивали» считается дочитанным",
+        ("'never asked' counts as read to the end",
          lambda: attrs(dhtml, torn_of=torn_of_calls_the_unasked_whole),
          [("test_torn", "test_the_torn_field_tells_three_states_apart")]),
 
-        ("у правила столбца отнят порог",
+        ("the column rule is stripped of its threshold",
          lambda: attrs(dhtml, torn_grid=torn_grid_column_rule_has_no_floor),
          [("test_torn", "test_torn_grid_zero_from_absence_is_not_zero_"
                         "from_checking")]),
 
-        ("наблюдённое доезжает без причины остановки",
+        ("the observed data arrives without the reason it stopped",
          lambda: attrs(dhtml,
                        observed=observed_keeps_anchors_and_drops_the_reason),
          [("test_torn", "test_observed_carries_the_reason_the_block_is_bad")]),
 
         # ---- the book: replacement, journal, anchor -------------------
-        ("конец блока ищется по последней закрывающей метке",
+        ("the block's end is looked for at the last closing mark",
          lambda: attrs(swap, span=span_ends_at_the_last_closing_mark),
          [("test_apply", "test_neighbour_is_untouched")]),
 
-        ("status читает журнал и не открывает книгу",
+        ("status reads the journal and never opens the book",
          lambda: attrs(ap, status=status_reads_only_the_journal),
          [("test_apply", "test_status_tells_three_zeroes_apart")]),
 
-        ("якорь сквозной, без номера страницы",
+        ("the anchor runs through, with no page number",
          lambda: attrs(dhtml, anchor_of=anchor_without_the_page),
          [("test_html_order", "test_anchor_is_page_scoped")]),
 
         # ---- the reading ruler: `books text` --------------------------
-        ("блок без ответа получает CER 0",
+        ("a block with no answer gets CER 0",
          lambda: attrs(booktext, measure_pages=measure_scores_silence_as_zero),
          [("test_text", "test_silence_is_not_reported_as_perfect_reading")]),
 
-        ("артефакт записан разрядом «текст»",
+        ("an artifact is recorded with the role 'text'",
          lambda: attrs(booktext, measure_pages=measure_calls_artefacts_text),
          [("test_text",
            "test_perfect_reading_counts_only_text_in_the_text_line")]),
 
-        ("в формуле считаются слова: запись артефакта несёт WER",
+        ("words are counted in a formula: the artifact record carries WER",
          lambda: attrs(booktext,
                        measure_pages=measure_counts_words_in_a_formula),
          [("test_text", "test_one_wrong_letter_in_a_formula_does_not_crash")]),
 
-        ("молчание на артефакте засчитано ответом",
+        ("silence on an artifact counts as an answer",
          lambda: attrs(booktext,
                        measure_pages=measure_counts_silence_as_an_answer),
          [("test_text", "test_silent_formulas_are_not_a_measured_one")]),
 
-        ("знаковая истина артефакта снова не читается",
+        ("an artifact's character truth is unread again",
          lambda: attrs(booktext, _truth_text=truth_text_reads_only_tables),
          [("test_text", "test_artefact_with_truth_is_not_a_bait")]),
 
-        ("нет истины — пустая строка",
+        ("no truth means an empty string",
          lambda: attrs(booktext, _truth_text=truth_text_empty_instead_of_none),
          [("test_text", "test_artefact_without_truth_stays_a_bait")]),
 
-        ("счётчик выдумки на пустой истине снят",
+        ("the invention counter on an empty truth is gone",
          lambda: attrs(booktext,
                        measure_pages=measure_forgets_invention_on_empty_truth),
          [("test_text", "test_invention_on_declared_emptiness_is_counted")]),
 
-        ("две истины на одном блоке выбираются молча",
+        ("two truths on one block are chosen between in silence",
          lambda: attrs(booktext, _truth_both=truth_both_chooses_silently),
          [("test_text", "test_two_truths_on_one_artefact_are_loud")]),
 
         # ---- the book: journal and comments ---------------------------
-        ("сторож незакрытого комментария снят",
+        ("the unclosed-comment guard is gone",
          lambda: attrs(ap, _check_comments=comments_guard_is_off),
          [("test_apply", "test_unclosed_comment_is_caught_by_its_own_guard")]),
 
-        ("сторож комментариев запрещает их все",
+        ("the comment guard forbids them all",
          lambda: attrs(ap, _check_comments=comments_are_refused_wholesale),
          [("test_apply", "test_a_closed_comment_is_not_refused")]),
 
-        ("нечитаемый журнал считается пустым",
+        ("an unreadable journal counts as empty",
          lambda: attrs(ap, load_journal=journal_unreadable_is_an_empty_one),
          [("test_apply", "test_a_broken_journal_is_not_an_empty_journal")]),
 
-        ("журнал пишется прямо на своё место",
+        ("the journal is written straight over itself",
          lambda: attrs(ap, save_journal=journal_written_in_place),
          [("test_apply", "test_journal_is_written_atomically")]),
 
         # ---- the book: crops ------------------------------------------
-        ("«срезано листом» значит «не осталось ничего»",
+        ("'clipped by the sheet' means 'nothing is left'",
          lambda: attrs(crop, _clipped=clipped_only_when_nothing_is_left),
          [("test_html_order",
            "test_clipping_is_measured_with_a_tolerance_not_exactly")]),
 
-        ("вырожденная рамка получает чужой диагноз",
+        ("a degenerate box gets the wrong diagnosis",
          lambda: attrs(crop, cut=cut_without_the_named_troubles),
          [("test_html_order",
            "test_degenerate_and_inverted_boxes_are_named_by_their_own_trouble")]),
 
-        ("отрицательное поле зажато в ноль",
+        ("a negative margin is clamped to zero",
          lambda: attrs(crop, params=params_clamps_the_margin),
          [("test_html_order", "test_negative_margin_is_refused_out_loud")]),
 
-        ("резкость вырезки берётся из окружения, а не у скана",
+        ("the crop sharpness is taken from the environment, not from the scan",
          lambda: attrs(crop, params=params_takes_the_dpi_from_the_environment),
          [("test_html_order",
            "test_crop_dpi_never_comes_from_the_environment_silently")]),
@@ -3199,31 +3205,31 @@ def mutations():
         # Three mutations on one rule, all three what a person really writes:
         # "take a bit more, the model will sort it out", "shrink the small ones
         # too", "the model's bounds are a detail".
-        ("резкость вырезки тянется ВВЕРХ выше решётки скана",
+        ("the crop sharpness is pulled UP above the scan's grid",
          lambda: attrs(vrun, crop_dpi_for=crop_dpi_stretches_up),
          [("test_html_order",
            "test_crop_dpi_takes_the_ink_that_exists_and_invents_none")]),
 
-        ("зажим считается по полной рамке, а режется пересечение",
+        ("the clamp is computed on the full box while the intersection is cut",
          lambda: attrs(vrun, crop_dpi_for=crop_dpi_by_the_whole_box),
          [("test_html_order", "test_crop_dpi_counts_what_will_actually_be_cut")]),
 
-        ("окно модели не спрашивается — режем как придётся",
+        ("the model's window is not asked -- we cut as it comes",
          lambda: attrs(vrun, crop_dpi_for=crop_dpi_ignores_the_window),
          [("test_html_order",
            "test_crop_dpi_takes_the_ink_that_exists_and_invents_none")]),
 
-        ("вложенность сравнивает голый ранг",
+        ("nesting compares the bare rank",
          lambda: attrs(dhtml, _nesting=nesting_compares_raw_order),
          [("test_html_order",
            "test_nesting_survives_blocks_without_a_model_rank")]),
 
-        ("отказов листа три, а пометки две",
+        ("three ways a sheet fails, and two marks",
          lambda: attrs(dhtml, _sheet_trouble=sheet_trouble_with_two_marks),
          [("test_html_order",
            "test_three_kinds_of_bad_sheet_get_three_different_marks")]),
 
-        ("doc/feed завёл свою копию правила якоря",
+        ("doc/feed grew its own copy of the anchor rule",
          lambda: attrs(feed, anchor_of=anchor_of_a_private_copy),
          [("test_html_order", "test_the_anchor_rule_has_exactly_one_home")]),
 
@@ -3401,14 +3407,14 @@ def reddens(mod_name, test_name):
     mod = fresh(mod_name)
     fn = getattr(mod, test_name, None)
     if fn is None:
-        return False, f"проверки {mod_name}::{test_name} больше нет"
+        return False, f"the check {mod_name}::{test_name} is gone"
     try:
         fn()
     except support.Skip as e:
-        return False, f"пропущена ({e})"
+        return False, f"skipped ({e})"
     except (Exception, SystemExit) as e:
         return True, type(e).__name__
-    return False, "прошла как ни в чём не бывало"
+    return False, "passed as if nothing had happened"
 
 
 def all_tests():
@@ -3462,18 +3468,18 @@ def main():
         covered |= set(targets)
         if bad:
             missed += 1
-            print(f"  НЕ ПОЙМАНА  {name}: " + "; ".join(bad))
+            print(f"  UNCAUGHT  {name}: " + "; ".join(bad))
         else:
             caught += 1
-            print(f"  поймана     {name} ({len(targets)} проверки)")
+            print(f"  caught    {name} ({len(targets)} checks)")
     total = len(mutations())
     uncovered = sorted(all_tests() - covered)
-    print(f"\nмутаций {total}: поймано {caught}, НЕ поймано {missed}, "
-          f"пропущено {len(skipped)}")
+    print(f"\nmutations {total}: caught {caught}, UNCAUGHT {missed}, "
+          f"skipped {len(skipped)}")
     for s in skipped:
-        print(f"  пропущена мутация: {s}")
-    print(f"проверок под мутацией {len(covered)} из {len(all_tests())}; "
-          f"без мутации {len(uncovered)}"
+        print(f"  mutation skipped: {s}")
+    print(f"checks under a mutation {len(covered)} of {len(all_tests())}; "
+          f"under none {len(uncovered)}"
           + (": " + ", ".join(f"{m}::{t}" for m, t in uncovered)
              if uncovered else ""))
     return 1 if missed else 0

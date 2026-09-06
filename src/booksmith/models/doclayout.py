@@ -106,10 +106,10 @@ class DocLayout(Recognizer):
         missing = [p for p in (self.onnx, cfg_path) if not os.path.exists(p)]
         if missing:
             raise WeightsMissing(
-                f"нет весов детекции макета в {self.dir}: не хватает "
+                f"no layout detection weights in {self.dir}: missing "
                 f"{', '.join(os.path.basename(m) for m in missing)}.\n"
-                f"Задайте каталог ручкой LAYOUT_MODEL_DIR или положите веса по "
-                f"умолчанию paddlex ({PADDLEX_MODELS}).")
+                f"Name the directory with the knob LAYOUT_MODEL_DIR, or put "
+                f"the weights where paddlex looks ({PADDLEX_MODELS}).")
         with open(cfg_path, encoding="utf-8") as f:
             cfg = yaml.safe_load(f)
 
@@ -135,8 +135,9 @@ class DocLayout(Recognizer):
             # coordinates. Such weights we refuse LOUDLY -- in silence they
             # would give plausible, shifted boxes.
             raise WeightsMissing(
-                "в весах keep_ratio: true, а адаптер жмёт растр без подложки. "
-                "Рамки вышли бы смещёнными и правдоподобными сразу.")
+                "the weights say keep_ratio: true, while the adapter squeezes "
+                "the raster with no padding. The boxes would come out shifted "
+                "and plausible at once.")
         self.interp = int(rz.get("interp", 2))
         self.native_threshold = float(cfg.get("draw_threshold", 0.5))
 
@@ -152,8 +153,8 @@ class DocLayout(Recognizer):
         self.norm_scale = bool((nm or {}).get("is_scale", True))
         if self.norm_type not in ("none", "mean_std"):
             raise WeightsMissing(
-                f"незнакомая нормализация {self.norm_type!r} в inference.yml: "
-                f"подставить свою значило бы кормить модель не тем.")
+                f"unknown normalization {self.norm_type!r} in inference.yml: "
+                f"substituting ours would feed the model the wrong thing.")
         self.channel_order = "rgb"
 
         self.sess = ort.InferenceSession(
@@ -190,7 +191,7 @@ class DocLayout(Recognizer):
         for name in ("LAYOUT_SCORE_THRESHOLD", "LAYOUT_TABLE_THRESHOLD"):
             v = float(knobs.knob(name))
             if abs(v - self.native_threshold) >= 1e-9:
-                out.append(f"{name}={v} против родного "
+                out.append(f"{name}={v} against the native "
                            f"draw_threshold={self.native_threshold}")
         return out
 
@@ -221,7 +222,7 @@ class DocLayout(Recognizer):
             g = yaml.safe_load(f).get("Global") or {}
         # Weights with no name mean "not declared", not a licence to fall
         # back on the knob: that silent substitution is what is fixed here.
-        return g.get("model_name") or "не объявлено в весах"
+        return g.get("model_name") or "not declared in the weights"
 
     def knobs_read(self) -> tuple[str, ...]:
         """The knobs THIS adapter reads. Verified by grep over the file.
@@ -286,7 +287,7 @@ class DocLayout(Recognizer):
 
         img = cv2.imread(image_path)
         if img is None:
-            raise RuntimeError(f"не читается растр страницы: {image_path}")
+            raise RuntimeError(f"the page raster does not read: {image_path}")
         h, w = img.shape[:2]
         rz = cv2.resize(img, (self.target_w, self.target_h),
                         interpolation=self.interp)
@@ -316,9 +317,9 @@ class DocLayout(Recognizer):
         out = outs[0]
         if out.ndim != 2 or out.shape[1] < 6:
             raise RuntimeError(
-                f"первый выход графа {out.shape}: ждали таблицу рамок вида "
-                f"[N, >=6] (класс, счёт, четыре координаты). Разбирать её "
-                f"наугад значит выдумать рамки.")
+                f"first graph output {out.shape}: expected a box table of the "
+                f"shape [N, >=6] (class, score, four coordinates). Parsing it "
+                f"blind means inventing boxes.")
         self.has_order = has_rank(out)
 
         thr = self.thresholds()
