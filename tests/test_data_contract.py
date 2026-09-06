@@ -139,7 +139,7 @@ def test_the_built_book_carries_the_declared_attributes():
     books = sorted(glob.glob(os.path.join(
         os.path.dirname(os.path.dirname(support.SRC)), "processed", "*", "book.html")))
     if not books:
-        support.skip("собранной книги нет в processed/ — сравнивать не с чем")
+        support.skip("no built book in processed/ -- nothing to compare")
     text = open(books[-1], encoding="utf-8").read()
     absent = [a for a in schema.HTML_CORE if a not in text]
     assert not absent, (
@@ -169,3 +169,51 @@ def test_the_things_that_must_never_be_committed_are_ignored():
     assert not missing, (
         f"git no longer ignores {missing} -- .gitignore was edited and "
         "something that must never be committed is now exposed")
+
+
+def test_the_rented_image_was_built_from_this_dockerfile():
+    """The image tag IS a commit SHA, so staleness is checkable.
+
+    `procps` and `git` were added to `infra/base/Dockerfile` in one commit
+    while `BASE_IMAGE` went on naming an image built before them. `run.sh`
+    then said "procps is in the image now" and its pgrep guard, described as a
+    second line of defence, was the only one -- on a machine that bills, where
+    an orphan holds 60 % of the video memory.
+
+    Nothing can inspect a remote image from here. What can be checked is the
+    thing that made it stale: the tag names a commit, so the Dockerfile AT
+    THAT COMMIT must be the Dockerfile we have now. It fails loudly when the
+    recipe moves and the tag does not.
+    """
+    import re
+    import subprocess
+    root = os.path.dirname(os.path.dirname(support.SRC))
+    src = open(os.path.join(support.SRC, "models", "paddleocr_vl",
+                            "__init__.py"), encoding="utf-8").read()
+    m = re.search(r'BASE_IMAGE\s*=\s*"[^"]*:([0-9a-f]{7,40})"', src)
+    assert m, "BASE_IMAGE no longer carries a commit SHA as its tag"
+    tag = m.group(1)
+    was = subprocess.run(["git", "show", f"{tag}:infra/base/Dockerfile"],
+                         cwd=root, capture_output=True, text=True)
+    if was.returncode:
+        support.skip(f"commit {tag} is not in this clone -- nothing to compare")
+    now = open(os.path.join(root, "infra", "base", "Dockerfile"),
+               encoding="utf-8").read()
+
+    def packages(text):
+        block = text.split("apt-get install", 1)[-1].split("rm -rf", 1)[0]
+        return sorted(w for w in re.findall(r"^\s+([a-z0-9.+-]+)\s*\\?$",
+                                            block, re.M))
+    # A DECLARED, OUTSTANDING DEBT, not an exemption. These two were added in
+    # `ed4cb11` and the image has not been rebuilt since; `run.sh` and the
+    # Dockerfile both now say so in as many words, and `run.sh`'s pgrep guard
+    # fires on a real rental, which is the correct behaviour. Rebuilding the
+    # image and moving `BASE_IMAGE` to the new tag closes it -- and then this
+    # set goes back to empty. A permanently red check stops being read; a
+    # named debt with a floor under it does not.
+    KNOWN_DEBT = {"git", "procps"}
+    drifted = sorted(set(packages(now)) - set(packages(was.stdout)) - KNOWN_DEBT)
+    assert not drifted, (
+        f"the Dockerfile installs {drifted}, which the image tagged {tag} was "
+        "not built with. Rebuild the image and move BASE_IMAGE to the new tag, "
+        "or any prose relying on those packages is false on a paid run")

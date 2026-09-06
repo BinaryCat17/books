@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# Исполняется НА арендованной машине: разворачивает окружение, поднимает vLLM
-# и зовёт entrypoint.py, который читает блоки книги.
+# Runs ON the rented machine: provisions the environment, raises vLLM and
+# calls entrypoint.py, which reads the blocks of the book.
 #
-#   bash run.sh input.pdf detect outputs [порт] [страницы] [словарь ярлыков]
+#   bash run.sh input.pdf detect outputs [port] [pages] [label dictionary]
 #
-# ЧТО ЗДЕСЬ ОПЛАЧЕНО КРОВЬЮ и не должно переписываться заново: подъём vLLM
-# через setsid и убийство ГРУППЫ процессов. Сироты APIServer и EngineCore
-# копились по одной за прогон, каждая держала 60% видеопамяти, а проверка
-# здоровья это скрывала — `curl /v1/models` отвечала сирота, и скрипт считал,
-# что поднял сервер сам. Отсюда же и проверка имени модели в entrypoint.py:
-# «жив ли» и «как тебя зовут» — разные вопросы.
+# PAID FOR IN BLOOD here, not to be written anew: raising vLLM through setsid
+# and killing the process GROUP. Orphaned APIServer and EngineCore piled up
+# one per run, each holding 60% of the video memory, and the health check hid
+# it -- `curl /v1/models` was answered by an orphan, and the script decided it
+# had raised the server itself. Hence also the model-name check in
+# entrypoint.py: "are you alive" and "what is your name" are two questions.
 set -uo pipefail
 
 WORK="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -27,130 +27,144 @@ mkdir -p "$OUT"
 exec > >(tee -a "$OUT/job.log") 2>&1
 log() { echo "[$(date +%H:%M:%S)] $*"; }
 
-log "=== разворачиваю окружение ==="
-bash "$WORK/provision.sh" || { log "разворачивание не удалось"; exit 1; }
+log "=== provisioning the environment ==="
+bash "$WORK/provision.sh" || { log "provisioning failed"; exit 1; }
 
 export VIRTUAL_ENV=/opt/env
 export PATH="/opt/env/bin:$PATH"
-# Форма `${X:-…}`, а не безусловное присваивание.  Прежде эти три строки
-# затирали то, что оператор задал у себя и что приехало сюда через
-# `knobs.passthrough()`: слепок записал бы одно, прогон отработал бы на
-# другом.  Ровно этой болезнью и был знаменит `VL_MODEL_DIR` — ручка,
-# решающая, какие веса поднимет vLLM, и невидимая в коде задания.
+# The form `${X:-…}`, not an unconditional assignment.  These lines used to
+# overwrite what the operator set at home and what came here through
+# `knobs.passthrough()`: the snapshot would record one thing, the run work by
+# another.  `VL_MODEL_DIR` was famous for exactly this disease -- the knob
+# deciding which weights vLLM raises, invisible in the job code.
 #
-# Правые части — ОСОЗНАННЫЙ ДОЛГ, а не забывчивость, и вот его точная
-# граница. `spec()` рядом теперь шлёт сюда `knobs.passthrough()`, то есть всё,
-# что оператор ЗАДАЛ; умолчания он не подставляет нарочно — у них одно место
-# жительства, реестр. Значит эти три строки — умолчания ДЛЯ СЛУЧАЯ, КОГДА
-# ОПЕРАТОР МОЛЧАЛ, и они обязаны совпадать с реестром.
+# The right-hand sides are a DELIBERATE DEBT, not forgetfulness, and here is
+# its exact boundary. `spec()` beside this now sends `knobs.passthrough()`,
+# that is everything the operator SET; defaults it deliberately leaves alone --
+# those have one home, the registry. So this line is the default FOR THE CASE
+# WHERE THE OPERATOR WAS SILENT, and it must agree with the registry.
 #
-# НО У ЭТОЙ, СОСЕДНЕЙ СТРОКИ ЗНАЧЕНИЕ НЕ СВЕРЯЕТСЯ, и знать это надо. У
-# `VL_MODEL_DIR` умолчание в реестре ПУСТО — хозяин значения объявлен
-# оболочкой, — и сверять его не с чем: сторож требует лишь, чтобы запись
-# реестра это признавала. Подмена `/models/vl` на что угодно пройдёт молча,
-# и это проверено мутацией. Сверяются те, у кого умолчание реестра непусто:
-# `MODEL_NAME`, `PORT`, `RESUME`, `VLLM_USE_FLASHINFER_SAMPLER`. Здесь стояло
-# «эти три строки» — строка под комментарием одна.
+# BUT THIS NEIGHBOURING LINE'S VALUE IS NOT COMPARED, and that must be known.
+# `VL_MODEL_DIR` has an EMPTY default in the registry -- the owner of the value
+# is declared to be the shell -- and there is nothing to compare it with: the
+# guard demands only that the registry entry admit as much. Swapping
+# `/models/vl` for anything passes silently, proved by mutation. Compared are
+# those whose registry default is non-empty: `MODEL_NAME`, `PORT`, `RESUME`,
+# `VLLM_USE_FLASHINFER_SAMPLER`. Here stood "these three lines" -- there is ONE
+# line under this comment.
 #
-# Расхождение ловит
-# `tests/test_knobs.py::test_shell_defaults_agree_with_the_registry`, который
-# сверяет правые части `${ИМЯ:-…}` с реестром — СО СЧЁТОМ СКОБОК, иначе
-# вложенное `${PORT_ARG:-${PORT:-8118}}` съедается целиком и внутреннее
-# умолчание не проверяется вовсе.
+# A divergence is caught by
+# `tests/test_knobs.py::test_shell_defaults_agree_with_the_registry`, which
+# compares the right-hand sides of `${NAME:-…}` with the registry -- COUNTING
+# BRACES, otherwise the nested `${PORT_ARG:-${PORT:-8118}}` is eaten whole and
+# the inner default is not checked at all.
 #
-# ЭТО ОБЕЩАНИЕ ЖИЛО ЗДЕСЬ РАНЬШЕ ПРОВЕРКИ. Сверки не было ни одной: ни один
-# файл каталога `tests/` не открывал `.sh`, а `knobs.readers()` ищет в
-# оболочке только НАЛИЧИЕ `$ИМЯ`, не значение. Обещанный и отсутствующий
-# сторож хуже отсутствующего: на него ссылаются, принимая решения.
+# THIS PROMISE LIVED HERE BEFORE THE CHECK DID. There was no comparison at all:
+# not one file in `tests/` opened a `.sh`, and `knobs.readers()` looks in the
+# shell only for the PRESENCE of `$NAME`, not the value. A promised and absent
+# guard is worse than an absent one: it is cited when decisions are made.
 export VL_MODEL_DIR="${VL_MODEL_DIR:-/models/vl}"
-# `LAYOUT_MODEL_DIR` и `PADDLE_PDX_MODEL_SOURCE` отсюда УБРАНЫ вместе с качкой
-# весов детектора: макет считается ДОМА, на процессоре и бесплатно, а на бокс
-# приезжает готовым каталогом `detect/`. Ни один потребитель этих двух
-# переменных на боксе не поднимается, и `books read` детектор не зовёт вовсе.
-# Веса лежат распакованным каталогом, поэтому vLLM получает путь, а не имя.
-# VL_MODEL_DIR к этому месту непуст всегда, ветка `:-` недостижима.
+# `LAYOUT_MODEL_DIR` and `PADDLE_PDX_MODEL_SOURCE` are GONE from here with the
+# pulling of the detector weights: layout is computed AT HOME, on the CPU and
+# free, and reaches the box as a finished `detect/` directory. Not one consumer
+# of those two variables comes up on the box, and `books read` never calls the
+# detector at all.
+# The weights lie as an unpacked directory, so vLLM is given a path, not a
+# name. By here VL_MODEL_DIR is always non-empty -- the export above saw to it.
 SERVE_MODEL="$VL_MODEL_DIR"
 
-# flashinfer компилирует ядра на лету и ищет CUDA по CUDA_HOME, иначе по
-# /usr/local/cuda — которого у нас нет, CUDA приезжает колёсами.  Без этого
-# vLLM не стартует: "Could not find nvcc and default cuda_home ... doesn't
-# exist".  Ищем nvcc на месте, а не прописываем путь: раскладка колёс NVIDIA
-# уже менялась (сейчас это nvidia/cu13/bin/nvcc).
+# flashinfer compiles kernels on the fly and looks for CUDA at CUDA_HOME,
+# failing that at /usr/local/cuda -- which we do not have, CUDA arrives as
+# wheels.  Without this vLLM does not start: "Could not find nvcc and default
+# cuda_home ... doesn't exist".  We search for nvcc in place instead of writing
+# the path down: the layout of the NVIDIA wheels has changed once already (it
+# is nvidia/cu13/bin/nvcc now).
 NVCC=$(find /opt/env -type f -name nvcc -perm -u+x 2>/dev/null | head -1)
 if [ -n "$NVCC" ]; then
   export CUDA_HOME="$(dirname "$(dirname "$NVCC")")"
   export PATH="$CUDA_HOME/bin:$PATH"
   log "CUDA_HOME=$CUDA_HOME"
 else
-  log "nvcc не найден — flashinfer, скорее всего, не соберёт ядра"
+  log "nvcc not found -- flashinfer will most likely not build its kernels"
 fi
 
-log "=== окружение ==="
+log "=== environment ==="
 nvidia-smi --query-gpu=name,memory.total,driver_version,compute_cap \
-           --format=csv,noheader || log "nvidia-smi недоступен"
-# Печаталась версия paddleocr — единственный потребитель полутора гигабайт
-# `paddleocr`+`paddlepaddle`+`opencv` в constraints, и тот ради строки в
-# журнале. Чтение блоков их не импортирует; вендор вдобавок прямо советует
-# держать paddle и vllm в РАЗНЫХ окружениях. Спрашиваем то, что вправду решает
-# прогон.
+           --format=csv,noheader || log "nvidia-smi unavailable"
+# The paddleocr version used to be printed -- the sole consumer of the one and
+# a half gigabytes of `paddleocr`+`paddlepaddle`+`opencv` in constraints, and
+# that for a line in the log. Reading blocks imports none of them; the vendor
+# moreover advises outright to keep paddle and vllm in DIFFERENT environments.
+# We ask what really decides the run.
 python -c "import vllm, torch; print('vllm', vllm.__version__, '| torch', torch.__version__)" 2>/dev/null \
-  || log "vllm или torch не импортируются — считать будет нечем"
+  || log "vllm or torch will not import -- there is nothing to compute with"
 
 # ------------------------------------------------------------------ vLLM
-# Считать VLM в процессе на порядок медленнее, чем через vLLM.  Теперь он
-# всегда ставится разворачиванием, но проверка остаётся: она отличает
-# «vllm не установился» от «vllm упал на старте», а это разные починки.
+# Counting the VLM in-process is an order of magnitude slower than through
+# vLLM.  It is now always installed by provisioning, but the check stays: it
+# tells "vllm did not install" from "vllm fell over at start", and those are
+# different repairs.
 SRV=""; SERVER_UP=0
 if python -c "import vllm" 2>/dev/null; then
-  log "=== поднимаю vLLM ($MODEL) ==="
-  log "модель для vLLM: $SERVE_MODEL"
-  # --served-model-name обязателен: без него модель регистрируется под своим
-  # путём (/models/vl), а клиент спрашивает по имени и получает 404.
-  # flashinfer компилирует сэмплер на месте, и сборка не проходит: колесо
-  # nvidia-cuda-nvcc приезжает 13.3, torch собран под CUDA 13.0, а заголовки
-  # cccl внутри flashinfer это ловят — "CUDA compiler and CUDA toolkit
-  # headers are incompatible".  Чинить совместимость версий незачем: сэмплер
-  # нужен обычный, а заодно уходит компиляция ядер из времени старта.
+  log "=== raising vLLM ($MODEL) ==="
+  log "model for vLLM: $SERVE_MODEL"
+  # --served-model-name is mandatory: without it the model registers under its
+  # own path (/models/vl), while the client asks by name and gets a 404.
+  # flashinfer compiles the sampler in place, and the build does not pass: the
+  # nvidia-cuda-nvcc wheel arrives as 13.3, torch is built for CUDA 13.0, and
+  # the cccl headers inside flashinfer catch that -- "CUDA compiler and CUDA
+  # toolkit headers are incompatible".  Repairing version compatibility is
+  # pointless: the sampler wanted is the ordinary one, and kernel compilation
+  # leaves the start-up time along with it.
   export VLLM_USE_FLASHINFER_SAMPLER="${VLLM_USE_FLASHINFER_SAMPLER:-0}"
-  # По умолчанию vLLM забирает 90% видеопамяти, и детекции макета не
-  # остаётся.  Но и 0.75 мало: ONNX Runtime держит арену в 5.41 ГБ (замерено
-  # дважды, с батчем детектора 4 и 64 — цифра одна и та же, арена растёт
-  # жадно и от батча почти не зависит), vLLM берёт 18.02 ГБ, вместе это
-  # 23.43 из 23.52 ГБ карты, и падает уже сам vLLM:
+  # By default vLLM takes 90% of the video memory, and nothing is left for
+  # layout detection.  But 0.75 is too little as well: ONNX Runtime holds an
+  # arena of 5.41 GB (measured twice, with detector batch 4 and 64 -- the same
+  # figure, the arena grows greedily and hardly depends on the batch), vLLM
+  # takes 18.02 GB, together 23.43 of the card's 23.52 GB, and it is vLLM
+  # itself that falls:
   #   torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 134.00 MiB
-  # С PP-DocLayoutV2 те же 0.75 проходили — арена V3 просто больше.
-  # 0.60 оставляет детекции 9 ГБ.  KV-кеш при этом ~11 ГБ на модель в 0.9B —
-  # всё ещё несуразно много, узким местом он не станет.
-# Порт мог остаться занят движком прошлого прогона.  fuser и ss в образе
-  # отсутствуют (Dockerfile ставит только rsync, zstd, curl и библиотеки), так
-  # что искать держателя порта нечем — бьём по имени процесса.  Своей оболочки
-  # это не касается: в её командной строке нет ни "vllm serve", ни "VLLM::".
-  # ИСКАТЬ НЕЧЕМ — ЗНАЧИТ СКАЗАТЬ ОБ ЭТОМ, А НЕ НАПЕЧАТАТЬ «ЧУЖИХ НЕТ».
-  # `pgrep` в образе не было, и эта строка выдавала код 127, а `else` печатал
-  # «чужих процессов vLLM на машине нет» независимо от факта — говорящий ноль.
-  # Теперь `procps` в образе есть (infra/base/Dockerfile), но проверка
-  # остаётся: образ пересобирают не каждый день, а сирота держит 60%
-  # видеопамяти.
+  # With PP-DocLayoutV2 the same 0.75 passed -- the V3 arena is simply bigger.
+  # 0.60 leaves detection 9 GB.  The KV cache is then ~11 GB for a 0.9B model
+  # -- still absurdly much, it will not become the bottleneck.
+  # The port could still be held by the engine of a previous run.  fuser and ss
+  # are absent from the image (neither `psmisc` nor `iproute2` is installed),
+  # so there is nothing to find the holder of the port with -- we strike by
+  # process name.  Our own shell is not touched by that: its command line
+  # carries neither "vllm serve" nor "VLLM::".
+  # NOTHING TO SEARCH WITH MEANS SAYING SO, NOT PRINTING "NO STRANGERS HERE".
+  # `pgrep` was not in the image, and this line returned code 127 while the
+  # `else` printed "no foreign vLLM processes on the machine" regardless of
+  # the fact -- a speaking zero.
+  #
+  # AND THE GUARD IS NOT BELT AND BRACES: IT IS THE ONLY THING STANDING.
+  # `infra/base/Dockerfile` installs `procps`, but the tag actually rented is
+  # `BASE_IMAGE = ghcr.io/binarycat17/vast-base:d69de6e`, and that image was
+  # built from a Dockerfile with eleven packages and neither `procps` nor
+  # `git` -- both were added afterwards, in `ed4cb11`, and the image has not
+  # been rebuilt or retagged since. So on a real rental this branch fires and
+  # says so, which is right. To make the guard redundant, rebuild the image
+  # and move `BASE_IMAGE` to the new tag.
   if ! command -v pgrep >/dev/null 2>&1; then
-    log "ИСКАТЬ НЕЧЕМ: в образе нет pgrep — сказать, остались ли чужие "
-    log "процессы vLLM, невозможно. Это НЕ «их нет». Пересобери образ "
-    log "(infra/base/Dockerfile ставит procps)"
+    log "NOTHING TO SEARCH WITH: the image has no pgrep -- whether foreign"
+    log "vLLM processes are left cannot be told. This is NOT 'none left'."
+    log "Rebuild the image (infra/base/Dockerfile installs procps)"
   else
     STALE=$(pgrep -f "vllm serve" 2>/dev/null | tr '\n' ' ')
     if [ -n "$STALE" ]; then
-      log "на машине остались процессы vLLM ($STALE) — прибираю"
+      log "vLLM processes left on the machine ($STALE) -- cleaning up"
       pkill -f "vllm serve" 2>/dev/null; pkill -f "VLLM::" 2>/dev/null
       sleep 3
       pkill -9 -f "vllm serve" 2>/dev/null; pkill -9 -f "VLLM::" 2>/dev/null
       sleep 2
     else
-      log "чужих процессов vLLM на машине нет (спрошено pgrep)"
+      log "no foreign vLLM processes on the machine (pgrep was asked)"
     fi
   fi
 
-  # setsid даёт vLLM собственную группу процессов.  Без этого группа общая
-  # со скриптом, и убийство группы прибило бы сам скрипт — ровно та беда с
-  # кодом 144, о которой предупреждает комментарий ниже.
+  # setsid gives vLLM a process group of its own.  Without it the group is
+  # shared with the script, and killing the group would have killed the script
+  # itself -- exactly the trouble with exit code 144.
   setsid nohup vllm serve "$SERVE_MODEL" --trust-remote-code \
         --served-model-name "$MODEL" \
         --host 127.0.0.1 --port "$PORT" \
@@ -160,27 +174,28 @@ if python -c "import vllm" 2>/dev/null; then
         > "$OUT/vllm.log" 2>&1 &
   SRV=$!
 
-  # Уборка вынесена в ловушку, а не стоит в конце: до конца скрипт доходит не
-  # всегда.  Путь `exit 1` при неподнявшемся сервере уборку проходил мимо, а
-  # снятие по таймауту не даёт выполнить ни строки — box.run() убивает
-  # локальный ssh-клиент, и здесь всё умирает по SIGPIPE на tee.
+  # The cleanup is in a trap rather than at the end: the script does not always
+  # reach the end.  The `exit 1` path with a server that never came up went
+  # past the cleanup, and a kill by timeout leaves not a line to run --
+  # box.run() kills the local ssh client, and everything here dies of SIGPIPE
+  # on tee.
   #
-  # Это стало важнее после setsid: раньше разрыв ssh мог снести сервер по
-  # SIGHUP, теперь он от сессии отвязан намеренно, и сирота была бы
-  # гарантирована, а не случайна.
+  # This became more important after setsid: an ssh break could once take the
+  # server down by SIGHUP, now it is detached from the session on purpose, and
+  # an orphan would be guaranteed rather than accidental.
   _cleaned=0
   cleanup() {
     [ "$_cleaned" = 1 ] && return; _cleaned=1
     if [ -n "${SRV:-}" ]; then
-      # После setsid PID совпадает с идентификатором группы, так что бьём по
-      # группе и забираем APIServer с EngineCore вместе с родителем.
+      # After setsid the PID equals the group id, so we strike the group and
+      # take APIServer and EngineCore along with the parent.
       kill -- "-$SRV" 2>/dev/null || kill "$SRV" 2>/dev/null
       sleep 2
       kill -9 -- "-$SRV" 2>/dev/null
     fi
-    # Подчистка на случай, если группа не забрала всех: EngineCore не держит
-    # сокет порта и переживал и родителя, и освобождение порта.  Своей оболочки
-    # это не касается — в её командной строке нет ни "vllm serve", ни "VLLM::".
+    # A sweep in case the group did not take everyone: EngineCore holds no
+    # port socket and outlived both the parent and the freeing of the port.
+    # Our own shell is not touched -- see the command lines above.
     pkill -9 -f "vllm serve" 2>/dev/null
     pkill -9 -f "VLLM::" 2>/dev/null
     return 0
@@ -188,55 +203,56 @@ if python -c "import vllm" 2>/dev/null; then
   trap cleanup EXIT INT TERM HUP
 
   for i in $(seq 1 600); do
-      # Живость проверяем ДО curl: иначе на первой же итерации ответить может
-      # ЧУЖОЙ сервер, и мы решим, что подняли свой.
+      # Liveness is checked BEFORE curl: otherwise on the very first iteration
+      # a FOREIGN server may answer, and we decide we raised ours.
       if ! kill -0 "$SRV" 2>/dev/null; then
-          log "vLLM упал на старте, хвост лога:"; tail -40 "$OUT/vllm.log"; break
+          log "vLLM died at start, log tail:"; tail -40 "$OUT/vllm.log"; break
       fi
       if curl -sf "http://127.0.0.1:$PORT/v1/models" -o /dev/null 2>/dev/null; then
-          SERVER_UP=1; log "vLLM поднялся за ${i}с"
-          # В журнал прогонов: по этому числу подгоняется модель выбора
-          # машины, потому что прогрев упирается в процессор хоста.
+          SERVER_UP=1; log "vLLM came up in ${i}s"
+          # Into the run ledger: the machine-picking model is tuned by this
+          # number, because the warm-up rests on the host CPU.
           echo "{\"vllm_startup_s\": $i}" > "$OUT/vllm.json"
           break
       fi
       if ! kill -0 "$SRV" 2>/dev/null; then
-          log "vLLM упал на старте, хвост лога:"; tail -40 "$OUT/vllm.log"; break
+          log "vLLM died at start, log tail:"; tail -40 "$OUT/vllm.log"; break
       fi
       sleep 1
   done
 else
-  log "vllm не установился -> считать нечем"
+  log "vllm did not install -> there is nothing to compute with"
 fi
 
-# Раньше здесь был откат на счёт VLM в процессе.  Он невозможен: paddle у нас
-# CPU-сборки (GPU-сборка тянет 3.69 ГБ и не нужна, детекция ушла на ONNX), а
-# doc_vlm требует gpu:0 и падает с "PaddlePaddle is not compiled with CUDA".
-# Лучше сказать честно и сразу, чем считать 25 страниц ради этой же ошибки.
+# There used to be a fallback here to counting the VLM in-process.  It is
+# impossible: our paddle is a CPU build (the GPU build pulls 3.69 GB and is not
+# needed, detection moved to ONNX), while doc_vlm demands gpu:0 and falls with
+# "PaddlePaddle is not compiled with CUDA".  Better to say so honestly and at
+# once than to count 25 pages for that same error.
 if [ "$SERVER_UP" = 0 ]; then
-  log "vLLM не поднялся — считать нечем, выхожу"
-  log "=== хвост vllm.log ==="; tail -60 "$OUT/vllm.log" 2>/dev/null
+  log "vLLM did not come up -- nothing to compute with, leaving"
+  log "=== vllm.log tail ==="; tail -60 "$OUT/vllm.log" 2>/dev/null
   exit 1
 fi
 
 SERVER_URL=""
-[ "$SERVER_UP" = 1 ] && SERVER_URL="http://127.0.0.1:$PORT/v1"   # /v1 обязателен
+[ "$SERVER_UP" = 1 ] && SERVER_URL="http://127.0.0.1:$PORT/v1"   # /v1 required
 
-# ------------------------------------------------------------------ счёт
-log "=== разбираю $(basename "$PDF") ==="
+# ------------------------------------------------------------------ counting
+log "=== parsing $(basename "$PDF") ==="
 START=$(date +%s)
-# Пакет booksmith приезжает входным файлом задания и лежит рядом со скриптом:
-# дома и здесь исполняется ОДИН И ТОТ ЖЕ код, а не две его редакции.
+# The booksmith package arrives as an input file of the job and lies beside
+# this script: at home and here ONE AND THE SAME code runs, not two editions.
 RESUME_FLAG=""; [ "$RESUME" = "1" ] || RESUME_FLAG="--no-resume"
 python "$WORK/entrypoint.py" --pkg "$WORK" --detect "$DETECT" \
        --pdf "$PDF" --out "$OUT" \
        --model "$MODEL" --server "$SERVER_URL" \
        --pages "$PAGES" --policy "$POLICY" $RESUME_FLAG
 RC=$?
-log "разбор завершён с кодом $RC за $(( $(date +%s) - START ))с"
+log "parsing finished with code $RC in $(( $(date +%s) - START ))s"
 
 cleanup
 
-[ "$RC" != 0 ] && { log "=== хвост vllm.log ==="; tail -60 "$OUT/vllm.log" 2>/dev/null; }
-log "=== выход ==="; du -sh "$OUT" 2>/dev/null
+[ "$RC" != 0 ] && { log "=== vllm.log tail ==="; tail -60 "$OUT/vllm.log" 2>/dev/null; }
+log "=== exit ==="; du -sh "$OUT" 2>/dev/null
 exit $RC

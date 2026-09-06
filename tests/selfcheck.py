@@ -1822,6 +1822,30 @@ def _map_with_a_measurement():
     return _map_plus("\n\nV2 finds 698 of 1232 on the golden bench.\n")
 
 
+def _dockerfile_with_a_new_package():
+    """A recipe installing something the tagged image was not built with.
+
+    The tree is faked, not copied: `.git` is symlinked so `git show <tag>:` in
+    it still answers, and only the two files the check reads are real.
+    """
+    import tempfile
+    root = os.path.dirname(os.path.dirname(support.SRC))
+    d = tempfile.mkdtemp()
+    os.symlink(os.path.join(root, ".git"), os.path.join(d, ".git"))
+    os.makedirs(os.path.join(d, "infra", "base"))
+    text = open(os.path.join(root, "infra", "base", "Dockerfile"),
+                encoding="utf-8").read()
+    open(os.path.join(d, "infra", "base", "Dockerfile"), "w",
+         encoding="utf-8").write(text.replace("      procps \\",
+                                              "      procps \\\n      strace \\"))
+    pkg = os.path.join(d, "src", "booksmith", "models", "paddleocr_vl")
+    os.makedirs(pkg)
+    open(os.path.join(pkg, "__init__.py"), "w", encoding="utf-8").write(
+        open(os.path.join(support.SRC, "models", "paddleocr_vl",
+                          "__init__.py"), encoding="utf-8").read())
+    return os.path.join(d, "src", "booksmith")
+
+
 def _gitignore_without_raw():
     """A tree whose .gitignore no longer hides the originals.
 
@@ -3301,6 +3325,11 @@ def mutations():
              os.path.dirname(schema.DOC_MAP), "README.md")),
          [("test_docs_map",
            "test_every_command_the_cli_declares_is_named_in_the_map")]),
+
+        ("the image recipe grew a package the tagged image lacks",
+         lambda: attrs(support, SRC=_dockerfile_with_a_new_package()),
+         [("test_data_contract",
+           "test_the_rented_image_was_built_from_this_dockerfile")]),
 
         ("git no longer hides the originals and the rent journal",
          lambda: attrs(support, SRC=os.path.join(_gitignore_without_raw(),

@@ -1,46 +1,57 @@
-# Образ-прихожая: в нём нет ничего, кроме инструментов доставки.
+# The hallway image: nothing in it but delivery tools.
 #
-# Всё тяжёлое — python, CUDA, torch, веса — ставится при старте, потому что
-# docker качает ровно три слоя одновременно и по одному потоку на слой, а
-# ghcr режет каждое соединение до ~25 Мбит/с.  Три потока = 76 Мбит/с, и это
-# потолок независимо от канала машины (у неё бывает 1500) и от того, как
-# разложены слои.  Шесть гигабайт через docker ехали 10.7 минуты; те же
-# байты мимо docker, в тридцать соединений, едут около минуты.
+# Everything heavy -- python, CUDA, torch, weights -- is installed at start-up,
+# because docker pulls exactly three layers at once and one stream per layer,
+# while ghcr throttles every connection to ~25 Mbit/s.  Three streams = 76
+# Mbit/s, and that is the ceiling whatever the machine's channel (it can be
+# 1500) and however the layers are arranged.  Six gigabytes travelled through
+# docker in 10.7 minutes; the same bytes past docker, over thirty connections,
+# travel in about a minute.
 #
-# ssh здесь намеренно нет.  vast достраивает любой образ своим слоем с ssh и
-# сам кладёт туда ключи; собственный sshd этой достройке мешает — демон
-# поднимается наш, а ключи попадают в чужой authorized_keys, и вход даёт
-# "Permission denied (publickey)".  Проверено.
+# ssh is deliberately absent here.  vast builds its own ssh layer on top of any
+# image and puts the keys there itself; an sshd of our own gets in the way of
+# that build -- the daemon that comes up is ours, while the keys land in a
+# foreign authorized_keys, and logging in gives "Permission denied
+# (publickey)".  Checked.
 FROM debian:12-slim
 
-# rsync нужен транспорту результатов, zstd — распаковке доставленного.
-# Ставим здесь, а не в onstart: apt по сети при каждом старте — те же
-# полминуты, которые мы и пытаемся сэкономить.
+# rsync is needed by the result transport, zstd by unpacking what is
+# delivered.  Installed here rather than in onstart: apt over the network at
+# every start is the same half-minute we are trying to save.
 #
-# libgl1 и libglib2.0-0 — для opencv, который тянет за собой paddlex:
-# колесо cv2 линкуется на системный libGL, и без него импорт paddleocr
-# падает с "ImportError: libGL.so.1". В прежнем образе на Ubuntu эти
-# библиотеки были заодно с CUDA, в чистом Debian их нет.
-# libgomp1 — OpenMP, на него линкуются numpy и paddle.
-# gcc, g++ и libc6-dev — для triton и flashinfer: оба компилируют ядра на
-# лету.  Одного gcc мало, ядра на C++: nvcc зовёт хост-компилятор и падает
-# на "cannot execute cc1plus".
+# libgl1 and libglib2.0-0 -- for opencv, which paddlex pulls in behind it: the
+# cv2 wheel links against the system libGL, and without it importing paddleocr
+# falls with "ImportError: libGL.so.1". In the former Ubuntu image they came
+# along with CUDA; in clean Debian they are absent.
+# libgomp1 -- OpenMP, numpy and paddle link against it.
+# gcc, g++ and libc6-dev -- for triton and flashinfer: both compile kernels on
+# the fly.  gcc alone is not enough, the kernels are C++: nvcc calls the host
+# compiler and falls with "cannot execute cc1plus".
 #
-# procps — ради `pgrep`/`pkill`, и это не удобство. `run.sh` ими ищет и добивает
-# сирот vLLM; в образе их не было, и обе строки давали код 127 МОЛЧА. Отсюда
-# две беды разом: «чужих процессов vLLM на машине нет» печаталось ВСЕГДА,
-# независимо от факта — говорящий ноль, запрещённый правилом проекта, — а
-# подчистка держалась на одном `kill -- -$SRV`, при том что соседний
-# комментарий прямо говорит, зачем добавлен второй рубеж: «EngineCore не держит
-# сокет порта и переживал и родителя». Сирота на 60% видеопамяти — та самая
-# беда, ради которой писаны `--served-model-name` и проверка имени модели.
-# Проверено разбором обоих слоёв образа: `procps`, `psmisc`, `iproute2` не
-# стоят, `pgrep`, `pkill`, `ps`, `fuser`, `ss` отсутствуют.
+# procps -- for `pgrep`/`pkill`, and that is no convenience. `run.sh` searches
+# for and finishes off vLLM orphans with them; they were not in the image, and
+# both lines returned code 127 SILENTLY. Two troubles at once: "no foreign vLLM
+# processes on the machine" was printed ALWAYS, regardless of the fact -- a
+# speaking zero, forbidden by the project rule -- and the sweep rested on a
+# single `kill -- -$SRV`, while the neighbouring comment says outright why a
+# second line of defence was added: "EngineCore holds no port socket and
+# outlived the parent". An orphan on 60% of the video memory is the very
+# trouble `--served-model-name` and the model-name check were written for.
+# Checked by taking both layers of the image apart: `procps`, `psmisc`,
+# `iproute2` are not installed, `pgrep`, `pkill`, `ps`, `fuser`, `ss` absent.
 #
-# git — ради одной строки слепка. `stamp.commit()` спрашивает git в каталоге
-# пакета; на боксе его нет, и платный прогон — единственный, ради которого всё
-# и писалось, — оказывался единственным без записи, каким кодом считан. Ручка
-# `BOOKSMITH_COMMIT` закрывает это и без git, но пусть будет и он: 20 МБ.
+# AND THAT IS STILL TRUE OF THE IMAGE ACTUALLY RENTED. `procps` and `git` were
+# added to THIS file in `ed4cb11`, while `models/paddleocr_vl/__init__.py`
+# still names `vast-base:d69de6e`, built from the eleven-package version. The
+# lines below take effect only once the image is rebuilt and `BASE_IMAGE`
+# moves to the new tag; until then `run.sh`'s pgrep guard is not a second line
+# of defence but the only one.
+#
+# git -- for one line of the snapshot. `stamp.commit()` asks git in the package
+# directory; on the box there is none, and the paid run -- the one everything
+# was written for -- turned out the only one without a record of which code
+# counted it. The knob `BOOKSMITH_COMMIT` closes that without git as well, but
+# let git be here too: 20 MB.
 RUN apt-get update -qq \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
       rsync \
@@ -57,24 +68,27 @@ RUN apt-get update -qq \
       git \
  && rm -rf /var/lib/apt/lists/*
 
-# vast сам ставит в достроенный образ openssh и сам кладёт туда ключ — но
-# кладёт его файлом, открытым на запись всем, и sshd такой authorized_keys
-# отвергает: "bad ownership or modes for file /root/.ssh/authorized_keys",
-# то есть Permission denied (publickey) при верном ключе.  В образах самого
-# vast это чем-то компенсируется, в чистом Debian — нет.
+# vast itself installs openssh into the built image and puts the key there --
+# but puts it as a file writable by everyone, and sshd rejects such an
+# authorized_keys: "bad ownership or modes for file
+# /root/.ssh/authorized_keys", that is Permission denied (publickey) with a
+# correct key.  In vast's own images something compensates for this; in clean
+# Debian nothing does.
 #
-# Снимаем проверку прав вместо того, чтобы гоняться за правами: машина
-# арендована на одну задачу, других пользователей на ней нет, а починка
-# должна работать независимо от того, когда именно vast запишет файл.
+# We switch the mode check off instead of chasing the modes: the machine is
+# rented for one task, there are no other users on it, and the repair must
+# work regardless of when exactly vast writes the file.
 RUN mkdir -p /etc/ssh/sshd_config.d \
  && printf 'StrictModes no\n' > /etc/ssh/sshd_config.d/10-vast-keys.conf
 
-# uv ставит и сам python, и все колёса — так в образе не нужен даже python.
+# uv installs python itself as well as all the wheels -- so the image needs no
+# python of its own.
 #
-# Версия закреплена и обязана совпадать с той, которой собран constraints.txt.
-# Иначе бывает так: список собран uv 0.12.5, а ставит его uv 0.9.7, который
-# про torchcodec в индексе pytorch ещё не знает, — и прогон падает на
-# "no version of torchcodec==0.16.0+cu130", хотя колесо в индексе лежит.
+# The version is pinned and must match the one that built constraints.txt.
+# Otherwise this happens: the list is built by uv 0.12.5 and installed by uv
+# 0.9.7, which does not yet know about torchcodec in the pytorch index -- and
+# the run falls with "no version of torchcodec==0.16.0+cu130", though the
+# wheel is there in the index.
 COPY --from=ghcr.io/astral-sh/uv:0.12.5 /uv /uvx /usr/local/bin/
 
 ENV UV_LINK_MODE=copy \
