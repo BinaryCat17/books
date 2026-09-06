@@ -1,52 +1,51 @@
-"""Сколько на самом деле стоит прогон, и какой оффер выбрать.
+"""What a run really costs, and which offer to take.
 
-Ранжировать по $/час неправильно, и обе причины измерены, а не выведены из
-общих соображений:
+Ranking by $/hour is wrong, for two measured reasons:
 
-1. **Холодный старт стоит денег.** Он идёт по двум разным каналам, и они
-   отличаются на порядок: образ едет через docker, всё остальное — мимо.
-2. **Трафик стоит денег.** Проверено по 41 офферу RTX 4090: цена входящего
-   трафика ненулевая у всех, от $0.4 до $29.3 за ТБ при медиане $2.7.
-   На дорогом хосте доставка окружения стоит больше, чем сам счёт за работу.
+1. **A cold start costs money**, and it runs over two channels an order of
+   magnitude apart: the image goes through docker, everything else past it.
+2. **Traffic costs money.** Over 41 RTX 4090 offers the price of inbound
+   traffic was non-zero on every one, $0.4 to $29.3 per TB, median $2.7. On an
+   expensive host, delivering the environment costs more than the work does.
 """
 from dataclasses import dataclass
 
-# --------------------------------------------------------------- через docker
-# Три слоя одновременно, внутри слоя одно HTTP-соединение, и реестр режет
-# соединение до ~25 Мбит/с.  Замер: 6.02 ГБ ехали 10.7 минуты на машине с
-# каналом 1518 Мбит/с — 76 Мбит/с, пять процентов линка.
+# ------------------------------------------------------------ through docker
+# Three layers at once, one HTTP connection inside a layer, and the registry
+# caps it near 25 Mbit/s. Measured: 6.02 GB in 10.7 minutes on a machine with a
+# 1518 Mbit/s channel -- 76 Mbit/s, five per cent of the link.
 DOCKER_EFFICIENCY = 0.05
 DOCKER_CEILING_MBPS = 120.0
 
-# Распаковка: gzip внутри слоя однопоточный, и слои накладываются строго по
-# одному, поверх предыдущего.  Замер на том же образе: после "Download
-# complete" прошло ещё девять минут, то есть 11 МБ/с по сжатому входу.  Диск
-# (8166 МБ/с NVMe) тут ни при чём — упирается в единственный поток gzip.
+# Unpacking: gzip inside a layer is single-threaded, and layers are applied
+# strictly one after another. Measured on the same image: nine more minutes
+# after "Download complete", i.e. 11 MB/s of compressed input. The disk (8166
+# MB/s NVMe) has nothing to do with it -- the single gzip thread is the wall.
 UNPACK_MBPS = 11.0
 
-# ------------------------------------------------------------- мимо docker
-# uv и hf открывают десятки соединений и насыщают канал целиком.  Замер:
-# машина с заявленными 639 Мбит/с приняла ~7 ГБ за 82 с ≈ 700 Мбит/с.
-# Ставим 0.85 — с запасом на машины, где заявленное завышено.
+# --------------------------------------------------------------- past docker
+# uv and hf open dozens of connections and saturate the link. Measured: a
+# machine advertising 639 Mbit/s took ~7 GB in 82 s, about 700 Mbit/s. We use
+# 0.85, leaving room for hosts whose advertised figure is optimistic.
 #
-# Распаковка колёс здесь отдельно не считается: uv разжимает их на всех
-# ядрах параллельно с выкачиванием, и в те же 82 секунды она уложилась.
+# Unpacking wheels is not counted separately: uv decompresses on every core
+# while still downloading, and it fitted inside those same 82 seconds.
 PAYLOAD_EFFICIENCY = 0.85
 
-BOOT_SECONDS = 95.0            # аренда -> ssh: vast достраивает образ своим ssh
+BOOT_SECONDS = 95.0            # rent -> ssh: vast adds its own ssh to the image
 
-# ----------------------------------------------------------------- прогрев
-# Поднять vLLM — это импорты, torch.compile и прогрев модели, то есть работа
-# процессора, а не карты.  Разброс между хостами шестикратный: 65 с на Ryzen
-# 7800X3D (5.0 ГГц) против 374 с на машине, где частота была ниже.  Ни канал,
-# ни диск этого не объясняют — оба замера сняты на RTX 4090.
+# -------------------------------------------------------------------- warmup
+# Bringing vLLM up is imports, torch.compile and a model warmup -- processor
+# work, not card work. The spread between hosts is sixfold: 65 s on a Ryzen
+# 7800X3D (5.0 GHz) against 374 s where the clock was lower. Neither link nor
+# disk explains it; both were measured on an RTX 4090.
 #
-# Модель нарочно грубая, обратно пропорциональная частоте, и опирается пока
-# на одну надёжную точку.  Её место — в ранжировании, а не в фильтре: это
-# размен (более быстрый процессор дороже примерно на $0.06/час, а экономит
-# до пяти минут старта), и решать его должен расчёт полной стоимости.
-# Время старта пишется в журнал, чтобы коэффициент можно было подогнать.
-WARMUP_REF_GHZ = 5.0           # на этой частоте
+# The model is deliberately crude, inverse in the clock, and rests on one
+# reliable point. It belongs in the RANKING, not in a filter: this is a trade
+# (a faster processor costs about $0.06/hour more and saves up to five minutes
+# of start), and the full-cost arithmetic is what should settle it. Start time
+# goes into the ledger so the coefficient can be fitted.
+WARMUP_REF_GHZ = 5.0           # the clock the figure above was measured at
 
 
 @dataclass
@@ -82,7 +81,7 @@ def estimate(offer: dict, image_gb: float, minutes: float,
     compute_s = minutes * 60
     rent = float(offer["dph_total"]) * (setup_s + compute_s) / 3600
 
-    # `internet_down_cost_per_tb` — цена за терабайт; байты едут один раз.
+    # `internet_down_cost_per_tb` is per terabyte; the bytes travel once.
     per_tb = float(offer.get("internet_down_cost_per_tb") or 0)
     traffic = (image_gb + payload_gb) / 1024 * per_tb
     return Estimate(setup_s, compute_s, rent, traffic)
@@ -90,7 +89,7 @@ def estimate(offer: dict, image_gb: float, minutes: float,
 
 def rank(offers: list[dict], image_gb: float, minutes: float,
          payload_gb: float = 0.0, warmup_s: float = 0.0, **kw) -> list[dict]:
-    """Офферы по возрастанию полной стоимости прогона, с полем `_est`."""
+    """Offers by ascending FULL cost of the run, each with an `_est` field."""
     out = []
     for o in offers:
         e = estimate(o, image_gb, minutes, payload_gb, warmup_s, **kw)
@@ -100,14 +99,16 @@ def rank(offers: list[dict], image_gb: float, minutes: float,
 
 def describe(offer: dict) -> str:
     e = offer["_est"]
-    # .get(k, 0) не спасает: ключ есть, а значение None — формат падает.
+    # `.get(k, 0)` does not save us: the key exists and the value is None,
+    # and the format then throws.
     down = float(offer.get("inet_down") or 0)
     disk = float(offer.get("disk_bw") or 0)
-    return (f"#{offer['id']}  ${offer['dph_total']:.3f}/час  "
-            f"{down:.0f} Мбит  "
-            f"{disk:.0f} МБ/с диск  "
-            f"{float(offer.get('cpu_ghz') or 0):.1f}ГГц  "
-            f"${float(offer.get('internet_down_cost_per_tb') or 0):.1f}/ТБ  "
-            f"старт~{e.setup_s/60:.1f}мин  "
-            f"=> ${e.total_usd:.3f} (аренда {e.rent_usd:.3f} + трафик {e.traffic_usd:.3f})  "
-            f"машина {offer.get('machine_id')}")
+    return (f"#{offer['id']}  ${offer['dph_total']:.3f}/hour  "
+            f"{down:.0f} Mbit  "
+            f"{disk:.0f} MB/s disk  "
+            f"{float(offer.get('cpu_ghz') or 0):.1f}GHz  "
+            f"${float(offer.get('internet_down_cost_per_tb') or 0):.1f}/TB  "
+            f"start~{e.setup_s/60:.1f}min  "
+            f"=> ${e.total_usd:.3f} (rent {e.rent_usd:.3f} + traffic "
+            f"{e.traffic_usd:.3f})  "
+            f"machine {offer.get('machine_id')}")
