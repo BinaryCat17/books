@@ -1,13 +1,13 @@
-# Закреплённые версии ВСЕГО дерева, включая транзитивные.  Ставится именно
-# этот файл, а не requirements.in: иначе разрешение зависимостей происходит
-# на арендованной машине во время прогона, и новый релиз любой из двух сотен
-# зависимостей роняет книгу на середине, на оплачиваемой карте.
+# Pinned versions of the WHOLE tree, transitive ones included. This is the
+# file that gets installed, not requirements.in: otherwise dependency
+# resolution happens on a rented machine during a run, and a fresh release of
+# any of two hundred dependencies drops the book halfway, on a card that bills.
 #
-# Собирать ТОЙ ЖЕ версией uv, что лежит в образе (infra/base/Dockerfile):
-# 0.9.7 не знает про torchcodec в индексе pytorch и не ставит список,
-# собранный 0.12.5.
+# Build with THE SAME version of uv that is in the image
+# (infra/base/Dockerfile): 0.9.7 does not know about torchcodec in the pytorch
+# index and will not install a list built by 0.12.5.
 #
-# Пересобрать (драйвер не нужен, cu130 задан явно):
+# To rebuild (no driver needed, cu130 is given explicitly):
 #   uv pip compile src/booksmith/models/paddleocr_vl/requirements.in \
 #       --torch-backend=cu130 --python-version 3.12 \
 #       --python-platform x86_64-unknown-linux-gnu \

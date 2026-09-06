@@ -1,21 +1,21 @@
 [project]
 name = "booksmith"
 version = "0.2.0"
-description = "Сканы технических книг -> HTML, локально и на арендованных GPU"
+description = "Scans of technical books -> HTML, locally and on rented GPUs"
 requires-python = ">=3.10"
 dependencies = [
-    # pymupdf — растр страницы и разрез разворотов (djvu.py).
-    # vastai — единственный клиент аренды (remote/vast.py).
-    # requests и pillow сняты: приехали с движками Mistral и pdf_layer,
-    # после их удаления не импортируются нигде; HTTP в живом коде идёт
-    # через urllib из стандартной поставки.
+    # pymupdf -- page raster and spread cutting (djvu.py).
+    # vastai -- the only rental client (remote/vast.py).
+    # requests and pillow were dropped: they came with the Mistral and
+    # pdf_layer engines and are imported nowhere since those were deleted.
+    # HTTP in live code goes through urllib from the standard library.
     "pymupdf>=1.24",
     "vastai>=1.5.5",
 ]
 
-# Детекция макета местно, на процессоре: `books detect`.  Отдельным набором,
-# а не в основных зависимостях, потому что аренде и `books prepare` они не
-# нужны, а onnxruntime с opencv весят под полгигабайта.
+# Layout detection locally, on the CPU: `books detect`. A separate extra
+# rather than a core dependency, because renting and `books prepare` do not
+# need them, and onnxruntime with opencv weigh close to half a gigabyte.
 #   pip install -e ".[detect]"
 [project.optional-dependencies]
 detect = [
@@ -25,25 +25,26 @@ detect = [
     "pyyaml>=6.0",
 ]
 
-# Вендорский конвейер docling поверх рамок heron и egret — ручка
-# `DOCLING_PIPELINE`.  Отдельным набором по той же причине, что и detect:
-# без ручки адаптер обязан считать и БЕЗ этого пакета, а с ручкой и без
-# пакета — падать вслух и называть вот эту строку установки.
-#   pip install -e ".[docling]"     # или: uv pip install "docling-slim==..." rtree
-# ЦЕНА ЧИСЛОМ: 25 колёс, +54 МБ к окружению (510 -> 570 МБ, замерено du -sb:
-# 515238976 -> 571366772 байт). Torch среди них
-# нет — потому и `docling-slim`, а не `docling`: полная поставка тянет движки
-# разбора (torch, transformers, easyocr) на несколько гигабайт, а нам нужны
-# ровно два файла чистого питона над рамками:
-# `docling/utils/layout_postprocessor.py` и
+# The vendor docling pipeline over heron and egret boxes -- knob
+# `DOCLING_PIPELINE`. A separate extra for the same reason as detect: with the
+# knob off the adapter must run WITHOUT this package, and with the knob on and
+# the package missing it must fail aloud and name this install line.
+#   pip install -e ".[docling]"     # or: uv pip install "docling-slim==..." rtree
+# THE PRICE AS A NUMBER: 25 wheels, +54 MB to the environment (510 -> 570 MB,
+# measured with du -sb: 515238976 -> 571366772 bytes). No torch among them --
+# hence `docling-slim` and not `docling`: the full distribution pulls parsing
+# engines (torch, transformers, easyocr) running to gigabytes, and what we need
+# is exactly two files of pure python over the boxes:
+# `docling/utils/layout_postprocessor.py` and
 # `docling/models/postprocessing/reading_order_rb.py`.
-# `rtree` не украшение и не транзитивная зависимость: постобработчик строит по
-# рамкам R-дерево (`docling/datamodel/spatial.py`), и без этого колеса импорт
-# `layout_postprocessor` падает на первой же странице.
-# Версия ЗАКОЛОЧЕНА точкой, а не диапазоном: оба файла — это правила, и правка
-# правила у вендора молча сменила бы наши рамки и наш порядок. Разойдётся
-# версия — разойдётся и sha256 обоих файлов в отпечатке, но заметить это можно
-# будет только задним числом, а закол ловит заранее.
+# `rtree` is neither decoration nor a transitive dependency: the
+# postprocessor builds an R-tree over the boxes
+# (`docling/datamodel/spatial.py`), and without that wheel importing
+# `layout_postprocessor` fails on the first page.
+# The version is PINNED to a point, not a range: both files are rules, and an
+# edit to a rule at the vendor would silently change our boxes and our order.
+# A version drift would show up as a drift in the sha256 of both files in the
+# fingerprint -- but only after the fact, and a pin catches it before.
 docling = [
     "docling-slim==2.123.1",
     "rtree>=1.3",

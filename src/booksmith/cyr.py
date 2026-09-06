@@ -209,13 +209,19 @@ def count():
             continue
         text = open(os.path.join(ROOT, rel), encoding="utf-8").read()
         n = cyr(text)
-        if not n:
-            continue
-        if rel.endswith(".md"):
+        # NO `if not n: continue` HERE. A file that has just been translated
+        # to zero Cyrillic would drop out of the walk entirely, taking its
+        # Latin with it -- so the companion count FALLS exactly when a file is
+        # finished, and `test_prose_was_translated_not_deleted` fires on
+        # completed work. Measured: translating five config files moved
+        # `config` by -3045 and `config.latin` by -11 618, because `uv.lock`
+        # and the pinned constraints stopped being counted at all.
+        if any(rel.startswith(d) for d in DATA_PREFIXES):
+            if n:
+                c["bench_data"] += n
+        elif rel.endswith(".md"):
             c["docs"] += n
             c["docs.latin"] += latin(text)
-        elif any(rel.startswith(d) for d in DATA_PREFIXES):
-            c["bench_data"] += n
         else:
             c["config"] += n
             c["config.latin"] += latin(text)

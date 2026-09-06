@@ -1774,6 +1774,12 @@ def _latin_is_not_counted(s):
     return 0
 
 
+def _counter_that_skips_finished_files(s):
+    """Latin counted as zero -- the shape the walk had when a file that was
+    fully translated dropped out of it and took its Latin along."""
+    return 0
+
+
 def _baseline_of_deleted_prose():
     """A baseline that says 40 000 Cyrillic characters left and no English came.
 
@@ -3234,6 +3240,11 @@ def mutations():
 
         ("only the cyrillic side of the prose is counted",
          lambda: attrs(cyrmod, latin=_latin_is_not_counted),
+         [("test_cyrillic_ratchet",
+           "test_the_counter_counts_codepoints_not_lines")]),
+
+        ("the latin companion is not counted for finished files",
+         lambda: attrs(cyrmod, latin=_counter_that_skips_finished_files),
          [("test_cyrillic_ratchet",
            "test_the_counter_counts_codepoints_not_lines")]),
 

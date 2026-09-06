@@ -1,14 +1,14 @@
 name: build base image
 
-# Образ-прихожая: sshd и ничего больше.  Меняется примерно никогда, поэтому
-# собирается отдельно от полезной нагрузки — и поэтому же на большинстве
-# машин vast он уже лежит в кеше docker к моменту аренды.
+# The hallway image: sshd and nothing else. It changes almost never, so it is
+# built apart from the payload -- and for the same reason it is already in the
+# docker cache on most vast machines by the time we rent one.
 
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "тег образа; по умолчанию — короткий SHA коммита"
+        description: "image tag; defaults to the short commit SHA"
         default: ""
 
 env:
@@ -23,11 +23,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Тег обязан меняться с каждой сборкой: vast достраивает наш образ своим
-      # слоем с ssh и кеширует результат на машине под именем <образ>/ssh.
-      # При неизменном `latest` на машине остаётся достройка от старой базы,
-      # и правки в образе просто не доезжают.
-      - name: имя образа
+      # The tag must change with every build: vast extends our image with an
+      # ssh layer of its own and caches the result on the machine as
+      # <image>/ssh. With `latest` unchanged, the machine keeps the extension
+      # built over the OLD base, and edits to the image simply never arrive.
+      - name: image name
         id: img
         run: |
           OWNER=$(echo "${{ github.repository_owner }}" | tr 'A-Z' 'a-z')
@@ -53,9 +53,9 @@ jobs:
           cache-to: type=gha,mode=max
           provenance: false
 
-      # Смысл этого образа — быть маленьким.  Если он однажды распухнет,
-      # это должно быть видно в логе сборки, а не на арендованной машине.
-      - name: размер
+      # The point of this image is to be small. If it ever swells, that must
+      # show in the build log, not on a rented machine.
+      - name: size
         run: |
           IMG=${{ steps.img.outputs.ref }}
           docker buildx imagetools inspect "$IMG" --raw > /tmp/m.json
@@ -65,16 +65,17 @@ jobs:
           ls = m['layers']
           tot = sum(l['size'] for l in ls)
           for l in ls:
-              print(f"  {l['size']/2**20:7.1f} МБ")
-          print(f"{len(ls)} слоёв, всего {tot/2**20:.0f} МБ")
-          # Три потока по ~25 Мбит/с = 76 Мбит/с; 150 МБ по ним едут ~16 с.
-          print(f"выкачивание на vast ~{tot*8/2**20/76:.0f} с")
-          # Порог с запасом: gcc с заголовками libc — это уже под сотню
-          # мегабайт, и меньше не будет, пока triton компилирует ядра сам.
-          assert tot < 250*2**20, "прихожая распухла — что-то попало в образ зря"
+              print(f"  {l['size']/2**20:7.1f} MB")
+          print(f"{len(ls)} layers, {tot/2**20:.0f} MB in all")
+          # Three streams at ~25 Mbit/s = 76 Mbit/s; 150 MB take ~16 s.
+          print(f"pull on vast ~{tot*8/2**20/76:.0f} s")
+          # The threshold has slack: gcc with the libc headers is already close
+          # to a hundred megabytes, and it will not shrink while triton
+          # compiles its own kernels.
+          assert tot < 250*2**20, "the hallway swelled -- something got in"
           PY
 
-      - name: что прописать в задаче
+      - name: what to put in the job
         run: |
           echo "BASE_IMAGE = \"${{ steps.img.outputs.ref }}\""
           echo "  (src/booksmith/models/paddleocr_vl/__init__.py)"

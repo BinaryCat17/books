@@ -1,12 +1,12 @@
-# Верхнеуровневые зависимости. Это ВХОД для пересборки constraints.txt —
-# ставится на машине именно constraints.txt, см. его шапку.
+# Top-level dependencies. This is the INPUT for rebuilding constraints.txt --
+# what gets installed on the machine is constraints.txt; see its header.
 #
-# Закрепление обязательно по двум причинам сразу. Первая: без него разрешение
-# зависимостей происходит на арендованной машине во время прогона. Вторая
-# осталась от эпохи слоёв — установка по частям без закрепления означала, что
-# следующая часть сносит предыдущую: torch удалил поставленные до него
-# библиотеки CUDA и скачал свои, а удалённые файлы остались лежать в нижнем
-# слое мёртвым грузом на 1.48 ГБ.
+# Pinning is mandatory for two reasons at once. First: without it, dependency
+# resolution happens on a rented machine during a run. The second is left from
+# the era of layers -- installing in parts without pinning meant each part
+# demolished the previous one: torch deleted the CUDA libraries installed
+# before it and downloaded its own, and the deleted files stayed in the lower
+# layer as 1.48 GB of dead weight.
 vllm==0.27.1
 torch==2.13.0
 paddlepaddle==3.3.1
