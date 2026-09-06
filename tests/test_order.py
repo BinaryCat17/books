@@ -1,17 +1,17 @@
-"""Порядок сборки книги: одно правило на проект, и оно обязано быть одним.
+"""The book assembly order: one rule for the project, and it must be one.
 
-ЗАЧЕМ ЭТОТ ФАЙЛ. Правило жило в ЧЕТЫРЁХ местах трёх адаптеров, и в двух из
-них сортировало НЕ ТЕМ ключом, что объявляло: `docling_heron` клал в `meta`
-«наш, сверху вниз и слева направо», а сортировал `(round(y/20), x)` —
-корзинами по двадцать пикселей растра. Заметить это можно было только чтением
-всех четырёх мест сразу; ни одна из 169 проверок этого не видела.
+WHY THIS FILE. The rule lived in FOUR places of three adapters, and in two of
+them sorted by a key it did not declare: `docling_heron` put "ours, top down
+and left to right" into `meta` while sorting `(round(y/20), x)` -- buckets of
+twenty raster pixels. Seeing it took reading all four places at once; not one
+of the 169 checks saw it.
 
-Замер, которым правило выбрано (шапка `order.py`): одни и те же рамки V2, 600
-страниц золотого стенда, три перестановки, один `books score` — наше правило
-2471 лишний прыжок, ранг модели 501, правила docling 439; по 16 точкам
-развёртки наше хуже обоих УСТОЙЧИВО (пределы 3.02..7.04 против 0.23..1.73 и
-0.28..1.57, не пересекаются), а docling против ранга V2 прибор НЕ различает
-(пара перевёрнута, разница 0.13 при размахе линейки 4.02).
+The measurement that chose the rule (`order.py` header): the same V2 boxes,
+600 golden pages, three permutations, one `books score` -- our rule 2471 extra
+jumps, the model rank 501, the docling rules 439. Over 16 sweep points ours is
+worse than both STABLY (bounds 3.02..7.04 against 0.23..1.73 and 0.28..1.57,
+not overlapping), while docling against the V2 rank the instrument CANNOT TELL
+APART (the pair inverts, difference 0.13 against a ruler span of 4.02).
 """
 import ast
 
@@ -21,12 +21,12 @@ from booksmith import order, policy
 
 
 def test_every_dictionary_has_a_translation():
-    """У КАЖДОЙ политики есть перевод ярлыков, и лишних переводов нет.
+    """EVERY policy has a label translation, and no translation is spare.
 
-    Сговор между двумя словарями, и ровно на нём проект уже терял: реестр
-    ручек против сборщика задания разошлись на 13 имён из 17. Заведи кто-то
-    шестую политику — `ASSEMBLY_ORDER=docling` упал бы на ней при первом же
-    платном прогоне, а не здесь за миллисекунду.
+    An agreement between two dictionaries, and the project has lost on just
+    that: the knob registry and the task builder diverged on 13 names of 17.
+    Start a sixth policy and `ASSEMBLY_ORDER=docling` would fall on it at the
+    first paid run, not here in a millisecond.
     """
     have, want = set(order._LABELS), set(policy.POLICIES)
     assert have == want, (
@@ -35,11 +35,10 @@ def test_every_dictionary_has_a_translation():
 
 
 def test_translations_name_only_labels_the_rules_look_at():
-    """Перевод целит в ВОСЕМЬ имён, на которые правила вообще смотрят.
+    """The translation aims at the EIGHT names the rules look at at all.
 
-    Девятое имя не сломает прогон вслух — оно просто не сработает, и
-    колонтитул уедет в тело страницы молча. Список снят разбором самого
-    `reading_order_rb.py`.
+    A ninth would not fire, silently, and a running head would drift into the
+    body. The list was taken by reading `reading_order_rb.py` itself.
     """
     eight = {"caption", "code", "footnote", "page_footer", "page_header",
              "picture", "table", "text"}
@@ -50,10 +49,10 @@ def test_translations_name_only_labels_the_rules_look_at():
 
 
 def test_translations_use_labels_that_exist():
-    """Переводится то, что модель ВПРАВДУ отдаёт, а не выдуманное имя.
+    """What is translated is what the model REALLY returns, not a made-up name.
 
-    Опечатка в ключе — молчаливый ноль: правило не найдёт ярлык, объект
-    поедет как текст, и никто не узнает.
+    A typo in a key is a silent zero: the label is missed, the object travels
+    as text, and nobody learns of it.
     """
     for name, tr in order._LABELS.items():
         bad = set(tr) - set(policy.POLICIES[name])
@@ -63,11 +62,10 @@ def test_translations_use_labels_that_exist():
 
 
 def test_ours_needs_neither_labels_nor_docling():
-    """Правило `ours` смотрит на одни координаты — ни ярлыков, ни пакета.
+    """`ours` looks at coordinates alone -- no labels, no package.
 
-    Умеет провалиться: заставьте `cover` спрашивать политику всегда, и
-    подставной словарь из одного ярлыка уронит прогон на правиле, которое
-    ярлыков и не касается.
+    Able to fail: make `cover` always ask the policy, and a fake dictionary of
+    one label will break a rule that never touches labels.
     """
     assert order.cover(["никакой такой политики нет"], "ours") is None
     boxes = [(10, 300, 90, 380), (10, 10, 90, 90), (200, 10, 280, 90)]
@@ -76,11 +74,11 @@ def test_ours_needs_neither_labels_nor_docling():
 
 
 def test_docling_returns_a_permutation_and_touches_no_box():
-    """Правила docling ПЕРЕСТАВЛЯЮТ, а не правят: набор рамок тот же.
+    """The docling rules PERMUTE, they do not edit: the same set of boxes.
 
-    Проверка существа, а не выхода: правила разводят колонтитулы и тело по
-    трём спискам и сшивают обратно; потеряйся там элемент — рамка исчезла бы
-    из книги молча, а число рамок «после» выглядело бы просто чуть меньшим.
+    A check of substance, not of output: the rules split running heads and
+    body into three lists and sew them back; lose an element there and a box
+    vanishes from the book silently, the count "after" merely looking smaller.
     """
     try:
         import docling  # noqa: F401
@@ -96,10 +94,10 @@ def test_docling_returns_a_permutation_and_touches_no_box():
 
 
 def test_an_unknown_rule_dies_loudly():
-    """Незнакомое значение ручки роняет прогон, а не молчит.
+    """An unknown knob value kills the run instead of keeping quiet.
 
-    Перепутанное имя перемешало бы абзацы, а рамки остались бы теми же — ни
-    одна метрика рамок этого не заметила бы.
+    A muddled name would shuffle the paragraphs, the boxes staying the same
+    -- no box metric would notice.
     """
     import os
     was = os.environ.get("ASSEMBLY_ORDER")
@@ -118,12 +116,12 @@ def test_an_unknown_rule_dies_loudly():
 
 
 def test_no_adapter_sorts_by_itself_any_more():
-    """НИ ОДИН адаптер не сортирует своим ключом. Правило одно.
+    """NOT ONE adapter sorts by a key of its own. The rule is one.
 
-    Разбором исходника, а не прогоном: поднять три модели значит поднять
-    полгигабайта весов, а договор надо проверять на каждом изменении.
+    By source, not by running: three models mean half a gigabyte of weights,
+    and the agreement must be checked on every change.
 
-    Умеет провалиться: верните `kept.sort(key=…)` в любой адаптер.
+    Able to fail: put `kept.sort(key=…)` back into any adapter.
     """
     seen = {}
     for rel in ("models/doclayout.py", "models/yolox_layout.py",
@@ -136,10 +134,10 @@ def test_no_adapter_sorts_by_itself_any_more():
                     and any(k.arg == "key" for k in node.keywords)):
                 bad.append(node.lineno)
         seen[rel] = bad
-    # У `doclayout` законна ОДНА сортировка — по РАНГУ САМОЙ МОДЕЛИ; это не
-    # наше правило, и в `order.py` ему не место. У `docling_heron` законна
-    # одна — НУМЕРАЦИЯ перед вендорским конвейером, `Cluster.id`, по нему
-    # вендор сшивает детей с обёрткой.
+    # `doclayout` is allowed ONE sort -- by the MODEL'S OWN RANK; that is not
+    # our rule and has no place in `order.py`. `docling_heron` is allowed one
+    # -- the NUMBERING before the vendor pipeline, `Cluster.id`, by which the
+    # vendor sews children to their wrapper.
     assert len(seen["models/doclayout.py"]) == 1, (
         f"в doclayout сортировок с ключом {len(seen['models/doclayout.py'])}, "
         f"а законна одна — по рангу модели: {seen['models/doclayout.py']}")
@@ -153,24 +151,23 @@ def test_no_adapter_sorts_by_itself_any_more():
 
 
 def test_the_ruler_measures_the_same_rule_the_book_is_built_with():
-    """Прибор спрашивает правило «наш» У `order.py`, а не повторяет его.
+    """The instrument ASKS `order.py` for the rule "ours", not repeats it.
 
-    ЧЕМ ЭТО ОПЛАЧЕНО. `metrics._by_reading` держал вторую копию —
-    `sorted(key=(box[1], box[0]))` — и докстроку «тот самый порядок, который
-    адаптеры объявляют словом „наш"». Ключи совпадали, `metrics` не
-    импортировал `order` вовсе, и НИ ОДНА проверка их не связывала. А на этом
-    сборщике снят главный вывод проекта: «наше правило замерено и проиграло»,
-    2471 лишний прыжок против 501 у ранга модели и 439 у правил docling.
-    Правка `order.permutation` оставила бы прибор мерить ПРЕЖНЕЕ правило и
-    называть его нынешним — то есть развернула бы вывод, не тронув ни одной
-    строки прибора.
+    WHAT PAID FOR IT. `metrics._by_reading` held a second copy --
+    `sorted(key=(box[1], box[0]))` -- and a docstring "the very order the
+    adapters declare by the word `ours`". The keys agreed, `metrics` did not
+    import `order` at all, and NOT ONE check tied them. Yet on that assembler
+    the project's main conclusion was taken: "our rule was measured and lost",
+    2471 extra jumps against 501 for the model rank and 439 for the docling
+    rules. Editing `order.permutation` would leave the instrument measuring
+    the FORMER rule and calling it the current one -- reversing the conclusion
+    without touching a line of the instrument.
 
-    Ровно за такое `order.py` и заведён: правило жило в четырёх местах трёх
-    адаптеров, и в двух сортировало `(round(y/20), x)`, объявляя в `meta`
-    «сверху вниз и слева направо».
+    That is what `order.py` was made for -- see the file header.
 
-    Разбором исходника: сравнить ПОВЕДЕНИЕ двух правил мало — они совпадают
-    сегодня, потому и прожили копией. Проверять надо, что второго правила нет.
+    By source: comparing the BEHAVIOUR of two rules is not enough -- they
+    agree today, which is why they lived on as copies. What must be checked is
+    that a second rule does not exist.
     """
     t = support.tree("metrics.py")
     fn = next((n for n in ast.walk(t)

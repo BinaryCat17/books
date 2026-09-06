@@ -1,50 +1,50 @@
-"""Перевод OTSL в HTML: слияния модели доезжают до книги.
+"""OTSL into HTML: the model's merges reach the book.
 
-ЗАЧЕМ ЭТОТ ФАЙЛ ЗАВЕДЁН. `otsl.to_html` строит ВСЕ таблицы книги — на
-«Технологии огнеупоров» 104 из 104, сверено побайтово с `book.html`, — и не
-был покрыт НИ ОДНОЙ проверкой. Доказано порчей: подмена всей функции на
-заглушку `<table><tr><td>ТРУХА</td></tr></table>` оставляла батарею зелёной —
-202 проверки, 0 провалов, и 181 мутация тоже мимо. Функция, превращающая
-каждую таблицу книги в одно слово, не роняла ничего.
+WHY THIS FILE EXISTS. `otsl.to_html` builds EVERY table of the book -- 104 of
+104 on "Технология огнеупоров", compared byte for byte against `book.html` --
+and no check covered it. Proved by corruption: the function replaced whole by
+the stub `<table><tr><td>ТРУХА</td></tr></table>` left the battery green --
+202 checks, 0 failures, 181 mutations, none caught. A function turning every
+table of the book into one word broke nothing.
 
-ЧТО ПРОВЕРЯЕТСЯ ПО СУЩЕСТВУ. Модель объявляет слияние МЕТКОЙ (`<lcel>` —
-продолжение слева, `<ucel>` — сверху). Прежний перевод разворачивал их в
-повторы: 104 таблицы книги при `colspan` 0 и `rowspan` 0, хотя модель
-объявила 235 слитых клеток на 403 поглощённых адреса. Шапка «Годы» над шестью
-колонками печаталась шесть раз подряд.
+WHAT IS CHECKED IN SUBSTANCE. A merge is declared by a TAG (`<lcel>` continues
+the left neighbour, `<ucel>` the one above). The old translation expanded them
+into repeats: 104 tables at `colspan` 0 and `rowspan` 0, while the model had
+declared 235 merged cells over 403 absorbed addresses. The header «Годы» above
+six columns printed six times running.
 
-ГРАНИЦА, КОТОРУЮ ЭТИ ПРОВЕРКИ СТЕРЕГУТ С ДВУХ СТОРОН: слияние берётся из
-метки и только из неё. Догадка по совпадению текста соседей врала бы на 13
-таблицах из 62 этой книги — там одинаковые соседние ячейки стоят БЕЗ единого
-`<lcel>` («ⅢЛА-1,3» и «1,3» просто совпали).
+THE BORDER GUARDED HERE FROM BOTH SIDES: a merge comes from the tag and only
+from it. Guessing by equal neighbouring text would lie on 13 tables of the 62
+in this book, where equal neighbours stand without a single `<lcel>`
+(«ⅢЛА-1,3» and «1,3» merely coincided).
 """
 from booksmith import otsl
 
 
-# ------------------------------------------------------ слияния ---
+# ------------------------------------------------------- merges ---
 
 def test_declared_colspan_survives_the_translation():
-    """`<fcel>Годы` плюс пять `<lcel>` — это одна клетка на шесть столбцов.
+    """`<fcel>Годы` plus five `<lcel>` is one cell over six columns.
 
-    Вход взят из настоящей книги: `p0005-b2`, «Рост производства огнеупорных
-    материалов в СССР».
+    Input taken from the real book: `p0005-b2`, «Рост производства
+    огнеупорных материалов в СССР».
     """
     h = otsl.to_html("<fcel>Материалы<fcel>Годы<lcel><lcel><lcel><lcel><lcel>"
                      "<nl><ucel><fcel>1913<fcel>1931<fcel>1935<fcel>1940"
                      "<fcel>1945<fcel>1950<nl>")
     assert '<td colspan="6">Годы</td>' in h, h
     assert '<td rowspan="2">Материалы</td>' in h, h
-    # И ни одного повтора: «Годы» ровно один раз на всю таблицу.
+    # And not one repeat: «Годы» exactly once in the whole table.
     assert h.count("Годы") == 1, h
-    # Клеток стало меньше адресов ровно на поглощённые: 14 адресов, 8 клеток.
+    # Cells fewer than addresses by exactly the absorbed: 14 and 8.
     assert h.count("<td") == 8, h
 
 
 def test_span_chain_resolves_to_the_root_not_to_the_neighbour():
-    """Второй `<lcel>` опирается на первый, а через него — на корень.
+    """The second `<lcel>` leans on the first, and through it on the root.
 
-    Без прослеживания цепочки слияние из шести адресов распалось бы на пары,
-    и `colspan` вышел бы 2 вместо 6.
+    Without the chain a merge of six addresses would fall into pairs, and
+    `colspan` would come out 2 instead of 6.
     """
     h = otsl.to_html("<fcel>шапка<lcel><lcel><lcel><nl>"
                      "<fcel>1<fcel>2<fcel>3<fcel>4<nl>")
@@ -52,10 +52,9 @@ def test_span_chain_resolves_to_the_root_not_to_the_neighbour():
 
 
 def test_equal_neighbours_without_a_tag_are_not_merged():
-    """Две одинаковые клетки БЕЗ `<lcel>` остаются двумя клетками.
+    """Two equal cells WITHOUT `<lcel>` stay two cells.
 
-    Это и есть граница между меткой модели и нашей догадкой. Догадка по
-    равенству текста врала бы на 13 таблицах из 62 этой книги.
+    The border between the model's tag and our guess.
     """
     h = otsl.to_html("<fcel>1,3<fcel>1,3<nl><fcel>a<fcel>b<nl>")
     assert "colspan" not in h, h
@@ -63,23 +62,23 @@ def test_equal_neighbours_without_a_tag_are_not_merged():
 
 
 def test_header_cells_come_from_the_model_dictionary_not_from_the_row_number():
-    """`<th>` ставится по метке `<ched>`, а не по «первая строка — шапка».
+    """`<th>` comes from the `<ched>` tag, not from "row one is the header".
 
-    ОГОВОРКА: в «Технологии огнеупоров» шапочных меток нет ни одной —
-    перепись по всем 104 таблицам даёт fcel 5099, lcel 193, ucel 210,
-    ecel 164, nl 729 и ноль ched/rhed. Ветка написана по словарю
-    `docling_core`, а не по замеру этой книги.
+    CAVEAT: "Технология огнеупоров" holds not one header tag -- the census
+    over all 104 tables gives fcel 5099, lcel 193, ucel 210, ecel 164, nl 729
+    and zero ched/rhed. The branch follows the `docling_core` vocabulary, not
+    a measurement of this book.
     """
     h = otsl.to_html("<ched>шапка<lcel><nl><fcel>1<fcel>2<nl>")
     assert '<th colspan="2">шапка</th>' in h, h
-    # А обычная первая строка шапкой НЕ объявляется.
+    # And an ordinary first row is NOT declared a header.
     assert "<th" not in otsl.to_html("<fcel>a<fcel>b<nl><fcel>1<fcel>2<nl>")
 
 
 def test_no_cell_disappears_in_translation():
-    """Клеток на выходе столько же, сколько адресов минус поглощённые.
+    """As many cells out as addresses minus the absorbed ones.
 
-    Сторож против самой дорогой ошибки перевода — молчаливой потери столбца.
+    The guard against the costliest translation error: a lost column.
     """
     s = "<fcel>a<fcel>b<fcel>c<nl><fcel>1<lcel><fcel>3<nl>"
     g, _ = otsl.parse(s)
@@ -90,28 +89,29 @@ def test_no_cell_disappears_in_translation():
 
 
 def test_torn_span_is_left_flat_not_straightened():
-    """Непрямоугольное слияние печатается БЕЗ спана и считается числом.
+    """A non-rectangular merge prints WITHOUT a span and is counted instead.
 
-    Выпрямить его значило бы починить модель. Такой случай в книге есть —
-    один на 104 таблицы.
+    Straightening it would repair the model. The book has such a case, one in
+    104 tables.
     """
-    # `<ucel>` под правой половиной двухклеточной шапки и ничего под левой.
+    # `<ucel>` under the right half of a two-cell header, nothing under the
+    # left one.
     s = "<fcel>шапка<lcel><nl><fcel>левое<ucel><nl>"
     cs, t = otsl.layout(s)
     assert t["non_rectangular_merges"] == 1, t
     h = otsl.to_html(s)
-    # Клетка развёрнута, но НИ ОДИН адрес не потерян.
+    # The cell is expanded, but NOT ONE address is lost.
     assert h.count("<td") == 4, h
 
 
-# --------------------------------------------- договор с parse ---
+# ---------------------------------------------- contract with parse ---
 
 def test_parse_keeps_its_old_contract():
-    """`parse` по-прежнему отдаёт сетку с РАЗМНОЖЕННЫМ текстом сквозной клетки.
+    """`parse` still returns the grid with a spanning cell's text REPEATED.
 
-    От этого зависит прибор чтения (`books text`): без размножения шапка
-    сравнивалась бы с пустотой и «падала» по другой причине, чем объявлено.
-    Перевод в HTML эту сетку не трогает — он берёт свою, из `layout`.
+    The reading instrument (`books text`) depends on it: without the repeat a
+    header would be compared against emptiness and "fail" for a reason other
+    than declared. The HTML translation takes its own grid, from `layout`.
     """
     g, t = otsl.parse("<ched>шапка<lcel><nl><fcel>1<fcel>2<nl>")
     assert g[(0, 0)] == g[(0, 1)] == "шапка"
@@ -119,17 +119,16 @@ def test_parse_keeps_its_old_contract():
 
 
 def test_not_a_table_is_empty_string_not_a_broken_tag():
-    """Проза даёт пустую строку, а не `<table></table>`."""
+    """Prose gives an empty string, not `<table></table>`."""
     assert otsl.to_html("просто проза") == ""
     assert otsl.to_html("") == ""
 
 
 def test_one_walk_serves_both_readers():
-    """`parse` и `layout` разбирают теги ОДНИМ обходом.
+    """`parse` and `layout` read the tags in ONE walk.
 
-    Расхождение двух копий одного правила — беда, за которую проект уже
-    платил. Проверяется по исходнику: разбирать теги имеет право только
-    `_walk`.
+    Two copies of one rule drifting apart is a bill this project has paid.
+    Checked by source: only `_walk` may read tags.
     """
     import ast
 
@@ -147,40 +146,40 @@ def test_one_walk_serves_both_readers():
 
 
 def test_a_row_of_continuations_still_gets_its_row():
-    """Строка, СПЛОШЬ состоящая из продолжений, остаётся строкой таблицы.
+    """A row made ENTIRELY of continuations stays a row of the table.
 
-    Дефект был скрытым и оттого опасным. `<tr>` печатался на смене номера
-    строки при обходе КЛЕТОК, а у такой строки своих клеток нет — корни все
-    выше. Выходило два `<tr>` вместо трёх, адреса при этом не терялись, и
-    проверка на потерю клеток молчала: `<td>` ровно столько же. А в браузере
-    слоты под `rowspan` заняты, и следующая строка уезжает вправо — таблица
-    молча становится шире на число слитых столбцов.
+    Hidden, and dangerous for that. `<tr>` was printed on a change of row
+    number while walking CELLS, and such a row has no cells of its own -- the
+    roots are all above. Two `<tr>` came out instead of three, no address was
+    lost, and the check for lost cells kept quiet: exactly as many `<td>`. But
+    in a browser the `rowspan` slots are taken, the next row slides right --
+    the table silently grows by the merged columns.
 
-    Фаззинг: 2327 случаев из 40000 случайных OTSL. На «Технологии
-    огнеупоров» — ни одного (731 `<tr>` до правки и 731 после), то есть в
-    продукте дефект не сработал ни разу.
+    Fuzzing: 2327 cases out of 40000 random OTSL. On "Технология огнеупоров"
+    not one (731 `<tr>` before the fix and 731 after): in the product the
+    defect never fired.
     """
     h = otsl.to_html("<fcel>A<fcel>B<nl><ucel><ucel><nl><fcel>c<fcel>d<nl>")
     assert h.count("<tr>") == 3, h
-    # И `c` стоит в СВОЕЙ строке, а не в чужой.
+    # And `c` stands in ITS OWN row, not a foreign one.
     assert h.index("<td>c</td>") > h.index("</tr>"), h
 
 
 def test_an_empty_grid_row_is_not_swallowed():
-    """Пустая строка сетки (`<nl><nl>`) остаётся строкой.
+    """An empty grid row (`<nl><nl>`) stays a row.
 
-    Проглотить её значило бы молча подравнять рваный ответ — ровно то, за
-    что в шапке файла осуждён вендорский `otsl_pad_to_sqr_v2`.
+    Swallowing it would silently level a torn answer -- what the header of
+    `otsl.py` condemns the vendor's `otsl_pad_to_sqr_v2` for.
     """
     assert otsl.to_html("<fcel>a<nl><nl><fcel>b<nl>").count("<tr>") == 3
 
 
 def test_a_split_span_keeps_one_tag_for_all_its_addresses():
-    """Развёрнутое непрямоугольное слияние не становится наполовину шапкой.
+    """An expanded non-rectangular merge does not become half a header.
 
-    У продолжения своего тега нет, и подстановка нашего умолчания `fcel`
-    разрывала одну клетку модели пополам: `<th>шапка</th><td>шапка</td>`.
-    Тег берётся у КОРНЯ.
+    A continuation has no tag of its own, and substituting our `fcel` default
+    tore one model cell in two: `<th>шапка</th><td>шапка</td>`. The tag comes
+    from the ROOT.
     """
     h = otsl.to_html("<ched>шапка<lcel><nl><fcel>левое<ucel><nl>")
     assert h.count("<th>шапка</th>") == 3, h
@@ -188,11 +187,11 @@ def test_a_split_span_keeps_one_tag_for_all_its_addresses():
 
 
 def test_a_short_row_is_not_padded_out():
-    """Короткая строка НЕ добивается пустыми клетками.
+    """A short row is NOT padded out with empty cells.
 
-    Прежний перевод шёл по прямоугольнику и добивал; на книге таких добивок
-    было 11 на трёх таблицах. Выдумывать клетки, которых модель не прислала,
-    — та же починка модели, только с другой стороны.
+    The old translation walked a rectangle and padded; the book had 11 such
+    pads on three tables. Inventing cells the model never sent is the same
+    repair of the model, from the other side.
     """
     h = otsl.to_html("<fcel>a<fcel>b<fcel>c<nl><fcel>1<nl>")
     assert h.count("<td") == 4, h

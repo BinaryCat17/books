@@ -1,56 +1,56 @@
-"""Общее для проверок: где лежат исходники, разбор их деревом, пропуск вслух.
+"""Shared by the checks: where the sources are, source as a tree, loud skips.
 
-Проверки в этом каталоге закрепляют СГОВОРЫ МЕЖДУ ФАЙЛАМИ — места, где два
-файла договорились, а договор не записан нигде. Такое не ловится ни типами, ни
-чтением одного файла: слово «наш» в `models/*.py` решает, напечатает ли
-`metrics.py` процент или скажет НЕ СВЕРЯЕТСЯ, и оба файла по отдельности
-выглядят исправными.
+The checks here pin down AGREEMENTS BETWEEN FILES -- places where two files
+agreed and the agreement is written nowhere. Neither types nor reading one
+file catches that: the word "ours" in `models/*.py` decides whether
+`metrics.py` prints a percentage or says NOT COMPARED, and each file looks
+sound alone.
 
-Поэтому здесь есть разбор ИСХОДНИКА деревом. Он нужен там, где значение
-договора зашито в литерал внутри метода и достать его исполнением нельзя, не
-подняв модель на 214 МБ. Разбор видит ровно то, что увидит человек, а не то,
-что вернёт заглушка.
+Hence source read as a tree. It is needed where the value of an agreement is
+baked into a literal inside a method and cannot be had by running, short of
+raising 214 MB of model. The tree sees what a person sees, not what a stub
+returns.
 
-ПРОПУСК ОБЪЯВЛЯЕТСЯ ВСЛУХ И С ПРИЧИНОЙ. Ноль от проверки и ноль от
-непонимания — разные нули: бегун печатает пропуски отдельным числом, а не
-приписывает их к прошедшим.
+A SKIP IS DECLARED OUT LOUD AND WITH A REASON. A zero from a check and a zero
+from not understanding are different zeros: the runner prints skips as a
+separate number, not added to the passed.
 """
 import ast
 import os
 import sys
 
-# Каталог исходников. Отсюда, а не от cwd: иначе проверка из другого каталога
-# молча не нашла бы ни одного адаптера и была бы зелёной ни на чём.
+# The source directory. From here, not from cwd: otherwise a check run from
+# another directory would silently find no adapter and be green on nothing.
 SRC = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                    "src", "booksmith")
 
-# Ключ, по которому адаптер называет метрике ЧЕЙ порядок он отдал.
+# The key by which an adapter tells the metric WHOSE order it returned.
 ORDER_KEY = "reading_order"
 
 
 class Skip(Exception):
-    """Проверку выполнить нечем. Причина обязательна."""
+    """Nothing to run the check with. A reason is mandatory."""
 
 
-# Кто гоняет проверки. Ставит это САМ бегун (`tests/run.py` при запуске), а
-# не мы отсюда: спрашивать «импортируется ли pytest» вместо «гоняет ли он»
-# уже стоило прогона. Замер (подставной модуль `pytest` в `sys.modules`, тот
-# же договор, что у настоящего — `Skipped(BaseException)` и `skip()`):
-# до правки первый же пропуск под нашим бегуном уходил мимо ловушек
-# `run_case` и убивал прогон целиком — строка «проверок 111: прошло …» не
-# печаталась ВОВСЕ, то есть 110 прошедших проверок пропадали вместе с одним
-# пропуском. Сейчас pytest в `.venv` нет, и беда спит.
+# Who is running the checks. Set by the RUNNER itself (`tests/run.py` at
+# start), not from here: asking "is pytest importable" instead of "is it
+# running" has already cost a run. Measured (a fake `pytest` in `sys.modules`
+# with the real contract -- `Skipped(BaseException)` and `skip()`): before the
+# fix the first skip under our runner went past the `run_case` catches and
+# killed the whole run -- the line «проверок 111: прошло …» was not printed AT
+# ALL, so 110 passing checks vanished with one skip. There is no pytest in
+# `.venv` now, and the trouble sleeps.
 OWN_RUNNER = False
 
 
 def skip(reason: str):
-    """Пропуск с причиной. Под pytest — его же пропуск, чтобы бегун был любой.
+    """A skip with a reason. Under pytest -- its own, so any runner will do.
 
-    Выбор по ТОМУ, КТО ГОНЯЕТ, а не по тому, что установлено. Проверяются оба
-    признака сразу: наш бегун объявляет себя `OWN_RUNNER`, а pytest, если он
-    и правда работает, к этому мигу уже лежит в `sys.modules` — сам он себя
-    импортирует раньше любой проверки. Импорта pytest здесь больше нет: он-то
-    и превращал «pytest установлен» в «pytest гоняет».
+    The choice is by WHO IS RUNNING, not by what is installed. Both signs are
+    read at once: our runner declares itself in `OWN_RUNNER`, and pytest, if
+    it really works, is by now in `sys.modules` -- it imports itself before
+    any check. The pytest import is gone from here: it turned "pytest is
+    installed" into "pytest is running".
     """
     pt = sys.modules.get("pytest")
     if pt is not None and not OWN_RUNNER:
@@ -59,23 +59,23 @@ def skip(reason: str):
 
 
 def foreign_skip(e) -> bool:
-    """Пропуск, объявленный ЧУЖИМ бегуном: `pytest.skip()`.
+    """A skip declared by a FOREIGN runner: `pytest.skip()`.
 
-    Живёт РЯДОМ С `Skip`, а не в бегуне, потому что это одна и та же мысль:
-    что считать пропуском. Держать её в двух домах значило бы завести две
-    копии договора — те самые, что расходятся молча (сторож порядка чтения
-    уже разошёлся так регистром).
+    It lives NEXT TO `Skip`, not in the runner, because it is one thought:
+    what counts as a skip. Two homes mean two copies of one agreement -- the
+    kind that drift apart silently (the reading-order guard already drifted
+    so, by letter case).
 
-    Отдельная ветка нужна вот почему: `Skipped` у pytest наследует
-    BaseException, а не Exception, и мимо обычных ловушек бегуна он проходит
-    насквозь, УБИВАЯ прогон. Замер подставным модулем с тем же договором: под
-    нашим бегуном один пропуск — и строка «проверок 111: прошло 110, …» не
-    печаталась вовсе, код возврата 1 от трассы.
+    The separate branch is needed for this: pytest's `Skipped` inherits
+    BaseException, not Exception, and passes THROUGH the runner's ordinary
+    catches, KILLING the run. Measured with a fake module of the same
+    contract: under our runner one skip -- and the line «проверок 111: прошло
+    110, …» was not printed at all, exit code 1 from a traceback.
 
-    Тип берётся У САМОГО pytest, а не по имени класса: имя `Skipped` может
-    оказаться и у чужого исключения, и тогда провал уехал бы в пропуски.
-    Спрашиваются оба места, где pytest его держит: `pytest.skip.Exception`
-    (ставит декоратор `_with_exception`) и `pytest.Skipped`.
+    The type is taken FROM pytest, not by class name: `Skipped` may name a
+    foreign exception, and a failure would then travel into the skips. Both
+    places pytest keeps it are asked: `pytest.skip.Exception` (set by the
+    `_with_exception` decorator) and `pytest.Skipped`.
     """
     pt = sys.modules.get("pytest")
     if pt is None:
@@ -88,10 +88,10 @@ def foreign_skip(e) -> bool:
 
 
 class Unresolved(RuntimeError):
-    """Значение договора в исходнике есть, а вычислить его разбор не смог.
+    """The value is in the source, and the tree could not work it out.
 
-    Молчать тут нельзя: невычисленное значение — это НЕ «значений нет», и
-    выдать его за пустой набор значило бы отчитаться нулём от непонимания.
+    Silence is not allowed: an uncomputed value is NOT "no values", and
+    passing it off as an empty set would report a zero from not understanding.
     """
 
 
@@ -125,7 +125,7 @@ def _lookup(module, dotted: str):
 
 
 def _values(node, module) -> set:
-    """Во что может развернуться правая часть `"порядок чтения": …`."""
+    """What the right-hand side of `"reading_order": …` can expand into."""
     if isinstance(node, ast.Constant):
         return {node.value}
     if isinstance(node, ast.IfExp):
@@ -135,10 +135,10 @@ def _values(node, module) -> set:
         if isinstance(obj, dict):
             return set(obj.values())
         raise Unresolved(f"{_dotted(node.value)} — не словарь, а {type(obj)}")
-    # СКЛЕЙКА. `order.WORDS[which] + ": модель ранга не даёт"`: правило берётся
-    # из общего словаря, а хвост дописывает адаптер. Разворачиваем в
-    # произведение — каждое левое значение с каждым правым, — иначе сторож
-    # видел бы только половину строки и пропустил бы подмену второй.
+    # CONCATENATION. `order.WORDS[which] + ": the model gives no rank"`: the
+    # rule comes from the shared dictionary and the adapter appends the tail.
+    # Expanded into a product -- every left value with every right one --
+    # or the guard would see half the string and miss a swap of the other half.
     if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
         left, right = _values(node.left, module), _values(node.right, module)
         return {a + b for a in left for b in right}
@@ -148,12 +148,12 @@ def _values(node, module) -> set:
 
 
 def _walk_but_fingerprint(node):
-    """Всё дерево, кроме тел `fingerprint()`.
+    """The whole tree except the bodies of `fingerprint()`.
 
-    В отпечатке то же поле стоит с другими словами (`НАШ` с заглавной,
-    `None`), и это законно: отпечаток читает человек и слепок, а сторож
-    метрики читает meta СТРАНИЦЫ. Смешать их значило бы завести проверку на
-    договор, которого нет.
+    There the same field carries other values (`None` where a page's meta
+    carries words), lawfully: the fingerprint is read by a person and by the
+    snapshot, the metric's guard reads the meta of the PAGE. Mixing them would
+    check an agreement that does not exist.
     """
     if isinstance(node, ast.FunctionDef) and node.name == "fingerprint":
         return
@@ -163,11 +163,11 @@ def _walk_but_fingerprint(node):
 
 
 def page_order_values(rel: str, module) -> set:
-    """Все значения `meta["порядок чтения"]`, которые адаптер кладёт В СТРАНИЦУ.
+    """Every value of `meta["reading_order"]` an adapter puts INTO A PAGE.
 
-    Собирается из исходника, а не из прогона: чтобы получить их прогоном, надо
-    поднять три модели и посчитать по странице каждой, а договор надо
-    проверять за миллисекунды и на каждом изменении.
+    From the source, not from a run: by running one must raise three models
+    and detect a page with each, while the agreement is checked in
+    milliseconds, on every change.
     """
     out = set()
     for node in _walk_but_fingerprint(tree(rel)):
@@ -180,11 +180,11 @@ def page_order_values(rel: str, module) -> set:
 
 
 def meta_keys(rel: str, cls: str, method: str = "read") -> list:
-    """Порядок ключей в `meta=` у вызова `Page(...)` внутри метода.
+    """The order of keys in `meta=` at the `Page(...)` call inside a method.
 
-    Порядок здесь не косметика: при выключенной ручке страница обязана
-    выходить ПОБАЙТОВО той же, что до появления конвейера, а json пишет ключи
-    в порядке словаря. `**имя` возвращается строкой `**имя`.
+    Not cosmetics: with the knob off the page must come out BYTE FOR BYTE as
+    before the pipeline appeared, and json writes keys in dictionary order.
+    `**name` comes back as the string `**name`.
     """
     for node in ast.walk(tree(rel)):
         if not (isinstance(node, ast.ClassDef) and node.name == cls):

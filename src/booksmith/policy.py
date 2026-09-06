@@ -1,46 +1,42 @@
-"""Что первый уровень делает с блоком: текст, картинка или служебное.
+"""What level one does with a block: `text`, `artifact` or `furniture`.
 
-Это НАША политика, а не свойство модели, и потому она объявлена явно, целиком
-и уезжает в слепок. Число «артефактов 40» без неё истолковать нельзя, не
-открыв тот же коммит кода.
+OURS, not the model's, and so declared outright, whole, and carried into the
+snapshot: "40 artifacts" cannot be read back without it, short of opening the
+same commit.
 
-ПОЛИТИКА ПОЛНА ПО ПОСТРОЕНИЮ, И ЭТО ГЛАВНОЕ В ФАЙЛЕ. Ярлык, которого здесь
-нет, роняет прогон. Умолчания нет нарочно: в постобработке paddlex словарь
-порогов с одним классом молча ставил остальным 0.5, и «понизить порог таблиц»
-меняло поведение всех двадцати пяти. Тот же капкан ждёт и здесь — новая
-версия весов с двадцать шестым классом молча вылила бы его в прозу.
+THE POLICY IS COMPLETE BY CONSTRUCTION, AND THAT IS THE POINT OF THE FILE. A
+label absent from here fells the run. No default, deliberately: in the paddlex
+postprocessing a threshold dict holding one class silently gave the rest 0.5,
+so "lower the table threshold" changed the behaviour of all twenty-five. The
+same trap waits here: new weights with a twenty-sixth class would pour it into
+the prose without a word.
 
-ТРИ РАЗРЯДА, А НЕ ДВА.
-
-`артефакт` — вырезается картинкой и вставляется как есть. Разбирать его будет
-второй уровень, в изоляции от соседей.
-
-`текст` — остаётся текстом в потоке.
-
-`служебное` — колонтитулы, колонцифры, сноски. Формально текст, но в книгу,
-скорее всего, не нужны. Выбросить их СЕЙЧАС значит принять решение без
-замера, поэтому они помечаются и остаются: пометка стоит ничего, а
-восстановить выброшенное будет нечем. Решение примет стенд.
+THREE ROLES, NOT TWO. `artifact` is cut out as a picture and inserted as is;
+level two takes it apart, in isolation from its neighbours. `text` stays text
+in the flow. `furniture` -- running heads, folios, footnotes -- is formally
+text and most likely unwanted, but dropping it NOW is a decision without a
+measurement, so it is marked and kept: the mark costs nothing, the dropped
+could not be restored. The bench decides.
 """
 
-# ПОЛИТИК НЕСКОЛЬКО — по одной на СЛОВАРЬ ЯРЛЫКОВ. Пока детектор был один,
-# политика была одна, и вопрос «а не лучше ли другая модель» нельзя было даже
-# померить: чужой ярлык ронял прогон. Теперь словарь каждой модели объявлен
-# отдельно и целиком, а `ROLE` — их объединение с проверкой на противоречие:
-# один и тот же ярлык не может значить в двух словарях разное.
+# SEVERAL POLICIES -- one per LABEL VOCABULARY. With one detector the policy
+# was one, and "is another model better" could not even be measured: a foreign
+# label felled the run. Now each vocabulary is declared apart and whole, and
+# `ROLE` is their union with a contradiction check -- one label cannot mean
+# two things in two vocabularies.
 PP_DOCLAYOUT_V2 = {
-    # --- вырезается картинкой ------------------------------------------
+    # --- cut out as a picture ------------------------------------------
     "table": "artifact",
     "chart": "artifact",
     "image": "artifact",
-    # Формула блоком — картинка. На HTML она переводится плохо и не всегда,
-    # и решать это дело второго уровня, а не наше.
+    # A formula as a block is a picture. It goes to HTML badly and not always,
+    # and deciding that is level two's business, not ours.
     "display_formula": "artifact",
     "header_image": "artifact",
     "footer_image": "artifact",
     "seal": "artifact",
 
-    # --- остаётся текстом ----------------------------------------------
+    # --- stays text ----------------------------------------------------
     "abstract": "text",
     "algorithm": "text",
     "aside_text": "text",
@@ -52,14 +48,14 @@ PP_DOCLAYOUT_V2 = {
     "reference_content": "text",
     "text": "text",
     "vertical_text": "text",
-    # ОСТОРОЖНО, ПОГРАНИЧНЫЙ СЛУЧАЙ. Строчная формула живёт ВНУТРИ потока, и
-    # вырезать её картинкой значит разорвать предложение посередине. Поэтому
-    # текст — но с оговоркой: содержимое при этом теряется молча, а все
-    # числа контуров остаются идеальными. Первый кандидат на замер.
+    # CAREFUL, A BORDERLINE CASE. An inline formula lives INSIDE the flow, and
+    # cutting it out as a picture tears a sentence in half. So text -- with a
+    # caveat: the content is then lost silently while every contour number
+    # stays perfect. First candidate for a measurement.
     "inline_formula": "text",
     "formula_number": "text",
 
-    # --- служебное: помечается, но не выбрасывается ---------------------
+    # --- furniture: marked, not thrown away ------------------------------
     "header": "furniture",
     "footer": "furniture",
     "number": "furniture",
@@ -67,11 +63,10 @@ PP_DOCLAYOUT_V2 = {
     "vision_footnote": "furniture",
 }
 
-# DocLayNet — словарь, на котором обучены YOLO-детекторы макета (yolov10/11
-# doclaynet, DocLayout-YOLO). Одиннадцать классов против наших двадцати пяти:
-# формула тут одна на все виды, а порядка чтения эти модели не дают вовсе.
-# Объявлено ради ЗАМЕРА: сравнить архитектуры на одних страницах нельзя, пока
-# чужой ярлык роняет прогон.
+# DocLayNet -- the vocabulary the YOLO layout detectors are trained on
+# (yolov10/11 doclaynet, DocLayout-YOLO). Eleven classes against our
+# twenty-five: one formula here for every kind, and no reading order at all.
+# Declared so the architectures can be compared at all.
 DOCLAYNET = {
     "Table": "artifact",
     "Picture": "artifact",
@@ -86,11 +81,11 @@ DOCLAYNET = {
     "Footnote": "furniture",
 }
 
-# Docling heron/egret (IBM): семнадцать классов, RT-DETRv2 на других данных.
-# Объявлено ради ПЕРЕКРЁСТНОЙ СВЕРКИ: две независимые модели на одних
-# страницах отвечают на вопрос, свойство ли слияние архитектуры или выборки.
-# Класса `chart` у неё НЕТ вовсе — графики уходят в `picture`, и это надо
-# помнить при сличении: наш `chart` ей нечем выразить.
+# Docling heron/egret (IBM): seventeen classes, RT-DETRv2 on other data.
+# Declared for the CROSS-CHECK: two independent models on the same pages
+# answer whether merging is a property of the architecture or of the sample.
+# It has NO `chart` class -- charts go to `picture`, to be remembered when
+# comparing: our `chart` is inexpressible to it.
 DOCLING = {
     "table": "artifact",
     "picture": "artifact",
@@ -111,10 +106,10 @@ DOCLING = {
     "footnote": "furniture",
 }
 
-# PP-DocLayout_plus-L — предшественник V2 в том же семействе: двадцать классов
-# вместо двадцати пяти, ОДИН класс `formula` на выключную и строчную, и НЕТ
-# порядка чтения (его добавила указательная сеть V2). Объявлено ради замера
-# родословной: что дала прибавка пяти классов и указательной сети.
+# PP-DocLayout_plus-L -- V2's predecessor in the same family: twenty classes
+# instead of twenty-five, ONE `formula` for display and inline both, and NO
+# reading order (V2's pointer network brought that). Declared to measure the
+# pedigree: what the five added classes and the pointer network gave.
 PP_DOCLAYOUT_PLUS_L = {
     "table": "artifact",
     "chart": "artifact",
@@ -138,10 +133,10 @@ PP_DOCLAYOUT_PLUS_L = {
     "footnote": "furniture",
 }
 
-# Docling egret (D-FINE): те же семнадцать классов, что у heron, но имена
-# записаны иначе — с заглавной и через дефис. Отдельная политика, а не свод:
-# свод стёр бы разницу словарей, а она у нас единственный способ отличить
-# ошибку перевода от ошибки модели.
+# Docling egret (D-FINE): the same seventeen classes as heron, but the names
+# are spelled otherwise -- capitalised and hyphenated. A separate policy, not
+# a merge: merging would erase the difference of the vocabularies, our only
+# way to tell a translation error from a model error.
 DOCLING_EGRET = {
     "Table": "artifact",
     "Picture": "artifact",
@@ -184,20 +179,19 @@ ROLES = ("text", "artifact", "furniture")
 
 
 class UnknownLabel(RuntimeError):
-    """Ярлык модели не описан политикой. Роняем, а не догадываемся."""
+    """The model's label is not described by the policy. Fell, do not guess."""
 
 
 def check(labels, policy: str = "PP-DocLayoutV2") -> None:
-    """Политика обязана покрывать словарь модели ЦЕЛИКОМ.
+    """The policy must cover the model's vocabulary WHOLE.
 
-    Проверяется при каждом прогоне, а не однажды: словарь приезжает из весов,
-    и смена весов — самый вероятный способ завести двадцать шестой класс.
-    Лишнее в политике тоже беда: `"figure"` вместо `"image"` дало бы
-    «артефактов 0» навсегда и молча.
+    Checked every run, not once: the vocabulary arrives with the weights, and
+    changing weights is the likeliest way to acquire a twenty-sixth class.
+    Something extra in the policy is trouble too: `"figure"` instead of
+    `"image"` would give "artifacts 0" for ever and silently.
 
-    Сверяется с ОДНИМ названным словарём, а не с объединением: объединение
-    покрывает и чужие ярлыки, и проверка перестала бы ловить как раз то, ради
-    чего написана.
+    Compared against ONE named vocabulary, not the union: the union covers
+    foreign labels too, and the check would stop catching what it is for.
     """
     if policy not in POLICIES:
         raise UnknownLabel(f"нет политики {policy!r}: есть {sorted(POLICIES)}")
@@ -205,7 +199,7 @@ def check(labels, policy: str = "PP-DocLayoutV2") -> None:
     if have - mine:
         raise UnknownLabel(
             f"политика не описывает ярлыки модели: {sorted(have - mine)}. "
-            f"Опишите их в policy.ROLE — умолчания здесь нет нарочно.")
+            f"Опишите их в policy.POLICIES[{policy!r}] — умолчания здесь нет нарочно. Дописать в policy.ROLE НЕ поможет: она из POLICIES и выводится.")
     if mine - have:
         raise UnknownLabel(
             f"политика описывает ярлыки, которых нет у модели: "
@@ -214,12 +208,13 @@ def check(labels, policy: str = "PP-DocLayoutV2") -> None:
 
 
 def for_labels(labels) -> str:
-    """Какая политика описывает ИМЕННО этот словарь ярлыков.
+    """Which policy describes THIS vocabulary of labels.
 
-    Политика выбирается СЛОВАРЁМ МОДЕЛИ, а не именем, которое мы набрали
-    руками: имя весов можно перепутать, а список классов приезжает из самих
-    весов. Ни одной подходящей — падаем; двух подходящих не бывает, потому
-    что множества классов у наших моделей различны.
+    Chosen by the MODEL'S VOCABULARY, not a name we typed out: a weights
+    name can be mistaken, the class list arrives from the weights
+    themselves. The SETS are compared exactly -- rename one label and no
+    policy fits any more. None fitting is a fall; two fitting does not happen,
+    the class sets of our models being distinct.
     """
     have = set(labels)
     fit = [n for n, t in POLICIES.items() if set(t) == have]
@@ -245,7 +240,7 @@ def artefacts() -> tuple[str, ...]:
 
 
 def snapshot(policy: str | None = None) -> dict:
-    """Политика целиком — в слепок."""
+    """The policy whole, into the snapshot."""
     if policy:
         return {"buckets": list(ROLES), "vocabulary": policy,
                 "by_label": dict(sorted(POLICIES[policy].items()))}

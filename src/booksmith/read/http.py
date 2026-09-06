@@ -1,34 +1,36 @@
-"""Доставка вопроса по HTTP: любой OpenAI-совместимый адрес.
+"""Delivering the question over HTTP: any OpenAI-compatible address.
 
-Один транспорт покрывает три случая, и это не совпадение, а причина выбрать
-именно этот протокол:
+One transport covers three cases, and that is not a coincidence but the
+reason for choosing this protocol:
 
-    vLLM на арендованной карте   http://127.0.0.1:8118/v1  — тот же код, что дома
-    чужой vLLM / LM Studio       http://хост:порт/v1
-    облачное API с ключом        https://.../v1, ключ из `.env`
+    vLLM on the rented card   http://127.0.0.1:8118/v1  -- the code we run home
+    someone's vLLM / LM Studio   http://host:port/v1
+    a cloud API with a key       https://.../v1, the key out of `.env`
 
-ОТСЮДА ГЛАВНОЕ СВОЙСТВО: аренда — НЕ третий транспорт. На боксе `run.sh`
-поднимает vLLM на петле, и туда идёт ровно та же команда с тем же кодом.
-Значит почти весь платный путь проверяется дома бесплатно — против подставного
-сервера (`tests/support.py`), — и на карту уезжает уже проверенное. Прежний
-второй уровень платил за отладку разбора аренду за арендой; один раз это
-стоило тринадцати запусков и $0.52, из которых полезных два.
+HENCE THE MAIN PROPERTY: the rental is NOT a third transport. On the box
+`run.sh` raises vLLM on the loopback, and the same command with the same code
+goes there. So nearly the whole paying path is checked at home for free,
+against the stand-in server `tests/fake_vlm.py`, and only the checked rides to
+the card. The previous level two paid for debugging its parsing rental by
+rental: thirteen launches, $0.52, two useful.
 
-`urllib` из стандартной поставки, а не `requests` и не `openai`. Так уже
-решено в проекте: `pyproject.toml` снял `requests` со словами «HTTP в живом
-коде идёт через urllib». Клиент `openai` добавил бы зависимость ради
-пятидесяти строк и ещё одно место, где прячется повтор запроса.
+`urllib` from the standard library, not `requests` and not `openai`. Decided
+already: `pyproject.toml` dropped `requests` saying "HTTP in live code goes
+through urllib". The `openai` client would add a dependency for fifty lines,
+and one more place for a retry to hide in.
 
-ПОВТОР РАЗРЕШЁН ТОЛЬКО ДО ОТВЕТА. Обрыв связи, таймаут, 5xx — повторяем:
-ответа не было вовсе, и второй вопрос это тот же первый. Ответ 200
-НЕ ПОВТОРЯЕТСЯ НИКОГДА, что бы в нём ни лежало: пустота, обрывок, чушь.
-Переспрос после ответа — это починка модели, правило проекта его запрещает, и
-здесь запрет выражен кодом, а не обещанием в комментарии.
+A RETRY IS ALLOWED ONLY BEFORE THE ANSWER. A broken connection, a timeout, a
+5xx -- we repeat: there was no answer at all, and the second question is the
+first one. A 200 IS NEVER REPEATED, whatever lies in it: emptiness, a stump,
+nonsense. Asking again after an answer is repairing the model; the project
+rule forbids it, and here the ban is expressed in code, not promised in a
+comment.
 
-КЛЮЧ НЕ ЕЗДИТ В СЛЕПОК. `VLM_API_KEY` читается через `config.env`, то есть из
-`.env`, а не через реестр ручек: всё, что объявлено ручкой, попадает в
-`run.json` значением, и секрет уехал бы в файл, который кладут в git. В
-отпечатке стоит только факт его наличия и длина.
+THE KEY DOES NOT RIDE INTO THE SNAPSHOT. `VLM_API_KEY` is read through
+`config.env`, that is from `.env`, and not through the knob registry:
+everything declared a knob lands in `run.json` by value, and the secret would
+ride into a file that goes to git. The fingerprint holds only the fact of it
+and its length.
 """
 import base64
 import json
@@ -41,9 +43,9 @@ from . import Ask, Said, Transport
 from .. import config
 from ..run import knobs
 
-# Что считать картинкой. Список объявлен, потому что `data:`-строка обязана
-# нести верный тип: сервер, получивший `image/png` на JPEG, отвечает 400, и
-# разбираться в этом на арендованной карте дорого.
+# What counts as a picture. The list is declared because a `data:` string
+# must carry the right type: a server handed `image/png` over a JPEG answers
+# 400, and working that out on the rented card is expensive.
 MIME = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
         ".webp": "image/webp"}
 
@@ -64,17 +66,17 @@ def _data_uri(path: str) -> tuple[str, int]:
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
-    """Редирект НЕ выполняется, а объявляется отказом.
+    """A redirect is NOT followed but declared a refusal.
 
-    Замер, из-за которого этот класс существует: `urllib` идёт за 302 сам, и
-    ответивший нам сервер уводит запрос куда велит. При этом заголовок
-    `Authorization` едет ДАЛЬШЕ — то есть `VLM_API_KEY` уходит на адрес,
-    который назвал не оператор; POST превращается в GET, картинка теряется, а
-    выдумка чужого сервера возвращается с `finish="stop"` и записывается
-    чтением. Слепок при этом называет НАШ адрес.
+    The measurement this class exists for: `urllib` goes after a 302 itself,
+    and the server that answered leads the request wherever it likes. The
+    `Authorization` header rides ON -- `VLM_API_KEY` goes to an address the
+    operator did not name; the POST turns into a GET, the picture is lost, and
+    a stranger's invention comes back with `finish="stop"` and is recorded as
+    the reading, the snapshot naming OUR address.
 
-    Ходить за редиректом незачем: адрес модели задаёт оператор ручкой, и
-    подмена его на лету — не удобство, а подмена прогона.
+    There is no reason to follow: the operator sets the model's address by a
+    knob, and swapping it in flight is not a convenience but a swapped run.
     """
 
     def redirect_request(self, req, fp, code, msg, headers, newurl):
@@ -88,19 +90,20 @@ _OPENER = urllib.request.build_opener(_NoRedirect)
 
 
 class _BadBody(Exception):
-    """Ответ пришёл, а разобрать его нечем. НЕ отказ доставки."""
+    """An answer came and there is nothing to parse it with. NOT a delivery
+    failure."""
 
 
 def _read_json(req, timeout):
-    """Ответ сервера -> json. Разбор ОТДЕЛЁН от доставки нарочно.
+    """The server's answer -> json. Parsing is SEPARATED from delivery on
+    purpose.
 
-    Битое тело при коде 200 — это ОТВЕТ, а не обрыв связи, и повторять его
-    нельзя: правило «модель никто не чинит» запрещает второй вопрос по
-    отвеченному. Прежде `json.loads` стоял внутри общего `try`, и
-    `JSONDecodeError` попадал в ветку отказа доставки — замер: битое тело,
-    пустое тело и оборванное тело давали ТРИ обращения к службе при
-    `VLM_RETRIES=2`, то есть тройную оплату порождения ровно на том отказе,
-    которого проект и боится (обрыв длинной таблицы).
+    A broken body under code 200 is an ANSWER, not a broken connection (see
+    the header). `json.loads` used to stand inside the common `try`, and
+    `JSONDecodeError` fell into the delivery-failure branch -- measured: a
+    broken body, an empty body and a truncated body each gave THREE calls to
+    the service at `VLM_RETRIES=2`, that is triple payment for generation on
+    exactly the failure the project fears (a long table cut off).
     """
     with _OPENER.open(req, timeout=timeout) as r:
         raw = r.read()
@@ -119,7 +122,7 @@ def _headers(key, post=False):
 
 
 class Http(Transport):
-    """OpenAI-совместимый адрес. Всё, что знает про модель, — её имя."""
+    """An OpenAI-compatible address. All it knows of the model is its name."""
 
     name = "openai-chat"
 
@@ -128,50 +131,52 @@ class Http(Transport):
         self.model = model or knobs.knob("MODEL_NAME")
         self.timeout = float(knobs.knob("VLM_TIMEOUT_S"))
         self.retries = int(knobs.knob("VLM_RETRIES"))
-        # Ключ — из `.env`, не из реестра: см. шапку.
+        # The key is from `.env`, not from the registry: see the header.
         self.key = config.env("VLM_API_KEY")
         if not self.server:
-            # SystemExit, а не ValueError: оператор должен увидеть СТРОКУ, а не
-            # стек до `sys.exit(main())`. Остальной CLI на такие беды отвечает
-            # именно так (`books html` при подменённом PDF, `parse_pages`).
+            # SystemExit, not ValueError: the operator must see a LINE, not a
+            # stack down to `sys.exit(main())`. The rest of the CLI answers
+            # such trouble exactly so (`books html` on a swapped PDF,
+            # `parse_pages`).
             raise SystemExit(
                 "VLM_ENDPOINT пуст: не задан адрес модели. Умолчания нет "
                 "нарочно — молчаливый `localhost` заставил бы прогон стучаться "
                 "в никуда и объявить это молчанием модели.")
 
-    # ------------------------------------------------------------- договор --
+    # -------------------------------------------------------- the contract --
     def fingerprint(self) -> dict:
         return {"transport": self.name, "endpoint": self.server,
                 "model_asked": self.model,
                 "timeout_s": self.timeout, "delivery_retries": self.retries,
-                # Сам ключ НЕ пишем: слепок кладут в git.
+                # The key itself is NOT written: snapshots go to git.
                 "api_key": ("есть, %d знаков" % len(self.key)) if self.key
                         else "no"}
 
     def knobs_read(self) -> tuple[str, ...]:
         return ("VLM_ENDPOINT", "MODEL_NAME", "VLM_TIMEOUT_S", "VLM_RETRIES")
 
-    # -------------------------------------------------------------- запрос --
+    # ------------------------------------------------------------ the ask --
     def check(self, model: str | None = None) -> dict:
-        """Чем именно отвечает этот адрес. Величины, а не «сервер жив».
+        """What exactly this address answers with. Quantities, not "alive".
 
-        Ради чего: на первом уровне проверка здоровья `curl /v1/models`
-        отвечала СИРОТОЙ прошлого прогона, державшей 60% видеопамяти, и
-        скрипт считал, что поднял сервер сам. Тут спрашивается не «жив ли», а
-        «КАК ТЕБЯ ЗОВУТ», и несовпадение имени роняет прогон до первого цента.
+        What for: the health check `curl /v1/models` in `run.sh` was answered
+        by an ORPHAN of the previous run holding 60% of the video memory, and
+        the script decided it had raised the server itself. What is asked here
+        is not "are you alive" but "WHAT IS YOUR NAME", and a name that does
+        not match fells the run before the first cent.
 
-        ЧЕГО ЭТА ПРОВЕРКА НЕ УМЕЕТ, и молчать об этом нельзя: `vllm serve
-        --served-model-name` заставляет сервер называться КАК ВЕЛЕНО, а не как
-        весы на диске. Совпадение имени доказывает, что мы попали на свой
-        сервер, и НЕ доказывает, что под ним лежат обещанные веса. Веса
-        доказывает только отпечаток чтеца, снятый рядом с ними.
+        WHAT THIS CHECK CANNOT DO, and keeping quiet about it is not allowed:
+        `vllm serve --served-model-name` makes the server call itself AS
+        TOLD, not after the weights on disk. A matching name proves we reached
+        our own server, not that the promised weights lie under it. Only the
+        reader's fingerprint, taken beside them, proves those.
         """
         want = model or self.model
         try:
             d = _read_json(urllib.request.Request(
                 self.server + "/models", headers=_headers(self.key)),
                 self.timeout)
-        except Exception as e:            # noqa: BLE001 — любой отказ равнозначен
+        except Exception as e:            # noqa: BLE001 -- any failure is one
             raise RuntimeError(
                 f"адрес {self.server} не отвечает на /models: {e}. "
                 f"Это отказ ДОСТАВКИ, а не молчание модели.") from e
@@ -186,7 +191,7 @@ class Http(Transport):
         return out
 
     def send(self, ask: Ask) -> Said:
-        """Один вопрос. Отказ возвращается ЗНАЧЕНИЕМ, а не броском."""
+        """One question. A failure comes back as a VALUE, not as a throw."""
         uri, nbytes = _data_uri(ask.image)
         body = {
             "model": self.model,
@@ -197,7 +202,7 @@ class Http(Transport):
         }
         t0 = time.time()
         last = None
-        # Повторяем ТОЛЬКО отказ доставки, и только пока ответа не было.
+        # Only a delivery failure is repeated, and only before an answer.
         for attempt in range(max(1, self.retries + 1)):
             try:
                 req = urllib.request.Request(
@@ -206,7 +211,7 @@ class Http(Transport):
                     headers=_headers(self.key, post=True))
                 d = _read_json(req, self.timeout)
             except _BadBody as e:
-                # ОТВЕТ БЫЛ. Повторять нельзя — возвращаем значением сразу.
+                # THERE WAS AN ANSWER. No repeat -- back as a value at once.
                 return Said(anchor=ask.anchor,
                             error=f"тело ответа не разобрано: {e}",
                             took_s=time.time() - t0,
@@ -216,20 +221,21 @@ class Http(Transport):
                                   "prompt": ask.prompt, "kind_promised": ask.kind})
             except urllib.error.HTTPError as e:
                 text = e.read().decode(errors="replace")[:400]
-                # `e.reason` обязателен: у отказа от редиректа тело пустое, и
-                # без причины оператор видел бы голое «HTTP 302:».
+                # `e.reason` is required: the redirect refusal has an empty
+                # body, and without the reason the operator would see a bare
+                # "HTTP 302:".
                 last = f"HTTP {e.code} {e.reason}: {text}".rstrip(": ")
-                # 4xx — наша ошибка в запросе, повторять её бессмысленно и
-                # платно. Повторяем только то, что бывает временным.
+                # 4xx is our own error in the request: repeating it is
+                # pointless and paid for. We repeat only what can be temporary.
                 if e.code < 500:
                     break
-            except Exception as e:        # noqa: BLE001 — обрыв, таймаут, DNS
+            except Exception as e:        # noqa: BLE001 -- break, timeout, DNS
                 last = f"{type(e).__name__}: {e}"
             else:
                 if not d.get("choices"):
-                    # Сервер ответил 200 и не дал выбора вовсе (так отвечают
-                    # шлюзы, кладущие ошибку в тело). Это НЕ молчание модели:
-                    # молчание — это пустая строка в `content`.
+                    # The server answered 200 and gave no choice at all (so do
+                    # gateways that put the error in the body). NOT the model
+                    # keeping silent: silence is an empty string in `content`.
                     return Said(
                         anchor=ask.anchor,
                         error=f"200 без choices: {json.dumps(d)[:200]}",
@@ -242,8 +248,9 @@ class Http(Transport):
                 usage = d.get("usage") or {}
                 return Said(
                     anchor=ask.anchor,
-                    # `content` берётся как есть. `None` из json остаётся
-                    # `None`: «поля не было» и «пустая строка» — разные ответы.
+                    # `content` is taken as is. A `None` out of the json stays
+                    # `None`: "there was no field" and "an empty string" are
+                    # different answers.
                     text=msg.get("content"),
                     finish=ch.get("finish_reason"),
                     took_s=time.time() - t0,
@@ -255,16 +262,22 @@ class Http(Transport):
                           "prompt": ask.prompt, "kind_promised": ask.kind})
             if attempt + 1 < max(1, self.retries + 1):
                 time.sleep(min(2.0 * (attempt + 1), 10.0))
+        # `attempt + 1`, NOT `self.retries + 1`. A 4xx breaks the loop after one
+        # delivery, and the constant recorded three of them in the snapshot --
+        # a run that asked once was written down as having asked three times,
+        # and nothing anywhere would have contradicted it. Every other return
+        # path in this function already counts the truth.
         return Said(anchor=ask.anchor, error=last or "отказ без объяснения",
                     took_s=time.time() - t0,
-                    meta={"delivery_attempts": self.retries + 1,
+                    meta={"delivery_attempts": attempt + 1,
                           "image_bytes": nbytes,
                           "prompt": ask.prompt, "kind_promised": ask.kind})
 
 
 def build() -> Transport:
-    """Транспорт по реестру ручек. Пока он один; список объявлен, чтобы
-    второй добавлялся строкой, а незнакомое имя падало вслух."""
+    """The transport by the knob registry. There is exactly one; the name is
+    compared to it so an unknown one falls out loud instead of quietly
+    becoming `http`."""
     name = knobs.knob("VLM_TRANSPORT")
     if name != "http":
         raise SystemExit(

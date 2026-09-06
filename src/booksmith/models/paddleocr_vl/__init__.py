@@ -1,17 +1,20 @@
-"""PaddleOCR-VL на арендованной карте: доставка и величины для ранжирования.
+"""PaddleOCR-VL on a rented card: delivery, and the figures for ranking.
 
-Здесь пока только то, что нужно раннеру, чтобы выбрать машину и посчитать
-полную стоимость прогона. Самого адаптера (`Recognizer` из `models.base`)
-ещё нет: он пишется после того, как стенд научится его судить, и не раньше —
-иначе получится третья редакция того же кода, оценённая теми же глазами.
+WHAT IS HERE: only what the runner needs to pick a machine and price a run.
+The reading lives next door in `reader.py`; a `Recognizer` of `models.base`
+is not here and will not be -- this model reads, it does not detect layout.
+`books read` has ridden this spec: 436 pages over eight rentals ($0.545 by
+`runs/ledger.jsonl`, two of them successful).
 
-`spec()` ниже собирает задание для раннера. На машину едут четыре скрипта и
-ДВА КАТАЛОГА: вывод детекции (рамки, по которым режем) и САМ ПАКЕТ
-`src/booksmith`. Пакет вместо перепечатки кода — решение, а не удобство:
-соседний `dots_ocr/entrypoint.py` несёт свою копию разбора страниц и сам про
-себя пишет «сторожа у этих двух копий нет». Пакет весит 1.1 МБ против 6.2 ГБ
-весов — величина, которой можно пренебречь, а расхождение двух копий стоило
-бы прогона.
+`spec()` below assembles the job. To the machine ride the book, the four job
+files (`run.sh`, `provision.sh`, `constraints.txt`, `entrypoint.py`) and TWO
+DIRECTORIES: the detect output (the boxes we cut by) and THE `src/booksmith`
+PACKAGE ITSELF. The package instead of retyped code is a decision, not a
+convenience: the neighbouring `dots_ocr/entrypoint.py` carries its own copy of
+the page parser, and the two diverged on four inputs of thirteen before
+`tests/test_parse_pages.py` held them. It weighs 1.2 MB of `.py`, 5.5 MB on
+disk as it rides (`doc/mathjax`, fresh `__pycache__`), against 2.2 GB of
+weights -- negligible, where a divergence of copies costs a run.
 """
 import os
 
@@ -19,48 +22,48 @@ from ...remote.spec import HostReq, JobSpec
 from ...run import knobs, stamp
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-# Корень пакета: `src/booksmith`. Отсюда, а не от рабочего каталога, — иначе
-# задание, собранное из чужого каталога, увезло бы на машину пустоту.
+# The package root, `src/booksmith`. From here rather than from the working
+# directory -- otherwise a job assembled elsewhere would carry emptiness.
 PKG = os.path.dirname(os.path.dirname(HERE))
 
-# Образ несёт только инструменты доставки (см. infra/base/Dockerfile), а
-# python, CUDA, torch, vLLM и веса ставятся при старте скриптом provision.sh.
+# The image carries only the delivery tools (see infra/base/Dockerfile);
+# python, CUDA, torch, vLLM and the weights are installed at start by
+# provision.sh.
 #
-# Так вышло не из любви к сложности, а по замеру: docker качает три слоя
-# одновременно, по одному потоку на слой, и реестр режет соединение до
-# ~25 Мбит/с. Итого 76 Мбит/с потолка при канале машины 1518 — образ на
-# 6.02 ГБ ехал 10.7 минуты. Те же 11 ГБ через uv и hf ставятся за 82 секунды:
-# они открывают десятки соединений и канал насыщают.
+# Not love of complexity but measurement: docker pulls three layers at once,
+# one stream per layer, and the registry cuts a connection to ~25 Mbit/s. A
+# 76 Mbit/s ceiling against the machine's 1518 -- a 6.02 GB image rode 10.7
+# minutes. The same 11 GB through uv and hf install in 82 seconds: dozens of
+# connections, and the channel saturated.
 #
-# Замер сделан на нашей стороне и эталона не требует — он про сеть, а не про
-# разбор. Поэтому пережил чистый лист, в отличие от табличных чисел.
+# Measured on our side and needing no ground truth: it is about the network,
+# not parsing, and so survived the clean slate, unlike the table figures.
 BASE_IMAGE = "ghcr.io/binarycat17/vast-base:d69de6e"
 IMAGE_GB = 0.06
 
-# Колёса плюс веса, как они едут по сети: 9.0 ГБ окружения на диске приезжают
-# сжатыми колёсами, веса (2.2 ГБ) не сжимаются вовсе. Замер: 82 секунды.
+# Wheels plus weights as they travel the wire: 9.0 GB of environment on disk
+# arrive as compressed wheels, the weights (2.2 GB) do not compress at all.
+# Measured: 82 seconds.
 PAYLOAD_GB = 7.2
 
-# Подъём vLLM на процессоре в 5 ГГц. Это не карта: импорты, torch.compile и
-# прогрев модели. На более медленном хосте вырастало до 374 с.
+# Raising vLLM on a 5 GHz CPU. Not the card: imports, torch.compile and the
+# model warm-up. On a slower host it grew to 374 s.
 WARMUP_S = 65.0
 
-# Колёса torch — под CUDA 13, а значит нужен драйвер 580+.
+# The torch wheels are for CUDA 13, which needs driver 580+.
 CUDA_MIN = "13.0"
 
 
 def spec(pdf: str, detect_dir: str, pages: str = "",
          policy: str = "PP-DocLayoutV2", port: int = 8118,
          budget_usd: float = 0.60, timeout_minutes: float = 60.0) -> JobSpec:
-    """Задание для раннера: прочитать блоки книги на арендованной карте.
+    """The job for the runner: read a book's blocks on a rented card.
 
-    Раннер про OCR не знает ничего и знать не должен — он видит входные файлы,
-    команду и каталог результата.
-
-    ЧТО ПРОВЕРЯЕТСЯ ЗДЕСЬ, ДОМА И БЕСПЛАТНО. Наличие книги, каталога детекции
-    и слепка в нём. Каждая из трёх пропаж иначе всплыла бы на арендованной
-    карте, то есть за деньги; прежний второй уровень так и отлаживался —
-    тринадцать запусков, $0.52, полезных два.
+    WHAT IS CHECKED HERE, AT HOME AND FOR FREE: all eight inputs -- the book,
+    the detect pages and their snapshot, the four job files, the package. Any
+    one missing would otherwise surface on the rented card, for money; the
+    previous level two was debugged exactly so -- thirteen launches, $0.52,
+    two useful.
     """
     for p, what in ((pdf, "book"),
                     (os.path.join(detect_dir, "pages"), "страницы детекции"),
@@ -73,11 +76,12 @@ def spec(pdf: str, detect_dir: str, pages: str = "",
                     (PKG, "пакет booksmith")):
         if not os.path.exists(p):
             raise SystemExit(f"нет {p} ({what})")
-    # ПАКЕТ ОБЯЗАН КОМПИЛИРОВАТЬСЯ, И ПРОВЕРЯЕТСЯ ЭТО ПРЯМО ПЕРЕД ЗАЛИВКОЙ.
-    # Замер: во время правок дерево полминуты не парсилось (`SyntaxError` в
-    # `read/run.py`), и в это окно на бокс уехала бы книга кода, которая не
-    # запускается. Стоило бы полной аренды — разворачивания, весов и прогрева
-    # vLLM, — чтобы узнать про опечатку. Проверка стоит доли секунды.
+    # THE PACKAGE MUST COMPILE, AND THAT IS CHECKED RIGHT BEFORE THE UPLOAD.
+    # Measured: during edits the tree failed to parse for half a minute
+    # (`SyntaxError` in `read/run.py`), and in that window a book of code that
+    # does not start would have ridden to the box -- learnt after a whole
+    # rental of provisioning, weights and vLLM warm-up. The check costs a
+    # fraction of a second.
     import compileall
     if not compileall.compile_dir(PKG, quiet=2, force=True):
         raise SystemExit(
@@ -95,21 +99,21 @@ def spec(pdf: str, detect_dir: str, pages: str = "",
             PKG: "booksmith",
             os.path.join(HERE, "run.sh"): "run.sh",
             os.path.join(HERE, "provision.sh"): "provision.sh",
-            # БЕЗ НЕГО РАЗВОРАЧИВАНИЕ ПАДАЕТ ЧЕРЕЗ ДВЕ МИНУТЫ ПОСЛЕ ОПЛАТЫ.
-            # `provision.sh` ставит колёса строкой
-            # `uv pip install -r "$HERE/constraints.txt"`, где `$HERE` — его
-            # собственный каталог на боксе. Файл в `inputs` не значился, и
-            # `set -euo pipefail` ронял скрипт:
+            # WITHOUT IT PROVISIONING FALLS TWO MINUTES AFTER PAYMENT.
+            # `provision.sh` installs the wheels with
+            # `uv pip install -r "$HERE/constraints.txt"`, where `$HERE` is
+            # its own directory on the box. The file was not listed in
+            # `inputs`, and `set -euo pipefail` felled the script:
             #     error: File not found: `/root/job/constraints.txt`
-            # Проверено на собранной раскладке бокса с подставными `uv` и `hf`.
+            # Checked on an assembled box layout with stand-in `uv` and `hf`.
             os.path.join(HERE, "constraints.txt"): "constraints.txt",
             os.path.join(HERE, "entrypoint.py"): "entrypoint.py",
         },
         outputs="outputs",
-        # Вырезки НЕ ТЯНЕМ обратно: их режет из книги местная же команда за
-        # секунды, а весят они больше всего остального вместе. Замер соседней
-        # задачи: 167 МБ картинок из 179 МБ каталога, при канале 2.9 Мбит/с —
-        # шестнадцать минут передачи ни за чем.
+        # The crops are NOT pulled back: a local command cuts them out of the
+        # book in seconds, and they weigh more than all the rest together.
+        # Measured on the neighbouring job: 167 MB of pictures out of a 179 MB
+        # directory, at 2.9 Mbit/s -- sixteen minutes of transfer for nothing.
         pull_exclude=("crops/",),
         image_gb=IMAGE_GB,
         payload_gb=PAYLOAD_GB,
@@ -117,23 +121,21 @@ def spec(pdf: str, detect_dir: str, pages: str = "",
         minutes=25.0,
         budget_usd=budget_usd,
         timeout_minutes=timeout_minutes,
-        # ЗАДАННОЕ ОПЕРАТОРОМ едет на машину ЦЕЛИКОМ, а не выборкой. Список
-        # строится из реестра (`knobs.passthrough`), а не пишется руками:
-        # писанный руками он уже расходился с реестром — 13 имён из 17, и
-        # четыре ручки, решающие выбор весов, на машину не уезжали вовсе.
-        # Умолчания при этом НЕ подставляются: у них одно место жительства,
-        # реестр, и второй экземпляр в `run.sh` означал бы, что смена
-        # умолчания в коде не доезжает до машины.
+        # WHAT THE OPERATOR SET rides to the machine WHOLE, not by selection.
+        # The list is built from the registry (`knobs.passthrough`), not typed
+        # by hand: hand-typed it had already diverged, 13 names of 17, with
+        # four knobs deciding the choice of weights never riding at all.
+        # Defaults are NOT substituted: they have one place of residence, the
+        # registry, and a second copy in `run.sh` would mean a changed default
+        # never reaching the machine.
         env={"HF_HUB_DISABLE_PROGRESS_BARS": "1",
-             # Коммит — отсюда, потому что там его спросить не у кого: git в
-             # образе нет. Ставится ПОД `passthrough`, чтобы заданное
-             # оператором вручную имело перевес над догадкой сборщика.
+             # The commit comes from here: on the box there is no one to ask,
+             # git is not in the image. Placed UNDER `passthrough`, so that
+             # what the operator set by hand outweighs the builder's guess.
              "BOOKSMITH_COMMIT": stamp.commit() or "",
              **knobs.passthrough()},
         host=HostReq(gpu="RTX_4090", disk_gb=60, max_dph=0.60,
-                     # Требование к CUDA — свойство ЗАДАЧИ: колёса torch здесь
-                     # под CUDA 13, и без этого фильтра негодная карта
-                     # отсеется уже после оплаты.
+                     # The CUDA requirement is the TASK's, see `CUDA_MIN`.
                      cuda_min=CUDA_MIN),
     )
 

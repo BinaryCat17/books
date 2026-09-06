@@ -1,17 +1,18 @@
-"""Замена блока разметкой второго уровня: чистые функции, проверяемые целиком.
+"""Replacing a block with second-level markup: pure functions, checked whole.
 
-`doc/swap.py` сам объявляет себя единственным слоем конвейера, который можно
-проверить целиком, не потратив ни секунды счёта, — «и потому именно его надо
-покрыть проверками раньше всех». Раньше всех и покрыт.
+`doc/swap.py` calls itself the one layer of the pipeline checkable entirely
+without a second of compute, "and so the one to cover before all others".
+Covered.
 
-На этих четырёх функциях держится всё обещание двухуровневой схемы: замену
-можно ПРОВЕРИТЬ, ОТКАТИТЬ и переделать другой моделью, не трогая книгу. Без
-отката это не замена, а правка книги.
+Four functions carry the promise of the two-level scheme -- `span`, `get`,
+`swap`, `restore`: a replacement can be CHECKED, ROLLED BACK and redone by
+another model without touching the book. Without rollback it is an edit of the
+book.
 
-Порча тут тихая по построению. Разметку возвращает модель, она бывает какой
-угодно — незакрытые теги, лишние `<`, битые сущности, — и ни один из этих
-случаев не виден глазом в книге на пятьсот страниц. Видно будет одно: на
-СЛЕДУЮЩЕЙ замене вылезет «открывающих 0, закрывающих 1» про чужой блок.
+Corruption here is quiet by construction. The markup comes from a model and
+can be anything -- unclosed tags, stray `<`, broken entities -- none visible
+to the eye in a five-hundred-page book. One thing will be: at the NEXT
+replacement, «открывающих 0, закрывающих 1» about another block.
 """
 from booksmith.doc import swap
 
@@ -29,14 +30,14 @@ def test_wrap_and_get_are_inverse():
 
 
 def test_anchors_keep_document_order():
-    """Порядок появления — он же порядок чтения, сортировать его нельзя."""
+    """Appearance order is the reading order; sorting it is forbidden."""
     d = ("<p/>" + swap.wrap("p0002-b9", "x") + swap.wrap("p0001-b3", "y")
          + swap.wrap("p0002-b1", "z"))
     assert swap.anchors(d) == ["p0002-b9", "p0001-b3", "p0002-b1"]
 
 
 def test_swap_returns_what_it_removed_and_restore_puts_it_back():
-    """Откат обязан вернуть документ ПОБАЙТОВО прежним."""
+    """Rollback must return the document BYTE FOR BYTE."""
     before = doc()
     new, was = swap.swap(before, A, "<table><tr><td>1</td></tr></table>")
     assert was == "таблица картинкой"
@@ -46,7 +47,7 @@ def test_swap_returns_what_it_removed_and_restore_puts_it_back():
 
 
 def test_swap_leaves_the_neighbour_byte_for_byte():
-    """Соседний блок не задет — на этом стоит «не трогая книгу»."""
+    """The neighbour untouched: "without touching the book" rests on it."""
     new, _ = swap.swap(doc(), A, "что угодно")
     assert swap.get(new, B) == "рисунок картинкой"
     assert new.count(swap.OPEN.format(B)) == 1
@@ -54,10 +55,10 @@ def test_swap_leaves_the_neighbour_byte_for_byte():
 
 
 def test_broken_markup_from_the_model_goes_in_as_is():
-    """Разбора HTML тут нет нарочно: модель вернёт что вернёт.
+    """No HTML parsing here, deliberately: the model returns what it returns.
 
-    Незакрытый тег и голая `<` обязаны доехать побайтово — иначе первый же
-    кривой ответ второго уровня разъехался бы по всей книге.
+    An unclosed tag and a bare `<` must arrive byte for byte, or the first
+    crooked answer would spread over the whole book.
     """
     fragment = "<table><tr><td>a < b<td>2</table"
     new, _ = swap.swap(doc(), A, fragment)
@@ -75,10 +76,9 @@ def test_missing_anchor_is_loud():
 
 
 def test_double_anchor_is_loud():
-    """Столкновение якорей: сквозной `b17` на книге дал бы пятьсот одинаковых.
+    """An anchor collision: a running `b17` would give five hundred alike.
 
-    «Возьму первую» тут значит переписать не тот блок и узнать об этом
-    никогда.
+    "Take the first" means rewriting the wrong block and never learning of it.
     """
     d = doc() + swap.wrap(A, "он же на другой странице")
     try:
@@ -100,11 +100,11 @@ def test_inverted_anchor_is_loud():
 
 
 def test_crossed_anchors_are_loud():
-    """Перекрёст: обе метки по одной, а границы зацеплены.
+    """A crossing: both marks once each, and the borders interlocked.
 
-    Счёт «по одной» такое не ловит. `get(A)` отдавал тело с чужой открывающей
-    меткой внутри, `swap(A, …)` стирал её вместе с телом, и беда всплывала на
-    СЛЕДУЮЩЕЙ замене, когда книга уже наполовину переразмечена.
+    Counting "one each" misses it. `get(A)` returned a body with a foreign
+    opening mark inside, `swap(A, …)` erased it with the body, and it showed
+    at the NEXT replacement, the book already half re-marked.
     """
     d = (swap.OPEN.format(A) + "1" + swap.OPEN.format(B) + "2"
          + swap.CLOSE.format(A) + "3" + swap.CLOSE.format(B))
@@ -120,10 +120,11 @@ def test_crossed_anchors_are_loud():
 
 
 def test_nested_anchors_are_not_a_crossing():
-    """Вложение — не перекрёст, и путать их нельзя.
+    """Nesting is not a crossing, and the two are not to be muddled.
 
-    Внутри тела A лежат ОБЕ метки B: границу соседа замена не рвёт, рвётся
-    только сам сосед, и это видно сразу, а не через сотню страниц.
+    BOTH marks of B lie inside A's body: a replacement does not tear the
+    neighbour's border, only the neighbour -- seen at once, not a hundred
+    pages later.
     """
     d = (swap.OPEN.format(A) + "до" + swap.wrap(B, "внутренний") + "после"
          + swap.CLOSE.format(A))
@@ -132,7 +133,7 @@ def test_nested_anchors_are_not_a_crossing():
 
 
 def test_unterminated_mark_is_loud():
-    """Оборванный комментарий не читается как «меток нет»."""
+    """A truncated comment does not read as "no marks"."""
     try:
         swap.anchors("<p>текст<!--bs:p0001-b1 и всё")
     except swap.AnchorError as e:

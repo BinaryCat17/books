@@ -381,10 +381,12 @@ def repeats_on(page, covered) -> dict:
 def _raw_latex_at(carrier: str, own: str) -> bool:
     r"""The carrier holds the same text as RAW latex, and we hide the typeset.
 
-    A separate function for the mutation battery. Measured: 66 blocks of the
-    book where the carrier shows `FeO-SiO_{2}` and the hidden block holds
+    A separate function for the mutation battery. Measured on the real book:
+    65 blocks where the carrier shows `FeO-SiO_{2}` and the hidden block holds
     `\[\mathrm{FeO}-\mathrm{SiO}_{2}\]`. Hiding the second worsens the page and
-    wins nothing.
+    wins nothing. This said 66 and was stale by one; the figure the build
+    prints is the outcome -- `books html <book>/assets/source` reports it as
+    "proven but KEPT".
     """
     math = ("\\[", "\\(", "$")
     if not any(m in own for m in math):

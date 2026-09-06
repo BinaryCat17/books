@@ -1,46 +1,51 @@
-"""PaddleOCR-VL 1.6 как ЧТЕЦ: какой промт на какой ярлык и каким видом ответ.
+"""PaddleOCR-VL 1.6 as a READER: which prompt on which label, and what kind
+of answer comes back.
 
-Здесь нет ни одного запроса и ни одного адреса — это свойство модели, а не
-доставки (разрез объявлен в `read/__init__.py`). Файл целиком состоит из
-объявлений, и каждое объявление либо взято из карточки модели, либо оплачено
-замером; догадок здесь быть не должно.
+Not one request and not one address here -- that belongs to the MODEL, not to
+delivery (the seam is in `read/__init__.py`). The file is declarations
+throughout, each taken from the model card or paid for by a measurement;
+guesses have no place in it.
 
-ПРОМТЫ ВЗЯТЫ У ВЕНДОРА ПОБАЙТОВО, а не сочинены. Карточка модели и рецепт
-vLLM называют шесть задач одними и теми же строками:
+THE PROMPTS ARE THE VENDOR'S, BYTE FOR BYTE. The model card and the vLLM
+recipe name six tasks by the same strings:
 
     "OCR:"  "Table Recognition:"  "Formula Recognition:"
     "Chart Recognition:"  "Spotting:"  "Seal Recognition:"
 
-Системного сообщения нет, температура 0. Промт — это ВСЁ, чем можно управлять
-ответом: попросить «формат такой-то» нечем, и потому вид содержимого решает
-не просьба, а выбор задачи.
+Five of the six are declared below; `Spotting:` we never ask.
 
-ПОЧЕМУ МАРШРУТЫ ОБЪЯВЛЕНЫ ПОИМЁННО, А НЕ ВЫВЕДЕНЫ ИЗ РАЗРЯДА. Разряд
-(`policy.role`) отвечает на вопрос «вырезать или печатать», а не «что
-спросить»: `display_formula` и `table` оба «артефакт», а промты у них разные,
-и вид ответа разный. Словарь ярлыков к тому же СВОЙ у каждого детектора — 25
-имён у PP-DocLayoutV2, 20 у plus-L, по 17 у обеих моделей docling, 11 у
-DocLayNet, — и правило «чего не знаю, то спрошу как текст» молча повело бы
-двадцать шестой класс новых весов не тем промтом. `Reader.cover()` роняет
-прогон на незнакомом ярлыке ДО первого цента.
+No system message, temperature 0. The prompt is ALL there is to steer the
+answer with -- nothing asks for "such-and-such a format" -- so the kind of
+content is decided by the choice of task, not by a request.
 
-ЧЕГО НЕ СПРАШИВАЕМ, И ЭТО ЗАМЕР, А НЕ ОСТОРОЖНОСТЬ. `image`, `header_image`,
-`footer_image` — чтение текста внутри рисунков ПРОВЕРЕНО И ОТВЕРГНУТО
-(`docs/ocr-notes.md`): выноски `A` и `B` не прочитаны вовсе, на их месте
-цифра `1`; на двух страницах модель выдала школьную панграмму `The quick brown
-fox…`, целиком выдуманную по штриховому чертежу; на третьей сорвалась в цикл
-`1.` `2.` … `100.`; итого +2100 слов мусора на двадцати страницах. Штриховой
-чертёж для этой модели — шум, а молчать она не умеет.
+WHY THE ROUTES ARE NAMED ONE BY ONE AND NOT DERIVED FROM THE ROLE. The role
+(`policy.role`) answers "cut out or print", not "what to ask":
+`display_formula` and `table` are both `artifact`, while their prompts and
+answer kinds differ. The vocabulary is besides OWN to every detector -- 25
+names for PP-DocLayoutV2, 20 for plus-L, 17 each for both docling models, 11
+for DocLayNet -- and "what I do not know I ask as text" would silently lead
+the twenty-sixth class of new weights by the wrong prompt. `Reader.cover()`
+fells the run on an unknown label BEFORE the first cent.
 
-ЧТО ОБЪЯВЛЕНО ОСТОРОЖНО И ЖДЁТ ЗАМЕРА. У `chart` и `seal` промты вендорские,
-а ВИД ответа не мерен нами ни разу. Объявлен `text` — самый осторожный из
-четырёх: `books text` сверит такой ответ ЗНАКАМИ, а книга покажет его
-экранированным, то есть ошибка объявления недооценит модель, но не испортит
-книгу выдуманной таблицей. Рядом с ответом всегда лежит ДОГАДКА о виде
-(`read/run.py` нюхает ответ и кладёт её в наблюдённое сбоку), и её расхождение
-с объявленным — именной счётчик. То есть первый же прогон скажет числом,
-надо ли менять `text` на `otsl`; менять по догадке, не спросив стенд, — это
-починка модели, и её здесь нет.
+WHAT WE DO NOT ASK, AND THAT IS A MEASUREMENT, NOT CAUTION. `image`,
+`header_image`, `footer_image` -- reading text inside figures was TRIED AND
+REJECTED (`docs/ocr-notes.md`): the callouts `A` and `B` unread, a digit `1`
+in their place; on two pages the schoolbook pangram `The quick brown fox…`,
+invented whole from a line drawing; on a third a loop `1.` `2.` … `100.`;
++2100 words of rubbish over twenty
+pages in all. A line drawing is noise to this model, and it cannot keep
+silent.
+
+WHAT IS DECLARED CAUTIOUSLY AND AWAITS A MEASUREMENT. `chart` and `seal` carry
+the vendor's prompts, but the KIND of their answer we have never measured.
+`text` is declared, the most cautious of the four: `books text` compares it BY
+CHARACTERS and the book shows it escaped, so an error of declaration
+underrates the model without spoiling the book with an invented
+table. Beside the answer always lies a GUESS at the kind (`read/run.py`
+sniffs it into `observed.kind_sniffed`), and its divergence from the declared
+is a named counter: the first run says by number whether `text` should become
+`otsl`. Changing it by guess, without asking the bench, is repairing the
+model, and there is none of that here.
 """
 import hashlib
 import os
@@ -48,21 +53,23 @@ import os
 from ...read import Reader, Route
 from ...run import knobs
 
-# Побайтово из карточки модели. Двоеточие и пробел значимы.
+# Byte for byte from the model card. The colon and the space are significant.
 OCR = "OCR:"
 TABLE = "Table Recognition:"
 FORMULA = "Formula Recognition:"
 CHART = "Chart Recognition:"
 SEAL = "Seal Recognition:"
 
-# Почему молчим — по одной причине на ярлык, и все три про одно.
+# ONE reason, shared by every silent label of every vocabulary -- three of
+# them under PP-DocLayoutV2, one under each of the other four.
 NO_PICTURE = ("чтение внутри рисунков проверено и отвергнуто: выноски не "
               "прочитаны, выдуманная панграмма на двух страницах, срыв в "
               "цикл на третьей, +2100 слов мусора на двадцати страницах")
 
-# Маршруты по СЛОВАРЮ ДЕТЕКТОРА. Ключ верхнего уровня — имя политики, ровно
-# как в `policy.POLICIES`: два словаря разошлись бы, и это в проекте уже
-# случалось (реестр ручек против сборщика задания, 13 имён из 17).
+# Routes by the DETECTOR'S VOCABULARY. The top-level key is the policy name,
+# exactly as in `policy.POLICIES`: two dictionaries would drift apart, and
+# that has happened here already (the knob registry against the job builder,
+# 13 names of 17).
 _TEXT_V2 = ("abstract", "algorithm", "aside_text", "content", "doc_title",
             "figure_title", "footer", "footnote", "formula_number", "header",
             "number", "paragraph_title", "reference", "reference_content",
@@ -106,9 +113,9 @@ ROUTES = {
         extra={"chart": Route(CHART, "text"), "seal": Route(SEAL, "text")}),
     "Docling": _routes(
         _TEXT_DOCLING, ("table",), ("formula",), ("picture",),
-        # `code` у docling — листинг программы. Промта «Code Recognition:» у
-        # модели нет; спрашиваем как текст, потому что листинг И ЕСТЬ знаки,
-        # и вид `text` тут не осторожность, а существо.
+        # `code` in docling is a program listing. The model has no "Code
+        # Recognition:" prompt; we ask as text, because a listing IS
+        # characters, and `text` here is not caution but the substance.
         extra={"code": Route(OCR, "text")}),
     "Docling-egret": _routes(
         _TEXT_EGRET, ("Table",), ("Formula",), ("Picture",),
@@ -119,18 +126,18 @@ ROUTES = {
 
 
 def _weights() -> dict:
-    """Что за веса лежат под моделью. Объявленная пустота, а не молчание.
+    """What weights lie under the model. Declared emptiness, not silence.
 
-    Ради чего это поле. `vllm serve --served-model-name` заставляет сервер
-    называться КАК ВЕЛЕНО, а не как веса на диске: проверка транспорта
-    (`/v1/models`) доказывает, что мы попали на СВОЙ сервер, и не доказывает,
-    что под ним обещанные веса. Замер, из-за которого это написано:
-    `provision.sh` качал `PaddlePaddle/PaddleOCR-VL`, а `MODEL_NAME` объявлял
-    `PaddleOCR-VL-1.6-0.9B` — это РАЗНЫЕ веса, репозиторий 1.6 отдельный, — и
-    прогон вышел бы успешным и неверным, а слепок назвал бы версию, которой
-    не считал.
+    What the field is for: a server's NAME proves nothing about the weights
+    under it, and this fingerprint is the only thing that does (`read/http.py`
+    says so at `check`). The measurement it is written from: `provision.sh`
+    pulled `PaddlePaddle/PaddleOCR-VL` while `MODEL_NAME` declared
+    `PaddleOCR-VL-1.6-0.9B` -- DIFFERENT weights, the 1.6 repository being
+    separate -- and the run would have come out successful and wrong, the
+    snapshot naming a version it never counted with.
 
-    Дома весов нет вовсе, и тогда здесь стоит причина, а не `null`.
+    At home there are no weights at all, and then a reason stands here, not a
+    `null`.
     """
     d = knobs.knob("VL_MODEL_DIR")
     if not d or not os.path.isdir(d):
@@ -138,13 +145,13 @@ def _weights() -> dict:
                 "why_empty": "весов рядом нет: считает не эта машина, а та, "
                                 "куда смотрит VLM_ENDPOINT"}
     out = {"dir": d, "file_count": len(os.listdir(d))}
-    # ОТКУДА ВЗЯТЫ ВЕСА — главное поле, и пишет его `provision.sh` рядом с
-    # ними. Прежде здесь стоял только `sha256 config.json`, и докстринг звал
-    # его единственным доказательством версии. Замер опроверг: у
-    # `PaddleOCR-VL-1.6` и у старого `PaddleOCR-VL` этот файл СОВПАДАЕТ
-    # ПОБАЙТОВО — 2059 байт, sha256 ce7f4565f8b1db78…, — то есть сторож не
-    # ловил ровно тот прогон, ради которого писался («качаем одно, объявляем
-    # другое»). Он ловил лишь «весов нет вовсе».
+    # WHERE THE WEIGHTS CAME FROM is the main field, and `provision.sh` writes
+    # it beside them. Here stood only `sha256 config.json`, called the sole
+    # proof of the version. A measurement refuted that: for `PaddleOCR-VL-1.6`
+    # and for the old `PaddleOCR-VL` that file MATCHES BYTE FOR BYTE -- 2059
+    # bytes, sha256 ce7f4565f8b1db78… -- so the guard missed exactly the run
+    # it was written for ("we pull one, we declare another"), catching only
+    # "no weights at all".
     src = os.path.join(d, "SOURCE.json")
     if os.path.exists(src):
         try:
@@ -159,9 +166,9 @@ def _weights() -> dict:
         out["why_empty"] = ("рядом с весами нет SOURCE.json — его пишет "
                                "provision.sh; значит веса положены не им, и "
                                "какие они, сказать нечем")
-    # Хэшируем файл, который у двух репозиториев РАЗЛИЧАЕТСЯ, а не тот, что
-    # совпадает. `config.json` оставлен рядом вторым числом — он про
-    # архитектуру, и его совпадение само по себе величина.
+    # We hash the file that DIFFERS between the two repositories, not the one
+    # that matches. `config.json` is kept beside it as a second number: it is
+    # about the architecture, and its matching is itself a quantity.
     for name in ("tokenizer_config.json", "config.json"):
         f = os.path.join(d, name)
         out["sha256 " + name] = (
@@ -171,7 +178,7 @@ def _weights() -> dict:
 
 
 class PaddleOcrVl(Reader):
-    """Чтец PaddleOCR-VL. Знает промты и виды — и ничего больше."""
+    """The PaddleOCR-VL reader. Knows the prompts and the kinds, no more."""
 
     name = "paddleocr-vl"
 
@@ -189,11 +196,11 @@ class PaddleOcrVl(Reader):
                 "model": knobs.knob("MODEL_NAME"),
                 "label_vocabulary": self.policy_name,
                 "weights": _weights(),
-                # Промты уезжают в слепок ЦЕЛИКОМ, а не числом: поле «промты»
-                # реестра слепка пусто у всех сегодняшних прогонов, и это
-                # первое, что его заполняет. Промт — единственное, чем здесь
-                # управляют ответом, и не записать его значит не записать
-                # прогон.
+                # The prompts ride into the snapshot WHOLE, not as a number:
+                # this is what fills the `prompts` field of the snapshot
+                # registry (`run/replay.py`), empty on every run before this
+                # reader. The prompt is the only thing that steers the answer
+                # here, and not to record it is not to record the run.
                 "prompts": {lab: rt.prompt for lab, rt in sorted(r.items())
                            if rt.asked()},
                 "never_asked": {lab: rt.why for lab, rt in sorted(r.items())
@@ -208,12 +215,12 @@ class PaddleOcrVl(Reader):
         return dict(ROUTES[self.policy_name])
 
     def pixels(self) -> tuple[int, int]:
-        """Окно вырезки, объявленное самой моделью. Не наши числа.
+        """The crop window declared by the model itself. Not our numbers.
 
-        `min_pixels` = 112 896 и `max_pixels` = 1280 * 28 * 28 = 1 003 520 —
-        из карточки PaddleOCR-VL. Ниже нижней её процессор растягивает вырезку
-        интерполяцией (замер прежнего прогона: табличная вырезка при 144 dpi
-        выходила 375 x 66 = 24 750 px, вчетверо ниже порога, и растягивалась),
-        выше верхней — ужимает.
+        `min_pixels` = 112 896 and `max_pixels` = 1280 * 28 * 28 = 1 003 520,
+        from the PaddleOCR-VL card. Below the lower its processor stretches
+        the crop by interpolation (measured earlier: a table crop at 144 dpi
+        came out 375 x 66 = 24 750 px, four times under, and was stretched);
+        above the upper it shrinks.
         """
         return (112896, 1280 * 28 * 28)
