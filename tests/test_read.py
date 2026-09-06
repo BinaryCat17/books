@@ -239,7 +239,7 @@ def test_sniffed_kind_never_overrides_the_declared_one():
     """Догадка о виде лежит СБОКУ и ничего не решает."""
     assert vrun._sniff("<fcel>a<nl>") == "otsl"
     assert vrun._sniff("проза") == "text"
-    assert vrun._sniff("") == "пусто"
+    assert vrun._sniff("") == "empty"
 
 
 # --------------------------------------------------------- проход книги ---

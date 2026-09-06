@@ -324,12 +324,12 @@ class _DoclingPipeline:
         # Слово «наш» в начале строки ОБЯЗАНО остаться, и оно тут не про
         # правило: `metrics._model_has_rank` читает его как «ранга модели нет»
         # и потому не печатает процент порядка по истине из ничего.
-        "post": "наш лишь в одном смысле — ранга модели тут нет; само правило "
-                "ЧУЖОЕ: постобработчик docling пересортировал рамки по "
-                "(верх, лево), точным координатам, а не по нашим полосам "
-                "round(y/20)",
-        "full": "наш, правила docling reading_order_rb — RULE-BASED, 740 строк "
-                "правил без единого веса, не модель",
+        "post": "ours_only_in_the_sense_that_the_model_gave_no_rank: the rule "
+                "is FOREIGN -- the docling postprocessor resorted the boxes "
+                "by (top, left), exact coordinates, not by our round(y/20) "
+                "bands",
+        "full": "ours_by_choice_rules_are_doclings_reading_order_rb: RULE-BASED, "
+                "740 lines of rules without a single weight, not a model",
     }
 
     def _label(self, raw):

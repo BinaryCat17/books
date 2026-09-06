@@ -65,7 +65,7 @@ figure img{max-width:100%;height:auto;display:block;
            border:1px solid #ddd}
 figcaption{font:12px/1.4 monospace;color:#777;margin-top:.3em}
 p{margin:.7em 0}
-[data-role="служебное"]{opacity:.55}
+[data-role="furniture"]{opacity:.55}
 [data-text="не прочитан"] figcaption{color:#a60}
 /* ТЕКСТОВЫЙ БЛОК, УЕХАВШИЙ КАРТИНКОЙ, НЕ ЗАНИМАЕТ ЭКРАН. Их семь на книгу, и
    все семь — полосы тени переплёта: рамка модели легла на дефект скана, а
@@ -150,19 +150,19 @@ p[data-label="figure_title"]{font-size:.9em;color:#555;margin:1.2em 0 .2em}
    ГДЕ ОСТАЁТСЯ СПРЯТАННОЕ: в самом `book.html` (разметка на месте, скрыт
    только показ) и в `assets/source/pages/*.json`. Здесь стояло «и в
    blocks.json» — неверно: `content` среди его полей нет вовсе. */
-[data-repeat-text="дословно"]{display:none}
+[data-repeat-text="verbatim"]{display:none}
 /* Доказанный повтор, ОСТАВЛЕННЫЙ ради вёрстки: носитель несёт то же сырым
    латехом, и спрятать свёрстанное значило бы показать читателю `FeO-SiO_{2}`
    вместо формулы. */
-[data-repeat-text="вёрстка"]{opacity:.85}
+[data-repeat-text="layout"]{opacity:.85}
 /* Читателю сказано, что лист сокращён, и сказано на самом листе. */
 hr.sheet[data-repeats-hidden]::after{
     content:"на этом листе скрыто повторов: " attr(data-repeats-hidden)
             " (тот же текст напечатан рядом; HTML_REPEATS=show покажет все)";
     display:block;font:11px monospace;color:#999;margin-top:.3em}
-[data-repeat-text="расходится"]{opacity:.7;border-left:2px solid #ccc;
+[data-repeat-text="differs"]{opacity:.7;border-left:2px solid #ccc;
     padding-left:.6em}
-[data-repeat-text="расходится"]::after{content:"повтор блока "
+[data-repeat-text="differs"]::after{content:"повтор блока "
     attr(data-repeat) ", текст разошёлся";
     display:block;font:11px monospace;color:#888;margin-top:.2em}
 """
@@ -267,7 +267,7 @@ def _keep_source(detect_dir: str, out_dir: str, log) -> dict:
     """
     dst = os.path.join(out_dir, SOURCE)
     if os.path.abspath(detect_dir) == os.path.abspath(dst):
-        return {"taken": "уже на месте"}
+        return {"taken": "already_there"}
     was = {}
     if os.path.isdir(dst):
         shutil.rmtree(dst)
@@ -277,11 +277,28 @@ def _keep_source(detect_dir: str, out_dir: str, log) -> dict:
         if os.path.isdir(src):
             shutil.copytree(src, os.path.join(dst, name))
             was[name] = len(os.listdir(src))
-    for name in ("run.json", "read_with.json"):
+    # НАЗВАННОЕ ЗДЕСЬ ОБЯЗАНО НАЙТИСЬ, и молчание про пропажу уже стоило
+    # книге памяти о том, чем её прочитали. Файл переименовали
+    # (`чем читали.json` -> `read_with.json`), старое имя осталось на диске, и
+    # эта строка тихо его пропустила: 2945 байт отпечатка чтения — имя модели,
+    # репозиторий, sha256 весов, 25 промтов — просто не переехали в `source/`.
+    # Приёмка при этом показала прежние 412 замен: пропажу видно было только
+    # по одному недостающему слову в строке журнала.
+    #
+    # Дороже второе: `books read --resume` сверяет «читали другим» через
+    # наличие этого файла, и без него смена модели на возобновлённом ПЛАТНОМ
+    # прогоне перестаёт быть заметной.
+    for name, required in (("run.json", True), ("read_with.json", False)):
         src = os.path.join(detect_dir, name)
         if os.path.isfile(src):
             shutil.copy2(src, os.path.join(dst, name))
             was[name] = 1
+        elif required:
+            raise SystemExit(
+                f"в {detect_dir} нет {name} — пересобрать книгу из её "
+                f"собственного источника будет нечем")
+        else:
+            was[name] = "НЕТ"
     weight = sum(os.path.getsize(os.path.join(dp, f))
               for dp, _, fs in os.walk(dst) for f in fs)
     log(f"источник сохранён в {SOURCE}: "
@@ -414,10 +431,10 @@ def repeats_on(page, covered) -> dict:
         carrier = next((o for o in kept
                          if len(own) >= REPEAT_MIN and own in norm[o.block_id]),
                         None)
-        why = "расходится"
+        why = "differs"
         if carrier is not None:
-            why = ("вёрстка" if _raw_latex_at(carrier.content, b.content)
-                      else "дословно")
+            why = ("layout" if _raw_latex_at(carrier.content, b.content)
+                      else "verbatim")
         out[b.block_id] = (carrier.block_id if carrier else None, why)
     return out
 
@@ -951,11 +968,11 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
         # «увидела одно на всё» и «увидела только служебное». Разбор и цена
         # каждого — при самом правиле, второй копии здесь нет.
         trouble = _sheet_trouble(page.blocks, arts)
-        empty = trouble == "пусто"
-        blank = trouble == "без-текста"
+        empty = trouble == "empty"
+        blank = trouble == "no-text"
         no_text += blank
         no_blocks += empty
-        only_service += trouble == "только-служебное"
+        only_service += trouble == "furniture-only"
         for b in arts:
             one = ((b.box[2] - b.box[0]) * (b.box[3] - b.box[1])) / sheet
             if one > biggest[0]:

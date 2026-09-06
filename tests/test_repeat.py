@@ -45,7 +45,7 @@ def test_a_nested_block_found_in_a_remaining_one_is_proven():
     formula = _b(1, (10, 5, 40, 12), r"\[1728^{\circ}\mathrm{C}\]",
                  label="inline_formula")
     r = H.repeats_on(_page(para, formula), _covered)
-    assert 1 in r and r[1][1] == "дословно", r
+    assert 1 in r and r[1][1] == "verbatim", r
     # Хозяин назван по номеру блока, а не угадан.
     assert r[1][0] == 0, r
     # Сам абзац кандидатом не является: он ни во что не вложен.
@@ -62,7 +62,7 @@ def test_a_nested_block_whose_text_is_absent_is_not_hidden():
     formula = _b(1, (10, 5, 40, 12), r"\[1728^{\circ}\mathrm{C}\]",
                  label="inline_formula")
     r = H.repeats_on(_page(para, formula), _covered)
-    assert r[1][1] == "расходится", r
+    assert r[1][1] == "differs", r
 
 
 def test_a_block_is_never_compared_with_itself():
@@ -73,7 +73,7 @@ def test_a_block_is_never_compared_with_itself():
     para = _b(0, (0, 0, 100, 20), "пусто")
     one = _b(1, (10, 5, 40, 12), "уникальный текст", label="inline_formula")
     r = H.repeats_on(_page(para, one), _covered)
-    assert r[1][1] == "расходится", (
+    assert r[1][1] == "differs", (
         "блок объявлен повтором, хотя его текста нет нигде, кроме него "
         f"самого — сличение идёт с самим собой: {r}")
 
@@ -88,7 +88,7 @@ def test_two_equal_nested_blocks_are_not_hidden_together():
     a = _b(1, (10, 5, 40, 12), "одно и то же", label="inline_formula")
     b = _b(2, (50, 5, 80, 12), "одно и то же", label="inline_formula")
     r = H.repeats_on(_page(para, a, b), _covered)
-    assert r[1][1] == "расходится" and r[2][1] == "расходится", (
+    assert r[1][1] == "differs" and r[2][1] == "differs", (
         f"оба повтора спрятаны — в книге не осталось ни одного: {r}")
 
 
@@ -110,7 +110,7 @@ def test_a_block_nested_in_an_artefact_is_not_a_candidate():
     assert T.normalize(formula.content, "latex") in T.normalize(
         table.content, "latex"), "фикстура не проверяет то, ради чего заведена"
     r = H.repeats_on(_page(table, formula), _covered)
-    assert r.get(1, (None, ""))[1] != "дословно", (
+    assert r.get(1, (None, ""))[1] != "verbatim", (
         "блок объявлен повтором артефакта — но артефакт едет картинкой, и "
         f"если замена не придёт, текста в книге не останется вовсе: {r}")
 
@@ -163,7 +163,7 @@ def test_the_typeset_form_is_not_traded_for_the_raw_one():
     formula = _b(1, (10, 5, 40, 12), r"\[\mathrm{FeO}-\mathrm{SiO}_{2}\]",
                  label="inline_formula")
     r = H.repeats_on(_page(carrier, formula), _covered)
-    assert r[1][1] == "вёрстка", (
+    assert r[1][1] == "layout", (
         f"свёрстанная формула спрятана, а сырой латех оставлен: {r}")
 
 
@@ -178,7 +178,7 @@ def test_the_answer_names_the_carrier_not_the_enclosing_frame():
     formula = _b(2, (5, 5, 40, 12), r"\[1728^{\circ}\mathrm{C}\]",
                  label="inline_formula")
     r = H.repeats_on(_page(box, carrier, formula), _covered)
-    assert r[2][1] == "дословно", r
+    assert r[2][1] == "verbatim", r
     assert r[2][0] == 1, (
         f"назван блок 0 (объемлющая рамка), а текст лежит в блоке 1: {r}")
 
@@ -193,7 +193,7 @@ def test_a_two_character_match_is_not_evidence():
     carrier = _b(0, (0, 0, 100, 20), "при 50°C и далее")
     tiny = _b(1, (10, 5, 40, 12), r"\[50\]", label="inline_formula")
     r = H.repeats_on(_page(carrier, tiny), _covered)
-    assert r[1][1] == "расходится", (
+    assert r[1][1] == "differs", (
         f"двузначное совпадение принято за доказательство: {r}")
 
 
@@ -209,6 +209,6 @@ def test_a_match_across_the_seam_of_two_blocks_is_not_evidence():
     # «абвгдеж» есть только на стыке: ни в одном блоке целиком его нет.
     candidate = _b(2, (5, 5, 40, 12), "абвгдеж", label="inline_formula")
     r = H.repeats_on(_page(first, second, candidate), _covered)
-    assert r[2][1] == "расходится", (
+    assert r[2][1] == "differs", (
         "совпадение через шов принято за доказательство — такого текста в "
         f"книге нет ни в одном блоке: {r}")

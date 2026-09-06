@@ -87,3 +87,27 @@ def test_the_command_table_covers_every_format_the_migration_touches():
     for needed in ("truth", "detect/pages", "detect", "--help"):
         assert needed in argv, f"no acceptance command reads {needed}"
     assert len(acceptance.COMMANDS) >= 5
+
+
+def test_the_reading_probe_battery_reports_the_same():
+    """A report can be identical while the PROBE behind it has stopped working.
+
+    Measured during the key migration: renaming the normalisation level `нет`
+    to `none` in `NORM_STEPS` and not at the place that compares against it
+    made `--norm none` do exactly what `boundary` does -- three levels became
+    two -- and the probe that guarded that distinction threw `TextError`
+    instead of measuring. `text-slovar` was byte-identical throughout. Only
+    this line moved: "непойманных 0" became 1.
+    """
+    _one("text-selfcheck")
+
+
+def test_the_built_book_reports_the_same_swaps():
+    """`books html` and `books apply` were read by no report at all.
+
+    Three of the seven defects the key migration left lived there and nowhere
+    else: three sheet counters frozen at zero while the book itself marked two
+    sheets, a CSS selector left in Russian so 500 furniture blocks stopped
+    being dimmed, and a file quietly dropped out of `assets/source`.
+    """
+    _one("apply-status")

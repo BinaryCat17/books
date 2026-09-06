@@ -55,6 +55,22 @@ COMMANDS = {
     "replay-annopage": (
         ["replay", "--check", "bench/annopage/detect"],
         ["bench/annopage/detect/run.json"]),
+    # `books text --selfcheck` is here because the reports alone cannot see a
+    # broken PROBE. Measured: renaming the normalisation level `нет` to `none`
+    # in one place and not the other made `--norm none` do exactly what
+    # `boundary` does -- three levels became two -- and the probe that guarded
+    # it threw instead of measuring. The report `text-slovar` was identical
+    # throughout; only the battery line moved, from 0 uncaught to 1.
+    "text-selfcheck": (
+        ["text", "bench/slovar/truth", "bench/slovar/truth", "--selfcheck"],
+        ["bench/slovar/truth"]),
+    # The book is built and swapped by two commands that no report read at
+    # all, and three of the seven defects the migration left lived exactly
+    # there: three sheet counters stuck at zero, a dead CSS selector, and a
+    # file silently dropped out of `assets/source`.
+    "apply-status": (
+        ["apply", "processed/ogneupory-vl2", "--status"],
+        ["processed/ogneupory-vl2/assets/swaps.json"]),
     "help": (["--help"], []),
 }
 

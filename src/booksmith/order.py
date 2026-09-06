@@ -86,9 +86,10 @@ DEFAULT = "ours"
 # слово «наш» в начале строки ОБЯЗАНО остаться, иначе метрика примет чужое
 # правило за ранг модели и напечатает процент согласия из ничего.
 WORDS = {
-    "ours": "наш, сверху вниз и слева направо",
-    "docling": ("наш выбор, правило ЧУЖОЕ: reading_order_rb docling — "
-                "740 строк правил без единого веса, не модель"),
+    "ours": "ours_top_down_left_right",
+    "docling": ("ours_by_choice_but_the_rule_is_foreign: reading_order_rb "
+                "docling -- 740 lines of rules, not a single weight, "
+                "not a model"),
 }
 
 

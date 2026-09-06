@@ -280,8 +280,8 @@ class DocLayout(Recognizer):
                                       "std": self.norm_std}},
             "native_threshold": self.native_threshold,
             "reading_order": ("model_rank" if getattr(self, "has_order", True)
-                               else "НАШ, сверху вниз и слева направо: "
-                                    "модель ранга не даёт"),
+                               else "ours_top_down_left_right: the model "
+                                    "gives no rank"),
             "thresholds_by_class": self.thresholds(),
             "threshold_drift": self.threshold_drift(),
             "label_vocabulary": self.labels,
@@ -461,5 +461,5 @@ class DocLayout(Recognizer):
                   # = True). Меняя здесь слова, строчную сохранить.
                   "reading_order": ("model_rank" if self.has_order else
                                      order.WORDS[which]
-                                     + ": модель ранга не даёт"),
+                                     + ": the model gives no rank"),
                   "best_rejected_by_class": rejected})

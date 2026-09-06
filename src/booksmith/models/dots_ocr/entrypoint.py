@@ -350,7 +350,7 @@ def main():
                            "blocks": blocks, "raw": {"answer": ans},
                            "meta": {"detector": "dots.ocr",
                                     "pass_no": r, "prompt": "layout_only_en",
-                                    "reading_order": "порядок порождения",
+                                    "reading_order": "generation_order",
                                     "input_pixel_ceiling": a.max_pixels,
                                     "downscale": round(scale, 4),
                                     "out_of_vram": oom,

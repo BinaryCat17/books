@@ -161,7 +161,7 @@ def truth_state_defaults_to_marked(page):
 
 def pipeline_touches_at_off(self, blocks, w, h, index):
     """Конвейер «ничего не делает», но пересобирает список и дописывает ключ."""
-    return list(blocks), {"reading_order": "наш, сверху вниз и слева направо",
+    return list(blocks), {"reading_order": "ours_top_down_left_right",
                           "docling_pipeline": {"mode": "off"}}
 
 
@@ -963,7 +963,7 @@ def sniff_calls_emptiness_text(text):
     перестаёт быть видно в наблюдённом.
     """
     out = _real_sniff(text)
-    return "text" if out == "пусто" else out
+    return "text" if out == "empty" else out
 
 
 def parse_pads_like_the_vendor(s):
@@ -1277,8 +1277,8 @@ def repeats_compare_the_block_with_itself(page, covered):
                    if o.block_id != b.block_id and covered(b.box, o.box)]
         own = booktext.normalize(b.content, "latex")
         out[b.block_id] = (owners[0].block_id if owners else None,
-                           "дословно" if len(own) >= 2 and own in whole_page
-                           else "расходится")
+                           "verbatim" if len(own) >= 2 and own in whole_page
+                           else "differs")
     return out
 
 
@@ -1303,8 +1303,8 @@ def repeats_compare_with_other_candidates_too(page, covered):
                    if o.block_id != b.block_id and covered(b.box, o.box)]
         own = booktext.normalize(b.content, "latex")
         out[b.block_id] = (owners[0].block_id if owners else None,
-                           "дословно" if len(own) >= 2 and own in others
-                           else "расходится")
+                           "verbatim" if len(own) >= 2 and own in others
+                           else "differs")
     return out
 
 
@@ -1341,20 +1341,20 @@ def _repeats_variant(page, covered, *, artifacts=False, empty=False,
         own = booktext.normalize(b.content or "", "latex")
         lo = threshold if threshold is not None else dhtml.REPEAT_MIN
         out = (always if always else
-                 ("дословно" if len(own) >= lo and own in stays
-                  else "расходится"))
+                 ("verbatim" if len(own) >= lo and own in stays
+                  else "differs"))
         out[b.block_id] = (owners[0].block_id if owners else None, out)
     return out
 
 
 def repeats_never_prove_anything(page, covered):
     """Ничто не признаётся повтором — прибор молчит и книга не худеет."""
-    return _repeats_variant(page, covered, always="расходится")
+    return _repeats_variant(page, covered, always="differs")
 
 
 def repeats_prove_everything(page, covered):
     """Повтором объявляется всё вложенное, без сличения вовсе."""
-    return _repeats_variant(page, covered, always="дословно")
+    return _repeats_variant(page, covered, always="verbatim")
 
 
 def repeats_count_the_artefact_as_a_neighbour(page, covered):
@@ -1397,7 +1397,7 @@ def repeats_join_without_a_gap(page, covered):
         own = booktext.normalize(b.content, "latex")
         found_one = len(own) >= dhtml.REPEAT_MIN and own in glue
         out[b.block_id] = (kept[0].block_id if kept else None,
-                           "дословно" if found_one else "расходится")
+                           "verbatim" if found_one else "differs")
     return out
 
 
@@ -1409,7 +1409,7 @@ def repeats_have_no_length_floor(page, covered):
 def repeats_trade_typeset_for_raw(page, covered):
     """Свёрстанное прячется, даже если носитель несёт сырой латех."""
     out = dhtml.repeats_on(page, covered)
-    return {k: (v[0], "дословно" if v[1] == "вёрстка" else v[1])
+    return {k: (v[0], "verbatim" if v[1] == "layout" else v[1])
             for k, v in out.items()}
 
 
@@ -1779,7 +1779,7 @@ def sheet_trouble_with_two_marks(blocks, arts):
     без единого текстового блока» стояло 9 при восьми настоящих.
     """
     if not blocks:
-        return "пусто"
+        return "empty"
     if any(policy.role(b.label) == "text" for b in blocks):
         return None
     return "без-текста"
@@ -1933,7 +1933,7 @@ def mutations():
         # место, где значение может уехать мимо таблицы.
         ("адаптер завёл значение мимо таблицы договора",
          lambda: sources("models/doclayout.py",
-                         '+ ": модель ранга не даёт"',
+                         '+ ": the model gives no rank"',
                          '+ " (ранга модель не даёт)"'),
          [("test_order_contract", "test_no_unknown_order_values")]),
 
@@ -3302,6 +3302,14 @@ def mutations():
          lambda: attrs(acceptance, _TREE_HASH=_clock_not_stripped()),
          [("test_acceptance",
            "test_replay_check_reports_the_same_report")]),
+
+        ("the probe battery and the book drop out of the acceptance table",
+         lambda: attrs(acceptance, COMMANDS={
+             k: v for k, v in acceptance.COMMANDS.items()
+             if k not in ("text-selfcheck", "apply-status")}),
+         [("test_acceptance",
+           "test_the_reading_probe_battery_reports_the_same"),
+          ("test_acceptance", "test_the_built_book_reports_the_same_swaps")]),
     ]
     return [(t + ("",))[:4] if len(t) == 3 else t for t in m]
 

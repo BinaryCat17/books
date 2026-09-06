@@ -38,9 +38,29 @@ WHAT IS NOT TOUCHED, AND WHY
                       after the code side of the rename -- see step 5.
 
     python3 tools/migrate_keys.py --dry      report what would change
-    python3 tools/migrate_keys.py --verify   prove every file round-trips
     python3 tools/migrate_keys.py --apply    rewrite (after a backup)
-    python3 tools/migrate_keys.py --back     apply the map in reverse
+
+THERE IS NO REVERSE PASS, AND THERE MUST NOT BE. It was written, run, and
+withdrawn. Applying the map backwards is not the inverse of applying it
+forwards, for two reasons, both measured:
+
+  Nineteen English names in the map ALREADY existed as ASCII keys in the data
+  before the migration -- `box` 63 785 times, `block_id`, `label`, `score`,
+  `order`, `kind` 61 783 each, `model` 19 052, `role` 18 935, `width` and
+  `height` 4782, and so on to 426 126 occurrences, 20.6 % of every key on
+  disk. Whether a given `box` was `рамка` yesterday is not recoverable from
+  the file; the map merges, and a merge has no inverse.
+
+  The no-go zone is written as the literal `сырое`, so on the way back -- when
+  the key is already `raw_answer` -- the guard does not fire. A reverse run in
+  a sandbox put `модель` and `роль` inside the model's verbatim answer, and
+  turned the vendor's own label dictionary (`text`, `table`, `number` of
+  PP-DocLayoutV2) into Russian. That is the rule "распознанное неприкосновенно"
+  broken by the tool that carries the rule in its own docstring.
+
+The way back is the backup, and the way to a better one would be a per-file
+journal written during `--apply` (which key, in which object, became what) --
+not a symmetric map.
 """
 import collections
 import json
@@ -171,12 +191,11 @@ def main(argv):
     keymap = json.load(open(MAP, encoding="utf-8"))
     valuemap = json.load(open(VALUES, encoding="utf-8"))["by_key"]
     if "--back" in argv:
-        # The reverse map is keyed on the NEW key name, because by then the
-        # keys on disk are already English.
-        valuemap = {keymap.get(k, k): {b: a for a, b in t.items()}
-                    for k, t in valuemap.items()}
-        keymap = {v: k for k, v in keymap.items()}
-    apply_it = "--apply" in argv or "--back" in argv
+        print("--back was removed: the map merges 19 names that already "
+              "existed in ASCII (426 126 keys, 20.6 % of the data), and the "
+              "no-go zone does not hold on the way back. Restore the backup.")
+        return 1
+    apply_it = "--apply" in argv
     files = data_files()
     styles = collections.Counter()
     errors, touched, renamed = [], 0, 0

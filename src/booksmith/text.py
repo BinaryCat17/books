@@ -244,7 +244,7 @@ def normalize(s: str, level: str = NORM) -> str:
                         f"есть {sorted(NORM_STEPS)}")
     if s is None:
         return ""
-    if level == "нет":
+    if level == "none":
         return s
     if level == "latex":
         s = bare_math(s)
@@ -411,7 +411,7 @@ def _truth_grid(b, side=None):
     def _pick(d):
         if not isinstance(d, dict):
             return None
-        for k in ("table", "table", "структура", "structure"):
+        for k in ("table", "structure"):
             if isinstance(d.get(k), (dict, list)):
                 return d[k]
         return d if any(k in d for k in _CELLS_KEYS) else None
@@ -431,7 +431,7 @@ def _truth_grid(b, side=None):
     if g is None:
         raise TextError(
             f"блок {b.get('block_id')}: в meta есть табличные ключи "
-            f"{[k for k in m if k in _CELLS_KEYS or k in ('table','table')]}, "
+            f"{[k for k in m if k in _CELLS_KEYS or k in ('table', 'structure')]}, "
             f"а сетка из них не читается. Пропустить это молча значит "
             f"напечатать «ячеек 0» там, где ячейки есть.")
     return g
@@ -687,7 +687,7 @@ def _anchor(b):
     for src in (b, b.get("meta") or {}):
         if not isinstance(src, dict):
             continue
-        for k in ("anchor", "anchor", "truth_block_id", "истина_block_id"):
+        for k in ("anchor", "truth_block_id"):
             v = src.get(k)
             if v is not None:
                 n = _anchor_num(v)
@@ -1571,7 +1571,7 @@ def _corrupt_truth_cell(T):
                 break
         for h in holders:
             src = h
-            for key in ("table", "table", "структура", "structure"):
+            for key in ("table", "structure"):
                 if isinstance(h.get(key), dict):
                     src = h[key]
                     break
@@ -1906,12 +1906,12 @@ def mutations(truth_dir: str, pages_dir: str, log=print) -> int:
                    "CER не изменился",
                    lambda: (lambda mm: None if mm is None
                             else cer(mm) == b_cer)(one(_spelling))))
-    # Та же разнопись при уровне «нет» ОБЯЗАНА двигать число: иначе
+    # Та же разнопись при уровне «none» ОБЯЗАНА двигать число: иначе
     # нормализация мертва, и предыдущая проба хвалит не работу, а бездействие.
-    probes.append(("та же разнопись при нормализации «нет»", "CER изменился",
+    probes.append(("та же разнопись при нормализации «none»", "CER изменился",
                    lambda: (lambda mm: None if mm is None else
-                            measure_pages(T, mm, norm="нет")["text"]["CER"]
-                            != measure_pages(T, P, norm="нет")["text"]["CER"])(
+                            measure_pages(T, mm, norm="none")["text"]["CER"]
+                            != measure_pages(T, P, norm="none")["text"]["CER"])(
                        one(_spelling))))
 
     # ---- ВТОРОЙ УРОВЕНЬ: то, чем будут судить чтение моделью ------------

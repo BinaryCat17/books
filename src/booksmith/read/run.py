@@ -90,7 +90,7 @@ def _sniff(text: str) -> str:
     счётчик, по которому и станет видно, что пора менять объявление.
     """
     if not text:
-        return "пусто"
+        return "empty"
     t = text.strip()
     if otsl.looks_like(t):
         return "otsl"

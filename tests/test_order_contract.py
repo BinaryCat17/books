@@ -53,13 +53,13 @@ EXPECTED = {
 # при живой модели, которая ранга не дала, и сказать об этом надо в той же
 # строке. Обе формы обязаны читаться сторожем как НАШ порядок.
 for _w in order.WORDS.values():
-    EXPECTED[_w] = "наш"
-    EXPECTED[_w + ": модель ранга не даёт"] = "наш"
+    EXPECTED[_w] = "ours"
+    EXPECTED[_w + ": the model gives no rank"] = "ours"
 # Плюс правила вендорского конвейера: их два, они длинные и они ОБЯЗАНЫ быть
 # «нашими» — docling порядка не предсказывает ни с ручкой, ни без неё, а
 # reading_order_rb это 740 строк правил без единого веса.
 for _mode, _rule in docling_heron._DoclingPipeline.ORDER_RULE.items():
-    EXPECTED[_rule] = "наш"
+    EXPECTED[_rule] = "ours"
 
 ADAPTERS = (("models/doclayout.py", doclayout),
             ("models/docling_heron.py", docling_heron),
@@ -110,7 +110,7 @@ def test_guard_reads_every_value_as_intended():
     """Главная проверка: сторож опознаёт КАЖДОЕ значение так, как задумано."""
     wrong = []
     for value, whose in sorted(EXPECTED.items()):
-        got = "model" if says_model_rank(value) else "наш"
+        got = "model" if says_model_rank(value) else "ours"
         if got != whose:
             wrong.append(f"{value!r}: задумано «{whose}», сторож понял «{got}»")
     assert not wrong, (
@@ -130,10 +130,10 @@ def test_guard_ignores_case():
     порядок не размечен ни на одной из 36 страниц.
     """
     from booksmith.models.base import ours_order
-    for v in ("наш, сверху вниз", "Наш, сверху вниз", "НАШ, позиция в списке",
-              "  наш  "):
+    for v in ("OURS_top_down_left_right", "Ours_top_down", "OURS by choice",
+              "  ours_top_down_left_right  "):
         assert ours_order(v), f"{v!r} не опознано как наш порядок"
-    for v in ("model_rank", "", None, 0, "порядок порождения"):
+    for v in ("model_rank", "", None, 0, "generation_order"):
         assert not ours_order(v), f"{v!r} ошибочно принято за наш порядок"
 
 
@@ -145,8 +145,8 @@ def test_our_order_values_start_with_lowercase_nash():
     «наш» обязано стоять ПЕРВЫМ.
     """
     for value, whose in EXPECTED.items():
-        if whose == "наш":
-            assert value.startswith("наш"), (
+        if whose == "ours":
+            assert value.startswith("ours"), (
                 f"{value!r} объявлено нашим порядком, но не начинается со "
                 f"слова «наш»: сторож примет его за ранг модели")
 
@@ -276,10 +276,10 @@ def test_no_rank_page_declares_the_rule_it_actually_used():
     """
     page = _fake_page(_ROWS_NO_RANK, ["text"])
     said = page.meta[support.ORDER_KEY]
-    assert said in EXPECTED and EXPECTED[said] == "наш", (
+    assert said in EXPECTED and EXPECTED[said] == "ours", (
         f"страница без ранга объявила {said!r} — этого нет в таблице договора "
         f"как нашего порядка")
-    assert "сверху вниз" in said and "слева направо" in said, (
+    assert "top_down" in said and "left_right" in said, (
         f"правило не названо словами: {said!r}. Сторож метрики пропустит "
         f"строку по слову «наш», а читателю останется гадать, чем сложено")
 
