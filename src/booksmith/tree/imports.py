@@ -33,12 +33,17 @@ MAY_IMPORT = {
 # (`models/paddleocr_vl`, `models/dots_ocr`) under `processing/*/rented/`.
 IMPORTERS_OF_REMOTE = ("remote", "cli", "processing", "models")
 
-# Modules and packages the plan has not placed yet. Importing one is allowed
-# from anywhere until its step moves it; the tuple shrinks with each step
-# and `tests/test_imports.py` demands that every name in it still exists at
-# the top of the package, so a placed module cannot stay exempt by
+# Modules and packages the plan has not placed yet. `datasets`, `processing`
+# and `cli` may import them until their step moves them (the metrics and
+# the command line reach the bodies where they stand); `core`, `remote` and
+# `tree` may not -- the floor never needed the exemption, and the first
+# edition of this tuple lifted it for them too (planted: `core` importing
+# `doc.html` passed). The tuple shrinks with each step and
+# `tests/test_imports.py` demands that every name in it still exists at the
+# top of the package, so a placed module cannot stay exempt by
 # forgetfulness. Empty after step 3c.
 UNPLACED = ("detect", "djvu", "models", "doc", "read", "cli")
+REACH_UNPLACED = ("datasets", "processing", "cli")
 
 
 def _module(path, root, name):
@@ -118,7 +123,7 @@ def violations(root=PKG, name=NAME):
     bad = []
     for importer, imported, line in edges(root, name):
         a, b = _top(importer, name), _top(imported, name)
-        if not a or not b or a == b or b in UNPLACED:
+        if not a or not b or a == b or (b in UNPLACED and a in REACH_UNPLACED):
             continue
         allowed = MAY_IMPORT.get(a)
         if allowed is not None and b not in allowed:

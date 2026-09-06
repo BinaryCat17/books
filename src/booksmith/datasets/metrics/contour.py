@@ -56,7 +56,7 @@ since moved together they hide the inert one.
 import json
 import os
 
-from booksmith.core import policy
+from booksmith.core import page, policy
 from booksmith.core.errors import Unmeasurable
 from booksmith.datasets.metrics.base import Metric, Record, Scalar
 
@@ -82,19 +82,12 @@ class MetricError(Unmeasurable):
 
 
 def _load(d):
-    if not os.path.isdir(d):
-        raise MetricError(f"no directory {d}")
-    out = {}
-    for name in sorted(os.listdir(d)):
-        if name.endswith(".json") and name != "run.json":
-            with open(os.path.join(d, name), encoding="utf-8") as f:
-                p = json.load(f)
-            if "blocks" not in p or "index" not in p:
-                raise MetricError(f"{name}: does not look like a markup page")
-            out[int(p["index"])] = p
-    if not out:
-        raise MetricError(f"no markup pages in {d}")
-    return out
+    """The one loader, `core.page.load_pages`, under this metric's own error
+    class so that a caller catching `MetricError` still does."""
+    try:
+        return page.load_pages(d, "model boxes")
+    except Unmeasurable as e:
+        raise MetricError(str(e)) from None
 
 
 def _same_book(truth_dir: str, detect_dir: str) -> str:
@@ -104,22 +97,21 @@ def _same_book(truth_dir: str, detect_dir: str) -> str:
     and prints a sensible-looking number. Both snapshots carry the source PDF
     sha256; we compare those, not directory names.
     """
-    man = os.path.join(os.path.dirname(truth_dir.rstrip("/")), "manifest.json")
-    run = os.path.join(os.path.dirname(detect_dir.rstrip("/")), "run.json")
-    if not (os.path.exists(man) and os.path.exists(run)):
-        return "sha256 not checked: no manifest.json or run.json beside"
-    with open(man, encoding="utf-8") as f:
-        a = json.load(f).get("sha256 pdf")
-    with open(run, encoding="utf-8") as f:
-        b = (json.load(f).get("source") or {}).get("sha256")
-    if not (a and b):
-        return "sha256 not checked: the field is absent from the snapshot"
-    if a != b:
-        raise MetricError(
-            f"truth and model output are about DIFFERENT books: sha256 "
-            f"{a[:12]} against {b[:12]}. A number here would look sensible "
-            f"and mean nothing.")
-    return f"sha256 checked: {a[:12]}"
+    # THE ONE CHECK is `datasets.bench.same_book`; this keeps the metric's
+    # signature (two directories) and its error class.
+    from booksmith.datasets import bench as _bench
+    try:
+        b = _bench.Bench.open(truth_dir)
+    except Unmeasurable:
+        b = None
+    try:
+        r = _bench.Run.open(detect_dir)
+    except Unmeasurable:
+        r = _bench.Run.bare(detect_dir)
+    try:
+        return _bench.same_book(b, r)
+    except Unmeasurable as e:
+        raise MetricError(str(e)) from None
 
 
 def _inter(a, b):
@@ -1953,7 +1945,10 @@ def sense(T: dict, M_: dict) -> dict:
 # names the thresholds that rode in. Every scalar the report prints as NOT
 # COMPARED / NOT MARKED is a None with the report's own reason.
 def _order(part: dict) -> Scalar:
-    return Scalar(part.get("agreement"), (part.get("pairs", 0), part.get("pairs_possible", 0)),
+    """Agreement over the pages whose truth marks order; none marked, no
+    value, and the report's own reason."""
+    return Scalar(part.get("agreement"),
+                  over=(part.get("page_count", 0), part.get("pages_total", 0)), unit="pages",
                   why=None if part.get("agreement") is not None else part.get("why") or "not compared")
 
 
@@ -1963,15 +1958,24 @@ class ContourMetric(Metric):
 
     def run(self, bench, run) -> Record:
         res = compare(bench.truth_dir, run.pages_dir)
+        return self.record(res, bench.name, run.label)
+
+    def run_loaded(self, bench, run, truth, pages, note) -> Record:
+        res = compare_pages(truth, pages)
+        res["book"] = f"{note}; {_same_raster(truth, pages)}"
+        return self.record(res, bench.name, run.label)
+
+    def record(self, res: dict, bench_name: str, run_label: str) -> Record:
         t, x, s, j = res["totals"], res["text_and_furniture"], res["sense"], res["jumps"]
         lab = label_errors(res)
         scalars = {
-            "artefacts_found": Scalar(t["share"], (t["found"], t["artifacts"])),
+            "artefacts_found": Scalar(t["share"], count=(t["found"], t["artifacts"])),
             "sense_whole": Scalar(
-                s["share"], (s["intact"], s["objects"]),
+                s["share"], count=(s["intact"], s["objects"]),
                 why=None if s["share"] is not None else "no artefact in the truth"),
             "text_furniture_found": Scalar(
-                x["share"], (x.get("pages_with_text_markup", 0), x.get("pages_total", 0)),
+                x["share"], count=(x["found"], x["block_count"]),
+                over=(x.get("pages_with_text_markup", 0), x.get("pages_total", 0)), unit="pages",
                 why=None if x["share"] is not None else "text and furniture NOT MARKED in this truth"),
             "label_errors": Scalar(
                 lab, why=None if lab is not None else
@@ -1980,14 +1984,13 @@ class ContourMetric(Metric):
             "model_order": _order(res["model_order"]),
             "assembly_order": _order(res["assembly_order"]),
             "excess_jumps_per_page": Scalar(
-                j.get("per_page"), (j.get("pages_counted", 0), j.get("page_count", 0)),
+                j.get("per_page"), over=(j.get("pages_counted", 0), j.get("page_count", 0)), unit="pages",
                 why=None if j.get("per_page") is not None else j.get("why") or "not counted"),
         }
-        params = {"COVER_MATCH": COVER_MATCH, "TOUCH": TOUCH,
-                  "TOL_PX": TOL_PX, "SENSE_WHOLE": SENSE_WHOLE,
-                  "SENSE_NEIGHBOUR": SENSE_NEIGHBOUR}
+        params = {"COVER_MATCH": COVER_MATCH, "TOUCH": TOUCH, "TOL_PX": TOL_PX,
+                  "SENSE_WHOLE": SENSE_WHOLE, "SENSE_NEIGHBOUR": SENSE_NEIGHBOUR}
         params.update({f"COLUMN_{k}": v for k, v in (j.get("params") or {}).items()})
-        return Record(self.name, bench.name, run.label, scalars, params, res)
+        return Record(self.name, bench_name, run_label, scalars, params, res)
 
     def report(self, rec: Record, log=print) -> None:
         report(rec.detail, log=log)

@@ -52,8 +52,16 @@ def test_a_scalar_without_a_value_must_say_why():
         pass
     else:
         raise AssertionError("a flag was accepted as a number")
-    s = Scalar(None, (0, 5), why="nothing marked")
-    assert s.to_json() == {"value": None, "over": {"n": 0, "of": 5}, "why": "nothing marked"}
+    s = Scalar(None, over=(0, 5), unit="pages", why="nothing marked")
+    assert s.to_json() == {"value": None, "over": {"n": 0, "of": 5, "unit": "pages"},
+                           "why": "nothing marked"}
+    assert Scalar.from_json(s.to_json()) == s
+    try:
+        Scalar(0.5, over=(1, 2))
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("coverage without a unit was accepted")
 
 
 def test_records_agree_with_the_raw_dict_they_carry():
@@ -74,11 +82,28 @@ def test_records_agree_with_the_raw_dict_they_carry():
     contour = registry.BY_NAME["contour"].run(b, r)
     d = contour.detail
     assert contour.scalars["artefacts_found"].value == d["totals"]["share"]
-    assert contour.scalars["artefacts_found"].over == (d["totals"]["found"], d["totals"]["artifacts"])
+    assert contour.scalars["artefacts_found"].count == (d["totals"]["found"], d["totals"]["artifacts"])
+    x = d["text_and_furniture"]
+    tf = contour.scalars["text_furniture_found"]
+    assert tf.count == (x["found"], x["block_count"]) and tf.unit == "pages"
+    assert tf.over == (x["pages_with_text_markup"], x["pages_total"])
     assert contour.params["COVER_MATCH"] == 0.75
     fit = registry.BY_NAME["fitness"].run(b, r)
     f = fit.detail
     assert abs(fit.scalars["ink_under_boxes"].value - f["ink_under_boxes"] / f["ink_total"]) < 1e-12
+
+
+def test_applicability_on_the_golden_bench_excludes_the_reading_metric():
+    """AnnoPage annotates boxes and no text: `text` needs content it has
+    not got. On the real, tracked truth, not on a fake."""
+    from booksmith.core import config
+    root = os.path.join(config.ROOT, "bench", "annopage")
+    if not os.path.isdir(os.path.join(root, "truth")):
+        support.skip("bench/annopage/truth is not here")
+    b = Bench.open(root)
+    names = sorted(m.name for m in applicable(registry.METRICS, b, object()))
+    assert "text" not in names, names
+    assert "contour" in names, names
 
 
 def test_applicability_is_by_prerequisite_not_by_trait():

@@ -169,7 +169,7 @@ def same_book(bench: Bench, run: Run) -> str:
     purpose ("checked", "not checked: no snapshot", "not checked: no field")
     because collapsing them was the exact loss the acceptance records were
     built to catch."""
-    if run.run_dir is None:
+    if run.run_dir is None or bench is None or not bench.manifest:
         return "sha256 not checked: no manifest.json or run.json beside"
     a, b = bench.sha256, run.sha256
     if not (a and b):

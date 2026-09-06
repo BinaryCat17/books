@@ -31,9 +31,19 @@ from dataclasses import dataclass, field
 
 @dataclass(frozen=True)
 class Scalar:
-    """One number of a record. `value` None only with a non-empty `why`."""
+    """One number of a record.
+
+    `count` is the fraction behind a share: (found, artefacts) for "2 of 3
+    found". `over` is COVERAGE, what the value was counted over and out of
+    what there was, in `unit`: "over 6 pages of 130". They are two things,
+    and the first table printed both under one column and named neither;
+    a reader could not tell "2/3 found" from "13/13 pages counted".
+    `value` None only with a non-empty `why`.
+    """
     value: float | int | None
-    over: tuple[int, int] | None = None     # (counted, out of)
+    count: tuple[int, int] | None = None    # (numerator, denominator) of a share
+    over: tuple[int, int] | None = None     # (counted, of), coverage
+    unit: str = ""                          # of `over`: pages, blocks, pairs
     why: str | None = None
 
     def __post_init__(self):
@@ -41,14 +51,25 @@ class Scalar:
             raise ValueError("a scalar without a value must say why")
         if self.value is not None and isinstance(self.value, bool):
             raise ValueError("a scalar is a number, not a flag")
+        if self.over is not None and not self.unit:
+            raise ValueError("coverage without a unit says nothing")
 
     def to_json(self) -> dict:
         d = {"value": self.value}
+        if self.count is not None:
+            d["count"] = {"n": self.count[0], "of": self.count[1]}
         if self.over is not None:
-            d["over"] = {"n": self.over[0], "of": self.over[1]}
+            d["over"] = {"n": self.over[0], "of": self.over[1], "unit": self.unit}
         if self.why:
             d["why"] = self.why
         return d
+
+    @classmethod
+    def from_json(cls, d: dict) -> "Scalar":
+        c, o = d.get("count"), d.get("over")
+        return cls(d.get("value"), (c["n"], c["of"]) if c else None,
+                   (o["n"], o["of"]) if o else None, o["unit"] if o else "",
+                   d.get("why"))
 
 
 @dataclass
@@ -71,6 +92,16 @@ class Record:
                 "scalars": {k: s.to_json() for k, s in self.scalars.items()},
                 "params": self.params, "detail": self.detail}
 
+    @classmethod
+    def from_json(cls, d: dict) -> "Record":
+        """The record as read back from disk. `detail` comes back as JSON
+        left it: integer keys (page indices) are strings there, so a record
+        read back equals the original only after the original has been
+        through JSON itself; the table test says so."""
+        return cls(d["metric"], d["bench"], d["run"],
+                   {k: Scalar.from_json(v) for k, v in d["scalars"].items()},
+                   d.get("params", {}), d.get("detail", {}))
+
 
 NEEDS = ("truth", "pages", "pdf", "content")
 
@@ -83,6 +114,12 @@ class Metric:
     needs: frozenset = frozenset()
 
     def run(self, bench, run) -> Record:
+        """Measure from the directories: parses them itself."""
+        raise NotImplementedError
+
+    def run_loaded(self, bench, run, truth: dict, pages: dict, note: str) -> Record:
+        """Measure from pages already parsed, with the same-book note made
+        once for the whole table."""
         raise NotImplementedError
 
     def report(self, rec: Record, log=print) -> None:

@@ -578,10 +578,10 @@ def cmd_bench_all(a):
     from booksmith.datasets.bench import Bench
     b = Bench.open(a.bench)
     run = b.run(a.run)
-    which = a.only.split(",") if a.only else None
+    which = [n.strip() for n in a.only.split(",") if n.strip()] if a.only else None
     recs = table.rows(b, run, which, log=log)
     table.render(recs, log=log)
-    path = a.json or table.results_path(b, run)
+    path = a.json or table.results_path(b, run, which)
     table.write_json(recs, path, log=log)
     return 0
 

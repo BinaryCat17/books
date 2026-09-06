@@ -51,6 +51,25 @@ def test_a_planted_upward_import_is_named():
                for b in bad), bad
 
 
+def test_core_may_not_reach_an_unplaced_module():
+    """The exemption faces the measuring side only: `datasets` may import a
+    body the plan has not placed yet, `core` may not. The first edition
+    exempted the imported side for everyone and `core` importing `doc.html`
+    passed."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = _plant(tmp, {
+            "__init__.py": "",
+            "core/__init__.py": "",
+            "core/k.py": "from booksmith.doc import html\n",
+            "doc/__init__.py": "",
+            "doc/html.py": "",
+            "datasets/__init__.py": "",
+            "datasets/m.py": "from booksmith.doc import html\n",
+        })
+        bad = imports.violations(root)
+    assert len(bad) == 1 and "core.k:1" in bad[0], bad
+
+
 def test_the_remote_rule_names_an_importer_outside_its_list():
     with tempfile.TemporaryDirectory() as tmp:
         root = _plant(tmp, {

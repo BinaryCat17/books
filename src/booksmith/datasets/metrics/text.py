@@ -61,9 +61,9 @@ import re
 from html.parser import HTMLParser
 
 from booksmith.datasets.metrics import contour as metrics
-from booksmith.core import otsl, policy
+from booksmith.core import otsl, page, policy
 from booksmith.core.textnorm import NORM, norm_note, normalize
-from booksmith.core.errors import TextError
+from booksmith.core.errors import TextError, Unmeasurable
 from booksmith.datasets.metrics.base import Metric, Record, Scalar
 
 
@@ -531,24 +531,13 @@ def _match(tb, pb, page_index=None):
 
 # ----------------------------------------------------------------- measuring
 def _load(d):
-    """Pages of a directory, keyed by page index.
-
-    Ours rather than `metrics._load`, whose error speaks of boxes: a directory
-    of foreign jsons yields a plausible number about nothing.
-    """
-    if not os.path.isdir(d):
-        raise TextError(f"no directory {d}")
-    out = {}
-    for name in sorted(os.listdir(d)):
-        if name.endswith(".json") and name not in ("run.json", "manifest.json"):
-            with open(os.path.join(d, name), encoding="utf-8") as f:
-                p = json.load(f)
-            if "blocks" not in p or "index" not in p:
-                raise TextError(f"{name}: does not look like a markup page")
-            out[int(p["index"])] = p
-    if not out:
-        raise TextError(f"no pages in {d}")
-    return out
+    """The one loader, `core.page.load_pages`, under this metric's own error
+    class: a caller catching `TextError` still does, and the message names
+    what was being read."""
+    try:
+        return page.load_pages(d, "what was read")
+    except Unmeasurable as e:
+        raise TextError(str(e)) from None
 
 
 def measure(truth_dir: str, pages_dir: str, norm: str = NORM) -> dict:
@@ -1656,8 +1645,14 @@ def mutations(truth_dir: str, pages_dir: str, log=print) -> int:
 # The measurement above returns its dict; this turns it into a `Record` and
 # names the thresholds that rode in. Every scalar the report prints as NOT
 # COMPARED / NOT MARKED is a None with the report's own reason.
-def _share(value, n, of, why):
-    return Scalar(value, (n, of), why=None if value is not None else why)
+def _share_count(value, n, of, why):
+    """A share with the counts behind it, or the reason there is none."""
+    return Scalar(value, count=(n, of), why=None if value is not None else why)
+
+
+def _over_blocks(value, n, of, why):
+    """A rate counted over n blocks of N, or the reason there is none."""
+    return Scalar(value, over=(n, of), unit="blocks", why=None if value is not None else why)
 
 
 class TextMetric(Metric):
@@ -1666,38 +1661,53 @@ class TextMetric(Metric):
 
     def run(self, bench, run) -> Record:
         res = measure(bench.truth_dir, run.pages_dir)
+        return self.record(res, bench.name, run.label)
+
+    def run_loaded(self, bench, run, truth, pages, note) -> Record:
+        from booksmith.datasets.metrics.contour import _same_raster
+        res = measure_pages(truth, pages)
+        res["book"] = f"{note}; {_same_raster(truth, pages)}"
+        return self.record(res, bench.name, run.label)
+
+    def record(self, res: dict, bench_name: str, run_label: str) -> Record:
         t, tb, m, bt, a = (res["text"], res["tables"], res["matching"],
                            res["baits"], res["artifacts_with_truth"])
         answered = t["block_count"] - t["no_answer"] - t["unmatched"]
+        art_answered = a["block_count"] - a["no_answer"] - a["unmatched"]
         no_cells = ("no table with a cell grid in the truth" if not tb["cell_count"]
                     else "no table answered" if not tb["answered_blocks"]
                     else "no cell matched")
         scalars = {
-            "paired": _share(m["share"], m["matched_total"], m["truth_blocks"],
+            "paired": _share_count(m["share"], m["matched_total"], m["truth_blocks"],
                              "no truth block to pair"),
             # CER and WER are over EVERY truth block, an unanswered one at
             # full distance; the answered-only figure is its own line.
-            "CER": _share(t["CER"], t["block_count"], t["block_count"],
-                          "no text block in the truth"),
-            "WER": _share(t["WER"], t["block_count"], t["block_count"],
-                          "no text block in the truth"),
-            "CER_answered": _share(t["cer_answered"], answered, t["block_count"],
-                                   "no answered text block"),
-            "no_answer": _share(t["share_no_answer"], t["no_answer"], t["block_count"],
+            "CER": _over_blocks(t["CER"], t["block_count"], t["block_count"],
+                           "no text block in the truth"),
+            "WER": _over_blocks(t["WER"], t["block_count"], t["block_count"],
+                           "no text block in the truth"),
+            "CER_answered": _over_blocks(t["cer_answered"], answered, t["block_count"],
+                                    "no answered text block"),
+            "no_answer": _share_count(t["share_no_answer"], t["no_answer"], t["block_count"],
                                 "no text block in the truth"),
-            "cells_matched": _share(tb["share_cells_matched"], tb["cells_matched"],
+            "cells_matched": _share_count(tb["share_cells_matched"], tb["cells_matched"],
                                     tb["cell_count"], no_cells),
-            "CER_cells": _share(tb["cer_cells"], tb["cells_matched"], tb["cell_count"],
-                                no_cells),
-            "tables_given_as_text": Scalar(tb["given_as_text"], (tb["given_as_text"], tb["block_count"])),
-            "baits_read": _share(bt["share"], bt["read"], bt["artifacts"],
+            "CER_cells": Scalar(tb["cer_cells"], over=(tb["cells_matched"], tb["cell_count"]),
+                                unit="cells", why=None if tb["cer_cells"] is not None else no_cells),
+            "tables_given_as_text": Scalar(tb["given_as_text"],
+                                           count=(tb["given_as_text"], tb["block_count"])),
+            "baits_read": _share_count(bt["share"], bt["read"], bt["artifacts"],
                                  "no bait artefact in the truth"),
-            "CER_artefacts": _share(a["CER"], a["block_count"] - a["no_answer"], a["block_count"],
-                                    "no artefact with character truth"),
+            # Over every artefact with character truth, like CER; the
+            # answered-only figure is the dict's `cer_answered`.
+            "CER_artefacts": _over_blocks(a["CER"], a["block_count"], a["block_count"],
+                                     "no artefact with character truth"),
+            "CER_artefacts_answered": _over_blocks(a["cer_answered"], art_answered, a["block_count"],
+                                              "no answered artefact with character truth"),
         }
         params = {"normalization": res["normalization"]["level"],
                   **{f"geometry_{k}": v for k, v in (res.get("geometry_gate") or {}).items()}}
-        return Record(self.name, bench.name, run.label, scalars, params, res)
+        return Record(self.name, bench_name, run_label, scalars, params, res)
 
     def report(self, rec: Record, log=print) -> None:
         report(rec.detail, log=log)

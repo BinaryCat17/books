@@ -362,28 +362,42 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
     return bad
 
 def _ratio(n, d, why):
-    return Scalar(n / d if d else None, (n, d), why=None if d else why)
+    return Scalar(n / d if d else None, count=(n, d), why=None if d else why)
 
 
 class FitnessMetric(Metric):
+    """Shares from the measurement's counts: the six the report divides
+    (ink under boxes, under artefacts, outside; area under boxes; objects
+    intact; object ink preserved) and four it prints as counts, expressed
+    here over the object count so that two runs compare (torn, left as
+    text, arrived with company, cut as one picture)."""
     name = "fitness"
     needs = frozenset({"pdf", "pages"})
 
     def run(self, bench, run) -> Record:
         truth = bench.truth_dir if bench is not None and bench.truth_dir else ""
         res = ink.measure(bench.pdf, run.pages_dir, truth)
+        return self.record(res, bench.name, run.label, bool(truth))
+
+    def run_loaded(self, bench, run, truth, pages, note) -> Record:
+        # The ink measurement renders the PDF page by page and reads the
+        # pages itself; the parsed dicts are not what costs here.
+        return self.run(bench, run)
+
+    def record(self, res: dict, bench_name: str, run_label: str, with_truth=True) -> Record:
         tot, obj = res["ink_total"], res["objects"]
         no_ink = "no ink found at all: nothing to measure"
-        no_obj = ("no truth given: the object half needs it" if not truth
+        no_obj = ("no truth given: the object half needs it" if not with_truth
                   else "no object with ink in the truth")
         scalars = {
             "ink_under_boxes": _ratio(res["ink_under_boxes"], tot, no_ink),
             "ink_under_artefacts": _ratio(res["ink_under_artifact"], tot, no_ink),
             "ink_outside_boxes": Scalar(1 - res["ink_under_boxes"] / tot if tot else None,
-                                        (tot - res["ink_under_boxes"], tot),
+                                        count=(tot - res["ink_under_boxes"], tot),
                                         why=None if tot else no_ink),
             "area_under_boxes": _ratio(res["boxes_area"], res["sheet_area"], "no sheet"),
             "objects_intact": _ratio(res["intact"], obj, no_obj),
+            "objects_in_one_box": _ratio(res["in_one_box"], obj, no_obj),
             "objects_torn": _ratio(res["torn"], obj, no_obj),
             "objects_left_as_text": _ratio(res["left_as_text"], obj, no_obj),
             "objects_with_company": _ratio(res["arrived_with_company"], obj, no_obj),
@@ -391,7 +405,7 @@ class FitnessMetric(Metric):
         }
         params = dict(res["thresholds"])
         params["GUTTER"] = ink.GUTTER
-        return Record(self.name, bench.name, run.label, scalars, params, res)
+        return Record(self.name, bench_name, run_label, scalars, params, res)
 
     def report(self, rec: Record, log=print) -> None:
         ink.report(rec.detail, log=log)

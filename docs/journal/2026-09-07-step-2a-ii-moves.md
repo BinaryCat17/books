@@ -38,3 +38,41 @@ import rule 0 violations, slovar rebuilt with the moved generator: 13 of 13
 truth files and the PDF byte-identical. The manifest's `generator.file` now
 reads `datasets/make/synth.py` and its commit the current one, as the plan
 said it would.
+
+## The 2a review, and what it found
+
+Five defects, fixed in the commit after the moves:
+
+* the import exemption faced the wrong way: `UNPLACED` exempted the
+  IMPORTED side for everyone, so `core` importing `doc.html` passed. Only
+  `datasets`, `processing` and `cli` may reach an unplaced body now, and a
+  planted `core -> doc` import is named;
+* `Scalar.over` meant three things in one column (the fraction behind a
+  share, a coverage in pages, a coverage in blocks) and named none. A
+  scalar carries `count` (numerator, denominator) apart from `over`
+  (counted, of) with a `unit`, and coverage without a unit is refused;
+* `CER_artefacts` repeated the coverage bug the commit claimed to fix for
+  `CER`; it is over every artefact block now, with the answered-only figure
+  its own line;
+* `--only` crashed on a typo, bypassed applicability, and wrote a partial
+  table over the full one's file. It refuses an unknown name and an
+  inapplicable metric, and names its own file;
+* the table had no test and no lock. `tests/test_table.py` checks the
+  refusals, the single parse, the read-back and the rendering on a made-up
+  bench; the acceptance report `table-slovar` locks the real text.
+
+Weaknesses taken: the truth is parsed once per table and the metrics take
+the dicts (`Metric.run_loaded`); the two private loaders delegate to
+`core.page.load_pages` under their own error class, and the contour
+metric's identity check delegates to `bench.same_book`, whose wording for a
+bench without a manifest now matches the old check's; the ink wrapper adds
+"cut as one picture" and says which shares the report divides and which it
+counts; the docs-map test sees an unassigned `add_parser`; a whitespace
+line the move left is gone. The step-1-reviewed commit's message said
+"checks 343" for a tree at 329 and "nine imports gone" for six; the record
+stands corrected here.
+
+Still owed from the plan's 2a, for 2b: `snapshot.py` and `assembly.py` as
+metrics, `mutate.py` and the fold of the three batteries onto
+`run_battery`, the overlay's own identity check, and the six loaders
+reduced to one call site each.

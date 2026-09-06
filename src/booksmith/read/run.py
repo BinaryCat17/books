@@ -183,7 +183,7 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
     given; the sha256 CHECK stays mandatory whatever it is, being about which
     book this is, not where it lies.
     """
-    
+
     facts = _detect_facts(detect_dir)
     pdf = pdf or facts["source"]["path"]
     if not os.path.exists(pdf):

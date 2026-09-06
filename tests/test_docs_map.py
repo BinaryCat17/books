@@ -37,7 +37,7 @@ def _declared(src):
     argparse builds it.
     """
     out, groups, last_top = set(), {}, None
-    for m in re.finditer(r'(\w+)\s*=\s*(\w+)\.add_parser\("([a-z-]+)"'
+    for m in re.finditer(r'(?:(\w+)\s*=\s*)?(\w+)\.add_parser\("([a-z-]+)"'
                          r'|(\w+)\s*=\s*(\w+)\.add_subparsers\(', src):
         var, on, name, subvar, parent = m.groups()
         if name is not None:
