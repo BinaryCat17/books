@@ -1,42 +1,35 @@
 usage: books [-h]
              {offers,prepare,detect,html,feed,fitness,subset,annopage,score,read,apply,text,overlay,synth,ls,down,reap,doctor,ledger,replay} ...
 
-Единая точка входа: books <команда>.
+Single entry point: books <command>.
 
-    books doctor                 проверить всё ДО того, как пойдут деньги
-    books offers                 посмотреть рынок, ничего не арендуя
-    books prepare книга.djvu     развернуть djvu в PDF, разрезав развороты
-    books detect книга.pdf       ПЕРВЫЙ УРОВЕНЬ: контуры, местно и бесплатно
-    books read книга.detect/     ВТОРОЙ УРОВЕНЬ: прочитать блоки моделью (платно)
-    books html книга.detect/     собрать HTML: текст + артефакты картинками
-    books apply книга.html/       поставить прочитанное в книгу; источник берётся
-                                 из её слепка. Повтор бесплатен: что уже стоит,
-                                 второй раз не ставится. --status — только отчёт
-    books feed книга.detect/     что уехало бы в VLM: кроп или страница с дырами
-    books synth                  синтетический стенд: страницы с точной истиной
-    books annopage raw/annopage  золотой стенд: настоящие страницы с истиной
-    books subset                 выжимка: артефакты бок о бок
-    books score истина/ рамки/   метрики контуров; --selfcheck — батарея мутаций
-    books text истина/ страницы/ метрика ЧТЕНИЯ: знаки и ячейки таблиц
-    books fitness книга.pdf …    доедет ли смысл: по чернилам, без истины
-    books overlay книга.pdf …    рамки поверх страниц, чтобы посмотреть глазами
+    books doctor                 check everything BEFORE the money starts
+    books offers                 look at the market, renting nothing
+    books prepare book.djvu      djvu -> PDF, spreads cut apart
+    books detect book.pdf        LEVEL ONE: contours, local and free
+    books read book.detect/      LEVEL TWO: read the blocks with a model (paid)
+    books html book.detect/      build the HTML: text + artefacts as pictures
+    books apply book-dir/        put the read markup into the book, source out
+                                 of its snapshot; repeats are free, what stands
+                                 is not placed twice. --status — report only
+    books feed book.detect/      what would go to the VLM: crop or holed page
+    books synth                  synthetic bench: pages with exact truth
+    books annopage raw/annopage  golden bench: real pages, librarians' truth
+    books subset                 distillate: artefacts side by side
+    books score truth/ boxes/    contour metrics; --selfcheck — mutation battery
+    books text truth/ pages/     READING metric: characters and table cells
+    books fitness book.pdf …     will the meaning arrive: by ink, no truth
+    books overlay book.pdf …     boxes over pages, to look with your own eyes
     books ls | books down 12345 | books reap
-    books ledger                 журнал прогонов и оценки по нему
-    books replay --check выход/  полон ли слепок входа
+    books ledger                 run journal and the estimate from it
+    books replay --check out/    is the input snapshot complete
 
-СПИСОК ВЫШЕ СВЕРЕН С `sub.add_parser`, и это не педантизм: здесь недоставало
-ШЕСТИ команд из двадцати — `fitness`, `subset`, `annopage`, `read`,
-`apply` (тогда `swap`), `text`, — то есть весь второй уровень был невидим
-тому, кто читает шапку.
+THE LIST IS CHECKED AGAINST `sub.add_parser`: six commands of twenty were
+missing — `fitness`, `subset`, `annopage`, `read`, `apply` (then `swap`),
+`text` — the whole of level two, invisible to whoever reads the header.
 
-ОБА УРОВНЯ НА МЕСТЕ. Здесь стояло «разбора целиком тут пока нет… что есть —
-`books detect`, первая половина первого уровня»: верно до появления
-`books read`. Прежний `books ocr` действительно звал модель через слой из
-десятка заплаток поверх чужого пайплайна и собирал книгу эвристиками, и всё
-это удалено вместе с замерами, которыми оправдывалось (они считались против
-вывода другой модели, а не против известного текста). Нынешний второй уровень
-устроен иначе: он ничего не правит, кладёт наблюдённое сбоку и проверяется
-дома против подставного сервера — 27 проверок, ни одного цента.
+Level two repairs nothing, keeps what it observed beside the block, and is
+checked at home against a stand-in server: 27 checks, not one cent.
 
 positional arguments:
   {offers,prepare,detect,html,feed,fitness,subset,annopage,score,read,apply,text,overlay,synth,ls,down,reap,doctor,ledger,replay}

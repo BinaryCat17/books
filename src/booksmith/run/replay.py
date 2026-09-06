@@ -1,79 +1,71 @@
-"""Слепок входа: чего в нём не хватает, чтобы прогон можно было повторить.
+"""Input snapshot: what it lacks for the run to be repeatable.
 
-Прогон невоспроизводим по устройству: карта арендована на двадцать минут и
-погашена, промт живёт в чужой библиотеке, веса лежат на машине, которой
-больше нет.  Единственный след — `run.json`.  До этой правки в нём стояло
-десять полей: страниц, секунд, стр/с, модель, устройство, server, source,
-stem, passes, cost_usd.  Ни ручки, ни промта, ни версии пакета, ни отпечатка
-весов, ни коммита кода.
+A run is unrepeatable by construction -- the card was rented for twenty
+minutes and killed, the prompt lives in someone else's library, the weights sat
+on a machine that is gone. The only trace is `run.json`, and it used to carry
+ten fields: pages, seconds, pages/s, model, device, server, source, stem,
+passes, cost_usd. No knob, no prompt, no package version, no weights
+fingerprint, no code commit.
 
-Что это значит на деле.  «Иероглифов по метке `text` 8 на миллион знаков, по
-метке `table` — 817» — стократный перекос при одной модели и одной странице.
-Единственное, чем они отличались, промт.  Проверить это по `run.json` шести
-книг нельзя: промта там нет.  Как нет и ответа на вопрос, чем прогон
-«Справочника» отличался от прогона «Биохимии», кроме имени файла.
+What that costs: "hieroglyphs under label `text` 8 per million characters,
+under `table` 817" -- a hundredfold skew at one model on one page, and the only
+difference between them was the prompt. No `run.json` of the six books can
+confirm that, or say how the run of one book differed from another beyond the
+file name.
 
-Отсюда реестр требований.  Он не список пожеланий: каждая запись — величина,
-без которой прогон не повторяется, и у каждой сказано, чем она решает.
-`books replay --check` возвращает **1**, пока список недостающего непуст.
-Проверка нужна именно такая, с кодом возврата: заметка в отчёте, которую
-никто не читает, уже была — она называлась «в run.json надо бы добавить».
+Hence this registry. Not a wish list: every entry is a value without which the
+run does not repeat, and says what it settles. `books replay --check` returns
+**1** while the missing list is non-empty; a note in a report nobody reads
+already existed once, and it read "run.json ought to have".
 
-ДВА ИСТОЧНИКА ТРЕБОВАНИЙ, И ВТОРОЙ РУКАМИ НЕ НАБИРАЕТСЯ.
+TWO SOURCES OF REQUIREMENTS, AND THE SECOND IS NOT HAND-TYPED. `_base()` holds
+knob keys (from `knobs.names()`) and literals common to any writer. The other
+is the ADAPTER FINGERPRINT, whose shape each adapter declares in its own
+`fingerprint()`: paddle one way, yolox another, docling with a vendor-pipeline
+branch holding two sha256 and a label map. Retyping it here would start a
+second list -- the kind that parts with the code at the first model edit, as
+the counts quoted in `composition()` once parted. So the shape is DERIVED by
+parsing the source of the adapter the snapshot names, the way `knobs.readers()`
+derives knob consumers by walking the tree.
 
-Первый — `_base()`: ключи ручек (берутся из `knobs.names()`) и литералы,
-общие любому писателю слепка.  Второй — ОТПЕЧАТОК АДАПТЕРА.  Его форму
-объявляет сам адаптер в своём `fingerprint()`, и она у каждого своя: у
-paddle одна, у yolox другая, у docling внутри ещё и ветка вендорского
-конвейера с двумя sha256 и словарём перевода.  Переписать её сюда значило бы
-завести второй список — тот самый, что расходится с делом на первой же
-правке модели, как уже разошлись «28 требований из 36» и «двадцать ключей» в
-этой самой шапке.  Поэтому форма ВЫВОДИТСЯ разбором исходника того адаптера,
-которого слепок называет сам, — так же, как `knobs.readers()` выводит
-потребителей ручек разбором дерева, а не списком в прозе.
+WHAT PAID FOR THAT. The requirement used not to descend into the fingerprint
+branch AT ALL. A docling snapshot lost the whole vendor-pipeline branch --
+mode, docling version, BOTH vendor sha256, postprocess options, label map --
+and the weights sha256 with it; the check printed "42 of 42 values, 0 missing"
+and returned 0. Forty-two values proved the knob `DOCLING_PIPELINE` and nothing
+else: what the run computed with, the snapshot was not obliged to say.
 
-ЧЕМ ЭТО ОПЛАЧЕНО.  До этой правки требование не спускалось внутрь ветки
-«отпечаток» ВОВСЕ.  Из слепка прогона docling вырезали целиком ветку
-вендорского конвейера — режим, версию docling, ОБА sha256 вендорских файлов,
-опции постобработки, словарь перевода ярлыков — и вдобавок sha256 весов;
-`books replay --check` напечатал «величин в слепке 42 из 42, не хватает 0» и
-вернул 0.  Сорок две величины доказывали ручку `DOCLING_PIPELINE` и ничего
-больше: чем именно считали, слепок не обязан был говорить.
+THE SHAPE CANNOT ALWAYS BE VERIFIED, AND SILENCE ABOUT THAT IS FORBIDDEN. The
+snapshot carries the sha256 of the adapter file. It matches the tree -- the
+shape came from THAT code, and every fingerprint value missing is an omission.
+It does not -- the snapshot was taken by another adapter: "snapshot old", not
+"snapshot incomplete". That gets its own line and its own number and does NOT
+sink into the general "missing", or every old bench directory would burn a wall
+of false omissions, and a wall that always burns is not a check.
 
-СВЕРИТЬ ФОРМУ МОЖНО НЕ ВСЕГДА, И МОЛЧАТЬ ОБ ЭТОМ НЕЛЬЗЯ.  Слепок несёт
-sha256 файла адаптера.  Сходится с деревом — форма выведена из ТОГО САМОГО
-кода, и каждая недостающая величина отпечатка есть пропуск.  Не сходится —
-слепок снят другим адаптером, сверять его отпечаток не с чем: это «слепок
-старый», а не «слепок неполон».  Печатается это отдельной строкой и отдельным
-числом и НЕ тонет в общем «не хватает»: иначе каждый старый каталог стенда
-падал бы стеной ложных пропаж, а стена, которая горит всегда, не проверка.
+FIVE TROUBLES, NOT ONE, EACH ON ITS OWN LINE. A value ABSENT (omission, code
+1); PRESENT AND EMPTY (`null`, `[]`, `""` -- lawful: "no prompts at all", "the
+build has no native threshold", but to be seen rather than assumed); with
+NOTHING TO VERIFY IT AGAINST; NOT COVERED AT ALL; and the SHAPE NOT DERIVED,
+the writer declaring `fingerprint()` while the walk gets no key out of it. The
+last was silent and cost the instrument its face: an empty shape gave an empty
+requirement, the branch never entered the list, and a snapshot with no
+fingerprint whatsoever passed with "51 of 51 values, 0 missing" and the word
+VERIFIED. Now the branch itself is required. Five numbers, five lines.
 
-ПЯТЬ БЕД, А НЕ ОДНА, И СТРОКИ У НИХ РАЗНЫЕ.  Величины НЕТ (пропуск, код
-1); величина ЕСТЬ И ПУСТА (`null`, `[]`, `""` — законный ответ: «промтов нет
-вовсе», «родного порога у сборки нет», — но его надо видеть, а не
-подразумевать); величину НЕ С ЧЕМ СВЕРИТЬ (адаптер с прогона изменился);
-величину НЕ ПОКРЫТЬ ВОВСЕ; и ФОРМУ НЕ ВЫВЕСТИ — `fingerprint()` у писателя
-объявлен, а разбор дерева не достал из него ни ключа.  Последняя беда была
-молчаливой и стоила прибору лица: пустая форма давала пустое требование,
-ветка «отпечаток» не попадала в список ВОВСЕ, и слепок, где отпечатка нет
-вообще, проходил с «величин в слепке 51 из 51, не хватает 0» и словом
-СВЕРЕН.  Теперь требуется хотя бы сама ветка, а незнание названо числом
-(`не выведено`).  Числа у всех пяти разные, и в выводе они разными строками.
+WHAT THIS CHECK CANNOT DO, WHICH MATTERS MORE. Parsing sees only keys written
+out in LETTERS. Keys born during a run -- per-label thresholds, the label map,
+the sha256 of each vendor file by name, the pipeline summary fields -- cannot
+be derived, and such a value is cut unnoticed. `uncovered()` counts them and
+both commands print the number: a blind spot named by a number and one kept
+quiet are different things. It is closed at the writer -- let the adapter
+declare their count beside them (`thresholds 25`) and loss shows by comparison.
+Measured by cutting one at a time: a doclayout snapshot leaves 25 of 50
+uncovered, docling with the pipeline on 49 of 80 (2026-08-29, two pages of
+`bench/matematika`).
 
-ЧЕГО ЭТА ПРОВЕРКА НЕ УМЕЕТ, И ЭТО ВАЖНЕЕ ТОГО, ЧТО УМЕЕТ.  Разбор исходника
-видит только те ключи, что записаны в нём БУКВАМИ.  Ключи, рождающиеся на
-прогоне, — пороги по ярлыкам модели, словарь перевода, sha256 каждого
-вендорского файла поимённо, поля «итога» конвейера — вывести неоткуда, и
-вырезать такую величину можно незаметно.  Их считает `uncovered()`, и число
-печатается в обеих командах: пятно, о котором сказано числом, и пятно, о
-котором молчат, — разные вещи.  Закрывается оно не здесь: писателю надо
-объявить их число рядом с ними (`порогов 25`), и тогда пропажу видно
-сверкой.  Величина пятна замерена вырезанием по одной: на слепке doclayout
-не покрыто 25 величин из 50, на docling с включённым конвейером — 49 из 80
-(2026-08-29, две страницы `bench/matematika`).
-
-Сколько чего сейчас — печатают сами команды и `composition()`, а не эта
-проза: числа в ней стареют молча, чему шапка выше уже свидетель.
+How much of what right now the commands and `composition()` print themselves:
+numbers in prose age silently, as this header has already witnessed.
 """
 import ast
 import hashlib
@@ -82,34 +74,30 @@ import os
 
 from . import knobs
 
-# Корень пакета: `<...>/src/booksmith`.  Отсюда ищется файл адаптера по имени
-# модуля из слепка и, если модуль не назван, по имени самого адаптера.
+# Package root: adapter sources are looked up under it (see `_writer_file`).
 PKG = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# Под каким ключом слепок несёт отпечаток адаптера.  Ставит его `detect.py`
-# строкой `"отпечаток": fp`; здесь это единственная величина, взятая не из
-# исходника адаптера, и переименование ветки у писателя видно сразу — все
-# выведенные требования разом станут пропажами на СВЕЖЕМ слепке.
+# The key the snapshot carries the adapter fingerprint under; `detect.py`
+# writes it as `"fingerprint": fp`. The one value here not taken from the
+# adapter source, so a rename at the writer shows at once: on a FRESH snapshot
+# every derived requirement turns into an omission.
 FP = "fingerprint"
 
 
 def facts(outdir):
-    """Слепок прогона из `run.json`. Нечитаемый файл — пустой слепок.
+    """The run snapshot from `run.json`. An unreadable file is an empty snapshot.
 
-    Прежде это лежало в `layout.facts`. Модуль раскладки удалён вместе со
-    старым продуктом: `passes/`, `book.md`, `toc.md` описывали то, чего
-    больше не собирается. Чтение одного файла не стоит модуля.
+    It used to live in `layout.facts`; that module went with the old product --
+    `passes/`, `book.md`, `toc.md` described what is no longer built -- and
+    reading one file does not earn a module.
     """
-    # ДВА МЕСТА, И ОБА ЗАКОННЫЕ. У каталога ДЕТЕКЦИИ слепок лежит в корне,
-    # у каталога КНИГИ — в `assets/`: там в корне ровно один файл, сама
-    # книга, и слепку среди него не место. Проверка искала только корень и на
-    # книге отвечала «слепка нет вовсе» при слепке этажом ниже — говорящий
-    # шаг, врущий нулём, ровно то, что правило проекта запрещает. При этом
-    # `doc/html.py` обещает дословно: «`books replay --check` обязан вернуть
-    # 0 и здесь».
-    #
-    # Имя каталога кухни не набираем строкой — спрашиваем у того, кто слепок
-    # пишет. Набранная копия разошлась бы молча, так уже было.
+    # TWO PLACES, BOTH LAWFUL: a DETECTION directory keeps the snapshot at the
+    # root, a BOOK directory in `assets/`, its root holding exactly one file --
+    # the book. Looking at the root only, the check answered "no snapshot at
+    # all" on a book whose snapshot sat one floor down: a talking step lying
+    # with a zero, while `doc/html.py` promises verbatim that `books replay
+    # --check` must return 0 there too. The kitchen directory name is asked of
+    # the writer, not typed: a typed copy parts ways silently, as one has.
     from ..doc.html import ASSETS
     for f in (os.path.join(outdir, "run.json"),
               os.path.join(outdir, ASSETS, "run.json")):
@@ -123,9 +111,9 @@ def facts(outdir):
     return {}
 
 
-# sha256 всего файла — тот же, что считает `detect._sha256` и записывает в
-# слепок.  Свой, а не импортированный, нарочно: `replay` это ПРОВЕРКА, и она
-# не должна отказывать оттого, что сломан проверяемый `detect.py`.
+# sha256 of the whole file, the same one `detect._sha256` writes into the
+# snapshot. Ours rather than imported, on purpose: `replay` is a CHECK, and it
+# must not fail because the `detect.py` it checks is broken.
 def _sha256(path):
     h = hashlib.sha256()
     try:
@@ -137,13 +125,18 @@ def _sha256(path):
     return h.hexdigest()
 
 
-# Реестр величин, без которых прогон не повторяется.
+# The registry of values without which a run does not repeat.
 #
-# Ключ — путь в `run.json` (кортеж, потому что слепок вложенный).  Правило
-# присутствия жёсткое и простое: **ключ должен существовать**.  `null` —
-# законный ответ («системного сообщения нет вовсе», «параметры порождения не
-# задавались»), и это ЗНАЧЕНИЕ, а не пропуск; отсутствие ключа — пропуск.
-# Отличить их важно: «промт пуст» и «промт не смотрели» — разные прогоны.
+# The key is a path in `run.json` (a tuple: the snapshot is nested). The
+# presence rule is blunt -- **the key must exist**. `null` is a lawful answer
+# ("no system message at all", "generation parameters were never set") and it
+# is a VALUE; a missing key is an omission. "The prompt is empty" and "the
+# prompt was never looked at" are different runs.
+#
+# Paths are spelled as the format spells them since the migration:
+# `knobs/NAME/value`. Renaming that one path took `bench/annopage` from 38 of
+# 55 values down to 16 WITHOUT moving the return code -- `rc` is 1 before the
+# damage and after -- so the signal is in the magnitude alone.
 def _base(knob_names):
     r = []
     for name in knob_names:
@@ -156,10 +149,10 @@ def _base(knob_names):
         (("source", "sha256"), "sha256 исходного файла книги"),
         (("adapter", "sha256"), "sha256 адаптера модели"),
         (("adapter", "name"), "какой моделью читали"),
-        # Промты перечислялись поимённо — `ocr` и `table`, — потому что
-        # столько их было у прежнего пайплайна.  Адаптер модели сам знает,
-        # сколько их у него и как они называются; требуется, чтобы он их
-        # записал, а не чтобы их было ровно два.
+        # Prompts were once required by name, `ocr` and `table`, because the
+        # old pipeline had those two. The adapter knows how many it has and
+        # what they are called; required is that it write them down, not that
+        # there be two.
         (("prompts",), "все промты адаптера, побайтово"),
         (("generation", "temperature"), "температура порождения"),
         (("generation", "max_tokens"), "потолок длины ответа"),
@@ -173,18 +166,18 @@ def _base(knob_names):
     return tuple(r)
 
 
-# ----------------------------------------------------------------- отпечаток
-# Форма отпечатка выводится из исходника адаптера. Ниже — разбор дерева
-# питона: только литералы, никакого исполнения. Запускать чужой
-# `fingerprint()` ради формы значило бы поднимать ONNX-сессию и читать веса
-# при КАЖДОЙ проверке, а на машине, где весов нет, проверка молча ослепла бы.
+# --------------------------------------------------------------- fingerprint
+# The shape is derived from the adapter source. Below is a walk of the python
+# tree: literals only, no execution. Calling someone else's `fingerprint()`
+# for its shape would raise an ONNX session and read the weights on EVERY
+# check, and on a machine without weights the check would go blind silently.
 
 def _classes(tree):
     return {n.name: n for n in tree.body if isinstance(n, ast.ClassDef)}
 
 
 def _class_attr(cls, attr):
-    """Значение литерального атрибута класса (`name = "docling-heron"`)."""
+    """The value of a literal class attribute (`name = "docling-heron"`)."""
     for n in cls.body:
         if isinstance(n, ast.Assign) and isinstance(n.value, ast.Constant):
             for t in n.targets:
@@ -194,7 +187,7 @@ def _class_attr(cls, attr):
 
 
 def _fp_defs(tree):
-    """Все `fingerprint` модуля: {имя класса: узел функции}."""
+    """Every `fingerprint` in the module: {class name: function node}."""
     out = {}
     for n in tree.body:
         if isinstance(n, ast.ClassDef):
@@ -205,11 +198,11 @@ def _fp_defs(tree):
 
 
 def _fp_def(tree, cls_name):
-    """`fingerprint` класса или его предка ВНУТРИ модуля.
+    """The `fingerprint` of the class or of its ancestor WITHIN the module.
 
-    Наследование учитывается: `DoclingEgret(DoclingHeron)` своего отпечатка
-    не пишет вовсе, и без обхода предков форма прогона egret вышла бы пустой,
-    то есть непроверяемой — молча.
+    Inheritance counts: `DoclingEgret(DoclingHeron)` writes no fingerprint of
+    its own, and without walking the bases an egret run would come out with an
+    empty shape -- unverifiable, and silently so.
     """
     cs, defs, seen = _classes(tree), _fp_defs(tree), set()
     while cls_name in cs and cls_name not in seen:
@@ -226,35 +219,35 @@ def _fp_def(tree, cls_name):
 
 
 def _paths(expr, tree, cls, depth=0):
-    """Пути, которые это выражение ТОЧНО положит в слепок."""
+    """The paths this expression will CERTAINLY put into the snapshot."""
     if depth > 8:
         return set()
     if isinstance(expr, ast.Dict):
         out = set()
         for k, v in zip(expr.keys, expr.values):
-            # `**чужой_словарь` пропускаем: его ключи отсюда не видны, а
-            # выдуманный ключ хуже, чем неназванный.
+            # `**other_dict` is skipped: its keys are invisible from here,
+            # and an invented key is worse than an unnamed one.
             if not (isinstance(k, ast.Constant) and isinstance(k.value, str)):
                 continue
             out.add((k.value,))
             out |= {(k.value,) + p for p in _paths(v, tree, cls, depth + 1)}
         return out
     if isinstance(expr, ast.IfExp):
-        # ПЕРЕСЕЧЕНИЕ ветвей, а не объединение. У docling ветка «конвейер»
-        # это `self._pipe.fingerprint() if self._pipe else {...}`, и ключи у
-        # ветвей РАЗНЫЕ: при включённом конвейере есть «классы» и «ярлык
-        # наружу», при выключенном их нет. Объединение требовало бы от
-        # прогона с `DOCLING_PIPELINE=off` величин, которых там не бывает, —
-        # проверка падала бы на исправном слепке, а такую отключают.
+        # The INTERSECTION of the branches, not their union: the docling
+        # `docling_pipeline` branch has DIFFERENT keys per branch -- `classes`
+        # and `label_outward` with the pipeline on, absent with it off. A union
+        # would demand of a `DOCLING_PIPELINE=off` run values that never exist
+        # there, failing on a healthy snapshot, and such a check gets switched
+        # off.
         return (_paths(expr.body, tree, cls, depth + 1)
                 & _paths(expr.orelse, tree, cls, depth + 1))
     if isinstance(expr, ast.Call):
         f = expr.func
         if isinstance(f, ast.Attribute) and f.attr == "fingerprint":
-            # Вложенный отпечаток (у docling — вендорский конвейер). Чей
-            # именно, из `self._pipe` не видно; берём единственный другой
-            # `fingerprint` модуля, а при двух и более молчим, потому что
-            # угадывать тут нечем.
+            # A nested fingerprint (at docling, the vendor pipeline). Whose
+            # exactly is invisible from `self._pipe`, so we take the module's
+            # one other `fingerprint` and stay silent at two or more: there is
+            # nothing to guess from.
             cand = [(c, n) for c, n in _fp_defs(tree).items() if c != cls]
             if len(cand) == 1:
                 return _returned(cand[0][1], tree, cand[0][0], depth + 1)
@@ -263,7 +256,7 @@ def _paths(expr, tree, cls, depth=0):
 
 
 def _returned(fn, tree, cls, depth=0):
-    """Пути из всех `return` функции — по пересечению, а не по первому."""
+    """Paths from all the `return`s of a function -- intersected, not first."""
     rs = [n for n in ast.walk(fn)
           if isinstance(n, ast.Return) and n.value is not None]
     if not rs:
@@ -291,16 +284,16 @@ def _parse(path):
 
 
 def _writer_file(mod, name):
-    """Файл писателя слепка: по имени модуля, иначе по имени адаптера.
+    """The snapshot writer's file: by module name, else by adapter name.
 
-    Имя модуля кладёт `detect.py` (поле `адаптер/модуль`); старые слепки его
-    не несут, и тогда писателя ищем по объявленному имени адаптера —
-    `name = "doclayout-onnx"` в классе. Это опознание, а не сверка: сходится
-    ли код, решает sha256 ниже.
+    `detect.py` puts the module name in (field `adapter/module`); old snapshots
+    lack it, and then the writer is found by the declared `name =
+    "doclayout-onnx"` in the class. Identification, not verification: whether
+    the code matches is settled by the sha256 below.
 
-    Возвращает (файл, чем опознан, все совпавшие файлы). Совпавших больше
-    одного — не опознан: выбрать «первый попавшийся» значило бы сверять
-    отпечаток с чужим кодом и назвать это сверкой.
+    Returns (file, how identified, every file matched). More than one match is
+    not identified: taking "the first one" would check the fingerprint against
+    someone else's code and call that verification.
     """
     if isinstance(mod, str) and mod.split(".")[:1] == ["booksmith"]:
         p = os.path.join(PKG, *mod.split(".")[1:]) + ".py"
@@ -321,12 +314,13 @@ def _writer_file(mod, name):
 
 
 def shape(snap):
-    """Форма отпечатка адаптера, выведенная из исходника, и чем она сверена.
+    """The adapter fingerprint shape derived from source, and what verified it.
 
-    Возвращает словарь: требования `выведено`, числа `не сверено` и `слепо`
-    и готовую строку для журнала. Числа разные нарочно: `не сверено` — «форму
-    вывели, но не из того кода, которым считали» (слепок старый), `слепо` —
-    «писателя не опознать вовсе» (сверять нечем и неоткуда узнать сколько).
+    Returns the `derived` requirements, the counts `not_verified` and `blind`,
+    and a ready line for the log. The counts differ on purpose: `not_verified`
+    is "shape derived, but not from the code that computed" (snapshot old),
+    `blind` is "the writer cannot be identified at all" -- there not even the
+    amount left unchecked is knowable.
     """
     r = {"name": None, "file": None, "how": None, "verified": False,
          "derived": [], "not_verified": 0, "of_those_missing": 0, "blind": 0,
@@ -348,7 +342,7 @@ def shape(snap):
             + (f"имя объявлено в {len(hits)} файлах дерева "
                f"({', '.join(os.path.relpath(h, PKG) for h in hits)})"
                if hits else
-               "слепок не назвал поле адаптер/модуль, и класса с таким "
+               "слепок не назвал поле adapter/module, и класса с таким "
                "именем в дереве нет")
             + ". Сколько величин отпечатка не проверено, тоже неизвестно")
         return r
@@ -359,9 +353,10 @@ def shape(snap):
     owner = _owner_class(tree, name) if tree else None
     fn, def_cls = _fp_def(tree, owner) if owner else (None, None)
     if tree is None or (owner is None and _fp_defs(tree)):
-        # Файл нашли, а КТО в нём писал отпечаток — не знаем: класса с таким
-        # `name` нет, а `fingerprint` в файле не один. Взять любой значило бы
-        # сверять форму с чужим классом.
+        # The file was found, but WHO in it wrote the fingerprint is unknown:
+        # no class carries that `name`, and the file holds more than one
+        # `fingerprint`. Taking any would check the shape against a foreign
+        # class.
         r["blind"] = 1
         r["row"] = (f"отпечаток НЕ СВЕРЕН: в {rel} нет класса с "
                        f"name = {name!r}, а `fingerprint` там не один — "
@@ -370,17 +365,18 @@ def shape(snap):
     if fn is None:
         ok_fp, fpv = _dig(snap, (FP,))
         if ok_fp and isinstance(fpv, dict) and fpv:
-            # В слепке отпечаток ЕСТЬ, а у сегодняшнего писателя его нет:
-            # значит, код с прогона разошёлся. Сказать «отпечатка нет вовсе»
-            # тут значило бы объявить значением чужую ветку.
+            # The snapshot HAS a fingerprint and today's writer has none:
+            # the code has moved since the run. Saying "no fingerprint at all"
+            # here would declare someone else's branch a value.
             r["blind"] = 1
             r["row"] = (
                 f"отпечаток НЕ СВЕРЕН: в слепке он есть ({len(fpv)} ветвей), "
                 f"а у писателя {name} ({rel}) `fingerprint()` не объявлен "
                 f"вовсе — код разошёлся с прогоном, сверять не с чем")
             return r
-        # Писатель без `fingerprint()` — так пишет слепок `doc.html`: сборка
-        # HTML не модель и отпечатка не даёт. ЗНАЧЕНИЕ, а не пропуск.
+        # A writer without `fingerprint()` -- that is how `doc.html` writes
+        # its snapshot: assembling HTML is not a model and gives no
+        # fingerprint. A VALUE, not an omission.
         r["verified"] = True
         r["row"] = (f"отпечатка нет вовсе: писал {name} ({rel}), "
                        f"`fingerprint()` там не объявлен — это значение, "
@@ -388,27 +384,15 @@ def shape(snap):
         return r
     keys = sorted(_returned(fn, tree, def_cls))
     if not keys:
-        # ФОРМУ ВЫВЕСТИ НЕ УДАЛОСЬ — И ЭТО ГРОМКАЯ ВЕЛИЧИНА, А НЕ СОГЛАСИЕ.
-        # `fingerprint()` у писателя объявлен (иначе мы вышли бы веткой выше),
-        # а разбор дерева не достал из него ни одного ключа: так выходит,
-        # когда отпечаток собирается включением, за циклом или возвращается
-        # заранее сложенным полем.
-        #
-        # ЧЕМ ЭТО ОПЛАЧЕНО. Прежде пустой разбор давал пустое требование —
-        # ветка «отпечаток» не попадала в список ВОВСЕ, — и слепок, где
-        # отпечатка нет вообще, проходил `books replay --check` с кодом 0 и
-        # строкой «величин в слепке 51 из 51, не хватает 0», да ещё со словом
-        # СВЕРЕН рядом (замер подставным писателем, чей `fingerprint()`
-        # собран словарным включением; `replay.selfcheck` возвращал 0). То
-        # есть проверка полноты одобряла неполный слепок ровно тогда, когда
-        # сама не справилась, — ноль от непонимания в приборе, заведённом
-        # против ровно таких нулей.
-        #
-        # Требуем ПОЛ: саму ветку «отпечаток». Больше требовать нечего — что
-        # внутри неё, отсюда не видно, — и незнание названо числом: `не
-        # выведено` печатается оговоркой в `check` и уезжает в код возврата
-        # `selfcheck`. Это НЕ «отпечатка нет вовсе»: тот случай разобран
-        # веткой выше и объявлен значением.
+        # THE SHAPE WAS NOT DERIVED -- A LOUD VALUE, NOT CONSENT. The writer
+        # declares `fingerprint()` (else we left by the branch above) and the
+        # walk got no key out of it: so it goes when the fingerprint is built
+        # by a comprehension, behind a loop, or returned as a field assembled
+        # earlier. Silence here used to approve such a snapshot with code 0
+        # (see the header). So we demand the FLOOR, the branch itself -- what
+        # is inside is invisible from here -- and name the ignorance by a
+        # number. NOT "no fingerprint at all": that case left by the branch
+        # above, declared a value.
         r["not_derived"] = 1
         r["derived"] = [((FP,), f"отпечаток адаптера {name} целиком")]
         r["row"] = (
@@ -431,13 +415,13 @@ def shape(snap):
                        f"(sha256 сходится, опознан {how}), из него выведено "
                        f"{len(req)} величин")
         return r
-    # Сверять не с чем — но сказать, СКОЛЬКО из сегодняшней формы в слепке
-    # уже есть, можно, и это разные вести. «Не сверено 26, в слепке нет 0»
-    # значит, что старый слепок несёт всё, что пишет сегодняшний код;
-    # «не сверено 32, в слепке нет 9» — что девяти величин там нет, а вот
-    # вырезаны они или не существовали тогда, отсюда не видно. Число
-    # печатается, вывод не делается: догадка в коде возврата — та же ложь,
-    # что молчание.
+    # Nothing to verify against -- but HOW MUCH of today's shape the snapshot
+    # holds can still be said, and these are different tidings. "26 not
+    # verified, 0 absent" means the old snapshot carries everything today's
+    # code writes; "32 not verified, 9 absent" means nine are not there, and
+    # whether they were cut or never existed is invisible from here. The number
+    # is printed, the conclusion is not drawn: a guess in a return code is the
+    # same lie as silence.
     r["not_verified"] = len(req)
     r["of_those_missing"] = sum(1 for path, _ in req if not _dig(snap, path)[0])
     r["row"] = (
@@ -449,7 +433,7 @@ def shape(snap):
 
 
 def _owner_class(tree, name):
-    """Класс адаптера в модуле: по объявленному `name`, иначе единственный."""
+    """The adapter class in the module: by declared `name`, else the only one."""
     for cname, c in _classes(tree).items():
         if _class_attr(c, "name") == name:
             return cname
@@ -457,18 +441,17 @@ def _owner_class(tree, name):
     return next(iter(defs)) if len(defs) == 1 else None
 
 
-# Имена ручек берём из реестра задачи, а не переписываем сюда.  Два списка
-# ручек — это два списка, которые разойдутся; они уже расходились (в
-# `_PASS` их было 13 из 17).
+# Knob names come from the registry, they are not retyped here. Two lists of
+# knobs are two lists that will part; they already had (`_PASS` held 13 of 17).
 def knob_names():
     return knobs.names()
 
 
 def required(snap=None, sh=None):
-    """Требования к слепку: общие плюс выведенные из адаптера этого слепка.
+    """Requirements: the common ones plus those derived from this snapshot's adapter.
 
-    Без слепка — только общие: чей отпечаток требовать, до чтения `run.json`
-    неизвестно, и требовать «какой-нибудь» значило бы выдумать.
+    With no snapshot, only the common ones: whose fingerprint to demand is
+    unknown before `run.json` is read, and demanding "some" would be inventing.
     """
     req = list(_base(knob_names()))
     if snap:
@@ -478,16 +461,14 @@ def required(snap=None, sh=None):
 
 
 def composition(req=None):
-    """Из чего сложено требование: (ключей ручек, литералов, отпечатка).
+    """What the requirement is made of: (knob keys, literals, fingerprint).
 
-    Числа СЧИТАЮТСЯ. В docstring `selfcheck` ниже стояло «28 требований из
-    36 … двадцать ключей выкладывает knobs.snapshot() … ещё восемь —
-    литералы», и на 2026-08-29 не сошлось ни одно из трёх. Разошлись они не
-    от небрежности, а от времени — реестр ручек с тех пор вырос, а текст
-    рядом не пересчитали. Комментарий, который врёт через полгода, — та же
-    беда, что счётчик, который врёт, и лечится тем же: величиной, а не
-    словом. Третье слагаемое, отпечаток, вообще не может быть числом в
-    прозе: у каждого адаптера оно своё.
+    The numbers are COUNTED. The `selfcheck` docstring below used to say "28
+    requirements of 36 ... twenty keys laid out by knobs.snapshot() ... eight
+    more are literals", and by 2026-08-29 not one of the three held: the knob
+    registry grew and the text beside it was not recounted. The third term
+    cannot be a number in prose at all -- every adapter has its own
+    fingerprint.
     """
     req = required() if req is None else req
     kn = sum(1 for p, _ in req if p and p[0] == "knobs")
@@ -496,7 +477,7 @@ def composition(req=None):
 
 
 def _dig(d, path):
-    """Есть ли такой путь в слепке. Возвращает (есть, значение)."""
+    """Whether the snapshot holds this path. Returns (present, value)."""
     cur = d
     for k in path:
         if not isinstance(cur, dict) or k not in cur:
@@ -506,7 +487,7 @@ def _dig(d, path):
 
 
 def missing(snap, req=None):
-    """Чего не хватает в слепке. Список пар (путь, чем решает)."""
+    """What the snapshot lacks. Pairs of (path, what it settles)."""
     out = []
     for path, what in (req if req is not None else required()):
         ok, _ = _dig(snap, path)
@@ -521,13 +502,13 @@ def _empty(v):
 
 
 def hollow(snap, req=None):
-    """Величины, которые ЕСТЬ, но пусты. Отдельная беда и отдельное число.
+    """Values that ARE there but empty. A separate trouble, a separate number.
 
-    Пустое — законный ответ: у детектора нет промтов, у сборки heron нет
-    родного порога, у ручки может не быть значения. Но «пусто» и «нет» лечат
-    разное, и складывать их нельзя: код возврата поднимает только пропажа, а
-    пустое печатается числом — чтобы выпотрошенную ветку (`конвейер docling`
-    заменён на `{}`) было видно, а не только вырезанную.
+    Empty is lawful: a detector has no prompts, the heron build no native
+    threshold, a knob may have no value. But "empty" and "absent" cure
+    different things and must not be added together: only an omission raises
+    the return code, the empty prints as a number -- so a gutted branch
+    (`docling_pipeline` replaced by `{}`) is as visible as a cut one.
     """
     out = []
     for path, what in (req if req is not None else required()):
@@ -538,7 +519,7 @@ def hollow(snap, req=None):
 
 
 def _fp_paths(snap):
-    """Все пути внутри ветки отпечатка САМОГО слепка (не требования)."""
+    """Every path inside the fingerprint branch of THE SNAPSHOT (not of the requirement)."""
     ok, fp = _dig(snap, (FP,))
     if not ok or not isinstance(fp, dict):
         return set()
@@ -555,15 +536,12 @@ def _fp_paths(snap):
 
 
 def uncovered(snap, sh):
-    """Величины отпечатка, которые в слепке ЕСТЬ, а требование их не покрыло.
+    """Fingerprint values the snapshot HAS and the requirement did not cover.
 
-    Слепое пятно вывода формы, названное числом. Берётся оно из ветвлений:
-    у docling ветка конвейера пишется по-разному при `DOCLING_PIPELINE=off`
-    и `full`, форма выводится по ПЕРЕСЕЧЕНИЮ ветвей (иначе исправный прогон
-    с выключенным конвейером падал бы на величинах, которых при `off` не
-    бывает), и величины, живущие только в одной ветви, требованием не
-    закрыты. Вырезать их можно незаметно — поэтому они печатаются: пятно,
-    о котором сказано числом, и пятно, о котором молчат, — разные вещи.
+    The blind spot of shape derivation, named by a number. It comes from the
+    branching: shapes are derived by INTERSECTING branches (see `_paths`), so a
+    value living in one branch only -- what `docling_pipeline` writes at `full`
+    and not at `off` -- goes uncovered, and can be cut unnoticed.
     """
     if not sh.get("verified"):
         return []
@@ -571,7 +549,7 @@ def uncovered(snap, sh):
 
 
 def check(outdir, verbose=True):
-    """Полон ли слепок разбора. Возвращает список недостающего."""
+    """Whether the parse snapshot is complete. Returns the list of what is missing."""
     snap = facts(outdir)
     sh = shape(snap)
     req = required(snap, sh)
@@ -582,11 +560,10 @@ def check(outdir, verbose=True):
         if not snap:
             print(f"{name}: run.json не читается — слепка нет вовсе")
         kn_h = sum(1 for p, _ in hol if p and p[0] == "knobs")
-        # Оговорка стоит В ТОЙ ЖЕ СТРОКЕ, что и число. «42 из 42, не хватает
-        # 0» и объяснение через строку ниже читаются как «полон» — а полным
-        # слепок при несверенном отпечатке не назван: он не проверен. Это то
-        # самое различение нулей, ради которого заведено правило: ноль от
-        # проверки и ноль от непонимания — разные нули.
+        # The caveat stands ON THE SAME LINE as the number: "42 of 42, 0
+        # missing" with the explanation a line below reads as "complete", and a
+        # snapshot with an unverified fingerprint is not complete but
+        # unchecked.
         caveat = ""
         if sh["not_verified"]:
             caveat = (f"; ПРОВЕРЕНО НЕ ВСЁ — {sh['not_verified']} величин "
@@ -594,10 +571,10 @@ def check(outdir, verbose=True):
         elif sh["blind"]:
             caveat = "; ПРОВЕРЕНО НЕ ВСЁ — отпечаток не сверен вовсе"
         elif sh["not_derived"]:
-            # Оговорка тут та же по смыслу, что и две выше, но беда другая:
-            # писатель опознан и отпечаток у него есть, а форму его вывести
-            # не удалось. Требуется только сама ветка, и молчать об этом
-            # нельзя — молчание уже одобряло слепок вовсе без отпечатка.
+            # Same caveat, different trouble: the writer is identified and has
+            # a fingerprint whose shape would not derive. Only the branch
+            # itself is required, and silence about that once approved a
+            # snapshot with no fingerprint at all.
             caveat = ("; ПРОВЕРЕНО НЕ ВСЁ — форму отпечатка вывести не "
                       "удалось, требуется только сама ветка")
         print(f"{name}: величин в слепке {len(req) - len(miss)} из {len(req)}, "
@@ -616,9 +593,9 @@ def check(outdir, verbose=True):
                   + (f" и ещё {len(unc) - 5}" if len(unc) > 5 else ""))
         for path, what in miss:
             print(f"  нет {'/'.join(map(str, path)):46s} — {what}")
-        # Пустые ручки не перечисляются поимённо: пустая строка в ручке —
-        # обычное «не задано», их всегда много, и они утопили бы список.
-        # Числом они выше.
+        # Empty knobs are not listed by name: an empty string in a knob is the
+        # ordinary "not set", there are always many, and they would drown the
+        # list. Their number is above.
         for path, what in hol:
             if path and path[0] == "knobs":
                 continue
@@ -627,53 +604,48 @@ def check(outdir, verbose=True):
 
 
 def selfcheck(outdir, log=print) -> int:
-    """Умеет ли проверка провалиться. Возвращает число НЕ пойманных пропаж.
+    """Can the check fail at all. Returns the number of omissions NOT caught.
 
-    Зачем. Правило присутствия — «ключ существует», а требуемое пишет код,
-    который ставит его безусловно: ключи ручек выкладывает разом
-    `knobs.snapshot()` (он по построению перечисляет весь реестр), прочие —
-    литералы прямо в `detect.py` и `doc/html.py`, а величины отпечатка —
-    сам адаптер. То есть на выводе САМОГО проекта `check` не может вернуть 1
-    ни при каком входе, и её способность провалиться не была показана ни
-    разу — при том, что правило проекта требует ровно этого. Сколько чего —
-    печатает `composition()` первой же строкой; здесь эти числа стояли
-    текстом и все три разошлись с делом.
+    Why. The presence rule is "the key exists", and everything required is
+    written unconditionally: knob keys wholesale by `knobs.snapshot()` (which
+    enumerates the whole registry by construction), the rest as literals in
+    `detect.py` and `doc/html.py`, the fingerprint values by the adapter
+    itself. So on the project's OWN output `check` cannot return 1 for any
+    input, and its ability to fail had never been shown, though the project
+    rule demands exactly that.
 
-    Здесь мы выбиваем каждый требуемый ключ по очереди и убеждаемся, что
-    `missing` его хватился. Ловится и обратная беда: путь, которого в слепке
-    не было изначально, выбить нельзя, и он назван отдельно.
+    We knock out each required key in turn and confirm `missing` noticed. The
+    opposite trouble is caught too: a path the snapshot never had cannot be
+    knocked out, and is named separately.
 
-    ШЕСТЬ БЕД, ШЕСТЬ ЧИСЕЛ, ОДНА СУММА В ВОЗВРАТЕ. Не пойманная пропажа
-    (проверка спит), изначально отсутствующий ключ (писатель слепка его не
-    кладёт), расхождение реестра ручек с деревом исходников
-    (`knobs.audit()`), величины отпечатка, которые не с чем сверить (слепок
-    снят другим адаптером), неопознанный писатель (сверять нечем вовсе) и
-    НЕВЫВЕДЕННАЯ ФОРМА (писатель опознан, `fingerprint()` у него есть, а
-    разбор не достал из него ни ключа) — беды разные, и в журнале они разными
-    величинами. Складываются они только на выходе, потому что молчат
-    одинаково: без кода возврата любая из них остаётся заметкой, которую
-    никто не читает. Ноль в возврате — «спрошено и не найдено», а не «не
-    спрашивали»: когда `run.json` не читается, возвращается len(req), когда
-    форму отпечатка не с чем сверить — число невыведенных величин, а не ноль,
-    и когда форму не удалось вывести вовсе — единица, а не молчание. Шестая
-    беда стоила прибору лица: слепок ВОВСЕ БЕЗ ветки «отпечаток» проходил с
-    «величин в слепке 51 из 51, не хватает 0» и словом СВЕРЕН.
+    SIX TROUBLES, SIX NUMBERS, ONE SUM IN THE RETURN. An omission not caught
+    (the check is asleep), a key absent from the start (the writer does not lay
+    it), knob registry drift against the source tree (`knobs.audit()`),
+    fingerprint values with nothing to verify against (another adapter took the
+    snapshot), an unidentified writer (nothing to verify with at all), and a
+    shape not derived. Separate magnitudes in the log; they add up only at the
+    exit, because they fall silent alike -- without a return code any of them
+    stays a note nobody reads. A returned zero means "asked and not found", not
+    "not asked": an unreadable `run.json` returns len(req), a shape with
+    nothing to verify against returns the count of unverified values, and a
+    shape that would not derive returns one, not silence.
 
-    СЕДЬМОЕ ЧИСЛО ПЕЧАТАЕТСЯ, НО В СУММУ НЕ ВХОДИТ, и это решение, а не
-    забывчивость: величины отпечатка с ключами, рождающимися на прогоне
-    (`uncovered()`), вырезаются незаметно, но чинится это у ПИСАТЕЛЯ, а не
-    здесь, и их полсотни на каждом исправном прогоне docling. Сложи их в
-    возврат — команда горела бы всегда, а горящая всегда проверка ничего не
-    сообщает и её выключают. Поэтому число печатается рядом, а код возврата
-    остаётся про то, что можно исправить в слепке.
+    THE SEVENTH NUMBER IS PRINTED BUT NOT SUMMED, by decision: fingerprint
+    values whose keys are born during a run (`uncovered()`) are cut unnoticed,
+    but that is fixed at the WRITER, and there are fifty of them on every
+    healthy docling run. Summed in, the command would burn always -- and a
+    check that always burns reports nothing and gets switched off. So the
+    number stands beside, and the return code stays about what a snapshot can
+    be fixed for.
     """
     snap = facts(outdir)
     sh = shape(snap)
     req = required(snap, sh)
     name = os.path.relpath(outdir)
     kn, lit, fp = composition(req)
-    # Расхождения реестра ручек ищутся до слепка: они про исходники, а не про
-    # выход прогона, и молчать о них из-за нечитаемого `run.json` не за что.
+    # Registry drift is looked for before the snapshot: it is about the
+    # sources, not the run output, and an unreadable `run.json` is no reason to
+    # keep quiet about it.
     drift = knobs.audit()
     for line_ in drift:
         log(f"  РЕЕСТР РУЧЕК: {line_}")
@@ -718,18 +690,18 @@ def selfcheck(outdir, log=print) -> int:
 
 
 def line(outdir):
-    """Готовая строка повтора, если она записана."""
+    """The ready repeat command line, if one was written down."""
     v = facts(outdir).get("repeat_command")
     return v if isinstance(v, str) else None
 
 
 def cmd_replay(a):
-    """`books replay [--check] <каталог>...`
+    """`books replay [--check] <directory>...`
 
-    Без `--check` печатает строку повтора; с `--check` — чего в слепке нет,
-    и возвращает 1, если не хватает хоть чего-нибудь.  Код возврата не
-    украшение: он нужен, чтобы проверка могла кого-то остановить — прогон,
-    сборку, себя.
+    Without `--check` it prints the repeat line; with it, what the snapshot
+    lacks, returning 1 if anything at all is missing. The return code is not
+    decoration: it is there so the check can stop something -- a run, a build,
+    itself.
     """
     dirs = a.outdir or []
     rc = 0

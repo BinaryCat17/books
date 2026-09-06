@@ -337,7 +337,7 @@ def test_bulk_names_the_rewrap_apart_from_new_work():
         # `apply`: на «Технологии огнеупоров» это 63 блока из 412.
         was = ap._wrap_fragment
 
-        def other_wrapper(anchor, fragment, kind, source, role="неизвестен",
+        def other_wrapper(anchor, fragment, kind, source, role="unknown",
                            torn=None):
             return was(anchor, fragment, kind, source, role=role,
                         torn=torn).replace("<div ", '<div data-проба="1" ', 1)

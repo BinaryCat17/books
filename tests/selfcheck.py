@@ -1181,7 +1181,7 @@ def layout_straightens_a_torn_span(s):
 
 
 def wrap_fragment_drops_the_torn_mark(anchor, fragment, kind, source,
-                                      role="неизвестен", torn=None):
+                                      role="unknown", torn=None):
     """The wrapper drops the truncation mark, exactly as before the fix.
 
     The book kept 10 marks of 14, and the four lost were the ones that reached
@@ -1192,7 +1192,7 @@ def wrap_fragment_drops_the_torn_mark(anchor, fragment, kind, source,
 
 
 def wrap_fragment_marks_everything_torn(anchor, fragment, kind, source,
-                                        role="неизвестен", torn=None):
+                                        role="unknown", torn=None):
     """The inverse damage: "not asked" passed off as "truncated".
 
     A mark on everything is the same as no mark: it stops meaning anything,

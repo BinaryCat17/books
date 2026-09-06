@@ -1,39 +1,32 @@
-"""Единая точка входа: books <команда>.
+"""Single entry point: books <command>.
 
-    books doctor                 проверить всё ДО того, как пойдут деньги
-    books offers                 посмотреть рынок, ничего не арендуя
-    books prepare книга.djvu     развернуть djvu в PDF, разрезав развороты
-    books detect книга.pdf       ПЕРВЫЙ УРОВЕНЬ: контуры, местно и бесплатно
-    books read книга.detect/     ВТОРОЙ УРОВЕНЬ: прочитать блоки моделью (платно)
-    books html книга.detect/     собрать HTML: текст + артефакты картинками
-    books apply книга.html/       поставить прочитанное в книгу; источник берётся
-                                 из её слепка. Повтор бесплатен: что уже стоит,
-                                 второй раз не ставится. --status — только отчёт
-    books feed книга.detect/     что уехало бы в VLM: кроп или страница с дырами
-    books synth                  синтетический стенд: страницы с точной истиной
-    books annopage raw/annopage  золотой стенд: настоящие страницы с истиной
-    books subset                 выжимка: артефакты бок о бок
-    books score истина/ рамки/   метрики контуров; --selfcheck — батарея мутаций
-    books text истина/ страницы/ метрика ЧТЕНИЯ: знаки и ячейки таблиц
-    books fitness книга.pdf …    доедет ли смысл: по чернилам, без истины
-    books overlay книга.pdf …    рамки поверх страниц, чтобы посмотреть глазами
+    books doctor                 check everything BEFORE the money starts
+    books offers                 look at the market, renting nothing
+    books prepare book.djvu      djvu -> PDF, spreads cut apart
+    books detect book.pdf        LEVEL ONE: contours, local and free
+    books read book.detect/      LEVEL TWO: read the blocks with a model (paid)
+    books html book.detect/      build the HTML: text + artefacts as pictures
+    books apply book-dir/        put the read markup into the book, source out
+                                 of its snapshot; repeats are free, what stands
+                                 is not placed twice. --status — report only
+    books feed book.detect/      what would go to the VLM: crop or holed page
+    books synth                  synthetic bench: pages with exact truth
+    books annopage raw/annopage  golden bench: real pages, librarians' truth
+    books subset                 distillate: artefacts side by side
+    books score truth/ boxes/    contour metrics; --selfcheck — mutation battery
+    books text truth/ pages/     READING metric: characters and table cells
+    books fitness book.pdf …     will the meaning arrive: by ink, no truth
+    books overlay book.pdf …     boxes over pages, to look with your own eyes
     books ls | books down 12345 | books reap
-    books ledger                 журнал прогонов и оценки по нему
-    books replay --check выход/  полон ли слепок входа
+    books ledger                 run journal and the estimate from it
+    books replay --check out/    is the input snapshot complete
 
-СПИСОК ВЫШЕ СВЕРЕН С `sub.add_parser`, и это не педантизм: здесь недоставало
-ШЕСТИ команд из двадцати — `fitness`, `subset`, `annopage`, `read`,
-`apply` (тогда `swap`), `text`, — то есть весь второй уровень был невидим
-тому, кто читает шапку.
+THE LIST IS CHECKED AGAINST `sub.add_parser`: six commands of twenty were
+missing — `fitness`, `subset`, `annopage`, `read`, `apply` (then `swap`),
+`text` — the whole of level two, invisible to whoever reads the header.
 
-ОБА УРОВНЯ НА МЕСТЕ. Здесь стояло «разбора целиком тут пока нет… что есть —
-`books detect`, первая половина первого уровня»: верно до появления
-`books read`. Прежний `books ocr` действительно звал модель через слой из
-десятка заплаток поверх чужого пайплайна и собирал книгу эвристиками, и всё
-это удалено вместе с замерами, которыми оправдывалось (они считались против
-вывода другой модели, а не против известного текста). Нынешний второй уровень
-устроен иначе: он ничего не правит, кладёт наблюдённое сбоку и проверяется
-дома против подставного сервера — 27 проверок, ни одного цента.
+Level two repairs nothing, keeps what it observed beside the block, and is
+checked at home against a stand-in server: 27 checks, not one cent.
 """
 import argparse
 import json
@@ -61,11 +54,11 @@ def _host_args(ap):
 
 
 def cmd_offers(a):
-    """Показать рынок так, как его видит ранжирование. Ничего не арендует."""
+    """Show the market as the ranking sees it. Rents nothing."""
     host = HostReq(gpu=a.gpu, disk_gb=a.disk, max_dph=a.max_dph,
                    machine_id=a.machine)
-    # Требование к CUDA приходит ОТ МОДЕЛИ, а не из слоя аренды: у `HostReq`
-    # умолчания нет нарочно. Кто строит задание — тот и называет версию.
+    # The CUDA requirement comes FROM THE MODEL, not from the rental layer:
+    # `HostReq` has no default on purpose. Whoever builds the job names it.
     host.cuda_min = paddleocr_vl.CUDA_MIN
     v = Vast()
     warm = ledger_mod.warm_machines(a.image or paddleocr_vl.BASE_IMAGE)
@@ -75,11 +68,11 @@ def cmd_offers(a):
 
 
 def cmd_prepare(a):
-    """Развернуть djvu в PDF, разрезав развороты. Местно и бесплатно.
+    """djvu -> PDF with the spreads cut apart. Local and free.
 
-    Отдельной командой, а не только внутри разбора: развороты надо посмотреть
-    глазами до того, как платить за карту. Две из трёх добавленных книг лежали
-    разворотами, и распознаватель прочитал бы две страницы как одну.
+    Its own command, not merely a step inside the parse: spreads must be seen
+    with the eye before paying for a card. Two of the three books added lay as
+    spreads, and the recogniser would read two pages as one.
     """
     from . import djvu
     print(djvu.to_pdf(a.file, dst=a.out, split=a.split))
@@ -87,44 +80,40 @@ def cmd_prepare(a):
 
 
 def cmd_detect(a):
-    """Контуры первого уровня по страницам PDF. Ни VLM, ни аренды, ни денег."""
+    """Level-one contours over the PDF pages. No VLM, no rental, no money."""
     import shlex
     from . import detect
     out = a.out or os.path.splitext(a.file)[0] + ".detect"
     detect.run(a.file, out, a.pages, log=log)
-    # Экранируем: в raw/ пять файлов из девяти несут пробелы и скобки, и
-    # подсказка, которую нельзя вставить в оболочку, — не подсказка.
+    # Quoted: five of the nine files in raw/ carry spaces and brackets, and a
+    # hint you cannot paste into a shell is not a hint.
     log(f"проверить полноту слепка: books replay --check {shlex.quote(out)}")
     return 0
 
 
-# ------------------------------------------------ каталоги на входе команд
-# `books detect` оставляет рядом ДВА разных каталога: `<выход>` со слепком
-# `run.json` и `<выход>/pages` со страницами разметки. Половина команд просила
-# первый (`html`, `feed`, `replay --check`), половина — второй (`score`,
-# `text`, `fitness --detect`), а разницу оператор узнавал трассировкой из
-# шести кадров: «MetricError: в bench/matematika/detect нет страниц
-# разметки». Ниже обе формы принимаются обеими сторонами, а несуществующее
-# падает ОДНОЙ строкой, которая называет, что именно ожидалось.
+# --------------------------------------------- the directories commands take
+# `books detect` leaves TWO directories side by side: `<out>` with the snapshot
+# `run.json`, and `<out>/pages` with the layout pages. Half the commands wanted
+# the first (`html`, `feed`, `replay --check`), half the second (`score`,
+# `text`, `fitness --detect`), and the operator learned which from a six-frame
+# traceback. Below both forms are taken by both sides, and a missing path fails
+# in ONE line naming what it expected.
 
 
 def _page_files(d):
-    """(сколько страниц разметки, а если ноль — то почему именно).
+    """(how many layout pages, and if zero — why exactly).
 
-    Отбор тот же, что у `metrics._load`: имя на `.json` кроме `run.json`, и
-    поля `blocks`/`index` внутри. Разойдись он — и команда приняла бы каталог,
-    на котором метрика потом падает: внятное сообщение отодвинулось бы на шаг,
-    а не появилось.
+    The selection is `metrics._load`'s: `.json` except `run.json`, `blocks`
+    and `index` inside. Let them diverge and this accepts a directory the
+    metric then dies on, moving the clear message one step away.
 
-    В файл заглядываем в ОДИН, первый по имени, а не во все: 600 страниц
-    золотого стенда читать ради выбора каталога дорого, а корень книги от
-    каталога страниц отличается уже по первому файлу (`manifest.json` против
-    `0000.json`).
+    ONE file is opened, the first by name: reading the 600 golden pages to
+    choose a directory is expensive, and a book root differs from a page
+    directory by the first file already (`manifest.json` against `0000.json`).
 
-    Причина возвращается второй величиной, потому что нули тут РАЗНЫЕ:
-    «json-файлов нет вовсе» и «json есть, но это не страницы» — две разные
-    ошибки оператора, и подать их одной строкой значило бы соврать той самой
-    заменой одного нуля другим, от которой заведено правило проекта.
+    The reason comes back as a second value because the zeroes DIFFER: "no json
+    at all" and "json, but not pages" are two different mistakes, and one line
+    for both swaps one zero for the other.
     """
     if not os.path.isdir(d):
         return 0, "не каталог"
@@ -145,12 +134,12 @@ def _page_files(d):
 
 
 def _pages_dir(path, what):
-    """Каталог СТРАНИЦ: из каталога прогона или из него самого.
+    """The PAGE directory: out of the run directory, or itself.
 
-    Возвращается именно `<выход>/pages`, а не `<выход>`: `metrics._same_book`
-    ищет `run.json` В РОДИТЕЛЕ поданного каталога, и подмена родителя молча
-    отключила бы сверку sha256 истины и вывода — ту самую, что ловит счёт
-    истины одной книги против рамок другой.
+    `<out>/pages` comes back, not `<out>`: `metrics._same_book` looks for
+    `run.json` IN THE PARENT of the directory given, so substituting the parent
+    silently switches off the sha256 check of truth against output — the one
+    catching one book's truth scored against another book's boxes.
     """
     if not os.path.exists(path):
         raise SystemExit(
@@ -160,8 +149,8 @@ def _pages_dir(path, what):
     sub = os.path.join(path, "pages")
     (here, why_here), (there, why_sub) = _page_files(path), _page_files(sub)
     if there and not here:
-        # Величина, а не молчание: подменённый каталог обязан быть виден в
-        # журнале, иначе «померено не то» не отличить от «померено».
+        # A value, not silence: a substituted directory must show in the
+        # journal, or "measured the wrong thing" reads like "measured".
         log(f"{what}: подан каталог прогона, страницы беру из {sub} — их "
             f"{there}")
         return sub
@@ -175,11 +164,11 @@ def _pages_dir(path, what):
 
 
 def _run_dir(path, what):
-    """Каталог ПРОГОНА: тот, где лежит `run.json`. Принимает и `<выход>/pages`.
+    """The RUN directory: the one holding `run.json`. Takes `<out>/pages` too.
 
-    Обратная сторона той же беды: `books feed bench/…/detect/pages` падал
-    `FileNotFoundError` на `pages/run.json`, ни слова не сказав, что нужен
-    родитель.
+    The other side of the same trouble: `books feed bench/…/detect/pages` died
+    with `FileNotFoundError` on `pages/run.json`, never saying it wanted the
+    parent.
     """
     if not os.path.exists(path):
         raise SystemExit(
@@ -198,16 +187,15 @@ def _run_dir(path, what):
 
 
 def book_home(detect_dir: str) -> str:
-    """Куда книга ложится ПО УМОЛЧАНИЮ. В постоянное место, а не рядом с прогоном.
+    """Where the book lands BY DEFAULT: somewhere permanent, not beside the run.
 
-    Прежде умолчанием было `<каталог прогона>/html`, и это верно ровно до
-    первого прогона во временном каталоге: книга собиралась, читалась глазами
-    и исчезала вместе с ним. Замер этого вечера: обе книги — 378 и 539
-    страниц, $0.47 аренды — легли в `/tmp`, и перекладывать пришлось руками.
+    The default was `<run directory>/html`, true up to the first run in a
+    temporary directory: the book was built, read with the eye, and vanished
+    with it. Measured that evening: both books — 378 and 539 pages, $0.47 of
+    rental — landed in `/tmp` and had to be moved by hand.
 
-    Имя берётся из ИСХОДНИКА, а не набирается: книга должна находиться по
-    имени файла, с которого снята. Небезопасные для пути знаки заменяются,
-    длина режется — но не молча, а с сохранением узнаваемости.
+    The name comes from the SOURCE: a book must be findable by the file it was
+    made from. Unsafe characters are replaced and the length cut, recognisably.
     """
     with open(os.path.join(detect_dir, "run.json"), encoding="utf-8") as f:
         snap = json.load(f)
@@ -217,23 +205,17 @@ def book_home(detect_dir: str) -> str:
 
 
 def cmd_html(a):
-    """Продукт первого уровня: текст разметкой, артефакты картинками."""
+    """Level one's product: text as markup, artefacts as pictures."""
     from .doc import html as html_mod
     d = _run_dir(a.dir, "books html")
     out = a.out or book_home(d)
-    # ЧУЖОЕ НЕ ЗАТИРАЕМ. В `processed/` лежат книги ПРЕЖНЕГО конвейера, и
-    # совпадение имён там вероятно: та же книга, разобранная иначе. Признак
-    # своего — `run.json`, который пишет сам сборщик; нет его при непустом
-    # каталоге — отказ вслух, а не молчаливая замена чужой работы.
-    # ПРИЗНАК СВОЕГО СПРАШИВАЕМ У СБОРЩИКА, А НЕ НАБИРАЕМ ЗДЕСЬ. Слепок
-    # переехал в `assets/`, и эта проверка, искавшая `run.json` в КОРНЕ,
-    # начала отказывать каталогу, сделанному этой же командой минуту назад, —
-    # причём отказывать ЛОЖЬЮ: «это, скорее всего, книга прежнего
-    # конвейера», которых в проекте больше нет ни одной. Под тот же отказ
-    # попадал и совет, который печатает сама сборка («книга пересобирается
-    # без него — books html <книга>/assets/source»).
-    #
-    # `наш_каталог` живёт в `doc/html.py` рядом с тем, кто слепок пишет.
+    # FOREIGN WORK IS NOT OVERWRITTEN: the tell of ours is the snapshot the
+    # builder writes, and a non-empty directory without it means refusal out
+    # loud. THE TELL IS ASKED OF THE BUILDER, NOT TYPED HERE: the snapshot
+    # moved into `assets/`, and this check, looking for `run.json` in the ROOT,
+    # began refusing directories this same command had made a minute earlier —
+    # refusing with a LIE, "probably a book of the old pipeline", of which none
+    # remain, and refusing the advice the build itself prints along with them.
     if (not a.out and os.path.isdir(out) and os.listdir(out)
             and not html_mod.is_our_dir(out)):
         raise SystemExit(
@@ -246,17 +228,16 @@ def cmd_html(a):
 
 
 def cmd_apply(a):
-    """Второй уровень на месте: поставить разметку вместо картинки, и откатить.
+    """Level two in place: markup instead of the picture, and back again.
 
-    Обращений к модели здесь нет ни одного — слой умеет только поставить
-    готовый кусок. Кто его породил, решает адаптер, и до его появления замену
-    можно проверить руками, не потратив ни цента.
+    Not one call to a model here: this layer only places a ready fragment, and
+    what generated it — `books read`, or a hand — is not its business.
     """
     from .doc import apply as ap
-    # НЕ `_run_dir`: тот ищет `run.json` каталога ДЕТЕКЦИИ и в отказе зовёт в
-    # каталог с `pages/`, а этой команде нужен каталог СБОРКИ — с `book.html`.
-    # `apply.py` про `run.json` не знает вовсе. Прежняя проверка отказывала
-    # правильному каталогу и советовала не тот.
+    # NOT `_run_dir`: that one looks for the DETECTION `run.json` and on
+    # refusal points at a directory with `pages/`, while this command wants the
+    # BUILD directory, the one with `book.html`. The old check refused the
+    # right directory and advised the wrong one.
     d = os.path.abspath(a.dir)
     try:
         if a.from_read:
@@ -284,17 +265,13 @@ def cmd_apply(a):
                 ap.put(d, a.anchor, f.read(), kind=a.kind,
                        source=a.source or os.path.basename(a.file), log=log)
         else:
-            # БЕЗ КЛЮЧЕЙ — ДЕЛАЕМ РАБОТУ, а не отчёт. Книга помнит, из какого
-            # чтения собрана (`assets/run.json`), и спрашивать это вторично
-            # незачем: `books apply книга` — то, что человек набирает первым.
-            #
-            # Безопасно это стало только вместе с идемпотентностью: повтор
-            # ничего не ставит и стопку отката не растит. До неё второй
-            # `--from` на той же книге давал «поставлено 412» при неизменном
-            # содержимом и удваивал журнал (412 замен -> 824).
-            #
-            # Отчёт никуда не делся — он под `--status`, и его же печатает
-            # сама работа: «уже стояло N».
+            # NO KEYS — DO THE WORK, not a report: the book remembers which
+            # read it was built from, and `books apply book` is what a person
+            # types first. Safe only with idempotence: a repeat places nothing
+            # and does not grow the undo stack. Before it, a second `--from` on
+            # the same book said "placed 412" with the content unchanged and
+            # doubled the journal (412 swaps -> 824). The report lives on under
+            # `--status`, and the work prints it too.
             src = ap.source_of(d)
             if not src:
                 raise ap.SwapError(
@@ -312,14 +289,14 @@ def cmd_apply(a):
 
 
 def cmd_read_rented(a, policy_name, out):
-    """Та же работа на АРЕНДОВАННОЙ карте. Отдельная ветка, а не отдельная
-    команда: считает то же самое и тем же кодом, меняется только место.
+    """The same work on a RENTED card. A branch, not a command of its own:
+    same code, same count, only the place changes.
 
-    ЗАЧЕМ ЭТА ВЕТКА ВООБЩЕ ПОЯВИЛАСЬ. `models/paddleocr_vl.spec()` и
-    `remote.run_job()` не звала НИ ОДНА команда проекта — проверено grep-ом по
-    всему дереву: только определения и проза в комментариях. То есть «читать
-    на арендованной карте» нельзя было запустить ничем, и это выяснилось не
-    чтением кода, а прямым вопросом «а какой командой?».
+    WHY IT EXISTS. `models/paddleocr_vl.spec()` and `remote.run_job()` were
+    called by NOT ONE command — grep over the whole tree found definitions and
+    prose only. "Read on a rented card" could be started by nothing, and that
+    surfaced from the direct question "with which command?", not from reading
+    the code.
     """
     from .models import paddleocr_vl as vl
     from .remote import runner
@@ -329,11 +306,10 @@ def cmd_read_rented(a, policy_name, out):
     log(f"задание {spec.name}: вход {len(spec.inputs)} путей, потолок "
         f"${spec.budget_usd:.2f} и {spec.timeout_minutes:.0f} мин, карта "
         f"{spec.host.gpu}, CUDA от {spec.host.cuda_min}")
-    # ПОТОЛОК ПО ДЕНЬГАМ НЕДОСТИЖИМ, ПОКА ОН БОЛЬШЕ ЧАСОВОЙ ЦЕНЫ. `Budget`
-    # берёт минимум из двух, и при потолке цены $0.60/час рубеж в $0.60
-    # означает ровно час — то есть режет всегда время, а деньги не режут
-    # никогда. Сказать об этом обязан тот, кто платит, а не тот, кто потом
-    # разбирает журнал.
+    # THE MONEY CEILING IS UNREACHABLE WHILE IT EXCEEDS THE HOURLY PRICE.
+    # `Budget` takes the smaller of the two, so at a price ceiling of
+    # $0.60/hour a $0.60 limit means exactly one hour: time always cuts, money
+    # never. Whoever pays is told, not whoever later reads the journal.
     by_money_h = a.budget / max(spec.host.max_dph, 1e-9)
     if by_money_h * 60 >= a.timeout:
         log(f"  ВНИМАНИЕ: при цене до ${spec.host.max_dph:.2f}/час потолок "
@@ -352,26 +328,26 @@ def cmd_read_rented(a, policy_name, out):
 
 
 def cmd_read(a):
-    """ВТОРОЙ УРОВЕНЬ: прочитать содержимое блоков моделью.
+    """LEVEL TWO: read the content of the blocks with a model.
 
-    Единственная команда проекта, которая тратит деньги за пределами аренды, —
-    и потому единственная, которая ДО первого запроса спрашивает у адреса, как
-    его зовут, и роняет прогон при несовпадении.
+    The only command spending money outside the rental, and therefore the only
+    one asking the endpoint its name BEFORE the first request, dropping the run
+    on a mismatch.
 
-    Продукт — тот же `pages/*.json`, что у детекции, только с заполненными
-    `content`/`kind`. Значит `books html`, `books text`, `books score`,
-    `books fitness` и `books overlay` едят его без единой правки.
+    The product is detection's own `pages/*.json` with `content` and `kind`
+    filled in, so `books html`, `text`, `score`, `fitness` and `overlay` eat it
+    unchanged.
     """
     from .read import http as vhttp
     from .read import run as vread
 
     out = a.out or (os.path.abspath(a.dir).rstrip("/") + ".read")
-    # СЛОВАРЬ ЯРЛЫКОВ БЕРЁТСЯ ИЗ СЛЕПКА ДЕТЕКЦИИ, а не вбивается руками.
-    # `run.json` детекции уже несёт `политика.словарь`; вбитое умолчание
-    # расходилось с ним молча, и ловилось лишь СЛУЧАЙНО — по ярлыку, которого
-    # нет в чужом словаре. Замер: `DocLayNet` (11 ярлыков) — строгое
-    # подмножество `Docling-egret` (17), и эта пара прошла бы без единого
-    # слова, а слепок положил бы рядом два несовместимых утверждения.
+    # THE LABEL DICTIONARY COMES FROM THE DETECTION SNAPSHOT, not typed by
+    # hand: `run.json` already carries `policy.vocabulary`. A typed default
+    # diverged silently, caught only BY CHANCE on a label the other dictionary
+    # lacks. Measured: `DocLayNet` (11 labels) is a strict subset of
+    # `Docling-egret` (17), so that pair passes without a word while the
+    # snapshot files two incompatible claims side by side.
     known = json.load(open(os.path.join(a.dir, "run.json"), encoding="utf-8")
                       ).get("policy", {}).get("vocabulary")
     policy_name = a.policy or known
@@ -393,7 +369,7 @@ def cmd_read(a):
     reader = vread.build_reader(policy_name)
     transport = vhttp.build()
 
-    # ЧЕМ ОТВЕЧАЕТ АДРЕС — до первой вырезки и до первого цента.
+    # WHAT THE ENDPOINT ANSWERS WITH — before the first crop and first cent.
     who = transport.check()
     log(f"адрес {who['endpoint']}: отвечает {who['models_on_server']}, "
         f"спрашиваем {who['asking_for']} — совпало")
@@ -422,7 +398,7 @@ def _pdf_of(detect_dir):
 
 
 def cmd_feed(a):
-    """Приготовить то, что уехало бы в VLM. Ни одного обращения к модели."""
+    """Prepare what would go to the VLM. Not one call to the model."""
     import glob
     import json as _json
     import pymupdf
@@ -449,7 +425,7 @@ def cmd_feed(a):
         res.append(r)
     doc.close()
     path = feed.dump({"knobs": p, "pages": res}, out)
-    # Число, а не «готово»: по нему и выбирают подачу.
+    # A number, not "done": the feed is chosen by it.
     log(f"страниц {len(res)}, запросов в VLM {asked} "
         f"({asked/max(len(res),1):.1f} на страницу), артефактов мимо VLM {arts}")
     log(f"{path}; картинки подачи в {out}")
@@ -457,7 +433,7 @@ def cmd_feed(a):
 
 
 def cmd_overlay(a):
-    """Рамки поверх страниц: истина сплошной, догадка модели пунктиром."""
+    """Boxes over the pages: truth solid, the model's guess dashed."""
     from . import detect, overlay
     marks = [(_pages_dir(a.truth, "--truth"), "И")] if a.truth else []
     if a.detect:
@@ -467,19 +443,17 @@ def cmd_overlay(a):
     out = a.out or os.path.splitext(a.pdf)[0] + ".overlay.pdf"
     only = None
     if a.pages:
-        # РАЗБОР ТОТ ЖЕ САМЫЙ, что у `books detect`, а не второй экземпляр.
-        # Здесь стоял свой: `[int(x) for x in a.pages.replace(",", " ")…]`, и
-        # он расходился с `detect.parse_pages` ТРЕМЯ способами сразу.
-        # (1) Счёт. `detect` считает с ЕДИНИЦЫ, а это клало число прямо в
-        #     индекс: `books detect --pages 40` даёт лист 0039, а `books
-        #     overlay --pages 40` рисовал 0040. Смотришь не тот лист и не
-        #     узнаёшь об этом — а глазами в этом проекте смотрят именно так:
-        #     продетектировал пару страниц и глянул на них.
-        # (2) Диапазоны. `--pages 40-42` у `detect` работает, здесь падало
-        #     голым следом стека: ValueError: invalid literal for int().
-        # (3) Границы. Номер за пределами книги `detect` объявляет вслух, а
-        #     здесь пустой набор давал молчаливое «расхождения на 0
-        #     страницах» — ноль от непонимания в итоговой строке.
+        # THE VERY SAME PARSE as `books detect`, not a second copy. The copy
+        # that stood here diverged from `detect.parse_pages` THREE ways at once.
+        # (1) Counting. `detect` counts FROM ONE; this put the number straight
+        #     into the index, so `--pages 40` drew sheet 0040 where `detect`
+        #     gives 0039. You look at the wrong sheet and never learn it — and
+        #     that is exactly how eyes are used here.
+        # (2) Ranges. `--pages 40-42` works in `detect`; here it died on a bare
+        #     ValueError: invalid literal for int().
+        # (3) Bounds. A number past the end of the book `detect` declares out
+        #     loud; here an empty set gave a silent "differences on 0 pages" —
+        #     a zero from not understanding, in the final line.
         import pymupdf
         doc = pymupdf.open(a.pdf)
         total = doc.page_count
@@ -490,7 +464,7 @@ def cmd_overlay(a):
 
 
 def cmd_score(a):
-    """Метрики контуров: истина против вывода модели."""
+    """Contour metrics: truth against the model output."""
     from . import metrics
     truth = _pages_dir(a.truth, "истина")
     det = _pages_dir(a.detect, "рамки модели")
@@ -501,23 +475,22 @@ def cmd_score(a):
 
 
 def text_norm_default():
-    """Умолчание нормализации — ИЗ МОДУЛЯ, а не набранное здесь второй раз.
+    """The normalisation default comes FROM THE MODULE, not typed here twice.
 
-    Второй экземпляр умолчания — ровно то, о чём предупреждает шапка реестра
-    ручек: смена значения в коде не доезжает до потребителя, пока кто-нибудь
-    не вспомнит про этот файл.
+    A second copy is what the knob registry's header warns of: a changed value
+    never reaches the consumer until somebody remembers this file.
     """
     from . import text
     return text.NORM
 
 
 def cmd_text(a):
-    """Метрика чтения: истина знаков против того, что прочла модель.
+    """The reading metric: the truth of characters against what the model read.
 
-    Отдельной командой, а не столбцом в `books score`: та мерит ГЕОМЕТРИЮ и
-    ярлыки, эта — ЗНАКИ. Слить их значило бы получить одно число на два
-    вопроса, а прибор проекта уже один раз так соврал — «порядок чтения
-    согласовано 73%» на стенде, где порядок не размечен вовсе.
+    Its own command, not a column in `books score`: that one measures GEOMETRY
+    and labels, this one CHARACTERS. One number for two questions is how an
+    instrument here already lied — "reading order agreed 73%" on a bench where
+    order is not annotated at all.
     """
     from . import text
     truth = _pages_dir(a.truth, "истина")
@@ -529,7 +502,7 @@ def cmd_text(a):
 
 
 def cmd_fitness(a):
-    """Годность вывода: доедет ли смысл до второго уровня, по чернилам."""
+    """Fitness of the output: will the meaning reach level two. By ink."""
     from . import fitness
     det = _pages_dir(a.detect, "--detect")
     truth = _pages_dir(a.truth, "--truth") if a.truth else ""
@@ -540,7 +513,7 @@ def cmd_fitness(a):
 
 
 def cmd_subset(a):
-    """Выжимка стенда: страницы, где два артефакта одного ярлыка стоят рядом."""
+    """Bench distillate: pages where two artefacts of one label stand side by side."""
     from . import subset
     books = [x.strip() for x in (a.books or
              "spravochnik,slovar,matematika,atlas,katalog,zhurnal,annopage"
@@ -550,7 +523,7 @@ def cmd_subset(a):
 
 
 def cmd_annopage(a):
-    """Золотой стенд из AnnoPage: настоящие страницы с истиной библиотекарей."""
+    """The golden bench from AnnoPage: real pages, librarians' truth."""
     from . import annopage
     out = a.out or "bench/annopage"
     log(f"AnnoPage из {a.root}, выборка {a.split}")
@@ -562,7 +535,7 @@ def cmd_annopage(a):
 
 
 def cmd_synth(a):
-    """Сложить синтетическую книгу с точной истиной. Местно и бесплатно."""
+    """Build a synthetic book with exact truth. Local and free."""
     from . import synth
     from .run import knobs
     out = a.out or f"bench/{a.book}"
@@ -606,7 +579,7 @@ def cmd_reap(_a):
 
 
 def cmd_doctor(_a):
-    """Проверить всё, что может сорвать прогон, ДО того как деньги пойдут."""
+    """Check everything that can wreck a run BEFORE the money starts."""
     import shutil
     ok = True
 
@@ -626,17 +599,17 @@ def cmd_doctor(_a):
           "ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_vast -N ''")
     check("публичная часть ключа", bool(key) and os.path.exists(key + ".pub"),
           "без неё ключ не привязать к инстансу")
-    # Не через `check`: без `.env` работает всё, кроме платного чтения по
-    # СЕТЕВОМУ адресу, а ключ vast живёт отдельно в ~/.config/vastai.
-    # Проваливать приёмку из-за него — ложная тревога, а ложная тревога учит
-    # не смотреть на приёмку вовсе.
+    # Not through `check`: without `.env` everything works except paid reading
+    # over a NETWORK endpoint, and the vast key lives apart in
+    # ~/.config/vastai. Failing acceptance over it is a false alarm, and a
+    # false alarm teaches people not to look at acceptance at all.
     #
-    # Здесь стояло «он нужен только сборке образа (GHCR)», и это было неверно
-    # дважды: GHCR-креды не читает никто, даже CI (он логинится через
-    # `secrets.GITHUB_TOKEN`), а единственный живой жилец `.env` —
-    # `VLM_API_KEY`, который сорока строками ниже спрашивает сам `doctor`.
-    # Ключ можно и экспортировать в окружение: `config.env` смотрит туда
-    # первым, а на арендованной карте vLLM слушает петлю и ключа не просит.
+    # It is NOT for the image build (GHCR), as stood here: those credentials
+    # are read by nobody, not even CI (it logs in with `secrets.GITHUB_TOKEN`),
+    # and `.env`'s only live tenant is `VLM_API_KEY`, asked for forty lines
+    # below. That key can be exported instead — `config.env` looks at the
+    # environment first — and a rented card's vLLM listens on the loopback and
+    # asks for none.
     if not os.path.exists(config.ENV_FILE):
         log(f"  [ – ] .env в корне — нет; нужен он только для VLM_API_KEY при "
             f"чтении по сетевому адресу. Образец: .env.example")
@@ -653,15 +626,13 @@ def cmd_doctor(_a):
     except Exception as e:
         check("ключ vast.ai", False, f"vastai set api-key <КЛЮЧ> ({e})")
 
-    # Отдельными блоками и НЕ через `check`: детекция и вендорский конвейер
-    # ставятся необязательными наборами, и тому, кто только арендует, они не
-    # нужны. Валить приёмку из-за них — ложная тревога, а ложная тревога учит
-    # не смотреть на приёмку вовсе. Но и молчать нельзя: `books detect` —
-    # первая работающая команда разбора, и её беда должна быть видна здесь, а
-    # не в середине книги.
-    # Итог обеих проверок — ВЕЛИЧИНОЙ в последней строке. Прежде здесь стояло
-    # голое «всё в порядке», и оно оставалось бы «в порядке» при активном
-    # адаптере без весов: команда не знала про него вовсе.
+    # Separate blocks, and NOT through `check` either: detection and the vendor
+    # pipeline install as optional sets, and whoever only rents needs neither.
+    # Silence is no better — `books detect` is the first working parse command,
+    # and its trouble must show here, not in the middle of a book. Both end AS
+    # A VALUE in the last line: a bare "all in order" stood here, and it stayed
+    # "in order" with the active adapter having no weights, which the command
+    # knew nothing about.
     read_line = _doctor_read()
     det_line = _doctor_detect()
     pipe_line = _doctor_docling()
@@ -673,12 +644,12 @@ def cmd_doctor(_a):
 
 
 def _doctor_read():
-    """Второй уровень: адрес модели и ключ. Возвращает строку для итога.
+    """Level two: the model endpoint and the key. Returns a line for the summary.
 
-    Ключ живёт МИМО реестра ручек нарочно: всё объявленное в реестре попадает
-    в `run.json` значением, а слепок кладут в git. Оборотная сторона —
-    имя, невидимое `knobs.readers()`, то есть болезнь `VL_MODEL_DIR` в
-    миниатюре; поэтому оно обязано звучать хотя бы здесь.
+    The key lives OUTSIDE the knob registry on purpose: everything declared
+    there lands in `run.json` as a value, and the snapshot goes into git. The
+    price is a name invisible to `knobs.readers()` — the `VL_MODEL_DIR` disease
+    in miniature — so it must be spoken at least here.
     """
     ep = knobs.knob("VLM_ENDPOINT")
     key = config.env("VLM_API_KEY")
@@ -695,28 +666,22 @@ def _doctor_read():
 
 
 def _doctor_detect():
-    """Чем сегодня можно считать контуры: пакеты и веса ВСЕХ адаптеров.
+    """What can count contours today: packages and weights of ALL adapters.
 
-    Здесь стояла проверка ОДНИХ весов PP-DocLayoutV2, и приёмка печатала
-    «всё в порядке», ничего не зная про три остальных адаптера. Смысл команды
-    объявлен как «проверить всё ДО того, как пойдут деньги» — значит она
-    обязана знать про всё, чем сегодня считают.
+    A check of PP-DocLayoutV2's weights alone stood here, and acceptance
+    printed "all in order" knowing nothing of the other three.
 
-    Список адаптеров читается из `detect.py:ADAPTERS`, а НЕ набирается здесь:
-    второй список разошёлся бы молча — этим в проекте уже болели реестр ручек
-    против сборщика задания (13 имён из 17) и сам реестр против `ADAPTERS`
-    (в описании `LAYOUT_ADAPTER` значилось два адаптера из четырёх).
+    The adapter list comes from `detect.py:ADAPTERS`: a second list drifts
+    silently, as the knob registry did against the job builder (13 names of 17)
+    and against `ADAPTERS` itself (`LAYOUT_ADAPTER` described two adapters of
+    four). The check RAISES the adapter rather than testing a weights path —
+    the four name their weights differently (`inference.onnx`, `model.onnx`,
+    `yolox_l0.05.onnx` by `YOLOX_WEIGHTS`), and a list of names here would be a
+    third one drifting. It costs seconds of CPU, printed as a value so the
+    price of acceptance is visible rather than implied.
 
-    Проверка — попытка ПОДНЯТЬ адаптер, а не `os.path.exists` на файле весов:
-    у четырёх адаптеров веса зовутся по-разному (`inference.onnx`,
-    `model.onnx`, `yolox_l0.05.onnx` по ручке `YOLOX_WEIGHTS`), и список имён
-    здесь был бы третьим списком, расходящимся молча. Платим за это
-    секундами: граф поднимается на процессоре, и время печатается величиной,
-    чтобы цена приёмки была видна, а не подразумевалась.
-
-    Ничего из найденного здесь приёмку НЕ валит: отсутствие необязательного
-    набора — не авария. Оно говорит величиной, чего нет и чем включается, и
-    той же величиной возвращается в итоговую строку.
+    Nothing found here fails acceptance: a missing optional set is no disaster.
+    It says as a value what is absent and what turns it on.
     """
     import time
     log("детекция макета (books detect, необязательный набор):")
@@ -730,8 +695,9 @@ def _doctor_detect():
     if missing:
         log(f"  [ – ] нет пакетов: {', '.join(missing)} — "
             f'поставьте: pip install -e ".[detect]"')
-        # Ноль от проверки и ноль от непонимания — РАЗНЫЕ строки: без этих
-        # пакетов адаптер не поднять ни один, и «весов нет» сказать не о чем.
+        # A zero from checking and a zero from not understanding are DIFFERENT
+        # lines: without these packages no adapter rises at all, so there is
+        # nothing to call "no weights".
         log("  [ – ] веса адаптеров НЕ ПРОВЕРЕНЫ ни у одного: поднимать их "
             "нечем. Это не «весов нет», это «не смотрели».")
         return ("НЕ ПРОВЕРЕНА — нет пакетов набора detect "
@@ -740,8 +706,8 @@ def _doctor_detect():
     from . import detect
     from .run import knobs
     active = knobs.knob("LAYOUT_ADAPTER")
-    # Зовём тот же `_adapter()`, что и `books detect`, подставив ему имя
-    # ручкой: свой разбор имён здесь был бы четвёртым списком.
+    # The same `_adapter()` `books detect` calls, its name given through the
+    # knob: parsing names here would be a fourth list.
     saved = os.environ.get("LAYOUT_ADAPTER")
     have, t0 = [], time.time()
     try:
@@ -751,14 +717,14 @@ def _doctor_detect():
             try:
                 det = detect._adapter()
             except (Exception, SystemExit) as e:         # noqa: BLE001
-                # `SystemExit` ловится НАРОЧНО: адаптер docling при
-                # `DOCLING_PIPELINE=full` без пакета вендора выходит именно
-                # им, и приёмка, поймавшая только `Exception`, умирала на
-                # втором адаптере из четырёх, не сказав ни про него, ни про
-                # два оставшихся, ни про конвейер (rc=1, замерено).
-                # «Весов нет» и «веса есть, но адаптер не поднялся» — разные
-                # беды: первая чинится скачиванием, вторая ломает прогон при
-                # полном каталоге весов.
+                # `SystemExit` is caught ON PURPOSE: at
+                # `DOCLING_PIPELINE=full` with no vendor package the docling
+                # adapter leaves by exactly that, and acceptance catching only
+                # `Exception` died on the second adapter of four, saying
+                # nothing of it, the two remaining, or the pipeline (rc=1,
+                # measured). "No weights" and "weights present, adapter would
+                # not rise" are different troubles: a download cures the first,
+                # the second breaks the run with a full weights directory.
                 kind = ("весов нет" if type(e).__name__ == "WeightsMissing"
                         else f"НЕ ПОДНЯЛСЯ ({type(e).__name__})")
                 log(f"  [ – ] {which:14s} {kind}: {e}")
@@ -769,7 +735,7 @@ def _doctor_detect():
             log(f"  [ок  ] {which:14s} {det.name}, ярлыков "
                 f"{len(det.labels)}, весов {mb:.0f} МБ, поднялся за "
                 f"{time.time() - t:.1f} с — {det.dir}")
-            det = None                        # 4 графа разом машину не держим
+            det = None                        # not holding 4 graphs at once
     finally:
         if saved is None:
             os.environ.pop("LAYOUT_ADAPTER", None)
@@ -792,13 +758,13 @@ def _doctor_detect():
 
 
 def _doctor_docling():
-    """Пакет вендорского конвейера: без него ручка `DOCLING_PIPELINE` мертва.
+    """The vendor pipeline package: without it `DOCLING_PIPELINE` is a dead knob.
 
-    Проверяется НАЛИЧИЕ модулей, а не их импорт: `docling.utils.
-    layout_postprocessor` поднимается 8.3 с, и класть их в приёмку значило бы
-    платить за неё каждый раз. `rtree` при этом импортируется по-настоящему —
-    он тянет системный libspatialindex, и «колесо на месте» ещё не значит
-    «импортируется»; стоит это 0.2 с.
+    The PRESENCE of the modules is checked, not their import: `docling.utils.
+    layout_postprocessor` takes 8.3 s to rise, and acceptance would pay that
+    every time. `rtree` IS imported for real — it pulls the system
+    libspatialindex, and "the wheel is there" does not yet mean "it imports";
+    that costs 0.2 s.
     """
     import importlib.metadata as md
     import importlib.util as iu
@@ -829,11 +795,11 @@ def _doctor_docling():
             f"прогон упадёт вслух, при off (умолчание) он не нужен вовсе")
         return (f"нет {len(gone)} из 2 пакетов"
                 + (f", а ручка стоит в {mode}" if mode != "off" else ""))
-    # Версия — из ДИСТРИБУТИВА, а не из `docling.__version__`: пакет один и
-    # тот же, а поставок две (`docling-slim` и полная), и pyproject колотит
-    # версию точкой — правка правил у вендора молча сменила бы наши рамки.
-    # Если дистрибутива нет вовсе (исходники на пути), так и сказано: «не
-    # объявлена» — это не то же, что «версия такая-то».
+    # The version comes from the DISTRIBUTION, not `docling.__version__`: one
+    # package, two deliveries (`docling-slim` and full), and pyproject pins the
+    # version to the point — a vendor rule change would move our boxes
+    # silently. With no distribution at all (sources on the path) it says so:
+    # "not declared" is not a version.
     ver = (vers["docling-slim"] or vers["docling"]
            or "версия не объявлена (дистрибутива нет, модуль откуда-то ещё)")
     kind = ("slim" if vers["docling-slim"] else
@@ -853,24 +819,17 @@ def cmd_ledger(_a):
     spent = sum(r.get("cost_usd") or 0 for r in rows)
     log(f"{len(rows)} прогонов, успешных {ok}, потрачено ${spent:.3f}")
     for r in rows[-10:]:
-        # НЕ МЕРИЛИ И НОЛЬ — РАЗНЫЕ ВЕЩИ. Здесь стояло `else 0`, и прогон,
-        # у которого `setup_s` нулевой (доставка не дошла до конца — прервано
-        # сигналом), печатался как «   0 Мбит/с», то есть «канал мёртв»
-        # вместо «замера нет». Таких записей в печатаемой десятке шесть, по всему журналу 29, и вес образа у
-        # всех шести ЕСТЬ (0.06 ГБ) — ноль стоит только в `setup_s`; здесь
-        # было сказано «нет ни того, ни другого», и это неверно. Соседний
-        # комментарий про `download_mbps` предупреждает ровно об этом:
-        # `None` значит НЕ МЕРИЛИ.
+        # NOT MEASURED AND ZERO ARE DIFFERENT THINGS. `else 0` stood here, and
+        # a run whose `setup_s` is zero (delivery cut short by a signal) printed
+        # as "0 Мбит/с" — "the link is dead" instead of "no measurement". Six
+        # such records in the printed ten, 29 over the whole journal, and all
+        # six DO carry the image size (0.06 GB): the zero is in `setup_s` alone.
+        # A negative `setup_s` means "not measured" too, not a negative speed.
         #
-        # Отрицательный `setup_s` — тоже «не мерили», а не отрицательная
-        # скорость: мёртвое свойство отбивало его условием `<= 0`, и при
-        # переносе семантики это едва не потерялось.
-        #
-        # Формула жила ВТОРЫМ экземпляром: в `ledger.Run.observed_mbps` та же
-        # арифметика возвращала `None`, но свойство было недостижимо —
-        # `asdict` свойств не берёт, и в журнал оно не попадало никогда. Из
-        # двух копий верная семантика была у мёртвой. Копию убрали, семантику
-        # перенесли сюда.
+        # The formula lived as a SECOND copy: `ledger.Run.observed_mbps` did the
+        # same arithmetic returning `None`, but `asdict` takes no properties, so
+        # it never reached the journal. Of the two the dead copy held the right
+        # semantics; it is gone and its semantics moved here.
         setup = r.get("setup_s")
         gb = r.get("image_gb")
         mb = (gb * 8 * 1024 / setup) if (setup or 0) > 0 and gb else None
@@ -885,14 +844,13 @@ def cmd_ledger(_a):
 
 
 def _tool_errors():
-    """Классы «прибор не смог посчитать» — из УЖЕ поднятых модулей.
+    """The "instrument could not count" classes — from ALREADY raised modules.
 
-    Наверху их не импортировать: `metrics` тянет numpy, `text` — свой разбор,
-    а тому, кто только арендует машину, набор `detect` не нужен. Поэтому
-    спрашиваем `sys.modules`: модуль, который не поднимался, и ошибку бросить
-    не мог. Ловим ИМЕННО эти классы, а не `Exception`: трассировка от
-    несорванного прибора — беда, а трассировка от нашей ошибки в коде —
-    улика, и прятать её нельзя.
+    Not imported at the top: `metrics` pulls numpy, `text` its own parser, and
+    whoever only rents needs no `detect` set. So `sys.modules` is asked: a
+    module that never rose could throw nothing. EXACTLY these classes, not
+    `Exception` — a traceback from a failed instrument is trouble, one from our
+    own bug is evidence, and hiding evidence is not allowed.
     """
     out = []
     for mod, name in (("booksmith.metrics", "MetricError"),
@@ -994,14 +952,12 @@ def main(argv=None):
     p.add_argument("--key", default="", help="путь к ssh-ключу для vast.ai")
     p.set_defaults(fn=cmd_read)
 
-    # ИМЯ КОМАНДЫ — `apply`, и здесь стояло `swap`. Два довода, оба про
-    # читателя справки. Первое: `swap` называет МЕХАНИКУ («поменять местами»),
-    # а не работу — «применить прочитанное к книге», — и ни словом не намекает
-    # на журнал с откатом, ради которого команда и существует. Второе: без
-    # ключей она ничего не меняет, а печатает отчёт, и приказ «swap» тут
-    # читается как действие, а получается справка. `apply` совпадает с именем
-    # модуля, который её и делает (`doc/apply.py`), а `--undo` читается как
-    # «отменить применённое».
+    # THE COMMAND IS `apply`, and `swap` stood here. `swap` names the MECHANICS
+    # ("exchange"), not the work, and hints not a word at the journal with undo
+    # the command exists for; with no keys it changes nothing and prints a
+    # report, so an order reads as an action and turns out to be a lookup.
+    # `apply` matches the module that does it, and `--undo` reads as "undo what
+    # was applied".
     p = sub.add_parser("apply",
                        help="второй уровень: разметка вместо картинки, и откат")
     p.add_argument("dir", help="каталог сборки (books html --out)")
@@ -1066,9 +1022,9 @@ def main(argv=None):
     p.set_defaults(fn=cmd_ledger)
 
     p = sub.add_parser("replay", help="полон ли слепок входа для повтора")
-    # nargs="+", а не "*": проверка, весь смысл которой в коде возврата,
-    # при пустом списке молча одобряла бы — `books replay --check` без
-    # каталога возвращал 0 и не печатал ни строки.
+    # nargs="+", not "*": a check whose whole point is its exit code silently
+    # approved on an empty list — `books replay --check` with no directory
+    # returned 0 and printed not a line.
     p.add_argument("outdir", nargs="+", help="каталог разбора")
     p.add_argument("--selfcheck", action="store_true",
                    help="умеет ли сама проверка провалиться (код 1, если нет)")
@@ -1080,9 +1036,9 @@ def main(argv=None):
     try:
         return a.fn(a) or 0
     except _tool_errors() as e:
-        # Код 2 — «посчитать не смог», в отличие от 1 — «посчитал, и число
-        # провалилось». Слить их значило бы, что молчащий прибор и провал
-        # метрики читаются одинаково; на них разные действия.
+        # Code 2 is "could not count", against 1 — "counted, and the number
+        # failed". Merged, a silent instrument and a failed metric read alike;
+        # the actions on them differ.
         log(f"{type(e).__name__}: {e}")
         return 2
 
