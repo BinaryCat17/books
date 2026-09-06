@@ -1,424 +1,211 @@
 # booksmith
 
-Конвейер, который превращает сканы книг в **HTML**.
+A pipeline that turns scans of technical books into **HTML**.
 
-Цель одна и она же промежуточная: HTML. Markdown больше не цель — разметка
-таблиц в нём заведомо беднее того, что надо сохранить. EPUB, FB2 и PDF не
-нужны вовсе; сборщик форматов удалён. Понадобится чтение с экрана — оно
-делается из HTML и позже.
+HTML is the one goal, and an intermediate one. Markdown is not a goal any more
+-- its table markup is poorer than what has to survive. EPUB, FB2 and PDF are
+not needed at all; the format builder is deleted. Reading on a screen, when it
+is wanted, is made from the HTML and later.
 
-**Сейчас проект на чистом листе.** Прежний разбор удалён целиком — вместе с
-замерами, которыми он оправдывался. Причина в одной фразе: числа качества
-мерились против вывода Mistral OCR, а не против известного текста, эталонный
-файл удалён, и воспроизвести нельзя ни одно из них. Подробности и что именно
-недействительно — во вводке `docs/ocr-notes.md`.
+**This file is the MAP.** It says where things are and what may not be done.
+It deliberately holds almost no measurements: they used to live here and in
+five other files at once. One figure -- the artifacts V2 finds on the golden
+bench -- stood here twice, in the contour journal three times and in the
+source six more. A second copy drifts, and it drifts silently.
 
-Строится двухуровневая схема:
+## Where each kind of text lives
 
-1. **Первый уровень** проходит книгу целиком и отдаёт текст, а рисунки,
-   графики и таблицы вынимает **картинками**. Его продукт — набор контуров с
-   ярлыками и порядком чтения; текст на нём вторичен.
-2. **Второй уровень** обрабатывает каждый вынутый артефакт отдельно, в
-   изоляции от соседей, и превращает его в блок HTML.
+| you want | read |
+|---|---|
+| what a model is, what it costs, what it found, the verdict | `docs/models.md` |
+| what cannot be measured yet, and the rules that outlive their code | `docs/limits.md` |
+| how a contour number was obtained, and what the traps cost | `docs/contour-notes.md` |
+| the same for reading | `docs/ocr-notes.md` |
+| the same for renting a card | `docs/vast-notes.md` |
+| what the deleted code knew, saved from it | `docs/lessons-from-deleted-code.md` |
+| what a bench is and when it lied | `bench/README.md` |
+| the price of a specific mistake | the comment beside the code that can repeat it |
 
-Продукт первого уровня — HTML, где КАЖДЫЙ блок картинка, включая текстовые.
-Здесь стояло «уже читаемый HTML: текст плюс картинки на местах таблиц и
-рисунков», и это неверно: `books detect` — детектор МАКЕТА, он находит рамки и
-ярлыки и не читает ни знака. Замер на `bench/slovar`: содержимого 0 блоков из
-568, и `books html` без чтения даёт 568 картинок, 0 абзацев, 0 таблиц.
+The last row is not a joke and not laziness. A warning about `_sheet_trouble`
+belongs in `doc/html.py` because that is where the next person will break it.
+Prose far from its code goes stale; prose beside it gets read.
 
-Текст появляется на ВТОРОМ уровне: `books read` заполняет `content`, и тогда
-`books html` печатает текстовые блоки разметкой, а картинками оставляет только
-артефакты. Их разметку ставит `books apply` — по одной, с записью в
-журнал и откатом, так что каждую замену можно проверить, откатить и переделать
-другой моделью, не трогая книгу.
+## The two levels
 
-Порядок работ обратный привычному: сначала стенд и метрики, потом модели.
-Иначе получится третья редакция того же кода, оценённая теми же глазами.
+1. **Level one** walks the whole book and returns **contours**: boxes, labels,
+   reading order. Not one character of text -- it is a layout detector, not a
+   recogniser. HTML built from contours alone is a book in which EVERY block is
+   a picture, text ones included.
+2. **Level two** takes each extracted artifact **in isolation from its
+   neighbours** and turns it into a block of HTML. Substitution goes one at a
+   time, with a journal and an undo, so each one can be checked, rolled back
+   and redone by another model without touching the book.
 
-## Правила, которые не обсуждаются
+Text appears at level two: `books read` fills `content`, and only then does
+`books html` print text blocks as markup and leave pictures for artifacts
+alone. Their markup is placed by `books apply`.
 
-**Модель никто не чинит.** Ни слияния рамок, ни разрезания поперёк
-межколонника, ни переспроса, ни порогов, подобранных нами. Что модель отдала,
-то и меряется. Заплатка не улучшает книгу — она прячет дефект от замера.
+The order of work is the reverse of the usual one: the bench and the
+instruments first, the models second. Otherwise it becomes a third edition of
+the same code, judged by the same eyes.
 
-**Распознанное неприкосновенно.** Пометки, ссылки на скан, склейка переносов —
-всё это правило вывода модели на месте, и оно уже стоило потерь (маркер `⚠`
-дописывался раньше, чем считалась подпись к таблице, — 9 пропусков из 33).
-Всё наблюдённое живёт сбоку и связано с блоком по его номеру.
-
-**Метрика обязана уметь провалиться.** Прежде чем верить числу, подай в него
-заведомо испорченный вход и убедись, что число упало.
-
-**В журнал — величину, а не слово «готово».** Три недоработки за вечер
-вскрылись только сверкой числа с ожидаемым («8 ссылок» при 22 таблицах,
-«103 разворота» вместо четырёх).
-
-**Ноль от проверки и ноль от непонимания — разные нули.** Это не то же
-правило: первое про молчащий шаг, второе про говорящий, который врёт нулём.
-«Глав 0» означало «я их не узнал», а читалось как «глав в книге нет» — во
-всех четырёх книгах сразу.
-
-**Ручка объявляется в реестре** `src/booksmith/run/knobs.py`. Чтение окружения
-мимо реестра — ошибка: ручка, которой нет в реестре, не попадёт в слепок, и
-прогон станет неповторимым молча.
-
-## Код
+## Code
 
 ```
 src/booksmith/
-  remote/      аренда и прогон ЧЕГО УГОДНО на арендованной машине
-  models/      адаптеры детекции, все ONNX на процессоре: base.py — контракт,
-               doclayout.py (PP-DocLayout*), docling_heron.py (heron RT-DETRv2
-               и egret D-FINE), yolox_layout.py (не-DETR, дубли давит NMS
-               с порогом 0.45 из эталонного кода YOLOX — а порога ОТБОРА у
-               этой сборки нет вовсе, действует наш LAYOUT_SCORE_THRESHOLD
-               =0.5, и адаптер говорит это вслух. Здесь стояло «порог родной
-               0.45», и читалось наоборот); paddleocr_vl/ и dots_ocr/ —
-               доставка VLM на арендованную машину, у paddleocr_vl адаптер
-               чтения уже есть, у dots_ocr нет
-  books/       книги стенда: справочник, словарь, математика, атлас,
-               каталог, сборник статей — каждая своего формата
-  doc/         из контуров в HTML: crop, feed, html; swap и apply — второй
-               уровень: замена картинки разметкой по одной, с откатом;
-               mathjax/ — MathJax рядом с книгой (2.1 МБ), ручка `HTML_MATH`
-  read/        ВТОРОЙ УРОВЕНЬ, команда `books read`: договор о чтении блока
-               (__init__), транспорт к любому OpenAI-совместимому адресу
-               (http), погонщик книги (run). Продукт — ТОТ ЖЕ `pages/*.json`,
-               что у детекции, только `content` и `kind` заполнены
-  otsl.py      разбор табличной разметки, которой отвечают модели чтения.
-               НАШ код, а не модельный: «модель промолчала», «наш разбор не
-               сложился» и «знаки не те» обязаны быть тремя разными ответами
-  run/         реестр ручек, слепок входа, три величины повторимости (stamp:
-               хэш файла, коммит, пакеты — пишущих слепок трое)
-  policy.py    ярлык -> разряд: артефакт | текст | служебное; словарь СВОЙ у
-               каждого детектора, их пять — 25 имён у PP-DocLayoutV2, 20 у
-               plus-L, по 17 у docling heron и egret, 11 у DocLayNet (YOLOX)
-  order.py     ПОРЯДОК СБОРКИ книги, одно правило на проект: ours (сверху
-               вниз и слева направо) | docling (reading_order_rb — 740 строк
-               ПРАВИЛ вендора, не модель). Ручка `ASSEMBLY_ORDER`. Касается
-               только моделей БЕЗ своего ранга; у V2 и V3 ранг свой
-  detect.py    первый уровень: контуры страниц, местно и бесплатно
-  synth.py     синтетический стенд: страницы с истиной, меренной по чернилам
-  annopage.py  золотой стенд: 600 настоящих страниц, истина библиотекарей
-  subset.py    выжимка стенда: страницы, где артефакты стоят бок о бок
-  metrics.py   метрики контуров и батарея мутаций
-  fitness.py   годность вывода для конвейера, по ЧЕРНИЛАМ; истина не нужна
-  text.py      метрика ЧТЕНИЯ: знаки против истины стенда, CER/WER и сетка
-               таблиц по адресам ячеек; своя батарея порчи
-  overlay.py   рамки поверх страниц — посмотреть глазами
-  djvu.py      djvu -> PDF с разрезом разворотов
-  config.py    секреты из .env и пути
-  cli.py       books <команда>
-tests/         сговоры между файлами, свой бегун (pytest в .venv нет):
-               tests/run.py — проверки, tests/run.py --slow --selfcheck —
-               порчи, и ловиться обязаны ВСЕ. ЧИСЛА НЕ СПРАШИВАЙ У ЭТОЙ
-               ПРОЗЫ, спроси у бегуна: он печатает их последней строкой.
-               На 2026-09-05 — 190 проверок за 19 с и 167 порч, 0 непойманных.
-               Здесь стояло «90 проверок за секунду» и «52 порчи»: первое
-               врало вдвадцатеро по времени, оба — по величине, и оба были
-               неверны уже в том коммите, где их вписали
+  remote/      renting and running ANYTHING on a rented machine. Knows nothing
+               about PDF or OCR and must not -- otherwise the next task means
+               rewriting the renting again. Four independent ways to kill a
+               machine, including a dead-man's watch on the card itself; each
+               was added after the previous one let money leak
+  models/      detection adapters, all ONNX on the CPU: base.py is the
+               contract, doclayout.py (PP-DocLayout*), docling_heron.py
+               (heron and egret), yolox_layout.py; paddleocr_vl/ and dots_ocr/
+               deliver a VLM to a rented machine
+  books/       bench books: reference, dictionary, mathematics, atlas,
+               catalogue, article collection -- each a different format
+  doc/         contours into HTML: crop, feed, html; swap and apply are level
+               two -- one picture replaced by markup at a time, with an undo;
+               mathjax/ ships MathJax beside the book, knob `HTML_MATH`
+  read/        LEVEL TWO, `books read`: the contract for reading a block
+               (__init__), transport to any OpenAI-compatible address (http),
+               the book driver (run). Its product is THE SAME `pages/*.json`
+               detection makes, with `content` and `kind` filled in
+  otsl.py      parsing the table markup reading models answer with. OUR code,
+               not the model's: "the model said nothing", "our parse did not
+               come together" and "the characters are wrong" must be three
+               different answers
+  run/         the knob registry, the input snapshot, three quantities of
+               repeatability (stamp: file hash, commit, packages)
+  schema.py    THE ON-DISK FORMAT, declared once, with a measured floor under
+               every key. The names come from here and the counts off the
+               disk, which is the only shape that fails in both directions
+  cyr.py       the Cyrillic ratchet: how much is left of the translation, by
+               area, and how much Latin arrived in its place
+  acceptance.py  seven reports compared line by line against `bench/expected/`
+  policy.py    label -> class: artifact | text | furniture. Each detector has
+               its own vocabulary, five of them
+  order.py     THE BOOK ASSEMBLY ORDER, one rule for the project. Knob
+               `ASSEMBLY_ORDER`. Applies only to models with no rank of their
+               own; V2 and V3 have one
+  detect.py    level one: page contours, locally and free
+  synth.py     the synthetic bench: pages with truth measured by ink
+  annopage.py  the golden bench: 600 real pages, truth by librarians
+  subset.py    the distillate: pages where artifacts stand side by side
+  metrics.py   contour metrics and the mutation battery
+  fitness.py   fitness of the output for the pipeline, BY INK; needs no truth
+  text.py      the READING metric: characters against the bench truth, CER/WER
+               and the table grid by cell address; its own damage battery
+  overlay.py   boxes over the pages -- to look with your own eyes
+  djvu.py      djvu -> PDF with spreads cut apart
+  config.py    secrets from .env and paths
+  cli.py       books <command>
+tests/         collusions between files, own runner (there is no pytest in
+               .venv): tests/run.py, and tests/run.py --slow --selfcheck for
+               the mutations, ALL of which must be caught. DO NOT ASK THIS
+               PROSE FOR THE NUMBERS -- ask the runner, it prints them on its
+               last line
+tools/         cyr.py, acceptance.py, prose_only.py, keymap*.json,
+               migrate_*.py -- the instruments and the record of the rename
 ```
 
-`remote/` ничего не знает про PDF и OCR и знать не должен — иначе следующая
-задача снова потребует переписывать аренду. Внутри четыре независимых способа
-гасить машину, включая дозор мертвеца на самой арендованной карте: каждый
-добавлен после того, как предыдущий подвёл и утекли деньги.
-
-**Основой первого уровня назначен `PP-DocLayoutV2`**, и назначен не первой по
-чернилам моделью — замер на 600 настоящих страницах в разделе 18
-`docs/contour-notes.md`. Решает то, чего метрика чернил не видит.
-
-**Он первый по НАЙДЕННЫМ артефактам (698 из 1232) и по целому смыслу (646)** —
-против 694 и 602 у ближайшего, сырого `docling-heron`. По слияниям он ВТОРОЙ,
-375 против 366 у того же heron: здесь стояло «первый по слияниям, 375 против
-461», и неверно было и то и другое — 461 это предпоследний вариант, а не
-ближайший.
-
-**И у него порядок чтения — РАНГ САМОЙ МОДЕЛИ**, а не наше или чужое правило
-сортировки (`meta` страницы: «ранг модели»). Здесь стояло «единственный», и это
-неверно: ранг предсказывает и `PP-DocLayoutV3` — разрежённый и настоящий
-(11, 21, 24, 37… против 259, 259, 260, 261 у V2), порог входа зашит в самом
-адаптере (`out.shape[1] >= 7`). Своих рангов у ДВУХ моделей из шести; у
-plus-L, heron, egret и YOLOX ранга нет вовсе, и книгу собирает наше правило —
-`src/booksmith/order.py`, ручка `ASSEMBLY_ORDER`.
-
-**Наше правило замерено и проиграло, а жило оно в четырёх местах трёх
-адаптеров** — причём в двух сортировало `(round(y/20), x)`, объявляя в `meta`
-«сверху вниз и слева направо». Опыт: ОДНИ И ТЕ ЖЕ рамки V2, 600 страниц
-золотого стенда, три перестановки, один `books score` — наше правило 2471
-лишний прыжок, ранг самой модели 501, правила docling 439. По 16 точкам
-развёртки наше хуже обоих УСТОЙЧИВО (пределы 3.02..7.04 против 0.23..1.73 и
-0.28..1.57, не пересекаются). А **docling против ранга V2 прибор НЕ различает**
-— пара перевёрнута, разница 0.13 при размахе линейки 4.02, — потому V2 и V3
-свой ранг и сохраняют. Умолчание `ours`, а не лучшее по числу, по одной
-причине: `docling` это пакет, и `books detect --adapter yolox` на свежем
-окружении не должен падать из-за правила сортировки. Разбор — раздел 20
-`docs/contour-notes.md`.
-Оговорка: у `dots.ocr` порядок тоже свой, порядок порождения, — но он считан
-на другом стенде и с остальными не сравним.
-
-Числа лишних прыжков между колонками из таблицы раздела 18 СЧИТАНЫ ДО ТОГО,
-как прибор стал объявлять параметры группировки, и на другом знаменателе: он
-делит на страницы, попавшие в счёт, а не на все 600, и печатает для V2 501
-прыжок = 1.08 на страницу там, где в таблице стоит 0.83. У двух строк того же столбца — `docling-heron сырой` (4.53) и
-`docling-egret сырой` (4.28) — есть ВТОРАЯ причина устареть: они сняты на
-корзинной сортировке `(round(y/20), x)`, которой при `off` больше нет. Замер
-показал, что причина эта МАЛАЯ: на 600 страницах heron даёт 5.24 на страницу
-прежним ключом и 5.28 нынешним, а прибор эти два правила не различает вовсе
-(пара перевёрнута, разница 0.044 при размахе линейки 3.428). Двигает ячейку
-знаменатель, а не правка. Прочие столбцы этих строк правка не трогает — рамки
-те же. Порядок вариантов при
-этом сохранялся на обоих знаменателях, но столбец надо пересчитать нынешним
-`books score` — числу без объявленных параметров верить нельзя.
-
-Сырой `docling-heron` лучший по содержимому (94.5% чернил объектов, 1049 целых
-из 1230) и негоден для книги: 4435 пар задвоенных рамок.
-
-**Второй уровень ПРОЕХАЛ на настоящей книге.** Здесь стояло «модель к ней не
-подключена» и «до появления адаптера замену можно проверить руками, не
-потратив ни цента» — неверно с 2026-09-04: `books read` прочитал 436 страниц
-за восемь аренд ($0.545 по `runs/ledger.jsonl`, две удачных), а `books apply
---from` поставил **412 замен** на «Технологию огнеупоров» — 248 формул latex,
-104 таблицы otsl, 60 текстовых блоков из 488 вырезанных артефактов.
-
-ОГОВОРКА, БЕЗ КОТОРОЙ ЭТО ЧИСЛО ВРЁТ: прогон НЕ ВОСПРОИЗВОДИМ из репозитория.
-Слепок и вывод лежат вне git (`processed/` и `runs/` в `.gitignore`), коммит в
-слепке — `f92b55a+грязное дерево`, а исходный каталог чтения жил во временном
-каталоге чужой сессии и спасён копией в `processed/vl-reads/`. То есть это
-доказательство работоспособности тракта, а не замер качества: мерить второй
-уровень нечем и сейчас (см. три причины ниже).
-
-`books apply` ставит готовую разметку на место картинки и откатывает по одной
-ступени: журнал `swaps.json` держит СТОПКУ на якорь, а не последнее значение,
-и после полного отката книга совпадает с исходной побайтово. Сторожей ПЯТЬ, и
-каждый роняет замену вслух: незаявленный вид содержимого; чужая метка внутри
-куска или пустой кусок (`_check_fragment`); якоря нет в книге; набор якорей
-после замены изменился (правка мимо журнала — слепой откат затёр бы её); и
-НЕЗАВЕРШЁННЫЙ КОММЕНТАРИЙ в том, что ляжет в книгу. Последний и есть пятый:
-четыре прежних пропускали его все до одного — кусок `<table>…<!-- дальше не
-дописала` меток не несёт, не пуст, вид объявлен, набор якорей не меняется, а
-браузер съедает нашу закрывающую метку и уводит остаток книги внутрь
-незакрытого div. Здесь стояло «четыре», и то же число стояло в `doc/apply.py`
-в двух сотнях строк от места, где пятый называет себя пятым.
-
-`dots_ocr/` — доставка на арендованную машину; ею посчитаны 636 страниц
-макета, и вывод лежит в git (`bench/*/dots*`). ПУСКОВОЙ КНОПКИ У НЕЁ НЕТ:
-слово «dots» не встречается в `cli.py` ни разу, `spec()` не зовёт никто, и
-шесть переменных она читает мимо реестра ручек. Удалять нельзя — там записаны
-четыре ловушки, стоившие тринадцати аренд, и разборщик сырых ответов, которым
-прогон переигрывается дома без новых денег; либо завести ветку в CLI, как
-сделано для `paddleocr_vl`, либо объявить каталог архивом в его шапке.
-
-У `paddleocr_vl/` есть и адаптер чтения, и задание на аренду (`reader.py`,
-`spec()`), и им ПРОЧИТАНО 436 страниц — см. выше. Разбор `--pages` он возит
-на карту своей копией (`dots_ocr/entrypoint.py`), и копии эти расходились на
-четырёх входах из тринадцати, пока не завели `tests/test_parse_pages.py`.
-Первый уровень, метрики контуров и ОБА стенда — синтетический и золотой
-(`bench/annopage`, 600 настоящих страниц) — уже есть. Золотой и дал главное
-число: 698 объектов из 1232 (57% против 75% на синтетике), и 378 из 534
-недоборов — слияние соседних рамок. Руками не размечены пока только наши
-собственные сканы в `bench/real`. Что чем померено — в
-`docs/contour-notes.md`.
-
-## Команды
+## Commands
 
 ```
-books doctor                 проверить всё ДО того, как пойдут деньги
-books offers                 посмотреть рынок, ничего не арендуя
-books prepare книга.djvu     развернуть djvu в PDF, разрезав развороты
+books doctor                 check everything BEFORE the money starts
+books offers                 look at the market, renting nothing
+books prepare book.djvu      djvu -> PDF, spreads cut apart
 books ls | books down <id> | books reap
-books ledger                 журнал прогонов и оценки по нему
-books replay --check выход/  полон ли слепок входа
+books ledger                 the run journal and the estimate from it
+books replay --check out/    is the input snapshot complete
 
-books detect книга.pdf       ПЕРВЫЙ УРОВЕНЬ: контуры страниц, местно и даром
-books read книга.detect/     ВТОРОЙ УРОВЕНЬ: прочитать блоки моделью. ПЛАТНО,
-                             и это единственная команда разбора, которая
-                             тратит деньги. Продукт — тот же `pages/*.json`
-books html выход/            читаемый HTML: текст плюс артефакты картинками
-books feed выход/            что уехало бы в VLM, без обращения к ней
-books synth --book slovar    синтетическая книга с точной истиной
-books annopage raw/annopage  золотой стенд: настоящие страницы с истиной
-books subset                 выжимка: артефакты бок о бок -> bench/hard
-books score истина/ рамки/   метрики контуров; --selfcheck — батарея мутаций
-books apply выход/           поставить прочитанное в книгу: источник берётся
-                             из её слепка, повтор бесплатен (что уже стоит,
-                             второй раз не ставится). --status — только отчёт,
-                             --anchor … --file … — один блок, --undo —
-                             откатить, --from — задать источник вручную.
-                             Модель тут не зовётся: её позвал `books read`
-books text истина/ страницы/ метрика ЧТЕНИЯ: знаки и ячейки; --selfcheck тоже
-books fitness книга.pdf --detect …  доедет ли смысл: чернила, а не рамки
-books overlay книга.pdf …    расхождения истины и модели поверх страниц
+books detect book.pdf        LEVEL ONE: page contours, locally and free
+books read book.detect/      LEVEL TWO: read the blocks with a model. PAID,
+                             and the only command of the parse that spends
+books html out/              readable HTML: text plus artifacts as pictures
+books feed out/              what would go to the VLM, without asking it
+books apply out/             put the read markup into the book; the source
+                             comes from its own snapshot, repeats are free.
+                             --status, --anchor/--file, --undo, --from
+books synth --book slovar    a synthetic book with exact truth
+books annopage raw/annopage  the golden bench: real pages with truth
+books subset                 the distillate: artifacts side by side
+books score truth/ boxes/    contour metrics; --selfcheck runs the battery
+books text truth/ pages/     the reading metric; --selfcheck too
+books fitness book.pdf --detect …   will the meaning arrive: ink, not boxes
+books overlay book.pdf …     truth and model disagreements over the pages
 ```
 
-`books text` есть, и мерить ей теперь ЕСТЬ ЧЕМ — но только на синтетике.
-Здесь стояло «читать ей пока нечего», и это было верно по другой причине, чем
-казалось: истина стендов на диске лежала УСТАРЕВШЕЙ — `content` был `null` у
-всех блоков всех шести книг, хотя `synth.py` давно умеет его класть.
-Пересобрано: **1211 блоков, 393 847 знаков** истины чтения. Геометрия при
-пересборке не сдвинулась ни на один блок из 1321, растр совпал попиксельно на
-всех 93 страницах — значит все числа контуров в силе, а `books text` получил
-знаменатель.
+## Knobs
 
-**НО ИЗМЕРИТЬ ВТОРОЙ УРОВЕНЬ ЭТИМ НЕЛЬЗЯ, и это надо знать до платного
-прогона.** Три причины, все померены:
+Every knob is declared in `src/booksmith/run/knobs.py`. Reading the
+environment past the registry is a defect: a knob that is not in the registry
+does not reach the snapshot, and the run becomes silently unrepeatable.
 
-1. **На золотом стенде текста нет вовсе.** AnnoPage размечает ТОЛЬКО
-   нетекстовые объекты, 25 категорий; `текст размечен: false` стоит в его
-   манифесте. То есть 600 настоящих страниц не могут сказать о чтении ничего,
-   и мерить его можно только на нарисованной синтетике.
-2. **ВСЕ ДЕСЯТЬ стендов собраны при 144 dpi**, а настоящие книги проекта —
-   200, 353, 534, 585, 600 и 603 dpi (замер по растру внутри `raw/*.pdf`).
-   Знак на синтетике вчетверо мельче того, что модель увидит на книге.
-3. Синтетика **нарисована шрифтом, а не отпечатана высокой печатью** — это
-   записано в её собственной шапке с первого дня.
+How many there are and who reads them, ask the registry, not this file:
 
-Отсюда практическое: число, которое вернёт первый платный прогон, — **нижняя
-граница и доказательство работоспособности тракта, а не предсказание
-качества**. Выбирать по нему подачу, резкость вырезки или модель нельзя.
-Чтобы стало можно, нужен стенд из настоящих сканов с известным текстом, и его
-нет: `bench/real` руками не размечен.
+    python -c "from booksmith.run import knobs; r = knobs.readers(); print(len(knobs.KNOBS), sum(1 for v in r.values() if v), len(knobs.debts()))"
 
-Прибор написан раньше модели нарочно —
-порядок работ в этом проекте обратный привычному. Первый уровень —
-контуры — работает целиком на процессоре: `PP-DocLayoutV2` это отдельная
-модель на 214 МБ, она ничего не читает и потому не требует карты. КАКОЙ
-детектор зовёт `books detect`, решает ручка `LAYOUT_ADAPTER`: `doclayout` |
-`docling` | `docling-egret` | `yolox`; внутри paddle-семейства модель
-выбирает `LAYOUT_MODEL_NAME`, веса YOLOX — `YOLOX_WEIGHTS`.
+Which detector `books detect` calls is decided by `LAYOUT_ADAPTER`
+(`doclayout` | `docling` | `docling-egret` | `yolox`); inside the paddle
+family the model is chosen by `LAYOUT_MODEL_NAME`, the YOLOX weights by
+`YOLOX_WEIGHTS`. `DOCLING_PIPELINE` turns on the vendor pipeline over heron
+and egret -- what it buys and what it costs is in `docs/models.md`.
 
-**`DOCLING_PIPELINE`** включает поверх heron и egret их ВЕНДОРСКИЙ конвейер —
-постобработку и правила порядка чтения, код docling без единой нашей правки
-(`off` | `post` | `full`, умолчание `off`; ставится набором
-`pip install -e ".[docling]"`, +54 МБ к окружению и без torch — 25 колёс,
-510 -> 570 МБ, замерено `du -sb`; в пустое окружение те же пакеты со всеми
-зависимостями встают в 242 МБ). Покупает он две денежные
-вещи: задвоенных рамок 4435 пар → 19 и обращений к VLM 23.0 → 14.6 на
-страницу. Платит слияниями — 366 → 461, найдено артефактов 694 → 562, — и
-потому выключен умолчанием. Порядок чтения у docling это ПРАВИЛА
-(`reading_order_rb.py`, 740 строк эвристик, ни одного веса), а не модель:
-включение меняет НАШЕ правило сортировки на ИХ. Режим `post` порядок тоже
-меняет, и в худшую сторону — 474 лишних прыжка против 453 у нашего. Разбор —
-раздел 19 в `docs/contour-notes.md`.
+## The rules that are not negotiable
 
-## Книги прежнего конвейера УДАЛЕНЫ
+Stated here in one line each; the measurement that bought each one is in
+`docs/limits.md`.
 
-Шести каталогов в `processed/` больше нет — 438 МБ вычеркнуты 2026-09-05 по
-решению оператора. Лежали там `.md`, оглавление, `report.md` и `imgs/` от
-разбора, которого в проекте уже не было: сам конвейер удалён раньше, вместе с
-замерами, которыми оправдывался.
+* **Nobody repairs the model.** No merging boxes, no cutting across the
+  gutter, no re-asking, no thresholds tuned by us. A patch does not improve
+  the book -- it hides the defect from the measurement.
+* **What was recognised is untouchable.** Everything observed lives beside the
+  block and is tied to it by number.
+* **A metric must be able to fail.** Feed it a broken input and watch the
+  number fall, before believing it.
+* **Log the quantity, not the word "done".**
+* **Zero from a check and zero from not understanding are different zeros.**
+* **A knob is declared in the registry.**
+* **Words and structure may be repaired; numbers may only be flagged, never
+  restored.**
 
-ИСХОДНИКИ ВСЕХ ШЕСТИ НА МЕСТЕ, и это проверено перед удалением: `Биохимия`,
-`Справочник по чугунному литью`, `Фейнмановские лекции 1`, `Кристаллизация`,
-`Технология огнеупоров`, `Machine tool reconditioning` — все в `raw/`.
-Потерян продукт, не книги. Пересобрать его нечем и не нужно: нынешний
-конвейер даёт HTML, а не markdown.
-
-`processed/` теперь держит только продукт НЫНЕШНЕГО конвейера:
-`ogneupory-vl/` (собранная книга) и `vl-reads/` (вывод платного чтения,
-436 страниц за $0.545, спасённый из временного каталога чужой сессии).
-
-## Каталог книги самодостаточен
+## The book directory is self-sufficient
 
 ```
-processed/<книга>/
-  book.html          ← ОДИН файл в корне, и он ни на что не ссылается:
-                       MathJax и вырезки вшиты (`HTML_MATH`, `HTML_IMAGES`)
-  assets/            ← кухня; читателю здесь делать нечего
-    blocks/*.png       вырезки файлами — правкам, замерам, второму уровню
-    blocks.json        наблюдённое сбоку по якорю: рамка, ярлык, порядок, роль
-    run.json           слепок сборки
-    swaps.json         журнал замен: стопка на якорь, откат по одной ступени
-    source/            ТО, ИЗ ЧЕГО КНИГА СОБРАНА: pages/, answers/, run.json
+processed/<book>/
+  book.html          ONE file at the root, referring to nothing outside:
+                     MathJax and the crops are inlined
+  assets/            the kitchen; a reader has no business here
+    blocks/*.png       crops as files -- for edits, measurements, level two
+    blocks.json        what was observed, beside the block, keyed by anchor
+    run.json           the build snapshot
+    swaps.json         the swap journal: a STACK per anchor, undo one step
+    source/            WHAT THE BOOK WAS BUILT FROM: pages/, answers/,
+                       run.json, read_with.json
 ```
 
-`source/` появился по замеру, а не для порядка. Без него каталог книги держал
-всё, чтобы её ЧИТАТЬ, и не всё, чтобы ПЕРЕСОБРАТЬ: `blocks.json` несёт
-двенадцать полей на блок, но `content` среди них нет, и прочитанный текст жил
-только разметкой внутри `book.html` да в чужом каталоге чтения. Снеси тот
-каталог — и книгу нечем собрать иначе как новой арендой (915 078 знаков,
-$0.545). Второй выигрыш важнее первого: `books apply` без ключей берёт
-источник ОТСЮДА, а не по абсолютному пути из слепка, и потому переживает
-перенос книги на другую машину.
+`source/` exists because of a measurement, not for tidiness. Without it the
+directory held everything needed to READ the book and not everything needed to
+REBUILD it. With it, `books apply` with no arguments takes the source from
+here rather than from an absolute path in the snapshot, and so survives the
+book being moved to another machine.
 
-Проверено переносом: книга скопирована в другой каталог, каталог чтения
-недоступен — `books apply` нашёл источник внутри, а `books html
-<книга>/assets/source` пересобрал книгу из неё самой, те же 412 замен и
-104 таблицы.
+**The only thing not inside is the source PDF**: crops are cut from it, and a
+rebuild needs `raw/<book>.pdf`. Its path and sha256 are in `assets/run.json`;
+reading the finished book does not need it.
 
-ЕДИНСТВЕННОЕ, ЧЕГО ВНУТРИ НЕТ, — исходный PDF: вырезки режутся из него, и
-пересборка требует `raw/<книга>.pdf`. Путь и sha256 записаны в
-`assets/run.json`; читать готовую книгу он не нужен.
+## State
 
-**Про пометки достоверности `⚠`, `≠` и `<mark>`.** Их больше нет ни в одном
-файле проекта: они жили только в удалённых книгах (12 378 штук на шесть
-книг). Инструкция `work_instruction.md`, бывшая их расшифровщиком, удалена
-вместе с ними. Замер, ради которого всё это помнят, остаётся в силе и
-относится к ЛЮБОМУ будущему прибору пометок: лифт 0.29–0.65 против сдвига
-строки во всех шести книгах — то есть испорченная ячейка помечалась РЕЖЕ
-средней, а ведущий вид незаметной порчи (сдвиг строки) одинаков во всех
-проходах и `≠` не виден по построению. Отсюда правило, которое переживает
-своих носителей: **слова и структуру править можно, числа — только помечать,
-никогда не восстанавливать.**
+The two levels both work end to end. Level one is measured on two benches;
+level two has run on a real book and cannot yet be measured for quality --
+`docs/limits.md` says why, in three reasons, before any money is spent.
 
-**Оплаченное падениями — в `docs/lessons-from-deleted-code.md`.** Замеры,
-отвергнутые гипотезы и разборы аварий, спасённые из удалённого кода: чем
-проверять метрику на способность провалиться, пять денежных ошибок цепочки
-проходов, детектор зацикливания, граница нормализации при сличении, память
-pandoc. Прочти прежде, чем предлагать что-нибудь из отвергнутого.
+The project is being translated to English, keys of the on-disk format
+included. What is left, by area, is printed by:
 
-**Строгая метрика отвечала не на наш вопрос.** «Обвёл точно» (двустороннее
-покрытие 0.75) штрафует слияние — а конвейеру слияние почти ничего не стоит:
-во второй уровень уедет картинка пошире, и он разберёт её на два блока. На
-36 труднейших страницах выжимки `bench/hard36` (35 из золотого стенда, одна
-синтетическая) разница вышла вчетверо: 20% по
-строгому совпадению против 91% объектов, доезжающих целыми, и 94.8%
-сохранённых чернил. Дорого стоит другое — **порванные** объекты (содержимое
-не восстановить) и **уехавшие текстом** (структура пропадёт). Меряет это
-`books fitness`, по чернилам и без истины; раздел 17 в `docs/contour-notes.md`.
+    python3 tools/cyr.py
 
-**Но и одними чернилами выбирать модель нельзя** — это поправка к предыдущему
-абзацу, оплаченная позже. Слияние `books fitness` не штрафует по построению, и
-конвейер docling обошёлся по чернилам в семь объектов, а по мерке, которая
-слияние видит, — в сто тридцать два. Разница в девятнадцать раз.
-Приборов ТРИ, и смотреть надо на все:
-`books score` (не слиплось ли — и он же печатает лишние прыжки между
-колонками, то есть прочтётся ли по порядку), `books fitness` (доедет ли
-содержимое) и `books text` (верно ли прочитано). Здесь стояло «приборов
-четыре», и четвёртым назывались прыжки — строка вывода того же `books score`,
-то есть одна команда была посчитана дважды.
-
-**Померенное на контурах — в `docs/contour-notes.md`.** Шесть синтетических
-книг, 93 страницы, 110 артефактов. Главный дефект назван и воспроизводится:
-**две таблицы не встают рядом** — рамки бок о бок модель ставит охотно (98 пар
-текстовых колонок за 36 страниц), но пара `table`—`table` за весь стенд одна,
-и та из-за тени переплёта. Порог — рычаг: от родного 0.5 к 0.25 находится на
-девять артефактов больше; развёртка в том же файле. Порог мы при этом НЕ
-двигаем — в реестре стоит родной порог весов.
-
-**Новее не значит лучше, и это тоже померено.** `PP-DocLayoutV3` (июль 2026,
-33M против 53M) на наших шести книгах ХУЖЕ V2: текст 89% против 97% при
-родном пороге и проигрывает на каждом пороге развёртки, платя вдвое большим
-числом рамок. Слияние таблиц не чинит ни одна из версий. Смена детектора
-проверяется одной ручкой `LAYOUT_MODEL_NAME` и стоит трёх минут счёта.
-
-**Но дефект НЕ предел задачи, и это померено на карте.** Шесть детекторов на
-процессоре — три семейства архитектур, два вендора, три обучающих набора — на
-странице с тремя таблицами отдавали ОДНУ рамку. `dots.ocr` (3B, MIT, режим
-«только макет», $0.12 за 36 страниц на RTX 4090) отдал ТРИ, IoU 0.92 / 0.81 /
-0.75. На выжимке `bench/hard36` он находит 37% против лучших 21% и сливает 196
-раз против 268–314. Замена первого уровня этим ОТВЕРГНУТА замером: на всех 600
-страницах золотого стенда, на одном и том же входе, он отдаёт 675 объектов без
-потерь против 1025 у PP-DocLayoutV2 на процессоре — обводит теснее эталона и
-режет содержимое, а на 23 плотных полосах упирается в потолок длины ответа. Он
-вдесятеро медленнее, дробит вчетверо чаще, порядок чтения у него — порядок
-порождения. Обоснована мысль, что слияние лечится
-обучением. Числа и все ловушки прогона — в `docs/contour-notes.md`, раздел 13.
-
-Разбор ошибок распознавания — в `docs/ocr-notes.md`. Прежде там стояла
-шапка-предупреждение на 54 строки, объявлявшая недействительной половину
-файла: числа мерились против вывода Mistral OCR, а тело при этом стояло в
-настоящем времени и читалось как инструкция. Недействительное удалено,
-файл ужат с 768 строк до 261, и предупреждать больше не о чем. Грабли
-vast.ai — в `docs/vast-notes.md`.
+Every area may fall and none may rise, and each carries a second number --
+the Latin that arrived where the Cyrillic left -- because deleting a comment
+moves the first number just as well as translating it does.

@@ -138,6 +138,13 @@ HTML_CLASSES = ("лист",)
 # own into the same file, so "everything in the book" is not a usable set.
 HTML_CORE = ("data-role", "data-label", "data-sheet", "data-level")
 
+# The map of the project, checked against the tree by `tests/test_docs_map.py`.
+# The path lives here rather than in the check for one mechanical reason: the
+# mutation battery reloads a check module before running it, so a patch applied
+# to the check itself is thrown away, and the mutation certifies nothing. It
+# reaches modules under `booksmith` instead.
+DOC_MAP = os.path.join(ROOT, "CLAUDE.md")
+
 
 def measure(root=ROOT):
     """format -> {key: occurrences} over the tracked files, right now."""

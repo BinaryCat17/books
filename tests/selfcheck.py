@@ -1811,6 +1811,30 @@ def _measure_finds_nothing(root=None):
     return {f.name: {} for f in schema.FORMATS}
 
 
+def _map_with_a_measurement():
+    """A copy of the map with a moved figure written back into it."""
+    return _map_plus("\n\nV2 finds 698 of 1232 on the golden bench.\n")
+
+
+def _map_naming_a_missing_file():
+    """A map that points at a file the tree does not have."""
+    return _map_plus("\n\nSee `docs/there-is-no-such-file.md` for details.\n")
+
+
+def _map_naming_a_ghost_command():
+    """A map that offers a command the CLI never declared."""
+    return _map_plus("\n\nbooks conjure                a command that is not\n")
+
+
+def _map_plus(tail):
+    import tempfile
+    text = open(schema.DOC_MAP, encoding="utf-8").read()
+    fd, path = tempfile.mkstemp(suffix=".md")
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(text + tail)
+    return path
+
+
 def _clock_not_stripped():
     """The wall clock stays in the report, so every line differs every run.
 
@@ -3238,6 +3262,33 @@ def mutations():
          lambda: attrs(acceptance, _TREE_HASH=_clock_not_stripped()),
          [("test_acceptance",
            "test_replay_check_reports_the_same_report")]),
+
+        # --- the map against the tree -------------------------------------
+        #
+        # `README.md` once held a second copy of the code map and drifted from
+        # the tree by eight modules and four commands within a month. The copy
+        # went; the drift can still happen to the one that is left, and these
+        # four say so out loud.
+
+        ("the map is read from a file that is not the map",
+         lambda: attrs(schema, DOC_MAP=os.path.join(
+             os.path.dirname(schema.DOC_MAP), "README.md")),
+         [("test_docs_map",
+           "test_every_command_the_cli_declares_is_named_in_the_map")]),
+
+        ("the map points at a file that is not there",
+         lambda: attrs(schema, DOC_MAP=_map_naming_a_missing_file()),
+         [("test_docs_map", "test_every_file_the_map_points_at_exists")]),
+
+        ("the map offers a command the CLI does not have",
+         lambda: attrs(schema, DOC_MAP=_map_naming_a_ghost_command()),
+         [("test_docs_map",
+           "test_the_map_names_no_command_that_does_not_exist")]),
+
+        ("measurements are allowed back into the map",
+         lambda: attrs(schema, DOC_MAP=_map_with_a_measurement()),
+         [("test_docs_map",
+           "test_the_map_does_not_grow_back_into_a_second_copy")]),
 
         ("the aging knob advertises a profile that does not exist",
          lambda: one_line("booksmith.run.knobs",
