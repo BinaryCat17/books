@@ -73,3 +73,28 @@ folding it is a design question for 3b, when runs get labels. The loaders
 are one (`core.page.load_pages`) with two delegations that keep their
 error class. What remains is 2c: the synthetic generator's split, and
 `order_marked` in its truth.
+
+## The 2a-moves review, and what it found
+
+Three defects, fixed before this half landed. The ink metric's `battery`
+called `fitmet.mutations`, an alias that exists only in other files: the
+alias pass had rewritten `ink.mutations` inside the very module that
+defines `mutations`, and NOTHING called any metric's `battery`, so 350
+checks, the mutation battery and the acceptance all passed over a
+NameError. The three `--selfcheck` commands now run THE METRICS' batteries,
+built from the truth and pages directories through `Bench` and `Run`, so
+the three locked battery reports exercise them; the reports are byte-
+identical to before. The command line had gained an eager import of the
+measuring stack (numpy on `books offers`); it is lazy again, 18 modules at
+import. Prose in the moved files still named `metrics.py` and `fitness.py`,
+and the alias pass had pasted `ink.` into English comments.
+
+Weaknesses taken: `tables_given_as_text` was a count beside a fraction and
+is a share now; the coverages that were n of n by construction (CER, WER,
+CER_artefacts) are gone, the answered-only lines carry the real ones; the
+two loaders say which side they were reading; the acceptance table writes
+its JSON to `os.devnull`; a test holds that nothing imports the command
+line, closing the one transitive path past the layer rule. And the claim
+"the truth is parsed once per table" is true for the contour and reading
+metrics, which take the dicts; the ink metric renders the PDF itself and
+re-reads its pages, so a full table parses the truth twice.

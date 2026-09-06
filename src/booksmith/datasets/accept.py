@@ -101,7 +101,7 @@ COMMANDS = {
     # slovar's detect run, one text. The JSON goes to a scratch path so that
     # the report is the only thing compared.
     "table-slovar": (
-        ["bench", "all", "bench/slovar", "--json", "/tmp/booksmith-table-slovar.json"],
+        ["bench", "all", "bench/slovar", "--json", os.devnull],
         ["bench/slovar/slovar.pdf", "bench/slovar/detect/pages",
          "bench/slovar/truth"]),
     "help": (["--help"], []),

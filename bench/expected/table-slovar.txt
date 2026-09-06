@@ -26,15 +26,15 @@ bench slovar, run detect
   fitness  object_ink_preserved        0.928       33218/35792                      
   fitness  params: ink=160, intact=0.99, almost=0.95, bitten=0.8, edge_band=0.04, GUTTER=0.5
   text     paired                      0.989           517/523                      
-  text     CER                         1.000                          520/520 blocks
-  text     WER                         1.000                          520/520 blocks
+  text     CER                         1.000                                        
+  text     WER                         1.000                                        
   text     CER_answered                    —                            0/520 blocks  [3]
   text     no_answer                   0.990           515/520                      
   text     cells_matched                   —             0/227                        [4]
   text     CER_cells                       —                             0/227 cells  [5]
-  text     tables_given_as_text            0               0/2                      
+  text     tables_given_as_text        0.000               0/2                      
   text     baits_read                  0.000               0/1                      
-  text     CER_artefacts                   —                              0/0 blocks  [6]
+  text     CER_artefacts                   —                                          [6]
   text     CER_artefacts_answered          —                              0/0 blocks  [7]
   text     params: normalization=boundary, geometry_two_way_coverage=0.75, geometry_tolerance_px=6.0
   assembly excess_jumps_per_page      10.833                             12/13 pages
@@ -53,4 +53,4 @@ bench slovar, run detect
   [5] text/CER_cells: no table answered
   [6] text/CER_artefacts: no artefact with character truth
   [7] text/CER_artefacts_answered: no answered artefact with character truth
-5 records written to /tmp/booksmith-table-slovar.json
+5 records written to /dev/null

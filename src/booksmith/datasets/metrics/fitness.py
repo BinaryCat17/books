@@ -12,7 +12,6 @@ import os
 import shutil
 
 from booksmith.core import page, policy
-from booksmith.core.errors import Unmeasurable
 from booksmith.datasets.metrics.base import (Metric, Probe, Record, Scalar,
                                              battery_summary, run_battery)
 from booksmith.processing.assess import ink
@@ -258,8 +257,8 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
                      ink.measure(pdf, detect_dir, truth_dir)))
                  and _at("WHOLE", 1.01,
                          lambda: ink.measure(pdf, detect_dir, truth_dir)["intact"] == 0)),
-        # THERE ARE FIVE THRESHOLDS, NOT TWO. Only ink.INK and ink.WHOLE were probed;
-        # kill ink.ALMOST, ink.BITTEN or ink.EDGE alone and the battery stays green while
+        # THERE ARE FIVE THRESHOLDS, NOT TWO. Only INK and WHOLE were probed;
+        # kill ALMOST, BITTEN or EDGE alone and the battery stays green while
         # the printed numbers slide (almost whole 3 -> 0 and bitten 5 -> 8;
         # bitten 5 -> 0; ink at the edge 26076 -> 529). Thresholds are brought
         # TO THEIR NEIGHBOURS rather than nudged at random: the class between
@@ -280,7 +279,7 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
                      lambda: ink.measure(pdf, detect_dir, truth_dir)["torn"] == 0)
                  and _at("BITTEN", ink.ALMOST,
                          lambda: ink.measure(pdf, detect_dir, truth_dir)["bitten"] == 0)),
-        # ink.EDGE is a ruler too, and printed: "of what was lost, N% lies in the
+        # EDGE is a ruler too, and printed: "of what was lost, N% lies in the
         # band at the edge". Blown up to half the shorter side it covers the
         # sheet, so ALL the lost ink must land at the edge. Truth is passed
         # although the band does not depend on it: without it `measure` walks
@@ -399,4 +398,4 @@ class FitnessMetric(Metric):
 
     def battery(self, bench, run, log=print) -> int:
         truth = bench.truth_dir if bench is not None and bench.truth_dir else ""
-        return fitmet.mutations(bench.pdf, run.pages_dir, truth, log=log)
+        return mutations(bench.pdf, run.pages_dir, truth, log=log)

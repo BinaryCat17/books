@@ -45,7 +45,6 @@ from booksmith.core import replay as replay_mod
 from booksmith.core.errors import Refusal
 from booksmith.core import raster
 from booksmith.core import book
-from booksmith.datasets.metrics import fitness as fitmet
 
 
 def _host_args(ap):
@@ -473,13 +472,36 @@ def cmd_overlay(a):
     return 0
 
 
+def _bench_and_run(truth, pages):
+    """The bench of a truth directory and the run of a pages directory, for
+    a metric's battery. A pages directory with no snapshot beside it is
+    taken bare and says so; a truth directory that is not a bench is
+    refused by `Bench.open` with the reason."""
+    from booksmith.core.errors import Unmeasurable
+    from booksmith.datasets.bench import Bench, Run
+    b = Bench.open(truth) if truth else None
+    try:
+        r = Run.open(pages)
+    except Unmeasurable:
+        r = Run.bare(pages)
+    return b, r
+
+
 def cmd_score(a):
-    """Contour metrics: truth against the model output."""
+    """Contour metrics: truth against the model output.
+
+    `--selfcheck` runs THE METRIC'S battery (`datasets.metrics.contour
+    .ContourMetric.battery`), not the module function beside it: a battery
+    that nothing calls is a battery whose NameError nobody sees, and the
+    ink metric's had one for two commits.
+    """
+    from booksmith.datasets.metrics import BY_NAME
     from booksmith.datasets.metrics import contour as metrics
     truth = _pages_dir(a.truth, "truth")
     det = _pages_dir(a.detect, "model boxes")
     if a.selfcheck:
-        return 1 if metrics.mutations(truth, det, log=log) else 0
+        b, r = _bench_and_run(truth, det)
+        return 1 if BY_NAME["contour"].battery(b, r, log=log) else 0
     metrics.report(metrics.compare(truth, det), log=log)
     return 0
 
@@ -502,22 +524,37 @@ def cmd_text(a):
     instrument here already lied — "reading order agreed 73%" on a bench where
     order is not annotated at all.
     """
+    from booksmith.datasets.metrics import BY_NAME
     from booksmith.datasets.metrics import text
     truth = _pages_dir(a.truth, "truth")
     pages = _pages_dir(a.pages, "what was read")
     if a.selfcheck:
-        return 1 if text.mutations(truth, pages, log=log) else 0
+        b, r = _bench_and_run(truth, pages)
+        return 1 if BY_NAME["text"].battery(b, r, log=log) else 0
     text.report(text.measure(truth, pages, norm=a.norm), log=log)
     return 0
 
 
 def cmd_fitness(a):
     """Fitness of the output: will the meaning reach level two. By ink."""
+    import os
+    from booksmith.core.errors import Refusal
     from booksmith.processing.assess import ink as fitness
     det = _pages_dir(a.detect, "--detect")
     truth = _pages_dir(a.truth, "--truth") if a.truth else ""
     if a.selfcheck:
-        return 1 if fitmet.mutations(a.pdf, det, truth, log=log) else 0
+        from booksmith.datasets.metrics import BY_NAME
+        from booksmith.datasets.metrics import fitness as fitmet
+        if not truth:
+            # Without a bench there is no Bench: the battery of the module,
+            # with the PDF given by hand.
+            return 1 if fitmet.mutations(a.pdf, det, "", log=log) else 0
+        b, r = _bench_and_run(truth, det)
+        if not b.pdf or os.path.abspath(b.pdf) != os.path.abspath(a.pdf):
+            raise Refusal(f"{a.pdf} is not the PDF of the bench {b.name} "
+                          f"({b.pdf or 'no PDF beside its manifest'}); the "
+                          f"battery measures a bench against its own book")
+        return 1 if BY_NAME["fitness"].battery(b, r, log=log) else 0
     fitness.report(fitness.measure(a.pdf, det, truth), log=log)
     return 0
 

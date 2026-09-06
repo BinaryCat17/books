@@ -83,11 +83,13 @@ class MetricError(Unmeasurable):
     pass
 
 
-def _load(d):
+def _load(d, what="pages"):
     """The one loader, `core.page.load_pages`, under this metric's own error
-    class so that a caller catching `MetricError` still does."""
+    class so that a caller catching `MetricError` still does; `what` names
+    the side being read, so a bad truth directory is not reported as bad
+    model boxes."""
     try:
-        return page.load_pages(d, "model boxes")
+        return page.load_pages(d, what)
     except Unmeasurable as e:
         raise MetricError(str(e)) from None
 
@@ -295,7 +297,7 @@ def _same_raster(T: dict, M: dict) -> str:
 
 def compare(truth_dir: str, detect_dir: str) -> dict:
     """Score model output against truth. Numbers and named counters."""
-    T, M = _load(truth_dir), _load(detect_dir)
+    T, M = _load(truth_dir, "truth"), _load(detect_dir, "model boxes")
     note = f"{_same_book(truth_dir, detect_dir)}; {_same_raster(T, M)}"
     res = compare_pages(T, M)
     res["book"] = note
@@ -1335,7 +1337,7 @@ def _multi(T, arte):
 def mutations(truth_dir: str, detect_dir: str, log=print) -> int:
     """Run the battery. Returns uncaught damage count (0 -- metric alive)."""
     global COVER_MATCH, TOUCH, TOL_PX
-    T, M = _load(truth_dir), _load(detect_dir)
+    T, M = _load(truth_dir, "truth"), _load(detect_dir, "model boxes")
     arte = set(policy.artefacts())
     # The label for the "rename one class" probe comes FROM THE DATA, not
     # hard-coded: `table` in PP-DocLayout*, `Table` in Docling and DocLayNet. A

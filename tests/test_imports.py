@@ -123,3 +123,11 @@ def test_the_root_package_imports_nothing():
     tree = ast.parse(src)
     bad = [n.lineno for n in ast.walk(tree) if isinstance(n, (ast.Import, ast.ImportFrom))]
     assert not bad, f"booksmith/__init__.py imports at lines {bad}"
+
+
+def test_nothing_imports_the_command_line():
+    """`cli` is unplaced and may reach every package; a package importing
+    `cli` would reach them all through it, past the rule. Measured: no
+    importer today; this keeps it so."""
+    importers = sorted({a for a, b, _ in imports.edges() if b.startswith("booksmith.cli")})
+    assert not importers, importers

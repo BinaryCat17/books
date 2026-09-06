@@ -3,9 +3,10 @@
 The old reading figures were measured against Mistral OCR output -- another
 model, not known text -- and are void to the last one (`docs/ocr-notes.md`).
 This file compares an answer against TRUTH and can fail. It measures
-CHARACTERS and CELL ADDRESSES; boxes are `metrics.py`, delivery to the second
-level is `fitness.py`, and one combined number would only trade one defect for
-another.
+CHARACTERS and CELL ADDRESSES; boxes are the contour metric (`contour.py`
+beside this file), delivery to the second level is the ink metric
+(`processing/assess/ink.py`), and one combined number would only trade one
+defect for another.
 
 FOUR ZEROS THAT MUST NOT BE CONFUSED -- half the code below is for them.
 
@@ -531,19 +532,19 @@ def _match(tb, pb, page_index=None):
 
 
 # ----------------------------------------------------------------- measuring
-def _load(d):
+def _load(d, what="pages"):
     """The one loader, `core.page.load_pages`, under this metric's own error
     class: a caller catching `TextError` still does, and the message names
-    what was being read."""
+    which side was being read."""
     try:
-        return page.load_pages(d, "what was read")
+        return page.load_pages(d, what)
     except Unmeasurable as e:
         raise TextError(str(e)) from None
 
 
 def measure(truth_dir: str, pages_dir: str, norm: str = NORM) -> dict:
     """Compare what was read against truth. The numbers are in the result."""
-    T, P = _load(truth_dir), _load(pages_dir)
+    T, P = _load(truth_dir, "truth"), _load(pages_dir, "what was read")
     # Book and raster checks come ready-made from the contour metric. Through
     # getattr deliberately: these are private names of another file, and a
     # rename must produce a loud NOT CHECKED, not an AttributeError.
@@ -1291,7 +1292,7 @@ def _dead_anchor(P):
 
 def mutations(truth_dir: str, pages_dir: str, log=print) -> int:
     """Run the battery. Returns uncaught corruptions (0 -- the metric lives)."""
-    T, P = _load(truth_dir), _load(pages_dir)
+    T, P = _load(truth_dir, "truth"), _load(pages_dir, "what was read")
     base = measure_pages(T, P)
     b_cer = base["text"]["CER"]
     b_wer = base["text"]["WER"]
@@ -1668,10 +1669,8 @@ class TextMetric(Metric):
                              "no truth block to pair"),
             # CER and WER are over EVERY truth block, an unanswered one at
             # full distance; the answered-only figure is its own line.
-            "CER": _over_blocks(t["CER"], t["block_count"], t["block_count"],
-                           "no text block in the truth"),
-            "WER": _over_blocks(t["WER"], t["block_count"], t["block_count"],
-                           "no text block in the truth"),
+            "CER": Scalar(t["CER"], why=None if t["CER"] is not None else "no text block in the truth"),
+            "WER": Scalar(t["WER"], why=None if t["WER"] is not None else "no text block in the truth"),
             "CER_answered": _over_blocks(t["cer_answered"], answered, t["block_count"],
                                     "no answered text block"),
             "no_answer": _share_count(t["share_no_answer"], t["no_answer"], t["block_count"],
@@ -1680,14 +1679,15 @@ class TextMetric(Metric):
                                     tb["cell_count"], no_cells),
             "CER_cells": Scalar(tb["cer_cells"], over=(tb["cells_matched"], tb["cell_count"]),
                                 unit="cells", why=None if tb["cer_cells"] is not None else no_cells),
-            "tables_given_as_text": Scalar(tb["given_as_text"],
-                                           count=(tb["given_as_text"], tb["block_count"])),
+            "tables_given_as_text": _share_count(
+                tb["given_as_text"] / tb["block_count"] if tb["block_count"] else None,
+                tb["given_as_text"], tb["block_count"], "no table in the truth"),
             "baits_read": _share_count(bt["share"], bt["read"], bt["artifacts"],
                                  "no bait artefact in the truth"),
             # Over every artefact with character truth, like CER; the
             # answered-only figure is the dict's `cer_answered`.
-            "CER_artefacts": _over_blocks(a["CER"], a["block_count"], a["block_count"],
-                                     "no artefact with character truth"),
+            "CER_artefacts": Scalar(a["CER"], why=None if a["CER"] is not None
+                                    else "no artefact with character truth"),
             "CER_artefacts_answered": _over_blocks(a["cer_answered"], art_answered, a["block_count"],
                                               "no answered artefact with character truth"),
         }
