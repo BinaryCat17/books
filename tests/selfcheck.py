@@ -1822,6 +1822,18 @@ def _map_with_a_measurement():
     return _map_plus("\n\nV2 finds 698 of 1232 on the golden bench.\n")
 
 
+def _gitignore_without_raw():
+    """A tree whose .gitignore no longer hides the originals.
+
+    Applied by pointing `support.SRC` nowhere useful is not enough -- the check
+    asks git itself. So the mutation moves the repository root the check looks
+    at to a directory with no .gitignore at all, which is what an edit that
+    drops the entry looks like from git's side: nothing is ignored.
+    """
+    import tempfile
+    return tempfile.mkdtemp()
+
+
 def _map_naming_a_missing_file():
     """A map that points at a file the tree does not have."""
     return _map_plus("\n\nSee `docs/there-is-no-such-file.md` for details.\n")
@@ -3289,6 +3301,12 @@ def mutations():
              os.path.dirname(schema.DOC_MAP), "README.md")),
          [("test_docs_map",
            "test_every_command_the_cli_declares_is_named_in_the_map")]),
+
+        ("git no longer hides the originals and the rent journal",
+         lambda: attrs(support, SRC=os.path.join(_gitignore_without_raw(),
+                                                 "x", "src", "booksmith")),
+         [("test_data_contract",
+           "test_the_things_that_must_never_be_committed_are_ignored")]),
 
         ("the map points at a file that is not there",
          lambda: attrs(schema, DOC_MAP=_map_naming_a_missing_file()),

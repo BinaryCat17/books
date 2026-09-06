@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Исполняется НА арендованной машине. Разворачивает окружение и зовёт счёт.
-#   bash run.sh input.pdf outputs [повторов] [страницы|-]
+# Runs ON the rented machine. Provisions the environment and starts the run.
+#   bash run.sh input.pdf outputs [repeats] [pages|-]
 set -uo pipefail
 WORK="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PDF="${1:-$WORK/input.pdf}"; OUT="${2:-$WORK/outputs}"
@@ -9,18 +9,18 @@ mkdir -p "$OUT"
 exec > >(tee -a "$OUT/job.log") 2>&1
 log() { echo "[$(date +%H:%M:%S)] $*"; }
 
-log "=== разворачиваю окружение ==="
-if ! bash "$WORK/provision.sh"; then log "разворачивание не удалось"; exit 1; fi
+log "=== provisioning ==="
+if ! bash "$WORK/provision.sh"; then log "provisioning failed"; exit 1; fi
 
 ENVDIR=${ENVDIR:-/opt/env}
 export DOTS_DIR=${DOTS_DIR:-${MODELS:-/models}/DotsOCR}
-# Фрагментация видеопамяти: кодировщик зрения выделяет большие непрерывные
-# куски под софтмакс внимания, и без этого флага 3.8 ГиБ висели
-# зарезервированными и неиспользуемыми при OutOfMemory.
+# VRAM fragmentation: the vision encoder allocates large contiguous blocks
+# for the attention softmax, and without this flag 3.8 GiB sat reserved and
+# unused while it reported OutOfMemory.
 export PYTORCH_CUDA_ALLOC_CONF=${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True}
-log "=== счёт: $PDF -> $OUT, повторов $REPEATS, страницы $PAGES ==="
+log "=== run: $PDF -> $OUT, repeats $REPEATS, pages $PAGES ==="
 "$ENVDIR/bin/python" "$WORK/entrypoint.py" \
   --pdf "$PDF" --out "$OUT" --repeats "$REPEATS" --pages "$PAGES"
 rc=$?
-log "=== счёт кончился, код $rc ==="
+log "=== run finished, code $rc ==="
 exit $rc

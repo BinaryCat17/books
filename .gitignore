@@ -1,13 +1,13 @@
-# Комментарий в .gitignore живёт ТОЛЬКО на своей строке: `#` в хвосте образца
-# git считает частью образца, а не пояснением. Проверено здесь же: строка
-# `raw/  # 9.7 ГБ` перестаёт прятать raw/ целиком и молча.
+# A comment in .gitignore lives ONLY on a line of its own: a `#` at the tail
+# of a pattern is part of the pattern to git, not an explanation. Checked here:
+# the line `raw/  # 9.7 GB` stops hiding raw/ altogether, and silently.
 
-# секреты — раньше всего остального
+# secrets, before anything else
 .env
 *.env
 !.env.example
 
-# окружения
+# environments
 venv/
 tools/venv/
 .venv/
@@ -15,23 +15,25 @@ __pycache__/
 *.py[cod]
 .uv/
 
-# pytest в .venv нет, бегун свой (tests/run.py), но проверки написаны так,
-# чтобы pytest подобрал их без правок, — поставят его, появится и кеш.
+# There is no pytest in .venv and the runner is our own (tests/run.py), but
+# the checks are written so pytest would pick them up unchanged -- install it
+# and the cache appears.
 .pytest_cache/
 
-# Оригиналы: 9.7 ГБ сканов, из них 9.4 — набор AnnoPage с Zenodo
-# (DOI 10.5281/zenodo.12788419, CC BY 4.0), качается заново по DOI.
+# Originals: 9.7 GB of scans, 9.4 of them the AnnoPage set from Zenodo
+# (DOI 10.5281/zenodo.12788419, CC BY 4.0), re-downloadable by that DOI.
 raw/
 
-# 427 МБ, шесть книг прежнего разбора; чем они полезны — в CLAUDE.md.
+# 209 MB: the two built books and the paid reading they were made from. The
+# reading is not reproducible without another rental; see docs/limits.md.
 processed/
 
-# Журнал аренды: 111 записей на $4.98, в них instance_id и machine_id живых
-# машин vast.ai. Наружу им не надо, а восстанавливаться им неоткуда — держи
-# копию вне репозитория.
+# The rent journal: 119 records, $5.527, carrying instance_id and machine_id
+# of live vast.ai machines. They have no business going out, and nothing can
+# restore them -- keep a copy outside the repository.
 runs/
 
-# рабочее
+# working files
 *.log
 out.tgz
 .DS_Store
@@ -39,62 +41,64 @@ out.tgz
 build/
 dist/
 
-# ─── стенды ───────────────────────────────────────────────────────────────
-# Правило одно: в git едет то, чего не пересобрать бесплатно, — истина, слепок
-# входа и вывод, за который заплачено на арендованной карте. Всё, что местный
-# процессор отдаёт по одной команде, не едет.
+# ─── benches ──────────────────────────────────────────────────────────────
+# One rule: what goes into git is what cannot be rebuilt for free -- truth, the
+# input snapshot, and output paid for on a rented card. Anything the local CPU
+# produces from one command does not.
 
-# Сами книги стендов: 472 МБ annopage, 168 annopage-lite, 100 hard, 23 hard36.
-# ПЕРЕСОБИРАЮТСЯ ТОЛЬКО ДВА ИЗ ЧЕТЫРЁХ: `books annopage` даёт annopage,
-# `books subset` — hard. Здесь стояло, что так собираются все четыре, и это
-# была неправда, усыплявшая того, кто пошёл бы искать сборщик.
-# `annopage-lite` (ужат до 1 Мпикс) и `hard36` (36 труднейших страниц, длинная
-# сторона 1800 px, JPEG 92) собраны ВНЕШНИМИ скриптами, которых нет ни в
-# дереве, ни в истории git — искали обходом всех 4053 объектов репозитория, не
-# только достижимых. Правило отбора hard36 восстановимо из одной истины
-# (устойчивая сортировка `bench/hard` по числу пар, взять 36; множество
-# сходится полностью), но у него необъявленная ничья: страниц ровно с тремя
-# парами 21, взято 5, и только порядком перечисления. Значит эти два pdf
-# существуют лишь на одном диске, и sha256 из их манифестов больше не с чем
-# сверить. sha256 pdf записан в manifest.json рядом.
+# The bench books themselves: 472 MB annopage, 168 annopage-lite, 100 hard,
+# 23 hard36. ONLY TWO OF THE FOUR REBUILD: `books annopage` makes annopage,
+# `books subset` makes hard. This once said all four do, which was untrue and
+# would have lulled anyone who went looking for the builder.
+# `annopage-lite` (squeezed to 1 Mpx) and `hard36` (the 36 hardest pages, long
+# side 1800 px, JPEG 92) were built by EXTERNAL scripts that are in neither the
+# tree nor the git history -- searched by walking all 4053 objects of the
+# repository, not only the reachable ones. The hard36 selection rule is
+# recoverable from the truth alone (stable sort of `bench/hard` by pair count,
+# take 36; the set converges exactly), but it has an undeclared tie: 21 pages
+# have exactly three pairs, 5 were taken, by enumeration order only. So those
+# two pdfs exist on one disk and nothing is left to check their manifest
+# sha256 against. The pdf sha256 is recorded in manifest.json beside them.
 bench/*/*.pdf
 
-# Кроме трёх настоящих сканов (9.4 МБ): исходников у них нет ниоткуда, они
-# сами и есть источник.
+# Except the three real scans (9.4 MB): they have no source anywhere -- they
+# are the source.
 !bench/real/*.pdf
 
-# Листы с рамками для глаз: 2.8 ГБ у annopage, 162 МБ у hard36. Рисуются
-# `books overlay` за минуты и смотрятся один раз.
+# Sheets with boxes drawn on, for the eye: 2.8 GB for annopage, 162 MB for
+# hard36. `books overlay` draws them in minutes and they are looked at once.
 bench/*/check/
 
-# Вывод детектора: 25 МБ на annopage. `books detect` считает его на процессоре
-# бесплатно. Слепок входа лежит отдельным файлом detect/run.json (16 КБ) и
-# ОСТАЁТСЯ в git: без него неизвестно, при каких ручках получены числа в docs/.
+# Detector output: 25 MB for annopage. `books detect` computes it on the CPU
+# for free. The input snapshot is a separate file, detect/run.json (16 KB), and
+# it STAYS in git: without it there is no telling which knobs produced the
+# numbers in docs/.
 bench/*/detect/pages/
 
-# Продукт первого уровня, 12 МБ на книгу: `books html` из detect/.
+# The level-one product, 12 MB per book: `books html` from detect/.
 bench/*/html/
 
-# То, что уехало бы в VLM: `books feed` кладёт по картинке на текстовый блок.
-# 12 МБ на 13 страницах slovar — это 1.4 ГБ на 600 страницах annopage. У шести
-# синтетических книг каталог уже закрыт правилом выше, у annopage, annopage-lite,
-# hard и hard36 не был закрыт ничем (`git check-ignore` возвращал 1).
+# What would go to the VLM: `books feed` writes one picture per text block.
+# 12 MB over slovar's 13 pages is 1.4 GB over annopage's 600. For the six
+# synthetic books the directory is already closed by the rule above; for
+# annopage, annopage-lite, hard and hard36 it was closed by nothing at all
+# (`git check-ignore` returned 1).
 bench/*/detect/feed/
 bench/*/feed/
 
-# Последняя страница прогона картинкой, 1.7 МБ, — отладочный след, не данные.
+# The last page of a run as a picture, 1.7 MB -- a debugging trace, not data.
 bench/*/dots/_page.png
 
-# Исключение из `*.log` выше: 72 КБ на два файла — единственный след прогона,
-# за который заплачено ($0.89 за 600 страниц на RTX 4090). Последние строки
-# держат величины, на которые ссылается docs/: 8925 рамок, 23 неразобранных,
-# 14.22 с/страница. Заново эти числа стоят денег.
+# An exception to `*.log` above: 72 KB in two files, the only trace of a run
+# that was paid for ($0.892 for 600 pages on an RTX 4090; all sixteen rentals
+# of that job cost $1.370). Their last lines hold quantities docs/ cites: 8925
+# boxes, 23 unparsed, 14.22 s/page. Getting those numbers again costs money.
 !bench/*/dots/job.log
 
-# Шесть синтетических книг: от 34 (slovar) до 158 МБ (spravochnik). Собираются
-# побайтово теми же — зерно, профиль старения и sha256 генератора записаны в
-# manifest.json. Каталог гасится содержимым (`/*`, а не `/`): каталог, закрытый
-# целиком, не отпирается изнутри никаким `!`.
+# Six synthetic books, from 34 MB (slovar) to 158 (spravochnik). They rebuild
+# byte for byte -- the seed, the aging profile and the generator sha256 are in
+# manifest.json. The directory is closed by its CONTENTS (`/*`, not `/`): a
+# directory closed whole cannot be reopened from inside by any `!`.
 bench/spravochnik/*
 bench/slovar/*
 bench/matematika/*
@@ -102,6 +106,6 @@ bench/atlas/*
 bench/katalog/*
 bench/zhurnal/*
 
-# Манифест — единственное, что от синтетической книги остаётся: по нему видно,
-# что пересборка после правки synth.py дала уже ДРУГУЮ книгу.
+# The manifest is all that is left of a synthetic book: by it one can see that
+# a rebuild after an edit to synth.py produced a DIFFERENT book.
 !bench/*/manifest.json

@@ -145,3 +145,27 @@ def test_the_built_book_carries_the_declared_attributes():
     assert not absent, (
         f"{books[-1]} does not carry {absent} -- the builder and the book it "
         "built have drifted apart, and `books apply` will not find its blocks")
+
+
+def test_the_things_that_must_never_be_committed_are_ignored():
+    """`.gitignore` is the one file where a bad edit exposes gigabytes.
+
+    Its own first three lines say why: a `#` at the tail of a pattern is part
+    of the pattern to git, so `raw/  # 9.7 GB` stops hiding `raw/` -- silently.
+    Behind these four entries sit 9.7 GB of scans, 201 MB of built books and
+    paid reading, the rent journal with live vast.ai machine ids, and the
+    secrets file.
+
+    Checked by asking git, not by reading the file: a pattern can be correct
+    and still be overridden by a later line.
+    """
+    import subprocess
+    root = os.path.dirname(os.path.dirname(support.SRC))
+    must_hide = ("raw/", "processed/", "runs/", ".env")
+    r = subprocess.run(["git", "check-ignore", "-v", *must_hide],
+                       cwd=root, capture_output=True, text=True)
+    hidden = {ln.rsplit("\t", 1)[-1] for ln in r.stdout.splitlines() if ln}
+    missing = sorted(set(must_hide) - hidden)
+    assert not missing, (
+        f"git no longer ignores {missing} -- .gitignore was edited and "
+        "something that must never be committed is now exposed")
