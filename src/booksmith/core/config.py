@@ -7,7 +7,10 @@ arguments nor the onstart scripts vast.ai keeps and shows in its console.
 """
 import os
 
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+# Three levels up from `src/booksmith/core/`. One level short and `.env` is
+# looked for under `src/`, where it never is, and every secret reads as
+# unset -- silently, which is why `books doctor` prints where it looked.
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 ENV_FILE = os.path.join(ROOT, ".env")
 DEFAULT_SSH_KEY = os.path.expanduser("~/.ssh/id_ed25519_vast")
 

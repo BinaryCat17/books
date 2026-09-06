@@ -53,41 +53,41 @@ the same code, judged by the same eyes.
 
 ```
 src/booksmith/
+  core/        THE KERNEL, imports nothing above itself: page.py (Block, Page,
+               KINDS: the on-disk format, one shape for truth and output),
+               book.py (where a book's parts live), knobs.py (the registry),
+               stamp.py (hash, commit, packages: the three quantities of
+               repeatability), replay.py (is a snapshot complete), raster.py
+               (page rendering and crop cutting; the only rendering seam on
+               the read path), policy.py (label -> class, five vocabularies),
+               order.py (THE ASSEMBLY ORDER, knob ASSEMBLY_ORDER), otsl.py
+               (parsing the table markup, OUR code), textnorm.py (text
+               normalisation before comparison), schema.py (key floors over
+               the tracked files), config.py (.env), errors.py (Refusal rc 1,
+               Unmeasurable rc 2), log.py (one log line)
+  tree/        instruments over the tree itself: cyr.py (the Cyrillic
+               ratchet), imports.py (the dependency rule, held by a test)
   remote/      renting and running ANYTHING on a rented machine. Knows nothing
                about PDF or OCR and must not -- otherwise the next task means
                rewriting the renting again. Four independent ways to kill a
                machine, including a dead-man's watch on the card itself; each
                was added after the previous one let money leak
   models/      detection adapters, all ONNX on the CPU: base.py is the
-               contract, doclayout.py (PP-DocLayout*), docling_heron.py
-               (heron and egret), yolox_layout.py; paddleocr_vl/ and dots_ocr/
-               deliver a VLM to a rented machine
+               contract (Recognizer), doclayout.py (PP-DocLayout*),
+               docling_heron.py (heron and egret), yolox_layout.py;
+               paddleocr_vl/ and dots_ocr/ deliver a VLM to a rented machine
   books/       bench books: reference, dictionary, mathematics, atlas,
                catalogue, article collection -- each a different format
-  doc/         contours into HTML: crop, feed, html; swap and apply are level
-               two -- one picture replaced by markup at a time, with an undo;
+  doc/         contours into HTML: feed, html; swap and apply are level two --
+               one picture replaced by markup at a time, with an undo;
                mathjax/ ships MathJax beside the book, knob `HTML_MATH`
   read/        LEVEL TWO, `books read`: the contract for reading a block
                (__init__), transport to any OpenAI-compatible address (http),
                the book driver (run). Its product is THE SAME `pages/*.json`
                detection makes, with `content` and `kind` filled in
-  otsl.py      parsing the table markup reading models answer with. OUR code,
-               not the model's: "the model said nothing", "our parse did not
-               come together" and "the characters are wrong" must be three
-               different answers
-  run/         the knob registry, the input snapshot, three quantities of
-               repeatability (stamp: file hash, commit, packages)
-  schema.py    THE ON-DISK FORMAT, declared once, with a measured floor under
-               every key. The names come from here and the counts off the
-               disk, which is the only shape that fails in both directions
-  cyr.py       the Cyrillic ratchet: how much is left of the translation, by
-               area, and how much Latin arrived in its place
-  acceptance.py  seven reports compared line by line against `bench/expected/`
-  policy.py    label -> class: artifact | text | furniture. Each detector has
-               its own vocabulary, five of them
-  order.py     THE BOOK ASSEMBLY ORDER, one rule for the project. Knob
-               `ASSEMBLY_ORDER`. Applies only to models with no rank of their
-               own; V2 and V3 have one
+  cyr.py       -> tree/cyr.py
+  acceptance.py  reports and raw-result records compared against
+               `bench/expected/`
   detect.py    level one: page contours, locally and free
   synth.py     the synthetic bench: pages with truth measured by ink
   annopage.py  the golden bench: 600 real pages, truth by librarians
@@ -98,7 +98,6 @@ src/booksmith/
                and the table grid by cell address; its own damage battery
   overlay.py   boxes over the pages -- to look with your own eyes
   djvu.py      djvu -> PDF with spreads cut apart
-  config.py    secrets from .env and paths
   cli.py       books <command>
 tests/         collusions between files, own runner (there is no pytest in
                .venv): tests/run.py, and tests/run.py --slow --selfcheck for
@@ -106,9 +105,10 @@ tests/         collusions between files, own runner (there is no pytest in
                PROSE FOR THE NUMBERS -- ask the runner, it prints them on its
                last line
 tools/         cyr.py (Cyrillic ratchet and the residue lock), anchors.py
-               (do the battery's source patches still land), acceptance.py,
-               prose_only.py, keymap*.json, migrate_*.py -- the instruments
-               and the record of the rename
+               (do the battery's source patches and attribute swaps still
+               land), acceptance.py, migrate_layout.py (the package move as a
+               table), prose_only.py, keymap*.json, migrate_*.py -- the
+               instruments and the record of the renames
 ```
 
 ## Commands
@@ -140,13 +140,13 @@ books overlay book.pdf …     truth and model disagreements over the pages
 
 ## Knobs
 
-Every knob is declared in `src/booksmith/run/knobs.py`. Reading the
+Every knob is declared in `src/booksmith/core/knobs.py`. Reading the
 environment past the registry is a defect: a knob that is not in the registry
 does not reach the snapshot, and the run becomes silently unrepeatable.
 
 How many there are and who reads them, ask the registry, not this file:
 
-    python -c "from booksmith.run import knobs; r = knobs.readers(); print(len(knobs.KNOBS), sum(1 for v in r.values() if v), len(knobs.debts()))"
+    python -c "from booksmith.core import knobs; r = knobs.readers(); print(len(knobs.KNOBS), sum(1 for v in r.values() if v), len(knobs.debts()))"
 
 Which detector `books detect` calls is decided by `LAYOUT_ADAPTER`
 (`doclayout` | `docling` | `docling-egret` | `yolox`); inside the paddle

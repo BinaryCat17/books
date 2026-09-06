@@ -12,6 +12,7 @@ import subprocess
 import tempfile
 import threading
 import time
+from booksmith.core.log import log
 
 # One connection for every call to the machine.  Measured: five files uploaded
 # is five rsyncs, five handshakes of 4-5 seconds -- a 10 KB file costs as much
@@ -53,8 +54,6 @@ SSH_OPTS = [
 ]
 
 
-def log(msg):
-    print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
 
 
 class Box:

@@ -56,7 +56,8 @@ since moved together they hide the inert one.
 import json
 import os
 
-from . import policy
+from booksmith.core import policy
+from booksmith.core.errors import Unmeasurable
 
 # The match gate. ONE, and named: the model box must cover truth (no crop) and
 # lie inside it (no spill). Measured: a table torn by the gutter gave IoU 0.51
@@ -75,7 +76,7 @@ TOL_PX = 6.0
 # but a share is what failed on small blocks.
 
 
-class MetricError(RuntimeError):
+class MetricError(Unmeasurable):
     pass
 
 
@@ -515,7 +516,7 @@ def _model_has_rank(page) -> bool:
     # "Is this our order" lives in ONE place, `models/base.ours_order`, with
     # the contract and the price of drift. Only the default is local: a missing
     # field means "model rank" here, "unknown" in `doc/html`.
-    from .models.base import ours_order
+    from booksmith.core.page import ours_order
     v = (page.get("meta") or {}).get("reading_order", "model_rank")
     return not ours_order(v)
 
@@ -1262,7 +1263,7 @@ def _by_reading(M, overlap=None, wide=None, min_boxes=None, roles=None):
     `ASSEMBLY_ORDER`: the knob would make sweep columns incomparable between
     runs.
     """
-    from . import order
+    from booksmith.core import order
     out = {}
     for i, p in M.items():
         bs = p["blocks"]

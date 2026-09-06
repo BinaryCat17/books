@@ -50,10 +50,12 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 
 from . import Ask, Reader, Transport
-from .. import otsl, policy
-from ..doc import crop
-from ..models.base import Page
-from ..run import knobs, stamp
+from booksmith.core import otsl, policy
+from booksmith.core import raster as crop
+from booksmith.core.page import Page
+from booksmith.core import knobs, stamp
+from booksmith.core.log import log
+from booksmith.core.errors import Refusal
 
 # Reader registry, a list for the same reason the detector one is: while a
 # model name is wired into an import, "would another be better" cannot even be
@@ -61,8 +63,6 @@ from ..run import knobs, stamp
 READERS = ("paddleocr-vl",)
 
 
-def log(*a):
-    print(f"[{time.strftime('%H:%M:%S')}]", *a, flush=True)
 
 
 def build_reader(policy_name: str) -> Reader:
@@ -70,7 +70,7 @@ def build_reader(policy_name: str) -> Reader:
     if name == "paddleocr-vl":
         from ..models.paddleocr_vl.reader import PaddleOcrVl
         return PaddleOcrVl(policy_name)
-    raise SystemExit(
+    raise Refusal(
         f"VLM_READER={name!r}: I know only {READERS}. A silent fallback to "
         f"whichever comes first would make a typo in the reader's name count "
         f"as a successful run, with the snapshot naming the wrong model.")
@@ -163,7 +163,7 @@ def _gen_params() -> dict:
 def _detect_facts(detect_dir: str) -> dict:
     p = os.path.join(detect_dir, "run.json")
     if not os.path.exists(p):
-        raise SystemExit(
+        raise Refusal(
             f"no run.json in {detect_dir}: this is not a `books detect` "
             f"directory. Reading without the detection snapshot knows neither "
             f"the book nor the dpi the boxes were measured at, and would cut "
@@ -188,10 +188,10 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
     facts = _detect_facts(detect_dir)
     pdf = pdf or facts["source"]["path"]
     if not os.path.exists(pdf):
-        raise SystemExit(f"no source {pdf}, the one the detection snapshot names")
+        raise Refusal(f"no source {pdf}, the one the detection snapshot names")
     got = stamp.sha256(pdf)
     if got != facts["source"]["sha256"]:
-        raise SystemExit(
+        raise Refusal(
             f"{pdf}: sha256 {got[:12]} against "
             f"{facts['source']['sha256'][:12]} in the detection snapshot. The "
             f"boxes were measured on ANOTHER file; the crops would be cut at "
@@ -200,7 +200,7 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
 
     files = sorted(glob.glob(os.path.join(detect_dir, "pages", "*.json")))
     if not files:
-        raise SystemExit(f"no pages in {detect_dir}: run books detect first")
+        raise Refusal(f"no pages in {detect_dir}: run books detect first")
 
     # ANOTHER BOOK'S PAGES. The `out` directory is assembled by hand and reused;
     # `0007.json` from a different book would survive the run and ride into
@@ -211,7 +211,7 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
         mine_ = {os.path.basename(f) for f in files}
         alien = sorted(set(os.listdir(_pages_dir)) - mine_)
         if alien:
-            raise SystemExit(
+            raise Refusal(
                 f"{_pages_dir} holds pages the detection does not have: "
                 f"{alien[:5]}{'...' if len(alien) > 5 else ''} "
                 f"({len(alien)} of them). This is a directory from another "
@@ -235,7 +235,7 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
         pages.append((fp, pg))
         labels |= {b.label for b in pg.blocks}
     if not pages:
-        raise SystemExit("not one page to read: the --pages set is empty")
+        raise Refusal("not one page to read: the --pages set is empty")
     reader.cover(labels)
 
     params = _gen_params()
@@ -266,7 +266,7 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
                 f"would declare new values in force over old answers.")
     with open(setup_path, "w", encoding="utf-8") as f:
         json.dump(setup, f, ensure_ascii=False, indent=1)
-    doc = pymupdf.open(pdf)
+    doc = crop.open_pdf(pdf)
     # OWN RESOLUTION PER PAGE, not the first page's for the whole book.
     #
     # The sheet is NOT one and the same: "Фейнмановские лекции" carry 255
@@ -576,9 +576,7 @@ def snapshot(detect_dir: str, out_dir: str, reader: Reader,
                     # OTSL parsing is OUR code and decides the numbers no less
                     # than the model does. Without its hash two runs with
                     # different parsers would look identical.
-                    "sha256_otsl_parser": stamp.sha256(
-                        os.path.join(os.path.dirname(os.path.dirname(
-                            os.path.abspath(__file__))), "otsl.py"))},
+                    "sha256_otsl_parser": stamp.sha256(otsl.__file__)},
         "policy": policy.snapshot(getattr(reader, "policy_name", None)),
         "prompts": reader.fingerprint().get("prompts", {}),
         "generation": _gen_params(),

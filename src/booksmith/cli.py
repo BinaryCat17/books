@@ -34,13 +34,16 @@ import re
 import os
 import sys
 
-from . import config
+from booksmith.core import config
 from .models import paddleocr_vl
 from .remote import ledger as ledger_mod
 from .remote.spec import HostReq
-from .remote.vast import Vast, log
-from .run import knobs
-from .run import replay as replay_mod
+from .remote.vast import Vast
+from booksmith.core.log import log
+from booksmith.core import knobs
+from booksmith.core import replay as replay_mod
+from booksmith.core.errors import Refusal
+from booksmith.core import raster
 
 
 def _host_args(ap):
@@ -143,7 +146,7 @@ def _pages_dir(path, what):
     catching one book's truth scored against another book's boxes.
     """
     if not os.path.exists(path):
-        raise SystemExit(
+        raise Refusal(
             f"{what}: no path {path}. Expected a `books detect` run "
             f"directory (pages/ and run.json in it) or the directory of "
             f"layout pages itself (*.json).")
@@ -157,7 +160,7 @@ def _pages_dir(path, what):
         return sub
     if here:
         return path
-    raise SystemExit(
+    raise Refusal(
         f"{what}: no layout pages found. In {path} — {why_here}; in {sub} — "
         f"{why_sub}. Expected a `books detect` run directory (pages/ and "
         f"run.json in it) or the page directory itself. There is nothing to "
@@ -172,7 +175,7 @@ def _run_dir(path, what):
     parent.
     """
     if not os.path.exists(path):
-        raise SystemExit(
+        raise Refusal(
             f"{what}: no path {path}. Expected a `books detect` run "
             f"directory — the one holding run.json.")
     if os.path.exists(os.path.join(path, "run.json")):
@@ -181,7 +184,7 @@ def _run_dir(path, what):
     if _page_files(path)[0] and os.path.exists(os.path.join(up, "run.json")):
         log(f"{what}: given a page directory, taking the snapshot from {up}")
         return up
-    raise SystemExit(
+    raise Refusal(
         f"{what}: no run.json in {path}. Expected a `books detect` run "
         f"directory (pages/ and run.json in it), not a page directory and "
         f"not a book root.")
@@ -219,7 +222,7 @@ def cmd_html(a):
     # remain, and refusing the advice the build itself prints along with them.
     if (not a.out and os.path.isdir(out) and os.listdir(out)
             and not html_mod.is_our_dir(out)):
-        raise SystemExit(
+        raise Refusal(
             f"{out} already holds something not ours: neither "
             f"`{html_mod.ASSETS}/run.json` nor `run.json` in the root — so "
             f"the directory was not built by `books html`. Overwriting it "
@@ -356,13 +359,13 @@ def cmd_read(a):
                       ).get("policy", {}).get("vocabulary")
     policy_name = a.policy or known
     if not policy_name:
-        raise SystemExit(
+        raise Refusal(
             f"the snapshot {a.dir}/run.json names no label dictionary and "
             f"--policy is not given. Asking by a guessed dictionary means "
             f"leading a table with the text prompt and filing prose as "
             f"reading.")
     if a.policy and known and a.policy != known:
-        raise SystemExit(
+        raise Refusal(
             f"--policy {a.policy!r} against the detection dictionary "
             f"{known!r}. Matching labels would pass without a word, and the "
             f"snapshot would file two incompatible claims side by side. Drop "
@@ -384,7 +387,7 @@ def cmd_read(a):
     if a.pages:
         from .detect import parse_pages
         import pymupdf
-        with pymupdf.open(_pdf_of(a.dir)) as d:
+        with raster.open_pdf(_pdf_of(a.dir)) as d:
             pages = set(parse_pages(a.pages, d.page_count))
 
     t = vread.read_book(a.dir, out, reader, transport,
@@ -409,12 +412,12 @@ def cmd_feed(a):
     import json as _json
     import pymupdf
     from .doc import feed
-    from .models.base import Page
+    from booksmith.core.page import Page
 
     d = _run_dir(a.dir, "books feed")
     with open(os.path.join(d, "run.json"), encoding="utf-8") as f:
         snap = _json.load(f)
-    doc = pymupdf.open(snap["source"]["path"])
+    doc = raster.open_pdf(snap["source"]["path"])
     out = a.out or os.path.join(d, "feed")
     page_dpi = float(snap["raster"]["dpi"])
     p = feed.params(page_dpi)
@@ -446,7 +449,7 @@ def cmd_overlay(a):
     if a.detect:
         marks.append((_pages_dir(a.detect, "--detect"), "M"))
     if not marks:
-        raise SystemExit("nothing to draw: give --truth and/or --detect")
+        raise Refusal("nothing to draw: give --truth and/or --detect")
     out = a.out or os.path.splitext(a.pdf)[0] + ".overlay.pdf"
     only = None
     if a.pages:
@@ -462,7 +465,7 @@ def cmd_overlay(a):
         #     loud; here an empty set gave a silent "differences on 0 pages" —
         #     a zero from not understanding, in the final line.
         import pymupdf
-        doc = pymupdf.open(a.pdf)
+        doc = raster.open_pdf(a.pdf)
         total = doc.page_count
         doc.close()
         only = detect.parse_pages(a.pages, total)
@@ -544,7 +547,7 @@ def cmd_annopage(a):
 def cmd_synth(a):
     """Build a synthetic book with exact truth. Local and free."""
     from . import synth
-    from .run import knobs
+    from booksmith.core import knobs
     out = a.out or f"bench/{a.book}"
     cases = a.cases.split(",") if a.cases else None
     from .books import load
@@ -716,7 +719,7 @@ def _doctor_detect():
                 f"({len(missing)} of 3)")
 
     from . import detect
-    from .run import knobs
+    from booksmith.core import knobs
     active = knobs.knob("LAYOUT_ADAPTER")
     # The same `_adapter()` `books detect` calls, its name given through the
     # knob: parsing names here would be a fourth list.
@@ -781,7 +784,7 @@ def _doctor_docling():
     """
     import importlib.metadata as md
     import importlib.util as iu
-    from .run import knobs
+    from booksmith.core import knobs
 
     mode = knobs.knob("DOCLING_PIPELINE")
     log(f"docling pipeline (knob DOCLING_PIPELINE={mode}, "
@@ -858,28 +861,30 @@ def cmd_ledger(_a):
 
 
 def _tool_errors():
-    """The "instrument could not count" classes — from ALREADY raised modules.
+    """The "instrument could not count" family: exit code 2.
 
-    Not imported at the top: `metrics` pulls numpy, `text` its own parser, and
-    whoever only rents needs no `detect` set. So `sys.modules` is asked: a
-    module that never rose could throw nothing. EXACTLY these classes, not
-    `Exception` — a traceback from a failed instrument is trouble, one from our
-    own bug is evidence, and hiding evidence is not allowed.
+    Once a tuple of five classes named by module path -- three `WeightsMissing`
+    and two metric errors -- so that a traceback from a failed instrument and
+    one from our own bug stayed apart. The family is one base class now, and
+    the package move that renamed every module path would have emptied the
+    tuple in silence: `sys.modules.get(old_name)` finds nothing and the
+    mapping dies without an error. A base class cannot go stale that way.
     """
-    out = []
-    for mod, name in (("booksmith.metrics", "MetricError"),
-                      ("booksmith.text", "TextError"),
-                      ("booksmith.models.doclayout", "WeightsMissing"),
-                      ("booksmith.models.docling_heron", "WeightsMissing"),
-                      ("booksmith.models.yolox_layout", "WeightsMissing")):
-        cls = getattr(sys.modules.get(mod), name, None)
-        if isinstance(cls, type) and issubclass(cls, BaseException):
-            out.append(cls)
-    return tuple(out)
+    from booksmith.core.errors import Unmeasurable
+    return (Unmeasurable,)
+
+
+class _Parser(argparse.ArgumentParser):
+    """argparse exits 2 on a usage error, and 2 is taken: it means "could not
+    count". A typo in a flag must not read as a broken instrument."""
+
+    def error(self, message):
+        self.print_usage(sys.stderr)
+        self.exit(64, f"{self.prog}: {message}\n")
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(
+    ap = _Parser(
         prog="books", description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -1052,6 +1057,7 @@ def main(argv=None):
     p.set_defaults(fn=replay_mod.cmd_replay)
 
     a = ap.parse_args(argv)
+    from booksmith.core.errors import Refusal
     try:
         return a.fn(a) or 0
     except _tool_errors() as e:
@@ -1060,6 +1066,12 @@ def main(argv=None):
         # the actions on them differ.
         log(f"{type(e).__name__}: {e}")
         return 2
+    except Refusal as e:
+        # ONE LINE, exit 1: the message names what to do. A refusal used to be
+        # a `SystemExit` raised deep in a library, which printed the same line
+        # and forced every caller in between to special-case a BaseException.
+        log(str(e))
+        return 1
 
 
 if __name__ == "__main__":

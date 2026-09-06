@@ -25,20 +25,15 @@ from . import swap
 # lived here (in `from_read`), and drift from `html.anchor_of` would be silent:
 # `put` answers "no such anchor" for every block and the command prints a
 # healthy "refused N" instead of "the naming scheme has split".
-from .html import (ASSETS, SOURCE, anchor_of, journal_path, observed, torn_grid,
-                   torn_of)
-
-# The swap journal is KITCHEN, not book: it lives in `assets/`, and the build
-# root keeps exactly one self-contained file, `book.html`.
-JOURNAL = os.path.join(ASSETS, "swaps.json")
-# Content kinds the second level may return. DECLARED, not "any string": `kind`
-# travels into the journal and into the book as an attribute, and a typo would
-# silently become a kind nobody agreed on. Names as in the block contract
-# (`models/base.py`), minus its `none` — an unread block has nothing to place.
-KINDS = ("html", "otsl", "latex", "text")
+from booksmith.core import book
+from booksmith.core.book import ASSETS, JOURNAL, SOURCE
+from booksmith.core import page
+from booksmith.doc.html import anchor_of, observed, torn_grid, torn_of
+from booksmith.core.errors import Refusal
 
 
-class SwapError(RuntimeError):
+
+class SwapError(Refusal):
     """Something is wrong with the swap — and it is said out loud."""
 
 
@@ -80,7 +75,7 @@ def load_journal(out_dir: str) -> dict:
     # and leave the first unreachable. The rule is `html.journal_path`, asked
     # by the rebuild guard too -- it used to have a third copy that looked only
     # under `assets/`.
-    p = journal_path(out_dir)
+    p = book.journal_path(out_dir)
     if not os.path.exists(p):
         return {"book": "book.html", "swaps": {}}
     try:
@@ -117,7 +112,7 @@ def save_journal(out_dir: str, j: dict) -> str:
     the journal, not into /tmp.
     """
     # WRITE WHERE WE READ, by the same rule `load_journal` asks.
-    p = journal_path(out_dir)
+    p = book.journal_path(out_dir)
     # The kitchen may not exist yet: `books html` creates it, and a swap can
     # work over a book it did not build. Refusing here would report "the swap
     # failed" where only a folder failed.
@@ -254,7 +249,7 @@ def _anchors_unchanged(before, after) -> bool:
 def render(fragment: str, kind: str) -> str:
     """The model's answer -> what the browser shows. TRANSLATION, not repair.
 
-    WHY. `KINDS` declares four kinds while the fragment was always inserted as
+    WHY. `page.KINDS` declares four kinds while the fragment was always inserted as
     HTML, and three of the four silently spoiled the book, the command reporting
     a healthy number throughout. Measured: `<fcel>Year<fcel>Total<nl>…` under
     `--kind otsl` gave the run-on "YearTotal199812,4" — no rows, no columns,
@@ -268,7 +263,7 @@ def render(fragment: str, kind: str) -> str:
     edit the answer, we SHOW it.
     """
     import html as _h
-    from .. import otsl
+    from booksmith.core import otsl
     if kind == "otsl":
         out = otsl.to_html(fragment)
         if out:
@@ -343,7 +338,7 @@ def _count_in_book(tally: dict, misshapen: list, anchor: str,
         misshapen.append(f"{anchor}: {shape}")
     if kind != "otsl":
         return
-    from .. import otsl as _otsl
+    from booksmith.core import otsl as _otsl
     cells, t = _otsl.layout(body)
     announced = t.get("merges", 0)
     # DECLARED and PLACED are counted APART, from different sources: the
@@ -365,7 +360,7 @@ def _grid_tally(fragment: str, kind: str) -> dict | None:
     """
     if kind != "otsl" or not fragment:
         return None
-    from .. import otsl
+    from booksmith.core import otsl
     try:
         _, t = otsl.parse(fragment)
     except Exception:
@@ -393,8 +388,8 @@ def put_into(html: str, anchor: str, fragment: str, kind: str, source: str,
 
     Returns (new book, journal entry, what was removed).
     """
-    if kind not in KINDS:
-        raise SwapError(f"kind {kind!r} is not declared: I know only {KINDS}")
+    if kind not in page.KINDS:
+        raise SwapError(f"kind {kind!r} is not declared: I know only {page.KINDS}")
     _check_fragment(fragment, anchor)
 
     before = swap.anchors(html)

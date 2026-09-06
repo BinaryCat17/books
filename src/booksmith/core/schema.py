@@ -44,7 +44,12 @@ import glob as _glob
 import json
 import os
 
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Four `dirname`s: this file lives in `src/booksmith/core/`. A count of
+# levels breaks at the first move of the file (it did, here, in the package
+# move of 2026-09-07: three levels pointed at `src/` and every glob counted
+# zero), so the test beside it checks that ROOT holds `pyproject.toml`.
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__)))))
 
 
 class Format:

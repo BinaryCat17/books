@@ -18,7 +18,7 @@ from it. Guessing by equal neighbouring text would lie on 13 tables of the 62
 in this book, where equal neighbours stand without a single `<lcel>`
 («ⅢЛА-1,3» and «1,3» merely coincided).
 """
-from booksmith import otsl
+from booksmith.core import otsl
 
 
 # ------------------------------------------------------- merges ---
@@ -133,7 +133,7 @@ def test_one_walk_serves_both_readers():
     import ast
 
     import support
-    t = support.tree("otsl.py")
+    t = support.tree("core/otsl.py")
     for name in ("parse", "layout", "to_html"):
         fn = next(n for n in ast.walk(t)
                   if isinstance(n, ast.FunctionDef) and n.name == name)

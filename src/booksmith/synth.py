@@ -34,7 +34,9 @@ import json
 import os
 import shutil
 
-from .run import knobs
+from booksmith.core import knobs
+from booksmith.core import stamp
+from booksmith.core.errors import Refusal
 
 W, H = 1012, 1466                 # a bench page at 144 dpi
 DPI = 144.0
@@ -68,7 +70,7 @@ PROSE_RU = (
     "прочности возрастает при увеличении содержания хрома. ")
 
 
-class SynthError(RuntimeError):
+class SynthError(Refusal):
     """The page came out other than intended. Raise, never ship a blank."""
 
 
@@ -1420,30 +1422,6 @@ def _rot90_box(box, src_h):
     return (src_h - 1 - y1, x0, src_h - y0, x1)
 
 
-def _commit() -> str:
-    """The commit of the SOURCE REPOSITORY, not of the process working dir."""
-    import subprocess
-    root = os.path.dirname(os.path.dirname(os.path.dirname(
-        os.path.abspath(__file__))))
-    try:
-        p = subprocess.run(["git", "-C", root, "status", "--porcelain"],
-                           capture_output=True, text=True, timeout=10)
-        h = subprocess.run(["git", "-C", root, "rev-parse", "HEAD"],
-                           capture_output=True, text=True, timeout=10)
-        if h.returncode != 0:
-            return "not a repository"
-        return h.stdout.strip() + (" (dirty tree)" if p.stdout.strip() else "")
-    except Exception as e:
-        return f"git was not asked: {e}"
-
-
-def _sha256(path):
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(1 << 20), b""):
-            h.update(chunk)
-    return h.hexdigest()
-
 
 # --------------------------------------------------------- measured truth
 # Truth boxes are measured AGAINST THE INK, not declared as numbers. The reason
@@ -1545,7 +1523,7 @@ def _text_check(words, boxes, said, case: str):
     Only roles text and service are checked: an artifact has no `content`.
     """
     from collections import Counter
-    from . import policy
+    from booksmith.core import policy
 
     inside = [[] for _ in boxes]
     outside = []
@@ -1803,7 +1781,7 @@ def _build(out_dir, cases, seed, aging, book, log) -> dict:
         # SECOND level's answer, and their reference lies beside, in
         # `meta["artifact_truth"]`, by block number. The `Block` schema is
         # untouched: a sixth field there would break `Page.from_json`.
-        from . import policy
+        from booksmith.core import policy
         blocks, art_truth = [], {}
         no_chars = []
         for j, b in enumerate(boxes):
@@ -1942,17 +1920,17 @@ def _build(out_dir, cases, seed, aging, book, log) -> dict:
     src = os.path.join(os.path.dirname(os.path.abspath(__file__)), "synth.py")
     man = {"book": book, "about": getattr(mod, "ABOUT", ""),
            "page_count": len(pages), "synth_seed": seed, "aging": aging,
-           "generator": {"file": "synth.py", "sha256": _sha256(src),
-                         "commit": _commit(),
+           "generator": {"file": "synth.py", "sha256": stamp.sha256(src),
+                         "commit": stamp.commit(),
                          "cases": names, "book": book,
-                         "sha256_book_module": _sha256(mod.__file__),
+                         "sha256_book_module": stamp.sha256(mod.__file__),
                          "guessed_labels": sorted(GUESSED),
                          "INK": INK, "KEEP": KEEP, "GROW": GROW},
            "knobs": knobs.snapshot() if hasattr(knobs, "snapshot") else None,
            "aging_params": AGING[aging],
-           "fonts": {os.path.basename(FONT): _sha256(FONT),
-                      os.path.basename(FONT_MONO): _sha256(FONT_MONO)},
-           "pdf": os.path.basename(pdf), "sha256 pdf": _sha256(wpdf),
+           "fonts": {os.path.basename(FONT): stamp.sha256(FONT),
+                      os.path.basename(FONT_MONO): stamp.sha256(FONT_MONO)},
+           "pdf": os.path.basename(pdf), "sha256 pdf": stamp.sha256(wpdf),
            "blocks_by_label": counts, "char_truth": total,
            "pages": pages}
     with open(wman, "w", encoding="utf-8") as f:

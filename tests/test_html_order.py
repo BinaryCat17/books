@@ -8,11 +8,12 @@ green. The cost is known from next door: on `bench/hard36` the metric printed
 number out of nothing is born of two copies of one contract.
 """
 from booksmith.doc import html as H
-from booksmith.models import base as B
+from booksmith.core import page as B
+from booksmith.core import book
 
 
 def test_book_builder_reads_the_order_rule_through_the_one_contract():
-    """`doc/html` must call `models.base.ours_order`, not a copy of its own.
+    """`doc/html` must call `core.page.ours_order`, not a copy of its own.
 
     THE PROBE SET MUST CONTAIN BOTH ANSWERS, and that is asserted rather than
     assumed. After the marker word moved from the Russian one to `ours` these
@@ -76,7 +77,7 @@ def test_clipping_is_measured_with_a_tolerance_not_exactly():
     """
     import os
     import tempfile
-    from booksmith.doc import crop
+    from booksmith.core import raster as crop
     doc = _sheet()
     dpi = 150.0                       # 72/150 = 0.48 -- NOT binary-exact
     # The box is IN PIXELS, and not round on purpose: at 100 and 300 px the
@@ -109,7 +110,7 @@ def test_degenerate_and_inverted_boxes_are_named_by_their_own_trouble():
     """
     import os
     import tempfile
-    from booksmith.doc import crop
+    from booksmith.core import raster as crop
     doc = _sheet()
     with tempfile.TemporaryDirectory() as tmp:
         dst = os.path.join(tmp, "b.png")
@@ -141,7 +142,7 @@ def test_negative_margin_is_refused_out_loud():
     failure and not a silent clamp to zero.
     """
     import os
-    from booksmith.doc import crop
+    from booksmith.core import raster as crop
     was = os.environ.get("CROP_MARGIN")
     os.environ["CROP_MARGIN"] = "-0.1"
     try:
@@ -169,7 +170,7 @@ def test_native_dpi_divides_by_the_placement_not_by_the_sheet():
     all.
     """
     import pymupdf
-    from booksmith.doc import crop
+    from booksmith.core import raster as crop
 
     # Sheet 200x100 pt, a 1000 px raster laid on 400 pt -- twice the sheet.
     doc = pymupdf.open()
@@ -194,7 +195,7 @@ def test_native_dpi_divides_by_the_placement_not_by_the_sheet():
 def test_native_dpi_says_nothing_when_there_is_nothing_to_say():
     """Vector art and a corner stamp give `None`, not a guessed number."""
     import pymupdf
-    from booksmith.doc import crop
+    from booksmith.core import raster as crop
 
     doc = pymupdf.open()
     page = doc.new_page(width=200, height=100)
@@ -254,7 +255,7 @@ def test_crop_dpi_never_comes_from_the_environment_silently():
     The two probe words below are `doc/crop`'s own answers and stay Russian
     until that file is translated.
     """
-    from booksmith.doc import crop
+    from booksmith.core import raster as crop
     # own sharpness known -- it is taken, detection is irrelevant
     p = crop.params(150.0, page_native=300.0)
     assert p["dpi"] == 300.0 and p["dpi_source"] == "native_scan_dpi", p
@@ -300,7 +301,7 @@ def test_nesting_survives_blocks_without_a_model_rank():
     rectangle brought the WHOLE book down: `TypeError: '>=' not supported
     between instances of 'NoneType' and 'int'`.
     """
-    from booksmith.models.base import Block
+    from booksmith.core.page import Block
     box = (0.0, 0.0, 100.0, 100.0)
     pairs = ((3, None), (None, 3), (None, None), (1, 2))
     for o1, o2 in pairs:
@@ -346,7 +347,7 @@ def test_three_kinds_of_bad_sheet_get_three_different_marks():
     import tempfile
 
     import pymupdf
-    from booksmith.models.base import Block, Page
+    from booksmith.core.page import Block, Page
 
     def page(i, blocks):
         return Page(index=i, width=1000, height=1400, dpi=144.0,
@@ -434,7 +435,7 @@ def test_the_book_is_alone_at_the_root_and_carries_itself():
     import pymupdf
 
     from booksmith import detect as _detect
-    from booksmith.models.base import Block, Page
+    from booksmith.core.page import Block, Page
 
     with tempfile.TemporaryDirectory() as tmp:
         pdf = os.path.join(tmp, "probe.pdf")
@@ -508,8 +509,8 @@ def test_the_builder_recognises_its_own_directory():
     with tempfile.TemporaryDirectory() as tmp:
         assert not H.is_our_dir(tmp), "an empty directory was called ours"
 
-        os.makedirs(os.path.join(tmp, H.ASSETS))
-        open(os.path.join(tmp, H.ASSETS, "run.json"), "w").close()
+        os.makedirs(os.path.join(tmp, book.ASSETS))
+        open(os.path.join(tmp, book.ASSETS, "run.json"), "w").close()
         assert H.is_our_dir(tmp), (
             "a directory with the snapshot in the kitchen was not recognised "
             "as ours -- a rebuild in place would refuse, and the advice from "
@@ -547,7 +548,7 @@ def test_the_book_carries_blocks_in_the_order_it_walked_them():
 
     from booksmith import detect as _detect
     from booksmith.doc import swap
-    from booksmith.models.base import Block, Page
+    from booksmith.core.page import Block, Page
 
     with tempfile.TemporaryDirectory() as tmp:
         pdf = os.path.join(tmp, "probe.pdf")

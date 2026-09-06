@@ -33,6 +33,7 @@ import os
 import re
 import shutil
 import subprocess
+from booksmith.core.errors import Refusal
 
 MIN_SPREAD_RATIO = 1.15     # wider than tall by this much -- call it a spread
 GUTTER_BAND = 0.20          # where to look for the cut: middle ± a tenth
@@ -69,7 +70,7 @@ RULE_EDGE = 0.03            # border band of the probe: the black edge of the
                             # middle of that gap (in the log), 1.8x both ways
 
 
-class NoDjvuTools(SystemExit):
+class NoDjvuTools(Refusal):
     pass
 
 
@@ -92,7 +93,7 @@ def pages(path):
                          capture_output=True, text=True, timeout=120)
     m = re.search(r"\d+", out.stdout)
     if not m:
-        raise SystemExit(
+        raise Refusal(
             f"could not read the page count: {path}\n{out.stderr}")
     return int(m.group(0))
 

@@ -1,5 +1,10 @@
 {
- "inputs": "32b9c34f12c7c339de52878232cc37b0613ca5ebb26a233daa3ab99b3d8a55cd",
+ "inputs": {
+  "bench/slovar/detect/pages": "45b09b332571f3baff9e5751742ef440181ec2b9685978fc3d6999d37ad3afdd",
+  "bench/slovar/manifest.json": "7430ed0e72ad41736012470b2925e34ce51846df059e3df3342f2c8ba86fec2a",
+  "bench/slovar/slovar.pdf": "be82bb56d4afa2dc4c535b3fe3349a6962b1bee6ed3aee3bcdec910681d5b1b0",
+  "bench/slovar/truth": "ebb920054056611e9eec3e5d6a5dd9dd97051ff46d9724d691781aa95073893e"
+ },
  "result": {
   "almost_intact": 0,
   "arrived_with_company": 0,

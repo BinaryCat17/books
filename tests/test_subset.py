@@ -13,6 +13,7 @@ import tempfile
 
 import pymupdf
 import support
+from booksmith.core import stamp
 from booksmith import subset
 
 
@@ -188,7 +189,7 @@ def test_truth_pdf_and_manifest_are_swapped_together():
     pdf_was = open(os.path.join(out, "hard.pdf"), "rb").read()
 
     _bench(root, "more", pages=4)
-    real = subset._sha256
+    real = stamp.sha256
 
     def boom(path):
         # `_sha256` of the aside pdf is the last thing before the manifest,
@@ -197,7 +198,7 @@ def test_truth_pdf_and_manifest_are_swapped_together():
             raise RuntimeError("interrupted between the pdf and the swap")
         return real(path)
 
-    subset._sha256 = boom
+    stamp.sha256 = boom
     try:
         subset.build(["small", "more"], out, root=root, log=lambda *a: None)
     except RuntimeError:
@@ -205,7 +206,7 @@ def test_truth_pdf_and_manifest_are_swapped_together():
     else:
         raise AssertionError("the staged crash did not happen")
     finally:
-        subset._sha256 = real
+        stamp.sha256 = real
 
     now = {n: open(os.path.join(out, "truth", n), encoding="utf-8").read()
            for n in os.listdir(os.path.join(out, "truth"))}

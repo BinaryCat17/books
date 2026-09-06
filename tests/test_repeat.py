@@ -23,7 +23,7 @@ and both can be hidden, leaving none in the book. So the comparison runs only
 against the blocks that REMAIN.
 """
 from booksmith.doc import html as H
-from booksmith.models.base import Block, Page
+from booksmith.core.page import Block, Page
 
 
 def _page(*blocks):
@@ -107,7 +107,7 @@ def test_a_block_nested_in_an_artefact_is_not_a_candidate():
                     content=r"<fcel>1728^{\circ}\mathrm{C}<nl>", kind="otsl")
     formula = _b(1, (10, 5, 40, 12), r"\[1728^{\circ}\mathrm{C}\]",
                  label="inline_formula")
-    from booksmith import text as T
+    from booksmith.core import textnorm as T
     assert T.normalize(formula.content, "latex") in T.normalize(
         table.content, "latex"), "the fixture does not test what it exists for"
     r = H.repeats_on(_page(table, formula), _covered)
@@ -128,9 +128,12 @@ def test_an_empty_block_is_not_a_candidate():
 def test_the_latex_stage_is_declared_with_its_measurement():
     """The comparison stage is in the normalisation registry, not hidden.
 
-    A number without a declared stage means anything a month later.
+    A number without a declared stage means anything a month later. Asked of
+    `core.textnorm`, which OWNS the names: through the reading metric's
+    re-import the battery's swap of `bare_math` never arrived, and this
+    check passed over a ruler that called `\\alpha` and `\\beta` equal.
     """
-    from booksmith import text as T
+    from booksmith.core import textnorm as T
     assert "latex" in T.NORM_STEPS, sorted(T.NORM_STEPS)
     note = T.norm_note("latex")
     assert note["steps"], note
@@ -144,7 +147,7 @@ def test_the_latex_stage_is_declared_with_its_measurement():
 
 def test_the_latex_stage_falls_on_deliberately_broken_input():
     """The stage must be able to fail: different things must not match."""
-    from booksmith import text as T
+    from booksmith.core import textnorm as T
     a = T.normalize(r"\[1728^{\circ}\mathrm{C}\]", "latex")
     b = T.normalize(r"\[1675^{\circ}\mathrm{C}\]", "latex")
     assert a != b, (a, b)

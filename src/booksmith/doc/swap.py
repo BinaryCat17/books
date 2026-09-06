@@ -1,3 +1,4 @@
+from booksmith.core.errors import Refusal
 """Swapping one block for second-level markup -- and undoing it.
 
 The whole two-level scheme exists for this: "a swap can be checked, undone and
@@ -21,7 +22,7 @@ OPEN = "<!--bs:{}-->"
 CLOSE = "<!--/bs:{}-->"
 
 
-class AnchorError(ValueError):
+class AnchorError(Refusal):
     """Something is wrong with a block mark: missing, doubled, inverted."""
 
 

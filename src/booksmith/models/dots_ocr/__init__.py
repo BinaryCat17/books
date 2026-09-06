@@ -53,6 +53,7 @@ import os
 
 from ..paddleocr_vl import BASE_IMAGE, IMAGE_GB
 from ...remote.spec import HostReq, JobSpec
+from booksmith.core.errors import Refusal
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 # 3B weights in bf16, about 6 GB. They travel past docker, over hf, and so
@@ -65,7 +66,7 @@ def spec(pdf: str, pages: str = "", repeats: int = 1,
          budget_usd: float = 0.60, timeout_minutes: float = 60.0) -> JobSpec:
     """A job for the runner. The runner knows nothing about OCR, by design."""
     if not os.path.exists(pdf):
-        raise SystemExit(f"no such file: {pdf}")
+        raise Refusal(f"no such file: {pdf}")
     return JobSpec(
         name="dots-layout",
         image=BASE_IMAGE,

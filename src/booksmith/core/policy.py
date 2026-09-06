@@ -1,3 +1,4 @@
+from booksmith.core.errors import Unmeasurable
 """What level one does with a block: `text`, `artifact` or `furniture`.
 
 OURS, not the model's, and so declared outright, whole, and carried into the
@@ -179,7 +180,7 @@ for _name, _table in POLICIES.items():
 ROLES = ("text", "artifact", "furniture")
 
 
-class UnknownLabel(RuntimeError):
+class UnknownLabel(Unmeasurable):
     """The model's label is not described by the policy. Fell, do not guess."""
 
 

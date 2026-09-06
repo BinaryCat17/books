@@ -70,6 +70,7 @@ WHAT `docling` COSTS, before switching it on:
   in `_LABELS`.
 """
 import functools
+from booksmith.core.errors import Refusal
 
 RULES = ("ours", "docling")
 DEFAULT = "ours"
@@ -89,10 +90,10 @@ WORDS = {
 def rule() -> str:
     """Which rule is in force. The knob comes through the registry, not the
     environment."""
-    from .run import knobs
+    from booksmith.core import knobs
     v = (knobs.knob("ASSEMBLY_ORDER") or DEFAULT).strip()
     if v not in RULES:
-        raise SystemExit(
+        raise Refusal(
             f"ASSEMBLY_ORDER={v!r}: I know only {list(RULES)}. The book "
             f"assembly rule is no place to be wrong in silence: a muddled "
             f"name would shuffle the paragraphs while the boxes stayed the "
@@ -174,10 +175,10 @@ def cover(vocab, which=None) -> str | None:
     """
     if (which or rule()) == "ours":
         return None
-    from . import policy
+    from booksmith.core import policy
     name = policy.for_labels(vocab)
     if name not in _LABELS:
-        raise SystemExit(
+        raise Refusal(
             f"ASSEMBLY_ORDER=docling, but there is no label translation for "
             f"the vocabulary {name!r}: I know {sorted(_LABELS)}. The order "
             f"rules look at eight names, and under a foreign vocabulary a "
@@ -198,7 +199,7 @@ def _predictor():
         from docling.models.postprocessing.reading_order_rb import (
             ReadingOrderPredictor)
     except ImportError as e:
-        raise SystemExit(
+        raise Refusal(
             f"ASSEMBLY_ORDER=docling, but there is no docling package: {e}. "
             f'Install: pip install -e ".[docling]"  (docling-slim and rtree, '
             f"+54 MB, no torch). Or ASSEMBLY_ORDER=ours -- then the book is "

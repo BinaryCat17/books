@@ -72,7 +72,7 @@ import hashlib
 import json
 import os
 
-from . import knobs
+from booksmith.core import knobs
 
 # Package root: adapter sources are looked up under it (see `_writer_file`).
 PKG = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -98,7 +98,7 @@ def facts(outdir):
     # with a zero, while `doc/html.py` promises verbatim that `books replay
     # --check` must return 0 there too. The kitchen directory name is asked of
     # the writer, not typed: a typed copy parts ways silently, as one has.
-    from ..doc.html import ASSETS
+    from booksmith.core.book import ASSETS
     for f in (os.path.join(outdir, "run.json"),
               os.path.join(outdir, ASSETS, "run.json")):
         try:

@@ -27,9 +27,10 @@ hold page text, and everything around them is counted like any other prose.
     python3 tools/cyr.py --save     write cyr-baseline.json
     python3 tools/cyr.py --check    fail if any area grew above the baseline
 
-The counting lives here rather than in `tools/` for one reason: the mutation
-battery breaks modules by importing them, and `tools/` is not importable. An
-instrument the battery cannot break is an instrument nobody has checked.
+The counting lives here, in `booksmith.tree`, rather than in `tools/` for one
+reason: the mutation battery breaks modules by importing them, and `tools/`
+is not importable. An instrument the battery cannot break is an instrument
+nobody has checked.
 """
 import ast
 import collections
@@ -40,7 +41,8 @@ import subprocess
 import sys
 import tokenize
 
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__)))))
 BASELINE = os.path.join(ROOT, "cyr-baseline.json")
 
 # Cyrillic (U+0400..U+04FF) and Cyrillic Supplement (U+0500..U+052F).
@@ -280,17 +282,19 @@ RESIDUE = {
                                           "a real file name"),
     "docs/models.md": (29, "TITLE, and the pre-rename attribute name of the "
                        "egret fingerprint defect"),
-    "src/booksmith/cyr.py": (4, "TOOL: the bounds of the Cyrillic block, in "
+    "src/booksmith/tree/cyr.py": (4, "TOOL: the bounds of the Cyrillic block, in "
                              "the function that counts it"),
     "src/booksmith/djvu.py": (226, "TITLE and DATA: four books, and the three "
                               "table captions split across the gutter"),
-    "src/booksmith/doc/crop.py": (20, "TITLE"),
+    "src/booksmith/core/raster.py": (20, "TITLE"),
     "src/booksmith/fitness.py": (20, "TITLE"),
-    "src/booksmith/otsl.py": (94, "TITLE and DATA: a column header and a "
+    "src/booksmith/core/otsl.py": (94, "TITLE and DATA: a column header and a "
                               "grade designation from the book"),
     "src/booksmith/read/run.py": (39, "TITLE, two of them"),
-    "src/booksmith/run/knobs.py": (60, "TITLE, three knob descriptions"),
-    "src/booksmith/text.py": (25, "TITLE, and the name of the dead truth key "
+    "src/booksmith/core/knobs.py": (60, "TITLE, three knob descriptions"),
+    "src/booksmith/core/textnorm.py": (20, "TITLE: the book whose 1935 nested blocks "
+                                        "measured the latex step"),
+    "src/booksmith/text.py": (5, "TITLE, and the name of the dead truth key "
                               "this file stopped reading"),
     "tests/test_data_contract.py": (4, "TOOL: the bounds of the Cyrillic "
                                     "block, in two regexps hunting Russian "

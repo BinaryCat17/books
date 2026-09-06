@@ -10,7 +10,8 @@ import os
 import time
 from dataclasses import dataclass, asdict, field
 
-from ..run import knobs
+from booksmith.core import knobs
+from booksmith.core.log import log
 
 # A relative path would silently lose the whole history when run from another
 # directory, and the pick of warmed machines with it.
@@ -22,13 +23,6 @@ _ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."
 LEDGER = knobs.knob("BOOKSMITH_LEDGER") or os.path.join(_ROOT, "runs", "ledger.jsonl")
 
 
-def log(msg):
-    """Our own `log`, not the shared one from `vast.py`, which drags in the
-    `vastai` package: the ledger is read by `books ledger`, a command that
-    rents nothing. Two lines are cheaper than the import, and `box.py` does
-    the same.
-    """
-    print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
 
 
 @dataclass

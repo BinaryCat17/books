@@ -28,25 +28,20 @@ the threshold comes from the weights. The graph's raw answer is kept WHOLE,
 before selection: otherwise the threshold, our one intervention, cannot be
 replayed without paying for a recount.
 """
-import hashlib
 import os
 
-from ..run import knobs
-from .base import Block, Page, Recognizer
-from .. import order
+from booksmith.core import knobs
+from booksmith.core.page import Block, Page
+from booksmith.models.base import Recognizer
+from booksmith.core import order
+from booksmith.core import stamp
+from booksmith.core.errors import Refusal, WeightsMissing
 
 # Where paddlex keeps its official weights: a foreign library's convention, not
 # a setting of ours. `LAYOUT_MODEL_DIR` is empty exactly to say "take them
 # where they lie by default", and the resolved path goes into the fingerprint.
 PADDLEX_MODELS = os.path.expanduser("~/.paddlex/official_models")
 
-
-class WeightsMissing(RuntimeError):
-    """Weights are missing or incomplete. An ordinary error, not an exit.
-
-    Not `SystemExit`: the adapter is a library, and the bench must catch this
-    like any other trouble instead of dying with the process.
-    """
 
 
 def weights_dir() -> str:
@@ -57,12 +52,6 @@ def weights_dir() -> str:
     return os.path.join(PADDLEX_MODELS, knobs.knob("LAYOUT_MODEL_NAME") + "_onnx")
 
 
-def _sha256(path: str) -> str:
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(1 << 20), b""):
-            h.update(chunk)
-    return h.hexdigest()
 
 
 # ---------------------------------------------------------- reading order
@@ -255,7 +244,7 @@ class DocLayout(Recognizer):
             # no other way.
             "name_from_knob": knobs.knob("LAYOUT_MODEL_NAME"),
             "weights_dir": self.dir,
-            "sha256_weights": _sha256(self.onnx),
+            "sha256_weights": stamp.sha256(self.onnx),
             "onnxruntime": self.ort_version,
             "providers": self.providers,
             "input": {"height": self.target_h, "width": self.target_w,

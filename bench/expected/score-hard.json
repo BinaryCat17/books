@@ -1,5 +1,9 @@
 {
- "inputs": "4affbd6c4e632ccc70eb38b5549307af27fe95cf6b0b1a6bc7732c9f8ccd0eb7",
+ "inputs": {
+  "bench/hard/detect/pages": "af22a480871c09d5fccde892f511de6e496c3f20c53850b995ccd5090e9148c1",
+  "bench/hard/manifest.json": "9dde4692a5e55d7efed8939f167e82a49043ae2413a35ee14a3a3b2036ad1f81",
+  "bench/hard/truth": "c6736c36e4ca2e2ac7aed3c2a9796e78f2d751ed2b722d14d4ba0019639c00b0"
+ },
  "result": {
   "assembly_order": {
    "agreement": null,

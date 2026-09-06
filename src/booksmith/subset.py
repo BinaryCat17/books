@@ -31,17 +31,18 @@ been ranked by it. So traits are carried explicitly here, their state counted
 by name and sent into the manifest: a distillate must be able to say what
 cannot be measured in it.
 """
-import hashlib
 import json
 import os
 import shutil
 
 import pymupdf
 
-from . import policy
+from booksmith.core import policy
+from booksmith.core import stamp
+from booksmith.core.errors import Refusal
 
 
-class SubsetError(RuntimeError):
+class SubsetError(Refusal):
     pass
 
 
@@ -101,12 +102,6 @@ def _trait_state(meta: dict, key: str) -> str:
     return "yes" if meta[key] else "no"
 
 
-def _sha256(path):
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(1 << 20), b""):
-            h.update(chunk)
-    return h.hexdigest()
 
 
 def build(books, out_dir: str, root: str = "bench", log=print) -> dict:
@@ -237,7 +232,7 @@ def _pages(books, root, arte, doc, work, wpdf, wman, tdir, out_dir, log):
            # The trait state is part of the distillate's passport: it says
            # what CAN be measured here, before the first `books score`.
            "truth_traits": traits,
-           "pdf": os.path.basename(pdf), "sha256 pdf": _sha256(wpdf)}
+           "pdf": os.path.basename(pdf), "sha256 pdf": stamp.sha256(wpdf)}
     with open(wman, "w", encoding="utf-8") as f:
         json.dump(man, f, ensure_ascii=False, indent=1)
 

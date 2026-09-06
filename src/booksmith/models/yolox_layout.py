@@ -29,12 +29,14 @@ price: on `bench/slovar` 0.5 finds 1 artifact of 3 (33 %), 0.3 finds 2 of 3
 (67 %). Every comparative yolox number in `contour-notes` was taken under a
 foreign (paddle) threshold applied to a model that has none.
 """
-import hashlib
 import os
 
-from .base import Block, Page, Recognizer
-from .. import order
-from ..run import knobs
+from booksmith.core.page import Block, Page
+from booksmith.models.base import Recognizer
+from booksmith.core import order
+from booksmith.core import knobs
+from booksmith.core import stamp
+from booksmith.core.errors import Refusal, WeightsMissing
 
 MODELS = os.path.expanduser("~/.paddlex/official_models")
 # Class order -- DocLayNet alphabetical, the way unstructured numbers them.
@@ -72,17 +74,6 @@ NMS_IOU = 0.45          # the NMS threshold of the reference YOLOX code.
 # survive.
 NMS_BY_CLASS = True
 
-
-class WeightsMissing(RuntimeError):
-    pass
-
-
-def _sha256(path: str) -> str:
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(1 << 20), b""):
-            h.update(chunk)
-    return h.hexdigest()
 
 
 class YoloXLayout(Recognizer):
@@ -154,7 +145,7 @@ class YoloXLayout(Recognizer):
             "name": self.name,
             "model": f"YOLOX-layout ({self.weights}), unstructured.io",
             "weights_dir": self.dir,
-            "sha256_weights": _sha256(self.onnx),
+            "sha256_weights": stamp.sha256(self.onnx),
             "onnxruntime": self.ort_version,
             "providers": self.providers,
             "input": {"height": self.in_h, "width": self.in_w,

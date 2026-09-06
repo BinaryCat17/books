@@ -78,33 +78,24 @@ bucket key survives for one job only, the numbering before the vendor pipeline
 (`_our_order`). The `post` number 474 is not moved by that -- the vendor sorts
 there -- and 453 is historical.
 """
-import hashlib
 import json
 import os
 import sys
 
-from .base import Block, Page, Recognizer
+from booksmith.core.page import Block, Page
+from booksmith.models.base import Recognizer
 # The role of a label is OUR policy and lives in one place. Needed here for
 # one number: artefact boxes the vendor took into the children of a TEXT
 # wrapper, that is, lost for the book. A list of classes of our own here would
 # be a second vocabulary of roles, and those have diverged before.
-from .. import order
-from .. import policy
-from ..run import knobs
+from booksmith.core import order
+from booksmith.core import policy
+from booksmith.core import knobs
+from booksmith.core import stamp
+from booksmith.core.errors import Refusal, WeightsMissing
 
 MODELS = os.path.expanduser("~/.paddlex/official_models")
 
-
-class WeightsMissing(RuntimeError):
-    pass
-
-
-def _sha256(path: str) -> str:
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(1 << 20), b""):
-            h.update(chunk)
-    return h.hexdigest()
 
 
 # --- docling vendor pipeline: label translation ----------------------------
@@ -176,7 +167,7 @@ class _DoclingPipeline:
 
     def __init__(self, mode: str, labels, adapter: str):
         if mode not in PIPELINE_MODES:
-            raise SystemExit(f"DOCLING_PIPELINE={mode!r}: I know only "
+            raise Refusal(f"DOCLING_PIPELINE={mode!r}: I know only "
                              f"{PIPELINE_MODES}")
         self.mode = mode
         self.adapter = adapter
@@ -193,7 +184,7 @@ class _DoclingPipeline:
                 PageElement as RoElement, ReadingOrderPredictor)
             from docling_core.types.doc import BoundingBox, DocItemLabel, Size
         except ImportError as e:
-            raise SystemExit(
+            raise Refusal(
                 f"DOCLING_PIPELINE={mode}, and there is no docling "
                 f"package: {e}. Install: {_PIP_INSTALL}. Or "
                 f"DOCLING_PIPELINE=off -- then the adapter counts the model "
@@ -239,7 +230,7 @@ class _DoclingPipeline:
                            f"docling vocabulary, but the postprocessor has "
                            f"no threshold for it)")
         if bad:
-            raise SystemExit(
+            raise Refusal(
                 f"adapter {adapter}: labels {', '.join(bad)} are "
                 f"indigestible to the docling postprocessor. It knows "
                 f"{len(known)} classes -- those listed in "
@@ -258,7 +249,7 @@ class _DoclingPipeline:
         self.files = {}
         for cls in (LayoutPostprocessor, ReadingOrderPredictor):
             path = sys.modules[cls.__module__].__file__
-            self.files[os.path.basename(path)] = _sha256(path)
+            self.files[os.path.basename(path)] = stamp.sha256(path)
         self.version = getattr(docling, "__version__", None)
 
         # Run counters. Numbers, not "done": without them "the pipeline is on"
@@ -748,7 +739,7 @@ class DoclingHeron(Recognizer):
                               "docling-layout-heron (RT-DETRv2 R50)"),
             "architecture": getattr(self, "architecture", "RT-DETRv2 R50"),
             "weights_dir": self.dir,
-            "sha256_weights": _sha256(self.onnx),
+            "sha256_weights": stamp.sha256(self.onnx),
             "onnxruntime": self.ort_version,
             "providers": self.providers,
             "input": {"height": self.target_h, "width": self.target_w,

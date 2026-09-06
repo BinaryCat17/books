@@ -25,49 +25,21 @@ import shlex
 import shutil
 import time
 
-from .. import policy
-from .. import text as booktext
+from booksmith.core import policy
+from booksmith.core import stamp, textnorm
+from booksmith.core.errors import Refusal
 
 # Shortest normalised text accepted as evidence. Sweep at `repeats_on`: the
 # false-positive curve is flat (9.3..12.0 % over 2..8), so this is argued, not
 # tuned.
 REPEAT_MIN = 3
-from ..models.base import Page
-from ..run import knobs
+from booksmith.core.page import Page
+from booksmith.core import knobs
 
 
-from . import crop, swap
-
-# THE BOOK'S KITCHEN. The build root holds EXACTLY ONE file, `book.html`, and it
-# is self-contained; crops, the observed, the snapshot and the swap journal move
-# here. Not tidiness: the book is opened by double-click, and a root with four
-# json files and a two-megabyte js makes the reader choose what to open. Crops
-# stay files EVEN WHEN inlined (`HTML_IMAGES=inline`): edits, measurements and
-# the second level need them, not just reading.
-ASSETS = "assets"
-SOURCE = os.path.join(ASSETS, "source")
-JOURNAL = os.path.join(ASSETS, "swaps.json")
-
-
-def journal_path(out_dir: str) -> str:
-    """Where THIS book's swap journal lives -- one rule, asked by everyone.
-
-    The journal moved into `assets/`, and books built before the move keep it
-    in the root; `doc/apply` reads and writes the old place when it is the
-    only one there. The rebuild guard in `build` did NOT: it looked only under
-    `assets/`, so rebuilding into an old-layout book wiped the book while a
-    live journal survived and began to lie -- the exact accident the guard
-    exists to prevent, passing it by on the one layout it was needed for.
-
-    So the rule lives here, in the lower of the two modules, and both callers
-    ask it. Returns the new place when neither exists: that is where a journal
-    would be created.
-    """
-    new = os.path.join(out_dir, JOURNAL)
-    old = os.path.join(out_dir, "swaps.json")
-    if not os.path.exists(new) and os.path.exists(old):
-        return old
-    return new
+from booksmith.core import book, raster as crop
+from booksmith.core.book import ASSETS, SOURCE
+from booksmith.doc import swap
 
 CSS = """
 body{max-width:52em;margin:2em auto;padding:0 1em;
@@ -289,7 +261,7 @@ def _keep_source(detect_dir: str, out_dir: str, log) -> dict:
             shutil.copy2(src, os.path.join(dst, name))
             was[name] = 1
         elif required:
-            raise SystemExit(
+            raise Refusal(
                 f"{detect_dir} has no {name} -- there would be nothing to "
                 f"rebuild the book from its own source with")
         else:
@@ -387,12 +359,12 @@ def repeats_on(page, covered) -> dict:
     # candidate would let both be hidden: each "exists at the neighbour", and
     # neither stays in the book.
     kept = [b for b in from_text if b.block_id not in nested]
-    norm = {b.block_id: booktext.normalize(b.content, "latex") for b in kept}
+    norm = {b.block_id: textnorm.normalize(b.content, "latex") for b in kept}
     out = {}
     for b in from_text:
         if b.block_id not in nested:
             continue
-        own = booktext.normalize(b.content, "latex")
+        own = textnorm.normalize(b.content, "latex")
         carrier = next((o for o in kept
                          if len(own) >= REPEAT_MIN and own in norm[o.block_id]),
                         None)
@@ -475,10 +447,10 @@ def torn_grid(grid: dict | None) -> str | None:
 
 def _repeats_how() -> str:
     """`HTML_REPEATS`: hide a proven repeat, or show everything."""
-    from ..run import knobs
+    from booksmith.core import knobs
     how = (knobs.knob("HTML_REPEATS") or "hide").strip()
     if how not in ("hide", "show"):
-        raise SystemExit(
+        raise Refusal(
             f"HTML_REPEATS={how!r}: I know only hide | show. There is no "
             f"silent default here: this is the one build operation that "
             f"removes text from the reader's sight.")
@@ -487,10 +459,10 @@ def _repeats_how() -> str:
 
 def _img_how() -> str:
     """`HTML_IMAGES`: inline the crops into the book, or link to the files."""
-    from ..run import knobs
+    from booksmith.core import knobs
     how = (knobs.knob("HTML_IMAGES") or "inline").strip()
     if how not in ("inline", "linked"):
-        raise SystemExit(
+        raise Refusal(
             f"HTML_IMAGES={how!r}: I know only inline | linked. There is no "
             f"silent default here: a book without pictures looks assembled, "
             f"and half its meaning is figures and tables.")
@@ -649,7 +621,7 @@ def _ours(v) -> bool:
     first wording change; the contract and the cost of drift are recorded where
     the field is written, in the adapter contract.
     """
-    from ..models.base import ours_order
+    from booksmith.core.page import ours_order
     return ours_order(v)
 
 
@@ -700,10 +672,10 @@ def _math(out_dir: str) -> tuple[str, str]:
     """
     import shutil
 
-    from ..run import knobs
+    from booksmith.core import knobs
     how = (knobs.knob("HTML_MATH") or "local").strip()
     if how not in ("inline", "local", "cdn", "off"):
-        raise SystemExit(
+        raise Refusal(
             f"HTML_MATH={how!r}: I know only inline | local | cdn | off. "
             f"There is no silent default here: a book with unrendered "
             f"formulas looks sound and cannot be read.")
@@ -717,7 +689,7 @@ def _math(out_dir: str) -> tuple[str, str]:
                 "formulas drawn by MathJax FROM THE NETWORK -- without it "
                 "the book will not open")
     if not os.path.exists(MATHJAX):
-        raise SystemExit(
+        raise Refusal(
             f"no {MATHJAX}: HTML_MATH={how}, and there is no renderer "
             f"beside the code. Either put it there, or HTML_MATH=cdn (needs "
             f"the network on opening), or HTML_MATH=off (raw LaTeX).")
@@ -756,14 +728,14 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
     # command must say so. A refusal about DESTROYING the output belongs above
     # every complaint about the input -- it stood below them, so a book with a
     # journal and a missing source PDF was told about the PDF.
-    _j = journal_path(out_dir)
+    _j = book.journal_path(out_dir)
     if os.path.exists(_j):
         try:
             with open(_j, encoding="utf-8") as f:
                 _n = sum(len(v) for v in (json.load(f).get("swaps") or {}).values())
         except (ValueError, OSError):
             _n = -1
-        raise SystemExit(
+        raise Refusal(
             f"{out_dir} holds the second level's swap journal"
             + (f" ({_n} swaps)" if _n >= 0 else " (unreadable)")
             + ".\nA rebuild wipes the book along with them while the journal "
@@ -775,7 +747,7 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
     pdf = snap["source"]["path"]
     page_dpi = float(snap["raster"]["dpi"])
     if not os.path.exists(pdf):
-        raise SystemExit(
+        raise Refusal(
             f"the parse source is not in place: {pdf}\n"
             f"HTML is built from the PDF, not from the detection raster -- a "
             f"crop of a dense table at {page_dpi:.0f} dpi is unreadable.")
@@ -787,11 +759,10 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
     # same name) gave the worst outcome — a book made from a FOREIGN file and
     # WITHOUT a snapshot, run.json being written below and never reached — plus
     # a traceback instead of an explanation.
-    from .. import detect as _detect        # _sha256, _commit, _packages
     said = (snap.get("source") or {}).get("sha256")
-    now = _detect._sha256(pdf)
+    now = stamp.sha256(pdf)
     if said and said != now:
-        raise SystemExit(
+        raise Refusal(
             f"{pdf} changed after detection: the snapshot swore sha256 "
             f"{said[:12]}, now it is {now[:12]}. The crops would come from one "
             f"file and the boxes from another. Recompute books detect, or put "
@@ -809,10 +780,10 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
     expected = []          # anchors in the order the book must carry them
     files = sorted(glob.glob(os.path.join(detect_dir, "pages", "*.json")))
     if not files:
-        raise SystemExit(f"no pages in {detect_dir} -- run books detect "
+        raise Refusal(f"no pages in {detect_dir} -- run books detect "
                          f"first")
 
-    doc = pymupdf.open(pdf)
+    doc = crop.open_pdf(pdf)
     # Read BEFORE the loop, not inside: otherwise once per crop (488 on the
     # book) and — worse — an environment edit mid-run would give a book with
     # some pictures inlined and some not.
@@ -1053,16 +1024,16 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
     # "42 of 42". Both checks look at the EDGES; the middle is invisible to
     # them. Only a page hash beside every crop closes it; not done.
     try:
-        after = _detect._sha256(pdf)
+        after = stamp.sha256(pdf)
     except OSError as e:
         # A SECOND read, and the file may have vanished meanwhile. The first
         # check answers the same trouble with SystemExit and text; a traceback
         # here would make one trouble speak in two voices.
-        raise SystemExit(
+        raise Refusal(
             f"{pdf} vanished during the build: {type(e).__name__}: {e}. "
             f"The book is not written.") from None
     if after != now:
-        raise SystemExit(
+        raise Refusal(
             f"{pdf} was swapped DURING the build: at the start sha256 "
             f"{now[:12]}, now {after[:12]}. Some crops are cut from one file "
             f"and some from another, and which is unknown. The book is not "
@@ -1086,7 +1057,7 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
     if got != expected:
         where = next((i for i, (a, b) in enumerate(zip(got, expected)) if a != b),
                    min(len(got), len(expected)))
-        raise SystemExit(
+        raise Refusal(
             f"the book is assembled NOT in the order it was walked: "
             f"{len(expected)} anchors expected, {len(got)} came out; first "
             f"divergence at place {where} -- expected "
@@ -1129,7 +1100,7 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
         "knobs": knobs.snapshot(),
         "raster": dict(snap["raster"]),
         "args": {"detect": detect_dir, "out": out_dir},
-        "commit": _detect._commit(),
+        "commit": stamp.commit(),
         # sha256 RECOMPUTED, not copied from the detect snapshot: a PDF at the
         # same path can be rebuilt (another spread cut, another pymupdf, another
         # book of the same name), crops would come from the new file, the
@@ -1148,11 +1119,11 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
             # code. Without it the check printed "fingerprint never verified"
             # and `--selfcheck` returned 1: the step that makes the book was
             # the only one never verified. Same key `detect.py` writes.
-            "module": "booksmith.doc.html",
-            "sha256": _detect._sha256(os.path.join(here, "html.py")),
-            "sha256_crop_code": _detect._sha256(os.path.join(here, "crop.py")),
-            "sha256_swap_code": _detect._sha256(os.path.join(here, "swap.py")),
-            "sha256_detect_snapshot": _detect._sha256(
+            "module": __name__,
+            "sha256": stamp.sha256(os.path.join(here, "html.py")),
+            "sha256_crop_code": stamp.sha256(crop.__file__),
+            "sha256_swap_code": stamp.sha256(os.path.join(here, "swap.py")),
+            "sha256_detect_snapshot": stamp.sha256(
                 os.path.join(detect_dir, "run.json"))},
         "policy": policy.snapshot(),
         "crop": crop.params(page_dpi),
@@ -1160,7 +1131,7 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
         "prompts": {},
         "generation": {"temperature": None, "max_tokens": None,
                        "top_p": None, "seed": None},
-        "packages": _detect._packages(),
+        "packages": stamp.packages(),
         "weights": {"vl": None, "layout": snap["weights"]["layout"]},
         "summary": {"page_count": len(files), "by_bucket": counts,
                  "crop_count": cut_n, "clipped_by_sheet": clipped,
@@ -1176,7 +1147,7 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
                  "repeats_mode": repeats_how,
                  "nested_but_text_differs": differs,
                  "repeats_kept_for_layout": by_layout,
-                 "comparison_normalization": booktext.norm_note("latex"),
+                 "comparison_normalization": textnorm.norm_note("latex"),
                  "text_inside_text_box_strict":
                      dup_in_text_strict,
                  # A number, not only an attribute. `null` (not 0) means "no
@@ -1262,7 +1233,7 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
             f"KEPT: the carrier holds the same as raw latex, and hiding the "
             f"typeset would make the page worse. Compared NOT with the owner "
             f"but with the blocks that REMAIN; the \"latex\" step -- see "
-            f"text.NORM_STEPS")
+            f"core/textnorm.NORM_STEPS")
     if obs:
         log(f"reading observations: {len(obs)} answers alongside; cut off by "
             f"the ceiling {torn_n}, impossible table shape {shape_n}"

@@ -15,9 +15,11 @@ import time
 
 from . import ledger
 from .box import Box
-from ..run import knobs
+from booksmith.core import knobs
 from .spec import JobSpec
-from .vast import Vast, log
+from .vast import Vast
+from booksmith.core.log import log
+from booksmith.core.errors import Refusal
 
 
 class Budget:
@@ -41,7 +43,7 @@ class Budget:
         # machine is already rented. Silence lets the watchdog kill it, and the
         # whole thing looks like a bad market.
         if by_time <= 0:
-            raise SystemExit(
+            raise Refusal(
                 f"the time budget is spent BEFORE the count begins: "
                 f"attempts ate {self.eaten/60:.1f} min of a "
                 f"{spec.timeout_minutes:.0f} min ceiling")
@@ -271,7 +273,7 @@ def execute(box: Box, spec: JobSpec, outdir: str,
     log("uploading the input files...")
     for local, remote_rel in spec.inputs.items():
         if not os.path.exists(local):
-            raise SystemExit(f"no such file: {local}")
+            raise Refusal(f"no such file: {local}")
         box.push(local, remote_rel)
         log(f"  {os.path.basename(local)} -> {remote_rel}")
 
@@ -303,7 +305,7 @@ def execute(box: Box, spec: JobSpec, outdir: str,
         # money, beats a syntax error after vLLM is up.
         bad = [k for k in spec.env if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", k)]
         if bad:
-            raise SystemExit(f"knob names unfit for a shell: {bad}")
+            raise Refusal(f"knob names unfit for a shell: {bad}")
         env = " ".join(f"{k}={shlex.quote(str(v))}" for k, v in spec.env.items())
         cmd = f"cd {shlex.quote(spec.workdir)} && {env} {spec.command}".strip()
         rc, _ = box.run(cmd, deadline=deadline)
@@ -624,7 +626,7 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
         # aloud that there is no time.
         left = spec.timeout_minutes * 60 - (time.time() - t0)
         if left <= ATTEMPT_LIMIT_S:
-            raise SystemExit(
+            raise Refusal(
                 f"no time left for an attempt: {left/60:.1f} min to the "
                 f"ceiling, one attempt takes up to "
                 f"{ATTEMPT_LIMIT_S/60:.0f} min "
@@ -942,7 +944,7 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
             # become a measurement.
             raw_dph = inst.get("dph_total")
             if raw_dph is None:
-                raise SystemExit(
+                raise Refusal(
                     f"instance {reuse} reports no price (dph_total) -- "
                     f"nothing to count a budget from. Look: books ls")
             dph = float(raw_dph)

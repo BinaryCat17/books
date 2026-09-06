@@ -21,7 +21,7 @@ The measurements behind both defaults are in `params` below.
 """
 import os
 
-from ..run import knobs
+from booksmith.core import knobs
 
 # Box comparison tolerance, in PDF points. ONE for the whole file, and not to
 # taste: pymupdf holds coordinates in single precision and runs intersection
@@ -147,7 +147,7 @@ def params(page_dpi: float | None = None,
         # stay here, because the reason they are refused is this file's.
         try:
             _v = knobs.number("CROP_DPI")
-        except SystemExit as e:
+        except Refusal as e:
             raise ValueError(str(e)) from None
         if _v <= 0:
             raise ValueError(
@@ -270,3 +270,31 @@ def cut(doc, page_index: int, box, page_dpi: float, dst: str,
             "margin_clipped": margin_clipped,
             "box_in_points": [round(v, 2) for v in (clip.x0, clip.y0,
                                                       clip.x1, clip.y1)]}
+
+
+# ------------------------------------------------------------ rendering ---
+# Every rasterisation on the READ PATH goes through these two, so that one
+# file knows the page renderer: detection, the crops, the ink metric and the
+# builder used to call `get_pixmap` each on their own. The writers (the
+# synthetic bench, the djvu unfolding, the overlay, the distillate) draw and
+# assemble PDFs and keep pymupdf themselves; this is a seam for RENDERING.
+
+def open_pdf(path: str):
+    """The document, as pymupdf opens it. One place to swap the engine.
+
+    pymupdf is imported HERE, not at the top: this module is imported by the
+    knob registry's readers and by the box entrypoint before any PDF is
+    touched, and `cut` above has always imported it lazily for that reason.
+    """
+    import pymupdf
+    return pymupdf.open(path)
+
+
+def render(page, dpi: float, clip=None):
+    """The page (or a clip of it) as a pixmap at `dpi`, integer as pymupdf wants.
+
+    `int(dpi)`: pymupdf truncates a fractional dpi itself, and a caller that
+    passed 143.5 and believed it got 143.5 wrote a raster the snapshot could
+    not name. Callers pass the dpi they RECORD.
+    """
+    return page.get_pixmap(dpi=int(dpi), clip=clip)

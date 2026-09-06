@@ -9,7 +9,7 @@ import sys
 sys.path.insert(0, os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
-from booksmith import cyr                                   # noqa: E402
+from booksmith.tree import cyr  # noqa: E402
 
 if __name__ == "__main__":
     sys.exit(cyr.main(sys.argv[1:]))

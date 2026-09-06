@@ -35,12 +35,13 @@ THREE BUCKETS OF CATEGORIES, AND THE BORDER IS OUR DECISION, DECLARED ALOUD.
 Doubtful and inexpressible are not dropped in silence: their counts print
 beside the total, so "found 40 %" cannot be read as "40 % of the page parsed".
 """
-import hashlib
 import json
 import os
 import shutil
 
-from .run import knobs
+from booksmith.core import knobs
+from booksmith.core import stamp
+from booksmith.core.errors import Refusal
 
 # --- direct match: only this enters the measurement -----------------------
 DIRECT = {
@@ -65,16 +66,10 @@ INEXPRESSIBLE = ("Initial", "Vignette", "Frieze", "Exlibris", "Signet",
                  "Symbol, logo, coat of arms")
 
 
-class AnnoPageError(RuntimeError):
+class AnnoPageError(Refusal):
     pass
 
 
-def _sha256(path):
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(1 << 20), b""):
-            h.update(chunk)
-    return h.hexdigest()
 
 
 def _yaml_names(root):
@@ -358,7 +353,7 @@ def _build(root, out_dir, split, limit, truth_only, log) -> dict:
            "category_map": DIRECT,
            "annotations_without_image": skipped_no_image,
            "pdf": os.path.basename(pdf),
-           "sha256 pdf": _sha256(wpdf if os.path.exists(wpdf) else pdf)}
+           "sha256 pdf": stamp.sha256(wpdf if os.path.exists(wpdf) else pdf)}
     with open(wman, "w", encoding="utf-8") as f:
         json.dump(man, f, ensure_ascii=False, indent=1)
 

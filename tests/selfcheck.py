@@ -26,12 +26,14 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
-import support                                              # noqa: E402
-from booksmith import metrics, otsl, policy                 # noqa: E402
+import support
+from booksmith.core.errors import Refusal                                              # noqa: E402
+from booksmith import metrics  # noqa: E402
+from booksmith.core import otsl, policy
 from booksmith import fitness as fit                        # noqa: E402
 from booksmith.remote import vast as vastmod
 from booksmith.remote import runner as runnermod
-from booksmith import order
+from booksmith.core import order
 from booksmith import annopage                              # noqa: E402
 from booksmith import overlay                               # noqa: E402
 from booksmith import djvu                                  # noqa: E402
@@ -39,22 +41,27 @@ from booksmith import subset                                # noqa: E402
 from booksmith.models import base as basemod                # noqa: E402
 from booksmith.models import yolox_layout as yolox          # noqa: E402
 from booksmith.doc import apply as ap                       # noqa: E402
-from booksmith.doc import crop                              # noqa: E402
+from booksmith.core import raster as crop  # noqa: E402
 from booksmith.doc import feed                              # noqa: E402
 from booksmith.doc import html as dhtml                     # noqa: E402
 from booksmith.doc import swap                              # noqa: E402
 from booksmith.models import base as mbase                  # noqa: E402
 from booksmith.models import docling_heron as dh            # noqa: E402
-from booksmith.run import knobs, replay, stamp              # noqa: E402
+from booksmith.core import knobs, replay, stamp  # noqa: E402
 from booksmith.models import doclayout                      # noqa: E402
 from booksmith import text as booktext                      # noqa: E402
 from booksmith.read import Reader, Route, Said              # noqa: E402
 from booksmith.read import http as vhttp                    # noqa: E402
 from booksmith.read import run as vrun                      # noqa: E402
 from booksmith.models.paddleocr_vl.reader import PaddleOcrVl  # noqa: E402
-from booksmith import cyr as cyrmod                        # noqa: E402
-from booksmith import schema                               # noqa: E402
+from booksmith.tree import cyr as cyrmod  # noqa: E402
+from booksmith.core import schema  # noqa: E402
 from booksmith import acceptance                           # noqa: E402
+from booksmith.core import page
+from booksmith.core import textnorm
+from booksmith.core import book
+from booksmith.tree import imports
+from booksmith.core import config
 
 
 # --- what we break with ----------------------------------------------------
@@ -142,7 +149,7 @@ COPY = ("models/doclayout.py", "models/docling_heron.py",
         "doc/html.py",
         # Table parsing: `test_otsl_html` demands ONE tag walk for two
         # consumers. A second walk would drift from the first silently.
-        "otsl.py",
+        "core/otsl.py",
         # Replacement in the book: `test_torn` demands `from_read` ask the
         # sidecar and pass the truncation flag into the wrapper. This half has
         # already fallen off silently -- the mark was lost by exactly those
@@ -813,7 +820,7 @@ def routes_guess_by_role(self):
     """The route is DERIVED from the role instead of declared. That is how a
     twenty-sixth class in new weights would silently ride the text prompt."""
     from booksmith.read import Route
-    from booksmith import policy
+    from booksmith.core import policy
     out = {}
     for lab in policy.POLICIES[self.policy_name]:
         out[lab] = Route("OCR:", "text")
@@ -1017,7 +1024,7 @@ def read_book_shrugs_at_zero_pages(*a, **kw):
     then reports zeroes and code 0 -- an empty run looks successful."""
     try:
         return _real_read_book(*a, **kw)
-    except SystemExit as e:
+    except (SystemExit, Refusal) as e:
         if "not one page to read" not in str(e):
             raise
         return {"page_count": 0, "block_count": 0, "asked": 0, "not_asked": 0,
@@ -1185,7 +1192,7 @@ def to_html_opens_a_row_only_where_a_root_is(s):
     slide right by the number of merged columns.
     """
     import html as _h
-    from booksmith import otsl as _o
+    from booksmith.core import otsl as _o
     cs, _ = _o.layout(s)
     if not cs:
         return ""
@@ -1210,7 +1217,7 @@ def to_html_opens_a_row_only_where_a_root_is(s):
 def to_html_pads_short_rows(s):
     """A short row padded with empty cells: invention in place of tearing."""
     import html as _h
-    from booksmith import otsl as _o
+    from booksmith.core import otsl as _o
     cs, t = _o.layout(s)
     if not cs:
         return ""
@@ -1235,7 +1242,7 @@ def to_html_pads_short_rows(s):
 
 def layout_gives_the_split_span_our_default_tag(s):
     """An expanded merge gets our `fcel` instead of the root's tag."""
-    from booksmith import otsl as _o
+    from booksmith.core import otsl as _o
     cs, t = _o.layout(s)
     out = []
     for c in cs:
@@ -1249,7 +1256,7 @@ def layout_gives_the_split_span_our_default_tag(s):
 def to_html_calls_the_first_row_a_header(s):
     """The guess "the first row is always a header" instead of `<ched>`."""
     import html as _h
-    from booksmith import otsl as _o
+    from booksmith.core import otsl as _o
     cs, _ = _o.layout(s)
     if not cs:
         return ""
@@ -1277,7 +1284,7 @@ def layout_straightens_a_torn_span(s):
     The vendor's `otsl_pad_to_sqr_v2` does exactly this, and a torn table comes
     back plausible.
     """
-    from booksmith import otsl as _o
+    from booksmith.core import otsl as _o
     cs, t = _o.layout(s)
     return cs, dict(t, **{"non_rectangular_merges": 0})
 
@@ -1319,14 +1326,14 @@ def repeats_compare_the_block_with_itself(page, covered):
     nested = {b.block_id for b in from_text
               if any(o.block_id != b.block_id and covered(b.box, o.box)
                      for o in from_text)}
-    whole_page = " ".join(booktext.normalize(b.content, "latex") for b in from_text)
+    whole_page = " ".join(textnorm.normalize(b.content, "latex") for b in from_text)
     out = {}
     for b in from_text:
         if b.block_id not in nested:
             continue
         owners = [o for o in from_text
                    if o.block_id != b.block_id and covered(b.box, o.box)]
-        own = booktext.normalize(b.content, "latex")
+        own = textnorm.normalize(b.content, "latex")
         out[b.block_id] = (owners[0].block_id if owners else None,
                            "verbatim" if len(own) >= 2 and own in whole_page
                            else "differs")
@@ -1348,11 +1355,11 @@ def repeats_compare_with_other_candidates_too(page, covered):
     for b in from_text:
         if b.block_id not in nested:
             continue
-        others = " ".join(booktext.normalize(o.content, "latex")
+        others = " ".join(textnorm.normalize(o.content, "latex")
                           for o in from_text if o.block_id != b.block_id)
         owners = [o for o in from_text
                    if o.block_id != b.block_id and covered(b.box, o.box)]
-        own = booktext.normalize(b.content, "latex")
+        own = textnorm.normalize(b.content, "latex")
         out[b.block_id] = (owners[0].block_id if owners else None,
                            "verbatim" if len(own) >= 2 and own in others
                            else "differs")
@@ -1381,7 +1388,7 @@ def _repeats_variant(page, covered, *, artifacts=False, empty=False,
     nested = {b.block_id for b in from_text
               if any(o.block_id != b.block_id and covered(b.box, o.box)
                      for o in from_text)}
-    stays = " ".join(booktext.normalize(b.content or "", "latex")
+    stays = " ".join(textnorm.normalize(b.content or "", "latex")
                         for b in from_text if b.block_id not in nested)
     out = {}
     for b in from_text:
@@ -1389,7 +1396,7 @@ def _repeats_variant(page, covered, *, artifacts=False, empty=False,
             continue
         owners = [o for o in from_text
                    if o.block_id != b.block_id and covered(b.box, o.box)]
-        own = booktext.normalize(b.content or "", "latex")
+        own = textnorm.normalize(b.content or "", "latex")
         lo = threshold if threshold is not None else dhtml.REPEAT_MIN
         # `why`, not `out`: the verdict once shared the name of the result
         # dict, overwrote it with a str, and the next line raised TypeError.
@@ -1444,12 +1451,12 @@ def repeats_join_without_a_gap(page, covered):
               if any(o.block_id != b.block_id and covered(b.box, o.box)
                      for o in from_text)}
     kept = [b for b in from_text if b.block_id not in nested]
-    glue = "".join(booktext.normalize(b.content, "latex") for b in kept)
+    glue = "".join(textnorm.normalize(b.content, "latex") for b in kept)
     out = {}
     for b in from_text:
         if b.block_id not in nested:
             continue
-        own = booktext.normalize(b.content, "latex")
+        own = textnorm.normalize(b.content, "latex")
         found_one = len(own) >= dhtml.REPEAT_MIN and own in glue
         out[b.block_id] = (kept[0].block_id if kept else None,
                            "verbatim" if found_one else "differs")
@@ -1996,6 +2003,13 @@ def _table_missing_a_format():
     return {"help": acceptance.COMMANDS["help"]}
 
 
+def journal_path_blind_to_the_old_layout(out_dir):
+    """The edition before the fix: the journal is looked for under `assets/`
+    only, and a book built before the kitchen moved is read as journal-less."""
+    import os
+    return os.path.join(out_dir, book.JOURNAL)
+
+
 def _record_differs_blind_to_inputs(name):
     """The previous shape: compare results and never look at what they were
     taken against, so a rebuilt bench reads as a bench with moved numbers."""
@@ -2014,7 +2028,7 @@ def mutations():
           ("test_apply", "test_put_then_undo_restores_the_book_byte_for_byte")]),
 
         ("any kind of content is accepted",
-         lambda: attrs(ap, KINDS=ap.KINDS + ("markdown",)),
+         lambda: attrs(page, KINDS=page.KINDS + ("markdown",)),
          [("test_apply", "test_unknown_kind_is_refused")]),
 
         ("the journal invents a stack where no swap happened",
@@ -2074,7 +2088,7 @@ def mutations():
            "test_book_builder_reads_the_order_rule_through_the_one_contract")]),
 
         ("the guard stopped folding case",
-         lambda: attrs(mbase, ours_order=guard_case_sensitive),
+         lambda: attrs(page, ours_order=guard_case_sensitive),
          [("test_order_contract", "test_guard_ignores_case")]),
 
         ("the adapter never said whose order it is",
@@ -2644,7 +2658,7 @@ def mutations():
         # `nan` is a legal float and compares False with everything, so a
         # mistyped knob made every guard around it quietly stop holding.
         ("a knob that is not a finite number is taken on trust",
-         lambda: one_line("booksmith.run.knobs",
+         lambda: one_line("booksmith.core.knobs",
                           "    if f != f or f in (float(\"inf\"), float(\"-inf\")):",
                           "    if False:"),
          [("test_knobs",
@@ -2659,7 +2673,7 @@ def mutations():
 
         ("the knob detector knows only one way to read a knob",
          lambda: one_line(
-             "booksmith.run.knobs",
+             "booksmith.core.knobs",
              '                hit = (any(f\'{fn_}("{name}")\' in text',
              '                hit = (any(f\'knob("{name}")\' in text'),
          [("test_knobs", "test_audit_finds_no_disagreement"),
@@ -2780,13 +2794,13 @@ def mutations():
         # The `ours` rule needs no labels at all; asking for a policy on its
         # behalf drops the run on a dictionary the rule never touches.
         ("the ours rule demands a described policy",
-         lambda: one_line("booksmith.order",
+         lambda: one_line("booksmith.core.order",
                           '    if (which or rule()) == "ours":\n        return None',
                           "    pass"),
          [("test_order", "test_ours_needs_neither_labels_nor_docling")]),
 
         ("the order rules lose a box instead of reordering",
-         lambda: one_line("booksmith.order",
+         lambda: one_line("booksmith.core.order",
                           "    out = [e.cid for e in _predictor()"
                           ".predict_reading_order(els)]",
                           "    out = [e.cid for e in _predictor()"
@@ -2794,7 +2808,7 @@ def mutations():
          [("test_order", "test_docling_returns_a_permutation_and_touches_no_box")]),
 
         ("an unknown assembly rule is accepted in silence",
-         lambda: one_line("booksmith.order", "    if v not in RULES:",
+         lambda: one_line("booksmith.core.order", "    if v not in RULES:",
                           "    if False:"),
          [("test_order", "test_an_unknown_rule_dies_loudly")]),
 
@@ -2901,10 +2915,14 @@ def mutations():
 
         # Three places where moving the kitchen into `assets/` broke working
         # code, and all three were found by cross-checking, not by reading.
+        # `journal_path` moved to `core/book.py` and the builder and the swap
+        # layer both call it THROUGH THE MODULE (`book.journal_path`), so the
+        # swap is an attribute swap on `book` and reaches every caller; a
+        # rebuilt module (`one_line`) would reach only whoever imports it
+        # afresh, and the swap layer, which had the old module in hand, would
+        # keep the true edition and the check would stay green over the damage.
         ("the old-layout journal is invisible again",
-         lambda: one_line("booksmith.doc.html",
-                          '    old = os.path.join(out_dir, "swaps.json")',
-                          '    old = os.path.join(out_dir, "absent.json")'),
+         lambda: attrs(book, journal_path=journal_path_blind_to_the_old_layout),
          [("test_apply",
            "test_a_journal_from_the_old_layout_is_seen_not_declared_empty")]),
 
@@ -2915,7 +2933,7 @@ def mutations():
          [("test_html_order", "test_the_builder_recognises_its_own_directory")]),
 
         ("the snapshot is looked for at the root only, again",
-         lambda: one_line("booksmith.run.replay",
+         lambda: one_line("booksmith.core.replay",
                           '              os.path.join(outdir, ASSETS, "run.json")):',
                           '              ):'),
          [("test_knobs", "test_replay_finds_the_snapshot_in_both_layouts")]),
@@ -2948,7 +2966,7 @@ def mutations():
          # the imported module for the default. Swapping the file on disk
          # never reaches it -- on the first run the mutation came out "NOT
          # CAUGHT" for exactly that reason.
-         lambda: one_line("booksmith.run.knobs",
+         lambda: one_line("booksmith.core.knobs",
                           'Knob("HTML_MATH", "inline",',
                           'Knob("HTML_MATH", "local",'),
          [("test_html_order",
@@ -3202,7 +3220,7 @@ def mutations():
          [("test_read", "test_every_label_of_every_dictionary_has_a_route")]),
 
         ("the book forgot how to accept latex",
-         lambda: attrs(ap, KINDS=("html", "otsl", "text")),
+         lambda: attrs(page, KINDS=("html", "otsl", "text")),
          [("test_read", "test_declared_kinds_agree_with_the_book")]),
 
         # ---- second level: parsing OTSL -------------------------------
@@ -3272,7 +3290,7 @@ def mutations():
           ("test_read", "test_otsl_span_occupies_all_its_addresses")]),
 
         ("layout grew ITS OWN tag walk, a second copy of the rule",
-         lambda: sources("otsl.py",
+         lambda: sources("core/otsl.py",
                          "    cells, own, tally = _walk(s)",
                          "    _ = _TOK.findall(s)\n"
                          "    cells, own, tally = _walk(s)"),
@@ -3366,7 +3384,7 @@ def mutations():
                           "enclosing_frame")]),
 
         ("the latex step eats the command names",
-         lambda: attrs(booktext, bare_math=bare_math_eats_the_command_name),
+         lambda: attrs(textnorm, bare_math=bare_math_eats_the_command_name),
          [("test_repeat", "test_the_latex_stage_falls_on_deliberately_"
                           "broken_input"),
           ("test_repeat", "test_the_latex_stage_is_declared_with_its_"
@@ -3654,8 +3672,8 @@ def mutations():
         # looking only under `assets/` -- so it passed by the one layout it
         # was needed for.
         ("the rebuild guard looks only in the kitchen",
-         lambda: attrs(dhtml, journal_path=lambda out_dir: os.path.join(
-             out_dir, dhtml.JOURNAL)),
+         lambda: attrs(book, journal_path=lambda out_dir: os.path.join(
+             out_dir, book.JOURNAL)),
          [("test_apply",
            "test_a_journal_from_the_old_layout_is_seen_not_declared_empty")]),
 
@@ -3778,7 +3796,7 @@ def mutations():
            "test_the_map_does_not_grow_back_into_a_second_copy")]),
 
         ("the aging knob advertises a profile that does not exist",
-         lambda: one_line("booksmith.run.knobs",
+         lambda: one_line("booksmith.core.knobs",
                           '         "bench ageing profile: clean|scan|old|decayed"),',
                           '         "bench ageing profile: clean|scan|old|frail"),'),
          [("test_knobs",
@@ -3815,6 +3833,18 @@ def mutations():
            "test_the_fitness_record_on_slovar_is_the_same_dict"),
           ("test_acceptance",
            "test_a_record_against_other_inputs_says_inputs_moved_not_changed")]),
+        ("the import rule sees no edge at all",
+         lambda: attrs(imports, edges=lambda root=None, name=None: []),
+         [("test_imports", "test_the_tree_has_edges_at_all"),
+          ("test_imports", "test_a_planted_upward_import_is_named"),
+          ("test_imports", "test_the_remote_rule_names_an_importer_outside_its_list")]),
+        ("the config root points one level too deep, as the move would have left it",
+         lambda: attrs(config, ROOT=os.path.dirname(config.ROOT) + "/src",
+                       ENV_FILE=os.path.join(os.path.dirname(config.ROOT), "src", ".env")),
+         [("test_roots", "test_config_root_is_the_repository")]),
+        ("the schema root is the package, not the repository",
+         lambda: attrs(schema, ROOT=os.path.join(schema.ROOT, "src")),
+         [("test_roots", "test_schema_root_is_the_repository")]),
         ("the record tolerance swallows any number",
          lambda: attrs(acceptance, TOLERANCE=1e9),
          [("test_acceptance",

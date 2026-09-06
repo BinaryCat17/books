@@ -1,5 +1,8 @@
 {
- "inputs": "070e38a0df48548193dc93d846ed8ad236586dfca0401e5f40f384fad9d624b1",
+ "inputs": {
+  "bench/slovar/manifest.json": "7430ed0e72ad41736012470b2925e34ce51846df059e3df3342f2c8ba86fec2a",
+  "bench/slovar/truth": "ebb920054056611e9eec3e5d6a5dd9dd97051ff46d9724d691781aa95073893e"
+ },
  "result": {
   "answer_kind_wrong": 0,
   "answers_on_unmarked": 0,

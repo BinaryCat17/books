@@ -64,6 +64,7 @@ Mistral missed never entered it. Nothing to inherit; let the bench set it.
 """
 import os
 import re
+from booksmith.core.errors import Refusal
 
 
 class Knob:
@@ -573,17 +574,17 @@ def number(name, *, kind=float, negative=False):
     try:
         v = kind(raw)
     except (TypeError, ValueError):
-        raise SystemExit(
+        raise Refusal(
             f"{name}={raw!r} is not a number: {kind.__name__} expected. A "
             f"knob that decides a run may not be a typo") from None
     f = float(v)
     if f != f or f in (float("inf"), float("-inf")):
-        raise SystemExit(
+        raise Refusal(
             f"{name}={raw!r}: not a finite number. `nan` compares False with "
             f"everything, so every guard around this knob would quietly stop "
             f"holding -- and the run would finish and say nothing")
     if f < 0 and not negative:
-        raise SystemExit(f"{name}={raw!r}: negative, and this knob is not")
+        raise Refusal(f"{name}={raw!r}: negative, and this knob is not")
     return v
 
 

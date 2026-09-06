@@ -35,6 +35,7 @@ import os
 import sys
 
 import support
+from booksmith.core.errors import Refusal
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -78,7 +79,8 @@ def _dots_parse_pages():
 def _outcome(fn, value):
     """What came out: pages, a refusal aloud, or NOT a refusal aloud.
 
-    Three answers, not two. A refusal aloud (`SystemExit`) and "fell any
+    Three answers, not two. A refusal aloud (`Refusal` from the package, or `SystemExit` from the
+    box entrypoint, which runs without the package) and "fell any
     which way" (any other exception) are different things: the first prints a
     sample and an exit code, the second gives a traceback. That is exactly
     where the copies diverged, and folding them into one answer would hide
@@ -86,7 +88,7 @@ def _outcome(fn, value):
     """
     try:
         return ("pages", fn(value, TOTAL))
-    except SystemExit:
+    except (SystemExit, Refusal):
         return ("refusal aloud", None)
     except BaseException as e:               # noqa: BLE001 -- the kind matters
         return (f"fell any which way: {type(e).__name__}", None)

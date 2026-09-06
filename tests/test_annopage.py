@@ -36,6 +36,7 @@ import os
 import tempfile
 
 import support
+from booksmith.core import stamp
 
 from booksmith import annopage
 
@@ -166,7 +167,7 @@ def test_the_sheet_follows_the_declared_knob():
     """
     import pymupdf
 
-    from booksmith.run import knobs
+    from booksmith.core import knobs
 
     names = _real_names()
     seen = {}
@@ -267,14 +268,14 @@ def test_a_refused_build_leaves_the_golden_bench_untouched():
     # aside pdf, which is the last thing before the manifest and therefore
     # after the new pdf exists and before anything is swapped.
     _mini(root, names=names, yaml_names=names, pages=4)
-    real = annopage._sha256
+    real = stamp.sha256
 
     def boom(path):
         if path.endswith(".new"):
             raise RuntimeError("interrupted between the pdf and the swap")
         return real(path)
 
-    annopage._sha256 = boom
+    stamp.sha256 = boom
     try:
         annopage.build(root, out, split="test", log=lambda *a: None)
     except RuntimeError:
@@ -282,7 +283,7 @@ def test_a_refused_build_leaves_the_golden_bench_untouched():
     else:
         raise AssertionError("the staged crash did not happen")
     finally:
-        annopage._sha256 = real
+        stamp.sha256 = real
 
     now = {n: open(os.path.join(tdir, n), encoding="utf-8").read()
            for n in os.listdir(tdir)}

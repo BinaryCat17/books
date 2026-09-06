@@ -26,6 +26,8 @@ import json
 import os
 
 import pymupdf
+from booksmith.core import stamp
+from booksmith.core.errors import Refusal
 
 # Caption font: the built-in `helv` knows no Cyrillic and drew captions as
 # emptiness -- which of the two markups a box came from was unreadable.
@@ -46,23 +48,16 @@ ONE = (0.15, 0.35, 0.85)         # blue: one markup, nothing to compare with
 LABEL = (0.45, 0.25, 0.65)        # purple: same box, different name
 
 
-class OverlayError(RuntimeError):
+class OverlayError(Refusal):
     pass
 
 
-def _sha256(path):
-    import hashlib
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(1 << 20), b""):
-            h.update(chunk)
-    return h.hexdigest()
 
 
 def _same_book(pdf: str, marks) -> str:
     """Is the markup about this PDF. Unchecked, a foreign truth lies down
     silently and looks like the model's trouble -- it is the directory's."""
-    mine = _sha256(pdf)
+    mine = stamp.sha256(pdf)
     said, unchecked = [], []
     for d, tag in marks:
         was = len(said)
@@ -138,7 +133,7 @@ def _pair(truth, model):
     does in score, or sheet and number diverge again, now on the exception.
     """
     from .metrics import _pick, _area
-    from . import policy
+    from booksmith.core import policy
     arte = set(policy.artefacts())
     pairs, lost, extra = [], [], []
     for side in (True, False):
@@ -191,7 +186,7 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
     marks no text while the model produced none. Silence passes the second for
     the first, a zero from not understanding for a zero from a check.
     """
-    from . import policy
+    from booksmith.core import policy
 
     def role(label: str) -> str:
         # A label unknown to the policy is not hidden: let it stay loud.
@@ -315,7 +310,7 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
         # The `out_of_scope` field had NEVER been read here, though it lies
         # right beside: non-empty on 288 golden-bench pages of 600, 904 objects.
         from .metrics import extra_kind
-        from . import policy as _pol
+        from booksmith.core import policy as _pol
         _arte = set(_pol.artefacts())
         tb = [b for b in p0["blocks"] if b["label"] in _arte]
         paired = [b["box"] for b, _ in pairs if b["label"] in _arte]

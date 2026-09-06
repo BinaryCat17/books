@@ -14,6 +14,8 @@ from vastai import VastAI
 
 from . import pricing
 from .spec import HostReq, JobSpec
+from booksmith.core.log import log
+from booksmith.core.errors import Refusal
 
 # ssh on a vast instance hijacks the login into tmux, so `ssh host 'cmd'`
 # prints "no sessions" and RUNS NOTHING; cured by this file. rsync goes in at
@@ -97,8 +99,6 @@ ONSTART = (
 )
 
 
-def log(msg):
-    print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
 
 
 class Vast:
@@ -132,7 +132,7 @@ class Vast:
         found = self.v.search_offers(q, order="dph_total",
                                      storage=float(host.disk_gb))
         if not found:
-            raise SystemExit(
+            raise Refusal(
                 f"no offers for {host.gpu} under ${host.max_dph}/hour.\n"
                 "Loosen --max-dph / --min-down or take another card.")
         return pricing.rank(found, image_gb, minutes, payload_gb, warmup_s)
@@ -145,7 +145,7 @@ class Vast:
         if avoid:
             ranked = [o for o in ranked if o.get("machine_id") not in avoid]
             if not ranked:
-                raise SystemExit("no usable offers left: every machine "
+                raise Refusal("no usable offers left: every machine "
                                  "checked was rejected on channel")
         if prefer_machines:
             # A priority list, not a set: first comes whoever computed fastest
@@ -191,7 +191,7 @@ class Vast:
         )
         iid = res.get("new_contract")
         if not iid:
-            raise SystemExit(f"could not create the instance: {res}")
+            raise Refusal(f"could not create the instance: {res}")
         log(f"instance {iid} created")
         if on_created:
             on_created(int(iid))       # before all else: it is already billing

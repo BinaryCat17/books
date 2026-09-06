@@ -36,9 +36,9 @@ same code as the crop. Into the model it goes as image bytes.
 import json
 import os
 
-from .. import policy
-from ..run import knobs
-from . import crop
+from booksmith.core import policy
+from booksmith.core import knobs
+from booksmith.core import raster as crop
 # The block anchor is built by ONE rule for the project. Here stood a second
 # copy (`f"p{page.index:04d}-b{b.block_id}"`) that would have drifted from
 # `html.anchor_of` at the first rename -- silently: feed.json naming the pieces
@@ -157,7 +157,7 @@ def masked_page(doc, page_index: int, boxes, page_dpi: float, dst: str,
     fill = p["hole_fill"] if fill is None else fill
 
     page = doc[page_index]
-    pix = page.get_pixmap(dpi=int(dpi))
+    pix = crop.render(page, dpi)
     # The boxes arrive in pixels of the detection raster; converted to pixels
     # of THIS one. Without that the holes would drift and the page would still
     # look whole.

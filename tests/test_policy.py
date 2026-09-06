@@ -10,7 +10,7 @@ Both sides are checked: the policy knows the model's dictionary WHOLE, and the
 dictionary knows the policy. Five dictionaries at five detectors, not to be
 muddled: `check` compares against ONE named dictionary, not their union.
 """
-from booksmith import policy
+from booksmith.core import policy
 from booksmith.models import docling_heron, yolox_layout
 
 

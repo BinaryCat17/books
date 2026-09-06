@@ -62,7 +62,9 @@ import os
 import numpy as np
 import pymupdf
 
-from . import metrics, policy
+from booksmith import metrics
+from booksmith.core import policy
+from booksmith.core import raster
 
 # The "this is ink" threshold: darker is content, lighter is paper. The same
 # INK the synthetic bench measures its truth by, and knowingly a SECOND COPY:
@@ -194,7 +196,7 @@ def _ink_of(pdf, doc, i, dpi):
 
 
 def _ink(page, dpi):
-    pm = page.get_pixmap(dpi=int(dpi))
+    pm = raster.render(page, dpi)
     g = np.frombuffer(pm.samples, np.uint8).reshape(pm.height, pm.width, pm.n)
     g = g[:, :, :3].mean(2) if pm.n >= 3 else g[:, :, 0]
     return g < INK
@@ -270,7 +272,7 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
         raise metrics.MetricError(f"no {pdf}")
     M = metrics._load(detect_dir)
     T = metrics._load(truth_dir) if truth_dir else {}
-    doc = pymupdf.open(pdf)
+    doc = raster.open_pdf(pdf)
     res = {"page_count": 0, "truth_pages": len(T), "dpi": [],
            "ink_total": 0, "ink_under_boxes": 0,
            "ink_under_artifact": 0, "sheet_area": 0, "boxes_area": 0,

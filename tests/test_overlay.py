@@ -34,6 +34,8 @@ import os
 import tempfile
 
 import support
+from booksmith.core import stamp
+from booksmith.core.errors import Refusal
 
 from booksmith import overlay
 
@@ -132,17 +134,22 @@ def test_a_page_out_of_the_book_is_loud():
     `overlay`'s own parser used to put the number straight into the index,
     and an empty set gave a silent "divergences on 0 pages".
     """
+    import contextlib
+    import io
     from booksmith import cli
     with tempfile.TemporaryDirectory() as d:
         pdf = _stand(d)
         t = os.path.join(d, "truth", "pages")
-        try:
-            cli.main(["overlay", pdf, "--truth", t, "--pages", "9",
-                      "--out", os.path.join(d, "x.pdf")])
-        except SystemExit as e:
-            assert "3 pages" in str(e), f"the complaint is about something else: {e}"
-            return
-        raise AssertionError("a page beyond the book was accepted in silence")
+        # A refusal leaves `main` as exit code 1 and ONE logged line, not as
+        # an exception: `cli.main` catches `Refusal` so that the operator sees
+        # a line and not a stack.
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = cli.main(["overlay", pdf, "--truth", t, "--pages", "9",
+                           "--out", os.path.join(d, "x.pdf")])
+        assert rc == 1, f"a page beyond the book was accepted in silence (rc {rc})"
+        assert "3 pages" in buf.getvalue(), \
+            f"the complaint is about something else: {buf.getvalue()[-300:]}"
 
 
 def test_a_page_missing_from_one_markup_is_named():
@@ -211,7 +218,7 @@ def test_what_was_not_checked_by_sha256_is_named():
         pdf = _stand(d)
         with open(os.path.join(d, "truth", "manifest.json"), "w",
                   encoding="utf-8") as f:
-            json.dump({"sha256 pdf": overlay._sha256(pdf)}, f)
+            json.dump({"sha256 pdf": stamp.sha256(pdf)}, f)
         s = _say(pdf, [(os.path.join(d, "truth", "pages"), "T"),
                        (os.path.join(d, "model", "pages"), "M")])
         assert "verified for T" in s and "NOT VERIFIED for M" in s, s

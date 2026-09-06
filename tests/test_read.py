@@ -16,14 +16,15 @@ not this line: `books ledger`.
 import json
 import os
 import sys
+from booksmith.core.errors import Refusal
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
 from fake_vlm import FakeVlm                                # noqa: E402
 
-from booksmith import otsl                                  # noqa: E402
-from booksmith.models.base import Block, Page               # noqa: E402
+from booksmith.core import otsl  # noqa: E402
+from booksmith.core.page import Block, Page  # noqa: E402
 from booksmith.read import Ask, Route                       # noqa: E402
 from booksmith.read import http as vhttp                    # noqa: E402
 from booksmith.read import run as vrun                      # noqa: E402
@@ -39,7 +40,7 @@ def test_every_label_of_every_dictionary_has_a_route():
     has its OWN label dictionary, and the twenty-sixth class of new weights
     would leave under the wrong prompt, its answer written down as reading.
     """
-    from booksmith import policy
+    from booksmith.core import policy
     for name, d in policy.POLICIES.items():
         PaddleOcrVl(name).cover(d.keys())          # throws on a hole
 
@@ -81,7 +82,7 @@ def test_route_with_unknown_kind_is_loud():
 
 def test_declared_kinds_agree_with_the_book():
     """The reader's kinds are names `books apply` accepts."""
-    from booksmith.doc.apply import KINDS
+    from booksmith.core.page import KINDS
     for name in ("PP-DocLayoutV2", "Docling", "DocLayNet"):
         for rt in PaddleOcrVl(name).routes().values():
             if rt.asked():
@@ -262,7 +263,7 @@ def _png():
 def _book(tmp):
     """A tiny book and its detect directory: text, table and a picture."""
     import pymupdf
-    from booksmith.run import stamp
+    from booksmith.core import stamp
     pdf = os.path.join(tmp, "c.pdf")
     doc = pymupdf.open()
     pg = doc.new_page(width=200, height=200)
@@ -386,7 +387,7 @@ def test_swapped_pdf_stops_the_run():
         f.write(b"% extra byte\n")   # no non-ASCII byte goes in a b"" literal
     try:
         _run(tmp, {"OCR:": {"text": "x"}})
-    except SystemExit as e:
+    except (SystemExit, Refusal) as e:
         assert "sha256" in str(e)
     else:
         raise AssertionError("the reading went on against a swapped book")
@@ -417,7 +418,7 @@ def test_empty_run_is_not_a_success():
     _book(tmp)
     try:
         _run(tmp, {"OCR:": {"text": "x"}}, pages_want={999})
-    except SystemExit as e:
+    except (SystemExit, Refusal) as e:
         assert "empty" in str(e)
     else:
         raise AssertionError("an empty page set passed in silence")

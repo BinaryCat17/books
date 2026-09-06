@@ -25,7 +25,7 @@ import json
 import os
 
 import support
-from booksmith import cyr as _module
+from booksmith.tree import cyr as _module
 
 ROOT = _module.ROOT
 

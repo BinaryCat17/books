@@ -40,8 +40,9 @@ import urllib.error
 import urllib.request
 
 from . import Ask, Said, Transport
-from .. import config
-from ..run import knobs
+from booksmith.core import config
+from booksmith.core import knobs
+from booksmith.core.errors import Refusal
 
 # What counts as a picture. The list is declared because a `data:` string
 # must carry the right type: a server handed `image/png` over a JPEG answers
@@ -139,7 +140,7 @@ class Http(Transport):
             # stack down to `sys.exit(main())`. The rest of the CLI answers
             # such trouble exactly so (`books html` on a swapped PDF,
             # `parse_pages`).
-            raise SystemExit(
+            raise Refusal(
                 "VLM_ENDPOINT is empty: no model address was given. There "
                 "is no default on purpose -- a silent `localhost` would make "
                 "the run knock at nothing and call that the model's silence.")
@@ -282,7 +283,7 @@ def build() -> Transport:
     becoming `http`."""
     name = knobs.knob("VLM_TRANSPORT")
     if name != "http":
-        raise SystemExit(
+        raise Refusal(
             f"VLM_TRANSPORT={name!r}: I know only 'http'. A silent fallback "
             f"to it would make a typo in the transport's name count as a "
             f"successful run.")

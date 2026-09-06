@@ -19,7 +19,8 @@ weights -- negligible, where a divergence of copies costs a run.
 import os
 
 from ...remote.spec import HostReq, JobSpec
-from ...run import knobs, stamp
+from booksmith.core import knobs, stamp
+from booksmith.core.errors import Refusal
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 # The package root, `src/booksmith`. From here rather than from the working
@@ -77,7 +78,7 @@ def spec(pdf: str, detect_dir: str, pages: str = "",
                      "point"),
                     (PKG, "the booksmith package")):
         if not os.path.exists(p):
-            raise SystemExit(f"no {p} ({what})")
+            raise Refusal(f"no {p} ({what})")
     # THE PACKAGE MUST COMPILE, AND THAT IS CHECKED RIGHT BEFORE THE UPLOAD.
     # Measured: during edits the tree failed to parse for half a minute
     # (`SyntaxError` in `read/run.py`), and in that window a book of code that
@@ -86,7 +87,7 @@ def spec(pdf: str, detect_dir: str, pages: str = "",
     # fraction of a second.
     import compileall
     if not compileall.compile_dir(PKG, quiet=2, force=True):
-        raise SystemExit(
+        raise Refusal(
             f"the package {PKG} does not compile whole -- a tree that will "
             f"not run would sail to the box, and we would learn it for money. "
             f"Sort out the error above and retry.")

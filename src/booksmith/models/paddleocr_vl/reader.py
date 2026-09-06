@@ -51,7 +51,8 @@ import hashlib
 import os
 
 from ...read import Reader, Route
-from ...run import knobs
+from booksmith.core import knobs
+from booksmith.core.errors import Refusal
 
 # Byte for byte from the model card. The colon and the space are significant.
 OCR = "OCR:"
@@ -186,7 +187,7 @@ class PaddleOcrVl(Reader):
 
     def __init__(self, policy_name: str = "PP-DocLayoutV2"):
         if policy_name not in ROUTES:
-            raise SystemExit(
+            raise Refusal(
                 f"no routes for the label vocabulary {policy_name!r}: I know "
                 f"{sorted(ROUTES)}. Asking by a foreign vocabulary means "
                 f"driving a table with the text prompt and recording prose as "

@@ -31,6 +31,7 @@ import inspect
 import time
 
 import support
+from booksmith.core.errors import Refusal
 
 from booksmith.remote import box as rbox
 from booksmith.remote import ledger
@@ -401,7 +402,7 @@ def test_the_permanent_list_is_reachable_at_the_default_floor():
     loop can actually produce: one at 1.5 Mbit/s -- under the floor of 2.0,
     hence rejected, hence a witness -- and one at 0.1 after it.
     """
-    from booksmith.run import knobs
+    from booksmith.core import knobs
     floor = float(knobs.KNOB["MIN_LINK_MBPS"].default)
     assert runner.WITNESS_MBPS < floor, (
         f"the witness floor {runner.WITNESS_MBPS} has reached the rejection "
@@ -579,7 +580,7 @@ def test_a_floor_that_is_not_a_number_is_refused_before_any_money():
         os.environ["MIN_LINK_MBPS"] = bad
         try:
             runner._min_link_mbps()
-        except SystemExit as e:
+        except (SystemExit, Refusal) as e:
             assert "MIN_LINK_MBPS" in str(e), e
         else:
             raise AssertionError(

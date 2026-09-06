@@ -28,6 +28,12 @@ THE RECORDS. Beside each report the raw result dict is kept as JSON
 A report can stay identical while a key nobody prints moves; the record sees
 it. And a record taken against other truth is reported as INPUTS MOVED, not
 as a change: the two must not read alike.
+
+A REBUILT BENCH IS RED, NOT A SKIP, on purpose. `bench/slovar` is untracked
+and rebuilt locally; its truth is byte-identical on rebuild (measured) but
+its manifest carries the commit marker of the build. The record names the
+input that moved and says whether the numbers moved with it; the person
+re-saves it having read that line.
 """
 import os
 
@@ -161,7 +167,7 @@ def test_a_record_against_other_inputs_says_inputs_moved_not_changed():
         support.skip("no text-slovar record to test against")
     with open(acceptance.record_path(name), encoding="utf-8") as f:
         want = json.load(f)
-    want["inputs"] = "0" * 64
+    want["inputs"] = {k: "0" * 64 for k in want["inputs"]}
     with tempfile.TemporaryDirectory() as tmp:
         fake = os.path.join(tmp, name + ".json")
         with open(fake, "w", encoding="utf-8") as f:
@@ -172,7 +178,9 @@ def test_a_record_against_other_inputs_says_inputs_moved_not_changed():
             d = acceptance.record_differs(name)
         finally:
             acceptance.record_path = real
-    assert len(d) == 1 and d[0].startswith("INPUTS MOVED"), d
+    assert d and d[0].startswith("INPUTS MOVED"), d
+    assert "bench/slovar/truth" in d[0], d[0]
+    assert d[1].startswith("  (the result is the same"), d[1]
 
 
 def test_the_record_diff_sees_a_moved_number_and_a_lost_key():
@@ -185,6 +193,9 @@ def test_the_record_diff_sees_a_moved_number_and_a_lost_key():
     assert any(p.startswith("/x/s") for p in out)
     assert any(p.startswith("/x/l") for p in out)
     assert "/gone: key gone" in out and "/new: new key" in out
+    nan = float("nan")
+    assert acceptance._walk_diff({"n": 0.5}, {"n": nan}, "", []) == ["/n: 0.5 -> nan"]
+    assert acceptance._walk_diff({"n": nan}, {"n": nan}, "", []) == []
 
 
 def test_the_built_book_reports_the_same_swaps():

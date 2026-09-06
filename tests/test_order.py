@@ -16,8 +16,9 @@ APART (the pair inverts, difference 0.13 against a ruler span of 4.02).
 import ast
 
 import support
+from booksmith.core.errors import Refusal
 
-from booksmith import order, policy
+from booksmith.core import order, policy
 
 
 def test_every_dictionary_has_a_translation():
@@ -105,7 +106,7 @@ def test_an_unknown_rule_dies_loudly():
     os.environ["ASSEMBLY_ORDER"] = "topToBottom"
     try:
         order.rule()
-    except SystemExit as e:
+    except (SystemExit, Refusal) as e:
         assert "ASSEMBLY_ORDER" in str(e) and "ours" in str(e), e
     else:
         raise AssertionError("an unknown rule was accepted in silence")

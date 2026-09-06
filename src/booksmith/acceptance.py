@@ -198,11 +198,15 @@ def _clean(o):
 
 
 def _sha256_of_inputs(paths):
-    """One hash over every input file, in a fixed order, so the record says
-    what it was taken against and a rebuilt bench cannot pass as the same."""
+    """{input: sha256} over each input file or directory, names included, so
+    the record says WHICH of its inputs it was taken against, and a rebuilt
+    bench cannot pass as the same one. Per input, not one hash over all: a
+    manifest rewritten by a rebuild while the truth stayed byte-identical
+    must read as "the manifest moved", not as "the inputs moved"."""
     import hashlib
-    h = hashlib.sha256()
+    out = {}
     for rel in paths:
+        h = hashlib.sha256()
         p = os.path.join(ROOT, rel)
         files = ([p] if os.path.isfile(p) else
                  sorted(os.path.join(d, f) for d, _, fs in os.walk(p)
@@ -212,7 +216,8 @@ def _sha256_of_inputs(paths):
             with open(f, "rb") as fh:
                 for chunk in iter(lambda: fh.read(1 << 20), b""):
                     h.update(chunk)
-    return h.hexdigest()
+        out[rel] = h.hexdigest()
+    return out
 
 
 def record(name):
@@ -241,7 +246,12 @@ def _walk_diff(want, got, at, out):
             _walk_diff(a, b, f"{at}[{i}]", out)
     elif (isinstance(want, (int, float)) and isinstance(got, (int, float))
           and not isinstance(want, bool) and not isinstance(got, bool)):
-        if abs(want - got) > TOLERANCE:
+        # NaN FIRST: `abs(x - nan) > t` is False for every x, so a metric that
+        # started returning NaN where it returned 0.5 read as "same record".
+        # Two NaNs are the same NaN; one NaN against a number is a change.
+        if (want != want) != (got != got):
+            out.append(f"{at}: {want} -> {got}")
+        elif want == want and abs(want - got) > TOLERANCE:
             out.append(f"{at}: {want} -> {got}")
     elif want != got:
         out.append(f"{at}: {want!r} -> {got!r}")
@@ -259,10 +269,17 @@ def record_differs(name):
     with open(record_path(name), encoding="utf-8") as f:
         want = json.load(f)
     got = record(name)
-    if want["inputs"] != got["inputs"]:
-        return [f"INPUTS MOVED: the snapshot was taken against "
-                f"{want['inputs'][:12]}, the tree holds {got['inputs'][:12]}"]
-    return _walk_diff(want["result"], got["result"], "", [])
+    moved = [k for k in sorted(set(want["inputs"]) | set(got["inputs"]))
+             if want["inputs"].get(k) != got["inputs"].get(k)]
+    diff = _walk_diff(want["result"], got["result"], "", [])
+    if moved:
+        # The verdict stands first and alone on its line; the result diff
+        # follows as INFORMATION, so that a rebuilt bench whose numbers did
+        # not move can be told from one whose numbers did, at re-save time.
+        return ([f"INPUTS MOVED: {', '.join(moved)}"] +
+                [f"  (and the result differs at {len(diff)} paths)" if diff
+                 else "  (the result is the same to the last key)"] + diff)
+    return diff
 
 
 def save_records(names=None):
@@ -345,8 +362,16 @@ def main(argv):
         # Naming them matters: a blanket save blesses every other report
         # blind, which is the failure `_TREE_HASH` above was written against.
         only = [a for a in argv if not a.startswith("--")]
+        unknown = [n for n in only if n not in COMMANDS and n not in RECORDS]
+        if unknown:
+            # Refused, not ignored: `save(None)` is a blanket save, and a typo
+            # in one name was one expression away from blessing every report
+            # blind (measured: `--save score-anopage` saved all nine).
+            print(f"  UNKNOWN {', '.join(unknown)}: not a report, not a record")
+            return 2
         done, skipped = save([n for n in only if n in COMMANDS] or None
-                             if only else None)
+                             if only else None) if (not only or any(
+                                 n in COMMANDS for n in only)) else ([], [])
         for name, n in done:
             print(f"  saved {name}: {n} lines")
         for name, gone in skipped:

@@ -32,7 +32,7 @@ import os
 import re
 
 import support
-from booksmith import schema
+from booksmith.core import schema
 
 
 def test_every_declared_key_is_present_in_the_data():

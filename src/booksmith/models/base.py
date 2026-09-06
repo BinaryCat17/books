@@ -27,77 +27,7 @@ snapshotted, so the translation stays reversible.
 Coordinates are page pixels at `dpi`; both are stored, or two runs at different
 resolutions are incomparable.
 """
-from dataclasses import dataclass, field, asdict
-
-
-@dataclass
-class Block:
-    """One block as the model saw it.
-
-    `box` is (x0, y0, x1, y1) in page pixels at `Page.dpi`, origin top left;
-    `label`, `score` and `order` are the model's own, `order` being `None` when
-    it gives no reading order.
-
-    Measured over the stored runs: `order` is `null` on 2645 blocks of 9546
-    (27.7 %), and on all blocks of exactly one page in 539. The zero follows
-    the label strictly -- 100 % for `image` (683 of 683), `figure_title` (695),
-    `table` (584), `number` (534), `header` (88), 0 % for `text`,
-    `paragraph_title`, `display_formula` -- so order was dropped for precisely
-    what level one crops out as pictures.
-
-    The raw detector ranks EVERY box (1254 of 1254 on 65 `bench/` pages), so
-    `None` here is the pipeline, not the model. Ranks arrive WITH HOLES (where
-    the threshold removed a box) and sometimes TIED: 48 boxes on 18 of those 65
-    pages share an equal rank, among them `{table, text}` pairs on one
-    rectangle. Untying is not ours to do -- the tie travels on.
-
-    `content` is what the model returned, byte for byte; `kind` says what to
-    treat it as. Parsing it is level two's work, not the adapter's.
-    """
-    block_id: int
-    box: tuple[float, float, float, float]
-    label: str
-    score: float | None = None
-    order: int | None = None
-    content: str | None = None
-    kind: str = "none"
-
-    def area(self) -> float:
-        x0, y0, x1, y1 = self.box
-        return max(0.0, x1 - x0) * max(0.0, y1 - y0)
-
-
-@dataclass
-class Page:
-    """The whole page: the model's blocks and the circumstances of the read."""
-    index: int
-    width: int
-    height: int
-    dpi: float
-    blocks: list[Block] = field(default_factory=list)
-    # The model's answer before any parsing, kept so that "the model answered
-    # so" stays separable from "we parsed it so" when the metric shows
-    # something odd.
-    raw: dict | None = None
-    meta: dict = field(default_factory=dict)
-
-    def to_json(self) -> dict:
-        # `asdict` unfolds nested dataclasses itself; the former extra line
-        # over `blocks` did that work twice.
-        return asdict(self)
-
-    @staticmethod
-    def from_json(d: dict) -> "Page":
-        # `box` must come back a TUPLE: json returns a list, and a block
-        # written to disk and read back would be unequal to its original,
-        # `(1,2,3,4) != [1,2,3,4]`. For a layer whose declared job is making
-        # two runs comparable that is material; `run/knobs.py` says the same
-        # about string defaults.
-        blocks = [Block(**{**b, "box": tuple(b["box"])})
-                  for b in d.get("blocks", [])]
-        return Page(index=d["index"], width=d["width"], height=d["height"],
-                    dpi=d["dpi"], blocks=blocks, raw=d.get("raw"),
-                    meta=d.get("meta", {}))
+from booksmith.core.page import Page
 
 
 class Recognizer:
@@ -225,33 +155,3 @@ class Recognizer:
         vendor default. `detect.py` prints every line this returns.
         """
         raise NotImplementedError
-
-
-# --------------------------------------------------------------- order ---
-# The contract for the page `meta` field `reading_order`, kept HERE because
-# adapters write that field and it already has two readers:
-# `metrics._model_has_rank` (compare order with truth at all?) and
-# `doc/html.build` (what to print into the build log). Both once read the
-# string's first word by THEIR OWN copy of the rule.
-#
-# The price of drift was paid by the instrument next door: on `bench/hard36`
-# the metric printed "reading order agreed 73 %" where order is annotated on
-# none of the 36 pages. A number out of nothing is born exactly so -- two
-# copies of one convention written down nowhere.
-OUR_ORDER = "ours"
-
-
-def ours_order(value) -> bool:
-    """Is this our order -- by the value of `meta["reading_order"]`.
-
-    Anything that is not a string (`None`, a missing field) is NOT "the
-    model's" but unknown: this function cannot answer for it, says False and
-    leaves the decision to the caller.
-
-    THE `ours` PREFIX IS THE WHOLE SIGNAL, and case is stripped on purpose:
-    the capitalised wording `doclayout.fingerprint` once used would otherwise
-    have read, in page meta, as MODEL RANK, and the metric would have scored
-    our own numbering against truth. Held by `test_guard_ignores_case`; today
-    fingerprint and page meta spell it identically, lower case.
-    """
-    return isinstance(value, str) and value.strip().lower().startswith(OUR_ORDER)

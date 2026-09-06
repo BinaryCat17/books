@@ -73,7 +73,7 @@ def commit() -> str | None:
     # the run there is the only paid one -- it must not be left without a
     # record of the code. The task builder puts its own `commit()` here; the
     # order is exactly this -- local git, when there is any, is the truer one.
-    from . import knobs
+    from booksmith.core import knobs
     told = knobs.knob("BOOKSMITH_COMMIT")
     root = os.path.dirname(os.path.dirname(
         os.path.abspath(booksmith.__file__)))

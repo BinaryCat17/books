@@ -22,7 +22,7 @@ import shutil
 
 import support
 from booksmith import metrics
-from booksmith import order
+from booksmith.core import order
 from booksmith.models import doclayout, docling_heron, yolox_layout
 
 # WHOSE ORDER EACH LINE MEANS. "model" -- comparable with truth; "ours" -- not,
@@ -129,7 +129,7 @@ def test_guard_ignores_case():
     MODEL'S RANK, and the metric would silently compare our own numbering with
     truth -- the hard36 73% of the header.
     """
-    from booksmith.models.base import ours_order
+    from booksmith.core.page import ours_order
     for v in ("OURS_top_down_left_right", "Ours_top_down", "OURS by choice",
               "  ours_top_down_left_right  "):
         assert ours_order(v), f"{v!r} was not recognised as our order"

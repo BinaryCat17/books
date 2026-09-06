@@ -58,7 +58,7 @@ class Route:
     def check(self, label: str) -> None:
         """A route must make sense. Silent rubbish here would cost a whole book
         read with the wrong prompt."""
-        from ..doc.apply import KINDS
+        from booksmith.core.page import KINDS
         if self.prompt and not self.kind:
             raise ValueError(
                 f"label {label!r}: there is a prompt but no content kind. "

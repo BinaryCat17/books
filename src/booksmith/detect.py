@@ -29,9 +29,11 @@ import shlex
 import sys
 import time
 
-from . import policy
+from booksmith.core import policy
 from .models.doclayout import DocLayout
-from .run import knobs, stamp
+from booksmith.core import knobs, stamp
+from booksmith.core.errors import Refusal
+from booksmith.core import raster
 
 # The "text / artefact / service" policy lives in one place, `policy.py`, and
 # the HTML builder takes it from there too. Two lists would drift; they have
@@ -106,7 +108,7 @@ def _adapter():
     if which == "yolox":
         from .models.yolox_layout import YoloXLayout
         return YoloXLayout()
-    raise SystemExit(f"LAYOUT_ADAPTER={which!r}: I know only {ADAPTERS}")
+    raise Refusal(f"LAYOUT_ADAPTER={which!r}: I know only {ADAPTERS}")
 
 
 # Knobs THIS command reads, not the adapter. A third rank, and no ornament:
@@ -134,7 +136,7 @@ def _knob_roles(det):
     try:
         mine = tuple(det.knobs_read())
     except NotImplementedError:
-        raise SystemExit(
+        raise Refusal(
             f"adapter {det.name} did not declare which knobs it reads "
             f"(models/base.py, knobs_read). An empty tuple is a lawful "
             f"answer, silence is not: a silent adapter would take the "
@@ -142,7 +144,7 @@ def _knob_roles(det):
             ) from None
     unknown = [n for n in mine if n not in knobs.KNOB]
     if unknown:
-        raise SystemExit(
+        raise Refusal(
             f"adapter {det.name} declared knobs the registry does not hold: "
             f"{unknown}. Either a typo, or the environment is read past "
             f"run/knobs.py -- both troubles are silent.")
@@ -196,11 +198,11 @@ def parse_pages(spec, total):
             try:
                 rng = range(int(a), int(b) + 1)
             except ValueError:
-                raise SystemExit(
+                raise Refusal(
                     f"in --pages {spec} the range {part} was not parsed. "
                     f"Expected 7-9, counting from one.")
             if not rng:
-                raise SystemExit(
+                raise Refusal(
                     f"range {part} is empty: the end is before the start")
             want.extend(rng)
         else:
@@ -209,14 +211,14 @@ def parse_pages(spec, total):
             except ValueError:
                 # Out loud and with a sample, not a stack trace: this flag is
                 # typed by hand, and a typo in it is routine.
-                raise SystemExit(
+                raise Refusal(
                     f"in --pages {spec} the piece {part} is not a page "
                     f"number. Expected 1,4,7-9 or 1 4 7-9, from one.")
     bad = [p for p in want if not 1 <= p <= total]
     if bad:
-        raise SystemExit(f"the book has {total} pages, {bad} were asked")
+        raise Refusal(f"the book has {total} pages, {bad} were asked")
     if not want:
-        raise SystemExit(f"the page set {spec} is empty -- nothing to count")
+        raise Refusal(f"the page set {spec} is empty -- nothing to count")
     return [p - 1 for p in sorted(set(want))]
 
 
@@ -245,9 +247,9 @@ def run(pdf, outdir, pages_spec=None, log=print):
     # ABSENCE AND A DIRECTORY: an empty file, a non-PDF and a book with no
     # pages are caught below, at the open.
     if not os.path.exists(pdf):
-        raise SystemExit(f"no file {pdf}")
+        raise Refusal(f"no file {pdf}")
     if os.path.isdir(pdf):
-        raise SystemExit(f"{pdf} is a directory, one book's PDF is expected")
+        raise Refusal(f"{pdf} is a directory, one book's PDF is expected")
 
     det = _adapter()
     # The policy must cover the weights vocabulary WHOLE and name nothing
@@ -306,13 +308,13 @@ def run(pdf, outdir, pages_spec=None, log=print):
     # three checked; the exception classes are foreign and deliberately not
     # named -- pymupdf has its own list, and it has changed.
     try:
-        doc = pymupdf.open(pdf)
+        doc = raster.open_pdf(pdf)
         pages_total = doc.page_count
     except Exception as e:                   # noqa: BLE001 -- foreign tree
-        raise SystemExit(
+        raise Refusal(
             f"{pdf} does not open as a PDF: {type(e).__name__}: {e}") from None
     if not pages_total:
-        raise SystemExit(
+        raise Refusal(
             f"{pdf} opened, but has zero pages -- nothing to count")
     idxs = parse_pages(pages_spec, pages_total)
 
@@ -344,7 +346,7 @@ def run(pdf, outdir, pages_spec=None, log=print):
             "modes": set(), "missing_numbers": set()}
     try:
         for n, i in enumerate(idxs, 1):
-            doc[i].get_pixmap(dpi=dpi_used).save(tmp)
+            raster.render(doc[i], dpi_used).save(tmp)
             page = det.read(tmp, i, float(dpi_used))
             # BEFORE writing to disk: a page with an unrecognised label
             # spelling must not enter the directory at all -- the metric would

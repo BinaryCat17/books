@@ -19,7 +19,7 @@ import os
 import re
 
 import support
-from booksmith import schema
+from booksmith.core import schema
 
 ROOT = os.path.dirname(os.path.dirname(support.SRC))
 

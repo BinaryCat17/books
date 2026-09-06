@@ -15,10 +15,11 @@ import os
 import re
 
 import support
+from booksmith.core.errors import Refusal
 from booksmith.models.doclayout import DocLayout
 from booksmith.models.docling_heron import DoclingEgret, DoclingHeron
 from booksmith.models.yolox_layout import YoloXLayout
-from booksmith.run import knobs
+from booksmith.core import knobs
 
 ADAPTERS = ((DocLayout, "models/doclayout.py"),
             (DoclingHeron, "models/docling_heron.py"),
@@ -372,7 +373,7 @@ def test_shape_that_could_not_be_derived_is_loud_not_silent():
     import shutil as _sh
     import tempfile
 
-    from booksmith.run import replay
+    from booksmith.core import replay
 
     tmp = tempfile.mkdtemp(prefix="booksmith-shape-")
     was = replay.PKG
@@ -427,7 +428,7 @@ def test_derivable_shape_still_requires_every_value():
     Without this half the fix could be "done" by declaring any shape
     underivable -- the branch required, and nothing inside it.
     """
-    from booksmith.run import replay
+    from booksmith.core import replay
 
     tree = replay._parse(support.src_path("models/doclayout.py"))
     fn, cls = replay._fp_def(tree, "DocLayout")
@@ -582,8 +583,8 @@ def test_replay_finds_the_snapshot_in_both_layouts():
     import json as _json
     import tempfile
 
-    from booksmith.doc.html import ASSETS
-    from booksmith.run import replay
+    from booksmith.core.book import ASSETS
+    from booksmith.core import replay
 
     snapshot = {"knobs": {"PAGE_DPI": {"value": "144"}}}
     with tempfile.TemporaryDirectory() as tmp:
@@ -653,7 +654,7 @@ def test_no_numeric_knob_takes_a_value_that_is_not_a_number():
                 os.environ[name] = bad
                 try:
                     got = knobs.number(name)
-                except SystemExit:
+                except (SystemExit, Refusal):
                     continue
                 raise AssertionError(
                     f"{name}={bad!r} was accepted as {got!r}. Every guard "

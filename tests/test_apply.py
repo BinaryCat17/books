@@ -19,6 +19,7 @@ import tempfile
 from booksmith.doc import apply as ap
 from booksmith.doc import html as dhtml
 from booksmith.doc import swap
+from booksmith.core.errors import Refusal
 
 A, B = "p0042-b17", "p0042-b18"
 BOOK = ("<!doctype html><html><body>\n<p>before</p>"
@@ -567,7 +568,7 @@ def test_a_journal_from_the_old_layout_is_seen_not_declared_empty():
         # on the one layout that needed it.
         try:
             dhtml.build(tmp, tmp, log=lambda *_: None)
-        except SystemExit as e:
+        except (SystemExit, Refusal) as e:
             assert "swap journal" in str(e), (
                 f"the rebuild refused, but not about the journal: {e}")
         else:

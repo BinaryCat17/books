@@ -1,5 +1,9 @@
 {
- "inputs": "461516d918e401f8159f7385e3940839a6d1617b9857a82ec1b96b6d368f83e6",
+ "inputs": {
+  "bench/annopage/detect/pages": "40aa888259c2a09b1ad280bd99fe542d68d7549b2b4339e4bae391530afee272",
+  "bench/annopage/manifest.json": "6987c7bdc94c3271db25927f7de71036be8a0b95b775a42f07e369998f8dded0",
+  "bench/annopage/truth": "8ee3a23b0a574ae1d06bfe54438231ae9f795ae3333d243c8b558aca75427ded"
+ },
  "result": {
   "assembly_order": {
    "agreement": null,
