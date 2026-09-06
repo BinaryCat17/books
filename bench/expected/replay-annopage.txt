@@ -1,0 +1,25 @@
+bench/annopage/detect: величин в слепке 38 из 55, не хватает 17, пусты 11 (из них ручек без значения 5); ПРОВЕРЕНО НЕ ВСЁ — 26 величин отпечатка не с чем сверить
+  отпечаток адаптера doclayout-onnx НЕ СВЕРЕН: models/doclayout.py не тот код, которым считали (в слепке 1f3ac82a, в дереве 5b4afbfe) — 26 величин отпечатка не проверено, из них в слепке нет 2. Это «слепок старый», а не «слепок неполон»
+  нет ручки/YOLOX_WEIGHTS/значение                   — ручка YOLOX_WEIGHTS
+  нет ручки/DOCLING_PIPELINE/значение                — ручка DOCLING_PIPELINE
+  нет ручки/ASSEMBLY_ORDER/значение                  — ручка ASSEMBLY_ORDER
+  нет ручки/HTML_MATH/значение                       — ручка HTML_MATH
+  нет ручки/HTML_IMAGES/значение                     — ручка HTML_IMAGES
+  нет ручки/HTML_REPEATS/значение                    — ручка HTML_REPEATS
+  нет ручки/MIN_LINK_MBPS/значение                   — ручка MIN_LINK_MBPS
+  нет ручки/BOOKSMITH_COMMIT/значение                — ручка BOOKSMITH_COMMIT
+  нет ручки/VLM_READER/значение                      — ручка VLM_READER
+  нет ручки/VLM_TRANSPORT/значение                   — ручка VLM_TRANSPORT
+  нет ручки/VLM_ENDPOINT/значение                    — ручка VLM_ENDPOINT
+  нет ручки/VLM_MAX_TOKENS/значение                  — ручка VLM_MAX_TOKENS
+  нет ручки/VLM_TIMEOUT_S/значение                   — ручка VLM_TIMEOUT_S
+  нет ручки/VLM_RETRIES/значение                     — ручка VLM_RETRIES
+  нет ручки/VLM_CONCURRENCY/значение                 — ручка VLM_CONCURRENCY
+  нет ручки/VLM_TOP_P/значение                       — ручка VLM_TOP_P
+  нет ручки/VLM_SEED/значение                        — ручка VLM_SEED
+  пусто промты                                       — все промты адаптера, побайтово
+  пусто порождение/temperature                       — температура порождения
+  пусто порождение/max_tokens                        — потолок длины ответа
+  пусто порождение/top_p                             — отсечение по вероятности
+  пусто порождение/seed                              — зерно порождения
+  пусто веса/vl                                      — отпечаток весов VLM

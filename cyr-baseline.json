@@ -1,0 +1,18 @@
+{
+ "bench_data": 2499,
+ "book_prose": 1360,
+ "config": 14880,
+ "docs": 84739,
+ "src.comments": 184477,
+ "src.docstrings": 185891,
+ "src.literals": 74847,
+ "src.names": 2411,
+ "tests.comments": 24049,
+ "tests.docstrings": 81715,
+ "tests.literals": 31726,
+ "tests.names": 2925,
+ "tools.comments": 2368,
+ "tools.docstrings": 3241,
+ "tools.literals": 364,
+ "tools.names": 0
+}

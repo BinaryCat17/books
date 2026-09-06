@@ -1,0 +1,161 @@
+"""The on-disk format, declared in one place, with a floor under every key.
+
+WHY THIS FILE EXISTS AT ALL. Of the 243 checks in `tests/`, exactly one opens a
+file under `bench/`, and it reads two ASCII fields out of it. Everything else
+runs on fixtures built by the same code it is checking. So the suite is blind,
+by construction, to the code and the data on disk drifting apart -- and that
+drift is the failure mode of every rename in this project.
+
+FOUR TIMES IT WOULD HAVE BEEN SILENT, each measured by experiment:
+
+  `порядок чтения`  renamed in code only: runner 243/242/0 and the mutation
+      battery 218/218, both byte-identical to the baseline, while the report
+      line flipped from "наш порядок построен так: ранг модели" to "не
+      объявлено" on every page of every book.
+  `текст размечен`  renamed in code only: on `bench/hard` the line "блоков 49,
+      найдено 45 (92%) — считано по 6 страницам из 130" lost its second half.
+      The percentage did not move; the knowledge of what it was computed over
+      disappeared.
+  `ручки`           renamed in code only: `books replay --check` went from "38
+      величин в слепке из 55" to 16, and returned 1 both before and after --
+      the return code carries no signal here, only the quantity does.
+  `вне замера`      renamed in data only: "на объекте вне замера: 350"
+      vanished from the report and "лишняя рамка" went 110 -> 460. Three
+      hundred and fifty boxes the bench had excluded from scoring were charged
+      to the model instead. All five headline numbers stayed put.
+
+HOW THE GUARD WORKS, AND WHY IT IS THE ONLY SHAPE THAT DOES. The key NAME comes
+from here -- that is, from the code. The COUNT comes off the disk. A guard that
+takes both from the code travels with the code and stays green through any
+rename; that was tried, and it stayed green through both directions of a
+1228-key experiment. Taking the name from one side and the number from the
+other is what makes it fail loudly in both directions:
+
+  code renamed, data not  -> the declared name is not on disk    -> red
+  data renamed, code not  -> the declared name fell below floor  -> red
+
+FLOORS ARE MEASURED, NOT GUESSED, and they are floors rather than exact counts
+so that adding a bench does not turn the guard red for no reason. They were
+counted on tracked files only: `processed/` and the synthetic benches are
+absent from git, and a guard that needs them cannot run on a fresh clone.
+"""
+import collections
+import glob as _glob
+import json
+import os
+
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+class Format:
+    """One on-disk format: where its files are, and what must be inside them.
+
+    `floors` is `key -> smallest number of occurrences seen across every
+    tracked file of this format`. A key present in the declaration but absent
+    from the data is the loudest thing this module can say.
+    """
+
+    def __init__(self, name, pattern, floors, note=""):
+        self.name = name
+        self.pattern = pattern
+        self.floors = floors
+        self.note = note
+
+    def files(self, root=ROOT):
+        return sorted(_glob.glob(os.path.join(root, self.pattern),
+                                 recursive=True))
+
+
+# Counted on 2026-09-06 at commit 4eadd5b over tracked files only.
+# Reproduce with:  python3 -m booksmith.schema
+FORMATS = (
+    Format(
+        "truth", "bench/*/truth/*.json",
+        {"случай": 1366, "книга": 1366, "разряд": 2002, "категория": 2002,
+         "исходная категория": 3587, "вне замера": 1360,
+         "объектов вне замера": 1359, "текст размечен": 1359,
+         "порядок размечен": 1324, "спорно": 1359, "невыразимо": 1359,
+         "файл": 1359},
+        "1366 tracked pages: 600 annopage, 600 annopage-lite, 130 hard, 36 hard36. "
+        "The six synthetic benches are NOT here -- .gitignore closes them "
+        "entirely and only their manifest is tracked."),
+    Format(
+        "dots_pages", "bench/*/dots*/**/*.json",
+        {"распознаватель": 1272, "порядок чтения": 1272, "ужато": 1272,
+         "проход": 1236, "промт": 1236, "потолок подачи": 1236,
+         "нехватка видеопамяти": 1236, "ошибка разбора": 1236, "ответ": 636},
+        "Paid output: $0.89 for 600 pages on an RTX 4090, and there is no home "
+        "re-parser, so these cannot be regenerated. `порядок чтения` lives here "
+        "1272 times and nowhere else in tracked data -- it is the whole floor "
+        "under danger O1."),
+    Format(
+        "detect_run", "bench/*/detect/run.json",
+        {"ручки": 3, "значение": 72, "умолчание": 72, "что": 72,
+         "задано снаружи": 72, "имя": 6, "промты": 6, "по ярлыкам": 6,
+         "когда": 3, "растр": 3, "коммит": 3, "исходник": 3, "аргументы": 3},
+        "Only three detect snapshots are tracked (annopage, hard, hard36); the "
+        "other six live behind .gitignore. `books replay --check` walks the "
+        "path ('ручки', <knob>, 'значение') -- danger O3."),
+    Format(
+        "manifest", "bench/*/manifest.json",
+        {"книга": 146, "значение": 210, "умолчание": 210, "что": 210,
+         "долг": 210, "задано снаружи": 210, "стр": 130, "знаков": 99,
+         "истина знаков": 99, "блоков с текстом": 99, "ячеек": 99},
+        "All ten bench manifests are tracked. Note the pair `страниц` (a "
+        "number) and `страницы` (a list) living in the SAME object in seven of "
+        "them: any rename that maps both onto `pages` drops the list silently "
+        "and leaves valid JSON behind."),
+)
+
+
+def measure(root=ROOT):
+    """format -> {key: occurrences} over the tracked files, right now."""
+    out = {}
+    for fmt in FORMATS:
+        c = collections.Counter()
+        for path in fmt.files(root):
+            _walk(json.load(open(path, encoding="utf-8")), c)
+        out[fmt.name] = c
+    return out
+
+
+def _walk(obj, counter):
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            counter[k] += 1
+            _walk(v, counter)
+    elif isinstance(obj, list):
+        for v in obj:
+            _walk(v, counter)
+
+
+def below_floor(root=ROOT):
+    """[(format, key, floor, found)] -- empty means code and data agree."""
+    bad = []
+    seen = measure(root)
+    for fmt in FORMATS:
+        got = seen[fmt.name]
+        for key, floor in sorted(fmt.floors.items()):
+            if got.get(key, 0) < floor:
+                bad.append((fmt.name, key, floor, got.get(key, 0)))
+    return bad
+
+
+def main():
+    for fmt in FORMATS:
+        files = fmt.files()
+        print(f"\n=== {fmt.name}: {len(files)} files  ({fmt.pattern})")
+        c = collections.Counter()
+        for path in files:
+            _walk(json.load(open(path, encoding="utf-8")), c)
+        for key, floor in sorted(fmt.floors.items(), key=lambda kv: -kv[1]):
+            got = c.get(key, 0)
+            mark = "  " if got >= floor else "LOW"
+            print(f"  {mark} {got:>7} / {floor:<7} {key}")
+    bad = below_floor()
+    print(f"\nkeys below floor: {len(bad)}")
+    return 1 if bad else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

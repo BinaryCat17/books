@@ -52,6 +52,9 @@ from booksmith.read import http as vhttp                    # noqa: E402
 from booksmith.read import run as vrun                      # noqa: E402
 from booksmith.read import run as vrun                      # noqa: E402
 from booksmith.models.paddleocr_vl.reader import PaddleOcrVl  # noqa: E402
+from booksmith import cyr as cyrmod                        # noqa: E402
+from booksmith import schema                               # noqa: E402
+from booksmith import acceptance                           # noqa: E402
 
 
 # --- чем ломаем ------------------------------------------------------------
@@ -1792,6 +1795,54 @@ def anchor_of_a_private_copy(page_index, block_id):
     return f"p{page_index:04d}-b{block_id}"
 
 
+# --- step 1 instruments: the Cyrillic ratchet and the key presence guard ----
+
+def _walk_top_only(obj, counter):
+    """A walk that does not descend.
+
+    Exactly the failure the presence guard exists to catch: `text annotated`
+    does NOT sit at the top level of a truth page, so a walk that counts only
+    top-level keys declares it missing from all 1359 files at once.
+    """
+    if isinstance(obj, dict):
+        for k in obj:
+            counter[k] += 1
+
+
+def _floors_zeroed():
+    """Floors declared as zero: a guard that cannot say "too few"."""
+    return tuple(schema.Format(f.name, f.pattern, {k: 0 for k in f.floors},
+                               f.note) for f in schema.FORMATS)
+
+
+def _globs_one_level_short():
+    """The pattern loses a directory level -- the first draft of the
+    declaration did exactly this: 636 files instead of 1272, half a floor
+    wearing the look of a measured one."""
+    return tuple(schema.Format(f.name, f.pattern.replace("/**/", "/"), f.floors,
+                               f.note) for f in schema.FORMATS)
+
+
+def _measure_finds_nothing(root=None):
+    """The disk side of the guard goes quiet. The name side must notice."""
+    return {f.name: {} for f in schema.FORMATS}
+
+
+def _clock_not_stripped():
+    """The wall clock stays in the report, so every line differs every run.
+
+    A snapshot that never matches gets its expectations re-saved by the first
+    person it annoys, and from then on it compares nothing.
+    """
+    import re
+    return re.compile(r"^(?!)")
+
+
+def _table_missing_a_format():
+    """Only the help survives -- no snapshot reads truth, pages or a snapshot."""
+    return {"help": acceptance.COMMANDS["help"]}
+
+
 def mutations():
     m = [
         ("журнал не сохраняет снятое",
@@ -3127,6 +3178,66 @@ def mutations():
         ("doc/feed завёл свою копию правила якоря",
          lambda: attrs(feed, anchor_of=anchor_of_a_private_copy),
          [("test_html_order", "test_the_anchor_rule_has_exactly_one_home")]),
+
+        ("the Cyrillic counter catches any non-ASCII",
+         lambda: attrs(cyrmod, cyr=lambda s: sum(1 for c in s if ord(c) > 127)),
+         [("test_cyrillic_ratchet",
+           "test_the_counter_ignores_punctuation_it_must_not_chase")]),
+
+        ("the Cyrillic counter counts lines, not codepoints",
+         lambda: attrs(cyrmod, cyr=lambda s: len(s.splitlines())),
+         [("test_cyrillic_ratchet",
+           "test_the_counter_counts_codepoints_not_lines")]),
+
+        ("book prose is no longer separated from ours",
+         lambda: attrs(cyrmod, CONTENT_NAMES=()),
+         [("test_cyrillic_ratchet",
+           "test_book_content_is_exempt_by_name_not_by_file")]),
+
+        ("the ratchet presses on book prose too",
+         lambda: attrs(cyrmod, ratchet_areas=lambda c: dict(c)),
+         [("test_cyrillic_ratchet",
+           "test_book_content_is_exempt_by_name_not_by_file")]),
+
+        ("the data walk does not descend",
+         lambda: attrs(schema, _walk=_walk_top_only),
+         [("test_data_contract",
+           "test_the_guard_can_fail_when_the_data_renames"),
+          ("test_data_contract",
+           "test_every_declared_key_is_present_in_the_data")]),
+
+        ("key floors are declared as zero",
+         lambda: attrs(schema, FORMATS=_floors_zeroed()),
+         [("test_data_contract", "test_the_floors_are_not_all_zero")]),
+
+        ("the file pattern lost a directory level",
+         lambda: attrs(schema, FORMATS=_globs_one_level_short()),
+         [("test_data_contract",
+           "test_the_declaration_reaches_the_files_it_names")]),
+
+        ("the ratchet baseline is unreachable",
+         lambda: attrs(cyrmod, BASELINE="/nonexistent/cyr-baseline.json"),
+         [("test_cyrillic_ratchet",
+           "test_the_baseline_exists_and_covers_every_area"),
+          ("test_cyrillic_ratchet", "test_no_area_grew")]),
+
+        ("the disk side of the presence guard goes quiet",
+         lambda: attrs(schema, measure=_measure_finds_nothing),
+         [("test_data_contract",
+           "test_the_guard_can_fail_when_the_code_renames"),
+          ("test_data_contract",
+           "test_every_declared_key_is_present_in_the_data")]),
+
+        ("the acceptance clock is not stripped",
+         lambda: attrs(acceptance, _CLOCK=_clock_not_stripped()),
+         [("test_acceptance", "test_score_on_annopage_reports_the_same_report"),
+          ("test_acceptance", "test_score_on_hard_reports_the_same_report"),
+          ("test_acceptance", "test_text_on_slovar_reports_the_same_report")]),
+
+        ("the acceptance table no longer reads the data formats",
+         lambda: attrs(acceptance, COMMANDS=_table_missing_a_format()),
+         [("test_acceptance",
+           "test_the_command_table_covers_every_format_the_migration_touches")]),
     ]
     return [(t + ("",))[:4] if len(t) == 3 else t for t in m]
 
