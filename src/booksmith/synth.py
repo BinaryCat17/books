@@ -32,6 +32,7 @@ golden bench, hand-marked on real pages.
 import hashlib
 import json
 import os
+import shutil
 
 from .run import knobs
 
@@ -1603,7 +1604,27 @@ def build(out_dir: str, cases=None, seed: int = 1, aging: str = "old",
     The product is an ordinary PDF, so `books detect`, `books html` and
     `books feed` work on it unamended: the bench is not a separate pipeline,
     just such a book with a known answer.
+
+    NOTHING HALF-BUILT SURVIVES A REFUSAL. The aside files are removed on the
+    way out unless the swap completed -- `bench/<book>/truth.new` beside a
+    tracked bench is a partial second copy of the truth, and the next reader
+    has no way to tell which one is the bench.
     """
+    aside = (os.path.join(out_dir, "truth.new"),
+             os.path.join(out_dir, f"{book}.pdf.new"),
+             os.path.join(out_dir, "manifest.json.new"))
+    try:
+        return _build(out_dir, cases, seed, aging, book, log)
+    except BaseException:
+        for p in aside:
+            try:
+                shutil.rmtree(p) if os.path.isdir(p) else os.unlink(p)
+            except OSError:
+                pass                  # the refusal is the news, not this
+        raise
+
+
+def _build(out_dir, cases, seed, aging, book, log) -> dict:
     import cv2
     import numpy as np
     import pymupdf
@@ -1628,9 +1649,24 @@ def build(out_dir: str, cases=None, seed: int = 1, aging: str = "old",
 
     os.makedirs(out_dir, exist_ok=True)
     truth_dir = os.path.join(out_dir, "truth")
-    os.makedirs(truth_dir, exist_ok=True)
-    for old in os.listdir(truth_dir):
-        os.unlink(os.path.join(truth_dir, old))
+    # WRITTEN ASIDE AND SWAPPED IN ONLY AFTER THE LAST REFUSAL -- the third of
+    # the three bench builders to learn this, and the same accident each time.
+    # `truth/` was emptied HERE, before a loop that raises `SynthError` eight
+    # ways (an empty truth box, a `_say` out of step with `truth.append`, a
+    # box count that does not match, a collapsed box after ageing, a page that
+    # will not re-compress). Any of them left the bench a MIXTURE: some truth
+    # files from the new build, the rest destroyed, the pdf and manifest from
+    # the old one. Cheaper here than on the golden bench, since synth rebuilds
+    # from a seed -- but a mixture is not a bench, and nothing said so.
+    work = truth_dir + ".new"
+    wpdf = os.path.join(out_dir, f"{book}.pdf.new")
+    wman = os.path.join(out_dir, "manifest.json.new")
+    for stale in (wpdf, wman):
+        if os.path.exists(stale):
+            os.unlink(stale)
+    if os.path.isdir(work):
+        shutil.rmtree(work)
+    os.makedirs(work)
 
     out = pymupdf.open()
     pages, counts = [], {}
@@ -1796,7 +1832,7 @@ def build(out_dir: str, cases=None, seed: int = 1, aging: str = "old",
                                         if "cells" in v),
                  "cell_count": sum(v["rows"] * v["cols"]
                               for v in art_truth.values() if "cells" in v)}
-        with open(os.path.join(truth_dir, f"{i:04d}.json"), "w",
+        with open(os.path.join(work, f"{i:04d}.json"), "w",
                   encoding="utf-8") as f:
             json.dump({"index": i, "width": w, "height": h, "dpi": DPI,
                        "blocks": blocks, "raw": None,
@@ -1876,7 +1912,7 @@ def build(out_dir: str, cases=None, seed: int = 1, aging: str = "old",
     # rebuilding a bench silently invalidated EVERY earlier run over it,
     # discoverable only by a refused build. With this flag two runs give
     # byte-equal files; `reproducible=True` does NOT.
-    out.save(pdf, garbage=3, deflate=True, no_new_id=True)
+    out.save(wpdf, garbage=3, deflate=True, no_new_id=True)
     out.close()
 
     # THE TRUTH SNAPSHOT. Without it editing any drawer changes the truth
@@ -1913,12 +1949,30 @@ def build(out_dir: str, cases=None, seed: int = 1, aging: str = "old",
            "aging_params": AGING[aging],
            "fonts": {os.path.basename(FONT): _sha256(FONT),
                       os.path.basename(FONT_MONO): _sha256(FONT_MONO)},
-           "pdf": os.path.basename(pdf), "sha256 pdf": _sha256(pdf),
+           "pdf": os.path.basename(pdf), "sha256 pdf": _sha256(wpdf),
            "blocks_by_label": counts, "char_truth": total,
            "pages": pages}
-    with open(os.path.join(out_dir, "manifest.json"), "w",
-              encoding="utf-8") as f:
+    with open(wman, "w", encoding="utf-8") as f:
         json.dump(man, f, ensure_ascii=False, indent=1)
+
+    # Nothing below here can refuse. Truth, pdf and manifest go together: they
+    # refer to one another, and a bench holding two of the three from
+    # different builds is worse than one that failed outright.
+    keep = truth_dir + ".previous"
+    if os.path.isdir(keep):
+        shutil.rmtree(keep)
+    if os.path.isdir(truth_dir):
+        os.rename(truth_dir, keep)
+    os.rename(work, truth_dir)
+    os.replace(wpdf, pdf)
+    os.replace(wman, os.path.join(out_dir, "manifest.json"))
+    if os.path.isdir(keep):
+        try:
+            shutil.rmtree(keep)
+        except OSError as e:
+            log(f"WARNING: the previous truth is left at {keep} ({e}) -- the "
+                f"bench itself is whole, but that is a second copy and must "
+                f"be removed by hand")
     log(f"pages {len(pages)}, truth blocks {sum(counts.values())} "
         f"({', '.join(f'{k} {v}' for k, v in sorted(counts.items()))})")
     # A MAGNITUDE, NOT THE WORD "DONE". Each of these has caught trouble the

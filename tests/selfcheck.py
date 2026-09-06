@@ -30,6 +30,7 @@ import support                                              # noqa: E402
 from booksmith import metrics, otsl, policy                 # noqa: E402
 from booksmith import fitness as fit                        # noqa: E402
 from booksmith.remote import vast as vastmod
+from booksmith.remote import runner as runnermod
 from booksmith import order
 from booksmith import annopage                              # noqa: E402
 from booksmith import overlay                               # noqa: E402
@@ -2458,15 +2459,26 @@ def mutations():
          [("test_rent_deadlines",
            "test_a_machine_is_blamed_only_with_a_witness")]),
 
-        # The zero case, which the ratio test alone lets through: `0.0 < 0.0`
-        # is False, so a probe of zero was blamed with nothing to compare it
-        # against.
-        # The two journal writers had two copies of one line, and the
-        # unguarded one runs while a machine is billing.
         # --- the distillate: a refusal may not destroy the truth --------
         ("the distillate empties the truth before its guards run",
          lambda: attrs(subset, build=build_that_empties_truth_first),
          [("test_subset", "test_a_refused_build_does_not_destroy_good_truth")]),
+
+        ("the traits stop being carried into the passport",
+         lambda: attrs(subset, TRAITS=()),
+         [("test_subset", "test_the_traits_reach_the_manifest_and_the_log")]),
+
+        ("the pdf is written into place while the truth waits aside",
+         lambda: one_line("booksmith.subset",
+                          "    doc.save(wpdf, garbage=3, deflate=True)",
+                          "    doc.save(pdf, garbage=3, deflate=True)"),
+         [("test_subset",
+           "test_truth_pdf_and_manifest_are_swapped_together")]),
+
+        ("a refusal leaves what it wrote aside",
+         lambda: attrs(subset, _swept=lambda fn, *a: fn(*a)),
+         [("test_subset",
+           "test_no_refusal_leaves_a_half_built_bench_behind")]),
 
         ("the carry-over keeps only the distillate's own fields",
          lambda: attrs(subset,
@@ -2492,6 +2504,8 @@ def mutations():
          [("test_rent_deadlines",
            "test_the_channel_that_decides_reaches_the_ledger")]),
 
+        # The two journal writers had two copies of one line, and the
+        # unguarded one runs while a machine is billing.
         ("the blacklist writer stops guarding its directory",
          lambda: one_line("booksmith.remote.ledger",
                           '    os.makedirs(os.path.dirname(path) or ".", '
@@ -2501,12 +2515,69 @@ def mutations():
          [("test_rent_deadlines",
            "test_both_journal_writers_survive_a_bare_file_name")]),
 
+        # The ratio alone has no floor: `0.0 < 0.0` is False, and so is
+        # `0.04 < 0.0`. A path dying at our end banned four machines of five.
         ("a witness of zero counts as a witness",
          lambda: one_line("booksmith.remote.runner",
-                          "    if best_link <= 0:",
+                          "    if best_link < WITNESS_MBPS:",
                           "    if False:"),
          [("test_rent_deadlines",
-           "test_a_zero_probe_with_no_witness_at_all_blames_nobody")]),
+           "test_a_zero_probe_with_no_witness_at_all_blames_nobody"),
+          ("test_rent_deadlines",
+           "test_a_path_dying_at_our_end_blames_nobody_at_all")]),
+
+        ("a trickle counts as a witness",
+         lambda: attrs(runnermod, WITNESS_MBPS=0.0),
+         [("test_rent_deadlines",
+           "test_a_path_dying_at_our_end_blames_nobody_at_all")]),
+
+        ("a failed blacklist write takes the rental with it",
+         lambda: one_line(
+             "booksmith.remote.runner",
+             "    try:\n"
+             "        mark(offer.get(\"machine_id\"), reason)\n"
+             "    except Exception as e:                                  "
+             "# noqa: BLE001\n"
+             "        say(f\"  WARNING: machine {offer.get('machine_id')} "
+             "could NOT be \"",
+             "    if True:\n"
+             "        mark(offer.get(\"machine_id\"), reason)\n"
+             "    if False:\n"
+             "        say(f\"  WARNING: machine {offer.get('machine_id')} "
+             "could NOT be \""),
+         [("test_rent_deadlines",
+           "test_a_failed_blacklist_write_does_not_kill_the_rental")]),
+
+        ("the rejection floor is taken on trust",
+         lambda: one_line("booksmith.remote.runner",
+                          "    raw = knobs.knob(\"MIN_LINK_MBPS\")",
+                          "    return float(knobs.knob(\"MIN_LINK_MBPS\"))"),
+         [("test_rent_deadlines",
+           "test_a_floor_that_is_not_a_number_is_refused_before_any_money")]),
+
+        ("our own downlink is measured and not written down",
+         lambda: one_line("booksmith.remote.runner",
+                          "    rec.our_downlink_mbps = ours or None",
+                          "    pass"),
+         [("test_rent_deadlines",
+           "test_the_channel_that_decides_reaches_the_ledger")]),
+
+        # A SIZE instead of a deadline -- half the original defect, and the
+        # virtual clock alone cannot see it: both loops divide the same bytes
+        # by the same time. What tells them apart is how long the probe ran.
+        ("the probe waits for a size instead of a deadline",
+         lambda: one_line("booksmith.remote.box",
+                          "            while time.time() - t0 < seconds:",
+                          "            while got < 4 * 1024 * 1024:"),
+         [("test_rent_deadlines",
+           "test_the_probe_stops_ON_TIME_and_not_on_a_byte_count")]),
+
+        ("the probe calls one chunk a measurement",
+         lambda: one_line("booksmith.remote.box",
+                          "            while time.time() - t0 < seconds:",
+                          "            while got < 65536:"),
+         [("test_rent_deadlines",
+           "test_the_probe_stops_ON_TIME_and_not_on_a_byte_count")]),
 
         ("a dead pipe passes for a live channel",
          lambda: one_line("booksmith.remote.box",

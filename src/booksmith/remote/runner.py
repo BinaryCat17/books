@@ -347,8 +347,36 @@ def execute(box: Box, spec: JobSpec, outdir: str,
 # gave 1.9 -- five rentals in a row rejected entirely, with no way to loosen it
 # deliberately. And it missed the snapshot: renting at one threshold and
 # refusing at another looked the same.
+# What a WITNESS must itself reach before it may condemn another machine.
+# Not the rejection floor -- see `blame_machine`, where tying the two together
+# made loosening one make the other harsher. This is a property of OUR path:
+# every reading this project has taken of its own ssh when sick is below it
+# (0.25 and 0.34 on 3 September, 1.16 in the arithmetic in `box.probe`).
+WITNESS_MBPS = 2.0
+
+
 def _min_link_mbps() -> float:
-    return float(knobs.knob("MIN_LINK_MBPS"))
+    """The rejection floor from the registry, refused if it is not a number.
+
+    `float()` accepts `nan` and `inf`, and `nan` compares False with
+    everything: `MIN_LINK_MBPS=nan` made `link >= floor` and `link < floor`
+    BOTH false, so every machine fell through the branches to "the reason was
+    not named" and five rentals were paid for and thrown away without one of
+    them being blamed or accepted. A typo that costs money must be a refusal
+    before the first rental, not a puzzling log after five.
+    """
+    raw = knobs.knob("MIN_LINK_MBPS")
+    try:
+        v = float(raw)
+    except (TypeError, ValueError):
+        raise SystemExit(f"MIN_LINK_MBPS={raw!r} is not a number") from None
+    if not (v == v) or v in (float("inf"), float("-inf")) or v < 0:
+        raise SystemExit(
+            f"MIN_LINK_MBPS={raw!r}: a rejection floor must be a finite "
+            f"number and not negative. `nan` compares False with everything, "
+            f"so every machine would be neither accepted nor rejected for a "
+            f"named reason -- five rentals paid for and nothing learned")
+    return v
 
 
 
@@ -428,17 +456,33 @@ def blame_machine(offer: dict, reason: str, *, ours: float, link: float,
     machine in a row, it may be OUR channel". Blame the machine only with a
     WITNESS: another machine that gave us three times more over the same ssh.
 
-    AND A WITNESS OF ZERO IS NOT A WITNESS. `best_link < 3 * link` was the
-    whole test, and at `link == 0.0` it reads `0.0 < 0.0` -- False -- so the
-    machine went onto the permanent list with nothing to compare it against.
-    That is the case the probe returns most often when OUR path is dead: the
-    probe measures by time, so a broken path at our end gives zero from every
-    machine, and every one of them would have been banned forever on the first
-    attempt. The 3 September incident, arriving down the other branch.
+    AND A WITNESS MUST ITSELF BE A SPEED WORTH HAVING. `best_link < 3 * link`
+    was the whole test, and a ratio has no floor: at `link == 0.0` it reads
+    `0.0 < 0.0` -- False -- and at `link == 0.0` beside a `best_link` of 0.04
+    it reads `0.04 < 0.0`, also False. So a path dying at OUR end, which is
+    what gives zeros from every machine in a row, blacklisted them all:
+    replayed over one rent loop, a path leaking a single 64 KiB chunk to the
+    first machine banned FOUR of the five that followed, forever, and there is
+    no command in this project that takes an entry off that list.
 
-    So the two silences are named apart, as everywhere else in this project:
-    "nobody has ever given us anything over ssh" is not "the best we have seen
-    is not three times this one".
+    Requiring `best_link > 0` closes only the exact zero, and a probe that
+    receives one byte in twelve seconds returns 6.7e-07, not zero. So the
+    witness has a FLOOR, and the floor is a measurement: every reading this
+    project has ever taken of its OWN ssh path when it was sick is below
+    2 Mbit/s -- 0.25 and 0.34 on 3 September, 1.16 in the arithmetic recorded
+    in `box.probe`. A machine reporting less than that is not evidence about
+    the machine; it is evidence about us.
+
+    THE FLOOR IS NOT THE REJECTION FLOOR, and may never become it. That was
+    the second half of the 3 September defect: tying this to `MIN_LINK_MBPS`
+    made loosening the rejection floor -- to let more machines through --
+    ALSO make a permanent ban easier. One knob pulling two ways. `limit` is
+    absent from the signature and `test_the_verdict_cannot_depend_on_the_
+    rejection_floor` keeps it out.
+
+    So the silences are named apart, as everywhere else here: "nobody has
+    given us anything usable over ssh" is not "the best we have seen is not
+    three times this one".
     """
     mark = mark or ledger.mark_bad
     say = say or log
@@ -446,11 +490,12 @@ def blame_machine(offer: dict, reason: str, *, ours: float, link: float,
         say("  our channel is not measured -- NOT blacklisting: the "
             "probe's zero may have been ours")
         return False
-    if best_link <= 0:
-        say(f"  NOT blacklisting: NO machine has yet given us anything over "
-            f"ssh, so this one's {link:.2f} Mbit/s has no witness at all. "
-            f"This is not 'the machine is the worst we have seen', it is "
-            f"'we have seen nothing', and the list is forever")
+    if best_link < WITNESS_MBPS:
+        say(f"  NOT blacklisting: the best any machine has given us over ssh "
+            f"is {best_link:.2f} Mbit/s, under the {WITNESS_MBPS:.1f} a "
+            f"witness must clear -- so nobody has shown this path works, and "
+            f"this one's {link:.2f} is as likely ours as its own. The list "
+            f"is forever and has no undo")
         return False
     if best_link < 3 * link:
         say(f"  NOT blacklisting: the best ever given us over ssh is "
@@ -458,7 +503,20 @@ def blame_machine(offer: dict, reason: str, *, ours: float, link: float,
             f"witness against the machine, our own path looks narrow, "
             f"and the list is forever")
         return False
-    mark(offer.get("machine_id"), reason)
+    # THE RECORD MAY NOT KILL THE RUN. `mark_bad` writes a file, and a file
+    # write can fail -- a read-only ledger directory took the whole rental with
+    # a `PermissionError` out of the middle of `_rent`, machine taken and
+    # billing. The other caller of `mark_bad`, the CUDA branch, has always been
+    # wrapped; this one, on the money path, was not. Failing to WRITE DOWN a
+    # blacklisting is bad; abandoning a running machine over it is worse, and
+    # the difference is said out loud rather than swallowed.
+    try:
+        mark(offer.get("machine_id"), reason)
+    except Exception as e:                                  # noqa: BLE001
+        say(f"  WARNING: machine {offer.get('machine_id')} could NOT be "
+            f"written to the blacklist ({e}) -- it will be offered again. "
+            f"The run goes on; the list is what failed, not the rental")
+        return False
     return True
 
 

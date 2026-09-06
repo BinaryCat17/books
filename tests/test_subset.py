@@ -131,3 +131,128 @@ def test_the_build_leaves_no_working_directory_behind():
     left = [d for d in os.listdir(out) if d.startswith("truth.")]
     assert not left, f"working directories left behind: {left}"
     shutil.rmtree(tmp, ignore_errors=True)
+
+
+def _aside(out):
+    return sorted(n for n in os.listdir(out)
+                  if n.endswith(".new") or n.endswith(".previous"))
+
+
+def test_no_refusal_leaves_a_half_built_bench_behind():
+    """Aside files are swept on the way out, and that matters where it lands.
+
+    The default `out_dir` is `bench/hard`, which is TRACKED and does not
+    ignore `truth.new`: a refused `books subset` used to put a partial second
+    copy of the bench truth into the working tree, with nothing to say which
+    of the two directories is the bench.
+    """
+    tmp = tempfile.mkdtemp()
+    root = os.path.join(tmp, "bench")
+    _bench(root, "good", pages=2)
+    out = os.path.join(tmp, "hard")
+    subset.build(["good"], out, root=root, log=lambda *a: None)
+
+    _bench(root, "clash", pages=1, meta={"from_book": "somebody else"})
+    for books in (["good", "nosuchbook"], ["good", "clash"]):
+        try:
+            subset.build(books, out, root=root, log=lambda *a: None)
+        except subset.SubsetError:
+            pass
+        else:
+            raise AssertionError(f"{books} did not refuse at all")
+        assert not _aside(out), (
+            f"after refusing {books}, {_aside(out)} is left in {out} -- a "
+            f"partial second copy of the bench, and nothing says which is it")
+    shutil.rmtree(tmp, ignore_errors=True)
+
+
+def test_truth_pdf_and_manifest_are_swapped_together():
+    """Three parts that refer to one another, and they move as one.
+
+    `t["index"]` addresses a page of THAT pdf and the manifest holds its
+    sha256 and page count. The first edition of the write-aside moved only the
+    truth, so a crash in between left `truth/` describing four pages and
+    `hard.pdf` holding eight -- the mixed bench, moved one file over.
+
+    The crash is placed after the pdf is written and before the swap, which is
+    exactly the window that used to be open.
+    """
+    tmp = tempfile.mkdtemp()
+    root = os.path.join(tmp, "bench")
+    _bench(root, "small", pages=2)
+    out = os.path.join(tmp, "hard")
+    subset.build(["small"], out, root=root, log=lambda *a: None)
+    was = {n: open(os.path.join(out, "truth", n), encoding="utf-8").read()
+           for n in os.listdir(os.path.join(out, "truth"))}
+    man_was = open(os.path.join(out, "manifest.json"), encoding="utf-8").read()
+    pdf_was = open(os.path.join(out, "hard.pdf"), "rb").read()
+
+    _bench(root, "more", pages=4)
+    real = subset._sha256
+
+    def boom(path):
+        # `_sha256` of the aside pdf is the last thing before the manifest,
+        # i.e. after the new pdf exists and before anything is swapped.
+        if path.endswith(".new"):
+            raise RuntimeError("interrupted between the pdf and the swap")
+        return real(path)
+
+    subset._sha256 = boom
+    try:
+        subset.build(["small", "more"], out, root=root, log=lambda *a: None)
+    except RuntimeError:
+        pass
+    else:
+        raise AssertionError("the staged crash did not happen")
+    finally:
+        subset._sha256 = real
+
+    now = {n: open(os.path.join(out, "truth", n), encoding="utf-8").read()
+           for n in os.listdir(os.path.join(out, "truth"))}
+    assert now == was, "the truth moved while the pdf and manifest did not"
+    assert open(os.path.join(out, "hard.pdf"), "rb").read() == pdf_was, (
+        "the pdf was replaced while the truth was not: `t['index']` now "
+        "addresses pages of a DIFFERENT book")
+    assert open(os.path.join(out, "manifest.json"),
+                encoding="utf-8").read() == man_was, (
+        "the manifest moved on its own: its sha256 and page_count no longer "
+        "describe the bench beside it")
+    assert not _aside(out), f"aside files left behind: {_aside(out)}"
+    shutil.rmtree(tmp, ignore_errors=True)
+
+
+def test_the_traits_reach_the_manifest_and_the_log():
+    """The passport is the thing this file exists for, and it was unguarded.
+
+    `TRAITS` names the truth traits without which a metric silently changes
+    its answer, and the manifest carries their state so a reader knows what
+    CAN be measured here before the first `books score`. Emptying `TRAITS`
+    left every check green while `truth_traits` became `{}` and the passport
+    lines vanished from the log -- the same silence that once printed "pairs
+    211, agreed 73 %" out of nothing.
+    """
+    tmp = tempfile.mkdtemp()
+    root = os.path.join(tmp, "bench")
+    _bench(root, "good", pages=2, meta={"order_marked": True})
+    out = os.path.join(tmp, "hard")
+    said = []
+    man = subset.build(["good"], out, root=root, log=said.append)
+
+    assert subset.TRAITS, "TRAITS is empty: the passport declares nothing"
+    got = man.get("truth_traits") or {}
+    assert set(got) == set(subset.TRAITS), (
+        f"the manifest's passport covers {sorted(got)}, the declaration names "
+        f"{sorted(subset.TRAITS)}")
+    for key in subset.TRAITS:
+        assert sum(got[key].values()) == man["page_count"], (
+            f"trait {key!r} is counted over {sum(got[key].values())} pages of "
+            f"{man['page_count']} -- some page was neither yes, no nor "
+            f"not_said, which is a fourth answer nobody declared")
+        assert any(key in line for line in said), (
+            f"trait {key!r} is in the manifest and not in the log: the "
+            f"quantity was carried and never said")
+    on_disk = json.load(open(os.path.join(out, "manifest.json"),
+                             encoding="utf-8"))
+    assert on_disk["truth_traits"] == got, (
+        "the passport returned differs from the passport written down")
+    shutil.rmtree(tmp, ignore_errors=True)

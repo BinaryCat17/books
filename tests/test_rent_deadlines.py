@@ -55,18 +55,28 @@ class _Stream:
         self.total, self.sent = total, 0
         self.stdout = self
 
+    # How much virtual time one `read` costs. A pipe hands over what has
+    # ARRIVED, not what was asked for, and that difference is the whole reason
+    # the probe reads for a time rather than for a size.
+    QUANTUM = 0.01
+
     def read(self, n):
         # ON A CLOCK OF OUR OWN, and that is the whole point. This used to read
         # `time.time()` and sleep 10 ms when nothing had arrived yet, so the
         # measurement rode the scheduler: under a stall the probe's elapsed
         # time grew while no bytes flowed, and the check failed about 1.4 % of
-        # runs -- a defect of the check, not of the probe. Now the pipe hands
-        # over exactly what `n` bytes take at `mbps` and ADVANCES THE CLOCK by
-        # that much, so the arithmetic under test is the only thing measured.
+        # runs -- a defect of the check, not of the probe.
+        #
+        # The first virtual-clock edition then handed over the WHOLE request
+        # and charged the clock for it, so one 64 KiB read at 62 kbit/s cost
+        # 8.5 virtual seconds and the probe could not be seen to overrun its
+        # deadline at all. A pipe gives what a quantum of time delivered.
         if self.total is not None and self.sent >= self.total:
             return b""              # the stream is over
-        give = n if self.total is None else min(n, self.total - self.sent)
-        self.clock[0] += give * 8 / (self.mbps * 1e6)
+        give = int(self.mbps * 1e6 / 8 * self.QUANTUM)
+        give = min(n, give) if self.total is None else min(
+            n, give, self.total - self.sent)
+        self.clock[0] += self.QUANTUM
         self.sent += give
         return b"\x00" * give
 
@@ -84,17 +94,38 @@ def _probe_at(mbps, seconds=0.6, total=None):
     the probe's arithmetic and on nothing else -- not on the scheduler, not on
     how long this machine takes to run a loop.
     """
+    return _probe_timed(mbps, seconds, total)[0]
+
+
+class _Clock:
+    """A stand-in for the `time` module, seen only by `remote.box`.
+
+    NOT `time.time = ...`. The first edition assigned through `rbox.time`,
+    which IS the stdlib module, so the patch was process-wide for the length
+    of the probe -- in a project that runs heartbeat threads. Replacing the
+    NAME in one module's namespace reaches only the code under test.
+    """
+
+    def __init__(self, at):
+        self.at = at
+
+    def time(self):
+        return self.at[0]
+
+
+def _probe_timed(mbps, seconds=0.6, total=None):
+    """(measured Mbit/s, virtual seconds the probe took)."""
     import subprocess
     clock = [1000.0]
     stream = _Stream(mbps, total, clock)
-    was_popen, was_time = subprocess.Popen, rbox.time.time
+    was_popen, was_time = subprocess.Popen, rbox.time
     subprocess.Popen = lambda *a, **k: stream
-    rbox.time.time = lambda: clock[0]
+    rbox.time = _Clock(clock)
     try:
-        return _FakeSsh().probe(seconds=seconds)
+        return _FakeSsh().probe(seconds=seconds), clock[0] - 1000.0
     finally:
         subprocess.Popen = was_popen
-        rbox.time.time = was_time
+        rbox.time = was_time
 
 
 def test_a_narrow_channel_is_measured_not_called_broken():
@@ -135,6 +166,31 @@ def test_a_broken_machine_still_gives_a_number_below_any_floor():
     assert healthy > 10.0, (
         f"a healthy machine measured as {healthy:.1f} Mbit/s -- the probe "
         f"reads low")
+
+
+def test_the_probe_stops_ON_TIME_and_not_on_a_byte_count():
+    """It reads FOR A TIME. Reading for a SIZE is the defect it was born from.
+
+    The original probe demanded exactly 4 MB and returned 0.0 short of them,
+    so a slow machine was written down as a broken one. Under a virtual clock
+    the RATE alone cannot tell the two loops apart -- `while got < 4 MB` and
+    `while elapsed < seconds` both divide the same bytes by the same time --
+    so what is measured here is the DEADLINE: a 62 kbit/s pipe needs 516
+    seconds to hand over 4 MB and must be let go after the 0.6 it was given.
+
+    Without this, a size demand passed every check in the file.
+    """
+    for mbps in (0.062, 1.16, 50.0):
+        _, took = _probe_timed(mbps, seconds=0.6)
+        assert took <= 1.2, (
+            f"at {mbps} Mbit/s the probe ran {took:.1f} s of the 0.6 it was "
+            f"given -- it is waiting for a SIZE, and a slow machine will be "
+            f"written down as a broken one, which is the defect this probe "
+            f"was written to end")
+        assert took >= 0.3, (
+            f"at {mbps} Mbit/s the probe gave up after {took:.3f} s of 0.6 -- "
+            f"it stopped on a byte count, and one early chunk is the TCP "
+            f"ramp-up, not the channel")
 
 
 def test_a_dead_channel_is_the_only_zero():
@@ -224,6 +280,52 @@ def test_a_machine_is_blamed_only_with_a_witness():
     assert _blame_with(link=0.25, best=7.0, ours=0.0) == [], (
         "listed while our own channel was not measured")
 
+    # ABOVE THE WITNESS FLOOR, so the RATIO is what decides here and nothing
+    # else. Without this pair the floor answers both cases and the ratio can
+    # be deleted unnoticed -- which is exactly what happened when the floor
+    # was added: two mutations over `best_link < 3 * link` stopped being
+    # caught, because 0.34 never reached the ratio at all.
+    assert _blame_with(link=2.0, best=3.0, ours=4.6) == [], (
+        "machine listed FOREVER on 2.0 Mbit/s while the best seen was 3.0 -- "
+        "a witness must be three times better, not merely better")
+    assert _blame_with(link=2.0, best=9.0, ours=4.6), (
+        "machine NOT listed on 2.0 Mbit/s against a witness of 9.0 -- the "
+        "ratio has stopped deciding anything")
+
+
+def test_a_path_dying_at_our_end_blames_nobody_at_all():
+    """The whole rent loop, not one call: a sick path bans NO machine.
+
+    Requiring a witness above zero closed exactly one input -- `best_link ==
+    0.0` -- and a probe that receives ONE BYTE in twelve seconds returns
+    6.7e-07, not zero. Replayed over five machines, a path leaking a single
+    64 KiB chunk to the first of them banned the other four FOREVER, and this
+    project has no command that takes an entry off that list.
+
+    So the witness has a floor of its own, and this drives the three shapes a
+    sick path takes: one machine leaks a chunk, one leaks a byte, and all of
+    them dribble.
+    """
+    for name, links in (
+            ("one 64 KiB chunk", [0.0437, 0.0, 0.0, 0.0, 0.0]),
+            ("one byte in twelve seconds", [6.67e-07, 0.0, 0.0, 0.0, 0.0]),
+            ("every machine dribbles", [0.050, 0.008, 0.012, 0.006, 0.009])):
+        best, banned = 0.0, []
+        for i, link in enumerate(links):
+            best = max(best, link)          # as `_rent` does, before blaming
+            if _blame_with(link=link, best=best, ours=4.6):
+                banned.append(i)
+        assert not banned, (
+            f"{name}: machines {banned} went onto the PERMANENT list while "
+            f"the best anyone gave us was {best:.4g} Mbit/s -- that is our "
+            f"path, not theirs, and the list has no undo")
+
+    # And a healthy path still condemns: one good machine, then a bad one.
+    best = max(0.0, 7.0)
+    assert _blame_with(link=0.25, best=best, ours=4.6), (
+        "with a witness at 7.0 Mbit/s a machine giving 0.25 was NOT listed -- "
+        "the floor has swallowed the rule it was added to")
+
 
 def test_a_zero_probe_with_no_witness_at_all_blames_nobody():
     """The commonest zero, and the one the arithmetic used to let through.
@@ -245,6 +347,54 @@ def test_a_zero_probe_with_no_witness_at_all_blames_nobody():
     assert _blame_with(link=0.0, best=5.0, ours=4.6), (
         "machine NOT listed on a zero probe although another gave 5.0 over "
         "the same ssh -- that witness is exactly what the list is for")
+
+
+def test_a_failed_blacklist_write_does_not_kill_the_rental():
+    """Failing to WRITE DOWN a ban may not abandon a running machine.
+
+    `mark_bad` writes a file, and a file write can fail -- a read-only ledger
+    directory took the whole rental with a `PermissionError` out of the middle
+    of `_rent`, machine taken and billing. The OTHER caller of `mark_bad`, the
+    CUDA branch, has always been wrapped; the money-path one was not.
+    """
+    said = []
+
+    def refuses(mid, why):
+        raise PermissionError("[Errno 13] the ledger directory is read-only")
+
+    got = runner.blame_machine({"machine_id": 5}, "trial", ours=4.6, link=0.1,
+                               best_link=9.0, mark=refuses, say=said.append)
+    assert got is False, "a failed write was reported as a successful ban"
+    assert any("could NOT be written" in line for line in said), (
+        f"the failure to record the ban was swallowed: {said}")
+
+
+def test_a_floor_that_is_not_a_number_is_refused_before_any_money():
+    """`nan` compares False with everything, and that cost five rentals.
+
+    `float("nan")` is a legal float, so `MIN_LINK_MBPS=nan` passed the
+    registry and made `link >= floor` and `link < floor` BOTH false: every
+    machine fell through every branch to "the reason was not named", five
+    rentals paid for and not one of them accepted or blamed. A typo that
+    costs money must refuse before the first rental.
+    """
+    import os
+    was = os.environ.get("MIN_LINK_MBPS")
+    for bad in ("nan", "inf", "-1", "narrow"):
+        os.environ["MIN_LINK_MBPS"] = bad
+        try:
+            runner._min_link_mbps()
+        except SystemExit as e:
+            assert "MIN_LINK_MBPS" in str(e), e
+        else:
+            raise AssertionError(
+                f"MIN_LINK_MBPS={bad!r} was accepted as a rejection floor")
+        finally:
+            if was is None:
+                os.environ.pop("MIN_LINK_MBPS", None)
+            else:
+                os.environ["MIN_LINK_MBPS"] = was
+    assert runner._min_link_mbps() >= 0, "the real floor stopped working"
 
 
 def test_both_journal_writers_survive_a_bare_file_name():
@@ -286,8 +436,11 @@ def test_the_channel_that_decides_reaches_the_ledger():
     written down. A number that decides a PERMANENT ban and lives only in a
     comment is the "log the quantity" rule broken at the source.
 
-    The field is asked of the record, not of the code: `asdict` is what
-    reaches the file, and a property would not.
+    DRIVEN, NOT DECLARED. The first edition of this check asked the dataclass
+    whether it had the field; deleting the line in `_rent` that FILLS it left
+    every check in the project green. A field nobody writes is the same
+    silence in a different place, so `_rent` is run -- against a rental that
+    refuses at once -- and the record is read afterwards.
     """
     from dataclasses import asdict
     row = asdict(ledger.Run(job="t", image="i", gpu="g"))
@@ -296,6 +449,35 @@ def test_the_channel_that_decides_reaches_the_ledger():
     assert row["our_downlink_mbps"] is None, (
         "the default is not None -- NOT MEASURED would be written as 0.0, and "
         "0.0 is what makes `blame_machine` refuse to act")
+
+    rec = ledger.Run(job="t", image="i", gpu="g")
+    was = runner._our_downlink_mbps
+    runner._our_downlink_mbps = lambda *a, **k: 3.25
+    try:
+        runner._rent(_RefusingVast(), _spec(), None, {}, rec, [], time.time())
+    except BaseException:                                   # noqa: BLE001
+        pass                          # the rental refuses; the record is why
+    finally:
+        runner._our_downlink_mbps = was
+    assert rec.our_downlink_mbps == 3.25, (
+        f"`_rent` measured our downlink and did not write it down: "
+        f"{rec.our_downlink_mbps!r}. It decides the rejection floor and gates "
+        f"a permanent ban, and the ledger would say nothing about it")
+
+
+class _RefusingVast:
+    """A rental that offers nothing: `_rent` gives up before touching money."""
+
+    def offers(self, *a, **k):
+        return []
+
+    def show_instances(self):
+        return []
+
+
+def _spec():
+    from booksmith.remote.spec import JobSpec
+    return JobSpec(name="trial", image="none", command="true")
 
 
 def test_the_verdict_cannot_depend_on_the_rejection_floor():

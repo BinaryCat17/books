@@ -110,7 +110,34 @@ def _sha256(path):
 
 
 def build(books, out_dir: str, root: str = "bench", log=print) -> dict:
-    """Build the distillate out of the named bench books."""
+    """Build the distillate out of the named bench books.
+
+    NOTHING HALF-BUILT IS LEFT BEHIND. Every refusal used to leave `truth.new`
+    beside the truth -- and the default `out_dir` is `bench/hard`, which is
+    tracked and does not ignore that name, so a refused `books subset` put a
+    partial second copy of the bench truth into the working tree. The aside
+    files are removed on the way out unless the swap completed.
+    """
+    return _swept(_build, books, out_dir, root, log)
+
+
+def _swept(fn, books, out_dir, root, log):
+    """Run the build; on any failure remove what it wrote aside."""
+    aside = (os.path.join(out_dir, "truth.new"),
+             os.path.join(out_dir, "hard.pdf.new"),
+             os.path.join(out_dir, "manifest.json.new"))
+    try:
+        return fn(books, out_dir, root, log)
+    except BaseException:
+        for p in aside:
+            try:
+                shutil.rmtree(p) if os.path.isdir(p) else os.unlink(p)
+            except OSError:
+                pass                  # the refusal is the news, not this
+        raise
+
+
+def _build(books, out_dir: str, root: str, log) -> dict:
     arte = set(policy.artefacts())
     os.makedirs(out_dir, exist_ok=True)
     tdir = os.path.join(out_dir, "truth")
@@ -121,12 +148,39 @@ def build(books, out_dir: str, root: str = "bench", log=print) -> dict:
     # one page selected. Every one of those left the bench truth EMPTY: a
     # refusal meant to protect the data destroying it instead. On the golden
     # bench that cost 595 of 600 files, recovered only because it is tracked.
+    #
+    # ALL THREE PARTS TRAVEL TOGETHER, and the first edition of this fix moved
+    # only the truth. The distillate is truth, pdf and manifest, and they refer
+    # to one another: `t["index"]` addresses a page of THAT pdf, the manifest
+    # holds its sha256 and page count. Writing the pdf in place while the truth
+    # waited aside meant a crash in between left `truth/` describing four pages
+    # and `hard.pdf` holding eight -- the mixed bench the write-aside was meant
+    # to make impossible, moved one file over.
     work = tdir + ".new"
+    wpdf = os.path.join(out_dir, "hard.pdf.new")
+    wman = os.path.join(out_dir, "manifest.json.new")
+    for stale in (wpdf, wman):
+        if os.path.exists(stale):
+            os.unlink(stale)
     if os.path.isdir(work):
         shutil.rmtree(work)
     os.makedirs(work)
 
+    # CLOSED WHATEVER HAPPENS. A refusal from inside the loop used to leave
+    # both `doc` and the source handle open; on a bench of six books that is
+    # seven mapped files held by a command that has already given up.
     doc = pymupdf.open()
+    try:
+        return _pages(books, root, arte, doc, work, wpdf, wman, tdir, out_dir,
+                      log)
+    finally:
+        try:
+            doc.close()
+        except (ValueError, RuntimeError):
+            pass                      # already closed by the happy path
+
+
+def _pages(books, root, arte, doc, work, wpdf, wman, tdir, out_dir, log):
     kept, per_book, pairs_total = [], {}, 0
     traits = {k: {"yes": 0, "no": 0, "not_said": 0} for k in TRAITS}
     for bk in books:
@@ -134,51 +188,41 @@ def build(books, out_dir: str, root: str = "bench", log=print) -> dict:
         if not os.path.exists(pdf):
             raise SubsetError(f"no {pdf}")
         src = pymupdf.open(pdf)
-        for name in sorted(os.listdir(os.path.join(root, bk, "truth"))):
-            if not name.endswith(".json"):
-                continue
-            with open(os.path.join(root, bk, "truth", name),
-                      encoding="utf-8") as f:
-                t = json.load(f)
-            ab = [b for b in t["blocks"] if b["label"] in arte]
-            pr = _side_pairs(ab)
-            if not pr:
-                continue
-            i = t["index"]
-            if not 0 <= i < src.page_count:
-                raise SubsetError(f"{bk}: there is no page {i} in {pdf}")
-            doc.insert_pdf(src, from_page=i, to_page=i)
-            t["index"] = len(kept)
-            t["meta"] = _carry_meta(t, {"from_book": bk,
-                                        "page_in_book": i,
-                                        "side_by_side_pairs": len(pr)},
-                                    f"{bk}/{name}")
-            for key in TRAITS:
-                traits[key][_trait_state(t["meta"], key)] += 1
-            with open(os.path.join(work, f"{len(kept):04d}.json"), "w",
-                      encoding="utf-8") as f:
-                json.dump(t, f, ensure_ascii=False)
-            kept.append((bk, i))
-            per_book[bk] = per_book.get(bk, 0) + 1
-            pairs_total += len(pr)
-        src.close()
+        try:
+            for name in sorted(os.listdir(os.path.join(root, bk, "truth"))):
+                if not name.endswith(".json"):
+                    continue
+                with open(os.path.join(root, bk, "truth", name),
+                          encoding="utf-8") as f:
+                    t = json.load(f)
+                ab = [b for b in t["blocks"] if b["label"] in arte]
+                pr = _side_pairs(ab)
+                if not pr:
+                    continue
+                i = t["index"]
+                if not 0 <= i < src.page_count:
+                    raise SubsetError(f"{bk}: there is no page {i} in {pdf}")
+                doc.insert_pdf(src, from_page=i, to_page=i)
+                t["index"] = len(kept)
+                t["meta"] = _carry_meta(t, {"from_book": bk,
+                                            "page_in_book": i,
+                                            "side_by_side_pairs": len(pr)},
+                                        f"{bk}/{name}")
+                for key in TRAITS:
+                    traits[key][_trait_state(t["meta"], key)] += 1
+                with open(os.path.join(work, f"{len(kept):04d}.json"), "w",
+                          encoding="utf-8") as f:
+                    json.dump(t, f, ensure_ascii=False)
+                kept.append((bk, i))
+                per_book[bk] = per_book.get(bk, 0) + 1
+                pairs_total += len(pr)
+        finally:
+            src.close()
     if not kept:
         raise SubsetError("not one page was selected")
     pdf = os.path.join(out_dir, "hard.pdf")
-    doc.save(pdf, garbage=3, deflate=True)
+    doc.save(wpdf, garbage=3, deflate=True)
     doc.close()
-
-    # Guards passed -- now it may be swapped. Old aside, new into place, old
-    # removed: break in the middle and either the previous truth or the new one
-    # stands, never emptiness.
-    keep = tdir + ".previous"
-    if os.path.isdir(keep):
-        shutil.rmtree(keep)
-    if os.path.isdir(tdir):
-        os.rename(tdir, keep)
-    os.rename(work, tdir)
-    if os.path.isdir(keep):
-        shutil.rmtree(keep)
     man = {"book": "hard", "about": "subset: two artifacts of one label "
                                     "side by side in the truth",
            "page_count": len(kept), "side_by_side_pairs": pairs_total,
@@ -187,10 +231,35 @@ def build(books, out_dir: str, root: str = "bench", log=print) -> dict:
            # The trait state is part of the distillate's passport: it says
            # what CAN be measured here, before the first `books score`.
            "truth_traits": traits,
-           "pdf": os.path.basename(pdf), "sha256 pdf": _sha256(pdf)}
-    with open(os.path.join(out_dir, "manifest.json"), "w",
-              encoding="utf-8") as f:
+           "pdf": os.path.basename(pdf), "sha256 pdf": _sha256(wpdf)}
+    with open(wman, "w", encoding="utf-8") as f:
         json.dump(man, f, ensure_ascii=False, indent=1)
+
+    # GUARDS PASSED -- NOW ALL THREE MAY BE SWAPPED, and nothing between here
+    # and the end can refuse. Old truth aside, new into place, old removed:
+    # break in the middle and either the previous truth or the new one stands,
+    # never emptiness. The pdf and the manifest go by `os.replace`, which does
+    # not leave a half-written file.
+    #
+    # The last `rmtree` is caught: it runs AFTER the point of no return, and an
+    # exception there used to leave the manifest unwritten -- the bench then
+    # carried a new truth and a stale passport, which is the mixture this
+    # whole dance exists to prevent.
+    keep = tdir + ".previous"
+    if os.path.isdir(keep):
+        shutil.rmtree(keep)
+    if os.path.isdir(tdir):
+        os.rename(tdir, keep)
+    os.rename(work, tdir)
+    os.replace(wpdf, pdf)
+    os.replace(wman, os.path.join(out_dir, "manifest.json"))
+    if os.path.isdir(keep):
+        try:
+            shutil.rmtree(keep)
+        except OSError as e:
+            log(f"WARNING: the previous truth is left at {keep} ({e}) -- the "
+                f"bench itself is whole, but that directory is a second copy "
+                f"and must be removed by hand")
     log(f"pages {len(kept)} ({per_book}), side-by-side pairs {pairs_total}")
     # THE QUANTITY, NOT THE WORD "carried". The line below is the only place
     # showing that the distillate brought the traits over; silence here has
