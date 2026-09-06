@@ -134,7 +134,7 @@ comparison, not of the model.
 ## 4. What the handbook did not show
 
 **A matrix is a table.** `mat_matrix`: a 5×5 determinant and a 4×6 bracketed
-matrix, both eaten by a text block (`съеден текстом (display_formula) 2`). On
+matrix, both eaten by a text block (`eaten by text (display_formula) 2`). On
 the paired page `mat_matrix_vs_table`, where a matrix stands beside a real
 table of the same proportions, the model glued them into one box — it sees the
 matrix precisely AS a table, rather than not seeing it.
@@ -331,7 +331,7 @@ Assembled by `books annopage raw/annopage` — an ordinary bench book, taken by
 
 **What is annotated there and what is not.** Only NON-TEXT objects, 25
 categories. There are no text blocks in the truth at all, so the report line
-about text on this bench says «НЕ РАЗМЕЧЕНЫ» rather than "zero": those are
+about text on this bench says `NOT MARKED` rather than "zero": those are
 different zeros, and the metric now tells them apart.
 
 **We drew the boundary, and it is declared.** Of the 25 categories, eleven map
@@ -492,8 +492,8 @@ synthetic books, five on the gold bench, five on `hard36`, dots.ocr on
 
 **Three quantities of nine are silent more often than computed.** Reading order
 is compared on **16 pairs of 44**, label confusion on **15 of 44**, text recall
-on **38 of 44**. The silence is declared out loud («НЕ СВЕРЯЕТСЯ», «НЕ
-РАЗМЕЧЕНЫ»), but the summary must be read knowing those shares: `egret` on the
+on **38 of 44**. The silence is declared out loud (`NOT COMPARED`, `NOT
+MARKED`), but the summary must be read knowing those shares: `egret` on the
 handbook shares **0 of 21** labels with the truth, and the only thing that
 survives the vocabulary boundary is ROLE confusion, **6 of 357 pairs**
 (`metrics.label_alphabet`, `metrics.role_errors`).
@@ -545,8 +545,8 @@ overlay`: in one session the bench lied with its boxes six times, and not once
 did the number look ill.
 
 **A healthy number can rest on a single page.** On `bench/hard36` text recall
-prints as "100%", and that is `блоков 11, найдено 11 — считано по 1 странице из
-36`: the other 35 came from AnnoPage, where text is not annotated at all. The
+prints as "100%", and that is `blocks 11, found 11 — counted over 1 pages of
+36, text not marked on the rest`: the other 35 came from AnnoPage, where text is not annotated at all. The
 caveat prints on the same line, and without it this would be the bench's best
 figure.
 
@@ -575,14 +575,14 @@ out to be noise": not noise, but not an upheaval either — five artifacts of 40
 order rank at all, and `order` in its pages is our own numbering of the graph's
 rows. The adapter declared this in its FINGERPRINT, while `metrics._has_order`
 reads the PAGE's `meta` and, finding no field, falls back to the default
-«ранг модели». The result: across six benches it printed "reading order
+`model_rank`. The result: across six benches it printed "reading order
 agreement" of 29 / 36 / 41 / 44 / 46 / 44 per cent — numbers generated entirely
 by our own numbering, and read as "plus-L reads the page in the wrong order".
 That this was noise the battery showed itself: the probe "order reversed: did
 it drop" gave NO on those same runs, because reversing OUR numbering raised the
 agreement to 71 / 64 / 59 / 56 / 54 / 56 — the quantity wobbled around a half.
 Now the adapter writes whose order it is into each page's `meta`, and the
-metric prints «НЕ СВЕРЯЕТСЯ». On V2, where the ranks are real, it was 2570
+metric prints `NOT COMPARED`. On V2, where the ranks are real, it was 2570
 pairs at 99% and so it remains.
 
 ## 17. We were measuring the wrong thing for the pipeline
@@ -945,11 +945,11 @@ columns: 439 against 454 is the price of the translation, and it is small.
 parameters then splits the answer in two:
 
 ```
-РАЗМАХ ЛИНЕЙКИ 4.02
-пределы:  наше (y0, x0)     3.021 .. 7.041
-          ранг модели V2    0.229 .. 1.733
-          правила docling   0.284 .. 1.569
-перевёрнутых пар: «ранг модели V2 против правила docling»
+RULER SPAN 4.02
+ranges:  ours (y0, x0)     3.021 .. 7.041
+         model rank, V2    0.229 .. 1.733
+         docling's rules   0.284 .. 1.569
+inverted pairs: "model rank V2 against docling's rules"
 ```
 
 * **Our rule is worse than both CONSISTENTLY** — the limits do not overlap at
@@ -1014,8 +1014,8 @@ three permutations offline, one `books score` (519 pages in the count):
 | **docling's rules** | **670** | **1.29** | **0.490 .. 1.936** |
 
 ```
-РАЗМАХ ЛИНЕЙКИ 3.428
-перевёрнутых пар: «наше (y0,x0) против прежний корзинный»
+RULER SPAN 3.428
+inverted pairs: "ours (y0, x0) against the former bucketed key"
 ```
 
 **The two "our" rules the instrument does NOT distinguish**: the pair is
