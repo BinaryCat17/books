@@ -71,19 +71,33 @@ def missing(name):
     return [p for p in needs if not os.path.exists(os.path.join(ROOT, p))]
 
 
-# Every log line carries a wall clock. It is the one thing in these reports
-# that must be dropped before comparing -- and the only one: paths, hashes and
-# counts are all reproducible, checked by running each command twice.
+# TWO THINGS MOVE ON THEIR OWN AND ARE DROPPED BEFORE COMPARING.
+#
+# The wall clock on every log line, obviously.
+#
+# And the hash of a SOURCE file as it is right now -- `replay --check` prints
+# "(в слепке 1f3ac82a, в дереве 5b4afbfe)" to say the snapshot was taken with
+# different code. That hash changes on every edit to `models/doclayout.py`,
+# comments included, so during a translation it would redden this report
+# constantly and get fixed by `--save`, which blesses the other 582 lines
+# blind. The hash IN THE SNAPSHOT is kept: it is data, and it must not move.
+# The hash of the file on disk is not what these reports are guarding.
 _CLOCK = re.compile(r"^\[\d\d:\d\d:\d\d\] ", re.M)
+_TREE_HASH = re.compile(r"(в дереве )[0-9a-f]{8,}")
 
 
 def run(name):
     """The command's output, verbatim but for the clock, stdout and stderr."""
     argv, _ = COMMANDS[name]
+    # COLUMNS is pinned because argparse wraps the help to the terminal width:
+    # at COLUMNS=40 the help report differed by 76 lines while nothing had
+    # changed. A snapshot that depends on the window it was taken in is not a
+    # snapshot.
+    env = dict(os.environ, PYTHONPATH=os.path.join(ROOT, "src"), COLUMNS="80")
     r = subprocess.run([sys.executable, "-m", "booksmith.cli"] + argv,
-                       cwd=ROOT, capture_output=True, text=True,
-                       env=dict(os.environ, PYTHONPATH=os.path.join(ROOT, "src")))
-    return _CLOCK.sub("", r.stdout + r.stderr)
+                       cwd=ROOT, capture_output=True, text=True, env=env)
+    out = _CLOCK.sub("", r.stdout + r.stderr)
+    return _TREE_HASH.sub(r"\1<current source>", out)
 
 
 def path(name):

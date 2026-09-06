@@ -1823,6 +1823,36 @@ def _globs_one_level_short():
                                f.note) for f in schema.FORMATS)
 
 
+def _latin_is_not_counted(s):
+    """Only the Cyrillic side is measured, so deletion looks like translation."""
+    return 0
+
+
+def _baseline_of_deleted_prose():
+    """A baseline that says 40 000 Cyrillic characters left and no English came.
+
+    The mutation has to be the DISAPPEARANCE, not the counter: the check only
+    speaks when Cyrillic actually falls, so breaking `latin()` alone leaves it
+    with nothing to look at -- which is how the first version of this mutation
+    went uncaught.
+    """
+    import tempfile
+    base = json.loads(open(cyrmod.BASELINE, encoding="utf-8").read())
+    for area in ("src.comments", "src.docstrings"):
+        base[area] = base.get(area, 0) + 20000
+    fd, path = tempfile.mkstemp(suffix=".json")
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        json.dump(base, f, ensure_ascii=False)
+    return path
+
+
+def _book_prose_folded_into_the_ratchet(c):
+    """Book content stops being a separate area, so its loss is invisible."""
+    out = {k: v for k, v in c.items() if not k.endswith(".latin")}
+    out.pop("bench_data", None)
+    return out
+
+
 def _measure_finds_nothing(root=None):
     """The disk side of the guard goes quiet. The name side must notice."""
     return {f.name: {} for f in schema.FORMATS}
@@ -3238,6 +3268,40 @@ def mutations():
          lambda: attrs(acceptance, COMMANDS=_table_missing_a_format()),
          [("test_acceptance",
            "test_the_command_table_covers_every_format_the_migration_touches")]),
+
+        ("only the cyrillic side of the prose is counted",
+         lambda: attrs(cyrmod, latin=_latin_is_not_counted),
+         [("test_cyrillic_ratchet",
+           "test_the_counter_counts_codepoints_not_lines")]),
+
+        ("prose vanished without arriving in English",
+         lambda: attrs(cyrmod, BASELINE=_baseline_of_deleted_prose()),
+         [("test_cyrillic_ratchet",
+           "test_prose_was_translated_not_deleted")]),
+
+        ("book content is no longer weighed apart",
+         lambda: attrs(cyrmod, CONTENT_NAMES=("PROSE_RU",)),
+         [("test_cyrillic_ratchet", "test_book_content_did_not_move")]),
+
+        ("an html attribute the code writes is not declared",
+         lambda: attrs(schema, HTML_ATTRS=schema.HTML_ATTRS[1:]),
+         [("test_data_contract",
+           "test_the_code_emits_exactly_the_declared_html_attributes")]),
+
+        ("the book is asked for an attribute it never carried",
+         lambda: attrs(schema, HTML_CORE=schema.HTML_CORE + ("data-nonesuch",)),
+         [("test_data_contract",
+           "test_the_built_book_carries_the_declared_attributes")]),
+
+        ("the help snapshot is taken from another command",
+         lambda: attrs(acceptance, COMMANDS=dict(
+             acceptance.COMMANDS, help=(["score", "--help"], []))),
+         [("test_acceptance", "test_help_reports_the_same_text")]),
+
+        ("the source hash is no longer normalised out of the report",
+         lambda: attrs(acceptance, _TREE_HASH=_clock_not_stripped()),
+         [("test_acceptance",
+           "test_replay_check_reports_the_same_report")]),
     ]
     return [(t + ("",))[:4] if len(t) == 3 else t for t in m]
 
@@ -3281,6 +3345,22 @@ def main():
     caught = missed = 0
     covered = set()
     skipped = []
+    # WHICH CHECKS ARE RED WITH NO MUTATION AT ALL. Without this pass the
+    # battery counts an already-failing check as caught by anything that names
+    # it: `reddens` asks "did it go red under the mutation", not "did the
+    # mutation make it go red". Measured: one self-failing check silently
+    # certified the mutation "the ratchet baseline is unreachable" as caught,
+    # having tested nothing.
+    already_red = set()
+    for mod_name, test_name in sorted({t for _, _, ts, _ in mutations() for t in ts}):
+        red, _ = reddens(mod_name, test_name)
+        if red:
+            already_red.add((mod_name, test_name))
+    for mod_name, _ in {t for _, _, ts, _ in mutations() for t in ts}:
+        fresh(mod_name)
+    if already_red:
+        print("  RED WITH NO MUTATION (they count as caught by nothing): "
+              + "; ".join(f"{m}::{t}" for m, t in sorted(already_red)))
     for name, broken, targets, needs in mutations():
         if needs and not NEEDS[needs]():
             skipped.append(f"{name} — {needs}")
@@ -3289,6 +3369,9 @@ def main():
         try:
             with broken():
                 for mod_name, test_name in targets:
+                    if (mod_name, test_name) in already_red:
+                        bad.append(f"{mod_name}::{test_name} red without any mutation")
+                        continue
                     red, why = reddens(mod_name, test_name)
                     if not red:
                         bad.append(f"{mod_name}::{test_name} {why}")

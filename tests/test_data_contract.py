@@ -24,7 +24,10 @@ translation renames the keys in the code, this check goes red until the data is
 migrated too -- and that is the point of it, not a defect in it.
 """
 import collections
+import glob
 import json
+import os
+import re
 
 import support
 from booksmith import schema
@@ -104,3 +107,38 @@ def test_the_declaration_reaches_the_files_it_names():
             assert len(files) >= 1272, (
                 f"{fmt.name}: {len(files)} files, expected at least 1272 "
                 "tracked -- the pattern is missing a directory level")
+
+
+def test_the_code_emits_exactly_the_declared_html_attributes():
+    """The book's own format, declared once and checked against the code.
+
+    `books html` writes these names and `books apply` parses the book back by
+    them. Renaming one in the code passed the runner, the battery, the ratchet
+    and all five acceptance reports -- and left the only real book on disk,
+    412 swaps and $0.545 of reading, unreadable by the code that made it.
+    """
+    src = ""
+    for name in ("html.py", "apply.py"):
+        src += open(os.path.join(support.SRC, "doc", name), encoding="utf-8").read()
+    found = {a for a in re.findall(r'data-[\wЀ-ӿ-]+', src)}
+    declared = set(schema.HTML_ATTRS)
+    assert found == declared, (
+        f"code emits {sorted(found - declared)} that are not declared; "
+        f"declaration names {sorted(declared - found)} the code never writes")
+
+
+def test_the_built_book_carries_the_declared_attributes():
+    """The other half: what is on disk must be what the code speaks.
+
+    Skipped with a reason when no book is built -- `processed/` is not in git,
+    so a fresh clone has nothing to compare. That is a skip, never a pass.
+    """
+    books = sorted(glob.glob(os.path.join(
+        os.path.dirname(os.path.dirname(support.SRC)), "processed", "*", "book.html")))
+    if not books:
+        support.skip("собранной книги нет в processed/ — сравнивать не с чем")
+    text = open(books[-1], encoding="utf-8").read()
+    absent = [a for a in schema.HTML_CORE if a not in text]
+    assert not absent, (
+        f"{books[-1]} does not carry {absent} -- the builder and the book it "
+        "built have drifted apart, and `books apply` will not find its blocks")

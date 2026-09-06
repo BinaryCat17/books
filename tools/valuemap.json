@@ -1,0 +1,336 @@
+{
+ "_note": "Values, scoped BY THE KEY THEY SIT UNDER. A flat value map would translate the books: 'текст' under the key 'роль' is a policy class, but the value OF the key 'текст' is 9760 fragments of Russian book text. Scoping is the whole safety of this file.",
+ "by_key": {
+  "Caption": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "Checkbox-Selected": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "Checkbox-Unselected": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "Code": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "Document Index": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "Footnote": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "Form": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "Formula": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "Key-Value Region": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "List-item": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "Page-footer": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "Page-header": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "Picture": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "Section-header": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "Table": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "Text": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "Title": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "abstract": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "algorithm": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "aside_text": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "caption": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "chart": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "checkbox_selected": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "checkbox_unselected": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "code": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "content": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "display_formula": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "doc_title": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "document_index": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "figure_title": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "footer": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "footer_image": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "footnote": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "form": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "formula": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "formula_number": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "header": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "header_image": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "image": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "inline_formula": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "key_value_region": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "list_item": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "number": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "page_footer": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "page_header": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "paragraph_title": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "picture": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "reference": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "reference_content": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "seal": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "section_header": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "table": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "text": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "title": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "vertical_text": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "vision_footnote": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "взято": {
+   "уже на месте": "already_there"
+  },
+  "догадка о виде": {
+   "пусто": "empty"
+  },
+  "повтор блока": {
+   "страница": "page"
+  },
+  "повтор текста": {
+   "вёрстка": "layout",
+   "дословно": "verbatim",
+   "расходится": "differs"
+  },
+  "порядок откуда": {
+   "наш, сверху вниз и слева направо": "ours_top_down_left_right",
+   "не сказано": "not_stated",
+   "порядок порождения": "generation_order",
+   "ранг модели": "model_rank"
+  },
+  "порядок чтения": {
+   "порядок порождения": "generation_order",
+   "ранг модели": "model_rank"
+  },
+  "разряд": {
+   "невыразимо": "inexpressible",
+   "спорно": "disputed"
+  },
+  "разряды": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "резкость откуда": {
+   "мельче нижней границы модели (вверх не тянем)": "below_model_floor_kept",
+   "своя резкость скана": "scan_own_dpi",
+   "ужато до верхней границы модели": "downscaled_to_model_ceiling"
+  },
+  "роль": {
+   "артефакт": "artifact",
+   "служебное": "furniture",
+   "текст": "text"
+  },
+  "уровень": {
+   "латех": "latex",
+   "нет": "none"
+  },
+  "чем": {
+   "проба": "probe",
+   "руками": "by_hand"
+  }
+ }
+}

@@ -69,6 +69,57 @@ def test_no_area_grew():
     assert not grew, f"Cyrillic grew: {grew}"
 
 
+def test_prose_was_translated_not_deleted():
+    """The hole the ratchet alone cannot see, and the cheapest way to cheat it.
+
+    The Cyrillic count measures what is LEFT, so the fastest way to move it is
+    to delete rather than translate. Measured on a copy of the tree: deleting
+    every whole comment line carrying Cyrillic across `src/booksmith/*.py`
+    removed 176 515 characters -- a quarter of everything this project has
+    written into its comments -- and left the runner green, the battery green,
+    all five acceptance reports identical, and the ratchet reporting a quarter
+    of the translation done.
+
+    So each area is watched by two numbers. Translation turns Cyrillic into
+    Latin; deletion turns it into nothing. A fall in one must show up as a rise
+    in the other.
+
+    THE FLOOR IS ONE QUARTER, and deliberately low. The operator asked for the
+    prose to be compressed by half while it is translated, and English runs a
+    little shorter than Russian for the same thought, so an honest pass may
+    return well under half the characters. A quarter is far enough below that
+    to never fire on real work, and far enough above zero to catch a deletion.
+    """
+    cyr = _cyr()
+    base = json.load(open(cyr.BASELINE, encoding="utf-8"))
+    now = _count()
+    lost = []
+    for area, was in cyr.ratchet_areas(base).items():
+        fell = was - now.get(area, 0)
+        if fell < 500:
+            continue                     # noise; a real pass moves thousands
+        gained = now.get(area + ".latin", 0) - base.get(area + ".latin", 0)
+        if gained < fell * 0.25:
+            lost.append(f"{area}: -{fell} cyrillic, +{gained} latin")
+    assert not lost, ("prose left without arriving in English -- deleted, not "
+                      "translated:\n" + "\n".join(lost))
+
+
+def test_book_content_did_not_move():
+    """`book_prose` is exempt, and exempt means constant, not unwatched.
+
+    It is the one area the ratchet does not press on, so nothing else would
+    notice if the Russian book text were translated away by accident -- or
+    grown, which would mean our own prose had been misfiled as content.
+    """
+    cyr = _cyr()
+    base = json.load(open(cyr.BASELINE, encoding="utf-8"))
+    now = _count()
+    assert now["book_prose"] == base["book_prose"], (
+        f"book content moved: {base['book_prose']} -> {now['book_prose']}. "
+        "The books are Russian and stay Russian.")
+
+
 def test_the_counter_counts_codepoints_not_lines():
     """Rewrapping must be free; translating must not be.
 
@@ -82,6 +133,7 @@ def test_the_counter_counts_codepoints_not_lines():
     wrapped = RU_COMMENT + "\n# " + RU_COMMENT[2:]
     assert cyr.cyr(one_line) == cyr.cyr(wrapped)
     assert cyr.cyr(one_line + RU_LETTER) == cyr.cyr(one_line) + 1
+    assert cyr.latin("comment") == 7 and cyr.latin(RU_LETTER) == 0
 
 
 def test_the_counter_ignores_punctuation_it_must_not_chase():

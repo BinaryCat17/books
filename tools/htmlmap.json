@@ -1,0 +1,20 @@
+{
+ "data-без-текста": "data-no-text",
+ "data-вид": "data-kind",
+ "data-внутри": "data-inside",
+ "data-доля-в-картинках": "data-image-share",
+ "data-оборвано": "data-truncated",
+ "data-повтор": "data-repeat",
+ "data-повтор-текст": "data-repeat-text",
+ "data-пусто": "data-empty",
+ "data-роль": "data-role",
+ "data-скрыто-повторов": "data-repeats-hidden",
+ "data-стр": "data-sheet",
+ "data-текст": "data-text",
+ "data-только-служебное": "data-furniture-only",
+ "data-уровень": "data-level",
+ "data-форма-таблицы": "data-table-shape",
+ "data-чем": "data-placed-by",
+ "data-ярлык": "data-label",
+ "лист": "sheet"
+}

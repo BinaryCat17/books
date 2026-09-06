@@ -58,6 +58,24 @@ def cyr(s: str) -> int:
                "\u0500" <= c <= "\u052f")
 
 
+def latin(s: str) -> int:
+    """ASCII letters, counted alongside the Cyrillic they are replacing.
+
+    WHY A SECOND QUANTITY IS NEEDED. The Cyrillic count measures what is LEFT,
+    not what was DONE, and the cheapest way to move it is not to translate but
+    to delete. Measured on a copy: deleting every whole comment line carrying
+    Cyrillic across `src/booksmith/*.py` removed 176 515 characters -- a
+    quarter of everything the project has written into its comments -- and left
+    the runner green, the mutation battery green, all five acceptance reports
+    identical, zero keys below floor, and the ratchet reporting a quarter of
+    the translation done.
+
+    Translation moves Cyrillic into Latin. Deletion moves it into nothing. With
+    both counted, the two are no longer the same event.
+    """
+    return sum(1 for c in s if "a" <= c <= "z" or "A" <= c <= "Z")
+
+
 # Constants whose value IS book content. Russian books stay Russian; these hold
 # the text that gets drawn onto synthetic pages, not our explanation of it.
 CONTENT_NAMES = ("PROSE_RU", "ENTRY_RU", "ABOUT", "CASES", "AGING", "WORDS_RU")
@@ -68,8 +86,8 @@ CONTENT_NAMES = ("PROSE_RU", "ENTRY_RU", "ABOUT", "CASES", "AGING", "WORDS_RU")
 # `run.sh`, which executes on a rented GPU, where a mistranslation costs money
 # rather than a red test.
 OTHER_GLOBS = ("*.md", "*.sh", "*.toml", "*.yml", "*.yaml", "*.in", "*.txt",
-               "*.cfg", "*.ini", "*.json", "*.log", ".gitignore",
-               ".env.example", "infra/base/Dockerfile")
+               "*.cfg", "*.ini", "*.json", "*.log", "*.js", "*.css", "*.html",
+               "*.lock", ".gitignore", ".env.example", "infra/base/Dockerfile")
 
 # Tracked data files: their Cyrillic is book content and format keys, and both
 # are handled elsewhere (keys by the migration, content never). Counting them
@@ -78,11 +96,19 @@ DATA_PREFIXES = ("bench/",)
 
 
 def tracked(*globs):
-    """Files git knows about. Untracked scratch must not move the ratchet."""
-    r = subprocess.run(["git", "ls-files", "-z"] + list(globs),
+    """Files git would keep: tracked, plus untracked that are not ignored.
+
+    NOT `git ls-files` alone. That counts only what is staged or committed, so
+    a new file is invisible until `git add` and the whole baseline jumps at
+    commit time -- which is exactly how the first baseline of this instrument
+    came out 941 characters low, and the ratchet was red the moment its own
+    commit landed.
+    """
+    r = subprocess.run(["git", "ls-files", "-z", "--cached", "--others",
+                        "--exclude-standard"] + list(globs),
                        capture_output=True, text=True, cwd=ROOT)
-    out = [p for p in r.stdout.split("\0") if p]
-    return [p for p in out if os.path.isfile(os.path.join(ROOT, p))]
+    out = {p for p in r.stdout.split("\0") if p}
+    return sorted(p for p in out if os.path.isfile(os.path.join(ROOT, p)))
 
 
 def _content_nodes(tree):
@@ -107,16 +133,11 @@ def py_areas(paths, prefix, counter):
     """
     for rel in paths:
         src = open(os.path.join(ROOT, rel), encoding="utf-8").read()
-        try:
-            for tok in tokenize.generate_tokens(io.StringIO(src).readline):
-                if tok.type == tokenize.COMMENT:
-                    counter[prefix + ".comments"] += cyr(tok.string)
-        except (tokenize.TokenError, IndentationError, SyntaxError):
-            pass
-        try:
-            tree = ast.parse(src)
-        except SyntaxError:
-            continue
+        for tok in tokenize.generate_tokens(io.StringIO(src).readline):
+            if tok.type == tokenize.COMMENT:
+                counter[prefix + ".comments"] += cyr(tok.string)
+                counter[prefix + ".comments.latin"] += latin(tok.string)
+        tree = ast.parse(src)
         content = _content_nodes(tree)
         docs = set()
         for n in ast.walk(tree):
@@ -128,12 +149,15 @@ def py_areas(paths, prefix, counter):
                         and isinstance(first.value.value, str)):
                     docs.add(id(first.value))
                     counter[prefix + ".docstrings"] += cyr(first.value.value)
+                    counter[prefix + ".docstrings.latin"] += latin(first.value.value)
         for n in ast.walk(tree):
             if isinstance(n, ast.Constant) and isinstance(n.value, str):
                 if id(n) in docs:
                     continue
                 where = "book_prose" if id(n) in content else prefix + ".literals"
                 counter[where] += cyr(n.value)
+                if where != "book_prose":
+                    counter[prefix + ".literals.latin"] += latin(n.value)
             elif isinstance(n, ast.Name):
                 counter[prefix + ".names"] += cyr(n.id)
             elif isinstance(n, ast.arg):
@@ -163,31 +187,44 @@ def count():
             continue
         if rel.endswith(".py"):
             continue
-        try:
-            text = open(os.path.join(ROOT, rel), encoding="utf-8").read()
-        except (UnicodeDecodeError, OSError):
-            continue
+        text = open(os.path.join(ROOT, rel), encoding="utf-8").read()
         n = cyr(text)
         if not n:
             continue
         if rel.endswith(".md"):
             c["docs"] += n
+            c["docs.latin"] += latin(text)
         elif any(rel.startswith(d) for d in DATA_PREFIXES):
             c["bench_data"] += n
         else:
             c["config"] += n
+            c["config.latin"] += latin(text)
     for k in ("src.comments", "src.docstrings", "src.literals", "src.names",
               "tests.comments", "tests.docstrings", "tests.literals",
               "tests.names", "tools.comments", "tools.docstrings",
               "tools.literals", "tools.names", "docs", "config",
               "bench_data", "book_prose"):
         c.setdefault(k, 0)
+        if k not in ("bench_data", "book_prose") and not k.endswith(".names"):
+            c.setdefault(k + ".latin", 0)
     return dict(c)
 
 
 def ratchet_areas(c):
-    """Areas the ratchet presses on: everything except declared book content."""
-    return {k: v for k, v in c.items() if k not in ("book_prose", "bench_data")}
+    """Areas the ratchet presses on: Cyrillic only, book content excluded.
+
+    The `.latin` companions are not pressed on -- they are allowed and expected
+    to rise. They are read by `test_prose_was_translated_not_deleted`, which
+    asks the question this instrument could not answer on its own: did the
+    Cyrillic that left an area turn into English, or into nothing?
+    """
+    return {k: v for k, v in c.items()
+            if k not in ("book_prose", "bench_data") and not k.endswith(".latin")}
+
+
+def latin_areas(c):
+    """area -> latin letters, for the areas the ratchet presses on."""
+    return {k[:-len(".latin")]: v for k, v in c.items() if k.endswith(".latin")}
 
 
 def main(argv):
