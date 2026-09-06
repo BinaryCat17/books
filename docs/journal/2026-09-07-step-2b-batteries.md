@@ -45,3 +45,31 @@ the shape every battery will have after the fold.
 The applicability test now expects `assembly` and `snapshot` on a bench
 with pages and nothing else; the table on slovar gained thirteen lines and
 the lock was regenerated with that reason.
+
+## Second half: the three loops became one
+
+The contour, reading and ink batteries each had their own loop over the
+probes: the same four rules in three editions (a throwing probe is a failed
+probe with the exception in its line; "no data" is neither caught nor
+missed; the denominator is what was printed; the summary is a quantity).
+They call `base.run_battery` now and end with `base.battery_summary`. The
+contour battery's second group, whose outcomes are computed before the loop,
+goes through the same loop as probes that return what they already know;
+its third group, the three-pixel shift, keeps its own line because that
+line has its own shape and the acceptance lock holds it.
+
+What changed in print: nothing in the contour and reading reports (the
+locks say `same`); in the ink report the mark column moved one character
+left, to the width the other two always had, and a throwing probe would
+now say "THE PROBE THREW" instead of "threw:" (none throws today). The
+snapshot was regenerated with that reason; `--numbers` says not one number
+moved. The line patches the mutation battery makes inside these loops all
+still land (anchors 73).
+
+Still owed from the plan's 2a and 2b: the overlay (`datasets/look.py`)
+keeps its own identity check, which compares a PDF's hash against several
+markups' snapshots at once and is not the bench-against-run check;
+folding it is a design question for 3b, when runs get labels. The loaders
+are one (`core.page.load_pages`) with two delegations that keep their
+error class. What remains is 2c: the synthetic generator's split, and
+`order_marked` in its truth.

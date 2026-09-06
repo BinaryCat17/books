@@ -58,7 +58,8 @@ import os
 
 from booksmith.core import page, policy
 from booksmith.core.errors import Unmeasurable
-from booksmith.datasets.metrics.base import Metric, Record, Scalar
+from booksmith.datasets.metrics.base import (Metric, Probe, Record, Scalar,
+                                             battery_summary, run_battery)
 from booksmith.datasets.metrics.mutate import (map_boxes as _map_boxes, shift as _shift, shift_rel as _shift_rel, grow as _grow, only as _only, relabel as _relabel, duplicate as _duplicate, shuffle_pages as _shuffle_pages)
 
 # The match gate. ONE, and named: the model box must cover truth (no crop) and
@@ -1604,25 +1605,12 @@ def mutations(truth_dir: str, detect_dir: str, log=print) -> int:
                  else R(tt=_only(T, lambda b: b["label"] in arte))
                       ["text_and_furniture"]["share"] in (0.0, None)),
     ]
-    bad = mute = seen = 0
-    for name, want, probe in probes:
-        # AN EXCEPTION IN A PROBE IS NOT A FALLEN BATTERY. The header remembers
-        # a report line killing a whole run with a TypeError on the golden
-        # bench, nothing after it printed and no total at all. `fitness` had
-        # the trap; here there was none.
-        try:
-            ok = probe()
-        except Exception as e:                                  # noqa: BLE001
-            ok = False
-            # NOT the word "fell": seven probes have "fell" for their `want`
-            # (there it means "the quantity must fall"), and it would come out
-            # "fell -- fell: ValueError". Different things, different words.
-            want = f"{want} — THE PROBE THREW {type(e).__name__}: {e}"
-        mark = "no data" if ok is None else ("ok " if ok else "NO")
-        log(f"  {mark:>10}  {name}: {want}")
-        bad += ok is False
-        mute += ok is None
-        seen += 1
+    # THE LOOP IS THE SHARED ONE (`base.run_battery`): an exception in a probe
+    # is a failed probe with the exception in its line, not a fallen battery
+    # (the header remembers a report line killing a whole run with a
+    # TypeError on the golden bench, nothing after it printed and no total),
+    # and the denominator is what was printed.
+    seen, mute, bad = run_battery([Probe(n, w, f) for n, w, f in probes], log)
 
     # --- damage to OUR OWN thresholds, each one APART
     keep_c, keep_t, keep_p = COVER_MATCH, TOUCH, TOL_PX
@@ -1684,7 +1672,7 @@ def mutations(truth_dir: str, detect_dir: str, log=print) -> int:
                 used.add(j)
                 worst = min(worst, cover(b["box"], _pad(mb[j]["box"], keep_p)),
                             cover(mb[j]["box"], _pad(b["box"], keep_p)))
-        for name, ok, why in (
+        s2, m2, b2 = run_battery([Probe(name, why, (lambda ok=ok: ok)) for name, ok, why in (
                 (f"COVER_MATCH is monotone: stricter {c_hi*100:.0f}%, base "
                  f"{b_found*100:.0f}%, softer {c_lo*100:.0f}%",
                  c_hi <= b_found <= c_lo, "stricter no more, softer no less"),
@@ -1696,12 +1684,8 @@ def mutations(truth_dir: str, detect_dir: str, log=print) -> int:
                 (f"TOL_PX x8 ({t_hi*100:.0f}% against {b_found*100:.0f}%)",
                  t_hi >= b_found, "no less"),
                 (f"TOUCH=1.01 (not seen {blind} against {base_blind})",
-                 blind > base_blind, "more 'not seen' troubles")):
-            mark = "no data" if ok is None else ("ok " if ok else "NO")
-            log(f"  {mark:>10}  {name}: {why}")
-            bad += ok is False
-            mute += ok is None
-            seen += 1
+                 blind > base_blind, "more 'not seen' troubles"))], log)
+        seen, mute, bad = seen + s2, mute + m2, bad + b2
 
         # --- SWEEP OVER THE COLUMN GROUPING PARAMETERS
         #
@@ -1819,10 +1803,7 @@ def mutations(truth_dir: str, detect_dir: str, log=print) -> int:
     # not derived from `len(probes)` -- there are THREE groups (main loop,
     # thresholds, lone 3 px shift), and adding them by hand gave "probes 32"
     # against 33 printed outcomes.
-    log(f"contour battery: probes {seen}, measured {seen - mute}, "
-        f"nothing to measure with {mute} (see the 'no data' lines), "
-        f"uncaught {bad}")
-    return bad
+    return battery_summary("contour", seen, mute, bad, log)
 
 # ------------------------------------------------- SENSE WHOLE
 # The third number, and for our pipeline the main one. "Outlined correctly"

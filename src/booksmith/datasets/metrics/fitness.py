@@ -13,7 +13,8 @@ import shutil
 
 from booksmith.core import page, policy
 from booksmith.core.errors import Unmeasurable
-from booksmith.datasets.metrics.base import Metric, Record, Scalar
+from booksmith.datasets.metrics.base import (Metric, Probe, Record, Scalar,
+                                             battery_summary, run_battery)
 from booksmith.processing.assess import ink
 
 def _edit(M, fn):
@@ -331,21 +332,11 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
                   == base["objects"] + base["empty_objects"])(
                      RT(_edit(T0, _offpage)))),
     ]
-    bad = mute = 0
+    # THE LOOP IS THE SHARED ONE (`base.run_battery`); the spoiled copies on
+    # disk are removed whatever happens inside it. The mark column was one
+    # character wider here than in the other two batteries; it is not now.
     try:
-        for name, expect, fn in probes:
-            try:
-                ok = fn()
-            except Exception as e:
-                ok, expect = False, (f"{expect} — threw: "
-                                     f"{type(e).__name__}: {e}")
-            if isinstance(ok, tuple):
-                ok, note = ok
-                expect = f"{expect} [{note}]"
-            mark = "no data" if ok is None else ("ok " if ok else "NO")
-            log(f"  {mark:>11}  {name}: {expect}")
-            bad += ok is False
-            mute += ok is None
+        seen, mute, bad = run_battery([Probe(n, e, f) for n, e, f in probes], log)
     finally:
         for d in trash:
             shutil.rmtree(d, ignore_errors=True)
@@ -355,11 +346,7 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
     # empty "almost whole" class, no page with two objects at once -- so lumping
     # them into "needs truth" would swap one zero for another. Which it is, the
     # probe's own line says.
-    log(f"fitness battery: probes {len(probes)}, "
-        f"measured {len(probes) - mute}, "
-        f"nothing to measure with {mute} (see the 'no data' lines), "
-        f"uncaught {bad}")
-    return bad
+    return battery_summary("fitness", seen, mute, bad, log)
 
 def _ratio(n, d, why):
     return Scalar(n / d if d else None, count=(n, d), why=None if d else why)

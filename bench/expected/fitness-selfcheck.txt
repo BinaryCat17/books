@@ -1,22 +1,22 @@
-          ok   artefact boxes cut in half: fewer cut as one picture
-          ok   artefact boxes cut in half: and no ink is lost by it
-          ok   nesting: no more cut as one picture than intact
-          ok   no boxes at all: zero ink under boxes
-          ok   boxes moved off the top-left corner: zero ink under boxes
-          ok   boxes shrunk by half: less object ink preserved
-          ok   artefacts called text: zero ink under artefacts
-          ok   artefacts called text: objects left as text
-          ok   boxes dropped except the text ones: fewer intact
-          ok   one box over the whole sheet: ink 100%, but area 100% too
-          ok   one box over the whole sheet: and ALL objects intact — this is how the metric is won
-      no data  all artefact boxes merged into one: the older numbers do not fall, and 'arrived with company' grows [intact 1 -> 1, torn 1 -> 1, with company 0 -> 0]
-          ok   every artefact box handed out as a text one too: NOTHING changes by objects: a pixel under two boxes is one pixel
-          ok   the ink threshold zeroed and maxed: ink is now zero, now the whole sheet
-          ok   the 'intact' threshold zeroed and maxed: intact is now all, now none
-          ok   the 'almost intact' threshold brought to its neighbours: the class between 'intact' and 'bitten' moves entirely
-          ok   the 'bitten' threshold brought to its neighbours: the class between 'almost intact' and 'torn' moves entirely
-           NO  the dark column blown up and squeezed: now all the ink is in columns, now none
-          ok   the edge band blown up and squeezed: at the edge now everything lost, now less
-          ok   truth shifted down by half an object: object ink came out different [object ink 35792 -> 23328, preserved 92.8% -> 73.7%]
-          ok   truth moved off the sheet: zero objects, and all of them 'empty'
+         ok   artefact boxes cut in half: fewer cut as one picture
+         ok   artefact boxes cut in half: and no ink is lost by it
+         ok   nesting: no more cut as one picture than intact
+         ok   no boxes at all: zero ink under boxes
+         ok   boxes moved off the top-left corner: zero ink under boxes
+         ok   boxes shrunk by half: less object ink preserved
+         ok   artefacts called text: zero ink under artefacts
+         ok   artefacts called text: objects left as text
+         ok   boxes dropped except the text ones: fewer intact
+         ok   one box over the whole sheet: ink 100%, but area 100% too
+         ok   one box over the whole sheet: and ALL objects intact — this is how the metric is won
+     no data  all artefact boxes merged into one: the older numbers do not fall, and 'arrived with company' grows [intact 1 -> 1, torn 1 -> 1, with company 0 -> 0]
+         ok   every artefact box handed out as a text one too: NOTHING changes by objects: a pixel under two boxes is one pixel
+         ok   the ink threshold zeroed and maxed: ink is now zero, now the whole sheet
+         ok   the 'intact' threshold zeroed and maxed: intact is now all, now none
+         ok   the 'almost intact' threshold brought to its neighbours: the class between 'intact' and 'bitten' moves entirely
+         ok   the 'bitten' threshold brought to its neighbours: the class between 'almost intact' and 'torn' moves entirely
+          NO  the dark column blown up and squeezed: now all the ink is in columns, now none
+         ok   the edge band blown up and squeezed: at the edge now everything lost, now less
+         ok   truth shifted down by half an object: object ink came out different [object ink 35792 -> 23328, preserved 92.8% -> 73.7%]
+         ok   truth moved off the sheet: zero objects, and all of them 'empty'
 fitness battery: probes 21, measured 20, nothing to measure with 1 (see the 'no data' lines), uncaught 1

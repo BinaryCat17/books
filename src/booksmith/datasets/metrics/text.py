@@ -64,7 +64,8 @@ from booksmith.datasets.metrics import contour as metrics
 from booksmith.core import otsl, page, policy
 from booksmith.core.textnorm import NORM, norm_note, normalize
 from booksmith.core.errors import TextError, Unmeasurable
-from booksmith.datasets.metrics.base import Metric, Record, Scalar
+from booksmith.datasets.metrics.base import (Metric, Probe, Record, Scalar,
+                                             battery_summary, run_battery)
 
 
 
@@ -1607,23 +1608,11 @@ def mutations(truth_dir: str, pages_dir: str, log=print) -> int:
                             v > base["artifacts_with_truth"]["no_answer"])(
                        _artefact_truth(lambda c: "", "no_answer"))))
 
-    bad = mute = seen = 0
-    for name, want, probe in probes:
-        # AN EXCEPTION IN A PROBE IS NOT A FALL OF THE BATTERY: `measure_pages`
-        # throwing on the 12th probe of 28 gave 16 printed lines and NOT ONE
-        # total, leaving exit code the only witness.
-        try:
-            ok = probe()
-        except Exception as e:                                  # noqa: BLE001
-            ok = False
-            # NOT the word "fell": seven probes in `metrics.py` have "fell" as
-            # their `want`, which would read "fell -- fell: ValueError".
-            want = f"{want} — THE PROBE THREW {type(e).__name__}: {e}"
-        mark = "no data" if ok is None else ("ok " if ok else "NO")
-        log(f"  {mark:>10}  {name}: {want}")
-        bad += ok is False
-        mute += ok is None
-        seen += 1
+    # THE LOOP IS THE SHARED ONE (`base.run_battery`): an exception in a probe
+    # is a failed probe with the exception in its line, not a fallen battery
+    # (`measure_pages` throwing on the 12th probe of 28 once gave 16 printed
+    # lines and NOT ONE total), and the denominator is what was printed.
+    seen, mute, bad = run_battery([Probe(n, w, f) for n, w, f in probes], log)
 
     log("what this battery does NOT catch: a wrong TRUTH (nothing to check "
         "it against but the scan and the eyes); a model invention that got "
@@ -1635,10 +1624,7 @@ def mutations(truth_dir: str, pages_dir: str, log=print) -> int:
     # helper (`_anchor_all`) sends a probe to "no data", where breakage looks
     # like health. THE DENOMINATOR IS WHAT WAS PRINTED (`seen`): adding groups
     # by hand gave `metrics.mutations` "probes 32" against 33 outcomes.
-    log(f"reading battery: probes {seen}, measured {seen - mute}, "
-        f"nothing to measure with {mute} (see the 'no data' lines), "
-        f"uncaught {bad}")
-    return bad
+    return battery_summary("reading", seen, mute, bad, log)
 
 
 # ------------------------------------------------- the metric, as a Metric ---
