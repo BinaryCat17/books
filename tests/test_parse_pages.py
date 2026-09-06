@@ -82,7 +82,7 @@ def _outcome(fn, value):
     свести их в один ответ значило бы не заметить починку.
     """
     try:
-        return ("страницы", fn(value, TOTAL))
+        return ("pages", fn(value, TOTAL))
     except SystemExit:
         return ("отказ вслух", None)
     except BaseException as e:                     # noqa: BLE001 — нам нужен вид
@@ -122,7 +122,7 @@ def test_the_dash_means_the_whole_book_only_on_the_box():
     from booksmith.detect import parse_pages as canon
     other = _dots_parse_pages()
 
-    assert _outcome(other, SHELL_ALL) == ("страницы", list(range(TOTAL))), (
+    assert _outcome(other, SHELL_ALL) == ("pages", list(range(TOTAL))), (
         "у копии для карты дефис перестал значить «вся книга». "
         "`run.sh` подставляет его как `${4:--}`, а `spec()` шлёт "
         "`pages or '-'` — пустого позиционного аргумента там нет")
@@ -143,7 +143,7 @@ def test_a_space_separates_pages_in_both_copies():
     other = _dots_parse_pages()
 
     for fn, имя in ((canon, "detect"), (other, "dots_ocr")):
-        assert _outcome(fn, "1 3") == ("страницы", [0, 2]), (
+        assert _outcome(fn, "1 3") == ("pages", [0, 2]), (
             f"{имя}: «1 3» не понято как две страницы. Пробел обязан "
             f"разделять так же, как запятая")
         assert _outcome(fn, "x") == ("отказ вслух", None), (

@@ -29,7 +29,7 @@ from booksmith.models import doclayout, docling_heron, yolox_layout
 # «наш» — нельзя, потому что сверялась бы наша же нумерация.
 EXPECTED = {
     # doclayout.py, PP-DocLayoutV2: указательная сеть даёт настоящий ранг.
-    "ранг модели": "модель",
+    "model_rank": "model",
     # doclayout.py, PP-DocLayout_plus-L: ранга нет, `order` — позиция в
     # НАШЕЙ сортировке. Без этой строки метрика печатала «согласовано»
     # 29/36/41/44/46/44% по шести стендам вместо «НЕ СВЕРЯЕТСЯ».
@@ -110,7 +110,7 @@ def test_guard_reads_every_value_as_intended():
     """Главная проверка: сторож опознаёт КАЖДОЕ значение так, как задумано."""
     wrong = []
     for value, whose in sorted(EXPECTED.items()):
-        got = "модель" if says_model_rank(value) else "наш"
+        got = "model" if says_model_rank(value) else "наш"
         if got != whose:
             wrong.append(f"{value!r}: задумано «{whose}», сторож понял «{got}»")
     assert not wrong, (
@@ -133,7 +133,7 @@ def test_guard_ignores_case():
     for v in ("наш, сверху вниз", "Наш, сверху вниз", "НАШ, позиция в списке",
               "  наш  "):
         assert ours_order(v), f"{v!r} не опознано как наш порядок"
-    for v in ("ранг модели", "", None, 0, "порядок порождения"):
+    for v in ("model_rank", "", None, 0, "порядок порождения"):
         assert not ours_order(v), f"{v!r} ошибочно принято за наш порядок"
 
 
@@ -178,8 +178,8 @@ def test_truth_side_has_three_answers_not_two():
     молчащая истина не читается как размеченная.
     """
     st = metrics._truth_order_state
-    assert st({"meta": {"порядок размечен": True}}) == metrics.ORDER_MARKED
-    assert st({"meta": {"порядок размечен": False}}) == metrics.ORDER_UNMARKED
+    assert st({"meta": {"order_marked": True}}) == metrics.ORDER_MARKED
+    assert st({"meta": {"order_marked": False}}) == metrics.ORDER_UNMARKED
     assert st({"meta": {}}) == metrics.ORDER_SILENT
     assert st({}) == metrics.ORDER_SILENT
     assert len({metrics.ORDER_MARKED, metrics.ORDER_UNMARKED,
@@ -299,7 +299,7 @@ def test_model_rank_still_wins_over_our_rule():
     assert [b.box[1] for b in page.blocks] == [400.0, 700.0, 100.0], (
         "рамки сложены сверху вниз при живом ранге модели — наше правило "
         "вытеснило модельное, то есть мы решили за модель")
-    assert page.meta[support.ORDER_KEY] == "ранг модели"
+    assert page.meta[support.ORDER_KEY] == "model_rank"
 
 
 # --------------------------------------------------------------------------
@@ -348,14 +348,14 @@ def test_floor_variant_is_a_floor_at_every_point_of_the_sweep():
     а померен другой.
     """
     M = _pages_where_grouping_matters()
-    build = metrics._order_variants(M)["колонка за колонкой"]
+    build = metrics._order_variants(M)["column_by_column"]
     assert callable(build), (
         "варианты сборки отданы готовыми страницами: пересобрать пол под "
         "параметры точки нечем, и он перестанет быть полом всюду, где точка "
         "отошла от умолчания")
     bad = []
     for point in metrics._sweep_points(metrics.COLUMN_SWEEP, False):
-        v = metrics.column_jumps(build(**point), **point)["лишних прыжков"]
+        v = metrics.column_jumps(build(**point), **point)["excess_jumps"]
         if v:
             bad.append(f"{metrics._fmt_point(point)}: {v}")
     assert not bad, (
@@ -371,7 +371,7 @@ def test_floor_built_at_defaults_would_not_be_a_floor():
     """
     M = _pages_where_grouping_matters()
     fixed = metrics._by_columns(M)          # сложен один раз, при умолчании
-    seen = [metrics.column_jumps(fixed, **p)["лишних прыжков"]
+    seen = [metrics.column_jumps(fixed, **p)["excess_jumps"]
             for p in metrics._sweep_points(metrics.COLUMN_SWEEP, False)]
     assert any(seen), (
         f"на этих страницах группировка ничего не решает ({seen}): проверка "
@@ -391,7 +391,7 @@ def test_ranking_rebuilds_the_variants_it_measures():
         seen.append(par)
         return M
 
-    metrics.column_jumps_ranking({"часовой": spy, "модель": M})
+    metrics.column_jumps_ranking({"sentinel": spy, "model": M})
     pts = metrics._sweep_points(metrics.COLUMN_SWEEP, False)
     assert seen, "сборщика не позвали ни разу — вариант не пересобирается"
     assert any(p for p in seen), (

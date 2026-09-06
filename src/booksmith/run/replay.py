@@ -90,7 +90,7 @@ PKG = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # строкой `"отпечаток": fp`; здесь это единственная величина, взятая не из
 # исходника адаптера, и переименование ветки у писателя видно сразу — все
 # выведенные требования разом станут пропажами на СВЕЖЕМ слепке.
-FP = "отпечаток"
+FP = "fingerprint"
 
 
 def facts(outdir):
@@ -147,28 +147,28 @@ def _sha256(path):
 def _base(knob_names):
     r = []
     for name in knob_names:
-        r.append((("ручки", name, "значение"), f"ручка {name}"))
+        r.append((("knobs", name, "value"), f"ручка {name}"))
     r += [
-        (("растр", "scale"), "масштаб растра"),
-        (("растр", "dpi"), "разрешение растра, dpi"),
-        (("аргументы",), "аргументы прогона распознавателя"),
-        (("коммит",), "коммит кода booksmith, которым считали"),
-        (("исходник", "sha256"), "sha256 исходного файла книги"),
-        (("адаптер", "sha256"), "sha256 адаптера модели"),
-        (("адаптер", "имя"), "какой моделью читали"),
+        (("raster", "scale"), "масштаб растра"),
+        (("raster", "dpi"), "разрешение растра, dpi"),
+        (("args",), "аргументы прогона распознавателя"),
+        (("commit",), "коммит кода booksmith, которым считали"),
+        (("source", "sha256"), "sha256 исходного файла книги"),
+        (("adapter", "sha256"), "sha256 адаптера модели"),
+        (("adapter", "name"), "какой моделью читали"),
         # Промты перечислялись поимённо — `ocr` и `table`, — потому что
         # столько их было у прежнего пайплайна.  Адаптер модели сам знает,
         # сколько их у него и как они называются; требуется, чтобы он их
         # записал, а не чтобы их было ровно два.
-        (("промты",), "все промты адаптера, побайтово"),
-        (("порождение", "temperature"), "температура порождения"),
-        (("порождение", "max_tokens"), "потолок длины ответа"),
-        (("порождение", "top_p"), "отсечение по вероятности"),
-        (("порождение", "seed"), "зерно порождения"),
-        (("пакеты",), "версии пакетов, решающих разбор"),
-        (("веса", "vl"), "отпечаток весов VLM"),
-        (("веса", "layout"), "отпечаток весов детекции макета"),
-        (("повтор",), "готовая строка повтора"),
+        (("prompts",), "все промты адаптера, побайтово"),
+        (("generation", "temperature"), "температура порождения"),
+        (("generation", "max_tokens"), "потолок длины ответа"),
+        (("generation", "top_p"), "отсечение по вероятности"),
+        (("generation", "seed"), "зерно порождения"),
+        (("packages",), "версии пакетов, решающих разбор"),
+        (("weights", "vl"), "отпечаток весов VLM"),
+        (("weights", "layout"), "отпечаток весов детекции макета"),
+        (("repeat_command",), "готовая строка повтора"),
     ]
     return tuple(r)
 
@@ -328,22 +328,22 @@ def shape(snap):
     вывели, но не из того кода, которым считали» (слепок старый), `слепо` —
     «писателя не опознать вовсе» (сверять нечем и неоткуда узнать сколько).
     """
-    r = {"имя": None, "файл": None, "как": None, "сверено": False,
-         "выведено": [], "не сверено": 0, "нет из них": 0, "слепо": 0,
-         "не выведено": 0, "строка": ""}
+    r = {"name": None, "file": None, "how": None, "verified": False,
+         "derived": [], "not_verified": 0, "of_those_missing": 0, "blind": 0,
+         "not_derived": 0, "row": ""}
     if not snap:
-        r["строка"] = "отпечаток: слепка нет — сверять нечего"
+        r["row"] = "отпечаток: слепка нет — сверять нечего"
         return r
-    ad = snap.get("адаптер")
+    ad = snap.get("adapter")
     ad = ad if isinstance(ad, dict) else {}
-    name = ad.get("имя")
-    r["имя"] = name
+    name = ad.get("name")
+    r["name"] = name
     said = ad.get("sha256")
     said_s = str(said)[:8] if isinstance(said, str) else "не записан"
-    path, how, hits = _writer_file(ad.get("модуль"), name)
+    path, how, hits = _writer_file(ad.get("module"), name)
     if path is None:
-        r["слепо"] = 1
-        r["строка"] = (
+        r["blind"] = 1
+        r["row"] = (
             f"отпечаток НЕ СВЕРЕН: писатель {name!r} не опознан — "
             + (f"имя объявлено в {len(hits)} файлах дерева "
                f"({', '.join(os.path.relpath(h, PKG) for h in hits)})"
@@ -352,7 +352,7 @@ def shape(snap):
                "именем в дереве нет")
             + ". Сколько величин отпечатка не проверено, тоже неизвестно")
         return r
-    r["файл"], r["как"] = path, how
+    r["file"], r["how"] = path, how
     rel = os.path.relpath(path, PKG)
     now = _sha256(path)
     tree = _parse(path)
@@ -362,8 +362,8 @@ def shape(snap):
         # Файл нашли, а КТО в нём писал отпечаток — не знаем: класса с таким
         # `name` нет, а `fingerprint` в файле не один. Взять любой значило бы
         # сверять форму с чужим классом.
-        r["слепо"] = 1
-        r["строка"] = (f"отпечаток НЕ СВЕРЕН: в {rel} нет класса с "
+        r["blind"] = 1
+        r["row"] = (f"отпечаток НЕ СВЕРЕН: в {rel} нет класса с "
                        f"name = {name!r}, а `fingerprint` там не один — "
                        f"чей отпечаток в слепке, определить нечем")
         return r
@@ -373,16 +373,16 @@ def shape(snap):
             # В слепке отпечаток ЕСТЬ, а у сегодняшнего писателя его нет:
             # значит, код с прогона разошёлся. Сказать «отпечатка нет вовсе»
             # тут значило бы объявить значением чужую ветку.
-            r["слепо"] = 1
-            r["строка"] = (
+            r["blind"] = 1
+            r["row"] = (
                 f"отпечаток НЕ СВЕРЕН: в слепке он есть ({len(fpv)} ветвей), "
                 f"а у писателя {name} ({rel}) `fingerprint()` не объявлен "
                 f"вовсе — код разошёлся с прогоном, сверять не с чем")
             return r
         # Писатель без `fingerprint()` — так пишет слепок `doc.html`: сборка
         # HTML не модель и отпечатка не даёт. ЗНАЧЕНИЕ, а не пропуск.
-        r["сверено"] = True
-        r["строка"] = (f"отпечатка нет вовсе: писал {name} ({rel}), "
+        r["verified"] = True
+        r["row"] = (f"отпечатка нет вовсе: писал {name} ({rel}), "
                        f"`fingerprint()` там не объявлен — это значение, "
                        f"а не пропуск")
         return r
@@ -409,9 +409,9 @@ def shape(snap):
         # выведено` печатается оговоркой в `check` и уезжает в код возврата
         # `selfcheck`. Это НЕ «отпечатка нет вовсе»: тот случай разобран
         # веткой выше и объявлен значением.
-        r["не выведено"] = 1
-        r["выведено"] = [((FP,), f"отпечаток адаптера {name} целиком")]
-        r["строка"] = (
+        r["not_derived"] = 1
+        r["derived"] = [((FP,), f"отпечаток адаптера {name} целиком")]
+        r["row"] = (
             f"форму отпечатка адаптера {name} ВЫВЕСТИ НЕ УДАЛОСЬ: "
             f"`fingerprint()` в {rel} объявлен, а разбор не достал из него ни "
             f"одного ключа (sha256 "
@@ -425,9 +425,9 @@ def shape(snap):
     req = [((FP,) + k, f"величина отпечатка адаптера {name}") for k in keys]
     req.insert(0, ((FP,), f"отпечаток адаптера {name} целиком"))
     if isinstance(said, str) and now == said:
-        r["сверено"] = True
-        r["выведено"] = req
-        r["строка"] = (f"отпечаток адаптера {name} сверен: {rel} тот самый "
+        r["verified"] = True
+        r["derived"] = req
+        r["row"] = (f"отпечаток адаптера {name} сверен: {rel} тот самый "
                        f"(sha256 сходится, опознан {how}), из него выведено "
                        f"{len(req)} величин")
         return r
@@ -438,13 +438,13 @@ def shape(snap):
     # вырезаны они или не существовали тогда, отсюда не видно. Число
     # печатается, вывод не делается: догадка в коде возврата — та же ложь,
     # что молчание.
-    r["не сверено"] = len(req)
-    r["нет из них"] = sum(1 for path, _ in req if not _dig(snap, path)[0])
-    r["строка"] = (
+    r["not_verified"] = len(req)
+    r["of_those_missing"] = sum(1 for path, _ in req if not _dig(snap, path)[0])
+    r["row"] = (
         f"отпечаток адаптера {name} НЕ СВЕРЕН: {rel} не тот код, которым "
         f"считали (в слепке {said_s}, в дереве {str(now)[:8]}) — {len(req)} "
         f"величин отпечатка не проверено, из них в слепке нет "
-        f"{r['нет из них']}. Это «слепок старый», а не «слепок неполон»")
+        f"{r['of_those_missing']}. Это «слепок старый», а не «слепок неполон»")
     return r
 
 
@@ -473,7 +473,7 @@ def required(snap=None, sh=None):
     req = list(_base(knob_names()))
     if snap:
         sh = shape(snap) if sh is None else sh
-        req += sh["выведено"]
+        req += sh["derived"]
     return tuple(req)
 
 
@@ -490,7 +490,7 @@ def composition(req=None):
     прозе: у каждого адаптера оно своё.
     """
     req = required() if req is None else req
-    kn = sum(1 for p, _ in req if p and p[0] == "ручки")
+    kn = sum(1 for p, _ in req if p and p[0] == "knobs")
     fp = sum(1 for p, _ in req if p and p[0] == FP)
     return kn, len(req) - kn - fp, fp
 
@@ -565,9 +565,9 @@ def uncovered(snap, sh):
     закрыты. Вырезать их можно незаметно — поэтому они печатаются: пятно,
     о котором сказано числом, и пятно, о котором молчат, — разные вещи.
     """
-    if not sh.get("сверено"):
+    if not sh.get("verified"):
         return []
-    return sorted(_fp_paths(snap) - {path for path, _ in sh["выведено"]})
+    return sorted(_fp_paths(snap) - {path for path, _ in sh["derived"]})
 
 
 def check(outdir, verbose=True):
@@ -581,19 +581,19 @@ def check(outdir, verbose=True):
         name = os.path.relpath(outdir)
         if not snap:
             print(f"{name}: run.json не читается — слепка нет вовсе")
-        kn_h = sum(1 for p, _ in hol if p and p[0] == "ручки")
+        kn_h = sum(1 for p, _ in hol if p and p[0] == "knobs")
         # Оговорка стоит В ТОЙ ЖЕ СТРОКЕ, что и число. «42 из 42, не хватает
         # 0» и объяснение через строку ниже читаются как «полон» — а полным
         # слепок при несверенном отпечатке не назван: он не проверен. Это то
         # самое различение нулей, ради которого заведено правило: ноль от
         # проверки и ноль от непонимания — разные нули.
         caveat = ""
-        if sh["не сверено"]:
-            caveat = (f"; ПРОВЕРЕНО НЕ ВСЁ — {sh['не сверено']} величин "
+        if sh["not_verified"]:
+            caveat = (f"; ПРОВЕРЕНО НЕ ВСЁ — {sh['not_verified']} величин "
                       f"отпечатка не с чем сверить")
-        elif sh["слепо"]:
+        elif sh["blind"]:
             caveat = "; ПРОВЕРЕНО НЕ ВСЁ — отпечаток не сверен вовсе"
-        elif sh["не выведено"]:
+        elif sh["not_derived"]:
             # Оговорка тут та же по смыслу, что и две выше, но беда другая:
             # писатель опознан и отпечаток у него есть, а форму его вывести
             # не удалось. Требуется только сама ветка, и молчать об этом
@@ -603,7 +603,7 @@ def check(outdir, verbose=True):
         print(f"{name}: величин в слепке {len(req) - len(miss)} из {len(req)}, "
               f"не хватает {len(miss)}, пусты {len(hol)} "
               f"(из них ручек без значения {kn_h}){caveat}")
-        print(f"  {sh['строка']}")
+        print(f"  {sh['row']}")
         unc = uncovered(snap, sh)
         if unc:
             names = [" / ".join(p[1:]) for p in unc[:5]]
@@ -620,7 +620,7 @@ def check(outdir, verbose=True):
         # обычное «не задано», их всегда много, и они утопили бы список.
         # Числом они выше.
         for path, what in hol:
-            if path and path[0] == "ручки":
+            if path and path[0] == "knobs":
                 continue
             print(f"  пусто {'/'.join(map(str, path)):44s} — {what}")
     return miss
@@ -681,7 +681,7 @@ def selfcheck(outdir, log=print) -> int:
         f"{lit} + величин отпечатка {fp}; ручек в реестре "
         f"{len(knobs.names())}, из них объявленным долгом "
         f"{len(knobs.debts())}; расхождений реестра с деревом {len(drift)}")
-    log(f"  {sh['строка']}")
+    log(f"  {sh['row']}")
     unc = uncovered(snap, sh)
     if unc:
         log(f"  величин отпечатка, вырезаемых незаметно: {len(unc)} — их "
@@ -708,18 +708,18 @@ def selfcheck(outdir, log=print) -> int:
     log(f"{name}: выбито {len(req) - len(absent)} ключей из "
         f"{len(req)}, не пойманных пропаж {bad}"
         + (f"; изначально отсутствуют {len(absent)}" if absent else "")
-        + (f"; не с чем сверить величин отпечатка {sh['не сверено']}"
-           if sh["не сверено"] else "")
-        + ("; писатель слепка не опознан" if sh["слепо"] else "")
+        + (f"; не с чем сверить величин отпечатка {sh['not_verified']}"
+           if sh["not_verified"] else "")
+        + ("; писатель слепка не опознан" if sh["blind"] else "")
         + ("; форму отпечатка вывести не удалось — требовалась одна лишь "
-           "ветка" if sh["не выведено"] else ""))
-    return (bad + len(absent) + len(drift) + sh["не сверено"] + sh["слепо"]
-            + sh["не выведено"])
+           "ветка" if sh["not_derived"] else ""))
+    return (bad + len(absent) + len(drift) + sh["not_verified"] + sh["blind"]
+            + sh["not_derived"])
 
 
 def line(outdir):
     """Готовая строка повтора, если она записана."""
-    v = facts(outdir).get("повтор")
+    v = facts(outdir).get("repeat_command")
     return v if isinstance(v, str) else None
 
 

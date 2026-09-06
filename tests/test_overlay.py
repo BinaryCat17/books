@@ -243,9 +243,9 @@ def test_the_sheet_shouts_at_exactly_what_the_number_calls_extra():
              "blocks": [{"block_id": 0, "box": [10, 10, 90, 90],
                          "label": "table", "score": None, "order": 0,
                          "content": None, "kind": "none"}],
-             "meta": {"вне замера": [{"box": [200, 200, 300, 300],
-                                      "категория": "Vignette",
-                                      "разряд": "невыразимо"}]}}
+             "meta": {"out_of_scope": [{"box": [200, 200, 300, 300],
+                                      "category": "Vignette",
+                                      "bucket": "inexpressible"}]}}
         # Модель: нашла таблицу, плюс рамка НА объекте вне замера, плюс
         # настоящая лишняя в пустоте.
         m = {"index": 0, "width": 400, "height": 600,
@@ -270,13 +270,13 @@ def test_the_sheet_shouts_at_exactly_what_the_number_calls_extra():
         c = metrics.compare(os.path.join(d, "truth", "pages"),
                             os.path.join(d, "model", "pages"))
         del counts
-        beds = c["беды"] if "беды" in c else {}
-        want = beds.get("лишняя рамка", 0)
+        beds = c["troubles"] if "troubles" in c else {}
+        want = beds.get("spurious_box", 0)
         said = []
         got = overlay.build(pdf, os.path.join(d, "o2.pdf"),
                             [(os.path.join(d, "truth", "pages"), "И"),
                              (os.path.join(d, "model", "pages"), "М")],
-                            log=said.append)["лишних"]
+                            log=said.append)["spurious"]
         assert want == 1, f"стенд собран не так: score зовёт лишними {want}"
         assert got == want, (
             f"лист кричит про {got} рамок, а число зовёт лишними {want}. "

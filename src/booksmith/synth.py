@@ -137,13 +137,13 @@ def _say(truth, text=None, *, cells=None, spans=None, add=False):
         _SAID[i] = rec
     if text is not None:
         t = " ".join(str(text).split())
-        rec["текст"] = (rec["текст"] + " " + t).strip() if add and "текст" in rec else t
+        rec["text"] = (rec["text"] + " " + t).strip() if add and "text" in rec else t
     if cells is not None:
-        rec["строк"] = len(cells)
-        rec["столбцов"] = max((len(r) for r in cells), default=0)
-        rec["ячейки"] = [[" ".join(str(c).split()) for c in row] for row in cells]
+        rec["rows"] = len(cells)
+        rec["cols"] = max((len(r) for r in cells), default=0)
+        rec["cells"] = [[" ".join(str(c).split()) for c in row] for row in cells]
     if spans is not None:
-        rec["объединения"] = spans
+        rec["spans"] = spans
     return rec
 
 
@@ -422,7 +422,7 @@ def _span_header_table(pg, truth, x, y, groups, rows, colw=54.0, size=6.2):
         # Одной сеткой это не выразить, а без второй записи двухъярусная шапка
         # неотличима от обычной — то есть главная порча этого случая
         # («шапка сплющена в одну строку») не ловится вовсе.
-        spans.append({"строка": 0, "столбец": len(cols), "столбцов": n})
+        spans.append({"row": 0, "col": len(cols), "cols": n})
         for j in range(n):
             cols.append(cx + j * colw)
             top.append(name if j == 0 else "")
@@ -1311,7 +1311,7 @@ AGING = {
     # совпадают побайтно, и разницу в числе можно отнести к бумаге, а не к
     # сместившейся истине. Прежняя редакция ставила 1.8 и при этом обещала в
     # README «ветхий не двигает рамок истины» — двигал, все 382.
-    "ветхий": dict(blur=1.1, noise=7.5, speck=0.0026, tint=(214, 20, 14),
+    "decayed": dict(blur=1.1, noise=7.5, speck=0.0026, tint=(214, 20, 14),
                    skew=1.2, jpeg=52, bleed=0.16, edge=0.55),
 }
 
@@ -1609,10 +1609,10 @@ def _text_check(words, boxes, said, case: str):
     miss = ghost = unknown = leaders = 0
     примеры = []
     for j, b in enumerate(boxes):
-        if policy.role(b[4]) == "артефакт":
+        if policy.role(b[4]) == "artifact":
             continue
         have = Counter(inside[j])
-        want = Counter((said.get(j, {}).get("текст") or "").split())
+        want = Counter((said.get(j, {}).get("text") or "").split())
         m = want - have
         e = have - want
         miss += sum(m.values())
@@ -1634,11 +1634,11 @@ def _text_check(words, boxes, said, case: str):
                     примеры.append(f"{b[4]}#{j}: {w!r}")
         if m and len(примеры) < 4:
             примеры.append(f"{b[4]}#{j}: нет в слое {list(m)[:3]}")
-    return {"слов в слое": len(words), "нет в слое": miss,
-            "вне истины": len(outside), "призраков": ghost,
-            "выносок": leaders, "необъяснённых": unknown,
-            "слова вне истины": sorted(set(outside))[:8],
-            "примеры расхождений": примеры}
+    return {"words_in_layer": len(words), "missing_from_layer": miss,
+            "outside_truth": len(outside), "ghosts": ghost,
+            "dot_leaders": leaders, "unexplained": unknown,
+            "outside_truth_samples": sorted(set(outside))[:8],
+            "mismatch_examples": примеры}
 
 
 def build(out_dir: str, cases=None, seed: int = 1, aging: str = "old",
@@ -1756,14 +1756,14 @@ def build(out_dir: str, cases=None, seed: int = 1, aging: str = "old",
         n_spots, _lbl, stats, _ctr = cv2.connectedComponentsWithStats(left, 8)
         spot = max((stats[j] for j in range(1, n_spots)),
                    key=lambda r: r[cv2.CC_STAT_AREA], default=None)
-        undecl = {"пикселей": int(left.sum()), "крупнейшее пятно": None}
+        undecl = {"pixels": int(left.sum()), "largest_blob": None}
         spot_box = None
         if spot is not None:
             sx, sy = int(spot[cv2.CC_STAT_LEFT]), int(spot[cv2.CC_STAT_TOP])
             sw, sh = int(spot[cv2.CC_STAT_WIDTH]), int(spot[cv2.CC_STAT_HEIGHT])
-            undecl["крупнейшее пятно"] = {
-                "площадь": int(spot[cv2.CC_STAT_AREA]),
-                "размер на чистом растре": [sw, sh], "рамка": None}
+            undecl["largest_blob"] = {
+                "area": int(spot[cv2.CC_STAT_AREA]),
+                "size_on_clean_raster": [sw, sh], "box": None}
             spot_box = (sx, sy, sx + sw, sy + sh)
 
         # Тень переплёта — ДО поворота. Корешок делит РАЗВОРОТ пополам, а не
@@ -1800,7 +1800,7 @@ def build(out_dir: str, cases=None, seed: int = 1, aging: str = "old",
             if spot_box is not None:
                 spot_box = _clip_box(_xform_box(spot_box, M), w, h)
         if spot_box is not None:
-            undecl["крупнейшее пятно"]["рамка"] = [round(v, 1) for v in spot_box]
+            undecl["largest_blob"]["box"] = [round(v, 1) for v in spot_box]
         thin = [b for b in boxes if b[2] - b[0] < 2 or b[3] - b[1] < 2]
         if thin:
             raise SynthError(
@@ -1829,11 +1829,11 @@ def build(out_dir: str, cases=None, seed: int = 1, aging: str = "old",
             blk = {"block_id": j, "box": [round(v, 1) for v in b[:4]],
                    "label": b[4], "score": None, "order": j,
                    "content": None, "kind": "none"}
-            if роль == "артефакт":
+            if роль == "artifact":
                 if rec:
                     art_truth[str(j)] = rec
             else:
-                txt = rec.get("текст")
+                txt = rec.get("text")
                 if txt:
                     blk["content"] = txt
                     blk["kind"] = "text"
@@ -1845,21 +1845,21 @@ def build(out_dir: str, cases=None, seed: int = 1, aging: str = "old",
         знаков = sum(len(b["content"]) for b in blocks if b["content"])
         слов = sum(len(b["content"].split()) for b in blocks if b["content"])
         с_текстом = sum(1 for b in blocks if b["content"])
-        знаки = {"знаков": знаков, "слов": слов, "блоков с текстом": с_текстом,
-                 "текстовых блоков без знаков": len(нет_знаков),
-                 "какие без знаков": нет_знаков[:6],
-                 "таблиц с сеткой": sum(1 for v in art_truth.values()
-                                        if "ячейки" in v),
-                 "ячеек": sum(v["строк"] * v["столбцов"]
-                              for v in art_truth.values() if "ячейки" in v)}
+        знаки = {"chars": знаков, "words": слов, "blocks_with_text": с_текстом,
+                 "text_blocks_without_chars": len(нет_знаков),
+                 "which_without_chars": нет_знаков[:6],
+                 "tables_with_grid": sum(1 for v in art_truth.values()
+                                        if "cells" in v),
+                 "cell_count": sum(v["rows"] * v["cols"]
+                              for v in art_truth.values() if "cells" in v)}
         with open(os.path.join(truth_dir, f"{i:04d}.json"), "w",
                   encoding="utf-8") as f:
             json.dump({"index": i, "width": w, "height": h, "dpi": DPI,
                        "blocks": blocks, "raw": None,
-                       "meta": {"случай": name, "книга": book,
-                                "старение": aging,
-                                "зерно": page_seed, "поворот": rot,
-                                "корешок": gutter,
+                       "meta": {"case": name, "book": book,
+                                "aging": aging,
+                                "synth_seed": page_seed, "rotation": rot,
+                                "gutter": gutter,
                                 # Пикселей — по ЧИСТОМУ растру, до старения и
                                 # поворота: старение сыплет крап, и по нему
                                 # число мерило бы шум, а не забытую рамку.
@@ -1867,7 +1867,7 @@ def build(out_dir: str, cases=None, seed: int = 1, aging: str = "old",
                                 # чтобы число не менялось от перекоса; рамка —
                                 # уже в координатах ЭТОЙ страницы, чтобы по
                                 # ней можно было пятно найти глазом.
-                                "чернил вне истины": undecl,
+                                "ink_outside_truth": undecl,
                                 # ПРИЗНАК, А НЕ ДОГАДКА. `subset.py` и
                                 # `books score` читают `текст размечен`
                                 # тремя ответами: «да», «нет», «не сказано»,
@@ -1877,47 +1877,47 @@ def build(out_dir: str, cases=None, seed: int = 1, aging: str = "old",
                                 # ФАКТУ: «да» только когда знаки есть у всех
                                 # блоков разряда «текст» и «служебное»; одна
                                 # молчащая дыра — и признак честно «нет».
-                                "текст размечен": not нет_знаков,
-                                "истина знаков": знаки,
-                                "сверка с текстовым слоем": сверка,
+                                "text_marked": not нет_знаков,
+                                "char_truth": знаки,
+                                "text_layer_check": сверка,
                                 # Истина АРТЕФАКТА — сбоку и по номеру блока.
                                 # Для таблицы это строки, столбцы и текст
                                 # каждой ячейки: без них второй уровень
                                 # (таблица -> HTML) проверить нечем вовсе, а
                                 # «обвёл верно» про таблицу не говорит ничего.
-                                "истина артефактов": art_truth}},
+                                "artifact_truth": art_truth}},
                       f, ensure_ascii=False)
-        pages.append({"случай": name, "страница": i, "размер": [w, h],
-                      "блоков": len(blocks), "поворот": rot,
-                      "разворот": name in B_SPREADS,
-                      "чернил вне истины": undecl,
-                      "истина знаков": знаки,
-                      "сверка с текстовым слоем": сверка})
-        big = undecl["крупнейшее пятно"]
+        pages.append({"case": name, "page": i, "size": [w, h],
+                      "block_count": len(blocks), "rotation": rot,
+                      "spread": name in B_SPREADS,
+                      "ink_outside_truth": undecl,
+                      "char_truth": знаки,
+                      "text_layer_check": сверка})
+        big = undecl["largest_blob"]
         log(f"  {i:2d} {name:22s} {w}x{h}, блоков {len(blocks)}"
             + ("  (разворот)" if name in B_SPREADS else "")
             + (f"  (повёрнут {rot}°)" if rot else "")
-            + f", вне истины {undecl['пикселей']} px"
-            + (f" (пятно {big['размер на чистом растре'][0]}"
-               f"x{big['размер на чистом растре'][1]}"
-               f" = {big['площадь']} px)" if big else "")
-            + f"; знаков {знаки['знаков']}, слов {знаки['слов']} "
-              f"в {знаки['блоков с текстом']} блоках"
-            + (f", БЕЗ ЗНАКОВ {знаки['текстовых блоков без знаков']} "
-               f"({', '.join(знаки['какие без знаков'])})"
+            + f", вне истины {undecl['pixels']} px"
+            + (f" (пятно {big['size_on_clean_raster'][0]}"
+               f"x{big['size_on_clean_raster'][1]}"
+               f" = {big['area']} px)" if big else "")
+            + f"; знаков {знаки['chars']}, слов {знаки['words']} "
+              f"в {знаки['blocks_with_text']} блоках"
+            + (f", БЕЗ ЗНАКОВ {знаки['text_blocks_without_chars']} "
+               f"({', '.join(знаки['which_without_chars'])})"
                if нет_знаков else "")
-            + (f", ячеек {знаки['ячеек']} в {знаки['таблиц с сеткой']} табл."
-               if знаки["таблиц с сеткой"] else "")
-            + f"; слов вне истины {сверка['вне истины']}"
-            + (f" {сверка['слова вне истины']}" if сверка["вне истины"] else "")
-            + (f", НЕТ В СЛОЕ {сверка['нет в слое']}"
-               if сверка["нет в слое"] else "")
-            + (f", НЕОБЪЯСНЁННЫХ {сверка['необъяснённых']}"
-               if сверка["необъяснённых"] else "")
-            + (f" {сверка['примеры расхождений']}"
-               if сверка["примеры расхождений"] else "")
-            + f", призраков {сверка['призраков']}"
-            + (f", выносок {сверка['выносок']}" if сверка["выносок"] else ""))
+            + (f", ячеек {знаки['cell_count']} в {знаки['tables_with_grid']} табл."
+               if знаки["tables_with_grid"] else "")
+            + f"; слов вне истины {сверка['outside_truth']}"
+            + (f" {сверка['outside_truth_samples']}" if сверка["outside_truth"] else "")
+            + (f", НЕТ В СЛОЕ {сверка['missing_from_layer']}"
+               if сверка["missing_from_layer"] else "")
+            + (f", НЕОБЪЯСНЁННЫХ {сверка['unexplained']}"
+               if сверка["unexplained"] else "")
+            + (f" {сверка['mismatch_examples']}"
+               if сверка["mismatch_examples"] else "")
+            + f", призраков {сверка['ghosts']}"
+            + (f", выносок {сверка['dot_leaders']}" if сверка["dot_leaders"] else ""))
 
     # Имя по КНИГЕ, а не «synth.pdf» во всех каталогах разом: шесть книг с
     # одинаковым именем файла путаются при первом же взгляде на каталог.
@@ -1945,37 +1945,37 @@ def build(out_dir: str, cases=None, seed: int = 1, aging: str = "old",
     # про один PDF; здесь дополнительно записано, ЧЕМ эта истина построена.
     def сумма(ключ, поле):
         return sum(pp[ключ][поле] for pp in pages)
-    итог = {"знаков": сумма("истина знаков", "знаков"),
-            "слов": сумма("истина знаков", "слов"),
-            "блоков с текстом": сумма("истина знаков", "блоков с текстом"),
-            "текстовых блоков без знаков":
-                сумма("истина знаков", "текстовых блоков без знаков"),
-            "таблиц с сеткой": сумма("истина знаков", "таблиц с сеткой"),
-            "ячеек": сумма("истина знаков", "ячеек"),
-            "слов вне истины": сумма("сверка с текстовым слоем", "вне истины"),
-            "нет в слое": сумма("сверка с текстовым слоем", "нет в слое"),
-            "необъяснённых": сумма("сверка с текстовым слоем", "необъяснённых"),
-            "призраков": сумма("сверка с текстовым слоем", "призраков"),
-            "выносок": сумма("сверка с текстовым слоем", "выносок"),
-            "слов в текстовом слое": сумма("сверка с текстовым слоем",
-                                           "слов в слое")}
+    итог = {"chars": сумма("char_truth", "chars"),
+            "words": сумма("char_truth", "words"),
+            "blocks_with_text": сумма("char_truth", "blocks_with_text"),
+            "text_blocks_without_chars":
+                сумма("char_truth", "text_blocks_without_chars"),
+            "tables_with_grid": сумма("char_truth", "tables_with_grid"),
+            "cell_count": сумма("char_truth", "cell_count"),
+            "words_outside_truth": сумма("text_layer_check", "outside_truth"),
+            "missing_from_layer": сумма("text_layer_check", "missing_from_layer"),
+            "unexplained": сумма("text_layer_check", "unexplained"),
+            "ghosts": сумма("text_layer_check", "ghosts"),
+            "dot_leaders": сумма("text_layer_check", "dot_leaders"),
+            "words_in_text_layer_total": сумма("text_layer_check",
+                                           "words_in_layer")}
 
     src = os.path.join(os.path.dirname(os.path.abspath(__file__)), "synth.py")
-    man = {"книга": book, "о книге": getattr(mod, "ABOUT", ""),
-           "страниц": len(pages), "зерно": seed, "старение": aging,
-           "генератор": {"файл": "synth.py", "sha256": _sha256(src),
-                         "коммит": _commit(),
-                         "случаи": names, "книга": book,
-                         "sha256 книги": _sha256(mod.__file__),
-                         "ярлыки-догадки": sorted(GUESSED),
+    man = {"book": book, "about": getattr(mod, "ABOUT", ""),
+           "page_count": len(pages), "synth_seed": seed, "aging": aging,
+           "generator": {"file": "synth.py", "sha256": _sha256(src),
+                         "commit": _commit(),
+                         "cases": names, "book": book,
+                         "sha256_book_module": _sha256(mod.__file__),
+                         "guessed_labels": sorted(GUESSED),
                          "INK": INK, "KEEP": KEEP, "GROW": GROW},
-           "ручки": knobs.snapshot() if hasattr(knobs, "snapshot") else None,
-           "параметры старения": AGING[aging],
-           "шрифты": {os.path.basename(FONT): _sha256(FONT),
+           "knobs": knobs.snapshot() if hasattr(knobs, "snapshot") else None,
+           "aging_params": AGING[aging],
+           "fonts": {os.path.basename(FONT): _sha256(FONT),
                       os.path.basename(FONT_MONO): _sha256(FONT_MONO)},
            "pdf": os.path.basename(pdf), "sha256 pdf": _sha256(pdf),
-           "блоков по ярлыкам": counts, "истина знаков": итог,
-           "страницы": pages}
+           "blocks_by_label": counts, "char_truth": итог,
+           "pages": pages}
     with open(os.path.join(out_dir, "manifest.json"), "w",
               encoding="utf-8") as f:
         json.dump(man, f, ensure_ascii=False, indent=1)
@@ -1986,18 +1986,18 @@ def build(out_dir: str, cases=None, seed: int = 1, aging: str = "old",
     # текстовых блоков значит молчащую дыру в истине; «нет в слое» больше нуля
     # значит истину богаче бумаги; «слов вне истины» больше нуля значит кусок
     # страницы, не объявленный вовсе (номера строк каталога — как раз он).
-    log(f"истина знаков: {итог['знаков']} знаков, {итог['слов']} слов "
-        f"в {итог['блоков с текстом']} блоках"
-        + (f"; БЕЗ ЗНАКОВ текстовых блоков {итог['текстовых блоков без знаков']}"
-           if итог["текстовых блоков без знаков"] else "")
-        + f"; таблиц с сеткой {итог['таблиц с сеткой']}, "
-          f"ячеек {итог['ячеек']}")
+    log(f"истина знаков: {итог['chars']} знаков, {итог['words']} слов "
+        f"в {итог['blocks_with_text']} блоках"
+        + (f"; БЕЗ ЗНАКОВ текстовых блоков {итог['text_blocks_without_chars']}"
+           if итог["text_blocks_without_chars"] else "")
+        + f"; таблиц с сеткой {итог['tables_with_grid']}, "
+          f"ячеек {итог['cell_count']}")
     log(f"слов, нарисованных вне всякой рамки истины: "
-        f"{итог['слов вне истины']} из {итог['слов в текстовом слое']} "
+        f"{итог['words_outside_truth']} из {итог['words_in_text_layer_total']} "
         f"в текстовом слое")
-    log(f"сверка с текстовым слоем: нет в слое {итог['нет в слое']}, "
-        f"необъяснённых {итог['необъяснённых']}, "
-        f"призраков повторной заливки {итог['призраков']}, "
-        f"точечных выносок {итог['выносок']}")
+    log(f"сверка с текстовым слоем: нет в слое {итог['missing_from_layer']}, "
+        f"необъяснённых {итог['unexplained']}, "
+        f"призраков повторной заливки {итог['ghosts']}, "
+        f"точечных выносок {итог['dot_leaders']}")
     log(f"{pdf} ({os.path.getsize(pdf)/1e6:.1f} МБ), истина в {truth_dir}")
     return man

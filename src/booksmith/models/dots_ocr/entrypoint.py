@@ -347,14 +347,14 @@ def main():
             with open(os.path.join(pdir, f"{i:04d}.json"), "w",
                       encoding="utf-8") as f:
                 json.dump({"index": i, "width": w, "height": h, "dpi": DPI,
-                           "blocks": blocks, "raw": {"ответ": ans},
-                           "meta": {"распознаватель": "dots.ocr",
-                                    "проход": r, "промт": "layout_only_en",
-                                    "порядок чтения": "порядок порождения",
-                                    "потолок подачи": a.max_pixels,
-                                    "ужато": round(scale, 4),
-                                    "нехватка видеопамяти": oom,
-                                    "ошибка разбора": err}}, f,
+                           "blocks": blocks, "raw": {"answer": ans},
+                           "meta": {"detector": "dots.ocr",
+                                    "pass_no": r, "prompt": "layout_only_en",
+                                    "reading_order": "порядок порождения",
+                                    "input_pixel_ceiling": a.max_pixels,
+                                    "downscale": round(scale, 4),
+                                    "out_of_vram": oom,
+                                    "parse_error": err}}, f,
                           ensure_ascii=False)
             if n % 10 == 0 or n == len(idxs):
                 log(f"  проход {r}: {n}/{len(idxs)}, рамок {seen}, "

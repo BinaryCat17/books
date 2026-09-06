@@ -30,41 +30,41 @@
 # один и тот же ярлык не может значить в двух словарях разное.
 PP_DOCLAYOUT_V2 = {
     # --- вырезается картинкой ------------------------------------------
-    "table": "артефакт",
-    "chart": "артефакт",
-    "image": "артефакт",
+    "table": "artifact",
+    "chart": "artifact",
+    "image": "artifact",
     # Формула блоком — картинка. На HTML она переводится плохо и не всегда,
     # и решать это дело второго уровня, а не наше.
-    "display_formula": "артефакт",
-    "header_image": "артефакт",
-    "footer_image": "артефакт",
-    "seal": "артефакт",
+    "display_formula": "artifact",
+    "header_image": "artifact",
+    "footer_image": "artifact",
+    "seal": "artifact",
 
     # --- остаётся текстом ----------------------------------------------
-    "abstract": "текст",
-    "algorithm": "текст",
-    "aside_text": "текст",
-    "content": "текст",
-    "doc_title": "текст",
-    "figure_title": "текст",
-    "paragraph_title": "текст",
-    "reference": "текст",
-    "reference_content": "текст",
-    "text": "текст",
-    "vertical_text": "текст",
+    "abstract": "text",
+    "algorithm": "text",
+    "aside_text": "text",
+    "content": "text",
+    "doc_title": "text",
+    "figure_title": "text",
+    "paragraph_title": "text",
+    "reference": "text",
+    "reference_content": "text",
+    "text": "text",
+    "vertical_text": "text",
     # ОСТОРОЖНО, ПОГРАНИЧНЫЙ СЛУЧАЙ. Строчная формула живёт ВНУТРИ потока, и
     # вырезать её картинкой значит разорвать предложение посередине. Поэтому
     # текст — но с оговоркой: содержимое при этом теряется молча, а все
     # числа контуров остаются идеальными. Первый кандидат на замер.
-    "inline_formula": "текст",
-    "formula_number": "текст",
+    "inline_formula": "text",
+    "formula_number": "text",
 
     # --- служебное: помечается, но не выбрасывается ---------------------
-    "header": "служебное",
-    "footer": "служебное",
-    "number": "служебное",
-    "footnote": "служебное",
-    "vision_footnote": "служебное",
+    "header": "furniture",
+    "footer": "furniture",
+    "number": "furniture",
+    "footnote": "furniture",
+    "vision_footnote": "furniture",
 }
 
 # DocLayNet — словарь, на котором обучены YOLO-детекторы макета (yolov10/11
@@ -73,17 +73,17 @@ PP_DOCLAYOUT_V2 = {
 # Объявлено ради ЗАМЕРА: сравнить архитектуры на одних страницах нельзя, пока
 # чужой ярлык роняет прогон.
 DOCLAYNET = {
-    "Table": "артефакт",
-    "Picture": "артефакт",
-    "Formula": "артефакт",
-    "Caption": "текст",
-    "List-item": "текст",
-    "Section-header": "текст",
-    "Text": "текст",
-    "Title": "текст",
-    "Page-header": "служебное",
-    "Page-footer": "служебное",
-    "Footnote": "служебное",
+    "Table": "artifact",
+    "Picture": "artifact",
+    "Formula": "artifact",
+    "Caption": "text",
+    "List-item": "text",
+    "Section-header": "text",
+    "Text": "text",
+    "Title": "text",
+    "Page-header": "furniture",
+    "Page-footer": "furniture",
+    "Footnote": "furniture",
 }
 
 # Docling heron/egret (IBM): семнадцать классов, RT-DETRv2 на других данных.
@@ -92,23 +92,23 @@ DOCLAYNET = {
 # Класса `chart` у неё НЕТ вовсе — графики уходят в `picture`, и это надо
 # помнить при сличении: наш `chart` ей нечем выразить.
 DOCLING = {
-    "table": "артефакт",
-    "picture": "артефакт",
-    "formula": "артефакт",
-    "code": "артефакт",
-    "caption": "текст",
-    "list_item": "текст",
-    "section_header": "текст",
-    "text": "текст",
-    "title": "текст",
-    "document_index": "текст",
-    "form": "текст",
-    "key_value_region": "текст",
-    "checkbox_selected": "текст",
-    "checkbox_unselected": "текст",
-    "page_header": "служебное",
-    "page_footer": "служебное",
-    "footnote": "служебное",
+    "table": "artifact",
+    "picture": "artifact",
+    "formula": "artifact",
+    "code": "artifact",
+    "caption": "text",
+    "list_item": "text",
+    "section_header": "text",
+    "text": "text",
+    "title": "text",
+    "document_index": "text",
+    "form": "text",
+    "key_value_region": "text",
+    "checkbox_selected": "text",
+    "checkbox_unselected": "text",
+    "page_header": "furniture",
+    "page_footer": "furniture",
+    "footnote": "furniture",
 }
 
 # PP-DocLayout_plus-L — предшественник V2 в том же семействе: двадцать классов
@@ -116,26 +116,26 @@ DOCLING = {
 # порядка чтения (его добавила указательная сеть V2). Объявлено ради замера
 # родословной: что дала прибавка пяти классов и указательной сети.
 PP_DOCLAYOUT_PLUS_L = {
-    "table": "артефакт",
-    "chart": "артефакт",
-    "image": "артефакт",
-    "formula": "артефакт",
-    "seal": "артефакт",
-    "abstract": "текст",
-    "algorithm": "текст",
-    "aside_text": "текст",
-    "content": "текст",
-    "doc_title": "текст",
-    "figure_title": "текст",
-    "paragraph_title": "текст",
-    "reference": "текст",
-    "reference_content": "текст",
-    "text": "текст",
-    "formula_number": "текст",
-    "header": "служебное",
-    "footer": "служебное",
-    "number": "служебное",
-    "footnote": "служебное",
+    "table": "artifact",
+    "chart": "artifact",
+    "image": "artifact",
+    "formula": "artifact",
+    "seal": "artifact",
+    "abstract": "text",
+    "algorithm": "text",
+    "aside_text": "text",
+    "content": "text",
+    "doc_title": "text",
+    "figure_title": "text",
+    "paragraph_title": "text",
+    "reference": "text",
+    "reference_content": "text",
+    "text": "text",
+    "formula_number": "text",
+    "header": "furniture",
+    "footer": "furniture",
+    "number": "furniture",
+    "footnote": "furniture",
 }
 
 # Docling egret (D-FINE): те же семнадцать классов, что у heron, но имена
@@ -143,23 +143,23 @@ PP_DOCLAYOUT_PLUS_L = {
 # свод стёр бы разницу словарей, а она у нас единственный способ отличить
 # ошибку перевода от ошибки модели.
 DOCLING_EGRET = {
-    "Table": "артефакт",
-    "Picture": "артефакт",
-    "Formula": "артефакт",
-    "Code": "артефакт",
-    "Caption": "текст",
-    "List-item": "текст",
-    "Section-header": "текст",
-    "Text": "текст",
-    "Title": "текст",
-    "Document Index": "текст",
-    "Form": "текст",
-    "Key-Value Region": "текст",
-    "Checkbox-Selected": "текст",
-    "Checkbox-Unselected": "текст",
-    "Page-header": "служебное",
-    "Page-footer": "служебное",
-    "Footnote": "служебное",
+    "Table": "artifact",
+    "Picture": "artifact",
+    "Formula": "artifact",
+    "Code": "artifact",
+    "Caption": "text",
+    "List-item": "text",
+    "Section-header": "text",
+    "Text": "text",
+    "Title": "text",
+    "Document Index": "text",
+    "Form": "text",
+    "Key-Value Region": "text",
+    "Checkbox-Selected": "text",
+    "Checkbox-Unselected": "text",
+    "Page-header": "furniture",
+    "Page-footer": "furniture",
+    "Footnote": "furniture",
 }
 
 POLICIES = {
@@ -180,7 +180,7 @@ for _name, _table in POLICIES.items():
                 f"одно из двух, и разряд блока зависел бы от порядка импорта.")
         ROLE[_lab] = _r
 
-ROLES = ("текст", "артефакт", "служебное")
+ROLES = ("text", "artifact", "furniture")
 
 
 class UnknownLabel(RuntimeError):
@@ -241,13 +241,13 @@ def role(label: str) -> str:
 
 
 def artefacts() -> tuple[str, ...]:
-    return tuple(sorted(l for l, r in ROLE.items() if r == "артефакт"))
+    return tuple(sorted(l for l, r in ROLE.items() if r == "artifact"))
 
 
 def snapshot(policy: str | None = None) -> dict:
     """Политика целиком — в слепок."""
     if policy:
-        return {"разряды": list(ROLES), "словарь": policy,
-                "по ярлыкам": dict(sorted(POLICIES[policy].items()))}
-    return {"разряды": list(ROLES), "словари": sorted(POLICIES),
-            "по ярлыкам": dict(sorted(ROLE.items()))}
+        return {"buckets": list(ROLES), "vocabulary": policy,
+                "by_label": dict(sorted(POLICIES[policy].items()))}
+    return {"buckets": list(ROLES), "vocabularies": sorted(POLICIES),
+            "by_label": dict(sorted(ROLE.items()))}

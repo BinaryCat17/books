@@ -76,9 +76,15 @@ def latin(s: str) -> int:
     return sum(1 for c in s if "a" <= c <= "z" or "A" <= c <= "Z")
 
 
-# Constants whose value IS book content. Russian books stay Russian; these hold
-# the text that gets drawn onto synthetic pages, not our explanation of it.
-CONTENT_NAMES = ("PROSE_RU", "ENTRY_RU", "ABOUT", "CASES", "AGING", "WORDS_RU")
+# Constants whose value IS book content: the text that gets drawn onto a
+# synthetic page, plus the sentence describing what kind of book it imitates.
+#
+# `CASES` and `AGING` were in this list and should not have been. `CASES` maps
+# English case names to functions and `AGING` maps four profile names to
+# numbers -- neither is book text, and putting them here filed the knob value
+# `ветхий` as untouchable Russian prose. It was caught by the check that book
+# content must not move: renaming that value to `decayed` moved it by six.
+CONTENT_NAMES = ("PROSE_RU", "ENTRY_RU", "WORDS_RU", "ABOUT")
 
 # Everything tracked that is not a .py and not book data. Kept as an explicit
 # list because the first version of this instrument counted only `.py .md .toml

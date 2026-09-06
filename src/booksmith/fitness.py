@@ -316,27 +316,27 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
     M = metrics._load(detect_dir)
     T = metrics._load(truth_dir) if truth_dir else {}
     doc = pymupdf.open(pdf)
-    res = {"страниц": 0, "страниц истины": len(T), "dpi": [],
-           "чернил всего": 0, "чернил под рамками": 0,
-           "чернил под артефактом": 0, "площадь листа": 0, "площадь рамок": 0,
-           "чернил вне рамок у края": 0,
+    res = {"page_count": 0, "truth_pages": len(T), "dpi": [],
+           "ink_total": 0, "ink_under_boxes": 0,
+           "ink_under_artifact": 0, "sheet_area": 0, "boxes_area": 0,
+           "ink_outside_boxes_at_edge": 0,
            # ДВА ЧИСЛА, А НЕ ОДНО: второе — та часть, которой краевая полоса
            # не видит по построению. Без него добавка выглядела бы уже
            # посчитанной.
-           "чернил в тёмных столбцах": 0,
-           "чернил в тёмных столбцах вне края": 0,
-           "тёмных столбцов": 0, "страниц с тёмным столбцом": 0,
+           "ink_in_dark_columns": 0,
+           "ink_in_dark_columns_off_edge": 0,
+           "dark_columns": 0, "pages_with_dark_column": 0,
            # Куда они пришлись — списком долей ширины листа. Правило
            # структурное и о переплёте не знает; положение — единственное,
            # по чему видно, тень это или линейка таблицы.
-           "тёмные столбцы, положения": [],
-           "объектов": 0, "чернил объектов": 0, "чернил объектов в рамках": 0,
-           "цел": 0, "почти цел": 0, "надкушен": 0, "порван": 0,
-           "одной рамкой": 0, "разорван между рамками": 0, "уехал текстом": 0,
-           "приехал не в одиночку": 0, "рамок с несколькими объектами": 0,
-           "пустых объектов": 0, "пороги": {"чернила": INK, "цел": WHOLE,
-                                            "почти": ALMOST, "надкушен": BITTEN,
-                                            "полоса у края": EDGE}}
+           "dark_columns_positions": [],
+           "objects": 0, "object_ink": 0, "object_ink_in_boxes": 0,
+           "intact": 0, "almost_intact": 0, "bitten": 0, "torn": 0,
+           "in_one_box": 0, "split_between_boxes": 0, "left_as_text": 0,
+           "arrived_with_company": 0, "boxes_with_many_objects": 0,
+           "empty_objects": 0, "thresholds": {"ink": INK, "intact": WHOLE,
+                                            "almost": ALMOST, "bitten": BITTEN,
+                                            "edge_band": EDGE}}
     dpis = set()
     pages = sorted(T) if T else sorted(M)
     for i in pages:
@@ -351,9 +351,9 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
                 f"страница {i}: растр {ink.shape[1]}x{ink.shape[0]}, "
                 f"разметка {p['width']}x{p['height']} — рамки лягут мимо")
         arte = [b["box"] for b in p["blocks"]
-                if policy.role(b["label"]) == "артефакт"]
+                if policy.role(b["label"]) == "artifact"]
         rest = [b["box"] for b in p["blocks"]
-                if policy.role(b["label"]) != "артефакт"]
+                if policy.role(b["label"]) != "artifact"]
         ma, mr = _mask(ink.shape, arte), _mask(ink.shape, rest)
         both = ma | mr
         # Кто в какой рамке приехал: ключ — номер артефактной рамки, значение —
@@ -361,10 +361,10 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
         # одиночку» — единственное число прибора, которое от слияния РАСТЁТ.
         riders = {}
         dpis.add(int(p["dpi"]))
-        res["страниц"] += 1
-        res["чернил всего"] += int(ink.sum())
-        res["чернил под рамками"] += int((ink & both).sum())
-        res["чернил под артефактом"] += int((ink & ma).sum())
+        res["page_count"] += 1
+        res["ink_total"] += int(ink.sum())
+        res["ink_under_boxes"] += int((ink & both).sum())
+        res["ink_under_artifact"] += int((ink & ma).sum())
         # Половина «потерянных» чернил золотого стенда лежит в четырёхпроцентной
         # полосе у края листа — это тёмная кромка скана, а не содержимое.
         # Считаем её отдельно: без этого числа чёрная кайма читается как
@@ -375,32 +375,32 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
         edge = np.zeros_like(out)
         edge[:k] = edge[-k:] = True
         edge[:, :k] = edge[:, -k:] = True
-        res["чернил вне рамок у края"] += int((out & edge).sum())
+        res["ink_outside_boxes_at_edge"] += int((out & edge).sum())
         # СПЛОШНЫЕ ТЁМНЫЕ СТОЛБЦЫ — отдельной величиной, разбор при `GUTTER`.
         # Считаются по ВСЕМ чернилам листа, а не по потерянным: рамка на тени
         # переводит эти чернила в «найденное», и именно там они и врут.
         колонки = ink.sum(axis=0) > h * GUTTER
         if колонки.any():
-            res["чернил в тёмных столбцах"] += int(ink[:, колонки].sum())
+            res["ink_in_dark_columns"] += int(ink[:, колонки].sum())
             # СВОЯ маска столбцов, а не строка из `edge`: та двумерная, и её
             # первые `k` СТРОК залиты целиком, так что `edge[0]` — сплошь
             # True. Взяв её, «вне края» вышло бы нулём всегда, и добавка
             # молча ничего бы не значила.
             край_ст = np.zeros(w, bool)
             край_ст[:k] = край_ст[-k:] = True
-            res["чернил в тёмных столбцах вне края"] += int(
+            res["ink_in_dark_columns_off_edge"] += int(
                 ink[:, колонки & ~край_ст].sum())
             край_кол = np.diff(np.r_[0, колонки.astype(np.int8), 0])
             нач = np.flatnonzero(край_кол == 1)
             кон = np.flatnonzero(край_кол == -1)
-            res["тёмных столбцов"] += len(нач)
-            res["страниц с тёмным столбцом"] += 1
-            res["тёмные столбцы, положения"].extend(
+            res["dark_columns"] += len(нач)
+            res["pages_with_dark_column"] += 1
+            res["dark_columns_positions"].extend(
                 round(float(a + b) / 2 / w, 2) for a, b in zip(нач, кон))
-        res["площадь листа"] += ink.size
-        res["площадь рамок"] += int(both.sum())
+        res["sheet_area"] += ink.size
+        res["boxes_area"] += int(both.sum())
         for b in T.get(i, {}).get("blocks", []):
-            if policy.role(b["label"]) != "артефакт":
+            if policy.role(b["label"]) != "artifact":
                 continue
             win = _clip(ink.shape, b["box"])
             sub = ink[win] if win else np.zeros((0, 0), bool)
@@ -411,15 +411,15 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
                 # модели незаслуженное очко, а спрятав в «порван» — незаслуженный
                 # промах. Сюда же попадает объект истины, уехавший за лист
                 # целиком: чернил у него нет по построению, и это тоже стенд.
-                res["пустых объектов"] += 1
+                res["empty_objects"] += 1
                 continue
-            res["объектов"] += 1
-            res["чернил объектов"] += tot
+            res["objects"] += 1
+            res["object_ink"] += tot
             kept = int((sub & ma[win]).sum())
-            res["чернил объектов в рамках"] += kept
+            res["object_ink_in_boxes"] += kept
             r = kept / tot
-            res["цел" if r >= WHOLE else "почти цел" if r >= ALMOST
-                else "надкушен" if r >= BITTEN else "порван"] += 1
+            res["intact" if r >= WHOLE else "almost_intact" if r >= ALMOST
+                else "bitten" if r >= BITTEN else "torn"] += 1
             # «Одной рамкой» СЧИТАЕТСЯ ПО ТЕМ ЖЕ ЧЕРНИЛАМ, что и «цел», разница
             # только в том, сколько рамок держит объект: объединение или одна.
             # Оттого числа вложены строго — целых не меньше, чем вырезаемых
@@ -454,25 +454,25 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
                     if best == tot:
                         break
             if best / tot >= WHOLE:
-                res["одной рамкой"] += 1
+                res["in_one_box"] += 1
                 # Объект едет в ЭТОЙ рамке — именно её вырежет `books crop`.
                 riders[best_j] = riders.get(best_j, 0) + 1
             elif r >= WHOLE:
-                res["разорван между рамками"] += 1
+                res["split_between_boxes"] += 1
             if r < WHOLE and _carried_as_text(sub, ma[win], mr[win], tot):
-                res["уехал текстом"] += 1
+                res["left_as_text"] += 1
         for k in riders.values():
             if k >= 2:
-                res["приехал не в одиночку"] += k
-                res["рамок с несколькими объектами"] += 1
+                res["arrived_with_company"] += k
+                res["boxes_with_many_objects"] += 1
     doc.close()
     res["dpi"] = sorted(dpis)
     return res
 
 
 def report(res: dict, log=print) -> None:
-    n, s = res["объектов"], res["страниц"]
-    ink = res["чернил всего"]
+    n, s = res["objects"], res["page_count"]
+    ink = res["ink_total"]
     # ЛИНЕЙКА ОБЪЯВЛЯЕТСЯ ЦЕЛИКОМ И В ПЕРВОЙ СТРОКЕ. Здесь печатался один
     # порог из четырёх, хотя соседний комментарий обещал «печатаются в отчёте»
     # про все; ALMOST и BITTEN не печатались вовсе, а по ним разнесены столбцы
@@ -488,12 +488,12 @@ def report(res: dict, log=print) -> None:
     # батарея двигает эти же глобали, и отчёт, читающий их, врал бы про свой
     # собственный замер. До правки словарь `res["пороги"]` не читал никто вовсе:
     # величина считалась и выбрасывалась, а печаталась соседняя.
-    t = res["пороги"]
+    t = res["thresholds"]
     log(f"страниц {s}, растр {'/'.join(map(str, res['dpi'])) or '?'} dpi; "
-        f"порог чернил {t['чернила']}; доли чернил объекта: "
-        f"цел от {t['цел']:.2f}, почти цел от {t['почти']:.2f}, "
-        f"надкушен от {t['надкушен']:.2f}")
-    log(f"площадь под рамками {res['площадь рамок'] / max(1, res['площадь листа']) * 100:.0f}% "
+        f"порог чернил {t['ink']}; доли чернил объекта: "
+        f"цел от {t['intact']:.2f}, почти цел от {t['almost']:.2f}, "
+        f"надкушен от {t['bitten']:.2f}")
+    log(f"площадь под рамками {res['boxes_area'] / max(1, res['sheet_area']) * 100:.0f}% "
         f"листа — при 100% числа ниже ничего не значат: рамка во весь лист "
         f"выигрывает замер, не найдя ничего")
     # СЛЕПОТА ОБЪЯВЛЯЕТСЯ ДО ЧИСЕЛ И БЕЗ ВСЯКИХ УСЛОВИЙ. Прежде эта строка
@@ -516,10 +516,10 @@ def report(res: dict, log=print) -> None:
             "или не та книга")
         return
     log(f"чернил страницы под рамками: "
-        f"{res['чернил под рамками'] / ink * 100:.1f}% "
-        f"(под артефактом {res['чернил под артефактом'] / ink * 100:.1f}%), "
+        f"{res['ink_under_boxes'] / ink * 100:.1f}% "
+        f"(под артефактом {res['ink_under_artifact'] / ink * 100:.1f}%), "
         f"вне всех рамок "
-        f"{(1 - res['чернил под рамками'] / ink) * 100:.1f}% — это то, "
+        f"{(1 - res['ink_under_boxes'] / ink) * 100:.1f}% — это то, "
         f"что исчезнет из HTML")
     # ПЯТЫЙ ПОРОГ ОБЪЯВЛЯЕТСЯ БЕЗУСЛОВНО. Строка печаталась только при
     # `lost > 0`, и `EDGE` оставался единственным порогом, который можно было
@@ -527,9 +527,9 @@ def report(res: dict, log=print) -> None:
     # объявляет починенным ровно это («из пяти порогов отчёт объявлял один»).
     # Когда терять нечего, полоса всё равно называется: линейка не зависит от
     # того, что ею померили.
-    lost = ink - res["чернил под рамками"]
-    log(f"  полоса у края листа {t['полоса у края'] * 100:.0f}% меньшей стороны; "
-        + (f"из потерянного в ней {res['чернил вне рамок у края'] / lost * 100:.0f}% "
+    lost = ink - res["ink_under_boxes"]
+    log(f"  полоса у края листа {t['edge_band'] * 100:.0f}% меньшей стороны; "
+        + (f"из потерянного в ней {res['ink_outside_boxes_at_edge'] / lost * 100:.0f}% "
            f"— обычно это тёмная кромка скана, а не содержимое"
            if lost > 0 else "терять нечего: чернила все под рамками"))
     # ШЕСТОЙ ПОРОГ, И ОН ПЕЧАТАЕТСЯ БЕЗУСЛОВНО — по той же причине, что пятый:
@@ -540,14 +540,14 @@ def report(res: dict, log=print) -> None:
     # Тёмный столбец под рамкой засчитывается прибору как сохранённое
     # содержимое: 261 поддельная рамка ровно по этим полосам поднимает строку
     # выше с 85.7 % до 96.2 %, ничего не найдя.
-    столбцов = res["тёмных столбцов"]
-    поз = res["тёмные столбцы, положения"]
+    столбцов = res["dark_columns"]
+    поз = res["dark_columns_positions"]
     середина = sum(1 for x in поз if 0.2 <= x <= 0.8)
     log(f"  сплошных тёмных столбцов {столбцов} на "
-        f"{res['страниц с тёмным столбцом']} стр. (столбец тёмен более чем на "
+        f"{res['pages_with_dark_column']} стр. (столбец тёмен более чем на "
         f"{GUTTER * 100:.0f}% высоты листа); чернил в них "
-        f"{res['чернил в тёмных столбцах'] / ink * 100:.1f}% ВСЕХ, из них "
-        f"{res['чернил в тёмных столбцах вне края'] / ink * 100:.1f}% вне "
+        f"{res['ink_in_dark_columns'] / ink * 100:.1f}% ВСЕХ, из них "
+        f"{res['ink_in_dark_columns_off_edge'] / ink * 100:.1f}% вне "
         f"краевой полосы — этого строка выше не видит по построению. "
         + (f"В середине листа (0.2..0.8 ширины) {середина} из {столбцов}: "
            f"{'вероятно линейки таблиц, а не дефект скана' if середина else 'ни одного, то есть это края и переплёт'}"
@@ -557,23 +557,23 @@ def report(res: dict, log=print) -> None:
     # ТРИ РАЗНЫХ НУЛЯ, И РАНЬШЕ ОНИ БЫЛИ ОДНИМ. «Истина не подана» печаталось
     # и тогда, когда истина подана, а артефактов в ней нет ни одного, — то есть
     # оператору сообщали, что он забыл `--truth`, который он передал.
-    if not res["страниц истины"]:
+    if not res["truth_pages"]:
         log("истина не подана: по объектам сказать нечего — это не ноль потерь")
         return
     if not n:
-        log(f"истина подана ({res['страниц истины']} страниц), но артефактов в "
+        log(f"истина подана ({res['truth_pages']} страниц), но артефактов в "
             f"ней нет ни одного: по объектам сказать нечего. Это ДРУГОЙ ноль, "
             f"чем «истина не подана», и оба — не «ноль потерь»")
         return
     log(f"ЧЕРНИЛ ОБЪЕКТОВ СОХРАНЕНО: "
-        f"{res['чернил объектов в рамках'] / max(1, res['чернил объектов']) * 100:.1f}%")
-    log(f"объектов {n}: цел {res['цел']} ({res['цел'] / n * 100:.0f}%), "
-        f"почти цел {res['почти цел']}, надкушен {res['надкушен']}, "
-        f"порван {res['порван']}")
-    log(f"вырезается одной картинкой {res['одной рамкой']} "
-        f"({res['одной рамкой'] / n * 100:.0f}%); "
-        f"разорван между рамками {res['разорван между рамками']}; "
-        f"уехал текстом {res['уехал текстом']}")
+        f"{res['object_ink_in_boxes'] / max(1, res['object_ink']) * 100:.1f}%")
+    log(f"объектов {n}: цел {res['intact']} ({res['intact'] / n * 100:.0f}%), "
+        f"почти цел {res['almost_intact']}, надкушен {res['bitten']}, "
+        f"порван {res['torn']}")
+    log(f"вырезается одной картинкой {res['in_one_box']} "
+        f"({res['in_one_box'] / n * 100:.0f}%); "
+        f"разорван между рамками {res['split_between_boxes']}; "
+        f"уехал текстом {res['left_as_text']}")
     # ЕДИНСТВЕННОЕ ЧИСЛО ПРИБОРА, КОТОРОЕ ОТ СЛИЯНИЯ РАСТЁТ. Все прочие от него
     # улучшаются, и это не оговорка, а замер: слив все артефактные рамки
     # страницы в одну, на bench/hard36 получаем цел 365 -> 385, порван 28 -> 13,
@@ -582,13 +582,13 @@ def report(res: dict, log=print) -> None:
     # `books score` не дублирует: тот сверяет рамки с истиной, а это — сколько
     # работы переложено на второй уровень, который будет разбирать общую
     # картинку на части.
-    log(f"приехало не в одиночку {res['приехал не в одиночку']} "
-        f"({res['приехал не в одиночку'] / n * 100:.0f}%), "
+    log(f"приехало не в одиночку {res['arrived_with_company']} "
+        f"({res['arrived_with_company'] / n * 100:.0f}%), "
         f"рамок с двумя объектами и больше: "
-        f"{res['рамок с несколькими объектами']} — это работа, переложенная "
+        f"{res['boxes_with_many_objects']} — это работа, переложенная "
         f"на второй уровень, и ТОЛЬКО это число от слияния растёт")
-    if res["пустых объектов"]:
-        log(f"ВНИМАНИЕ: {res['пустых объектов']} объектов истины без чернил — "
+    if res["empty_objects"]:
+        log(f"ВНИМАНИЕ: {res['empty_objects']} объектов истины без чернил — "
             f"это дефект стенда, они не считаны ни в цел, ни в порван")
 
 
@@ -642,8 +642,8 @@ def _merge(M):
     """
     out = {}
     for i, p in M.items():
-        art = [b for b in p["blocks"] if policy.role(b["label"]) == "артефакт"]
-        bl = [b for b in p["blocks"] if policy.role(b["label"]) != "артефакт"]
+        art = [b for b in p["blocks"] if policy.role(b["label"]) == "artifact"]
+        bl = [b for b in p["blocks"] if policy.role(b["label"]) != "artifact"]
         if art:
             bl.append({**art[0], "box": [
                 min(b["box"][0] for b in art), min(b["box"][1] for b in art),
@@ -658,7 +658,7 @@ def _double(M):
     for i, p in M.items():
         add = [{**b, "label": "text", "block_id": 10 ** 6 + j}
                for j, b in enumerate(p["blocks"])
-               if policy.role(b["label"]) == "артефакт"]
+               if policy.role(b["label"]) == "artifact"]
         out[i] = {**p, "blocks": p["blocks"] + add}
     return out
 
@@ -701,7 +701,7 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
         """Померить по испорченной ИСТИНЕ. Вывод модели при этом целый."""
         return measure(pdf, detect_dir, _dump(T))
 
-    art = lambda b: policy.role(b["label"]) == "артефакт"
+    art = lambda b: policy.role(b["label"]) == "artifact"
     # Рамка во весь лист и ЗАВЕДОМО артефактная. Прежде сюда шёл ярлык первого
     # блока страницы, каким бы он ни был: попадись текстовый — вырожденный
     # ответ проверялся бы вполсилы, потому что по объектам он тогда не выигрывал
@@ -723,7 +723,7 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
         for i, p in M.items():
             bl = []
             for b in p["blocks"]:
-                if policy.role(b["label"]) != "артефакт":
+                if policy.role(b["label"]) != "artifact":
                     bl.append(b)
                     continue
                 x0, y0, x1, y1 = b["box"]
@@ -735,34 +735,34 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
 
     # Порча, к которой обращаются по две пробы, считается ОДИН раз: на золотом
     # стенде каждый лишний `measure` — это 600 отрендеренных страниц.
-    halved = R(_halve(M0)) if base["объектов"] else None
+    halved = R(_halve(M0)) if base["objects"] else None
     as_text = R(_edit(M0, lambda b: {**b, "label": "text"}))
-    moved = RT(_edit(T0, _shift)) if base["объектов"] else None
+    moved = RT(_edit(T0, _shift)) if base["objects"] else None
 
     probes = [
         ("рамки артефактов разрезаны пополам", "вырезаемых одной картинкой меньше",
-         lambda: None if not base["объектов"] else
-                 halved["одной рамкой"] < base["одной рамкой"]),
+         lambda: None if not base["objects"] else
+                 halved["in_one_box"] < base["in_one_box"]),
         ("рамки артефактов разрезаны пополам", "чернил при этом не потеряно",
-         lambda: None if not base["объектов"] else
-                 halved["чернил объектов в рамках"]
-                 >= base["чернил объектов в рамках"]),
+         lambda: None if not base["objects"] else
+                 halved["object_ink_in_boxes"]
+                 >= base["object_ink_in_boxes"]),
         # Сторож `None if not base["объектов"]` — тот же, что у соседей, и здесь
         # его не было. Без `--truth` обе стороны нули, `0 <= 0` даёт True, и
         # батарея печатала «ok» про вложенность, которой не проверила: ноль от
         # непонимания под видом сошедшегося условия. Это зеркало соседней беды
         # десятью строками ниже — там ноль давал ложное «НЕ поймана».
         ("вложенность", "вырезаемых одной картинкой не больше, чем целых",
-         lambda: None if not base["объектов"] else
-                 base["одной рамкой"] <= base["цел"]),
+         lambda: None if not base["objects"] else
+                 base["in_one_box"] <= base["intact"]),
         ("рамок нет вовсе", "чернил под рамками ноль",
-         lambda: R(_edit(M0, lambda b: None))["чернил под рамками"] == 0),
+         lambda: R(_edit(M0, lambda b: None))["ink_under_boxes"] == 0),
         # Рамка, уехавшая за левый верхний угол, у прежней нарезки накрывала
         # почти весь лист: отрицательный конец среза отсчитывается ОТ КОНЦА.
         # Без этой пробы метрику можно было выиграть мусором, ничего не найдя,
         # и ни одна из восьми проб этого не видела.
         ("рамки уехали за левый верхний угол", "чернил под рамками ноль",
-         lambda: R(_edit(M0, _offpage))["чернил под рамками"] == 0),
+         lambda: R(_edit(M0, _offpage))["ink_under_boxes"] == 0),
         # Сторож `None if not base["объектов"]` — тот же, что у соседей выше и
         # ниже, и здесь его не было. Цена пропуска: без `--truth` объектов
         # нет, «чернил объектов в рамках» равно нулю и до порчи, и после,
@@ -772,31 +772,31 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
         # слитые два нуля, о которых предупреждает отчёт в этом же файле:
         # «истина не подана: по объектам сказать нечего — это не ноль потерь».
         ("рамки сжаты вдвое", "чернил объектов сохранено меньше",
-         lambda: None if not base["объектов"] else
-                 R(_edit(M0, lambda b: _scale(b, 0.5)))["чернил объектов в рамках"]
-                 < base["чернил объектов в рамках"]),
+         lambda: None if not base["objects"] else
+                 R(_edit(M0, lambda b: _scale(b, 0.5)))["object_ink_in_boxes"]
+                 < base["object_ink_in_boxes"]),
         ("артефакты названы текстом", "чернил под артефактом ноль",
-         lambda: as_text["чернил под артефактом"] == 0),
+         lambda: as_text["ink_under_artifact"] == 0),
         ("артефакты названы текстом", "объекты уехали текстом",
-         lambda: None if not base["объектов"] else
-                 as_text["уехал текстом"] > base["уехал текстом"]),
+         lambda: None if not base["objects"] else
+                 as_text["left_as_text"] > base["left_as_text"]),
         ("рамки выкинуты, кроме текстовых", "целых меньше",
-         lambda: None if not base["объектов"] else
-                 R(_edit(M0, lambda b: None if art(b) else b))["цел"] < base["цел"]),
+         lambda: None if not base["objects"] else
+                 R(_edit(M0, lambda b: None if art(b) else b))["intact"] < base["intact"]),
         # Сторож вырожденного ответа: рамка во весь лист выигрывает по чернилам
         # и обязана быть видна по площади. Без этой пробы метрику можно взять
         # одной рамкой, не найдя ничего.
         ("одна рамка во весь лист", "чернил 100%, но и площадь 100%",
-         lambda: (lambda r: r["чернил под рамками"] == r["чернил всего"]
-                  and r["площадь рамок"] == r["площадь листа"])(R(full))),
+         lambda: (lambda r: r["ink_under_boxes"] == r["ink_total"]
+                  and r["boxes_area"] == r["sheet_area"])(R(full))),
         # ...и по ОБЪЕКТАМ он выигрывает тоже, а прежняя проба смотрела только
         # на чернила страницы. Главная строка отчёта — «чернил объектов
         # сохранено» — берётся одной рамкой целиком, и это обязано быть в
         # батарее, а не только в шапке файла.
         ("одна рамка во весь лист", "и объектов цел ВСЕ — вот чем метрика берётся",
-         lambda: None if not base["объектов"] else
-                 (lambda r: r["цел"] == r["объектов"]
-                  and r["одной рамкой"] == r["объектов"])(R(full))),
+         lambda: None if not base["objects"] else
+                 (lambda r: r["intact"] == r["objects"]
+                  and r["in_one_box"] == r["objects"])(R(full))),
         # ПРИЗНАННАЯ СЛЕПОТА, И ОДНО ЗРЯЧЕЕ ЧИСЛО. Проба требует сразу двух
         # вещей: что прежние числа от слияния НЕ падают (слепота названа
         # величиной, а не оговоркой) и что «приехал не в одиночку» РАСТЁТ —
@@ -806,17 +806,17 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
         # честное «нет данных», а не провал прибора.
         ("все артефактные рамки слиты в одну",
          "прежние числа не падают, а «не в одиночку» растёт",
-         lambda: None if not base["объектов"] else
-                 (lambda r: (None if not r["рамок с несколькими объектами"] else
-                             (r["цел"] >= base["цел"]
-                              and r["чернил объектов в рамках"]
-                              >= base["чернил объектов в рамках"]
-                              and r["приехал не в одиночку"]
-                              > base["приехал не в одиночку"]),
-                             f"цел {base['цел']} -> {r['цел']}, "
-                             f"порван {base['порван']} -> {r['порван']}, "
-                             f"не в одиночку {base['приехал не в одиночку']} -> "
-                             f"{r['приехал не в одиночку']}"))(
+         lambda: None if not base["objects"] else
+                 (lambda r: (None if not r["boxes_with_many_objects"] else
+                             (r["intact"] >= base["intact"]
+                              and r["object_ink_in_boxes"]
+                              >= base["object_ink_in_boxes"]
+                              and r["arrived_with_company"]
+                              > base["arrived_with_company"]),
+                             f"цел {base['intact']} -> {r['intact']}, "
+                             f"порван {base['torn']} -> {r['torn']}, "
+                             f"не в одиночку {base['arrived_with_company']} -> "
+                             f"{r['arrived_with_company']}"))(
                      R(_merge(M0)))),
         # ЗАДВОЕНИЕ. Та же область отдана и артефактом, и текстом — так ведёт
         # себя сырой docling-heron, у него 4435 задвоенных пар. Объединение
@@ -827,25 +827,25 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
         # с половиной чернил под открытым небом объявлялись «не потеряны».
         ("каждая артефактная рамка отдана ещё и текстовой",
          "по объектам не меняется НИЧЕГО: пиксель под двумя рамками — один пиксель",
-         lambda: None if not base["объектов"] else
+         lambda: None if not base["objects"] else
                  (lambda r: all(r[k] == base[k] for k in
-                                ("цел", "почти цел", "надкушен", "порван",
-                                 "одной рамкой", "уехал текстом",
-                                 "чернил объектов в рамках")))(R(_double(M0)))),
+                                ("intact", "almost_intact", "bitten", "torn",
+                                 "in_one_box", "left_as_text",
+                                 "object_ink_in_boxes")))(R(_double(M0)))),
         # --- вторая сторона порчи: СВОИ пороги -----------------------------
         # Крайности, а не «сдвинем и поглядим»: сдвиг мог бы ничего не изменить
         # на стенде, где все объекты и так целы, и мёртвый порог прошёл бы.
         ("порог чернил обнулён и задран", "чернил то ноль, то весь лист",
-         lambda: _at("INK", 0, lambda: measure(pdf, detect_dir)["чернил всего"]) == 0
-                 and _at("INK", 256, lambda: (lambda r: r["чернил всего"]
-                                              == r["площадь листа"])(
+         lambda: _at("INK", 0, lambda: measure(pdf, detect_dir)["ink_total"]) == 0
+                 and _at("INK", 256, lambda: (lambda r: r["ink_total"]
+                                              == r["sheet_area"])(
                      measure(pdf, detect_dir)))),
         ("порог «цел» обнулён и задран", "целых то все, то ни одного",
-         lambda: None if not base["объектов"] else
-                 _at("WHOLE", 0.0, lambda: (lambda r: r["цел"] == r["объектов"])(
+         lambda: None if not base["objects"] else
+                 _at("WHOLE", 0.0, lambda: (lambda r: r["intact"] == r["objects"])(
                      measure(pdf, detect_dir, truth_dir)))
                  and _at("WHOLE", 1.01,
-                         lambda: measure(pdf, detect_dir, truth_dir)["цел"] == 0)),
+                         lambda: measure(pdf, detect_dir, truth_dir)["intact"] == 0)),
         # ПОРОГОВ ПЯТЬ, А НЕ ДВА. Здесь стояли пробы только на INK и WHOLE, а
         # ALMOST, BITTEN и EDGE не проверял никто: убей любой из них по
         # отдельности — батарея зелёная, хотя печатаемые числа съезжают (почти
@@ -859,18 +859,18 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
         # что у соседей: пустому мерить нечем, и это «нет данных», не «ok».
         ("порог «почти цел» сведён к соседям",
          "разряд между «цел» и «надкушен» переезжает целиком",
-         lambda: None if not base["почти цел"] + base["надкушен"] else
+         lambda: None if not base["almost_intact"] + base["bitten"] else
                  _at("ALMOST", WHOLE,
-                     lambda: measure(pdf, detect_dir, truth_dir)["почти цел"] == 0)
+                     lambda: measure(pdf, detect_dir, truth_dir)["almost_intact"] == 0)
                  and _at("ALMOST", BITTEN,
-                         lambda: measure(pdf, detect_dir, truth_dir)["надкушен"] == 0)),
+                         lambda: measure(pdf, detect_dir, truth_dir)["bitten"] == 0)),
         ("порог «надкушен» сведён к соседям",
          "разряд между «почти цел» и «порван» переезжает целиком",
-         lambda: None if not base["надкушен"] + base["порван"] else
+         lambda: None if not base["bitten"] + base["torn"] else
                  _at("BITTEN", 0.0,
-                     lambda: measure(pdf, detect_dir, truth_dir)["порван"] == 0)
+                     lambda: measure(pdf, detect_dir, truth_dir)["torn"] == 0)
                  and _at("BITTEN", ALMOST,
-                         lambda: measure(pdf, detect_dir, truth_dir)["надкушен"] == 0)),
+                         lambda: measure(pdf, detect_dir, truth_dir)["bitten"] == 0)),
         # EDGE — тоже линейка, и печатается тоже: «из потерянного N% лежит в
         # полосе у края». Раздув полосу до половины меньшей стороны, накрываем
         # лист целиком, и у края обязано оказаться ВСЁ потерянное.
@@ -890,17 +890,17 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
         ("тёмный столбец раздут и сжат",
          "то все чернила в столбцах, то ни одного",
          lambda: (_at("GUTTER", 0.0, lambda: measure(pdf, detect_dir, truth_dir)
-                      ["чернил в тёмных столбцах"]) >= base["чернил в тёмных столбцах"]
+                      ["ink_in_dark_columns"]) >= base["ink_in_dark_columns"]
                   and _at("GUTTER", 1.0, lambda: measure(pdf, detect_dir, truth_dir)
-                          ["тёмных столбцов"]) < base["тёмных столбцов"])),
+                          ["dark_columns"]) < base["dark_columns"])),
         ("полоса у края раздута и сжата", "у края то всё потерянное, то меньше",
-         lambda: None if base["чернил всего"] <= base["чернил под рамками"] else
+         lambda: None if base["ink_total"] <= base["ink_under_boxes"] else
                  (lambda lost:
                   _at("EDGE", 1.0, lambda: measure(pdf, detect_dir, truth_dir)
-                      ["чернил вне рамок у края"]) == lost
+                      ["ink_outside_boxes_at_edge"]) == lost
                   and _at("EDGE", 0.0, lambda: measure(pdf, detect_dir, truth_dir)
-                          ["чернил вне рамок у края"]) < lost)(
-                     base["чернил всего"] - base["чернил под рамками"])),
+                          ["ink_outside_boxes_at_edge"]) < lost)(
+                     base["ink_total"] - base["ink_under_boxes"])),
         # --- третья сторона порчи: ИСТИНА ----------------------------------
         # Метрика, безразличная к истине, меряет один свой вход и выдаёт это за
         # оценку модели. Портим истину, вывод модели не трогаем.
@@ -911,16 +911,16 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
         # объектом: 100% -> 100%). Число же чернил под сдвинутой рамкой другое
         # всегда, кроме однородно закрашенного листа.
         ("истина сдвинута на пол-объекта вниз", "чернил объектов стало другое",
-         lambda: None if not base["объектов"] else
-                 (moved["чернил объектов"] != base["чернил объектов"],
-                  f"чернил объектов {base['чернил объектов']} -> "
-                  f"{moved['чернил объектов']}, сохранено "
-                  f"{base['чернил объектов в рамках'] / max(1, base['чернил объектов']) * 100:.1f}%"
-                  f" -> {moved['чернил объектов в рамках'] / max(1, moved['чернил объектов']) * 100:.1f}%")),
+         lambda: None if not base["objects"] else
+                 (moved["object_ink"] != base["object_ink"],
+                  f"чернил объектов {base['object_ink']} -> "
+                  f"{moved['object_ink']}, сохранено "
+                  f"{base['object_ink_in_boxes'] / max(1, base['object_ink']) * 100:.1f}%"
+                  f" -> {moved['object_ink_in_boxes'] / max(1, moved['object_ink']) * 100:.1f}%")),
         ("истина уехала за лист", "объектов ноль, и все они «пустые»",
-         lambda: None if not base["объектов"] else
-                 (lambda r: r["объектов"] == 0 and r["пустых объектов"]
-                  == base["объектов"] + base["пустых объектов"])(
+         lambda: None if not base["objects"] else
+                 (lambda r: r["objects"] == 0 and r["empty_objects"]
+                  == base["objects"] + base["empty_objects"])(
                      RT(_edit(T0, _offpage)))),
     ]
     bad = mute = 0

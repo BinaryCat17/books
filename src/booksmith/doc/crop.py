@@ -175,7 +175,7 @@ def params(page_dpi: float | None = None,
                 f"говорила бы «0»")
         dpi, src = float(raw), "CROP_DPI"
     elif page_native:
-        dpi, src = float(page_native), "своя резкость скана"
+        dpi, src = float(page_native), "native_scan_dpi"
     elif page_dpi is not None:
         dpi, src = float(page_dpi), ("как у детекции: своя резкость страницы "
                                      "не определяется (вектор или несколько "
@@ -185,7 +185,7 @@ def params(page_dpi: float | None = None,
         # Ноль от проверки и ноль от непонимания: это значение не «сверено с
         # детекцией», а «сверять не с чем».
         dpi, src = float(knobs.knob("PAGE_DPI")), "PAGE_DPI текущего процесса"
-    return {"dpi": dpi, "dpi откуда": src, "поле": margin}
+    return {"dpi": dpi, "dpi_source": src, "margin": margin}
 
 
 def box_to_points(box, page_dpi: float):
@@ -243,7 +243,7 @@ def cut(doc, page_index: int, box, page_dpi: float, dst: str,
     # резкость каждой вырезки решает сам.
     p = params(page_dpi, native_dpi(doc[page_index]) if dpi is None else None)
     dpi = p["dpi"] if dpi is None else dpi
-    margin = p["поле"] if margin is None else margin
+    margin = p["margin"] if margin is None else margin
 
     page = doc[page_index]
     x0, y0, x1, y1 = box_to_points(box, page_dpi)
@@ -278,9 +278,9 @@ def cut(doc, page_index: int, box, page_dpi: float, dst: str,
     os.makedirs(os.path.dirname(os.path.abspath(dst)), exist_ok=True)
     pix = page.get_pixmap(dpi=int(dpi), clip=clip)
     pix.save(dst)
-    return {"файл": os.path.basename(dst), "dpi": int(dpi), "поле": margin,
-            "ширина": pix.width, "высота": pix.height,
-            "срезано листом": clipped,
-            "поле срезано листом": margin_clipped,
-            "рамка в пунктах": [round(v, 2) for v in (clip.x0, clip.y0,
+    return {"file": os.path.basename(dst), "dpi": int(dpi), "margin": margin,
+            "width": pix.width, "height": pix.height,
+            "clipped_by_sheet": clipped,
+            "margin_clipped": margin_clipped,
+            "box_in_points": [round(v, 2) for v in (clip.x0, clip.y0,
                                                       clip.x1, clip.y1)]}

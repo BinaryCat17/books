@@ -141,8 +141,8 @@ def slow_on():
 
 # Чем мутация может быть не выполнима. Пропуск печатается вслух и с причиной:
 # непроверенная мутация — это не «поймана».
-NEEDS = {"нет пакета docling": have_docling,
-         "медленная, только с --slow": slow_on}
+NEEDS = {"no_docling_package": have_docling,
+         "slow_only": slow_on}
 
 
 # --- испорченные редакции проверяемых мест ---------------------------------
@@ -155,14 +155,14 @@ def guard_without_words(page):
 def truth_state_defaults_to_marked(page):
     """Прежняя редакция: молчащая истина считается размеченной."""
     m = page.get("meta") or {}
-    return metrics.ORDER_MARKED if m.get("порядок размечен", True) \
+    return metrics.ORDER_MARKED if m.get("order_marked", True) \
         else metrics.ORDER_UNMARKED
 
 
 def pipeline_touches_at_off(self, blocks, w, h, index):
     """Конвейер «ничего не делает», но пересобирает список и дописывает ключ."""
-    return list(blocks), {"порядок чтения": "наш, сверху вниз и слева направо",
-                          "конвейер docling": {"режим": "off"}}
+    return list(blocks), {"reading_order": "наш, сверху вниз и слева направо",
+                          "docling_pipeline": {"mode": "off"}}
 
 
 class GuessingTranslation(dict):
@@ -185,7 +185,7 @@ def check_that_forgives(labels, policy_name="PP-DocLayoutV2"):
 
 class GuessingRole(dict):
     def __missing__(self, key):
-        return "текст"
+        return "text"
 
 
 def span_takes_the_first(html, anchor):
@@ -262,15 +262,15 @@ def knob_ignores_empty(name):
 
 
 def snapshot_skips_debts():
-    return {k.name: {"значение": knobs.knob(k.name), "умолчание": k.default,
-                     "задано снаружи": k.name in os.environ, "что": k.what,
-                     "долг": k.debt}
+    return {k.name: {"value": knobs.knob(k.name), "default": k.default,
+                     "set_externally": k.name in os.environ, "what": k.what,
+                     "debt": k.debt}
             for k in knobs.KNOBS if not k.debt}
 
 
 def snapshot_only_artefacts(policy_name=None):
-    return {"разряды": list(policy.ROLES), "словарь": policy_name,
-            "по ярлыкам": {l: "артефакт" for l in policy.artefacts()}}
+    return {"buckets": list(policy.ROLES), "vocabulary": policy_name,
+            "by_label": {l: "artifact" for l in policy.artefacts()}}
 
 
 def passthrough_with_defaults():
@@ -282,13 +282,13 @@ _real_span, _real_anchors = swap.span, swap.anchors
 
 def flipped_role():
     r = dict(policy.ROLE)
-    r["table"] = "текст"
+    r["table"] = "text"
     return r
 
 
 def duplicated_policy():
     p = dict(policy.POLICIES)
-    p["Docling-двойник"] = dict(policy.DOCLING)
+    p["docling_twin"] = dict(policy.DOCLING)
     return p
 
 
@@ -333,25 +333,25 @@ def guard_case_sensitive(value):
 def _journal_without_taken(out_dir, j):
     """Журнал забыл, ЧТО снял. Откатывать станет нечем, а put при этом
     отработает как ни в чём не бывало — беда вылезет только при откате."""
-    z = {k: [{**r, "снято": ""} for r in v] for k, v in j["замены"].items()}
-    return _save_journal(out_dir, {**j, "замены": z})
+    z = {k: [{**r, "removed": ""} for r in v] for k, v in j["swaps"].items()}
+    return _save_journal(out_dir, {**j, "swaps": z})
 
 
 def _journal_invents_a_stack(out_dir):
     """Журнал отвечает стопкой там, где замен не было. «Откатывать нечего» и
     «откат не удался» перестают различаться."""
-    return {"книга": "book.html",
-            "замены": {"p0042-b17": [{"когда": "?", "чем": "?", "вид": "html",
-                                      "sha256 поставленного": "0" * 64,
-                                      "снято": "<i>выдумка</i>",
-                                      "sha256 снятого": "0" * 64}]}}
+    return {"book": "book.html",
+            "swaps": {"p0042-b17": [{"when": "?", "placed_by": "?", "kind": "html",
+                                      "sha256_placed": "0" * 64,
+                                      "removed": "<i>выдумка</i>",
+                                      "sha256_removed": "0" * 64}]}}
 
 
 def _flat_journal(out_dir, j):
     """Стопка отката схлопнута в последнее значение — среднее состояние
     пропадает молча, и «переделать другой моделью» перестаёт быть обратимым."""
-    return _save_journal(out_dir, {**j, "замены": {k: v[-1:] for k, v in
-                                                   j["замены"].items()}})
+    return _save_journal(out_dir, {**j, "swaps": {k: v[-1:] for k, v in
+                                                   j["swaps"].items()}})
 
 
 _save_journal = ap.save_journal
@@ -383,18 +383,18 @@ def crop_dpi_stretches_up(box, page_dpi, native, window, sheet=None):
     w = (box[2] - box[0]) / page_dpi
     h = (box[3] - box[1]) / page_dpi
     if w <= 0 or h <= 0:
-        return base, "своя резкость скана"
+        return base, "native_scan_dpi"
     at = w * base * h * base
     if at > hi:
-        return (hi / (w * h)) ** 0.5, "ужато до верхней границы модели"
+        return (hi / (w * h)) ** 0.5, "downscaled_to_model_max"
     if at < lo:
         return (lo / (w * h)) ** 0.5, "растянуто до нижней границы модели"
-    return base, "своя резкость скана"
+    return base, "native_scan_dpi"
 
 
 def crop_dpi_ignores_the_window(box, page_dpi, native, window, sheet=None):
     """Границы модели не спрашиваем вовсе: режем своей резкостью всегда."""
-    return float(native or page_dpi), "своя резкость скана"
+    return float(native or page_dpi), "native_scan_dpi"
 
 
 _SHAPE = replay.shape       # снят до подмены: иначе ломалка позвала бы себя
@@ -409,8 +409,8 @@ def shape_silent_about_underived(snap):
     СВЕРЕН рядом.
     """
     r = _SHAPE(snap)
-    if r["не выведено"]:
-        r["не выведено"], r["выведено"] = 0, []
+    if r["not_derived"]:
+        r["not_derived"], r["derived"] = 0, []
     return r
 
 
@@ -438,14 +438,14 @@ def variants_built_once_at_defaults(M):
     Пол «колонка за колонкой» складывался при умолчании, а мерился на всей
     развёртке — и в точках «перекрытие x 0.8/0.9» обгонял саму модель.
     """
-    return {"как отдала модель": M,
-            "сверху вниз, слева направо": metrics._by_reading(M),
-            "колонка за колонкой": metrics._by_columns(M),
-            "по кругу через колонки": metrics._mix_columns(M)}
+    return {"as_model_gave": M,
+            "top_down_left_right": metrics._by_reading(M),
+            "column_by_column": metrics._by_columns(M),
+            "round_robin_columns": metrics._mix_columns(M)}
 
 
 def ranking_without_rebuilding(variants, grid=None, cross=False,
-                               key="на страницу"):
+                               key="per_page"):
     """Приговор считается по НЕпересобранным вариантам: сборщика зовут без
     параметров точки, то есть пересборка есть только на словах."""
     names = list(variants)
@@ -456,11 +456,11 @@ def ranking_without_rebuilding(variants, grid=None, cross=False,
             v = variants[n]
             vals[n].append(metrics.column_jumps(v() if callable(v) else v,
                                                 **p)[key])
-    return {"пределы": {n: (None, None) for n in names}, "устойчив": True,
-            "по точкам": [], "перевёрнутых пар": [], "ничьих пар": [],
-            "точек": len(pts), "вариантов": len(names), "пар": 0,
-            "различает пар": 0, "размах линейки": None,
-            "ближайшая пара при умолчании": None, "величина": key}
+    return {"ranges": {n: (None, None) for n in names}, "stable": True,
+            "by_point": [], "flipped_pairs": [], "tied_pairs": [],
+            "points": len(pts), "variants": len(names), "pairs": 0,
+            "pairs_distinguished": 0, "ruler_play": None,
+            "closest_pair_at_default": None, "quantity": key}
 
 
 def native_dpi_by_the_sheet(page):
@@ -531,17 +531,17 @@ def carried_as_text_by_double_counting(sub, arte, rest, tot):
 def report_of_the_previous_edition(res, log=print):
     """Отчёт прежней редакции: один порог из четырёх, ни dpi, ни слова о
     слепоте к слиянию, и три разных нуля двумя строками."""
-    n = res["объектов"]
-    ink = max(1, res["чернил всего"])
-    log(f"страниц {res['страниц']}; порог чернил {fit.INK}, "
+    n = res["objects"]
+    ink = max(1, res["ink_total"])
+    log(f"страниц {res['page_count']}; порог чернил {fit.INK}, "
         f"«цел» от {fit.WHOLE:.2f} чернил объекта")
-    log(f"чернил страницы под рамками: {res['чернил под рамками'] / ink * 100:.1f}%, "
-        f"вне всех рамок {(1 - res['чернил под рамками'] / ink) * 100:.1f}% — "
+    log(f"чернил страницы под рамками: {res['ink_under_boxes'] / ink * 100:.1f}%, "
+        f"вне всех рамок {(1 - res['ink_under_boxes'] / ink) * 100:.1f}% — "
         f"это то, что исчезнет из HTML")
     if not n:
         log("истина не подана: по объектам сказать нечего — это не ноль потерь")
         return
-    log(f"объектов {n}: цел {res['цел']}")
+    log(f"объектов {n}: цел {res['intact']}")
 
 
 def ink_memory_that_clears_itself(pdf, doc, i, dpi):
@@ -679,7 +679,7 @@ def battery_summary_without_the_unmeasured(pdf, detect_dir, truth_dir="",
     out = []
     rc = _REAL_FIT_MUT(pdf, detect_dir, truth_dir, log=out.append)
     for line in out:
-        if "нечем мерить" in line or "померено" in line:
+        if "нечем мерить" in line or "measured" in line:
             continue
         log(line)
     return rc
@@ -767,8 +767,8 @@ def refusal_looks_like_silence(self, ask):
 
 def transport_check_only_pings(self, model=None):
     """Проверка спрашивает «жив ли», а не «как тебя зовут»."""
-    return {"адрес": self.server, "модели на сервере": [], "спрашиваем": model,
-            "совпало": True}
+    return {"endpoint": self.server, "models_on_server": [], "asking_for": model,
+            "matched": True}
 
 
 # ---- ВТОРОЙ УРОВЕНЬ: проход книги, транспорт, разбор ответа --------------
@@ -858,7 +858,7 @@ def said_json_without_finish(self):
     пятый ноль сливается с первым.
     """
     d = _real_to_json(self)
-    d.pop("чем кончилось", None)
+    d.pop("outcome", None)
     return d
 
 
@@ -869,8 +869,8 @@ def said_json_strips_the_text(self):
     стоило девяти пропусков из тридцати трёх.
     """
     d = _real_to_json(self)
-    if isinstance(d.get("текст"), str):
-        d["текст"] = d["текст"].strip()
+    if isinstance(d.get("text"), str):
+        d["text"] = d["text"].strip()
     return d
 
 
@@ -881,8 +881,8 @@ def said_json_writes_the_guess_into_the_text(self):
     с блоком по якорю: пометка дописывалась раньше, чем считалась подпись.
     """
     d = _real_to_json(self)
-    if isinstance(d.get("текст"), str) and d["текст"]:
-        d["текст"] += "  <!-- вид: " + _real_sniff(d["текст"]) + " -->"
+    if isinstance(d.get("text"), str) and d["text"]:
+        d["text"] += "  <!-- вид: " + _real_sniff(d["text"]) + " -->"
     return d
 
 
@@ -909,7 +909,7 @@ def reader_fingerprint_with_the_address(self):
     переспрашивает книгу целиком — за деньги.
     """
     d = _real_reader_fingerprint(self)
-    d["адрес"] = knobs.knob("VLM_ENDPOINT")
+    d["endpoint"] = knobs.knob("VLM_ENDPOINT")
     return d
 
 
@@ -921,7 +921,7 @@ def reader_fingerprint_without_prompts(self):
     прогон.
     """
     d = _real_reader_fingerprint(self)
-    d.pop("промты", None)
+    d.pop("prompts", None)
     return d
 
 
@@ -935,9 +935,9 @@ def detect_facts_refresh_the_hash(detect_dir):
     чтением.
     """
     f = _real_detect_facts(detect_dir)
-    p = (f.get("исходник") or {}).get("путь")
+    p = (f.get("source") or {}).get("path")
     if p and os.path.exists(p):
-        f = {**f, "исходник": dict(f["исходник"], **{"sha256": stamp.sha256(p)})}
+        f = {**f, "source": dict(f["source"], **{"sha256": stamp.sha256(p)})}
     return f
 
 
@@ -950,10 +950,10 @@ def read_book_shrugs_at_zero_pages(*a, **kw):
     except SystemExit as e:
         if "ни одной страницы" not in str(e):
             raise
-        return {"страниц": 0, "блоков": 0, "спрошено": 0, "не спрошено": 0,
-                "прочитано": 0, "модель промолчала": 0, "отказ доставки": 0,
-                "оборвано потолком": 0, "взято из прошлого прогона": 0,
-                "по видам": {}}
+        return {"page_count": 0, "block_count": 0, "asked": 0, "not_asked": 0,
+                "read": 0, "model_silent": 0, "delivery_failed": 0,
+                "hit_ceiling": 0, "reused_from_previous_run": 0,
+                "by_kind": {}}
 
 
 def sniff_calls_emptiness_text(text):
@@ -971,7 +971,7 @@ def parse_pads_like_the_vendor(s):
     молча, рваность НЕ считается, и порванная по потолку таблица возвращается
     правдоподобной."""
     g, t = _real_parse(s)
-    return g, dict(t, **{"строк разной длины": 0, "продолжений в никуда": 0})
+    return g, dict(t, **{"rows_of_unequal_length": 0, "continuations_to_nowhere": 0})
 
 
 def torn_grid_trusts_the_tearing_counters(g):
@@ -983,7 +983,7 @@ def torn_grid_trusts_the_tearing_counters(g):
     """
     if not g:
         return None
-    if g.get("продолжений в никуда") or g.get("строк разной длины"):
+    if g.get("continuations_to_nowhere") or g.get("rows_of_unequal_length"):
         return "рваная сетка"
     return None
 
@@ -996,7 +996,7 @@ def torn_grid_calls_any_single_row_impossible(g):
     """
     if not g:
         return None
-    if (g.get("строк") or 0) == 1:
+    if (g.get("rows") or 0) == 1:
         return "одна строка"
     return None
 
@@ -1013,14 +1013,14 @@ def observed_swallows_a_broken_answers_file(detect_dir):
     for fp in sorted(_g.glob(os.path.join(detect_dir, "answers", "*.json"))):
         with open(fp, encoding="utf-8") as f:
             try:
-                recs = _j.load(f).get("ответы") or []
+                recs = _j.load(f).get("answers") or []
             except ValueError:
                 return {}
         for r in recs:
-            if r.get("якорь"):
-                out[r["якорь"]] = {"чем кончилось": r.get("чем кончилось"),
-                                   "сетка otsl": (r.get("наблюдённое") or {}
-                                                  ).get("сетка otsl")}
+            if r.get("anchor"):
+                out[r["anchor"]] = {"outcome": r.get("outcome"),
+                                   "otsl_grid": (r.get("observed") or {}
+                                                  ).get("otsl_grid")}
     return out
 
 
@@ -1121,18 +1121,18 @@ def to_html_opens_a_row_only_where_a_root_is(s):
         return ""
     out, r = ["<table>"], None
     for cell in cs:
-        if cell["строка"] != r:
+        if cell["row"] != r:
             if r is not None:
                 out.append("</tr>")
             out.append("<tr>")
-            r = cell["строка"]
-        tag = "th" if cell["тег"] in _o.HEADER else "td"
+            r = cell["row"]
+        tag = "th" if cell["tag"] in _o.HEADER else "td"
         span = ""
-        if cell["столбцов"] > 1:
-            span += f' colspan="{cell["столбцов"]}"'
-        if cell["строк"] > 1:
-            span += f' rowspan="{cell["строк"]}"'
-        out.append(f"<{tag}{span}>" + _h.escape(cell["текст"]) + f"</{tag}>")
+        if cell["cols"] > 1:
+            span += f' colspan="{cell["cols"]}"'
+        if cell["rows"] > 1:
+            span += f' rowspan="{cell["rows"]}"'
+        out.append(f"<{tag}{span}>" + _h.escape(cell["text"]) + f"</{tag}>")
     out.append("</tr></table>")
     return "".join(out)
 
@@ -1146,17 +1146,17 @@ def to_html_pads_short_rows(s):
         return ""
     по = {}
     for c in cs:
-        по.setdefault(c["строка"], []).append(c)
-    строк = max(t["строк"], max(по) + 1)
-    шире = max((c["столбец"] + c["столбцов"] for c in cs), default=0)
+        по.setdefault(c["row"], []).append(c)
+    строк = max(t["rows"], max(по) + 1)
+    шире = max((c["col"] + c["cols"] for c in cs), default=0)
     out = ["<table>"]
     for r in range(строк):
         out.append("<tr>")
         занято = 0
         for cell in по.get(r, ()):
-            tag = "th" if cell["тег"] in _o.HEADER else "td"
-            out.append(f"<{tag}>" + _h.escape(cell["текст"]) + f"</{tag}>")
-            занято += cell["столбцов"]
+            tag = "th" if cell["tag"] in _o.HEADER else "td"
+            out.append(f"<{tag}>" + _h.escape(cell["text"]) + f"</{tag}>")
+            занято += cell["cols"]
         out.extend(["<td></td>"] * max(0, шире - занято))
         out.append("</tr>")
     out.append("</table>")
@@ -1169,8 +1169,8 @@ def layout_gives_the_split_span_our_default_tag(s):
     cs, t = _o.layout(s)
     out = []
     for c in cs:
-        if c["строк"] == 1 and c["столбцов"] == 1:
-            out.append(dict(c, **{"тег": "fcel"}))
+        if c["rows"] == 1 and c["cols"] == 1:
+            out.append(dict(c, **{"tag": "fcel"}))
         else:
             out.append(c)
     return out, t
@@ -1185,18 +1185,18 @@ def to_html_calls_the_first_row_a_header(s):
         return ""
     out, r = ["<table>"], None
     for cell in cs:
-        if cell["строка"] != r:
+        if cell["row"] != r:
             if r is not None:
                 out.append("</tr>")
             out.append("<tr>")
-            r = cell["строка"]
-        tag = "th" if cell["строка"] == 0 else "td"
+            r = cell["row"]
+        tag = "th" if cell["row"] == 0 else "td"
         span = ""
-        if cell["столбцов"] > 1:
-            span += f' colspan="{cell["столбцов"]}"'
-        if cell["строк"] > 1:
-            span += f' rowspan="{cell["строк"]}"'
-        out.append(f"<{tag}{span}>" + _h.escape(cell["текст"]) + f"</{tag}>")
+        if cell["cols"] > 1:
+            span += f' colspan="{cell["cols"]}"'
+        if cell["rows"] > 1:
+            span += f' rowspan="{cell["rows"]}"'
+        out.append(f"<{tag}{span}>" + _h.escape(cell["text"]) + f"</{tag}>")
     out.append("</tr></table>")
     return "".join(out)
 
@@ -1209,7 +1209,7 @@ def layout_straightens_a_torn_span(s):
     """
     from booksmith import otsl as _o
     cs, t = _o.layout(s)
-    return cs, dict(t, **{"слияний не прямоугольных": 0})
+    return cs, dict(t, **{"non_rectangular_merges": 0})
 
 
 def wrap_fragment_drops_the_torn_mark(anchor, fragment, kind, source,
@@ -1253,8 +1253,8 @@ def rewrap_is_counted_as_new_work(прежние, entry):
     После двух замен подряд первая ступень чужая, и настоящая переобёртка
     считается новой работой.
     """
-    return bool(прежние) and прежние[0].get("sha256 ответа модели") == \
-        entry.get("sha256 ответа модели")
+    return bool(прежние) and прежние[0].get("sha256_model_answer") == \
+        entry.get("sha256_model_answer")
 
 
 def repeats_compare_the_block_with_itself(page, covered):
@@ -1264,18 +1264,18 @@ def repeats_compare_the_block_with_itself(page, covered):
     вложенный блок — включая тот, чьего текста нет больше нигде.
     """
     из_текста = [b for b in page.blocks
-                 if policy.role(b.label) != "артефакт" and (b.content or "").strip()]
+                 if policy.role(b.label) != "artifact" and (b.content or "").strip()]
     вложен = {b.block_id for b in из_текста
               if any(o.block_id != b.block_id and covered(b.box, o.box)
                      for o in из_текста)}
-    вся = " ".join(booktext.normalize(b.content, "латех") for b in из_текста)
+    вся = " ".join(booktext.normalize(b.content, "latex") for b in из_текста)
     out = {}
     for b in из_текста:
         if b.block_id not in вложен:
             continue
         хозяева = [o for o in из_текста
                    if o.block_id != b.block_id and covered(b.box, o.box)]
-        свой = booktext.normalize(b.content, "латех")
+        свой = booktext.normalize(b.content, "latex")
         out[b.block_id] = (хозяева[0].block_id if хозяева else None,
                            "дословно" if len(свой) >= 2 and свой in вся
                            else "расходится")
@@ -1289,7 +1289,7 @@ def repeats_compare_with_other_candidates_too(page, covered):
     одного: каждый «есть у соседа».
     """
     из_текста = [b for b in page.blocks
-                 if policy.role(b.label) != "артефакт" and (b.content or "").strip()]
+                 if policy.role(b.label) != "artifact" and (b.content or "").strip()]
     вложен = {b.block_id for b in из_текста
               if any(o.block_id != b.block_id and covered(b.box, o.box)
                      for o in из_текста)}
@@ -1297,11 +1297,11 @@ def repeats_compare_with_other_candidates_too(page, covered):
     for b in из_текста:
         if b.block_id not in вложен:
             continue
-        прочие = " ".join(booktext.normalize(o.content, "латех")
+        прочие = " ".join(booktext.normalize(o.content, "latex")
                           for o in из_текста if o.block_id != b.block_id)
         хозяева = [o for o in из_текста
                    if o.block_id != b.block_id and covered(b.box, o.box)]
-        свой = booktext.normalize(b.content, "латех")
+        свой = booktext.normalize(b.content, "latex")
         out[b.block_id] = (хозяева[0].block_id if хозяева else None,
                            "дословно" if len(свой) >= 2 and свой in прочие
                            else "расходится")
@@ -1325,12 +1325,12 @@ def _repeats_variant(page, covered, *, артефакты=False, пустые=Fa
                      всегда=None, порог=None):
     """Общий подпорченный вариант правила повтора: одна беда за раз."""
     из_текста = [b for b in page.blocks
-                 if (артефакты or policy.role(b.label) != "артефакт")
+                 if (артефакты or policy.role(b.label) != "artifact")
                  and (пустые or (b.content or "").strip())]
     вложен = {b.block_id for b in из_текста
               if any(o.block_id != b.block_id and covered(b.box, o.box)
                      for o in из_текста)}
-    остаётся = " ".join(booktext.normalize(b.content or "", "латех")
+    остаётся = " ".join(booktext.normalize(b.content or "", "latex")
                         for b in из_текста if b.block_id not in вложен)
     out = {}
     for b in из_текста:
@@ -1338,7 +1338,7 @@ def _repeats_variant(page, covered, *, артефакты=False, пустые=Fa
             continue
         хозяева = [o for o in из_текста
                    if o.block_id != b.block_id and covered(b.box, o.box)]
-        свой = booktext.normalize(b.content or "", "латех")
+        свой = booktext.normalize(b.content or "", "latex")
         мин = порог if порог is not None else dhtml.REPEAT_MIN
         вывод = (всегда if всегда else
                  ("дословно" if len(свой) >= мин and свой in остаётся
@@ -1384,17 +1384,17 @@ def repeats_join_without_a_gap(page, covered):
     восьми проверок.
     """
     из_текста = [b for b in page.blocks
-                 if policy.role(b.label) != "артефакт" and (b.content or "").strip()]
+                 if policy.role(b.label) != "artifact" and (b.content or "").strip()]
     вложен = {b.block_id for b in из_текста
               if any(o.block_id != b.block_id and covered(b.box, o.box)
                      for o in из_текста)}
     остаются = [b for b in из_текста if b.block_id not in вложен]
-    склей = "".join(booktext.normalize(b.content, "латех") for b in остаются)
+    склей = "".join(booktext.normalize(b.content, "latex") for b in остаются)
     out = {}
     for b in из_текста:
         if b.block_id not in вложен:
             continue
-        свой = booktext.normalize(b.content, "латех")
+        свой = booktext.normalize(b.content, "latex")
         нашёлся = len(свой) >= dhtml.REPEAT_MIN and свой in склей
         out[b.block_id] = (остаются[0].block_id if остаются else None,
                            "дословно" if нашёлся else "расходится")
@@ -1417,7 +1417,7 @@ def repeats_name_the_enclosing_frame(page, covered):
     """В ответе стоит объемлющая рамка, а не носитель доказательства."""
     out = dhtml.repeats_on(page, covered)
     из_текста = [b for b in page.blocks
-                 if policy.role(b.label) != "артефакт" and (b.content or "").strip()]
+                 if policy.role(b.label) != "artifact" and (b.content or "").strip()]
     новое = {}
     for k, (_, почему) in out.items():
         свой = next(b for b in из_текста if b.block_id == k)
@@ -1433,7 +1433,7 @@ def torn_of_calls_the_unasked_whole(o):
 
     Сливает 69 неспрошенных рисунков с 6073 честно дочитанными блоками.
     """
-    return (o or {}).get("чем кончилось") == "length"
+    return (o or {}).get("outcome") == "length"
 
 
 def torn_grid_column_rule_has_no_floor(g):
@@ -1441,7 +1441,7 @@ def torn_grid_column_rule_has_no_floor(g):
     объявляется невозможной таблицей."""
     if not g:
         return None
-    rows, cells = g.get("строк") or 0, g.get("клеток") or 0
+    rows, cells = g.get("rows") or 0, g.get("grid_cells") or 0
     if rows == 1 and cells > 3:
         return f"вся таблица в одной строке: {cells} клеток"
     cols = (cells // rows) if rows else 0
@@ -1457,7 +1457,7 @@ def observed_invents_a_clean_bill_when_there_is_nothing(detect_dir):
     ПОСТРОЕНИЮ. Выдать за него благополучие значит напечатать «оборвано 0»
     там, где верный ответ — «сказать нечем».
     """
-    return {"p0001-b0": {"чем кончилось": "stop", "сетка otsl": None}}
+    return {"p0001-b0": {"outcome": "stop", "otsl_grid": None}}
 
 
 def observed_keeps_anchors_and_drops_the_reason(detect_dir):
@@ -1472,12 +1472,12 @@ def observed_keeps_anchors_and_drops_the_reason(detect_dir):
     for fp in sorted(_g.glob(os.path.join(detect_dir, "answers", "*.json"))):
         try:
             with open(fp, encoding="utf-8") as f:
-                recs = _j.load(f).get("ответы") or []
+                recs = _j.load(f).get("answers") or []
         except (ValueError, OSError):
             continue
         for r in recs:
-            if r.get("якорь"):
-                out[r["якорь"]] = {}
+            if r.get("anchor"):
+                out[r["anchor"]] = {}
     return out
 
 
@@ -1494,7 +1494,7 @@ def policies_with_a_new_class():
     """Двадцать шестой класс новых весов появился в словаре детектора, а
     маршрута чтения ему никто не завёл."""
     p = dict(policy.POLICIES)
-    p["PP-DocLayoutV2"] = dict(p["PP-DocLayoutV2"], sidebar="текст")
+    p["PP-DocLayoutV2"] = dict(p["PP-DocLayoutV2"], sidebar="text")
     return p
 
 
@@ -1515,14 +1515,14 @@ def status_reads_only_the_journal(out_dir, log=print):
     пуста» становится неотличимо от «второй уровень по ней ещё не ходил».
     """
     j = ap.load_journal(out_dir)
-    live = {k: len(v) for k, v in j["замены"].items() if v}
-    log(f"якорей в журнале {len(j['замены'])}; заменено блоков {len(live)}, "
+    live = {k: len(v) for k, v in j["swaps"].items() if v}
+    log(f"якорей в журнале {len(j['swaps'])}; заменено блоков {len(live)}, "
         f"всего замен {sum(live.values())}")
-    if not j["замены"]:
+    if not j["swaps"]:
         log("якорей нет вовсе — это не «всё заменено», а пустая книга")
-    return {"якорей": len(j["замены"]), "заменено блоков": len(live),
-            "всего замен": sum(live.values()), "откачено до конца": 0,
-            "разошлось": 0, "нет в книге": 0, "по якорям": live}
+    return {"anchor_count": len(j["swaps"]), "blocks_swapped": len(live),
+            "swaps_total": sum(live.values()), "fully_undone": 0,
+            "drifted": 0, "missing_from_book": 0, "per_anchor": live}
 
 
 def anchor_without_the_page(page_index, block_id):
@@ -1544,8 +1544,8 @@ def measure_scores_silence_as_zero(T, P, *a, **kw):
     всех».
     """
     r = _real_measure(T, P, *a, **kw)
-    for rec in r["по блокам"]:
-        if (rec.get("разряд") in ("текст", "артефакт по истине")
+    for rec in r["per_block"]:
+        if (rec.get("bucket") in ("text", "артефакт по истине")
                 and rec.get("CER") is None):
             rec["CER"] = 0.0
     return r
@@ -1556,9 +1556,9 @@ def measure_calls_artefacts_text(T, P, *a, **kw):
     считает оба разряда, а знаменатель — один. Замер до починки: «CER 0 на
     всех 130 посчитанных из 104» на книге со 104 текстовыми блоками."""
     r = _real_measure(T, P, *a, **kw)
-    for rec in r["по блокам"]:
-        if rec.get("разряд") == "артефакт по истине":
-            rec["разряд"] = "текст"
+    for rec in r["per_block"]:
+        if rec.get("bucket") == "артефакт по истине":
+            rec["bucket"] = "text"
     return r
 
 
@@ -1571,8 +1571,8 @@ def measure_counts_words_in_a_formula(T, P, *a, **kw):
     `KeyError` тогда, когда ему есть что сказать.
     """
     r = _real_measure(T, P, *a, **kw)
-    for rec in r["по блокам"]:
-        if (rec.get("разряд") == "артефакт по истине"
+    for rec in r["per_block"]:
+        if (rec.get("bucket") == "артефакт по истине"
                 and rec.get("CER") is not None):
             rec["WER"] = rec["CER"]
     return r
@@ -1585,7 +1585,7 @@ def measure_counts_silence_as_an_answer(T, P, *a, **kw):
     непонимания, напечатанный как величина.
     """
     r = _real_measure(T, P, *a, **kw)
-    r["артефакты по истине"]["без ответа"] = 0
+    r["artifacts_with_truth"]["no_answer"] = 0
     return r
 
 
@@ -1596,7 +1596,7 @@ def measure_forgets_invention_on_empty_truth(T, P, *a, **kw):
     объявленной пустоте пропадает молча.
     """
     r = _real_measure(T, P, *a, **kw)
-    r["артефакты по истине"]["выдумано на пустой истине"] = 0
+    r["artifacts_with_truth"]["invented_on_empty_truth"] = 0
     return r
 
 
@@ -1667,7 +1667,7 @@ def journal_unreadable_is_an_empty_one(out_dir):
     try:
         return _real_load_journal(out_dir)
     except ap.SwapError:
-        return {"книга": "book.html", "замены": {}}
+        return {"book": "book.html", "swaps": {}}
 
 
 def journal_written_in_place(out_dir, j):
@@ -1780,7 +1780,7 @@ def sheet_trouble_with_two_marks(blocks, arts):
     """
     if not blocks:
         return "пусто"
-    if any(policy.role(b.label) == "текст" for b in blocks):
+    if any(policy.role(b.label) == "text" for b in blocks):
         return None
     return "без-текста"
 
@@ -1952,7 +1952,7 @@ def mutations():
 
         ("адаптер вовсе не сказал, чей порядок",
          lambda: sources("models/yolox_layout.py",
-                         '"порядок чтения": order.WORDS[which],', ""),
+                         '"reading_order": order.WORDS[which],', ""),
          [("test_order_contract", "test_adapters_declare_order_rule_at_all")]),
 
         ("правило конвейера перестало начинаться со слова «наш»",
@@ -1985,14 +1985,14 @@ def mutations():
          lambda: attrs(dh, EGRET_TO_DOCLING=GuessingTranslation(
              dh.EGRET_TO_DOCLING)),
          [("test_docling_pipeline", "test_unknown_label_dies_at_construction")],
-         "нет пакета docling"),
+         "no_docling_package"),
 
         ("витринное имя egret осталось непереведённым",
          lambda: attrs(dh, EGRET_TO_DOCLING=egret_without_translation()),
          [("test_docling_pipeline", "test_egret_names_translate_whole"),
           ("test_docling_pipeline",
            "test_translation_covers_both_dictionaries")],
-         "нет пакета docling"),
+         "no_docling_package"),
 
         ("словарь политики egret потерял класс",
          lambda: attrs(policy, DOCLING_EGRET=docling_egret_short()),
@@ -2015,7 +2015,7 @@ def mutations():
          [("test_policy", "test_role_raises_on_unknown")]),
 
         ("разрядов стало два вместо трёх",
-         lambda: attrs(policy, ROLES=("текст", "артефакт")),
+         lambda: attrs(policy, ROLES=("text", "artifact")),
          [("test_policy", "test_every_label_has_one_of_three_roles")]),
 
         ("в объединении у table другой разряд",
@@ -2107,7 +2107,7 @@ def mutations():
         ("ручка off не дошла до адаптера — конвейер построен всё равно",
          lambda: attrs(knobs, knob=knob_says_post),
          [("test_docling_pipeline", "test_adapter_at_off_builds_no_pipeline")],
-         "медленная, только с --slow"),
+         "slow_only"),
 
         # ---- второй уровень ------------------------------------------
         ("маршрут выводится из разряда, а не объявляется",
@@ -2313,8 +2313,8 @@ def mutations():
         # 309 против 385.
         ("«не в одиночку» считает рамки, а не объекты",
          lambda: one_line("booksmith.fitness",
-                          '                res["приехал не в одиночку"] += k',
-                          '                res["приехал не в одиночку"] += 1'),
+                          '                res["arrived_with_company"] += k',
+                          '                res["arrived_with_company"] += 1'),
          [("test_fitness", "test_the_number_that_grows_when_boxes_merge")]),
 
         ("порог чернил разошёлся с порогом стенда",
@@ -2495,7 +2495,7 @@ def mutations():
         # Зеркальная сторона того же сторожа: чинил обе, проверял одну.
         ("страница, которой нет у истины, пропускается молча",
          lambda: one_line("booksmith.overlay",
-                          'counts["нет у истины"].append(i)',
+                          'counts["missing_in_truth"].append(i)',
                           "pass"),
          [("test_overlay",
            "test_a_page_missing_from_the_truth_is_named_too")]),
@@ -2503,7 +2503,7 @@ def mutations():
         ("лист кричит по ярлыку, а не по правилу метрики",
          lambda: one_line(
              "booksmith.overlay",
-             '                (loud if kind == "лишняя рамка" '
+             '                (loud if kind == "spurious_box" '
              'else quiet).append(x)',
              '                loud.append(x)'),
          [("test_overlay",
@@ -2523,7 +2523,7 @@ def mutations():
 
         ("фильтр ужатия убран из отпечатка",
          lambda: source_swap("models/yolox_layout.py",
-                             '"фильтр cv2": INTERP', '"подложка2": PAD'),
+                             '"cv2_filter": INTERP', '"подложка2": PAD'),
          [("test_yolox_fingerprint",
            "test_the_fingerprint_declares_the_resize_filter")]),
 
@@ -2606,7 +2606,7 @@ def mutations():
         # не знал бы, что ставить, и умолчание пришлось бы отменить.
         ("книга перестала помнить свой источник",
          lambda: one_line("booksmith.doc.apply",
-                          '    путь = ((снимок.get("аргументы") or {}).get("detect") or "").strip()',
+                          '    путь = ((снимок.get("args") or {}).get("detect") or "").strip()',
                           '    путь = ""'),
          [("test_apply", "test_the_book_remembers_where_it_was_built_from")]),
 
@@ -2695,8 +2695,8 @@ def mutations():
         # одобряет, потому что сверяет ключи, а не значения.
         ("расхождение порога снова зашито литералом",
          lambda: source_swap("models/yolox_layout.py",
-                             '"расхождение порога": self.threshold_drift()',
-                             '"расхождение порога": []'),
+                             '"threshold_drift": self.threshold_drift()',
+                             '"threshold_drift": []'),
          [("test_yolox_fingerprint",
            "test_the_fingerprint_asks_the_threshold_guard_instead_of_a_literal"
            )]),
@@ -2709,7 +2709,7 @@ def mutations():
 
         ("страница, которой нет у модели, пропускается молча",
          lambda: one_line("booksmith.overlay",
-                          'counts["нет у модели"].append(i)',
+                          'counts["missing_in_model"].append(i)',
                           "pass"),
          [("test_overlay", "test_a_page_missing_from_one_markup_is_named")]),
 
@@ -3052,24 +3052,24 @@ def mutations():
         ("слияния в книге приравнены к объявленным",
          lambda: one_line(
              "booksmith.doc.apply",
-             "    встало = sum(1 for c in cells if c[\"строк\"] > 1 "
-             "or c[\"столбцов\"] > 1)",
+             "    встало = sum(1 for c in cells if c[\"rows\"] > 1 "
+             "or c[\"cols\"] > 1)",
              "    встало = объявлено"),
          [("test_torn", "test_bulk_counts_spans_declared_and_placed")]),
 
         ("переобёртка сверяется с ПЕРВОЙ ступенью стопки",
          lambda: one_line(
              "booksmith.doc.apply",
-             "            if прежние and прежние[-1].get(\"sha256 ответа модели\") == \\",
-             "            if прежние and прежние[0].get(\"sha256 ответа модели\") == \\"),
+             "            if прежние and прежние[-1].get(\"sha256_model_answer\") == \\",
+             "            if прежние and прежние[0].get(\"sha256_model_answer\") == \\"),
          [("test_torn", "test_bulk_names_the_rewrap_apart_from_new_work")]),
 
         ("отказанный блок считается лежащим в книге",
          lambda: one_line(
              "booksmith.doc.apply",
-             "                tally[\"отказано\"] += 1",
+             "                tally[\"refused\"] += 1",
              "                _счесть_в_книге(tally, misshapen, anchor, body,"
-             " b.get(\"kind\") or \"html\"); tally[\"отказано\"] += 1"),
+             " b.get(\"kind\") or \"html\"); tally[\"refused\"] += 1"),
          [("test_torn", "test_a_refused_block_is_not_counted_as_being_in_"
                         "the_book")]),
 

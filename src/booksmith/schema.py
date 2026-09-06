@@ -71,36 +71,36 @@ class Format:
 FORMATS = (
     Format(
         "truth", "bench/*/truth/*.json",
-        {"случай": 1366, "книга": 1366, "разряд": 2002, "категория": 2002,
-         "исходная категория": 3587, "вне замера": 1360,
-         "объектов вне замера": 1359, "текст размечен": 1359,
-         "порядок размечен": 1324, "спорно": 1359, "невыразимо": 1359,
-         "файл": 1359},
+        {"case": 1366, "book": 1366, "bucket": 2002, "category": 2002,
+         "source_category": 3587, "out_of_scope": 1360,
+         "objects_out_of_scope": 1359, "text_marked": 1359,
+         "order_marked": 1324, "doubtful": 1359, "inexpressible": 1359,
+         "file": 1359},
         "1366 tracked pages: 600 annopage, 600 annopage-lite, 130 hard, 36 hard36. "
         "The six synthetic benches are NOT here -- .gitignore closes them "
         "entirely and only their manifest is tracked."),
     Format(
         "dots_pages", "bench/*/dots*/**/*.json",
-        {"распознаватель": 1272, "порядок чтения": 1272, "ужато": 1272,
-         "проход": 1236, "промт": 1236, "потолок подачи": 1236,
-         "нехватка видеопамяти": 1236, "ошибка разбора": 1236, "ответ": 636},
+        {"detector": 1272, "reading_order": 1272, "downscale": 1272,
+         "pass_no": 1236, "prompt": 1236, "input_pixel_ceiling": 1236,
+         "out_of_vram": 1236, "parse_error": 1236, "answer": 636},
         "Paid output: $0.89 for 600 pages on an RTX 4090, and there is no home "
         "re-parser, so these cannot be regenerated. `порядок чтения` lives here "
         "1272 times and nowhere else in tracked data -- it is the whole floor "
         "under danger O1."),
     Format(
         "detect_run", "bench/*/detect/run.json",
-        {"ручки": 3, "значение": 72, "умолчание": 72, "что": 72,
-         "задано снаружи": 72, "имя": 6, "промты": 6, "по ярлыкам": 6,
-         "когда": 3, "растр": 3, "коммит": 3, "исходник": 3, "аргументы": 3},
+        {"knobs": 3, "value": 72, "default": 72, "what": 72,
+         "set_externally": 72, "name": 6, "prompts": 6, "by_label": 6,
+         "when": 3, "raster": 3, "commit": 3, "source": 3, "args": 3},
         "Only three detect snapshots are tracked (annopage, hard, hard36); the "
         "other six live behind .gitignore. `books replay --check` walks the "
         "path ('ручки', <knob>, 'значение') -- danger O3."),
     Format(
         "manifest", "bench/*/manifest.json",
-        {"книга": 146, "значение": 210, "умолчание": 210, "что": 210,
-         "долг": 210, "задано снаружи": 210, "стр": 130, "знаков": 99,
-         "истина знаков": 99, "блоков с текстом": 99, "ячеек": 99},
+        {"book": 146, "value": 210, "default": 210, "what": 210,
+         "debt": 210, "set_externally": 210, "page_no": 130, "chars": 99,
+         "char_truth": 99, "blocks_with_text": 99, "cell_count": 99},
         "All ten bench manifests are tracked. Note the pair `страниц` (a "
         "number) and `страницы` (a list) living in the SAME object in seven of "
         "them: any rename that maps both onto `pages` drops the list silently "

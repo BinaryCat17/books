@@ -67,7 +67,7 @@ def test_the_fingerprint_declares_the_resize_filter():
         if not isinstance(node, ast.Dict):
             continue
         for k, v in zip(node.keys, node.values):
-            if (isinstance(k, ast.Constant) and k.value == "фильтр cv2"
+            if (isinstance(k, ast.Constant) and k.value == "cv2_filter"
                     and isinstance(v, ast.Name)):
                 named.add(v.id)
     assert "INTERP" in named, (
@@ -98,7 +98,7 @@ def test_the_fingerprint_asks_the_threshold_guard_instead_of_a_literal():
         if not isinstance(node, ast.Dict):
             continue
         for k, v in zip(node.keys, node.values):
-            if isinstance(k, ast.Constant) and k.value == "расхождение порога":
+            if isinstance(k, ast.Constant) and k.value == "threshold_drift":
                 seen.append(v)
     assert seen, "в отпечатке нет поля «расхождение порога» вовсе"
     assert all(isinstance(v, ast.Call)

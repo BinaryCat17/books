@@ -262,34 +262,34 @@ class DocLayout(Recognizer):
     def fingerprint(self) -> dict:
         """Чем этот прогон отличается от другого. Уезжает в слепок целиком."""
         return {
-            "имя": self.name,
-            "модель": self.model_name(),
+            "name": self.name,
+            "model": self.model_name(),
             # Ручка стоит рядом с именем из весов НЕ для красоты: их
             # расхождение и есть подмена весов, и видно её только так.
-            "имя по ручке": knobs.knob("LAYOUT_MODEL_NAME"),
-            "каталог весов": self.dir,
-            "sha256 весов": _sha256(self.onnx),
+            "name_from_knob": knobs.knob("LAYOUT_MODEL_NAME"),
+            "weights_dir": self.dir,
+            "sha256_weights": _sha256(self.onnx),
             "onnxruntime": self.ort_version,
-            "исполнители": self.providers,
-            "вход": {"высота": self.target_h, "ширина": self.target_w,
+            "providers": self.providers,
+            "input": {"height": self.target_h, "width": self.target_w,
                      "keep_ratio": self.keep_ratio, "interp": self.interp,
-                     "порядок каналов": self.channel_order,
-                     "нормализация": {"тип": self.norm_type,
-                                      "делить на 255": self.norm_scale,
+                     "channel_order": self.channel_order,
+                     "normalization": {"type": self.norm_type,
+                                      "divide_by_255": self.norm_scale,
                                       "mean": self.norm_mean,
                                       "std": self.norm_std}},
-            "родной порог": self.native_threshold,
-            "порядок чтения": ("ранг модели" if getattr(self, "has_order", True)
+            "native_threshold": self.native_threshold,
+            "reading_order": ("model_rank" if getattr(self, "has_order", True)
                                else "НАШ, сверху вниз и слева направо: "
                                     "модель ранга не даёт"),
-            "пороги по классам": self.thresholds(),
-            "расхождение порога": self.threshold_drift(),
-            "словарь ярлыков": self.labels,
+            "thresholds_by_class": self.thresholds(),
+            "threshold_drift": self.threshold_drift(),
+            "label_vocabulary": self.labels,
             # Свод словарей объявляется, даже когда он пуст: пустой словарь
             # значит «словарь модели и есть общий», и это ЗНАЧЕНИЕ.
-            "свод ярлыков": self.label_map(),
+            "label_map": self.label_map(),
             # Промтов у детектора нет вовсе — тоже значение, а не пропуск.
-            "промты": {},
+            "prompts": {},
         }
 
     # ------------------------------------------------------------------ счёт
@@ -427,13 +427,13 @@ class DocLayout(Recognizer):
             # Ответ графа ЦЕЛИКОМ, до отбора. Порог — единственное наше
             # вмешательство в этом модуле, и улику под него нельзя выбрасывать:
             # иначе переиграть порог можно только заплатив за пересчёт.
-            raw={"строк на выходе": int(out.shape[0]),
-                 "колонок": int(out.shape[1]),
-                 "выходов графа": len(outs),
-                 "все строки": [[float(v) for v in r] for r in out]},
-            meta={"распознаватель": self.name, "растр": image_path,
-                  "рамок принято": len(kept),
-                  "связок рангов": ties,
+            raw={"output_rows": int(out.shape[0]),
+                 "columns": int(out.shape[1]),
+                 "graph_outputs": len(outs),
+                 "all_rows": [[float(v) for v in r] for r in out]},
+            meta={"detector": self.name, "raster": image_path,
+                  "boxes_accepted": len(kept),
+                  "rank_ties": ties,
                   # ЧЕЙ ЭТО ПОРЯДОК — говорим МЕТРИКЕ, а не только слепку.
                   # Отпечаток объявлял это и раньше, но `metrics._has_order`
                   # читает `meta` СТРАНИЦЫ, а не отпечаток, и без поля берёт
@@ -459,7 +459,7 @@ class DocLayout(Recognizer):
                   # сторож узнаёт наш порядок. С заглавной, как в `fingerprint`
                   # выше, он его НЕ видит (проверено: `_has_order` на «НАШ...»
                   # = True). Меняя здесь слова, строчную сохранить.
-                  "порядок чтения": ("ранг модели" if self.has_order else
+                  "reading_order": ("model_rank" if self.has_order else
                                      order.WORDS[which]
                                      + ": модель ранга не даёт"),
-                  "лучший отвергнутый по классам": rejected})
+                  "best_rejected_by_class": rejected})

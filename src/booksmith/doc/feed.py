@@ -79,10 +79,10 @@ def params(page_dpi: float | None = None) -> dict:
         page_out, src = float(page_dpi), "как у детекции"
     else:
         page_out, src = float(knobs.knob("PAGE_DPI")), "PAGE_DPI текущего процесса"
-    return {"подача": mode, "заливка дыр": fill,
-            "dpi вырезки": c["dpi"], "dpi вырезки откуда": c["dpi откуда"],
-            "поле вырезки": c["поле"],
-            "dpi страницы": page_out, "dpi страницы откуда": src}
+    return {"feed_mode": mode, "hole_fill": fill,
+            "crop_dpi": c["dpi"], "crop_dpi_source": c["dpi_source"],
+            "crop_margin": c["margin"],
+            "page_dpi": page_out, "page_dpi_source": src}
 
 
 def _union_rects(holes):
@@ -152,8 +152,8 @@ def masked_page(doc, page_index: int, boxes, page_dpi: float, dst: str,
     import pymupdf
 
     p = params(page_dpi)
-    dpi = p["dpi страницы"] if dpi is None else dpi
-    fill = p["заливка дыр"] if fill is None else fill
+    dpi = p["page_dpi"] if dpi is None else dpi
+    fill = p["hole_fill"] if fill is None else fill
 
     page = doc[page_index]
     pix = page.get_pixmap(dpi=int(dpi))
@@ -178,11 +178,11 @@ def masked_page(doc, page_index: int, boxes, page_dpi: float, dst: str,
     merged = _union_rects(holes)
     os.makedirs(os.path.dirname(os.path.abspath(dst)), exist_ok=True)
     pix.save(dst)
-    return {"файл": os.path.basename(dst), "dpi": int(dpi),
-            "ширина": pix.width, "высота": pix.height,
-            "дыр": len(merged), "рамок модели": len(holes), "заливка": fill,
-            "доля страницы замазана": round(area / (pix.width * pix.height), 4),
-            "дыры": holes}
+    return {"file": os.path.basename(dst), "dpi": int(dpi),
+            "width": pix.width, "height": pix.height,
+            "holes_count": len(merged), "model_boxes": len(holes), "fill": fill,
+            "page_share_masked": round(area / (pix.width * pix.height), 4),
+            "holes": holes}
 
 
 def prepare(doc, page, out_dir: str, page_dpi: float, log=print) -> dict:
@@ -194,30 +194,30 @@ def prepare(doc, page, out_dir: str, page_dpi: float, log=print) -> dict:
     p = params(page_dpi)
     os.makedirs(out_dir, exist_ok=True)
     tag = f"p{page.index:04d}"           # имя файла СТРАНИЦЫ, а не якорь блока
-    art = [b for b in page.blocks if policy.role(b.label) == "артефакт"]
-    txt = [b for b in page.blocks if policy.role(b.label) != "артефакт"]
+    art = [b for b in page.blocks if policy.role(b.label) == "artifact"]
+    txt = [b for b in page.blocks if policy.role(b.label) != "artifact"]
 
-    if p["подача"] == "crop":
+    if p["feed_mode"] == "crop":
         items = []
         for b in txt:
             a = anchor_of(page.index, b.block_id)
             rel = f"{a}.png"
             info = crop.cut(doc, page.index, b.box, page_dpi,
                             os.path.join(out_dir, rel))
-            items.append({"якорь": a, "ярлык": b.label, **info})
-        return {"подача": "crop", "запросов": len(items),
-                "артефактов не послано": len(art), "куски": items}
+            items.append({"anchor": a, "label": b.label, **info})
+        return {"feed_mode": "crop", "requests": len(items),
+                "artifacts_not_sent": len(art), "chunks": items}
 
     rel = f"{tag}.png"
     info = masked_page(doc, page.index, [b.box for b in art], page_dpi,
                        os.path.join(out_dir, rel))
-    return {"подача": "masked_page", "запросов": 1,
-            "артефактов замазано": len(art),
-            "текстовых блоков на странице": len(txt),
+    return {"feed_mode": "masked_page", "requests": 1,
+            "artifacts_masked": len(art),
+            "text_blocks_on_page": len(txt),
             # Куда потом вернуть плейсхолдеры. Модель об этом не скажет:
             # промпт у неё два слова, без системного сообщения, попросить
             # метку нечем. Значит, геометрию дыр обязаны помнить мы.
-            "страница": info}
+            "page": info}
 
 
 def dump(result: dict, out_dir: str) -> str:

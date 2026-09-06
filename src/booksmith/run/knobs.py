@@ -587,9 +587,9 @@ def snapshot():
     потребителя нет НИ У КОГО. Слить их значило бы объявить мёртвым всё,
     чего не коснулся сегодняшний адаптер.
     """
-    return {k.name: {"значение": knob(k.name), "умолчание": k.default,
-                     "задано снаружи": k.name in os.environ, "что": k.what,
-                     "долг": k.debt}
+    return {k.name: {"value": knob(k.name), "default": k.default,
+                     "set_externally": k.name in os.environ, "what": k.what,
+                     "debt": k.debt}
             for k in KNOBS}
 
 
@@ -612,8 +612,8 @@ def snapshot_with_readers(roles):
     snap = snapshot()
     for name, rec in snap.items():
         who = roles.get(name)
-        rec["кто читает"] = who or "НИКТО В ЭТОМ ПРОГОНЕ"
-        rec["к этому прогону относится"] = who is not None
+        rec["read_by"] = who or "НИКТО В ЭТОМ ПРОГОНЕ"
+        rec["for_this_run"] = who is not None
     return snap
 
 

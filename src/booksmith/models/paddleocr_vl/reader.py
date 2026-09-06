@@ -134,10 +134,10 @@ def _weights() -> dict:
     """
     d = knobs.knob("VL_MODEL_DIR")
     if not d or not os.path.isdir(d):
-        return {"каталог": d or None,
-                "почему пусто": "весов рядом нет: считает не эта машина, а та, "
+        return {"dir": d or None,
+                "why_empty": "весов рядом нет: считает не эта машина, а та, "
                                 "куда смотрит VLM_ENDPOINT"}
-    out = {"каталог": d, "файлов": len(os.listdir(d))}
+    out = {"dir": d, "file_count": len(os.listdir(d))}
     # ОТКУДА ВЗЯТЫ ВЕСА — главное поле, и пишет его `provision.sh` рядом с
     # ними. Прежде здесь стоял только `sha256 config.json`, и докстринг звал
     # его единственным доказательством версии. Замер опроверг: у
@@ -149,14 +149,14 @@ def _weights() -> dict:
     if os.path.exists(src):
         try:
             import json as _j
-            out["репозиторий"] = _j.load(open(src, encoding="utf-8")).get(
-                "репозиторий")
+            out["repo"] = _j.load(open(src, encoding="utf-8")).get(
+                "repo")
         except (ValueError, OSError) as e:
-            out["репозиторий"] = None
-            out["почему пусто"] = f"ОТКУДА.json не читается: {e}"
+            out["repo"] = None
+            out["why_empty"] = f"ОТКУДА.json не читается: {e}"
     else:
-        out["репозиторий"] = None
-        out["почему пусто"] = ("рядом с весами нет ОТКУДА.json — его пишет "
+        out["repo"] = None
+        out["why_empty"] = ("рядом с весами нет ОТКУДА.json — его пишет "
                                "provision.sh; значит веса положены не им, и "
                                "какие они, сказать нечем")
     # Хэшируем файл, который у двух репозиториев РАЗЛИЧАЕТСЯ, а не тот, что
@@ -185,20 +185,20 @@ class PaddleOcrVl(Reader):
 
     def fingerprint(self) -> dict:
         r = self.routes()
-        return {"чтец": self.name,
-                "модель": knobs.knob("MODEL_NAME"),
-                "словарь ярлыков": self.policy_name,
-                "веса": _weights(),
+        return {"reader": self.name,
+                "model": knobs.knob("MODEL_NAME"),
+                "label_vocabulary": self.policy_name,
+                "weights": _weights(),
                 # Промты уезжают в слепок ЦЕЛИКОМ, а не числом: поле «промты»
                 # реестра слепка пусто у всех сегодняшних прогонов, и это
                 # первое, что его заполняет. Промт — единственное, чем здесь
                 # управляют ответом, и не записать его значит не записать
                 # прогон.
-                "промты": {lab: rt.prompt for lab, rt in sorted(r.items())
+                "prompts": {lab: rt.prompt for lab, rt in sorted(r.items())
                            if rt.asked()},
-                "не спрашиваем": {lab: rt.why for lab, rt in sorted(r.items())
+                "never_asked": {lab: rt.why for lab, rt in sorted(r.items())
                                   if not rt.asked()},
-                "виды": {lab: rt.kind for lab, rt in sorted(r.items())
+                "kinds": {lab: rt.kind for lab, rt in sorted(r.items())
                          if rt.asked()}}
 
     def knobs_read(self) -> tuple[str, ...]:

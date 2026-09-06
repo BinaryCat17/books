@@ -368,15 +368,15 @@ def fit(path: str = LEDGER) -> dict:
     # Пропущенное называется в КАЖДОМ ответе, а не только в отказе: оценка,
     # посчитанная по семи записям из сорока восьми, и оценка по всем сорока
     # восьми — разные оценки, и разницу должно быть видно, не открывая код.
-    skipped = {"пропущено записей со старым setup_s": old_shape} if old_shape else {}
+    skipped = {"skipped_old_setup_s": old_shape} if old_shape else {}
     if len(gbs) < 2:
-        return {"samples": len(eff), **skipped, "почему нет оценки":
+        return {"samples": len(eff), **skipped, "why_no_estimate":
                 f"размер образа во всех записях один ({sorted(gbs) or '—'}): "
                 f"числитель постоянен, и деление мерило бы знаменатель"}
     if len(eff) < 5:
-        return {"samples": len(eff), **skipped, "почему нет оценки":
+        return {"samples": len(eff), **skipped, "why_no_estimate":
                 "меньше пяти пригодных записей"}
     eff.sort()
-    return {"samples": len(eff), **skipped, "разных размеров образа": len(gbs),
+    return {"samples": len(eff), **skipped, "distinct_image_sizes": len(gbs),
             "link_efficiency_median": eff[len(eff) // 2],
             "link_efficiency_p25": eff[len(eff) // 4]}

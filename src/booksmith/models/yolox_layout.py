@@ -155,16 +155,16 @@ class YoloXLayout(Recognizer):
 
     def fingerprint(self) -> dict:
         return {
-            "имя": self.name,
-            "модель": f"YOLOX-layout ({self.weights}), unstructured.io",
-            "каталог весов": self.dir,
-            "sha256 весов": _sha256(self.onnx),
+            "name": self.name,
+            "model": f"YOLOX-layout ({self.weights}), unstructured.io",
+            "weights_dir": self.dir,
+            "sha256_weights": _sha256(self.onnx),
             "onnxruntime": self.ort_version,
-            "исполнители": self.providers,
-            "вход": {"высота": self.in_h, "ширина": self.in_w,
-                     "подложка": PAD, "пропорции сохраняются": True},
-            "родной порог": None,
-            "пороги по классам": self.thresholds(),
+            "providers": self.providers,
+            "input": {"height": self.in_h, "width": self.in_w,
+                     "padding": PAD, "keep_aspect": True},
+            "native_threshold": None,
+            "thresholds_by_class": self.thresholds(),
             # НЕ пустой список. `threshold_drift()` у этой сборки говорит
             # непустое ВСЕГДА — «родного порога нет, действует наш
             # LAYOUT_SCORE_THRESHOLD» — и именно она делает видимым, что порог
@@ -172,16 +172,16 @@ class YoloXLayout(Recognizer):
             # слепок отвечал «расхождения нет» и противоречил собственному
             # сторожу: адаптер кричал в журнал, а в `run.json` молчал. У heron
             # и doclayout это уже так и сделано — забыли третий из трёх.
-            "расхождение порога": self.threshold_drift(),
-            "словарь ярлыков": self.labels,
-            "свод ярлыков": self.label_map(),
-            "промты": {},
-            "порядок чтения": None,
+            "threshold_drift": self.threshold_drift(),
+            "label_vocabulary": self.labels,
+            "label_map": self.label_map(),
+            "prompts": {},
+            "reading_order": None,
             # NMS — часть инференса YOLOX, а не наша правка. Объявляем числом.
-            "ужатие входа": {"фильтр cv2": INTERP, "подложка": PAD},
-            "подавление дублей": {"способ": "NMS", "iou": NMS_IOU,
-                                  "по классам": NMS_BY_CLASS,
-                                  "сверено с обёрткой unstructured": False},
+            "input_downscale": {"cv2_filter": INTERP, "padding": PAD},
+            "duplicate_suppression": {"method": "NMS", "iou": NMS_IOU,
+                                  "by_class": NMS_BY_CLASS,
+                                  "verified_against_unstructured": False},
         }
 
     def read(self, image_path: str, index: int, dpi: float) -> Page:
@@ -272,30 +272,30 @@ class YoloXLayout(Recognizer):
             # сколько рамок вошло в подавление против принятых. Просадка
             # «модель отдала вчетверо меньше кандидатов» прежде прошла бы
             # молча.
-            raw={"строк на выходе": int(out.shape[0]),
-                 "колонок на выходе": int(out.shape[1]),
-                 "клеток сетки": int(len(g)),
-                 "клеток по уровням": {
+            raw={"output_rows": int(out.shape[0]),
+                 "output_columns": int(out.shape[1]),
+                 "feature_grid_cells": int(len(g)),
+                 "grid_cells_per_level": {
                      str(s): int((self.in_h // s) * (self.in_w // s))
                      for s in STRIDES},
-                 "все строки": [[float(cls[i]), float(best[i]),
+                 "all_rows": [[float(cls[i]), float(best[i]),
                                  *[float(v) for v in boxes[i]]]
                                 for i in np.where(best >= raw_keep)[0]],
-                 "порог сохранения сырых строк": raw_keep,
-                 "строк выше порога сохранения":
+                 "raw_rows_keep_threshold": raw_keep,
+                 "rows_above_keep_threshold":
                      int((best >= raw_keep).sum())},
-            meta={"распознаватель": self.name, "растр": image_path,
-                  "рамок принято": len(kept), "связок рангов": 0,
-                  "порядок чтения": order.WORDS[which],
+            meta={"detector": self.name, "raster": image_path,
+                  "boxes_accepted": len(kept), "rank_ties": 0,
+                  "reading_order": order.WORDS[which],
                   # ВЕЛИЧИНА, А НЕ СЛОВО. Здесь стояло `f"NMS iou={NMS_IOU}"`
                   # — строка, повторяющая константу, и о том, СКОЛЬКО она
                   # погасила, журнал молчал. Правило проекта нарушалось прямо:
                   # «в журнал — величину, а не слово „готово"».
-                  "подавление дублей": {"способ": "NMS", "iou": NMS_IOU,
-                                        "по классам": NMS_BY_CLASS,
-                                        "вошло рамок": до_nms,
-                                        "погашено": до_nms - len(keep_idx)},
-                  "лучший отвергнутый по классам": rejected})
+                  "duplicate_suppression": {"method": "NMS", "iou": NMS_IOU,
+                                        "by_class": NMS_BY_CLASS,
+                                        "boxes_in": до_nms,
+                                        "suppressed": до_nms - len(keep_idx)},
+                  "best_rejected_by_class": rejected})
 
 
 def _nms(boxes, scores, cls, idx, iou_thr, by_class=True):

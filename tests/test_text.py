@@ -29,7 +29,7 @@ def _pages(blocks, side=None):
     """Одна страница истины/ответа в схеме `Page`."""
     return {0: {"index": 0, "width": 100, "height": 100, "dpi": 144.0,
                 "blocks": blocks,
-                "meta": {"истина артефактов": side} if side else {}}}
+                "meta": {"artifact_truth": side} if side else {}}}
 
 
 def _text_block(i, content):
@@ -72,7 +72,7 @@ def test_perfect_reading_counts_only_text_in_the_text_line():
     знаменатель по одному.
     """
     T = _pages([_text_block(0, "проза"), _formula_block(1, None)],
-               side={"1": {"текст": "x = 1"}})
+               side={"1": {"text": "x = 1"}})
     P = _pages([_text_block(0, "проза"), _formula_block(1, "x = 1")])
     s = _say(T, P)
     assert "блоков с ошибкой знаков нет: CER 0 на всех 1 посчитанных из 1" in s
@@ -85,7 +85,7 @@ def test_one_wrong_letter_in_a_formula_does_not_crash():
     Запись артефакта не несёт `WER`, и строка «худший блок» его печатала.
     """
     T = _pages([_text_block(0, "проза"), _formula_block(1, None)],
-               side={"1": {"текст": "x = 1"}})
+               side={"1": {"text": "x = 1"}})
     P = _pages([_text_block(0, "проза"), _formula_block(1, "z = 1")])
     s = _say(T, P)                      # не бросает — это и есть проверка
     assert "худший блок артефактов" in s
@@ -95,7 +95,7 @@ def test_one_wrong_letter_in_a_formula_does_not_crash():
 def test_silent_formulas_are_not_a_measured_one():
     """Молчание на ВСЕХ формулах — «сверять нечего», а не «CER 1.0»."""
     T = _pages([_text_block(0, "проза"), _formula_block(1, None)],
-               side={"1": {"текст": "x = 1"}})
+               side={"1": {"text": "x = 1"}})
     P = _pages([_text_block(0, "проза"), _formula_block(1, None)])
     s = _say(T, P)
     assert "ОТВЕТА НЕТ НИ НА ОДИН" in s
@@ -106,12 +106,12 @@ def test_silent_formulas_are_not_a_measured_one():
 
 def test_artefact_with_truth_is_not_a_bait():
     """У формулы истина ЕСТЬ: прочитать её — работа, а не выдумка."""
-    T = _pages([_formula_block(0, None)], side={"0": {"текст": "x = 1"}})
+    T = _pages([_formula_block(0, None)], side={"0": {"text": "x = 1"}})
     P = _pages([_formula_block(0, "x = 1")])
     r = text.measure_pages(T, P)
-    assert r["артефакты по истине"]["блоков"] == 1
-    assert r["артефакты по истине"]["CER"] == 0.0
-    assert r["приманки"]["артефактов"] == 0
+    assert r["artifacts_with_truth"]["block_count"] == 1
+    assert r["artifacts_with_truth"]["CER"] == 0.0
+    assert r["baits"]["artifacts"] == 0
 
 
 def test_artefact_without_truth_stays_a_bait():
@@ -121,8 +121,8 @@ def test_artefact_without_truth_stays_a_bait():
     P = _pages([{"block_id": 0, "box": [0, 0, 90, 8], "label": "image",
                  "content": "сочинил", "kind": "text"}])
     r = text.measure_pages(T, P)
-    assert r["приманки"]["артефактов"] == 1 and r["приманки"]["прочитано"] == 1
-    assert r["артефакты по истине"]["блоков"] == 0
+    assert r["baits"]["artifacts"] == 1 and r["baits"]["read"] == 1
+    assert r["artifacts_with_truth"]["block_count"] == 0
 
 
 def test_invention_on_declared_emptiness_is_counted():
@@ -131,16 +131,16 @@ def test_invention_on_declared_emptiness_is_counted():
     В CER это не видно вовсе (делить не на что), и без счётчика выдумка на
     объявленной пустоте пропадала бы молча.
     """
-    T = _pages([_formula_block(0, None)], side={"0": {"текст": ""}})
+    T = _pages([_formula_block(0, None)], side={"0": {"text": ""}})
     P = _pages([_formula_block(0, "сочинил четырнадцать")])
     r = text.measure_pages(T, P)
-    assert r["артефакты по истине"]["выдумано на пустой истине"] == 1
+    assert r["artifacts_with_truth"]["invented_on_empty_truth"] == 1
 
 
 def test_two_truths_on_one_artefact_are_loud():
     """И сетка, и знаки у одного блока — отказ вслух, а не тихий выбор."""
     T = _pages([_formula_block(0, None)],
-               side={"0": {"текст": "x = 1", "таблица": [["а", "б"]]}})
+               side={"0": {"text": "x = 1", "table": [["а", "б"]]}})
     P = _pages([_formula_block(0, "x = 1")])
     try:
         text.measure_pages(T, P)
@@ -157,7 +157,7 @@ def test_table_in_otsl_scores_like_the_same_table_in_html():
     grid = [["А", "Б"], ["1", "2"]]
     T = _pages([{"block_id": 0, "box": [0, 0, 90, 8], "label": "table",
                  "content": None, "kind": "none"}],
-               side={"0": {"таблица": grid}})
+               side={"0": {"table": grid}})
     as_html = ("<table><tr><td>А</td><td>Б</td></tr>"
                "<tr><td>1</td><td>2</td></tr></table>")
     as_otsl = "<fcel>А<fcel>Б<nl><fcel>1<fcel>2<nl>"
@@ -165,8 +165,8 @@ def test_table_in_otsl_scores_like_the_same_table_in_html():
     for body, kind in ((as_html, "html"), (as_otsl, "otsl")):
         P = _pages([{"block_id": 0, "box": [0, 0, 90, 8], "label": "table",
                      "content": body, "kind": kind}])
-        b = text.measure_pages(T, P)["таблицы"]
-        got.append((b["совпало ячеек"], b["отдана текстом"], b["CER ячеек"]))
+        b = text.measure_pages(T, P)["tables"]
+        got.append((b["cells_matched"], b["given_as_text"], b["cer_cells"]))
     assert got[0] == got[1] == (4, 0, 0.0), got
 
 

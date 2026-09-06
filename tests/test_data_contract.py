@@ -48,9 +48,12 @@ def test_the_guard_can_fail_when_the_code_renames():
     """
     fmt = [f for f in schema.FORMATS if f.name == "dots_pages"][0]
     seen = schema.measure()["dots_pages"]
-    assert seen.get("порядок чтения", 0) >= fmt.floors["порядок чтения"]
-    assert seen.get("reading_order", 0) == 0, (
-        "the data has already been migrated -- move the floor to the new name")
+    assert seen.get("reading_order", 0) >= fmt.floors["reading_order"], (
+        "the declared name is not in the data: the code renamed, the data "
+        "did not")
+    assert seen.get("порядок чтения", 0) == 0, (
+        "the name from before the migration is still on disk in "
+        f"{seen.get('порядок чтения', 0)} places: the rename did not finish")
 
 
 def test_the_guard_can_fail_when_the_data_renames():
@@ -66,11 +69,11 @@ def test_the_guard_can_fail_when_the_data_renames():
     page = json.load(open(files[0], encoding="utf-8"))
     before = collections.Counter()
     schema._walk(page, before)
-    assert before["текст размечен"] > 0, (
+    assert before["text_marked"] > 0, (
         f"{files[0]} does not carry the key the floor is built on")
     after = collections.Counter()
-    schema._walk(_drop(page, "текст размечен"), after)
-    assert after["текст размечен"] < before["текст размечен"], (
+    schema._walk(_drop(page, "text_marked"), after)
+    assert after["text_marked"] < before["text_marked"], (
         "dropping the key did not change the count -- the walk is not "
         "descending into the object that holds it")
 

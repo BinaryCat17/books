@@ -25,7 +25,7 @@ SRC = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                    "src", "booksmith")
 
 # Ключ, по которому адаптер называет метрике ЧЕЙ порядок он отдал.
-ORDER_KEY = "порядок чтения"
+ORDER_KEY = "reading_order"
 
 
 class Skip(Exception):

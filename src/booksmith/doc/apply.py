@@ -92,7 +92,7 @@ def load_journal(out_dir: str) -> dict:
         if os.path.exists(старый):
             p = старый
         else:
-            return {"книга": "book.html", "замены": {}}
+            return {"book": "book.html", "swaps": {}}
     try:
         with open(p, encoding="utf-8") as f:
             j = json.load(f)
@@ -107,7 +107,7 @@ def load_journal(out_dir: str) -> dict:
         raise SwapError(
             f"{p}: на верхнем уровне {type(j).__name__}, а журнал это объект. "
             f"Файл не от этой команды либо испорчен.")
-    j.setdefault("замены", {})
+    j.setdefault("swaps", {})
     return j
 
 
@@ -251,7 +251,7 @@ def block_role(out_dir: str, anchor: str) -> str:
         return "неизвестен"
     try:
         with open(p, encoding="utf-8") as f:
-            return ((json.load(f).get(anchor) or {}).get("роль")
+            return ((json.load(f).get(anchor) or {}).get("role")
                     or "неизвестен")
     except (ValueError, OSError):
         return "неизвестен"
@@ -368,20 +368,20 @@ def _счесть_в_книге(tally: dict, misshapen: list, anchor: str,
     """
     shape = torn_grid(_grid_tally(body, kind))
     if shape:
-        tally["форма таблицы невозможна"] += 1
+        tally["impossible_table_shape"] += 1
         misshapen.append(f"{anchor}: {shape}")
     if kind != "otsl":
         return
     from .. import otsl as _otsl
     cells, t = _otsl.layout(body)
-    объявлено = t.get("слияний", 0)
+    объявлено = t.get("merges", 0)
     # ОБЪЯВЛЕНО и ВСТАЛО считаются ПОРОЗНЬ, из разных источников: первое —
     # метки модели, второе — клетки, реально получившие спан. Приравнять их
     # значит лишить прибор единственного способа показать потерю перевода.
-    встало = sum(1 for c in cells if c["строк"] > 1 or c["столбцов"] > 1)
-    tally["слияний объявлено"] += объявлено
-    tally["слияний в книге"] += встало
-    tally["таблиц со слиянием"] += bool(объявлено)
+    встало = sum(1 for c in cells if c["rows"] > 1 or c["cols"] > 1)
+    tally["merges_declared"] += объявлено
+    tally["merges_in_book"] += встало
+    tally["tables_with_merges"] += bool(объявлено)
 
 
 def _grid_tally(fragment: str, kind: str) -> dict | None:
@@ -458,14 +458,14 @@ def put_into(html: str, anchor: str, fragment: str, kind: str, source: str,
             f"появилось {got}. Книга не записана.")
     _check_comments(body, anchor)
     entry = {
-        "когда": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
-        "чем": source or "руками",
-        "вид": kind,
-        "sha256 поставленного": _sha256(body),
-        "ответ модели": fragment,
-        "sha256 ответа модели": _sha256(fragment),
-        "снято": taken,
-        "sha256 снятого": _sha256(taken),
+        "when": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+        "placed_by": source or "руками",
+        "kind": kind,
+        "sha256_placed": _sha256(body),
+        "model_answer": fragment,
+        "sha256_model_answer": _sha256(fragment),
+        "removed": taken,
+        "sha256_removed": _sha256(taken),
     }
     return new_html, entry, body
 
@@ -498,16 +498,16 @@ def put(out_dir: str, anchor: str, fragment: str, kind: str = "html",
         # вернуть «поставлено 0» было бы вторым нулём от непонимания: «блок
         # уже несёт ровно это» и «замена не удалась» — разные ответы.
         j = load_journal(out_dir)
-        глубина = len(j["замены"].get(anchor, []))
+        глубина = len(j["swaps"].get(anchor, []))
         log(f"{anchor}: УЖЕ СТОИТ ровно это ({kind}, "
             f"{source or 'руками'}) — книга не тронута, стопка отката "
             f"{глубина}")
-        return {"якорь": anchor, "поставлено": 0, "уже стоит": True,
-                "снято": 0, "якорей": len(swap.anchors(html)),
-                "глубина отката": глубина}
-    taken = entry["снято"]
+        return {"anchor": anchor, "placed": 0, "already_placed": True,
+                "removed": 0, "anchor_count": len(swap.anchors(html)),
+                "undo_depth": глубина}
+    taken = entry["removed"]
     j = load_journal(out_dir)
-    j["замены"].setdefault(anchor, []).append(entry)
+    j["swaps"].setdefault(anchor, []).append(entry)
     # Журнал ДО книги, по той же причине, что и в `undo`.
     save_journal(out_dir, j)
     with open(path, "w", encoding="utf-8") as f:
@@ -515,16 +515,16 @@ def put(out_dir: str, anchor: str, fragment: str, kind: str = "html",
     after = swap.anchors(new_html)
     log(f"{anchor}: поставлено {len(body)} знаков ({kind}, {source or 'руками'}), "
         f"снято {len(taken)}; якорей в книге {len(after)}, стопка отката "
-        f"{len(j['замены'][anchor])}")
-    return {"якорь": anchor, "поставлено": len(body), "снято": len(taken),
-            "якорей": len(after), "глубина отката": len(j["замены"][anchor])}
+        f"{len(j['swaps'][anchor])}")
+    return {"anchor": anchor, "placed": len(body), "removed": len(taken),
+            "anchor_count": len(after), "undo_depth": len(j["swaps"][anchor])}
 
 
 def undo(out_dir: str, anchor: str, log=print) -> dict:
     """Вернуть то, что стояло до последней замены."""
     path = book_path(out_dir)
     j = load_journal(out_dir)
-    stack = j["замены"].get(anchor) or []
+    stack = j["swaps"].get(anchor) or []
     if not stack:
         raise SwapError(
             f"откатывать нечего: {anchor} ни разу не заменяли. Это НЕ то же "
@@ -539,14 +539,14 @@ def undo(out_dir: str, anchor: str, log=print) -> dict:
     # работу. Прежде такой сверки не было бы вовсе, а «откат» звучит
     # безопасно.
     now = swap.get(html, anchor)
-    if not _same(now, rec["sha256 поставленного"]):
+    if not _same(now, rec["sha256_placed"]):
         raise SwapError(
             f"на месте {anchor} лежит не то, что клала последняя замена "
-            f"(sha256 {_sha256(now)[:12]} против {rec['sha256 поставленного'][:12]}). "
+            f"(sha256 {_sha256(now)[:12]} против {rec['sha256_placed'][:12]}). "
             f"Книгу правили мимо журнала; откат затёр бы эту правку. "
             f"Разберись руками.")
 
-    new_html = swap.restore(html, anchor, rec["снято"])
+    new_html = swap.restore(html, anchor, rec["removed"])
 
     # СВЕРКА ТОГО, ЧТО ВЕРНУЛОСЬ, а не того, что обещано в журнале. Прежде
     # здесь стояла одна строка `restore`, а в журнал печаталось поле
@@ -558,10 +558,10 @@ def undo(out_dir: str, anchor: str, log=print) -> dict:
     # Хеш печатается ПОСЧИТАННЫЙ; расходится — книга не пишется.
     back = swap.get(new_html, anchor)
     got = _sha256(back)
-    if got != rec["sha256 снятого"]:
+    if got != rec["sha256_removed"]:
         raise SwapError(
             f"откат {anchor} вернул НЕ то, что снимала замена: посчитано "
-            f"{got[:12]}, журнал обещал {rec['sha256 снятого'][:12]} "
+            f"{got[:12]}, журнал обещал {rec['sha256_removed'][:12]} "
             f"({len(back)} знаков против обещанных). Журнал правлен мимо "
             f"этой команды. Книга не записана.")
 
@@ -572,7 +572,7 @@ def undo(out_dir: str, anchor: str, log=print) -> dict:
         # -> status печатал «второй уровень по этой книге ещё не ходил» про
         # книгу, по которой он ходил дважды. Третий ноль, объявленный в
         # `status`, был недостижим по построению.
-        j["замены"][anchor] = []
+        j["swaps"][anchor] = []
     # Журнал пишется ДО книги: отказ на журнале (нет места, каталог на
     # чтение) оставил бы изменённую книгу без записи отката, то есть ровно
     # то состояние, ради невозможности которого журнал и заведён.
@@ -581,10 +581,10 @@ def undo(out_dir: str, anchor: str, log=print) -> dict:
         f.write(new_html)
 
     log(f"{anchor}: откачено, посчитан sha256 {got[:12]} "
-        f"({len(back)} знаков, замена от {rec['когда']}); "
+        f"({len(back)} знаков, замена от {rec['when']}); "
         f"осталось в стопке {len(stack)}")
-    return {"якорь": anchor, "возвращено": len(back),
-            "глубина отката": len(stack)}
+    return {"anchor": anchor, "restored": len(back),
+            "undo_depth": len(stack)}
 
 
 def status(out_dir: str, log=print) -> dict:
@@ -604,7 +604,7 @@ def status(out_dir: str, log=print) -> dict:
     a = swap.anchors(html)
 
     live, empty, drifted, gone = {}, 0, [], []
-    for k, v in j["замены"].items():
+    for k, v in j["swaps"].items():
         if not v:
             empty += 1                    # заменяли и откатили всё до конца
             continue
@@ -612,7 +612,7 @@ def status(out_dir: str, log=print) -> dict:
             gone.append(k)                # якоря нет в книге вовсе
             continue
         live[k] = len(v)
-        if _sha256(swap.get(html, k)) != v[-1]["sha256 поставленного"]:
+        if _sha256(swap.get(html, k)) != v[-1]["sha256_placed"]:
             drifted.append(k)
 
     log(f"якорей в книге {len(a)}; заменено блоков {len(live)}, "
@@ -621,7 +621,7 @@ def status(out_dir: str, log=print) -> dict:
     # оператору «всё в порядке» на книге, которая разошлась с журналом.
     if not a:
         log("якорей нет вовсе — это не «всё заменено», а пустая книга")
-    elif not j["замены"]:
+    elif not j["swaps"]:
         log("замен нет: второй уровень по этой книге ещё не ходил")
     elif not live:
         log(f"живых замен нет: все {empty} откачены до конца — это НЕ то же "
@@ -634,10 +634,10 @@ def status(out_dir: str, log=print) -> dict:
     if gone:
         log(f"якорей из журнала нет в книге: {len(gone)} "
             f"({', '.join(gone[:5])}) — книга собрана из другой детекции")
-    return {"якорей": len(a), "заменено блоков": len(live),
-            "всего замен": sum(live.values()), "откачено до конца": empty,
-            "разошлось": len(drifted), "нет в книге": len(gone),
-            "по якорям": live}
+    return {"anchor_count": len(a), "blocks_swapped": len(live),
+            "swaps_total": sum(live.values()), "fully_undone": empty,
+            "drifted": len(drifted), "missing_from_book": len(gone),
+            "per_anchor": live}
 
 
 def source_of(out_dir: str) -> str | None:
@@ -668,13 +668,13 @@ def source_of(out_dir: str) -> str | None:
             снимок = json.load(f)
     except ValueError:
         return None
-    путь = ((снимок.get("аргументы") or {}).get("detect") or "").strip()
+    путь = ((снимок.get("args") or {}).get("detect") or "").strip()
     if not путь or not os.path.isdir(os.path.join(путь, "pages")):
         return None
     return путь
 
 
-def from_read(out_dir: str, read_dir: str, only_role: str = "артефакт",
+def from_read(out_dir: str, read_dir: str, only_role: str = "artifact",
               log=print) -> dict:
     """Поставить в книгу ВСЁ, что прочитал второй уровень. По одной, с откатом.
 
@@ -699,9 +699,9 @@ def from_read(out_dir: str, read_dir: str, only_role: str = "артефакт",
     if not pages:
         raise SwapError(f"в {read_dir} нет pages/*.json — это не каталог "
                         f"`books read`")
-    tally = {"блоков": 0, "поставлено": 0, "уже стоит": 0,
-             "нечего ставить": 0, "не тот разряд": 0, "отказано": 0,
-             "знаков": 0, "форма таблицы невозможна": 0,
+    tally = {"block_count": 0, "placed": 0, "already_placed": 0,
+             "nothing_to_place": 0, "wrong_bucket": 0, "refused": 0,
+             "chars": 0, "impossible_table_shape": 0,
              # ПЕРЕОБЁРНУТО — НЕ НОВАЯ РАБОТА, и без этого числа она ею
              # выглядит. Замер: книга, собранная прежним кодом, при новом
              # `apply` даёт «поставлено 5» — байты модели те же, изменилась
@@ -710,7 +710,7 @@ def from_read(out_dir: str, read_dir: str, only_role: str = "артефакт",
              # обёртки — настоящая замена, и в стопку отката она обязана
              # лечь. Но назвать её «поставлено» значит записать в журнал
              # работу, которой не было.
-             "переобёрнуто": 0,
+             "rewrapped": 0,
              # СЛИЯНИЯ — ВЕЛИЧИНОЙ, и без неё они немы. Ровно поэтому «104
              # таблицы при colspan 0» прожили целый прогон незамеченными: ни
              # журнал, ни слепок, ни `blocks.json` спанов не считали, и
@@ -718,8 +718,8 @@ def from_read(out_dir: str, read_dir: str, only_role: str = "артефакт",
              # объявленное МОДЕЛЬЮ (по меткам) и поставленное в книгу
              # (по атрибутам) — два числа, а не одно: расхождение между ними
              # и есть потеря перевода.
-             "слияний объявлено": 0, "слияний в книге": 0,
-             "таблиц со слиянием": 0}
+             "merges_declared": 0, "merges_in_book": 0,
+             "tables_with_merges": 0}
     refused = []
     # Поставленное И ПОМЕЧЕННОЕ — отдельным списком: «поставлено 412» без
     # этого числа читается как «412 хороших замен».
@@ -747,15 +747,15 @@ def from_read(out_dir: str, read_dir: str, only_role: str = "артефакт",
         with open(fp, encoding="utf-8") as f:
             page = json.load(f)
         for b in page.get("blocks", []):
-            tally["блоков"] += 1
+            tally["block_count"] += 1
             anchor = anchor_of(page["index"], b["block_id"])
-            role = (roles.get(anchor) or {}).get("роль") or "неизвестен"
+            role = (roles.get(anchor) or {}).get("role") or "неизвестен"
             if only_role and role != only_role:
-                tally["не тот разряд"] += 1
+                tally["wrong_bucket"] += 1
                 continue
             body = b.get("content")
             if not body or not body.strip():
-                tally["нечего ставить"] += 1
+                tally["nothing_to_place"] += 1
                 continue
             try:
                 html, entry, _ = put_into(
@@ -769,7 +769,7 @@ def from_read(out_dir: str, read_dir: str, only_role: str = "артефакт",
                     # батарея не доставала вовсе.
                     torn=torn_of(obs.get(anchor)))
             except SwapError as e:
-                tally["отказано"] += 1
+                tally["refused"] += 1
                 refused.append(f"{anchor}: {str(e)[:80]}")
                 continue
             # ЧТО ЛЕЖИТ В КНИГЕ — СЧИТАЕТСЯ ЗДЕСЬ, за обоими отказами.
@@ -783,48 +783,48 @@ def from_read(out_dir: str, read_dir: str, only_role: str = "артефакт",
             _счесть_в_книге(tally, misshapen, anchor, body,
                             b.get("kind") or "html")
             if entry is None:            # уже лежит ровно это
-                tally["уже стоит"] += 1
+                tally["already_placed"] += 1
                 continue
             # ТЕ ЖЕ БАЙТЫ МОДЕЛИ ПОД ДРУГОЙ ОБЁРТКОЙ — отдельная величина.
             # Сверяем по sha ОТВЕТА МОДЕЛИ, а не по готовому телу: тело
             # различается ровно нашей обёрткой, и сравнивать надо то, за что
             # платили на карте.
-            прежние = j["замены"].get(anchor) or []
-            if прежние and прежние[-1].get("sha256 ответа модели") == \
-                    entry.get("sha256 ответа модели"):
-                tally["переобёрнуто"] += 1
-            j["замены"].setdefault(anchor, []).append(entry)
-            tally["поставлено"] += 1
-            tally["знаков"] += len(body)
+            прежние = j["swaps"].get(anchor) or []
+            if прежние and прежние[-1].get("sha256_model_answer") == \
+                    entry.get("sha256_model_answer"):
+                tally["rewrapped"] += 1
+            j["swaps"].setdefault(anchor, []).append(entry)
+            tally["placed"] += 1
+            tally["chars"] += len(body)
 
     # Журнал ДО книги, по той же причине, что и в `undo`: оборвись запись
     # между ними, откат будет знать о замене, которой в книге нет, — и это
     # безопаснее обратного.
-    if tally["поставлено"]:
+    if tally["placed"]:
         save_journal(out_dir, j)
         with open(path, "w", encoding="utf-8") as f:
             f.write(html)
-    log(f"блоков в чтении {tally['блоков']}: поставлено "
-        f"{tally['поставлено']} ({tally['знаков']} знаков), уже стояло "
-        f"{tally['уже стоит']}, нечего ставить {tally['нечего ставить']}, "
-        f"не тот разряд {tally['не тот разряд']}, отказано "
-        f"{tally['отказано']}"
-        + (f"; из поставленных {tally['переобёрнуто']} — ПЕРЕОБЁРНУТО: байты "
+    log(f"блоков в чтении {tally['block_count']}: поставлено "
+        f"{tally['placed']} ({tally['chars']} знаков), уже стояло "
+        f"{tally['already_placed']}, нечего ставить {tally['nothing_to_place']}, "
+        f"не тот разряд {tally['wrong_bucket']}, отказано "
+        f"{tally['refused']}"
+        + (f"; из поставленных {tally['rewrapped']} — ПЕРЕОБЁРНУТО: байты "
            f"модели те же, изменилась наша обёртка, новой работы здесь нет"
-           if tally["переобёрнуто"] else ""))
+           if tally["rewrapped"] else ""))
     # ЧЕТЫРЕ разных нуля, и каждый со своей причиной. Четвёртый — «всё уже
     # стоит» — появился вместе с идемпотентностью, и до него повтор печатал
     # «ни один блок не встал: разряда „артефакт" среди прочитанного нет» при
     # 412 стоящих блоках. Тот самый ноль от непонимания: говорящий шаг врал
     # нулём, а звучало это как приговор чтению.
-    if not tally["поставлено"]:
-        if not tally["блоков"]:
+    if not tally["placed"]:
+        if not tally["block_count"]:
             log("в чтении нет блоков вовсе — это не «всё уже стоит»")
-        elif tally["уже стоит"]:
-            log(f"книга УЖЕ СОБРАНА этим чтением: {tally['уже стоит']} блоков "
+        elif tally["already_placed"]:
+            log(f"книга УЖЕ СОБРАНА этим чтением: {tally['already_placed']} блоков "
                 f"несут ровно то, что в нём. Ничего не тронуто, стопка отката "
                 f"не выросла — повтор здесь бесплатен")
-        elif tally["нечего ставить"] == tally["блоков"]:
+        elif tally["nothing_to_place"] == tally["block_count"]:
             log("модель не прочла НИ ОДНОГО блока — ставить нечего, и это НЕ "
                 "«книга уже собрана»")
         else:
@@ -842,15 +842,15 @@ def from_read(out_dir: str, read_dir: str, only_role: str = "артефакт",
     # СЛОВА «В КНИГЕ», А НЕ «ПОСТАВЛЕНО». Обе строки описывают КНИГУ целиком,
     # а не работу этого запуска: на повторном прогоне «поставлено 0», и
     # «у 2 поставленных» рядом читалось бы как противоречие.
-    log(f"  слияний: модель объявила {tally['слияний объявлено']} на "
-        f"{tally['таблиц со слиянием']} таблицах, в книге стоит "
-        f"{tally['слияний в книге']}"
-        + ("" if tally["слияний объявлено"] == tally["слияний в книге"]
+    log(f"  слияний: модель объявила {tally['merges_declared']} на "
+        f"{tally['tables_with_merges']} таблицах, в книге стоит "
+        f"{tally['merges_in_book']}"
+        + ("" if tally["merges_declared"] == tally["merges_in_book"]
            else f" — РАЗОШЛОСЬ на "
-                f"{tally['слияний объявлено'] - tally['слияний в книге']}"
+                f"{tally['merges_declared'] - tally['merges_in_book']}"
                 f"; это непрямоугольные слияния рваного ответа, они печатаются "
                 f"плоско и не выпрямляются"))
-    log(f"  форма таблицы невозможна у {tally['форма таблицы невозможна']} "
+    log(f"  форма таблицы невозможна у {tally['impossible_table_shape']} "
         f"блоков КНИГИ — ответ модели оставлен побайтово, помечен "
         f"data-форма-таблицы"
         + (f": {'; '.join(misshapen[:3])}" if misshapen else ""))
@@ -861,7 +861,7 @@ def from_read(out_dir: str, read_dir: str, only_role: str = "артефакт",
     # ЖУРНАЛЕ» на этом пути не держится. Заодно и схлопнутые в спаны таблицы
     # остаются без охраны `overflow-x`. Сами CSS не правим: книга — чужой
     # продукт сборки, и лезть в неё замене нечем.
-    if tally["поставлено"] or tally["форма таблицы невозможна"]:
+    if tally["placed"] or tally["impossible_table_shape"]:
         # СМОТРИМ УЖЕ ПРОЧИТАННОЕ, а не открываем книгу второй раз. Первая
         # редакция перечитывала файл — и роняла сторож «пакетная замена
         # читает книгу ОДИН раз», заведённый после шестиминутного прогона.
@@ -879,6 +879,6 @@ def from_read(out_dir: str, read_dir: str, only_role: str = "артефакт",
                 f"глазом их не видно. Пересоберите: `books html "
                 f"{os.path.join(out_dir, SOURCE)} --out {out_dir}` и повторите "
                 f"`books apply --from` (повтор бесплатен)")
-    tally["отказы"] = refused
-    tally["невозможные таблицы"] = misshapen
+    tally["refusals"] = refused
+    tally["impossible_tables"] = misshapen
     return tally

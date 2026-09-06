@@ -129,10 +129,10 @@ def _walk(s):
     расхождением двух экземпляров одного правила. Поэтому `parse` и `layout`
     зовут этот обход, а сами не разбирают ни одного тега.
     """
-    tally = {"клеток": 0, "строк": 0, "с содержимым": 0, "пустых": 0,
-             "продолжений": 0, "продолжений в никуда": 0,
-             "строк разной длины": 0, "текст до первого тега": 0,
-             "текст после последнего тега": 0, "знаков": 0}
+    tally = {"grid_cells": 0, "rows": 0, "with_content": 0, "empty": 0,
+             "continuations": 0, "continuations_to_nowhere": 0,
+             "rows_of_unequal_length": 0, "text_before_first_tag": 0,
+             "text_after_last_tag": 0, "chars": 0}
     if not looks_like(s):
         return None, {}, tally
 
@@ -142,14 +142,14 @@ def _walk(s):
         # Модель предварила таблицу прозой («Here is the table:»). Это её
         # ответ, и он остаётся в `content` побайтово; мы лишь считаем, что
         # такое было — иначе разбор молча съедал бы часть ответа.
-        tally["текст до первого тега"] = len(head)
+        tally["text_before_first_tag"] = len(head)
     # ХВОСТ ПОСЛЕ ПОСЛЕДНЕГО `<nl>` СЧИТАЕТСЯ ТОЖЕ, и прежде не считался:
     # симметрии не было, хотя шапка обещала «иначе разбор молча съедал бы
     # часть ответа». Ответ вида «…<nl> I could not read the rest» или подпись
     # после таблицы проходили как целые.
     tail = s[toks[-1].end():] if toks[-1].group(1) in BREAK else ""
     if tail.strip():
-        tally["текст после последнего тега"] = len(tail.strip())
+        tally["text_after_last_tag"] = len(tail.strip())
 
     cells, r, c = {}, 0, 0
     owner = {}                  # адрес -> адрес корня, которому он подчинён
@@ -167,15 +167,15 @@ def _walk(s):
             cells[(r, c)] = txt
             owner[(r, c)] = (r, c)
             tag_of[(r, c)] = name
-            tally["с содержимым"] += 1
-            tally["знаков"] += len(txt)
+            tally["with_content"] += 1
+            tally["chars"] += len(txt)
         elif name in EMPTY:
             cells[(r, c)] = ""
             owner[(r, c)] = (r, c)
             tag_of[(r, c)] = name
-            tally["пустых"] += 1
+            tally["empty"] += 1
         else:                                   # продолжение соседа
-            tally["продолжений"] += 1
+            tally["continuations"] += 1
             left, up = (r, c - 1), (r - 1, c)
             if name == "lcel":
                 src = left
@@ -200,16 +200,16 @@ def _walk(s):
                 # соседу значило бы потерять адрес при переводе в HTML.
                 owner[(r, c)] = (r, c)
                 tag_of[(r, c)] = name
-                tally["продолжений в никуда"] += 1
+                tally["continuations_to_nowhere"] += 1
         c += 1
     if c:                       # последняя строка без завершающего <nl>
         widths.append(c)
-    tally["клеток"] = len(cells)
-    tally["строк"] = len(widths)
+    tally["grid_cells"] = len(cells)
+    tally["rows"] = len(widths)
     if widths:
-        tally["строк разной длины"] = sum(1 for w in widths
+        tally["rows_of_unequal_length"] = sum(1 for w in widths
                                           if w != max(widths))
-    return (cells or None), {"хозяин": owner, "тег": tag_of}, tally
+    return (cells or None), {"owner": owner, "tag": tag_of}, tally
 
 
 def layout(s):
@@ -236,10 +236,10 @@ def layout(s):
     `слияний не прямоугольных`. Выпрямить значило бы починить модель.
     """
     cells, own, tally = _walk(s)
-    tally = dict(tally, **{"слияний": 0, "слияний не прямоугольных": 0})
+    tally = dict(tally, **{"merges": 0, "non_rectangular_merges": 0})
     if not cells:
         return [], tally
-    owner, tag_of = own["хозяин"], own["тег"]
+    owner, tag_of = own["owner"], own["tag"]
     свои = {}
     for addr, root in owner.items():
         свои.setdefault(root, []).append(addr)
@@ -257,13 +257,13 @@ def layout(s):
         # исключений 0, и снятие этих условий не роняло ни одной проверки.
         прямоуг = len(адреса) == h * w
         if h * w > 1:
-            tally["слияний"] += 1
+            tally["merges"] += 1
             if not прямоуг:
-                tally["слияний не прямоугольных"] += 1
+                tally["non_rectangular_merges"] += 1
         if h * w > 1 and прямоуг:
-            out.append({"строка": r0, "столбец": c0, "строк": h,
-                        "столбцов": w, "текст": cells.get(root, ""),
-                        "тег": tag_of.get(root, "fcel")})
+            out.append({"row": r0, "col": c0, "rows": h,
+                        "cols": w, "text": cells.get(root, ""),
+                        "tag": tag_of.get(root, "fcel")})
         else:
             # Либо одиночная клетка, либо непрямоугольное слияние: каждый
             # адрес сам за себя, ни один не пропадает.
@@ -281,10 +281,10 @@ def layout(s):
             # вслух, а не подставлять свой тег молча.
             корневой = tag_of[root]
             for a in sorted(адреса):
-                out.append({"строка": a[0], "столбец": a[1], "строк": 1,
-                            "столбцов": 1, "текст": cells.get(a, ""),
-                            "тег": tag_of.get(a, корневой)})
-    out.sort(key=lambda d: (d["строка"], d["столбец"]))
+                out.append({"row": a[0], "col": a[1], "rows": 1,
+                            "cols": 1, "text": cells.get(a, ""),
+                            "tag": tag_of.get(a, корневой)})
+    out.sort(key=lambda d: (d["row"], d["col"]))
     return out, tally
 
 
@@ -358,19 +358,19 @@ def to_html(s) -> str:
     # которая не может сработать, — это не защита, а вид на неё.
     по_строкам = {}
     for c in cs:
-        по_строкам.setdefault(c["строка"], []).append(c)
-    строк = t["строк"]
+        по_строкам.setdefault(c["row"], []).append(c)
+    строк = t["rows"]
     out = ["<table>"]
     for r in range(строк):
         out.append("<tr>")
         for cell in по_строкам.get(r, ()):
-            tag = "th" if cell["тег"] in HEADER else "td"
+            tag = "th" if cell["tag"] in HEADER else "td"
             span = ""
-            if cell["столбцов"] > 1:
-                span += f' colspan="{cell["столбцов"]}"'
-            if cell["строк"] > 1:
-                span += f' rowspan="{cell["строк"]}"'
-            out.append(f"<{tag}{span}>" + _html.escape(cell["текст"])
+            if cell["cols"] > 1:
+                span += f' colspan="{cell["cols"]}"'
+            if cell["rows"] > 1:
+                span += f' rowspan="{cell["rows"]}"'
+            out.append(f"<{tag}{span}>" + _html.escape(cell["text"])
                        + f"</{tag}>")
         out.append("</tr>")
     out.append("</table>")

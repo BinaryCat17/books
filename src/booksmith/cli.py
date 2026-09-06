@@ -211,9 +211,9 @@ def book_home(detect_dir: str) -> str:
     """
     with open(os.path.join(detect_dir, "run.json"), encoding="utf-8") as f:
         snap = json.load(f)
-    stem = os.path.splitext(os.path.basename(snap["исходник"]["путь"]))[0]
+    stem = os.path.splitext(os.path.basename(snap["source"]["path"]))[0]
     safe = re.sub(r"[^\w.,()-]+", "-", stem, flags=re.UNICODE).strip("-")[:80]
-    return os.path.join(config.ROOT, "processed", safe or "книга")
+    return os.path.join(config.ROOT, "processed", safe or "book")
 
 
 def cmd_html(a):
@@ -373,7 +373,7 @@ def cmd_read(a):
     # подмножество `Docling-egret` (17), и эта пара прошла бы без единого
     # слова, а слепок положил бы рядом два несовместимых утверждения.
     known = json.load(open(os.path.join(a.dir, "run.json"), encoding="utf-8")
-                      ).get("политика", {}).get("словарь")
+                      ).get("policy", {}).get("vocabulary")
     policy_name = a.policy or known
     if not policy_name:
         raise SystemExit(
@@ -395,8 +395,8 @@ def cmd_read(a):
 
     # ЧЕМ ОТВЕЧАЕТ АДРЕС — до первой вырезки и до первого цента.
     who = transport.check()
-    log(f"адрес {who['адрес']}: отвечает {who['модели на сервере']}, "
-        f"спрашиваем {who['спрашиваем']} — совпало")
+    log(f"адрес {who['endpoint']}: отвечает {who['models_on_server']}, "
+        f"спрашиваем {who['asking_for']} — совпало")
 
     pages = None
     if a.pages:
@@ -418,7 +418,7 @@ def cmd_read(a):
 
 def _pdf_of(detect_dir):
     with open(os.path.join(detect_dir, "run.json"), encoding="utf-8") as f:
-        return json.load(f)["исходник"]["путь"]
+        return json.load(f)["source"]["path"]
 
 
 def cmd_feed(a):
@@ -432,23 +432,23 @@ def cmd_feed(a):
     d = _run_dir(a.dir, "books feed")
     with open(os.path.join(d, "run.json"), encoding="utf-8") as f:
         snap = _json.load(f)
-    doc = pymupdf.open(snap["исходник"]["путь"])
+    doc = pymupdf.open(snap["source"]["path"])
     out = a.out or os.path.join(d, "feed")
-    page_dpi = float(snap["растр"]["dpi"])
+    page_dpi = float(snap["raster"]["dpi"])
     p = feed.params(page_dpi)
-    log(f"подача {p['подача']}, вырезка {p['dpi вырезки']:.0f} dpi, "
-        f"страница {p['dpi страницы']:.0f} dpi, "
-        f"заливка дыр {p['заливка дыр']}")
+    log(f"подача {p['feed_mode']}, вырезка {p['crop_dpi']:.0f} dpi, "
+        f"страница {p['page_dpi']:.0f} dpi, "
+        f"заливка дыр {p['hole_fill']}")
     res, asked, arts = [], 0, 0
     for fp in sorted(glob.glob(os.path.join(d, "pages", "*.json"))):
         with open(fp, encoding="utf-8") as f:
             page = Page.from_json(_json.load(f))
         r = feed.prepare(doc, page, out, page_dpi, log=log)
-        asked += r["запросов"]
-        arts += r.get("артефактов замазано", r.get("артефактов не послано", 0))
+        asked += r["requests"]
+        arts += r.get("artifacts_masked", r.get("artifacts_not_sent", 0))
         res.append(r)
     doc.close()
-    path = feed.dump({"ручки": p, "страницы": res}, out)
+    path = feed.dump({"knobs": p, "pages": res}, out)
     # Число, а не «готово»: по нему и выбирают подачу.
     log(f"страниц {len(res)}, запросов в VLM {asked} "
         f"({asked/max(len(res),1):.1f} на страницу), артефактов мимо VLM {arts}")
@@ -714,7 +714,7 @@ def _doctor_detect():
     import time
     log("детекция макета (books detect, необязательный набор):")
     missing = []
-    for mod, why in (("onnxruntime", "счёт детектора"), ("cv2", "растр"),
+    for mod, why in (("onnxruntime", "счёт детектора"), ("cv2", "raster"),
                      ("yaml", "чтение inference.yml")):
         try:
             __import__(mod)

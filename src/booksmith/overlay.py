@@ -72,7 +72,7 @@ def _same_book(pdf: str, marks) -> str:
         было = len(said)
         up = os.path.dirname(d.rstrip("/"))
         for name, path_in in (("manifest.json", ("sha256 pdf",)),
-                              ("run.json", ("исходник", "sha256"))):
+                              ("run.json", ("source", "sha256"))):
             path = os.path.join(up, name)
             if not os.path.exists(path):
                 continue
@@ -206,7 +206,7 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
         try:
             return policy.role(label)
         except policy.UnknownLabel:
-            return "артефакт"
+            return "artifact"
 
     def die(msg: str):
         """Закрыть документ и упасть СВОИМ сообщением.
@@ -238,8 +238,8 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
             die(f"у разметки «{tag}» есть страницы {lost[:5]}, которых нет в "
                 f"{pdf} ({doc.page_count} страниц): они исчезли бы без счёта.")
 
-    counts = {"совпало": 0, "не нашла": 0, "лишних": 0, "вне разметки": 0,
-              "страниц без разметки текста": 0, "сличено страниц": 0,
+    counts = {"matched": 0, "missed": 0, "spurious": 0, "outside_markup": 0,
+              "pages_without_text_markup": 0, "pages_compared": 0,
               # ПРОПУСКИ СЧИТАЮТСЯ ПОИМЁННО. Прежде страница, которой нет у
               # одной из разметок, молча пропускалась обеими ветками
               # `continue`, и лист выглядел полным. Замер: убрал у модели 3
@@ -248,8 +248,8 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
               # улучшилась оттого, что часть её ответа пропала. `books score`
               # на том же входе отказывается считать вслух: «модель не
               # разметила страницы [0, 5, 11]: сверять нечего».
-              "нет у истины": [], "нет у модели": [], "ничьих": 0,
-              "страницы": []}
+              "missing_in_truth": [], "missing_in_model": [], "in_neither": 0,
+              "pages": []}
     # ДВЕ ВЕЛИЧИНЫ, и прежде была одна. `drawn` считает РАМКИ (во всех
     # ветках, и на нём стоит сторож «ни одна не легла»); `sheets` — ЛИСТЫ,
     # до которых дело дошло. Итог печатал `doc.page_count`, то есть третью
@@ -272,9 +272,9 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
             # частичном `books detect`). Если у второй она ЕСТЬ — это дыра
             # именно в первой, и молчать о ней нельзя.
             if len(sets) > 1 and sets[1][0].get(i) is not None:
-                counts["нет у истины"].append(i)
+                counts["missing_in_truth"].append(i)
             else:
-                counts["ничьих"] += 1
+                counts["in_neither"] += 1
             continue
         k = page.rect.width / p0["width"]
         kh = page.rect.height / p0["height"]
@@ -290,7 +290,7 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
             continue
         p1 = sets[1][0].get(i)
         if p1 is None:
-            counts["нет у модели"].append(i)
+            counts["missing_in_model"].append(i)
             continue
         # Масштаб у КАЖДОЙ разметки свой. Прежде брался коэффициент первой и
         # молча применялся ко второй: если растр вывода модели отличается от
@@ -307,9 +307,9 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
         # от педантизма: на стенде hard36 текст размечен на одной странице
         # из тридцати шести, и признак «на весь стенд» соврал бы про обе
         # половины сразу.
-        marked = bool((p0.get("meta") or {}).get("текст размечен", True))
-        counts["сличено страниц"] += 1
-        counts["страниц без разметки текста"] += 0 if marked else 1
+        marked = bool((p0.get("meta") or {}).get("text_marked", True))
+        counts["pages_compared"] += 1
+        counts["pages_without_text_markup"] += 0 if marked else 1
         # КРИЧИМ ТОЛЬКО НА ТО, ЧТО И ЧИСЛО ЗОВЁТ ЛИШНИМ. Прежде признак был
         # один — артефактный ли ярлык, — и лист кричал оранжевым на всё
         # подряд: на золотом стенде 508 рамок, из которых сам `books score`
@@ -332,7 +332,7 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
         paired = [b["box"] for b, _ in pairs if b["label"] in _arte]
         unpaired = [b["box"] for b in lost if b["label"] in _arte]
         outside = [o["box"] for o in
-                   ((p0.get("meta") or {}).get("вне замера") or [])]
+                   ((p0.get("meta") or {}).get("out_of_scope") or [])]
         loud, quiet = [], []
         for x in extra:
             if x["label"] in _arte:
@@ -342,16 +342,16 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
                 # размечен» равно false на 600 страницах из 600, и решал
                 # всегда второй член.
                 kind = extra_kind(x["box"], paired, unpaired, outside, tb)
-                x = dict(x, _беда=kind)
-                (loud if kind == "лишняя рамка" else quiet).append(x)
+                x = dict(x, _trouble=kind)
+                (loud if kind == "spurious_box" else quiet).append(x)
             else:
                 (loud if marked else quiet).append(x)
-        counts["совпало"] += len(pairs)
-        counts["не нашла"] += len(lost)
-        counts["лишних"] += len(loud)
-        counts["вне разметки"] += len(quiet)
+        counts["matched"] += len(pairs)
+        counts["missed"] += len(lost)
+        counts["spurious"] += len(loud)
+        counts["outside_markup"] += len(quiet)
         if lost or loud:
-            counts["страницы"].append(i)
+            counts["pages"].append(i)
         for b, x in pairs:
             # Совпавшую пару рисуем ОДНОЙ тонкой рамкой и без подписи: две
             # почти совпадающие рамки с двумя подписями над каждой и делали
@@ -417,12 +417,12 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
             f"С ЧЕМ. Это не «расхождений нет» — второй разметки не подали "
             f"вовсе")
     else:
-        log(f"  совпало {counts['совпало']}, "
-            f"НЕ НАШЛА {counts['не нашла']}, ЛИШНИХ {counts['лишних']}; "
-            f"расхождения на {len(counts['страницы'])} страницах")
+        log(f"  совпало {counts['matched']}, "
+            f"НЕ НАШЛА {counts['missed']}, ЛИШНИХ {counts['spurious']}; "
+            f"расхождения на {len(counts['pages'])} страницах")
     # Пропуски — величиной и поимённо, иначе неполный вывод модели выглядит
     # как чистый лист.
-    for кто, ключ in (("истины", "нет у истины"), ("модели", "нет у модели")):
+    for кто, ключ in (("истины", "missing_in_truth"), ("модели", "missing_in_model")):
         if counts[ключ]:
             п = counts[ключ]
             log(f"  У {кто} НЕТ {len(п)} страниц, которые есть у другой "
@@ -432,11 +432,11 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
     # Величина, а не молчание, и говорится всегда, когда есть неразмечающие
     # страницы: «ЛИШНИХ 508» без этой строки читалось бы как «весь лист
     # сверен», хотя текст на этих страницах не сверялся вовсе.
-    if counts["страниц без разметки текста"]:
+    if counts["pages_without_text_markup"]:
         log(f"  текста истина НЕ размечает на "
-            f"{counts['страниц без разметки текста']} страницах из "
-            f"{counts['сличено страниц']} (meta «текст размечен»: false): "
-            f"{counts['вне разметки']} рамок модели этих разрядов "
+            f"{counts['pages_without_text_markup']} страницах из "
+            f"{counts['pages_compared']} (meta «текст размечен»: false): "
+            f"{counts['outside_markup']} рамок модели этих разрядов "
             f"нарисованы волоском и в «лишних» НЕ считаны — это не ноль "
             f"лишних, это «сверять было нечем»")
     return counts

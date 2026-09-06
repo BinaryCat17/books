@@ -107,8 +107,8 @@ def test_a_block_nested_in_an_artefact_is_not_a_candidate():
     формула = _б(1, (10, 5, 40, 12), r"\[1728^{\circ}\mathrm{C}\]",
                  label="inline_formula")
     from booksmith import text as T
-    assert T.normalize(формула.content, "латех") in T.normalize(
-        таблица.content, "латех"), "фикстура не проверяет то, ради чего заведена"
+    assert T.normalize(формула.content, "latex") in T.normalize(
+        таблица.content, "latex"), "фикстура не проверяет то, ради чего заведена"
     r = H.repeats_on(_стр(таблица, формула), _covered)
     assert r.get(1, (None, ""))[1] != "дословно", (
         "блок объявлен повтором артефакта — но артефакт едет картинкой, и "
@@ -117,7 +117,7 @@ def test_a_block_nested_in_an_artefact_is_not_a_candidate():
 
 def test_an_empty_block_is_not_a_candidate():
     """Блок без содержимого повтором не объявляется: сличать нечем."""
-    абзац = _б(0, (0, 0, 100, 20), "текст")
+    абзац = _б(0, (0, 0, 100, 20), "text")
     пусто = _б(1, (10, 5, 40, 12), None, label="inline_formula")
     r = H.repeats_on(_стр(абзац, пусто), _covered)
     assert 1 not in r, r
@@ -129,9 +129,9 @@ def test_the_latex_stage_is_declared_with_its_measurement():
     Число без объявленной ступени через месяц значит что угодно.
     """
     from booksmith import text as T
-    assert "латех" in T.NORM_STEPS, sorted(T.NORM_STEPS)
-    note = T.norm_note("латех")
-    assert note["ступени"], note
+    assert "latex" in T.NORM_STEPS, sorted(T.NORM_STEPS)
+    note = T.norm_note("latex")
+    assert note["steps"], note
     # Имя содержательной команды СОХРАНЯЕТСЯ, оформительская снимается.
     assert T.bare_math(r"\alpha") == "alpha"
     assert T.bare_math(r"\mathrm{C}").strip() == "C"
@@ -143,12 +143,12 @@ def test_the_latex_stage_is_declared_with_its_measurement():
 def test_the_latex_stage_falls_on_deliberately_broken_input():
     """Ступень обязана уметь провалиться: разное не должно совпасть."""
     from booksmith import text as T
-    a = T.normalize(r"\[1728^{\circ}\mathrm{C}\]", "латех")
-    b = T.normalize(r"\[1675^{\circ}\mathrm{C}\]", "латех")
+    a = T.normalize(r"\[1728^{\circ}\mathrm{C}\]", "latex")
+    b = T.normalize(r"\[1675^{\circ}\mathrm{C}\]", "latex")
     assert a != b, (a, b)
     # И содержательная команда не съедается: две разные буквы остаются двумя.
-    assert (T.normalize(r"\[\alpha\]", "латех")
-            != T.normalize(r"\[\beta\]", "латех"))
+    assert (T.normalize(r"\[\alpha\]", "latex")
+            != T.normalize(r"\[\beta\]", "latex"))
 
 
 def test_the_typeset_form_is_not_traded_for_the_raw_one():

@@ -149,14 +149,14 @@ def crop_dpi_for(box, page_dpi: float, native: float | None,
     w = (x1 - x0) / page_dpi                  # дюймы
     h = (y1 - y0) / page_dpi
     if w <= 0 or h <= 0:
-        return base, "своя резкость скана"
+        return base, "native_scan_dpi"
     at_base = w * base * h * base
     if at_base > hi:
         # Ужать до верхней границы модели: всё, что сверх, она выбросит сама.
-        return (hi / (w * h)) ** 0.5, "ужато до верхней границы модели"
+        return (hi / (w * h)) ** 0.5, "downscaled_to_model_max"
     if at_base < lo:
-        return base, "мельче нижней границы модели (вверх не тянем)"
-    return base, "своя резкость скана"
+        return base, "below_model_min"
+    return base, "native_scan_dpi"
 
 
 def _gen_params() -> dict:
@@ -192,16 +192,16 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
     import pymupdf
 
     facts = _detect_facts(detect_dir)
-    pdf = pdf or facts["исходник"]["путь"]
+    pdf = pdf or facts["source"]["path"]
     if not os.path.exists(pdf):
         raise SystemExit(f"нет исходника {pdf}, названного слепком детекции")
     got = stamp.sha256(pdf)
-    if got != facts["исходник"]["sha256"]:
+    if got != facts["source"]["sha256"]:
         raise SystemExit(
-            f"{pdf}: sha256 {got[:12]} против {facts['исходник']['sha256'][:12]} "
+            f"{pdf}: sha256 {got[:12]} против {facts['source']['sha256'][:12]} "
             f"в слепке детекции. Рамки считаны по ДРУГОМУ файлу; вырезки "
             f"поехали бы не по тем координатам, а ответ выглядел бы чтением.")
-    page_dpi = float(facts["растр"]["dpi"])
+    page_dpi = float(facts["raster"]["dpi"])
 
     files = sorted(glob.glob(os.path.join(detect_dir, "pages", "*.json")))
     if not files:
@@ -251,12 +251,12 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
     # болезнь, которой посвящены шапки этого файла и `read/__init__.py`.
     # Вдобавок единственная запись о том, за что заплачено (секунды, токены),
     # затиралась вторым, бесплатным запуском.
-    setup = {"чтец": reader.fingerprint(), "порождение": params,
-             "транспорт": {k: v for k, v in transport.fingerprint().items()
+    setup = {"reader": reader.fingerprint(), "generation": params,
+             "transport": {k: v for k, v in transport.fingerprint().items()
                            # адрес меняется от прогона к прогону (порт
                            # подставного сервера, петля на боксе) и ответ
                            # модели не решает; имя модели — решает.
-                           if k in ("транспорт", "модель спрошена")}}
+                           if k in ("transport", "model_asked")}}
     setup_path = os.path.join(out_dir, "чем читали.json")
     same_setup = True
     if resume and os.path.exists(setup_path):
@@ -300,21 +300,21 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
 
     native = _native(0)
     cut_dpi = {}
-    tally = {"страниц": len(pages), "блоков": 0, "спрошено": 0,
-             "не спрошено": 0, "прочитано": 0, "модель промолчала": 0,
-             "отказ доставки": 0, "оборвано потолком": 0,
-             "вид не тот, что обещан": 0, "взято из прошлого прогона": 0,
+    tally = {"page_count": len(pages), "block_count": 0, "asked": 0,
+             "not_asked": 0, "read": 0, "model_silent": 0,
+             "delivery_failed": 0, "hit_ceiling": 0,
+             "kind_not_as_promised": 0, "reused_from_previous_run": 0,
              # ШЕСТОЙ НОЛЬ, и у него до сих пор не было имени. Транспорт может
              # вернуть ответ с ЧУЖИМ якорем (спутанный порядок, шлюз,
              # переписавший запрос), и тогда блок оставался без записи вовсе:
              # ни один из пяти счётчиков не шевелился, `answers/` был пуст,
              # `content` пуст, а деньги за ответ уплачены. Замер: три ответа с
              # чужими якорями дали «сумма исходов 0 при блоках 3».
-             "ответ мимо якоря": 0, "спрошено, а ответа нет": 0,
-             "вырезка не вышла": 0, "резкость вырезки": {},
-             "своя резкость книги": native,
-             "окно модели": list(window) if window else None,
-             "знаков": 0, "секунд счёта": 0.0, "токенов": 0}
+             "answer_wrong_anchor": 0, "asked_no_answer": 0,
+             "crop_failed": 0, "crop_dpi_reason_counts": {},
+             "native_book_dpi": native,
+             "model_window": list(window) if window else None,
+             "chars": 0, "compute_seconds": 0.0, "tokens": 0}
     bad_crops = []
     by_kind = {}
     worst = []
@@ -325,19 +325,19 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
         old = {}
         if resume and os.path.exists(ans_path) and same_setup:
             with open(ans_path, encoding="utf-8") as f:
-                old = {a["якорь"]: a for a in json.load(f).get("ответы", [])}
+                old = {a["anchor"]: a for a in json.load(f).get("answers", [])}
 
         asks, silent, nocrop, cut_info = [], {}, {}, {}
         for b in pg.blocks:
-            tally["блоков"] += 1
+            tally["block_count"] += 1
             anchor = f"{tag}-b{b.block_id}"
             rt = routes[b.label]
             if not rt.asked():
-                tally["не спрошено"] += 1
+                tally["not_asked"] += 1
                 silent[anchor] = rt.why
                 continue
-            if anchor in old and old[anchor].get("текст") is not None:
-                tally["взято из прошлого прогона"] += 1
+            if anchor in old and old[anchor].get("text") is not None:
+                tally["reused_from_previous_run"] += 1
                 continue
             rel = os.path.join(crops_dir, f"{anchor}.png")
             # Лист в пикселях ТОГО ЖЕ растра, в котором лежат рамки.
@@ -347,8 +347,8 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
             cdpi, why = crop_dpi_for(b.box, page_dpi, _native(pg.index),
                                      window, sheet=sheet)
             cut_dpi[anchor] = (cdpi, why)
-            tally["резкость вырезки"][why] = (
-                tally["резкость вырезки"].get(why, 0) + 1)
+            tally["crop_dpi_reason_counts"][why] = (
+                tally["crop_dpi_reason_counts"].get(why, 0) + 1)
             try:
                 # ВОЗВРАТ НЕ ВЫБРАСЫВАЕТСЯ. `crop.cut` считает ширину, высоту,
                 # «срезано листом» и ЧЕСТНЫЙ dpi (тот, которым резали, а не тот,
@@ -366,7 +366,7 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
                 # прочитанное оставалось без слепка, то есть деньги уплачены, а
                 # предъявить нечего. Теперь это ВЕЛИЧИНА со своим счётчиком, и
                 # прогон идёт дальше.
-                tally["вырезка не вышла"] += 1
+                tally["crop_failed"] += 1
                 bad_crops.append(f"{anchor}: {type(e).__name__}: {e}")
                 nocrop[anchor] = f"{type(e).__name__}: {e}"
                 continue
@@ -381,7 +381,7 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
             with ThreadPoolExecutor(max_workers=n) as pool:
                 for s in pool.map(transport.send, asks):
                     if s.anchor not in want:
-                        tally["ответ мимо якоря"] += 1
+                        tally["answer_wrong_anchor"] += 1
                         continue
                     said[s.anchor] = s
 
@@ -394,30 +394,30 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
             rt = routes[b.label]
             if anchor in silent:
                 b.content, b.kind = None, "none"
-                answers.append({"якорь": anchor, "не спрошено": silent[anchor]})
+                answers.append({"anchor": anchor, "not_asked": silent[anchor]})
                 continue
             if anchor in nocrop:
                 # Блок НЕ спрашивали: вырезать было нечего. Это не «спросили, а
                 # ответа нет» — иначе одна беда считалась бы двумя.
                 b.content, b.kind = None, "none"
-                answers.append({"якорь": anchor,
-                                "вырезка не вышла": nocrop[anchor]})
+                answers.append({"anchor": anchor,
+                                "crop_failed": nocrop[anchor]})
                 continue
-            if anchor in old and old[anchor].get("текст") is not None:
+            if anchor in old and old[anchor].get("text") is not None:
                 rec = old[anchor]
             else:
                 s = said.get(anchor)
                 if s is None:
                     # Спрашивали, а ответа под этим якорем нет. Молчать нельзя:
                     # блок ушёл бы из книги и из `answers/` без единой записи.
-                    tally["спрошено, а ответа нет"] += 1
+                    tally["asked_no_answer"] += 1
                     b.content, b.kind = None, "none"
-                    answers.append({"якорь": anchor,
-                                    "беда": "спросили, ответа под этим якорем "
+                    answers.append({"anchor": anchor,
+                                    "trouble": "спросили, ответа под этим якорем "
                                             "не пришло"})
                     continue
                 rec = s.to_json()
-                rec["ярлык"] = b.label          # чей это блок — видно в ответе
+                rec["label"] = b.label          # чей это блок — видно в ответе
                 if anchor in cut_dpi:
                     # dpi берётся ИЗ ВЫРЕЗКИ, а не из правила: `crop.cut`
                     # рендерит при `int(dpi)`, а правило даёт дробное, и
@@ -425,13 +425,13 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
                     # Расхождение стоит одного dpi (0.13% ширины) — но число в
                     # журнале обязано быть тем, которым резали.
                     info = cut_info.get(anchor) or {}
-                    rec["наблюдённое"]["dpi вырезки"] = info.get(
+                    rec["observed"]["crop_dpi"] = info.get(
                         "dpi", cut_dpi[anchor][0])
-                    rec["наблюдённое"]["dpi по правилу"] = round(
+                    rec["observed"]["crop_dpi_by_rule"] = round(
                         cut_dpi[anchor][0], 2)
-                    rec["наблюдённое"]["резкость откуда"] = cut_dpi[anchor][1]
-                    rec["наблюдённое"]["вырезка"] = info or None
-                rec["наблюдённое"]["догадка о виде"] = _sniff(s.text or "")
+                    rec["observed"]["crop_dpi_reason"] = cut_dpi[anchor][1]
+                    rec["observed"]["crop"] = info or None
+                rec["observed"]["kind_sniffed"] = _sniff(s.text or "")
                 # СЧЁТ РВАНОСТИ OTSL — сбоку, у ответа. Прежде `otsl.parse`
                 # считал строки разной длины, продолжения в никуда и текст
                 # мимо тегов, и всё это выбрасывалось: ни один прогон не мог
@@ -439,28 +439,28 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
                 # таблицу от целой. Теперь они лежат рядом с ответом.
                 if rt.kind == "otsl" and s.text:
                     g, t = otsl.parse(s.text)
-                    rec["наблюдённое"]["сетка otsl"] = t
-                tally["секунд счёта"] += s.took_s
-                tally["токенов"] += s.tokens or 0
+                    rec["observed"]["otsl_grid"] = t
+                tally["compute_seconds"] += s.took_s
+                tally["tokens"] += s.tokens or 0
             answers.append(rec)
 
-            txt = rec.get("текст")
-            if rec.get("отказ"):
-                tally["отказ доставки"] += 1
+            txt = rec.get("text")
+            if rec.get("error"):
+                tally["delivery_failed"] += 1
                 b.content, b.kind = None, "none"
             elif txt is None or not txt.strip():
-                tally["модель промолчала"] += 1
+                tally["model_silent"] += 1
                 b.content, b.kind = None, "none"
             else:
-                tally["прочитано"] += 1
-                tally["знаков"] += len(txt)
+                tally["read"] += 1
+                tally["chars"] += len(txt)
                 # БАЙТЫ МОДЕЛИ, без единой правки. Вид — объявленный промтом.
                 b.content, b.kind = txt, rt.kind
                 by_kind[rt.kind] = by_kind.get(rt.kind, 0) + 1
-                if rec["наблюдённое"].get("догадка о виде") not in (rt.kind, None):
-                    tally["вид не тот, что обещан"] += 1
-            if rec.get("чем кончилось") == "length":
-                tally["оборвано потолком"] += 1
+                if rec["observed"].get("kind_sniffed") not in (rt.kind, None):
+                    tally["kind_not_as_promised"] += 1
+            if rec.get("outcome") == "length":
+                tally["hit_ceiling"] += 1
                 worst.append(anchor)
             # СЧИТАЕМ ТОЛЬКО НАСТОЯЩИЕ ВОПРОСЫ. Прежде сюда попадали и блоки,
             # взятые из прошлого прогона: `books read` вторым разом печатал
@@ -468,68 +468,68 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
             # делились «секунды на блок». Две величины с одним именем
             # расходились по построению.
             if anchor in asked_now:
-                tally["спрошено"] += 1
+                tally["asked"] += 1
 
         pg.meta = dict(pg.meta or {})
-        pg.meta["чтение"] = {"чтец": reader.name, "транспорт": transport.name,
-                             "спрошено": len(asks)}
+        pg.meta["reading"] = {"reader": reader.name, "transport": transport.name,
+                             "asked": len(asks)}
         with open(os.path.join(out_dir, "pages", os.path.basename(fp)),
                   "w", encoding="utf-8") as f:
             json.dump(pg.to_json(), f, ensure_ascii=False, indent=1)
         with open(ans_path, "w", encoding="utf-8") as f:
-            json.dump({"страница": pg.index, "ответы": answers}, f,
+            json.dump({"page": pg.index, "answers": answers}, f,
                       ensure_ascii=False, indent=1)
         log(f"стр. {pg.index}: спрошено {len(asks)}, прочитано "
-            f"{sum(1 for a in answers if a.get('текст'))}, "
-            f"молчаний {sum(1 for a in answers if a.get('текст') == '')}, "
-            f"отказов {sum(1 for a in answers if a.get('отказ'))}")
+            f"{sum(1 for a in answers if a.get('text'))}, "
+            f"молчаний {sum(1 for a in answers if a.get('text') == '')}, "
+            f"отказов {sum(1 for a in answers if a.get('error'))}")
     doc.close()
 
-    tally["по видам"] = by_kind
-    tally["оборванные якоря"] = worst[:20]
-    tally["вырезки не вышли"] = bad_crops[:20]
+    tally["by_kind"] = by_kind
+    tally["truncated_anchors"] = worst[:20]
+    tally["crop_failures"] = bad_crops[:20]
     return tally
 
 
 def report(t: dict, log=log) -> None:
     """Величины, а не «готово». Пять нулей печатаются порознь."""
-    log(f"страниц {t['страниц']}, блоков {t['блоков']}: спрошено "
-        f"{t['спрошено']}, не спрошено {t['не спрошено']}")
-    if t["взято из прошлого прогона"]:
-        log(f"  взято из прошлого прогона {t['взято из прошлого прогона']} — "
+    log(f"страниц {t['page_count']}, блоков {t['block_count']}: спрошено "
+        f"{t['asked']}, не спрошено {t['not_asked']}")
+    if t["reused_from_previous_run"]:
+        log(f"  взято из прошлого прогона {t['reused_from_previous_run']} — "
             f"эти блоки модель СЕЙЧАС не читала")
-    log(f"прочитано {t['прочитано']}, знаков {t['знаков']}, по видам "
-        f"{t['по видам'] or '—'}")
+    log(f"прочитано {t['read']}, знаков {t['chars']}, по видам "
+        f"{t['by_kind'] or '—'}")
     log(f"резкость вырезки: своя у книги "
-        f"{t['своя резкость книги'] and round(t['своя резкость книги']) or '—'} dpi, "
-        f"окно модели {t['окно модели'] or 'не объявлено'}; "
-        f"{t['резкость вырезки'] or '—'}")
+        f"{t['native_book_dpi'] and round(t['native_book_dpi']) or '—'} dpi, "
+        f"окно модели {t['model_window'] or 'не объявлено'}; "
+        f"{t['crop_dpi_reason_counts'] or '—'}")
     # Три беды печатаются ВСЕГДА, в том числе нулями: строка, исчезающая при
     # нуле, читается как «такого не бывает», а не как «в этот раз не было».
-    log(f"  модель промолчала {t['модель промолчала']}, отказов доставки "
-        f"{t['отказ доставки']}, оборвано потолком {t['оборвано потолком']}, "
-        f"ответ мимо якоря {t['ответ мимо якоря']}, спрошено без ответа "
-        f"{t['спрошено, а ответа нет']}")
-    if t["вырезка не вышла"]:
-        log(f"  ВЫРЕЗКА НЕ ВЫШЛА у {t['вырезка не вышла']} блоков — рамка "
+    log(f"  модель промолчала {t['model_silent']}, отказов доставки "
+        f"{t['delivery_failed']}, оборвано потолком {t['hit_ceiling']}, "
+        f"ответ мимо якоря {t['answer_wrong_anchor']}, спрошено без ответа "
+        f"{t['asked_no_answer']}")
+    if t["crop_failed"]:
+        log(f"  ВЫРЕЗКА НЕ ВЫШЛА у {t['crop_failed']} блоков — рамка "
             f"модели вырождена или лежит вне листа. Это её дефект, а не наш; "
-            f"блок остался непрочитанным: {'; '.join(t['вырезки не вышли'][:3])}")
-    if t["оборвано потолком"]:
-        log(f"  ОБОРВАНО ПОТОЛКОМ: {', '.join(t['оборванные якоря'])}"
-            f"{'…' if t['оборвано потолком'] > 20 else ''} — у таблицы это "
+            f"блок остался непрочитанным: {'; '.join(t['crop_failures'][:3])}")
+    if t["hit_ceiling"]:
+        log(f"  ОБОРВАНО ПОТОЛКОМ: {', '.join(t['truncated_anchors'])}"
+            f"{'…' if t['hit_ceiling'] > 20 else ''} — у таблицы это "
             f"НЕ выглядит поломкой: вендорский otsl_pad_to_sqr_v2 молча "
             f"укорачивает длинные строки, и порванная таблица возвращается "
             f"правдоподобной. Поднимать VLM_MAX_TOKENS или резать мельче")
-    if t["вид не тот, что обещан"]:
+    if t["kind_not_as_promised"]:
         log(f"  вид ответа разошёлся с объявленным у "
-            f"{t['вид не тот, что обещан']} блоков — это НЕ дефект модели, а "
+            f"{t['kind_not_as_promised']} блоков — это НЕ дефект модели, а "
             f"повод пересмотреть объявление в чтеце; догадка лежит сбоку, в "
             f"answers/")
-    if not t["спрошено"]:
+    if not t["asked"]:
         log("СПРОШЕНО НОЛЬ БЛОКОВ — это не успех, а пустой прогон")
-    if t["секунд счёта"]:
-        log(f"счёта {t['секунд счёта']:.1f} с, токенов {t['токенов']}, "
-            f"{t['секунд счёта'] / max(1, t['спрошено']):.2f} с на блок")
+    if t["compute_seconds"]:
+        log(f"счёта {t['compute_seconds']:.1f} с, токенов {t['tokens']}, "
+            f"{t['compute_seconds'] / max(1, t['asked']):.2f} с на блок")
 
 
 def _repeat_line(detect_dir: str, out_dir: str, args: dict) -> str:
@@ -554,52 +554,52 @@ def snapshot(detect_dir: str, out_dir: str, reader: Reader,
     """Слепок входа: те же поля, что у детекции, и наконец непустые «промты»."""
     facts = _detect_facts(detect_dir)
     read_knobs = {**{n: "адаптер чтения" for n in reader.knobs_read()},
-                  **{n: "транспорт" for n in transport.knobs_read()}}
+                  **{n: "transport" for n in transport.knobs_read()}}
     snap = {
-        "когда": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
-        "ручки": _knobs_snapshot(read_knobs),
-        "растр": facts["растр"],
-        "аргументы": args,
-        "коммит": stamp.commit(),
+        "when": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+        "knobs": _knobs_snapshot(read_knobs),
+        "raster": facts["raster"],
+        "args": args,
+        "commit": stamp.commit(),
         # Книга та же, что у детекции, и хэш сверен ДО работы (см. read_book).
-        "исходник": facts["исходник"],
-        "детекция": {"каталог": os.path.abspath(detect_dir),
-                     "коммит": facts.get("коммит"),
-                     "адаптер": facts.get("адаптер"),
-                     "sha256 слепка": stamp.sha256(
+        "source": facts["source"],
+        "detection": {"dir": os.path.abspath(detect_dir),
+                     "commit": facts.get("commit"),
+                     "adapter": facts.get("adapter"),
+                     "sha256_snapshot": stamp.sha256(
                          os.path.join(detect_dir, "run.json"))},
-        "адаптер": {"имя": reader.name,
-                    "модуль": type(reader).__module__,
+        "adapter": {"name": reader.name,
+                    "module": type(reader).__module__,
                     "sha256": stamp.sha256(
                         sys.modules[type(reader).__module__].__file__),
-                    "sha256 команды": stamp.sha256(
+                    "sha256_command": stamp.sha256(
                         os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                      "run.py")),
                     # Разбор OTSL — НАШ код, и он решает числа не меньше
                     # модели. Без его хэша два прогона с разным разбором
                     # выглядели бы одинаковыми.
-                    "sha256 разбора otsl": stamp.sha256(
+                    "sha256_otsl_parser": stamp.sha256(
                         os.path.join(os.path.dirname(os.path.dirname(
                             os.path.abspath(__file__))), "otsl.py"))},
-        "политика": policy.snapshot(getattr(reader, "policy_name", None)),
-        "промты": reader.fingerprint().get("промты", {}),
-        "порождение": _gen_params(),
-        "пакеты": stamp.packages(stamp.READ_PACKAGES),
-        "веса": {"vl": reader.fingerprint().get("веса"),
-                 "layout": facts.get("веса", {}).get("layout")},
+        "policy": policy.snapshot(getattr(reader, "policy_name", None)),
+        "prompts": reader.fingerprint().get("prompts", {}),
+        "generation": _gen_params(),
+        "packages": stamp.packages(stamp.READ_PACKAGES),
+        "weights": {"vl": reader.fingerprint().get("weights"),
+                 "layout": facts.get("weights", {}).get("layout")},
         # ОТПЕЧАТОК — ЭТО ОТПЕЧАТОК ЧТЕЦА, без обёртки. `run/replay.py`
         # выводит требуемую форму разбором метода `fingerprint()` активного
         # адаптера и ищет её поля прямо здесь; вложенный «чтец» давал шесть
         # строк «нет отпечаток/промты», то есть слепок объявлялся НЕПОЛНЫМ,
         # хотя всё было записано. Транспорт — своим полем: он не адаптер
         # модели, и смешивать их значило бы объявить два отпечатка одним.
-        "отпечаток": reader.fingerprint(),
-        "отпечаток транспорта": transport.fingerprint(),
-        "итог": tally,
+        "fingerprint": reader.fingerprint(),
+        "transport_fingerprint": transport.fingerprint(),
+        "summary": tally,
         # Строка обязана быть ИСПОЛНИМОЙ и полной: без `--pages` и `--policy`
         # она повторяет ДРУГОЙ прогон. У `books detect` `--pages` в повторе
         # есть, и расхождение двух команд тут ничем не оправдано.
-        "повтор": _repeat_line(detect_dir, out_dir, args),
+        "repeat_command": _repeat_line(detect_dir, out_dir, args),
     }
     p = os.path.join(out_dir, "run.json")
     with open(p, "w", encoding="utf-8") as f:

@@ -1,17 +1,17 @@
 {
- "книга": "annopage",
- "о книге": "AnnoPage: исторические страницы 1485 г. и позже, разметка библиотекарями, только НЕТЕКСТОВЫЕ объекты",
- "источник": "Zenodo 10.5281/zenodo.12788419, CC BY 4.0",
- "выборка": "test",
- "страниц": 600,
- "текст размечен": false,
- "объектов в замере": 1232,
- "объектов вне замера": {
-  "спорно": 538,
-  "невыразимо": 366
+ "book": "annopage",
+ "about": "AnnoPage: исторические страницы 1485 г. и позже, разметка библиотекарями, только НЕТЕКСТОВЫЕ объекты",
+ "origin": "Zenodo 10.5281/zenodo.12788419, CC BY 4.0",
+ "split": "test",
+ "page_count": 600,
+ "text_marked": false,
+ "objects_in_scope": 1232,
+ "objects_out_of_scope": {
+  "doubtful": 538,
+  "inexpressible": 366
  },
- "по категориям": {
-  "прямо": {
+ "by_category": {
+  "direct": {
    "Image": 504,
    "Table": 124,
    "Photograph": 93,
@@ -24,7 +24,7 @@
    "Stamp": 40,
    "Floor plan": 9
   },
-  "спорно": {
+  "doubtful": {
    "Advertisement": 238,
    "Handwritten note": 78,
    "Musical notation": 63,
@@ -32,7 +32,7 @@
    "Barcode and QR code": 8,
    "Caricature and comics": 135
   },
-  "невыразимо": {
+  "inexpressible": {
    "Other book decor": 136,
    "Decorative inscription": 84,
    "Symbol, logo, coat of arms": 76,
@@ -43,7 +43,7 @@
    "Initial": 40
   }
  },
- "свод категорий": {
+ "category_map": {
   "Table": "table",
   "Graph": "chart",
   "Diagram": "chart",
@@ -56,7 +56,7 @@
   "Chemical formula and equation": "display_formula",
   "Stamp": "seal"
  },
- "разметок без картинки": 0,
+ "annotations_without_image": 0,
  "pdf": "annopage.pdf",
  "sha256 pdf": "94cf0349275bcffad6480eba71c9c3acbef6e2004eb1d77af4825ec7bf36a4f0"
 }

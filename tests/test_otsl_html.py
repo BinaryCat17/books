@@ -84,7 +84,7 @@ def test_no_cell_disappears_in_translation():
     s = "<fcel>a<fcel>b<fcel>c<nl><fcel>1<lcel><fcel>3<nl>"
     g, _ = otsl.parse(s)
     cs, t = otsl.layout(s)
-    адресов = sum(c["строк"] * c["столбцов"] for c in cs)
+    адресов = sum(c["rows"] * c["cols"] for c in cs)
     assert адресов == len(g) == 6, (адресов, len(g))
     assert otsl.to_html(s).count("<td") == 5
 
@@ -98,7 +98,7 @@ def test_torn_span_is_left_flat_not_straightened():
     # `<ucel>` под правой половиной двухклеточной шапки и ничего под левой.
     s = "<fcel>шапка<lcel><nl><fcel>левое<ucel><nl>"
     cs, t = otsl.layout(s)
-    assert t["слияний не прямоугольных"] == 1, t
+    assert t["non_rectangular_merges"] == 1, t
     h = otsl.to_html(s)
     # Клетка развёрнута, но НИ ОДИН адрес не потерян.
     assert h.count("<td") == 4, h
@@ -115,7 +115,7 @@ def test_parse_keeps_its_old_contract():
     """
     g, t = otsl.parse("<ched>шапка<lcel><nl><fcel>1<fcel>2<nl>")
     assert g[(0, 0)] == g[(0, 1)] == "шапка"
-    assert t["клеток"] == 4 and t["строк"] == 2
+    assert t["grid_cells"] == 4 and t["rows"] == 2
 
 
 def test_not_a_table_is_empty_string_not_a_broken_tag():
@@ -197,4 +197,4 @@ def test_a_short_row_is_not_padded_out():
     h = otsl.to_html("<fcel>a<fcel>b<fcel>c<nl><fcel>1<nl>")
     assert h.count("<td") == 4, h
     _, t = otsl.parse("<fcel>a<fcel>b<fcel>c<nl><fcel>1<nl>")
-    assert t["строк разной длины"] == 1, t
+    assert t["rows_of_unequal_length"] == 1, t

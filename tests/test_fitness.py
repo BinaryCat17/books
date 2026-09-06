@@ -125,12 +125,12 @@ def test_pixel_under_two_boxes_counts_once():
         det = _pages([((20, 20, 70, 120), "table"),
                       ((20, 20, 70, 120), "text")], tmp, "det")
         r = fitness.measure(pdf, det, truth)
-        assert r["порван"] == 1, r
-        assert r["уехал текстом"] == 0, r
+        assert r["torn"] == 1, r
+        assert r["left_as_text"] == 0, r
         # ...а когда текстовая рамка и правда держит остаток — диагноз верен
         det2 = _pages([((20, 20, 70, 120), "table"),
                        ((60, 20, 120, 120), "text")], tmp, "det2")
-        assert fitness.measure(pdf, det2, truth)["уехал текстом"] == 1
+        assert fitness.measure(pdf, det2, truth)["left_as_text"] == 1
 
 
 # --- нули ------------------------------------------------------------------
@@ -166,8 +166,8 @@ def test_object_without_ink_is_a_bench_defect_not_a_score():
         truth = _pages([((20, 20, 120, 120), "table"),
                         ((150, 150, 190, 190), "table")], tmp, "truth")
         r = fitness.measure(pdf, det, truth)
-        assert r["объектов"] == 1 and r["пустых объектов"] == 1, r
-        assert r["цел"] + r["почти цел"] + r["надкушен"] + r["порван"] == 1, r
+        assert r["objects"] == 1 and r["empty_objects"] == 1, r
+        assert r["intact"] + r["almost_intact"] + r["bitten"] + r["torn"] == 1, r
         assert "дефект стенда" in _said(r)
 
 
@@ -251,12 +251,12 @@ def test_the_number_that_grows_when_boxes_merge():
         one = _pages([((20, 20, 170, 80), "table")], tmp, "one")
         a = fitness.measure(pdf, apart, truth)
         b = fitness.measure(pdf, one, truth)
-        assert a["цел"] == b["цел"] == 2, (a, b)          # слепые числа молчат
-        assert a["одной рамкой"] == b["одной рамкой"] == 2
-        assert a["приехал не в одиночку"] == 0, a         # а это — говорит
-        assert b["приехал не в одиночку"] == 2, b
-        assert a["рамок с несколькими объектами"] == 0
-        assert b["рамок с несколькими объектами"] == 1
+        assert a["intact"] == b["intact"] == 2, (a, b)          # слепые числа молчат
+        assert a["in_one_box"] == b["in_one_box"] == 2
+        assert a["arrived_with_company"] == 0, a         # а это — говорит
+        assert b["arrived_with_company"] == 2, b
+        assert a["boxes_with_many_objects"] == 0
+        assert b["boxes_with_many_objects"] == 1
         assert "не в одиночку 2" in _said(b)
 
 
@@ -289,9 +289,9 @@ def test_merging_two_objects_into_one_box_does_not_lower_the_numbers():
         one = _pages([((20, 20, 170, 80), "table")], tmp, "one")
         a = fitness.measure(pdf, apart, truth)
         b = fitness.measure(pdf, one, truth)
-        assert a["цел"] == 1 and a["порван"] == 1, a
-        assert b["цел"] == 2 and b["порван"] == 0, b
-        assert b["одной рамкой"] > a["одной рамкой"]
+        assert a["intact"] == 1 and a["torn"] == 1, a
+        assert b["intact"] == 2 and b["torn"] == 0, b
+        assert b["in_one_box"] > a["in_one_box"]
 
 
 # --- память растра ---------------------------------------------------------
@@ -482,7 +482,7 @@ def test_battery_counts_what_it_could_not_measure():
         out = []
         bad = fitness.mutations(*a, log=out.append)
         tail = out[-1]
-        got = dict(zip(("проб", "померено", "мерить"),
+        got = dict(zip(("probes", "measured", "unmeasurable"),
                        (int(w) for w in tail.replace(",", " ").split()
                         if w.isdigit())))
         return bad, out, tail, got
@@ -497,13 +497,13 @@ def test_battery_counts_what_it_could_not_measure():
         bad, out, tail, got = counts(pdf, det, truth)
         assert bad == 0, tail
         silent = sum("нет данных" in l for l in out[:-1])
-        assert got["проб"] == got["померено"] + got["мерить"], tail
-        assert got["мерить"] == silent, (tail, silent)
+        assert got["probes"] == got["measured"] + got["unmeasurable"], tail
+        assert got["unmeasurable"] == silent, (tail, silent)
         bad2, out2, tail2, got2 = counts(pdf, det)
         assert bad2 == 0, tail2
-        assert sum("нет данных" in l for l in out2[:-1]) == got2["мерить"], tail2
+        assert sum("нет данных" in l for l in out2[:-1]) == got2["unmeasurable"], tail2
         # без истины мерить нечем ГОРАЗДО большему числу проб, и это видно
-        assert got2["померено"] < got["померено"] / 2, (tail, tail2)
+        assert got2["measured"] < got["measured"] / 2, (tail, tail2)
 
 
 def test_battery_corrupts_all_three_sides():

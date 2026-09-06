@@ -141,12 +141,12 @@ class Http(Transport):
 
     # ------------------------------------------------------------- договор --
     def fingerprint(self) -> dict:
-        return {"транспорт": self.name, "адрес": self.server,
-                "модель спрошена": self.model,
-                "таймаут с": self.timeout, "повторов доставки": self.retries,
+        return {"transport": self.name, "endpoint": self.server,
+                "model_asked": self.model,
+                "timeout_s": self.timeout, "delivery_retries": self.retries,
                 # Сам ключ НЕ пишем: слепок кладут в git.
-                "ключ": ("есть, %d знаков" % len(self.key)) if self.key
-                        else "нет"}
+                "api_key": ("есть, %d знаков" % len(self.key)) if self.key
+                        else "no"}
 
     def knobs_read(self) -> tuple[str, ...]:
         return ("VLM_ENDPOINT", "MODEL_NAME", "VLM_TIMEOUT_S", "VLM_RETRIES")
@@ -176,9 +176,9 @@ class Http(Transport):
                 f"адрес {self.server} не отвечает на /models: {e}. "
                 f"Это отказ ДОСТАВКИ, а не молчание модели.") from e
         ids = [m.get("id") for m in (d.get("data") or [])]
-        out = {"адрес": self.server, "модели на сервере": ids,
-               "спрашиваем": want, "совпало": want in ids}
-        if not out["совпало"]:
+        out = {"endpoint": self.server, "models_on_server": ids,
+               "asking_for": want, "matched": want in ids}
+        if not out["matched"]:
             raise RuntimeError(
                 f"на {self.server} стоит {ids}, а спрашивать собираемся "
                 f"{want!r}. Считать в таком виде значит записать в слепок имя "
@@ -210,10 +210,10 @@ class Http(Transport):
                 return Said(anchor=ask.anchor,
                             error=f"тело ответа не разобрано: {e}",
                             took_s=time.time() - t0,
-                            meta={"попыток доставки": attempt + 1,
-                                  "байт картинки": nbytes,
-                                  "ответ был": True,
-                                  "промт": ask.prompt, "вид обещан": ask.kind})
+                            meta={"delivery_attempts": attempt + 1,
+                                  "image_bytes": nbytes,
+                                  "answer_arrived": True,
+                                  "prompt": ask.prompt, "kind_promised": ask.kind})
             except urllib.error.HTTPError as e:
                 text = e.read().decode(errors="replace")[:400]
                 # `e.reason` обязателен: у отказа от редиректа тело пустое, и
@@ -234,9 +234,9 @@ class Http(Transport):
                         anchor=ask.anchor,
                         error=f"200 без choices: {json.dumps(d)[:200]}",
                         took_s=time.time() - t0, raw=d,
-                        meta={"попыток доставки": attempt + 1,
-                              "байт картинки": nbytes, "ответ был": True,
-                              "промт": ask.prompt, "вид обещан": ask.kind})
+                        meta={"delivery_attempts": attempt + 1,
+                              "image_bytes": nbytes, "answer_arrived": True,
+                              "prompt": ask.prompt, "kind_promised": ask.kind})
                 ch = d["choices"][0]
                 msg = ch.get("message") or {}
                 usage = d.get("usage") or {}
@@ -249,17 +249,17 @@ class Http(Transport):
                     took_s=time.time() - t0,
                     tokens=usage.get("completion_tokens"),
                     raw=d,
-                    meta={"попыток доставки": attempt + 1,
-                          "байт картинки": nbytes,
-                          "имя модели в ответе": d.get("model"),
-                          "промт": ask.prompt, "вид обещан": ask.kind})
+                    meta={"delivery_attempts": attempt + 1,
+                          "image_bytes": nbytes,
+                          "model_name_in_answer": d.get("model"),
+                          "prompt": ask.prompt, "kind_promised": ask.kind})
             if attempt + 1 < max(1, self.retries + 1):
                 time.sleep(min(2.0 * (attempt + 1), 10.0))
         return Said(anchor=ask.anchor, error=last or "отказ без объяснения",
                     took_s=time.time() - t0,
-                    meta={"попыток доставки": self.retries + 1,
-                          "байт картинки": nbytes,
-                          "промт": ask.prompt, "вид обещан": ask.kind})
+                    meta={"delivery_attempts": self.retries + 1,
+                          "image_bytes": nbytes,
+                          "prompt": ask.prompt, "kind_promised": ask.kind})
 
 
 def build() -> Transport:

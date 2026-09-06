@@ -66,9 +66,9 @@ class FakeVlm:
                 img = b""
                 if "," in uri:
                     img = base64.b64decode(uri.split(",", 1)[1])
-                srv.seen.append({"промт": prompt, "байт": len(img),
-                                 "модель": req.get("model"),
-                                 "порождение": {k: v for k, v in req.items()
+                srv.seen.append({"prompt": prompt, "bytes": len(img),
+                                 "model": req.get("model"),
+                                 "generation": {k: v for k, v in req.items()
                                                 if k in ("temperature",
                                                          "max_tokens")}})
                 a = srv._answer(prompt, img)

@@ -464,9 +464,9 @@ class _DoclingPipeline:
             # вторым прогоном с `DOCLING_PIPELINE=off`. Теперь ключ — позиция
             # обёртки в этом же списке (её видно рядом), а ребёнок несёт свой
             # ярлык и свою рамку, и номер его назван полем, а не догадкой.
-            ch = [{"номер до конвейера": int(k.id),
-                   "ярлык": self.back.get(k.label.value, k.label.value),
-                   "рамка": [k.bbox.l, k.bbox.t, k.bbox.r, k.bbox.b]}
+            ch = [{"id_before_pipeline": int(k.id),
+                   "label": self.back.get(k.label.value, k.label.value),
+                   "box": [k.bbox.l, k.bbox.t, k.bbox.r, k.bbox.b]}
                   for k in c.children]
             if ch:
                 kids[i] = ch
@@ -488,12 +488,12 @@ class _DoclingPipeline:
                 # caption 10, section_header 9, formula 1, и единственный
                 # артефакт (formula) уехал в обёртку-КАРТИНКУ, которую второй
                 # уровень вырежет целиком.
-                if policy.role(lab) == "текст":
+                if policy.role(lab) == "text":
                     арт = [k for k in ch
-                           if policy.role(k["ярлык"]) == "артефакт"]
+                           if policy.role(k["label"]) == "artifact"]
                     arte_in_text += len(арт)
                     arte_lost += sum(1 for k in арт
-                                     if k["номер до конвейера"] not in top)
+                                     if k["id_before_pipeline"] not in top)
             out.append(Block(
                 block_id=i,
                 box=(c.bbox.l, c.bbox.t, c.bbox.r, c.bbox.b),
@@ -509,10 +509,10 @@ class _DoclingPipeline:
         self.arte_in_text += arte_in_text
         self.arte_lost += arte_lost
         meta = {
-            "режим": self.mode,
-            "рамок до": len(blocks),
-            "рамок после": len(out),
-            "ушло в дети": sum(len(v) for v in kids.values()),
+            "mode": self.mode,
+            "boxes_before": len(blocks),
+            "boxes_after": len(out),
+            "moved_to_children": sum(len(v) for v in kids.values()),
             # ТРИ ЧИСЛА ВМЕСТО ОДНОГО, И КАЖДОЕ ОТВЕЧАЕТ НА СВОЙ ВОПРОС.
             # Первое — итог: сколько рамок стоят не там, где стояли бы в нашем
             # порядке. Его читает `detect.py` и складывает по книге, поэтому
@@ -526,49 +526,49 @@ class _DoclingPipeline:
             # числами: итог 354, сортировка 237, правила 372.
             # Прочерк в третьем при `post` — не ноль: правила там не звались
             # ни разу.
-            "переставлено рамок": displaced,
-            "переставлено сортировкой постобработчика": resorted,
-            "переставлено правилами порядка": moved,
+            "boxes_reordered": displaced,
+            "reordered_by_postprocessor_sort": resorted,
+            "reordered_by_order_rules": moved,
             # Ключ — позиция обёртки В ЭТОМ списке; у каждого ребёнка свой
             # доконвейерный номер назван полем внутри. Обе нумерации названы,
             # смешать их больше нечем.
-            "дети (ключ — номер рамки в этом списке)": kids,
+            "children_by_box_index": kids,
             # Не «сколько схлопнулось», а сколько при этом ПОТЕРЯНО. Первое
             # число — артефакты, уехавшие в дети ТЕКСТОВОЙ обёртки; второе —
             # те из них, кого в верхнем списке уже нет вовсе, то есть прямая
             # потеря структуры: обёртка уедет текстом, а вырезать артефакт из
             # неё некому.
-            "артефактных рамок в текстовых обёртках": arte_in_text,
-            "из них пропало из верхнего списка": arte_lost,
+            "artifact_boxes_in_text_wrappers": arte_in_text,
+            "of_those_lost_from_top_level": arte_lost,
         }
         return out, meta
 
     def fingerprint(self):
         return {
-            "режим": self.mode,
-            "что это": ("код ВЕНДОРА, вызванный как есть, без единой нашей "
+            "mode": self.mode,
+            "what_is_it": ("код ВЕНДОРА, вызванный как есть, без единой нашей "
                         "правки внутри; reading_order_rb — rule-based, 740 "
                         "строк правил над рамками, ни одного веса"),
-            "классы": ["docling.utils.layout_postprocessor.LayoutPostprocessor"]
+            "classes": ["docling.utils.layout_postprocessor.LayoutPostprocessor"]
                       + (["docling.models.postprocessing.reading_order_rb."
                           "ReadingOrderPredictor"] if self.mode == "full"
                          else []),
-            "версия docling": self.version,
-            "sha256 вендорских файлов": self.files,
-            "опции постобработки": self.options.model_dump(mode="json"),
-            "перевод ярлыков в словарь docling": self.to_docling,
-            "ярлык наружу": "в написании адаптера",
-            "итог": {"страниц": self.pages, "рамок до": self.before,
-                     "рамок после": self.after, "ушло в дети": self.kids,
-                     "переставлено рамок": self.displaced,
-                     "переставлено сортировкой постобработчика": self.resorted,
+            "docling_version": self.version,
+            "sha256_vendor_files": self.files,
+            "postprocess_options": self.options.model_dump(mode="json"),
+            "label_map_to_docling": self.to_docling,
+            "label_outward": "в написании адаптера",
+            "summary": {"page_count": self.pages, "boxes_before": self.before,
+                     "boxes_after": self.after, "moved_to_children": self.kids,
+                     "boxes_reordered": self.displaced,
+                     "reordered_by_postprocessor_sort": self.resorted,
                      # Прочерк, а не ноль: при `post` правила порядка не
                      # звались ни разу.
-                     "переставлено правилами порядка":
+                     "reordered_by_order_rules":
                          self.reordered if self.mode == "full" else None,
-                     "артефактных рамок в текстовых обёртках":
+                     "artifact_boxes_in_text_wrappers":
                          self.arte_in_text,
-                     "из них пропало из верхнего списка": self.arte_lost},
+                     "of_those_lost_from_top_level": self.arte_lost},
         }
 
 
@@ -693,7 +693,7 @@ class DoclingHeron(Recognizer):
             # двадцать пикселей растра. Два разных правила под одним именем, и
             # заметить это можно было только чтением обоих мест сразу. Теперь
             # правило одно (`order.py`) и называется тем, чем является.
-            return blocks, {"порядок чтения": order.WORDS[order.rule()]}
+            return blocks, {"reading_order": order.WORDS[order.rule()]}
         blocks, m = self._pipe.apply(blocks, w, h, index)
         pp = self._pipe
         if pp.pages == 1 or pp.pages % 10 == 0:
@@ -705,8 +705,8 @@ class DoclingHeron(Recognizer):
                   f"{pp.resorted}, правила переставили "
                   + (str(pp.reordered) if pp.mode == "full"
                      else "— (не звались)") + ")")
-        return blocks, {"порядок чтения": _DoclingPipeline.ORDER_RULE[pp.mode],
-                        "конвейер docling": m}
+        return blocks, {"reading_order": _DoclingPipeline.ORDER_RULE[pp.mode],
+                        "docling_pipeline": m}
 
     def thresholds(self) -> dict[str, float]:
         """Порог по каждому классу. Родного `draw_threshold` у этой сборки нет,
@@ -772,10 +772,10 @@ class DoclingHeron(Recognizer):
         # включён» пришлось бы читать из json, а величина, которую не видно в
         # журнале, не сверяется с ожидаемой — на чём проект уже терял вечера.
         if self._pipe is not None and self._pipe.pages:
-            it = self._pipe.fingerprint()["итог"]
-            доля = (100.0 * it["рамок после"] / it["рамок до"]
-                    if it["рамок до"] else 0.0)
-            правила = (str(it["переставлено правилами порядка"])
+            it = self._pipe.fingerprint()["summary"]
+            доля = (100.0 * it["boxes_after"] / it["boxes_before"]
+                    if it["boxes_before"] else 0.0)
+            правила = (str(it["reordered_by_order_rules"])
                        if self._pipe.mode == "full" else "— (не звались)")
             # `post` порядок МЕНЯЕТ: сортировка постобработчика идёт по точным
             # (верх, лево), а не по нашему ключу round(y/20).
@@ -784,60 +784,60 @@ class DoclingHeron(Recognizer):
                        "пересортирован постобработчиком docling по "
                        "(верх, лево), ранга модели нет")
             print(f"конвейер docling {self._pipe.mode}: страниц "
-                  f"{it['страниц']}, рамок {it['рамок до']} -> "
-                  f"{it['рамок после']} ({доля:.1f}%), ушло в дети "
-                  f"{it['ушло в дети']}, из них артефактов в текстовых "
-                  f"обёртках {it['артефактных рамок в текстовых обёртках']} "
+                  f"{it['page_count']}, рамок {it['boxes_before']} -> "
+                  f"{it['boxes_after']} ({доля:.1f}%), ушло в дети "
+                  f"{it['moved_to_children']}, из них артефактов в текстовых "
+                  f"обёртках {it['artifact_boxes_in_text_wrappers']} "
                   f"(пропало из верхнего списка "
-                  f"{it['из них пропало из верхнего списка']}); "
+                  f"{it['of_those_lost_from_top_level']}); "
                   f"не на своём месте против нашего порядка "
-                  f"{it['переставлено рамок']} (сортировка постобработчика "
+                  f"{it['boxes_reordered']} (сортировка постобработчика "
                   f"сдвинула "
-                  f"{it['переставлено сортировкой постобработчика']}, правила "
+                  f"{it['reordered_by_postprocessor_sort']}, правила "
                   f"переставили {правила}); порядок чтения {порядок}")
         return {
-            "имя": self.name,
-            "модель": getattr(self, "полное_имя",
+            "name": self.name,
+            "model": getattr(self, "полное_имя",
                               "docling-layout-heron (RT-DETRv2 R50)"),
-            "архитектура": getattr(self, "архитектура", "RT-DETRv2 R50"),
-            "каталог весов": self.dir,
-            "sha256 весов": _sha256(self.onnx),
+            "architecture": getattr(self, "architecture", "RT-DETRv2 R50"),
+            "weights_dir": self.dir,
+            "sha256_weights": _sha256(self.onnx),
             "onnxruntime": self.ort_version,
-            "исполнители": self.providers,
-            "вход": {"высота": self.target_h, "ширина": self.target_w,
-                     "фильтр PIL": self.interp_pil,
-                     "фильтр cv2": self.interp, "подложка": self.do_pad,
-                     "вход uint8": self.uint8_input,
-                     "делить на 255": self.do_rescale,
-                     "нормализация": self.do_normalize},
+            "providers": self.providers,
+            "input": {"height": self.target_h, "width": self.target_w,
+                     "pil_filter": self.interp_pil,
+                     "cv2_filter": self.interp, "padding": self.do_pad,
+                     "input_uint8": self.uint8_input,
+                     "divide_by_255": self.do_rescale,
+                     "normalization": self.do_normalize},
             # Родного порога у сборки нет — это ЗНАЧЕНИЕ, а не пропуск.
-            "родной порог": None,
-            "пороги по классам": self.thresholds(),
+            "native_threshold": None,
+            "thresholds_by_class": self.thresholds(),
             # Не пустой список: сторож `threshold_drift` говорит, что родного
             # порога у сборки НЕТ и действует наш. Пустое поле рядом с ним
             # читалось как «расхождения нет», то есть слепок противоречил
             # собственному сторожу.
-            "расхождение порога": self.threshold_drift(),
-            "словарь ярлыков": self.labels,
-            "свод ярлыков": self.label_map(),
-            "промты": {},
+            "threshold_drift": self.threshold_drift(),
+            "label_vocabulary": self.labels,
+            "label_map": self.label_map(),
+            "prompts": {},
             # Порядка чтения модель не даёт вовсе. Объявлено значением, чтобы
             # «порядок 100%» по ней нельзя было принять за заслугу модели.
-            "порядок чтения": None,
+            "reading_order": None,
             # Конвейер вендора назван и при `off` — ЗНАЧЕНИЕМ, а не пропуском.
             # Пустое место читалось бы как «не смотрели», а это «смотрели и
             # выключено»: без этой записи два прогона с разницей в 5826 рамок
             # различались бы в слепке одной строкой в реестре ручек.
-            "конвейер docling": (self._pipe.fingerprint() if self._pipe else {
-                "режим": "off",
-                "что это": ("вендорская постобработка и правила порядка "
+            "docling_pipeline": (self._pipe.fingerprint() if self._pipe else {
+                "mode": "off",
+                "what_is_it": ("вендорская постобработка и правила порядка "
                             "чтения docling; выключены — рамки модели идут "
                             "как есть, порядок наш"),
-                "версия docling": None,
-                "sha256 вендорских файлов": {},
-                "опции постобработки": None,
-                "перевод ярлыков в словарь docling": {},
-                "итог": None}),
+                "docling_version": None,
+                "sha256_vendor_files": {},
+                "postprocess_options": None,
+                "label_map_to_docling": {},
+                "summary": None}),
         }
 
     def read(self, image_path: str, index: int, dpi: float) -> Page:
@@ -892,22 +892,22 @@ class DoclingHeron(Recognizer):
         blocks, pipe_meta = self._run_pipeline(blocks, w, h, index)
         return Page(
             index=index, width=w, height=h, dpi=dpi, blocks=blocks,
-            raw={"строк на выходе": int(len(scores)),
-                 "все строки": [[float(c), float(s), *[float(v) for v in b]]
+            raw={"output_rows": int(len(scores)),
+                 "all_rows": [[float(c), float(s), *[float(v) for v in b]]
                                 for c, b, s in zip(labels, boxes, scores)]},
-            meta={"распознаватель": self.name, "растр": image_path,
+            meta={"detector": self.name, "raster": image_path,
                   # Это число — МОДЕЛИ: сколько рамок она отдала выше порога.
                   # Сколько их осталось после вендора, говорит «конвейер
                   # docling» -> «рамок после», и путать их нельзя.
-                  "рамок принято": len(kept),
-                  "связок рангов": 0,
+                  "boxes_accepted": len(kept),
+                  "rank_ties": 0,
                   # МЕСТО В СЛОВАРЕ НЕ КОСМЕТИКА: `порядок чтения` стоит там
                   # же, где стоял до конвейера, и при `off` страница выходит
                   # ПОБАЙТОВО той же, что и раньше. Иначе сверка «ручка
                   # выключена — ничего не изменилось» спотыкалась бы о
                   # порядок ключей json, а не о рамки.
                   **pipe_meta,
-                  "лучший отвергнутый по классам": rejected})
+                  "best_rejected_by_class": rejected})
 
 
 DEFAULT_LABELS = (
@@ -1031,14 +1031,14 @@ class DoclingEgret(DoclingHeron):
             # порога до 0.3 по прежнему raw давала 11 рамок из 14, до 0.2 —
             # 17 из 21; три и четыре рамки были не «ниже порога», а невидимы
             # по построению улики.
-            raw={"строк на выходе": int(nq),
-                 "классов": int(nc),
-                 "логиты": [[float(v) for v in r] for r in logits],
-                 "рамки": [[float(v) for v in r] for r in boxes],
-                 "как читать логиты": "сигмоида поканально (focal loss)",
-                 "координаты сырых строк": "cxcywh, нормированные"},
-            meta={"распознаватель": self.name, "растр": image_path,
-                  "рамок принято": len(kept), "связок рангов": 0,
+            raw={"output_rows": int(nq),
+                 "class_count": int(nc),
+                 "logits": [[float(v) for v in r] for r in logits],
+                 "boxes": [[float(v) for v in r] for r in boxes],
+                 "how_to_read_logits": "сигмоида поканально (focal loss)",
+                 "raw_row_coords": "cxcywh, нормированные"},
+            meta={"detector": self.name, "raster": image_path,
+                  "boxes_accepted": len(kept), "rank_ties": 0,
                   # См. heron: место ключа держит побайтовое совпадение при
                   # выключенной ручке.
                   **pipe_meta,
@@ -1047,16 +1047,16 @@ class DoclingEgret(DoclingHeron):
                   # argmax добавочных ярлыков не бывает по построению, так что
                   # ноль здесь означает «на этой странице правила совпали», а
                   # не «правило не применилось».
-                  "правило отбора": f"topk {nq} по развёрнутым Q*C, "
+                  "selection_rule": f"topk {nq} по развёрнутым Q*C, "
                                     f"ярлык = i % {nc} (как в D-FINE/RT-DETR)",
-                  "добавочных ярлыков на общих рамках":
+                  "extra_labels_on_shared_boxes":
                       len(geom) - len(set(geom)),
-                  "строк выше порога вне topk": cut,
+                  "rows_above_threshold_outside_topk": cut,
                   # ОСТОРОЖНО: это поле сменило смысл вместе с правилом. Было
                   # «лучшее отвергнутое среди победителей argmax», стало
                   # «лучшее отвергнутое среди строк topk». Отсутствие класса
                   # в словаре читается «не попал в topk», а НЕ «такого класса
                   # у модели нет». Охват от смены вырос: было 4-8 классов на
                   # страницу, стало 4-16 (24 страницы шести стендов, 0.5).
-                  "лучший отвергнутый по классам": rejected})
+                  "best_rejected_by_class": rejected})
 

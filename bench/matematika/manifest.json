@@ -1,14 +1,14 @@
 {
- "книга": "matematika",
- "о книге": "курс математики: выключные формулы с номерами, матрицы и определители, системы в скобке, теоремы; ставит `display_formula` против `table`",
- "страниц": 12,
- "зерно": 1,
- "старение": "old",
- "генератор": {
-  "файл": "synth.py",
+ "book": "matematika",
+ "about": "курс математики: выключные формулы с номерами, матрицы и определители, системы в скобке, теоремы; ставит `display_formula` против `table`",
+ "page_count": 12,
+ "synth_seed": 1,
+ "aging": "old",
+ "generator": {
+  "file": "synth.py",
   "sha256": "4df641ffcd9ad4e1f074769e1bbac87864ba7d59f8a12ac0776ab367e89ef231",
-  "коммит": "f92b55a9b89a1866488fe35e2c5ca9a21459811b (грязное дерево)",
-  "случаи": [
+  "commit": "f92b55a9b89a1866488fe35e2c5ca9a21459811b (грязное дерево)",
+  "cases": [
    "mat_plain_prose",
    "mat_display_numbered",
    "mat_chain",
@@ -22,9 +22,9 @@
    "mat_tall_fraction",
    "mat_greek"
   ],
-  "книга": "matematika",
-  "sha256 книги": "a9c95c56d7a5625e81627e55588bbfbb79dc714df0f778937cc75a3ad12f9090",
-  "ярлыки-догадки": [
+  "book": "matematika",
+  "sha256_book_module": "a9c95c56d7a5625e81627e55588bbfbb79dc714df0f778937cc75a3ad12f9090",
+  "guessed_labels": [
    "content",
    "display_formula",
    "doc_title",
@@ -37,254 +37,254 @@
   "KEEP": 2,
   "GROW": 6
  },
- "ручки": {
+ "knobs": {
   "PAGE_DPI": {
-   "значение": "144",
-   "умолчание": "144",
-   "задано снаружи": false,
-   "что": "разрешение, с которым страница РЕНДЕРИТСЯ в растр детекции. Детектор жмёт растр до 800x800 сам (keep_ratio: false). РАЗНИЦА ЕСТЬ, но не в сводных числах: на bench/real/tables20.pdf (20 страниц) при dpi 100/140/144/148/200/300/450/580/600/620 рамок 384/381/379/378/380/379/378/378/379/379 (полоса 378..384, 379 выпадает четырежды), чернил под рамками 99.3% всюду и 99.4% при 100 — оба этих числа к dpi слепы. Прогон повторим: два повтора при 300 dpi дали блоки, совпадающие побайтово, то есть полоса 378..384 — это dpi, а не шум прогона. Различает ЯРЛЫК: paragraph_title 42/41/39/40/39/38/36/34/32/34 — спад монотонный и вчетверо шире шума соседних dpi (39..41 при 140/144/148); text при этом стоит (236..241), то есть рамки ТЕРЯЮТСЯ, а не перетекают. Причина не в разрешении, а в ФИЛЬТРЕ: адаптер жмёт растр cv2.INTER_CUBIC (interp: 2 из весов), при 600 dpi это сжатие в 7.6 раза по вертикали, то есть подвыборка — полутонов на входе сети остаётся 4.3% против 16.6% у INTER_AREA. Подмена интерполяции на INTER_AREA при 600 dpi возвращает paragraph_title 32 -> 40, не меняя итога (379), и отнимает таблицу (5 -> 4); при 144 dpi та же подмена даёт 382 рамки и таблиц 3 вместо 5. Таблиц не прибавляет ни одно dpi и ни один фильтр. На координаты рамок влияет прямо",
-   "долг": false
+   "value": "144",
+   "default": "144",
+   "set_externally": false,
+   "what": "разрешение, с которым страница РЕНДЕРИТСЯ в растр детекции. Детектор жмёт растр до 800x800 сам (keep_ratio: false). РАЗНИЦА ЕСТЬ, но не в сводных числах: на bench/real/tables20.pdf (20 страниц) при dpi 100/140/144/148/200/300/450/580/600/620 рамок 384/381/379/378/380/379/378/378/379/379 (полоса 378..384, 379 выпадает четырежды), чернил под рамками 99.3% всюду и 99.4% при 100 — оба этих числа к dpi слепы. Прогон повторим: два повтора при 300 dpi дали блоки, совпадающие побайтово, то есть полоса 378..384 — это dpi, а не шум прогона. Различает ЯРЛЫК: paragraph_title 42/41/39/40/39/38/36/34/32/34 — спад монотонный и вчетверо шире шума соседних dpi (39..41 при 140/144/148); text при этом стоит (236..241), то есть рамки ТЕРЯЮТСЯ, а не перетекают. Причина не в разрешении, а в ФИЛЬТРЕ: адаптер жмёт растр cv2.INTER_CUBIC (interp: 2 из весов), при 600 dpi это сжатие в 7.6 раза по вертикали, то есть подвыборка — полутонов на входе сети остаётся 4.3% против 16.6% у INTER_AREA. Подмена интерполяции на INTER_AREA при 600 dpi возвращает paragraph_title 32 -> 40, не меняя итога (379), и отнимает таблицу (5 -> 4); при 144 dpi та же подмена даёт 382 рамки и таблиц 3 вместо 5. Таблиц не прибавляет ни одно dpi и ни один фильтр. На координаты рамок влияет прямо",
+   "debt": false
   },
   "MODEL_NAME": {
-   "значение": "PaddleOCR-VL-1.6-0.9B",
-   "умолчание": "PaddleOCR-VL-1.6-0.9B",
-   "задано снаружи": false,
-   "что": "имя модели для vLLM и клиента",
-   "долг": false
+   "value": "PaddleOCR-VL-1.6-0.9B",
+   "default": "PaddleOCR-VL-1.6-0.9B",
+   "set_externally": false,
+   "what": "имя модели для vLLM и клиента",
+   "debt": false
   },
   "VL_MODEL_DIR": {
-   "значение": "",
-   "умолчание": "",
-   "задано снаружи": false,
-   "что": "каталог весов VLM; ставит run.sh, читает vLLM",
-   "долг": false
+   "value": "",
+   "default": "",
+   "set_externally": false,
+   "what": "каталог весов VLM; ставит run.sh, читает vLLM",
+   "debt": false
   },
   "LAYOUT_ADAPTER": {
-   "значение": "doclayout",
-   "умолчание": "doclayout",
-   "задано снаружи": false,
-   "что": "какой адаптер детекции звать; список — detect.py:ADAPTERS, их четыре: doclayout (PaddleOCR PP-DocLayout*, 25 ярлыков у V2/V3, 20 у plus-L), docling (IBM heron RT-DETRv2, 17), docling-egret (IBM egret D-FINE, 17), yolox (DocLayNet, 11). Разные словари ярлыков и разные политики — сравнивать их можно только слепо к ярлыку",
-   "долг": false
+   "value": "doclayout",
+   "default": "doclayout",
+   "set_externally": false,
+   "what": "какой адаптер детекции звать; список — detect.py:ADAPTERS, их четыре: doclayout (PaddleOCR PP-DocLayout*, 25 ярлыков у V2/V3, 20 у plus-L), docling (IBM heron RT-DETRv2, 17), docling-egret (IBM egret D-FINE, 17), yolox (DocLayNet, 11). Разные словари ярлыков и разные политики — сравнивать их можно только слепо к ярлыку",
+   "debt": false
   },
   "YOLOX_WEIGHTS": {
-   "значение": "",
-   "умолчание": "",
-   "задано снаружи": false,
-   "что": "какие веса YOLOX брать: yolox_l0.05.onnx (по умолчанию) или yolox_tiny.onnx",
-   "долг": false
+   "value": "",
+   "default": "",
+   "set_externally": false,
+   "what": "какие веса YOLOX брать: yolox_l0.05.onnx (по умолчанию) или yolox_tiny.onnx",
+   "debt": false
   },
   "LAYOUT_MODEL_NAME": {
-   "значение": "PP-DocLayoutV2",
-   "умолчание": "PP-DocLayoutV2",
-   "задано снаружи": false,
-   "что": "имя модели детекции макета",
-   "долг": false
+   "value": "PP-DocLayoutV2",
+   "default": "PP-DocLayoutV2",
+   "set_externally": false,
+   "what": "имя модели детекции макета",
+   "debt": false
   },
   "LAYOUT_MODEL_DIR": {
-   "значение": "",
-   "умолчание": "",
-   "задано снаружи": false,
-   "что": "каталог весов детекции макета",
-   "долг": false
+   "value": "",
+   "default": "",
+   "set_externally": false,
+   "what": "каталог весов детекции макета",
+   "debt": false
   },
   "LAYOUT_SCORE_THRESHOLD": {
-   "значение": "0.5",
-   "умолчание": "0.5",
-   "задано снаружи": false,
-   "что": "порог детекции. У doclayout — общий для всех классов КРОМЕ table (24 при 25-классных V2/V3, 19 при 20-классном plus-L), умолчание родное у весов. У docling, docling-egret и yolox — один на ВСЕ классы, включая table, и родного порога у весов нет",
-   "долг": false
+   "value": "0.5",
+   "default": "0.5",
+   "set_externally": false,
+   "what": "порог детекции. У doclayout — общий для всех классов КРОМЕ table (24 при 25-классных V2/V3, 19 при 20-классном plus-L), умолчание родное у весов. У docling, docling-egret и yolox — один на ВСЕ классы, включая table, и родного порога у весов нет",
+   "debt": false
   },
   "LAYOUT_TABLE_THRESHOLD": {
-   "значение": "0.5",
-   "умолчание": "0.5",
-   "задано снаружи": false,
-   "что": "родной порог детекции таблиц; читает ТОЛЬКО doclayout — у трёх остальных адаптеров таблица идёт по LAYOUT_SCORE_THRESHOLD",
-   "долг": false
+   "value": "0.5",
+   "default": "0.5",
+   "set_externally": false,
+   "what": "родной порог детекции таблиц; читает ТОЛЬКО doclayout — у трёх остальных адаптеров таблица идёт по LAYOUT_SCORE_THRESHOLD",
+   "debt": false
   },
   "DOCLING_PIPELINE": {
-   "значение": "off",
-   "умолчание": "off",
-   "задано снаружи": false,
-   "что": "вендорский конвейер docling поверх рамок: off | post (его постобработка) | full (она же плюс ПРАВИЛА порядка чтения, не модель). Читают адаптеры docling и docling-egret; остальным несъедобна. Числа при ручке сняты на HERON — у egret цена своя, мерена отдельно и другая",
-   "долг": false
+   "value": "off",
+   "default": "off",
+   "set_externally": false,
+   "what": "вендорский конвейер docling поверх рамок: off | post (его постобработка) | full (она же плюс ПРАВИЛА порядка чтения, не модель). Читают адаптеры docling и docling-egret; остальным несъедобна. Числа при ручке сняты на HERON — у egret цена своя, мерена отдельно и другая",
+   "debt": false
   },
   "CROP_DPI": {
-   "значение": "",
-   "умолчание": "",
-   "задано снаружи": false,
-   "что": "резкость вырезки. Пусто = СОБСТВЕННАЯ резкость скана (сколько в файле есть, и ни точкой больше), а если её не определить — как у детекции. Здесь стояло «пусто = как PAGE_DPI», и это было неверно по обоим шагам; текст ручки уезжает в run.json, то есть слепок описывал её ложно. Читают doc/crop.py и doc/feed.py; `books read` НЕ читает — там резкость решает окно модели",
-   "долг": false
+   "value": "",
+   "default": "",
+   "set_externally": false,
+   "what": "резкость вырезки. Пусто = СОБСТВЕННАЯ резкость скана (сколько в файле есть, и ни точкой больше), а если её не определить — как у детекции. Здесь стояло «пусто = как PAGE_DPI», и это было неверно по обоим шагам; текст ручки уезжает в run.json, то есть слепок описывал её ложно. Читают doc/crop.py и doc/feed.py; `books read` НЕ читает — там резкость решает окно модели",
+   "debt": false
   },
   "CROP_MARGIN": {
-   "значение": "0",
-   "умолчание": "0",
-   "задано снаружи": false,
-   "что": "поле вокруг рамки при вырезке, в долях рамки",
-   "долг": false
+   "value": "0",
+   "default": "0",
+   "set_externally": false,
+   "what": "поле вокруг рамки при вырезке, в долях рамки",
+   "debt": false
   },
   "VLM_INPUT": {
-   "значение": "crop",
-   "умолчание": "crop",
-   "задано снаружи": false,
-   "что": "что подавать VLM: crop | masked_page",
-   "долг": false
+   "value": "crop",
+   "default": "crop",
+   "set_externally": false,
+   "what": "что подавать VLM: crop | masked_page",
+   "debt": false
   },
   "MASK_FILL": {
-   "значение": "white",
-   "умолчание": "white",
-   "задано снаружи": false,
-   "что": "заливка дыр при masked_page: white|gray|black",
-   "долг": false
+   "value": "white",
+   "default": "white",
+   "set_externally": false,
+   "what": "заливка дыр при masked_page: white|gray|black",
+   "debt": false
   },
   "MIN_LINK_MBPS": {
-   "значение": "2.0",
-   "умолчание": "2.0",
-   "задано снаружи": false,
-   "что": "порог отбраковки машины по каналу ДО НАС, Мбит/с. Отделяет работающую машину от сломанной, а не быструю от медленной: между ними два порядка (7 против 0.06)",
-   "долг": false
+   "value": "2.0",
+   "default": "2.0",
+   "set_externally": false,
+   "what": "порог отбраковки машины по каналу ДО НАС, Мбит/с. Отделяет работающую машину от сломанной, а не быструю от медленной: между ними два порядка (7 против 0.06)",
+   "debt": false
   },
   "BOOKSMITH_COMMIT": {
-   "значение": "",
-   "умолчание": "",
-   "задано снаружи": false,
-   "что": "коммит кода для машины без git; пусто = спросить git на месте",
-   "долг": false
+   "value": "",
+   "default": "",
+   "set_externally": false,
+   "what": "коммит кода для машины без git; пусто = спросить git на месте",
+   "debt": false
   },
   "BOOKSMITH_LEDGER": {
-   "значение": "",
-   "умолчание": "",
-   "задано снаружи": false,
-   "что": "куда писать журнал прогонов; пусто = runs/ledger.jsonl. Рядом с журналом живёт и чёрный список машин",
-   "долг": false
+   "value": "",
+   "default": "",
+   "set_externally": false,
+   "what": "куда писать журнал прогонов; пусто = runs/ledger.jsonl. Рядом с журналом живёт и чёрный список машин",
+   "debt": false
   },
   "FEED_DPI": {
-   "значение": "",
-   "умолчание": "",
-   "задано снаружи": false,
-   "что": "разрешение страницы, уезжающей в VLM; пусто = как PAGE_DPI",
-   "долг": false
+   "value": "",
+   "default": "",
+   "set_externally": false,
+   "what": "разрешение страницы, уезжающей в VLM; пусто = как PAGE_DPI",
+   "debt": false
   },
   "SYNTH_SEED": {
-   "значение": "1",
-   "умолчание": "1",
-   "задано снаружи": false,
-   "что": "зерно синтетического стенда",
-   "долг": false
+   "value": "1",
+   "default": "1",
+   "set_externally": false,
+   "what": "зерно синтетического стенда",
+   "debt": false
   },
   "SYNTH_AGING": {
-   "значение": "old",
-   "умолчание": "old",
-   "задано снаружи": false,
-   "что": "профиль старения стенда: clean|scan|old|ветхий",
-   "долг": false
+   "value": "old",
+   "default": "old",
+   "set_externally": false,
+   "what": "профиль старения стенда: clean|scan|old|ветхий",
+   "debt": false
   },
   "VLM_READER": {
-   "значение": "paddleocr-vl",
-   "умолчание": "paddleocr-vl",
-   "задано снаружи": false,
-   "что": "какой адаптер ЧТЕНИЯ звать; список — read/run.py:READERS. Он решает, каким промтом спрашивать про какой ярлык и каким видом придёт ответ",
-   "долг": false
+   "value": "paddleocr-vl",
+   "default": "paddleocr-vl",
+   "set_externally": false,
+   "what": "какой адаптер ЧТЕНИЯ звать; список — read/run.py:READERS. Он решает, каким промтом спрашивать про какой ярлык и каким видом придёт ответ",
+   "debt": false
   },
   "VLM_TRANSPORT": {
-   "значение": "http",
-   "умолчание": "http",
-   "задано снаружи": false,
-   "что": "как доставлять вопрос; список — read/http.py:build. Аренда НЕ третий транспорт: на арендованной карте тот же http смотрит в 127.0.0.1, куда run.sh поднял vLLM",
-   "долг": false
+   "value": "http",
+   "default": "http",
+   "set_externally": false,
+   "what": "как доставлять вопрос; список — read/http.py:build. Аренда НЕ третий транспорт: на арендованной карте тот же http смотрит в 127.0.0.1, куда run.sh поднял vLLM",
+   "debt": false
   },
   "VLM_ENDPOINT": {
-   "значение": "",
-   "умолчание": "",
-   "задано снаружи": false,
-   "что": "адрес OpenAI-совместимой службы вместе с /v1; умолчания нет",
-   "долг": false
+   "value": "",
+   "default": "",
+   "set_externally": false,
+   "what": "адрес OpenAI-совместимой службы вместе с /v1; умолчания нет",
+   "debt": false
   },
   "VLM_MAX_TOKENS": {
-   "значение": "4096",
-   "умолчание": "4096",
-   "задано снаружи": false,
-   "что": "потолок ответа в токенах",
-   "долг": false
+   "value": "4096",
+   "default": "4096",
+   "set_externally": false,
+   "what": "потолок ответа в токенах",
+   "debt": false
   },
   "VLM_TIMEOUT_S": {
-   "значение": "120",
-   "умолчание": "120",
-   "задано снаружи": false,
-   "что": "сколько ждать один ответ, секунд",
-   "долг": false
+   "value": "120",
+   "default": "120",
+   "set_externally": false,
+   "what": "сколько ждать один ответ, секунд",
+   "debt": false
   },
   "VLM_RETRIES": {
-   "значение": "2",
-   "умолчание": "2",
-   "задано снаружи": false,
-   "что": "сколько раз повторить ОТКАЗ ДОСТАВКИ (не ответ)",
-   "долг": false
+   "value": "2",
+   "default": "2",
+   "set_externally": false,
+   "what": "сколько раз повторить ОТКАЗ ДОСТАВКИ (не ответ)",
+   "debt": false
   },
   "VLM_CONCURRENCY": {
-   "значение": "4",
-   "умолчание": "4",
-   "задано снаружи": false,
-   "что": "сколько запросов держать в полёте разом",
-   "долг": false
+   "value": "4",
+   "default": "4",
+   "set_externally": false,
+   "what": "сколько запросов держать в полёте разом",
+   "debt": false
   },
   "VLM_TEMPERATURE": {
-   "значение": "0",
-   "умолчание": "0",
-   "задано снаружи": false,
-   "что": "температура VLM; >0 делает разбор невоспроизводимым нарочно",
-   "долг": false
+   "value": "0",
+   "default": "0",
+   "set_externally": false,
+   "what": "температура VLM; >0 делает разбор невоспроизводимым нарочно",
+   "debt": false
   },
   "VLM_TOP_P": {
-   "значение": "1.0",
-   "умолчание": "1.0",
-   "задано снаружи": false,
-   "что": "отсечение по вероятности; 1.0 = не отсекать",
-   "долг": false
+   "value": "1.0",
+   "default": "1.0",
+   "set_externally": false,
+   "what": "отсечение по вероятности; 1.0 = не отсекать",
+   "debt": false
   },
   "VLM_SEED": {
-   "значение": "0",
-   "умолчание": "0",
-   "задано снаружи": false,
-   "что": "зерно порождения; решает при temperature > 0",
-   "долг": false
+   "value": "0",
+   "default": "0",
+   "set_externally": false,
+   "what": "зерно порождения; решает при temperature > 0",
+   "debt": false
   },
   "PASSES": {
-   "значение": "1",
-   "умолчание": "1",
-   "задано снаружи": false,
-   "что": "сколько раз читать; свод — задача раннера, не модели",
-   "долг": true
+   "value": "1",
+   "default": "1",
+   "set_externally": false,
+   "what": "сколько раз читать; свод — задача раннера, не модели",
+   "debt": true
   },
   "LOGPROBS": {
-   "значение": "1",
-   "умолчание": "1",
-   "задано снаружи": false,
-   "что": "записать вероятности токенов рядом со страницей",
-   "долг": true
+   "value": "1",
+   "default": "1",
+   "set_externally": false,
+   "what": "записать вероятности токенов рядом со страницей",
+   "debt": true
   },
   "PORT": {
-   "значение": "8118",
-   "умолчание": "8118",
-   "задано снаружи": false,
-   "что": "порт сервиса vLLM на машине",
-   "долг": false
+   "value": "8118",
+   "default": "8118",
+   "set_externally": false,
+   "what": "порт сервиса vLLM на машине",
+   "debt": false
   },
   "RESUME": {
-   "значение": "1",
-   "умолчание": "1",
-   "задано снаружи": false,
-   "что": "продолжать ли прерванный прогон",
-   "долг": false
+   "value": "1",
+   "default": "1",
+   "set_externally": false,
+   "what": "продолжать ли прерванный прогон",
+   "debt": false
   },
   "VLLM_USE_FLASHINFER_SAMPLER": {
-   "значение": "0",
-   "умолчание": "0",
-   "задано снаружи": false,
-   "что": "сэмплер flashinfer в vLLM",
-   "долг": false
+   "value": "0",
+   "default": "0",
+   "set_externally": false,
+   "what": "сэмплер flashinfer в vLLM",
+   "debt": false
   }
  },
- "параметры старения": {
+ "aging_params": {
   "blur": 0.8,
   "noise": 5.5,
   "speck": 0.0012,
@@ -296,13 +296,13 @@
   "skew": 1.2,
   "jpeg": 68
  },
- "шрифты": {
+ "fonts": {
   "DejaVuSerif.ttf": "8f2c103bfa3fd5de71f1b92b18f21906b5a26871fb7e19a9a4c9af539c3cc7ab",
   "DejaVuSansMono.ttf": "c805f9436dbc268644c1d9584f01a601a653e028e08fd74b9b949f6cf8304d88"
  },
  "pdf": "matematika.pdf",
  "sha256 pdf": "6e33e29f0f16dd69bedbbac930a2e74a69369d12c81a8dc400d7bda1c84399c0",
- "блоков по ярлыкам": {
+ "blocks_by_label": {
   "text": 94,
   "display_formula": 26,
   "formula_number": 6,
@@ -310,427 +310,427 @@
   "paragraph_title": 3,
   "reference_content": 1
  },
- "истина знаков": {
-  "знаков": 57893,
-  "слов": 11056,
-  "блоков с текстом": 104,
-  "текстовых блоков без знаков": 0,
-  "таблиц с сеткой": 1,
-  "ячеек": 24,
-  "слов вне истины": 0,
-  "нет в слое": 0,
-  "необъяснённых": 0,
-  "призраков": 7922,
-  "выносок": 0,
-  "слов в текстовом слое": 19300
+ "char_truth": {
+  "chars": 57893,
+  "words": 11056,
+  "blocks_with_text": 104,
+  "text_blocks_without_chars": 0,
+  "tables_with_grid": 1,
+  "cell_count": 24,
+  "words_outside_truth": 0,
+  "missing_from_layer": 0,
+  "unexplained": 0,
+  "ghosts": 7922,
+  "dot_leaders": 0,
+  "words_in_text_layer_total": 19300
  },
- "страницы": [
+ "pages": [
   {
-   "случай": "mat_plain_prose",
-   "страница": 0,
-   "размер": [
+   "case": "mat_plain_prose",
+   "page": 0,
+   "size": [
     936,
     1324
    ],
-   "блоков": 8,
-   "поворот": 0,
-   "разворот": false,
-   "чернил вне истины": {
-    "пикселей": 0,
-    "крупнейшее пятно": null
+   "block_count": 8,
+   "rotation": 0,
+   "spread": false,
+   "ink_outside_truth": {
+    "pixels": 0,
+    "largest_blob": null
    },
-   "истина знаков": {
-    "знаков": 6086,
-    "слов": 1162,
-    "блоков с текстом": 8,
-    "текстовых блоков без знаков": 0,
-    "какие без знаков": [],
-    "таблиц с сеткой": 0,
-    "ячеек": 0
+   "char_truth": {
+    "chars": 6086,
+    "words": 1162,
+    "blocks_with_text": 8,
+    "text_blocks_without_chars": 0,
+    "which_without_chars": [],
+    "tables_with_grid": 0,
+    "cell_count": 0
    },
-   "сверка с текстовым слоем": {
-    "слов в слое": 2518,
-    "нет в слое": 0,
-    "вне истины": 0,
-    "призраков": 1356,
-    "выносок": 0,
-    "необъяснённых": 0,
-    "слова вне истины": [],
-    "примеры расхождений": []
+   "text_layer_check": {
+    "words_in_layer": 2518,
+    "missing_from_layer": 0,
+    "outside_truth": 0,
+    "ghosts": 1356,
+    "dot_leaders": 0,
+    "unexplained": 0,
+    "outside_truth_samples": [],
+    "mismatch_examples": []
    }
   },
   {
-   "случай": "mat_display_numbered",
-   "страница": 1,
-   "размер": [
+   "case": "mat_display_numbered",
+   "page": 1,
+   "size": [
     936,
     1324
    ],
-   "блоков": 20,
-   "поворот": 0,
-   "разворот": false,
-   "чернил вне истины": {
-    "пикселей": 0,
-    "крупнейшее пятно": null
+   "block_count": 20,
+   "rotation": 0,
+   "spread": false,
+   "ink_outside_truth": {
+    "pixels": 0,
+    "largest_blob": null
    },
-   "истина знаков": {
-    "знаков": 3111,
-    "слов": 595,
-    "блоков с текстом": 14,
-    "текстовых блоков без знаков": 0,
-    "какие без знаков": [],
-    "таблиц с сеткой": 0,
-    "ячеек": 0
+   "char_truth": {
+    "chars": 3111,
+    "words": 595,
+    "blocks_with_text": 14,
+    "text_blocks_without_chars": 0,
+    "which_without_chars": [],
+    "tables_with_grid": 0,
+    "cell_count": 0
    },
-   "сверка с текстовым слоем": {
-    "слов в слое": 703,
-    "нет в слое": 0,
-    "вне истины": 0,
-    "призраков": 67,
-    "выносок": 0,
-    "необъяснённых": 0,
-    "слова вне истины": [],
-    "примеры расхождений": []
+   "text_layer_check": {
+    "words_in_layer": 703,
+    "missing_from_layer": 0,
+    "outside_truth": 0,
+    "ghosts": 67,
+    "dot_leaders": 0,
+    "unexplained": 0,
+    "outside_truth_samples": [],
+    "mismatch_examples": []
    }
   },
   {
-   "случай": "mat_chain",
-   "страница": 2,
-   "размер": [
+   "case": "mat_chain",
+   "page": 2,
+   "size": [
     936,
     1324
    ],
-   "блоков": 14,
-   "поворот": 0,
-   "разворот": false,
-   "чернил вне истины": {
-    "пикселей": 0,
-    "крупнейшее пятно": null
+   "block_count": 14,
+   "rotation": 0,
+   "spread": false,
+   "ink_outside_truth": {
+    "pixels": 0,
+    "largest_blob": null
    },
-   "истина знаков": {
-    "знаков": 4215,
-    "слов": 805,
-    "блоков с текстом": 7,
-    "текстовых блоков без знаков": 0,
-    "какие без знаков": [],
-    "таблиц с сеткой": 0,
-    "ячеек": 0
+   "char_truth": {
+    "chars": 4215,
+    "words": 805,
+    "blocks_with_text": 7,
+    "text_blocks_without_chars": 0,
+    "which_without_chars": [],
+    "tables_with_grid": 0,
+    "cell_count": 0
    },
-   "сверка с текстовым слоем": {
-    "слов в слое": 1389,
-    "нет в слое": 0,
-    "вне истины": 0,
-    "призраков": 536,
-    "выносок": 0,
-    "необъяснённых": 0,
-    "слова вне истины": [],
-    "примеры расхождений": []
+   "text_layer_check": {
+    "words_in_layer": 1389,
+    "missing_from_layer": 0,
+    "outside_truth": 0,
+    "ghosts": 536,
+    "dot_leaders": 0,
+    "unexplained": 0,
+    "outside_truth_samples": [],
+    "mismatch_examples": []
    }
   },
   {
-   "случай": "mat_matrix",
-   "страница": 3,
-   "размер": [
+   "case": "mat_matrix",
+   "page": 3,
+   "size": [
     936,
     1324
    ],
-   "блоков": 9,
-   "поворот": 0,
-   "разворот": false,
-   "чернил вне истины": {
-    "пикселей": 0,
-    "крупнейшее пятно": null
+   "block_count": 9,
+   "rotation": 0,
+   "spread": false,
+   "ink_outside_truth": {
+    "pixels": 0,
+    "largest_blob": null
    },
-   "истина знаков": {
-    "знаков": 4150,
-    "слов": 793,
-    "блоков с текстом": 7,
-    "текстовых блоков без знаков": 0,
-    "какие без знаков": [],
-    "таблиц с сеткой": 0,
-    "ячеек": 0
+   "char_truth": {
+    "chars": 4150,
+    "words": 793,
+    "blocks_with_text": 7,
+    "text_blocks_without_chars": 0,
+    "which_without_chars": [],
+    "tables_with_grid": 0,
+    "cell_count": 0
    },
-   "сверка с текстовым слоем": {
-    "слов в слое": 1378,
-    "нет в слое": 0,
-    "вне истины": 0,
-    "призраков": 536,
-    "выносок": 0,
-    "необъяснённых": 0,
-    "слова вне истины": [],
-    "примеры расхождений": []
+   "text_layer_check": {
+    "words_in_layer": 1378,
+    "missing_from_layer": 0,
+    "outside_truth": 0,
+    "ghosts": 536,
+    "dot_leaders": 0,
+    "unexplained": 0,
+    "outside_truth_samples": [],
+    "mismatch_examples": []
    }
   },
   {
-   "случай": "mat_matrix_vs_table",
-   "страница": 4,
-   "размер": [
+   "case": "mat_matrix_vs_table",
+   "page": 4,
+   "size": [
     936,
     1324
    ],
-   "блоков": 10,
-   "поворот": 0,
-   "разворот": false,
-   "чернил вне истины": {
-    "пикселей": 0,
-    "крупнейшее пятно": null
+   "block_count": 10,
+   "rotation": 0,
+   "spread": false,
+   "ink_outside_truth": {
+    "pixels": 0,
+    "largest_blob": null
    },
-   "истина знаков": {
-    "знаков": 4565,
-    "слов": 872,
-    "блоков с текстом": 8,
-    "текстовых блоков без знаков": 0,
-    "какие без знаков": [],
-    "таблиц с сеткой": 1,
-    "ячеек": 24
+   "char_truth": {
+    "chars": 4565,
+    "words": 872,
+    "blocks_with_text": 8,
+    "text_blocks_without_chars": 0,
+    "which_without_chars": [],
+    "tables_with_grid": 1,
+    "cell_count": 24
    },
-   "сверка с текстовым слоем": {
-    "слов в слое": 1496,
-    "нет в слое": 0,
-    "вне истины": 0,
-    "призраков": 536,
-    "выносок": 0,
-    "необъяснённых": 0,
-    "слова вне истины": [],
-    "примеры расхождений": []
+   "text_layer_check": {
+    "words_in_layer": 1496,
+    "missing_from_layer": 0,
+    "outside_truth": 0,
+    "ghosts": 536,
+    "dot_leaders": 0,
+    "unexplained": 0,
+    "outside_truth_samples": [],
+    "mismatch_examples": []
    }
   },
   {
-   "случай": "mat_system",
-   "страница": 5,
-   "размер": [
+   "case": "mat_system",
+   "page": 5,
+   "size": [
     936,
     1324
    ],
-   "блоков": 9,
-   "поворот": 0,
-   "разворот": false,
-   "чернил вне истины": {
-    "пикселей": 0,
-    "крупнейшее пятно": null
+   "block_count": 9,
+   "rotation": 0,
+   "spread": false,
+   "ink_outside_truth": {
+    "pixels": 0,
+    "largest_blob": null
    },
-   "истина знаков": {
-    "знаков": 4846,
-    "слов": 925,
-    "блоков с текстом": 8,
-    "текстовых блоков без знаков": 0,
-    "какие без знаков": [],
-    "таблиц с сеткой": 0,
-    "ячеек": 0
+   "char_truth": {
+    "chars": 4846,
+    "words": 925,
+    "blocks_with_text": 8,
+    "text_blocks_without_chars": 0,
+    "which_without_chars": [],
+    "tables_with_grid": 0,
+    "cell_count": 0
    },
-   "сверка с текстовым слоем": {
-    "слов в слое": 1549,
-    "нет в слое": 0,
-    "вне истины": 0,
-    "призраков": 603,
-    "выносок": 0,
-    "необъяснённых": 0,
-    "слова вне истины": [],
-    "примеры расхождений": []
+   "text_layer_check": {
+    "words_in_layer": 1549,
+    "missing_from_layer": 0,
+    "outside_truth": 0,
+    "ghosts": 603,
+    "dot_leaders": 0,
+    "unexplained": 0,
+    "outside_truth_samples": [],
+    "mismatch_examples": []
    }
   },
   {
-   "случай": "mat_theorem",
-   "страница": 6,
-   "размер": [
+   "case": "mat_theorem",
+   "page": 6,
+   "size": [
     936,
     1324
    ],
-   "блоков": 10,
-   "поворот": 0,
-   "разворот": false,
-   "чернил вне истины": {
-    "пикселей": 0,
-    "крупнейшее пятно": null
+   "block_count": 10,
+   "rotation": 0,
+   "spread": false,
+   "ink_outside_truth": {
+    "pixels": 0,
+    "largest_blob": null
    },
-   "истина знаков": {
-    "знаков": 5571,
-    "слов": 1064,
-    "блоков с текстом": 10,
-    "текстовых блоков без знаков": 0,
-    "какие без знаков": [],
-    "таблиц с сеткой": 0,
-    "ячеек": 0
+   "char_truth": {
+    "chars": 5571,
+    "words": 1064,
+    "blocks_with_text": 10,
+    "text_blocks_without_chars": 0,
+    "which_without_chars": [],
+    "tables_with_grid": 0,
+    "cell_count": 0
    },
-   "сверка с текстовым слоем": {
-    "слов в слое": 1868,
-    "нет в слое": 0,
-    "вне истины": 0,
-    "призраков": 804,
-    "выносок": 0,
-    "необъяснённых": 0,
-    "слова вне истины": [],
-    "примеры расхождений": []
+   "text_layer_check": {
+    "words_in_layer": 1868,
+    "missing_from_layer": 0,
+    "outside_truth": 0,
+    "ghosts": 804,
+    "dot_leaders": 0,
+    "unexplained": 0,
+    "outside_truth_samples": [],
+    "mismatch_examples": []
    }
   },
   {
-   "случай": "mat_numbered_list",
-   "страница": 7,
-   "размер": [
+   "case": "mat_numbered_list",
+   "page": 7,
+   "size": [
     936,
     1324
    ],
-   "блоков": 16,
-   "поворот": 0,
-   "разворот": false,
-   "чернил вне истины": {
-    "пикселей": 0,
-    "крупнейшее пятно": null
+   "block_count": 16,
+   "rotation": 0,
+   "spread": false,
+   "ink_outside_truth": {
+    "pixels": 0,
+    "largest_blob": null
    },
-   "истина знаков": {
-    "знаков": 5106,
-    "слов": 976,
-    "блоков с текстом": 16,
-    "текстовых блоков без знаков": 0,
-    "какие без знаков": [],
-    "таблиц с сеткой": 0,
-    "ячеек": 0
+   "char_truth": {
+    "chars": 5106,
+    "words": 976,
+    "blocks_with_text": 16,
+    "text_blocks_without_chars": 0,
+    "which_without_chars": [],
+    "tables_with_grid": 0,
+    "cell_count": 0
    },
-   "сверка с текстовым слоем": {
-    "слов в слое": 1512,
-    "нет в слое": 0,
-    "вне истины": 0,
-    "призраков": 536,
-    "выносок": 0,
-    "необъяснённых": 0,
-    "слова вне истины": [],
-    "примеры расхождений": []
+   "text_layer_check": {
+    "words_in_layer": 1512,
+    "missing_from_layer": 0,
+    "outside_truth": 0,
+    "ghosts": 536,
+    "dot_leaders": 0,
+    "unexplained": 0,
+    "outside_truth_samples": [],
+    "mismatch_examples": []
    }
   },
   {
-   "случай": "mat_references",
-   "страница": 8,
-   "размер": [
+   "case": "mat_references",
+   "page": 8,
+   "size": [
     936,
     1324
    ],
-   "блоков": 6,
-   "поворот": 0,
-   "разворот": false,
-   "чернил вне истины": {
-    "пикселей": 0,
-    "крупнейшее пятно": null
+   "block_count": 6,
+   "rotation": 0,
+   "spread": false,
+   "ink_outside_truth": {
+    "pixels": 0,
+    "largest_blob": null
    },
-   "истина знаков": {
-    "знаков": 5457,
-    "слов": 1033,
-    "блоков с текстом": 6,
-    "текстовых блоков без знаков": 0,
-    "какие без знаков": [],
-    "таблиц с сеткой": 0,
-    "ячеек": 0
+   "char_truth": {
+    "chars": 5457,
+    "words": 1033,
+    "blocks_with_text": 6,
+    "text_blocks_without_chars": 0,
+    "which_without_chars": [],
+    "tables_with_grid": 0,
+    "cell_count": 0
    },
-   "сверка с текстовым слоем": {
-    "слов в слое": 1502,
-    "нет в слое": 0,
-    "вне истины": 0,
-    "призраков": 469,
-    "выносок": 0,
-    "необъяснённых": 0,
-    "слова вне истины": [],
-    "примеры расхождений": []
+   "text_layer_check": {
+    "words_in_layer": 1502,
+    "missing_from_layer": 0,
+    "outside_truth": 0,
+    "ghosts": 469,
+    "dot_leaders": 0,
+    "unexplained": 0,
+    "outside_truth_samples": [],
+    "mismatch_examples": []
    }
   },
   {
-   "случай": "mat_inline",
-   "страница": 9,
-   "размер": [
+   "case": "mat_inline",
+   "page": 9,
+   "size": [
     936,
     1324
    ],
-   "блоков": 7,
-   "поворот": 0,
-   "разворот": false,
-   "чернил вне истины": {
-    "пикселей": 0,
-    "крупнейшее пятно": null
+   "block_count": 7,
+   "rotation": 0,
+   "spread": false,
+   "ink_outside_truth": {
+    "pixels": 0,
+    "largest_blob": null
    },
-   "истина знаков": {
-    "знаков": 6706,
-    "слов": 1288,
-    "блоков с текстом": 7,
-    "текстовых блоков без знаков": 0,
-    "какие без знаков": [],
-    "таблиц с сеткой": 0,
-    "ячеек": 0
+   "char_truth": {
+    "chars": 6706,
+    "words": 1288,
+    "blocks_with_text": 7,
+    "text_blocks_without_chars": 0,
+    "which_without_chars": [],
+    "tables_with_grid": 0,
+    "cell_count": 0
    },
-   "сверка с текстовым слоем": {
-    "слов в слое": 2695,
-    "нет в слое": 0,
-    "вне истины": 0,
-    "призраков": 1407,
-    "выносок": 0,
-    "необъяснённых": 0,
-    "слова вне истины": [],
-    "примеры расхождений": []
+   "text_layer_check": {
+    "words_in_layer": 2695,
+    "missing_from_layer": 0,
+    "outside_truth": 0,
+    "ghosts": 1407,
+    "dot_leaders": 0,
+    "unexplained": 0,
+    "outside_truth_samples": [],
+    "mismatch_examples": []
    }
   },
   {
-   "случай": "mat_tall_fraction",
-   "страница": 10,
-   "размер": [
+   "case": "mat_tall_fraction",
+   "page": 10,
+   "size": [
     936,
     1324
    ],
-   "блоков": 10,
-   "поворот": 0,
-   "разворот": false,
-   "чернил вне истины": {
-    "пикселей": 0,
-    "крупнейшее пятно": null
+   "block_count": 10,
+   "rotation": 0,
+   "spread": false,
+   "ink_outside_truth": {
+    "pixels": 0,
+    "largest_blob": null
    },
-   "истина знаков": {
-    "знаков": 3865,
-    "слов": 738,
-    "блоков с текстом": 6,
-    "текстовых блоков без знаков": 0,
-    "какие без знаков": [],
-    "таблиц с сеткой": 0,
-    "ячеек": 0
+   "char_truth": {
+    "chars": 3865,
+    "words": 738,
+    "blocks_with_text": 6,
+    "text_blocks_without_chars": 0,
+    "which_without_chars": [],
+    "tables_with_grid": 0,
+    "cell_count": 0
    },
-   "сверка с текстовым слоем": {
-    "слов в слое": 1318,
-    "нет в слое": 0,
-    "вне истины": 0,
-    "призраков": 536,
-    "выносок": 0,
-    "необъяснённых": 0,
-    "слова вне истины": [],
-    "примеры расхождений": []
+   "text_layer_check": {
+    "words_in_layer": 1318,
+    "missing_from_layer": 0,
+    "outside_truth": 0,
+    "ghosts": 536,
+    "dot_leaders": 0,
+    "unexplained": 0,
+    "outside_truth_samples": [],
+    "mismatch_examples": []
    }
   },
   {
-   "случай": "mat_greek",
-   "страница": 11,
-   "размер": [
+   "case": "mat_greek",
+   "page": 11,
+   "size": [
     936,
     1324
    ],
-   "блоков": 12,
-   "поворот": 0,
-   "разворот": false,
-   "чернил вне истины": {
-    "пикселей": 0,
-    "крупнейшее пятно": null
+   "block_count": 12,
+   "rotation": 0,
+   "spread": false,
+   "ink_outside_truth": {
+    "pixels": 0,
+    "largest_blob": null
    },
-   "истина знаков": {
-    "знаков": 4215,
-    "слов": 805,
-    "блоков с текстом": 7,
-    "текстовых блоков без знаков": 0,
-    "какие без знаков": [],
-    "таблиц с сеткой": 0,
-    "ячеек": 0
+   "char_truth": {
+    "chars": 4215,
+    "words": 805,
+    "blocks_with_text": 7,
+    "text_blocks_without_chars": 0,
+    "which_without_chars": [],
+    "tables_with_grid": 0,
+    "cell_count": 0
    },
-   "сверка с текстовым слоем": {
-    "слов в слое": 1372,
-    "нет в слое": 0,
-    "вне истины": 0,
-    "призраков": 536,
-    "выносок": 0,
-    "необъяснённых": 0,
-    "слова вне истины": [],
-    "примеры расхождений": []
+   "text_layer_check": {
+    "words_in_layer": 1372,
+    "missing_from_layer": 0,
+    "outside_truth": 0,
+    "ghosts": 536,
+    "dot_leaders": 0,
+    "unexplained": 0,
+    "outside_truth_samples": [],
+    "mismatch_examples": []
    }
   }
  ]

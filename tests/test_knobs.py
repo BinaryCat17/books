@@ -71,8 +71,8 @@ def test_snapshot_holds_every_knob_with_every_field():
         f"в слепке {len(s)} ручек из {len(knobs.names())}: "
         f"{sorted(set(knobs.names()) ^ set(s))}")
     for name, rec in s.items():
-        assert set(rec) == {"значение", "умолчание", "задано снаружи", "что",
-                            "долг"}, f"{name}: поля слепка {sorted(rec)}"
+        assert set(rec) == {"value", "default", "set_externally", "what",
+                            "debt"}, f"{name}: поля слепка {sorted(rec)}"
 
 
 def test_snapshot_tells_set_from_default():
@@ -86,12 +86,12 @@ def test_snapshot_tells_set_from_default():
     try:
         os.environ.pop(name, None)
         s = knobs.snapshot()[name]
-        assert s["задано снаружи"] is False
-        assert s["значение"] == s["умолчание"] == knobs.KNOB[name].default
+        assert s["set_externally"] is False
+        assert s["value"] == s["default"] == knobs.KNOB[name].default
         os.environ[name] = "999"
         s = knobs.snapshot()[name]
-        assert s["задано снаружи"] is True and s["значение"] == "999"
-        assert s["умолчание"] == knobs.KNOB[name].default, (
+        assert s["set_externally"] is True and s["value"] == "999"
+        assert s["default"] == knobs.KNOB[name].default, (
             "умолчание в слепке подменилось заданным: сравнить прогон с "
             "умолчанием станет не с чем")
         os.environ[name] = ""
@@ -384,18 +384,18 @@ def test_shape_that_could_not_be_derived_is_loud_not_silent():
             for k in p[:-1]:
                 cur = cur.setdefault(k, {})
             cur[p[-1]] = "есть"
-        snap["адаптер"] = {"имя": "myocr", "модуль": "booksmith.myocr",
+        snap["adapter"] = {"name": "myocr", "module": "booksmith.myocr",
                            "sha256": replay._sha256(path)}
         assert replay.FP not in snap, "ветку отпечатка кладём не мы"
         sh = replay.shape(snap)
-        assert sh["не выведено"] == 1, (
+        assert sh["not_derived"] == 1, (
             "форму отпечатка вывести не удалось, а прибор об этом молчит: "
             "молчание тут читается как «проверено всё»")
         miss = replay.missing(snap, replay.required(snap, sh))
         assert [p for p, _ in miss] == [(replay.FP,)], (
             f"слепок ВОВСЕ БЕЗ ветки «{replay.FP}» объявлен полным: "
             f"не хватает {len(miss)}, а `books replay --check` вернул бы 0")
-        assert not sh["сверено"], (
+        assert not sh["verified"], (
             "форма не выведена, а отпечаток назван сверенным — слово СВЕРЕН "
             "рядом с невыведенной формой и было главной ложью")
         assert replay.selfcheck(_tmp_out(tmp, snap), log=lambda *_a: None) > 0, (
@@ -585,7 +585,7 @@ def test_replay_finds_the_snapshot_in_both_layouts():
     from booksmith.doc.html import ASSETS
     from booksmith.run import replay
 
-    снимок = {"ручки": {"PAGE_DPI": {"значение": "144"}}}
+    снимок = {"knobs": {"PAGE_DPI": {"value": "144"}}}
     with tempfile.TemporaryDirectory() as tmp:
         assert replay.facts(tmp) == {}, "слепок найден там, где его нет"
 

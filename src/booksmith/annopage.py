@@ -212,7 +212,7 @@ def build(root: str, out_dir: str, split: str = "test", limit: int = 0,
     skipped_no_image = len(stems) - len(images)
 
     doc = pymupdf.open()
-    pages, counts = [], {"прямо": {}, "спорно": {}, "невыразимо": {}}
+    pages, counts = [], {"direct": {}, "doubtful": {}, "inexpressible": {}}
     used = 0
     for stem in stems:
         img_path = images.get(stem)
@@ -226,7 +226,7 @@ def build(root: str, out_dir: str, split: str = "test", limit: int = 0,
         h, w = im.shape[:2]
 
         blocks, outside = [], []
-        drop = {"спорно": 0, "невыразимо": 0}
+        drop = {"doubtful": 0, "inexpressible": 0}
         with open(os.path.join(ldir, stem + ".txt"), encoding="utf-8") as f:
             for line in f:
                 q = line.split()
@@ -238,14 +238,14 @@ def build(root: str, out_dir: str, split: str = "test", limit: int = 0,
                        (cx + bw / 2) * w, (cy + bh / 2) * h]
                 if cat in DIRECT:
                     lab = DIRECT[cat]
-                    counts["прямо"][cat] = counts["прямо"].get(cat, 0) + 1
+                    counts["direct"][cat] = counts["direct"].get(cat, 0) + 1
                     blocks.append({"block_id": len(blocks),
                                    "box": [round(v, 1) for v in box],
                                    "label": lab, "score": None,
                                    "order": len(blocks), "content": None,
-                                   "kind": "none", "исходная категория": cat})
+                                   "kind": "none", "source_category": cat})
                 else:
-                    kind = "спорно" if cat in DOUBTFUL else "невыразимо"
+                    kind = "doubtful" if cat in DOUBTFUL else "inexpressible"
                     counts[kind][cat] = counts[kind].get(cat, 0) + 1
                     drop[kind] += 1
                     # Рамка ОСТАЁТСЯ в истине отдельным списком. Выбросив её
@@ -253,7 +253,7 @@ def build(root: str, out_dir: str, split: str = "test", limit: int = 0,
                     # попавшую на рекламу или буквицу, — а модель там не
                     # виновата: это мы не смогли выразить категорию.
                     outside.append({"box": [round(v, 1) for v in box],
-                                    "категория": cat, "разряд": kind})
+                                    "category": cat, "bucket": kind})
 
         if not truth_only:
             page = doc.new_page(width=w * scale, height=h * scale)
@@ -263,12 +263,12 @@ def build(root: str, out_dir: str, split: str = "test", limit: int = 0,
                   encoding="utf-8") as f:
             json.dump({"index": used, "width": w, "height": h, "dpi": dpi,
                        "blocks": blocks, "raw": None,
-                       "meta": {"случай": stem[:8], "книга": "annopage",
-                                "файл": os.path.basename(img_path),
-                                "объектов вне замера": drop,
-                                "вне замера": outside,
+                       "meta": {"case": stem[:8], "book": "annopage",
+                                "file": os.path.basename(img_path),
+                                "objects_out_of_scope": drop,
+                                "out_of_scope": outside,
                                 # Текстовых блоков в истине НЕТ ВОВСЕ.
-                                "текст размечен": False,
+                                "text_marked": False,
                                 # И ПОРЯДКА ЧТЕНИЯ ТОЖЕ НЕТ. `order` ниже —
                                 # это номер строки в файле разметки, а он
                                 # сгруппирован по классам: на стр. 51 порядок
@@ -276,10 +276,10 @@ def build(root: str, out_dir: str, split: str = "test", limit: int = 0,
                                 # 4129. Сверять с ним чей-либо порядок чтения
                                 # значит мерить чужую величину; метрика этот
                                 # признак читает и печатает прочерк.
-                                "порядок размечен": False}}, f,
+                                "order_marked": False}}, f,
                       ensure_ascii=False)
-        pages.append({"страница": used, "размер": [w, h], "файл": stem,
-                      "блоков": len(blocks), "вне замера": drop})
+        pages.append({"page": used, "size": [w, h], "file": stem,
+                      "block_count": len(blocks), "out_of_scope": drop})
         used += 1
         if used % 50 == 0:
             log(f"  {used} страниц")
@@ -303,12 +303,12 @@ def build(root: str, out_dir: str, split: str = "test", limit: int = 0,
                 f"в {pdf} страниц {n}, а истина переписана на {len(pages)}: "
                 f"это разные выборки.")
         for rec in pages:
-            r = chk[rec["страница"]].rect
-            w, h = rec["размер"]
+            r = chk[rec["page"]].rect
+            w, h = rec["size"]
             if abs(r.width - w * scale) > 0.6 or abs(r.height - h * scale) > 0.6:
                 chk.close()
                 raise AnnoPageError(
-                    f"стр. {rec['страница']}: лист {r.width:.0f}x{r.height:.0f} "
+                    f"стр. {rec['page']}: лист {r.width:.0f}x{r.height:.0f} "
                     f"пт не соответствует растру {w}x{h} — истина не про этот "
                     f"pdf.")
         chk.close()
@@ -328,27 +328,27 @@ def build(root: str, out_dir: str, split: str = "test", limit: int = 0,
     if os.path.isdir(keep):
         shutil.rmtree(keep)
 
-    n_direct = sum(counts["прямо"].values())
-    man = {"книга": "annopage",
-           "о книге": "AnnoPage: 7550 разметок к 5690 страницам, "
+    n_direct = sum(counts["direct"].values())
+    man = {"book": "annopage",
+           "about": "AnnoPage: 7550 разметок к 5690 страницам, "
                       "разметка библиотекарями, только НЕТЕКСТОВЫЕ объекты",
-           "источник": "Zenodo 10.5281/zenodo.12788419, CC BY 4.0",
-           "выборка": split, "страниц": len(pages), "PAGE_DPI": dpi,
-           "текст размечен": False,
-           "объектов в замере": n_direct,
-           "объектов вне замера": {
-               "спорно": sum(counts["спорно"].values()),
-               "невыразимо": sum(counts["невыразимо"].values())},
-           "по категориям": counts,
-           "свод категорий": DIRECT,
-           "разметок без картинки": skipped_no_image,
+           "origin": "Zenodo 10.5281/zenodo.12788419, CC BY 4.0",
+           "split": split, "page_count": len(pages), "PAGE_DPI": dpi,
+           "text_marked": False,
+           "objects_in_scope": n_direct,
+           "objects_out_of_scope": {
+               "doubtful": sum(counts["doubtful"].values()),
+               "inexpressible": sum(counts["inexpressible"].values())},
+           "by_category": counts,
+           "category_map": DIRECT,
+           "annotations_without_image": skipped_no_image,
            "pdf": os.path.basename(pdf), "sha256 pdf": _sha256(pdf)}
     with open(os.path.join(out_dir, "manifest.json"), "w",
               encoding="utf-8") as f:
         json.dump(man, f, ensure_ascii=False, indent=1)
     log(f"страниц {len(pages)}, в замер идёт {n_direct} объектов; "
-        f"вне замера: спорных {man['объектов вне замера']['спорно']}, "
-        f"невыразимых {man['объектов вне замера']['невыразимо']}")
+        f"вне замера: спорных {man['objects_out_of_scope']['doubtful']}, "
+        f"невыразимых {man['objects_out_of_scope']['inexpressible']}")
     log(f"разметок без картинки пропущено {skipped_no_image}")
     log(f"{pdf} ({os.path.getsize(pdf)/1e6:.0f} МБ), истина в {tdir}")
     return man

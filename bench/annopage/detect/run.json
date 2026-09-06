@@ -1,237 +1,237 @@
 {
- "когда": "2026-08-28T08:15:02+0300",
- "ручки": {
+ "when": "2026-08-28T08:15:02+0300",
+ "knobs": {
   "PAGE_DPI": {
-   "значение": "144",
-   "умолчание": "144",
-   "задано снаружи": false,
-   "что": "разрешение, с которым страница РЕНДЕРИТСЯ в растр. Детектор жмёт его до 800x800 сам, поэтому на его вход ручка влияет только через резкость исходного растра; на координаты рамок — влияет прямо"
+   "value": "144",
+   "default": "144",
+   "set_externally": false,
+   "what": "разрешение, с которым страница РЕНДЕРИТСЯ в растр. Детектор жмёт его до 800x800 сам, поэтому на его вход ручка влияет только через резкость исходного растра; на координаты рамок — влияет прямо"
   },
   "MODEL_NAME": {
-   "значение": "PaddleOCR-VL-1.6-0.9B",
-   "умолчание": "PaddleOCR-VL-1.6-0.9B",
-   "задано снаружи": false,
-   "что": "имя модели для vLLM и клиента"
+   "value": "PaddleOCR-VL-1.6-0.9B",
+   "default": "PaddleOCR-VL-1.6-0.9B",
+   "set_externally": false,
+   "what": "имя модели для vLLM и клиента"
   },
   "VL_MODEL_DIR": {
-   "значение": "",
-   "умолчание": "",
-   "задано снаружи": false,
-   "что": "каталог весов VLM; ставит run.sh, читает vLLM"
+   "value": "",
+   "default": "",
+   "set_externally": false,
+   "what": "каталог весов VLM; ставит run.sh, читает vLLM"
   },
   "LAYOUT_ADAPTER": {
-   "значение": "doclayout",
-   "умолчание": "doclayout",
-   "задано снаружи": false,
-   "что": "какой адаптер детекции звать: doclayout (PaddleOCR PP-DocLayout*) или docling (IBM heron/egret). Разные словари ярлыков и разные политики — сравнивать их можно только слепо к ярлыку"
+   "value": "doclayout",
+   "default": "doclayout",
+   "set_externally": false,
+   "what": "какой адаптер детекции звать: doclayout (PaddleOCR PP-DocLayout*) или docling (IBM heron/egret). Разные словари ярлыков и разные политики — сравнивать их можно только слепо к ярлыку"
   },
   "LAYOUT_MODEL_NAME": {
-   "значение": "PP-DocLayoutV2",
-   "умолчание": "PP-DocLayoutV2",
-   "задано снаружи": false,
-   "что": "имя модели детекции макета"
+   "value": "PP-DocLayoutV2",
+   "default": "PP-DocLayoutV2",
+   "set_externally": false,
+   "what": "имя модели детекции макета"
   },
   "LAYOUT_MODEL_DIR": {
-   "значение": "",
-   "умолчание": "",
-   "задано снаружи": false,
-   "что": "каталог весов детекции макета"
+   "value": "",
+   "default": "",
+   "set_externally": false,
+   "what": "каталог весов детекции макета"
   },
   "LAYOUT_SCORE_THRESHOLD": {
-   "значение": "0.5",
-   "умолчание": "0.5",
-   "задано снаружи": false,
-   "что": "порог детекции для 24 классов макета, КРОМЕ table; родной у весов"
+   "value": "0.5",
+   "default": "0.5",
+   "set_externally": false,
+   "what": "порог детекции для 24 классов макета, КРОМЕ table; родной у весов"
   },
   "LAYOUT_TABLE_THRESHOLD": {
-   "значение": "0.5",
-   "умолчание": "0.5",
-   "задано снаружи": false,
-   "что": "родной порог детекции таблиц"
+   "value": "0.5",
+   "default": "0.5",
+   "set_externally": false,
+   "what": "родной порог детекции таблиц"
   },
   "PADDLE_PDX_MODEL_SOURCE": {
-   "значение": "",
-   "умолчание": "",
-   "задано снаружи": false,
-   "что": "откуда paddlex тянет веса"
+   "value": "",
+   "default": "",
+   "set_externally": false,
+   "what": "откуда paddlex тянет веса"
   },
   "CROP_DPI": {
-   "значение": "",
-   "умолчание": "",
-   "задано снаружи": false,
-   "что": "резкость вырезки артефакта; пусто = как PAGE_DPI"
+   "value": "",
+   "default": "",
+   "set_externally": false,
+   "what": "резкость вырезки артефакта; пусто = как PAGE_DPI"
   },
   "CROP_MARGIN": {
-   "значение": "0",
-   "умолчание": "0",
-   "задано снаружи": false,
-   "что": "поле вокруг рамки при вырезке, в долях рамки"
+   "value": "0",
+   "default": "0",
+   "set_externally": false,
+   "what": "поле вокруг рамки при вырезке, в долях рамки"
   },
   "VLM_INPUT": {
-   "значение": "crop",
-   "умолчание": "crop",
-   "задано снаружи": false,
-   "что": "что подавать VLM: crop | masked_page"
+   "value": "crop",
+   "default": "crop",
+   "set_externally": false,
+   "what": "что подавать VLM: crop | masked_page"
   },
   "MASK_FILL": {
-   "значение": "white",
-   "умолчание": "white",
-   "задано снаружи": false,
-   "что": "заливка дыр при masked_page: white|gray|black"
+   "value": "white",
+   "default": "white",
+   "set_externally": false,
+   "what": "заливка дыр при masked_page: white|gray|black"
   },
   "BOOKSMITH_LEDGER": {
-   "значение": "",
-   "умолчание": "",
-   "задано снаружи": false,
-   "что": "куда писать журнал прогонов; пусто = runs/ledger.jsonl. Рядом с журналом живёт и чёрный список машин"
+   "value": "",
+   "default": "",
+   "set_externally": false,
+   "what": "куда писать журнал прогонов; пусто = runs/ledger.jsonl. Рядом с журналом живёт и чёрный список машин"
   },
   "FEED_DPI": {
-   "значение": "",
-   "умолчание": "",
-   "задано снаружи": false,
-   "что": "разрешение страницы, уезжающей в VLM; пусто = как PAGE_DPI"
+   "value": "",
+   "default": "",
+   "set_externally": false,
+   "what": "разрешение страницы, уезжающей в VLM; пусто = как PAGE_DPI"
   },
   "SYNTH_SEED": {
-   "значение": "1",
-   "умолчание": "1",
-   "задано снаружи": false,
-   "что": "зерно синтетического стенда"
+   "value": "1",
+   "default": "1",
+   "set_externally": false,
+   "what": "зерно синтетического стенда"
   },
   "SYNTH_AGING": {
-   "значение": "old",
-   "умолчание": "old",
-   "задано снаружи": false,
-   "что": "профиль старения стенда: clean|scan|old|ветхий"
+   "value": "old",
+   "default": "old",
+   "set_externally": false,
+   "what": "профиль старения стенда: clean|scan|old|ветхий"
   },
   "VLM_TEMPERATURE": {
-   "значение": "0",
-   "умолчание": "0",
-   "задано снаружи": false,
-   "что": "температура VLM; >0 делает разбор невоспроизводимым нарочно"
+   "value": "0",
+   "default": "0",
+   "set_externally": false,
+   "what": "температура VLM; >0 делает разбор невоспроизводимым нарочно"
   },
   "PASSES": {
-   "значение": "1",
-   "умолчание": "1",
-   "задано снаружи": false,
-   "что": "сколько раз читать; свод — задача раннера, не модели"
+   "value": "1",
+   "default": "1",
+   "set_externally": false,
+   "what": "сколько раз читать; свод — задача раннера, не модели"
   },
   "LOGPROBS": {
-   "значение": "1",
-   "умолчание": "1",
-   "задано снаружи": false,
-   "что": "записать вероятности токенов рядом со страницей"
+   "value": "1",
+   "default": "1",
+   "set_externally": false,
+   "what": "записать вероятности токенов рядом со страницей"
   },
   "PORT": {
-   "значение": "8118",
-   "умолчание": "8118",
-   "задано снаружи": false,
-   "что": "порт сервиса vLLM на машине"
+   "value": "8118",
+   "default": "8118",
+   "set_externally": false,
+   "what": "порт сервиса vLLM на машине"
   },
   "RESUME": {
-   "значение": "1",
-   "умолчание": "1",
-   "задано снаружи": false,
-   "что": "продолжать ли прерванный прогон"
+   "value": "1",
+   "default": "1",
+   "set_externally": false,
+   "what": "продолжать ли прерванный прогон"
   },
   "VLLM_USE_FLASHINFER_SAMPLER": {
-   "значение": "0",
-   "умолчание": "0",
-   "задано снаружи": false,
-   "что": "сэмплер flashinfer в vLLM"
+   "value": "0",
+   "default": "0",
+   "set_externally": false,
+   "what": "сэмплер flashinfer в vLLM"
   }
  },
- "растр": {
+ "raster": {
   "scale": 2.0,
   "dpi": 144.0,
-  "PAGE_DPI как задан": "144"
+  "page_dpi_as_given": "144"
  },
- "аргументы": {
+ "args": {
   "pdf": "/home/smirn/books/bench/annopage/annopage.pdf",
   "pages": null,
   "out": "/home/smirn/books/bench/annopage/detect"
  },
- "коммит": "807614f72e15ee3ca9e58afd1477d80da691971e+грязное дерево",
- "исходник": {
-  "путь": "/home/smirn/books/bench/annopage/annopage.pdf",
+ "commit": "807614f72e15ee3ca9e58afd1477d80da691971e+грязное дерево",
+ "source": {
+  "path": "/home/smirn/books/bench/annopage/annopage.pdf",
   "sha256": "94cf0349275bcffad6480eba71c9c3acbef6e2004eb1d77af4825ec7bf36a4f0"
  },
- "адаптер": {
-  "имя": "doclayout-onnx",
+ "adapter": {
+  "name": "doclayout-onnx",
   "sha256": "1f3ac82a139ea653eb5708abde17bd9506df5642cb52b895183de12f6fb89474",
-  "sha256 команды": "609fa184097a0b8ce4c2c38aeef2c386380db5ada72b5c9c8600052fde8709d5"
+  "sha256_command": "609fa184097a0b8ce4c2c38aeef2c386380db5ada72b5c9c8600052fde8709d5"
  },
- "политика": {
-  "разряды": [
-   "текст",
-   "артефакт",
-   "служебное"
+ "policy": {
+  "buckets": [
+   "text",
+   "artifact",
+   "furniture"
   ],
-  "словари": [
+  "vocabularies": [
    "DocLayNet",
    "Docling",
    "PP-DocLayoutV2"
   ],
-  "по ярлыкам": {
-   "Caption": "текст",
-   "Footnote": "служебное",
-   "Formula": "артефакт",
-   "List-item": "текст",
-   "Page-footer": "служебное",
-   "Page-header": "служебное",
-   "Picture": "артефакт",
-   "Section-header": "текст",
-   "Table": "артефакт",
-   "Text": "текст",
-   "Title": "текст",
-   "abstract": "текст",
-   "algorithm": "текст",
-   "aside_text": "текст",
-   "caption": "текст",
-   "chart": "артефакт",
-   "checkbox_selected": "текст",
-   "checkbox_unselected": "текст",
-   "code": "артефакт",
-   "content": "текст",
-   "display_formula": "артефакт",
-   "doc_title": "текст",
-   "document_index": "текст",
-   "figure_title": "текст",
-   "footer": "служебное",
-   "footer_image": "артефакт",
-   "footnote": "служебное",
-   "form": "текст",
-   "formula": "артефакт",
-   "formula_number": "текст",
-   "header": "служебное",
-   "header_image": "артефакт",
-   "image": "артефакт",
-   "inline_formula": "текст",
-   "key_value_region": "текст",
-   "list_item": "текст",
-   "number": "служебное",
-   "page_footer": "служебное",
-   "page_header": "служебное",
-   "paragraph_title": "текст",
-   "picture": "артефакт",
-   "reference": "текст",
-   "reference_content": "текст",
-   "seal": "артефакт",
-   "section_header": "текст",
-   "table": "артефакт",
-   "text": "текст",
-   "title": "текст",
-   "vertical_text": "текст",
-   "vision_footnote": "служебное"
+  "by_label": {
+   "Caption": "text",
+   "Footnote": "furniture",
+   "Formula": "artifact",
+   "List-item": "text",
+   "Page-footer": "furniture",
+   "Page-header": "furniture",
+   "Picture": "artifact",
+   "Section-header": "text",
+   "Table": "artifact",
+   "Text": "text",
+   "Title": "text",
+   "abstract": "text",
+   "algorithm": "text",
+   "aside_text": "text",
+   "caption": "text",
+   "chart": "artifact",
+   "checkbox_selected": "text",
+   "checkbox_unselected": "text",
+   "code": "artifact",
+   "content": "text",
+   "display_formula": "artifact",
+   "doc_title": "text",
+   "document_index": "text",
+   "figure_title": "text",
+   "footer": "furniture",
+   "footer_image": "artifact",
+   "footnote": "furniture",
+   "form": "text",
+   "formula": "artifact",
+   "formula_number": "text",
+   "header": "furniture",
+   "header_image": "artifact",
+   "image": "artifact",
+   "inline_formula": "text",
+   "key_value_region": "text",
+   "list_item": "text",
+   "number": "furniture",
+   "page_footer": "furniture",
+   "page_header": "furniture",
+   "paragraph_title": "text",
+   "picture": "artifact",
+   "reference": "text",
+   "reference_content": "text",
+   "seal": "artifact",
+   "section_header": "text",
+   "table": "artifact",
+   "text": "text",
+   "title": "text",
+   "vertical_text": "text",
+   "vision_footnote": "furniture"
   }
  },
- "промты": {},
- "порождение": {
+ "prompts": {},
+ "generation": {
   "temperature": null,
   "max_tokens": null,
   "top_p": null,
   "seed": null
  },
- "пакеты": {
+ "packages": {
   "onnxruntime": "1.29.0",
   "numpy": "2.5.2",
   "cv2": "5.0.0",
@@ -239,28 +239,28 @@
   "yaml": "6.0.3",
   "python": "3.13.13"
  },
- "веса": {
+ "weights": {
   "vl": null,
   "layout": "cd540dc296ff3115fe78efa65b68501e6a8dc74b198acc9834a725ffaa095aac"
  },
- "отпечаток": {
-  "имя": "doclayout-onnx",
-  "модель": "PP-DocLayoutV2",
-  "каталог весов": "/home/smirn/.paddlex/official_models/PP-DocLayoutV2_onnx",
-  "sha256 весов": "cd540dc296ff3115fe78efa65b68501e6a8dc74b198acc9834a725ffaa095aac",
+ "fingerprint": {
+  "name": "doclayout-onnx",
+  "model": "PP-DocLayoutV2",
+  "weights_dir": "/home/smirn/.paddlex/official_models/PP-DocLayoutV2_onnx",
+  "sha256_weights": "cd540dc296ff3115fe78efa65b68501e6a8dc74b198acc9834a725ffaa095aac",
   "onnxruntime": "1.29.0",
-  "исполнители": [
+  "providers": [
    "CPUExecutionProvider"
   ],
-  "вход": {
-   "высота": 800,
-   "ширина": 800,
+  "input": {
+   "height": 800,
+   "width": 800,
    "keep_ratio": false,
    "interp": 2,
-   "порядок каналов": "rgb",
-   "нормализация": {
-    "тип": "none",
-    "делить на 255": true,
+   "channel_order": "rgb",
+   "normalization": {
+    "type": "none",
+    "divide_by_255": true,
     "mean": [
      0.0,
      0.0,
@@ -273,8 +273,8 @@
     ]
    }
   },
-  "родной порог": 0.5,
-  "пороги по классам": {
+  "native_threshold": 0.5,
+  "thresholds_by_class": {
    "abstract": 0.5,
    "algorithm": 0.5,
    "aside_text": 0.5,
@@ -301,8 +301,8 @@
    "vertical_text": 0.5,
    "vision_footnote": 0.5
   },
-  "расхождение порога": [],
-  "словарь ярлыков": [
+  "threshold_drift": [],
+  "label_vocabulary": [
    "abstract",
    "algorithm",
    "aside_text",
@@ -329,16 +329,16 @@
    "vertical_text",
    "vision_footnote"
   ],
-  "свод ярлыков": {},
-  "промты": {}
+  "label_map": {},
+  "prompts": {}
  },
- "итог": {
-  "страниц": 600,
-  "рамок": 10747,
-  "артефактов": 1206,
-  "связок рангов": 163,
-  "секунд": 1509.33,
-  "по ярлыкам": {
+ "summary": {
+  "page_count": 600,
+  "box_count": 10747,
+  "artifacts": 1206,
+  "rank_ties": 163,
+  "seconds": 1509.33,
+  "by_label": {
    "number": 452,
    "text": 6370,
    "paragraph_title": 849,
@@ -364,7 +364,7 @@
    "content": 8,
    "abstract": 2
   },
-  "лучший отвергнутый": {
+  "best_rejected": {
    "header": 0.499059796333313,
    "text": 0.4997035264968872,
    "paragraph_title": 0.4993473291397095,
@@ -391,7 +391,7 @@
    "content": 0.25512874126434326,
    "chart": 0.369728147983551
   },
-  "страниц с отвергнутыми": {
+  "pages_with_rejected": {
    "header": 270,
    "text": 598,
    "paragraph_title": 447,
@@ -419,5 +419,5 @@
    "chart": 285
   }
  },
- "повтор": "books detect /home/smirn/books/bench/annopage/annopage.pdf --out /home/smirn/books/bench/annopage/detect"
+ "repeat_command": "books detect /home/smirn/books/bench/annopage/annopage.pdf --out /home/smirn/books/bench/annopage/detect"
 }

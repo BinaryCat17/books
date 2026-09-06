@@ -65,7 +65,7 @@ def _side_pairs(blocks):
 # Признаки истины, без которых метрика молча меняет ответ. Список ЯВНЫЙ:
 # новый признак у стенда должен попасть сюда осознанно, а не быть потерянным
 # по умолчанию.
-TRAITS = ("порядок размечен", "текст размечен")
+TRAITS = ("order_marked", "text_marked")
 
 
 def _carry_meta(t: dict, extra: dict, where: str) -> dict:
@@ -95,8 +95,8 @@ def _trait_state(meta: dict, key: str) -> str:
     самое, что «нет»: страница, где признака НЕТ ВОВСЕ, ничего не утверждает,
     и метрика по ней обязана молчать, а не считать."""
     if key not in meta:
-        return "не сказано"
-    return "да" if meta[key] else "нет"
+        return "not_said"
+    return "yes" if meta[key] else "no"
 
 
 def _sha256(path):
@@ -118,7 +118,7 @@ def build(books, out_dir: str, root: str = "bench", log=print) -> dict:
 
     doc = pymupdf.open()
     kept, per_book, pairs_total = [], {}, 0
-    traits = {k: {"да": 0, "нет": 0, "не сказано": 0} for k in TRAITS}
+    traits = {k: {"yes": 0, "no": 0, "not_said": 0} for k in TRAITS}
     for bk in books:
         pdf = os.path.join(root, bk, f"{bk}.pdf")
         if not os.path.exists(pdf):
@@ -139,9 +139,9 @@ def build(books, out_dir: str, root: str = "bench", log=print) -> dict:
                 raise SubsetError(f"{bk}: страницы {i} нет в {pdf}")
             doc.insert_pdf(src, from_page=i, to_page=i)
             t["index"] = len(kept)
-            t["meta"] = _carry_meta(t, {"из книги": bk,
-                                        "страница в книге": i,
-                                        "пар бок о бок": len(pr)},
+            t["meta"] = _carry_meta(t, {"from_book": bk,
+                                        "page_in_book": i,
+                                        "side_by_side_pairs": len(pr)},
                                     f"{bk}/{name}")
             for key in TRAITS:
                 traits[key][_trait_state(t["meta"], key)] += 1
@@ -157,14 +157,14 @@ def build(books, out_dir: str, root: str = "bench", log=print) -> dict:
     pdf = os.path.join(out_dir, "hard.pdf")
     doc.save(pdf, garbage=3, deflate=True)
     doc.close()
-    man = {"книга": "hard", "о книге": "выжимка: два артефакта одного ярлыка "
+    man = {"book": "hard", "about": "выжимка: два артефакта одного ярлыка "
                                        "бок о бок в истине",
-           "страниц": len(kept), "пар бок о бок": pairs_total,
-           "по книгам": per_book, "страницы": [{"книга": b, "стр": i}
+           "page_count": len(kept), "side_by_side_pairs": pairs_total,
+           "by_book": per_book, "pages": [{"book": b, "page_no": i}
                                                for b, i in kept],
            # Состояние признаков — часть паспорта выжимки. По нему видно, что
            # на ней МОЖНО померить, ещё до первого запуска `books score`.
-           "признаки истины": traits,
+           "truth_traits": traits,
            "pdf": os.path.basename(pdf), "sha256 pdf": _sha256(pdf)}
     with open(os.path.join(out_dir, "manifest.json"), "w",
               encoding="utf-8") as f:
@@ -174,10 +174,10 @@ def build(books, out_dir: str, root: str = "bench", log=print) -> dict:
     # видно, что выжимка донесла признаки; молчание тут уже стоило нам 73%,
     # напечатанных из ничего.
     for key, st in traits.items():
-        log(f"признак «{key}»: да {st['да']}, нет {st['нет']}, "
-            f"НЕ СКАЗАН {st['не сказано']} из {len(kept)} страниц"
-            + (f" — на этих {st['не сказано']} метрика по нему считаться НЕ "
+        log(f"признак «{key}»: да {st['yes']}, нет {st['no']}, "
+            f"НЕ СКАЗАН {st['not_said']} из {len(kept)} страниц"
+            + (f" — на этих {st['not_said']} метрика по нему считаться НЕ "
                f"БУДЕТ и обязана печатать «НЕ СВЕРЯЕТСЯ»"
-               if st["не сказано"] else ""))
+               if st["not_said"] else ""))
     log(f"{pdf} ({os.path.getsize(pdf)/1e6:.0f} МБ), истина в {tdir}")
     return man

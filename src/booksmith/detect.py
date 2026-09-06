@@ -267,7 +267,7 @@ def run(pdf, outdir, pages_spec=None, log=print):
     det.policy_name = pol
     policy.check(det.labels, policy=pol)
     arte = tuple(sorted(l for l, r in policy.POLICIES[pol].items()
-                        if r == "артефакт"))
+                        if r == "artifact"))
     # Тот же один словарь — и для сверки написания ярлыка блока. Объединение
     # `policy.ROLE` тут не годится ровно потому, что оно объединение: в нём
     # рядом лежат `table` и `Table`, и чужое написание прошло бы насквозь.
@@ -296,18 +296,18 @@ def run(pdf, outdir, pages_spec=None, log=print):
             f"прогон НЕ влияет, в слепке оно помечено «к этому прогону "
             f"относится: false»")
     log(f"детектор {det.name}: "
-        f"{det.fingerprint().get('модель')} из {det.dir}")
+        f"{det.fingerprint().get('model')} из {det.dir}")
     # Про вход спрашиваем ОТПЕЧАТОК, а не поля конкретного адаптера: у второго
     # адаптера их не оказалось, и жёсткое обращение к `det.keep_ratio` роняло
     # прогон на первой же чужой модели. Отпечаток обязан быть у каждого — это
     # и есть контракт.
-    fp_in = (det.fingerprint().get("вход") or {})
-    log(f"вход модели {fp_in.get('ширина')}x{fp_in.get('высота')} (ШxВ): "
+    fp_in = (det.fingerprint().get("input") or {})
+    log(f"вход модели {fp_in.get('width')}x{fp_in.get('height')} (ШxВ): "
         + ", ".join(f"{k}={v}" for k, v in fp_in.items()
-                    if k not in ("ширина", "высота")))
+                    if k not in ("width", "height")))
     log(f"словарь {pol}, "
         f"классов {len(det.labels)}, "
-        f"родной порог {det.fingerprint().get('родной порог')}")
+        f"родной порог {det.fingerprint().get('native_threshold')}")
 
     # Открытие тоже говорит СТРОКОЙ. Проверка существования выше ловит опечатку
     # в имени, а этот `try` — три другие беды, которые она пропускает и которые
@@ -349,8 +349,8 @@ def run(pdf, outdir, pages_spec=None, log=print):
     # `model_boxes` — сколько рамок отдала сама модель выше порога (её число,
     # адаптер кладёт его в `meta`), и снятое конвейером есть разность.
     model_boxes = mute_pages = 0
-    pipe = {"страниц": 0, "до": 0, "после": 0, "дети": 0, "переставлено": 0,
-            "режимы": set(), "без числа": set()}
+    pipe = {"page_count": 0, "before": 0, "after": 0, "children": 0, "reordered": 0,
+            "modes": set(), "missing_numbers": set()}
     try:
         for n, i in enumerate(idxs, 1):
             doc[i].get_pixmap(dpi=dpi_used).save(tmp)
@@ -359,29 +359,29 @@ def run(pdf, outdir, pages_spec=None, log=print):
             # должна попадать в каталог вовсе — иначе её подберёт метрика.
             _check_labels(page, pol, known, det.name)
             spellings.update(b.label for b in page.blocks)
-            mk = page.meta.get("рамок принято")
+            mk = page.meta.get("boxes_accepted")
             if mk is None:
                 mute_pages += 1          # адаптер не сказал — это не ноль
             else:
                 model_boxes += int(mk)
-            pm = page.meta.get("конвейер docling")
+            pm = page.meta.get("docling_pipeline")
             if pm:
-                pipe["страниц"] += 1
-                pipe["режимы"].add(pm.get("режим"))
-                for ключ, поле in (("рамок до", "до"),
-                                   ("рамок после", "после"),
-                                   ("ушло в дети", "дети"),
-                                   ("переставлено рамок", "переставлено")):
+                pipe["page_count"] += 1
+                pipe["modes"].add(pm.get("mode"))
+                for ключ, поле in (("boxes_before", "before"),
+                                   ("boxes_after", "after"),
+                                   ("moved_to_children", "children"),
+                                   ("boxes_reordered", "reordered")):
                     v = pm.get(ключ)
                     if v is None:
-                        pipe["без числа"].add(ключ)
+                        pipe["missing_numbers"].add(ключ)
                     else:
                         pipe[поле] += int(v)
             with open(os.path.join(pagedir, f"{i:04d}.json"), "w",
                       encoding="utf-8") as f:
                 json.dump(page.to_json(), f, ensure_ascii=False)
-            ties += page.meta["связок рангов"]
-            for lab, s in page.meta["лучший отвергнутый по классам"].items():
+            ties += page.meta["rank_ties"]
+            for lab, s in page.meta["best_rejected_by_class"].items():
                 if s > rej_best.get(lab, 0.0):
                     rej_best[lab] = s
                     rej_pages[lab] = i          # ГДЕ он был лучше всего
@@ -402,8 +402,8 @@ def run(pdf, outdir, pages_spec=None, log=print):
 
     took = time.time() - t0
     total = sum(counts.values())
-    режим = "/".join(sorted(str(m) for m in pipe["режимы"]))
-    был_конвейер = bool(pipe["страниц"])
+    режим = "/".join(sorted(str(m) for m in pipe["modes"]))
+    был_конвейер = bool(pipe["page_count"])
     # Пометка про этап ставится ТОЛЬКО когда конвейер и вправду работал: при
     # выключенном все числа и так от модели, и лишнее слово в строке сделало
     # бы прежние прогоны несравнимыми глазами на ровном месте.
@@ -428,32 +428,32 @@ def run(pdf, outdir, pages_spec=None, log=print):
             f"{det.name} не сказал «рамок принято» — сколько отдала сама "
             f"модель, сверить нечем; сложенное ниже неполно на эти страницы")
     if был_конвейер:
-        снял = pipe["до"] - pipe["после"]
-        доля = 100.0 * снял / pipe["до"] if pipe["до"] else 0.0
-        log(f"конвейер docling {режим}: модель отдала рамок {pipe['до']}, "
-            f"он снял {снял} ({доля:.1f}%), в книгу пошло {pipe['после']}, "
-            f"ушло в дети {pipe['дети']}, переставлено {pipe['переставлено']}, "
-            f"страниц через него {pipe['страниц']} из {len(idxs)}")
+        снял = pipe["before"] - pipe["after"]
+        доля = 100.0 * снял / pipe["before"] if pipe["before"] else 0.0
+        log(f"конвейер docling {режим}: модель отдала рамок {pipe['before']}, "
+            f"он снял {снял} ({доля:.1f}%), в книгу пошло {pipe['after']}, "
+            f"ушло в дети {pipe['children']}, переставлено {pipe['reordered']}, "
+            f"страниц через него {pipe['page_count']} из {len(idxs)}")
         # По ярлыкам снятое НЕ разложено, и молчать об этом нельзя: иначе
         # «table принято 0» при включённой ручке читается как «модель не
         # нашла», хотя означать может «нашла, а конвейер снял».
         log(f"    снятое конвейером по ярлыкам НЕ разложено: адаптер отдаёт "
-            f"«рамок до» только итогом ({pipe['до']}), по классам их нет "
+            f"«рамок до» только итогом ({pipe['before']}), по классам их нет "
             f"(models/docling_heron.py, pipe_meta)")
-        if pipe["без числа"]:
-            log(f"ВНИМАНИЕ: конвейер не дал чисел {sorted(pipe['без числа'])} "
+        if pipe["missing_numbers"]:
+            log(f"ВНИМАНИЕ: конвейер не дал чисел {sorted(pipe['missing_numbers'])} "
                 f"— сложенное выше на столько же неполно")
-        if pipe["страниц"] != len(idxs):
-            log(f"ВНИМАНИЕ: через конвейер прошли {pipe['страниц']} страниц "
+        if pipe["page_count"] != len(idxs):
+            log(f"ВНИМАНИЕ: через конвейер прошли {pipe['page_count']} страниц "
                 f"из {len(idxs)} — числа этапов сложены по разным выборкам")
-        if pipe["после"] != total:
-            log(f"ВНИМАНИЕ: конвейер отчитался о {pipe['после']} рамках после "
+        if pipe["after"] != total:
+            log(f"ВНИМАНИЕ: конвейер отчитался о {pipe['after']} рамках после "
                 f"себя, а в страницах их {total}: разница "
-                f"{abs(pipe['после'] - total)}")
-        if not mute_pages and pipe["до"] != model_boxes:
-            log(f"ВНИМАНИЕ: конвейер принял {pipe['до']} рамок, а модель "
+                f"{abs(pipe['after'] - total)}")
+        if not mute_pages and pipe["before"] != model_boxes:
+            log(f"ВНИМАНИЕ: конвейер принял {pipe['before']} рамок, а модель "
                 f"отдала {model_boxes}: разница "
-                f"{abs(pipe['до'] - model_boxes)} рамок потеряна между "
+                f"{abs(pipe['before'] - model_boxes)} рамок потеряна между "
                 f"этапами")
     else:
         # Ноль от проверки, а не молчание шага: сказано, что конвейера НЕ
@@ -521,92 +521,92 @@ def run(pdf, outdir, pages_spec=None, log=print):
     fp = det.fingerprint()
     snap = {
         # Дата рядом с числом: замер без неё не сказать, к чему применён.
-        "когда": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
-        "ручки": _knobs_snapshot(roles),
+        "when": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+        "knobs": _knobs_snapshot(roles),
         # Сводка тем же числом, что и в журнале: читать двадцать записей ради
         # ответа «а что здесь вообще действовало» никто не станет.
-        "ручки прогона": {
-            "читает активный адаптер": [n for n in knobs.names()
+        "run_knobs": {
+            "read_by_active_adapter": [n for n in knobs.names()
                                         if roles[n] and n not in COMMAND_KNOBS],
-            "читает сама команда detect": [n for n in knobs.names()
+            "read_by_detect_command": [n for n in knobs.names()
                                            if roles[n] and n in COMMAND_KNOBS],
-            "к этому прогону не относятся": [n for n in knobs.names()
+            "not_for_this_run": [n for n in knobs.names()
                                              if roles[n] is None],
-            "задано снаружи": given,
-            "задано снаружи, но не читает никто": dead,
+            "set_externally": given,
+            "set_externally_unread": dead,
         },
-        "растр": {"scale": dpi_used / 72.0, "dpi": float(dpi_used),
-                  "PAGE_DPI как задан": dpi_raw},
-        "аргументы": {"pdf": pdf, "pages": pages_spec, "out": outdir},
-        "коммит": _commit(),
-        "исходник": {"путь": pdf, "sha256": _sha256(pdf)},
+        "raster": {"scale": dpi_used / 72.0, "dpi": float(dpi_used),
+                  "page_dpi_as_given": dpi_raw},
+        "args": {"pdf": pdf, "pages": pages_spec, "out": outdir},
+        "commit": _commit(),
+        "source": {"path": pdf, "sha256": _sha256(pdf)},
         # Хэшируются ОБА файла, решающих результат. Прежде считался только
         # адаптер, а политика артефактов и разбор страниц живут здесь.
         # sha256 ФАЙЛА АКТИВНОГО АДАПТЕРА, а не всегда doclayout.py. Прежде
         # прогон yolox клялся хэшем чужого модуля: правка в docling_heron.py
         # или yolox_layout.py была в слепке невидима, то есть два разных
         # детектора давали неотличимые слепки.
-        "адаптер": {"имя": det.name,
-                    "модуль": type(det).__module__,
+        "adapter": {"name": det.name,
+                    "module": type(det).__module__,
                     "sha256": _sha256(sys.modules[type(det).__module__].__file__),
-                    "sha256 команды": _sha256(os.path.join(here,
+                    "sha256_command": _sha256(os.path.join(here,
                                                            "detect.py"))},
-        "политика": policy.snapshot(getattr(det, "policy_name", None)),
-        "промты": {},
-        "порождение": {"temperature": None, "max_tokens": None,
+        "policy": policy.snapshot(getattr(det, "policy_name", None)),
+        "prompts": {},
+        "generation": {"temperature": None, "max_tokens": None,
                        "top_p": None, "seed": None},
-        "пакеты": _packages(),
-        "веса": {"vl": None, "layout": fp["sha256 весов"]},
-        "отпечаток": fp,
-        "итог": {"страниц": len(idxs), "рамок": total,
-                 "артефактов": artefacts, "связок рангов": ties,
-                 "секунд": round(took, 2), "по ярлыкам": counts,
-                 "лучший отвергнутый": rej_best,
-                 "страниц с отвергнутыми": rej_pages,
+        "packages": _packages(),
+        "weights": {"vl": None, "layout": fp["sha256_weights"]},
+        "fingerprint": fp,
+        "summary": {"page_count": len(idxs), "box_count": total,
+                 "artifacts": artefacts, "rank_ties": ties,
+                 "seconds": round(took, 2), "by_label": counts,
+                 "best_rejected": rej_best,
+                 "pages_with_rejected": rej_pages,
                  # ЧЕЙ ЭТО ЭТАП — рядом с числами, а не только в журнале.
                  # «по ярлыкам» и «рамок» сняты ПОСЛЕ вендорского конвейера,
                  # «лучший отвергнутый» — порогом модели ДО него; без этой
                  # записи слепок двух прогонов различался бы одной строкой в
                  # реестре ручек, а числа в «итоге» — этапом.
-                 "этапы": {
-                     "«рамок», «артефактов», «по ярлыкам» сняты":
+                 "stages": {
+                     "box_counts_stage":
                          этап_рамок,
-                     "«лучший отвергнутый» снят":
+                     "best_rejected_stage":
                          "порогом модели, ДО конвейера вендора",
                      # Неполная сумма — это НЕ величина: страница, о которой
                      # адаптер промолчал, делает её меньше настоящей ровно на
                      # столько, сколько мы не знаем. Поэтому либо число, либо
                      # `null` рядом со счётчиком промолчавших страниц.
-                     "рамок отдала модель":
+                     "boxes_from_model":
                          None if mute_pages else model_boxes,
-                     "страниц, где адаптер не назвал «рамок принято»":
+                     "pages_without_boxes_accepted":
                          mute_pages,
-                     "конвейер вендора": {
-                         "этап был": был_конвейер,
-                         "режимы": sorted(str(m) for m in pipe["режимы"]),
-                         "страниц через него": pipe["страниц"],
-                         "страниц в прогоне": len(idxs),
-                         "рамок до": pipe["до"],
-                         "рамок после": pipe["после"],
-                         "снял рамок": pipe["до"] - pipe["после"],
-                         "ушло в дети": pipe["дети"],
-                         "переставлено рамок": pipe["переставлено"],
+                     "vendor_pipeline": {
+                         "stage_ran": был_конвейер,
+                         "modes": sorted(str(m) for m in pipe["modes"]),
+                         "pages_through_it": pipe["page_count"],
+                         "pages_in_run": len(idxs),
+                         "boxes_before": pipe["before"],
+                         "boxes_after": pipe["after"],
+                         "boxes_removed": pipe["before"] - pipe["after"],
+                         "moved_to_children": pipe["children"],
+                         "boxes_reordered": pipe["reordered"],
                          # Значение, а не пропуск: снятое по ярлыкам не
                          # разложено потому, что адаптер отдаёт «рамок до»
                          # только итогом.
-                         "снял по ярлыкам": None,
-                         "почему «снял по ярлыкам» пуст":
+                         "removed_by_label": None,
+                         "why_removed_by_label_empty":
                              ("адаптер отдаёт «рамок до» одним числом на "
                               "страницу; по классам их нет — см. pipe_meta "
                               "в models/docling_heron.py"),
-                         "чисел не дал вовсе":
-                             sorted(pipe["без числа"]),
+                         "numbers_never_given":
+                             sorted(pipe["missing_numbers"]),
                      },
                  }},
         # Строка обязана быть исполнимой: в raw/ пять файлов из девяти несут
         # пробелы и скобки, и неэкранированная строка повтора — не строка
         # повтора, а её описание.
-        "повтор": " ".join(shlex.quote(a) for a in
+        "repeat_command": " ".join(shlex.quote(a) for a in
                            ["books", "detect", pdf, "--out", outdir]
                            + (["--pages", str(pages_spec)] if pages_spec else [])),
     }

@@ -1,1 +1,1 @@
-{"index": 7, "width": 1225, "height": 1800, "dpi": 144.0, "blocks": [], "raw": null, "meta": {"распознаватель": "dots.ocr", "порядок чтения": "порядок порождения", "ужато": 0.6746, "разобрано дома": true}}
+{"index": 7, "width": 1225, "height": 1800, "dpi": 144.0, "blocks": [], "raw": null, "meta": {"detector": "dots.ocr", "reading_order": "generation_order", "downscale": 0.6746, "parsed_at_home": true}}

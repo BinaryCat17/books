@@ -62,7 +62,7 @@ def spec(pdf: str, detect_dir: str, pages: str = "",
     карте, то есть за деньги; прежний второй уровень так и отлаживался —
     тринадцать запусков, $0.52, полезных два.
     """
-    for p, what in ((pdf, "книга"),
+    for p, what in ((pdf, "book"),
                     (os.path.join(detect_dir, "pages"), "страницы детекции"),
                     (os.path.join(detect_dir, "run.json"), "слепок детекции"),
                     (os.path.join(HERE, "constraints.txt"),

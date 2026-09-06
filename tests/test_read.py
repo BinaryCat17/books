@@ -101,7 +101,7 @@ def test_transport_asks_who_is_answering():
     """
     with FakeVlm({"text": "ок"}) as s:
         out = _t(s.url).check()
-        assert out["совпало"] and out["модели на сервере"] == [s.model]
+        assert out["matched"] and out["models_on_server"] == [s.model]
 
 
 def test_wrong_model_name_stops_the_run():
@@ -179,8 +179,8 @@ def test_the_very_crop_reaches_the_model():
     n = os.path.getsize(png)
     with FakeVlm({"text": "ок"}) as s:
         _t(s.url).send(Ask("p0-b0", png, "Table Recognition:", "otsl", "table"))
-        assert s.seen[0]["байт"] == n
-        assert s.seen[0]["промт"] == "Table Recognition:"
+        assert s.seen[0]["bytes"] == n
+        assert s.seen[0]["prompt"] == "Table Recognition:"
 
 
 # ------------------------------------------------------------- разбор ---
@@ -223,9 +223,9 @@ def test_torn_otsl_is_counted_not_repaired():
     правдоподобной.
     """
     _, t = otsl.parse("<fcel>a<fcel>b<nl><fcel>c<nl>")
-    assert t["строк разной длины"] == 1
+    assert t["rows_of_unequal_length"] == 1
     _, t2 = otsl.parse("<lcel>x<nl>")
-    assert t2["продолжений в никуда"] == 1
+    assert t2["continuations_to_nowhere"] == 1
 
 
 def test_not_otsl_is_none_not_empty():
@@ -265,7 +265,7 @@ def _book(tmp):
     doc = pymupdf.open()
     pg = doc.new_page(width=200, height=200)
     pg.insert_text((20, 40), "строка прозы")
-    pg.insert_text((20, 120), "таблица")
+    pg.insert_text((20, 120), "table")
     doc.save(pdf, garbage=3, deflate=True)
     doc.close()
 
@@ -283,10 +283,10 @@ def _book(tmp):
         json.dump(page.to_json(), f, ensure_ascii=False)
     with open(os.path.join(tmp, "detect", "run.json"), "w",
               encoding="utf-8") as f:
-        json.dump({"исходник": {"путь": pdf, "sha256": stamp.sha256(pdf)},
-                   "растр": {"dpi": 144.0},
-                   "коммит": None, "адаптер": {"имя": "поддельный"},
-                   "веса": {"layout": None}}, f, ensure_ascii=False)
+        json.dump({"source": {"path": pdf, "sha256": stamp.sha256(pdf)},
+                   "raster": {"dpi": 144.0},
+                   "commit": None, "adapter": {"name": "поддельный"},
+                   "weights": {"layout": None}}, f, ensure_ascii=False)
     return pdf
 
 
@@ -315,7 +315,7 @@ def test_read_fills_content_in_the_same_page_schema():
     assert by[1].content == "<fcel>А<fcel>Б<nl>" and by[1].kind == "otsl"
     # Рисунок не спрашивали вовсе — и это НЕ молчание модели.
     assert by[2].content is None and by[2].kind == "none"
-    assert t["не спрошено"] == 1 and t["прочитано"] == 2
+    assert t["not_asked"] == 1 and t["read"] == 2
 
 
 def test_five_zeroes_are_counted_apart():
@@ -326,11 +326,11 @@ def test_five_zeroes_are_counted_apart():
     out, t = _run(tmp, {"OCR:": {"text": ""},                       # молчание
                         "Table Recognition:": {"text": "<fcel>x<nl>",
                                                "finish": "length"}})
-    assert t["не спрошено"] == 1, t
-    assert t["модель промолчала"] == 1, t
-    assert t["оборвано потолком"] == 1, t
-    assert t["прочитано"] == 1, t
-    assert t["отказ доставки"] == 0, t
+    assert t["not_asked"] == 1, t
+    assert t["model_silent"] == 1, t
+    assert t["hit_ceiling"] == 1, t
+    assert t["read"] == 1, t
+    assert t["delivery_failed"] == 0, t
 
 
 def test_delivery_refusal_does_not_look_like_silence():
@@ -340,7 +340,7 @@ def test_delivery_refusal_does_not_look_like_silence():
     _book(tmp)
     os.environ["VLM_RETRIES"] = "0"
     out, t = _run(tmp, {"http": 500})
-    assert t["отказ доставки"] == 2 and t["модель промолчала"] == 0, t
+    assert t["delivery_failed"] == 2 and t["model_silent"] == 0, t
     os.environ.pop("VLM_RETRIES", None)
 
 
@@ -365,10 +365,10 @@ def test_observed_lives_beside_not_inside():
     out, _ = _run(tmp, {"OCR:": {"text": "проза"},
                         "Table Recognition:": {"text": "<fcel>a<nl>"}})
     with open(os.path.join(out, "answers", "p0000.json"), encoding="utf-8") as f:
-        a = {x["якорь"]: x for x in json.load(f)["ответы"]}
-    assert a["p0000-b0"]["наблюдённое"]["догадка о виде"] == "text"
-    assert a["p0000-b1"]["наблюдённое"]["догадка о виде"] == "otsl"
-    assert "секунд" in a["p0000-b0"]
+        a = {x["anchor"]: x for x in json.load(f)["answers"]}
+    assert a["p0000-b0"]["observed"]["kind_sniffed"] == "text"
+    assert a["p0000-b1"]["observed"]["kind_sniffed"] == "otsl"
+    assert "seconds" in a["p0000-b0"]
     # А в самом тексте — ни одной нашей пометки.
     with open(os.path.join(out, "pages", "0000.json"), encoding="utf-8") as f:
         p = Page.from_json(json.load(f))
@@ -398,14 +398,14 @@ def test_resume_does_not_ask_twice():
     plan = {"OCR:": {"text": "проза"},
             "Table Recognition:": {"text": "<fcel>a<nl>"}}
     out, t1 = _run(tmp, plan)
-    assert t1["взято из прошлого прогона"] == 0
+    assert t1["reused_from_previous_run"] == 0
     with FakeVlm(plan) as s:
         os.environ["VLM_ENDPOINT"] = s.url
         t2 = vrun.read_book(os.path.join(tmp, "detect"), out,
                             PaddleOcrVl("PP-DocLayoutV2"), vhttp.Http(),
                             resume=True, log=lambda *a: None)
         assert len(s.seen) == 0, f"переспрошено {len(s.seen)} блоков"
-    assert t2["взято из прошлого прогона"] == 2
+    assert t2["reused_from_previous_run"] == 2
 
 
 def test_empty_run_is_not_a_success():
@@ -441,9 +441,9 @@ def test_snapshot_carries_prompts_and_our_parser():
                           {"detect": "detect", "out": out})
     with open(p, encoding="utf-8") as f:
         snap = json.load(f)
-    assert snap["промты"]["table"] == "Table Recognition:"
-    assert snap["порождение"]["max_tokens"] == 4096
-    assert len(snap["адаптер"]["sha256 разбора otsl"]) == 64
-    assert snap["отпечаток"]["веса"]["каталог"] is None
+    assert snap["prompts"]["table"] == "Table Recognition:"
+    assert snap["generation"]["max_tokens"] == 4096
+    assert len(snap["adapter"]["sha256_otsl_parser"]) == 64
+    assert snap["fingerprint"]["weights"]["dir"] is None
     # Ключ НЕ уезжает в слепок: его кладут в git.
-    assert snap["отпечаток транспорта"]["ключ"] == "нет"
+    assert snap["transport_fingerprint"]["api_key"] == "no"

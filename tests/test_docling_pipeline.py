@@ -26,13 +26,13 @@ from booksmith.models import docling_heron as dh
 from booksmith.models.base import Block
 from booksmith.run import knobs
 
-OFF_META_KEYS = ["порядок чтения"]
+OFF_META_KEYS = ["reading_order"]
 # Состав и порядок ключей meta страницы ДО появления конвейера. Конвейер
 # добавил `**pipe_meta` ровно на место бывшего «порядок чтения», и при `off`
 # он разворачивается в него же — страница выходит побайтово прежней.
-META_BEFORE_PIPELINE = ["распознаватель", "растр", "рамок принято",
-                        "связок рангов", "порядок чтения",
-                        "лучший отвергнутый по классам"]
+META_BEFORE_PIPELINE = ["detector", "raster", "boxes_accepted",
+                        "rank_ties", "reading_order",
+                        "best_rejected_by_class"]
 
 
 class env:
@@ -134,7 +134,7 @@ def test_unknown_label_dies_at_construction():
 def test_egret_names_translate_whole():
     """Витринные имена egret переводятся все до одного, тем же построением."""
     if not have_docling():
-        support.skip("нет пакета docling")
+        support.skip("no_docling_package")
     p = dh._DoclingPipeline("post", list(dh.EGRET_TO_DOCLING),
                             "docling-egret")
     assert set(p.to_docling) == set(dh.EGRET_TO_DOCLING)

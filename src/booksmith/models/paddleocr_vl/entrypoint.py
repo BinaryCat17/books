@@ -83,8 +83,8 @@ def main(argv=None):
     reader = vread.build_reader(a.policy)
     transport = vhttp.build()
     who = transport.check()
-    log(f"адрес {who['адрес']}: отвечает {who['модели на сервере']}, "
-        f"спрашиваем {who['спрашиваем']} — совпало")
+    log(f"адрес {who['endpoint']}: отвечает {who['models_on_server']}, "
+        f"спрашиваем {who['asking_for']} — совпало")
 
     pages = None
     if a.pages and a.pages != "-":
@@ -99,10 +99,10 @@ def main(argv=None):
     vread.report(t, log=log)
     vread.snapshot(a.detect, a.out, reader, transport, t,
                    {"detect": a.detect, "out": a.out, "pages": a.pages,
-                    "на боксе": True})
+                    "on_box": True})
     # Число, а не «готово»: по нему видно, за что заплачено.
-    log(f"итог: прочитано {t['прочитано']} из {t['спрошено']} спрошенных, "
-        f"знаков {t['знаков']}, счёта {t['секунд счёта']:.0f} с")
+    log(f"итог: прочитано {t['read']} из {t['asked']} спрошенных, "
+        f"знаков {t['chars']}, счёта {t['compute_seconds']:.0f} с")
     return 0
 
 

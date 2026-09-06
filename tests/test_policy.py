@@ -83,7 +83,7 @@ def test_role_raises_on_unknown():
 
 
 def test_every_label_has_one_of_three_roles():
-    assert policy.ROLES == ("текст", "артефакт", "служебное")
+    assert policy.ROLES == ("text", "artifact", "furniture")
     for name, table in policy.POLICIES.items():
         for lab, r in table.items():
             assert r in policy.ROLES, f"{name}/{lab}: разряд {r!r} не из трёх"
@@ -144,7 +144,7 @@ def test_artefacts_are_not_empty_and_are_artefacts():
     arte = policy.artefacts()
     assert arte, "артефактов нет ни одного: второму уровню нечего резать"
     for lab in arte:
-        assert policy.ROLE[lab] == "артефакт"
+        assert policy.ROLE[lab] == "artifact"
     assert "table" in arte and "Table" in arte
 
 
@@ -152,10 +152,10 @@ def test_snapshot_carries_whole_dictionary():
     """Слепок несёт политику целиком: без неё число артефактов не истолковать."""
     for name, table in policy.POLICIES.items():
         s = policy.snapshot(name)
-        assert s["словарь"] == name
-        assert s["по ярлыкам"] == dict(sorted(table.items())), (
-            f"слепок политики {name} неполон: в нём {len(s['по ярлыкам'])} "
+        assert s["vocabulary"] == name
+        assert s["by_label"] == dict(sorted(table.items())), (
+            f"слепок политики {name} неполон: в нём {len(s['by_label'])} "
             f"ярлыков из {len(table)}")
     whole = policy.snapshot()
-    assert sorted(whole["словари"]) == sorted(policy.POLICIES)
-    assert len(whole["по ярлыкам"]) == len(policy.ROLE)
+    assert sorted(whole["vocabularies"]) == sorted(policy.POLICIES)
+    assert len(whole["by_label"]) == len(policy.ROLE)

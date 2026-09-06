@@ -18,7 +18,7 @@ from booksmith.models import base as B
 def test_book_builder_reads_the_order_rule_through_the_one_contract():
     """`doc/html` обязан звать `models.base.ours_order`, а не свою копию."""
     for v in ("наш, сверху вниз", "Наш, полосами", "НАШ, позиция в списке",
-              "  наш  ", "ранг модели", "", None, 0, "порядок порождения"):
+              "  наш  ", "model_rank", "", None, 0, "порядок порождения"):
         assert H._ours(v) == B.ours_order(v), (
             f"{v!r}: сборщик книги и контракт адаптера разошлись — "
             f"сборщик {H._ours(v)}, контракт {B.ours_order(v)}. Это та самая "
@@ -77,11 +77,11 @@ def test_clipping_is_measured_with_a_tolerance_not_exactly():
     with tempfile.TemporaryDirectory() as tmp:
         dst = os.path.join(tmp, "b.png")
         inside = crop.cut(doc, 0, inside_px, dpi, dst)
-        assert inside["срезано листом"] is False, (
+        assert inside["clipped_by_sheet"] is False, (
             "рамка целиком внутри листа объявлена срезанной — это float32 "
             "пересечения, а не дефект модели")
         out = crop.cut(doc, 0, out_px, dpi, dst)
-        assert out["срезано листом"] is True, (
+        assert out["clipped_by_sheet"] is True, (
             "рамка, вылезшая за лист на 20 пунктов, срезанной НЕ названа — "
             "допуск съел настоящую беду")
 
@@ -241,12 +241,12 @@ def test_crop_dpi_never_comes_from_the_environment_silently():
     from booksmith.doc import crop
     # своя резкость известна — она и берётся, детекция ни при чём
     p = crop.params(150.0, page_native=300.0)
-    assert p["dpi"] == 300.0 and p["dpi откуда"] == "своя резкость скана", p
+    assert p["dpi"] == 300.0 and p["dpi_source"] == "native_scan_dpi", p
     # своей нет — детекция, и об этом сказано словами
     p2 = crop.params(150.0)
-    assert p2["dpi"] == 150.0 and "как у детекции" in p2["dpi откуда"], p2
+    assert p2["dpi"] == 150.0 and "как у детекции" in p2["dpi_source"], p2
     # нет ни того ни другого — окружение, и это НАЗВАНО угаданным
-    assert crop.params()["dpi откуда"] == "PAGE_DPI текущего процесса", (
+    assert crop.params()["dpi_source"] == "PAGE_DPI текущего процесса", (
         "резкость угадана по окружению, и об этом не сказано ни слова")
 
 
@@ -262,14 +262,14 @@ def test_crop_dpi_takes_the_ink_that_exists_and_invents_none():
     W = (112896, 1003520)
     # блок мельче нижней границы: остаёмся на своей решётке и говорим об этом
     d, why = crop_dpi_for((0, 0, 273, 47), 144.0, 144.0, W)
-    assert d == 144.0 and "мельче" in why, (d, why)
+    assert d == 144.0 and "below_model_min" == why, (d, why)
     # тот же блок в книге из djvu (текстовый слой 601 dpi) — берём всё
     d, why = crop_dpi_for((0, 0, 273, 47), 144.0, 601.0, W)
-    assert d == 601.0 and why == "своя резкость скана", (d, why)
+    assert d == 601.0 and why == "native_scan_dpi", (d, why)
     # крупная таблица там же вышла бы за верхнюю границу — ужимаем ровно к ней
     d, why = crop_dpi_for((0, 0, 540, 700), 144.0, 601.0, W)
     px = (540 / 144 * d) * (700 / 144 * d)
-    assert abs(px - W[1]) < 1 and "верхней границы" in why, (d, why, px)
+    assert abs(px - W[1]) < 1 and why == "downscaled_to_model_max", (d, why, px)
     # границ модель не объявила — режем своей резкостью и ничего не правим
     d, why = crop_dpi_for((0, 0, 540, 700), 144.0, 601.0, None)
     assert d == 601.0 and "границ модели нет" in why, (d, why)
@@ -334,7 +334,7 @@ def test_three_kinds_of_bad_sheet_get_three_different_marks():
 
     def page(i, blocks):
         return Page(index=i, width=1000, height=1400, dpi=144.0,
-                    blocks=blocks, meta={"порядок чтения": "ранг модели"})
+                    blocks=blocks, meta={"reading_order": "model_rank"})
 
     art = Block(block_id=0, box=(50.0, 50.0, 950.0, 1350.0), label="table",
                 score=0.9, order=0)
@@ -364,10 +364,10 @@ def test_three_kinds_of_bad_sheet_get_three_different_marks():
                 json.dump(p.to_json(), f, ensure_ascii=False)
         from booksmith import detect as _detect
         with open(os.path.join(det, "run.json"), "w", encoding="utf-8") as f:
-            json.dump({"исходник": {"путь": pdf,
+            json.dump({"source": {"path": pdf,
                                     "sha256": _detect._sha256(pdf)},
-                       "растр": {"dpi": 144},
-                       "веса": {"layout": None}}, f, ensure_ascii=False)
+                       "raster": {"dpi": 144},
+                       "weights": {"layout": None}}, f, ensure_ascii=False)
 
         out = os.path.join(tmp, "html")
         H.build(det, out, log=lambda *_: None)
@@ -440,10 +440,10 @@ def test_the_book_is_alone_at_the_root_and_carries_itself():
                   encoding="utf-8") as f:
             json.dump(pg.to_json(), f, ensure_ascii=False)
         with open(os.path.join(det, "run.json"), "w", encoding="utf-8") as f:
-            json.dump({"исходник": {"путь": pdf,
+            json.dump({"source": {"path": pdf,
                                     "sha256": _detect._sha256(pdf)},
-                       "растр": {"dpi": 144},
-                       "веса": {"layout": None}}, f, ensure_ascii=False)
+                       "raster": {"dpi": 144},
+                       "weights": {"layout": None}}, f, ensure_ascii=False)
 
         out = os.path.join(tmp, "html")
         H.build(det, out, log=lambda *_: None)
@@ -558,10 +558,10 @@ def test_the_book_carries_blocks_in_the_order_it_walked_them():
                   encoding="utf-8") as f:
             json.dump(pg.to_json(), f, ensure_ascii=False)
         with open(os.path.join(det, "run.json"), "w", encoding="utf-8") as f:
-            json.dump({"исходник": {"путь": pdf,
+            json.dump({"source": {"path": pdf,
                                     "sha256": _detect._sha256(pdf)},
-                       "растр": {"dpi": 144},
-                       "веса": {"layout": None}}, f, ensure_ascii=False)
+                       "raster": {"dpi": 144},
+                       "weights": {"layout": None}}, f, ensure_ascii=False)
 
         out = os.path.join(tmp, "html")
         H.build(det, out, log=lambda *_: None)

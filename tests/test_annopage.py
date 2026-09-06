@@ -124,7 +124,7 @@ def test_a_failed_build_does_not_destroy_good_truth():
         for k in range(7):
             with open(os.path.join(tdir, f"{k:04d}.json"), "w",
                       encoding="utf-8") as f:
-                json.dump({"метка": "прежняя истина"}, f)
+                json.dump({"marker": "прежняя истина"}, f)
         before = sorted(os.listdir(tdir))
         try:
             annopage.build(root, out, split="test", truth_only=True,

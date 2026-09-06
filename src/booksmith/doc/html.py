@@ -187,9 +187,9 @@ def why_empty(o: dict | None) -> str:
     """
     if o is None:
         return "читали ли — сказать нечем: answers/ рядом нет"
-    if o.get("отказ"):
-        return f"ответа не было: {o['отказ']}"
-    чем = o.get("чем кончилось")
+    if o.get("error"):
+        return f"ответа не было: {o['error']}"
+    чем = o.get("outcome")
     if чем is None:
         return "не спрашивали: маршрут пуст с объявленной причиной"
     if чем == "length":
@@ -208,20 +208,20 @@ def _figure(anchor, b, role, src, info, inside=None, mark="", why=None):
     cap = (f"{b.label} {b.score:.2f}" if b.score is not None else b.label)
     if inside:
         cap = f"деталь {inside} · " + cap
-    if info.get("срезано листом"):
+    if info.get("clipped_by_sheet"):
         cap += " · рамка вышла за лист"
     # Собираем атрибут отдельно: обратный слэш внутри f-строки — синтаксис
     # Python 3.12, а пакет заявляет 3.10.
     # ПОЧЕМУ пусто — в подписи, а не одним словом «не прочитан». Прежде здесь
     # стоял глухой атрибут, и книга называла молчание модели непрочитанным.
-    unread = "" if role == "артефакт" else ' data-текст="не прочитан"'
-    if role != "артефакт" and why:
+    unread = "" if role == "artifact" else ' data-текст="не прочитан"'
+    if role != "artifact" and why:
         cap += " · " + why
     within = f' data-внутри="{inside}"' if inside else ""
     return (f'<figure id="{anchor}" data-роль="{role}" '
             f'data-ярлык="{b.label}"{unread}{within}{mark}>'
             f'<img src="{src}" alt="{_html.escape(b.label)}" '
-            f'width="{info["ширина"]}" height="{info["высота"]}">'
+            f'width="{info["width"]}" height="{info["height"]}">'
             f'<figcaption>{_html.escape(cap)}</figcaption></figure>')
 
 
@@ -267,7 +267,7 @@ def _keep_source(detect_dir: str, out_dir: str, log) -> dict:
     """
     dst = os.path.join(out_dir, SOURCE)
     if os.path.abspath(detect_dir) == os.path.abspath(dst):
-        return {"взято": "уже на месте"}
+        return {"taken": "уже на месте"}
     было = {}
     if os.path.isdir(dst):
         shutil.rmtree(dst)
@@ -332,22 +332,22 @@ def observed(detect_dir: str) -> dict:
         # доехать.
         try:
             with open(fp, encoding="utf-8") as f:
-                recs = json.load(f).get("ответы") or []
+                recs = json.load(f).get("answers") or []
         except (ValueError, OSError, AttributeError):
             continue
         if not isinstance(recs, list):
             continue
         for r in recs:
-            a = r.get("якорь")
+            a = r.get("anchor")
             if not a:
                 continue
-            side = r.get("наблюдённое") or {}
-            out[a] = {"чем кончилось": r.get("чем кончилось"),
-                      "отказ": r.get("отказ"),
-                      "промт": side.get("промт"),
-                      "вид обещан": side.get("вид обещан"),
-                      "догадка о виде": side.get("догадка о виде"),
-                      "сетка otsl": side.get("сетка otsl")}
+            side = r.get("observed") or {}
+            out[a] = {"outcome": r.get("outcome"),
+                      "error": r.get("error"),
+                      "prompt": side.get("prompt"),
+                      "kind_promised": side.get("kind_promised"),
+                      "kind_sniffed": side.get("kind_sniffed"),
+                      "otsl_grid": side.get("otsl_grid")}
     return out
 
 
@@ -396,7 +396,7 @@ def repeats_on(page, covered) -> dict:
     книге 66, и они остаются видимыми.
     """
     из_текста = [b for b in page.blocks
-                 if policy.role(b.label) != "артефакт" and (b.content or "").strip()]
+                 if policy.role(b.label) != "artifact" and (b.content or "").strip()]
     вложен = {b.block_id for b in из_текста
               if any(o.block_id != b.block_id and covered(b.box, o.box)
                      for o in из_текста)}
@@ -404,12 +404,12 @@ def repeats_on(page, covered) -> dict:
     # позволил бы спрятать обоих: каждый «есть у соседа», а в книге не
     # остаётся ни одного.
     остаются = [b for b in из_текста if b.block_id not in вложен]
-    норма = {b.block_id: booktext.normalize(b.content, "латех") for b in остаются}
+    норма = {b.block_id: booktext.normalize(b.content, "latex") for b in остаются}
     out = {}
     for b in из_текста:
         if b.block_id not in вложен:
             continue
-        свой = booktext.normalize(b.content, "латех")
+        свой = booktext.normalize(b.content, "latex")
         # НОСИТЕЛЬ, А НЕ РАМКА: тот блок, в котором доказательство и лежит.
         носитель = next((o for o in остаются
                          if len(свой) >= REPEAT_MIN and свой in норма[o.block_id]),
@@ -454,7 +454,7 @@ def torn_of(o: dict | None) -> bool | None:
     последним двум одно и то же `False` — то есть поле, заведённое ПРОТИВ
     слияния двух нулей, само их сливало.
     """
-    чем = (o or {}).get("чем кончилось")
+    чем = (o or {}).get("outcome")
     return None if чем is None else (чем == "length")
 
 
@@ -491,7 +491,7 @@ def torn_grid(grid: dict | None) -> str | None:
     """
     if not grid:
         return None
-    rows, cells = grid.get("строк") or 0, grid.get("клеток") or 0
+    rows, cells = grid.get("rows") or 0, grid.get("grid_cells") or 0
     if rows == 1 and cells > 3:
         return f"вся таблица в одной строке: {cells} клеток"
     # ГОВОРИМ РОВНО ТО, ЧТО МЕРЯЕМ. Здесь стояло «вся таблица в одном
@@ -654,7 +654,7 @@ def _sheet_trouble(blocks, arts) -> str | None:
     """
     if not blocks:
         return "пусто"                # модель не нашла на листе ничего
-    if any(policy.role(b.label) == "текст" for b in blocks):
+    if any(policy.role(b.label) == "text" for b in blocks):
         return None
     return "без-текста" if arts else "только-служебное"
 
@@ -670,9 +670,9 @@ def _order_src(page) -> str:
     модельное — ровно та подмена, из-за которой этот участок и чинится.
     """
     m = page.meta or {}
-    if "порядок чтения" not in m:
-        return "не сказано"
-    v = m["порядок чтения"]
+    if "reading_order" not in m:
+        return "not_said"
+    v = m["reading_order"]
     if v is None:
         return "поле есть, значение null"
     return v if isinstance(v, str) else f"не строка: {v!r}"
@@ -788,8 +788,8 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
     out_dir = os.path.abspath(out_dir)
     with open(os.path.join(detect_dir, "run.json"), encoding="utf-8") as f:
         snap = json.load(f)
-    pdf = snap["исходник"]["путь"]
-    page_dpi = float(snap["растр"]["dpi"])
+    pdf = snap["source"]["path"]
+    page_dpi = float(snap["raster"]["dpi"])
     if not os.path.exists(pdf):
         raise SystemExit(
             f"исходник разбора не на месте: {pdf}\n"
@@ -806,7 +806,7 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
     # первой вырезки и тем же способом, что две беды выше: SystemExit с
     # текстом.
     from .. import detect as _detect        # _sha256, _commit, _packages
-    said = (snap.get("исходник") or {}).get("sha256")
+    said = (snap.get("source") or {}).get("sha256")
     now = _detect._sha256(pdf)
     if said and said != now:
         raise SystemExit(
@@ -833,7 +833,7 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
     if os.path.exists(_j):
         try:
             with open(_j, encoding="utf-8") as f:
-                _n = sum(len(v) for v in (json.load(f).get("замены") or {}).values())
+                _n = sum(len(v) for v in (json.load(f).get("swaps") or {}).values())
         except (ValueError, OSError):
             _n = -1
         raise SystemExit(
@@ -942,7 +942,7 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
             page = Page.from_json(json.load(f))
         order_src = _order_src(page)
         order_src_n[order_src] = order_src_n.get(order_src, 0) + 1
-        arts = [b for b in page.blocks if policy.role(b.label) == "артефакт"]
+        arts = [b for b in page.blocks if policy.role(b.label) == "artifact"]
         повторы_стр = repeats_on(page, _covered)
         sheet = float(page.width) * float(page.height)
         share = _union_share([b.box for b in arts], sheet)
@@ -988,18 +988,18 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
             role = policy.role(b.label)
             inside = [o for o in arts
                       if o.block_id != b.block_id and _covered(b.box, o.box)]
-            if role != "артефакт" and inside:
+            if role != "artifact" and inside:
                 dup_text += 1
             # Та же мерка вложения, но по ТЕКСТОВЫМ рамкам: слова, уехавшие в
             # книгу дважды, двумя <p>. Себя блок не накрывает; артефакты уже
             # посчитаны строкой выше и второй раз сюда не попадают.
             снаружи = [o for o in page.blocks
                        if o.block_id != b.block_id
-                       and policy.role(o.label) != "артефакт"
+                       and policy.role(o.label) != "artifact"
                        and _covered(b.box, o.box)]
-            if role != "артефакт" and снаружи:
+            if role != "artifact" and снаружи:
                 dup_in_text += 1
-                if role == "текст" and any(policy.role(o.label) == "текст"
+                if role == "text" and any(policy.role(o.label) == "text"
                                            for o in снаружи):
                     dup_in_text_strict += 1
             # Решение о повторе принято ДО цикла, для всей страницы разом:
@@ -1009,7 +1009,7 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
             if b.block_id in повторы_стр:
                 хозяин_id, повтор_текст = повторы_стр[b.block_id]
                 повтор = (anchor_of(page.index, хозяин_id)
-                          if хозяин_id is not None else "страница")
+                          if хозяин_id is not None else "page")
                 повторов += повтор_текст == "дословно"
                 расходится += повтор_текст == "расходится"
                 вёрсткой += повтор_текст == "вёрстка"
@@ -1018,7 +1018,7 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
             # `content` едет байтами модели, наблюдённое — рядом.
             o = obs.get(a) or {}
             torn = torn_of(o)
-            shape = torn_grid(o.get("сетка otsl"))
+            shape = torn_grid(o.get("otsl_grid"))
             mark = ' data-оборвано="да"' if torn else ""
             if повтор:
                 # ПРИ `show` ПОМЕТКА ОСТАЁТСЯ, А СОКРЫТИЯ НЕТ: наблюдённое
@@ -1038,7 +1038,7 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
                 shape_a.append(a)
             outer = nested_in.get(b.block_id)
             outer_a = anchor_of(page.index, outer) if outer is not None else None
-            if role == "артефакт" or not b.content:
+            if role == "artifact" or not b.content:
                 rel = f"{ASSETS}/blocks/{a}.png"
                 info = crop.cut(doc, page.index, b.box, page_dpi,
                                 os.path.join(out_dir, rel))
@@ -1048,8 +1048,8 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
                 # уровню, книга — чтению по любому пути.
                 src = _img_src(os.path.join(out_dir, rel), rel, img_how)
                 cut_n += 1
-                clipped += bool(info["срезано листом"])
-                cuts.append([float(v) for v in info["рамка в пунктах"]])
+                clipped += bool(info["clipped_by_sheet"])
+                cuts.append([float(v) for v in info["box_in_points"]])
                 body.append(swap.wrap(
                     a, _figure(a, b, role, src, info, inside=outer_a,
                                mark=mark,
@@ -1062,35 +1062,35 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
                        f'data-ярлык="{b.label}"{mark}>'
                        f'{_html.escape(b.content)}</p>'))
             # Наблюдённое — сбоку, по якорю. В текст не лезет ничего.
-            side[a] = {"страница": page.index, "блок": b.block_id,
+            side[a] = {"page": page.index, "block_id": b.block_id,
                        # Что сказало ЧТЕНИЕ. `None` у всего разом означает
                        # «`answers/` рядом нет», а не «прочитано без бед»:
                        # каталог детекции без второго уровня их не имеет.
-                       "чтение": (o or None),
+                       "reading": (o or None),
                        # ТРИ ЗНАЧЕНИЯ, А НЕ ДВА. Здесь стояло `torn or None`,
                        # и `null` означал разом «прочитано целым» (6073
                        # блока) и «не спрашивали вовсе» (69 рисунков) — то
                        # есть поле, заведённое ПРОТИВ слияния двух нулей, само
                        # их сливало. Теперь `None` только там, где ответа не
                        # было: рядом нет `answers/` либо блок не спрашивали.
-                       "оборвано потолком": torn,
-                       "повтор блока": повтор,
-                       "повтор текста": повтор_текст,
-                       "форма таблицы": shape,
-                       "ярлык": b.label, "уверенность": b.score,
+                       "hit_ceiling": torn,
+                       "repeat_of": повтор,
+                       "repeat_verdict": повтор_текст,
+                       "table_shape": shape,
+                       "label": b.label, "score": b.score,
                        # Поле звалось «ранг модели» и врало на трёх адаптерах
                        # из четырёх: там это НАША позиция в списке. Ровно эта
                        # болезнь — своё, названное чужим, — печатала метрике
                        # порядка проценты из ничего (86% у YOLOX, который
                        # ранга не даёт вовсе). Имя стало нейтральным, а рядом
                        # лежит источник — то самое значение meta страницы.
-                       "порядок": b.order, "порядок откуда": order_src,
-                       "роль": role,
-                       "рамка": list(b.box), "вырезка": info or None,
-                       "внутри артефактов": [anchor_of(page.index, o.block_id)
+                       "order": b.order, "order_source": order_src,
+                       "role": role,
+                       "box": list(b.box), "crop": info or None,
+                       "inside_artifacts": [anchor_of(page.index, o.block_id)
                                              for o in inside] or None,
-                       "внутри": outer_a,
-                       "содержит": [anchor_of(page.index, k)
+                       "inside": outer_a,
+                       "contains": [anchor_of(page.index, k)
                                     for k, v in nested_in.items()
                                     if v == b.block_id] or None}
         # Считаем по рамкам, которые РЕАЛЬНО порезаны, и в пунктах листа, а
@@ -1218,11 +1218,11 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
     # `books replay --check` обязан вернуть 0 и здесь.
     here = os.path.dirname(os.path.abspath(__file__))
     snap_out = {
-        "когда": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
-        "ручки": knobs.snapshot(),
-        "растр": dict(snap["растр"]),
-        "аргументы": {"detect": detect_dir, "out": out_dir},
-        "коммит": _detect._commit(),
+        "when": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+        "knobs": knobs.snapshot(),
+        "raster": dict(snap["raster"]),
+        "args": {"detect": detect_dir, "out": out_dir},
+        "commit": _detect._commit(),
         # sha256 ПЕРЕСЧИТАН, а не переписан из слепка детекции. Прежняя
         # редакция копировала чужое значение: PDF по тому же пути можно
         # пересобрать (другой разрез разворотов, другая версия pymupdf, просто
@@ -1232,45 +1232,45 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
         # Число то же самое, что сверено ДО первой вырезки, и файл читается
         # один раз вместо трёх: прежде sha256 считался дважды подряд здесь и
         # один раз для сверки.
-        "исходник": {**snap["исходник"], "sha256": now,
-                     "sha256 по слепку детекции": said,
+        "source": {**snap["source"], "sha256": now,
+                     "sha256_per_detect_snapshot": said,
                      # Обе величины, а не одна: «совпало до и после» — это
                      # утверждение о ЦЕЛОМ прогоне, а одно число до работы
                      # утверждает лишь про её начало.
-                     "sha256 после сборки": after},
+                     "sha256_after_build": after},
         # Что решает вид этой сборки: три модуля и слепок детекции целиком.
-        "адаптер": {
-            "имя": "doc.html",
+        "adapter": {
+            "name": "doc.html",
             # ИМЯ МОДУЛЯ — то, по чему `books replay --check` находит
             # писателя этого слепка и сверяет отпечаток с сегодняшним кодом.
             # Без него проверка на выходе сборки печатала «отпечаток не
             # сверен вовсе», а `--selfcheck` возвращал 1: шаг, делающий саму
             # книгу, слепком не проверялся ни разу, хотя все остальные
             # проверялись. Ключ тот же, что кладёт `detect.py`.
-            "модуль": "booksmith.doc.html",
+            "module": "booksmith.doc.html",
             "sha256": _detect._sha256(os.path.join(here, "html.py")),
-            "sha256 вырезки": _detect._sha256(os.path.join(here, "crop.py")),
-            "sha256 замены": _detect._sha256(os.path.join(here, "swap.py")),
-            "sha256 слепка детекции": _detect._sha256(
+            "sha256_crop_code": _detect._sha256(os.path.join(here, "crop.py")),
+            "sha256_swap_code": _detect._sha256(os.path.join(here, "swap.py")),
+            "sha256_detect_snapshot": _detect._sha256(
                 os.path.join(detect_dir, "run.json"))},
-        "политика": policy.snapshot(),
-        "вырезка": crop.params(page_dpi),
+        "policy": policy.snapshot(),
+        "crop": crop.params(page_dpi),
         # У сборки нет ни промтов, ни порождения, ни весов — это ЗНАЧЕНИЯ.
-        "промты": {},
-        "порождение": {"temperature": None, "max_tokens": None,
+        "prompts": {},
+        "generation": {"temperature": None, "max_tokens": None,
                        "top_p": None, "seed": None},
-        "пакеты": _detect._packages(),
-        "веса": {"vl": None, "layout": snap["веса"]["layout"]},
-        "итог": {"страниц": len(files), "по разрядам": counts,
-                 "вырезок": cut_n, "срезано листом": clipped,
-                 "чернил дважды, доля листов": (
+        "packages": _detect._packages(),
+        "weights": {"vl": None, "layout": snap["weights"]["layout"]},
+        "summary": {"page_count": len(files), "by_bucket": counts,
+                 "crop_count": cut_n, "clipped_by_sheet": clipped,
+                 "double_ink_sheet_share": (
                      round(ink2 / sheet_pt_all, 4)
                      if sheet_pt_all > 0 else None),
-                 "худший лист по двойным чернилам": (
-                     {"стр": worst2[1], "доля": round(worst2[0], 4)}
+                 "worst_sheet_double_ink": (
+                     {"page_no": worst2[1], "share": round(worst2[0], 4)}
                      if worst2[1] is not None else None),
-                 "текста внутри артефактных рамок": dup_text,
-                 "текста внутри неартефактной рамки": dup_in_text,
+                 "text_inside_artifact_boxes": dup_text,
+                 "text_inside_non_artifact_box": dup_in_text,
                  # ВЛОЖЕНИЕ И ПОВТОР — РАЗНЫЕ ВЕЛИЧИНЫ. Первое про рамки
                  # модели, второе про текст и требует сличения. На
                  # «Технологии огнеупоров» 1935 против 1916: у девятнадцати
@@ -1278,37 +1278,37 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
                  # ОДНА ВЕЛИЧИНА — ОДНО ИМЯ. Здесь стояли два имени на каждое
                  # число, и второе («повтор текста ХОЗЯИНА») называло ровно то,
                  # чего правило не проверяет.
-                 "повтор доказан": повторов,
-                 "повторы": repeats_how,
-                 "вложен, но текст разошёлся": расходится,
-                 "повтор доказан, оставлен ради вёрстки": вёрсткой,
-                 "нормализация сличения": booktext.norm_note("латех"),
-                 "то же, разряд «текст» с обеих сторон":
+                 "repeats_proven": повторов,
+                 "repeats_mode": repeats_how,
+                 "nested_but_text_differs": расходится,
+                 "repeats_kept_for_layout": вёрсткой,
+                 "comparison_normalization": booktext.norm_note("latex"),
+                 "text_inside_text_box_strict":
                      dup_in_text_strict,
                  # Наблюдённое чтения — величиной, а не только атрибутом.
                  # `null` (а не 0) значит «`answers/` рядом нет, сказать
                  # нечем»: ноль от непонимания обязан отличаться от нуля от
                  # проверки и в слепке, а не только в журнале.
-                 "чтение наблюдалось": bool(obs) or None,
-                 "оборвано потолком": torn_n if obs else None,
+                 "reading_observed": bool(obs) or None,
+                 "hit_ceiling": torn_n if obs else None,
                  # Урезание ОБЪЯВЛЕНО, а не молчаливо: список из двадцати
                  # при двадцати одной беде читался бы как полный.
-                 "оборванные якоря": (
+                 "truncated_anchors": (
                      (torn_a[:20] + (["…и ещё %d" % (torn_n - 20)]
                                      if torn_n > 20 else []))
                      if obs else None),
-                 "форма таблицы невозможна": shape_n if obs else None,
-                 "якоря невозможных таблиц": (
+                 "impossible_table_shape": shape_n if obs else None,
+                 "impossible_table_anchors": (
                      (shape_a[:20] + (["…и ещё %d" % (shape_n - 20)]
                                       if shape_n > 20 else []))
                      if obs else None),
-                 "вложенных артефактов": nested,
-                 "порядок блоков": {
-                     "по meta страниц": dict(sorted(order_src_n.items())),
-                     "страниц с нашим порядком": sum(
+                 "nested_artifacts": nested,
+                 "block_order": {
+                     "by_page_meta": dict(sorted(order_src_n.items())),
+                     "pages_with_our_order": sum(
                          n for v, n in order_src_n.items() if _ours(v))},
-                 "якорей": len(swap.anchors(page_html))},
-        "повтор": " ".join(shlex.quote(a) for a in
+                 "anchor_count": len(swap.anchors(page_html))},
+        "repeat_command": " ".join(shlex.quote(a) for a in
                            ["books", "html", detect_dir, "--out", out_dir]),
     }
     with open(os.path.join(out_dir, ASSETS, "run.json"), "w",
@@ -1317,8 +1317,8 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
 
     # Число, а не «готово»: по разрядам видно, во что превратилась книга.
     log(f"страниц {len(files)}, блоков {sum(counts.values())} "
-        f"(текст {counts['текст']}, артефакты {counts['артефакт']}, "
-        f"служебное {counts['служебное']})")
+        f"(текст {counts['text']}, артефакты {counts['artifact']}, "
+        f"служебное {counts['furniture']})")
     # Резкость вырезки печатается ТА, ЧТО ПРИМЕНЕНА. Прежде здесь стояло
     # `crop.params()` без аргумента, то есть пустой `CROP_DPI` раскрывался в
     # `PAGE_DPI` текущего процесса. Замер: детекция `bench/atlas` при
@@ -1326,8 +1326,8 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
     # 144 dpi», хотя координаты пересчитывались из 150; теперь 150, и рядом
     # сказано, откуда число взято.
     _cp = crop.params(page_dpi)
-    log(f"вырезок {cut_n} при {_cp['dpi']:.0f} dpi ({_cp['dpi откуда']}), "
-        f"поле {_cp['поле']}, срезано листом {clipped}")
+    log(f"вырезок {cut_n} при {_cp['dpi']:.0f} dpi ({_cp['dpi_source']}), "
+        f"поле {_cp['margin']}, срезано листом {clipped}")
     # Ноль от проверки и ноль от непонимания: «0.00%» здесь значит «сверили
     # все вырезки, пересечений нет», а нулевой знаменатель — «сверять нечем»,
     # и так и написано.
@@ -1414,7 +1414,7 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
             f"наш, а не модели, на {ours} стр."
             + (" (meta страниц о порядке молчит — чей он, слепок детекции "
                "не говорит; «наш» здесь не посчитан, а не опровергнут)"
-               if v == "не сказано" else ""))
+               if v == "not_said" else ""))
     else:
         log("порядок блоков РАЗНЫЙ по страницам: "
             + ", ".join(f"«{v}» — {n} стр."
@@ -1428,11 +1428,11 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
     log(f"формулы: {math_note}")
     log(f"{out_html} ({os.path.getsize(out_html)/1024:.0f} КБ), "
         f"вырезки в {blockdir}")
-    return {"страниц": len(files), "по разрядам": counts, "вырезок": cut_n,
-            "срезано листом": clipped, "html": out_html,
+    return {"page_count": len(files), "by_bucket": counts, "crop_count": cut_n,
+            "clipped_by_sheet": clipped, "html": out_html,
             # Чей порядок — величина того же ранга, что число вырезок: без неё
             # вызывающий не может сказать, что именно он собрал.
-            "порядок блоков": {
-                "по meta страниц": dict(sorted(order_src_n.items())),
-                "страниц с нашим порядком": ours},
-            "вырезка": crop.params(page_dpi), "политика": policy.snapshot()}
+            "block_order": {
+                "by_page_meta": dict(sorted(order_src_n.items())),
+                "pages_with_our_order": ours},
+            "crop": crop.params(page_dpi), "policy": policy.snapshot()}

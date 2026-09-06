@@ -161,10 +161,10 @@ def test_journal_keeps_what_was_taken():
         book(tmp)
         ap.put(tmp, A, "<table>x</table>", source="проба", log=lambda *_: None)
         j = json.load(open(os.path.join(tmp, ap.JOURNAL), encoding="utf-8"))
-        rec = j["замены"][A][-1]
-        assert rec["снято"] == '<figure id="p0042-b17">картинка таблицы</figure>', (
+        rec = j["swaps"][A][-1]
+        assert rec["removed"] == '<figure id="p0042-b17">картинка таблицы</figure>', (
             "журнал не сохранил снятое — откатывать будет нечем")
-        assert rec["чем"] == "проба" and rec["вид"] == "html"
+        assert rec["placed_by"] == "проба" and rec["kind"] == "html"
 
 
 def test_status_tells_three_zeroes_apart():
@@ -172,7 +172,7 @@ def test_status_tells_three_zeroes_apart():
         book(tmp)
         said = []
         r = ap.status(tmp, log=said.append)
-        assert r["якорей"] == 2 and r["всего замен"] == 0
+        assert r["anchor_count"] == 2 and r["swaps_total"] == 0
         assert any("ещё не ходил" in s for s in said), (
             "«замен нет» и «книга пуста» напечатаны одинаково — это разные нули")
 
@@ -297,7 +297,7 @@ def test_journal_is_written_atomically():
             raise Boom("обрыв записи посередине")
 
         j = ap.load_journal(tmp)
-        j["замены"]["p9999-b9"] = [{"мусор": "x"}]
+        j["swaps"]["p9999-b9"] = [{"junk": "x"}]
         real, _json.dump = _json.dump, half
         try:
             ap.save_journal(tmp, j)
@@ -310,7 +310,7 @@ def test_journal_is_written_atomically():
         assert open(p, encoding="utf-8").read() == whole, (
             "оборванная запись затёрла журнал: стопка отката всей книги "
             "потеряна")
-        assert len(ap.load_journal(tmp)["замены"][A]) == 3, "стопка укоротилась"
+        assert len(ap.load_journal(tmp)["swaps"][A]) == 3, "стопка укоротилась"
 
 
 def _bulk_stand(tmp, blocks=6):
@@ -327,7 +327,7 @@ def _bulk_stand(tmp, blocks=6):
     os.makedirs(os.path.join(tmp, ap.ASSETS), exist_ok=True)
     with open(os.path.join(tmp, ap.ASSETS, "blocks.json"), "w",
               encoding="utf-8") as f:
-        json.dump({f"p0000-b{i}": {"роль": "артефакт"} for i in range(blocks)}, f)
+        json.dump({f"p0000-b{i}": {"role": "artifact"} for i in range(blocks)}, f)
     os.makedirs(os.path.join(tmp, "read", "pages"))
     with open(os.path.join(tmp, "read", "pages", "0000.json"), "w",
               encoding="utf-8") as f:
@@ -375,7 +375,7 @@ def test_bulk_reads_the_book_once_not_once_per_block():
         finally:
             builtins.open = было
 
-    assert res["поставлено"] == 6, f"поставлено {res['поставлено']} из 6"
+    assert res["placed"] == 6, f"поставлено {res['placed']} из 6"
     assert считано["book"] == 1, (
         f"книга прочитана {считано['book']} раз на 6 замен — правило снова "
         f"слито с вводом-выводом, и на шести тысячах блоков это шесть минут")
@@ -428,13 +428,13 @@ def test_putting_the_same_markup_twice_changes_nothing():
 
         второй = ap.put(tmp, A, "<p>раз</p>", kind="html", source="м1",
                         log=lambda *_: None)
-        assert второй.get("уже стоит") is True, (
+        assert второй.get("already_placed") is True, (
             f"повтор не опознан: {второй}. Он вырастит стопку отката на "
             f"ступень, не изменив книги")
-        assert второй["поставлено"] == 0, второй
-        assert первый["глубина отката"] == второй["глубина отката"] == 1, (
-            f"стопка отката выросла с повтором: {первый['глубина отката']} -> "
-            f"{второй['глубина отката']}")
+        assert второй["placed"] == 0, второй
+        assert первый["undo_depth"] == второй["undo_depth"] == 1, (
+            f"стопка отката выросла с повтором: {первый['undo_depth']} -> "
+            f"{второй['undo_depth']}")
         стало = open(os.path.join(tmp, "book.html"), encoding="utf-8").read()
         assert стало == снимок, "книга изменилась от повторной той же замены"
 
@@ -442,7 +442,7 @@ def test_putting_the_same_markup_twice_changes_nothing():
         # переделать блок другой моделью стало бы нельзя.
         третий = ap.put(tmp, A, "<p>раз</p>", kind="html", source="м2",
                         log=lambda *_: None)
-        assert третий["глубина отката"] == 2, (
+        assert третий["undo_depth"] == 2, (
             f"замена от другого источника не встала: {третий}. Повтором "
             f"считается совпадение ТЕЛА, а тело несёт и источник")
 
@@ -467,7 +467,7 @@ def test_the_source_inside_the_book_beats_the_recorded_path():
         # В слепке — путь, которого на диске НЕТ.
         with open(os.path.join(tmp, ap.ASSETS, "run.json"), "w",
                   encoding="utf-8") as f:
-            json.dump({"аргументы": {"detect": "/нет/такого/каталога"}}, f,
+            json.dump({"args": {"detect": "/нет/такого/каталога"}}, f,
                       ensure_ascii=False)
         assert ap.source_of(tmp) is None, (
             "путь из слепка принят, хотя каталога нет — команда упала бы "
@@ -499,7 +499,7 @@ def test_the_book_remembers_where_it_was_built_from():
         os.makedirs(os.path.join(tmp, ap.ASSETS), exist_ok=True)
         with open(os.path.join(tmp, ap.ASSETS, "run.json"), "w",
                   encoding="utf-8") as f:
-            json.dump({"аргументы": {"detect": читение}}, f, ensure_ascii=False)
+            json.dump({"args": {"detect": читение}}, f, ensure_ascii=False)
         assert ap.source_of(tmp) == читение, (
             f"источник из слепка не прочитан: {ap.source_of(tmp)!r}")
 
@@ -536,8 +536,8 @@ def test_a_journal_from_the_old_layout_is_seen_not_declared_empty():
         старый = os.path.join(tmp, "swaps.json")
         os.replace(новый, старый)
         j = ap.load_journal(tmp)
-        assert len(j["замены"]) == 1, (
-            f"журнал из корня не прочитан: {j['замены']}. Книга объявила бы "
+        assert len(j["swaps"]) == 1, (
+            f"журнал из корня не прочитан: {j['swaps']}. Книга объявила бы "
             f"себя нетронутой, имея стопку отката")
 
         # Вторая замена обязана лечь В ТОТ ЖЕ файл, а не завести второй.
@@ -546,5 +546,5 @@ def test_a_journal_from_the_old_layout_is_seen_not_declared_empty():
         assert not os.path.exists(новый), (
             "заведён ВТОРОЙ журнал в кухне при живом журнале в корне — "
             "стопка отката разъехалась по двум файлам")
-        assert len(ap.load_journal(tmp)["замены"]) == 2, (
+        assert len(ap.load_journal(tmp)["swaps"]) == 2, (
             "вторая замена не попала в прочитанный журнал")

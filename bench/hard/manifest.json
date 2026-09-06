@@ -1,534 +1,534 @@
 {
- "книга": "hard",
- "о книге": "выжимка: два артефакта одного ярлыка бок о бок в истине",
- "страниц": 130,
- "пар бок о бок": 887,
- "по книгам": {
+ "book": "hard",
+ "about": "выжимка: два артефакта одного ярлыка бок о бок в истине",
+ "page_count": 130,
+ "side_by_side_pairs": 887,
+ "by_book": {
   "spravochnik": 4,
   "atlas": 1,
   "katalog": 1,
   "annopage": 124
  },
- "страницы": [
+ "pages": [
   {
-   "книга": "spravochnik",
-   "стр": 5
+   "book": "spravochnik",
+   "page_no": 5
   },
   {
-   "книга": "spravochnik",
-   "стр": 16
+   "book": "spravochnik",
+   "page_no": 16
   },
   {
-   "книга": "spravochnik",
-   "стр": 21
+   "book": "spravochnik",
+   "page_no": 21
   },
   {
-   "книга": "spravochnik",
-   "стр": 24
+   "book": "spravochnik",
+   "page_no": 24
   },
   {
-   "книга": "atlas",
-   "стр": 3
+   "book": "atlas",
+   "page_no": 3
   },
   {
-   "книга": "katalog",
-   "стр": 7
+   "book": "katalog",
+   "page_no": 7
   },
   {
-   "книга": "annopage",
-   "стр": 10
+   "book": "annopage",
+   "page_no": 10
   },
   {
-   "книга": "annopage",
-   "стр": 12
+   "book": "annopage",
+   "page_no": 12
   },
   {
-   "книга": "annopage",
-   "стр": 15
+   "book": "annopage",
+   "page_no": 15
   },
   {
-   "книга": "annopage",
-   "стр": 16
+   "book": "annopage",
+   "page_no": 16
   },
   {
-   "книга": "annopage",
-   "стр": 22
+   "book": "annopage",
+   "page_no": 22
   },
   {
-   "книга": "annopage",
-   "стр": 29
+   "book": "annopage",
+   "page_no": 29
   },
   {
-   "книга": "annopage",
-   "стр": 30
+   "book": "annopage",
+   "page_no": 30
   },
   {
-   "книга": "annopage",
-   "стр": 32
+   "book": "annopage",
+   "page_no": 32
   },
   {
-   "книга": "annopage",
-   "стр": 37
+   "book": "annopage",
+   "page_no": 37
   },
   {
-   "книга": "annopage",
-   "стр": 38
+   "book": "annopage",
+   "page_no": 38
   },
   {
-   "книга": "annopage",
-   "стр": 39
+   "book": "annopage",
+   "page_no": 39
   },
   {
-   "книга": "annopage",
-   "стр": 40
+   "book": "annopage",
+   "page_no": 40
   },
   {
-   "книга": "annopage",
-   "стр": 41
+   "book": "annopage",
+   "page_no": 41
   },
   {
-   "книга": "annopage",
-   "стр": 43
+   "book": "annopage",
+   "page_no": 43
   },
   {
-   "книга": "annopage",
-   "стр": 55
+   "book": "annopage",
+   "page_no": 55
   },
   {
-   "книга": "annopage",
-   "стр": 66
+   "book": "annopage",
+   "page_no": 66
   },
   {
-   "книга": "annopage",
-   "стр": 74
+   "book": "annopage",
+   "page_no": 74
   },
   {
-   "книга": "annopage",
-   "стр": 83
+   "book": "annopage",
+   "page_no": 83
   },
   {
-   "книга": "annopage",
-   "стр": 84
+   "book": "annopage",
+   "page_no": 84
   },
   {
-   "книга": "annopage",
-   "стр": 94
+   "book": "annopage",
+   "page_no": 94
   },
   {
-   "книга": "annopage",
-   "стр": 97
+   "book": "annopage",
+   "page_no": 97
   },
   {
-   "книга": "annopage",
-   "стр": 99
+   "book": "annopage",
+   "page_no": 99
   },
   {
-   "книга": "annopage",
-   "стр": 102
+   "book": "annopage",
+   "page_no": 102
   },
   {
-   "книга": "annopage",
-   "стр": 103
+   "book": "annopage",
+   "page_no": 103
   },
   {
-   "книга": "annopage",
-   "стр": 104
+   "book": "annopage",
+   "page_no": 104
   },
   {
-   "книга": "annopage",
-   "стр": 109
+   "book": "annopage",
+   "page_no": 109
   },
   {
-   "книга": "annopage",
-   "стр": 113
+   "book": "annopage",
+   "page_no": 113
   },
   {
-   "книга": "annopage",
-   "стр": 115
+   "book": "annopage",
+   "page_no": 115
   },
   {
-   "книга": "annopage",
-   "стр": 117
+   "book": "annopage",
+   "page_no": 117
   },
   {
-   "книга": "annopage",
-   "стр": 118
+   "book": "annopage",
+   "page_no": 118
   },
   {
-   "книга": "annopage",
-   "стр": 122
+   "book": "annopage",
+   "page_no": 122
   },
   {
-   "книга": "annopage",
-   "стр": 123
+   "book": "annopage",
+   "page_no": 123
   },
   {
-   "книга": "annopage",
-   "стр": 127
+   "book": "annopage",
+   "page_no": 127
   },
   {
-   "книга": "annopage",
-   "стр": 129
+   "book": "annopage",
+   "page_no": 129
   },
   {
-   "книга": "annopage",
-   "стр": 130
+   "book": "annopage",
+   "page_no": 130
   },
   {
-   "книга": "annopage",
-   "стр": 132
+   "book": "annopage",
+   "page_no": 132
   },
   {
-   "книга": "annopage",
-   "стр": 153
+   "book": "annopage",
+   "page_no": 153
   },
   {
-   "книга": "annopage",
-   "стр": 154
+   "book": "annopage",
+   "page_no": 154
   },
   {
-   "книга": "annopage",
-   "стр": 156
+   "book": "annopage",
+   "page_no": 156
   },
   {
-   "книга": "annopage",
-   "стр": 159
+   "book": "annopage",
+   "page_no": 159
   },
   {
-   "книга": "annopage",
-   "стр": 162
+   "book": "annopage",
+   "page_no": 162
   },
   {
-   "книга": "annopage",
-   "стр": 165
+   "book": "annopage",
+   "page_no": 165
   },
   {
-   "книга": "annopage",
-   "стр": 169
+   "book": "annopage",
+   "page_no": 169
   },
   {
-   "книга": "annopage",
-   "стр": 172
+   "book": "annopage",
+   "page_no": 172
   },
   {
-   "книга": "annopage",
-   "стр": 181
+   "book": "annopage",
+   "page_no": 181
   },
   {
-   "книга": "annopage",
-   "стр": 182
+   "book": "annopage",
+   "page_no": 182
   },
   {
-   "книга": "annopage",
-   "стр": 185
+   "book": "annopage",
+   "page_no": 185
   },
   {
-   "книга": "annopage",
-   "стр": 189
+   "book": "annopage",
+   "page_no": 189
   },
   {
-   "книга": "annopage",
-   "стр": 200
+   "book": "annopage",
+   "page_no": 200
   },
   {
-   "книга": "annopage",
-   "стр": 202
+   "book": "annopage",
+   "page_no": 202
   },
   {
-   "книга": "annopage",
-   "стр": 204
+   "book": "annopage",
+   "page_no": 204
   },
   {
-   "книга": "annopage",
-   "стр": 206
+   "book": "annopage",
+   "page_no": 206
   },
   {
-   "книга": "annopage",
-   "стр": 213
+   "book": "annopage",
+   "page_no": 213
   },
   {
-   "книга": "annopage",
-   "стр": 216
+   "book": "annopage",
+   "page_no": 216
   },
   {
-   "книга": "annopage",
-   "стр": 220
+   "book": "annopage",
+   "page_no": 220
   },
   {
-   "книга": "annopage",
-   "стр": 222
+   "book": "annopage",
+   "page_no": 222
   },
   {
-   "книга": "annopage",
-   "стр": 224
+   "book": "annopage",
+   "page_no": 224
   },
   {
-   "книга": "annopage",
-   "стр": 228
+   "book": "annopage",
+   "page_no": 228
   },
   {
-   "книга": "annopage",
-   "стр": 231
+   "book": "annopage",
+   "page_no": 231
   },
   {
-   "книга": "annopage",
-   "стр": 233
+   "book": "annopage",
+   "page_no": 233
   },
   {
-   "книга": "annopage",
-   "стр": 240
+   "book": "annopage",
+   "page_no": 240
   },
   {
-   "книга": "annopage",
-   "стр": 241
+   "book": "annopage",
+   "page_no": 241
   },
   {
-   "книга": "annopage",
-   "стр": 242
+   "book": "annopage",
+   "page_no": 242
   },
   {
-   "книга": "annopage",
-   "стр": 245
+   "book": "annopage",
+   "page_no": 245
   },
   {
-   "книга": "annopage",
-   "стр": 252
+   "book": "annopage",
+   "page_no": 252
   },
   {
-   "книга": "annopage",
-   "стр": 256
+   "book": "annopage",
+   "page_no": 256
   },
   {
-   "книга": "annopage",
-   "стр": 258
+   "book": "annopage",
+   "page_no": 258
   },
   {
-   "книга": "annopage",
-   "стр": 282
+   "book": "annopage",
+   "page_no": 282
   },
   {
-   "книга": "annopage",
-   "стр": 285
+   "book": "annopage",
+   "page_no": 285
   },
   {
-   "книга": "annopage",
-   "стр": 289
+   "book": "annopage",
+   "page_no": 289
   },
   {
-   "книга": "annopage",
-   "стр": 301
+   "book": "annopage",
+   "page_no": 301
   },
   {
-   "книга": "annopage",
-   "стр": 306
+   "book": "annopage",
+   "page_no": 306
   },
   {
-   "книга": "annopage",
-   "стр": 307
+   "book": "annopage",
+   "page_no": 307
   },
   {
-   "книга": "annopage",
-   "стр": 309
+   "book": "annopage",
+   "page_no": 309
   },
   {
-   "книга": "annopage",
-   "стр": 310
+   "book": "annopage",
+   "page_no": 310
   },
   {
-   "книга": "annopage",
-   "стр": 313
+   "book": "annopage",
+   "page_no": 313
   },
   {
-   "книга": "annopage",
-   "стр": 315
+   "book": "annopage",
+   "page_no": 315
   },
   {
-   "книга": "annopage",
-   "стр": 319
+   "book": "annopage",
+   "page_no": 319
   },
   {
-   "книга": "annopage",
-   "стр": 321
+   "book": "annopage",
+   "page_no": 321
   },
   {
-   "книга": "annopage",
-   "стр": 322
+   "book": "annopage",
+   "page_no": 322
   },
   {
-   "книга": "annopage",
-   "стр": 323
+   "book": "annopage",
+   "page_no": 323
   },
   {
-   "книга": "annopage",
-   "стр": 331
+   "book": "annopage",
+   "page_no": 331
   },
   {
-   "книга": "annopage",
-   "стр": 341
+   "book": "annopage",
+   "page_no": 341
   },
   {
-   "книга": "annopage",
-   "стр": 342
+   "book": "annopage",
+   "page_no": 342
   },
   {
-   "книга": "annopage",
-   "стр": 343
+   "book": "annopage",
+   "page_no": 343
   },
   {
-   "книга": "annopage",
-   "стр": 348
+   "book": "annopage",
+   "page_no": 348
   },
   {
-   "книга": "annopage",
-   "стр": 350
+   "book": "annopage",
+   "page_no": 350
   },
   {
-   "книга": "annopage",
-   "стр": 355
+   "book": "annopage",
+   "page_no": 355
   },
   {
-   "книга": "annopage",
-   "стр": 356
+   "book": "annopage",
+   "page_no": 356
   },
   {
-   "книга": "annopage",
-   "стр": 365
+   "book": "annopage",
+   "page_no": 365
   },
   {
-   "книга": "annopage",
-   "стр": 366
+   "book": "annopage",
+   "page_no": 366
   },
   {
-   "книга": "annopage",
-   "стр": 367
+   "book": "annopage",
+   "page_no": 367
   },
   {
-   "книга": "annopage",
-   "стр": 372
+   "book": "annopage",
+   "page_no": 372
   },
   {
-   "книга": "annopage",
-   "стр": 373
+   "book": "annopage",
+   "page_no": 373
   },
   {
-   "книга": "annopage",
-   "стр": 374
+   "book": "annopage",
+   "page_no": 374
   },
   {
-   "книга": "annopage",
-   "стр": 375
+   "book": "annopage",
+   "page_no": 375
   },
   {
-   "книга": "annopage",
-   "стр": 390
+   "book": "annopage",
+   "page_no": 390
   },
   {
-   "книга": "annopage",
-   "стр": 404
+   "book": "annopage",
+   "page_no": 404
   },
   {
-   "книга": "annopage",
-   "стр": 412
+   "book": "annopage",
+   "page_no": 412
   },
   {
-   "книга": "annopage",
-   "стр": 425
+   "book": "annopage",
+   "page_no": 425
   },
   {
-   "книга": "annopage",
-   "стр": 436
+   "book": "annopage",
+   "page_no": 436
   },
   {
-   "книга": "annopage",
-   "стр": 437
+   "book": "annopage",
+   "page_no": 437
   },
   {
-   "книга": "annopage",
-   "стр": 438
+   "book": "annopage",
+   "page_no": 438
   },
   {
-   "книга": "annopage",
-   "стр": 439
+   "book": "annopage",
+   "page_no": 439
   },
   {
-   "книга": "annopage",
-   "стр": 451
+   "book": "annopage",
+   "page_no": 451
   },
   {
-   "книга": "annopage",
-   "стр": 455
+   "book": "annopage",
+   "page_no": 455
   },
   {
-   "книга": "annopage",
-   "стр": 457
+   "book": "annopage",
+   "page_no": 457
   },
   {
-   "книга": "annopage",
-   "стр": 459
+   "book": "annopage",
+   "page_no": 459
   },
   {
-   "книга": "annopage",
-   "стр": 468
+   "book": "annopage",
+   "page_no": 468
   },
   {
-   "книга": "annopage",
-   "стр": 471
+   "book": "annopage",
+   "page_no": 471
   },
   {
-   "книга": "annopage",
-   "стр": 472
+   "book": "annopage",
+   "page_no": 472
   },
   {
-   "книга": "annopage",
-   "стр": 482
+   "book": "annopage",
+   "page_no": 482
   },
   {
-   "книга": "annopage",
-   "стр": 488
+   "book": "annopage",
+   "page_no": 488
   },
   {
-   "книга": "annopage",
-   "стр": 571
+   "book": "annopage",
+   "page_no": 571
   },
   {
-   "книга": "annopage",
-   "стр": 572
+   "book": "annopage",
+   "page_no": 572
   },
   {
-   "книга": "annopage",
-   "стр": 573
+   "book": "annopage",
+   "page_no": 573
   },
   {
-   "книга": "annopage",
-   "стр": 574
+   "book": "annopage",
+   "page_no": 574
   },
   {
-   "книга": "annopage",
-   "стр": 575
+   "book": "annopage",
+   "page_no": 575
   },
   {
-   "книга": "annopage",
-   "стр": 582
+   "book": "annopage",
+   "page_no": 582
   },
   {
-   "книга": "annopage",
-   "стр": 585
+   "book": "annopage",
+   "page_no": 585
   },
   {
-   "книга": "annopage",
-   "стр": 586
+   "book": "annopage",
+   "page_no": 586
   },
   {
-   "книга": "annopage",
-   "стр": 592
+   "book": "annopage",
+   "page_no": 592
   },
   {
-   "книга": "annopage",
-   "стр": 598
+   "book": "annopage",
+   "page_no": 598
   },
   {
-   "книга": "annopage",
-   "стр": 599
+   "book": "annopage",
+   "page_no": 599
   }
  ],
  "pdf": "hard.pdf",

@@ -146,10 +146,10 @@ class Said:
         return self.error is None and self.text is not None
 
     def to_json(self) -> dict:
-        return {"якорь": self.anchor, "текст": self.text,
-                "чем кончилось": self.finish, "отказ": self.error,
-                "секунд": round(self.took_s, 3), "токенов": self.tokens,
-                "сырое": self.raw, "наблюдённое": self.meta}
+        return {"anchor": self.anchor, "text": self.text,
+                "outcome": self.finish, "error": self.error,
+                "seconds": round(self.took_s, 3), "tokens": self.tokens,
+                "raw_answer": self.raw, "observed": self.meta}
 
 
 class Reader:

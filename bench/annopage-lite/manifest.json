@@ -1,9 +1,9 @@
 {
- "книга": "annopage-lite",
- "о книге": "AnnoPage, длинная сторона ужата до 1 Мпикс — ровно то, что видит dots.ocr; истина пересчитана тем же коэффициентом",
- "страниц": 600,
- "текст размечен": false,
- "порядок размечен": false,
+ "book": "annopage-lite",
+ "about": "AnnoPage, длинная сторона ужата до 1 Мпикс — ровно то, что видит dots.ocr; истина пересчитана тем же коэффициентом",
+ "page_count": 600,
+ "text_marked": false,
+ "order_marked": false,
  "pdf": "annopage-lite.pdf",
  "sha256 pdf": "d34baa95d5c6cc068daf6f82a0af70a3e6799efe363fd77f58172e27ccff319e"
 }
