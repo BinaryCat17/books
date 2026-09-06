@@ -232,3 +232,35 @@ def test_bench_snapshots_are_weighed_even_though_they_are_exempt():
     assert "bench_data" not in cyr.ratchet_areas(_count()), (
         "the ratchet is pressing on records of runs; they can only change by "
         "re-running, and pressing sets a floor it can never reach")
+
+
+def test_every_character_left_is_declared_and_no_more():
+    """The lock: what is left, and why, named file by file.
+
+    WHY A LOCK AND NOT ONLY THE RATCHET. A ratchet goes green at any number.
+    It cannot finish a job: the last thousand characters may sit there forever
+    with nobody able to say whether they are evidence or oversight. Every entry
+    in `RESIDUE` carries a reason, and the count is the price of that reason --
+    edit the file and this goes red until somebody decides again.
+
+    IT FAILS IN THREE DIRECTIONS, and the third is the one a ratchet is blind
+    to. Russian appearing in a file that declares none is the translation going
+    backwards. A declared count that moved is evidence somebody edited. And a
+    declaration for Cyrillic that is no longer there is a list rotting -- which
+    is exactly how the file-glob exemption and the `CONTENT_NAMES` list both
+    went wrong earlier in this migration.
+
+    The names come from the code (`RESIDUE`) and the counts from the disk.
+    """
+    cyr = _cyr()
+    unexpected, moved, stale = cyr.undeclared()
+    assert not unexpected, (
+        "Cyrillic in files that declare none: "
+        + ", ".join(f"{p} ({n})" for p, n in sorted(unexpected.items())))
+    assert not moved, (
+        "declared counts moved: "
+        + "; ".join(f"{p} {was} -> {now}" for p, (was, now) in sorted(moved.items())))
+    assert not stale, (
+        f"RESIDUE declares Cyrillic that is gone: {stale}. Delete the entry -- "
+        "a list nobody prunes stops being read.")
+    assert cyr.RESIDUE, "the residue declaration is empty: the lock guards nothing"

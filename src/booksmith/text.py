@@ -366,10 +366,15 @@ def _truth_text(b, side=None):
     aside = (side or {}).get(str(b.get("block_id"))) or {}
     if not isinstance(aside, dict):
         return None
-    for k in ("text", "знаки"):
-        v = aside.get(k)
-        if isinstance(v, str):
-            return v
+    # ONE KEY, `text`. The second name this used to accept, the pre-migration
+    # `знаки`, was dead: it is in no tracked file, in no file under
+    # `processed/` or `runs/`, and it was never declared in `tools/keymap.json`
+    # -- so the rename could not have produced it and nothing writes it. A
+    # reader for a key nobody writes is not compatibility, it is a name that
+    # outlived its data.
+    v = aside.get("text")
+    if isinstance(v, str):
+        return v
     return None
 
 

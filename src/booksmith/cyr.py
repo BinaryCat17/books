@@ -255,6 +255,102 @@ def count():
     return dict(c)
 
 
+# THE LOCK. The ratchet says "no area grew"; this says WHAT IS LEFT AND WHY.
+#
+# A ratchet alone cannot finish a translation. It goes green at any number, so
+# the last thousand characters can sit there forever with nobody able to say
+# whether they are evidence or oversight. Every entry below is evidence, and
+# the count is the price of naming it: change the file and this goes red until
+# someone decides again.
+#
+# The three kinds, and there are only three:
+#   TITLE  a real book of this project. Inventing an English name for it would
+#          cut the thread between a number here and the same number elsewhere.
+#   DATA   text quoted from those books, or a name from before the migration.
+#          The spelling IS the measurement -- see `djvu.py`, where the pipe in
+#          a caption marks where the spread splits a word.
+#   TOOL   an instrument whose subject is Russian: the migration tools, and
+#          the counter below, which contains the bounds of the Cyrillic block
+#          and therefore counts itself.
+RESIDUE = {
+    "docs/contour-notes.md": (13, "DATA: the dirty-tree marker as it stands "
+                              "in the tracked run.json snapshots"),
+    "docs/lessons-from-deleted-code.md": (29, "DATA: the homoglyph pair, whose "
+                                          "point is that one is Cyrillic; and "
+                                          "a real file name"),
+    "docs/models.md": (29, "TITLE, and the pre-rename attribute name of the "
+                       "egret fingerprint defect"),
+    "src/booksmith/cyr.py": (4, "TOOL: the bounds of the Cyrillic block, in "
+                             "the function that counts it"),
+    "src/booksmith/djvu.py": (226, "TITLE and DATA: four books, and the three "
+                              "table captions split across the gutter"),
+    "src/booksmith/doc/crop.py": (20, "TITLE"),
+    "src/booksmith/fitness.py": (20, "TITLE"),
+    "src/booksmith/otsl.py": (94, "TITLE and DATA: a column header and a "
+                              "grade designation from the book"),
+    "src/booksmith/read/run.py": (39, "TITLE, two of them"),
+    "src/booksmith/run/knobs.py": (60, "TITLE, three knob descriptions"),
+    "src/booksmith/text.py": (25, "TITLE, and the name of the dead truth key "
+                              "this file stopped reading"),
+    "tests/test_data_contract.py": (2, "TOOL: the bounds of the Cyrillic "
+                                    "block, in a regexp hunting Russian "
+                                    "`data-` attributes"),
+    "tests/test_djvu.py": (68, "TITLE, four of them"),
+    "tests/test_otsl_html.py": (146, "TITLE and DATA: the real table this "
+                                "check is built from"),
+    "tests/test_repeat.py": (20, "TITLE"),
+    "tests/test_torn.py": (20, "TITLE"),
+    "tools/keymap_check.py": (42, "TOOL: the migration's own subject"),
+    "tools/migrate_code.py": (39, "TOOL: the migration's own subject"),
+    "tools/migrate_keys.py": (98, "TOOL: the migration's own subject"),
+    "tools/spread_probe.py": (109, "TITLE, two of them"),
+}
+
+
+def residue():
+    """path -> Cyrillic left, over everything the ratchet presses on.
+
+    Book content, tracked data and the rename records are weighed elsewhere and
+    do not appear here.
+    """
+    out = {}
+    for rel in tracked():
+        if (any(rel.startswith(d) for d in DATA_PREFIXES)
+                or rel in RECORD_FILES or rel.endswith(RECORD_GLOBS)):
+            continue
+        if rel.endswith(".py"):
+            c = collections.Counter()
+            py_areas([os.path.join(ROOT, rel)], "x", c)
+            n = sum(v for k, v in c.items()
+                    if not k.endswith(".latin") and k != "book_prose")
+        else:
+            try:
+                n = cyr(open(os.path.join(ROOT, rel), encoding="utf-8").read())
+            except (UnicodeDecodeError, IsADirectoryError, FileNotFoundError):
+                n = 0
+        if n:
+            out[rel] = n
+    return out
+
+
+def undeclared(now=None):
+    """(unexpected, moved, stale) -- the three ways the lock can break.
+
+    `unexpected`: Russian in a file that declares none. That is the
+    translation going backwards, and it is the direction a ratchet catches.
+    `moved`: a declared file whose count changed -- someone edited evidence,
+    and it is worth a second look either way.
+    `stale`: a declaration for Cyrillic that is no longer there, which is the
+    direction a ratchet is blind to and the one that makes lists rot.
+    """
+    now = residue() if now is None else now
+    unexpected = {p: n for p, n in now.items() if p not in RESIDUE}
+    moved = {p: (RESIDUE[p][0], n) for p, n in now.items()
+             if p in RESIDUE and RESIDUE[p][0] != n}
+    stale = sorted(set(RESIDUE) - set(now))
+    return unexpected, moved, stale
+
+
 def ratchet_areas(c):
     """Areas the ratchet presses on: Cyrillic only, book content excluded.
 
@@ -302,6 +398,21 @@ def main(argv):
                 print(f"GREW  {k}: {was} -> {now}")
             return 1
         print("ratchet holds: no area grew")
+    if "--lock" in argv or "--check" in argv:
+        unexpected, moved, stale = undeclared()
+        for path, n in sorted(unexpected.items()):
+            print(f"UNDECLARED  {path}: {n} Cyrillic, and no entry in RESIDUE")
+        for path, (was, now) in sorted(moved.items()):
+            print(f"MOVED       {path}: declared {was}, found {now} -- "
+                  f"{RESIDUE[path][1]}")
+        for path in stale:
+            print(f"STALE       {path}: declared {RESIDUE[path][0]}, and there "
+                  f"is none left")
+        if unexpected or moved or stale:
+            return 1
+        total = sum(residue().values())
+        print(f"lock holds: {total} Cyrillic in {len(RESIDUE)} files, every "
+              f"one declared")
     return 0
 
 

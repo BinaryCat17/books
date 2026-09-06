@@ -3243,6 +3243,26 @@ def mutations():
          [("test_cyrillic_ratchet",
            "test_the_counter_counts_codepoints_not_lines")]),
 
+        # THREE DIRECTIONS, three damages: a file that declares no Cyrillic
+        # gains some; a declared count is quietly refreshed to whatever the
+        # disk says; and an entry outlives the Cyrillic it named.
+        ("the residue declaration is emptied",
+         lambda: attrs(cyrmod, RESIDUE={}),
+         [("test_cyrillic_ratchet",
+           "test_every_character_left_is_declared_and_no_more")]),
+
+        ("the residue declaration is refreshed from the disk",
+         lambda: attrs(cyrmod, RESIDUE={p: (n + 1, "?")
+                                        for p, n in cyrmod.residue().items()}),
+         [("test_cyrillic_ratchet",
+           "test_every_character_left_is_declared_and_no_more")]),
+
+        ("the residue keeps an entry whose Cyrillic is gone",
+         lambda: attrs(cyrmod, RESIDUE={**cyrmod.RESIDUE,
+                                        "src/booksmith/cli.py": (7, "?")}),
+         [("test_cyrillic_ratchet",
+           "test_every_character_left_is_declared_and_no_more")]),
+
         ("records of runs stop being weighed at all",
          lambda: attrs(cyrmod, DATA_PREFIXES=()),
          [("test_cyrillic_ratchet",
