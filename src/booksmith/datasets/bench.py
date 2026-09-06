@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 
 from booksmith.core import policy
 from booksmith.core.errors import Unmeasurable
-from booksmith.core.page import load_pages  # noqa: F401  (the loader; re-exported for the tests)
+from booksmith.core import page
 
 TRAITS = ("order_marked", "text_marked")
 TRAIT_STATES = ("yes", "no", "not_said")
@@ -91,7 +91,7 @@ class Run:
         return self.snapshot.get("derived_from")
 
     def pages(self) -> dict:
-        return load_pages(self.pages_dir, f"run {self.label}")
+        return page.load_pages(self.pages_dir, f"run {self.label}")
 
 
 @dataclass
@@ -128,7 +128,7 @@ class Bench:
         return self.manifest.get("sha256 pdf")
 
     def pages(self) -> dict:
-        return load_pages(self.truth_dir, f"truth of {self.name}")
+        return page.load_pages(self.truth_dir, f"truth of {self.name}")
 
     def traits(self, pages: dict | None = None) -> dict:
         """{trait: {yes, no, not_said}} counted over the truth pages."""

@@ -12,6 +12,7 @@ import tempfile
 
 import support
 from booksmith.core.errors import Unmeasurable
+from booksmith.core import page
 from booksmith.datasets import bench
 
 
@@ -113,13 +114,13 @@ def test_a_foreign_json_is_refused_not_scored():
         with open(os.path.join(d, "0000.json"), "w") as f:
             json.dump({"hello": "world"}, f)
         try:
-            bench.load_pages(d)
+            page.load_pages(d)
         except Unmeasurable as e:
             assert "does not look like a markup page" in str(e)
         else:
             raise AssertionError("a foreign json loaded as a page")
         try:
-            bench.load_pages(os.path.join(d, "nowhere"))
+            page.load_pages(os.path.join(d, "nowhere"))
         except Unmeasurable as e:
             assert "no directory" in str(e)
         else:

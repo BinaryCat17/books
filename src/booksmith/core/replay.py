@@ -610,6 +610,31 @@ def check(outdir, verbose=True):
     return miss
 
 
+def knockout(snap, req, log=print):
+    """Cut each required key in turn and see that `missing` notices.
+
+    Returns (omissions not caught, keys absent from the start). The battery
+    number is the first: it is the only one about the CHECK; the second is
+    about the snapshot and is reported beside it. `selfcheck` below sums both
+    with the four other troubles into one exit code; the snapshot METRIC
+    reports them apart, as scalars.
+    """
+    absent = [p for p, _ in req if not _dig(snap, p)[0]]
+    bad = 0
+    for path, what in req:
+        if path in absent:
+            continue
+        cut = json.loads(json.dumps(snap))
+        cur = cut
+        for k in path[:-1]:
+            cur = cur[k]
+        del cur[path[-1]]
+        if not any(p == path for p, _ in missing(cut, req)):
+            log(f"  NOT CAUGHT: {'/'.join(map(str, path))} -- {what}")
+            bad += 1
+    return bad, absent
+
+
 def selfcheck(outdir, log=print) -> int:
     """Can the check fail at all. Returns the number of omissions NOT caught.
 
@@ -672,19 +697,7 @@ def selfcheck(outdir, log=print) -> int:
     if not snap:
         log(f"{name}: run.json does not read -- nothing to knock out")
         return len(req) + len(drift)
-    absent = [p for p, _ in req if not _dig(snap, p)[0]]
-    bad = 0
-    for path, what in req:
-        if path in absent:
-            continue
-        cut = json.loads(json.dumps(snap))
-        cur = cut
-        for k in path[:-1]:
-            cur = cur[k]
-        del cur[path[-1]]
-        if not any(p == path for p, _ in missing(cut, req)):
-            log(f"  NOT CAUGHT: {'/'.join(map(str, path))} -- {what}")
-            bad += 1
+    bad, absent = knockout(snap, req, log)
     log(f"{name}: knocked out {len(req) - len(absent)} keys of "
         f"{len(req)}, omissions not caught {bad}"
         + (f"; absent from the start {len(absent)}" if absent else "")

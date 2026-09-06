@@ -124,9 +124,11 @@ def test_applicability_is_by_prerequisite_not_by_trait():
             return True
 
     names = lambda b: sorted(m.name for m in applicable(registry.METRICS, b, object()))
-    assert names(Truthless()) == []
-    assert names(Golden()) == ["contour"]
-    assert names(Full()) == ["contour", "fitness", "text"]
+    # pages alone: the truth-free metrics; truth adds the contour; a PDF and
+    # characters add the ink and the reading metrics
+    assert names(Truthless()) == ["assembly", "snapshot"]
+    assert names(Golden()) == ["assembly", "contour", "snapshot"]
+    assert names(Full()) == ["assembly", "contour", "fitness", "snapshot", "text"]
 
 
 def test_the_battery_loop_counts_what_it_printed():
@@ -142,3 +144,14 @@ def test_the_battery_loop_counts_what_it_printed():
     assert any("THE PROBE THREW ZeroDivisionError" in l for l in lines), lines
     assert any("[12 -> 3]" in l for l in lines), lines
     assert sum("no data" in l for l in lines) == 1
+
+
+def test_the_truth_free_batteries_catch_every_probe_on_slovar():
+    """The assembly and snapshot metrics need no truth and must still be
+    able to fail. The three truth-based batteries are locked by the
+    acceptance reports (score-, text-, fitness-selfcheck)."""
+    b, r = _slovar()
+    lines = []
+    assert registry.BY_NAME["assembly"].battery(b, r, log=lines.append) == 0, lines
+    assert any(l.startswith("assembly battery: probes 3") for l in lines), lines
+    assert registry.BY_NAME["snapshot"].battery(b, r, log=lambda *a: None) == 0

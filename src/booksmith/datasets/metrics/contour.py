@@ -59,6 +59,7 @@ import os
 from booksmith.core import page, policy
 from booksmith.core.errors import Unmeasurable
 from booksmith.datasets.metrics.base import Metric, Record, Scalar
+from booksmith.datasets.metrics.mutate import (map_boxes as _map_boxes, shift as _shift, shift_rel as _shift_rel, grow as _grow, only as _only, relabel as _relabel, duplicate as _duplicate, shuffle_pages as _shuffle_pages)
 
 # The match gate. ONE, and named: the model box must cover truth (no crop) and
 # lie inside it (no spill). Measured: a table torn by the gutter gave IoU 0.51
@@ -1104,47 +1105,6 @@ def report(res: dict, log=print) -> None:
 #    like a working one: `IOU_MATCH` never fired while the battery reported
 #    "fell" nine runs in a row.
 
-def _map_boxes(M, fn):
-    return {i: {**p, "blocks": [{**b, "box": list(fn(b["box"]))}
-                                for b in p["blocks"]]} for i, p in M.items()}
-
-
-def _shift(M, dx, dy):
-    return _map_boxes(M, lambda b: (b[0] + dx, b[1] + dy, b[2] + dx, b[3] + dy))
-
-
-def _shift_rel(M, frac):
-    """A shift BY A FRACTION of the box size, not by a constant forty pixels.
-
-    A constant shift checks nothing on large artefacts: a 900x400 box moved by
-    40 still covers truth by 96% and passes, and on a book of large artefacts
-    the probe "shift by 40" reported "DID NOT FALL" -- rightly, there was
-    nothing to fall from.
-    """
-    def g(b):
-        d = frac * max(4.0, min(b[2] - b[0], b[3] - b[1]))
-        return (b[0] + d, b[1] + d, b[2] + d, b[3] + d)
-    return _map_boxes(M, g)
-
-
-def _grow(M, f):
-    def g(b):
-        cx, cy = (b[0] + b[2]) / 2, (b[1] + b[3]) / 2
-        w, h = (b[2] - b[0]) * f / 2, (b[3] - b[1]) * f / 2
-        return (cx - w, cy - h, cx + w, cy + h)
-    return _map_boxes(M, g)
-
-
-def _only(M, keep):
-    return {i: {**p, "blocks": [b for b in p["blocks"] if keep(b)]}
-            for i, p in M.items()}
-
-
-def _relabel(M, fn):
-    return {i: {**p, "blocks": [{**b, "label": fn(b["label"])} for b in p["blocks"]]}
-            for i, p in M.items()}
-
-
 def _reverse_order(M):
     out = {}
     for i, p in M.items():
@@ -1321,20 +1281,6 @@ def _forget_order_mark(T):
         m.pop("order_marked", None)
         out[i] = {**p, "meta": m}
     return out
-
-
-def _duplicate(M):
-    """Duplicate every box. The found share must NOT grow."""
-    return {i: {**p, "blocks": [c for b in p["blocks"] for c in (b, dict(b))]}
-            for i, p in M.items()}
-
-
-def _shuffle_pages(M):
-    """Shift the markup one page forward, cyclically: scoring goes by page
-    index, and substituting a neighbour must bring everything down."""
-    keys = sorted(M)
-    return {k: {**M[keys[(n + 1) % len(keys)]], "index": k}
-            for n, k in enumerate(keys)}
 
 
 def _merge_all(M, arte):

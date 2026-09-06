@@ -26,7 +26,7 @@ def rows(bench: Bench, run: Run, which=None, log=print) -> list:
     number about nothing, and the first edition wrote one.
     """
     pages = bench.pages()
-    can = registry.applicable(registry.METRICS, bench, run, pages)
+    can = registry.base.applicable(registry.METRICS, bench, run, pages)
     if which:
         unknown = [n for n in which if n not in registry.BY_NAME]
         if unknown:

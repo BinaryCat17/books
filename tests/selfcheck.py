@@ -62,6 +62,9 @@ from booksmith.core import page
 from booksmith.core import textnorm
 from booksmith.core import book
 from booksmith.tree import imports
+from booksmith.datasets import bench as benchmod
+from booksmith.datasets.metrics import base as mbase
+from booksmith.datasets.metrics.base import Record, Scalar
 from booksmith.core import config
 
 
@@ -2011,6 +2014,50 @@ def journal_path_blind_to_the_old_layout(out_dir):
     return os.path.join(out_dir, book.JOURNAL)
 
 
+def same_book_that_never_looks(bench, run):
+    """The check answers 'checked' without comparing a hash."""
+    return "sha256 checked: 000000000000"
+
+
+def load_pages_that_take_anything(d, what="pages"):
+    """The loader before the rule: any json is a page, no json is no pages."""
+    import json
+    import os
+    out = {}
+    for name in sorted(os.listdir(d)) if os.path.isdir(d) else []:
+        if name.endswith(".json"):
+            with open(os.path.join(d, name), encoding="utf-8") as f:
+                p = json.load(f)
+            out[int(p.get("index", len(out)))] = p
+    return out
+
+
+def trait_state_two_valued(meta, key):
+    """Absent reads as no: the default that printed 73 % out of nothing."""
+    return "yes" if (meta or {}).get(key) else "no"
+
+
+def applicable_that_ignores_content(metrics, bench, run, pages=None):
+    return list(metrics)
+
+
+def run_battery_that_swallows_throws(probes, log=print, width=10):
+    """A throwing probe counted as 'no data', which is not a failure."""
+    seen = mute = bad = 0
+    for p in probes:
+        try:
+            ok = p.fn()
+        except Exception:                                       # noqa: BLE001
+            ok = None
+        if isinstance(ok, tuple):
+            ok = ok[0]
+        log(f"  {'no data' if ok is None else 'ok ' if ok else 'NO':>{width}}  {p.name}: {p.want}")
+        seen += 1
+        mute += ok is None
+        bad += ok is False
+    return seen, mute, bad
+
+
 def _record_differs_blind_to_inputs(name):
     """The previous shape: compare results and never look at what they were
     taken against, so a rebuilt bench reads as a bench with moved numbers."""
@@ -3846,6 +3893,38 @@ def mutations():
         ("the schema root is the package, not the repository",
          lambda: attrs(schema, ROOT=os.path.join(schema.ROOT, "src")),
          [("test_roots", "test_schema_root_is_the_repository")]),
+        # --- the bench, the record and the table (step 2a)
+        ("the identity check says checked without looking",
+         lambda: attrs(benchmod, same_book=same_book_that_never_looks),
+         [("test_bench", "test_same_book_checks_by_sha256_and_refuses_another_book"),
+          ("test_bench", "test_same_book_says_when_the_field_is_absent"),
+          ("test_bench", "test_a_page_directory_without_a_snapshot_is_refused_unless_taken_bare")]),
+        ("any json is a page again",
+         lambda: attrs(page, load_pages=load_pages_that_take_anything),
+         [("test_bench", "test_a_foreign_json_is_refused_not_scored")]),
+        ("an absent trait reads as no",
+         lambda: attrs(benchmod, trait_state=trait_state_two_valued),
+         [("test_bench", "test_traits_have_three_states_and_absence_is_not_no")]),
+        ("a scalar without a reason is accepted",
+         lambda: attrs(Scalar, __post_init__=lambda self: None),
+         [("test_metrics_contract", "test_a_scalar_without_a_value_must_say_why")]),
+        ("applicability ignores whether the truth has content",
+         lambda: attrs(mbase, applicable=applicable_that_ignores_content),
+         [("test_metrics_contract", "test_applicability_is_by_prerequisite_not_by_trait"),
+          ("test_metrics_contract", "test_applicability_on_the_golden_bench_excludes_the_reading_metric"),
+          ("test_table", "test_rows_refuse_an_unknown_and_an_inapplicable_metric")]),
+        ("the battery loop counts a throwing probe as no data",
+         lambda: attrs(mbase, run_battery=run_battery_that_swallows_throws),
+         [("test_metrics_contract", "test_the_battery_loop_counts_what_it_printed")]),
+        ("a selection bypasses applicability",
+         lambda: one_line("booksmith.datasets.table",
+                          "        off = [n for n in which if registry.BY_NAME[n] not in can]",
+                          "        off = []"),
+         [("test_table", "test_rows_refuse_an_unknown_and_an_inapplicable_metric")]),
+        ("records come back from disk without their scalars",
+         lambda: attrs(Record, from_json=classmethod(
+             lambda cls, d: cls(d["metric"], d["bench"], d["run"]))),
+         [("test_table", "test_records_come_back_from_disk_as_json_left_them")]),
         ("the record tolerance swallows any number",
          lambda: attrs(acceptance, TOLERANCE=1e9),
          [("test_acceptance",

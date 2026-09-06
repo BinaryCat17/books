@@ -82,9 +82,11 @@ src/booksmith/
   datasets/    MODULE 2, many books, truth, numbers: bench.py (Bench, Run:
                the one loader and the one identity check), metrics/ (base.py
                the contract -- Metric, Record, Scalar, the one battery loop;
-               contour.py boxes and order against truth; text.py characters
-               and cells against truth; fitness.py the ink metric's battery
-               and Record), make/ (synth.py the synthetic bench with truth
+               mutate.py the mutators the batteries share; contour.py boxes
+               and order against truth; text.py characters and cells against
+               truth; fitness.py the ink metric's battery and Record;
+               assembly.py excess column jumps, needing no truth; snapshot.py
+               is the run's snapshot complete), make/ (synth.py the synthetic bench with truth
                measured by ink, books/ its six book kinds, annopage.py the
                golden bench of 600 real pages, subset.py the distillate),
                look.py boxes drawn over the pages, table.py every metric on
