@@ -3998,6 +3998,13 @@ def mutations():
          [("test_docs_map",
            "test_a_measurement_is_not_restated_in_a_second_document")]),
 
+        ("a report that proved nothing still exits 0",
+         lambda: one_line(
+             "booksmith.datasets.accept",
+             '        if "--allow-skips" not in argv:',
+             "        if False:"),
+         [("test_acceptance", "test_a_skip_is_not_a_pass")]),
+
         ("the synthetic truth moved out from under its lock",
          lambda: attrs(support, SRC=_tree_with_a_moved_truth_lock()),
          [("test_acceptance",

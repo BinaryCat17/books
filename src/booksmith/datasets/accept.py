@@ -393,11 +393,12 @@ def main(argv):
             for name, gone in skipped:
                 print(f"  SKIPPED record {name}: missing {', '.join(gone)}")
         return 0
-    rc = 0
+    rc, skipped = 0, []
     for name in RECORDS:
         gone = record_missing(name)
         if gone:
             print(f"  SKIPPED record {name}: missing {', '.join(gone)}")
+            skipped.append(name)
             continue
         if not os.path.isfile(record_path(name)):
             print(f"  NO RECORD {name}: run --save")
@@ -415,6 +416,7 @@ def main(argv):
         gone = missing(name)
         if gone:
             print(f"  SKIPPED {name}: missing {', '.join(gone)}")
+            skipped.append(name)
             continue
         if not os.path.isfile(path(name)):
             print(f"  NO SNAPSHOT {name}: run --save")
@@ -428,6 +430,25 @@ def main(argv):
             rc = 1
         else:
             print(f"  same    {name}")
+    # A SKIP IS NOT A PROOF, AND THE EXIT CODE HAS TO SAY SO. It did not: the
+    # skip branch printed and left `rc` alone, so a run that proved NOTHING
+    # returned 0 -- and this file is the per-commit invariant, read by its
+    # exit code. Measured on a tree with the runs moved one directory deeper:
+    # 7 of 10 reports and 3 of 4 records skipped, "EXIT CODE: 0". Every path
+    # these reports read is behind .gitignore, so the day a rename empties a
+    # glob looks exactly like the day someone clones the repository -- and the
+    # first of those must be red.
+    #
+    # `--allow-skips` is for the second: a fresh clone, where nothing is built
+    # and nothing can be proved. It says so out loud rather than passing
+    # quietly.
+    if skipped:
+        print(f"  {len(skipped)} of {len(COMMANDS) + len(RECORDS)} proved "
+              f"NOTHING (no input): {', '.join(sorted(skipped))}")
+        if "--allow-skips" not in argv:
+            print("  a skip is not a pass. Build what is missing, or say "
+                  "--allow-skips to accept proving less.")
+            rc = 1
     return rc
 
 

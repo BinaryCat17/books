@@ -247,3 +247,35 @@ def test_the_slovar_truth_lock_still_matches_the_bench_on_disk():
         f"files): {bad[:5]}. If the generator was MEANT to change, re-take "
         f"the lock: cd bench/slovar && sha256sum truth/*.json > "
         f"../expected/slovar-truth.sha256")
+
+
+def test_a_skip_is_not_a_pass():
+    """The exit code has to say that nothing was proved.
+
+    It did not. The skip branch printed and left `rc` alone, so a run that
+    proved nothing returned 0 -- and this is the per-commit invariant, read by
+    its exit code. Measured on a tree with one run moved a directory deeper:
+    the reports that read it skipped and the tool still said 0. Every path
+    these reports read is behind .gitignore, so the day a rename empties a
+    glob looks exactly like the day someone clones the repository. The first
+    of those must be red; `--allow-skips` is for the second.
+    """
+    import io
+    import contextlib
+    real = acceptance.missing
+    try:
+        acceptance.missing = lambda name: (
+            ["bench/nowhere/detect/pages"] if name == "help" else real(name))
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            rc = acceptance.main([])
+        assert rc == 1, "a skipped report passed"
+        assert "proved NOTHING" in out.getvalue(), out.getvalue()[-300:]
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            rc = acceptance.main(["--allow-skips"])
+        assert rc == 0, "--allow-skips did not accept proving less"
+        assert "proved NOTHING" in out.getvalue(), (
+            "--allow-skips went quiet about it")
+    finally:
+        acceptance.missing = real
