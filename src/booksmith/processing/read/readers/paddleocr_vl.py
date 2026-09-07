@@ -51,6 +51,7 @@ import hashlib
 import os
 
 from booksmith.processing.read import Reader, Route
+from booksmith.core import book
 from booksmith.core import knobs
 from booksmith.core.errors import Refusal
 
@@ -194,6 +195,10 @@ class PaddleOcrVl(Reader):
                 f"driving a table with the text prompt and recording prose as "
                 f"the reading.")
         self.policy_name = policy_name
+
+    def label(self) -> str:
+        """`MODEL_NAME`: the model asked for. See `Reader.label`."""
+        return book.safe_label(knobs.knob("MODEL_NAME"), "MODEL_NAME")
 
     def fingerprint(self) -> dict:
         r = self.routes()

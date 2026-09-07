@@ -93,6 +93,25 @@ class Detector:
     PAGE_META_REQUIRED = ("rank_ties", "best_rejected_by_class")
     FINGERPRINT_REQUIRED = ("sha256_weights",)
 
+    def label(self) -> str:
+        """THE MODEL'S short name, and the directory a run of it lives in.
+
+        THE MODEL'S, NEVER THE ADAPTER'S. `doclayout-onnx` is one adapter
+        serving three models; under the adapter's name their runs would share
+        a directory, and the second would read as a resume of the first --
+        same label, other weights, the first one's snapshot still in place.
+        So it comes from the model itself: the weights' own declared name,
+        the vendor variant, the weights file.
+
+        NO DEFAULT, for the reason `knobs_read` and `threshold_drift` have
+        none: an adapter silent out of forgetfulness would be filed under
+        whatever the base class guessed, and a guessed directory name is a
+        measurement filed against the wrong model. `core.book.safe_label`
+        refuses anything that is not a directory name, and the operator
+        passes `--run` instead.
+        """
+        raise NotImplementedError
+
     def fingerprint(self) -> dict:
         """What tells this run from another: weights, prompts, versions.
 

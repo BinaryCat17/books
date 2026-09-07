@@ -43,6 +43,31 @@ class Skip(Exception):
 OWN_RUNNER = False
 
 
+def env(**kw):
+    """Set knobs for the duration of a block, then put back exactly what was.
+
+    Knobs are read from the environment through the registry, and a check
+    that leaves one set poisons every check after it in the same process --
+    the runner runs them all in one.
+    """
+    import contextlib
+
+    @contextlib.contextmanager
+    def _cm():
+        was = {k: os.environ.get(k) for k in kw}
+        try:
+            for k, v in kw.items():
+                os.environ[k] = v
+            yield
+        finally:
+            for k, v in was.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+    return _cm()
+
+
 def skip(reason: str):
     """A skip with a reason. Under pytest -- its own, so any runner will do.
 

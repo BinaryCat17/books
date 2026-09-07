@@ -3936,6 +3936,44 @@ def mutations():
              "        if False:"),
          [("test_acceptance", "test_a_skip_is_not_a_pass")]),
 
+        # ---- the run label and the identity of an experiment -----------
+        ("a label that is not a directory name is sanitised, not refused",
+         lambda: one_line(
+             "booksmith.core.book",
+             '    if not LABEL_OK.match(name):',
+             '    name = re.sub(r"[^A-Za-z0-9._+-]", "-", name)[:64] or "x"\n'
+             "    if False:"),
+         [("test_models_contract",
+           "test_a_label_that_is_not_a_directory_name_is_refused_not_"
+           "sanitised")]),
+
+        ("the identity takes the machine's paths and the rental's address",
+         lambda: attrs(stamp, FINGERPRINT_NOT_IDENTITY={},
+                       KNOBS_NOT_IDENTITY={}),
+         [("test_models_contract",
+           "test_identity_ignores_what_moves_without_the_experiment")]),
+
+        ("the identity reads every knob, not the ones in force",
+         lambda: one_line(
+             "booksmith.core.stamp",
+             '        elif entry.get("for_this_run"):\n'
+             '            out[name] = entry.get("value")',
+             '        else:\n'
+             '            out[name] = entry.get("value")'),
+         [("test_models_contract",
+           "test_identity_reads_only_the_knobs_the_run_read")]),
+
+        ("the identity is hashed in dictionary order",
+         lambda: one_line(
+             "booksmith.core.stamp",
+             "    blob = json.dumps({\"fingerprint\": keep_f, "
+             "\"knobs\": keep_k},\n"
+             "                      sort_keys=True, ensure_ascii=False, "
+             "default=str)",
+             "    blob = repr((list(keep_f.items()), list(keep_k.items())))"),
+         [("test_models_contract",
+           "test_identity_does_not_depend_on_the_order_the_dict_was_built_in")]),
+
         ("the synthetic truth moved out from under its lock",
          lambda: attrs(support, SRC=_tree_with_a_moved_truth_lock()),
          [("test_acceptance",

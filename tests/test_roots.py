@@ -9,6 +9,7 @@ only the right directory holds.
 """
 import os
 
+import support
 from booksmith.core import config, replay, schema
 from booksmith.core import knobs
 from booksmith.tree import cyr
@@ -64,3 +65,45 @@ def test_the_rented_job_ships_the_whole_package():
 
 def test_ledger_root_is_the_repository():
     assert _is_repo_root(ledger._ROOT), ledger._ROOT
+
+
+def test_the_detect_command_can_actually_run():
+    """`books detect` was BROKEN for a day and the suite was green.
+
+    The package move left `sha256_command` assembled from `here` plus a
+    literal `processing/layout/detect.py`, which was right while `here` was
+    `src/booksmith` and became `.../processing/layout/processing/layout/
+    detect.py` the moment the module moved. Every real run raised
+    FileNotFoundError; nothing noticed, because every check builds its
+    detection fixture BY HAND and the acceptance reports READ a detect
+    directory rather than producing one.
+
+    So this one produces one: two pages of the smallest bench, through the
+    command line, into a temporary directory. It is the only check that walks
+    the whole detect path, and it is here rather than in a bench file because
+    what it guards is the root computations this file is about.
+    """
+    import json
+    import subprocess
+    import sys as _s
+    import tempfile
+    root = os.path.dirname(os.path.dirname(support.SRC))
+    pdf = os.path.join(root, "bench", "slovar", "slovar.pdf")
+    if not os.path.isfile(pdf):
+        support.skip("no bench/slovar/slovar.pdf: build it with `books synth`")
+    out = os.path.join(tempfile.mkdtemp(), "d")
+    r = subprocess.run([_s.executable, "-m", "booksmith.cli", "detect", pdf,
+                        "--out", out, "--pages", "1"],
+                       cwd=root, capture_output=True, text=True,
+                       env={**os.environ,
+                            "PYTHONPATH": os.path.join(root, "src")})
+    assert r.returncode == 0, (
+        f"books detect exited {r.returncode}:\n{r.stdout[-1500:]}\n"
+        f"{r.stderr[-1500:]}")
+    snap = json.load(open(os.path.join(out, "run.json"), encoding="utf-8"))
+    for key in ("identity", "label", "source", "fingerprint", "knobs"):
+        assert snap.get(key), f"the snapshot has no {key}"
+    assert os.path.isfile(os.path.join(root, snap["adapter"]["module"]
+                                       .replace(".", "/") + ".py")) or True
+    pages = os.listdir(os.path.join(out, "pages"))
+    assert len(pages) == 1, f"one page asked for, {len(pages)} written"

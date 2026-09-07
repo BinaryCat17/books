@@ -33,6 +33,7 @@ import os
 
 from booksmith.core.page import Block, Page
 from booksmith.processing.layout.base import Detector
+from booksmith.core import book
 from booksmith.core import order
 from booksmith.core import knobs
 from booksmith.core import stamp
@@ -139,6 +140,13 @@ class YoloXLayout(Detector):
 
     def label_map(self) -> dict[str, str]:
         return {}
+
+    def label(self) -> str:
+        """The WEIGHTS FILE's stem. One adapter, one architecture, and the
+        weights are chosen by `YOLOX_WEIGHTS` -- so the file is the only
+        thing that tells two runs of this adapter apart."""
+        return book.safe_label(os.path.splitext(self.weights)[0],
+                               "the YOLOX weights file")
 
     def fingerprint(self) -> dict:
         return {

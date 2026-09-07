@@ -525,13 +525,18 @@ def run(pdf, outdir, pages_spec=None, log=print):
             f"{knobs.knob('LAYOUT_SCORE_THRESHOLD')}, weights {det.dir}. "
             f"Best rejected: {rej_best or 'nothing was rejected at all'}")
 
-    here = os.path.dirname(os.path.abspath(__file__))
     fp = det.fingerprint()
+    # ONE SOURCE FOR "WHAT THIS RUN READ". The identity is computed from the
+    # snapshot's own knobs block, not from a second walk of the registry: two
+    # walks are two lists, and the day they disagree the identity would be
+    # over knobs the snapshot does not declare in force -- the disease this
+    # whole file's `run_knobs` block exists against.
+    knob_block = _knobs_snapshot(roles)
     snap = {
         # The date beside the number: without it a measurement cannot say
         # what it was applied to.
         "when": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
-        "knobs": _knobs_snapshot(roles),
+        "knobs": knob_block,
         # A summary in the same number as the log: nobody reads twenty
         # entries to answer "what was actually acting here".
         "run_knobs": {
@@ -548,6 +553,14 @@ def run(pdf, outdir, pages_spec=None, log=print):
                   "page_dpi_as_given": dpi_raw},
         "args": {"pdf": pdf, "pages": pages_spec, "out": outdir},
         "commit": _commit(),
+        # WHAT MAKES THIS RUN THIS EXPERIMENT, so a command about to write
+        # into an existing label can tell a resume from a collision. Taken
+        # from the fingerprint BEFORE the page loop's numbers reach it and
+        # from the knob VALUES only; what is excluded and why is in
+        # `core/stamp.py`.
+        "identity": stamp.identity(fp, stamp.knob_values(
+            {"knobs": knob_block})),
+        "label": det.label(),
         "source": {"path": pdf, "sha256": _sha256(pdf)},
         # BOTH files that decide the result are hashed: only the adapter used
         # to be counted, while artefact policy and page parsing live here. And
@@ -558,8 +571,18 @@ def run(pdf, outdir, pages_spec=None, log=print):
         "adapter": {"name": det.name,
                     "module": type(det).__module__,
                     "sha256": _sha256(sys.modules[type(det).__module__].__file__),
-                    "sha256_command": _sha256(os.path.join(here,
-                                                           "processing/layout/detect.py"))},
+                    # THIS FILE, asked of itself. It used to be assembled
+                    # from `here` plus a literal path, which was right while
+                    # `here` was `src/booksmith` and became
+                    # `.../processing/layout/processing/layout/detect.py` the
+                    # moment the module moved -- so `books detect` raised
+                    # FileNotFoundError on every run after the package move,
+                    # and nothing in the suite noticed: every check builds its
+                    # detection fixture by hand, and the acceptance reports
+                    # READ a detect directory rather than producing one. The
+                    # read driver has always asked `__file__`; so does this
+                    # now.
+                    "sha256_command": _sha256(os.path.abspath(__file__))},
         "policy": policy.snapshot(getattr(det, "policy_name", None)),
         "prompts": {},
         "generation": {"temperature": None, "max_tokens": None,

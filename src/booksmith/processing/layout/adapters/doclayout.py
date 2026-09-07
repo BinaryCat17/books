@@ -30,7 +30,7 @@ replayed without paying for a recount.
 """
 import os
 
-from booksmith.core import knobs
+from booksmith.core import book, knobs
 from booksmith.core.page import Block, Page
 from booksmith.processing.layout.base import Detector
 from booksmith.core import order
@@ -233,6 +233,18 @@ class DocLayout(Detector):
     def label_map(self) -> dict[str, str]:
         """The model's vocabulary IS the common one: labels are not translated."""
         return {}
+
+    def label(self) -> str:
+        """From the WEIGHTS, not from `LAYOUT_MODEL_NAME`.
+
+        The knob is what was ASKED for and the weights are what answered, and
+        the whole reason `model_name()` exists is that the two diverged once.
+        Filing a run under the knob would name the directory after a request.
+        Weights that declare no name give "not declared in the weights", which
+        `safe_label` refuses -- correctly: there is nothing to name the run
+        after, and `--run` is the answer.
+        """
+        return book.safe_label(self.model_name(), "the layout weights")
 
     def fingerprint(self) -> dict:
         """What tells this run from another. Travels into the snapshot whole."""

@@ -651,12 +651,21 @@ def snapshot(detect_dir: str, out_dir: str, reader: Reader,
     facts = _detect_facts(detect_dir)
     read_knobs = {**{n: "reading adapter" for n in reader.knobs_read()},
                   **{n: "transport" for n in transport.knobs_read()}}
+    # One source for "what this run read", as in detection: the identity is
+    # taken from the snapshot's own knobs block, never from a second walk.
+    knob_block = _knobs_snapshot(read_knobs)
     snap = {
         "when": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
-        "knobs": _knobs_snapshot(read_knobs),
+        "knobs": knob_block,
         "raster": facts["raster"],
         "args": args,
         "commit": stamp.commit(),
+        # See `core/stamp.identity`. VLM_SEED is in it on purpose: two
+        # readings at two seeds are two experiments, and `consistency`
+        # measures agreement between exactly that pair.
+        "identity": stamp.identity(reader.fingerprint(),
+                                   stamp.knob_values({"knobs": knob_block})),
+        "label": reader.label(),
         # The same book as detection, hash checked BEFORE the work (read_book).
         "source": facts["source"],
         "detection": {"dir": os.path.abspath(detect_dir),

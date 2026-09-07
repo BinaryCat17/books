@@ -88,6 +88,7 @@ from booksmith.processing.layout.base import Detector
 # one number: artefact boxes the vendor took into the children of a TEXT
 # wrapper, that is, lost for the book. A list of classes of our own here would
 # be a second vocabulary of roles, and those have diverged before.
+from booksmith.core import book
 from booksmith.core import order
 from booksmith.core import policy
 from booksmith.core import knobs
@@ -701,6 +702,15 @@ class DoclingHeron(Detector):
         label, and the labels themselves are stored as they are.
         """
         return {}
+
+    def label(self) -> str:
+        """The VARIANT: `docling-heron`, `docling-egret`. Here the adapter
+        name IS the model name -- one class, one set of weights each -- and
+        `DOCLING_PIPELINE` deliberately does not enter it: the pipeline
+        changes the run and therefore the IDENTITY, and a differing identity
+        under an existing label is refused BY NAME, which tells the operator
+        more than a directory called `docling-heron+full` would."""
+        return book.safe_label(self.name, "the docling variant")
 
     def fingerprint(self) -> dict:
         # THE PIPELINE TOTAL -- AS A NUMBER AND INTO THE LOG, exactly once per

@@ -251,3 +251,115 @@ def test_every_adapter_we_ship_satisfies_the_contract():
                 f"{cls_name} does not implement {name!r}: it inherits the "
                 f"contract's own version, which either raises or answers for "
                 f"a model it knows nothing about")
+
+
+# ------------------------------------------------- the run label and identity
+
+def test_every_detector_declares_a_label_and_it_is_a_directory_name():
+    """A label with no default, for the reason `knobs_read` has none.
+
+    The label is the MODEL's name and it becomes a directory. An adapter
+    silent out of forgetfulness would be filed under whatever a base class
+    guessed, and a guessed directory is a measurement filed against the wrong
+    model. Built here rather than parsed, so the answer comes from the weights
+    on disk.
+    """
+    from booksmith.core import book
+    from booksmith.processing.layout import detect
+    seen = {}
+    for name in detect.ADAPTERS:
+        with support.env(LAYOUT_ADAPTER=name):
+            try:
+                det = detect._adapter()
+            except Exception as e:          # weights absent on this machine
+                support.skip(f"{name}: {type(e).__name__}: {str(e)[:60]}")
+            lab = det.label()
+            assert book.LABEL_OK.match(lab), f"{name}: {lab!r} is no directory"
+            assert lab != det.name or name.startswith("docling"), (
+                f"{name}: the label is the ADAPTER's name. One adapter serves "
+                f"several models; their runs would share a directory")
+            seen[name] = lab
+    assert len(set(seen.values())) == len(seen), (
+        f"two adapters claim one label: {seen}. The second run would read as "
+        f"a resume of the first")
+
+
+def test_the_reader_labels_by_the_model_not_by_itself():
+    from booksmith.core import book
+    from booksmith.processing.read.readers.paddleocr_vl import PaddleOcrVl
+    r = PaddleOcrVl("PP-DocLayoutV2")
+    assert r.label() != r.name, (
+        "the reader labelled a run after itself; `paddleocr-vl` is the reader "
+        "and the model is what answered")
+    assert book.LABEL_OK.match(r.label())
+
+
+def test_a_label_that_is_not_a_directory_name_is_refused_not_sanitised():
+    """Two models differing only where a sanitiser bites would land in ONE
+    directory, and the second would read as a resume of the first."""
+    from booksmith.core import book
+    from booksmith.core.errors import Refusal
+    for bad in ("not declared in the weights", "a/b", "", "../up", "x" * 80):
+        try:
+            book.safe_label(bad, "test")
+        except Refusal as e:
+            assert "--run" in str(e), f"{bad!r}: the refusal names no way out"
+        else:
+            raise AssertionError(f"{bad!r} was accepted as a directory name")
+
+
+def test_identity_ignores_what_moves_without_the_experiment():
+    """The dangerous direction: two runs of one experiment getting two
+    identities, so a legitimate second run is refused and the refusal looks
+    like the guard working."""
+    from booksmith.core import stamp
+    fp = {"model": "X", "sha256_weights": "ab"}
+    a = stamp.identity({**fp, "weights_dir": "/home/a"},
+                       {"T": "0.5", "VLM_ENDPOINT": "http://1.2.3.4:8118/v1"})
+    b = stamp.identity({**fp, "weights_dir": "/mnt/other"},
+                       {"T": "0.5", "VLM_ENDPOINT": "http://9.9.9.9:8000/v1"})
+    assert a == b, ("the same experiment on another machine and another "
+                    "rental got another identity")
+    assert a != stamp.identity({**fp, "weights_dir": "/home/a"}, {"T": "0.6"})
+    assert a != stamp.identity({"model": "Y", "sha256_weights": "cd"},
+                               {"T": "0.5"})
+
+
+def test_identity_reads_only_the_knobs_the_run_read():
+    """The snapshot's knob block is COMPLETE by design -- every knob, each
+    saying who reads it. Hashing it whole would put `HTML_MATH` inside a
+    detection run's identity."""
+    from booksmith.core import knobs, stamp
+    roles = {"PAGE_DPI": "the command", "LAYOUT_MODEL_NAME": "adapter"}
+    was = knobs.snapshot_with_readers(roles)
+    vals = stamp.knob_values({"knobs": was})
+    assert set(vals) == set(roles), (
+        f"identity reads {sorted(set(vals) - set(roles))} that this run does "
+        f"not read")
+    with support.env(HTML_MATH="off"):
+        idle = stamp.knob_values({"knobs": knobs.snapshot_with_readers(roles)})
+    assert stamp.identity({}, vals) == stamp.identity({}, idle)
+    with support.env(LAYOUT_MODEL_NAME="PP-DocLayoutV3"):
+        live = stamp.knob_values({"knobs": knobs.snapshot_with_readers(roles)})
+    assert stamp.identity({}, vals) != stamp.identity({}, live)
+
+
+def test_identity_does_not_depend_on_the_order_the_dict_was_built_in():
+    """A hash over a mapping is a hash over an ORDER unless it is sorted.
+
+    IN PROCESS, and deliberately: the first version of this check ran the
+    hash in three subprocesses under three `PYTHONHASHSEED` values, which
+    reads well and proves less -- a subprocess re-imports the real module, so
+    the mutation that unsorts the hash never reached it and the battery
+    reported the check as covered while it was not. The property itself is
+    order-independence, and it is visible from here.
+    """
+    from booksmith.core import stamp
+    a = {"b": 1, "a": [3, 2], "m": {"y": 1, "x": 2}}
+    b = {"m": {"x": 2, "y": 1}, "a": [3, 2], "b": 1}
+    ka = {"Z": "1", "A": "2"}
+    kb = {"A": "2", "Z": "1"}
+    assert stamp.identity(a, ka) == stamp.identity(b, kb), (
+        "the same experiment hashed two ways depending on insertion order")
+    # And a LIST is ordered content, not a set: reordering it is a change.
+    assert stamp.identity({"a": [2, 3]}, {}) != stamp.identity({"a": [3, 2]}, {})

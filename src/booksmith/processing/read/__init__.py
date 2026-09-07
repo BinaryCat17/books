@@ -156,6 +156,23 @@ class Reader:
 
     name: str = ""
 
+    def label(self) -> str:
+        """THE MODEL's short name, and the directory a run of it lives in.
+
+        `name` is the READER (`paddleocr-vl`); the model is what answered.
+        The two are not the same and the snapshot has always kept them apart.
+
+        AND THE MODEL NAME IS WHAT WE ASKED FOR, not what served. Behind an
+        OpenAI-compatible endpoint the weights are invisible, and the label
+        therefore names the request; the run is only as identified as the
+        endpoint let it be. That is exactly why the transport CHECKS the
+        answering model's name against the asked one before the first cent,
+        and why the fingerprint carries `weights` with a reason when it is
+        empty. A label cannot carry a reason -- it is a directory name -- so
+        the fingerprint and the identity do that work.
+        """
+        raise NotImplementedError
+
     def fingerprint(self) -> dict:
         """What tells this run from another. Goes into the snapshot whole.
 
