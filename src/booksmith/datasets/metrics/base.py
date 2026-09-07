@@ -103,7 +103,16 @@ class Record:
                    d.get("params", {}), d.get("detail", {}))
 
 
-NEEDS = ("truth", "pages", "pdf", "content")
+# THE FOUR PREREQUISITES, and the fourth is about the RUN, not the bench.
+# `content` says the TRUTH carries characters; `read` says THIS RUN does. They
+# were one for a while and the reading metric was therefore "applicable" to a
+# detection run, which never writes a character: on every synthetic bench it
+# reported CER 1 and WER 1 -- "this model read everything wrong" where the
+# truth is "this run did no reading". Harmless while a book held one run and
+# read it; noise wearing a number the moment six detectors are laid side by
+# side, and the exact shape of "a zero from a check and a zero from not
+# understanding".
+NEEDS = ("truth", "pages", "pdf", "content", "read")
 
 
 class Metric:
@@ -130,7 +139,7 @@ class Metric:
         raise NotImplementedError
 
 
-def applicable(metrics, bench, run, pages=None) -> list:
+def applicable(metrics, bench, run, pages=None, run_pages=None) -> list:
     """The metrics whose prerequisites this bench and run satisfy.
 
     Prerequisites only. Whether a trait is marked is the metric's own
@@ -145,7 +154,24 @@ def applicable(metrics, bench, run, pages=None) -> list:
         have.add("pdf")
     if run is not None and bench is not None and bench.has_content(pages):
         have.add("content")
+    # The run's pages are ASKED FOR, not fetched: a caller that has them
+    # passes them (`table.rows` does), and a caller with only a stand-in run
+    # says nothing and gets nothing. Fetching them here would make every
+    # applicability question a directory walk.
+    if run_pages is not None and run_has_content(run, run_pages):
+        have.add("read")
     return [m for m in metrics if m.needs <= have]
+
+
+def run_has_content(run, pages=None) -> bool:
+    """Did THIS RUN put a character anywhere. Asked of the pages it wrote.
+
+    Parsed here when the caller has not already: `table.rows` has them and
+    passes them, and a metric asked on its own does not, and a walk of a few
+    hundred small files is cheaper than a metric measuring nothing.
+    """
+    pages = pages if pages is not None else run.pages()
+    return any(b.get("content") for p in pages.values() for b in p["blocks"])
 
 
 # ------------------------------------------------------------- the battery

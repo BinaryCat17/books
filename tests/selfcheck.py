@@ -3974,6 +3974,17 @@ def mutations():
          [("test_models_contract",
            "test_identity_does_not_depend_on_the_order_the_dict_was_built_in")]),
 
+        ("a reading metric is applied to a run that read nothing",
+         lambda: one_line(
+             "booksmith.datasets.metrics.base",
+             "    if run_pages is not None and run_has_content(run, "
+             "run_pages):\n"
+             '        have.add("read")',
+             '    have.add("read")'),
+         [("test_metrics_contract",
+           "test_a_reading_metric_is_not_applicable_to_a_run_that_read_"
+           "nothing")]),
+
         ("the synthetic truth moved out from under its lock",
          lambda: attrs(support, SRC=_tree_with_a_moved_truth_lock()),
          [("test_acceptance",

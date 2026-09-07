@@ -27,7 +27,9 @@ def _slovar():
             and os.path.isfile(os.path.join(SLOVAR, "slovar.pdf"))):
         support.skip("bench/slovar is not built here (books synth --book slovar)")
     b = Bench.open(SLOVAR)
-    return b, b.run()
+    # NAMED, not "the" run: the book holds one directory per model now, and
+    # `run()` refuses when there are several -- which is the point of it.
+    return b, b.run("PP-DocLayoutV2")
 
 
 def test_every_registered_metric_declares_the_contract():
@@ -123,12 +125,20 @@ def test_applicability_is_by_prerequisite_not_by_trait():
         def has_content(self, pages=None):
             return True
 
-    names = lambda b: sorted(m.name for m in applicable(registry.METRICS, b, object()))
+    # A run that READ something, as the reading metric's fourth prerequisite
+    # now asks. Given as parsed pages, the shape `table.rows` passes.
+    read = {"0000": {"blocks": [{"content": "x"}]}}
+    names = lambda b, r=read: sorted(
+        m.name for m in applicable(registry.METRICS, b, object(), None, r))
     # pages alone: the truth-free metrics; truth adds the contour; a PDF and
     # characters add the ink and the reading metrics
     assert names(Truthless()) == ["assembly", "snapshot"]
     assert names(Golden()) == ["assembly", "contour", "snapshot"]
     assert names(Full()) == ["assembly", "contour", "fitness", "snapshot", "text"]
+    # And the same bench with a run that read NOTHING loses only the reading
+    # metric -- the prerequisite is about the run, not about the bench.
+    blank = {"0000": {"blocks": [{"content": None}]}}
+    assert names(Full(), blank) == ["assembly", "contour", "fitness", "snapshot"]
 
 
 def test_the_battery_loop_counts_what_it_printed():
@@ -155,3 +165,40 @@ def test_the_truth_free_batteries_catch_every_probe_on_slovar():
     assert registry.BY_NAME["assembly"].battery(b, r, log=lines.append) == 0, lines
     assert any(l.startswith("assembly battery: probes 3") for l in lines), lines
     assert registry.BY_NAME["snapshot"].battery(b, r, log=lambda *a: None) == 0
+
+
+def test_a_reading_metric_is_not_applicable_to_a_run_that_read_nothing():
+    """CER 1 on a DETECTION run is not a measurement.
+
+    `content` says the TRUTH carries characters. It was the only prerequisite
+    the reading metric had, so on every synthetic bench -- whose truth carries
+    characters by construction -- the metric was "applicable" to a detection
+    run, which never writes one, and reported CER 1 and WER 1. That reads as
+    "this model read everything wrong" where the truth is "this run did no
+    reading". Harmless while a book held one run; six rows of noise wearing a
+    number the moment six detectors are laid side by side.
+
+    Both directions, because only one of them was ever wrong.
+    """
+    from booksmith.datasets import metrics as registry
+    from booksmith.datasets.metrics import base
+    b, run = _slovar()
+    truth = b.pages()
+    empty = run.pages()
+    assert not base.run_has_content(run, empty), (
+        "the fixture changed: this detect run carries characters")
+    names = {m.name for m in
+             base.applicable(registry.METRICS, b, run, truth, empty)}
+    assert "text" not in names, (
+        f"the reading metric is applicable to a run that read nothing: {names}")
+    assert {"contour", "fitness", "assembly", "snapshot"} <= names, (
+        f"a prerequisite about the RUN switched off the truth metrics: {names}")
+
+    # And with one character in the run, it applies again.
+    read = {k: {**v, "blocks": [{**b0, "content": "x"} if i == 0 else b0
+                                for i, b0 in enumerate(v["blocks"])]}
+            for k, v in empty.items()}
+    assert base.run_has_content(run, read)
+    names = {m.name for m in
+             base.applicable(registry.METRICS, b, run, truth, read)}
+    assert "text" in names, f"a run that read something is not measured: {names}"

@@ -101,7 +101,12 @@ COMMANDS = {
     # slovar's detect run, one text. The JSON goes to a scratch path so that
     # the report is the only thing compared.
     "table-slovar": (
-        ["bench", "all", "bench/slovar", "--json", os.devnull],
+        # THE RUN IS NAMED. Without it the report depends on how many models
+        # happen to be built on this machine: the command refuses when a book
+        # holds several, and the snapshot would move the day someone runs a
+        # second detector.
+        ["bench", "all", "bench/slovar", "--run", "PP-DocLayoutV2",
+         "--json", os.devnull],
         ["bench/slovar/slovar.pdf", "bench/slovar/detect/PP-DocLayoutV2/pages",
          "bench/slovar/truth"]),
     "help": (["--help"], []),

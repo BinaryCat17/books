@@ -1644,7 +1644,10 @@ def _over_blocks(value, n, of, why):
 
 class TextMetric(Metric):
     name = "text"
-    needs = frozenset({"truth", "pages", "content"})
+    # `read` as well as `content`: the truth must carry characters AND this
+    # run must have produced some. Without it the metric measured a detection
+    # run and called the result CER 1.
+    needs = frozenset({"truth", "pages", "content", "read"})
 
     def run(self, bench, run) -> Record:
         res = measure(bench.truth_dir, run.pages_dir)

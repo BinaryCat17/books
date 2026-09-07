@@ -1,6 +1,5 @@
 contour: sha256 checked: 8f607163c195
 fitness: sha256 checked: 8f607163c195
-text: sha256 checked: 8f607163c195
 assembly: sha256 checked: 8f607163c195
 snapshot: sha256 checked: 8f607163c195
 bench slovar, run PP-DocLayoutV2
@@ -25,18 +24,6 @@ bench slovar, run PP-DocLayoutV2
   fitness  objects_with_company        0.000               0/3                      
   fitness  object_ink_preserved        0.928       33218/35792                      
   fitness  params: ink=160, intact=0.99, almost=0.95, bitten=0.8, edge_band=0.04, GUTTER=0.5
-  text     paired                      0.989           517/523                      
-  text     CER                         1.000                                        
-  text     WER                         1.000                                        
-  text     CER_answered                    —                            0/520 blocks  [1]
-  text     no_answer                   0.990           515/520                      
-  text     cells_matched                   —             0/227                        [2]
-  text     CER_cells                       —                             0/227 cells  [3]
-  text     tables_given_as_text        0.000               0/2                      
-  text     baits_read                  0.000               0/1                      
-  text     CER_artefacts                   —                                          [4]
-  text     CER_artefacts_answered          —                              0/0 blocks  [5]
-  text     params: normalization=boundary, geometry_two_way_coverage=0.75, geometry_tolerance_px=6.0
   assembly excess_jumps_per_page      10.833                             12/13 pages
   assembly excess_jumps                  130                                        
   assembly transitions                   150                                        
@@ -46,9 +33,4 @@ bench slovar, run PP-DocLayoutV2
   snapshot missing                         4              4/52                      
   snapshot empty                          13             13/52                      
   snapshot fingerprint_verified            0                                        
-  [1] text/CER_answered: no answered text block
-  [2] text/cells_matched: no table answered
-  [3] text/CER_cells: no table answered
-  [4] text/CER_artefacts: no artefact with character truth
-  [5] text/CER_artefacts_answered: no answered artefact with character truth
-5 records written to /dev/null
+4 records written to /dev/null

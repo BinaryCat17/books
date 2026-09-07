@@ -26,7 +26,10 @@ def rows(bench: Bench, run: Run, which=None, log=print) -> list:
     number about nothing, and the first edition wrote one.
     """
     pages = bench.pages()
-    can = registry.base.applicable(registry.METRICS, bench, run, pages)
+    # BOTH SIDES BEFORE THE QUESTION. The run's pages decide whether a reading
+    # metric applies at all, and they are needed a few lines below anyway.
+    model = run.pages()
+    can = registry.base.applicable(registry.METRICS, bench, run, pages, model)
     if which:
         unknown = [n for n in which if n not in registry.BY_NAME]
         if unknown:
@@ -41,7 +44,6 @@ def rows(bench: Bench, run: Run, which=None, log=print) -> list:
         todo = [registry.BY_NAME[n] for n in which]
     else:
         todo = can
-    model = run.pages()
     note = same_book(bench, run)
     out = []
     for m in todo:
