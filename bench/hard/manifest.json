@@ -531,6 +531,8 @@
    "page_no": 599
   }
  ],
- "pdf": "hard.pdf",
- "sha256 pdf": "bd65ad0e4a97e4139b8a678b0c328f37739d874466a8508ca81101b3c56211c3"
+ "source": {
+  "name": "hard.pdf",
+  "sha256": "bd65ad0e4a97e4139b8a678b0c328f37739d874466a8508ca81101b3c56211c3"
+ }
 }

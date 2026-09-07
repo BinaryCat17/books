@@ -23,11 +23,11 @@ SLOVAR = os.path.join(ROOT, "bench", "slovar")
 
 def _slovar():
     if not (os.path.isdir(os.path.join(SLOVAR, "truth"))
-            and os.path.isdir(os.path.join(SLOVAR, "detect", "pages"))
+            and os.path.isdir(os.path.join(SLOVAR, "detect", "PP-DocLayoutV2", "pages"))
             and os.path.isfile(os.path.join(SLOVAR, "slovar.pdf"))):
         support.skip("bench/slovar is not built here (books synth --book slovar)")
     b = Bench.open(SLOVAR)
-    return b, b.run("detect")
+    return b, b.run()
 
 
 def test_every_registered_metric_declares_the_contract():
@@ -70,7 +70,7 @@ def test_records_agree_with_the_raw_dict_they_carry():
     b, r = _slovar()
     for m in registry.METRICS:
         rec = m.run(b, r)
-        assert rec.metric == m.name and rec.bench == "slovar" and rec.run == "detect"
+        assert rec.metric == m.name and rec.bench == "slovar" and rec.run == "PP-DocLayoutV2"
         assert rec.detail and rec.scalars, m.name
         for k, s in rec.scalars.items():
             assert isinstance(s, Scalar), (m.name, k)

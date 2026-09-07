@@ -20,7 +20,7 @@ from test_bench import _bench, _page
 def test_rows_refuse_an_unknown_and_an_inapplicable_metric():
     with tempfile.TemporaryDirectory() as d:
         b = Bench.open(_bench(os.path.join(d, "b")))
-        run = b.run("detect")
+        run = b.run()
         try:
             table.rows(b, run, ["bogus"], log=lambda *a: None)
         except Refusal as e:
@@ -41,7 +41,7 @@ def test_rows_parse_the_truth_once_and_pass_dicts_to_the_metrics():
         loads = []
         real = b.pages
         b.pages = lambda: (loads.append(1), real())[1]
-        recs = table.rows(b, b.run("detect"), ["contour"], log=lambda *a: None)
+        recs = table.rows(b, b.run(), ["contour"], log=lambda *a: None)
     assert len(loads) == 1, f"the truth was parsed {len(loads)} times"
     assert [r.metric for r in recs] == ["contour"]
     assert recs[0].detail["book"].startswith("sha256 checked"), recs[0].detail["book"]
@@ -64,10 +64,11 @@ def test_records_come_back_from_disk_as_json_left_them():
 def test_the_selection_names_its_own_result_file():
     with tempfile.TemporaryDirectory() as d:
         b = Bench.open(_bench(os.path.join(d, "b")))
-        run = b.run("detect")
+        run = b.run()
     full = table.results_path(b, run)
     part = table.results_path(b, run, ["contour"])
-    assert full.endswith("b-detect.json") and part.endswith("b-detect-only-contour.json")
+    assert full.endswith("b-PP-DocLayoutV2.json") and part.endswith(
+        "b-PP-DocLayoutV2-only-contour.json")
 
 
 def test_render_prints_counts_coverage_and_footnotes():

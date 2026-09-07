@@ -312,8 +312,10 @@
   "DejaVuSerif.ttf": "8f2c103bfa3fd5de71f1b92b18f21906b5a26871fb7e19a9a4c9af539c3cc7ab",
   "DejaVuSansMono.ttf": "c805f9436dbc268644c1d9584f01a601a653e028e08fd74b9b949f6cf8304d88"
  },
- "pdf": "katalog.pdf",
- "sha256 pdf": "aae8be1f84f1c6fd790f3a3f943be7f173cf4e832a5a70b648ec82fcd2529f26",
+ "source": {
+  "name": "katalog.pdf",
+  "sha256": "aae8be1f84f1c6fd790f3a3f943be7f173cf4e832a5a70b648ec82fcd2529f26"
+ },
  "blocks_by_label": {
   "header": 22,
   "number": 11,

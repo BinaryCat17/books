@@ -3,6 +3,8 @@
  "about": "the 36 pages with the most side-by-side pairs, long side squeezed to 1800 pixels, JPEG 92",
  "page_count": 36,
  "side_by_side_pairs": 747,
- "pdf": "hard36.pdf",
- "sha256 pdf": "254f58d20f2e962369d23cdb8867ed8dca3148809160e305efdaf2152f2512e4"
+ "source": {
+  "name": "hard36.pdf",
+  "sha256": "254f58d20f2e962369d23cdb8867ed8dca3148809160e305efdaf2152f2512e4"
+ }
 }

@@ -218,7 +218,8 @@ def test_what_was_not_checked_by_sha256_is_named():
         pdf = _stand(d)
         with open(os.path.join(d, "truth", "manifest.json"), "w",
                   encoding="utf-8") as f:
-            json.dump({"sha256 pdf": stamp.sha256(pdf)}, f)
+            json.dump({"source": {"name": os.path.basename(pdf),
+                                  "sha256": stamp.sha256(pdf)}}, f)
         s = _say(pdf, [(os.path.join(d, "truth", "pages"), "T"),
                        (os.path.join(d, "model", "pages"), "M")])
         assert "verified for T" in s and "NOT VERIFIED for M" in s, s

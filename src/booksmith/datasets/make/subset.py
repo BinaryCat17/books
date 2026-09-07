@@ -232,7 +232,8 @@ def _pages(books, root, arte, doc, work, wpdf, wman, tdir, out_dir, log):
            # The trait state is part of the distillate's passport: it says
            # what CAN be measured here, before the first `books score`.
            "truth_traits": traits,
-           "pdf": os.path.basename(pdf), "sha256 pdf": stamp.sha256(wpdf)}
+           "source": {"name": os.path.basename(pdf),
+                      "sha256": stamp.sha256(wpdf)}}
     with open(wman, "w", encoding="utf-8") as f:
         json.dump(man, f, ensure_ascii=False, indent=1)
 

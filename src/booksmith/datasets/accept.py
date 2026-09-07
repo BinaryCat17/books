@@ -56,17 +56,17 @@ EXPECTED = os.path.join(ROOT, "bench", "expected")
 # name -> (argv after `books`, paths that must exist for it to run at all)
 COMMANDS = {
     "score-annopage": (
-        ["score", "bench/annopage/truth", "bench/annopage/detect/pages"],
-        ["bench/annopage/truth", "bench/annopage/detect/pages"]),
+        ["score", "bench/annopage/truth", "bench/annopage/detect/PP-DocLayoutV2/pages"],
+        ["bench/annopage/truth", "bench/annopage/detect/PP-DocLayoutV2/pages"]),
     "score-hard": (
-        ["score", "bench/hard/truth", "bench/hard/detect/pages"],
-        ["bench/hard/truth", "bench/hard/detect/pages"]),
+        ["score", "bench/hard/truth", "bench/hard/detect/PP-DocLayoutV2/pages"],
+        ["bench/hard/truth", "bench/hard/detect/PP-DocLayoutV2/pages"]),
     "text-slovar": (
         ["text", "bench/slovar/truth", "bench/slovar/truth"],
         ["bench/slovar/truth"]),
     "replay-annopage": (
-        ["replay", "--check", "bench/annopage/detect"],
-        ["bench/annopage/detect/run.json"]),
+        ["replay", "--check", "bench/annopage/detect/PP-DocLayoutV2"],
+        ["bench/annopage/detect/PP-DocLayoutV2/run.json"]),
     # `books text --selfcheck` is here because the reports alone cannot see a
     # broken PROBE. Measured: renaming the normalisation level to `none`
     # in one place and not the other made `--norm none` do exactly what
@@ -88,21 +88,21 @@ COMMANDS = {
     # slovar returns 1 (one probe uncaught by construction, the dark column);
     # the report is compared as text and the code is not looked at.
     "score-selfcheck": (
-        ["score", "bench/slovar/truth", "bench/slovar/detect/pages",
+        ["score", "bench/slovar/truth", "bench/slovar/detect/PP-DocLayoutV2/pages",
          "--selfcheck"],
-        ["bench/slovar/truth", "bench/slovar/detect/pages"]),
+        ["bench/slovar/truth", "bench/slovar/detect/PP-DocLayoutV2/pages"]),
     "fitness-selfcheck": (
         ["fitness", "bench/slovar/slovar.pdf", "--detect",
-         "bench/slovar/detect/pages", "--truth", "bench/slovar/truth",
+         "bench/slovar/detect/PP-DocLayoutV2/pages", "--truth", "bench/slovar/truth",
          "--selfcheck"],
-        ["bench/slovar/slovar.pdf", "bench/slovar/detect/pages",
+        ["bench/slovar/slovar.pdf", "bench/slovar/detect/PP-DocLayoutV2/pages",
          "bench/slovar/truth"]),
     # The table, the deliverable of step 2a: every applicable metric on
     # slovar's detect run, one text. The JSON goes to a scratch path so that
     # the report is the only thing compared.
     "table-slovar": (
         ["bench", "all", "bench/slovar", "--json", os.devnull],
-        ["bench/slovar/slovar.pdf", "bench/slovar/detect/pages",
+        ["bench/slovar/slovar.pdf", "bench/slovar/detect/PP-DocLayoutV2/pages",
          "bench/slovar/truth"]),
     "help": (["--help"], []),
 }
@@ -113,22 +113,22 @@ COMMANDS = {
 RECORDS = {
     "score-annopage": (
         ("datasets.metrics.contour", "compare", ["bench/annopage/truth",
-                                "bench/annopage/detect/pages"]),
+                                "bench/annopage/detect/PP-DocLayoutV2/pages"]),
         ["bench/annopage/truth", "bench/annopage/manifest.json",
-         "bench/annopage/detect/pages"]),
+         "bench/annopage/detect/PP-DocLayoutV2/pages"]),
     "score-hard": (
-        ("datasets.metrics.contour", "compare", ["bench/hard/truth", "bench/hard/detect/pages"]),
+        ("datasets.metrics.contour", "compare", ["bench/hard/truth", "bench/hard/detect/PP-DocLayoutV2/pages"]),
         ["bench/hard/truth", "bench/hard/manifest.json",
-         "bench/hard/detect/pages"]),
+         "bench/hard/detect/PP-DocLayoutV2/pages"]),
     "text-slovar": (
         ("datasets.metrics.text", "measure", ["bench/slovar/truth", "bench/slovar/truth"]),
         ["bench/slovar/truth", "bench/slovar/manifest.json"]),
     "fitness-slovar": (
         ("processing.assess.ink", "measure", ["bench/slovar/slovar.pdf",
-                                "bench/slovar/detect/pages",
+                                "bench/slovar/detect/PP-DocLayoutV2/pages",
                                 "bench/slovar/truth"]),
         ["bench/slovar/slovar.pdf", "bench/slovar/truth",
-         "bench/slovar/manifest.json", "bench/slovar/detect/pages"]),
+         "bench/slovar/manifest.json", "bench/slovar/detect/PP-DocLayoutV2/pages"]),
 }
 
 TOLERANCE = 1e-6
@@ -137,7 +137,7 @@ TOLERANCE = 1e-6
 def missing(name):
     """Paths this command needs that are not on disk. Empty means runnable.
 
-    `bench/*/detect/pages` and the synthetic benches are behind .gitignore, so
+    `bench/*/detect/*/pages` and the synthetic benches are behind .gitignore, so
     on a fresh clone most of these cannot run. That is a skip with a reason,
     never a pass: a check that silently measures nothing is the failure this
     whole file exists to prevent.

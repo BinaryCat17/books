@@ -140,7 +140,9 @@ books ls | books down <id> | books reap
 books ledger                 the run journal and the estimate from it
 books replay --check out/    is the input snapshot complete
 
-books detect book.pdf        LEVEL ONE: page contours, locally and free
+books detect bench/slovar    LEVEL ONE: page contours, locally and free. Into
+                             detect/<model>/ inside the book directory, so a
+                             second detector stands beside the first
 books read book.detect/      LEVEL TWO: read the blocks with a model. PAID,
                              and the only command of the parse that spends
 books html out/              readable HTML: text plus artifacts as pictures
@@ -157,7 +159,8 @@ books text truth/ pages/     the reading metric; --selfcheck too
 books fitness book.pdf --detect …   will the meaning arrive: ink, not boxes
 books overlay book.pdf …     truth and model disagreements over the pages
 books bench all bench/<book>  every applicable metric on one run: one table,
-                             one JSON under bench/results/
+                             one JSON under bench/results/. --run <model> when
+                             the book holds several
 ```
 
 ## Knobs
@@ -193,6 +196,26 @@ Stated here in one line each; the measurement that bought each one is in
 * **A knob is declared in the registry.**
 * **Words and structure may be repaired; numbers may only be flagged, never
   restored.**
+
+## One directory per book, one directory per run
+
+```
+bench/<book>/ or processed/<book>/
+  manifest.json        source: {name, sha256} -- which scan this is about
+  <book>.pdf           the scan itself (untracked for every bench we build)
+  truth/               only a bench has this
+  detect/<model>/      a level-one run: pages/ and run.json
+  read/<model>/        a level-two run
+  build/               the HTML and its kitchen
+```
+
+THE LABEL IS THE MODEL'S OWN NAME, asked of the adapter (`Detector.label`),
+never the adapter's registry name: `doclayout-onnx` serves three models, and
+under one directory the second run would read as a resume of the first. That
+is what putting every detector's numbers in one table needs, and what a single
+`detect/` could not give. `run.json` carries `identity` -- a sha256 over the
+fingerprint and the values of the knobs the run actually read -- so a command
+about to write a DIFFERENT experiment under an existing label can refuse.
 
 ## The book directory is self-sufficient
 

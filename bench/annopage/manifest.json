@@ -57,6 +57,8 @@
   "Stamp": "seal"
  },
  "annotations_without_image": 0,
- "pdf": "annopage.pdf",
- "sha256 pdf": "94cf0349275bcffad6480eba71c9c3acbef6e2004eb1d77af4825ec7bf36a4f0"
+ "source": {
+  "name": "annopage.pdf",
+  "sha256": "94cf0349275bcffad6480eba71c9c3acbef6e2004eb1d77af4825ec7bf36a4f0"
+ }
 }

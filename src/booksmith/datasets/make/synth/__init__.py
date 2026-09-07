@@ -432,7 +432,11 @@ def _build(out_dir, cases, seed, aging, book, log) -> dict:
            "aging_params": AGING[aging],
            "fonts": {os.path.basename(FONT): stamp.sha256(FONT),
                       os.path.basename(FONT_MONO): stamp.sha256(FONT_MONO)},
-           "pdf": os.path.basename(pdf), "sha256 pdf": stamp.sha256(wpdf),
+           # THE NAME, NOT A PATH. The manifest is tracked and the PDF is
+           # not, so an absolute path here would be false on every other
+           # machine; the book is found beside its own manifest.
+           "source": {"name": os.path.basename(pdf),
+                      "sha256": stamp.sha256(wpdf)},
            "blocks_by_label": counts, "char_truth": total,
            "pages": pages}
     with open(wman, "w", encoding="utf-8") as f:

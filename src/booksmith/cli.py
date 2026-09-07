@@ -90,11 +90,46 @@ def cmd_prepare(a):
     return 0
 
 
+def _with(a, **kw):
+    """A copy of the parsed arguments with fields replaced. argparse gives a
+    Namespace, and mutating the caller's would leave the change behind for a
+    second command in the same process (the tests run several)."""
+    import copy
+    out = copy.copy(a)
+    for k, v in kw.items():
+        setattr(out, k, v)
+    return out
+
+
 def cmd_detect(a):
-    """Level-one contours over the PDF pages. No VLM, no rental, no money."""
+    """Level-one contours over the PDF pages. No VLM, no rental, no money.
+
+    WHERE IT LANDS. Given a BOOK DIRECTORY, under `detect/<label>/`, where the
+    label is the model's own name -- so a second detector measured on the same
+    book stands beside the first instead of overwriting it, which is what
+    putting every model's numbers in one table needs. Given a bare PDF, beside
+    it as before, because a loose file has no book directory to put a run in.
+    `--out` still wins over both: it is how a run is put somewhere for a look.
+    """
     import shlex
     from booksmith.processing.layout import detect
-    out = a.out or os.path.splitext(a.file)[0] + ".detect"
+    out = a.out
+    if not out and os.path.isfile(os.path.join(a.file, "manifest.json")):
+        bk = book.Book.open(a.file, "books detect")
+        pdf = bk.pdf
+        if pdf is None:
+            raise Refusal(
+                f"{bk.name}: the manifest names "
+                f"{(bk.manifest.get('source') or {}).get('name')!r} and it is "
+                f"not beside the manifest. The book directory is where the "
+                f"scan lives; a run cannot be measured against a file that "
+                f"is not there.")
+        # THE LABEL BEFORE THE PAGES. Building the adapter costs a session
+        # load and no pages, and asking it its name here means a run that
+        # cannot be filed refuses BEFORE the work rather than after it.
+        out = bk.run_dir("detect", detect._adapter().label())
+        a = _with(a, file=pdf)
+    out = out or os.path.splitext(a.file)[0] + ".detect"
     detect.run(a.file, out, a.pages, log=log)
     # Quoted: five of the nine files in raw/ carry spaces and brackets, and a
     # hint you cannot paste into a shell is not a hint.
@@ -595,7 +630,8 @@ def cmd_fitness(a):
                           f"its own book")
         if not b.pdf:
             # a bare truth: the PDF is the one given by hand
-            b.manifest = {"pdf": os.path.abspath(a.pdf)}
+            b.manifest = {"source": {"name": os.path.basename(a.pdf)}}
+            b.root = os.path.dirname(os.path.abspath(a.pdf)) or "."
             b.root = os.path.dirname(os.path.abspath(a.pdf))
         return 1 if BY_NAME["fitness"].battery(b, r, log=log) else 0
     fitness.report(fitness.measure(a.pdf, det, truth), log=log)
@@ -1136,8 +1172,10 @@ def main(argv=None):
     bs = p.add_subparsers(dest="bench_cmd", required=True)
     q = bs.add_parser("all", help="every applicable metric on one bench and run, as one table and one JSON")
     q.add_argument("bench", help="the bench directory, e.g. bench/slovar")
-    q.add_argument("--run", default="detect",
-                   help="the run under the bench root (default: detect)")
+    q.add_argument("--run", default="",
+                   help="which detect run, by its model label. Omit it when "
+                        "the bench has exactly one; with several, the command "
+                        "refuses and lists them")
     q.add_argument("--only", default="",
                    help="comma-separated metric names, instead of every applicable one")
     q.add_argument("--json", default="",

@@ -69,11 +69,21 @@ bench/*/*.pdf
 # hard36. `books overlay` draws them in minutes and they are looked at once.
 bench/*/check/
 
-# Detector output: 25 MB for annopage. `books detect` computes it on the CPU
-# for free. The input snapshot is a separate file, detect/run.json (16 KB), and
-# it STAYS in git: without it there is no telling which knobs produced the
-# numbers in docs/.
+# Detector output: 25 MB for annopage per model. `books detect` computes it on
+# the CPU for free. The input snapshot is a separate file, run.json (16 KB),
+# and it STAYS in git: without it there is no telling which knobs produced the
+# numbers.
+#
+# ONE LEVEL DEEPER SINCE THE RUN LABELS: `detect/<model>/pages/`. The old
+# pattern named `detect/pages/` and stopped matching the moment the runs moved
+# -- caught by the migration script itself, which staged 600 annopage pages
+# that had been ignored a second earlier. Both are kept: a bare `detect/pages`
+# is what a `--out` run beside a loose PDF still makes.
 bench/*/detect/pages/
+bench/*/detect/*/pages/
+bench/*/read/*/pages/
+bench/*/read/*/answers/
+bench/*/read/*/crops/
 
 # The level-one product, 12 MB per book: `books html` from detect/.
 bench/*/html/

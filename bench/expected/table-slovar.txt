@@ -3,7 +3,7 @@ fitness: sha256 checked: 8f607163c195
 text: sha256 checked: 8f607163c195
 assembly: sha256 checked: 8f607163c195
 snapshot: sha256 checked: 8f607163c195
-bench slovar, run detect
+bench slovar, run PP-DocLayoutV2
   metric   scalar                      value             count                  over
   contour  artefacts_found             0.667               2/3                      
   contour  sense_whole                 0.667               2/3                      

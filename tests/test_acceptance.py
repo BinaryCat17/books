@@ -97,7 +97,10 @@ def test_help_reports_the_same_text():
 def test_the_command_table_covers_every_format_the_migration_touches():
     """A snapshot set that misses a format is a blind spot wearing a number."""
     argv = " ".join(a for c, _ in acceptance.COMMANDS.values() for a in c)
-    for needed in ("truth", "detect/pages", "detect", "--help"):
+    # NOT `detect/pages`: a run lives under its model's name now
+    # (`detect/<label>/pages`), and pinning one model here would make the
+    # table's coverage depend on which detector happens to be measured.
+    for needed in ("truth", "/detect/", "/pages", "--help"):
         assert needed in argv, f"no acceptance command reads {needed}"
     assert len(acceptance.COMMANDS) >= 5
 

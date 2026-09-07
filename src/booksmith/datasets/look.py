@@ -62,7 +62,7 @@ def _same_book(pdf: str, marks) -> str:
     for d, tag in marks:
         was = len(said)
         up = os.path.dirname(d.rstrip("/"))
-        for name, path_in in (("manifest.json", ("sha256 pdf",)),
+        for name, path_in in (("manifest.json", ("source", "sha256")),
                               ("run.json", ("source", "sha256"))):
             path = os.path.join(up, name)
             if not os.path.exists(path):

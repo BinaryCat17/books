@@ -21,6 +21,7 @@ import os
 from dataclasses import dataclass, field
 
 from booksmith.core.errors import Unmeasurable
+from booksmith.core import book as book_mod
 from booksmith.core import page
 
 TRAITS = ("order_marked", "text_marked")
@@ -132,13 +133,14 @@ class Bench:
     def pdf(self) -> str | None:
         if not self.manifest:
             return None
-        name = self.manifest.get("pdf") or f"{self.name}.pdf"
+        name = ((self.manifest.get("source") or {}).get("name")
+                or f"{self.name}.pdf")
         p = os.path.join(self.root, name)
         return p if os.path.isfile(p) else None
 
     @property
     def sha256(self) -> str | None:
-        return self.manifest.get("sha256 pdf")
+        return (self.manifest.get("source") or {}).get("sha256")
 
     def pages(self) -> dict:
         return page.load_pages(self.truth_dir, f"truth of {self.name}")
@@ -159,20 +161,26 @@ class Bench:
         return any(b.get("content") for p in pages.values()
                    for b in p["blocks"])
 
-    def run(self, label: str = "detect") -> Run:
-        """A run stored under the bench: today `<root>/<label>/`; the plan's
-        step 3b makes it `<root>/detect/<label>/`."""
-        return Run.open(os.path.join(self.root, label), f"run {label} of {self.name}")
+    def book(self) -> book_mod.Book:
+        """The bench as a book directory. A bench IS a book with `truth/`,
+        and the run layout is the book's, asked in one place."""
+        return book_mod.Book(self.root, self.manifest)
 
-    def runs(self) -> list:
-        """Labels of every run under the bench root."""
-        out = []
-        for name in sorted(os.listdir(self.root)):
-            d = os.path.join(self.root, name)
-            if os.path.isdir(d) and os.path.isfile(os.path.join(d, "run.json")) \
-                    and os.path.isdir(os.path.join(d, "pages")):
-                out.append(name)
-        return out
+    def run(self, label: str = "", kind: str = "detect") -> Run:
+        """THE run of this kind, or the one named.
+
+        The default used to be the literal label `detect`, when a bench held
+        exactly one run in a directory of that name. It now holds one per
+        MODEL, and "the run" is only defined when there is one: `one_run`
+        refuses zero and several apart, and lists the labels.
+        """
+        d = self.book().one_run(kind, label)
+        return Run.open(d, f"{kind} run {label or os.path.basename(d)} "
+                           f"of {self.name}")
+
+    def runs(self, kind: str = "detect") -> list:
+        """Labels of every run of one kind under the bench."""
+        return self.book().runs(kind)
 
 
 def same_book(bench: Bench, run: Run) -> str:

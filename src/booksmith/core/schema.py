@@ -94,7 +94,8 @@ FORMATS = (
         "lives here 1272 times and nowhere else in tracked data -- it is the "
         "whole floor under danger O1."),
     Format(
-        "detect_run", "bench/*/detect/run.json",
+        # ONE LEVEL DEEPER SINCE THE RUN LABELS: `detect/<model>/run.json`.
+        "detect_run", "bench/*/detect/*/run.json",
         {"knobs": 3, "value": 72, "default": 72, "what": 72,
          "set_externally": 72, "name": 6, "prompts": 6, "by_label": 6,
          "when": 3, "raster": 3, "commit": 3, "source": 3, "args": 3},
@@ -105,7 +106,12 @@ FORMATS = (
         "manifest", "bench/*/manifest.json",
         {"book": 146, "value": 210, "default": 210, "what": 210,
          "debt": 210, "set_externally": 210, "page_no": 130, "chars": 99,
-         "char_truth": 99, "blocks_with_text": 99, "cell_count": 99},
+         "char_truth": 99, "blocks_with_text": 99, "cell_count": 99,
+         # WHICH BOOK THIS MANIFEST IS ABOUT. It was two keys, `pdf` and
+         # `sha256 pdf`, declared by nothing -- so the one fact that says a
+         # truth directory and a run are about the same file had no floor
+         # under it at all. One key now, and counted: 10 of 10 manifests.
+         "source": 10},
         "All ten bench manifests are tracked. Note the pair `page_count` (a "
         "number) and `pages` (a list) living in the SAME object in seven of "
         "them: a rename mapping both onto `pages` drops the list silently and "

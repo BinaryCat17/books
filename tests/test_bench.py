@@ -21,19 +21,28 @@ def _page(i, blocks=(), meta=None):
             "blocks": list(blocks), "raw": None, "meta": meta or {}}
 
 
-def _bench(root, sha="ab" * 32, pages=None, run_sha=None):
+LABEL = "PP-DocLayoutV2"
+
+
+def _bench(root, sha="ab" * 32, pages=None, run_sha=None, label=LABEL):
     os.makedirs(os.path.join(root, "truth"))
     for i, p in enumerate(pages or [_page(0), _page(1, meta={"order_marked": True}),
                                     _page(2, meta={"text_marked": False})]):
         with open(os.path.join(root, "truth", f"{i:04d}.json"), "w") as f:
             json.dump(p, f)
     with open(os.path.join(root, "manifest.json"), "w") as f:
-        json.dump({"book": os.path.basename(root), "pdf": "x.pdf", "sha256 pdf": sha}, f)
-    os.makedirs(os.path.join(root, "detect", "pages"))
+        json.dump({"book": os.path.basename(root),
+                   "source": {"name": "x.pdf", "sha256": sha}}, f)
+    # A RUN LIVES UNDER THE MODEL'S NAME. The fixture used to make
+    # `detect/pages`, which was the whole layout when a book held one run;
+    # a book holds one per model now, and "the run" is only defined when
+    # there is exactly one.
+    run = os.path.join(root, "detect", label)
+    os.makedirs(os.path.join(run, "pages"))
     for i in range(3):
-        with open(os.path.join(root, "detect", "pages", f"{i:04d}.json"), "w") as f:
+        with open(os.path.join(run, "pages", f"{i:04d}.json"), "w") as f:
             json.dump(_page(i), f)
-    with open(os.path.join(root, "detect", "run.json"), "w") as f:
+    with open(os.path.join(run, "run.json"), "w") as f:
         json.dump({"source": {"path": "x.pdf", "sha256": run_sha or sha},
                    "policy": {"vocabulary": "PP-DocLayoutV2"}}, f)
     return root
@@ -46,7 +55,7 @@ def test_a_bench_opens_from_its_root_and_from_its_truth():
         b = bench.Bench.open(os.path.join(root, "truth"))
         assert a.name == b.name == "b"
         assert a.sha256 == "ab" * 32 and a.pdf is None
-        assert a.runs() == ["detect"]
+        assert a.runs() == [LABEL]
         assert len(a.pages()) == 3
 
 
@@ -63,9 +72,9 @@ def test_a_directory_without_truth_is_not_a_bench():
 def test_a_run_opens_from_its_directory_and_its_pages():
     with tempfile.TemporaryDirectory() as d:
         root = _bench(os.path.join(d, "b"))
-        r = bench.Run.open(os.path.join(root, "detect"))
-        s = bench.Run.open(os.path.join(root, "detect", "pages"))
-        assert r.pages_dir == s.pages_dir and r.label == s.label == "detect"
+        r = bench.Run.open(os.path.join(root, "detect", LABEL))
+        s = bench.Run.open(os.path.join(root, "detect", LABEL, "pages"))
+        assert r.pages_dir == s.pages_dir and r.label == s.label == LABEL
         assert r.sha256 == "ab" * 32 and r.vocabulary == "PP-DocLayoutV2"
         assert r.derived_from is None
 
@@ -89,10 +98,10 @@ def test_same_book_checks_by_sha256_and_refuses_another_book():
     with tempfile.TemporaryDirectory() as d:
         root = _bench(os.path.join(d, "b"))
         b = bench.Bench.open(root)
-        assert bench.same_book(b, b.run("detect")) == "sha256 checked: " + "ab" * 6
+        assert bench.same_book(b, b.run()) == "sha256 checked: " + "ab" * 6
         other = _bench(os.path.join(d, "c"), run_sha="cd" * 32)
         try:
-            bench.same_book(bench.Bench.open(other), bench.Bench.open(other).run("detect"))
+            bench.same_book(bench.Bench.open(other), bench.Bench.open(other).run())
         except Unmeasurable as e:
             assert "DIFFERENT books" in str(e)
         else:
@@ -102,10 +111,10 @@ def test_same_book_checks_by_sha256_and_refuses_another_book():
 def test_same_book_says_when_the_field_is_absent():
     with tempfile.TemporaryDirectory() as d:
         root = _bench(os.path.join(d, "b"))
-        with open(os.path.join(root, "detect", "run.json"), "w") as f:
+        with open(os.path.join(root, "detect", LABEL, "run.json"), "w") as f:
             json.dump({"source": {}}, f)
         b = bench.Bench.open(root)
-        assert bench.same_book(b, b.run("detect")).startswith(
+        assert bench.same_book(b, b.run()).startswith(
             "sha256 not checked: the field is absent")
 
 

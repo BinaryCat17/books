@@ -1,7 +1,7 @@
 {
  "inputs": {
-  "bench/hard/detect/pages": "af22a480871c09d5fccde892f511de6e496c3f20c53850b995ccd5090e9148c1",
-  "bench/hard/manifest.json": "9dde4692a5e55d7efed8939f167e82a49043ae2413a35ee14a3a3b2036ad1f81",
+  "bench/hard/detect/PP-DocLayoutV2/pages": "af009e05faf1e13b392715871ccd3042e515b733dcec896871f7240cc6c4710c",
+  "bench/hard/manifest.json": "bbba6e82d47e11ee484bc667567127200920334833b9c7d5f1a627d31818758a",
   "bench/hard/truth": "c6736c36e4ca2e2ac7aed3c2a9796e78f2d751ed2b722d14d4ba0019639c00b0"
  },
  "result": {

@@ -3,8 +3,24 @@
 The build root holds exactly one file, `book.html`; everything else is
 kitchen under `assets/`. Three modules used to know the layout by their own
 copy (the builder, the swap layer, the snapshot checker) and one of them
-lied on the one layout it was needed for; now they ask here. `Book.open`
-and the run labels arrive in step 3b of the plan.
+lied on the one layout it was needed for; now they ask here.
+
+ONE DIRECTORY PER BOOK, and a bench is a book that also has `truth/`:
+
+    <book>/
+      manifest.json      source: {name, sha256} -- written by the first
+                         command that makes the directory
+      <name>.pdf         the scan (untracked for every bench we build)
+      truth/             only a bench has this
+      detect/<label>/    a level-one run: pages/ and run.json
+      read/<label>/      a level-two run
+      build/             the HTML and its kitchen
+
+THE LABEL IS THE MODEL'S NAME (`Detector.label`), so two models measured on
+one book do not overwrite each other -- which is what "run every detector and
+put the numbers side by side" needs, and what a single `detect/` could not
+give. `run.json` carries `identity`, and a command about to write a DIFFERENT
+identity under an existing label refuses and asks for `--run`.
 """
 import os
 import re
@@ -68,3 +84,125 @@ def safe_label(name: str, what: str) -> str:
             f"weights do not declare one -- pass --run <name> and the run is "
             f"filed under that.")
     return name
+
+
+# The two kinds of run a book holds. Not a free string: a typo would make a
+# directory nobody looks in, and `runs()` would report the book as having none.
+KINDS = ("detect", "read")
+
+
+class Book:
+    """A book directory. `Bench` is this plus `truth/`.
+
+    `manifest.json` is what makes a directory a book. `bench/expected/` and
+    `bench/results/` are directories under `bench/` and are NOT books; without
+    the manifest there is nothing to say which PDF they are about, and opening
+    them would measure a page set against a book nobody named.
+    """
+
+    def __init__(self, root: str, manifest: dict):
+        self.root = os.path.abspath(root.rstrip("/"))
+        self.name = os.path.basename(self.root)
+        self.manifest = manifest
+
+    # ------------------------------------------------------------ opening
+    @classmethod
+    def open(cls, path: str, what: str = "book") -> "Book":
+        path = path.rstrip("/")
+        man = os.path.join(path, "manifest.json")
+        if not os.path.isfile(man):
+            raise Refusal(
+                f"{what}: {path} is not a book directory -- no manifest.json. "
+                f"A book directory is made by the first command that writes "
+                f"into it, and the manifest is what says WHICH PDF it is "
+                f"about; without it a page set can be measured against a book "
+                f"nobody named.")
+        import json
+        with open(man, encoding="utf-8") as f:
+            return cls(path, json.load(f))
+
+    # -------------------------------------------------------------- parts
+    @property
+    def pdf(self) -> str | None:
+        """The scan, by NAME beside the manifest -- never by a stored path.
+
+        The manifest is tracked and the PDF is not, so an absolute path in it
+        would be false on every other machine; `run.json` stores the path it
+        was read at, which is the right place for it (it records what
+        happened) and the wrong place to resolve from (the book moves).
+        """
+        name = (self.manifest.get("source") or {}).get("name")
+        if not name:
+            return None
+        p = os.path.join(self.root, name)
+        return p if os.path.isfile(p) else None
+
+    @property
+    def sha256(self) -> str | None:
+        return (self.manifest.get("source") or {}).get("sha256")
+
+    @property
+    def truth_dir(self) -> str | None:
+        d = os.path.join(self.root, "truth")
+        return d if os.path.isdir(d) else None
+
+    @property
+    def build(self) -> str:
+        return os.path.join(self.root, "build")
+
+    def journal(self) -> str:
+        return journal_path(self.build)
+
+    # --------------------------------------------------------------- runs
+    def run_dir(self, kind: str, label: str) -> str:
+        if kind not in KINDS:
+            raise Refusal(f"{kind!r} is not a kind of run; I know {KINDS}")
+        return os.path.join(self.root, kind, safe_label(label, kind))
+
+    def runs(self, kind: str) -> list[str]:
+        """Labels of the runs of one kind, sorted. A directory without
+        `run.json` is not a run and is not listed: half a run counted as one
+        is how a measurement gets taken against a page set nobody snapshotted.
+        """
+        if kind not in KINDS:
+            raise Refusal(f"{kind!r} is not a kind of run; I know {KINDS}")
+        base = os.path.join(self.root, kind)
+        if not os.path.isdir(base):
+            return []
+        return sorted(
+            n for n in os.listdir(base)
+            if os.path.isfile(os.path.join(base, n, "run.json"))
+            and os.path.isdir(os.path.join(base, n, "pages")))
+
+    def one_run(self, kind: str, label: str = "") -> str:
+        """The directory of THE run of this kind, or a Refusal that LISTS the
+        labels.
+
+        Zero and several are different failures and are said differently. The
+        old shape -- one `detect/` per book -- could not have this problem and
+        could not answer "which model was that", which is the whole reason
+        the labels exist.
+        """
+        if label:
+            d = self.run_dir(kind, label)
+            if not os.path.isdir(d):
+                raise Refusal(
+                    f"{self.name}: no {kind} run labelled {label!r}. "
+                    f"There is {self._listing(kind)}")
+            return d
+        got = self.runs(kind)
+        if len(got) == 1:
+            return self.run_dir(kind, got[0])
+        if not got:
+            raise Refusal(
+                f"{self.name} has no {kind} run at all. Make one first "
+                f"(`books {kind} {self.root}`).")
+        raise Refusal(
+            f"{self.name} has {len(got)} {kind} runs and none was named: "
+            f"{', '.join(got)}. Say --run <label>; measuring \"the\" run "
+            f"when there are several would file the number against whichever "
+            f"sorted first.")
+
+    def _listing(self, kind: str) -> str:
+        got = self.runs(kind)
+        return (", ".join(got) if got else f"no {kind} run in this book")

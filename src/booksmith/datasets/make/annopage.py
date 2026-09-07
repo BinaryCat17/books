@@ -352,8 +352,9 @@ def _build(root, out_dir, split, limit, truth_only, log) -> dict:
            "by_category": counts,
            "category_map": DIRECT,
            "annotations_without_image": skipped_no_image,
-           "pdf": os.path.basename(pdf),
-           "sha256 pdf": stamp.sha256(wpdf if os.path.exists(wpdf) else pdf)}
+           "source": {"name": os.path.basename(pdf),
+                      "sha256": stamp.sha256(
+                          wpdf if os.path.exists(wpdf) else pdf)}}
     with open(wman, "w", encoding="utf-8") as f:
         json.dump(man, f, ensure_ascii=False, indent=1)
 
