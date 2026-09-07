@@ -50,7 +50,7 @@ def build(out_dir: str, cases=None, seed: int = 1, aging: str = "old",
     """Build the synthetic book: a PDF plus exact truth for every page.
 
     The product is an ordinary PDF, so `books detect`, `books html` and
-    `books feed` work on it unamended: the bench is not a separate pipeline,
+    `books crop` work on it unamended: the bench is not a separate pipeline,
     just such a book with a known answer.
 
     NOTHING HALF-BUILT SURVIVES A REFUSAL. The aside files are removed on the
@@ -247,7 +247,8 @@ def _build(out_dir, cases, seed, aging, book, log) -> dict:
         # `content` is filled only for roles text and service -- there the
         # characters ARE the first level's product. An ARTIFACT keeps `content`
         # null, and that is a VALUE, not an omission: it never travels to a VLM
-        # as text in any feed mode (`doc/feed.py`), its characters are the
+        # as text at all -- the reader routes an artefact label nowhere
+        # (`read/__init__.py`) -- its characters are the
         # SECOND level's answer, and their reference lies beside, in
         # `meta["artifact_truth"]`, by block number. The `Block` schema is
         # untouched: a sixth field there would break `Page.from_json`.
@@ -314,6 +315,17 @@ def _build(out_dir, cases, seed, aging, book, log) -> dict:
                                 # NOT SAID (the audit of 2026-09-06). A case
                                 # that draws out of reading order is a truth
                                 # defect for the eyes and `books look`.
+                                # THE CONVENTION FOR WHAT IS NOT PROSE: the
+                                # order metric scores every matched block,
+                                # furniture and artefacts included, and the
+                                # generator places them by the book's habit,
+                                # not by a reader's -- the folio last on the
+                                # handbook, the atlas and the magazine, the
+                                # running head and folio FIRST on the
+                                # dictionary and the catalogue; marginalia
+                                # after the body they stand beside; footnotes
+                                # per column. A model's disagreement on those
+                                # pairs is disagreement with a convention.
                                 "order_marked": True,
                                 "char_truth": chars,
                                 "text_layer_check": check,

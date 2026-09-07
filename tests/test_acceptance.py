@@ -207,3 +207,43 @@ def test_the_built_book_reports_the_same_swaps():
     being dimmed, and a file quietly dropped out of `assets/source`.
     """
     _one("apply-status")
+
+
+def test_the_slovar_truth_lock_still_matches_the_bench_on_disk():
+    """The step-0 lock: 13 truth files by sha256, and NOTHING READ IT.
+
+    It was written to prove that moving the generator changed no truth, and
+    it did prove it -- by hand, `sha256sum -c`, twice. A lock checked by hand
+    is checked until someone forgets, and then it is a file that agrees with
+    nothing. It is read here now, so that a generator change that moves the
+    truth says so in the suite rather than in a number three steps later.
+
+    `bench/slovar` is untracked and rebuilt locally, so a missing truth is a
+    skip with a reason. A truth that is THERE and differs is a failure: the
+    truth is the answer every reading number on this book is measured
+    against.
+    """
+    import hashlib
+    root_ = os.path.dirname(os.path.dirname(support.SRC))
+    lock = os.path.join(root_, "bench", "expected", "slovar-truth.sha256")
+    root = os.path.join(root_, "bench", "slovar")
+    if not os.path.isdir(os.path.join(root, "truth")):
+        support.skip("no bench/slovar/truth: build it with "
+                     "`books synth --book slovar --out bench/slovar`")
+    want = [l.split("  ", 1) for l in
+            open(lock, encoding="utf-8").read().splitlines() if l.strip()]
+    assert want, f"{lock} is empty -- a lock over nothing"
+    bad = []
+    for digest, rel in want:
+        fp = os.path.join(root, rel)
+        if not os.path.exists(fp):
+            bad.append(f"{rel}: gone")
+            continue
+        got = hashlib.sha256(open(fp, "rb").read()).hexdigest()
+        if got != digest:
+            bad.append(f"{rel}: {got[:12]} against {digest[:12]}")
+    assert not bad, (
+        f"the slovar truth moved from its lock ({len(bad)} of {len(want)} "
+        f"files): {bad[:5]}. If the generator was MEANT to change, re-take "
+        f"the lock: cd bench/slovar && sha256sum truth/*.json > "
+        f"../expected/slovar-truth.sha256")

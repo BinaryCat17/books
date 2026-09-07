@@ -156,6 +156,64 @@ hr.sheet[data-repeats-hidden]::after{
 """
 
 
+# The two hole-geometry helpers came from the VLM-input preview when it went;
+# the builder was their last reader.
+def _union_rects(holes):
+    """Merge intersecting holes into connected groups (by bounding boxes).
+
+    MERGES TO EXHAUSTION, NOT IN ONE PASS, and that is not nitpicking: a merged
+    box is the BOUNDING one, so it grows, and may cover one this same pass has
+    already set aside as disjoint. On a constructed input
+    `[[0,20,4,30], [0,0,10,10], [5,5,8,80]]` the old code printed "holes 2"
+    (`[0,20,4,30]` and `[0,0,10,80]`) though the second covers the first
+    entirely and the group is one. The feed is chosen by the number of holes,
+    and an inflated number makes `masked_page` dearer on paper than it is.
+
+    Over nine `bench/*/detect` directories (762 pages with artifacts) old and
+    new agreed to the unit, 1701 holes: the trouble has not surfaced in the
+    tree, and is fixed because it is not what chooses the input.
+    """
+    out = []
+    for h in holes:
+        cur = list(h)
+        rest = list(out)
+        grew = True
+        while grew:
+            grew = False
+            keep = []
+            for o in rest:
+                if (cur[0] < o[2] and o[0] < cur[2]
+                        and cur[1] < o[3] and o[1] < cur[3]):
+                    cur = [min(cur[0], o[0]), min(cur[1], o[1]),
+                           max(cur[2], o[2]), max(cur[3], o[3])]
+                    grew = True
+                else:
+                    keep.append(o)
+            rest = keep
+        out = rest + [cur]
+    return out
+
+
+def _union_area(holes):
+    """Area of the union of rectangles: a sweep along the vertical."""
+    if not holes:
+        return 0
+    xs = sorted({v for h in holes for v in (h[0], h[2])})
+    total = 0
+    for a, b in zip(xs, xs[1:]):
+        spans = sorted((h[1], h[3]) for h in holes if h[0] <= a and h[2] >= b)
+        cov, end = 0, None
+        for y0, y1 in spans:
+            if end is None or y0 > end:
+                cov += y1 - y0
+                end = y1
+            elif y1 > end:
+                cov += y1 - end
+                end = y1
+        total += cov * (b - a)
+    return total
+
+
 def anchor_of(page_index: int, block_id: int) -> str:
     """Block anchor. PER PAGE: `block_id` restarts on every page."""
     return f"p{page_index:04d}-b{block_id}"
@@ -487,7 +545,6 @@ def _img_src(path: str, rel: str, how: str) -> str:
 def _union_share(boxes, sheet):
     """Share of the sheet under artifacts, by UNION rather than a sum of areas:
     nested boxes would otherwise count twice."""
-    from booksmith.doc.feed import _union_area
     if not boxes or sheet <= 0:
         return 0.0
     return min(1.0, _union_area([[float(v) for v in b] for b in boxes]) / sheet)

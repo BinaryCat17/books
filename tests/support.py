@@ -3,7 +3,7 @@
 The checks here pin down AGREEMENTS BETWEEN FILES -- places where two files
 agreed and the agreement is written nowhere. Neither types nor reading one
 file catches that: the word "ours" in `models/*.py` decides whether
-`metrics.py` prints a percentage or says NOT COMPARED, and each file looks
+the contour metric prints a percentage or says NOT COMPARED, and each file looks
 sound alone.
 
 Hence source read as a tree. It is needed where the value of an agreement is

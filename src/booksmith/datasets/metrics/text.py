@@ -551,7 +551,7 @@ def measure(truth_dir: str, pages_dir: str, norm: str = NORM) -> dict:
     def _check(name, *a):
         fn = getattr(metrics, name, None)
         if fn is None:
-            return f"{name} NOT CHECKED: no such check in metrics.py"
+            return f"{name} NOT CHECKED: no such check in the contour metric"
         return fn(*a)
 
     note = f"{_check('_same_book', truth_dir, pages_dir)}; " \

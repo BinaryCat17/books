@@ -6,10 +6,11 @@
     books detect book.pdf        LEVEL ONE: contours, local and free
     books read book.detect/      LEVEL TWO: read the blocks with a model (paid)
     books html book.detect/      build the HTML: text + artefacts as pictures
+    books crop book.detect/      what `books read` would send, cut by its own
+                                 path; nothing sent, nothing paid
     books apply book-dir/        put the read markup into the book, source out
                                  of its snapshot; repeats are free, what stands
                                  is not placed twice. --status — report only
-    books feed book.detect/      what would go to the VLM: crop or holed page
     books synth                  synthetic bench: pages with exact truth
     books annopage raw/annopage  golden bench: real pages, librarians' truth
     books subset                 distillate: artefacts side by side
@@ -17,13 +18,18 @@
     books text truth/ pages/     READING metric: characters and table cells
     books fitness book.pdf …     will the meaning arrive: by ink, no truth
     books overlay book.pdf …     boxes over pages, to look with your own eyes
+    books bench all <run>        every applicable metric on one run: one table
     books ls | books down 12345 | books reap
     books ledger                 run journal and the estimate from it
     books replay --check out/    is the input snapshot complete
 
-THE LIST IS CHECKED AGAINST `sub.add_parser`: six commands of twenty were
-missing — `fitness`, `subset`, `annopage`, `read`, `apply` (then `swap`),
-`text` — the whole of level two, invisible to whoever reads the header.
+THE LIST IS CHECKED AGAINST `sub.add_parser`, BOTH WAYS, by
+`tests/test_docs_map.py`: six commands of twenty were once missing — `fitness`,
+`subset`, `annopage`, `read`, `apply` (then `swap`), `text` — the whole of
+level two, invisible to whoever reads the header. The other direction was
+added after this list went on offering `books feed` for a while after the
+command was deleted: a header naming a command that does not exist sends the
+reader to a traceback.
 
 Level two repairs nothing, keeps what it observed beside the block, and is
 checked at home against a stand-in server: 27 checks, not one cent.
@@ -99,7 +105,7 @@ def cmd_detect(a):
 # --------------------------------------------- the directories commands take
 # `books detect` leaves TWO directories side by side: `<out>` with the snapshot
 # `run.json`, and `<out>/pages` with the layout pages. Half the commands wanted
-# the first (`html`, `feed`, `replay --check`), half the second (`score`,
+# the first (`html`, `crop`, `replay --check`), half the second (`score`,
 # `text`, `fitness --detect`), and the operator learned which from a six-frame
 # traceback. Below both forms are taken by both sides, and a missing path fails
 # in ONE line naming what it expected.
@@ -171,9 +177,9 @@ def _pages_dir(path, what):
 def _run_dir(path, what):
     """The RUN directory: the one holding `run.json`. Takes `<out>/pages` too.
 
-    The other side of the same trouble: `books feed bench/…/detect/pages` died
-    with `FileNotFoundError` on `pages/run.json`, never saying it wanted the
-    parent.
+    The other side of the same trouble: the crop preview, then `books feed`,
+    died on `bench/…/detect/pages` with `FileNotFoundError` on
+    `pages/run.json`, never saying it wanted the parent.
     """
     if not os.path.exists(path):
         raise Refusal(
@@ -406,38 +412,36 @@ def _pdf_of(detect_dir):
         return json.load(f)["source"]["path"]
 
 
-def cmd_feed(a):
-    """Prepare what would go to the VLM. Not one call to the model."""
-    import glob
-    import json as _json
-    from .doc import feed
-    from booksmith.core.page import Page
+def cmd_crop(a):
+    """What `books read` would send, cut by `books read`'s own path, and
+    nothing sent. Free.
 
-    d = _run_dir(a.dir, "books feed")
-    with open(os.path.join(d, "run.json"), encoding="utf-8") as f:
-        snap = _json.load(f)
-    doc = raster.open_pdf(snap["source"]["path"])
-    out = a.out or os.path.join(d, "feed")
-    page_dpi = float(snap["raster"]["dpi"])
-    p = feed.params(page_dpi)
-    log(f"feed {p['feed_mode']}, crop {p['crop_dpi']:.0f} dpi, "
-        f"page {p['page_dpi']:.0f} dpi, "
-        f"hole fill {p['hole_fill']}")
-    res, asked, arts = [], 0, 0
-    for fp in sorted(glob.glob(os.path.join(d, "pages", "*.json"))):
-        with open(fp, encoding="utf-8") as f:
-            page = Page.from_json(_json.load(f))
-        r = feed.prepare(doc, page, out, page_dpi, log=log)
-        asked += r["requests"]
-        arts += r.get("artifacts_masked", r.get("artifacts_not_sent", 0))
-        res.append(r)
-    doc.close()
-    path = feed.dump({"knobs": p, "pages": res}, out)
-    # A number, not "done": the feed is chosen by it.
-    log(f"pages {len(res)}, VLM requests {asked} "
-        f"({asked/max(len(res),1):.1f} per page), artefacts past the VLM "
-        f"{arts}")
-    log(f"{path}; feed pictures in {out}")
+    The driver runs in preview: the same crop rule, the same dpi, the same
+    prompts and generation parameters, written to `crops/` and
+    `would_ask.json`. The preview that stood here before (`books feed`) cut
+    with knobs of its own that the paid path never read, and showed pictures
+    the model never saw.
+    """
+    from booksmith.processing.read import driver as vread
+    d = _run_dir(a.dir, "books crop")
+    out = a.out or (os.path.abspath(d).rstrip("/") + ".crop")
+    known = json.load(open(os.path.join(d, "run.json"), encoding="utf-8")
+                      ).get("policy", {}).get("vocabulary")
+    if not known:
+        raise Refusal(f"the snapshot {d}/run.json names no label dictionary; "
+                      f"the crops depend on which labels are asked")
+    os.makedirs(out, exist_ok=True)
+    reader = vread.build_reader(known)
+    pages = None
+    if a.pages:
+        from booksmith.processing.layout.detect import parse_pages
+        with raster.open_pdf(_pdf_of(d)) as doc:
+            pages = set(parse_pages(a.pages, doc.page_count))
+    t = vread.read_book(d, out, reader, None, resume=False, pages_want=pages,
+                        log=log, preview=True)
+    log(f"would ask {t.get('would_ask', 0)} of {t['block_count']} blocks; not "
+        f"asked {t['not_asked']}, crop failed {t['crop_failed']}")
+    log(f"{os.path.join(out, 'would_ask.json')}; crops in {os.path.join(out, 'crops')}")
     return 0
 
 
@@ -479,7 +483,14 @@ def _bench_and_run(truth, pages):
     refused by `Bench.open` with the reason."""
     from booksmith.core.errors import Unmeasurable
     from booksmith.datasets.bench import Bench, Run
-    b = Bench.open(truth) if truth else None
+    b = None
+    if truth:
+        try:
+            b = Bench.open(truth)
+        except Unmeasurable:
+            log(f"{truth}: not a bench directory; taken bare, the book identity "
+                f"NOT CHECKED")
+            b = Bench.bare(truth)
     try:
         r = Run.open(pages)
     except Unmeasurable:
@@ -550,10 +561,14 @@ def cmd_fitness(a):
             # with the PDF given by hand.
             return 1 if fitmet.mutations(a.pdf, det, "", log=log) else 0
         b, r = _bench_and_run(truth, det)
-        if not b.pdf or os.path.abspath(b.pdf) != os.path.abspath(a.pdf):
+        if b.pdf and os.path.abspath(b.pdf) != os.path.abspath(a.pdf):
             raise Refusal(f"{a.pdf} is not the PDF of the bench {b.name} "
-                          f"({b.pdf or 'no PDF beside its manifest'}); the "
-                          f"battery measures a bench against its own book")
+                          f"({b.pdf}); the battery measures a bench against "
+                          f"its own book")
+        if not b.pdf:
+            # a bare truth: the PDF is the one given by hand
+            b.manifest = {"pdf": os.path.abspath(a.pdf)}
+            b.root = os.path.dirname(os.path.abspath(a.pdf))
         return 1 if BY_NAME["fitness"].battery(b, r, log=log) else 0
     fitness.report(fitness.measure(a.pdf, det, truth), log=log)
     return 0
@@ -970,11 +985,13 @@ def main(argv=None):
     p.add_argument("--out", help="where to put book.html and assets/")
     p.set_defaults(fn=cmd_html)
 
-    p = sub.add_parser("feed",
-                       help="what would go to the VLM, without asking it")
+    p = sub.add_parser("crop",
+                       help="what `books read` would send, by its own path; "
+                            "nothing sent, nothing paid")
     p.add_argument("dir", help="the directory books detect wrote to")
-    p.add_argument("--out", help="where to put the feed pictures")
-    p.set_defaults(fn=cmd_feed)
+    p.add_argument("--out", help="where to put the crops (default: <dir>.crop)")
+    p.add_argument("--pages", help="page numbers to cut, e.g. 1,4,7-9")
+    p.set_defaults(fn=cmd_crop)
 
     p = sub.add_parser("fitness",
                        help="is the output fit to run OCR through")

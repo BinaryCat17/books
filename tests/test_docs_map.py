@@ -73,6 +73,57 @@ def test_the_map_names_no_command_that_does_not_exist():
     assert not ghosts, f"the map offers commands the CLI does not have: {ghosts}"
 
 
+# ---------------------------------------------------- the CLI's own header
+# The map is not the only list of commands: `cli.py` opens with one too, and
+# it is what `books --help` prints. It CLAIMED to be checked against
+# `sub.add_parser` and was not -- so it went on offering `books feed` after
+# the command was deleted, and never learned about `books bench all`. A list
+# that says it is checked and is not is worse than one that says nothing.
+
+
+def _cli_table():
+    """The command table at the top of `cli.py`, verbatim.
+
+    Only the indented `books ...` lines are taken, not the prose below them:
+    the prose names deleted commands ON PURPOSE, saying what they were and
+    why they went, and that is a record, not an offer.
+    """
+    src = open(os.path.join(support.SRC, "cli.py"), encoding="utf-8").read()
+    doc = src.split('"""')[1]
+    return "\n".join(l for l in doc.splitlines() if l.startswith("    books "))
+
+
+def _cli_commands(declared):
+    """What the table OFFERS, nested commands as "group sub"."""
+    groups = {c.split()[0] for c in declared if " " in c}
+    out = set()
+    # `books bench all <run>` is one nested command, `books ls | books down
+    # 12345 | books reap` is three; the two are the same shape to a regex, so
+    # the nesting is decided by the groups the CLI actually declares.
+    for first, second in re.findall(r"books ([a-z-]+)(?: ([a-z-]+))?",
+                                    _cli_table()):
+        out.add(f"{first} {second}" if first in groups and second else first)
+    return out
+
+
+def test_every_command_the_cli_declares_is_in_the_cli_header():
+    """Named as a PREFIX counts: `books bench all` names `books bench` too --
+    a group with one subcommand needs no line of its own."""
+    src = open(os.path.join(support.SRC, "cli.py"), encoding="utf-8").read()
+    declared = _declared(src)
+    table = _cli_table()
+    missing = sorted(c for c in declared if f"books {c}" not in table)
+    assert not missing, f"the cli.py header does not name: {missing}"
+
+
+def test_the_cli_header_offers_no_command_that_does_not_exist():
+    src = open(os.path.join(support.SRC, "cli.py"), encoding="utf-8").read()
+    declared = _declared(src)
+    ghosts = sorted(_cli_commands(declared) - declared)
+    assert not ghosts, (
+        f"the cli.py header offers commands the CLI does not have: {ghosts}")
+
+
 def test_every_file_the_map_points_at_exists():
     """A pointer to a file that is gone sends the reader nowhere.
 

@@ -451,3 +451,70 @@ def test_snapshot_carries_prompts_and_our_parser():
     assert snap["fingerprint"]["weights"]["dir"] is None
     # The key does NOT go into the snapshot: snapshots are committed to git.
     assert snap["transport_fingerprint"]["api_key"] == "no"
+
+
+# ------------------------------------------------------------- preview ---
+# `books crop`. It exists because the preview it replaced (`books feed`) cut
+# with knobs and a dpi of its own and showed pictures the paid path never
+# sent. So the check is not "it wrote something" but THE SAME BYTES.
+
+
+def _preview(tmp):
+    out = os.path.join(tmp, "crop")
+    r = PaddleOcrVl("PP-DocLayoutV2")
+    t = vrun.read_book(os.path.join(tmp, "detect"), out, r, None,
+                       resume=False, log=lambda *a: None, preview=True)
+    return out, t
+
+
+def test_the_preview_cuts_the_very_crops_the_paid_run_cuts():
+    """Byte for byte, and the questions with them.
+
+    A preview whose pictures differ from the paid run's is worse than none:
+    it is looked at BEFORE the money and believed.
+    """
+    import hashlib
+    import tempfile
+    tmp = tempfile.mkdtemp()
+    _book(tmp)
+    prev, tp = _preview(tmp)
+    paid, _ = _run(tmp, {"OCR:": {"text": "prose"},
+                         "Table Recognition:": {"text": "<fcel>a<nl>"}})
+
+    def crops(d):
+        c = os.path.join(d, "crops")
+        return {f: hashlib.sha256(open(os.path.join(c, f), "rb").read()
+                                  ).hexdigest() for f in os.listdir(c)}
+    a, b = crops(prev), crops(paid)
+    assert a and a == b, f"the preview cut something else: {sorted(a)} vs {sorted(b)}"
+
+    asks = json.load(open(os.path.join(prev, "would_ask.json"),
+                          encoding="utf-8"))["asks"]
+    assert {x["anchor"] for x in asks} == {f[:-4] for f in a}
+    assert tp["would_ask"] == len(asks) == 2, tp
+    # The picture is not the whole question: the prompt and the kind decide
+    # what comes back, and a preview that shows the crop alone shows half.
+    assert {x["kind"] for x in asks} == {"text", "otsl"}
+    assert all(x["prompt"] for x in asks)
+    # And the resolution rule with the reason it fired, which is what the
+    # preview is looked at FOR: too coarse a crop is decided here, not after
+    # the run.
+    assert all(x["crop_dpi"] > 0 and x["crop_dpi_reason"] for x in asks)
+
+
+def test_the_preview_writes_nothing_a_paid_run_would_believe():
+    """No `read_with.json`, no `pages/`, no `answers/`.
+
+    `read_with.json` is what a resuming `books read` compares against to
+    decide whether the old answers may stand. Written by a preview -- which
+    has no transport at all -- it would name a setup no money ever bought.
+    Empty `pages/` and `answers/` beside the crops read as a reading that
+    returned nothing.
+    """
+    import tempfile
+    tmp = tempfile.mkdtemp()
+    _book(tmp)
+    prev, t = _preview(tmp)
+    left = sorted(os.listdir(prev))
+    assert left == ["crops", "would_ask.json"], left
+    assert t.get("preview") is True and "read" not in t.get("by_kind", {})

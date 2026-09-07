@@ -42,9 +42,9 @@ bench slovar, run detect
   assembly transitions                   150                                        
   assembly pages_with_columns             12             12/13                      
   assembly params: COLUMN_x_overlap_of_narrow_box=0.5, COLUMN_full_width_box_share=0.6, COLUMN_min_boxes_per_page=2, COLUMN_buckets_counted=['artifact', 'text']
-  snapshot values_present                 51             51/55                      
-  snapshot missing                         4              4/55                      
-  snapshot empty                          14             14/55                      
+  snapshot values_present                 48             48/52                      
+  snapshot missing                         4              4/52                      
+  snapshot empty                          13             13/52                      
   snapshot fingerprint_verified            0                                        
   [1] text/CER_answered: no answered text block
   [2] text/cells_matched: no table answered

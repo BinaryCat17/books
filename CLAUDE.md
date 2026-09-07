@@ -103,8 +103,6 @@ src/booksmith/
                look.py boxes drawn over the pages, table.py every metric on
                one run side by side, accept.py reports and records against
                bench/expected/
-  doc/         feed.py, the VLM-input preview; goes with step 3a's second
-               half (`books crop` replaces it)
   cli.py       books <command>
 tests/         collusions between files, own runner (there is no pytest in
                .venv): tests/run.py, and tests/run.py --slow --selfcheck for
@@ -132,7 +130,8 @@ books detect book.pdf        LEVEL ONE: page contours, locally and free
 books read book.detect/      LEVEL TWO: read the blocks with a model. PAID,
                              and the only command of the parse that spends
 books html out/              readable HTML: text plus artifacts as pictures
-books feed out/              what would go to the VLM, without asking it
+books crop book.detect/      what `books read` would send, by its own path;
+                             nothing sent
 books apply out/             put the read markup into the book; the source
                              comes from its own snapshot, repeats are free.
                              --status, --anchor/--file, --undo, --from

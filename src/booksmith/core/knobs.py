@@ -84,14 +84,6 @@ class Knob:
 
 
 KNOBS = (
-    # --- feed: the only thing measured without a reference that yielded ---
-    # WHAT STOOD HERE AND WHY IT WAS WRONG: "measuring 144, 300 and 600 showed
-    # no difference (379 boxes and 99.3% ink in all three)". It showed TWO
-    # SUMMARY NUMBERS agreeing, and both are blind to dpi. Per page the box
-    # count differs on 15 pages of 20, and 379 is no invariant: across ten dpi
-    # values the band is 378..384. A zero from not understanding, passed off as
-    # a zero from checking. The run itself IS repeatable -- two repeats at 300
-    # dpi gave byte-identical blocks -- so the band is dpi, not noise.
     Knob("PAGE_DPI", "144",
          "the resolution a page is RENDERED to for detection. The "
          "detector squeezes the raster to 800x800 itself (keep_ratio: "
@@ -291,8 +283,8 @@ KNOBS = (
     # FOR `full`, once the consumer is the pipeline and not the bench: 4435
     # duplicate pairs against 19, and 23.0 VLM requests per page against 14.6
     # -- money for reading, nearly double. A request is a non-artefact box and
-    # `books feed` counts exactly as many; but that is an AVERAGE over 600
-    # pages -- on the first ten `books feed` counted 59.7 and 47.4 per page, so
+    # the crop preview counts exactly as many; but that is an AVERAGE over 600
+    # pages -- on the first ten it counted 59.7 and 47.4 per page, so
     # a handful of pages says nothing about the price of reading. Revisit the
     # default when the second level shows by a number what it does with a
     # collapsed wrapper.
@@ -339,32 +331,24 @@ KNOBS = (
          "determined -- as detection had it. Here stood 'empty = as "
          "PAGE_DPI', wrong on both counts; a knob's text rides into "
          "run.json, so the snapshot described it falsely. Read by "
-         "core/raster.py and doc/feed.py; `books read` does NOT read it -- "
-         "there the model's window decides the resolution"),
+         "core/raster.py, and through it by `books html`; `books read` and "
+         "`books crop` do NOT read it -- there the model's window decides "
+         "the resolution"),
     # Zero is a VALUE: the pipeline cuts exactly along the box
     # (layout_unclip_ratio [1.0, 1.0]), and any non-zero margin edits the
     # model's box.
     Knob("CROP_MARGIN", "0",
          "margin around the box when cropping, in box fractions"),
 
-    # --- VLM feed: two hypotheses, neither one checked --------------------
-    # `crop` -- one request per text block, as the pipeline does by default
-    # (measured: 409 requests over 25 pages, sixteen per page). `masked_page`
-    # -- one request per page with artefacts masked out: sixteen times fewer
-    # calls and the connected text whole.
-    #
-    # The default is `crop` not because it is better but because it is the
-    # model's behaviour as it is, while `masked_page` is our invention. Known
-    # AGAINST it: a blank white sheet yields five different Chinese tables in
-    # five attempts; an isolated column read MORE correctly than a whole page;
-    # the 4096-token answer ceiling against a longest single block of 8207
-    # characters. None of the three was taken on a whole masked page -- hence a
-    # knob and not a decision.
-    Knob("VLM_INPUT", "crop", "what to feed the VLM: crop | masked_page"),
-    # Not a constant: white is the least neutral option there is, and it was on
-    # blank white that the model invented tables.
-    Knob("MASK_FILL", "white",
-         "hole fill under masked_page: white|gray|black"),
+    # THE THREE FEED KNOBS ARE GONE, and this is where they stood: `VLM_INPUT`,
+    # `MASK_FILL`, `FEED_DPI`. Their only reader was the separate preview
+    # (`doc/feed.py`), which cut with its own dpi and its own hole fill and so
+    # showed pictures `books read` never sent; `books crop` is the read driver
+    # in preview instead, and reads none of the three. What they were measured
+    # to know -- the whole-masked-page hypothesis, why white is the least
+    # neutral fill, the token ceiling -- is kept verbatim in
+    # `docs/journal/2026-09-07-preview-knobs.md`, because step 4 meets the same
+    # questions. A knob nothing reads is not a hypothesis, it is a debt.
 
     # --- book, rental and ledger: not about parsing, about repeatability ---
     Knob("HTML_MATH", "inline",
@@ -434,9 +418,6 @@ KNOBS = (
     Knob("BOOKSMITH_LEDGER", "",
          "where to write the run journal; empty = runs/ledger.jsonl. The "
          "machine blacklist lives beside the journal"),
-    # --- VLM feed, continued ------------------------------------------------
-    Knob("FEED_DPI", "",
-         "resolution of the page going to the VLM; empty = as PAGE_DPI"),
 
     # --- synthetic bench ----------------------------------------------------
     # Seed and ageing profile decide which pages come out, hence decide the
@@ -456,14 +437,15 @@ KNOBS = (
          "It decides which prompt asks about which label, and in what "
          "shape the answer arrives"),
     Knob("VLM_TRANSPORT", "http",
-         "how the question is delivered; the list is read/http.py:build. "
+         "how the question is delivered; the list is processing/read/transports/openai_http.py:build. "
          "Rental is NOT a third transport: on a rented card the same http "
          "looks at 127.0.0.1, where run.sh raised vLLM"),
     # AN EMPTY DEFAULT HERE DROPS THE RUN, and that sets this knob apart. Empty
-    # defaults number eight (`VL_MODEL_DIR`, `YOLOX_WEIGHTS`,
-    # `LAYOUT_MODEL_DIR`, `CROP_DPI`, `BOOKSMITH_COMMIT`, `BOOKSMITH_LEDGER`,
-    # `FEED_DPI` and this one); here stood "the only such knob", wrong, and
-    # `books replay --check` prints the same 8. It is special not by being
+    # defaults number seven (`VL_MODEL_DIR`, `YOLOX_WEIGHTS`,
+    # `LAYOUT_MODEL_DIR`, `CROP_DPI`, `BOOKSMITH_COMMIT`, `BOOKSMITH_LEDGER`
+    # and this one; `FEED_DPI` was the eighth until the preview it fed went);
+    # here stood "the only such knob", wrong, and `books replay --check`
+    # prints the same count. It is special not by being
     # empty but by the emptiness NOT being passed on: a silent
     # `http://127.0.0.1:8118/v1` would have a run at home knocking at nothing
     # and calling a refused connection a silence of the model -- two different

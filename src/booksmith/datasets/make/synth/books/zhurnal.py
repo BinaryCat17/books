@@ -99,13 +99,19 @@ def c_zh_box_insert(doc, rng):
 def c_zh_side_caption(doc, rng):
     """The caption BESIDE the figure, not under it."""
     pg = _sheet(doc); t = []
+    # DRAWN IN READING ORDER, because the truth's `order` is the draw order
+    # and the truth says so (`order_marked`): the left column to its bottom,
+    # then the right column with the side caption where a reader meets it.
+    # The first edition drew the caption before the right column and the
+    # left column's tail last, and the metric scored the model against
+    # that -- 18 wrong pairs on one page, found by a review, not by a probe.
     _flow(pg, t, COL_X[0], TOP, 200, PROSE_EN, w=COLW)
     _figure(pg, t, COL_X[0], 216, COLW, 170, "Fig. 4  Jig")
+    _flow(pg, t, COL_X[0], 410, BOT_Y, PROSE_EN, w=COLW)
+    _flow(pg, t, COL_X[1], TOP, 280, PROSE_EN, w=COLW)
     # the second caption sits right of the figure, in the next column
     _caption(pg, t, COL_X[1], 300, "Fig. 5  The same, in section")
-    _flow(pg, t, COL_X[1], TOP, 280, PROSE_EN, w=COLW)
     _flow(pg, t, COL_X[1], 316, BOT_Y, PROSE_EN, w=COLW)
-    _flow(pg, t, COL_X[0], 410, BOT_Y, PROSE_EN, w=COLW)
     _colon(pg, t, 64)
     return pg, t
 

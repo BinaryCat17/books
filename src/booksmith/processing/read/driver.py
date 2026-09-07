@@ -174,8 +174,16 @@ def _detect_facts(detect_dir: str) -> dict:
 
 def read_book(detect_dir: str, out_dir: str, reader: Reader,
               transport: Transport, resume: bool = True,
-              pages_want=None, log=log, pdf: str | None = None) -> dict:
+              pages_want=None, log=log, pdf: str | None = None,
+              preview: bool = False) -> dict:
     """Walk the book and fill in block content. Returns quantities.
+
+    `preview` stops after the crops: every crop is cut exactly as the paid
+    run cuts it, every question is built exactly as the paid run builds it,
+    and none is sent -- the list goes to `would_ask.json` beside the crops.
+    That is `books crop`. It replaced a separate preview (`doc/feed.py`)
+    that cut with its own knobs and dpi and so showed pictures the paid
+    path never sent.
 
     `pdf` is where the book lies NOW. The detection snapshot keeps the path it
     was read at, and on a rented machine that path does not exist: the working
@@ -217,12 +225,16 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
                 f"book or another page set; they would travel into the book "
                 f"and into the measurement as part of this one. Remove them "
                 f"or choose an empty --out.")
-    os.makedirs(_pages_dir, exist_ok=True)
-    os.makedirs(os.path.join(out_dir, "answers"), exist_ok=True)
+    # A preview makes neither directory: empty `pages/` and `answers/` beside
+    # the crops read as a reading that returned nothing.
+    if not preview:
+        os.makedirs(_pages_dir, exist_ok=True)
+        os.makedirs(os.path.join(out_dir, "answers"), exist_ok=True)
     crops_dir = os.path.join(out_dir, "crops")
     os.makedirs(crops_dir, exist_ok=True)
 
     routes = reader.routes()
+    would = []
     # Route completeness BEFORE the first cent and the first crop.
     labels = set()
     pages = []
@@ -239,6 +251,7 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
 
     params = _gen_params()
     window = reader.pixels()
+    same_setup = True
     # WHAT WE READ WITH LAST TIME. Resuming must compare this, not merely that a
     # file exists. Measured before the comparison: change the model, the token
     # ceiling or the prompts and not one block was re-asked, while `run.json`
@@ -246,25 +259,33 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
     # effect", the disease this header is written against. And the only record of
     # what was paid for (seconds, tokens) was overwritten by the second, free
     # run.
-    setup = {"reader": reader.fingerprint(), "generation": params,
-             "transport": {k: v for k, v in transport.fingerprint().items()
-                           # the address moves from run to run (stand-in server
-                           # port, a loopback on the box) and does not decide
-                           # the model's answer; the model name does.
-                           if k in ("transport", "model_asked")}}
-    setup_path = os.path.join(out_dir, "read_with.json")
-    same_setup = True
-    if resume and os.path.exists(setup_path):
-        with open(setup_path, encoding="utf-8") as f:
-            was = json.load(f)
-        same_setup = was == setup
-        if not same_setup:
-            diff = [k for k in setup if was.get(k) != setup[k]]
-            log(f"READ WITH SOMETHING ELSE: {diff} differ -- resuming is not "
-                f"allowed, asking everything again. Otherwise the snapshot "
-                f"would declare new values in force over old answers.")
-    with open(setup_path, "w", encoding="utf-8") as f:
-        json.dump(setup, f, ensure_ascii=False, indent=1)
+    #
+    # A PREVIEW HAS NO TRANSPORT and writes none of this. It cannot say what it
+    # read with -- nothing was read -- and a `read_with.json` naming a transport
+    # that never answered would be believed by the next paid `books read`
+    # resuming into the same directory: it would compare against a setup no
+    # money ever bought and reuse nothing while claiming the answers match.
+    if not preview:
+        setup = {"reader": reader.fingerprint(), "generation": params,
+                 "transport": {k: v for k, v in transport.fingerprint().items()
+                               # the address moves from run to run (stand-in
+                               # server port, a loopback on the box) and does
+                               # not decide the model's answer; the model name
+                               # does.
+                               if k in ("transport", "model_asked")}}
+        setup_path = os.path.join(out_dir, "read_with.json")
+        if resume and os.path.exists(setup_path):
+            with open(setup_path, encoding="utf-8") as f:
+                was = json.load(f)
+            same_setup = was == setup
+            if not same_setup:
+                diff = [k for k in setup if was.get(k) != setup[k]]
+                log(f"READ WITH SOMETHING ELSE: {diff} differ -- resuming is "
+                    f"not allowed, asking everything again. Otherwise the "
+                    f"snapshot would declare new values in force over old "
+                    f"answers.")
+        with open(setup_path, "w", encoding="utf-8") as f:
+            json.dump(setup, f, ensure_ascii=False, indent=1)
     doc = crop.open_pdf(pdf)
     # OWN RESOLUTION PER PAGE, not the first page's for the whole book.
     #
@@ -365,6 +386,21 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
             asks.append(Ask(anchor=anchor, image=rel, prompt=rt.prompt,
                             kind=rt.kind, label=b.label, params=dict(params)))
 
+        if preview:
+            for a in asks:
+                info = cut_info.get(a.anchor) or {}
+                would.append({"anchor": a.anchor, "label": a.label,
+                              "image": os.path.relpath(a.image, out_dir),
+                              "prompt": a.prompt, "kind": a.kind,
+                              "crop_dpi": cut_dpi[a.anchor][0],
+                              "crop_dpi_reason": cut_dpi[a.anchor][1],
+                              **{k: info[k] for k in ("width", "height",
+                                                      "clipped_by_sheet")
+                                 if k in info}})
+            tally["would_ask"] = tally.get("would_ask", 0) + len(asks)
+            log(f"page {pg.index}: would ask {len(asks)}, not asked "
+                f"{len(silent)}, crop failed {len(nocrop)}")
+            continue
         asked_now = {a.anchor for a in asks}
         said = {}
         if asks:
@@ -482,6 +518,14 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
     tally["by_kind"] = by_kind
     tally["truncated_anchors"] = worst[:20]
     tally["crop_failures"] = bad_crops[:20]
+    if preview:
+        with open(os.path.join(out_dir, "would_ask.json"), "w",
+                  encoding="utf-8") as f:
+            json.dump({"detect": os.path.abspath(detect_dir),
+                       "reader": reader.name, "policy": reader.policy_name,
+                       "generation": params, "asks": would},
+                      f, ensure_ascii=False, indent=1)
+        tally["preview"] = True
     return tally
 
 
@@ -609,8 +653,9 @@ def _knobs_snapshot(read_by_adapter) -> dict:
     # does not read it at all: each crop's resolution is decided by
     # `crop_dpi_for` (scan plus model window), and `crop.cut` is called with an
     # explicit `dpi=`. Checked: `CROP_DPI=72` and `CROP_DPI=1200` do not move a
-    # `books read` crop by a pixel, while `books html` and `books feed` obey it.
-    # Declaring it in force would repeat the disease above.
+    # `books read` crop by a pixel -- nor a `books crop` one, which walks this
+    # same path -- while `books html` obeys it. Declaring it in force would
+    # repeat the disease above.
     mine = ("VLM_READER", "VLM_TRANSPORT", "VLM_CONCURRENCY",
             "VLM_TEMPERATURE", "VLM_MAX_TOKENS", "VLM_TOP_P", "VLM_SEED",
             "CROP_MARGIN", "PAGE_DPI")

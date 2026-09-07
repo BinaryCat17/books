@@ -60,11 +60,10 @@ def test_core_may_not_reach_an_unplaced_module():
         root = _plant(tmp, {
             "__init__.py": "",
             "core/__init__.py": "",
-            "core/k.py": "from booksmith.doc import html\n",
-            "doc/__init__.py": "",
-            "doc/html.py": "",
+            "core/k.py": "from booksmith import cli\n",
+            "cli.py": "",
             "datasets/__init__.py": "",
-            "datasets/m.py": "from booksmith.doc import html\n",
+            "datasets/m.py": "from booksmith import cli\n",
         })
         bad = imports.violations(root)
     assert len(bad) == 1 and "core.k:1" in bad[0], bad

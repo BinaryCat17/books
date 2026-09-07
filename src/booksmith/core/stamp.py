@@ -19,8 +19,8 @@ WHAT USED TO STAND HERE, and was done on 2026-09-07 with the package move:
 a third `_commit` in `synth.py` that said "(dirty tree)" in brackets where
 this file says "+dirty tree", and `"not a repository"` where this file says
 `None`; and `def _sha256` nine times in the tree. The synthetic manifests
-tracked in `bench/` still carry the old marker until they are rebuilt; the
-seven file hashers are gone and `apply._sha256` (over TEXT) and
+tracked in `bench/` were rebuilt the same day and carry the shared marker;
+the seven file hashers are gone and `apply._sha256` (over TEXT) and
 `replay._sha256` (`None` on OSError, a value the check branches on) stay
 because they are not copies.
 """

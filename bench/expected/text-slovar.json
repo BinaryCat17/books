@@ -1,6 +1,6 @@
 {
  "inputs": {
-  "bench/slovar/manifest.json": "f79ea233fce40804a9f9db625bed4e21ca19abd0fa7f53c2dc8632e04e245af3",
+  "bench/slovar/manifest.json": "5c066695f6a02b5482f2cb219f41cba95f3cf87ecf3c68579b3778a157d5d118",
   "bench/slovar/truth": "a98e4953964725e8df41c8572c74086f7bf88567ea8917911093401f2e1e8af4"
  },
  "result": {

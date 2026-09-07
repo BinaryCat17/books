@@ -233,7 +233,7 @@ runner, one table.
   scalar has a why when null); the three battery tests fold onto
   `run_battery`; the probe names printed are unchanged (expected files).
 * 2c `datasets/make/`: `synth/` (`draw.py` primitives, `age.py`, `truth.py`
-  ink measurement and text-layer check, `build.py`, `books/` six modules with
+  ink measurement and text-layer check, `__init__.py` for the build, `books/` six modules with
   `spravochnik` extracted), `annopage.py`, `subset.py`. Synth writes
   `order_marked`. Proven by rebuilding all six synthetic benches: truth files
   byte-identical to the step-0 list; manifests regenerated and their diff
@@ -269,9 +269,14 @@ their record (the blank-sheet invention, the isolated column, 4096 against
 8207) goes to the journal verbatim and a five-line note stays beside
 `books crop`; "eight empty defaults" in knobs.py becomes seven;
 `replay-annopage.txt` regenerated with the reason (the knob deletions and
-the adapter module line). `books crop` is `read/driver.py` with a transport
-that answers nothing: the same `crop_dpi_for`, the same `raster.cut`, crops
-under `read/<label>/crops/` and no `answers/`; there is no second crop path.
+the adapter module line). `books crop` is `read/driver.py` in preview: the
+same `crop_dpi_for`, the same `raster.cut`, and there is no second crop
+path. Not "a transport that answers nothing", as this line first said -- a
+stand-in transport would have to invent a fingerprint, and that fingerprint
+would be written into `read_with.json` for the next paid run to compare
+against. A preview has NO transport and writes neither that file nor
+`pages/` nor `answers/`. The crops sit beside the run for now; step 3b puts
+them under `read/<label>/crops/` with everything else.
 `readers()` re-checked after the move because it walks the tree by path.
 CLAUDE.md's cited paths follow in the same commit.
 

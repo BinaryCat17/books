@@ -43,7 +43,6 @@ from booksmith.processing.layout import base as basemod  # noqa: E402
 from booksmith.processing.layout.adapters import yolox as yolox  # noqa: E402
 from booksmith.processing.assemble import apply as ap  # noqa: E402
 from booksmith.core import raster as crop  # noqa: E402
-from booksmith.doc import feed                              # noqa: E402
 from booksmith.processing.assemble import html as dhtml  # noqa: E402
 from booksmith.processing.assemble import swap  # noqa: E402
 from booksmith.processing.layout import base as mbase  # noqa: E402
@@ -1983,6 +1982,58 @@ def _map_naming_a_ghost_command():
     return _map_plus("\n\nbooks conjure                a command that is not\n")
 
 
+def _tree_with_a_moved_truth_lock():
+    """A tree whose slovar lock names a digest the truth does not have.
+
+    The truth itself is symlinked, not copied and not touched: the battery
+    damages a COPY of what a check reads, never the bench on disk. Without
+    this the lock would sit in the "no mutation covers it" list, which is
+    where it sat for a whole step -- checked by hand and by nothing else.
+    """
+    import tempfile
+    root = os.path.dirname(os.path.dirname(support.SRC))
+    d = tempfile.mkdtemp()
+    os.makedirs(os.path.join(d, "src"))
+    os.symlink(os.path.join(root, "src", "booksmith"),
+               os.path.join(d, "src", "booksmith"))
+    os.makedirs(os.path.join(d, "bench", "expected"))
+    os.symlink(os.path.join(root, "bench", "slovar"),
+               os.path.join(d, "bench", "slovar"))
+    text = open(os.path.join(root, "bench", "expected",
+                             "slovar-truth.sha256"), encoding="utf-8").read()
+    open(os.path.join(d, "bench", "expected", "slovar-truth.sha256"), "w",
+         encoding="utf-8").write("0" * 64 + text[64:])
+    return os.path.join(d, "src", "booksmith")
+
+
+def _cli_with(header_change):
+    """A source tree whose `cli.py` header was edited, and nothing else.
+
+    The two header checks read `support.SRC/cli.py` and the parsers out of the
+    same file, so the whole mutation is one doctored copy of that file.
+    """
+    import tempfile
+    d = tempfile.mkdtemp()
+    pkg = os.path.join(d, "src", "booksmith")
+    os.makedirs(pkg)
+    text = open(os.path.join(support.SRC, "cli.py"), encoding="utf-8").read()
+    open(os.path.join(pkg, "cli.py"), "w", encoding="utf-8").write(
+        header_change(text))
+    return pkg
+
+
+def _cli_header_without_a_command(text):
+    return "\n".join(l for l in text.splitlines()
+                      if not l.startswith("    books crop "))
+
+
+def _cli_header_with_a_ghost(text):
+    return text.replace(
+        "    books ls | books down 12345 | books reap",
+        "    books conjure                a command that is not\n"
+        "    books ls | books down 12345 | books reap", 1)
+
+
 def _map_plus(tail):
     import tempfile
     text = open(schema.DOC_MAP, encoding="utf-8").read()
@@ -3249,6 +3300,55 @@ def mutations():
                        fingerprint=reader_fingerprint_with_the_address),
          [("test_read", "test_resume_does_not_ask_twice")]),
 
+        # ---- second level: the free preview (`books crop`) ------------
+        # The preview it replaced had exactly these two diseases: it cut with
+        # a resolution of its own, and it wrote beside the crops what only a
+        # paid run may write.
+        # `page_dpi` would be no mutation at all here: on this fixture the
+        # rule's answer IS the page dpi (a vector page has no native
+        # resolution, and the crop is below the model's lower bound). The
+        # mutation has to move the number to move the bytes.
+        ("the preview cuts at a resolution of its own, as `books feed` did",
+         lambda: one_line(
+             "booksmith.processing.read.driver",
+             "            cdpi, why = crop_dpi_for(b.box, page_dpi, "
+             "_native(pg.index),\n"
+             "                                     window, sheet=sheet)",
+             "            cdpi, why = crop_dpi_for(b.box, page_dpi, "
+             "_native(pg.index),\n"
+             "                                     window, sheet=sheet)\n"
+             "            if preview:\n"
+             "                cdpi, why = cdpi * 2, 'preview_dpi'"),
+         [("test_read", "test_the_preview_cuts_the_very_crops_the_paid_run_cuts")]),
+
+        ("the preview writes the read_with.json a paid resume believes",
+         lambda: one_line(
+             "booksmith.processing.read.driver",
+             "    if not preview:\n"
+             "        setup = {\"reader\": reader.fingerprint(), "
+             "\"generation\": params,\n"
+             "                 \"transport\": {k: v for k, v in "
+             "transport.fingerprint().items()",
+             "    if True:\n"
+             "        setup = {\"reader\": reader.fingerprint(), "
+             "\"generation\": params,\n"
+             "                 \"transport\": {k: v for k, v in "
+             "(transport.fingerprint()\n"
+             "                                                  if transport "
+             "else {}).items()"),
+         [("test_read",
+           "test_the_preview_writes_nothing_a_paid_run_would_believe")]),
+
+        ("the preview makes the directories only a reading fills",
+         lambda: one_line(
+             "booksmith.processing.read.driver",
+             "    if not preview:\n"
+             "        os.makedirs(_pages_dir, exist_ok=True)",
+             "    if True:\n"
+             "        os.makedirs(_pages_dir, exist_ok=True)"),
+         [("test_read",
+           "test_the_preview_writes_nothing_a_paid_run_would_believe")]),
+
         ("the reader's fingerprint no longer carries prompts",
          lambda: attrs(PaddleOcrVl,
                        fingerprint=reader_fingerprint_without_prompts),
@@ -3608,9 +3708,6 @@ def mutations():
          [("test_html_order",
            "test_three_kinds_of_bad_sheet_get_three_different_marks")]),
 
-        ("doc/feed grew its own copy of the anchor rule",
-         lambda: attrs(feed, anchor_of=anchor_of_a_private_copy),
-         [("test_html_order", "test_the_anchor_rule_has_exactly_one_home")]),
 
         ("the Cyrillic counter catches any non-ASCII",
          lambda: attrs(cyrmod, cyr=lambda s: sum(1 for c in s if ord(c) > 127)),
@@ -3828,6 +3925,24 @@ def mutations():
                                                  "x", "src", "booksmith")),
          [("test_data_contract",
            "test_the_things_that_must_never_be_committed_are_ignored")]),
+
+        ("the synthetic truth moved out from under its lock",
+         lambda: attrs(support, SRC=_tree_with_a_moved_truth_lock()),
+         [("test_acceptance",
+           "test_the_slovar_truth_lock_still_matches_the_bench_on_disk")]),
+
+        # The same drift, in the OTHER list of commands: the one `books
+        # --help` prints. It claimed to be checked and was not, and so offered
+        # `books feed` after the command was deleted.
+        ("the cli header loses a command the cli declares",
+         lambda: attrs(support, SRC=_cli_with(_cli_header_without_a_command)),
+         [("test_docs_map",
+           "test_every_command_the_cli_declares_is_in_the_cli_header")]),
+
+        ("the cli header offers a command that is not there",
+         lambda: attrs(support, SRC=_cli_with(_cli_header_with_a_ghost)),
+         [("test_docs_map",
+           "test_the_cli_header_offers_no_command_that_does_not_exist")]),
 
         ("the map points at a file that is not there",
          lambda: attrs(schema, DOC_MAP=_map_naming_a_missing_file()),

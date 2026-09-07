@@ -6,14 +6,14 @@
  "aging": "old",
  "generator": {
   "file": "datasets/make/synth/__init__.py",
-  "sha256": "156c7a9b53de83de3b93e5569e0e733702edaaf1b811383af2fcd1c252e76482",
+  "sha256": "8215f18c4f275ea7e2d98b6b55e9006871adda0bd2905b1403934739d0143129",
   "package": {
-   "__init__.py": "156c7a9b53de83de3b93e5569e0e733702edaaf1b811383af2fcd1c252e76482",
+   "__init__.py": "8215f18c4f275ea7e2d98b6b55e9006871adda0bd2905b1403934739d0143129",
    "draw.py": "1cd1150653f9746332fcc28e3ae0151e5b263bf851134d01b015a51e30acde10",
    "age.py": "7a0643a91c9c9513f7eea6d3d97f8d22e52481964f402227a24f20f26ae7b830",
    "truth.py": "1c4dfd9ec19fce94cf4ef454271f2e7913d329c2c85b7f7fd545f9ee8597f097"
   },
-  "commit": "578c70e33753bc45ff527aa774f0ff592b7aced8+dirty tree",
+  "commit": "c362a00ec5e6e2dd5d7f2a27a43bc56788515fb6+dirty tree",
   "cases": [
    "zh_two_col_plain",
    "zh_article_head",
@@ -27,7 +27,7 @@
    "zh_mixed"
   ],
   "book": "zhurnal",
-  "sha256_book_module": "f9563713578f5d9e82cbd536e5b04872ae6dce1ff170983b07f1b6ee490f76f4",
+  "sha256_book_module": "fe672358c41fb638d74a06b9ebc344936ae72a3389bbf92b173eb26768c1bc6f",
   "guessed_labels": [
    "content",
    "display_formula",
@@ -123,7 +123,7 @@
    "value": "",
    "default": "",
    "set_externally": false,
-   "what": "crop sharpness. Empty = the scan's OWN resolution (as much as the file holds and not a dot more), and if that cannot be determined -- as detection had it. Here stood 'empty = as PAGE_DPI', wrong on both counts; a knob's text rides into run.json, so the snapshot described it falsely. Read by core/raster.py and doc/feed.py; `books read` does NOT read it -- there the model's window decides the resolution",
+   "what": "crop sharpness. Empty = the scan's OWN resolution (as much as the file holds and not a dot more), and if that cannot be determined -- as detection had it. Here stood 'empty = as PAGE_DPI', wrong on both counts; a knob's text rides into run.json, so the snapshot described it falsely. Read by core/raster.py, and through it by `books html`; `books read` and `books crop` do NOT read it -- there the model's window decides the resolution",
    "debt": false
   },
   "CROP_MARGIN": {
@@ -131,20 +131,6 @@
    "default": "0",
    "set_externally": false,
    "what": "margin around the box when cropping, in box fractions",
-   "debt": false
-  },
-  "VLM_INPUT": {
-   "value": "crop",
-   "default": "crop",
-   "set_externally": false,
-   "what": "what to feed the VLM: crop | masked_page",
-   "debt": false
-  },
-  "MASK_FILL": {
-   "value": "white",
-   "default": "white",
-   "set_externally": false,
-   "what": "hole fill under masked_page: white|gray|black",
    "debt": false
   },
   "HTML_MATH": {
@@ -189,24 +175,17 @@
    "what": "where to write the run journal; empty = runs/ledger.jsonl. The machine blacklist lives beside the journal",
    "debt": false
   },
-  "FEED_DPI": {
-   "value": "",
-   "default": "",
-   "set_externally": false,
-   "what": "resolution of the page going to the VLM; empty = as PAGE_DPI",
-   "debt": false
-  },
   "SYNTH_SEED": {
    "value": "1",
    "default": "1",
-   "set_externally": true,
+   "set_externally": false,
    "what": "seed of the synthetic bench",
    "debt": false
   },
   "SYNTH_AGING": {
    "value": "old",
    "default": "old",
-   "set_externally": true,
+   "set_externally": false,
    "what": "bench ageing profile: clean|scan|old|decayed",
    "debt": false
   },
@@ -221,7 +200,7 @@
    "value": "http",
    "default": "http",
    "set_externally": false,
-   "what": "how the question is delivered; the list is read/http.py:build. Rental is NOT a third transport: on a rented card the same http looks at 127.0.0.1, where run.sh raised vLLM",
+   "what": "how the question is delivered; the list is processing/read/transports/openai_http.py:build. Rental is NOT a third transport: on a rented card the same http looks at 127.0.0.1, where run.sh raised vLLM",
    "debt": false
   },
   "VLM_ENDPOINT": {

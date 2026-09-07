@@ -117,8 +117,22 @@ class Bench:
         man = _read_json(os.path.join(root, "manifest.json")) or {}
         return cls(root, os.path.basename(os.path.abspath(root)), truth, man)
 
+    @classmethod
+    def bare(cls, truth_dir: str) -> "Bench":
+        """A truth directory with no bench around it: a scratch copy, a
+        `truth.previous` beside a rebuilt bench. The identity check says
+        NOT CHECKED, as it does for a bare run. The batteries take it,
+        because they need only the pages and, for the ink one, a PDF given
+        by hand; the first edition of `--selfcheck` through `Bench.open`
+        refused every such directory, where the same two arguments without
+        `--selfcheck` measured fine."""
+        truth_dir = truth_dir.rstrip("/")
+        return cls(os.path.dirname(truth_dir) or ".", os.path.basename(truth_dir), truth_dir, {})
+
     @property
     def pdf(self) -> str | None:
+        if not self.manifest:
+            return None
         name = self.manifest.get("pdf") or f"{self.name}.pdf"
         p = os.path.join(self.root, name)
         return p if os.path.isfile(p) else None

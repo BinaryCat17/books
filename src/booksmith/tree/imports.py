@@ -40,7 +40,7 @@ IMPORTERS_OF_REMOTE = ("remote", "cli", "processing")
 # `tests/test_imports.py` demands that every name in it still exists at the
 # top of the package, so a placed module cannot stay exempt by
 # forgetfulness. Empty after step 3c.
-UNPLACED = ("doc", "cli")
+UNPLACED = ("cli",)
 REACH_UNPLACED = ("datasets", "processing", "cli")
 
 

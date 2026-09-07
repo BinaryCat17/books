@@ -177,7 +177,7 @@ def test_the_ruler_measures_the_same_rule_the_book_is_built_with():
     fn = next((n for n in ast.walk(t)
                if isinstance(n, ast.FunctionDef) and n.name == "_by_reading"),
               None)
-    assert fn is not None, "metrics.py lost _by_reading -- assembler removed?"
+    assert fn is not None, "the contour metric lost _by_reading -- assembler removed?"
 
     ours = [n.lineno for n in ast.walk(fn)
             if isinstance(n, ast.Call)

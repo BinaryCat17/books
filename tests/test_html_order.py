@@ -318,20 +318,6 @@ def test_nesting_survives_blocks_without_a_model_rank():
         "the outer one named is not the one earlier by the model's rank")
 
 
-def test_the_anchor_rule_has_exactly_one_home():
-    """The block name is built by `doc/html.anchor_of` and by nobody else.
-
-    TWO private copies existed, in `doc/feed` and `doc/apply`, and they would
-    have drifted silently: feed.json calling fragments by one set of names, the
-    book and blocks.json by another, `books apply` answering "no such anchor in
-    the book" for every read block. Checked by object identity: equal strings
-    hold only until the first edit to one copy.
-    """
-    from booksmith.processing.assemble import apply as ap
-    from booksmith.doc import feed
-    assert feed.anchor_of is H.anchor_of, "doc/feed made its own anchor"
-    assert ap.anchor_of is H.anchor_of, "doc/apply made its own anchor"
-
 
 def test_three_kinds_of_bad_sheet_get_three_different_marks():
     """A refusing sheet comes in THREE kinds, and they may not be confused.
@@ -487,6 +473,18 @@ def test_the_book_is_alone_at_the_root_and_carries_itself():
             "no crops in assets/blocks. They must lie as files even when "
             "inlined into the book: edits, measurements and the second level "
             "read them")
+
+
+def test_the_anchor_rule_has_exactly_one_home():
+    """The block anchor is built by ONE rule for the project.
+
+    A second private copy lived in the swap layer (`from_read`) and would
+    have drifted silently: the book and blocks.json naming fragments one way,
+    the journal another, nothing left to tie a swap to a block. A third
+    stood in the VLM-input preview until the preview went (step 3a).
+    """
+    from booksmith.processing.assemble import apply as ap
+    assert ap.anchor_of is H.anchor_of, "the swap layer made its own anchor"
 
 
 def test_the_builder_recognises_its_own_directory():
