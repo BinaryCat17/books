@@ -114,7 +114,12 @@ def cmd_detect(a):
     import shlex
     from booksmith.processing.layout import detect
     out = a.out
-    if not out and os.path.isfile(os.path.join(a.file, "manifest.json")):
+    if os.path.isfile(os.path.join(a.file, "manifest.json")):
+        # A BOOK DIRECTORY RESOLVES TO ITS SCAN whatever `--out` says. The
+        # first edition did this only when `--out` was absent, so `books
+        # detect <book> --out <dir>` handed the directory itself to the
+        # renderer and died on "one book's PDF is expected". `--out` decides
+        # WHERE a run lands, never WHAT is read.
         bk = book.Book.open(a.file, "books detect")
         pdf = bk.pdf
         if pdf is None:
@@ -127,7 +132,7 @@ def cmd_detect(a):
         # THE LABEL BEFORE THE PAGES. Building the adapter costs a session
         # load and no pages, and asking it its name here means a run that
         # cannot be filed refuses BEFORE the work rather than after it.
-        out = bk.run_dir("detect", detect._adapter().label())
+        out = out or bk.run_dir("detect", detect._adapter().label())
         a = _with(a, file=pdf)
     out = out or os.path.splitext(a.file)[0] + ".detect"
     detect.run(a.file, out, a.pages, log=log)

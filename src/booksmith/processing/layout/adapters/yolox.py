@@ -276,7 +276,15 @@ class YoloXLayout(Detector):
                  "raw_rows_keep_threshold": raw_keep,
                  "rows_above_keep_threshold":
                      int((best >= raw_keep).sum())},
-            meta={"detector": self.name, "raster": image_path,
+            # NO `raster` PATH HERE. It named the scratch PNG the page was
+            # rendered to -- a file deleted at the end of the run, under a
+            # machine-local absolute path, baked into every page of every
+            # book. Nothing read it, and it made two runs of ONE model
+            # byte-different when the run directory moved: 13 of 13 slovar
+            # pages differed on it alone and were identical without it. The
+            # facts worth keeping are the dpi and the size, and `Page`
+            # carries both.
+            meta={"detector": self.name,
                   "boxes_accepted": len(kept), "rank_ties": 0,
                   "reading_order": order.WORDS[which],
                   # A QUANTITY, NOT A WORD. Here stood

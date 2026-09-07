@@ -1,6 +1,6 @@
 {
  "inputs": {
-  "bench/slovar/detect/PP-DocLayoutV2/pages": "300b0da07b519abda43ca75376ddada10fa71c89b9147bc9518a631b9a03f793",
+  "bench/slovar/detect/PP-DocLayoutV2/pages": "ee3503ef2f37361114b3d7e7e247b8001e5ea7a94e826c09ffb83b7839f1f61b",
   "bench/slovar/manifest.json": "83736f8087a9d80031295f3f757c94cc4921ebf11deeae450678cf4baa25aa02",
   "bench/slovar/slovar.pdf": "be82bb56d4afa2dc4c535b3fe3349a6962b1bee6ed3aee3bcdec910681d5b1b0",
   "bench/slovar/truth": "a98e4953964725e8df41c8572c74086f7bf88567ea8917911093401f2e1e8af4"

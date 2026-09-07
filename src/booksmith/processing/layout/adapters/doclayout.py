@@ -410,7 +410,15 @@ class DocLayout(Detector):
                  "columns": int(out.shape[1]),
                  "graph_outputs": len(outs),
                  "all_rows": [[float(v) for v in r] for r in out]},
-            meta={"detector": self.name, "raster": image_path,
+            # NO `raster` PATH HERE. It named the scratch PNG the page was
+            # rendered to -- a file deleted at the end of the run, under a
+            # machine-local absolute path, baked into every page of every
+            # book. Nothing read it, and it made two runs of ONE model
+            # byte-different when the run directory moved: 13 of 13 slovar
+            # pages differed on it alone and were identical without it. The
+            # facts worth keeping are the dpi and the size, and `Page`
+            # carries both.
+            meta={"detector": self.name,
                   "boxes_accepted": len(kept),
                   "rank_ties": ties,
                   # WHOSE ORDER THIS IS -- told to the METRIC, not only to

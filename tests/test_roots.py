@@ -107,3 +107,47 @@ def test_the_detect_command_can_actually_run():
                                        .replace(".", "/") + ".py")) or True
     pages = os.listdir(os.path.join(out, "pages"))
     assert len(pages) == 1, f"one page asked for, {len(pages)} written"
+    return out, root, pdf
+
+
+def test_detection_is_byte_reproducible_into_another_directory():
+    """The same model on the same page, twice, into two directories.
+
+    A sweep lays six models beside each other and its numbers are only a
+    comparison if each is reproducible. It was not: every page carried
+    `meta["raster"]`, the absolute path of the scratch PNG it was rendered to
+    -- a file deleted at the end of the run -- so two runs of ONE model
+    differed on 13 of 13 pages and were identical without it. Nothing read the
+    key. What is worth keeping about the render is the dpi and the size, and
+    `Page` carries both.
+
+    This also pins `--out` against the book directory: resolving the scan only
+    when `--out` was absent handed the directory itself to the renderer.
+    """
+    import json
+    import subprocess
+    import sys as _s
+    import tempfile
+    root = os.path.dirname(os.path.dirname(support.SRC))
+    pdf = os.path.join(root, "bench", "slovar", "slovar.pdf")
+    if not os.path.isfile(pdf):
+        support.skip("no bench/slovar/slovar.pdf: build it with `books synth`")
+    outs = []
+    for _ in range(2):
+        d = os.path.join(tempfile.mkdtemp(), "d")
+        r = subprocess.run([_s.executable, "-m", "booksmith.cli", "detect",
+                            os.path.join(root, "bench", "slovar"),
+                            "--out", d, "--pages", "1"],
+                           cwd=root, capture_output=True, text=True,
+                           env={**os.environ,
+                                "PYTHONPATH": os.path.join(root, "src")})
+        assert r.returncode == 0, (
+            f"books detect on a book directory with --out exited "
+            f"{r.returncode}:\n{r.stdout[-800:]}{r.stderr[-800:]}")
+        outs.append(d)
+    a, b = (open(os.path.join(d, "pages", "0000.json"), "rb").read()
+            for d in outs)
+    assert a == b, "two runs of one model into two directories differ"
+    ia, ib = (json.load(open(os.path.join(d, "run.json"),
+                             encoding="utf-8"))["identity"] for d in outs)
+    assert ia == ib, f"the same experiment got two identities: {ia} {ib}"

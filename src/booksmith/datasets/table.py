@@ -8,8 +8,9 @@ carries no order" and "zero agreement" must not read alike.
 """
 import json
 import os
+import time
 
-from booksmith.core import config
+from booksmith.core import config, stamp
 from booksmith.core.errors import Refusal
 from booksmith.datasets import metrics as registry
 from booksmith.datasets.bench import Bench, Run, same_book
@@ -60,10 +61,22 @@ def results_path(bench: Bench, run: Run, which=None) -> str:
 
 
 def write_json(records, path: str, log=print) -> str:
+    """The records, under a header saying WHEN and BY WHICH CODE.
+
+    The file was a bare list, and a directory of them could silently mix
+    numbers computed by different code -- which happened inside one hour: a
+    prerequisite was corrected, five models were measured after it and one
+    before, and the stale file's twelve extra rows read as a difference
+    between MODELS. A cross-model table is only a comparison if every cell
+    came from the same tree, so the commit rides in the file and the reader
+    can refuse.
+    """
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
-        json.dump([r.to_json() for r in records], f, indent=1,
-                  ensure_ascii=False, sort_keys=True)
+        json.dump({"when": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+                   "commit": stamp.commit(),
+                   "records": [r.to_json() for r in records]},
+                  f, indent=1, ensure_ascii=False, sort_keys=True)
         f.write("\n")
     log(f"{len(records)} records written to {path}")
     return path
@@ -72,8 +85,23 @@ def write_json(records, path: str, log=print) -> str:
 def read_json(path: str) -> list:
     """The records back from disk, as `Record`s."""
     from booksmith.datasets.metrics.base import Record
+    return [Record.from_json(d) for d in read_file(path)["records"]]
+
+
+def read_file(path: str) -> dict:
+    """The whole file: `when`, `commit` and the raw records.
+
+    A file without the header is REFUSED rather than read as records: it was
+    written by other code, which is the one thing the header exists to say.
+    """
     with open(path, encoding="utf-8") as f:
-        return [Record.from_json(d) for d in json.load(f)]
+        d = json.load(f)
+    if not isinstance(d, dict) or "records" not in d:
+        raise Refusal(
+            f"{path} has no header: it was written before results carried "
+            f"the commit that computed them, and a table built from it would "
+            f"mix numbers from two trees. Re-run `books bench all` for it.")
+    return d
 
 
 def _fmt(s) -> str:

@@ -34,7 +34,7 @@ OFF_META_KEYS = ["reading_order"]
 # existed. The pipeline put `**pipe_meta` exactly where "reading order" had
 # stood, and at `off` it unfolds into that same key -- the page comes out
 # byte for byte as before.
-META_BEFORE_PIPELINE = ["detector", "raster", "boxes_accepted",
+META_BEFORE_PIPELINE = ["detector", "boxes_accepted",
                         "rank_ties", "reading_order",
                         "best_rejected_by_class"]
 

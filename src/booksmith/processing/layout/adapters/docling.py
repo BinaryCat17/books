@@ -844,7 +844,15 @@ class DoclingHeron(Detector):
             raw={"output_rows": int(len(scores)),
                  "all_rows": [[float(c), float(s), *[float(v) for v in b]]
                                 for c, b, s in zip(labels, boxes, scores)]},
-            meta={"detector": self.name, "raster": image_path,
+            # NO `raster` PATH HERE. It named the scratch PNG the page was
+            # rendered to -- a file deleted at the end of the run, under a
+            # machine-local absolute path, baked into every page of every
+            # book. Nothing read it, and it made two runs of ONE model
+            # byte-different when the run directory moved: 13 of 13 slovar
+            # pages differed on it alone and were identical without it. The
+            # facts worth keeping are the dpi and the size, and `Page`
+            # carries both.
+            meta={"detector": self.name,
                   # This number is the MODEL's: how many boxes it gave above
                   # the threshold. How many remain after the vendor is said by
                   # "docling pipeline" -> "boxes after"; not to be confused.
@@ -988,7 +996,7 @@ class DoclingEgret(DoclingHeron):
                  "boxes": [[float(v) for v in r] for r in boxes],
                  "how_to_read_logits": "sigmoid per channel (focal loss)",
                  "raw_row_coords": "cxcywh, normalised"},
-            meta={"detector": self.name, "raster": image_path,
+            meta={"detector": self.name,
                   "boxes_accepted": len(kept), "rank_ties": 0,
                   # See heron: the place of the key keeps the byte-for-byte
                   # match when the knob is off.
