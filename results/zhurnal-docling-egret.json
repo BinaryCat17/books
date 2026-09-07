@@ -1,5 +1,5 @@
 {
- "commit": "f7407d40583d9d79cb9f8ecff4d56a8382ad8fe2+dirty tree",
+ "commit": "d8660209c920cb8c39a05d6afe8e6ea28c896b41+dirty tree",
  "records": [
   {
    "bench": "zhurnal",
@@ -669,5 +669,5 @@
    }
   }
  ],
- "when": "2026-09-07T18:56:12+0300"
+ "when": "2026-09-07T20:12:04+0300"
 }

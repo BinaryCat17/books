@@ -24,10 +24,10 @@ FONT_MONO = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"
 
 
 # DRAWN ONTO THE PAGE, therefore book content, therefore a name ending in
-# `_RU` -- see `booksmith.cyr`. These were inline literals and an inline
-# literal is counted as untranslated prose: the ratchet asked for them in
-# English, and English here would have changed the raster of the two Cyrillic
-# pages of the handbook and moved every ink figure measured on them.
+# `_RU` names Russian PAGE TEXT: it is the book the bench pretends to be,
+# and the ink measurement is taken over these very glyphs. English here would
+# change the raster of the two Cyrillic pages of the handbook and move every
+# ink figure measured on them.
 BOX_TITLE_RU = "ВРЕЗКА"
 FIG_CAPTION_RU = "Рис. 3.  Схема испытания"
 HEADS_RU = ("Марка", "σ, МПа", "δ, %", "НВ",

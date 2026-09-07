@@ -12,7 +12,6 @@ import os
 import support
 from booksmith.core import config, replay, schema
 from booksmith.core import knobs
-from booksmith.tree import cyr
 from booksmith.datasets import accept as acceptance
 from booksmith.processing.read.rented import paddleocr_vl
 from booksmith.remote import ledger
@@ -39,14 +38,6 @@ def test_schema_root_is_the_repository():
 
 def test_acceptance_root_is_the_repository():
     assert _is_repo_root(acceptance.ROOT), acceptance.ROOT
-
-
-def test_cyr_root_is_the_repository():
-    """The lock counts paths relative to ROOT and declares them by that name,
-    so a wrong root would declare a tree nobody has."""
-    assert _is_repo_root(cyr.ROOT), cyr.ROOT
-    assert all(os.path.exists(os.path.join(cyr.ROOT, p)) for p in cyr.RESIDUE), (
-        "RESIDUE names a path that is not under ROOT")
 
 
 def test_knobs_src_is_the_package():

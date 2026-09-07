@@ -16,7 +16,7 @@ goes in the commit message of the work it reviewed.
    only by `processing/*/rented/*`, `cli/rent.py`, `cli/doctor.py` and the
    `--rent` branch of `read`. Tree instruments (`cyr`, `prose`, the import
    graph) live in `booksmith.tree`, importable by the mutation battery;
-   `tools/cyr.py`, `tools/prose.py` and `tools/acceptance.py` stay as thin
+   `tools/acceptance.py` and its siblings stay as thin
    command wrappers over them. A test over the import graph enforces the
    rule and exists from step 1.
 2. **One book directory** for pipeline books and benches. A bench is a book
@@ -91,7 +91,8 @@ goes in the commit message of the work it reviewed.
   learns in step 0.
 * `tools/acceptance.py` prints `same` for every report, or the report was
   regenerated in that commit with `--save` and the reason in the message.
-* `tools/cyr.py` shows no area rising.
+* `tools/figures.py` and `tools/layout.py` hold: no measurement restated in
+  a second document, no path outside the declared shape of a book.
 * `bench/` and `processed/` are never scratch space; tests build in temp dirs.
 * One commit per coherent move on `chistyy-list`; nothing is pushed.
 
@@ -149,12 +150,12 @@ only ones (8 file hashers deleted; `apply._sha256` hashes text and stays;
 it runs on the box without the package, and `test_parse_pages` names both
 classes as "refusal aloud"; `paddleocr_vl/entrypoint.py` catches
 `BooksmithError` at its main and exits 1 with one line; `cli._tool_errors`
-becomes `except Unmeasurable` and `except Refusal`; `cyr.RESIDUE` is re-keyed
+becomes `except Unmeasurable` and `except Refusal`; the residue declaration is re-keyed
 in the same commit; the pymupdf rule is "no rendering outside
 `core/raster.py`", and the writers (synth, djvu, annopage, subset, overlay)
 keep their pymupdf.
 
-`tools/migrate_layout.py` carries the old-to-new table, resolves every
+The migration script carried the old-to-new table, resolved every
 relative import to an absolute name against the old package by ast (104 in
 src), maps it, re-emits, and rewrites `tests/support.py`, the battery's
 `COPY`, `sources(...)`, `one_line(...)`, its import block, and every
@@ -423,8 +424,7 @@ Goal: five kinds of text in five places, guarded.
   narrative encoded stays in one sentence beside the code (the inventory of
   those rules is at the end of this file). `tree/prose.py` measures the ratio
   per package the way `tree/figures.py` counts restated measurements, with
-  `tools/prose.py` as its command; today's `tools/prose_only.py` folds into
-  it.
+  `tools/prose.py` as its command.
 * `tests/test_docs_map.py`: the four-literal number ban is already the
   general instrument (`tree/figures.py`, ceiling 25); step 5 takes the
   ceiling to zero and the check turns from a ratchet into a ban.

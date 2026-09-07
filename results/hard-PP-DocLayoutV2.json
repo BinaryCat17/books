@@ -1,5 +1,5 @@
 {
- "commit": "87f99c3bd062a012c99d6c9617063df152cc4c62+dirty tree",
+ "commit": "d8660209c920cb8c39a05d6afe8e6ea28c896b41",
  "records": [
   {
    "bench": "hard",
@@ -1790,5 +1790,5 @@
    }
   }
  ],
- "when": "2026-09-07T19:13:09+0300"
+ "when": "2026-09-07T19:57:20+0300"
 }

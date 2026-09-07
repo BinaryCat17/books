@@ -48,10 +48,8 @@ WORDS_EN = ("Abutment", "Backlash", "Camshaft", "Dowel", "Eccentric",
             "Pinion", "Quenching", "Reaming", "Spindle", "Tailstock")
 # The Russian half of the parallel-text page is BOOK CONTENT: it is drawn
 # onto the sheet, and the sheet is a page of a Russian-English dictionary.
-# It lives in a constant whose name ends in `_RU` because that is how
-# `booksmith.cyr` tells content from prose -- an inline literal would have
-# been counted as untranslated prose, and translating it would have destroyed
-# the page it belongs to.
+# It lives in a constant whose name ends in `_RU`, which is how page text is
+# told from our own prose. Translating it would destroy the page.
 TAIL_RU = "деталь, несущая нагрузку в сборке"
 WORDS_RU = ("Вал", "Втулка", "Гайка", "Допуск", "Заготовка", "Износ",
             "Калибр", "Люнет", "Муфта", "Наплавка", "Оправка", "Патрон",

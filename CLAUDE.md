@@ -68,13 +68,21 @@ src/booksmith/
                Unmeasurable rc 2), log.py (one log line)
   tree/        NOT PIPELINE CODE: instruments over the source tree itself,
                here rather than in tools/ so the mutation battery can damage
-               them and see a check go red. cyr.py (the Cyrillic lock: the
-               translation is DONE, and what is left is declared file by file
-               with the reason it can never go), imports.py (the rule above),
-               figures.py (one measurement, one document -- the ceiling falls
-               and never rises). Each is a rule this file states, made
-               countable; a rule stated and not counted is the disease the
-               whole file is written against
+               them and see a check go red. imports.py (the layer rule),
+               layout.py (what a book directory holds -- anything else is
+               named), figures.py (one measurement, one document; the ceiling
+               falls and never rises). Each is a rule this file states, made
+               countable.
+
+               ONE OF THEM WAS DELETED FOR FAILING ITS OWN TEST. cyr.py
+               counted Cyrillic. Over the day it fired three times and every
+               one was its own machinery -- the counter's bounds, a check's
+               regex, a mutation's escapes -- and zero regressions. Its floor
+               was 1180 characters of Russian BOOK TITLES that can never go,
+               and its own header says "an instrument that cannot reach its
+               own target teaches everyone to ignore it". The one thing worth
+               guarding was Cyrillic KEYS in the data, and that is a check in
+               tests/test_data_contract.py, which caught a real false claim
   remote/      renting and running ANYTHING on a rented machine. Knows nothing
                about PDF or OCR and must not -- otherwise the next task means
                rewriting the renting again. Four independent ways to kill a
@@ -118,16 +126,19 @@ tests/         collusions between files, own runner (there is no pytest in
                PROSE FOR THE NUMBERS -- ask the runner, it prints them on its
                last line
 tools/         thin wrappers over booksmith.tree and booksmith.datasets, so
-               the mutation battery can reach the instrument itself: cyr.py
-               (the Cyrillic lock: what is left, where, and why), anchors.py (do the
-               battery's source patches and attribute swaps still land),
-               acceptance.py. Beside them: migrate_layout.py (the package
-               move as a table), spread_probe.py (the spread-cut veto,
-               re-measurable -- test_djvu runs it), prose_only.py,
-               keymap.json (the key rename, READ by a check). The three
-               scripts that applied that rename are deleted: the job is
-               finished, provably, and what they knew is in
-               docs/lessons-from-deleted-code.md
+               the mutation battery can reach the instrument itself:
+               anchors.py (do the battery's source patches and attribute
+               swaps still land), acceptance.py, figures.py, layout.py.
+               Beside them: sweep.py (every model over every bench),
+               spread_probe.py (the spread-cut veto, re-measurable --
+               test_djvu runs it), keymap.json (the key rename, READ by a
+               check).
+
+               NO MIGRATION SCRIPTS. There were five, each a finished job:
+               the package move, the key rename, the run labels, the book
+               directory. A script for a migration that has happened is a
+               file that describes the past, and git already does. What each
+               one KNEW is in docs/lessons-from-deleted-code.md
 ```
 
 ## Commands
@@ -255,32 +266,23 @@ The two levels both work end to end. Level one is measured on two benches;
 level two has run on a real book and cannot yet be measured for quality --
 `docs/limits.md` says why, in three reasons, before any money is spent.
 
-The translation to English is DONE, keys of the on-disk format included: no
-Cyrillic key survives in any json of `bench/` or `processed/`, and the three
-tools that renamed them are deleted -- what they knew is in
-`docs/lessons-from-deleted-code.md`.
+The translation to English is DONE and the instruments that did it are gone.
+No Cyrillic key survives in any json of `bench/` or `processed/`; that is the
+one part still worth guarding and `tests/test_data_contract.py` guards it,
+because a key going back to Russian is the migration undoing itself.
 
-ONE EXCEPTION, AND IT IS A DECISION. `runs/ledger.jsonl` still holds 74
-Cyrillic keys. It is the journal of the runs that were paid for, it is
-append-only, and rewriting a journal after the fact destroys the one thing a
-journal is for -- the same argument that kept it out of the migration. New
-lines arrive in English on their own, because the snapshot they are built
-from is English. The sentence above used to name `runs/` as well, and was
-false; the tool that would have caught it (`keymap_check.py`) had been
-deleted one commit earlier, so the claim was both wrong and unmeasured. It is
-measured now, by `tests/test_data_contract.py`.
+ONE EXCEPTION, AND IT IS A DECISION. `runs/ledger.jsonl` holds 74 Cyrillic
+keys. It is the journal of the runs that were paid for, it is append-only,
+and rewriting a journal after the fact destroys the one thing a journal is
+for. New lines arrive in English on their own, because the snapshot they are
+built from is English.
 
-What is left in the PROSE, and why each character stays, is printed by:
-
-    python3 tools/cyr.py
-
-Every one of them is a Russian book title, text quoted from one of those
-books, the Russian page text drawn onto a synthetic sheet, or the bounds of
-the Cyrillic block inside the counters that hunt for it -- four kinds, and
-the lock declares which for every file. The ratchet that did the job -- areas
-pressed on separately, a companion count of the Latin that arrived, a tracked
-baseline of both -- went with it; the lock that replaced it names every file
-and its count, which the ratchet did not.
+WHAT RUSSIAN IS LEFT IN THE PROSE, and it stays: the names of the Russian
+volumes this project parses, sentences quoted from them beside the
+measurement they explain, and the page text drawn onto the synthetic sheets,
+which is the book the bench pretends to be. None of it can be translated -- an English
+name for a real book cuts the thread between a number in `docs/` and the
+comment that measured it -- so nothing counts it any more.
 
 The documents restate each other, and that is counted too:
 

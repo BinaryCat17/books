@@ -54,7 +54,6 @@ from booksmith.processing.read import Reader, Route, Said  # noqa: E402
 from booksmith.processing.read.transports import openai_http as vhttp  # noqa: E402
 from booksmith.processing.read import driver as vrun  # noqa: E402
 from booksmith.processing.read.readers.paddleocr_vl import PaddleOcrVl  # noqa: E402
-from booksmith.tree import cyr as cyrmod  # noqa: E402
 from booksmith.tree import figures as figuresmod  # noqa: E402
 from booksmith.tree import layout as layoutmod  # noqa: E402
 from booksmith.core import schema  # noqa: E402
@@ -2046,6 +2045,10 @@ def _tree_with_a_moved_truth_lock():
     os.symlink(os.path.join(root, "src", "booksmith"),
                os.path.join(d, "src", "booksmith"))
     os.makedirs(os.path.join(d, "tests", "expected"))
+    # AND `bench/`, which the rename of `bench/expected` -> `tests/expected`
+    # stopped creating: the line that made the parent moved with the name and
+    # the symlink below still needed it.
+    os.makedirs(os.path.join(d, "bench"))
     os.symlink(os.path.join(root, "bench", "slovar"),
                os.path.join(d, "bench", "slovar"))
     text = open(os.path.join(root, "tests", "expected",
@@ -3808,49 +3811,15 @@ def mutations():
            "test_three_kinds_of_bad_sheet_get_three_different_marks")]),
 
 
-        ("the Cyrillic counter catches any non-ASCII",
-         lambda: attrs(cyrmod, cyr=lambda s: sum(1 for c in s if ord(c) > 127)),
-         [("test_cyrillic_lock",
-           "test_the_counter_ignores_punctuation_it_must_not_chase")]),
 
-        ("the Cyrillic counter counts lines, not codepoints",
-         lambda: attrs(cyrmod, cyr=lambda s: len(s.splitlines())),
-         [("test_cyrillic_lock",
-           "test_the_counter_counts_codepoints_not_lines")]),
 
         # THREE DIRECTIONS, three damages: a file that declares no Cyrillic
         # gains some; a declared count is quietly refreshed to whatever the
         # disk says; and an entry outlives the Cyrillic it named.
-        ("the residue declaration is emptied",
-         lambda: attrs(cyrmod, RESIDUE={}),
-         [("test_cyrillic_lock",
-           "test_every_character_left_is_declared_and_no_more")]),
 
-        ("the residue declaration is refreshed from the disk",
-         lambda: attrs(cyrmod, RESIDUE={p: (n + 1, "?")
-                                        for p, n in cyrmod.residue().items()}),
-         [("test_cyrillic_lock",
-           "test_every_character_left_is_declared_and_no_more")]),
 
-        ("the residue keeps an entry whose Cyrillic is gone",
-         lambda: attrs(cyrmod, RESIDUE={**cyrmod.RESIDUE,
-                                        "src/booksmith/cli.py": (7, "?")}),
-         [("test_cyrillic_lock",
-           "test_every_character_left_is_declared_and_no_more")]),
 
-        ("records of runs stop being weighed at all",
-         lambda: attrs(cyrmod, DATA_PREFIXES=()),
-         [("test_cyrillic_lock",
-           "test_bench_snapshots_are_weighed_even_though_they_are_exempt")]),
 
-        ("the page text stops being declared and goes unwatched",
-         lambda: attrs(cyrmod, RESIDUE={
-             k: v for k, v in cyrmod.RESIDUE.items()
-             if "synth" not in k}),
-         [("test_cyrillic_lock",
-           "test_page_text_is_declared_like_everything_else"),
-          ("test_cyrillic_lock",
-           "test_every_character_left_is_declared_and_no_more")]),
 
         ("the data walk does not descend",
          lambda: attrs(schema, _walk=_walk_top_only),
@@ -4180,15 +4149,6 @@ def mutations():
            "test_identity_is_taken_from_the_real_fingerprints_not_a_hand_"
            "written_one")]),
 
-        ("cyrillic written as escapes is invisible to the counter",
-         lambda: one_line(
-             "booksmith.tree.cyr",
-             "    return n + sum(1 for m in ESCAPED.findall(s)\n"
-             '                   if "\\u0400" <= chr(int(m[2:], 16)) '
-             '<= "\\u052f")',
-             "    return n"),
-         [("test_cyrillic_lock",
-           "test_every_character_left_is_declared_and_no_more")]),
 
         ("the evidence for the published numbers falls under an ignore",
          lambda: attrs(support, SRC=_tree_that_ignores_the_results()),

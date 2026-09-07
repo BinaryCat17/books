@@ -194,11 +194,31 @@ were verbatim, and the reports were translated out from under them. The fix is
 not to stop quoting but to take the quote from `tests/expected/*.txt`, which is
 regenerated from the command itself.
 
-**A ratchet cannot finish a job; only a declaration can.** "No area grew" goes
-green at any number, so the last thousand characters of a translation can sit
-there forever with nobody able to say whether they are evidence or oversight.
-`booksmith.cyr.RESIDUE` names every file that still holds Cyrillic, how much
-and why -- twenty files, 1103 characters, of three kinds: a real book title, a
+**A ratchet cannot finish a job; only a declaration can -- AND A DECLARATION
+WHOSE FLOOR CANNOT BE REACHED IS NOISE.** Both halves were learnt on one
+instrument. "No area grew" goes green at any number, so the last thousand
+characters of a translation sit there with nobody able to say whether they are
+evidence or oversight; a per-file declaration says which, and fails in a third
+direction a ratchet is blind to -- an entry that outlives the Cyrillic it
+named. That is how both earlier exemptions rotted.
+
+Then the job finished, and the declaration became the noise. Its floor was
+some 1180 characters that can NEVER go -- the names of the Russian books this
+project parses, sentences quoted from them, the page text drawn onto the
+synthetic sheets -- so it could not reach its own target, which its own header
+calls the thing that teaches everyone to ignore an instrument. Over its last
+day it fired three times and each was its own machinery: the counter's bounds,
+a check's regex, a mutation's escapes. Zero regressions. It is deleted.
+
+What survived is the half that guards DATA and not prose: no Cyrillic key in
+any tracked json, checked by `tests/test_data_contract.py`, with
+`runs/ledger.jsonl` the one declared exception. That check caught a claim in
+the map that was both false and unmeasured. The rule generalises past
+Cyrillic: an instrument earns its upkeep only while its target is reachable,
+and the day the whole backlog is permanent, the instrument IS the backlog.
+
+
+
 quotation of real data from those books (in `djvu.py` the pipe inside a caption
 marks where the spread splits a word, so the spelling IS the measurement), and
 an instrument whose subject is Russian. It fails in three directions, and the

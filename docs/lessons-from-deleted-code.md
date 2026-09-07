@@ -439,3 +439,62 @@ rented card's own record of the run, which exists nowhere else. `ru20.read`
 all, and `enall.read` has 28 answers and NO `run.json`, so the book it belongs
 to is recorded nowhere -- it must not be guessed, or paid answers would be
 attributed to the wrong PDF.
+
+---
+
+## The Cyrillic instruments, and the rule they taught by failing
+
+Deleted 2026-09-07. A ratchet over Cyrillic per area, then a per-file lock
+that replaced it, then nothing. The job they existed for -- translating this
+project to English, keys of the on-disk format included -- is finished, and
+what they measured at the end was their own reflection.
+
+**The measurement that killed them.** Over the lock's last day it fired three
+times, and each time the Cyrillic it had found was its own machinery: the
+bounds of the Cyrillic block inside the counter, the same bounds inside a
+check's regex, and a Russian key written as escapes inside the mutation that
+plants one back into the data. Zero regressions in the code it was watching.
+Its floor was about 1180 characters that can NEVER go -- the names of the
+Russian volumes this project parses, sentences quoted from them, the page text
+drawn onto the synthetic sheets -- so it could not reach its own target.
+
+**Its own header said so**: "an instrument that cannot reach its own target
+teaches everyone to ignore it." That line was written about counting
+typographic dashes and it condemned the whole file.
+
+**What the two of them knew, and it generalises past Cyrillic:**
+
+* A ratchet works from the first day of a long job and goes green at any
+  number, so it can never finish one. A per-file declaration with a reason
+  beside each entry can: it fails in a third direction the ratchet is blind
+  to, when an entry outlives the thing it was written for.
+* The cheapest way to move a "how much is left" count is to DELETE, not to
+  translate. Measured on a copy of the tree: deleting every whole comment
+  line carrying Cyrillic across `src/booksmith` removed 176 515 characters --
+  a quarter of everything this project had written into its comments -- and
+  left the runner green, the battery green, every acceptance report identical
+  and the ratchet reporting a quarter of the translation done. That is why
+  the job was watched by two numbers and not one.
+* Exempt is a decision; invisible is the instrument lying by omission. Bench
+  data was SKIPPED outright once, and 17 696 codepoints inside nine tracked
+  snapshots were not merely exempt but uncounted anywhere.
+* An escape is a hiding place. A counter that reads raw text sees zero in
+  `RU = "\u043e\u0434\u0438\u043d"`, which every grep reads as English.
+
+**What survived, because it guards DATA and not prose:** no Cyrillic key in
+any tracked json, in `tests/test_data_contract.py`, with `runs/ledger.jsonl`
+as the one declared exception. It caught a claim in the map that was both
+false and unmeasured.
+
+## Five migration scripts, each for a job that happened
+
+`migrate_code.py`, `migrate_keys.py`, `keymap_check.py` (the key rename),
+`migrate_layout.py` (the package move), `migrate_runs.py` (runs under a model
+label) and `migrate_bench.py` (the book directory shape). A script for a
+migration that has already happened describes the past, and git describes it
+better. What each knew that outlives it is written above and in the sections
+before it; `tools/keymap.json` stays because a check READS it.
+
+`prose_only.py` compared two versions of a file ignoring comments, so a bulk
+prose edit could be proved not to have touched code. It was written for the
+translation and never used after it.
