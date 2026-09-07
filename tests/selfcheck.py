@@ -1882,49 +1882,6 @@ def _globs_one_level_short():
                                f.note) for f in schema.FORMATS)
 
 
-def _latin_is_not_counted(s):
-    """Only the Cyrillic side is measured, so deletion looks like translation."""
-    return 0
-
-
-def _counter_that_skips_finished_files(s):
-    """Latin counted as zero -- the shape the walk had when a file that was
-    fully translated dropped out of it and took its Latin along."""
-    return 0
-
-
-def _baseline_of_deleted_prose():
-    """A baseline that says 40 000 Cyrillic characters left and no English came.
-
-    The mutation has to be the DISAPPEARANCE, not the counter: the check only
-    speaks when Cyrillic actually falls, so breaking `latin()` alone leaves it
-    with nothing to look at -- which is how the first version of this mutation
-    went uncaught.
-    """
-    import tempfile
-    base = json.loads(open(cyrmod.BASELINE, encoding="utf-8").read())
-    now = cyrmod.count()
-    for area in ("src.comments", "src.docstrings"):
-        base[area] = base.get(area, 0) + 20000
-        # AND the Latin side is pinned to what the tree holds right now.
-        # Without that the mutation is toothless: while a real translation is
-        # under way the Latin count rises on its own, covers the invented
-        # loss, and the check stays honestly quiet. Caught by this very
-        # battery, mid-translation.
-        base[area + ".latin"] = now.get(area + ".latin", 0)
-    fd, path = tempfile.mkstemp(suffix=".json")
-    with os.fdopen(fd, "w", encoding="utf-8") as f:
-        json.dump(base, f, ensure_ascii=False)
-    return path
-
-
-def _book_prose_folded_into_the_ratchet(c):
-    """Book content stops being a separate area, so its loss is invisible."""
-    out = {k: v for k, v in c.items() if not k.endswith(".latin")}
-    out.pop("bench_data", None)
-    return out
-
-
 def _measure_finds_nothing(root=None):
     """The disk side of the guard goes quiet. The name side must notice."""
     return {f.name: {} for f in schema.FORMATS}
@@ -3760,12 +3717,12 @@ def mutations():
 
         ("the Cyrillic counter catches any non-ASCII",
          lambda: attrs(cyrmod, cyr=lambda s: sum(1 for c in s if ord(c) > 127)),
-         [("test_cyrillic_ratchet",
+         [("test_cyrillic_lock",
            "test_the_counter_ignores_punctuation_it_must_not_chase")]),
 
         ("the Cyrillic counter counts lines, not codepoints",
          lambda: attrs(cyrmod, cyr=lambda s: len(s.splitlines())),
-         [("test_cyrillic_ratchet",
+         [("test_cyrillic_lock",
            "test_the_counter_counts_codepoints_not_lines")]),
 
         # THREE DIRECTIONS, three damages: a file that declares no Cyrillic
@@ -3773,35 +3730,34 @@ def mutations():
         # disk says; and an entry outlives the Cyrillic it named.
         ("the residue declaration is emptied",
          lambda: attrs(cyrmod, RESIDUE={}),
-         [("test_cyrillic_ratchet",
+         [("test_cyrillic_lock",
            "test_every_character_left_is_declared_and_no_more")]),
 
         ("the residue declaration is refreshed from the disk",
          lambda: attrs(cyrmod, RESIDUE={p: (n + 1, "?")
                                         for p, n in cyrmod.residue().items()}),
-         [("test_cyrillic_ratchet",
+         [("test_cyrillic_lock",
            "test_every_character_left_is_declared_and_no_more")]),
 
         ("the residue keeps an entry whose Cyrillic is gone",
          lambda: attrs(cyrmod, RESIDUE={**cyrmod.RESIDUE,
                                         "src/booksmith/cli.py": (7, "?")}),
-         [("test_cyrillic_ratchet",
+         [("test_cyrillic_lock",
            "test_every_character_left_is_declared_and_no_more")]),
 
         ("records of runs stop being weighed at all",
          lambda: attrs(cyrmod, DATA_PREFIXES=()),
-         [("test_cyrillic_ratchet",
+         [("test_cyrillic_lock",
            "test_bench_snapshots_are_weighed_even_though_they_are_exempt")]),
 
-        ("book prose is no longer separated from ours",
-         lambda: attrs(cyrmod, CONTENT_SUFFIX="_NO_NAME_ENDS_IN_THIS"),
-         [("test_cyrillic_ratchet",
-           "test_book_content_is_exempt_by_name_not_by_file")]),
-
-        ("the ratchet presses on book prose too",
-         lambda: attrs(cyrmod, ratchet_areas=lambda c: dict(c)),
-         [("test_cyrillic_ratchet",
-           "test_book_content_is_exempt_by_name_not_by_file")]),
+        ("the page text stops being declared and goes unwatched",
+         lambda: attrs(cyrmod, RESIDUE={
+             k: v for k, v in cyrmod.RESIDUE.items()
+             if "synth" not in k}),
+         [("test_cyrillic_lock",
+           "test_page_text_is_declared_like_everything_else"),
+          ("test_cyrillic_lock",
+           "test_every_character_left_is_declared_and_no_more")]),
 
         ("the data walk does not descend",
          lambda: attrs(schema, _walk=_walk_top_only),
@@ -3818,12 +3774,6 @@ def mutations():
          lambda: attrs(schema, FORMATS=_globs_one_level_short()),
          [("test_data_contract",
            "test_the_declaration_reaches_the_files_it_names")]),
-
-        ("the ratchet baseline is unreachable",
-         lambda: attrs(cyrmod, BASELINE="/nonexistent/cyr-baseline.json"),
-         [("test_cyrillic_ratchet",
-           "test_the_baseline_exists_and_covers_every_area"),
-          ("test_cyrillic_ratchet", "test_no_area_grew")]),
 
         ("the disk side of the presence guard goes quiet",
          lambda: attrs(schema, measure=_measure_finds_nothing),
@@ -3842,25 +3792,6 @@ def mutations():
          lambda: attrs(acceptance, COMMANDS=_table_missing_a_format()),
          [("test_acceptance",
            "test_the_command_table_covers_every_format_the_migration_touches")]),
-
-        ("only the cyrillic side of the prose is counted",
-         lambda: attrs(cyrmod, latin=_latin_is_not_counted),
-         [("test_cyrillic_ratchet",
-           "test_the_counter_counts_codepoints_not_lines")]),
-
-        ("the latin companion is not counted for finished files",
-         lambda: attrs(cyrmod, latin=_counter_that_skips_finished_files),
-         [("test_cyrillic_ratchet",
-           "test_the_counter_counts_codepoints_not_lines")]),
-
-        ("prose vanished without arriving in English",
-         lambda: attrs(cyrmod, BASELINE=_baseline_of_deleted_prose()),
-         [("test_cyrillic_ratchet",
-           "test_prose_was_translated_not_deleted")]),
-
-        ("book content is no longer weighed apart",
-         lambda: attrs(cyrmod, CONTENT_SUFFIX="PROSE_RU"),
-         [("test_cyrillic_ratchet", "test_book_content_did_not_move")]),
 
         # The rebuild guard had a THIRD copy of "where the journal lives",
         # looking only under `assets/` -- so it passed by the one layout it

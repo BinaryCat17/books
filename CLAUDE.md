@@ -68,8 +68,9 @@ src/booksmith/
                Unmeasurable rc 2), log.py (one log line)
   tree/        NOT PIPELINE CODE: instruments over the source tree itself,
                here rather than in tools/ so the mutation battery can damage
-               them and see a check go red. cyr.py (the Cyrillic ratchet and
-               the residue lock), imports.py (the dependency rule above),
+               them and see a check go red. cyr.py (the Cyrillic lock: the
+               translation is DONE, and what is left is declared file by file
+               with the reason it can never go), imports.py (the rule above),
                figures.py (one measurement, one document -- the ceiling falls
                and never rises). Each is a rule this file states, made
                countable; a rule stated and not counted is the disease the
@@ -224,17 +225,19 @@ The two levels both work end to end. Level one is measured on two benches;
 level two has run on a real book and cannot yet be measured for quality --
 `docs/limits.md` says why, in three reasons, before any money is spent.
 
-The project is being translated to English, keys of the on-disk format
-included. What is left, by area, is printed by:
+The translation to English is DONE, keys of the on-disk format included: no
+Cyrillic key survives in any json of `bench/`, `processed/` or `runs/`, and
+the three tools that renamed them are deleted -- what they knew is in
+`docs/lessons-from-deleted-code.md`. What is left, and why each character
+stays, is printed by:
 
     python3 tools/cyr.py
 
-Every area may fall and none may rise, and each carries a second number --
-the Latin that arrived where the Cyrillic left -- because deleting a comment
-moves the first number just as well as translating it does. The keys are
-done: no Cyrillic key survives in any json of `bench/`, `processed/` or
-`runs/`, and the three tools that did it are deleted -- what they knew is in
-`docs/lessons-from-deleted-code.md`.
+Every one of them is a Russian book title, text quoted from one of those
+books, or the bounds of the Cyrillic block inside the counters that hunt for
+it. The ratchet that did the job -- areas pressed on separately, a companion
+count of the Latin that arrived, a tracked baseline of both -- went with it;
+the lock that replaced it is stricter, because it names every file.
 
 The documents restate each other, and that is counted too:
 

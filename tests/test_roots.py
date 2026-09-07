@@ -41,8 +41,11 @@ def test_acceptance_root_is_the_repository():
 
 
 def test_cyr_root_is_the_repository():
+    """The lock counts paths relative to ROOT and declares them by that name,
+    so a wrong root would declare a tree nobody has."""
     assert _is_repo_root(cyr.ROOT), cyr.ROOT
-    assert cyr.BASELINE == os.path.join(cyr.ROOT, "cyr-baseline.json")
+    assert all(os.path.exists(os.path.join(cyr.ROOT, p)) for p in cyr.RESIDUE), (
+        "RESIDUE names a path that is not under ROOT")
 
 
 def test_knobs_src_is_the_package():

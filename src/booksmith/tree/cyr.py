@@ -1,9 +1,33 @@
-"""Cyrillic ratchet: how much is left, and WHERE. A number, not a verdict.
+"""The Cyrillic lock: which files hold Russian, how much, and why it stays.
 
-The project is being translated to English. A translation this large has no
-test that can judge it -- no checker reads prose for meaning. What it does have
-is a quantity: how many Cyrillic codepoints are left in each area. That number
-is the progress of the work, and this file is the instrument that reads it.
+THE TRANSLATION IS DONE, and this is what is left of the instrument that did
+it. Every character it now finds is a Russian BOOK TITLE, text quoted from one
+of those books, page text drawn onto a synthetic page, or the two regexps that
+hunt for Russian and therefore contain its alphabet. None can be translated:
+inventing an English name for a real book of this project would cut the thread
+between a number in `docs/` and the comment that measured it.
+
+WHAT WENT WITH THE JOB, and what it knew. There was a ratchet over four areas
+per file -- comments, docstrings, string literals, identifiers, split by
+`tokenize` and `ast` and each pressed on separately -- a companion count of the
+Latin that arrived where the Cyrillic left, and a tracked baseline of both. All
+of it existed for a job that is finished, and the area split existed for ONE
+exemption: page text lives in constants named `*_RU`, and a file-glob exemption
+for the generators would have left 8423 characters of our own commentary
+Russian forever. The lock does not need the split, because it declares the
+FILE: `draw.py` and `books/slovar.py` carry their 468 characters of page text
+in their declared counts, where a change to the book text goes red like any
+other change. Simpler, and stricter -- the ratchet let Cyrillic move between
+files inside an area without a word.
+
+The one thing worth carrying out of that machinery, because the next bulk edit
+of prose will meet it: the cheapest way to move a "how much is left" count is
+not to translate but to DELETE. Measured on a copy of the tree, deleting every
+whole comment line carrying Cyrillic across `src/booksmith` removed 176 515
+characters -- a quarter of everything this project has written into its
+comments -- and left the runner green, the battery green, every acceptance
+report identical, and the ratchet reporting a quarter of the translation done.
+That is why the job was watched by two numbers and not one.
 
 WHY CODEPOINTS AND NOT LINES OR WORDS. Rewrapping a comment, splitting a
 paragraph or merging two sentences changes lines and words while changing
@@ -11,273 +35,132 @@ nothing that matters. Only translation moves codepoints. Measured: rewrapping
 one comment across five lines left the count untouched; adding a single letter
 moved it by one.
 
-WHY AREAS AND NOT ONE TOTAL. A total lets a shrinking area hide a growing one.
-Comments, docstrings, string literals and identifiers are four different jobs
-with four different risks -- literals are read by tests, identifiers are read by
-the import machinery, comments are read by nobody but us -- and they are counted
-apart so that each has to fall on its own.
+WHY NOT "NON-ASCII". The project legitimately contains typographic dashes,
+arrows and box drawing, and counting those would make the lock impossible to
+bring to its floor. An instrument that cannot reach its own target teaches
+everyone to ignore it.
 
-WHY BOOK PROSE IS EXEMPT BY NAME, NOT BY FILE. `src/booksmith/books/*.py` holds
-9105 Cyrillic characters, of which only 682 are book content; the rest is our
-own commentary. An exemption written as a file glob would leave 8423 characters
-untranslated forever and silently. So the exemption names the constants that
-hold page text, and everything around them is counted like any other prose.
+    python3 tools/cyr.py            what is left, file by file, and why
+    python3 tools/cyr.py --check    fail on anything undeclared
 
-    python3 tools/cyr.py            print the table
-    python3 tools/cyr.py --save     write cyr-baseline.json
-    python3 tools/cyr.py --check    fail if any area grew above the baseline
-
-The counting lives here, in `booksmith.tree`, rather than in `tools/` for one
-reason: the mutation battery breaks modules by importing them, and `tools/`
-is not importable. An instrument the battery cannot break is an instrument
-nobody has checked.
+It lives here, in `booksmith.tree`, rather than in `tools/` for one reason: the
+mutation battery breaks modules by importing them, and `tools/` is not
+importable. An instrument the battery cannot break is an instrument nobody has
+checked.
 """
-import ast
-import collections
-import io
-import json
 import os
 import subprocess
 import sys
-import tokenize
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))))
-BASELINE = os.path.join(ROOT, "cyr-baseline.json")
 
-# Cyrillic (U+0400..U+04FF) and Cyrillic Supplement (U+0500..U+052F).
-#
-# Deliberately not "non-ASCII": the project legitimately contains typographic
-# dashes, arrows and box drawing, and counting those would make the ratchet
-# impossible to bring to zero. An instrument that cannot reach its own target
-# teaches everyone to ignore it.
-#
-# The bounds are escapes rather than letters for the same reason: written as
-# characters they are four Cyrillic codepoints, and this file would then hold
-# a floor of four under `src.literals` that no amount of translation removes.
+# Cyrillic (U+0400..U+04FF) and Cyrillic Supplement (U+0500..U+052F). The
+# bounds are escapes rather than letters on purpose: written as characters
+# they would be four Cyrillic codepoints in this very file, and the counter
+# would count itself.
 def cyr(s: str) -> int:
     return sum(1 for c in s if "\u0400" <= c <= "\u04ff" or
                "\u0500" <= c <= "\u052f")
 
 
-def latin(s: str) -> int:
-    """ASCII letters, counted alongside the Cyrillic they are replacing.
-
-    WHY A SECOND QUANTITY IS NEEDED. The Cyrillic count measures what is LEFT,
-    not what was DONE, and the cheapest way to move it is not to translate but
-    to delete. Measured on a copy: deleting every whole comment line carrying
-    Cyrillic across `src/booksmith/*.py` removed 176 515 characters -- a
-    quarter of everything the project has written into its comments -- and left
-    the runner green, the mutation battery green, all five acceptance reports
-    identical, zero keys below floor, and the ratchet reporting a quarter of
-    the translation done.
-
-    Translation moves Cyrillic into Latin. Deletion moves it into nothing. With
-    both counted, the two are no longer the same event.
-    """
-    return sum(1 for c in s if "a" <= c <= "z" or "A" <= c <= "Z")
-
-
-# Constants whose value IS book content: the text drawn onto a synthetic page.
-# THE RULE IS THE NAME, and the name must END IN `_RU`, so the exemption is
-# visible where the constant is declared rather than in a list over here.
-#
-# A list of exact names was the first version and it leaked in both directions.
-# `CASES` and `AGING` were on it and should not have been -- `CASES` maps
-# English case names to functions, `AGING` maps four profile names to numbers
-# -- and putting them there filed the ageing profile's old Russian name as
-# untouchable prose. `ABOUT` was on it too, and that is a SENTENCE ABOUT the book,
-# written for the operator and copied into `bench/*/manifest.json`: exempting
-# it hid six descriptions from the ratchet. Meanwhile the Russian half of the
-# parallel-text page in `books/slovar.py` was an inline literal in the middle
-# of a function, exempted by nothing, and translating it would have destroyed
-# the page; it is now `TAIL_RU`.
-CONTENT_SUFFIX = "_RU"
-
-# Everything tracked that is not a .py and not book data. Kept as an explicit
-# list because the first version of this instrument counted only `.py .md .toml
-# .yml` and thereby missed 13 217 characters in nine tracked files -- including
-# `run.sh`, which executes on a rented GPU, where a mistranslation costs money
-# rather than a red test.
-OTHER_GLOBS = ("*.md", "*.sh", "*.toml", "*.yml", "*.yaml", "*.in", "*.txt",
-               "*.cfg", "*.ini", "*.json", "*.log", "*.js", "*.css", "*.html",
-               "*.lock", ".gitignore", ".env.example", "infra/base/Dockerfile")
-
-# Tracked data files. Their Cyrillic is weighed APART from the prose, never
-# pressed on, and never merged into it: the keys were handled by the migration
-# and the content must not move at all, so pressing here would set a floor the
-# ratchet can never reach.
-#
-# WEIGHED, THOUGH -- and that took a second try. The first version SKIPPED
-# `bench/**.json` outright, so 17 696 codepoints of stale Russian sitting
-# inside nine tracked snapshots were not merely exempt but invisible: six
-# manifests at 2484 each and three `detect/run.json`, all of them knob
-# descriptions copied into the snapshot when the run happened. Exempt is a
-# decision; invisible is the instrument lying by omission, which is the defect
-# this whole project keeps a rule about.
+# Tracked data. Its Cyrillic is exempt and NOT declared file by file: the keys
+# were handled by the migration and the content must not move at all, so
+# pressing here would set a floor the lock can never reach. Exempt, and
+# weighed -- that took a second try. The first version SKIPPED `bench/**.json`
+# outright, so 17 696 codepoints of stale Russian inside nine tracked
+# snapshots were not merely exempt but invisible: knob descriptions copied in
+# when the run happened. Exempt is a decision; invisible is the instrument
+# lying by omission.
 DATA_PREFIXES = ("bench/",)
 
-# The rename maps. Their left-hand side IS the Russian that was renamed away --
-# that is what makes them the record of the migration, readable years later by
-# someone holding an old file. Pressing on them would set a floor the ratchet
-# can never reach, which is the one thing that teaches people to ignore it.
-# `keymap.json` alone: it is READ, by `tests/test_data_contract.py`, which
-# looks a pre-migration spelling up in it rather than typing one. The value
-# and html maps went with the scripts that were their only readers -- a
-# record nothing reads is in git, not in the tree.
+# The record of the key rename, read by `tests/test_data_contract.py`.
 RECORD_FILES = ("tools/keymap.json",)
 
 # Logs of a run that was paid for. `bench/*/dots/job.log` is what the rented
 # card printed while it worked, and rewriting a log after the fact destroys
-# the one thing a log is for -- the same argument that keeps `runs/ledger.jsonl`
-# out of the key migration. Weighed apart, never pressed on.
+# the one thing a log is for -- the argument that also keeps
+# `runs/ledger.jsonl` out of any migration.
 RECORD_GLOBS = ("job.log",)
 
 
-def tracked(*globs):
+def tracked():
     """Files git would keep: tracked, plus untracked that are not ignored.
 
     NOT `git ls-files` alone. That counts only what is staged or committed, so
-    a new file is invisible until `git add` and the whole baseline jumps at
-    commit time -- which is exactly how the first baseline of this instrument
-    came out 941 characters low, and the ratchet was red the moment its own
-    commit landed.
+    a new file is invisible until `git add` and the whole count jumps at commit
+    time -- which is exactly how the first baseline of this instrument came out
+    941 characters low, and it was red the moment its own commit landed.
     """
     r = subprocess.run(["git", "ls-files", "-z", "--cached", "--others",
-                        "--exclude-standard"] + list(globs),
+                        "--exclude-standard"],
                        capture_output=True, text=True, cwd=ROOT)
     out = {p for p in r.stdout.split("\0") if p}
     return sorted(p for p in out if os.path.isfile(os.path.join(ROOT, p)))
 
 
-def _content_nodes(tree):
-    """String nodes that hold book content, by the constant they are assigned to."""
-    out = set()
-    for n in ast.walk(tree):
-        if isinstance(n, ast.Assign):
-            names = [t.id for t in n.targets if isinstance(t, ast.Name)]
-            if any(x.endswith(CONTENT_SUFFIX) for x in names):
-                for k in ast.walk(n.value):
-                    if isinstance(k, ast.Constant) and isinstance(k.value, str):
-                        out.add(id(k))
+def exempt(rel: str) -> bool:
+    """Weighed elsewhere, never declared here. A function because the
+    exemption is a DECISION, and a mutation must be able to break it."""
+    return (any(rel.startswith(d) for d in DATA_PREFIXES)
+            or rel in RECORD_FILES or rel.endswith(RECORD_GLOBS))
+
+
+def residue():
+    """path -> Cyrillic characters, over everything the lock presses on."""
+    out = {}
+    for rel in tracked():
+        if exempt(rel):
+            continue
+        try:
+            n = cyr(open(os.path.join(ROOT, rel), encoding="utf-8").read())
+        except (UnicodeDecodeError, IsADirectoryError, FileNotFoundError):
+            continue
+        if n:
+            out[rel] = n
     return out
 
 
-def py_areas(paths, prefix, counter):
-    """Split one .py into comments / docstrings / literals / names.
-
-    Comments come from `tokenize` and everything else from `ast`, because the
-    two see different things: a `#` inside a string is not a comment, and a
-    docstring is not a literal. Splitting by regex would double-count both.
-    """
-    for rel in paths:
-        src = open(os.path.join(ROOT, rel), encoding="utf-8").read()
-        for tok in tokenize.generate_tokens(io.StringIO(src).readline):
-            if tok.type == tokenize.COMMENT:
-                counter[prefix + ".comments"] += cyr(tok.string)
-                counter[prefix + ".comments.latin"] += latin(tok.string)
-        tree = ast.parse(src)
-        content = _content_nodes(tree)
-        docs = set()
-        for n in ast.walk(tree):
-            if isinstance(n, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef,
-                              ast.ClassDef)) and n.body:
-                first = n.body[0]
-                if (isinstance(first, ast.Expr)
-                        and isinstance(first.value, ast.Constant)
-                        and isinstance(first.value.value, str)):
-                    docs.add(id(first.value))
-                    counter[prefix + ".docstrings"] += cyr(first.value.value)
-                    counter[prefix + ".docstrings.latin"] += latin(first.value.value)
-        for n in ast.walk(tree):
-            if isinstance(n, ast.Constant) and isinstance(n.value, str):
-                if id(n) in docs:
-                    continue
-                where = "book_prose" if id(n) in content else prefix + ".literals"
-                counter[where] += cyr(n.value)
-                if where != "book_prose":
-                    counter[prefix + ".literals.latin"] += latin(n.value)
-            elif isinstance(n, ast.Name):
-                counter[prefix + ".names"] += cyr(n.id)
-                counter[prefix + ".names.latin"] += latin(n.id)
-            elif isinstance(n, ast.arg):
-                counter[prefix + ".names"] += cyr(n.arg)
-                counter[prefix + ".names.latin"] += latin(n.arg)
-            elif isinstance(n, ast.Attribute):
-                counter[prefix + ".names"] += cyr(n.attr)
-                counter[prefix + ".names.latin"] += latin(n.attr)
-            elif isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef,
-                                ast.ClassDef)):
-                counter[prefix + ".names"] += cyr(n.name)
-                counter[prefix + ".names.latin"] += latin(n.name)
-            elif isinstance(n, ast.keyword) and n.arg:
-                counter[prefix + ".names"] += cyr(n.arg)
-
-
-def count():
-    """area -> Cyrillic codepoints. Every tracked file lands in exactly one."""
-    c = collections.Counter()
-    py = tracked("*.py")
-    src = [p for p in py if p.startswith("src/")]
-    tst = [p for p in py if p.startswith("tests/")]
-    tools_ = [p for p in py if p.startswith("tools/")]
-    py_areas(src, "src", c)
-    py_areas(tst, "tests", c)
-    py_areas(tools_, "tools", c)
-
-    for rel in tracked(*OTHER_GLOBS):
+def weighed():
+    """The exempt classes, as one number each. Exempt, not invisible."""
+    data = records = 0
+    for rel in tracked():
+        if not exempt(rel):
+            continue
+        try:
+            n = cyr(open(os.path.join(ROOT, rel), encoding="utf-8").read())
+        except (UnicodeDecodeError, IsADirectoryError, FileNotFoundError):
+            continue
+        # RECORDS FIRST: `bench/*/dots/job.log` is under a data prefix AND is
+        # a paid run's log. Classifying by the prefix first moved 2499
+        # characters from one exempt class to the other and made the two
+        # numbers disagree with the check that walks the disk itself.
         if rel in RECORD_FILES or rel.endswith(RECORD_GLOBS):
-            c["rename_record"] += cyr(open(os.path.join(ROOT, rel),
-                                          encoding="utf-8").read())
-            continue
-        if rel.endswith(".py"):
-            continue
-        text = open(os.path.join(ROOT, rel), encoding="utf-8").read()
-        n = cyr(text)
-        # NO `if not n: continue` HERE. A file that has just been translated
-        # to zero Cyrillic would drop out of the walk entirely, taking its
-        # Latin with it -- so the companion count FALLS exactly when a file is
-        # finished, and `test_prose_was_translated_not_deleted` fires on
-        # completed work. Measured: translating five config files moved
-        # `config` by -3045 and `config.latin` by -11 618, because `uv.lock`
-        # and the pinned constraints stopped being counted at all.
-        if any(rel.startswith(d) for d in DATA_PREFIXES):
-            if n:
-                c["bench_data"] += n
-        elif rel.endswith(".md"):
-            c["docs"] += n
-            c["docs.latin"] += latin(text)
+            records += n
         else:
-            c["config"] += n
-            c["config.latin"] += latin(text)
-    for k in ("src.comments", "src.docstrings", "src.literals", "src.names",
-              "tests.comments", "tests.docstrings", "tests.literals",
-              "tests.names", "tools.comments", "tools.docstrings",
-              "tools.literals", "tools.names", "docs", "config",
-              "bench_data", "book_prose", "rename_record"):
-        c.setdefault(k, 0)
-        if k not in ("bench_data", "book_prose", "rename_record"):
-            c.setdefault(k + ".latin", 0)
-    return dict(c)
+            data += n
+    return {"bench data (records of runs, rewritten only by re-running them)":
+            data,
+            "records (the key rename map, and the logs of paid runs)":
+            records}
 
 
-# THE LOCK. The ratchet says "no area grew"; this says WHAT IS LEFT AND WHY.
+# THE LOCK. What is left, and why -- named file by file, with the count as the
+# price of the reason: edit the file and this goes red until somebody decides
+# again. A list without counts rots; a count without a reason cannot be
+# finished, because nobody can say whether the last thousand characters are
+# evidence or oversight.
 #
-# A ratchet alone cannot finish a translation. It goes green at any number, so
-# the last thousand characters can sit there forever with nobody able to say
-# whether they are evidence or oversight. Every entry below is evidence, and
-# the count is the price of naming it: change the file and this goes red until
-# someone decides again.
-#
-# The three kinds, and there are only three:
-#   TITLE  a real book of this project. Inventing an English name for it would
-#          cut the thread between a number here and the same number elsewhere.
+# The four kinds, and there are only four:
+#   TITLE  a real book of this project. An English name for it would cut the
+#          thread between a number here and the same number elsewhere.
 #   DATA   text quoted from those books, or a name from before the migration.
 #          The spelling IS the measurement -- see `djvu.py`, where the pipe in
 #          a caption marks where the spread splits a word.
-#   TOOL   an instrument whose subject is Russian: the migration tools, and
-#          the counter below, which contains the bounds of the Cyrillic block
-#          and therefore counts itself.
+#   PAGE   Russian page text drawn onto a synthetic page. It is the book the
+#          bench pretends to be; translating it would change the measurement.
+#   TOOL   an instrument whose subject is Russian: the regexps that hunt for
+#          Cyrillic and therefore contain its alphabet.
 RESIDUE = {
     "docs/contour-notes.md": (13, "DATA: the dirty-tree marker as it stands "
                               "in the tracked run.json snapshots"),
@@ -286,20 +169,29 @@ RESIDUE = {
                                           "a real file name"),
     "docs/models.md": (29, "TITLE, and the pre-rename attribute name of the "
                        "egret fingerprint defect"),
-    "src/booksmith/tree/cyr.py": (4, "TOOL: the bounds of the Cyrillic block, in "
-                             "the function that counts it"),
-    "src/booksmith/processing/extract/djvu.py": (226, "TITLE and DATA: four books, and the three "
-                              "table captions split across the gutter"),
-    "src/booksmith/core/raster.py": (20, "TITLE"),
-    "src/booksmith/processing/assess/ink.py": (20, "TITLE"),
+    "src/booksmith/core/knobs.py": (60, "TITLE"),
     "src/booksmith/core/otsl.py": (94, "TITLE and DATA: a column header and a "
-                              "grade designation from the book"),
-    "src/booksmith/processing/read/driver.py": (39, "TITLE, two of them"),
-    "src/booksmith/core/knobs.py": (60, "TITLE, three knob descriptions"),
-    "src/booksmith/core/textnorm.py": (20, "TITLE: the book whose 1935 nested blocks "
-                                        "measured the latex step"),
-    "src/booksmith/datasets/metrics/text.py": (5, "TITLE, and the name of the dead truth key "
-                              "this file stopped reading"),
+                                   "cell of the table this parser was built "
+                                   "from"),
+    "src/booksmith/core/raster.py": (20, "TITLE"),
+    "src/booksmith/core/textnorm.py": (20, "TITLE: the book whose 1935 nested "
+                                       "blocks measured the latex step"),
+    "src/booksmith/datasets/make/synth/books/slovar.py": (
+        136, "PAGE: the Russian half of the parallel-text page. It was an "
+        "inline literal in the middle of a function once, exempted by "
+        "nothing, and translating it would have destroyed the page"),
+    "src/booksmith/datasets/make/synth/draw.py": (
+        332, "PAGE: the words and syllables the drawers put on a synthetic "
+        "sheet. The bench pretends to be a Russian technical book, and the "
+        "ink measurement is taken over these very glyphs"),
+    "src/booksmith/datasets/metrics/text.py": (5, "TITLE, and the name of the "
+                                               "dead truth key this file "
+                                               "stopped reading"),
+    "src/booksmith/processing/assess/ink.py": (20, "TITLE"),
+    "src/booksmith/processing/extract/djvu.py": (
+        226, "TITLE and DATA: four books, and the three table captions split "
+        "across the gutter"),
+    "src/booksmith/processing/read/driver.py": (39, "TITLE"),
     "tests/test_data_contract.py": (4, "TOOL: the bounds of the Cyrillic "
                                     "block, in two regexps hunting Russian "
                                     "`data-` attributes and class names"),
@@ -312,41 +204,14 @@ RESIDUE = {
 }
 
 
-def residue():
-    """path -> Cyrillic left, over everything the ratchet presses on.
-
-    Book content, tracked data and the rename records are weighed elsewhere and
-    do not appear here.
-    """
-    out = {}
-    for rel in tracked():
-        if (any(rel.startswith(d) for d in DATA_PREFIXES)
-                or rel in RECORD_FILES or rel.endswith(RECORD_GLOBS)):
-            continue
-        if rel.endswith(".py"):
-            c = collections.Counter()
-            py_areas([os.path.join(ROOT, rel)], "x", c)
-            n = sum(v for k, v in c.items()
-                    if not k.endswith(".latin") and k != "book_prose")
-        else:
-            try:
-                n = cyr(open(os.path.join(ROOT, rel), encoding="utf-8").read())
-            except (UnicodeDecodeError, IsADirectoryError, FileNotFoundError):
-                n = 0
-        if n:
-            out[rel] = n
-    return out
-
-
 def undeclared(now=None):
-    """(unexpected, moved, stale) -- the three ways the lock can break.
+    """(Cyrillic where none is declared, declared counts that moved, entries
+    for Cyrillic that is gone).
 
-    `unexpected`: Russian in a file that declares none. That is the
-    translation going backwards, and it is the direction a ratchet catches.
-    `moved`: a declared file whose count changed -- someone edited evidence,
-    and it is worth a second look either way.
-    `stale`: a declaration for Cyrillic that is no longer there, which is the
-    direction a ratchet is blind to and the one that makes lists rot.
+    Three directions, and the third is the one a ratchet was blind to: a
+    declaration for characters that are no longer there is a list rotting --
+    which is exactly how the file-glob exemption and the constant-name list
+    both went wrong earlier in this migration.
     """
     now = residue() if now is None else now
     unexpected = {p: n for p, n in now.items() if p not in RESIDUE}
@@ -356,63 +221,28 @@ def undeclared(now=None):
     return unexpected, moved, stale
 
 
-def ratchet_areas(c):
-    """Areas the ratchet presses on: Cyrillic only, book content excluded.
-
-    The `.latin` companions are not pressed on -- they are allowed and expected
-    to rise. They are read by `test_prose_was_translated_not_deleted`, which
-    asks the question this instrument could not answer on its own: did the
-    Cyrillic that left an area turn into English, or into nothing?
-    """
-    return {k: v for k, v in c.items()
-            if k not in ("book_prose", "bench_data", "rename_record")
-            and not k.endswith(".latin")}
-
-
 def main(argv):
-    c = count()
-    if "--save" in argv:
-        with open(BASELINE, "w", encoding="utf-8") as f:
-            json.dump(c, f, ensure_ascii=False, indent=1, sort_keys=True)
-            f.write("\n")
-        print(f"baseline written: {BASELINE}")
-    width = max(len(k) for k in c)
-    for k in sorted(c, key=lambda k: (-c[k], k)):
-        print(f"  {c[k]:>9}  {k:<{width}}")
-    press = ratchet_areas(c)
-    print(f"\n  {sum(press.values()):>9}  TOTAL under the ratchet")
-    print(f"  {c.get('book_prose', 0):>9}  book prose (exempt, must not move)")
-    print(f"  {c.get('rename_record', 0):>9}  records (exempt: the rename maps "
-          f"and the logs of paid runs)")
-    print(f"  {c.get('bench_data', 0):>9}  bench data (exempt: records of "
-          f"runs, rewritten only by re-running them)")
+    now = residue()
+    for path, n in sorted(now.items(), key=lambda kv: (-kv[1], kv[0])):
+        why = RESIDUE.get(path, (0, "UNDECLARED"))[1]
+        print(f"  {n:>5}  {path}\n         {why}")
+    print(f"\n  {sum(now.values()):>5}  ours, every character declared above")
+    for what, n in weighed().items():
+        print(f"  {n:>5}  {what}")
     if "--check" in argv:
-        if not os.path.isfile(BASELINE):
-            print("no baseline; run --save first")
-            return 1
-        base = json.load(open(BASELINE, encoding="utf-8"))
-        grew = {k: (base.get(k, 0), v) for k, v in press.items()
-                if v > base.get(k, 0)}
-        if grew:
-            for k, (was, now) in sorted(grew.items()):
-                print(f"GREW  {k}: {was} -> {now}")
-            return 1
-        print("ratchet holds: no area grew")
-    if "--lock" in argv or "--check" in argv:
-        unexpected, moved, stale = undeclared()
+        unexpected, moved, stale = undeclared(now)
         for path, n in sorted(unexpected.items()):
             print(f"UNDECLARED  {path}: {n} Cyrillic, and no entry in RESIDUE")
-        for path, (was, now) in sorted(moved.items()):
-            print(f"MOVED       {path}: declared {was}, found {now} -- "
+        for path, (was, is_) in sorted(moved.items()):
+            print(f"MOVED       {path}: declared {was}, found {is_} -- "
                   f"{RESIDUE[path][1]}")
         for path in stale:
             print(f"STALE       {path}: declared {RESIDUE[path][0]}, and there "
                   f"is none left")
         if unexpected or moved or stale:
             return 1
-        total = sum(residue().values())
-        print(f"lock holds: {total} Cyrillic in {len(RESIDUE)} files, every "
-              f"one declared")
+        print(f"lock holds: {sum(now.values())} Cyrillic in {len(RESIDUE)} "
+              f"files, every one declared")
     return 0
 
 
