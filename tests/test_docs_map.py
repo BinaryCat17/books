@@ -185,20 +185,27 @@ def test_a_measurement_is_not_restated_in_a_second_document():
     place only: four named numbers forbidden to return to the map. Between the
     documents themselves nothing counted.
 
-    A ceiling, not a ban: 25 stand today and step 5 is the split that removes
-    them. It may fall and never rise -- and a fall that leaves the ceiling
-    behind is red too, or the number stops pressing.
+    A ceiling, not a ban, and it counts COPIES: a figure in seven documents is
+    six copies, not one duplicate, and a figure stated twice in ONE document
+    is a copy too -- which is the case the map opens with, and which the first
+    edition could not see because it read each document into a set. It may
+    fall and never rise, and a fall that leaves the ceiling behind is red too,
+    or the number stops pressing.
     """
     from booksmith.tree import figures
     d = figures.duplicates()
-    assert len(d) <= figures.CEILING, (
-        f"{len(d)} measurements are stated in more than one document, against "
-        f"a ceiling of {figures.CEILING}. New: "
-        f"{sorted(d)[:6]}. Point at the document that owns the number.")
-    assert len(d) == figures.CEILING, (
-        f"the ceiling is stale: {len(d)} left and it says {figures.CEILING}. "
-        f"Lower it in tree/figures.py -- a ratchet that stops pressing is not "
-        f"a ratchet.")
+    n = figures.copies(d)
+    assert n <= figures.CEILING, (
+        f"{n} redundant copies of {len(d)} measurements, against a ceiling of "
+        f"{figures.CEILING}. Point at the document that owns the number "
+        f"instead of restating it.")
+    assert n == figures.CEILING, (
+        f"the ceiling is stale: {n} copies left and it says "
+        f"{figures.CEILING}. Lower it in tree/figures.py -- a ratchet that "
+        f"stops pressing is not a ratchet.")
+    assert "METRICS.md" not in figures.documents(), (
+        "the generated document is being counted: it is rendered afresh from "
+        "the records and cannot drift from what it restates")
 
 
 def test_the_generated_metrics_file_is_generated_and_current():

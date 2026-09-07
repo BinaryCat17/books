@@ -1,0 +1,676 @@
+{
+ "commit": "f7407d40583d9d79cb9f8ecff4d56a8382ad8fe2+dirty tree",
+ "records": [
+  {
+   "bench": "zhurnal",
+   "detail": {
+    "assembly_order": {
+     "agreement": 0.7713806595863612,
+     "blocks_without_rank": 0,
+     "page_count": 10,
+     "pages_total": 10,
+     "pairs": 1789,
+     "pairs_possible": 1827
+    },
+    "book": "sha256 checked: cc1536912893; raster checked: 10 pages, sizes agree",
+    "by_case": {
+     "zh_article_head": {
+      "artifacts": 0,
+      "found": 0,
+      "troubles": {}
+     },
+     "zh_box_insert": {
+      "artifacts": 0,
+      "found": 0,
+      "troubles": {}
+     },
+     "zh_footnotes": {
+      "artifacts": 0,
+      "found": 0,
+      "troubles": {}
+     },
+     "zh_mixed": {
+      "artifacts": 2,
+      "found": 2,
+      "troubles": {}
+     },
+     "zh_photo_and_table": {
+      "artifacts": 2,
+      "found": 2,
+      "troubles": {}
+     },
+     "zh_pull_quote": {
+      "artifacts": 0,
+      "found": 0,
+      "troubles": {}
+     },
+     "zh_references": {
+      "artifacts": 0,
+      "found": 0,
+      "troubles": {}
+     },
+     "zh_side_caption": {
+      "artifacts": 1,
+      "found": 1,
+      "troubles": {}
+     },
+     "zh_two_col_plain": {
+      "artifacts": 0,
+      "found": 0,
+      "troubles": {}
+     },
+     "zh_wrap_figure": {
+      "artifacts": 1,
+      "found": 1,
+      "troubles": {}
+     }
+    },
+    "by_label": {
+     "abstract": {
+      "bucket": "text",
+      "found": 1,
+      "truth": 1
+     },
+     "aside_text": {
+      "bucket": "text",
+      "found": 1,
+      "truth": 1
+     },
+     "chart": {
+      "bucket": "artifact",
+      "found": 1,
+      "truth": 1
+     },
+     "doc_title": {
+      "bucket": "text",
+      "found": 1,
+      "truth": 1
+     },
+     "figure_title": {
+      "bucket": "text",
+      "found": 5,
+      "truth": 5
+     },
+     "footnote": {
+      "bucket": "furniture",
+      "found": 8,
+      "truth": 8
+     },
+     "header": {
+      "bucket": "furniture",
+      "found": 2,
+      "truth": 2
+     },
+     "image": {
+      "bucket": "artifact",
+      "found": 3,
+      "truth": 3
+     },
+     "number": {
+      "bucket": "furniture",
+      "found": 10,
+      "truth": 10
+     },
+     "paragraph_title": {
+      "bucket": "text",
+      "found": 1,
+      "truth": 1
+     },
+     "reference_content": {
+      "bucket": "text",
+      "found": 2,
+      "truth": 2
+     },
+     "table": {
+      "bucket": "artifact",
+      "found": 2,
+      "truth": 2
+     },
+     "text": {
+      "bucket": "text",
+      "found": 150,
+      "truth": 152
+     }
+    },
+    "jumps": {
+     "boxes_counted": 228,
+     "boxes_other_buckets": 26,
+     "by_page": {
+      "0": 18,
+      "1": 15,
+      "2": 14,
+      "3": 14,
+      "4": 8,
+      "5": 15,
+      "6": 14,
+      "7": 16,
+      "8": 15,
+      "9": 11
+     },
+     "columns": 20,
+     "excess_jumps": 140,
+     "full_width_boxes": 1,
+     "page_count": 10,
+     "pages_counted": 10,
+     "pages_not_counted_too_few_boxes": 0,
+     "pages_with_2plus_columns": 10,
+     "params": {
+      "buckets_counted": [
+       "artifact",
+       "text"
+      ],
+      "full_width_box_share": 0.6,
+      "min_boxes_per_page": 2,
+      "x_overlap_of_narrow_box": 0.5
+     },
+     "per_page": 14.0,
+     "transitions": 150,
+     "why": ""
+    },
+    "label_confusion": {
+     "abstract->text": 1,
+     "aside_text->text": 1,
+     "chart->picture": 1,
+     "doc_title->section_header": 1,
+     "figure_title->caption": 4,
+     "figure_title->text": 1,
+     "footnote->footnote": 7,
+     "footnote->text": 1,
+     "header->page_header": 2,
+     "image->picture": 3,
+     "number->page_footer": 9,
+     "number->page_header": 1,
+     "paragraph_title->section_header": 1,
+     "reference_content->text": 2,
+     "table->table": 2,
+     "text->text": 150
+    },
+    "model_order": {
+     "agreement": null,
+     "page_count": 10,
+     "pages_total": 10,
+     "pairs": 0,
+     "pairs_possible": 1827,
+     "why": "the model gives no rank (ours_top_down_left_right)"
+    },
+    "order_rule": "ours_top_down_left_right",
+    "order_truth": {
+     "page_count": 10,
+     "states": {
+      "marked": 10
+     }
+    },
+    "sense": {
+     "called_text": 0,
+     "cropped": 0,
+     "intact": 6,
+     "merged": 0,
+     "not_seen": 0,
+     "objects": 6,
+     "share": 1.0,
+     "threshold_fits": 0.9,
+     "threshold_neighbour": 0.5
+    },
+    "text_and_furniture": {
+     "block_count": 183,
+     "found": 181,
+     "pages_total": 10,
+     "pages_with_text_markup": 10,
+     "share": 0.9890710382513661
+    },
+    "totals": {
+     "artifacts": 6,
+     "found": 6,
+     "share": 1.0
+    },
+    "troubles": {}
+   },
+   "metric": "contour",
+   "params": {
+    "COLUMN_buckets_counted": [
+     "artifact",
+     "text"
+    ],
+    "COLUMN_full_width_box_share": 0.6,
+    "COLUMN_min_boxes_per_page": 2,
+    "COLUMN_x_overlap_of_narrow_box": 0.5,
+    "COVER_MATCH": 0.75,
+    "SENSE_NEIGHBOUR": 0.5,
+    "SENSE_WHOLE": 0.9,
+    "TOL_PX": 6.0,
+    "TOUCH": 0.1
+   },
+   "run": "docling-heron",
+   "scalars": {
+    "artefacts_called_text": {
+     "count": {
+      "n": 0,
+      "of": 6
+     },
+     "value": 0.0
+    },
+    "artefacts_cropped": {
+     "count": {
+      "n": 0,
+      "of": 6
+     },
+     "value": 0.0
+    },
+    "artefacts_found": {
+     "count": {
+      "n": 6,
+      "of": 6
+     },
+     "value": 1.0
+    },
+    "artefacts_merged": {
+     "count": {
+      "n": 0,
+      "of": 6
+     },
+     "value": 0.0
+    },
+    "artefacts_not_seen": {
+     "count": {
+      "n": 0,
+      "of": 6
+     },
+     "value": 0.0
+    },
+    "assembly_order": {
+     "over": {
+      "n": 10,
+      "of": 10,
+      "unit": "pages"
+     },
+     "value": 0.7713806595863612
+    },
+    "excess_jumps_per_page": {
+     "over": {
+      "n": 10,
+      "of": 10,
+      "unit": "pages"
+     },
+     "value": 14.0
+    },
+    "label_errors": {
+     "value": null,
+     "why": "the two sides speak different label vocabularies; not compared"
+    },
+    "model_order": {
+     "over": {
+      "n": 10,
+      "of": 10,
+      "unit": "pages"
+     },
+     "value": null,
+     "why": "the model gives no rank (ours_top_down_left_right)"
+    },
+    "role_errors": {
+     "count": {
+      "n": 1,
+      "of": 187
+     },
+     "value": 1
+    },
+    "sense_whole": {
+     "count": {
+      "n": 6,
+      "of": 6
+     },
+     "value": 1.0
+    },
+    "text_furniture_found": {
+     "count": {
+      "n": 181,
+      "of": 183
+     },
+     "over": {
+      "n": 10,
+      "of": 10,
+      "unit": "pages"
+     },
+     "value": 0.9890710382513661
+    }
+   }
+  },
+  {
+   "bench": "zhurnal",
+   "detail": {
+    "almost_intact": 1,
+    "arrived_with_company": 0,
+    "bitten": 1,
+    "boxes_area": 8905157,
+    "boxes_with_many_objects": 0,
+    "dark_columns": 0,
+    "dark_columns_positions": [],
+    "dpi": [
+     144
+    ],
+    "empty_objects": 0,
+    "in_one_box": 4,
+    "ink_in_dark_columns": 0,
+    "ink_in_dark_columns_off_edge": 0,
+    "ink_outside_boxes_at_edge": 2487,
+    "ink_total": 2367945,
+    "ink_under_artifact": 163368,
+    "ink_under_boxes": 2344706,
+    "intact": 4,
+    "left_as_text": 0,
+    "object_ink": 163915,
+    "object_ink_in_boxes": 163364,
+    "objects": 6,
+    "page_count": 10,
+    "pages_with_dark_column": 0,
+    "sheet_area": 16416000,
+    "split_between_boxes": 0,
+    "thresholds": {
+     "almost": 0.95,
+     "bitten": 0.8,
+     "edge_band": 0.04,
+     "ink": 160,
+     "intact": 0.99
+    },
+    "torn": 0,
+    "truth_pages": 10
+   },
+   "metric": "fitness",
+   "params": {
+    "GUTTER": 0.5,
+    "almost": 0.95,
+    "bitten": 0.8,
+    "dpi": [
+     144
+    ],
+    "edge_band": 0.04,
+    "ink": 160,
+    "intact": 0.99
+   },
+   "run": "docling-heron",
+   "scalars": {
+    "area_under_boxes": {
+     "count": {
+      "n": 8905157,
+      "of": 16416000
+     },
+     "value": 0.5424681408382066
+    },
+    "ink_outside_boxes": {
+     "count": {
+      "n": 23239,
+      "of": 2367945
+     },
+     "value": 0.009813994835184081
+    },
+    "ink_under_artefacts": {
+     "count": {
+      "n": 163368,
+      "of": 2367945
+     },
+     "value": 0.06899146728492427
+    },
+    "ink_under_boxes": {
+     "count": {
+      "n": 2344706,
+      "of": 2367945
+     },
+     "value": 0.9901860051648159
+    },
+    "object_ink_preserved": {
+     "count": {
+      "n": 163364,
+      "of": 163915
+     },
+     "value": 0.996638501662447
+    },
+    "objects_in_one_box": {
+     "count": {
+      "n": 4,
+      "of": 6
+     },
+     "value": 0.6666666666666666
+    },
+    "objects_intact": {
+     "count": {
+      "n": 4,
+      "of": 6
+     },
+     "value": 0.6666666666666666
+    },
+    "objects_left_as_text": {
+     "count": {
+      "n": 0,
+      "of": 6
+     },
+     "value": 0.0
+    },
+    "objects_torn": {
+     "count": {
+      "n": 0,
+      "of": 6
+     },
+     "value": 0.0
+    },
+    "objects_with_company": {
+     "count": {
+      "n": 0,
+      "of": 6
+     },
+     "value": 0.0
+    }
+   }
+  },
+  {
+   "bench": "zhurnal",
+   "detail": {
+    "boxes_counted": 228,
+    "boxes_other_buckets": 26,
+    "by_page": {
+     "0": 18,
+     "1": 15,
+     "2": 14,
+     "3": 14,
+     "4": 8,
+     "5": 15,
+     "6": 14,
+     "7": 16,
+     "8": 15,
+     "9": 11
+    },
+    "columns": 20,
+    "excess_jumps": 140,
+    "full_width_boxes": 1,
+    "page_count": 10,
+    "pages_counted": 10,
+    "pages_not_counted_too_few_boxes": 0,
+    "pages_with_2plus_columns": 10,
+    "params": {
+     "buckets_counted": [
+      "artifact",
+      "text"
+     ],
+     "full_width_box_share": 0.6,
+     "min_boxes_per_page": 2,
+     "x_overlap_of_narrow_box": 0.5
+    },
+    "per_page": 14.0,
+    "transitions": 150,
+    "why": ""
+   },
+   "metric": "assembly",
+   "params": {
+    "COLUMN_buckets_counted": [
+     "artifact",
+     "text"
+    ],
+    "COLUMN_full_width_box_share": 0.6,
+    "COLUMN_min_boxes_per_page": 2,
+    "COLUMN_x_overlap_of_narrow_box": 0.5,
+    "order_rule": "ours_top_down_left_right"
+   },
+   "run": "docling-heron",
+   "scalars": {
+    "excess_jumps": {
+     "value": 140
+    },
+    "excess_jumps_per_page": {
+     "over": {
+      "n": 10,
+      "of": 10,
+      "unit": "pages"
+     },
+     "value": 14.0
+    },
+    "pages_with_columns": {
+     "count": {
+      "n": 10,
+      "of": 10
+     },
+     "value": 10
+    },
+    "transitions": {
+     "value": 150
+    }
+   }
+  },
+  {
+   "bench": "zhurnal",
+   "detail": {
+    "empty": [
+     [
+      "knobs",
+      "VL_MODEL_DIR",
+      "value"
+     ],
+     [
+      "knobs",
+      "YOLOX_WEIGHTS",
+      "value"
+     ],
+     [
+      "knobs",
+      "LAYOUT_MODEL_DIR",
+      "value"
+     ],
+     [
+      "knobs",
+      "CROP_DPI",
+      "value"
+     ],
+     [
+      "knobs",
+      "BOOKSMITH_COMMIT",
+      "value"
+     ],
+     [
+      "knobs",
+      "BOOKSMITH_LEDGER",
+      "value"
+     ],
+     [
+      "knobs",
+      "VLM_ENDPOINT",
+      "value"
+     ],
+     [
+      "prompts"
+     ],
+     [
+      "generation",
+      "temperature"
+     ],
+     [
+      "generation",
+      "max_tokens"
+     ],
+     [
+      "generation",
+      "top_p"
+     ],
+     [
+      "generation",
+      "seed"
+     ],
+     [
+      "weights",
+      "vl"
+     ],
+     [
+      "fingerprint",
+      "docling_pipeline",
+      "docling_version"
+     ],
+     [
+      "fingerprint",
+      "docling_pipeline",
+      "label_map_to_docling"
+     ],
+     [
+      "fingerprint",
+      "docling_pipeline",
+      "postprocess_options"
+     ],
+     [
+      "fingerprint",
+      "docling_pipeline",
+      "sha256_vendor_files"
+     ],
+     [
+      "fingerprint",
+      "docling_pipeline",
+      "summary"
+     ],
+     [
+      "fingerprint",
+      "label_map"
+     ],
+     [
+      "fingerprint",
+      "native_threshold"
+     ],
+     [
+      "fingerprint",
+      "prompts"
+     ],
+     [
+      "fingerprint",
+      "reading_order"
+     ]
+    ],
+    "missing": [],
+    "required": 84,
+    "shape": "the fingerprint of adapter docling-heron is verified: processing/layout/adapters/docling.py is the very one (sha256 matches, identified by module name), 32 values were derived from it"
+   },
+   "metric": "snapshot",
+   "params": {},
+   "run": "docling-heron",
+   "scalars": {
+    "empty": {
+     "count": {
+      "n": 22,
+      "of": 84
+     },
+     "value": 22
+    },
+    "fingerprint_verified": {
+     "value": 1
+    },
+    "missing": {
+     "count": {
+      "n": 0,
+      "of": 84
+     },
+     "value": 0
+    },
+    "values_present": {
+     "count": {
+      "n": 84,
+      "of": 84
+     },
+     "value": 84
+    }
+   }
+  }
+ ],
+ "when": "2026-09-07T18:52:54+0300"
+}

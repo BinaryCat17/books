@@ -22,7 +22,18 @@ class AssemblyMetric(Metric):
                 j.get("per_page"), over=(j.get("pages_counted", 0), j.get("page_count", 0)),
                 unit="pages",
                 why=None if j.get("per_page") is not None else j.get("why") or "not counted"),
-            "excess_jumps": Scalar(j.get("excess_jumps", 0)),
+            # `.get(key, 0)` DEFAULTS ON A MISSING KEY AND NOT ON A NULL ONE,
+            # and `column_jumps` returns the key with None in it whenever not
+            # one page gathered enough boxes to jump between -- "the quantity
+            # is UNDEFINED", which is the whole reason it says so. So this
+            # raised `a scalar without a value must say why` on the first
+            # (bench, model) pair that hit it: katalog under yolox, found by
+            # the sweep and by nothing before it, because no combination in
+            # the tree had ever produced an empty count.
+            "excess_jumps": Scalar(
+                j.get("excess_jumps"),
+                why=None if j.get("excess_jumps") is not None
+                else j.get("why") or "not counted"),
             "transitions": Scalar(j.get("transitions", 0)),
             "pages_with_columns": Scalar(j.get("pages_with_2plus_columns", 0),
                                          count=(j.get("pages_with_2plus_columns", 0), j.get("page_count", 0))),

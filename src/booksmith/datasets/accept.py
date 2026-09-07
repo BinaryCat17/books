@@ -359,10 +359,21 @@ def numbers_moved(name):
 
 def main(argv):
     if "--numbers" in argv:
-        rc = 0
+        # THE SAME ACCOUNTING AS THE DEFAULT MODE, and it was missing here for
+        # a while after the default mode gained it -- the verbatim shape the
+        # fix condemned, in the branch the module header names as THE
+        # instrument for a prose translation. It also swallowed a missing
+        # SNAPSHOT as a skip, where the default mode makes that red.
+        rc, skipped = 0, []
         for name in COMMANDS:
-            if missing(name) or not os.path.isfile(path(name)):
-                print(f"  SKIPPED {name}")
+            gone_paths = missing(name)
+            if gone_paths:
+                print(f"  SKIPPED {name}: missing {', '.join(gone_paths)}")
+                skipped.append(name)
+                continue
+            if not os.path.isfile(path(name)):
+                print(f"  NO SNAPSHOT {name}: run --save")
+                rc = 1
                 continue
             gone, came = numbers_moved(name)
             if gone or came:
@@ -370,7 +381,7 @@ def main(argv):
                 print(f"  MOVED   {name}: lost {gone[:6]}, gained {came[:6]}")
             else:
                 print(f"  same numbers  {name}")
-        return rc
+        return _skip_verdict(rc, skipped, argv, len(COMMANDS))
     if "--save" in argv:
         # `--save NAME...` saves only those; bare `--save` saves everything.
         # Naming them matters: a blanket save blesses every other report
@@ -403,7 +414,10 @@ def main(argv):
         gone = record_missing(name)
         if gone:
             print(f"  SKIPPED record {name}: missing {', '.join(gone)}")
-            skipped.append(name)
+            # TAGGED. `RECORDS` and `COMMANDS` share three names, so a total
+            # wipe printed `score-annopage, score-annopage` and the naming --
+            # the stated point of the accounting -- said nothing.
+            skipped.append(f"record {name}")
             continue
         if not os.path.isfile(record_path(name)):
             print(f"  NO RECORD {name}: run --save")
@@ -447,13 +461,19 @@ def main(argv):
     # `--allow-skips` is for the second: a fresh clone, where nothing is built
     # and nothing can be proved. It says so out loud rather than passing
     # quietly.
+    return _skip_verdict(rc, skipped, argv, len(COMMANDS) + len(RECORDS))
+
+
+def _skip_verdict(rc, skipped, argv, total):
+    """A skip is not a pass, and the exit code says so. One reader for both
+    modes -- the second mode went without it once already."""
     if skipped:
-        print(f"  {len(skipped)} of {len(COMMANDS) + len(RECORDS)} proved "
-              f"NOTHING (no input): {', '.join(sorted(skipped))}")
+        print(f"  {len(skipped)} of {total} proved NOTHING (no input): "
+              f"{', '.join(sorted(skipped))}")
         if "--allow-skips" not in argv:
             print("  a skip is not a pass. Build what is missing, or say "
                   "--allow-skips to accept proving less.")
-            rc = 1
+            return 1
     return rc
 
 

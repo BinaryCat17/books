@@ -1,0 +1,638 @@
+{
+ "commit": "f7407d40583d9d79cb9f8ecff4d56a8382ad8fe2+dirty tree",
+ "records": [
+  {
+   "bench": "matematika",
+   "detail": {
+    "assembly_order": {
+     "agreement": 1.0,
+     "blocks_without_rank": 0,
+     "page_count": 12,
+     "pages_total": 12,
+     "pairs": 409,
+     "pairs_possible": 738
+    },
+    "book": "sha256 checked: 6e33e29f0f16; raster checked: 12 pages, sizes agree",
+    "by_case": {
+     "mat_chain": {
+      "artifacts": 7,
+      "found": 0,
+      "troubles": {
+       "merge (display_formula)": 7,
+       "spurious_box": 1
+      }
+     },
+     "mat_display_numbered": {
+      "artifacts": 6,
+      "found": 0,
+      "troubles": {
+       "spill (display_formula)": 6,
+       "spurious_box": 7
+      }
+     },
+     "mat_greek": {
+      "artifacts": 5,
+      "found": 0,
+      "troubles": {
+       "merge (display_formula)": 5,
+       "spurious_box": 1
+      }
+     },
+     "mat_inline": {
+      "artifacts": 0,
+      "found": 0,
+      "troubles": {}
+     },
+     "mat_matrix": {
+      "artifacts": 2,
+      "found": 2,
+      "troubles": {}
+     },
+     "mat_matrix_vs_table": {
+      "artifacts": 2,
+      "found": 0,
+      "troubles": {
+       "merge (display_formula)": 1,
+       "merge (table)": 1,
+       "spurious_box": 1
+      }
+     },
+     "mat_numbered_list": {
+      "artifacts": 0,
+      "found": 0,
+      "troubles": {}
+     },
+     "mat_plain_prose": {
+      "artifacts": 0,
+      "found": 0,
+      "troubles": {}
+     },
+     "mat_references": {
+      "artifacts": 0,
+      "found": 0,
+      "troubles": {}
+     },
+     "mat_system": {
+      "artifacts": 1,
+      "found": 1,
+      "troubles": {}
+     },
+     "mat_tall_fraction": {
+      "artifacts": 4,
+      "found": 0,
+      "troubles": {
+       "not seen (display_formula)": 4
+      }
+     },
+     "mat_theorem": {
+      "artifacts": 0,
+      "found": 0,
+      "troubles": {}
+     }
+    },
+    "by_label": {
+     "display_formula": {
+      "bucket": "artifact",
+      "found": 3,
+      "truth": 26
+     },
+     "formula_number": {
+      "bucket": "text",
+      "found": 0,
+      "truth": 6
+     },
+     "paragraph_title": {
+      "bucket": "text",
+      "found": 3,
+      "truth": 3
+     },
+     "reference_content": {
+      "bucket": "text",
+      "found": 0,
+      "truth": 1
+     },
+     "table": {
+      "bucket": "artifact",
+      "found": 0,
+      "truth": 1
+     },
+     "text": {
+      "bucket": "text",
+      "found": 94,
+      "truth": 94
+     }
+    },
+    "jumps": {
+     "boxes_counted": 46,
+     "boxes_other_buckets": 0,
+     "by_page": {},
+     "columns": 4,
+     "excess_jumps": 0,
+     "full_width_boxes": 115,
+     "page_count": 12,
+     "pages_counted": 4,
+     "pages_not_counted_too_few_boxes": 8,
+     "pages_with_2plus_columns": 0,
+     "params": {
+      "buckets_counted": [
+       "artifact",
+       "text"
+      ],
+      "full_width_box_share": 0.6,
+      "min_boxes_per_page": 2,
+      "x_overlap_of_narrow_box": 0.5
+     },
+     "per_page": 0.0,
+     "transitions": 0,
+     "why": ""
+    },
+    "label_confusion": {
+     "display_formula->Formula": 3,
+     "paragraph_title->Section-header": 3,
+     "text->List-item": 9,
+     "text->Text": 85
+    },
+    "model_order": {
+     "agreement": null,
+     "page_count": 12,
+     "pages_total": 12,
+     "pairs": 0,
+     "pairs_possible": 738,
+     "why": "the model gives no rank (ours_top_down_left_right)"
+    },
+    "order_rule": "ours_top_down_left_right",
+    "order_truth": {
+     "page_count": 12,
+     "states": {
+      "marked": 12
+     }
+    },
+    "sense": {
+     "called_text": 0,
+     "cropped": 2,
+     "intact": 8,
+     "merged": 13,
+     "not_seen": 4,
+     "objects": 27,
+     "share": 0.2962962962962963,
+     "threshold_fits": 0.9,
+     "threshold_neighbour": 0.5
+    },
+    "text_and_furniture": {
+     "block_count": 104,
+     "found": 97,
+     "pages_total": 12,
+     "pages_with_text_markup": 12,
+     "share": 0.9326923076923077
+    },
+    "totals": {
+     "artifacts": 27,
+     "found": 3,
+     "share": 0.1111111111111111
+    },
+    "troubles": {
+     "merge (display_formula)": 13,
+     "merge (table)": 1,
+     "not seen (display_formula)": 4,
+     "spill (display_formula)": 6,
+     "spurious_box": 10
+    }
+   },
+   "metric": "contour",
+   "params": {
+    "COLUMN_buckets_counted": [
+     "artifact",
+     "text"
+    ],
+    "COLUMN_full_width_box_share": 0.6,
+    "COLUMN_min_boxes_per_page": 2,
+    "COLUMN_x_overlap_of_narrow_box": 0.5,
+    "COVER_MATCH": 0.75,
+    "SENSE_NEIGHBOUR": 0.5,
+    "SENSE_WHOLE": 0.9,
+    "TOL_PX": 6.0,
+    "TOUCH": 0.1
+   },
+   "run": "docling-egret",
+   "scalars": {
+    "artefacts_called_text": {
+     "count": {
+      "n": 0,
+      "of": 27
+     },
+     "value": 0.0
+    },
+    "artefacts_cropped": {
+     "count": {
+      "n": 2,
+      "of": 27
+     },
+     "value": 0.07407407407407407
+    },
+    "artefacts_found": {
+     "count": {
+      "n": 3,
+      "of": 27
+     },
+     "value": 0.1111111111111111
+    },
+    "artefacts_merged": {
+     "count": {
+      "n": 13,
+      "of": 27
+     },
+     "value": 0.48148148148148145
+    },
+    "artefacts_not_seen": {
+     "count": {
+      "n": 4,
+      "of": 27
+     },
+     "value": 0.14814814814814814
+    },
+    "assembly_order": {
+     "over": {
+      "n": 12,
+      "of": 12,
+      "unit": "pages"
+     },
+     "value": 1.0
+    },
+    "excess_jumps_per_page": {
+     "over": {
+      "n": 4,
+      "of": 12,
+      "unit": "pages"
+     },
+     "value": 0.0
+    },
+    "label_errors": {
+     "value": null,
+     "why": "the two sides speak different label vocabularies; not compared"
+    },
+    "model_order": {
+     "over": {
+      "n": 12,
+      "of": 12,
+      "unit": "pages"
+     },
+     "value": null,
+     "why": "the model gives no rank (ours_top_down_left_right)"
+    },
+    "role_errors": {
+     "count": {
+      "n": 0,
+      "of": 100
+     },
+     "value": 0
+    },
+    "sense_whole": {
+     "count": {
+      "n": 8,
+      "of": 27
+     },
+     "value": 0.2962962962962963
+    },
+    "text_furniture_found": {
+     "count": {
+      "n": 97,
+      "of": 104
+     },
+     "over": {
+      "n": 12,
+      "of": 12,
+      "unit": "pages"
+     },
+     "value": 0.9326923076923077
+    }
+   }
+  },
+  {
+   "bench": "matematika",
+   "detail": {
+    "almost_intact": 0,
+    "arrived_with_company": 14,
+    "bitten": 0,
+    "boxes_area": 7125381,
+    "boxes_with_many_objects": 3,
+    "dark_columns": 0,
+    "dark_columns_positions": [],
+    "dpi": [
+     144
+    ],
+    "empty_objects": 0,
+    "in_one_box": 23,
+    "ink_in_dark_columns": 0,
+    "ink_in_dark_columns_off_edge": 0,
+    "ink_outside_boxes_at_edge": 2235,
+    "ink_total": 1830374,
+    "ink_under_artifact": 29154,
+    "ink_under_boxes": 1816455,
+    "intact": 23,
+    "left_as_text": 0,
+    "object_ink": 33072,
+    "object_ink_in_boxes": 28267,
+    "objects": 27,
+    "page_count": 12,
+    "pages_with_dark_column": 0,
+    "sheet_area": 14871168,
+    "split_between_boxes": 0,
+    "thresholds": {
+     "almost": 0.95,
+     "bitten": 0.8,
+     "edge_band": 0.04,
+     "ink": 160,
+     "intact": 0.99
+    },
+    "torn": 4,
+    "truth_pages": 12
+   },
+   "metric": "fitness",
+   "params": {
+    "GUTTER": 0.5,
+    "almost": 0.95,
+    "bitten": 0.8,
+    "dpi": [
+     144
+    ],
+    "edge_band": 0.04,
+    "ink": 160,
+    "intact": 0.99
+   },
+   "run": "docling-egret",
+   "scalars": {
+    "area_under_boxes": {
+     "count": {
+      "n": 7125381,
+      "of": 14871168
+     },
+     "value": 0.47914064315593774
+    },
+    "ink_outside_boxes": {
+     "count": {
+      "n": 13919,
+      "of": 1830374
+     },
+     "value": 0.007604456794075953
+    },
+    "ink_under_artefacts": {
+     "count": {
+      "n": 29154,
+      "of": 1830374
+     },
+     "value": 0.015927892332386714
+    },
+    "ink_under_boxes": {
+     "count": {
+      "n": 1816455,
+      "of": 1830374
+     },
+     "value": 0.992395543205924
+    },
+    "object_ink_preserved": {
+     "count": {
+      "n": 28267,
+      "of": 33072
+     },
+     "value": 0.8547109337203677
+    },
+    "objects_in_one_box": {
+     "count": {
+      "n": 23,
+      "of": 27
+     },
+     "value": 0.8518518518518519
+    },
+    "objects_intact": {
+     "count": {
+      "n": 23,
+      "of": 27
+     },
+     "value": 0.8518518518518519
+    },
+    "objects_left_as_text": {
+     "count": {
+      "n": 0,
+      "of": 27
+     },
+     "value": 0.0
+    },
+    "objects_torn": {
+     "count": {
+      "n": 4,
+      "of": 27
+     },
+     "value": 0.14814814814814814
+    },
+    "objects_with_company": {
+     "count": {
+      "n": 14,
+      "of": 27
+     },
+     "value": 0.5185185185185185
+    }
+   }
+  },
+  {
+   "bench": "matematika",
+   "detail": {
+    "boxes_counted": 46,
+    "boxes_other_buckets": 0,
+    "by_page": {},
+    "columns": 4,
+    "excess_jumps": 0,
+    "full_width_boxes": 115,
+    "page_count": 12,
+    "pages_counted": 4,
+    "pages_not_counted_too_few_boxes": 8,
+    "pages_with_2plus_columns": 0,
+    "params": {
+     "buckets_counted": [
+      "artifact",
+      "text"
+     ],
+     "full_width_box_share": 0.6,
+     "min_boxes_per_page": 2,
+     "x_overlap_of_narrow_box": 0.5
+    },
+    "per_page": 0.0,
+    "transitions": 0,
+    "why": ""
+   },
+   "metric": "assembly",
+   "params": {
+    "COLUMN_buckets_counted": [
+     "artifact",
+     "text"
+    ],
+    "COLUMN_full_width_box_share": 0.6,
+    "COLUMN_min_boxes_per_page": 2,
+    "COLUMN_x_overlap_of_narrow_box": 0.5,
+    "order_rule": "ours_top_down_left_right"
+   },
+   "run": "docling-egret",
+   "scalars": {
+    "excess_jumps": {
+     "value": 0
+    },
+    "excess_jumps_per_page": {
+     "over": {
+      "n": 4,
+      "of": 12,
+      "unit": "pages"
+     },
+     "value": 0.0
+    },
+    "pages_with_columns": {
+     "count": {
+      "n": 0,
+      "of": 12
+     },
+     "value": 0
+    },
+    "transitions": {
+     "value": 0
+    }
+   }
+  },
+  {
+   "bench": "matematika",
+   "detail": {
+    "empty": [
+     [
+      "knobs",
+      "VL_MODEL_DIR",
+      "value"
+     ],
+     [
+      "knobs",
+      "YOLOX_WEIGHTS",
+      "value"
+     ],
+     [
+      "knobs",
+      "LAYOUT_MODEL_DIR",
+      "value"
+     ],
+     [
+      "knobs",
+      "CROP_DPI",
+      "value"
+     ],
+     [
+      "knobs",
+      "BOOKSMITH_COMMIT",
+      "value"
+     ],
+     [
+      "knobs",
+      "BOOKSMITH_LEDGER",
+      "value"
+     ],
+     [
+      "knobs",
+      "VLM_ENDPOINT",
+      "value"
+     ],
+     [
+      "prompts"
+     ],
+     [
+      "generation",
+      "temperature"
+     ],
+     [
+      "generation",
+      "max_tokens"
+     ],
+     [
+      "generation",
+      "top_p"
+     ],
+     [
+      "generation",
+      "seed"
+     ],
+     [
+      "weights",
+      "vl"
+     ],
+     [
+      "fingerprint",
+      "docling_pipeline",
+      "docling_version"
+     ],
+     [
+      "fingerprint",
+      "docling_pipeline",
+      "label_map_to_docling"
+     ],
+     [
+      "fingerprint",
+      "docling_pipeline",
+      "postprocess_options"
+     ],
+     [
+      "fingerprint",
+      "docling_pipeline",
+      "sha256_vendor_files"
+     ],
+     [
+      "fingerprint",
+      "docling_pipeline",
+      "summary"
+     ],
+     [
+      "fingerprint",
+      "label_map"
+     ],
+     [
+      "fingerprint",
+      "native_threshold"
+     ],
+     [
+      "fingerprint",
+      "prompts"
+     ],
+     [
+      "fingerprint",
+      "reading_order"
+     ]
+    ],
+    "missing": [],
+    "required": 84,
+    "shape": "the fingerprint of adapter docling-egret is verified: processing/layout/adapters/docling.py is the very one (sha256 matches, identified by module name), 32 values were derived from it"
+   },
+   "metric": "snapshot",
+   "params": {},
+   "run": "docling-egret",
+   "scalars": {
+    "empty": {
+     "count": {
+      "n": 22,
+      "of": 84
+     },
+     "value": 22
+    },
+    "fingerprint_verified": {
+     "value": 1
+    },
+    "missing": {
+     "count": {
+      "n": 0,
+      "of": 84
+     },
+     "value": 0
+    },
+    "values_present": {
+     "count": {
+      "n": 84,
+      "of": 84
+     },
+     "value": 84
+    }
+   }
+  }
+ ],
+ "when": "2026-09-07T18:56:08+0300"
+}

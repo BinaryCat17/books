@@ -1,5 +1,5 @@
 {
- "when": "2026-09-07T14:08:34+0300",
+ "when": "2026-09-07T14:31:05+0300",
  "knobs": {
   "PAGE_DPI": {
    "value": "144",
@@ -385,7 +385,7 @@
   "pages": null,
   "out": "/home/smirn/books/bench/hard36/detect/PP-DocLayoutV2"
  },
- "commit": "44553f64829c8a690bdadf4dc6c3a98bcd53b1f8+dirty tree",
+ "commit": "f7407d40583d9d79cb9f8ecff4d56a8382ad8fe2+dirty tree",
  "identity": "e73ffe76d6af3b04ec5d970d4adec69a02c1c5444a2049d27b191136610036de",
  "label": "PP-DocLayoutV2",
  "source": {
@@ -548,7 +548,7 @@
   "box_count": 792,
   "artifacts": 106,
   "rank_ties": 4,
-  "seconds": 74.53,
+  "seconds": 76.36,
   "by_label": {
    "text": 439,
    "table": 7,

@@ -363,3 +363,61 @@ def test_identity_does_not_depend_on_the_order_the_dict_was_built_in():
         "the same experiment hashed two ways depending on insertion order")
     # And a LIST is ordered content, not a set: reordering it is a change.
     assert stamp.identity({"a": [2, 3]}, {}) != stamp.identity({"a": [3, 2]}, {})
+
+
+def test_identity_is_taken_from_the_real_fingerprints_not_a_hand_written_one():
+    """Both identity defects hid behind a fixture.
+
+    The checks above build a fingerprint by hand -- `{"model": "X",
+    "sha256_weights": "ab", "weights_dir": …}` -- and the only end-to-end one
+    runs `doclayout`, the single adapter whose fingerprint is neither nested
+    nor run-born. So two defects lived in the shape of the REAL ones:
+
+      docling nests the vendor pipeline's fingerprint under
+      `docling_pipeline`, and that nest holds accumulating page counters
+      under `summary`. The exclusion filtered the top level only, so a
+      pipeline run's identity was a function of how many pages it covered.
+
+      the reader's `weights` block opens with `dir`, which is `VL_MODEL_DIR`
+      -- the exact fact the knob exclusion exists for, admitted one field
+      over. Two readings on two rented cards, two identities.
+
+    So this one asks the adapters themselves.
+    """
+    from booksmith.core import stamp
+    from booksmith.processing.layout import detect
+    from booksmith.processing.read.readers.paddleocr_vl import PaddleOcrVl
+
+    def flat(o, path=""):
+        if isinstance(o, dict):
+            for k, v in o.items():
+                yield from flat(v, f"{path}/{k}")
+        elif isinstance(o, list):
+            for i, v in enumerate(o):
+                yield from flat(v, f"{path}/{i}")
+        else:
+            yield path, o
+
+    seen = []
+    for name in detect.ADAPTERS:
+        with support.env(LAYOUT_ADAPTER=name):
+            try:
+                seen.append((name, detect._adapter().fingerprint()))
+            except Exception as e:
+                support.skip(f"{name}: {type(e).__name__}")
+    seen.append(("reader", PaddleOcrVl("PP-DocLayoutV2").fingerprint()))
+
+    for name, fp in seen:
+        kept = dict(flat(stamp._without(fp, stamp.FINGERPRINT_NOT_IDENTITY)))
+        for path, value in kept.items():
+            leaf = path.rsplit("/", 1)[-1]
+            assert leaf not in stamp.FINGERPRINT_NOT_IDENTITY, (
+                f"{name}: {path} survived the exclusion -- it is nested, and "
+                f"the filter must reach every depth")
+            # A machine-local path in the identity means one experiment gets
+            # an identity per machine. Two readings on two rented cards.
+            if isinstance(value, str) and value.startswith(("/", "~")):
+                raise AssertionError(
+                    f"{name}: {path} = {value!r} is an absolute path and is "
+                    f"inside the identity; the same experiment on another "
+                    f"machine would be refused as a different one")

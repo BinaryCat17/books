@@ -103,8 +103,16 @@ def test_the_detect_command_can_actually_run():
     snap = json.load(open(os.path.join(out, "run.json"), encoding="utf-8"))
     for key in ("identity", "label", "source", "fingerprint", "knobs"):
         assert snap.get(key), f"the snapshot has no {key}"
-    assert os.path.isfile(os.path.join(root, snap["adapter"]["module"]
-                                       .replace(".", "/") + ".py")) or True
+    # THE MODULE THE SNAPSHOT NAMES IS ON DISK. This line ended in `or True`
+    # for a day -- a check that cannot fail, in the branch that added "a skip
+    # is not a pass", reading to the mutation battery as coverage. The path is
+    # under `src/`, which is what the `or True` was papering over.
+    mod = os.path.join(os.path.dirname(support.SRC),
+                       snap["adapter"]["module"].replace(".", "/") + ".py")
+    assert os.path.isfile(mod), (
+        f"the snapshot names adapter module {snap['adapter']['module']}, and "
+        f"{mod} is not there: `replay --check` resolves the writer by that "
+        f"name")
     pages = os.listdir(os.path.join(out, "pages"))
     assert len(pages) == 1, f"one page asked for, {len(pages)} written"
     return out, root, pdf

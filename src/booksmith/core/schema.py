@@ -116,6 +116,19 @@ FORMATS = (
         "number) and `pages` (a list) living in the SAME object in seven of "
         "them: a rename mapping both onto `pages` drops the list silently and "
         "leaves valid JSON behind."),
+    Format(
+        "results", "bench/results/*.json",
+        # TRACKED SINCE THE PROSE WAS DELETED. `METRICS.md` is rendered from
+        # these files and from nothing else, so they are the evidence for
+        # every published number and are data like the truth and the
+        # snapshots. A rename of `scalars`, `value` or `count` would empty the
+        # document without emptying a test -- the exact shape this whole file
+        # was written against.
+        {"records": 1, "commit": 1, "when": 1, "metric": 1, "bench": 1,
+         "run": 1, "scalars": 1, "params": 1, "value": 1},
+        "One file per (bench, model). The header (`commit`, `when`) is what "
+        "lets a table refuse to mix two trees. The floors are 1 because a "
+        "clone may hold one file or fifty-four; what they guard is the NAMES."),
 )
 
 

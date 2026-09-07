@@ -133,9 +133,16 @@ bench/*/truth.previous/
 bench/*/*.pdf.new
 bench/*/manifest.json.new
 
-# WHAT `books bench all` WRITES: one JSON of records per bench and run. Not
-# tracked yet: the runs it measures are themselves untracked (the pages are
-# behind `bench/*/detect/pages/` above), so a result here says nothing a
-# fresh clone can check. Step 5 of docs/plan.md decides what is kept and
-# generates docs/results.md from it.
-bench/results/
+# WHAT `books bench all` WRITES: one JSON of records per bench and run, and
+# THEY ARE TRACKED. The rule here used to be the opposite -- "the runs it
+# measures are themselves untracked, so a result says nothing a fresh clone
+# can check" -- and it reversed the moment `METRICS.md` was rendered from
+# them and the prose that held those numbers was deleted. The evidence for a
+# published number has to travel with it: untracked, the only proof of every
+# figure in the document would live on one machine, and the check that the
+# document is current would skip on every clone.
+#
+# ~100 KB each, 54 of them, against 22 MB of bench already tracked. What
+# stays out is `logs/`: the detector's own stdout, reproducible by re-running
+# and large.
+bench/results/logs/

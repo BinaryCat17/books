@@ -48,7 +48,7 @@ from booksmith.core import raster
 
 
 # The three snapshot quantities -- file hash, commit, package versions -- moved
-# to `run/stamp.py`: three places write a snapshot now (this command,
+# to `core/stamp.py`: three places write a snapshot now (this command,
 # `assemble/html.py` and `read/driver.py`), and a second copy is the drift
 # this project
 # has already paid for.

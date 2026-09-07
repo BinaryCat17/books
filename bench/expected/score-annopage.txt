@@ -35,7 +35,7 @@ SENSE WHOLE: 646/1232 (52%) — cropped 85, merged 375, called text 44, not seen
   misses by label: chart 114/166, display_formula 136/229, image 382/673, seal 18/40, table 48/124
 truth about order: marked 0, not marked 600, NOT SAID 0 of 600 pages
 order of MODEL reading against truth: NOT COMPARED — truth carries no order: not marked on 600 of 600 pages (this is not zero agreement)
-order of book ASSEMBLY against truth: NOT COMPARED — truth carries no order: not marked on 600 of 600 pages (this is not zero agreement); our order is built so: not declared (taken as 'model rank')
+order of book ASSEMBLY against truth: NOT COMPARED — truth carries no order: not marked on 600 of 600 pages (this is not zero agreement); our order is built so: model_rank
 excess column jumps: 501 (1.08 per page over 464 counted pages of 600; transitions 930, columns 893 on 290 multi-column pages). boxes counted 7891, out of the count 1920 full-width and 936 of other buckets; pages not counted 136 of 600 (fewer boxes than the minimum); grouping: x_overlap_of_narrow_box 0.5, full_width_box_share 0.6, min_boxes_per_page 2, buckets_counted ['artifact', 'text']
 bucket confusion: 33 of 731 pairs
 label confusion: 139 of 731 pairs (one vocabulary: PP-DocLayoutV2) — {'chart->image': 80, 'chart->table': 1, 'display_formula->image': 7, 'display_formula->inline_formula': 11, 'image->chart': 5, 'image->header_image': 1, 'seal->footer_image': 1, 'seal->image': 6, 'seal->text': 3, 'table->content': 7, 'table->display_formula': 5, 'table->reference': 1, 'table->text': 11}

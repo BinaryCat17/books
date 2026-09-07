@@ -1,0 +1,641 @@
+{
+ "commit": "f7407d40583d9d79cb9f8ecff4d56a8382ad8fe2+dirty tree",
+ "records": [
+  {
+   "bench": "katalog",
+   "detail": {
+    "assembly_order": {
+     "agreement": 0.9608938547486033,
+     "blocks_without_rank": 0,
+     "page_count": 11,
+     "pages_total": 11,
+     "pairs": 179,
+     "pairs_possible": 214
+    },
+    "book": "sha256 checked: aae8be1f84f1; raster checked: 11 pages, sizes agree",
+    "by_case": {
+     "kat_continued": {
+      "artifacts": 1,
+      "found": 0,
+      "troubles": {
+       "crop (table)": 1
+      }
+     },
+     "kat_footnote_under": {
+      "artifacts": 1,
+      "found": 0,
+      "troubles": {
+       "crop (table)": 1,
+       "inside a miss": 1
+      }
+     },
+     "kat_full_table": {
+      "artifacts": 1,
+      "found": 0,
+      "troubles": {
+       "crop (table)": 1
+      }
+     },
+     "kat_mid_end": {
+      "artifacts": 1,
+      "found": 1,
+      "troubles": {}
+     },
+     "kat_mid_start": {
+      "artifacts": 1,
+      "found": 1,
+      "troubles": {}
+     },
+     "kat_row_numbers": {
+      "artifacts": 1,
+      "found": 1,
+      "troubles": {}
+     },
+     "kat_sparse_tail": {
+      "artifacts": 1,
+      "found": 1,
+      "troubles": {}
+     },
+     "kat_spread_continue": {
+      "artifacts": 1,
+      "found": 1,
+      "troubles": {}
+     },
+     "kat_two_side": {
+      "artifacts": 2,
+      "found": 1,
+      "troubles": {
+       "not seen (table)": 1
+      }
+     },
+     "kat_two_stacked": {
+      "artifacts": 2,
+      "found": 0,
+      "troubles": {
+       "crop (table)": 2,
+       "inside a miss": 2
+      }
+     },
+     "kat_wide_rotated": {
+      "artifacts": 1,
+      "found": 0,
+      "troubles": {
+       "crop (table)": 1
+      }
+     }
+    },
+    "by_label": {
+     "footnote": {
+      "bucket": "furniture",
+      "found": 2,
+      "truth": 2
+     },
+     "header": {
+      "bucket": "furniture",
+      "found": 22,
+      "truth": 22
+     },
+     "number": {
+      "bucket": "furniture",
+      "found": 9,
+      "truth": 11
+     },
+     "paragraph_title": {
+      "bucket": "text",
+      "found": 4,
+      "truth": 4
+     },
+     "table": {
+      "bucket": "artifact",
+      "found": 6,
+      "truth": 13
+     },
+     "text": {
+      "bucket": "text",
+      "found": 16,
+      "truth": 16
+     }
+    },
+    "jumps": {
+     "boxes_counted": 31,
+     "boxes_other_buckets": 34,
+     "by_page": {
+      "1": 1,
+      "6": 4
+     },
+     "columns": 19,
+     "excess_jumps": 5,
+     "full_width_boxes": 29,
+     "page_count": 11,
+     "pages_counted": 4,
+     "pages_not_counted_too_few_boxes": 7,
+     "pages_with_2plus_columns": 4,
+     "params": {
+      "buckets_counted": [
+       "artifact",
+       "text"
+      ],
+      "full_width_box_share": 0.6,
+      "min_boxes_per_page": 2,
+      "x_overlap_of_narrow_box": 0.5
+     },
+     "per_page": 1.25,
+     "transitions": 20,
+     "why": ""
+    },
+    "label_confusion": {
+     "footnote->footnote": 2,
+     "header->page_footer": 1,
+     "header->page_header": 21,
+     "number->page_header": 9,
+     "paragraph_title->section_header": 4,
+     "table->table": 6,
+     "text->text": 16
+    },
+    "model_order": {
+     "agreement": null,
+     "page_count": 11,
+     "pages_total": 11,
+     "pairs": 0,
+     "pairs_possible": 214,
+     "why": "the model gives no rank (ours_top_down_left_right)"
+    },
+    "order_rule": "ours_top_down_left_right",
+    "order_truth": {
+     "page_count": 11,
+     "states": {
+      "marked": 11
+     }
+    },
+    "sense": {
+     "called_text": 0,
+     "cropped": 0,
+     "intact": 6,
+     "merged": 0,
+     "not_seen": 7,
+     "objects": 13,
+     "share": 0.46153846153846156,
+     "threshold_fits": 0.9,
+     "threshold_neighbour": 0.5
+    },
+    "text_and_furniture": {
+     "block_count": 55,
+     "found": 53,
+     "pages_total": 11,
+     "pages_with_text_markup": 11,
+     "share": 0.9636363636363636
+    },
+    "totals": {
+     "artifacts": 13,
+     "found": 6,
+     "share": 0.46153846153846156
+    },
+    "troubles": {
+     "crop (table)": 6,
+     "inside a miss": 3,
+     "not seen (table)": 1
+    }
+   },
+   "metric": "contour",
+   "params": {
+    "COLUMN_buckets_counted": [
+     "artifact",
+     "text"
+    ],
+    "COLUMN_full_width_box_share": 0.6,
+    "COLUMN_min_boxes_per_page": 2,
+    "COLUMN_x_overlap_of_narrow_box": 0.5,
+    "COVER_MATCH": 0.75,
+    "SENSE_NEIGHBOUR": 0.5,
+    "SENSE_WHOLE": 0.9,
+    "TOL_PX": 6.0,
+    "TOUCH": 0.1
+   },
+   "run": "docling-heron",
+   "scalars": {
+    "artefacts_called_text": {
+     "count": {
+      "n": 0,
+      "of": 13
+     },
+     "value": 0.0
+    },
+    "artefacts_cropped": {
+     "count": {
+      "n": 0,
+      "of": 13
+     },
+     "value": 0.0
+    },
+    "artefacts_found": {
+     "count": {
+      "n": 6,
+      "of": 13
+     },
+     "value": 0.46153846153846156
+    },
+    "artefacts_merged": {
+     "count": {
+      "n": 0,
+      "of": 13
+     },
+     "value": 0.0
+    },
+    "artefacts_not_seen": {
+     "count": {
+      "n": 7,
+      "of": 13
+     },
+     "value": 0.5384615384615384
+    },
+    "assembly_order": {
+     "over": {
+      "n": 11,
+      "of": 11,
+      "unit": "pages"
+     },
+     "value": 0.9608938547486033
+    },
+    "excess_jumps_per_page": {
+     "over": {
+      "n": 4,
+      "of": 11,
+      "unit": "pages"
+     },
+     "value": 1.25
+    },
+    "label_errors": {
+     "value": null,
+     "why": "the two sides speak different label vocabularies; not compared"
+    },
+    "model_order": {
+     "over": {
+      "n": 11,
+      "of": 11,
+      "unit": "pages"
+     },
+     "value": null,
+     "why": "the model gives no rank (ours_top_down_left_right)"
+    },
+    "role_errors": {
+     "count": {
+      "n": 0,
+      "of": 59
+     },
+     "value": 0
+    },
+    "sense_whole": {
+     "count": {
+      "n": 6,
+      "of": 13
+     },
+     "value": 0.46153846153846156
+    },
+    "text_furniture_found": {
+     "count": {
+      "n": 53,
+      "of": 55
+     },
+     "over": {
+      "n": 11,
+      "of": 11,
+      "unit": "pages"
+     },
+     "value": 0.9636363636363636
+    }
+   }
+  },
+  {
+   "bench": "katalog",
+   "detail": {
+    "almost_intact": 0,
+    "arrived_with_company": 0,
+    "bitten": 0,
+    "boxes_area": 8995853,
+    "boxes_with_many_objects": 0,
+    "dark_columns": 1,
+    "dark_columns_positions": [
+     0.51
+    ],
+    "dpi": [
+     144
+    ],
+    "empty_objects": 0,
+    "in_one_box": 6,
+    "ink_in_dark_columns": 58486,
+    "ink_in_dark_columns_off_edge": 58486,
+    "ink_outside_boxes_at_edge": 7351,
+    "ink_total": 1288204,
+    "ink_under_artifact": 437845,
+    "ink_under_boxes": 1164323,
+    "intact": 6,
+    "left_as_text": 2,
+    "object_ink": 782450,
+    "object_ink_in_boxes": 434907,
+    "objects": 13,
+    "page_count": 11,
+    "pages_with_dark_column": 1,
+    "sheet_area": 17803104,
+    "split_between_boxes": 0,
+    "thresholds": {
+     "almost": 0.95,
+     "bitten": 0.8,
+     "edge_band": 0.04,
+     "ink": 160,
+     "intact": 0.99
+    },
+    "torn": 7,
+    "truth_pages": 11
+   },
+   "metric": "fitness",
+   "params": {
+    "GUTTER": 0.5,
+    "almost": 0.95,
+    "bitten": 0.8,
+    "dpi": [
+     144
+    ],
+    "edge_band": 0.04,
+    "ink": 160,
+    "intact": 0.99
+   },
+   "run": "docling-heron",
+   "scalars": {
+    "area_under_boxes": {
+     "count": {
+      "n": 8995853,
+      "of": 17803104
+     },
+     "value": 0.5052968853071914
+    },
+    "ink_outside_boxes": {
+     "count": {
+      "n": 123881,
+      "of": 1288204
+     },
+     "value": 0.09616566941260851
+    },
+    "ink_under_artefacts": {
+     "count": {
+      "n": 437845,
+      "of": 1288204
+     },
+     "value": 0.33988793700376646
+    },
+    "ink_under_boxes": {
+     "count": {
+      "n": 1164323,
+      "of": 1288204
+     },
+     "value": 0.9038343305873915
+    },
+    "object_ink_preserved": {
+     "count": {
+      "n": 434907,
+      "of": 782450
+     },
+     "value": 0.5558272094063519
+    },
+    "objects_in_one_box": {
+     "count": {
+      "n": 6,
+      "of": 13
+     },
+     "value": 0.46153846153846156
+    },
+    "objects_intact": {
+     "count": {
+      "n": 6,
+      "of": 13
+     },
+     "value": 0.46153846153846156
+    },
+    "objects_left_as_text": {
+     "count": {
+      "n": 2,
+      "of": 13
+     },
+     "value": 0.15384615384615385
+    },
+    "objects_torn": {
+     "count": {
+      "n": 7,
+      "of": 13
+     },
+     "value": 0.5384615384615384
+    },
+    "objects_with_company": {
+     "count": {
+      "n": 0,
+      "of": 13
+     },
+     "value": 0.0
+    }
+   }
+  },
+  {
+   "bench": "katalog",
+   "detail": {
+    "boxes_counted": 31,
+    "boxes_other_buckets": 34,
+    "by_page": {
+     "1": 1,
+     "6": 4
+    },
+    "columns": 19,
+    "excess_jumps": 5,
+    "full_width_boxes": 29,
+    "page_count": 11,
+    "pages_counted": 4,
+    "pages_not_counted_too_few_boxes": 7,
+    "pages_with_2plus_columns": 4,
+    "params": {
+     "buckets_counted": [
+      "artifact",
+      "text"
+     ],
+     "full_width_box_share": 0.6,
+     "min_boxes_per_page": 2,
+     "x_overlap_of_narrow_box": 0.5
+    },
+    "per_page": 1.25,
+    "transitions": 20,
+    "why": ""
+   },
+   "metric": "assembly",
+   "params": {
+    "COLUMN_buckets_counted": [
+     "artifact",
+     "text"
+    ],
+    "COLUMN_full_width_box_share": 0.6,
+    "COLUMN_min_boxes_per_page": 2,
+    "COLUMN_x_overlap_of_narrow_box": 0.5,
+    "order_rule": "ours_top_down_left_right"
+   },
+   "run": "docling-heron",
+   "scalars": {
+    "excess_jumps": {
+     "value": 5
+    },
+    "excess_jumps_per_page": {
+     "over": {
+      "n": 4,
+      "of": 11,
+      "unit": "pages"
+     },
+     "value": 1.25
+    },
+    "pages_with_columns": {
+     "count": {
+      "n": 4,
+      "of": 11
+     },
+     "value": 4
+    },
+    "transitions": {
+     "value": 20
+    }
+   }
+  },
+  {
+   "bench": "katalog",
+   "detail": {
+    "empty": [
+     [
+      "knobs",
+      "VL_MODEL_DIR",
+      "value"
+     ],
+     [
+      "knobs",
+      "YOLOX_WEIGHTS",
+      "value"
+     ],
+     [
+      "knobs",
+      "LAYOUT_MODEL_DIR",
+      "value"
+     ],
+     [
+      "knobs",
+      "CROP_DPI",
+      "value"
+     ],
+     [
+      "knobs",
+      "BOOKSMITH_COMMIT",
+      "value"
+     ],
+     [
+      "knobs",
+      "BOOKSMITH_LEDGER",
+      "value"
+     ],
+     [
+      "knobs",
+      "VLM_ENDPOINT",
+      "value"
+     ],
+     [
+      "prompts"
+     ],
+     [
+      "generation",
+      "temperature"
+     ],
+     [
+      "generation",
+      "max_tokens"
+     ],
+     [
+      "generation",
+      "top_p"
+     ],
+     [
+      "generation",
+      "seed"
+     ],
+     [
+      "weights",
+      "vl"
+     ],
+     [
+      "fingerprint",
+      "docling_pipeline",
+      "docling_version"
+     ],
+     [
+      "fingerprint",
+      "docling_pipeline",
+      "label_map_to_docling"
+     ],
+     [
+      "fingerprint",
+      "docling_pipeline",
+      "postprocess_options"
+     ],
+     [
+      "fingerprint",
+      "docling_pipeline",
+      "sha256_vendor_files"
+     ],
+     [
+      "fingerprint",
+      "docling_pipeline",
+      "summary"
+     ],
+     [
+      "fingerprint",
+      "label_map"
+     ],
+     [
+      "fingerprint",
+      "native_threshold"
+     ],
+     [
+      "fingerprint",
+      "prompts"
+     ],
+     [
+      "fingerprint",
+      "reading_order"
+     ]
+    ],
+    "missing": [],
+    "required": 84,
+    "shape": "the fingerprint of adapter docling-heron is verified: processing/layout/adapters/docling.py is the very one (sha256 matches, identified by module name), 32 values were derived from it"
+   },
+   "metric": "snapshot",
+   "params": {},
+   "run": "docling-heron",
+   "scalars": {
+    "empty": {
+     "count": {
+      "n": 22,
+      "of": 84
+     },
+     "value": 22
+    },
+    "fingerprint_verified": {
+     "value": 1
+    },
+    "missing": {
+     "count": {
+      "n": 0,
+      "of": 84
+     },
+     "value": 0
+    },
+    "values_present": {
+     "count": {
+      "n": 84,
+      "of": 84
+     },
+     "value": 84
+    }
+   }
+  }
+ ],
+ "when": "2026-09-07T18:52:49+0300"
+}

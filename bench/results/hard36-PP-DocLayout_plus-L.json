@@ -1,0 +1,930 @@
+{
+ "commit": "f7407d40583d9d79cb9f8ecff4d56a8382ad8fe2+dirty tree",
+ "records": [
+  {
+   "bench": "hard36",
+   "detail": {
+    "assembly_order": {
+     "agreement": null,
+     "page_count": 0,
+     "pages_total": 36,
+     "pairs": 0,
+     "pairs_possible": 0,
+     "why": "truth carries no order: not_said on 36 of 36 pages"
+    },
+    "book": "sha256 checked: 254f58d20f2e; raster checked: 36 pages, sizes agree",
+    "by_case": {
+     "05c763f0": {
+      "artifacts": 18,
+      "found": 0,
+      "troubles": {
+       "merge (chart)": 18,
+       "spurious_box": 1
+      }
+     },
+     "0e95ee35": {
+      "artifacts": 5,
+      "found": 0,
+      "troubles": {
+       "merge (image)": 5,
+       "spurious_box": 1
+      }
+     },
+     "1138eb70": {
+      "artifacts": 10,
+      "found": 6,
+      "troubles": {
+       "not seen (image)": 4,
+       "spurious_box": 5
+      }
+     },
+     "1138ebff": {
+      "artifacts": 5,
+      "found": 5,
+      "troubles": {
+       "spurious_box": 13
+      }
+     },
+     "1138ec0c": {
+      "artifacts": 5,
+      "found": 2,
+      "troubles": {
+       "merge (chart)": 3,
+       "spurious_box": 20
+      }
+     },
+     "1c74febe": {
+      "artifacts": 4,
+      "found": 0,
+      "troubles": {
+       "merge (image)": 4,
+       "spurious_box": 1
+      }
+     },
+     "26aeb64b": {
+      "artifacts": 7,
+      "found": 7,
+      "troubles": {
+       "on an object outside scoring": 1
+      }
+     },
+     "28ab956c": {
+      "artifacts": 3,
+      "found": 3,
+      "troubles": {
+       "spurious_box": 1
+      }
+     },
+     "2bfcf190": {
+      "artifacts": 5,
+      "found": 3,
+      "troubles": {
+       "merge (image)": 2,
+       "spurious_box": 1
+      }
+     },
+     "3830bee5": {
+      "artifacts": 6,
+      "found": 1,
+      "troubles": {
+       "merge (image)": 5,
+       "spurious_box": 1
+      }
+     },
+     "412e362d": {
+      "artifacts": 11,
+      "found": 0,
+      "troubles": {
+       "eaten by text (table)": 2,
+       "merge (display_formula)": 5,
+       "not seen (display_formula)": 3,
+       "spill (display_formula)": 1
+      }
+     },
+     "471410a8": {
+      "artifacts": 8,
+      "found": 3,
+      "troubles": {
+       "merge (image)": 5,
+       "spurious_box": 1
+      }
+     },
+     "50d1a231": {
+      "artifacts": 14,
+      "found": 1,
+      "troubles": {
+       "merge (image)": 13
+      }
+     },
+     "50d1a261": {
+      "artifacts": 5,
+      "found": 1,
+      "troubles": {
+       "merge (image)": 4
+      }
+     },
+     "50d1a279": {
+      "artifacts": 10,
+      "found": 1,
+      "troubles": {
+       "merge (chart)": 9
+      }
+     },
+     "50d1a291": {
+      "artifacts": 21,
+      "found": 1,
+      "troubles": {
+       "merge (image)": 20
+      }
+     },
+     "50d1a2a9": {
+      "artifacts": 6,
+      "found": 1,
+      "troubles": {
+       "merge (image)": 5
+      }
+     },
+     "50d1a2ab": {
+      "artifacts": 4,
+      "found": 0,
+      "troubles": {
+       "crop (table)": 4
+      }
+     },
+     "50d1a2c1": {
+      "artifacts": 15,
+      "found": 1,
+      "troubles": {
+       "merge (image)": 14
+      }
+     },
+     "50d1a2cd": {
+      "artifacts": 8,
+      "found": 1,
+      "troubles": {
+       "merge (image)": 7
+      }
+     },
+     "50d1a2d9": {
+      "artifacts": 6,
+      "found": 1,
+      "troubles": {
+       "merge (image)": 5
+      }
+     },
+     "50d1a2f9": {
+      "artifacts": 6,
+      "found": 1,
+      "troubles": {
+       "merge (image)": 5
+      }
+     },
+     "50d1a315": {
+      "artifacts": 25,
+      "found": 1,
+      "troubles": {
+       "merge (image)": 24
+      }
+     },
+     "5e1bcabb": {
+      "artifacts": 7,
+      "found": 1,
+      "troubles": {
+       "fragmentation (table)": 1,
+       "inside a miss": 3,
+       "merge (display_formula)": 5,
+       "spurious_box": 4
+      }
+     },
+     "5f124d7f": {
+      "artifacts": 5,
+      "found": 5,
+      "troubles": {
+       "spurious_box": 2
+      }
+     },
+     "6c1a018d": {
+      "artifacts": 6,
+      "found": 0,
+      "troubles": {
+       "merge (table)": 6,
+       "on an object outside scoring": 2,
+       "spurious_box": 2
+      }
+     },
+     "6fd86f61": {
+      "artifacts": 4,
+      "found": 0,
+      "troubles": {
+       "merge (image)": 4,
+       "on an object outside scoring": 2,
+       "spurious_box": 1
+      }
+     },
+     "73f5527c": {
+      "artifacts": 45,
+      "found": 1,
+      "troubles": {
+       "merge (display_formula)": 44,
+       "spurious_box": 9
+      }
+     },
+     "7b1b915c": {
+      "artifacts": 7,
+      "found": 3,
+      "troubles": {
+       "merge (image)": 4,
+       "on an object outside scoring": 1
+      }
+     },
+     "8ac3d986": {
+      "artifacts": 10,
+      "found": 10,
+      "troubles": {}
+     },
+     "c4fbb236": {
+      "artifacts": 8,
+      "found": 5,
+      "troubles": {
+       "merge (image)": 3,
+       "spurious_box": 2
+      }
+     },
+     "e8342f90": {
+      "artifacts": 36,
+      "found": 0,
+      "troubles": {
+       "merge (image)": 36,
+       "spurious_box": 2
+      }
+     },
+     "ea72f640": {
+      "artifacts": 10,
+      "found": 4,
+      "troubles": {
+       "eaten by text (table)": 1,
+       "merge (image)": 3,
+       "not seen (image)": 2,
+       "on an object outside scoring": 2,
+       "spurious_box": 1
+      }
+     },
+     "efc968a3": {
+      "artifacts": 38,
+      "found": 1,
+      "troubles": {
+       "merge (image)": 37
+      }
+     },
+     "fc0928a3": {
+      "artifacts": 17,
+      "found": 1,
+      "troubles": {
+       "merge (image)": 16,
+       "spurious_box": 6
+      }
+     },
+     "three_column_table": {
+      "artifacts": 3,
+      "found": 0,
+      "troubles": {
+       "merge (table)": 3,
+       "spurious_box": 1
+      }
+     }
+    },
+    "by_label": {
+     "chart": {
+      "bucket": "artifact",
+      "found": 4,
+      "truth": 34
+     },
+     "display_formula": {
+      "bucket": "artifact",
+      "found": 11,
+      "truth": 69
+     },
+     "image": {
+      "bucket": "artifact",
+      "found": 53,
+      "truth": 280
+     },
+     "paragraph_title": {
+      "bucket": "text",
+      "found": 0,
+      "truth": 3
+     },
+     "table": {
+      "bucket": "artifact",
+      "found": 3,
+      "truth": 20
+     },
+     "text": {
+      "bucket": "text",
+      "found": 0,
+      "truth": 8
+     }
+    },
+    "jumps": {
+     "boxes_counted": 495,
+     "boxes_other_buckets": 45,
+     "by_page": {
+      "3": 15,
+      "4": 6,
+      "5": 9,
+      "8": 2,
+      "9": 5,
+      "10": 7,
+      "12": 5,
+      "13": 5,
+      "14": 5,
+      "15": 7,
+      "16": 2,
+      "17": 4,
+      "20": 6,
+      "21": 2,
+      "22": 3,
+      "23": 4,
+      "24": 1,
+      "26": 2,
+      "27": 6,
+      "28": 2,
+      "29": 3,
+      "30": 31,
+      "31": 5,
+      "32": 10,
+      "33": 5,
+      "35": 7
+     },
+     "columns": 74,
+     "excess_jumps": 159,
+     "full_width_boxes": 147,
+     "page_count": 36,
+     "pages_counted": 31,
+     "pages_not_counted_too_few_boxes": 5,
+     "pages_with_2plus_columns": 27,
+     "params": {
+      "buckets_counted": [
+       "artifact",
+       "text"
+      ],
+      "full_width_box_share": 0.6,
+      "min_boxes_per_page": 2,
+      "x_overlap_of_narrow_box": 0.5
+     },
+     "per_page": 5.129032258064516,
+     "transitions": 202,
+     "why": ""
+    },
+    "label_confusion": {
+     "chart->chart": 1,
+     "chart->image": 3,
+     "display_formula->formula": 11,
+     "image->image": 53,
+     "table->table": 3,
+     "table->text": 3,
+     "text->text": 8
+    },
+    "model_order": {
+     "agreement": null,
+     "page_count": 0,
+     "pages_total": 36,
+     "pairs": 0,
+     "pairs_possible": 0,
+     "why": "truth carries no order: not_said on 36 of 36 pages"
+    },
+    "order_rule": "ours_top_down_left_right: the model gives no rank",
+    "order_truth": {
+     "page_count": 36,
+     "states": {
+      "not_said": 36
+     }
+    },
+    "sense": {
+     "called_text": 13,
+     "cropped": 43,
+     "intact": 42,
+     "merged": 290,
+     "not_seen": 15,
+     "objects": 403,
+     "share": 0.10421836228287841,
+     "threshold_fits": 0.9,
+     "threshold_neighbour": 0.5
+    },
+    "text_and_furniture": {
+     "block_count": 0,
+     "found": 0,
+     "pages_total": 36,
+     "pages_with_text_markup": 0,
+     "share": null
+    },
+    "totals": {
+     "artifacts": 403,
+     "found": 71,
+     "share": 0.1761786600496278
+    },
+    "troubles": {
+     "crop (table)": 4,
+     "eaten by text (table)": 3,
+     "fragmentation (table)": 1,
+     "inside a miss": 3,
+     "merge (chart)": 30,
+     "merge (display_formula)": 54,
+     "merge (image)": 221,
+     "merge (table)": 9,
+     "not seen (display_formula)": 3,
+     "not seen (image)": 6,
+     "on an object outside scoring": 8,
+     "spill (display_formula)": 1,
+     "spurious_box": 75
+    }
+   },
+   "metric": "contour",
+   "params": {
+    "COLUMN_buckets_counted": [
+     "artifact",
+     "text"
+    ],
+    "COLUMN_full_width_box_share": 0.6,
+    "COLUMN_min_boxes_per_page": 2,
+    "COLUMN_x_overlap_of_narrow_box": 0.5,
+    "COVER_MATCH": 0.75,
+    "SENSE_NEIGHBOUR": 0.5,
+    "SENSE_WHOLE": 0.9,
+    "TOL_PX": 6.0,
+    "TOUCH": 0.1
+   },
+   "run": "PP-DocLayout_plus-L",
+   "scalars": {
+    "artefacts_called_text": {
+     "count": {
+      "n": 13,
+      "of": 403
+     },
+     "value": 0.03225806451612903
+    },
+    "artefacts_cropped": {
+     "count": {
+      "n": 43,
+      "of": 403
+     },
+     "value": 0.10669975186104218
+    },
+    "artefacts_found": {
+     "count": {
+      "n": 71,
+      "of": 403
+     },
+     "value": 0.1761786600496278
+    },
+    "artefacts_merged": {
+     "count": {
+      "n": 290,
+      "of": 403
+     },
+     "value": 0.7196029776674938
+    },
+    "artefacts_not_seen": {
+     "count": {
+      "n": 15,
+      "of": 403
+     },
+     "value": 0.03722084367245657
+    },
+    "assembly_order": {
+     "over": {
+      "n": 0,
+      "of": 36,
+      "unit": "pages"
+     },
+     "value": null,
+     "why": "truth carries no order: not_said on 36 of 36 pages"
+    },
+    "excess_jumps_per_page": {
+     "over": {
+      "n": 31,
+      "of": 36,
+      "unit": "pages"
+     },
+     "value": 5.129032258064516
+    },
+    "label_errors": {
+     "value": null,
+     "why": "the two sides speak different label vocabularies; not compared"
+    },
+    "model_order": {
+     "over": {
+      "n": 0,
+      "of": 36,
+      "unit": "pages"
+     },
+     "value": null,
+     "why": "truth carries no order: not_said on 36 of 36 pages"
+    },
+    "role_errors": {
+     "count": {
+      "n": 3,
+      "of": 82
+     },
+     "value": 3
+    },
+    "sense_whole": {
+     "count": {
+      "n": 42,
+      "of": 403
+     },
+     "value": 0.10421836228287841
+    },
+    "text_furniture_found": {
+     "count": {
+      "n": 0,
+      "of": 0
+     },
+     "over": {
+      "n": 0,
+      "of": 36,
+      "unit": "pages"
+     },
+     "value": null,
+     "why": "text and furniture NOT MARKED in this truth"
+    }
+   }
+  },
+  {
+   "bench": "hard36",
+   "detail": {
+    "almost_intact": 15,
+    "arrived_with_company": 311,
+    "bitten": 3,
+    "boxes_area": 45439407,
+    "boxes_with_many_objects": 35,
+    "dark_columns": 62,
+    "dark_columns_positions": [
+     0.04,
+     0.09,
+     0.33,
+     0.33,
+     0.34,
+     0.34,
+     0.35,
+     0.37,
+     0.68,
+     0.74,
+     0.97,
+     1.0,
+     0.11,
+     0.18,
+     0.25,
+     0.25,
+     0.26,
+     0.27,
+     0.28,
+     0.29,
+     0.31,
+     0.51,
+     0.52,
+     0.52,
+     0.52,
+     0.57,
+     0.75,
+     0.76,
+     0.76,
+     0.78,
+     0.86,
+     0.89,
+     0.9,
+     0.5,
+     0.01,
+     0.13,
+     0.01,
+     0.01,
+     0.01,
+     0.23,
+     0.84,
+     0.01,
+     0.01,
+     0.01,
+     0.01,
+     0.01,
+     0.15,
+     0.96,
+     0.01,
+     0.01,
+     0.26,
+     0.5,
+     0.54,
+     0.0,
+     0.11,
+     0.13,
+     0.14,
+     0.15,
+     0.16,
+     0.88,
+     0.91,
+     0.93
+    ],
+    "dpi": [
+     144
+    ],
+    "empty_objects": 1,
+    "in_one_box": 356,
+    "ink_in_dark_columns": 3599580,
+    "ink_in_dark_columns_off_edge": 2892592,
+    "ink_outside_boxes_at_edge": 1644071,
+    "ink_total": 13857314,
+    "ink_under_artifact": 4394075,
+    "ink_under_boxes": 10175878,
+    "intact": 356,
+    "left_as_text": 17,
+    "object_ink": 5828260,
+    "object_ink_in_boxes": 5527880,
+    "objects": 402,
+    "page_count": 36,
+    "pages_with_dark_column": 17,
+    "sheet_area": 79298034,
+    "split_between_boxes": 0,
+    "thresholds": {
+     "almost": 0.95,
+     "bitten": 0.8,
+     "edge_band": 0.04,
+     "ink": 160,
+     "intact": 0.99
+    },
+    "torn": 28,
+    "truth_pages": 36
+   },
+   "metric": "fitness",
+   "params": {
+    "GUTTER": 0.5,
+    "almost": 0.95,
+    "bitten": 0.8,
+    "dpi": [
+     144
+    ],
+    "edge_band": 0.04,
+    "ink": 160,
+    "intact": 0.99
+   },
+   "run": "PP-DocLayout_plus-L",
+   "scalars": {
+    "area_under_boxes": {
+     "count": {
+      "n": 45439407,
+      "of": 79298034
+     },
+     "value": 0.5730205997288659
+    },
+    "ink_outside_boxes": {
+     "count": {
+      "n": 3681436,
+      "of": 13857314
+     },
+     "value": 0.2656673580464439
+    },
+    "ink_under_artefacts": {
+     "count": {
+      "n": 4394075,
+      "of": 13857314
+     },
+     "value": 0.31709427959848496
+    },
+    "ink_under_boxes": {
+     "count": {
+      "n": 10175878,
+      "of": 13857314
+     },
+     "value": 0.7343326419535561
+    },
+    "object_ink_preserved": {
+     "count": {
+      "n": 5527880,
+      "of": 5828260
+     },
+     "value": 0.9484614619114453
+    },
+    "objects_in_one_box": {
+     "count": {
+      "n": 356,
+      "of": 402
+     },
+     "value": 0.8855721393034826
+    },
+    "objects_intact": {
+     "count": {
+      "n": 356,
+      "of": 402
+     },
+     "value": 0.8855721393034826
+    },
+    "objects_left_as_text": {
+     "count": {
+      "n": 17,
+      "of": 402
+     },
+     "value": 0.04228855721393035
+    },
+    "objects_torn": {
+     "count": {
+      "n": 28,
+      "of": 402
+     },
+     "value": 0.06965174129353234
+    },
+    "objects_with_company": {
+     "count": {
+      "n": 311,
+      "of": 402
+     },
+     "value": 0.7736318407960199
+    }
+   }
+  },
+  {
+   "bench": "hard36",
+   "detail": {
+    "boxes_counted": 495,
+    "boxes_other_buckets": 45,
+    "by_page": {
+     "3": 15,
+     "4": 6,
+     "5": 9,
+     "8": 2,
+     "9": 5,
+     "10": 7,
+     "12": 5,
+     "13": 5,
+     "14": 5,
+     "15": 7,
+     "16": 2,
+     "17": 4,
+     "20": 6,
+     "21": 2,
+     "22": 3,
+     "23": 4,
+     "24": 1,
+     "26": 2,
+     "27": 6,
+     "28": 2,
+     "29": 3,
+     "30": 31,
+     "31": 5,
+     "32": 10,
+     "33": 5,
+     "35": 7
+    },
+    "columns": 74,
+    "excess_jumps": 159,
+    "full_width_boxes": 147,
+    "page_count": 36,
+    "pages_counted": 31,
+    "pages_not_counted_too_few_boxes": 5,
+    "pages_with_2plus_columns": 27,
+    "params": {
+     "buckets_counted": [
+      "artifact",
+      "text"
+     ],
+     "full_width_box_share": 0.6,
+     "min_boxes_per_page": 2,
+     "x_overlap_of_narrow_box": 0.5
+    },
+    "per_page": 5.129032258064516,
+    "transitions": 202,
+    "why": ""
+   },
+   "metric": "assembly",
+   "params": {
+    "COLUMN_buckets_counted": [
+     "artifact",
+     "text"
+    ],
+    "COLUMN_full_width_box_share": 0.6,
+    "COLUMN_min_boxes_per_page": 2,
+    "COLUMN_x_overlap_of_narrow_box": 0.5,
+    "order_rule": "ours_top_down_left_right: the model gives no rank"
+   },
+   "run": "PP-DocLayout_plus-L",
+   "scalars": {
+    "excess_jumps": {
+     "value": 159
+    },
+    "excess_jumps_per_page": {
+     "over": {
+      "n": 31,
+      "of": 36,
+      "unit": "pages"
+     },
+     "value": 5.129032258064516
+    },
+    "pages_with_columns": {
+     "count": {
+      "n": 27,
+      "of": 36
+     },
+     "value": 27
+    },
+    "transitions": {
+     "value": 202
+    }
+   }
+  },
+  {
+   "bench": "hard36",
+   "detail": {
+    "empty": [
+     [
+      "knobs",
+      "VL_MODEL_DIR",
+      "value"
+     ],
+     [
+      "knobs",
+      "YOLOX_WEIGHTS",
+      "value"
+     ],
+     [
+      "knobs",
+      "LAYOUT_MODEL_DIR",
+      "value"
+     ],
+     [
+      "knobs",
+      "CROP_DPI",
+      "value"
+     ],
+     [
+      "knobs",
+      "BOOKSMITH_COMMIT",
+      "value"
+     ],
+     [
+      "knobs",
+      "BOOKSMITH_LEDGER",
+      "value"
+     ],
+     [
+      "knobs",
+      "VLM_ENDPOINT",
+      "value"
+     ],
+     [
+      "prompts"
+     ],
+     [
+      "generation",
+      "temperature"
+     ],
+     [
+      "generation",
+      "max_tokens"
+     ],
+     [
+      "generation",
+      "top_p"
+     ],
+     [
+      "generation",
+      "seed"
+     ],
+     [
+      "weights",
+      "vl"
+     ]
+    ],
+    "missing": [],
+    "required": 52,
+    "shape": "the fingerprint of adapter doclayout-onnx is NOT VERIFIED: processing/layout/adapters/doclayout.py is not the code that counted (snapshot 3793f489, tree 606ceb73) -- 26 fingerprint values went unchecked, and 0 of them are absent from the snapshot. This is 'snapshot OLD', not 'snapshot INCOMPLETE'"
+   },
+   "metric": "snapshot",
+   "params": {},
+   "run": "PP-DocLayout_plus-L",
+   "scalars": {
+    "empty": {
+     "count": {
+      "n": 13,
+      "of": 52
+     },
+     "value": 13
+    },
+    "fingerprint_verified": {
+     "value": 0
+    },
+    "missing": {
+     "count": {
+      "n": 0,
+      "of": 52
+     },
+     "value": 0
+    },
+    "values_present": {
+     "count": {
+      "n": 52,
+      "of": 52
+     },
+     "value": 52
+    }
+   }
+  }
+ ],
+ "when": "2026-09-07T18:49:47+0300"
+}

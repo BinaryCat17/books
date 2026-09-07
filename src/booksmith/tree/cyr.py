@@ -49,6 +49,7 @@ importable. An instrument the battery cannot break is an instrument nobody has
 checked.
 """
 import os
+import re
 import subprocess
 import sys
 
@@ -59,9 +60,21 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
 # bounds are escapes rather than letters on purpose: written as characters
 # they would be four Cyrillic codepoints in this very file, and the counter
 # would count itself.
+# AND THE SAME LETTERS WRITTEN AS ESCAPES. The old counter routed `.py`
+# through `ast` and saw the DECODED value of a literal; this one reads raw
+# text, so `RU = "\u043e\u0434\u0438\u043d"` counted four before and would
+# count zero now. That is the one direction in which the lock is NOT stricter
+# than the ratchet, and it is a hiding place: prose in escapes reads as
+# English to every grep. Counted by pattern rather than by parsing, so a
+# `.sh`, a `.json` and a `.md` are covered too, which `ast` never was.
+ESCAPED = re.compile(r"\\u0[45][0-9a-fA-F]{2}")
+
+
 def cyr(s: str) -> int:
-    return sum(1 for c in s if "\u0400" <= c <= "\u04ff" or
-               "\u0500" <= c <= "\u052f")
+    n = sum(1 for c in s if "\u0400" <= c <= "\u04ff" or
+            "\u0500" <= c <= "\u052f")
+    return n + sum(1 for m in ESCAPED.findall(s)
+                   if "\u0400" <= chr(int(m[2:], 16)) <= "\u052f")
 
 
 # Tracked data. Its Cyrillic is exempt and NOT declared file by file: the keys
@@ -77,11 +90,17 @@ DATA_PREFIXES = ("bench/",)
 # The record of the key rename, read by `tests/test_data_contract.py`.
 RECORD_FILES = ("tools/keymap.json",)
 
-# Logs of a run that was paid for. `bench/*/dots/job.log` is what the rented
+# Logs of a run that was paid for: `bench/*/dots/job.log` is what the rented
 # card printed while it worked, and rewriting a log after the fact destroys
 # the one thing a log is for -- the argument that also keeps
 # `runs/ledger.jsonl` out of any migration.
-RECORD_GLOBS = ("job.log",)
+#
+# A SUFFIX, AND IT MATCHES ANYWHERE. Named `_GLOBS` and compared with
+# `endswith`, so any `job.log` in the tree is exempt, not only the two under
+# `dots/`. Left as a suffix on purpose -- a log of a paid run is a log of a
+# paid run wherever it lands -- and named honestly here instead.
+RECORD_SUFFIXES = ("job.log",)
+RECORD_GLOBS = RECORD_SUFFIXES  # the old name, still read by the checks
 
 
 def tracked():
@@ -192,9 +211,24 @@ RESIDUE = {
         226, "TITLE and DATA: four books, and the three table captions split "
         "across the gutter"),
     "src/booksmith/processing/read/driver.py": (39, "TITLE"),
-    "tests/test_data_contract.py": (4, "TOOL: the bounds of the Cyrillic "
-                                    "block, in two regexps hunting Russian "
-                                    "`data-` attributes and class names"),
+    "src/booksmith/tree/cyr.py": (10, "TOOL: the bounds of the Cyrillic "
+                                  "block, twice -- once as the characters "
+                                  "the counter compares against and once in "
+                                  "the pattern that finds them written as "
+                                  "escapes -- plus the four-letter example "
+                                  "in the comment explaining why escapes are "
+                                  "counted at all"),
+    "tests/selfcheck.py": (9, "TOOL: one Russian key written as escapes, in "
+                           "the mutation that plants it back into the tracked "
+                           "data to prove the key check can fail; and the two "
+                           "block bounds inside the mutation that blinds the "
+                           "counter to escapes"),
+    "tests/test_data_contract.py": (8, "TOOL: the bounds of the Cyrillic "
+                                    "block, in three regexps -- two hunting "
+                                    "Russian `data-` attributes and class "
+                                    "names, one hunting Cyrillic KEYS in the "
+                                    "tracked data, which is the check that "
+                                    "replaced the deleted migration tool"),
     "tests/test_djvu.py": (68, "TITLE, four of them"),
     "tests/test_otsl_html.py": (146, "TITLE and DATA: the real table this "
                                 "check is built from"),

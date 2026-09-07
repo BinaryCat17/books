@@ -13,8 +13,15 @@ ONE DIRECTORY PER BOOK, and a bench is a book that also has `truth/`:
       <name>.pdf         the scan (untracked for every bench we build)
       truth/             only a bench has this
       detect/<label>/    a level-one run: pages/ and run.json
-      read/<label>/      a level-two run
-      build/             the HTML and its kitchen
+      read/<label>/      a level-two run          <- NOT WRITTEN YET
+      build/             the HTML and its kitchen <- NOT WRITTEN YET
+
+THE LAST TWO ARE THE PLAN, NOT THE TREE, and saying so is the point: `books
+read` still writes `<detect dir>.read` and `books html` still writes
+`processed/<name>/`, so `runs("read")` is always empty and `build` has no
+caller outside this file. They were advertised here and in CLAUDE.md as
+though they existed, which made 3b read as finished when a third of it is
+not. Step 3c moves the two commands onto this layout.
 
 THE LABEL IS THE MODEL'S NAME (`Detector.label`), so two models measured on
 one book do not overwrite each other -- which is what "run every detector and
@@ -126,6 +133,11 @@ class Book:
     def pdf(self) -> str | None:
         """The scan, by NAME beside the manifest -- never by a stored path.
 
+        `Bench.pdf` is the same fact by a second rule (a `<name>.pdf` fallback
+        and a relative path); the manifest key was unified and the resolvers
+        were not. Harmless while every manifest carries `source.name`, and
+        3c folds `Bench` onto this one.
+
         The manifest is tracked and the PDF is not, so an absolute path in it
         would be false on every other machine; `run.json` stores the path it
         was read at, which is the right place for it (it records what
@@ -195,8 +207,10 @@ class Book:
             return self.run_dir(kind, got[0])
         if not got:
             raise Refusal(
-                f"{self.name} has no {kind} run at all. Make one first "
-                f"(`books {kind} {self.root}`).")
+                f"{self.name} has no {kind} run at all. Make one first: "
+                + (f"`books detect {self.root}`" if kind == "detect" else
+                   f"`books read <detect dir>` -- level two does not write "
+                   f"into the book directory yet, see the header"))
         raise Refusal(
             f"{self.name} has {len(got)} {kind} runs and none was named: "
             f"{', '.join(got)}. Say --run <label>; measuring \"the\" run "
@@ -265,4 +279,7 @@ def guard_identity(run_dir: str, identity: str, pages_spec: str = "",
             f"write a PART of one over it. The identity cannot see a page "
             f"selector -- it is over the model and the knobs -- so the "
             f"snapshot would describe a run that never happened over pages "
-            f"left from the one that did. Give --run a new label.")
+            f"left from the one that did. Give --run a new label, or remove "
+            f"the directory: its two sibling refusals say both and this one "
+            f"said only the first, which made re-running a three-page smoke "
+            f"test look forbidden.")

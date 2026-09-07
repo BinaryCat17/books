@@ -81,3 +81,40 @@ def test_render_prints_counts_coverage_and_footnotes():
     text = "\n".join(lines)
     assert "1/2" in text and "0/3 pages" in text and "[1] m/order: none marked" in text
     assert "params: T=1" in text
+
+
+def test_an_undefined_jump_count_says_why_instead_of_printing_zero():
+    """`.get(key, 0)` defaults on a MISSING key, not on a null one.
+
+    `column_jumps` returns `excess_jumps: None` whenever not one page gathered
+    enough boxes to jump between -- "the quantity is UNDEFINED", which is the
+    whole reason it says so -- and the assembly record asked for it with a
+    default of 0. The default never applied, so `Scalar(None)` raised "a
+    scalar without a value must say why" and the whole table died.
+
+    Found by the sweep, on the first (bench, model) pair that ever produced
+    an empty count: `bench/katalog` under yolox, where every box is
+    full-width. Nothing in the tree had made one before, which is the point
+    of running every model over every bench.
+    """
+    from booksmith.datasets.metrics import assembly
+    from booksmith.datasets.bench import Run
+
+    class OnePerPage:
+        label = "m"
+
+        def pages(self):
+            return {i: {"index": i, "width": 100, "height": 100, "dpi": 144.0,
+                        "meta": {}, "blocks": [
+                            {"block_id": 0, "box": [0, 0, 100, 20],
+                             "label": "text", "score": 1.0, "order": 0}]}
+                    for i in range(3)}
+
+    run = OnePerPage()
+    rec = assembly.AssemblyMetric().run(None, run)
+    for name in ("excess_jumps", "excess_jumps_per_page"):
+        sc = rec.scalars[name]
+        assert sc.value is None, f"{name} invented a value out of no pages"
+        assert sc.why and "UNDEFINED" in sc.why, (
+            f"{name} is absent and does not say why: {sc.why!r}. A zero here "
+            f"would read as 'no excess jumps', which is another thing")

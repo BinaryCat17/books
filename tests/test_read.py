@@ -21,6 +21,7 @@ from booksmith.core.errors import Refusal
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
+import support
 from fake_vlm import FakeVlm                                # noqa: E402
 
 from booksmith.core import otsl  # noqa: E402
@@ -293,14 +294,19 @@ def _book(tmp):
     return pdf
 
 
-def _run(tmp, plan, **kw):
-    out = os.path.join(tmp, "read")
+def _run(tmp, plan, out_dir=None, snapshot=False, **kw):
+    out = out_dir or os.path.join(tmp, "read")
     with FakeVlm(plan) as s:
         os.environ["VLM_ENDPOINT"] = s.url
         os.environ["MODEL_NAME"] = s.model
         r = PaddleOcrVl("PP-DocLayoutV2")
         t = vrun.read_book(os.path.join(tmp, "detect"), out, r, vhttp.Http(),
                            log=lambda *a: None, **kw)
+        if snapshot:
+            # The guard reads `run.json`, which only `snapshot()` writes: a
+            # run without one is not a run and nothing is refused over it.
+            vrun.snapshot(os.path.join(tmp, "detect"), out, r, vhttp.Http(),
+                          t, {})
     return out, t
 
 
@@ -658,3 +664,39 @@ def test_a_preview_may_not_resume():
         assert "resume" in str(e)
     else:
         raise AssertionError("a resuming preview passed in silence")
+
+
+def test_a_second_reading_at_other_settings_may_not_resume_the_first():
+    """The one command that spends money had no guard at all.
+
+    `books detect` refuses to write a different experiment under an existing
+    label; `books read` did not, and `core/book.py` stated the guard
+    generally. So a second run at another temperature, seed or prompt RESUMED
+    the first run's answers in place -- under its name, beside its snapshot,
+    and with `read_with.json` comparing a setup nobody had paid for.
+
+    The identity the guard asks is the same number the snapshot records: one
+    function, so the number that refuses a run and the number written into it
+    cannot be two.
+    """
+    import tempfile
+    tmp = tempfile.mkdtemp()
+    _book(tmp)
+    out, _ = _run(tmp, {"OCR:": {"text": "prose"},
+                        "Table Recognition:": {"text": "<fcel>a<nl>"}},
+                  snapshot=True)
+    snap = json.load(open(os.path.join(out, "run.json"), encoding="utf-8"))
+    assert snap["identity"], "the read snapshot records no identity"
+
+    with support.env(VLM_TEMPERATURE="0.7"):
+        try:
+            _run(tmp, {"OCR:": {"text": "prose"}}, out_dir=out)
+        except Refusal as e:
+            assert "DIFFERENT experiment" in str(e), e
+            assert "--run" in str(e)
+        else:
+            raise AssertionError(
+                "a reading at another temperature resumed the first one")
+    # The same settings again is a resume, and that is allowed.
+    _run(tmp, {"OCR:": {"text": "prose"},
+               "Table Recognition:": {"text": "<fcel>a<nl>"}}, out_dir=out)

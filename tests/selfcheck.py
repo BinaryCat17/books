@@ -55,6 +55,7 @@ from booksmith.processing.read.transports import openai_http as vhttp  # noqa: E
 from booksmith.processing.read import driver as vrun  # noqa: E402
 from booksmith.processing.read.readers.paddleocr_vl import PaddleOcrVl  # noqa: E402
 from booksmith.tree import cyr as cyrmod  # noqa: E402
+from booksmith.tree import figures as figuresmod  # noqa: E402
 from booksmith.core import schema  # noqa: E402
 from booksmith.datasets import accept as acceptance  # noqa: E402
 from booksmith.core import page
@@ -1936,6 +1937,57 @@ def _map_naming_a_missing_file():
 def _map_naming_a_ghost_command():
     """A map that offers a command the CLI never declared."""
     return _map_plus("\n\nbooks conjure                a command that is not\n")
+
+
+def _tree_that_ignores_the_results():
+    """A tree whose .gitignore swallows `bench/results/` again.
+
+    A tracked file falling UNDER an ignore is the direction `git status`
+    cannot show: the rename succeeds, the index keeps the file, and the next
+    clone is missing it. These files are the evidence for every number in
+    METRICS.md.
+    """
+    import shutil
+    import subprocess
+    import tempfile
+    root = os.path.dirname(os.path.dirname(support.SRC))
+    d = tempfile.mkdtemp()
+    subprocess.run(["git", "init", "-q", d], check=True)
+    for rel in ("bench/results", "bench/expected",
+                "bench/annopage/detect/PP-DocLayoutV2"):
+        os.makedirs(os.path.join(d, rel), exist_ok=True)
+    for rel in ("bench/results/slovar-PP-DocLayoutV2.json",
+                "bench/expected/help.txt",
+                "bench/annopage/detect/PP-DocLayoutV2/run.json"):
+        open(os.path.join(d, rel), "w").write("{}")
+    text = open(os.path.join(root, ".gitignore"), encoding="utf-8").read()
+    open(os.path.join(d, ".gitignore"), "w", encoding="utf-8").write(
+        text + "\nbench/results/\n")
+    os.makedirs(os.path.join(d, "src"))
+    os.symlink(os.path.join(root, "src", "booksmith"),
+               os.path.join(d, "src", "booksmith"))
+    return os.path.join(d, "src", "booksmith")
+
+
+def _tree_with_a_russian_key():
+    """A tree whose bench data carries a Cyrillic key again.
+
+    The check reads the disk under `support.SRC`'s repository, so the
+    mutation is a tree: the real `bench/` symlinked, plus one small json with
+    a Russian key beside it. The migration's own tool used to walk this and
+    was deleted; this is what replaced it.
+    """
+    import tempfile
+    root = os.path.dirname(os.path.dirname(support.SRC))
+    d = tempfile.mkdtemp()
+    os.makedirs(os.path.join(d, "src"))
+    os.symlink(os.path.join(root, "src", "booksmith"),
+               os.path.join(d, "src", "booksmith"))
+    os.makedirs(os.path.join(d, "bench", "back"))
+    with open(os.path.join(d, "bench", "back", "truth.json"), "w",
+              encoding="utf-8") as f:
+        f.write('{"\u0441\u0442\u0440\u0430\u043d\u0438\u0446": 3}')
+    return d
 
 
 def _tree_with_a_moved_truth_lock():
@@ -3919,6 +3971,32 @@ def mutations():
          [("test_docs_map",
            "test_a_measurement_is_not_restated_in_a_second_document")]),
 
+        # The ratchet counted DISTINCT figures, so a figure in seven documents
+        # and one in two counted the same, and duplication could grow while it
+        # held.
+        ("the ratchet counts distinct figures instead of copies",
+         lambda: one_line(
+             "booksmith.tree.figures",
+             "    return sum(len(v) - 1 for v in d.values())",
+             "    return len(d)"),
+         [("test_docs_map",
+           "test_a_measurement_is_not_restated_in_a_second_document")]),
+
+        # A figure stated twice in ONE document is the case the map opens
+        # with, and a set could not see it.
+        ("a figure stated twice in one document is counted once",
+         lambda: one_line(
+             "booksmith.tree.figures",
+             "            out[n] += 1",
+             "            out[n] = 1"),
+         [("test_docs_map",
+           "test_a_measurement_is_not_restated_in_a_second_document")]),
+
+        ("the generated document is counted as a second copy",
+         lambda: attrs(figuresmod, GENERATED=()),
+         [("test_docs_map",
+           "test_a_measurement_is_not_restated_in_a_second_document")]),
+
         ("the four-digit bar is dropped and the instrument cries wolf",
          lambda: one_line(
              "booksmith.tree.figures",
@@ -3974,6 +4052,24 @@ def mutations():
          [("test_models_contract",
            "test_identity_does_not_depend_on_the_order_the_dict_was_built_in")]),
 
+        ("an undefined jump count is printed as zero",
+         lambda: one_line(
+             "booksmith.datasets.metrics.assembly",
+             '            "excess_jumps": Scalar(\n'
+             '                j.get("excess_jumps"),',
+             '            "excess_jumps": Scalar(\n'
+             '                j.get("excess_jumps") or 0,'),
+         [("test_table",
+           "test_an_undefined_jump_count_says_why_instead_of_printing_zero")]),
+
+        ("an artefact outcome stops being counted over the objects",
+         lambda: one_line(
+             "booksmith.datasets.metrics.contour",
+             '                count=(s[k], s["objects"]),',
+             '                count=(s[k], s["objects"] + 1),'),
+         [("test_metrics_contract",
+           "test_the_five_artefact_outcomes_account_for_every_object")]),
+
         ("a reading metric is applied to a run that read nothing",
          lambda: one_line(
              "booksmith.datasets.metrics.base",
@@ -3984,6 +4080,26 @@ def mutations():
          [("test_metrics_contract",
            "test_a_reading_metric_is_not_applicable_to_a_run_that_read_"
            "nothing")]),
+
+        ("the paid command writes a different experiment over the last one",
+         lambda: one_line(
+             "booksmith.processing.read.driver",
+             "        ident, _ = read_identity(reader, transport)\n"
+             "        book.guard_identity(out_dir, ident,",
+             "        ident, _ = read_identity(reader, transport)\n"
+             "        (lambda *a, **k: None)(out_dir, ident,"),
+         [("test_read",
+           "test_a_second_reading_at_other_settings_may_not_resume_the_"
+           "first")]),
+
+        ("the guard and the snapshot ask two different identities",
+         lambda: one_line(
+             "booksmith.processing.read.driver",
+             '        "identity": ident,',
+             '        "identity": stamp.identity({"other": 1}, {}),'),
+         [("test_read",
+           "test_a_second_reading_at_other_settings_may_not_resume_the_"
+           "first")]),
 
         ("a different experiment may be written under an existing label",
          lambda: attrs(book, guard_identity=lambda *a, **k: None),
@@ -4011,6 +4127,37 @@ def mutations():
              "                lab,"),
          [("test_metrics_contract",
            "test_an_error_count_carries_the_pairs_it_was_counted_over")]),
+
+        ("the identity exclusion reaches only the top level",
+         lambda: one_line(
+             "booksmith.core.stamp",
+             "    keep_f = _without(fingerprint or {}, "
+             "FINGERPRINT_NOT_IDENTITY)",
+             "    keep_f = {k: v for k, v in (fingerprint or {}).items()\n"
+             "              if k not in FINGERPRINT_NOT_IDENTITY}"),
+         [("test_models_contract",
+           "test_identity_is_taken_from_the_real_fingerprints_not_a_hand_"
+           "written_one")]),
+
+        ("cyrillic written as escapes is invisible to the counter",
+         lambda: one_line(
+             "booksmith.tree.cyr",
+             "    return n + sum(1 for m in ESCAPED.findall(s)\n"
+             '                   if "\\u0400" <= chr(int(m[2:], 16)) '
+             '<= "\\u052f")',
+             "    return n"),
+         [("test_cyrillic_lock",
+           "test_every_character_left_is_declared_and_no_more")]),
+
+        ("the evidence for the published numbers falls under an ignore",
+         lambda: attrs(support, SRC=_tree_that_ignores_the_results()),
+         [("test_data_contract",
+           "test_the_things_that_must_never_be_committed_are_ignored")]),
+
+        ("a cyrillic key comes back into the tracked data",
+         lambda: attrs(schema, ROOT=_tree_with_a_russian_key()),
+         [("test_data_contract",
+           "test_no_cyrillic_key_survives_where_the_map_says_none_does")]),
 
         ("the synthetic truth moved out from under its lock",
          lambda: attrs(support, SRC=_tree_with_a_moved_truth_lock()),

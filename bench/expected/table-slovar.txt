@@ -6,6 +6,10 @@ bench slovar, run PP-DocLayoutV2
   metric   scalar                      value             count                  over
   contour  artefacts_found             0.667               2/3                      
   contour  sense_whole                 0.667               2/3                      
+  contour  artefacts_merged            0.000               0/3                      
+  contour  artefacts_cropped           0.000               0/3                      
+  contour  artefacts_called_text       0.000               0/3                      
+  contour  artefacts_not_seen          0.333               1/3                      
   contour  text_furniture_found        0.990           515/520           13/13 pages
   contour  label_errors                  207           207/517                      
   contour  role_errors                     1             1/517                      
@@ -29,8 +33,8 @@ bench slovar, run PP-DocLayoutV2
   assembly transitions                   150                                        
   assembly pages_with_columns             12             12/13                      
   assembly params: COLUMN_x_overlap_of_narrow_box=0.5, COLUMN_full_width_box_share=0.6, COLUMN_min_boxes_per_page=2, COLUMN_buckets_counted=['artifact', 'text'], order_rule=model_rank
-  snapshot values_present                 78             78/78                      
-  snapshot missing                         0              0/78                      
-  snapshot empty                          16             16/78                      
-  snapshot fingerprint_verified            1                                        
+  snapshot values_present                 52             52/52                      
+  snapshot missing                         0              0/52                      
+  snapshot empty                          13             13/52                      
+  snapshot fingerprint_verified            0                                        
 4 records written to /dev/null

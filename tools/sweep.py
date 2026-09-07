@@ -5,15 +5,28 @@ it skipped and why, and it has to keep the log of each run beside the run --
 6 models x 9 benches is 54 detections and 3.6 hours on this CPU, and a loop
 that dies at 40 with the reason on a scrolled-off terminal has to start again.
 
-WHAT IT DOES NOT DO: it never deletes a run. A model whose directory is
-already there is SKIPPED and said so; `--again` re-runs it. Nothing here
-spends money -- every model is ONNX on the CPU, and the reading models are not
-in this table.
+WHAT IT DELETES, AND SAYS SO. A run it means to replace is REMOVED first --
+`books detect` refuses to write a different experiment, or one it cannot
+compare because the run there records no identity, and that refusal is right
+for a person typing it. A tool whose job is to re-measure does the deletion
+explicitly instead. This docstring said "it never deletes a run" for a while
+after that stopped being true, including for the three TRACKED `run.json`
+files. Nothing here spends money -- every model is ONNX on the CPU, and the
+reading models are not in this table.
+
+AND A DIRTY TREE IS NOT A MEASUREMENT. `stamp.commit()` returns
+`<sha>+dirty tree` for any uncommitted state, so a result stamped that way
+cannot be traced to code and is never "already measured" -- it is re-run. The
+inverse mattered more: a CLEAN result at the same sha did not match a dirty
+`stamp.commit()` and was re-measured INTO a dirty one. And the sweep dirties
+the tree itself, by rewriting the tracked snapshots: measured mid-run, 6
+results clean and 11 dirty, and the renderer refused all 17. Commit first.
 
     python3 tools/sweep.py                 what would run
     python3 tools/sweep.py --apply         run it
     python3 tools/sweep.py --apply --books slovar,katalog --models yolox
-    python3 tools/sweep.py --apply --again      re-run what is already there
+    python3 tools/sweep.py --apply --again          re-detect and re-measure
+    python3 tools/sweep.py --apply --metrics-only   re-measure, keep the boxes
 """
 import json
 import os
@@ -108,9 +121,14 @@ def _measured(bdir, bname, label) -> bool:
     p = os.path.join(ROOT, "bench", "results", f"{bname}-{label}.json")
     if not (os.path.isfile(p) and _has_pages(bdir, label)):
         return False
+    now = stamp.commit()
+    if not now or "dirty" in now:
+        # Nothing measured against an uncommitted tree counts as measured:
+        # what produced it cannot be recovered.
+        return False
     try:
         with open(p, encoding="utf-8") as f:
-            return json.load(f).get("commit") == stamp.commit()
+            return json.load(f).get("commit") == now
     except (OSError, ValueError, AttributeError):
         return False
 
@@ -128,7 +146,14 @@ def _run(argv, env, logfile):
 
 def main(argv):
     apply_ = "--apply" in argv
-    again = "--again" in argv
+    # `--metrics-only` RE-RUNS `bench all` AND NOTHING ELSE, over boxes that
+    # are already there. It exists because a metric changes far more often
+    # than a detector does, and because a sweep dirties the tree by rewriting
+    # the tracked snapshots -- so the honest recipe is: sweep, commit, then
+    # re-measure from the clean tree, and every cell carries one commit.
+    # Three and a half hours of detection are not spent again for a stamp.
+    metrics_only = "--metrics-only" in argv
+    again = "--again" in argv and not metrics_only
     want_b = _opt(argv, "--books")
     want_m = _opt(argv, "--models")
     books = [(n, d) for n, d in _books(ROOT) if not want_b or n in want_b]
@@ -156,7 +181,12 @@ def main(argv):
             # `bench all` too, so nine cells of V2 had boxes and no numbers
             # and the table's baseline column was empty.
             done = _measured(bdir, bname, label)
-            if done and not again:
+            if metrics_only and not _has_pages(bdir, label):
+                # No boxes to measure. Named, not silently skipped: a cell
+                # missing from the table is not a result about the model.
+                skip.append((bname, f"{label} (no boxes; detect it first)"))
+                continue
+            if done and not again and not metrics_only:
                 skip.append((bname, label))
             else:
                 todo.append((bname, bdir, mname, label, env,
@@ -183,7 +213,9 @@ def main(argv):
         open(log, "w", encoding="utf-8").close()
         t0 = time.time()
         print(f"  [{i}/{len(todo)}] {bname} {label} ... ", end="", flush=True)
-        if not has or again:
+        if metrics_only:
+            rc = 0
+        elif not has or again:
             # THE OLD RUN IS REMOVED BEFORE THE NEW ONE, and by this tool
             # rather than by the command. `books detect` refuses to write a
             # different experiment -- or one it cannot compare, which is
@@ -215,7 +247,11 @@ def main(argv):
           f"{(time.time() - started) / 60:.1f} min")
     for b, l, what, rc in failed:
         print(f"  FAILED {b} {l}: {what} rc={rc}")
-    return 1 if failed else 0
+    # A MODEL THAT NEVER BUILT IS A FAILURE OF THE SWEEP, not a footnote. It
+    # was printed and the exit code stayed 0, so a five-of-six sweep looked
+    # like a whole one -- and the renderer then draws the missing model as a
+    # column of dots.
+    return 1 if (failed or broken) else 0
 
 
 def _opt(argv, name):

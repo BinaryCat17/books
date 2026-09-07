@@ -1,0 +1,609 @@
+{
+ "commit": "f7407d40583d9d79cb9f8ecff4d56a8382ad8fe2+dirty tree",
+ "records": [
+  {
+   "bench": "matematika",
+   "detail": {
+    "assembly_order": {
+     "agreement": 1.0,
+     "blocks_without_rank": 0,
+     "page_count": 12,
+     "pages_total": 12,
+     "pairs": 386,
+     "pairs_possible": 738
+    },
+    "book": "sha256 checked: 6e33e29f0f16; raster checked: 12 pages, sizes agree",
+    "by_case": {
+     "mat_chain": {
+      "artifacts": 7,
+      "found": 0,
+      "troubles": {
+       "not seen (display_formula)": 7
+      }
+     },
+     "mat_display_numbered": {
+      "artifacts": 6,
+      "found": 0,
+      "troubles": {
+       "not seen (display_formula)": 6
+      }
+     },
+     "mat_greek": {
+      "artifacts": 5,
+      "found": 0,
+      "troubles": {
+       "not seen (display_formula)": 5
+      }
+     },
+     "mat_inline": {
+      "artifacts": 0,
+      "found": 0,
+      "troubles": {}
+     },
+     "mat_matrix": {
+      "artifacts": 2,
+      "found": 0,
+      "troubles": {
+       "not seen (display_formula)": 2
+      }
+     },
+     "mat_matrix_vs_table": {
+      "artifacts": 2,
+      "found": 0,
+      "troubles": {
+       "not seen (display_formula)": 1,
+       "not seen (table)": 1
+      }
+     },
+     "mat_numbered_list": {
+      "artifacts": 0,
+      "found": 0,
+      "troubles": {}
+     },
+     "mat_plain_prose": {
+      "artifacts": 0,
+      "found": 0,
+      "troubles": {}
+     },
+     "mat_references": {
+      "artifacts": 0,
+      "found": 0,
+      "troubles": {}
+     },
+     "mat_system": {
+      "artifacts": 1,
+      "found": 0,
+      "troubles": {
+       "not seen (display_formula)": 1
+      }
+     },
+     "mat_tall_fraction": {
+      "artifacts": 4,
+      "found": 0,
+      "troubles": {
+       "not seen (display_formula)": 4
+      }
+     },
+     "mat_theorem": {
+      "artifacts": 0,
+      "found": 0,
+      "troubles": {}
+     }
+    },
+    "by_label": {
+     "display_formula": {
+      "bucket": "artifact",
+      "found": 0,
+      "truth": 26
+     },
+     "formula_number": {
+      "bucket": "text",
+      "found": 0,
+      "truth": 6
+     },
+     "paragraph_title": {
+      "bucket": "text",
+      "found": 3,
+      "truth": 3
+     },
+     "reference_content": {
+      "bucket": "text",
+      "found": 0,
+      "truth": 1
+     },
+     "table": {
+      "bucket": "artifact",
+      "found": 0,
+      "truth": 1
+     },
+     "text": {
+      "bucket": "text",
+      "found": 94,
+      "truth": 94
+     }
+    },
+    "jumps": {
+     "boxes_counted": 23,
+     "boxes_other_buckets": 0,
+     "by_page": {},
+     "columns": 2,
+     "excess_jumps": 0,
+     "full_width_boxes": 94,
+     "page_count": 12,
+     "pages_counted": 2,
+     "pages_not_counted_too_few_boxes": 10,
+     "pages_with_2plus_columns": 0,
+     "params": {
+      "buckets_counted": [
+       "artifact",
+       "text"
+      ],
+      "full_width_box_share": 0.6,
+      "min_boxes_per_page": 2,
+      "x_overlap_of_narrow_box": 0.5
+     },
+     "per_page": 0.0,
+     "transitions": 0,
+     "why": ""
+    },
+    "label_confusion": {
+     "paragraph_title->Section-header": 3,
+     "text->List-item": 9,
+     "text->Text": 85
+    },
+    "model_order": {
+     "agreement": null,
+     "page_count": 12,
+     "pages_total": 12,
+     "pairs": 0,
+     "pairs_possible": 738,
+     "why": "the model gives no rank (ours_top_down_left_right)"
+    },
+    "order_rule": "ours_top_down_left_right",
+    "order_truth": {
+     "page_count": 12,
+     "states": {
+      "marked": 12
+     }
+    },
+    "sense": {
+     "called_text": 0,
+     "cropped": 0,
+     "intact": 0,
+     "merged": 0,
+     "not_seen": 27,
+     "objects": 27,
+     "share": 0.0,
+     "threshold_fits": 0.9,
+     "threshold_neighbour": 0.5
+    },
+    "text_and_furniture": {
+     "block_count": 104,
+     "found": 97,
+     "pages_total": 12,
+     "pages_with_text_markup": 12,
+     "share": 0.9326923076923077
+    },
+    "totals": {
+     "artifacts": 27,
+     "found": 0,
+     "share": 0.0
+    },
+    "troubles": {
+     "not seen (display_formula)": 26,
+     "not seen (table)": 1
+    }
+   },
+   "metric": "contour",
+   "params": {
+    "COLUMN_buckets_counted": [
+     "artifact",
+     "text"
+    ],
+    "COLUMN_full_width_box_share": 0.6,
+    "COLUMN_min_boxes_per_page": 2,
+    "COLUMN_x_overlap_of_narrow_box": 0.5,
+    "COVER_MATCH": 0.75,
+    "SENSE_NEIGHBOUR": 0.5,
+    "SENSE_WHOLE": 0.9,
+    "TOL_PX": 6.0,
+    "TOUCH": 0.1
+   },
+   "run": "yolox_l0.05",
+   "scalars": {
+    "artefacts_called_text": {
+     "count": {
+      "n": 0,
+      "of": 27
+     },
+     "value": 0.0
+    },
+    "artefacts_cropped": {
+     "count": {
+      "n": 0,
+      "of": 27
+     },
+     "value": 0.0
+    },
+    "artefacts_found": {
+     "count": {
+      "n": 0,
+      "of": 27
+     },
+     "value": 0.0
+    },
+    "artefacts_merged": {
+     "count": {
+      "n": 0,
+      "of": 27
+     },
+     "value": 0.0
+    },
+    "artefacts_not_seen": {
+     "count": {
+      "n": 27,
+      "of": 27
+     },
+     "value": 1.0
+    },
+    "assembly_order": {
+     "over": {
+      "n": 12,
+      "of": 12,
+      "unit": "pages"
+     },
+     "value": 1.0
+    },
+    "excess_jumps_per_page": {
+     "over": {
+      "n": 2,
+      "of": 12,
+      "unit": "pages"
+     },
+     "value": 0.0
+    },
+    "label_errors": {
+     "value": null,
+     "why": "the two sides speak different label vocabularies; not compared"
+    },
+    "model_order": {
+     "over": {
+      "n": 12,
+      "of": 12,
+      "unit": "pages"
+     },
+     "value": null,
+     "why": "the model gives no rank (ours_top_down_left_right)"
+    },
+    "role_errors": {
+     "count": {
+      "n": 0,
+      "of": 97
+     },
+     "value": 0
+    },
+    "sense_whole": {
+     "count": {
+      "n": 0,
+      "of": 27
+     },
+     "value": 0.0
+    },
+    "text_furniture_found": {
+     "count": {
+      "n": 97,
+      "of": 104
+     },
+     "over": {
+      "n": 12,
+      "of": 12,
+      "unit": "pages"
+     },
+     "value": 0.9326923076923077
+    }
+   }
+  },
+  {
+   "bench": "matematika",
+   "detail": {
+    "almost_intact": 0,
+    "arrived_with_company": 0,
+    "bitten": 0,
+    "boxes_area": 6143485,
+    "boxes_with_many_objects": 0,
+    "dark_columns": 0,
+    "dark_columns_positions": [],
+    "dpi": [
+     144
+    ],
+    "empty_objects": 0,
+    "in_one_box": 0,
+    "ink_in_dark_columns": 0,
+    "ink_in_dark_columns_off_edge": 0,
+    "ink_outside_boxes_at_edge": 2235,
+    "ink_total": 1830374,
+    "ink_under_artifact": 0,
+    "ink_under_boxes": 1749063,
+    "intact": 0,
+    "left_as_text": 0,
+    "object_ink": 33072,
+    "object_ink_in_boxes": 0,
+    "objects": 27,
+    "page_count": 12,
+    "pages_with_dark_column": 0,
+    "sheet_area": 14871168,
+    "split_between_boxes": 0,
+    "thresholds": {
+     "almost": 0.95,
+     "bitten": 0.8,
+     "edge_band": 0.04,
+     "ink": 160,
+     "intact": 0.99
+    },
+    "torn": 27,
+    "truth_pages": 12
+   },
+   "metric": "fitness",
+   "params": {
+    "GUTTER": 0.5,
+    "almost": 0.95,
+    "bitten": 0.8,
+    "dpi": [
+     144
+    ],
+    "edge_band": 0.04,
+    "ink": 160,
+    "intact": 0.99
+   },
+   "run": "yolox_l0.05",
+   "scalars": {
+    "area_under_boxes": {
+     "count": {
+      "n": 6143485,
+      "of": 14871168
+     },
+     "value": 0.41311381863213437
+    },
+    "ink_outside_boxes": {
+     "count": {
+      "n": 81311,
+      "of": 1830374
+     },
+     "value": 0.04442316160522386
+    },
+    "ink_under_artefacts": {
+     "count": {
+      "n": 0,
+      "of": 1830374
+     },
+     "value": 0.0
+    },
+    "ink_under_boxes": {
+     "count": {
+      "n": 1749063,
+      "of": 1830374
+     },
+     "value": 0.9555768383947761
+    },
+    "object_ink_preserved": {
+     "count": {
+      "n": 0,
+      "of": 33072
+     },
+     "value": 0.0
+    },
+    "objects_in_one_box": {
+     "count": {
+      "n": 0,
+      "of": 27
+     },
+     "value": 0.0
+    },
+    "objects_intact": {
+     "count": {
+      "n": 0,
+      "of": 27
+     },
+     "value": 0.0
+    },
+    "objects_left_as_text": {
+     "count": {
+      "n": 0,
+      "of": 27
+     },
+     "value": 0.0
+    },
+    "objects_torn": {
+     "count": {
+      "n": 27,
+      "of": 27
+     },
+     "value": 1.0
+    },
+    "objects_with_company": {
+     "count": {
+      "n": 0,
+      "of": 27
+     },
+     "value": 0.0
+    }
+   }
+  },
+  {
+   "bench": "matematika",
+   "detail": {
+    "boxes_counted": 23,
+    "boxes_other_buckets": 0,
+    "by_page": {},
+    "columns": 2,
+    "excess_jumps": 0,
+    "full_width_boxes": 94,
+    "page_count": 12,
+    "pages_counted": 2,
+    "pages_not_counted_too_few_boxes": 10,
+    "pages_with_2plus_columns": 0,
+    "params": {
+     "buckets_counted": [
+      "artifact",
+      "text"
+     ],
+     "full_width_box_share": 0.6,
+     "min_boxes_per_page": 2,
+     "x_overlap_of_narrow_box": 0.5
+    },
+    "per_page": 0.0,
+    "transitions": 0,
+    "why": ""
+   },
+   "metric": "assembly",
+   "params": {
+    "COLUMN_buckets_counted": [
+     "artifact",
+     "text"
+    ],
+    "COLUMN_full_width_box_share": 0.6,
+    "COLUMN_min_boxes_per_page": 2,
+    "COLUMN_x_overlap_of_narrow_box": 0.5,
+    "order_rule": "ours_top_down_left_right"
+   },
+   "run": "yolox_l0.05",
+   "scalars": {
+    "excess_jumps": {
+     "value": 0
+    },
+    "excess_jumps_per_page": {
+     "over": {
+      "n": 2,
+      "of": 12,
+      "unit": "pages"
+     },
+     "value": 0.0
+    },
+    "pages_with_columns": {
+     "count": {
+      "n": 0,
+      "of": 12
+     },
+     "value": 0
+    },
+    "transitions": {
+     "value": 0
+    }
+   }
+  },
+  {
+   "bench": "matematika",
+   "detail": {
+    "empty": [
+     [
+      "knobs",
+      "VL_MODEL_DIR",
+      "value"
+     ],
+     [
+      "knobs",
+      "YOLOX_WEIGHTS",
+      "value"
+     ],
+     [
+      "knobs",
+      "LAYOUT_MODEL_DIR",
+      "value"
+     ],
+     [
+      "knobs",
+      "CROP_DPI",
+      "value"
+     ],
+     [
+      "knobs",
+      "BOOKSMITH_COMMIT",
+      "value"
+     ],
+     [
+      "knobs",
+      "BOOKSMITH_LEDGER",
+      "value"
+     ],
+     [
+      "knobs",
+      "VLM_ENDPOINT",
+      "value"
+     ],
+     [
+      "prompts"
+     ],
+     [
+      "generation",
+      "temperature"
+     ],
+     [
+      "generation",
+      "max_tokens"
+     ],
+     [
+      "generation",
+      "top_p"
+     ],
+     [
+      "generation",
+      "seed"
+     ],
+     [
+      "weights",
+      "vl"
+     ],
+     [
+      "fingerprint",
+      "label_map"
+     ],
+     [
+      "fingerprint",
+      "native_threshold"
+     ],
+     [
+      "fingerprint",
+      "prompts"
+     ],
+     [
+      "fingerprint",
+      "reading_order"
+     ]
+    ],
+    "missing": [],
+    "required": 79,
+    "shape": "the fingerprint of adapter yolox-layout is verified: processing/layout/adapters/yolox.py is the very one (sha256 matches, identified by module name), 27 values were derived from it"
+   },
+   "metric": "snapshot",
+   "params": {},
+   "run": "yolox_l0.05",
+   "scalars": {
+    "empty": {
+     "count": {
+      "n": 17,
+      "of": 79
+     },
+     "value": 17
+    },
+    "fingerprint_verified": {
+     "value": 1
+    },
+    "missing": {
+     "count": {
+      "n": 0,
+      "of": 79
+     },
+     "value": 0
+    },
+    "values_present": {
+     "count": {
+      "n": 79,
+      "of": 79
+     },
+     "value": 79
+    }
+   }
+  }
+ ],
+ "when": "2026-09-07T18:59:25+0300"
+}

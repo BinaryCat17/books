@@ -36,6 +36,23 @@ OUT = os.path.join(config.ROOT, "METRICS.md")
 
 # The few a reader wants first. Everything else is in the per-bench tables
 # below them; nothing is hidden, only ordered.
+# WHICH WAY IS BETTER, PER SCALAR. The legend used to say "shares are 0..1 and
+# higher is better except excess_jumps_per_page" -- and `label_errors`,
+# `role_errors`, `excess_jumps`, `transitions` and the snapshot counts are not
+# shares at all, and higher is worse for most. Read by that legend, V3's 442
+# label errors BEAT V2's 207: the very inversion the denominators were added
+# to fix, reintroduced one file over because the VALUE column is still the raw
+# count. A scalar not named here is a share where higher is better.
+LOWER_IS_BETTER = (
+    "label_errors", "role_errors", "excess_jumps", "excess_jumps_per_page",
+    "objects_torn", "objects_left_as_text", "objects_with_company",
+    "ink_outside_boxes", "snapshot/missing", "snapshot/empty",
+)
+# Counts that are neither better nor worse -- they describe the bench or the
+# run, and ranking models by them is meaningless.
+NEITHER = ("transitions", "pages_with_columns", "values_present",
+           "fingerprint_verified")
+
 HEADLINE = (
     ("contour", "artefacts_found", "tables and pictures found"),
     ("contour", "text_furniture_found", "text and furniture found"),
@@ -60,14 +77,32 @@ def _cells():
     return out, commits, when
 
 
+def _arrow(scalar: str) -> str:
+    """Which way is better, as a property of the scalar."""
+    if scalar in NEITHER:
+        return "="
+    return "↓" if scalar in LOWER_IS_BETTER else "↑"
+
+
 def _num(v):
     if v is None:
         return None
     return f"{v:.3f}" if isinstance(v, float) else str(v)
 
 
-def _cell(rec, scalar):
-    """One value with everything it is over, or the reason there is none."""
+def _cell(rec, scalar, measured=True):
+    """One value with everything it is over, or the reason there is none.
+
+    THREE ABSENCES, KEPT APART, because they are the project's own rule about
+    two different zeros. `?` -- this pair was never measured, and nothing here
+    is a result about it. `·` -- it was measured and this metric does not
+    apply to it. `—` -- it applies, and the value does not exist, with the
+    reason under the table. One dot used to mean the first two, under a legend
+    claiming the second: a bench measured on two of six models read as a
+    complete comparison of six.
+    """
+    if not measured:
+        return "?"
     if rec is None:
         return "·"
     sc = (rec.get("scalars") or {}).get(scalar)
@@ -114,6 +149,16 @@ def build(log=print) -> str:
     # different commits" -- the marker is the same sha with `+dirty tree`
     # after it, and the first edition printed both truncated to twelve
     # characters, so the refusal read "44553f64829c and 44553f64829c".
+    # `stamp.commit()` returns None on a box with no git -- the rented card is
+    # exactly that -- and `sorted` over None and a string raises a bare
+    # TypeError three lines down. A result that cannot name its code is the
+    # same trouble as a dirty one and is said so.
+    if None in commits:
+        raise Refusal(
+            "some results record no commit at all: they were measured where "
+            "git could not be asked (a rented machine has no repository). "
+            "What produced them cannot be recovered, so they cannot be "
+            "published beside numbers that can.")
     dirty = sorted(c for c in commits if c and "dirty" in c)
     if dirty:
         raise Refusal(
@@ -147,10 +192,17 @@ def build(log=print) -> str:
          "",
          "Each cell is the value with the count behind it. Where a metric "
          "was counted over only PART of a bench, the cell says so; where it "
-         "says nothing, it was counted over all of it. A dash is a value that "
-         "does not exist, and the reason is under its table; a dot is a "
-         "metric that does not apply to that pair. Shares are 0..1 and higher "
-         "is better EXCEPT `excess_jumps_per_page`, where lower is.",
+         "says nothing, it was counted over all of it.",
+         "",
+         "A scalar's name carries an arrow: **↑** better higher, **↓** better "
+         "lower, **=** neither (it describes the bench or the run, and "
+         "ranking models by it means nothing). Two cells that cannot be "
+         "compared are never put in one column without saying so.",
+         "",
+         "`—` is a value that does not exist, and the reason is under its "
+         "table. `·` is a metric that does not apply to that pair. **`?` is "
+         "NOT MEASURED** -- the run was never made or never scored, and it is "
+         "not a result.",
          ""]
 
     # ---- what is NOT here -------------------------------------------------
@@ -165,27 +217,51 @@ def build(log=print) -> str:
              "reasons why, before any money is spent."),
           "",
           "**Anything a bench cannot support.** A metric whose prerequisites "
-          "a bench does not meet is absent, not zero: `bench/annopage` "
-          "annotates no text, so its text row is a dash with that reason, and "
-          "`bench/hard36` says nothing about its own text markup, so it "
-          "cannot be asked either.",
+          "a bench does not meet is absent, not zero, and the reason is "
+          "printed under the table it would have been in -- taken from the "
+          "record, not typed here. A sentence typed into this document about "
+          "a particular bench was wrong for a day while the dash two lines "
+          "below it was right; that is what a generated file is for.",
           ""]
 
     # ---- the headline -----------------------------------------------------
     L += ["## The short answer", ""]
     for metric, scalar, what in HEADLINE:
-        L += [f"### {scalar} — {what}", ""]
+        L += [f"### {scalar} {_arrow(scalar)} — {what}", ""]
         rows = []
         for r in runs:
             row = [f"`{r}`"]
             for b in benches:
-                row.append(_cell(cells.get((b, r), {}).get(metric), scalar))
+                row.append(_cell(cells.get((b, r), {}).get(metric), scalar,
+                                 measured=(b, r) in cells))
             rows.append(row)
         L += _table(rows, ["model"] + benches)
         notes = sorted({_why(cells.get((b, r), {}).get(metric), scalar)
                         for b in benches for r in runs} - {None})
         if notes:
             L += [""] + [f"- a dash means: {n}" for n in notes]
+        # WHOSE ORDER, BESIDE THE JUMPS. Excess jumps are counted over the
+        # page's block list -- the MODEL's rank for a model that has one, and
+        # OUR top-down rule for a model that has none. On the same boxes the
+        # golden bench gives 2471 by our rule against 501 by the rank, five
+        # times the spread a table shows, so two models under one heading with
+        # two rules are not a comparison. This header claimed the table prints
+        # it, and only the per-bench section did.
+        if scalar.startswith("excess_jumps"):
+            rules = collections.defaultdict(set)
+            for r in runs:
+                for b in benches:
+                    par = ((cells.get((b, r), {}).get("assembly") or {})
+                           .get("params") or {})
+                    if par.get("order_rule"):
+                        rules[par["order_rule"]].add(r)
+            if rules:
+                L += [""] + [f"- counted over `{k}`: "
+                             + ", ".join(f"`{x}`" for x in sorted(v))
+                             for k, v in sorted(rules.items())]
+                if len(rules) > 1:
+                    L += ["- **these are two different quantities**, and the "
+                          "columns are not comparable across the two groups."]
         L += [""]
 
     # ---- per bench, everything -------------------------------------------
@@ -193,7 +269,7 @@ def build(log=print) -> str:
     for b in benches:
         L += [f"### {b}", ""]
         here = {r: cells.get((b, r), {}) for r in runs}
-        present = [r for r in runs if here[r]]
+        present = [r for r in runs if (b, r) in cells]
         if not present:
             L += ["Not measured.", ""]
             continue
@@ -203,9 +279,17 @@ def build(log=print) -> str:
                             for s in (here[r].get(metric) or {}).get("scalars", {})})
             rows = []
             for s in names:
-                rows.append([f"`{s}`"] + [_cell(here[r].get(metric), s)
-                                          for r in present])
-            L += [f"**{metric}**", ""] + _table(rows, ["scalar"] + present) + [""]
+                    rows.append([f"`{s}` {_arrow(s)}"]
+                            + [_cell(here[r].get(metric), s,
+                                     measured=(b, r) in cells) for r in runs])
+            L += [f"**{metric}**", ""] + _table(rows, ["scalar"] + runs) + [""]
+            # EVERY MODEL IS A COLUMN, measured or not. Dropping the unmeasured
+            # ones from the header made a bench measured on two of six read as
+            # a comparison of two.
+            missing = [r for r in runs if r not in present]
+            if missing:
+                L += [f"  not measured on this bench: "
+                      + ", ".join(f"`{r}`" for r in missing), ""]
             notes = sorted({_why(here[r].get(metric), s)
                             for r in present for s in names} - {None})
             if notes:

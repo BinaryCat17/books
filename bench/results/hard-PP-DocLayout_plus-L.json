@@ -1,0 +1,1885 @@
+{
+ "commit": "f7407d40583d9d79cb9f8ecff4d56a8382ad8fe2+dirty tree",
+ "records": [
+  {
+   "bench": "hard",
+   "detail": {
+    "assembly_order": {
+     "agreement": 0.9133858267716536,
+     "blocks_without_rank": 0,
+     "page_count": 6,
+     "pages_total": 130,
+     "pairs": 254,
+     "pairs_possible": 354
+    },
+    "book": "sha256 checked: 141f272bee2f; raster checked: 130 pages, sizes agree",
+    "by_case": {
+     "043b174f": {
+      "artifacts": 4,
+      "found": 4,
+      "troubles": {
+       "spurious_box": 1
+      }
+     },
+     "05c763f0": {
+      "artifacts": 18,
+      "found": 0,
+      "troubles": {
+       "merge (chart)": 18,
+       "spurious_box": 1
+      }
+     },
+     "0794bbfa": {
+      "artifacts": 3,
+      "found": 1,
+      "troubles": {
+       "merge (image)": 2,
+       "spurious_box": 2
+      }
+     },
+     "09ad1c81": {
+      "artifacts": 6,
+      "found": 3,
+      "troubles": {
+       "merge (image)": 2,
+       "not seen (image)": 1
+      }
+     },
+     "0c2baff5": {
+      "artifacts": 2,
+      "found": 2,
+      "troubles": {}
+     },
+     "0d4e2fd0": {
+      "artifacts": 3,
+      "found": 3,
+      "troubles": {}
+     },
+     "0dbe9279": {
+      "artifacts": 3,
+      "found": 0,
+      "troubles": {
+       "merge (image)": 3,
+       "spurious_box": 2
+      }
+     },
+     "0e95ee35": {
+      "artifacts": 5,
+      "found": 0,
+      "troubles": {
+       "merge (image)": 5,
+       "spurious_box": 1
+      }
+     },
+     "1138eb54": {
+      "artifacts": 7,
+      "found": 3,
+      "troubles": {
+       "merge (chart)": 4,
+       "spurious_box": 5
+      }
+     },
+     "1138eb70": {
+      "artifacts": 10,
+      "found": 6,
+      "troubles": {
+       "not seen (image)": 4,
+       "spurious_box": 5
+      }
+     },
+     "1138eba7": {
+      "artifacts": 3,
+      "found": 3,
+      "troubles": {
+       "spurious_box": 10
+      }
+     },
+     "1138ebff": {
+      "artifacts": 5,
+      "found": 5,
+      "troubles": {
+       "spurious_box": 12
+      }
+     },
+     "1138ec0c": {
+      "artifacts": 5,
+      "found": 2,
+      "troubles": {
+       "merge (chart)": 3,
+       "spurious_box": 21
+      }
+     },
+     "1138ecd0": {
+      "artifacts": 10,
+      "found": 10,
+      "troubles": {
+       "spurious_box": 7
+      }
+     },
+     "1503a0b8": {
+      "artifacts": 7,
+      "found": 6,
+      "troubles": {
+       "spill (display_formula)": 1
+      }
+     },
+     "1c74febe": {
+      "artifacts": 4,
+      "found": 0,
+      "troubles": {
+       "merge (image)": 4,
+       "spurious_box": 1
+      }
+     },
+     "1ea66c01": {
+      "artifacts": 9,
+      "found": 5,
+      "troubles": {
+       "merge (display_formula)": 4,
+       "spurious_box": 6
+      }
+     },
+     "220214e0": {
+      "artifacts": 2,
+      "found": 0,
+      "troubles": {
+       "merge (image)": 2,
+       "spurious_box": 1
+      }
+     },
+     "223e3020": {
+      "artifacts": 2,
+      "found": 2,
+      "troubles": {}
+     },
+     "26aeb64b": {
+      "artifacts": 7,
+      "found": 6,
+      "troubles": {
+       "crop (table)": 1,
+       "inside a miss": 1,
+       "on an object outside scoring": 2
+      }
+     },
+     "28ab956c": {
+      "artifacts": 3,
+      "found": 3,
+      "troubles": {
+       "spurious_box": 1
+      }
+     },
+     "2995748b": {
+      "artifacts": 2,
+      "found": 2,
+      "troubles": {}
+     },
+     "2b987c5e": {
+      "artifacts": 6,
+      "found": 0,
+      "troubles": {
+       "eaten by text (table)": 4,
+       "merge (table)": 1,
+       "not seen (table)": 1
+      }
+     },
+     "2bfcf190": {
+      "artifacts": 5,
+      "found": 3,
+      "troubles": {
+       "merge (image)": 2,
+       "spurious_box": 1
+      }
+     },
+     "2c644030": {
+      "artifacts": 4,
+      "found": 2,
+      "troubles": {
+       "merge (chart)": 2,
+       "spurious_box": 2
+      }
+     },
+     "31ad48aa": {
+      "artifacts": 5,
+      "found": 1,
+      "troubles": {
+       "merge (image)": 4,
+       "spurious_box": 1
+      }
+     },
+     "32d1cd65": {
+      "artifacts": 2,
+      "found": 2,
+      "troubles": {
+       "on an object outside scoring": 3
+      }
+     },
+     "33276b11": {
+      "artifacts": 3,
+      "found": 1,
+      "troubles": {
+       "crop (table)": 1,
+       "eaten by text (table)": 1,
+       "on an object outside scoring": 1
+      }
+     },
+     "3431bb55": {
+      "artifacts": 3,
+      "found": 3,
+      "troubles": {
+       "spurious_box": 1
+      }
+     },
+     "3431bbe8": {
+      "artifacts": 2,
+      "found": 0,
+      "troubles": {
+       "merge (chart)": 2,
+       "spurious_box": 1
+      }
+     },
+     "355e5084": {
+      "artifacts": 3,
+      "found": 0,
+      "troubles": {
+       "merge (chart)": 3,
+       "spurious_box": 1
+      }
+     },
+     "359422f3": {
+      "artifacts": 3,
+      "found": 2,
+      "troubles": {
+       "merge (image)": 1,
+       "spurious_box": 1
+      }
+     },
+     "37e71249": {
+      "artifacts": 5,
+      "found": 1,
+      "troubles": {
+       "not seen (image)": 4
+      }
+     },
+     "3830bee5": {
+      "artifacts": 6,
+      "found": 1,
+      "troubles": {
+       "merge (image)": 5,
+       "spurious_box": 1
+      }
+     },
+     "385f7084": {
+      "artifacts": 5,
+      "found": 0,
+      "troubles": {
+       "eaten by text (table)": 5
+      }
+     },
+     "38b22fbb": {
+      "artifacts": 4,
+      "found": 2,
+      "troubles": {
+       "crop (display_formula)": 1,
+       "eaten by text (display_formula)": 1,
+       "inside a miss": 1
+      }
+     },
+     "3ffd0448": {
+      "artifacts": 7,
+      "found": 7,
+      "troubles": {
+       "spurious_box": 4
+      }
+     },
+     "40311c40": {
+      "artifacts": 4,
+      "found": 4,
+      "troubles": {
+       "on an object outside scoring": 1
+      }
+     },
+     "412e362d": {
+      "artifacts": 11,
+      "found": 0,
+      "troubles": {
+       "eaten by text (table)": 2,
+       "merge (display_formula)": 5,
+       "not seen (display_formula)": 3,
+       "spill (display_formula)": 1
+      }
+     },
+     "43339819": {
+      "artifacts": 6,
+      "found": 0,
+      "troubles": {
+       "eaten by text (table)": 3,
+       "merge (chart)": 3,
+       "spurious_box": 1
+      }
+     },
+     "44a9e497": {
+      "artifacts": 4,
+      "found": 1,
+      "troubles": {
+       "merge (chart)": 2,
+       "near, but no match (display_formula)": 1,
+       "spurious_box": 2
+      }
+     },
+     "4571c978": {
+      "artifacts": 3,
+      "found": 3,
+      "troubles": {}
+     },
+     "471410a8": {
+      "artifacts": 8,
+      "found": 3,
+      "troubles": {
+       "merge (image)": 5,
+       "spurious_box": 1
+      }
+     },
+     "490d7699": {
+      "artifacts": 4,
+      "found": 1,
+      "troubles": {
+       "merge (chart)": 3
+      }
+     },
+     "4ca9d23a": {
+      "artifacts": 3,
+      "found": 1,
+      "troubles": {
+       "merge (image)": 2,
+       "spurious_box": 1
+      }
+     },
+     "4d90f2a4": {
+      "artifacts": 3,
+      "found": 3,
+      "troubles": {}
+     },
+     "4e46b157": {
+      "artifacts": 2,
+      "found": 2,
+      "troubles": {}
+     },
+     "4ffd9e40": {
+      "artifacts": 3,
+      "found": 2,
+      "troubles": {
+       "fragmentation (table)": 1,
+       "inside a miss": 6,
+       "nested duplicate": 2
+      }
+     },
+     "50d1a231": {
+      "artifacts": 14,
+      "found": 1,
+      "troubles": {
+       "merge (image)": 13
+      }
+     },
+     "50d1a237": {
+      "artifacts": 8,
+      "found": 7,
+      "troubles": {
+       "eaten by text (table)": 1
+      }
+     },
+     "50d1a23d": {
+      "artifacts": 4,
+      "found": 1,
+      "troubles": {
+       "merge (image)": 3
+      }
+     },
+     "50d1a242": {
+      "artifacts": 2,
+      "found": 0,
+      "troubles": {
+       "merge (image)": 2,
+       "spurious_box": 1
+      }
+     },
+     "50d1a261": {
+      "artifacts": 5,
+      "found": 1,
+      "troubles": {
+       "merge (image)": 4
+      }
+     },
+     "50d1a269": {
+      "artifacts": 3,
+      "found": 0,
+      "troubles": {
+       "merge (image)": 3,
+       "spurious_box": 1
+      }
+     },
+     "50d1a279": {
+      "artifacts": 10,
+      "found": 1,
+      "troubles": {
+       "merge (chart)": 9
+      }
+     },
+     "50d1a281": {
+      "artifacts": 3,
+      "found": 0,
+      "troubles": {
+       "merge (image)": 3,
+       "spurious_box": 1
+      }
+     },
+     "50d1a284": {
+      "artifacts": 2,
+      "found": 2,
+      "troubles": {}
+     },
+     "50d1a291": {
+      "artifacts": 21,
+      "found": 1,
+      "troubles": {
+       "merge (image)": 20
+      }
+     },
+     "50d1a2a9": {
+      "artifacts": 6,
+      "found": 1,
+      "troubles": {
+       "merge (image)": 5
+      }
+     },
+     "50d1a2ab": {
+      "artifacts": 4,
+      "found": 0,
+      "troubles": {
+       "crop (table)": 4
+      }
+     },
+     "50d1a2c1": {
+      "artifacts": 15,
+      "found": 1,
+      "troubles": {
+       "merge (image)": 14
+      }
+     },
+     "50d1a2ca": {
+      "artifacts": 5,
+      "found": 1,
+      "troubles": {
+       "merge (chart)": 4
+      }
+     },
+     "50d1a2cd": {
+      "artifacts": 8,
+      "found": 1,
+      "troubles": {
+       "merge (image)": 7
+      }
+     },
+     "50d1a2d9": {
+      "artifacts": 6,
+      "found": 1,
+      "troubles": {
+       "merge (image)": 5
+      }
+     },
+     "50d1a2f9": {
+      "artifacts": 6,
+      "found": 1,
+      "troubles": {
+       "merge (image)": 5
+      }
+     },
+     "50d1a311": {
+      "artifacts": 4,
+      "found": 1,
+      "troubles": {
+       "merge (image)": 3
+      }
+     },
+     "50d1a315": {
+      "artifacts": 25,
+      "found": 1,
+      "troubles": {
+       "merge (image)": 24
+      }
+     },
+     "5e1bcabb": {
+      "artifacts": 7,
+      "found": 1,
+      "troubles": {
+       "fragmentation (table)": 1,
+       "inside a miss": 3,
+       "merge (display_formula)": 5,
+       "spurious_box": 4
+      }
+     },
+     "5f124d7f": {
+      "artifacts": 5,
+      "found": 5,
+      "troubles": {
+       "spurious_box": 2
+      }
+     },
+     "601c4ee6": {
+      "artifacts": 2,
+      "found": 2,
+      "troubles": {
+       "spurious_box": 1
+      }
+     },
+     "6b1108e5": {
+      "artifacts": 2,
+      "found": 2,
+      "troubles": {}
+     },
+     "6c1a018d": {
+      "artifacts": 6,
+      "found": 0,
+      "troubles": {
+       "merge (table)": 6,
+       "on an object outside scoring": 2,
+       "spurious_box": 2
+      }
+     },
+     "6d108673": {
+      "artifacts": 3,
+      "found": 1,
+      "troubles": {
+       "merge (image)": 2,
+       "spurious_box": 1
+      }
+     },
+     "6fd86f61": {
+      "artifacts": 4,
+      "found": 0,
+      "troubles": {
+       "merge (image)": 4,
+       "on an object outside scoring": 3,
+       "spurious_box": 1
+      }
+     },
+     "6feea257": {
+      "artifacts": 2,
+      "found": 2,
+      "troubles": {
+       "spurious_box": 2
+      }
+     },
+     "723b3acb": {
+      "artifacts": 3,
+      "found": 1,
+      "troubles": {
+       "merge (chart)": 2,
+       "spurious_box": 1
+      }
+     },
+     "73f5527c": {
+      "artifacts": 45,
+      "found": 1,
+      "troubles": {
+       "merge (display_formula)": 44,
+       "spurious_box": 9
+      }
+     },
+     "7782da71": {
+      "artifacts": 3,
+      "found": 2,
+      "troubles": {
+       "spill (image)": 1,
+       "spurious_box": 1
+      }
+     },
+     "7ab6b7bb": {
+      "artifacts": 4,
+      "found": 4,
+      "troubles": {
+       "spurious_box": 4
+      }
+     },
+     "7b1b915c": {
+      "artifacts": 7,
+      "found": 3,
+      "troubles": {
+       "merge (image)": 4,
+       "on an object outside scoring": 1
+      }
+     },
+     "7b36f813": {
+      "artifacts": 4,
+      "found": 0,
+      "troubles": {
+       "merge (chart)": 4,
+       "spurious_box": 1
+      }
+     },
+     "82cadde5": {
+      "artifacts": 6,
+      "found": 4,
+      "troubles": {
+       "merge (image)": 2,
+       "spurious_box": 4
+      }
+     },
+     "8a2b2879": {
+      "artifacts": 4,
+      "found": 4,
+      "troubles": {}
+     },
+     "8ac3d986": {
+      "artifacts": 10,
+      "found": 10,
+      "troubles": {}
+     },
+     "8c8489c3": {
+      "artifacts": 2,
+      "found": 1,
+      "troubles": {
+       "merge (image)": 1,
+       "spurious_box": 1
+      }
+     },
+     "8fc8f984": {
+      "artifacts": 2,
+      "found": 2,
+      "troubles": {
+       "spurious_box": 1
+      }
+     },
+     "91cc0237": {
+      "artifacts": 4,
+      "found": 0,
+      "troubles": {
+       "merge (chart)": 3,
+       "near, but no match (chart)": 1,
+       "spurious_box": 2
+      }
+     },
+     "953bc6aa": {
+      "artifacts": 3,
+      "found": 3,
+      "troubles": {}
+     },
+     "97ff1275": {
+      "artifacts": 3,
+      "found": 3,
+      "troubles": {
+       "spurious_box": 1
+      }
+     },
+     "a3d8eac6": {
+      "artifacts": 3,
+      "found": 3,
+      "troubles": {}
+     },
+     "a9969df0": {
+      "artifacts": 3,
+      "found": 3,
+      "troubles": {
+       "spurious_box": 2
+      }
+     },
+     "a9d2c751": {
+      "artifacts": 3,
+      "found": 3,
+      "troubles": {
+       "spurious_box": 4
+      }
+     },
+     "ae5a2820": {
+      "artifacts": 5,
+      "found": 5,
+      "troubles": {
+       "on an object outside scoring": 4
+      }
+     },
+     "atl_two_views": {
+      "artifacts": 2,
+      "found": 2,
+      "troubles": {
+       "spurious_box": 1
+      }
+     },
+     "b076c88b": {
+      "artifacts": 5,
+      "found": 3,
+      "troubles": {
+       "merge (image)": 2,
+       "spurious_box": 1
+      }
+     },
+     "b08a6663": {
+      "artifacts": 4,
+      "found": 2,
+      "troubles": {
+       "merge (display_formula)": 2,
+       "spurious_box": 3
+      }
+     },
+     "b1926436": {
+      "artifacts": 3,
+      "found": 3,
+      "troubles": {}
+     },
+     "b59f5250": {
+      "artifacts": 4,
+      "found": 1,
+      "troubles": {
+       "merge (image)": 3
+      }
+     },
+     "b67718fe": {
+      "artifacts": 3,
+      "found": 1,
+      "troubles": {
+       "merge (image)": 2,
+       "spurious_box": 1
+      }
+     },
+     "b6f3bec0": {
+      "artifacts": 2,
+      "found": 0,
+      "troubles": {
+       "merge (image)": 2,
+       "spurious_box": 1
+      }
+     },
+     "b7ca9731": {
+      "artifacts": 5,
+      "found": 1,
+      "troubles": {
+       "near, but no match (table)": 1,
+       "on an object outside scoring": 7,
+       "spill (image)": 3
+      }
+     },
+     "b9bddb40": {
+      "artifacts": 2,
+      "found": 0,
+      "troubles": {
+       "merge (image)": 2,
+       "on an object outside scoring": 1,
+       "spurious_box": 1
+      }
+     },
+     "b9c50730": {
+      "artifacts": 3,
+      "found": 2,
+      "troubles": {
+       "merge (image)": 1,
+       "spurious_box": 2
+      }
+     },
+     "b9ce7d10": {
+      "artifacts": 3,
+      "found": 1,
+      "troubles": {
+       "merge (image)": 2,
+       "spurious_box": 2
+      }
+     },
+     "b9da63f0": {
+      "artifacts": 3,
+      "found": 1,
+      "troubles": {
+       "merge (image)": 2,
+       "on an object outside scoring": 1,
+       "spurious_box": 2
+      }
+     },
+     "c13f04bd": {
+      "artifacts": 2,
+      "found": 0,
+      "troubles": {
+       "merge (image)": 2,
+       "spurious_box": 6
+      }
+     },
+     "c2a80ff7": {
+      "artifacts": 2,
+      "found": 2,
+      "troubles": {
+       "spurious_box": 3
+      }
+     },
+     "c4fbb236": {
+      "artifacts": 8,
+      "found": 5,
+      "troubles": {
+       "merge (image)": 3,
+       "spurious_box": 1
+      }
+     },
+     "ca9893f2": {
+      "artifacts": 2,
+      "found": 0,
+      "troubles": {
+       "merge (image)": 2,
+       "spurious_box": 1
+      }
+     },
+     "chart_pair": {
+      "artifacts": 2,
+      "found": 2,
+      "troubles": {}
+     },
+     "d413cbe8": {
+      "artifacts": 3,
+      "found": 3,
+      "troubles": {
+       "spurious_box": 1
+      }
+     },
+     "d87a3100": {
+      "artifacts": 4,
+      "found": 2,
+      "troubles": {
+       "merge (image)": 2,
+       "on an object outside scoring": 6,
+       "spurious_box": 1
+      }
+     },
+     "d9322933": {
+      "artifacts": 2,
+      "found": 2,
+      "troubles": {
+       "spurious_box": 2
+      }
+     },
+     "e1597603": {
+      "artifacts": 4,
+      "found": 3,
+      "troubles": {
+       "crop (display_formula)": 1,
+       "inside a miss": 1,
+       "spurious_box": 6
+      }
+     },
+     "e8342f90": {
+      "artifacts": 36,
+      "found": 0,
+      "troubles": {
+       "merge (image)": 36,
+       "spurious_box": 2
+      }
+     },
+     "ea6e3b50": {
+      "artifacts": 2,
+      "found": 2,
+      "troubles": {
+       "on an object outside scoring": 1
+      }
+     },
+     "ea72f640": {
+      "artifacts": 10,
+      "found": 4,
+      "troubles": {
+       "eaten by text (table)": 1,
+       "merge (image)": 5,
+       "on an object outside scoring": 2,
+       "spurious_box": 2
+      }
+     },
+     "ea77d840": {
+      "artifacts": 2,
+      "found": 2,
+      "troubles": {}
+     },
+     "ea83bf20": {
+      "artifacts": 4,
+      "found": 4,
+      "troubles": {
+       "on an object outside scoring": 3
+      }
+     },
+     "ea91eff0": {
+      "artifacts": 8,
+      "found": 6,
+      "troubles": {
+       "merge (image)": 2,
+       "spurious_box": 1
+      }
+     },
+     "eeaf2ccb": {
+      "artifacts": 2,
+      "found": 2,
+      "troubles": {}
+     },
+     "efc968a3": {
+      "artifacts": 38,
+      "found": 1,
+      "troubles": {
+       "merge (image)": 37
+      }
+     },
+     "f12bda65": {
+      "artifacts": 3,
+      "found": 2,
+      "troubles": {
+       "merge (image)": 1,
+       "spurious_box": 1
+      }
+     },
+     "f6072e32": {
+      "artifacts": 3,
+      "found": 2,
+      "troubles": {
+       "spill (chart)": 1,
+       "spurious_box": 3
+      }
+     },
+     "fb809cf9": {
+      "artifacts": 4,
+      "found": 1,
+      "troubles": {
+       "not seen (display_formula)": 3
+      }
+     },
+     "fc0928a3": {
+      "artifacts": 17,
+      "found": 1,
+      "troubles": {
+       "merge (image)": 16,
+       "spurious_box": 6
+      }
+     },
+     "kat_two_side": {
+      "artifacts": 2,
+      "found": 0,
+      "troubles": {
+       "merge (table)": 2,
+       "spurious_box": 1
+      }
+     },
+     "table_two_side_by_side": {
+      "artifacts": 2,
+      "found": 0,
+      "troubles": {
+       "merge (table)": 2,
+       "spurious_box": 1
+      }
+     },
+     "three_column_table": {
+      "artifacts": 3,
+      "found": 0,
+      "troubles": {
+       "merge (table)": 3,
+       "spurious_box": 1
+      }
+     },
+     "two_figures_side": {
+      "artifacts": 2,
+      "found": 2,
+      "troubles": {}
+     }
+    },
+    "by_label": {
+     "chart": {
+      "bucket": "artifact",
+      "found": 41,
+      "truth": 105
+     },
+     "display_formula": {
+      "bucket": "artifact",
+      "found": 57,
+      "truth": 129
+     },
+     "figure_title": {
+      "bucket": "text",
+      "found": 6,
+      "truth": 6
+     },
+     "header": {
+      "bucket": "furniture",
+      "found": 2,
+      "truth": 2
+     },
+     "image": {
+      "bucket": "artifact",
+      "found": 150,
+      "truth": 446
+     },
+     "number": {
+      "bucket": "furniture",
+      "found": 1,
+      "truth": 1
+     },
+     "paragraph_title": {
+      "bucket": "text",
+      "found": 1,
+      "truth": 5
+     },
+     "seal": {
+      "bucket": "artifact",
+      "found": 1,
+      "truth": 1
+     },
+     "table": {
+      "bucket": "artifact",
+      "found": 14,
+      "truth": 55
+     },
+     "text": {
+      "bucket": "text",
+      "found": 35,
+      "truth": 35
+     }
+    },
+    "jumps": {
+     "boxes_counted": 1565,
+     "boxes_other_buckets": 166,
+     "by_page": {
+      "2": 12,
+      "3": 2,
+      "4": 2,
+      "6": 4,
+      "9": 8,
+      "11": 3,
+      "15": 15,
+      "17": 6,
+      "18": 9,
+      "19": 6,
+      "22": 11,
+      "24": 6,
+      "26": 2,
+      "29": 5,
+      "30": 1,
+      "31": 2,
+      "32": 17,
+      "37": 2,
+      "39": 7,
+      "41": 2,
+      "42": 2,
+      "47": 2,
+      "48": 5,
+      "50": 3,
+      "51": 1,
+      "53": 27,
+      "54": 5,
+      "56": 5,
+      "58": 5,
+      "59": 1,
+      "60": 7,
+      "63": 2,
+      "64": 4,
+      "67": 2,
+      "68": 6,
+      "69": 2,
+      "70": 3,
+      "72": 4,
+      "73": 1,
+      "76": 1,
+      "77": 2,
+      "78": 4,
+      "80": 3,
+      "81": 2,
+      "82": 2,
+      "83": 3,
+      "84": 5,
+      "85": 3,
+      "86": 3,
+      "89": 29,
+      "91": 2,
+      "93": 35,
+      "95": 3,
+      "96": 4,
+      "97": 5,
+      "98": 46,
+      "99": 3,
+      "100": 1,
+      "101": 1,
+      "103": 4,
+      "105": 69,
+      "106": 1,
+      "109": 2,
+      "110": 2,
+      "111": 4,
+      "112": 5,
+      "115": 35,
+      "116": 1,
+      "117": 3,
+      "118": 8,
+      "119": 3,
+      "120": 4,
+      "121": 1,
+      "122": 7,
+      "124": 1,
+      "126": 3,
+      "129": 7
+     },
+     "columns": 245,
+     "excess_jumps": 526,
+     "full_width_boxes": 573,
+     "page_count": 130,
+     "pages_counted": 115,
+     "pages_not_counted_too_few_boxes": 15,
+     "pages_with_2plus_columns": 87,
+     "params": {
+      "buckets_counted": [
+       "artifact",
+       "text"
+      ],
+      "full_width_box_share": 0.6,
+      "min_boxes_per_page": 2,
+      "x_overlap_of_narrow_box": 0.5
+     },
+     "per_page": 4.573913043478261,
+     "transitions": 656,
+     "why": ""
+    },
+    "label_confusion": {
+     "chart->chart": 9,
+     "chart->image": 32,
+     "display_formula->formula": 54,
+     "display_formula->image": 3,
+     "figure_title->figure_title": 6,
+     "header->header": 2,
+     "image->chart": 2,
+     "image->image": 148,
+     "number->number": 1,
+     "paragraph_title->figure_title": 1,
+     "seal->seal": 1,
+     "table->content": 4,
+     "table->formula": 2,
+     "table->table": 12,
+     "table->text": 13,
+     "text->text": 35
+    },
+    "model_order": {
+     "agreement": null,
+     "page_count": 6,
+     "pages_total": 130,
+     "pairs": 0,
+     "pairs_possible": 354,
+     "why": "the model gives no rank (ours_top_down_left_right: the model gives no rank)"
+    },
+    "order_rule": "ours_top_down_left_right: the model gives no rank",
+    "order_truth": {
+     "page_count": 130,
+     "states": {
+      "marked": 6,
+      "not marked": 124
+     }
+    },
+    "sense": {
+     "called_text": 23,
+     "cropped": 84,
+     "intact": 198,
+     "merged": 398,
+     "not_seen": 33,
+     "objects": 736,
+     "share": 0.26902173913043476,
+     "threshold_fits": 0.9,
+     "threshold_neighbour": 0.5
+    },
+    "text_and_furniture": {
+     "block_count": 49,
+     "found": 45,
+     "pages_total": 130,
+     "pages_with_text_markup": 6,
+     "share": 0.9183673469387755
+    },
+    "totals": {
+     "artifacts": 736,
+     "found": 263,
+     "share": 0.35733695652173914
+    },
+    "troubles": {
+     "crop (display_formula)": 2,
+     "crop (table)": 6,
+     "eaten by text (display_formula)": 1,
+     "eaten by text (table)": 17,
+     "fragmentation (table)": 2,
+     "inside a miss": 12,
+     "merge (chart)": 62,
+     "merge (display_formula)": 60,
+     "merge (image)": 283,
+     "merge (table)": 14,
+     "near, but no match (chart)": 1,
+     "near, but no match (display_formula)": 1,
+     "near, but no match (table)": 1,
+     "nested duplicate": 2,
+     "not seen (display_formula)": 6,
+     "not seen (image)": 9,
+     "not seen (table)": 1,
+     "on an object outside scoring": 38,
+     "spill (chart)": 1,
+     "spill (display_formula)": 2,
+     "spill (image)": 4,
+     "spurious_box": 194
+    }
+   },
+   "metric": "contour",
+   "params": {
+    "COLUMN_buckets_counted": [
+     "artifact",
+     "text"
+    ],
+    "COLUMN_full_width_box_share": 0.6,
+    "COLUMN_min_boxes_per_page": 2,
+    "COLUMN_x_overlap_of_narrow_box": 0.5,
+    "COVER_MATCH": 0.75,
+    "SENSE_NEIGHBOUR": 0.5,
+    "SENSE_WHOLE": 0.9,
+    "TOL_PX": 6.0,
+    "TOUCH": 0.1
+   },
+   "run": "PP-DocLayout_plus-L",
+   "scalars": {
+    "artefacts_called_text": {
+     "count": {
+      "n": 23,
+      "of": 736
+     },
+     "value": 0.03125
+    },
+    "artefacts_cropped": {
+     "count": {
+      "n": 84,
+      "of": 736
+     },
+     "value": 0.11413043478260869
+    },
+    "artefacts_found": {
+     "count": {
+      "n": 263,
+      "of": 736
+     },
+     "value": 0.35733695652173914
+    },
+    "artefacts_merged": {
+     "count": {
+      "n": 398,
+      "of": 736
+     },
+     "value": 0.5407608695652174
+    },
+    "artefacts_not_seen": {
+     "count": {
+      "n": 33,
+      "of": 736
+     },
+     "value": 0.04483695652173913
+    },
+    "assembly_order": {
+     "over": {
+      "n": 6,
+      "of": 130,
+      "unit": "pages"
+     },
+     "value": 0.9133858267716536
+    },
+    "excess_jumps_per_page": {
+     "over": {
+      "n": 115,
+      "of": 130,
+      "unit": "pages"
+     },
+     "value": 4.573913043478261
+    },
+    "label_errors": {
+     "value": null,
+     "why": "the two sides speak different label vocabularies; not compared"
+    },
+    "model_order": {
+     "over": {
+      "n": 6,
+      "of": 130,
+      "unit": "pages"
+     },
+     "value": null,
+     "why": "the model gives no rank (ours_top_down_left_right: the model gives no rank)"
+    },
+    "role_errors": {
+     "count": {
+      "n": 17,
+      "of": 325
+     },
+     "value": 17
+    },
+    "sense_whole": {
+     "count": {
+      "n": 198,
+      "of": 736
+     },
+     "value": 0.26902173913043476
+    },
+    "text_furniture_found": {
+     "count": {
+      "n": 45,
+      "of": 49
+     },
+     "over": {
+      "n": 6,
+      "of": 130,
+      "unit": "pages"
+     },
+     "value": 0.9183673469387755
+    }
+   }
+  },
+  {
+   "bench": "hard",
+   "detail": {
+    "almost_intact": 58,
+    "arrived_with_company": 425,
+    "bitten": 9,
+    "boxes_area": 362002399,
+    "boxes_with_many_objects": 81,
+    "dark_columns": 195,
+    "dark_columns_positions": [
+     0.0,
+     0.84,
+     1.0,
+     0.0,
+     1.0,
+     0.03,
+     0.07,
+     0.09,
+     0.33,
+     0.33,
+     0.34,
+     0.34,
+     0.35,
+     0.37,
+     0.68,
+     0.97,
+     1.0,
+     0.15,
+     0.15,
+     0.18,
+     0.25,
+     0.25,
+     0.26,
+     0.27,
+     0.29,
+     0.31,
+     0.51,
+     0.52,
+     0.52,
+     0.57,
+     0.75,
+     0.76,
+     0.78,
+     0.86,
+     0.89,
+     0.9,
+     0.0,
+     0.25,
+     0.48,
+     0.71,
+     1.0,
+     0.01,
+     0.98,
+     0.5,
+     0.99,
+     0.03,
+     0.32,
+     0.73,
+     0.98,
+     0.35,
+     0.67,
+     0.68,
+     0.7,
+     0.8,
+     0.8,
+     0.81,
+     0.83,
+     0.85,
+     0.86,
+     0.86,
+     0.88,
+     0.92,
+     0.93,
+     0.95,
+     0.96,
+     0.96,
+     0.97,
+     1.0,
+     0.01,
+     0.13,
+     0.01,
+     0.01,
+     0.99,
+     0.01,
+     0.0,
+     0.89,
+     0.01,
+     0.01,
+     0.99,
+     0.01,
+     0.23,
+     0.84,
+     0.01,
+     0.01,
+     0.01,
+     0.07,
+     0.11,
+     0.44,
+     0.5,
+     0.87,
+     0.99,
+     0.01,
+     0.14,
+     0.01,
+     0.15,
+     0.96,
+     0.01,
+     0.01,
+     0.01,
+     0.26,
+     0.5,
+     0.51,
+     1.0,
+     0.54,
+     0.0,
+     1.0,
+     0.17,
+     0.33,
+     0.33,
+     0.33,
+     0.34,
+     0.67,
+     0.18,
+     0.86,
+     0.02,
+     0.06,
+     0.07,
+     0.1,
+     0.1,
+     0.28,
+     0.29,
+     0.31,
+     0.32,
+     0.32,
+     0.33,
+     0.33,
+     0.34,
+     0.34,
+     0.34,
+     0.36,
+     0.4,
+     0.4,
+     0.43,
+     0.46,
+     0.46,
+     0.46,
+     0.52,
+     0.56,
+     0.59,
+     0.6,
+     0.63,
+     0.68,
+     0.71,
+     0.71,
+     0.72,
+     0.72,
+     0.72,
+     0.74,
+     0.75,
+     0.76,
+     0.78,
+     0.79,
+     0.8,
+     0.81,
+     0.94,
+     0.94,
+     0.95,
+     0.97,
+     0.97,
+     0.99,
+     0.98,
+     0.07,
+     0.18,
+     0.22,
+     0.45,
+     0.49,
+     0.51,
+     0.84,
+     0.88,
+     0.91,
+     1.0,
+     0.0,
+     0.11,
+     0.13,
+     0.14,
+     0.15,
+     0.16,
+     0.88,
+     0.91,
+     0.93,
+     0.11,
+     0.47,
+     0.51,
+     0.53,
+     0.53,
+     0.55,
+     0.89,
+     0.9,
+     0.91,
+     0.11,
+     0.9,
+     0.9,
+     0.91,
+     0.91,
+     0.92
+    ],
+    "dpi": [
+     144
+    ],
+    "empty_objects": 2,
+    "in_one_box": 610,
+    "ink_in_dark_columns": 20646952,
+    "ink_in_dark_columns_off_edge": 16096964,
+    "ink_outside_boxes_at_edge": 9897891,
+    "ink_total": 96454397,
+    "ink_under_artifact": 30236405,
+    "ink_under_boxes": 75471257,
+    "intact": 612,
+    "left_as_text": 29,
+    "object_ink": 28887708,
+    "object_ink_in_boxes": 27048832,
+    "objects": 734,
+    "page_count": 130,
+    "pages_with_dark_column": 41,
+    "sheet_area": 603386958,
+    "split_between_boxes": 2,
+    "thresholds": {
+     "almost": 0.95,
+     "bitten": 0.8,
+     "edge_band": 0.04,
+     "ink": 160,
+     "intact": 0.99
+    },
+    "torn": 55,
+    "truth_pages": 130
+   },
+   "metric": "fitness",
+   "params": {
+    "GUTTER": 0.5,
+    "almost": 0.95,
+    "bitten": 0.8,
+    "dpi": [
+     144
+    ],
+    "edge_band": 0.04,
+    "ink": 160,
+    "intact": 0.99
+   },
+   "run": "PP-DocLayout_plus-L",
+   "scalars": {
+    "area_under_boxes": {
+     "count": {
+      "n": 362002399,
+      "of": 603386958
+     },
+     "value": 0.5999506522313662
+    },
+    "ink_outside_boxes": {
+     "count": {
+      "n": 20983140,
+      "of": 96454397
+     },
+     "value": 0.21754467035857372
+    },
+    "ink_under_artefacts": {
+     "count": {
+      "n": 30236405,
+      "of": 96454397
+     },
+     "value": 0.31347876240416495
+    },
+    "ink_under_boxes": {
+     "count": {
+      "n": 75471257,
+      "of": 96454397
+     },
+     "value": 0.7824553296414263
+    },
+    "object_ink_preserved": {
+     "count": {
+      "n": 27048832,
+      "of": 28887708
+     },
+     "value": 0.9363439979385003
+    },
+    "objects_in_one_box": {
+     "count": {
+      "n": 610,
+      "of": 734
+     },
+     "value": 0.8310626702997275
+    },
+    "objects_intact": {
+     "count": {
+      "n": 612,
+      "of": 734
+     },
+     "value": 0.8337874659400545
+    },
+    "objects_left_as_text": {
+     "count": {
+      "n": 29,
+      "of": 734
+     },
+     "value": 0.039509536784741145
+    },
+    "objects_torn": {
+     "count": {
+      "n": 55,
+      "of": 734
+     },
+     "value": 0.07493188010899182
+    },
+    "objects_with_company": {
+     "count": {
+      "n": 425,
+      "of": 734
+     },
+     "value": 0.5790190735694822
+    }
+   }
+  },
+  {
+   "bench": "hard",
+   "detail": {
+    "boxes_counted": 1565,
+    "boxes_other_buckets": 166,
+    "by_page": {
+     "2": 12,
+     "3": 2,
+     "4": 2,
+     "6": 4,
+     "9": 8,
+     "11": 3,
+     "15": 15,
+     "17": 6,
+     "18": 9,
+     "19": 6,
+     "22": 11,
+     "24": 6,
+     "26": 2,
+     "29": 5,
+     "30": 1,
+     "31": 2,
+     "32": 17,
+     "37": 2,
+     "39": 7,
+     "41": 2,
+     "42": 2,
+     "47": 2,
+     "48": 5,
+     "50": 3,
+     "51": 1,
+     "53": 27,
+     "54": 5,
+     "56": 5,
+     "58": 5,
+     "59": 1,
+     "60": 7,
+     "63": 2,
+     "64": 4,
+     "67": 2,
+     "68": 6,
+     "69": 2,
+     "70": 3,
+     "72": 4,
+     "73": 1,
+     "76": 1,
+     "77": 2,
+     "78": 4,
+     "80": 3,
+     "81": 2,
+     "82": 2,
+     "83": 3,
+     "84": 5,
+     "85": 3,
+     "86": 3,
+     "89": 29,
+     "91": 2,
+     "93": 35,
+     "95": 3,
+     "96": 4,
+     "97": 5,
+     "98": 46,
+     "99": 3,
+     "100": 1,
+     "101": 1,
+     "103": 4,
+     "105": 69,
+     "106": 1,
+     "109": 2,
+     "110": 2,
+     "111": 4,
+     "112": 5,
+     "115": 35,
+     "116": 1,
+     "117": 3,
+     "118": 8,
+     "119": 3,
+     "120": 4,
+     "121": 1,
+     "122": 7,
+     "124": 1,
+     "126": 3,
+     "129": 7
+    },
+    "columns": 245,
+    "excess_jumps": 526,
+    "full_width_boxes": 573,
+    "page_count": 130,
+    "pages_counted": 115,
+    "pages_not_counted_too_few_boxes": 15,
+    "pages_with_2plus_columns": 87,
+    "params": {
+     "buckets_counted": [
+      "artifact",
+      "text"
+     ],
+     "full_width_box_share": 0.6,
+     "min_boxes_per_page": 2,
+     "x_overlap_of_narrow_box": 0.5
+    },
+    "per_page": 4.573913043478261,
+    "transitions": 656,
+    "why": ""
+   },
+   "metric": "assembly",
+   "params": {
+    "COLUMN_buckets_counted": [
+     "artifact",
+     "text"
+    ],
+    "COLUMN_full_width_box_share": 0.6,
+    "COLUMN_min_boxes_per_page": 2,
+    "COLUMN_x_overlap_of_narrow_box": 0.5,
+    "order_rule": "ours_top_down_left_right: the model gives no rank"
+   },
+   "run": "PP-DocLayout_plus-L",
+   "scalars": {
+    "excess_jumps": {
+     "value": 526
+    },
+    "excess_jumps_per_page": {
+     "over": {
+      "n": 115,
+      "of": 130,
+      "unit": "pages"
+     },
+     "value": 4.573913043478261
+    },
+    "pages_with_columns": {
+     "count": {
+      "n": 87,
+      "of": 130
+     },
+     "value": 87
+    },
+    "transitions": {
+     "value": 656
+    }
+   }
+  },
+  {
+   "bench": "hard",
+   "detail": {
+    "empty": [
+     [
+      "knobs",
+      "VL_MODEL_DIR",
+      "value"
+     ],
+     [
+      "knobs",
+      "YOLOX_WEIGHTS",
+      "value"
+     ],
+     [
+      "knobs",
+      "LAYOUT_MODEL_DIR",
+      "value"
+     ],
+     [
+      "knobs",
+      "CROP_DPI",
+      "value"
+     ],
+     [
+      "knobs",
+      "BOOKSMITH_COMMIT",
+      "value"
+     ],
+     [
+      "knobs",
+      "BOOKSMITH_LEDGER",
+      "value"
+     ],
+     [
+      "knobs",
+      "VLM_ENDPOINT",
+      "value"
+     ],
+     [
+      "prompts"
+     ],
+     [
+      "generation",
+      "temperature"
+     ],
+     [
+      "generation",
+      "max_tokens"
+     ],
+     [
+      "generation",
+      "top_p"
+     ],
+     [
+      "generation",
+      "seed"
+     ],
+     [
+      "weights",
+      "vl"
+     ]
+    ],
+    "missing": [],
+    "required": 52,
+    "shape": "the fingerprint of adapter doclayout-onnx is NOT VERIFIED: processing/layout/adapters/doclayout.py is not the code that counted (snapshot 3793f489, tree 606ceb73) -- 26 fingerprint values went unchecked, and 0 of them are absent from the snapshot. This is 'snapshot OLD', not 'snapshot INCOMPLETE'"
+   },
+   "metric": "snapshot",
+   "params": {},
+   "run": "PP-DocLayout_plus-L",
+   "scalars": {
+    "empty": {
+     "count": {
+      "n": 13,
+      "of": 52
+     },
+     "value": 13
+    },
+    "fingerprint_verified": {
+     "value": 0
+    },
+    "missing": {
+     "count": {
+      "n": 0,
+      "of": 52
+     },
+     "value": 0
+    },
+    "values_present": {
+     "count": {
+      "n": 52,
+      "of": 52
+     },
+     "value": 52
+    }
+   }
+  }
+ ],
+ "when": "2026-09-07T18:50:15+0300"
+}

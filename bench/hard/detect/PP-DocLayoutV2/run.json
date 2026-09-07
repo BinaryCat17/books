@@ -1,5 +1,5 @@
 {
- "when": "2026-09-07T14:18:03+0300",
+ "when": "2026-09-07T14:36:43+0300",
  "knobs": {
   "PAGE_DPI": {
    "value": "144",
@@ -31,7 +31,7 @@
   "LAYOUT_ADAPTER": {
    "value": "doclayout",
    "default": "doclayout",
-   "set_externally": false,
+   "set_externally": true,
    "what": "which detection adapter to call; the list is detect.py:ADAPTERS, four of them: doclayout (PaddleOCR PP-DocLayout*, 25 labels on V2/V3, 20 on plus-L), docling (IBM heron RT-DETRv2, 17), docling-egret (IBM egret D-FINE, 17), yolox (DocLayNet, 11). Different label dictionaries and different policies -- comparable only blind to the label",
    "debt": false,
    "read_by": "the books detect command",
@@ -49,7 +49,7 @@
   "LAYOUT_MODEL_NAME": {
    "value": "PP-DocLayoutV2",
    "default": "PP-DocLayoutV2",
-   "set_externally": false,
+   "set_externally": true,
    "what": "layout model name",
    "debt": false,
    "read_by": "adapter doclayout-onnx",
@@ -369,7 +369,10 @@
    "RESUME",
    "VLLM_USE_FLASHINFER_SAMPLER"
   ],
-  "set_externally": [],
+  "set_externally": [
+   "LAYOUT_ADAPTER",
+   "LAYOUT_MODEL_NAME"
+  ],
   "set_externally_unread": []
  },
  "raster": {
@@ -382,7 +385,7 @@
   "pages": null,
   "out": "/home/smirn/books/bench/hard/detect/PP-DocLayoutV2"
  },
- "commit": "44553f64829c8a690bdadf4dc6c3a98bcd53b1f8+dirty tree",
+ "commit": "f7407d40583d9d79cb9f8ecff4d56a8382ad8fe2+dirty tree",
  "identity": "e73ffe76d6af3b04ec5d970d4adec69a02c1c5444a2049d27b191136610036de",
  "label": "PP-DocLayoutV2",
  "source": {
@@ -545,7 +548,7 @@
   "box_count": 2732,
   "artifacts": 438,
   "rank_ties": 28,
-  "seconds": 332.84,
+  "seconds": 328.01,
   "by_label": {
    "text": 1431,
    "table": 33,

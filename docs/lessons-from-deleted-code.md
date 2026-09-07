@@ -126,7 +126,7 @@ From `tests/test_knobs_registry.py`:
 > time**: the shell sets the knob, it is invisible in entrypoint.py, and it
 > decides which weights vLLM will raise."
 
-The catcher has not been restored. `run/knobs.py` says so honestly in its
+The catcher has not been restored. `core/knobs.py` says so honestly in its
 header.
 
 ## Memory when building formats

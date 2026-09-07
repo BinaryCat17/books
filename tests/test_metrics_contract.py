@@ -259,3 +259,33 @@ def test_an_error_count_carries_the_pairs_it_was_counted_over():
         assert sc.count is not None, f"{name} carries no denominator"
         assert sc.count[1] == 4, f"{name}: counted over {sc.count} of 4 pairs"
     assert rec.scalars["label_errors"].count[0] == 3
+
+
+def test_the_five_artefact_outcomes_account_for_every_object():
+    """Whole, merged, cropped, called text, not seen -- and nothing else.
+
+    `sense_whole` was the only one of the five that reached a scalar; the
+    other four lived in `detail`, where a TABLE cannot read them. Three
+    sections of `docs/contour-notes.md` are about MERGING and its headline is
+    "merging is 71% of ALL misses", so the generated document meant to replace
+    that prose could not have stated the project's central level-one finding.
+
+    They are checked as a PARTITION, which is what makes them readable as
+    shares: if they stopped summing to the objects, each one would still look
+    like a plausible fraction and the set would silently mean nothing.
+    """
+    from booksmith.datasets.metrics import contour
+    b, run = _slovar()
+    rec = contour.ContourMetric().run(b, run)
+    parts = ["sense_whole", "artefacts_merged", "artefacts_cropped",
+             "artefacts_called_text", "artefacts_not_seen"]
+    counts = [rec.scalars[p].count for p in parts]
+    assert all(c is not None for c in counts), (
+        f"an outcome carries no count: {dict(zip(parts, counts))}")
+    over = {c[1] for c in counts}
+    assert len(over) == 1, f"the five are over different populations: {over}"
+    total = sum(c[0] for c in counts)
+    assert total == counts[0][1], (
+        f"the five outcomes sum to {total} of {counts[0][1]} objects -- they "
+        f"are not a partition, and each would still read as a plausible "
+        f"share while the set means nothing")

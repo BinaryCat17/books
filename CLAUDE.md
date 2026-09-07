@@ -119,7 +119,7 @@ tests/         collusions between files, own runner (there is no pytest in
                last line
 tools/         thin wrappers over booksmith.tree and booksmith.datasets, so
                the mutation battery can reach the instrument itself: cyr.py
-               (Cyrillic ratchet and the residue lock), anchors.py (do the
+               (the Cyrillic lock: what is left, where, and why), anchors.py (do the
                battery's source patches and attribute swaps still land),
                acceptance.py. Beside them: migrate_layout.py (the package
                move as a table), spread_probe.py (the spread-cut veto,
@@ -210,8 +210,8 @@ bench/<book>/ or processed/<book>/
   <book>.pdf           the scan itself (untracked for every bench we build)
   truth/               only a bench has this
   detect/<model>/      a level-one run: pages/ and run.json
-  read/<model>/        a level-two run
-  build/               the HTML and its kitchen
+  read/<model>/        a level-two run           -- PLANNED, not written yet
+  build/               the HTML and its kitchen  -- PLANNED, not written yet
 ```
 
 THE LABEL IS THE MODEL'S OWN NAME, asked of the adapter (`Detector.label`),
@@ -256,18 +256,31 @@ level two has run on a real book and cannot yet be measured for quality --
 `docs/limits.md` says why, in three reasons, before any money is spent.
 
 The translation to English is DONE, keys of the on-disk format included: no
-Cyrillic key survives in any json of `bench/`, `processed/` or `runs/`, and
-the three tools that renamed them are deleted -- what they knew is in
-`docs/lessons-from-deleted-code.md`. What is left, and why each character
-stays, is printed by:
+Cyrillic key survives in any json of `bench/` or `processed/`, and the three
+tools that renamed them are deleted -- what they knew is in
+`docs/lessons-from-deleted-code.md`.
+
+ONE EXCEPTION, AND IT IS A DECISION. `runs/ledger.jsonl` still holds 74
+Cyrillic keys. It is the journal of the runs that were paid for, it is
+append-only, and rewriting a journal after the fact destroys the one thing a
+journal is for -- the same argument that kept it out of the migration. New
+lines arrive in English on their own, because the snapshot they are built
+from is English. The sentence above used to name `runs/` as well, and was
+false; the tool that would have caught it (`keymap_check.py`) had been
+deleted one commit earlier, so the claim was both wrong and unmeasured. It is
+measured now, by `tests/test_data_contract.py`.
+
+What is left in the PROSE, and why each character stays, is printed by:
 
     python3 tools/cyr.py
 
 Every one of them is a Russian book title, text quoted from one of those
-books, or the bounds of the Cyrillic block inside the counters that hunt for
-it. The ratchet that did the job -- areas pressed on separately, a companion
-count of the Latin that arrived, a tracked baseline of both -- went with it;
-the lock that replaced it is stricter, because it names every file.
+books, the Russian page text drawn onto a synthetic sheet, or the bounds of
+the Cyrillic block inside the counters that hunt for it -- four kinds, and
+the lock declares which for every file. The ratchet that did the job -- areas
+pressed on separately, a companion count of the Latin that arrived, a tracked
+baseline of both -- went with it; the lock that replaced it names every file
+and its count, which the ratchet did not.
 
 The documents restate each other, and that is counted too:
 

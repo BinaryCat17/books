@@ -139,7 +139,15 @@ FINGERPRINT_NOT_IDENTITY = {
                    "sha256_weights, which IS the experiment",
     "summary": "run-born: docling writes its pipeline totals into the "
                "fingerprint AFTER the pages, so it exists only once the run "
-               "is over",
+               "is over -- and it is NESTED, under `docling_pipeline`, which "
+               "is why the exclusion goes to every depth",
+    "dir": "a machine-local path to the weights, wherever it appears. The "
+           "reading adapter's `weights` block opens with `VL_MODEL_DIR`, so "
+           "excluding that knob and admitting the same fact one field over "
+           "was no exclusion at all: two readings of one book on two rented "
+           "cards got two identities",
+    "file_count": "how many files that directory happened to hold; it moves "
+                  "with the download, not with the model",
 }
 
 # Knobs whose value moves without the experiment moving. `VLM_ENDPOINT` is the
@@ -158,6 +166,30 @@ KNOBS_NOT_IDENTITY = {
 }
 
 
+def _without(obj, names):
+    """The mapping with `names` dropped AT EVERY DEPTH.
+
+    Top-level only was the first edition, and docling proved it wrong: its
+    fingerprint nests the vendor pipeline's own under `docling_pipeline`, and
+    THAT holds the pipeline's accumulating page counters under `summary` --
+    `page_count`, `boxes_before`, `boxes_after`. So with `DOCLING_PIPELINE=
+    post|full` the identity became a function of HOW MANY PAGES the run
+    covered: not an experiment key at all, and the second run of an identical
+    experiment refused forever under a message saying it was a different one.
+    That is the direction this module warns about, where the refusal looks
+    like the guard working.
+
+    Invisible on disk today only because every run in the tree is
+    `DOCLING_PIPELINE=off`, where the nest is `null`.
+    """
+    if isinstance(obj, dict):
+        return {k: _without(v, names) for k, v in obj.items()
+                if k not in names}
+    if isinstance(obj, list):
+        return [_without(v, names) for v in obj]
+    return obj
+
+
 def identity(fingerprint: dict, knob_values: dict) -> str:
     """sha256 over what makes this run THIS experiment.
 
@@ -167,8 +199,7 @@ def identity(fingerprint: dict, knob_values: dict) -> str:
     at its default `0.5`. Hashing either would give one experiment two
     identities, and the refusal would look like the guard working.
     """
-    keep_f = {k: v for k, v in (fingerprint or {}).items()
-              if k not in FINGERPRINT_NOT_IDENTITY}
+    keep_f = _without(fingerprint or {}, FINGERPRINT_NOT_IDENTITY)
     keep_k = {k: v for k, v in (knob_values or {}).items()
               if k not in KNOBS_NOT_IDENTITY}
     blob = json.dumps({"fingerprint": keep_f, "knobs": keep_k},

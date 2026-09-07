@@ -53,7 +53,7 @@ from booksmith.processing.read import Ask, Reader, Transport
 from booksmith.core import otsl, policy
 from booksmith.core import raster as crop
 from booksmith.core.page import Page
-from booksmith.core import knobs, stamp
+from booksmith.core import book, knobs, stamp
 from booksmith.core.log import log
 from booksmith.core.errors import Refusal
 
@@ -172,6 +172,18 @@ def _detect_facts(detect_dir: str) -> dict:
         return json.load(f)
 
 
+def read_identity(reader: Reader, transport) -> tuple[str, dict]:
+    """(identity, the knob block it was taken from). ONE SOURCE for the guard
+    and for the snapshot, so the number that refuses a run and the number
+    recorded in it cannot be two different numbers."""
+    roles = {**{n: "reading adapter" for n in reader.knobs_read()},
+             **{n: "transport" for n in (transport.knobs_read()
+                                         if transport is not None else ())}}
+    block = _knobs_snapshot(roles)
+    return stamp.identity(reader.fingerprint(),
+                          stamp.knob_values({"knobs": block})), block
+
+
 def read_book(detect_dir: str, out_dir: str, reader: Reader,
               transport: Transport, resume: bool = True,
               pages_want=None, log=log, pdf: str | None = None,
@@ -206,6 +218,17 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
             "there. Pass resume=False and read `would_ask.json` as a fresh "
             "run -- on a book already half read, that is more questions than "
             "the next paid run would ask.")
+    if not preview:
+        # WOULD THIS OVERWRITE ANOTHER EXPERIMENT. Asked before the first
+        # cent, from the same source the snapshot is written from. `books
+        # read` is THE COMMAND THAT SPENDS MONEY and it was the one with no
+        # guard at all: a second run at another temperature, seed or prompt
+        # RESUMED the first one's answers in place, and `core/book.py` stated
+        # the guard generally while only `books detect` had it.
+        ident, _ = read_identity(reader, transport)
+        book.guard_identity(out_dir, ident,
+                            "" if pages_want is None else "a page selection",
+                            f"this {reader.label()} reading")
     facts = _detect_facts(detect_dir)
     pdf = pdf or facts["source"]["path"]
     if not os.path.exists(pdf):
@@ -651,9 +674,10 @@ def snapshot(detect_dir: str, out_dir: str, reader: Reader,
     facts = _detect_facts(detect_dir)
     read_knobs = {**{n: "reading adapter" for n in reader.knobs_read()},
                   **{n: "transport" for n in transport.knobs_read()}}
-    # One source for "what this run read", as in detection: the identity is
-    # taken from the snapshot's own knobs block, never from a second walk.
-    knob_block = _knobs_snapshot(read_knobs)
+    # One source for "what this run read", as in detection, and the very
+    # function the guard above asked: the identity that refuses a run and the
+    # identity recorded in it are one number.
+    ident, knob_block = read_identity(reader, transport)
     snap = {
         "when": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "knobs": knob_block,
@@ -663,8 +687,7 @@ def snapshot(detect_dir: str, out_dir: str, reader: Reader,
         # See `core/stamp.identity`. VLM_SEED is in it on purpose: two
         # readings at two seeds are two experiments, and `consistency`
         # measures agreement between exactly that pair.
-        "identity": stamp.identity(reader.fingerprint(),
-                                   stamp.knob_values({"knobs": knob_block})),
+        "identity": ident,
         "label": reader.label(),
         # The same book as detection, hash checked BEFORE the work (read_book).
         "source": facts["source"],
@@ -688,7 +711,7 @@ def snapshot(detect_dir: str, out_dir: str, reader: Reader,
         "packages": stamp.packages(stamp.READ_PACKAGES),
         "weights": {"vl": reader.fingerprint().get("weights"),
                  "layout": facts.get("weights", {}).get("layout")},
-        # THE FINGERPRINT IS THE READER'S, unwrapped. `run/replay.py` derives the
+        # THE FINGERPRINT IS THE READER'S, unwrapped. `core/replay.py` derives the
         # required shape from the active adapter's `fingerprint()` and looks for
         # its fields right here; nested under a "reader" key they gave six lines
         # of "no fingerprint/prompts" -- the snapshot declared INCOMPLETE while

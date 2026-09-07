@@ -1,0 +1,859 @@
+{
+ "commit": "f7407d40583d9d79cb9f8ecff4d56a8382ad8fe2+dirty tree",
+ "records": [
+  {
+   "bench": "spravochnik",
+   "detail": {
+    "assembly_order": {
+     "agreement": 0.8087739032620922,
+     "blocks_without_rank": 0,
+     "page_count": 36,
+     "pages_total": 36,
+     "pairs": 2667,
+     "pairs_possible": 2758
+    },
+    "book": "sha256 checked: fb453f894dfc; raster checked: 36 pages, sizes agree",
+    "by_case": {
+     "chart_page": {
+      "artifacts": 1,
+      "found": 1,
+      "troubles": {}
+     },
+     "chart_pair": {
+      "artifacts": 2,
+      "found": 2,
+      "troubles": {}
+     },
+     "contents_dots": {
+      "artifacts": 0,
+      "found": 0,
+      "troubles": {}
+     },
+     "figure_and_table": {
+      "artifacts": 2,
+      "found": 2,
+      "troubles": {
+       "spurious_box": 1
+      }
+     },
+     "figure_full_width": {
+      "artifacts": 1,
+      "found": 1,
+      "troubles": {}
+     },
+     "figure_text_wrap": {
+      "artifacts": 1,
+      "found": 1,
+      "troubles": {}
+     },
+     "footnotes_rule": {
+      "artifacts": 0,
+      "found": 0,
+      "troubles": {}
+     },
+     "formula_next_to_table": {
+      "artifacts": 2,
+      "found": 2,
+      "troubles": {
+       "nested duplicate": 2
+      }
+     },
+     "marginalia": {
+      "artifacts": 0,
+      "found": 0,
+      "troubles": {}
+     },
+     "no_artefacts": {
+      "artifacts": 0,
+      "found": 0,
+      "troubles": {}
+     },
+     "photo_halftone": {
+      "artifacts": 1,
+      "found": 1,
+      "troubles": {}
+     },
+     "rotated_single_table": {
+      "artifacts": 1,
+      "found": 0,
+      "troubles": {
+       "eaten by text (table)": 1
+      }
+     },
+     "russian": {
+      "artifacts": 2,
+      "found": 2,
+      "troubles": {}
+     },
+     "russian_table_wide": {
+      "artifacts": 1,
+      "found": 1,
+      "troubles": {}
+     },
+     "spread": {
+      "artifacts": 2,
+      "found": 2,
+      "troubles": {}
+     },
+     "spread_rotated": {
+      "artifacts": 1,
+      "found": 0,
+      "troubles": {
+       "fragmentation (table)": 1,
+       "inside a miss": 6
+      }
+     },
+     "spread_rotated_figure": {
+      "artifacts": 1,
+      "found": 1,
+      "troubles": {
+       "nested duplicate": 2
+      }
+     },
+     "spread_table_wide": {
+      "artifacts": 1,
+      "found": 1,
+      "troubles": {}
+     },
+     "stamp_over_text": {
+      "artifacts": 2,
+      "found": 2,
+      "troubles": {}
+     },
+     "table_across_gutter": {
+      "artifacts": 1,
+      "found": 1,
+      "troubles": {}
+     },
+     "table_dense_no_rules": {
+      "artifacts": 1,
+      "found": 1,
+      "troubles": {}
+     },
+     "table_full_page": {
+      "artifacts": 1,
+      "found": 0,
+      "troubles": {
+       "crop (table)": 1
+      }
+     },
+     "table_full_width": {
+      "artifacts": 1,
+      "found": 1,
+      "troubles": {}
+     },
+     "table_half_page": {
+      "artifacts": 1,
+      "found": 1,
+      "troubles": {}
+     },
+     "table_leaders": {
+      "artifacts": 2,
+      "found": 1,
+      "troubles": {
+       "merge (table)": 1,
+       "spurious_box": 1
+      }
+     },
+     "table_ruled": {
+      "artifacts": 1,
+      "found": 1,
+      "troubles": {}
+     },
+     "table_spanning_header": {
+      "artifacts": 1,
+      "found": 1,
+      "troubles": {}
+     },
+     "table_split_a": {
+      "artifacts": 1,
+      "found": 1,
+      "troubles": {}
+     },
+     "table_split_b": {
+      "artifacts": 1,
+      "found": 1,
+      "troubles": {}
+     },
+     "table_tall_narrow": {
+      "artifacts": 1,
+      "found": 1,
+      "troubles": {}
+     },
+     "table_two_side_by_side": {
+      "artifacts": 2,
+      "found": 0,
+      "troubles": {
+       "merge (table)": 2,
+       "spurious_box": 1
+      }
+     },
+     "table_two_stacked": {
+      "artifacts": 2,
+      "found": 2,
+      "troubles": {}
+     },
+     "table_wide_short": {
+      "artifacts": 1,
+      "found": 1,
+      "troubles": {}
+     },
+     "three_column_table": {
+      "artifacts": 3,
+      "found": 0,
+      "troubles": {
+       "merge (table)": 3,
+       "spurious_box": 1
+      }
+     },
+     "two_columns": {
+      "artifacts": 2,
+      "found": 2,
+      "troubles": {}
+     },
+     "two_figures_side": {
+      "artifacts": 2,
+      "found": 2,
+      "troubles": {}
+     }
+    },
+    "by_label": {
+     "aside_text": {
+      "bucket": "text",
+      "found": 4,
+      "truth": 4
+     },
+     "chart": {
+      "bucket": "artifact",
+      "found": 3,
+      "truth": 3
+     },
+     "content": {
+      "bucket": "text",
+      "found": 1,
+      "truth": 1
+     },
+     "display_formula": {
+      "bucket": "artifact",
+      "found": 1,
+      "truth": 1
+     },
+     "doc_title": {
+      "bucket": "text",
+      "found": 1,
+      "truth": 1
+     },
+     "figure_title": {
+      "bucket": "text",
+      "found": 13,
+      "truth": 13
+     },
+     "footnote": {
+      "bucket": "furniture",
+      "found": 3,
+      "truth": 3
+     },
+     "image": {
+      "bucket": "artifact",
+      "found": 10,
+      "truth": 10
+     },
+     "number": {
+      "bucket": "furniture",
+      "found": 5,
+      "truth": 5
+     },
+     "paragraph_title": {
+      "bucket": "text",
+      "found": 4,
+      "truth": 7
+     },
+     "seal": {
+      "bucket": "artifact",
+      "found": 1,
+      "truth": 1
+     },
+     "table": {
+      "bucket": "artifact",
+      "found": 21,
+      "truth": 30
+     },
+     "text": {
+      "bucket": "text",
+      "found": 303,
+      "truth": 303
+     }
+    },
+    "jumps": {
+     "boxes_counted": 223,
+     "boxes_other_buckets": 11,
+     "by_page": {
+      "0": 17,
+      "1": 18,
+      "3": 15,
+      "4": 14,
+      "8": 1,
+      "21": 12,
+      "24": 2,
+      "27": 1,
+      "28": 4,
+      "31": 1,
+      "32": 34,
+      "33": 12,
+      "34": 1
+     },
+     "columns": 45,
+     "excess_jumps": 132,
+     "full_width_boxes": 178,
+     "page_count": 36,
+     "pages_counted": 20,
+     "pages_not_counted_too_few_boxes": 16,
+     "pages_with_2plus_columns": 17,
+     "params": {
+      "buckets_counted": [
+       "artifact",
+       "text"
+      ],
+      "full_width_box_share": 0.6,
+      "min_boxes_per_page": 2,
+      "x_overlap_of_narrow_box": 0.5
+     },
+     "per_page": 6.6,
+     "transitions": 157,
+     "why": ""
+    },
+    "label_confusion": {
+     "aside_text->text": 4,
+     "chart->picture": 3,
+     "content->document_index": 1,
+     "display_formula->formula": 1,
+     "doc_title->section_header": 1,
+     "figure_title->caption": 12,
+     "figure_title->text": 1,
+     "footnote->footnote": 3,
+     "image->picture": 10,
+     "number->page_footer": 4,
+     "number->page_header": 1,
+     "paragraph_title->section_header": 4,
+     "seal->picture": 1,
+     "table->form": 2,
+     "table->table": 21,
+     "text->list_item": 1,
+     "text->text": 302
+    },
+    "model_order": {
+     "agreement": null,
+     "page_count": 36,
+     "pages_total": 36,
+     "pairs": 0,
+     "pairs_possible": 2758,
+     "why": "the model gives no rank (ours_top_down_left_right)"
+    },
+    "order_rule": "ours_top_down_left_right",
+    "order_truth": {
+     "page_count": 36,
+     "states": {
+      "marked": 36
+     }
+    },
+    "sense": {
+     "called_text": 2,
+     "cropped": 1,
+     "intact": 35,
+     "merged": 6,
+     "not_seen": 1,
+     "objects": 45,
+     "share": 0.7777777777777778,
+     "threshold_fits": 0.9,
+     "threshold_neighbour": 0.5
+    },
+    "text_and_furniture": {
+     "block_count": 337,
+     "found": 334,
+     "pages_total": 36,
+     "pages_with_text_markup": 36,
+     "share": 0.9910979228486647
+    },
+    "totals": {
+     "artifacts": 45,
+     "found": 36,
+     "share": 0.8
+    },
+    "troubles": {
+     "crop (table)": 1,
+     "eaten by text (table)": 1,
+     "fragmentation (table)": 1,
+     "inside a miss": 6,
+     "merge (table)": 6,
+     "nested duplicate": 4,
+     "spurious_box": 4
+    }
+   },
+   "metric": "contour",
+   "params": {
+    "COLUMN_buckets_counted": [
+     "artifact",
+     "text"
+    ],
+    "COLUMN_full_width_box_share": 0.6,
+    "COLUMN_min_boxes_per_page": 2,
+    "COLUMN_x_overlap_of_narrow_box": 0.5,
+    "COVER_MATCH": 0.75,
+    "SENSE_NEIGHBOUR": 0.5,
+    "SENSE_WHOLE": 0.9,
+    "TOL_PX": 6.0,
+    "TOUCH": 0.1
+   },
+   "run": "docling-heron",
+   "scalars": {
+    "artefacts_called_text": {
+     "count": {
+      "n": 2,
+      "of": 45
+     },
+     "value": 0.044444444444444446
+    },
+    "artefacts_cropped": {
+     "count": {
+      "n": 1,
+      "of": 45
+     },
+     "value": 0.022222222222222223
+    },
+    "artefacts_found": {
+     "count": {
+      "n": 36,
+      "of": 45
+     },
+     "value": 0.8
+    },
+    "artefacts_merged": {
+     "count": {
+      "n": 6,
+      "of": 45
+     },
+     "value": 0.13333333333333333
+    },
+    "artefacts_not_seen": {
+     "count": {
+      "n": 1,
+      "of": 45
+     },
+     "value": 0.022222222222222223
+    },
+    "assembly_order": {
+     "over": {
+      "n": 36,
+      "of": 36,
+      "unit": "pages"
+     },
+     "value": 0.8087739032620922
+    },
+    "excess_jumps_per_page": {
+     "over": {
+      "n": 20,
+      "of": 36,
+      "unit": "pages"
+     },
+     "value": 6.6
+    },
+    "label_errors": {
+     "value": null,
+     "why": "the two sides speak different label vocabularies; not compared"
+    },
+    "model_order": {
+     "over": {
+      "n": 36,
+      "of": 36,
+      "unit": "pages"
+     },
+     "value": null,
+     "why": "the model gives no rank (ours_top_down_left_right)"
+    },
+    "role_errors": {
+     "count": {
+      "n": 2,
+      "of": 372
+     },
+     "value": 2
+    },
+    "sense_whole": {
+     "count": {
+      "n": 35,
+      "of": 45
+     },
+     "value": 0.7777777777777778
+    },
+    "text_furniture_found": {
+     "count": {
+      "n": 334,
+      "of": 337
+     },
+     "over": {
+      "n": 36,
+      "of": 36,
+      "unit": "pages"
+     },
+     "value": 0.9910979228486647
+    }
+   }
+  },
+  {
+   "bench": "spravochnik",
+   "detail": {
+    "almost_intact": 4,
+    "arrived_with_company": 7,
+    "bitten": 2,
+    "boxes_area": 32882942,
+    "boxes_with_many_objects": 3,
+    "dark_columns": 15,
+    "dark_columns_positions": [
+     0.5,
+     0.51,
+     0.87,
+     0.88,
+     0.18,
+     0.78,
+     0.84,
+     0.85,
+     0.85,
+     0.86,
+     0.87,
+     0.88,
+     0.92,
+     0.93,
+     0.94
+    ],
+    "dpi": [
+     144
+    ],
+    "empty_objects": 0,
+    "in_one_box": 35,
+    "ink_in_dark_columns": 191725,
+    "ink_in_dark_columns_off_edge": 191725,
+    "ink_outside_boxes_at_edge": 26164,
+    "ink_total": 7443469,
+    "ink_under_artifact": 1056158,
+    "ink_under_boxes": 7244408,
+    "intact": 35,
+    "left_as_text": 4,
+    "object_ink": 1253127,
+    "object_ink_in_boxes": 1056143,
+    "objects": 45,
+    "page_count": 36,
+    "pages_with_dark_column": 4,
+    "sheet_area": 59343680,
+    "split_between_boxes": 0,
+    "thresholds": {
+     "almost": 0.95,
+     "bitten": 0.8,
+     "edge_band": 0.04,
+     "ink": 160,
+     "intact": 0.99
+    },
+    "torn": 4,
+    "truth_pages": 36
+   },
+   "metric": "fitness",
+   "params": {
+    "GUTTER": 0.5,
+    "almost": 0.95,
+    "bitten": 0.8,
+    "dpi": [
+     144
+    ],
+    "edge_band": 0.04,
+    "ink": 160,
+    "intact": 0.99
+   },
+   "run": "docling-heron",
+   "scalars": {
+    "area_under_boxes": {
+     "count": {
+      "n": 32882942,
+      "of": 59343680
+     },
+     "value": 0.5541102607725035
+    },
+    "ink_outside_boxes": {
+     "count": {
+      "n": 199061,
+      "of": 7443469
+     },
+     "value": 0.026743041450162597
+    },
+    "ink_under_artefacts": {
+     "count": {
+      "n": 1056158,
+      "of": 7443469
+     },
+     "value": 0.14189056204842124
+    },
+    "ink_under_boxes": {
+     "count": {
+      "n": 7244408,
+      "of": 7443469
+     },
+     "value": 0.9732569585498374
+    },
+    "object_ink_preserved": {
+     "count": {
+      "n": 1056143,
+      "of": 1253127
+     },
+     "value": 0.8428060364192935
+    },
+    "objects_in_one_box": {
+     "count": {
+      "n": 35,
+      "of": 45
+     },
+     "value": 0.7777777777777778
+    },
+    "objects_intact": {
+     "count": {
+      "n": 35,
+      "of": 45
+     },
+     "value": 0.7777777777777778
+    },
+    "objects_left_as_text": {
+     "count": {
+      "n": 4,
+      "of": 45
+     },
+     "value": 0.08888888888888889
+    },
+    "objects_torn": {
+     "count": {
+      "n": 4,
+      "of": 45
+     },
+     "value": 0.08888888888888889
+    },
+    "objects_with_company": {
+     "count": {
+      "n": 7,
+      "of": 45
+     },
+     "value": 0.15555555555555556
+    }
+   }
+  },
+  {
+   "bench": "spravochnik",
+   "detail": {
+    "boxes_counted": 223,
+    "boxes_other_buckets": 11,
+    "by_page": {
+     "0": 17,
+     "1": 18,
+     "3": 15,
+     "4": 14,
+     "8": 1,
+     "21": 12,
+     "24": 2,
+     "27": 1,
+     "28": 4,
+     "31": 1,
+     "32": 34,
+     "33": 12,
+     "34": 1
+    },
+    "columns": 45,
+    "excess_jumps": 132,
+    "full_width_boxes": 178,
+    "page_count": 36,
+    "pages_counted": 20,
+    "pages_not_counted_too_few_boxes": 16,
+    "pages_with_2plus_columns": 17,
+    "params": {
+     "buckets_counted": [
+      "artifact",
+      "text"
+     ],
+     "full_width_box_share": 0.6,
+     "min_boxes_per_page": 2,
+     "x_overlap_of_narrow_box": 0.5
+    },
+    "per_page": 6.6,
+    "transitions": 157,
+    "why": ""
+   },
+   "metric": "assembly",
+   "params": {
+    "COLUMN_buckets_counted": [
+     "artifact",
+     "text"
+    ],
+    "COLUMN_full_width_box_share": 0.6,
+    "COLUMN_min_boxes_per_page": 2,
+    "COLUMN_x_overlap_of_narrow_box": 0.5,
+    "order_rule": "ours_top_down_left_right"
+   },
+   "run": "docling-heron",
+   "scalars": {
+    "excess_jumps": {
+     "value": 132
+    },
+    "excess_jumps_per_page": {
+     "over": {
+      "n": 20,
+      "of": 36,
+      "unit": "pages"
+     },
+     "value": 6.6
+    },
+    "pages_with_columns": {
+     "count": {
+      "n": 17,
+      "of": 36
+     },
+     "value": 17
+    },
+    "transitions": {
+     "value": 157
+    }
+   }
+  },
+  {
+   "bench": "spravochnik",
+   "detail": {
+    "empty": [
+     [
+      "knobs",
+      "VL_MODEL_DIR",
+      "value"
+     ],
+     [
+      "knobs",
+      "YOLOX_WEIGHTS",
+      "value"
+     ],
+     [
+      "knobs",
+      "LAYOUT_MODEL_DIR",
+      "value"
+     ],
+     [
+      "knobs",
+      "CROP_DPI",
+      "value"
+     ],
+     [
+      "knobs",
+      "BOOKSMITH_COMMIT",
+      "value"
+     ],
+     [
+      "knobs",
+      "BOOKSMITH_LEDGER",
+      "value"
+     ],
+     [
+      "knobs",
+      "VLM_ENDPOINT",
+      "value"
+     ],
+     [
+      "prompts"
+     ],
+     [
+      "generation",
+      "temperature"
+     ],
+     [
+      "generation",
+      "max_tokens"
+     ],
+     [
+      "generation",
+      "top_p"
+     ],
+     [
+      "generation",
+      "seed"
+     ],
+     [
+      "weights",
+      "vl"
+     ],
+     [
+      "fingerprint",
+      "docling_pipeline",
+      "docling_version"
+     ],
+     [
+      "fingerprint",
+      "docling_pipeline",
+      "label_map_to_docling"
+     ],
+     [
+      "fingerprint",
+      "docling_pipeline",
+      "postprocess_options"
+     ],
+     [
+      "fingerprint",
+      "docling_pipeline",
+      "sha256_vendor_files"
+     ],
+     [
+      "fingerprint",
+      "docling_pipeline",
+      "summary"
+     ],
+     [
+      "fingerprint",
+      "label_map"
+     ],
+     [
+      "fingerprint",
+      "native_threshold"
+     ],
+     [
+      "fingerprint",
+      "prompts"
+     ],
+     [
+      "fingerprint",
+      "reading_order"
+     ]
+    ],
+    "missing": [],
+    "required": 84,
+    "shape": "the fingerprint of adapter docling-heron is verified: processing/layout/adapters/docling.py is the very one (sha256 matches, identified by module name), 32 values were derived from it"
+   },
+   "metric": "snapshot",
+   "params": {},
+   "run": "docling-heron",
+   "scalars": {
+    "empty": {
+     "count": {
+      "n": 22,
+      "of": 84
+     },
+     "value": 22
+    },
+    "fingerprint_verified": {
+     "value": 1
+    },
+    "missing": {
+     "count": {
+      "n": 0,
+      "of": 84
+     },
+     "value": 0
+    },
+    "values_present": {
+     "count": {
+      "n": 84,
+      "of": 84
+     },
+     "value": 84
+    }
+   }
+  }
+ ],
+ "when": "2026-09-07T18:52:58+0300"
+}

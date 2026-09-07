@@ -5,10 +5,13 @@ other way, and correctly: "a lock (no Cyrillic anywhere) can only be switched
 on at the very end of the work, and until then it guards nothing. The work it
 would guard is 693 633 codepoints across some 90 files -- too large for one
 sitting, and therefore exactly the kind of job that drifts back to a mixture."
-The job is finished. What is left is 926 characters that CANNOT be translated
--- Russian book titles, text quoted from those books, and the bounds of the
-Cyrillic block inside the counters themselves -- and each is declared by file,
-by count and by reason.
+The job is finished. What is left CANNOT be translated -- Russian book titles,
+text quoted from those books, the Russian page text drawn onto a synthetic
+sheet, and the bounds of the Cyrillic block inside the counters themselves --
+and each is declared by file, by count and by reason. The count itself is not
+written here: it moved three times in a day while this sentence said 926, and
+a number in prose beside a number in code is the drift this project keeps a
+rule about. `tools/cyr.py` prints it.
 
 The lock is strictly stronger than the ratchet was: the ratchet pressed on
 area totals, so Cyrillic could move from one file to another inside an area
@@ -25,7 +28,6 @@ book content was likewise written as a file glob and would have left 8423
 characters of our own prose Russian forever, because `books/*.py` is 9105
 characters of which only 682 are book text.
 """
-import json
 import os
 
 import support

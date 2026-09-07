@@ -1940,6 +1940,19 @@ class ContourMetric(Metric):
             "sense_whole": Scalar(
                 s["share"], count=(s["intact"], s["objects"]),
                 why=None if s["share"] is not None else "no artefact in the truth"),
+            # THE FOUR WAYS AN OBJECT IS LOST, each over the same objects, so
+            # the five together account for every one of them. `sense_whole`
+            # was the only one that reached a scalar, and the rest lived in
+            # `detail` -- where a TABLE cannot read them. Three sections of
+            # `docs/contour-notes.md` are about MERGING and its headline is
+            # "merging is 71% of ALL misses": the document that replaces that
+            # prose could not have stated the project's central level-one
+            # finding, and deleting the prose would have deleted the finding.
+            **{f"artefacts_{k}": Scalar(
+                (s[k] / s["objects"]) if s["objects"] else None,
+                count=(s[k], s["objects"]),
+                why=None if s["objects"] else "no artefact in the truth")
+               for k in ("merged", "cropped", "called_text", "not_seen")},
             "text_furniture_found": Scalar(
                 x["share"], count=(x["found"], x["block_count"]),
                 over=(x.get("pages_with_text_markup", 0), x.get("pages_total", 0)), unit="pages",

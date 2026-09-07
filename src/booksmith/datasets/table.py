@@ -94,8 +94,17 @@ def read_file(path: str) -> dict:
     A file without the header is REFUSED rather than read as records: it was
     written by other code, which is the one thing the header exists to say.
     """
-    with open(path, encoding="utf-8") as f:
-        d = json.load(f)
+    try:
+        with open(path, encoding="utf-8") as f:
+            d = json.load(f)
+    except ValueError as e:
+        # A HALF-WRITTEN FILE IS WHAT A RUNNING SWEEP LEAVES, and this
+        # function's own docstring promises a Refusal for a file it cannot
+        # use. It raised a bare JSONDecodeError instead.
+        raise Refusal(
+            f"{path} is not readable JSON ({e}). A results file is written "
+            f"whole at the end of `books bench all`; a broken one is a run "
+            f"that was interrupted. Measure it again.") from None
     if not isinstance(d, dict) or "records" not in d:
         raise Refusal(
             f"{path} has no header: it was written before results carried "

@@ -303,6 +303,22 @@ def test_the_things_that_must_never_be_committed_are_ignored():
         f"git no longer ignores {missing} -- .gitignore was edited and "
         "something that must never be committed is now exposed")
 
+    # THE OTHER DIRECTION, and it is the one that bites quietly. A tracked
+    # file falling UNDER an ignore is invisible to `git status`: the rename
+    # succeeds, the index keeps it, and the next clone is missing it. The
+    # results are the evidence for every number in METRICS.md and were
+    # ignored until the prose that held those numbers was deleted.
+    must_keep = ("bench/results/slovar-PP-DocLayoutV2.json",
+                 "bench/expected/help.txt",
+                 "bench/annopage/detect/PP-DocLayoutV2/run.json")
+    r = subprocess.run(["git", "check-ignore", *must_keep],
+                       cwd=root, capture_output=True, text=True)
+    hidden = [ln for ln in r.stdout.splitlines() if ln.strip()]
+    assert not hidden, (
+        f"git now IGNORES {hidden}, and these must travel with the tree: a "
+        f"result is the evidence for a published number, and a snapshot says "
+        f"which knobs produced one")
+
 
 def test_the_rented_image_was_built_from_this_dockerfile():
     """The image tag IS a commit SHA, so staleness is checkable.
@@ -399,3 +415,73 @@ def test_the_snapshot_seconds_are_a_duration_and_nothing_else():
     src = ast.dump(assigned[0].value)
     assert "time" in src, (
         f"{name!r} is not measured from the clock at all: {src[:120]}")
+
+
+def test_no_cyrillic_key_survives_where_the_map_says_none_does():
+    """The claim, measured -- because the tool that measured it was deleted.
+
+    `tools/keymap_check.py` walked `bench/`, `processed/` and `runs/` looking
+    for Cyrillic keys; it went when the key migration finished, and the map
+    then acquired the sentence "no Cyrillic key survives in any json of
+    bench/, processed/ or runs/". That sentence was FALSE --
+    `runs/ledger.jsonl` holds 74 of them -- and nothing was left to say so.
+    Delete the code, keep the measurement: this is the measurement.
+
+    `runs/ledger.jsonl` is the ONE declared exception and is asserted to stay
+    one: it is the journal of the runs that were paid for, append-only, and
+    rewriting a journal after the fact destroys the one thing a journal is
+    for. So the check fails in both directions -- a Cyrillic key appearing
+    anywhere else, and the exception quietly curing itself, which would mean
+    the journal had been rewritten.
+    """
+    import glob
+    import json
+    import re
+    CYR = re.compile("[Ѐ-ӿԀ-ԯ]")
+    # THE ROOT COMES FROM `schema`, not from `support.SRC`, so the mutation
+    # battery can point this walk at a doctored tree and watch it go red. A
+    # check that can only ever read one directory cannot be proved to fail.
+    root = schema.ROOT
+
+    def keys(o, out):
+        if isinstance(o, dict):
+            for k, v in o.items():
+                if CYR.search(str(k)):
+                    out.add(k)
+                keys(v, out)
+        elif isinstance(o, list):
+            for v in o:
+                keys(v, out)
+
+    bad = {}
+    for pat in ("bench/**/*.json", "processed/**/*.json", "runs/*.jsonl"):
+        for f in glob.glob(os.path.join(root, pat), recursive=True):
+            found = set()
+            try:
+                with open(f, encoding="utf-8") as fh:
+                    if f.endswith(".jsonl"):
+                        for line in fh:
+                            if line.strip():
+                                keys(json.loads(line), found)
+                    else:
+                        keys(json.load(fh), found)
+            except (OSError, ValueError):
+                continue
+            if found:
+                bad[os.path.relpath(f, root)] = len(found)
+
+    LEDGER = os.path.join("runs", "ledger.jsonl")
+    others = {k: v for k, v in bad.items() if k != LEDGER}
+    assert not others, (
+        f"Cyrillic keys where the map says there are none: {others}. The key "
+        f"migration is finished and its tools are deleted; a key in Russian "
+        f"here means data written by code that predates it, or a rename that "
+        f"went backwards.")
+    if os.path.isfile(os.path.join(root, LEDGER)):
+        assert bad.get(LEDGER), (
+            f"{LEDGER} no longer holds a Cyrillic key. It is the journal of "
+            f"the runs that were PAID FOR and is append-only -- if its old "
+            f"lines are English now, the journal was rewritten after the "
+            f"fact, which destroys the one thing a journal is for. If it was "
+            f"rewritten on purpose, delete this half of the check and the "
+            f"exception in CLAUDE.md with it.")

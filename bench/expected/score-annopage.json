@@ -1,6 +1,6 @@
 {
  "inputs": {
-  "bench/annopage/detect/PP-DocLayoutV2/pages": "8a592e5e273fde4646a55d2541226f9340a3fef813b7d640cf2d3e67a722fba5",
+  "bench/annopage/detect/PP-DocLayoutV2/pages": "263106d9c03225deacccae9296df15e6cb52c492b8ea9c2082a3abe25f909574",
   "bench/annopage/manifest.json": "afa2d837565ff3af0c16fa8add245efeef10b8d88ac422191f51598e152c8c65",
   "bench/annopage/truth": "8ee3a23b0a574ae1d06bfe54438231ae9f795ae3333d243c8b558aca75427ded"
  },
@@ -4041,7 +4041,7 @@
    "pairs_possible": 0,
    "why": "truth carries no order: not marked on 600 of 600 pages"
   },
-  "order_rule": "not declared (taken as 'model rank')",
+  "order_rule": "model_rank",
   "order_truth": {
    "page_count": 600,
    "states": {

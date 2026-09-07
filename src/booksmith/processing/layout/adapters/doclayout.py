@@ -236,6 +236,16 @@ class DocLayout(Detector):
         disease this contract's `knobs_read` was written against. Proved: two
         one-page runs at `ours` and at `docling` gave DIFFERENT block orders
         and the SAME identity.
+
+        THE PRICE, STATED: this adapter serves models that HAVE a rank (V2,
+        V3) and one that does not (plus-L), and an unconditional declaration
+        puts the knob in the identity of runs it provably did not touch --
+        every result on disk records `order_rule=model_rank`. So changing
+        `ASSEMBLY_ORDER` refuses a second V2 run under the rule
+        `core/stamp.py` calls the dangerous direction. Declared anyway, and
+        the alternative is worse: a per-model condition here is a second
+        place that knows which weights carry a rank, and the first place
+        (`has_rank`) is already read from the weights themselves.
         """
         return ("LAYOUT_MODEL_NAME", "LAYOUT_MODEL_DIR",
                 "LAYOUT_SCORE_THRESHOLD", "LAYOUT_TABLE_THRESHOLD",

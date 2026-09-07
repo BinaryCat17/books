@@ -1,5 +1,4 @@
-"""One measurement, one document -- counted, so the claim is not a matter of
-taste.
+"""One measurement, one place -- counted, so the claim is not a matter of taste.
 
 CLAUDE.md opens with the disease: "One figure -- the artifacts V2 finds on the
 golden bench -- stood here twice, in the contour journal three times and in the
@@ -8,25 +7,36 @@ stated and then guarded in exactly one place: `tests/test_docs_map.py` forbids
 four named numbers from returning to the map. Between the documents themselves
 nothing counted at all.
 
-WHAT COUNTS AS A MEASUREMENT, and why the bar is where it is. Four significant
-digits, a money amount, or a percentage given to a decimal. Three-digit numbers
-collide by chance -- 144 is a dpi and a page count and a byte size -- and the
-instrument must not cry wolf: measured over these documents, a three-digit rule
-finds 114 "duplicates" and a four-digit one 29, of which two are a year and a
-graphics card. An instrument that reports 114 gets switched off.
+WHAT COUNTS AS A MEASUREMENT, and why the bar is where it is. FOUR CONSECUTIVE
+DIGITS, a money amount, or a percentage given to a decimal. Not "four
+significant digits", which this header claimed and the code has never done:
+`1.234`, `12.34` and `1,232` all carry four significant digits and are
+invisible here, while `1232` and `1 232` are seen. Three-digit numbers collide
+by chance -- 144 is a dpi, a page count and a byte size -- and the instrument
+must not cry wolf: over these documents a three-digit rule finds 114
+"duplicates" and a four-digit one 28. An instrument that reports 114 gets
+switched off.
 
-WHAT IS NOT READ. Nothing but the documents themselves. The narrative of how
-the tree got here lives in commit messages, where git keeps it attached to the
-change it describes -- a `docs/journal/` of dated entries stood here for a
-while and held, measured, not one figure that was absent from the commit
-messages and the documents. A number in a commit message is a record of that
-moment and is rewritten by nothing; a number in a document is a claim about
-the tree as it is now, and two documents claiming it is where drift begins.
+WHAT IS COUNTED IS COPIES, NOT DISTINCT FIGURES. The first edition counted
+`len(duplicates())`, so a figure standing in two documents and the same figure
+standing in seven both counted as one, and duplication could grow while the
+ratchet held. And `measurements()` returned a SET, so a figure stated TWICE IN
+ONE DOCUMENT was invisible -- which is literally the case the map opens with.
+Both are counted now, so the number is the one the rule is about.
 
-THE CEILING MAY FALL AND NEVER RISE, the same shape as the Cyrillic ratchet.
-Step 5 of `docs/plan.md` is the documentation split, and this is the number it
-has to move: every duplicate below is one document quoting another instead of
-pointing at it.
+WHAT IS NOT READ. `METRICS.md` alone, exempt BY NAME: it is GENERATED from
+`bench/results/*.json` and rendered afresh, so it cannot drift from what it
+restates -- which is the whole thing this file counts. Every other document is
+read, the front page included; it was missing, and it holds three of these
+copies. The narrative of how the tree got here lives in commit messages, where
+git keeps it attached to the change it describes. A number in a commit message
+is a record of one moment and is rewritten by nothing; a number in a document
+is a claim about the tree as it is NOW, and two documents claiming it is where
+drift begins.
+
+THE CEILING MAY FALL AND NEVER RISE. Step 5 of `docs/plan.md` is the
+documentation split, and this is the number it has to move: every copy is one
+document quoting another instead of pointing at it.
 
     python3 tools/figures.py           what is duplicated, and where
     python3 tools/figures.py --check   red if the count rose
@@ -56,57 +66,93 @@ NOT_A_MEASUREMENT = {
 }
 
 # The count today. It may fall and never rise; step 5 takes it to zero.
-CEILING = 25
+#
+# RE-FOUNDED at 127 from 25, and the rise is the instrument being corrected,
+# not the tree getting worse. Three changes, each of which the old number was
+# blind to: copies are counted instead of distinct figures (a figure in seven
+# documents counted as one), a figure stated twice in ONE document is a copy
+# (the case the map opens with, previously invisible because the reader
+# returned a set), and `README.md` is read at last -- the front page, which
+# holds three of them.
+CEILING = 127
+
+
+# Rendered, never written: it cannot drift from what it restates, so it is not
+# a second copy. Named here rather than left out in silence.
+GENERATED = ("METRICS.md",)
 
 
 def documents():
-    """Every document a reader is sent to. Journals excluded, see the header."""
-    out = {"CLAUDE.md", os.path.join("bench", "README.md")}
-    for p in glob.glob(os.path.join(ROOT, "docs", "*.md")):
+    """Every document a reader is sent to.
+
+    THE FRONT PAGE IS ONE, and was missing. So is anything under `docs/` at
+    any depth: the old glob was `docs/*.md` and would not have seen
+    `docs/reference/`, which step 5 creates.
+    """
+    out = {"CLAUDE.md", "README.md", os.path.join("bench", "README.md")}
+    for p in glob.glob(os.path.join(ROOT, "docs", "**", "*.md"),
+                       recursive=True):
         out.add(os.path.relpath(p, ROOT))
-    return sorted(out)
+    return sorted(p for p in out if p not in GENERATED
+                  and os.path.isfile(os.path.join(ROOT, p)))
 
 
 def measurements(rel):
-    """The measurements one document states."""
-    out = set()
+    """measurement -> how many times this document states it.
+
+    A COUNT, not a set. Twice in one document is a second copy too, and it is
+    the case the map opens with -- one figure stood there twice.
+    """
+    out = collections.Counter()
     with open(os.path.join(ROOT, rel), encoding="utf-8") as f:
         text = f.read()
     for m in NUMBER.findall(text):
-        n = re.sub(r"[   ]", "", m)
+        n = re.sub(r"[\u2009 ]", "", m)
         if n in NOT_A_MEASUREMENT:
             continue
         if n.startswith("$") or n.endswith("%") or len(re.sub(r"\D", "", n)) >= 4:
-            out.add(n)
+            out[n] += 1
     return out
 
 
 def duplicates():
-    """measurement -> the documents that state it, for those stated twice."""
+    """measurement -> the documents that state it (a document stating it
+    twice appears twice), for every one stated more than once anywhere."""
     where = collections.defaultdict(list)
     for rel in documents():
-        for n in measurements(rel):
-            where[n].append(rel)
+        for n, k in measurements(rel).items():
+            where[n] += [rel] * k
     return {n: sorted(v) for n, v in where.items() if len(v) > 1}
+
+
+def copies(d=None) -> int:
+    """Redundant copies: the quantity the rule is about. One statement of a
+    figure is not a copy; every further one is."""
+    d = duplicates() if d is None else d
+    return sum(len(v) - 1 for v in d.values())
 
 
 def main(argv):
     d = duplicates()
+    n_copies = copies(d)
     for n, docs in sorted(d.items(), key=lambda kv: (-len(kv[1]), kv[0])):
-        print(f"  {n:<12} {', '.join(docs)}")
-    print(f"\n  {len(d)} measurements stated in more than one document "
+        seen = collections.Counter(docs)
+        print(f"  {n:<12} " + ", ".join(
+            f"{k}{'' if v == 1 else f' x{v}'}" for k, v in sorted(seen.items())))
+    print(f"\n  {n_copies} redundant copies of {len(d)} measurements "
           f"(ceiling {CEILING})")
     if "--check" in argv:
-        if len(d) > CEILING:
-            print(f"ROSE: {len(d)} against a ceiling of {CEILING}. A second "
+        if n_copies > CEILING:
+            print(f"ROSE: {n_copies} against a ceiling of {CEILING}. A second "
                   f"copy drifts, and it drifts silently -- point at the "
                   f"document that owns the number instead of restating it.")
             return 1
-        if len(d) < CEILING:
-            print(f"the ceiling is stale: {len(d)} left, and it says "
-                  f"{CEILING}. Lower it in tree/figures.py.")
+        if n_copies < CEILING:
+            print(f"the ceiling is stale: {n_copies} left, and it says "
+                  f"{CEILING}. Lower it in tree/figures.py -- a ratchet that "
+                  f"stops pressing is not a ratchet.")
             return 1
-        print(f"holds: {len(d)} duplicates, none new")
+        print(f"holds: {n_copies} copies of {len(d)} measurements, none new")
     return 0
 
 

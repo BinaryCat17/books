@@ -1,0 +1,635 @@
+{
+ "commit": "f7407d40583d9d79cb9f8ecff4d56a8382ad8fe2+dirty tree",
+ "records": [
+  {
+   "bench": "atlas",
+   "detail": {
+    "assembly_order": {
+     "agreement": 0.8947368421052632,
+     "blocks_without_rank": 0,
+     "page_count": 11,
+     "pages_total": 11,
+     "pairs": 19,
+     "pairs_possible": 25
+    },
+    "book": "sha256 checked: 509dbf4899b0; raster checked: 11 pages, sizes agree",
+    "by_case": {
+     "atl_callouts": {
+      "artifacts": 1,
+      "found": 1,
+      "troubles": {}
+     },
+     "atl_caption_above": {
+      "artifacts": 1,
+      "found": 1,
+      "troubles": {}
+     },
+     "atl_frame_stamp": {
+      "artifacts": 2,
+      "found": 1,
+      "troubles": {
+       "merge (image)": 1,
+       "spurious_box": 1
+      }
+     },
+     "atl_photo_plate": {
+      "artifacts": 1,
+      "found": 1,
+      "troubles": {}
+     },
+     "atl_plate_only": {
+      "artifacts": 1,
+      "found": 1,
+      "troubles": {}
+     },
+     "atl_rotated_plate": {
+      "artifacts": 2,
+      "found": 1,
+      "troubles": {
+       "merge (table)": 1,
+       "spurious_box": 1
+      }
+     },
+     "atl_sparse": {
+      "artifacts": 1,
+      "found": 1,
+      "troubles": {}
+     },
+     "atl_spec_inside": {
+      "artifacts": 3,
+      "found": 1,
+      "troubles": {
+       "merge (table)": 2,
+       "spurious_box": 1
+      }
+     },
+     "atl_spread_plate": {
+      "artifacts": 1,
+      "found": 1,
+      "troubles": {}
+     },
+     "atl_text_and_plate": {
+      "artifacts": 1,
+      "found": 1,
+      "troubles": {}
+     },
+     "atl_two_views": {
+      "artifacts": 2,
+      "found": 2,
+      "troubles": {
+       "spurious_box": 1
+      }
+     }
+    },
+    "by_label": {
+     "figure_title": {
+      "bucket": "text",
+      "found": 8,
+      "truth": 9
+     },
+     "image": {
+      "bucket": "artifact",
+      "found": 11,
+      "truth": 12
+     },
+     "number": {
+      "bucket": "furniture",
+      "found": 1,
+      "truth": 1
+     },
+     "table": {
+      "bucket": "artifact",
+      "found": 1,
+      "truth": 4
+     },
+     "text": {
+      "bucket": "text",
+      "found": 2,
+      "truth": 2
+     }
+    },
+    "jumps": {
+     "boxes_counted": 14,
+     "boxes_other_buckets": 2,
+     "by_page": {
+      "3": 2
+     },
+     "columns": 3,
+     "excess_jumps": 2,
+     "full_width_boxes": 13,
+     "page_count": 11,
+     "pages_counted": 2,
+     "pages_not_counted_too_few_boxes": 9,
+     "pages_with_2plus_columns": 1,
+     "params": {
+      "buckets_counted": [
+       "artifact",
+       "text"
+      ],
+      "full_width_box_share": 0.6,
+      "min_boxes_per_page": 2,
+      "x_overlap_of_narrow_box": 0.5
+     },
+     "per_page": 1.0,
+     "transitions": 3,
+     "why": ""
+    },
+    "label_confusion": {
+     "figure_title->Caption": 6,
+     "figure_title->Text": 2,
+     "image->Picture": 11,
+     "number->Page-footer": 1,
+     "table->Table": 1,
+     "text->Text": 2
+    },
+    "model_order": {
+     "agreement": null,
+     "page_count": 11,
+     "pages_total": 11,
+     "pairs": 0,
+     "pairs_possible": 25,
+     "why": "the model gives no rank (ours_top_down_left_right)"
+    },
+    "order_rule": "ours_top_down_left_right",
+    "order_truth": {
+     "page_count": 11,
+     "states": {
+      "marked": 11
+     }
+    },
+    "sense": {
+     "called_text": 0,
+     "cropped": 0,
+     "intact": 12,
+     "merged": 4,
+     "not_seen": 0,
+     "objects": 16,
+     "share": 0.75,
+     "threshold_fits": 0.9,
+     "threshold_neighbour": 0.5
+    },
+    "text_and_furniture": {
+     "block_count": 12,
+     "found": 11,
+     "pages_total": 11,
+     "pages_with_text_markup": 11,
+     "share": 0.9166666666666666
+    },
+    "totals": {
+     "artifacts": 16,
+     "found": 12,
+     "share": 0.75
+    },
+    "troubles": {
+     "merge (image)": 1,
+     "merge (table)": 3,
+     "spurious_box": 4
+    }
+   },
+   "metric": "contour",
+   "params": {
+    "COLUMN_buckets_counted": [
+     "artifact",
+     "text"
+    ],
+    "COLUMN_full_width_box_share": 0.6,
+    "COLUMN_min_boxes_per_page": 2,
+    "COLUMN_x_overlap_of_narrow_box": 0.5,
+    "COVER_MATCH": 0.75,
+    "SENSE_NEIGHBOUR": 0.5,
+    "SENSE_WHOLE": 0.9,
+    "TOL_PX": 6.0,
+    "TOUCH": 0.1
+   },
+   "run": "docling-egret",
+   "scalars": {
+    "artefacts_called_text": {
+     "count": {
+      "n": 0,
+      "of": 16
+     },
+     "value": 0.0
+    },
+    "artefacts_cropped": {
+     "count": {
+      "n": 0,
+      "of": 16
+     },
+     "value": 0.0
+    },
+    "artefacts_found": {
+     "count": {
+      "n": 12,
+      "of": 16
+     },
+     "value": 0.75
+    },
+    "artefacts_merged": {
+     "count": {
+      "n": 4,
+      "of": 16
+     },
+     "value": 0.25
+    },
+    "artefacts_not_seen": {
+     "count": {
+      "n": 0,
+      "of": 16
+     },
+     "value": 0.0
+    },
+    "assembly_order": {
+     "over": {
+      "n": 11,
+      "of": 11,
+      "unit": "pages"
+     },
+     "value": 0.8947368421052632
+    },
+    "excess_jumps_per_page": {
+     "over": {
+      "n": 2,
+      "of": 11,
+      "unit": "pages"
+     },
+     "value": 1.0
+    },
+    "label_errors": {
+     "value": null,
+     "why": "the two sides speak different label vocabularies; not compared"
+    },
+    "model_order": {
+     "over": {
+      "n": 11,
+      "of": 11,
+      "unit": "pages"
+     },
+     "value": null,
+     "why": "the model gives no rank (ours_top_down_left_right)"
+    },
+    "role_errors": {
+     "count": {
+      "n": 0,
+      "of": 23
+     },
+     "value": 0
+    },
+    "sense_whole": {
+     "count": {
+      "n": 12,
+      "of": 16
+     },
+     "value": 0.75
+    },
+    "text_furniture_found": {
+     "count": {
+      "n": 11,
+      "of": 12
+     },
+     "over": {
+      "n": 11,
+      "of": 11,
+      "unit": "pages"
+     },
+     "value": 0.9166666666666666
+    }
+   }
+  },
+  {
+   "bench": "atlas",
+   "detail": {
+    "almost_intact": 0,
+    "arrived_with_company": 9,
+    "bitten": 0,
+    "boxes_area": 12418127,
+    "boxes_with_many_objects": 4,
+    "dark_columns": 6,
+    "dark_columns_positions": [
+     0.16,
+     0.84,
+     0.5,
+     0.05,
+     0.5,
+     0.95
+    ],
+    "dpi": [
+     144
+    ],
+    "empty_objects": 0,
+    "in_one_box": 16,
+    "ink_in_dark_columns": 781299,
+    "ink_in_dark_columns_off_edge": 781299,
+    "ink_outside_boxes_at_edge": 8511,
+    "ink_total": 1127438,
+    "ink_under_artifact": 1053254,
+    "ink_under_boxes": 1114659,
+    "intact": 16,
+    "left_as_text": 0,
+    "object_ink": 989602,
+    "object_ink_in_boxes": 989344,
+    "objects": 16,
+    "page_count": 11,
+    "pages_with_dark_column": 3,
+    "sheet_area": 17487360,
+    "split_between_boxes": 0,
+    "thresholds": {
+     "almost": 0.95,
+     "bitten": 0.8,
+     "edge_band": 0.04,
+     "ink": 160,
+     "intact": 0.99
+    },
+    "torn": 0,
+    "truth_pages": 11
+   },
+   "metric": "fitness",
+   "params": {
+    "GUTTER": 0.5,
+    "almost": 0.95,
+    "bitten": 0.8,
+    "dpi": [
+     144
+    ],
+    "edge_band": 0.04,
+    "ink": 160,
+    "intact": 0.99
+   },
+   "run": "docling-egret",
+   "scalars": {
+    "area_under_boxes": {
+     "count": {
+      "n": 12418127,
+      "of": 17487360
+     },
+     "value": 0.7101201667947592
+    },
+    "ink_outside_boxes": {
+     "count": {
+      "n": 12779,
+      "of": 1127438
+     },
+     "value": 0.011334547886446944
+    },
+    "ink_under_artefacts": {
+     "count": {
+      "n": 1053254,
+      "of": 1127438
+     },
+     "value": 0.9342012598475482
+    },
+    "ink_under_boxes": {
+     "count": {
+      "n": 1114659,
+      "of": 1127438
+     },
+     "value": 0.9886654521135531
+    },
+    "object_ink_preserved": {
+     "count": {
+      "n": 989344,
+      "of": 989602
+     },
+     "value": 0.9997392891283566
+    },
+    "objects_in_one_box": {
+     "count": {
+      "n": 16,
+      "of": 16
+     },
+     "value": 1.0
+    },
+    "objects_intact": {
+     "count": {
+      "n": 16,
+      "of": 16
+     },
+     "value": 1.0
+    },
+    "objects_left_as_text": {
+     "count": {
+      "n": 0,
+      "of": 16
+     },
+     "value": 0.0
+    },
+    "objects_torn": {
+     "count": {
+      "n": 0,
+      "of": 16
+     },
+     "value": 0.0
+    },
+    "objects_with_company": {
+     "count": {
+      "n": 9,
+      "of": 16
+     },
+     "value": 0.5625
+    }
+   }
+  },
+  {
+   "bench": "atlas",
+   "detail": {
+    "boxes_counted": 14,
+    "boxes_other_buckets": 2,
+    "by_page": {
+     "3": 2
+    },
+    "columns": 3,
+    "excess_jumps": 2,
+    "full_width_boxes": 13,
+    "page_count": 11,
+    "pages_counted": 2,
+    "pages_not_counted_too_few_boxes": 9,
+    "pages_with_2plus_columns": 1,
+    "params": {
+     "buckets_counted": [
+      "artifact",
+      "text"
+     ],
+     "full_width_box_share": 0.6,
+     "min_boxes_per_page": 2,
+     "x_overlap_of_narrow_box": 0.5
+    },
+    "per_page": 1.0,
+    "transitions": 3,
+    "why": ""
+   },
+   "metric": "assembly",
+   "params": {
+    "COLUMN_buckets_counted": [
+     "artifact",
+     "text"
+    ],
+    "COLUMN_full_width_box_share": 0.6,
+    "COLUMN_min_boxes_per_page": 2,
+    "COLUMN_x_overlap_of_narrow_box": 0.5,
+    "order_rule": "ours_top_down_left_right"
+   },
+   "run": "docling-egret",
+   "scalars": {
+    "excess_jumps": {
+     "value": 2
+    },
+    "excess_jumps_per_page": {
+     "over": {
+      "n": 2,
+      "of": 11,
+      "unit": "pages"
+     },
+     "value": 1.0
+    },
+    "pages_with_columns": {
+     "count": {
+      "n": 1,
+      "of": 11
+     },
+     "value": 1
+    },
+    "transitions": {
+     "value": 3
+    }
+   }
+  },
+  {
+   "bench": "atlas",
+   "detail": {
+    "empty": [
+     [
+      "knobs",
+      "VL_MODEL_DIR",
+      "value"
+     ],
+     [
+      "knobs",
+      "YOLOX_WEIGHTS",
+      "value"
+     ],
+     [
+      "knobs",
+      "LAYOUT_MODEL_DIR",
+      "value"
+     ],
+     [
+      "knobs",
+      "CROP_DPI",
+      "value"
+     ],
+     [
+      "knobs",
+      "BOOKSMITH_COMMIT",
+      "value"
+     ],
+     [
+      "knobs",
+      "BOOKSMITH_LEDGER",
+      "value"
+     ],
+     [
+      "knobs",
+      "VLM_ENDPOINT",
+      "value"
+     ],
+     [
+      "prompts"
+     ],
+     [
+      "generation",
+      "temperature"
+     ],
+     [
+      "generation",
+      "max_tokens"
+     ],
+     [
+      "generation",
+      "top_p"
+     ],
+     [
+      "generation",
+      "seed"
+     ],
+     [
+      "weights",
+      "vl"
+     ],
+     [
+      "fingerprint",
+      "docling_pipeline",
+      "docling_version"
+     ],
+     [
+      "fingerprint",
+      "docling_pipeline",
+      "label_map_to_docling"
+     ],
+     [
+      "fingerprint",
+      "docling_pipeline",
+      "postprocess_options"
+     ],
+     [
+      "fingerprint",
+      "docling_pipeline",
+      "sha256_vendor_files"
+     ],
+     [
+      "fingerprint",
+      "docling_pipeline",
+      "summary"
+     ],
+     [
+      "fingerprint",
+      "label_map"
+     ],
+     [
+      "fingerprint",
+      "native_threshold"
+     ],
+     [
+      "fingerprint",
+      "prompts"
+     ],
+     [
+      "fingerprint",
+      "reading_order"
+     ]
+    ],
+    "missing": [],
+    "required": 84,
+    "shape": "the fingerprint of adapter docling-egret is verified: processing/layout/adapters/docling.py is the very one (sha256 matches, identified by module name), 32 values were derived from it"
+   },
+   "metric": "snapshot",
+   "params": {},
+   "run": "docling-egret",
+   "scalars": {
+    "empty": {
+     "count": {
+      "n": 22,
+      "of": 84
+     },
+     "value": 22
+    },
+    "fingerprint_verified": {
+     "value": 1
+    },
+    "missing": {
+     "count": {
+      "n": 0,
+      "of": 84
+     },
+     "value": 0
+    },
+    "values_present": {
+     "count": {
+      "n": 84,
+      "of": 84
+     },
+     "value": 84
+    }
+   }
+  }
+ ],
+ "when": "2026-09-07T18:56:10+0300"
+}

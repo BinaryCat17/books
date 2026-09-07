@@ -88,6 +88,10 @@ class Run:
 
     @property
     def derived_from(self) -> str | None:
+        """WRITTEN BY NOTHING YET. Step 4 makes it: a correction produces a
+        derived run `read/<label>+cN/` whose snapshot names the raw run it
+        came from. Read here so the shape exists before the writer does, and
+        said so rather than looking finished."""
         return self.snapshot.get("derived_from")
 
     def pages(self) -> dict:

@@ -101,7 +101,7 @@ KINDS = ("html", "otsl", "latex", "text")
 # The contract for the page `meta` field `reading_order`, kept HERE because
 # adapters write that field and it already has two readers:
 # `metrics._model_has_rank` (compare order with truth at all?) and
-# `doc/html.build` (what to print into the build log). Both once read the
+# `assemble/html.build` (what to print into the build log). Both once read the
 # string's first word by THEIR OWN copy of the rule.
 #
 # The price of drift was paid by the instrument next door: on `bench/hard36`
