@@ -161,6 +161,11 @@ books overlay book.pdf …     truth and model disagreements over the pages
 books bench all bench/<book>  every applicable metric on one run: one table,
                              one JSON under bench/results/. --run <model> when
                              the book holds several
+books bench report           every measured number in the project, rendered
+                             into METRICS.md from those JSONs. GENERATED: a
+                             figure written by hand drifts from the run that
+                             produced it, and tools/figures.py counts what
+                             that has cost
 ```
 
 ## Knobs

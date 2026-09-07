@@ -1,150 +1,379 @@
 {
- "when": "2026-08-28T13:15:14+0300",
+ "when": "2026-09-07T14:08:34+0300",
  "knobs": {
   "PAGE_DPI": {
    "value": "144",
    "default": "144",
    "set_externally": false,
-   "what": "разрешение, с которым страница РЕНДЕРИТСЯ в растр. Детектор жмёт его до 800x800 сам, поэтому на его вход ручка влияет только через резкость исходного растра; на координаты рамок — влияет прямо"
+   "what": "the resolution a page is RENDERED to for detection. The detector squeezes the raster to 800x800 itself (keep_ratio: false). THERE IS A DIFFERENCE, just not in the summary numbers: on bench/real/tables20.pdf (20 pages) at dpi 100/140/144/148/200/300/450/580/600/620 the boxes are 384/381/379/378/380/379/378/378/379/379 (band 378..384, 379 falling out four times), ink under boxes 99.3% everywhere and 99.4% at 100 -- both numbers blind to dpi. The run repeats: two repeats at 300 dpi gave byte-identical blocks, so the band 378..384 is dpi and not run noise. The LABEL tells them apart: paragraph_title 42/41/39/40/39/38/36/34/32/34 -- a monotone decline four times wider than the noise of neighbouring dpi (39..41 at 140/144/148); text meanwhile stands still (236..241), so boxes are LOST, not carried over. The cause is not the resolution but the FILTER: the adapter squeezes the raster with cv2.INTER_CUBIC (interp: 2 from the weights), at 600 dpi that is a 7.6-fold vertical shrink, i.e. subsampling -- 4.3% of the halftones reach the net against 16.6% with INTER_AREA. Swapping the interpolation for INTER_AREA at 600 dpi brings paragraph_title back 32 -> 40 without moving the total (379), and takes a table away (5 -> 4); at 144 dpi the same swap gives 382 boxes and 3 tables instead of 5. No dpi and no filter adds a table. On box coordinates it tells directly",
+   "debt": false,
+   "read_by": "the books detect command",
+   "for_this_run": true
   },
   "MODEL_NAME": {
    "value": "PaddleOCR-VL-1.6-0.9B",
    "default": "PaddleOCR-VL-1.6-0.9B",
    "set_externally": false,
-   "what": "имя модели для vLLM и клиента"
+   "what": "model name for vLLM and for the client",
+   "debt": false,
+   "read_by": "NOBODY IN THIS RUN",
+   "for_this_run": false
   },
   "VL_MODEL_DIR": {
    "value": "",
    "default": "",
    "set_externally": false,
-   "what": "каталог весов VLM; ставит run.sh, читает vLLM"
+   "what": "VLM weights dir; run.sh sets it, vLLM reads",
+   "debt": false,
+   "read_by": "NOBODY IN THIS RUN",
+   "for_this_run": false
   },
   "LAYOUT_ADAPTER": {
    "value": "doclayout",
    "default": "doclayout",
-   "set_externally": false,
-   "what": "какой адаптер детекции звать: doclayout (PaddleOCR PP-DocLayout*) или docling (IBM heron/egret). Разные словари ярлыков и разные политики — сравнивать их можно только слепо к ярлыку"
+   "set_externally": true,
+   "what": "which detection adapter to call; the list is detect.py:ADAPTERS, four of them: doclayout (PaddleOCR PP-DocLayout*, 25 labels on V2/V3, 20 on plus-L), docling (IBM heron RT-DETRv2, 17), docling-egret (IBM egret D-FINE, 17), yolox (DocLayNet, 11). Different label dictionaries and different policies -- comparable only blind to the label",
+   "debt": false,
+   "read_by": "the books detect command",
+   "for_this_run": true
   },
   "YOLOX_WEIGHTS": {
    "value": "",
    "default": "",
    "set_externally": false,
-   "what": "какие веса YOLOX брать: yolox_l0.05.onnx (по умолчанию) или yolox_tiny.onnx"
+   "what": "which YOLOX weights to take: yolox_l0.05.onnx (the default) or yolox_tiny.onnx",
+   "debt": false,
+   "read_by": "NOBODY IN THIS RUN",
+   "for_this_run": false
   },
   "LAYOUT_MODEL_NAME": {
    "value": "PP-DocLayoutV2",
    "default": "PP-DocLayoutV2",
-   "set_externally": false,
-   "what": "имя модели детекции макета"
+   "set_externally": true,
+   "what": "layout model name",
+   "debt": false,
+   "read_by": "adapter doclayout-onnx",
+   "for_this_run": true
   },
   "LAYOUT_MODEL_DIR": {
    "value": "",
    "default": "",
    "set_externally": false,
-   "what": "каталог весов детекции макета"
+   "what": "layout weights directory",
+   "debt": false,
+   "read_by": "adapter doclayout-onnx",
+   "for_this_run": true
   },
   "LAYOUT_SCORE_THRESHOLD": {
    "value": "0.5",
    "default": "0.5",
    "set_externally": false,
-   "what": "порог детекции для 24 классов макета, КРОМЕ table; родной у весов"
+   "what": "detection threshold. On doclayout -- common to every class EXCEPT table (24 of the 25 classes on V2/V3, 19 of the 20 on plus-L), the default native to the weights. On docling, docling-egret and yolox -- one for ALL classes, table included, and the weights carry no native threshold at all",
+   "debt": false,
+   "read_by": "adapter doclayout-onnx",
+   "for_this_run": true
   },
   "LAYOUT_TABLE_THRESHOLD": {
    "value": "0.5",
    "default": "0.5",
    "set_externally": false,
-   "what": "родной порог детекции таблиц"
+   "what": "the native table detection threshold; read by doclayout ONLY -- in the other three adapters a table goes by LAYOUT_SCORE_THRESHOLD",
+   "debt": false,
+   "read_by": "adapter doclayout-onnx",
+   "for_this_run": true
   },
-  "PADDLE_PDX_MODEL_SOURCE": {
-   "value": "",
-   "default": "",
+  "DOCLING_PIPELINE": {
+   "value": "off",
+   "default": "off",
    "set_externally": false,
-   "what": "откуда paddlex тянет веса"
+   "what": "the docling vendor pipeline over the boxes: off | post (its postprocessing) | full (that plus reading-order RULES, not a model). Read by the docling and docling-egret adapters; indigestible to the rest. The numbers beside this knob were taken on HERON -- egret has a price of its own, measured separately and different",
+   "debt": false,
+   "read_by": "NOBODY IN THIS RUN",
+   "for_this_run": false
+  },
+  "ASSEMBLY_ORDER": {
+   "value": "ours",
+   "default": "ours",
+   "set_externally": false,
+   "what": "what assembles the book when the model has NO reading rank of its own: ours (our rule, top to bottom and left to right) | docling (reading_order_rb -- 740 lines of vendor RULES, not a model; needs the docling package, +54 MB). Read by plus-L, heron, egret and yolox; PP-DocLayoutV2 and V3 have a rank of their OWN and this knob does not touch them at all. Measured on the 600 pages of the golden bench, THE SAME V2 boxes permuted three ways: our rule 2471 extra jumps, the model's own rank 501, the docling rules 439. Ours is worse than both STEADILY -- over 16 sweep points the limits are 3.02..7.04 against 0.23..1.73 and 0.28..1.57, not overlapping at all. And docling against the V2 rank the instrument does NOT tell apart: the pair is inverted, difference 0.13 against a ruler span of 4.02 -- which is why V2 keeps its own rank. The default is ours and not the best by number for exactly one reason: docling is a package, and `books detect --adapter yolox` must not fall on a fresh environment over a sorting rule",
+   "debt": false,
+   "read_by": "adapter doclayout-onnx",
+   "for_this_run": true
   },
   "CROP_DPI": {
    "value": "",
    "default": "",
    "set_externally": false,
-   "what": "резкость вырезки артефакта; пусто = как PAGE_DPI"
+   "what": "crop sharpness. Empty = the scan's OWN resolution (as much as the file holds and not a dot more), and if that cannot be determined -- as detection had it. Here stood 'empty = as PAGE_DPI', wrong on both counts; a knob's text rides into run.json, so the snapshot described it falsely. Read by core/raster.py, and through it by `books html`; `books read` and `books crop` do NOT read it -- there the model's window decides the resolution",
+   "debt": false,
+   "read_by": "NOBODY IN THIS RUN",
+   "for_this_run": false
   },
   "CROP_MARGIN": {
    "value": "0",
    "default": "0",
    "set_externally": false,
-   "what": "поле вокруг рамки при вырезке, в долях рамки"
+   "what": "margin around the box when cropping, in box fractions",
+   "debt": false,
+   "read_by": "NOBODY IN THIS RUN",
+   "for_this_run": false
   },
-  "VLM_INPUT": {
-   "value": "crop",
-   "default": "crop",
+  "HTML_MATH": {
+   "value": "inline",
+   "default": "inline",
    "set_externally": false,
-   "what": "что подавать VLM: crop | masked_page"
+   "what": "how formulas are drawn in the book: inline (MathJax INSIDE the book, +2.3 MB to the file) | local (as a neighbouring tex-svg.js) | cdn (pulled from the network on every open) | off (raw LaTeX). The default is `inline`, and it was paid for like this: with `local` the browser silently DOES NOT LOAD the neighbouring script when the book is opened over a network path (\\\\wsl.localhost\\... from Windows) -- Chromium cuts the local file off, the console says nothing, and the book looks built without formulas. An embedded script knows no such trouble. The measurement this knob was made for: «Технология огнеупоров» holds 2260 formulas among 6080 read blocks, and without rendering the reader sees \\[\\mathrm{Al}_{2}\\mathrm{O}_{3}\\] instead of a formula",
+   "debt": false,
+   "read_by": "NOBODY IN THIS RUN",
+   "for_this_run": false
   },
-  "MASK_FILL": {
-   "value": "white",
-   "default": "white",
+  "HTML_IMAGES": {
+   "value": "inline",
+   "default": "inline",
    "set_externally": false,
-   "what": "заливка дыр при masked_page: white|gray|black"
+   "what": "how the book carries the cut-out artefacts: inline (data: links INSIDE the html; the file is self-contained and opens by any path) | linked (links to assets/blocks/*.png). The PNGs are put into assets/blocks in BOTH cases -- edits, measurements and the second level need them, not reading alone. The price of inline on «Технология огнеупоров»: 488 crops, 11.2 MB on disk -> 14.9 MB in base64, the book 2.3 -> ~19 MB. The default is `inline` for the same reason as HTML_MATH: a book gets opened over a network path, and then neighbouring files fail to load in silence",
+   "debt": false,
+   "read_by": "NOBODY IN THIS RUN",
+   "for_this_run": false
+  },
+  "HTML_REPEATS": {
+   "value": "hide",
+   "default": "hide",
+   "set_externally": false,
+   "what": "what to do with a PROVEN repeat inside a page: hide (not shown to the reader; the markup stays, only the display is hidden) | show (show everything, hiding nothing). The proof is one: the same text belongs to a block that STAYS in the book; compared at the latex step, whose measurement is in `text.NORM_STEPS`. On «Технология огнеупоров» 728 of 1935 nested blocks are hidden, the share of false ones among them 11.7 % by the worst background. THE KNOB IS NOT HERE FOR BEAUTY: it is the only build operation that TAKES text off the reader's eyes, and it must have a switch -- the cost of an error is asymmetric here, a false hiding carries words away while a missed repeat leaves one line too many",
+   "debt": false,
+   "read_by": "NOBODY IN THIS RUN",
+   "for_this_run": false
+  },
+  "MIN_LINK_MBPS": {
+   "value": "2.0",
+   "default": "2.0",
+   "set_externally": false,
+   "what": "the link threshold a machine is rejected by, Mbps, measured TO US. It separates a working machine from a broken one, not a fast one from a slow one: two orders of magnitude lie between them (7 against 0.06). THIS NUMBER IS NOT DERIVED FROM THE WORK, and that has to be known before blaming the market. A `vl-read` job of 20 pages weighs 872 KB: at 0.34 Mbps it travels in 20 s, at 0.062 (that same broken machine from the probe's docstring) in 112 s. So for the task ITSELF the threshold of 2.0 is tenfold excessive, and by it machines are rejected for good. Measured 3 September 2026: our own link over HTTP 4.6 Mbps, while a single ssh stream to the rented machine gave 0.34, and it went onto the eternal blacklist. Loosening the threshold knowingly is exactly what it was put in the registry for; loosening it, take the number FROM THE JOB SIZE and not from taste, and remember that below the threshold a machine returns its result slowly too",
+   "debt": false,
+   "read_by": "NOBODY IN THIS RUN",
+   "for_this_run": false
+  },
+  "BOOKSMITH_COMMIT": {
+   "value": "",
+   "default": "",
+   "set_externally": false,
+   "what": "the commit for a machine without git; empty = ask git in place",
+   "debt": false,
+   "read_by": "NOBODY IN THIS RUN",
+   "for_this_run": false
   },
   "BOOKSMITH_LEDGER": {
    "value": "",
    "default": "",
    "set_externally": false,
-   "what": "куда писать журнал прогонов; пусто = runs/ledger.jsonl. Рядом с журналом живёт и чёрный список машин"
-  },
-  "FEED_DPI": {
-   "value": "",
-   "default": "",
-   "set_externally": false,
-   "what": "разрешение страницы, уезжающей в VLM; пусто = как PAGE_DPI"
+   "what": "where to write the run journal; empty = runs/ledger.jsonl. The machine blacklist lives beside the journal",
+   "debt": false,
+   "read_by": "NOBODY IN THIS RUN",
+   "for_this_run": false
   },
   "SYNTH_SEED": {
    "value": "1",
    "default": "1",
    "set_externally": false,
-   "what": "зерно синтетического стенда"
+   "what": "seed of the synthetic bench",
+   "debt": false,
+   "read_by": "NOBODY IN THIS RUN",
+   "for_this_run": false
   },
   "SYNTH_AGING": {
    "value": "old",
    "default": "old",
    "set_externally": false,
-   "what": "профиль старения стенда: clean|scan|old|ветхий"
+   "what": "bench ageing profile: clean|scan|old|decayed",
+   "debt": false,
+   "read_by": "NOBODY IN THIS RUN",
+   "for_this_run": false
+  },
+  "VLM_READER": {
+   "value": "paddleocr-vl",
+   "default": "paddleocr-vl",
+   "set_externally": false,
+   "what": "which READING adapter to call; the list is processing/read/driver.py:READERS. It decides which prompt asks about which label, and in what shape the answer arrives",
+   "debt": false,
+   "read_by": "NOBODY IN THIS RUN",
+   "for_this_run": false
+  },
+  "VLM_TRANSPORT": {
+   "value": "http",
+   "default": "http",
+   "set_externally": false,
+   "what": "how the question is delivered; the list is processing/read/transports/openai_http.py:build. Rental is NOT a third transport: on a rented card the same http looks at 127.0.0.1, where run.sh raised vLLM",
+   "debt": false,
+   "read_by": "NOBODY IN THIS RUN",
+   "for_this_run": false
+  },
+  "VLM_ENDPOINT": {
+   "value": "",
+   "default": "",
+   "set_externally": false,
+   "what": "address of an OpenAI-compatible service, /v1 included; no default",
+   "debt": false,
+   "read_by": "NOBODY IN THIS RUN",
+   "for_this_run": false
+  },
+  "VLM_MAX_TOKENS": {
+   "value": "4096",
+   "default": "4096",
+   "set_externally": false,
+   "what": "ceiling of an answer, in tokens",
+   "debt": false,
+   "read_by": "NOBODY IN THIS RUN",
+   "for_this_run": false
+  },
+  "VLM_TIMEOUT_S": {
+   "value": "120",
+   "default": "120",
+   "set_externally": false,
+   "what": "how long to wait for one answer, s",
+   "debt": false,
+   "read_by": "NOBODY IN THIS RUN",
+   "for_this_run": false
+  },
+  "VLM_RETRIES": {
+   "value": "2",
+   "default": "2",
+   "set_externally": false,
+   "what": "how many times to repeat a DELIVERY REFUSAL (not an answer)",
+   "debt": false,
+   "read_by": "NOBODY IN THIS RUN",
+   "for_this_run": false
+  },
+  "VLM_CONCURRENCY": {
+   "value": "4",
+   "default": "4",
+   "set_externally": false,
+   "what": "how many requests to keep in flight at once",
+   "debt": false,
+   "read_by": "NOBODY IN THIS RUN",
+   "for_this_run": false
   },
   "VLM_TEMPERATURE": {
    "value": "0",
    "default": "0",
    "set_externally": false,
-   "what": "температура VLM; >0 делает разбор невоспроизводимым нарочно"
+   "what": "VLM temperature; >0 makes the parse unrepeatable on purpose",
+   "debt": false,
+   "read_by": "NOBODY IN THIS RUN",
+   "for_this_run": false
+  },
+  "VLM_TOP_P": {
+   "value": "1.0",
+   "default": "1.0",
+   "set_externally": false,
+   "what": "probability cutoff; 1.0 = cut nothing",
+   "debt": false,
+   "read_by": "NOBODY IN THIS RUN",
+   "for_this_run": false
+  },
+  "VLM_SEED": {
+   "value": "0",
+   "default": "0",
+   "set_externally": false,
+   "what": "generation seed; decides at temperature > 0",
+   "debt": false,
+   "read_by": "NOBODY IN THIS RUN",
+   "for_this_run": false
   },
   "PASSES": {
    "value": "1",
    "default": "1",
    "set_externally": false,
-   "what": "сколько раз читать; свод — задача раннера, не модели"
+   "what": "how many reads; summing up is the runner's job, not the model's",
+   "debt": true,
+   "read_by": "NOBODY IN THIS RUN",
+   "for_this_run": false
   },
   "LOGPROBS": {
    "value": "1",
    "default": "1",
    "set_externally": false,
-   "what": "записать вероятности токенов рядом со страницей"
+   "what": "record token probabilities beside the page",
+   "debt": true,
+   "read_by": "NOBODY IN THIS RUN",
+   "for_this_run": false
   },
   "PORT": {
    "value": "8118",
    "default": "8118",
    "set_externally": false,
-   "what": "порт сервиса vLLM на машине"
+   "what": "port of the vLLM service on the machine",
+   "debt": false,
+   "read_by": "NOBODY IN THIS RUN",
+   "for_this_run": false
   },
   "RESUME": {
    "value": "1",
    "default": "1",
    "set_externally": false,
-   "what": "продолжать ли прерванный прогон"
+   "what": "whether to continue an interrupted run",
+   "debt": false,
+   "read_by": "NOBODY IN THIS RUN",
+   "for_this_run": false
   },
   "VLLM_USE_FLASHINFER_SAMPLER": {
    "value": "0",
    "default": "0",
    "set_externally": false,
-   "what": "сэмплер flashinfer в vLLM"
+   "what": "flashinfer sampler in vLLM",
+   "debt": false,
+   "read_by": "NOBODY IN THIS RUN",
+   "for_this_run": false
   }
+ },
+ "run_knobs": {
+  "read_by_active_adapter": [
+   "LAYOUT_MODEL_NAME",
+   "LAYOUT_MODEL_DIR",
+   "LAYOUT_SCORE_THRESHOLD",
+   "LAYOUT_TABLE_THRESHOLD",
+   "ASSEMBLY_ORDER"
+  ],
+  "read_by_detect_command": [
+   "PAGE_DPI",
+   "LAYOUT_ADAPTER"
+  ],
+  "not_for_this_run": [
+   "MODEL_NAME",
+   "VL_MODEL_DIR",
+   "YOLOX_WEIGHTS",
+   "DOCLING_PIPELINE",
+   "CROP_DPI",
+   "CROP_MARGIN",
+   "HTML_MATH",
+   "HTML_IMAGES",
+   "HTML_REPEATS",
+   "MIN_LINK_MBPS",
+   "BOOKSMITH_COMMIT",
+   "BOOKSMITH_LEDGER",
+   "SYNTH_SEED",
+   "SYNTH_AGING",
+   "VLM_READER",
+   "VLM_TRANSPORT",
+   "VLM_ENDPOINT",
+   "VLM_MAX_TOKENS",
+   "VLM_TIMEOUT_S",
+   "VLM_RETRIES",
+   "VLM_CONCURRENCY",
+   "VLM_TEMPERATURE",
+   "VLM_TOP_P",
+   "VLM_SEED",
+   "PASSES",
+   "LOGPROBS",
+   "PORT",
+   "RESUME",
+   "VLLM_USE_FLASHINFER_SAMPLER"
+  ],
+  "set_externally": [
+   "LAYOUT_ADAPTER",
+   "LAYOUT_MODEL_NAME"
+  ],
+  "set_externally_unread": []
  },
  "raster": {
   "scale": 2.0,
@@ -154,17 +383,20 @@
  "args": {
   "pdf": "/home/smirn/books/bench/hard36/hard36.pdf",
   "pages": null,
-  "out": "/home/smirn/books/bench/hard36/detect"
+  "out": "/home/smirn/books/bench/hard36/detect/PP-DocLayoutV2"
  },
- "commit": "807614f72e15ee3ca9e58afd1477d80da691971e+грязное дерево",
+ "commit": "44553f64829c8a690bdadf4dc6c3a98bcd53b1f8+dirty tree",
+ "identity": "e73ffe76d6af3b04ec5d970d4adec69a02c1c5444a2049d27b191136610036de",
+ "label": "PP-DocLayoutV2",
  "source": {
   "path": "/home/smirn/books/bench/hard36/hard36.pdf",
   "sha256": "254f58d20f2e962369d23cdb8867ed8dca3148809160e305efdaf2152f2512e4"
  },
  "adapter": {
   "name": "doclayout-onnx",
-  "sha256": "1f3ac82a139ea653eb5708abde17bd9506df5642cb52b895183de12f6fb89474",
-  "sha256_command": "dd8d3b8ee08032e2e12751f5fc733eb1c28ca6b96a78a1362a4339c4f07a3e79"
+  "module": "booksmith.processing.layout.adapters.doclayout",
+  "sha256": "3793f48916afdba524d300a5f6d558d3ff25f88b57624c139d0a1d0886aa7dd2",
+  "sha256_command": "44c40b37cb511e6480d1439d6db117722d902a02c06413f5fb35b9bb17b3deee"
  },
  "policy": {
   "buckets": [
@@ -223,6 +455,7 @@
  "fingerprint": {
   "name": "doclayout-onnx",
   "model": "PP-DocLayoutV2",
+  "name_from_knob": "PP-DocLayoutV2",
   "weights_dir": "/home/smirn/.paddlex/official_models/PP-DocLayoutV2_onnx",
   "sha256_weights": "cd540dc296ff3115fe78efa65b68501e6a8dc74b198acc9834a725ffaa095aac",
   "onnxruntime": "1.29.0",
@@ -315,7 +548,7 @@
   "box_count": 792,
   "artifacts": 106,
   "rank_ties": 4,
-  "seconds": 96.74,
+  "seconds": 74.53,
   "by_label": {
    "text": 439,
    "table": 7,
@@ -387,7 +620,27 @@
    "reference": 34,
    "content": 26,
    "seal": 33
+  },
+  "stages": {
+   "box_counts_stage": "the model's own, there was no pipeline over boxes",
+   "best_rejected_stage": "by the model threshold, BEFORE the vendor pipeline",
+   "boxes_from_model": 792,
+   "pages_without_boxes_accepted": 0,
+   "vendor_pipeline": {
+    "stage_ran": false,
+    "modes": [],
+    "pages_through_it": 0,
+    "pages_in_run": 36,
+    "boxes_before": 0,
+    "boxes_after": 0,
+    "boxes_removed": 0,
+    "moved_to_children": 0,
+    "boxes_reordered": 0,
+    "removed_by_label": null,
+    "why_removed_by_label_empty": "the adapter gives 'boxes before' as one number per page; by class there are none -- see pipe_meta in layout/adapters/docling.py",
+    "numbers_never_given": []
+   }
   }
  },
- "repeat_command": "books detect /home/smirn/books/bench/hard36/hard36.pdf --out /home/smirn/books/bench/hard36/detect"
+ "repeat_command": "books detect /home/smirn/books/bench/hard36/hard36.pdf --out /home/smirn/books/bench/hard36/detect/PP-DocLayoutV2"
 }

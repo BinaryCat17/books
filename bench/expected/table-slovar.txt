@@ -29,8 +29,8 @@ bench slovar, run PP-DocLayoutV2
   assembly transitions                   150                                        
   assembly pages_with_columns             12             12/13                      
   assembly params: COLUMN_x_overlap_of_narrow_box=0.5, COLUMN_full_width_box_share=0.6, COLUMN_min_boxes_per_page=2, COLUMN_buckets_counted=['artifact', 'text'], order_rule=model_rank
-  snapshot values_present                 52             52/52                      
-  snapshot missing                         0              0/52                      
-  snapshot empty                          13             13/52                      
-  snapshot fingerprint_verified            0                                        
+  snapshot values_present                 78             78/78                      
+  snapshot missing                         0              0/78                      
+  snapshot empty                          16             16/78                      
+  snapshot fingerprint_verified            1                                        
 4 records written to /dev/null

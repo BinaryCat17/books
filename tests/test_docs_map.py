@@ -199,3 +199,33 @@ def test_a_measurement_is_not_restated_in_a_second_document():
         f"the ceiling is stale: {len(d)} left and it says {figures.CEILING}. "
         f"Lower it in tree/figures.py -- a ratchet that stops pressing is not "
         f"a ratchet.")
+
+
+def test_the_generated_metrics_file_is_generated_and_current():
+    """`METRICS.md` is rendered from `bench/results/*.json` and never edited.
+
+    A number that lives in prose is free to drift from the run it describes --
+    `tree/figures.py` counts what that cost this project. A number rendered
+    from its record cannot. So the file is checked the only way a generated
+    file can be: regenerate and compare.
+
+    Skipped, not passed, when there are no results: on a fresh clone nothing
+    has been measured and there is nothing to render. The file being ABSENT
+    while results exist is a failure -- that is the state where the document
+    and the runs have parted.
+    """
+    from booksmith.core.errors import Refusal
+    from booksmith.datasets import report
+    try:
+        want = report.build(log=lambda *a: None)
+    except Refusal as e:
+        support.skip(f"nothing rendered: {str(e)[:80]}")
+    path = report.OUT
+    assert os.path.isfile(path), (
+        f"{os.path.basename(path)} is missing while {report.RESULTS} holds "
+        f"measurements: `books bench report` writes it")
+    got = open(path, encoding="utf-8").read()
+    assert got == want, (
+        f"{os.path.basename(path)} is not what the records render to -- it "
+        f"was edited by hand, or the measurements moved under it. Remake it: "
+        f"`books bench report`")

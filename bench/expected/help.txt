@@ -22,6 +22,7 @@ Single entry point: books <command>.
     books fitness book.pdf …     will the meaning arrive: by ink, no truth
     books overlay book.pdf …     boxes over pages, to look with your own eyes
     books bench all <run>        every applicable metric on one run: one table
+    books bench report           every measured number, as METRICS.md
     books ls | books down 12345 | books reap
     books ledger                 run journal and the estimate from it
     books replay --check out/    is the input snapshot complete

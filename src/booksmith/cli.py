@@ -19,6 +19,7 @@
     books fitness book.pdf …     will the meaning arrive: by ink, no truth
     books overlay book.pdf …     boxes over pages, to look with your own eyes
     books bench all <run>        every applicable metric on one run: one table
+    books bench report           every measured number, as METRICS.md
     books ls | books down 12345 | books reap
     books ledger                 run journal and the estimate from it
     books replay --check out/    is the input snapshot complete
@@ -707,6 +708,18 @@ def cmd_bench_all(a):
     return 0
 
 
+def cmd_bench_report(a):
+    """Every measured number as one generated document, at the repo root.
+
+    The measurements lived as prose in five documents, and a figure stated
+    twice is free to drift; rendered from the record that produced it, it
+    cannot. `tools/figures.py` counts what the prose version cost.
+    """
+    from booksmith.datasets import report
+    report.write(a.out or report.OUT, log=log)
+    return 0
+
+
 def cmd_ls(_a):
     v = Vast()
     rows = v.v.show_instances()
@@ -1186,6 +1199,12 @@ def main(argv=None):
     q.add_argument("--json", default="",
                    help="where to write the records (default: bench/results/<bench>-<run>.json)")
     q.set_defaults(fn=cmd_bench_all)
+
+    q = bs.add_parser("report",
+                      help="every measured number as one generated document")
+    q.add_argument("--out", default="",
+                   help="where to write it (default: METRICS.md at the root)")
+    q.set_defaults(fn=cmd_bench_report)
 
     p = sub.add_parser("ls", help="what is rented right now")
     p.set_defaults(fn=cmd_ls)
