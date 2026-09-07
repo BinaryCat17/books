@@ -58,7 +58,7 @@ step "wheels" uv pip install -r "$HERE/constraints.txt" --torch-backend=cu130
 # version it did not compute with, and the model-name check could not catch
 # that by construction -- it proves we reached OUR server, not which weights
 # are under it. Only the reader fingerprint taken beside them proves that
-# (sha256 of config.json, `models/paddleocr_vl/reader.py`).
+# (sha256 of config.json, `read/readers/paddleocr_vl.py`).
 VL_REPO="${VL_REPO:-PaddlePaddle/PaddleOCR-VL-1.6}"
 step "VL weights" hf download "$VL_REPO" --local-dir "$MODELS/vl"
 # WHERE THE WEIGHTS CAME FROM -- in a file beside them, not in the shell's

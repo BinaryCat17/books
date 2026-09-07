@@ -9,7 +9,8 @@ the same number live in six files at once:
   money, what was rejected and why. That is `docs/contour-notes.md` (contours),
   `docs/ocr-notes.md` (reading) and `docs/vast-notes.md` (renting).
 * **The price of an error, next to the code that can repeat it.** That stays in
-  the module. A warning about `_sheet_trouble` belongs in `doc/html.py`,
+  the module. A warning about `_sheet_trouble` belongs in
+  `processing/assemble/html.py`,
   because that is where the next person will break it.
 
 **This file is the fourth kind: what is not knowable yet, and the rules that

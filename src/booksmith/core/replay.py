@@ -110,7 +110,7 @@ def facts(outdir):
     # root, a BOOK directory in `assets/`, its root holding exactly one file --
     # the book. Looking at the root only, the check answered "no snapshot at
     # all" on a book whose snapshot sat one floor down: a talking step lying
-    # with a zero, while `doc/html.py` promises verbatim that `books replay
+    # with a zero, while `assemble/html.py` promises verbatim that `books replay
     # --check` must return 0 there too. The kitchen directory name is asked of
     # the writer, not typed: a typed copy parts ways silently, as one has.
     from booksmith.core.book import ASSETS
@@ -657,7 +657,8 @@ def selfcheck(outdir, log=print) -> int:
     Why. The presence rule is "the key exists", and everything required is
     written unconditionally: knob keys wholesale by `knobs.snapshot()` (which
     enumerates the whole registry by construction), the rest as literals in
-    `detect.py` and `doc/html.py`, the fingerprint values by the adapter
+    `layout/detect.py` and `assemble/html.py`, the fingerprint values by the
+    adapter
     itself. So on the project's OWN output `check` cannot return 1 for any
     input, and its ability to fail had never been shown, though the project
     rule demands exactly that.

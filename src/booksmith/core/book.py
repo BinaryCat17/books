@@ -23,7 +23,7 @@ def journal_path(out_dir: str) -> str:
     """Where THIS book's swap journal lives -- one rule, asked by everyone.
 
     The journal moved into `assets/`, and books built before the move keep it
-    in the root; `doc/apply` reads and writes the old place when it is the
+    in the root; `assemble/apply` reads and writes the old place when it is the
     only one there. The rebuild guard in `build` did NOT: it looked only under
     `assets/`, so rebuilding into an old-layout book wiped the book while a
     live journal survived and began to lie -- the exact accident the guard

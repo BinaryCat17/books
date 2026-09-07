@@ -152,7 +152,8 @@ def missing(name):
 #
 # And the hash of a SOURCE file as it is right now -- `replay --check` prints
 # "(snapshot 1f3ac82a, tree 5b4afbfe)" to say the snapshot was taken with
-# different code. That hash changes on every edit to `models/doclayout.py`,
+# different code. That hash changes on every edit to
+# `layout/adapters/doclayout.py`,
 # comments included, so during a translation it would redden this report
 # constantly and get fixed by `--save`, which blesses the other 582 lines
 # blind. The hash IN THE SNAPSHOT is kept: it is data, and it must not move.

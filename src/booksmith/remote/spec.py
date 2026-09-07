@@ -35,7 +35,7 @@ class HostReq:
     #
     # The price of silence: without the filter the market is wider, and an
     # unfit card is weeded out only after payment. So whoever builds the job
-    # MUST set it from the model adapter -- `models/paddleocr_vl.spec()` on
+    # MUST set it from the model adapter -- `read/rented/paddleocr_vl.spec()` on
     # the paying path, `cli.cmd_offers` on the one that rents nothing.
     cuda_min: str | None = None
     machine_id: int | None = None      # warmed machine: image already cached

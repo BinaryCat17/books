@@ -8,7 +8,8 @@ and there is no reason to pay twice.
 
 Instead of a copy, THE PACKAGE ITSELF travels: `spec()` sends `src/booksmith`
 as an input file (1.1 MB against 6.2 GB of weights, a quantity that can be
-ignored), and this file only fills in paths and calls `booksmith.read.run`.
+ignored), and this file only fills in paths and calls
+`booksmith.processing.read.driver`.
 So at home and on the card the SAME code runs, byte for byte, and it was
 checked at home against a stand-in server -- free and in advance
 (`tests/test_read.py`, 27 checks).

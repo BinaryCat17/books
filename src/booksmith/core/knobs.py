@@ -37,7 +37,8 @@ the tally:
 
 The numbers are its to print and absent here ON PURPOSE: a number written in
 goes stale silently, and this file has twice been the example. Readers
-outnumber the python ones -- `models/paddleocr_vl/run.sh` takes some, and to
+outnumber the python ones -- `read/rented/paddleocr_vl/run.sh` takes some,
+and to
 `readers()` the shell is as much a consumer as code.
 
 TWO -- `PASSES` and `LOGPROBS` -- are declared DEBT, counted by `debts()`.
@@ -144,7 +145,8 @@ KNOBS = (
     # changed all twenty-five V2 classes. Our selection names classes one by
     # one, so the common threshold has to be named too.
     #
-    # `LAYOUT_TABLE_THRESHOLD` is read by `models/doclayout.py` alone; in
+    # `LAYOUT_TABLE_THRESHOLD` is read by `layout/adapters/doclayout.py` alone;
+    # in
     # `docling_heron.py` (heron and egret) and `yolox_layout.py` one threshold
     # covers ALL classes, `table` included ("table" in docling, "Table" in
     # DocLayNet) -- see their `thresholds()`: `{lab: common for lab in
@@ -314,7 +316,8 @@ KNOBS = (
          "package, and `books detect --adapter yolox` must not fall on a "
          "fresh environment over a sorting rule"),
     # `PADDLE_PDX_MODEL_SOURCE` WAS REMOVED FROM THE REGISTRY, not marked debt.
-    # Its only consumer was an `export` in `models/paddleocr_vl/run.sh`, left
+    # Its only consumer was an `export` in `read/rented/paddleocr_vl/run.sh`,
+    # left
     # from the era when layout was computed ON THE CARD and paddlex pulled
     # weights there; detection now happens at home and the box receives a ready
     # `detect/` directory. Debt is the wrong mark for it: debt is "declared,
@@ -433,7 +436,7 @@ KNOBS = (
     # MODEL, how we deliver it a property of the TRANSPORT, and the knobs are
     # split along it.
     Knob("VLM_READER", "paddleocr-vl",
-         "which READING adapter to call; the list is read/run.py:READERS. "
+         "which READING adapter to call; the list is processing/read/driver.py:READERS. "
          "It decides which prompt asks about which label, and in what "
          "shape the answer arrives"),
     Knob("VLM_TRANSPORT", "http",
@@ -464,7 +467,8 @@ KNOBS = (
     Knob("VLM_TIMEOUT_S", "120", "how long to wait for one answer, s"),
     # A 200 is never retried whatever it carries: re-asking after an answer
     # repairs the model, and the project rule forbids it -- here the ban is
-    # expressed in code (`read/http.py`). The number is about broken links, of
+    # expressed in code (`read/transports/openai_http.py`). The number is
+    # about broken links, of
     # which a rented machine has plenty: the ledger remembers 0.06 Mbps.
     Knob("VLM_RETRIES", "2",
          "how many times to repeat a DELIVERY REFUSAL (not an answer)"),
@@ -595,7 +599,7 @@ def snapshot_with_readers(roles):
     """The knob snapshot, each knob saying WHO READS IT in this run.
 
     IT LIVES HERE BECAUSE THERE ARE TWO SNAPPERS. Private to `detect.py` once;
-    the second level needed it in `read/run.py`, and that second edition came
+    the second level needed it in `read/driver.py`, and that second edition came
     out A DIFFERENT SHAPE -- three nested buckets instead of a flat map.
     `books replay --check` rejected it silently: it looks for
     `knobs/NAME/value` and on the nested one printed "no knobs/VLM_SEED/value",

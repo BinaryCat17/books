@@ -41,7 +41,7 @@ the vendor's prompts, but the KIND of their answer we have never measured.
 `text` is declared, the most cautious of the four: `books text` compares it BY
 CHARACTERS and the book shows it escaped, so an error of declaration
 underrates the model without spoiling the book with an invented
-table. Beside the answer always lies a GUESS at the kind (`read/run.py`
+table. Beside the answer always lies a GUESS at the kind (`read/driver.py`
 sniffs it into `observed.kind_sniffed`), and its divergence from the declared
 is a named counter: the first run says by number whether `text` should become
 `otsl`. Changing it by guess, without asking the bench, is repairing the
@@ -130,7 +130,8 @@ def _weights() -> dict:
     """What weights lie under the model. Declared emptiness, not silence.
 
     What the field is for: a server's NAME proves nothing about the weights
-    under it, and this fingerprint is the only thing that does (`read/http.py`
+    under it, and this fingerprint is the only thing that does
+    (`read/transports/openai_http.py`
     says so at `check`). The measurement it is written from: `provision.sh`
     pulled `PaddlePaddle/PaddleOCR-VL` while `MODEL_NAME` declared
     `PaddleOCR-VL-1.6-0.9B` -- DIFFERENT weights, the 1.6 repository being

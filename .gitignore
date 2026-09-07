@@ -78,13 +78,15 @@ bench/*/detect/pages/
 # The level-one product, 12 MB per book: `books html` from detect/.
 bench/*/html/
 
-# What would go to the VLM: `books feed` writes one picture per text block.
-# 12 MB over slovar's 13 pages is 1.4 GB over annopage's 600. For the six
-# synthetic books the directory is already closed by the rule above; for
-# annopage, annopage-lite, hard and hard36 it was closed by nothing at all
-# (`git check-ignore` returned 1).
-bench/*/detect/feed/
-bench/*/feed/
+# What would go to the VLM: `books crop` writes one picture per asked block,
+# into `<detect dir>.crop/` by default. 12 MB over slovar's 13 pages is 1.4 GB
+# over annopage's 600. For the six synthetic books the directory is already
+# closed by the rule below; for annopage, annopage-lite, hard and hard36 it
+# was closed by nothing at all (`git check-ignore` returned 1) -- first for
+# `books feed`, whose two paths stood here after the command was deleted while
+# the new one was hidden nowhere.
+bench/*/*.crop/
+bench/*/crops/
 
 # The last page of a run as a picture, 1.7 MB -- a debugging trace, not data.
 bench/*/dots/_page.png

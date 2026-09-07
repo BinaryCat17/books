@@ -138,7 +138,8 @@ rescued from another session's temporary directory into
 quality -- and quality cannot be measured yet at all, for the three reasons in
 `docs/limits.md`.
 
-The adapter is `models/paddleocr_vl/reader.py`; the rental job is `spec()`
+The adapter is `processing/read/readers/paddleocr_vl.py`; the rental job is
+`spec()`
 beside it. Its prompts are byte-for-byte from the vendor card and all ASCII.
 Method: `docs/ocr-notes.md`.
 

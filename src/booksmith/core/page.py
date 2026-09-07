@@ -6,7 +6,7 @@ One shape for a detected page, a truth page and a read page: `Page` with
 `Page.to_json()`, which is why one metric can compare any two of them.
 (Runs live under `<book>/detect/` and `<book>.detect.read/` today; the plan's
 step 3b puts them under `detect/<label>/` and `read/<label>/`.) The rules about what may be done to a block are in
-`models/base.py`, beside the adapter contract; this file is the shape only.
+`layout/base.py`, beside the adapter contract; this file is the shape only.
 
 `KINDS` names what a read block's `content` may be treated as, minus `none`,
 which is what an unread block carries. The reading contract checks a route

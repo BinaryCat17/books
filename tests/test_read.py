@@ -486,7 +486,12 @@ def test_the_preview_cuts_the_very_crops_the_paid_run_cuts():
         return {f: hashlib.sha256(open(os.path.join(c, f), "rb").read()
                                   ).hexdigest() for f in os.listdir(c)}
     a, b = crops(prev), crops(paid)
-    assert a and a == b, f"the preview cut something else: {sorted(a)} vs {sorted(b)}"
+    # The names are the same by construction (one anchor rule), so printing
+    # them says nothing: the message must name the quantity that differs.
+    diff = sorted(set(a.items()) ^ set(b.items()))
+    assert a and not diff, (
+        f"the preview cut something else: {[(n, h[:12]) for n, h in diff]} "
+        f"(preview {len(a)} crops, paid {len(b)})")
 
     asks = json.load(open(os.path.join(prev, "would_ask.json"),
                           encoding="utf-8"))["asks"]
@@ -518,3 +523,138 @@ def test_the_preview_writes_nothing_a_paid_run_would_believe():
     left = sorted(os.listdir(prev))
     assert left == ["crops", "would_ask.json"], left
     assert t.get("preview") is True and "read" not in t.get("by_kind", {})
+
+
+def _raster_book(tmp):
+    """A book whose crop is DOWNSCALED to the model's ceiling.
+
+    Needed because the plain fixture cannot tell the two dpi quantities
+    apart: its page is vector, `native_dpi` is None, both boxes fall below
+    the model's lower bound, and the rule returns exactly `PAGE_DPI`. Here
+    the page carries a 2000x2000 raster on 200x200 pt (720 dpi of its own)
+    and the box is nearly the whole sheet, so the rule answers with a
+    FRACTION and `crop.cut` renders at `int()` of it.
+    """
+    import pymupdf
+    from booksmith.core import stamp
+    pdf = os.path.join(tmp, "r.pdf")
+    doc = pymupdf.open()
+    pg = doc.new_page(width=200, height=200)
+    pix = pymupdf.Pixmap(pymupdf.csRGB, pymupdf.IRect(0, 0, 2000, 2000), False)
+    pix.set_rect(pix.irect, (255, 255, 255))
+    for i in range(0, 2000, 40):          # ink, so the crop is not blank
+        pix.set_rect(pymupdf.IRect(0, i, 2000, i + 6), (10, 10, 10))
+    pg.insert_image(pg.rect, pixmap=pix)
+    doc.save(pdf, garbage=3, deflate=True)
+    doc.close()
+
+    os.makedirs(os.path.join(tmp, "detect", "pages"), exist_ok=True)
+    page = Page(index=0, width=400, height=400, dpi=144.0, blocks=[
+        Block(block_id=0, box=(10, 10, 390, 390), label="text", score=0.9,
+              order=1)])
+    with open(os.path.join(tmp, "detect", "pages", "0000.json"), "w",
+              encoding="utf-8") as f:
+        json.dump(page.to_json(), f, ensure_ascii=False)
+    with open(os.path.join(tmp, "detect", "run.json"), "w",
+              encoding="utf-8") as f:
+        json.dump({"source": {"path": pdf, "sha256": stamp.sha256(pdf)},
+                   "raster": {"dpi": 144.0},
+                   "commit": None, "adapter": {"name": "a fake one"},
+                   "weights": {"layout": None}}, f, ensure_ascii=False)
+    return pdf
+
+
+def test_the_preview_reports_the_dpi_it_cut_at_not_the_rule_s_number():
+    """The same key must mean the same thing in both files.
+
+    `crop.cut` renders at `int(dpi)` while the rule gives a fraction, and the
+    paid run was fixed to record the DEED under `crop_dpi` and the rule under
+    `crop_dpi_by_rule` -- the two disagreed on 328 boxes of 379. The preview
+    wrote the rule's float under the name of the deed, so the one number it
+    reports about resolution was a number nothing was cut at.
+    """
+    import tempfile
+    tmp = tempfile.mkdtemp()
+    _raster_book(tmp)
+    prev, _ = _preview(tmp)
+    ask = json.load(open(os.path.join(prev, "would_ask.json"),
+                         encoding="utf-8"))["asks"][0]
+    assert ask["crop_dpi_reason"] == "downscaled_to_model_max", ask
+    assert ask["crop_dpi"] != ask["crop_dpi_by_rule"], (
+        f"the fixture no longer separates the two quantities: {ask}")
+
+    paid, _ = _run(tmp, {"OCR:": {"text": "prose"}})
+    obs = json.load(open(os.path.join(paid, "answers", "p0000.json"),
+                         encoding="utf-8"))["answers"][0]["observed"]
+    assert ask["crop_dpi"] == obs["crop_dpi"], (
+        f"preview says it cut at {ask['crop_dpi']}, the paid run recorded "
+        f"{obs['crop_dpi']}")
+    assert ask["crop_dpi_by_rule"] == obs["crop_dpi_by_rule"]
+    assert ask["crop_dpi_reason"] == obs["crop_dpi_reason"]
+
+
+def test_a_preview_refuses_to_land_on_a_paid_read_directory():
+    """The crops ARE something a paid run believes.
+
+    `answers/*.json` records `observed.crop` -- file, dpi, width, height,
+    clipped by the sheet -- describing those very files, and they are the
+    only surviving picture of what the money bought. A preview writes
+    `crops/<anchor>.png` under the same names, so `books crop --out <a read
+    directory>` replaced them at whatever CROP_MARGIN was in force, with no
+    warning, while `answers/` went on describing the files that were sent.
+    """
+    import tempfile
+    tmp = tempfile.mkdtemp()
+    _book(tmp)
+    paid, _ = _run(tmp, {"OCR:": {"text": "prose"},
+                         "Table Recognition:": {"text": "<fcel>a<nl>"}})
+    was = {f: open(os.path.join(paid, "crops", f), "rb").read()
+           for f in os.listdir(os.path.join(paid, "crops"))}
+    r = PaddleOcrVl("PP-DocLayoutV2")
+    try:
+        vrun.read_book(os.path.join(tmp, "detect"), paid, r, None,
+                       resume=False, log=lambda *a: None, preview=True)
+    except Refusal as e:
+        assert "answers" in str(e), e
+    else:
+        raise AssertionError("the preview landed on a paid read directory")
+    now = {f: open(os.path.join(paid, "crops", f), "rb").read()
+           for f in os.listdir(os.path.join(paid, "crops"))}
+    assert now == was, "the paid crops were touched before the refusal"
+
+
+def test_the_preview_names_the_blocks_it_would_not_ask_about():
+    """The paid run files a record for EVERY block; the preview kept only
+    the questions.
+
+    So the one instrument for "what will this run do before I pay" could not
+    say which blocks it would skip and why -- and with a crop failing, it
+    said `"asks": []` and nothing else at all.
+    """
+    import tempfile
+    tmp = tempfile.mkdtemp()
+    _book(tmp)                      # its third block is a picture: not asked
+    prev, _ = _preview(tmp)
+    d = json.load(open(os.path.join(prev, "would_ask.json"), encoding="utf-8"))
+    assert [x["anchor"] for x in d["not_asked"]] == ["p0000-b2"], d["not_asked"]
+    assert d["not_asked"][0]["not_asked"], "the reason is missing"
+    assert d["crop_failed"] == []
+
+
+def test_a_preview_may_not_resume():
+    """Ignored, `resume` would show every block as "would ask" on a book
+    already half read -- and the number of requests is what the preview is
+    for. The answers a resume would reuse live in the read directory, where
+    a preview may not write."""
+    import tempfile
+    tmp = tempfile.mkdtemp()
+    _book(tmp)
+    r = PaddleOcrVl("PP-DocLayoutV2")
+    try:
+        vrun.read_book(os.path.join(tmp, "detect"),
+                       os.path.join(tmp, "crop2"), r, None,
+                       resume=True, log=lambda *a: None, preview=True)
+    except Refusal as e:
+        assert "resume" in str(e)
+    else:
+        raise AssertionError("a resuming preview passed in silence")

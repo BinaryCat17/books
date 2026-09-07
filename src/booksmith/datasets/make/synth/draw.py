@@ -62,7 +62,7 @@ class SynthError(Refusal):
 # `build`). In three places of five the character truth would vanish WITHOUT A
 # WORD -- exactly how this file has already lied four times with
 # healthy-looking numbers. The key is the BLOCK NUMBER, the `block_id` of
-# `models/base.py`.
+# `layout/base.py`.
 #
 # The dict is filled while a page is drawn and taken right after. All four
 # transforms preserve the order of `truth`, so a block's number is its place

@@ -41,7 +41,8 @@ def parse_pages(spec, n):
     """`--pages 1,4,7-9` -> page indices, COUNTING THE INPUT FROM ONE.
 
     The numbering is the one `--pages` has in `books detect` (`parse_pages` in
-    `src/booksmith/detect.py`). There used to be a count of its own here, from
+    `src/booksmith/processing/layout/detect.py`). There used to be a count of
+    its own here, from
     zero: the same string `1,4,7-9` meant different pages in two commands of
     the project (`[1,4,7,8,9]` here against `[0,3,6,7,8]` there), and
     `--pages 130` on a 130-page book was refused from here. A silent

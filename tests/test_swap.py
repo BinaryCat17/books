@@ -1,6 +1,6 @@
 """Replacing a block with second-level markup: pure functions, checked whole.
 
-`doc/swap.py` calls itself the one layer of the pipeline checkable entirely
+`assemble/swap.py` calls itself the one layer of the pipeline checkable entirely
 without a second of compute, "and so the one to cover before all others".
 Covered.
 

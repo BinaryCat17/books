@@ -43,3 +43,37 @@ def test_an_undeclared_normalisation_level_is_a_text_error():
         assert "bogus" in str(e)
     else:
         raise AssertionError("an undeclared level normalised something")
+
+
+def test_a_bad_crop_dpi_does_not_break_a_path_that_names_the_resolution():
+    """Our knob's error used to be charged to the model.
+
+    `books read` and `books crop` decide each crop's resolution themselves and
+    never use `CROP_DPI` -- but `params` was called unconditionally and
+    validated it anyway, so `CROP_DPI=0` raised a ValueError the read driver
+    files as "crop failed" and `report()` prints as "the model's box is
+    degenerate or lies off the sheet. That is its defect, not ours."
+
+    The margin is a different matter and still comes from the environment:
+    the reading path applies it.
+    """
+    import tempfile
+    import pymupdf
+    doc = pymupdf.open()
+    pg = doc.new_page(width=200, height=200)
+    pg.insert_text((20, 40), "a line")
+    dst = os.path.join(tempfile.mkdtemp(), "c.png")
+    for bad in ("nan", "abc", "0", "-3"):
+        info = _with_env("CROP_DPI", bad, lambda: raster.cut(
+            doc, 0, (30, 40, 300, 100), 144.0, dst, dpi=200.0))
+        assert info["dpi"] == 200, (bad, info)
+        assert os.path.getsize(dst) > 0
+    # And the value is still refused where it IS used.
+    try:
+        _with_env("CROP_DPI", "0", lambda: raster.cut(
+            doc, 0, (30, 40, 300, 100), 144.0, dst))
+    except ValueError as e:
+        assert "CROP_DPI" in str(e), e
+    else:
+        raise AssertionError("CROP_DPI=0 passed on the path that reads it")
+    doc.close()

@@ -7,7 +7,8 @@ fault for another:
 2. **label confusion**, on what was found: was a table called a table;
 3. **reading order**, itself three: the MODEL rank against truth, only when
    both sides carry a real rank; the ASSEMBLY order against truth, which is
-   what the reader sees, since `doc/html.py` runs `for b in page.blocks` and
+   what the reader sees, since `assemble/html.py` runs `for b in page.blocks`
+   and
    never sorts, so the book gets the list position and not the rank; and
    excess column jumps, the same assembly with NO TRUTH, for the real scans
    nobody annotated.
@@ -407,7 +408,7 @@ def compare_pages(T: dict, M: dict) -> dict:
             x = mall[j]
             conf[(b["label"], x["label"])] = conf.get((b["label"], x["label"]), 0) + 1
             # Third member: the box POSITION in `mall`, the page block list
-            # `doc/html.py` walks and the book is assembled by.
+            # `assemble/html.py` walks and the book is assembled by.
             page_ranks.append((b.get("order"), x.get("order"), j))
             if (b["label"] not in arte
                     and (t.get("meta") or {}).get("text_marked", True)):
@@ -537,7 +538,8 @@ def _order_agree(by_page, idx: int, ceiling: int, pages: int,
     """The share of agreeing pairs, page by page.
 
     `idx` says WHOSE order is scored: 1 the model rank, 2 the block position in
-    the page list, which `doc/html.py` never sorts and the book therefore gets.
+    the page list, which `assemble/html.py` never sorts and the book therefore
+    gets.
     One quantity for two questions was silent about BOTH the moment a model
     gave no rank.
     """
@@ -664,7 +666,7 @@ def column_jumps(M: dict, overlap=None, wide=None, min_boxes=None,
     """Excess column jumps of the ASSEMBLY ORDER. No truth needed.
 
     The order taken is the one that reaches the book: the block position in the
-    page list, which `doc/html.py` walks without sorting. Zero jumps is a
+    page list, which `assemble/html.py` walks without sorting. Zero jumps is a
     computed value; a page with one counted box yields NO value, there being
     nothing to jump between, and a whole bench of them answers with a dash
     (`None`) and a "why" field.
@@ -1121,7 +1123,7 @@ def _reverse_blocks(M):
     """Reverse the block LIST, leaving the ranks alone.
 
     The damage aims at the ASSEMBLY order and nothing else: the book is built
-    from the list (`doc/html.py`) while `order` stays. Without it, `order`
+    from the list (`assemble/html.py`) while `order` stays. Without it, `order`
     could be read in place of the list position and nobody would notice.
     """
     return {i: {**p, "blocks": list(reversed(p["blocks"]))}

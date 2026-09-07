@@ -177,9 +177,9 @@ def _pages_dir(path, what):
 def _run_dir(path, what):
     """The RUN directory: the one holding `run.json`. Takes `<out>/pages` too.
 
-    The other side of the same trouble: the crop preview, then `books feed`,
-    died on `bench/…/detect/pages` with `FileNotFoundError` on
-    `pages/run.json`, never saying it wanted the parent.
+    The other side of the same trouble: the free crop preview died on
+    `bench/…/detect/pages` with `FileNotFoundError` on `pages/run.json`,
+    never saying it wanted the parent.
     """
     if not os.path.exists(path):
         raise Refusal(
@@ -305,7 +305,8 @@ def cmd_read_rented(a, policy_name, out):
     """The same work on a RENTED card. A branch, not a command of its own:
     same code, same count, only the place changes.
 
-    WHY IT EXISTS. `models/paddleocr_vl.spec()` and `remote.run_job()` were
+    WHY IT EXISTS. `read/rented/paddleocr_vl.spec()` and `remote.run_job()`
+    were
     called by NOT ONE command — grep over the whole tree found definitions and
     prose only. "Read on a rented card" could be started by nothing, and that
     surfaced from the direct question "with which command?", not from reading
@@ -425,13 +426,27 @@ def cmd_crop(a):
     from booksmith.processing.read import driver as vread
     d = _run_dir(a.dir, "books crop")
     out = a.out or (os.path.abspath(d).rstrip("/") + ".crop")
+    # THE SAME TWO LINES AS `books read`, and for the same reason. This asked
+    # the snapshot alone and refused when it named no dictionary -- so
+    # `bench/annopage/detect`, a run `books read --policy PP-DocLayoutV2`
+    # reads perfectly well, could not be previewed at all. The free command
+    # must accept every input the paid one does, or it is a preview of
+    # something else.
     known = json.load(open(os.path.join(d, "run.json"), encoding="utf-8")
                       ).get("policy", {}).get("vocabulary")
-    if not known:
-        raise Refusal(f"the snapshot {d}/run.json names no label dictionary; "
-                      f"the crops depend on which labels are asked")
+    policy_name = a.policy or known
+    if not policy_name:
+        raise Refusal(
+            f"the snapshot {d}/run.json names no label dictionary and "
+            f"--policy is not given; the crops depend on which labels are "
+            f"asked about.")
+    if a.policy and known and a.policy != known:
+        raise Refusal(
+            f"--policy {a.policy!r} against the detection dictionary "
+            f"{known!r}: the preview would cut by one dictionary what "
+            f"`books read` asks by another.")
     os.makedirs(out, exist_ok=True)
-    reader = vread.build_reader(known)
+    reader = vread.build_reader(policy_name)
     pages = None
     if a.pages:
         from booksmith.processing.layout.detect import parse_pages
@@ -441,6 +456,19 @@ def cmd_crop(a):
                         log=log, preview=True)
     log(f"would ask {t.get('would_ask', 0)} of {t['block_count']} blocks; not "
         f"asked {t['not_asked']}, crop failed {t['crop_failed']}")
+    # THE THREE TROUBLES ARE PRINTED, not left in the file. A preview is
+    # looked at to decide whether to pay; "crop failed 2" with no anchor and
+    # no reason decides nothing.
+    if t["crop_failed"]:
+        log(f"  THE CROP FAILED on {t['crop_failed']} blocks -- they would go "
+            f"UNREAD in the paid run: {'; '.join(t['crop_failures'][:3])}"
+            f"{'...' if t['crop_failed'] > 3 else ''}")
+    if not t.get("would_ask"):
+        # The same rule the paid run states: zero asked is not a success.
+        # Here it matters more, because this is the command that exists to
+        # find that out BEFORE the money.
+        log("NOT ONE BLOCK WOULD BE ASKED -- not a success, an empty run. "
+            "Look at `not_asked` in would_ask.json for the reason of each.")
     log(f"{os.path.join(out, 'would_ask.json')}; crops in {os.path.join(out, 'crops')}")
     return 0
 
@@ -991,6 +1019,8 @@ def main(argv=None):
     p.add_argument("dir", help="the directory books detect wrote to")
     p.add_argument("--out", help="where to put the crops (default: <dir>.crop)")
     p.add_argument("--pages", help="page numbers to cut, e.g. 1,4,7-9")
+    p.add_argument("--policy", help="label dictionary, when the snapshot "
+                   "names none (as `books read` takes it)")
     p.set_defaults(fn=cmd_crop)
 
     p = sub.add_parser("fitness",

@@ -75,7 +75,7 @@ straight past them — the larger-area box wins, which is the text one.
 
 Fixing this at our end is not allowed: patching someone else's pipeline over
 its own output is exactly the patch that hides a defect from the measurement
-(`CLAUDE.md`, `models/base.py`).
+(`CLAUDE.md`, `processing/layout/base.py`).
 
 ## Small things worth knowing
 

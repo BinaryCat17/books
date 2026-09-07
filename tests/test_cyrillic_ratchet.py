@@ -15,7 +15,8 @@ a number.
 
 WHAT IT COST TO LEARN THE SHAPE. The first version of the instrument counted
 `.py .md .toml .yml` and missed 13 217 characters in nine tracked files --
-among them `models/paddleocr_vl/run.sh`, which executes on a rented GPU, where
+among them `read/rented/paddleocr_vl/run.sh`, which executes on a rented GPU,
+where
 a half-translated file is discovered by paying for it. The exemption for book
 content was likewise written as a file glob and would have left 8423 characters
 of our own prose Russian forever, because `books/*.py` is 9105 characters of

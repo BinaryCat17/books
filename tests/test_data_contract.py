@@ -200,7 +200,7 @@ def test_the_code_emits_exactly_the_declared_html_classes():
 
     `HTML_CLASSES` was declared and read by nobody -- and it had gone stale
     exactly as the comment above it warns: it named the pre-migration Russian
-    word while `doc/html.py` was emitting `sheet`. The one name in the book
+    word while `assemble/html.py` was emitting `sheet`. The one name in the book
     format that no check watched is the one that drifted, which is the whole
     argument for declaring it in the first place.
 
@@ -288,7 +288,13 @@ def test_the_things_that_must_never_be_committed_are_ignored():
     """
     import subprocess
     root = os.path.dirname(os.path.dirname(support.SRC))
-    must_hide = ("raw/", "processed/", "runs/", ".env")
+    # The last two are crops of a book, cut by `books crop` on a bench where
+    # the bench directory is not itself closed (annopage, annopage-lite, hard,
+    # hard36). They were hidden by nothing at all: the two patterns standing
+    # here named `books feed`'s directories, and stayed after the command was
+    # deleted while the new one was named nowhere.
+    must_hide = ("raw/", "processed/", "runs/", ".env",
+                 "bench/annopage/detect.crop/", "bench/hard/detect.crop/")
     r = subprocess.run(["git", "check-ignore", "-v", *must_hide],
                        cwd=root, capture_output=True, text=True)
     hidden = {ln.rsplit("\t", 1)[-1] for ln in r.stdout.splitlines() if ln}

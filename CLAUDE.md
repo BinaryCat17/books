@@ -27,7 +27,8 @@ source six more. A second copy drifts, and it drifts silently.
 | the price of a specific mistake | the comment beside the code that can repeat it |
 
 The last row is not a joke and not laziness. A warning about `_sheet_trouble`
-belongs in `doc/html.py` because that is where the next person will break it.
+belongs in `src/booksmith/processing/assemble/html.py` because that is where
+the next person will break it.
 Prose far from its code goes stale; prose beside it gets read.
 
 ## The two levels

@@ -102,7 +102,7 @@ def rule() -> str:
 
 
 # TRANSLATED BY NAME, NOT DERIVED FROM THE ROLE. Same argument as the reading
-# routes in `models/paddleocr_vl/reader.py`: each detector has its OWN
+# routes in `read/readers/paddleocr_vl.py`: each detector has its OWN
 # vocabulary -- 25 names in V2, 20 in plus-L, 17 in each docling model, 11 in
 # DocLayNet -- and "what I do not know is text" would silently carry the
 # twenty-sixth class of new weights under a wrong name. The role
@@ -193,7 +193,7 @@ def _predictor():
     Its constructor sets two numbers of its own (`dilated_page_element`, the
     horizontal expansion threshold 0.15); building it afresh per page would
     promise they may drift. Same argument as `_DoclingPipeline` in
-    `models/docling_heron.py`.
+    `layout/adapters/docling.py`.
     """
     try:
         from docling.models.postprocessing.reading_order_rb import (

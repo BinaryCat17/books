@@ -48,7 +48,8 @@ from booksmith.core import raster
 
 # The three snapshot quantities -- file hash, commit, package versions -- moved
 # to `run/stamp.py`: three places write a snapshot now (this command,
-# `doc/html.py` and `read/run.py`), and a second copy is the drift this project
+# `assemble/html.py` and `read/driver.py`), and a second copy is the drift
+# this project
 # has already paid for.
 _sha256 = stamp.sha256
 
@@ -138,7 +139,7 @@ def _knob_roles(det):
     except NotImplementedError:
         raise Refusal(
             f"adapter {det.name} did not declare which knobs it reads "
-            f"(models/base.py, knobs_read). An empty tuple is a lawful "
+            f"(layout/base.py, knobs_read). An empty tuple is a lawful "
             f"answer, silence is not: a silent adapter would take the "
             f"snapshot back to what this declaration exists against."
             ) from None
@@ -444,7 +445,7 @@ def run(pdf, outdir, pages_spec=None, log=print):
         log(f"    what the pipeline removed is NOT broken down by label: "
             f"the adapter gives 'boxes before' as a total only "
             f"({pipe['before']}), never by class "
-            f"(models/docling_heron.py, pipe_meta)")
+            f"(layout/adapters/docling.py, pipe_meta)")
         if pipe["missing_numbers"]:
             log(f"WARNING: the pipeline gave no numbers "
                 f"{sorted(pipe['missing_numbers'])} -- the sums above are "
@@ -605,7 +606,7 @@ def run(pdf, outdir, pages_spec=None, log=print):
                          "why_removed_by_label_empty":
                              ("the adapter gives 'boxes before' as one "
                               "number per page; by class there are none -- "
-                              "see pipe_meta in models/docling_heron.py"),
+                              "see pipe_meta in layout/adapters/docling.py"),
                          "numbers_never_given":
                              sorted(pipe["missing_numbers"]),
                      },

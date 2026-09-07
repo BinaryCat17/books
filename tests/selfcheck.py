@@ -1845,12 +1845,11 @@ def sheet_trouble_with_two_marks(blocks, arts):
 
 
 def anchor_of_a_private_copy(page_index, block_id):
-    """`doc/feed` grew its OWN copy of the anchor rule.
+    """A private copy of the anchor rule, the accident this guards against.
 
-    Today it matches character for character, and the copies will drift
-    silently: feed.json naming fragments one way, the book and blocks.json
-    another, `books apply` answering "no such anchor in the book" to every
-    block read.
+    Today it matches character for character, and copies drift silently: one
+    file naming fragments one way, the book and blocks.json another, `books
+    apply` answering "no such anchor in the book" to every block read.
     """
     return f"p{page_index:04d}-b{block_id}"
 
@@ -2382,10 +2381,10 @@ def mutations():
           ("test_read", "test_transport_asks_who_is_answering")]),
 
         # A THIRD copy of the anchor rule turned up after two were fixed:
-        # `doc/apply.from_read` grew its own the day `feed.py` was folded into
-        # `html.anchor_of`. A copy appears not from malice but because
+        # `assemble/apply.from_read` grew its own the day the second was folded
+        # into `html.anchor_of`. A copy appears not from malice but because
         # `f"p{i:04d}-b{j}"` is shorter than an import.
-        ("doc/apply grew its own copy of the anchor rule",
+        ("assemble/apply grew its own copy of the anchor rule",
          lambda: attrs(ap, anchor_of=anchor_of_a_private_copy),
          [("test_html_order", "test_the_anchor_rule_has_exactly_one_home")]),
 
@@ -3321,6 +3320,55 @@ def mutations():
              "                cdpi, why = cdpi * 2, 'preview_dpi'"),
          [("test_read", "test_the_preview_cuts_the_very_crops_the_paid_run_cuts")]),
 
+        ("the preview reports the rule's number as the dpi it cut at",
+         lambda: one_line(
+             "booksmith.processing.read.driver",
+             '                              "crop_dpi": info.get("dpi", '
+             'cut_dpi[a.anchor][0]),',
+             '                              "crop_dpi": cut_dpi[a.anchor][0],'),
+         [("test_read",
+           "test_the_preview_reports_the_dpi_it_cut_at_not_the_rule_s_number")]),
+
+        ("a preview may land on a paid read directory",
+         lambda: one_line(
+             "booksmith.processing.read.driver",
+             '        for tell in ("answers", "pages", "read_with.json", '
+             '"run.json"):',
+             '        for tell in ():'),
+         [("test_read",
+           "test_a_preview_refuses_to_land_on_a_paid_read_directory")]),
+
+        ("the preview keeps the questions and drops the reasons",
+         lambda: one_line(
+             "booksmith.processing.read.driver",
+             "            for anchor, why in sorted(silent.items()):\n"
+             "                not_asked.append({\"anchor\": anchor, "
+             "\"not_asked\": why})",
+             "            pass"),
+         [("test_read",
+           "test_the_preview_names_the_blocks_it_would_not_ask_about")]),
+
+        ("a preview resumes, and shows a run that will not happen",
+         lambda: one_line(
+             "booksmith.processing.read.driver",
+             "    if preview and resume:\n"
+             "        raise Refusal(",
+             "    if False:\n"
+             "        raise Refusal("),
+         [("test_read", "test_a_preview_may_not_resume")]),
+
+        ("CROP_DPI is validated on the paths that never use it",
+         lambda: one_line(
+             "booksmith.core.raster",
+             "    p = params(page_dpi, native_dpi(doc[page_index]) "
+             "if dpi is None else None,\n"
+             "               want_dpi=dpi is None)",
+             "    p = params(page_dpi, native_dpi(doc[page_index]) "
+             "if dpi is None else None)"),
+         [("test_raster",
+           "test_a_bad_crop_dpi_does_not_break_a_path_that_names_the_"
+           "resolution")]),
+
         ("the preview writes the read_with.json a paid resume believes",
          lambda: one_line(
              "booksmith.processing.read.driver",
@@ -3342,10 +3390,11 @@ def mutations():
         ("the preview makes the directories only a reading fills",
          lambda: one_line(
              "booksmith.processing.read.driver",
-             "    if not preview:\n"
-             "        os.makedirs(_pages_dir, exist_ok=True)",
-             "    if True:\n"
-             "        os.makedirs(_pages_dir, exist_ok=True)"),
+             '    crops_dir = os.path.join(out_dir, "crops")',
+             "    os.makedirs(_pages_dir, exist_ok=True)\n"
+             '    os.makedirs(os.path.join(out_dir, "answers"), '
+             "exist_ok=True)\n"
+             '    crops_dir = os.path.join(out_dir, "crops")'),
          [("test_read",
            "test_the_preview_writes_nothing_a_paid_run_would_believe")]),
 

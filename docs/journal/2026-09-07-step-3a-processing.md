@@ -66,8 +66,11 @@ ever bought.
 
 `doc/feed.py` and the three knobs are gone; what the module and the
 registry had measured stands verbatim in
-`docs/journal/2026-09-07-preview-knobs.md`. The union-of-holes geometry the
-preview wrote moved into the builder, its last reader. The registry counts
+`docs/journal/2026-09-07-preview-knobs.md`. Of the two hole-geometry helpers
+the preview wrote, `_union_area` moved into the builder, its last reader;
+`_union_rects` moved with it and nothing read it -- it counted holes to
+choose between `crop` and `masked_page`, a choice that went with the knob --
+and it is deleted, its measurement kept beside the rest of the preview. The registry counts
 36 knobs, 34 with readers, 2 debts; "eight empty defaults" became seven and
 says why. The snapshot report on the golden bench and the table on slovar
 moved by the three keys the registry lost, and were regenerated with that
@@ -141,12 +144,14 @@ the lock: the battery does not touch the tree).
 ## The numbers at the end of step 3a
 
 Fast suite 357: passed 356, skipped 1. Mutation battery 306 of 306 caught,
-0 uncaught; checks under a mutation 327 of 357. Anchors 76 land, attrs 225
-of which 223 resolve. Acceptance: ten reports and four records same --
-`help` regenerated for `crop`, `text-slovar` and `fitness-slovar` re-taken
-after the bench rebuild said INPUTS MOVED with the result the same to the
-last key. Ratchet 1105 Cyrillic in 21 files, no area grew. Import rule 0
-violations. Registry 36 knobs, 34 with readers, 2 debts.
+0 uncaught; checks under a mutation 328 of 357 (the commit message says 327
+-- I quoted a run taken before the last mutation went in; every other number
+in it reproduces). Anchors 76 land, attrs 225 of which 223 resolve.
+Acceptance: ten reports and four records same -- `help` regenerated for
+`crop`, `text-slovar` and `fitness-slovar` re-taken after the bench rebuild
+said INPUTS MOVED with the result the same to the last key. Ratchet 1105
+Cyrillic in 21 files, no area grew. Import rule 0 violations. Registry 36
+knobs, 34 with readers, 2 debts.
 
 All six synthetic books were rebuilt from the edited generator, so their
 manifests describe the code that is committed. The slovar truth came back

@@ -73,7 +73,8 @@ def spec(pdf: str, detect_dir: str, pages: str = "",
             raise Refusal(f"no {p} ({what})")
     # THE PACKAGE MUST COMPILE, AND THAT IS CHECKED RIGHT BEFORE THE UPLOAD.
     # Measured: during edits the tree failed to parse for half a minute
-    # (`SyntaxError` in `read/run.py`), and in that window a book of code that
+    # (`SyntaxError` in `read/driver.py`), and in that window a book of code
+    # that
     # does not start would have ridden to the box -- learnt after a whole
     # rental of provisioning, weights and vLLM warm-up. The check costs a
     # fraction of a second.

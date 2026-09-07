@@ -46,7 +46,8 @@ class Route:
     show by.
 
     `kind` is the kind this prompt PROMISES: the names of the block contract
-    (`models/base.py`) and of `doc/apply.KINDS`, held by a check, not by trust.
+    (`layout/base.py`) and of `assemble/apply.KINDS`, held by a check, not by
+    trust.
     """
     prompt: str
     kind: str = ""

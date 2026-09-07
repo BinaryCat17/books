@@ -156,44 +156,14 @@ hr.sheet[data-repeats-hidden]::after{
 """
 
 
-# The two hole-geometry helpers came from the VLM-input preview when it went;
-# the builder was their last reader.
-def _union_rects(holes):
-    """Merge intersecting holes into connected groups (by bounding boxes).
-
-    MERGES TO EXHAUSTION, NOT IN ONE PASS, and that is not nitpicking: a merged
-    box is the BOUNDING one, so it grows, and may cover one this same pass has
-    already set aside as disjoint. On a constructed input
-    `[[0,20,4,30], [0,0,10,10], [5,5,8,80]]` the old code printed "holes 2"
-    (`[0,20,4,30]` and `[0,0,10,80]`) though the second covers the first
-    entirely and the group is one. The feed is chosen by the number of holes,
-    and an inflated number makes `masked_page` dearer on paper than it is.
-
-    Over nine `bench/*/detect` directories (762 pages with artifacts) old and
-    new agreed to the unit, 1701 holes: the trouble has not surfaced in the
-    tree, and is fixed because it is not what chooses the input.
-    """
-    out = []
-    for h in holes:
-        cur = list(h)
-        rest = list(out)
-        grew = True
-        while grew:
-            grew = False
-            keep = []
-            for o in rest:
-                if (cur[0] < o[2] and o[0] < cur[2]
-                        and cur[1] < o[3] and o[1] < cur[3]):
-                    cur = [min(cur[0], o[0]), min(cur[1], o[1]),
-                           max(cur[2], o[2]), max(cur[3], o[3])]
-                    grew = True
-                else:
-                    keep.append(o)
-            rest = keep
-        out = rest + [cur]
-    return out
-
-
+# `_union_area` came from the VLM-input preview when it went; the builder is
+# its last reader. The preview's OTHER helper, `_union_rects` -- holes merged
+# into connected groups -- came with it and nothing read it: it counted holes
+# to choose between `crop` and `masked_page`, and that choice went with the
+# knob. Deleted rather than kept for a caller that might appear; what it knew
+# (merge to exhaustion, not in one pass -- a merged box is the BOUNDING one
+# and may cover a box the same pass set aside as disjoint) is in
+# `docs/journal/2026-09-07-preview-knobs.md` with the rest of the preview.
 def _union_area(holes):
     """Area of the union of rectangles: a sweep along the vertical."""
     if not holes:
@@ -563,7 +533,7 @@ def _nesting(arts) -> dict:
     def rank(b):
         """The block's place in the model's order as a KEY, not a bare `order`.
 
-        `models/base.py` allows `Block.order = None`: three adapters of four
+        `layout/base.py` allows `Block.order = None`: three adapters of four
         give no rank (yolox, both docling), and on the fourth it is empty for
         exactly what the first level cuts as images — 100 % of `image`,
         `figure_title`, `table`. Comparing `(o.order, o.block_id)` directly
@@ -691,7 +661,8 @@ MATHJAX = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 # `pre` IS STRUCK FROM THE SKIP LIST ON PURPOSE: MathJax skips it by default,
 # while the second level puts a formula artifact into exactly `<pre>`
-# (`doc/apply.render`, kind `latex`). The default would leave the very blocks
+# (`assemble/apply.render`, kind `latex`). The default would leave the very
+# blocks
 # this is built for as source — 2260 formulas of 6080 read blocks on
 # "Refractory technology".
 _SKIP = ("script", "noscript", "style", "textarea", "code", "annotation",

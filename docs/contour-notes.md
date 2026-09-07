@@ -257,7 +257,8 @@ independent model is needed. Taken: `docling-layout-heron` (IBM), **RT-DETRv2
 on ResNet-50**, trained on **150k IBM documents**, input **640×640**, 17
 classes, 171 MB of ONNX under Apache-2.0. Not one line of docling
 postprocessing is applied — the graph is called directly. The adapter fitted
-the existing `models/base.py` contract without changing it; what was needed was
+the existing `processing/layout/base.py` contract without changing it; what
+was needed was
 an adapter registry (the `LAYOUT_ADAPTER` knob), a second label policy, and
 three refusals out loud — on `do_pad`, on a class outside the vocabulary, and
 on a missing native threshold.

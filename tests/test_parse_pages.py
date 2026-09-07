@@ -2,7 +2,8 @@
 `dots_ocr/entrypoint`.
 
 WHY A COPY EXISTS. Four files ride to the rented machine (`inputs` in
-`models/dots_ocr/__init__.py:spec()`); the `booksmith` package is not there,
+`layout/rented/dots_ocr/__init__.py:spec()`); the `booksmith` package is not
+there,
 so the page-string parser must arrive as its own text. Merging them means
 shipping the whole package. Keeping them from diverging SILENTLY is possible,
 and is this file.
@@ -56,7 +57,7 @@ TOTAL = 10
 def _dots_parse_pages():
     """`parse_pages` from the copy that rides to the card, loaded by path.
 
-    Not by importing the package: `models/dots_ocr/entrypoint.py` is the
+    Not by importing the package: `layout/rented/dots_ocr/entrypoint.py` is the
     entry point FOR THE BOX, not part of the importable tree, and pulling it
     in as a package module would check the wrong file.
 
@@ -113,7 +114,8 @@ def test_both_copies_of_parse_pages_agree():
         "the copies of the `--pages` parser diverged:\n"
         + "\n".join(mismatches)
         + "\nA fix in one must be repeated in the other: "
-          "`detect.parse_pages` and `models/dots_ocr/entrypoint.parse_pages`. "
+          "`detect.parse_pages` and "
+          "`layout/rented/dots_ocr/entrypoint.parse_pages`. "
           "This is parsed on a rented card, where a refusal costs money.")
 
 

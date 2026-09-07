@@ -51,13 +51,42 @@ def _declared(src):
     return out
 
 
+def _offered(text, declared):
+    """Which commands a list of `books ...` lines OFFERS, as whole names.
+
+    BY WHOLE WORDS, NOT BY SUBSTRING, and that is the point of the function.
+    Both directions used to ask `f"books {c}" not in text`, justified by "a
+    prefix counts: `books bench all` names `books bench` too". It counts any
+    other prefix as well: add `sub.add_parser("doc")` and leave it out of both
+    lists, and both checks pass -- `books doc` is inside `books doctor`. The
+    same hole stands under `app`/`apply`, `syn`/`synth`, `sub`/`subset`,
+    `over`/`overlay`. So the names are parsed out, and a group is offered by
+    the line that offers any of its subcommands -- that, and only that, is the
+    prefix rule.
+    """
+    groups = {c.split()[0] for c in declared if " " in c}
+    out = set()
+    for first, second in re.findall(r"books ([a-z-]+)(?: ([a-z-]+))?", text):
+        if first in groups and second:
+            out.add(f"{first} {second}")
+            out.add(first)
+        else:
+            out.add(first)
+    return out
+
+
+def _map_lines():
+    """The `books ...` lines of the map, from the line start as it writes
+    them."""
+    return "\n".join(re.findall(r"^books .*$", _map_text(), re.M))
+
+
 def test_every_command_the_cli_declares_is_named_in_the_map():
     """A command absent from the map is a command nobody finds."""
     src = open(os.path.join(support.SRC, "cli.py"), encoding="utf-8").read()
     declared = _declared(src)
     assert declared, "no subcommands found in cli.py -- the search broke"
-    text = _map_text()
-    missing = sorted(c for c in declared if f"books {c}" not in text)
+    missing = sorted(declared - _offered(_map_lines(), declared))
     assert not missing, f"the map does not name: {missing}"
 
 
@@ -65,11 +94,7 @@ def test_the_map_names_no_command_that_does_not_exist():
     """The other direction: a map that offers a command the CLI lost."""
     src = open(os.path.join(support.SRC, "cli.py"), encoding="utf-8").read()
     declared = _declared(src)
-    groups = {c.split()[0] for c in declared if " " in c}
-    named = set()
-    for first, second in re.findall(r'^books ([a-z]+)(?: ([a-z]+))?', _map_text(), re.M):
-        named.add(f"{first} {second}" if first in groups and second else first)
-    ghosts = sorted(named - declared)
+    ghosts = sorted(_offered(_map_lines(), declared) - declared)
     assert not ghosts, f"the map offers commands the CLI does not have: {ghosts}"
 
 
@@ -93,33 +118,20 @@ def _cli_table():
     return "\n".join(l for l in doc.splitlines() if l.startswith("    books "))
 
 
-def _cli_commands(declared):
-    """What the table OFFERS, nested commands as "group sub"."""
-    groups = {c.split()[0] for c in declared if " " in c}
-    out = set()
-    # `books bench all <run>` is one nested command, `books ls | books down
-    # 12345 | books reap` is three; the two are the same shape to a regex, so
-    # the nesting is decided by the groups the CLI actually declares.
-    for first, second in re.findall(r"books ([a-z-]+)(?: ([a-z-]+))?",
-                                    _cli_table()):
-        out.add(f"{first} {second}" if first in groups and second else first)
-    return out
-
-
 def test_every_command_the_cli_declares_is_in_the_cli_header():
-    """Named as a PREFIX counts: `books bench all` names `books bench` too --
-    a group with one subcommand needs no line of its own."""
+    """A group is named by the line that names its subcommand: `books bench
+    all` names `books bench` too. Nothing else counts as naming."""
     src = open(os.path.join(support.SRC, "cli.py"), encoding="utf-8").read()
     declared = _declared(src)
-    table = _cli_table()
-    missing = sorted(c for c in declared if f"books {c}" not in table)
+    assert declared, "no subcommands found in cli.py -- the search broke"
+    missing = sorted(declared - _offered(_cli_table(), declared))
     assert not missing, f"the cli.py header does not name: {missing}"
 
 
 def test_the_cli_header_offers_no_command_that_does_not_exist():
     src = open(os.path.join(support.SRC, "cli.py"), encoding="utf-8").read()
     declared = _declared(src)
-    ghosts = sorted(_cli_commands(declared) - declared)
+    ghosts = sorted(_offered(_cli_table(), declared) - declared)
     assert not ghosts, (
         f"the cli.py header offers commands the CLI does not have: {ghosts}")
 

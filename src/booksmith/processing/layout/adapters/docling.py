@@ -238,7 +238,7 @@ class _DoclingPipeline:
                 f"threshold by label with NO default, so on any other it "
                 f"dies with KeyError on the very first page. The translation "
                 f"is declared BY NAME in EGRET_TO_DOCLING "
-                f"(models/docling_heron.py): a rule 'lower-case it' would "
+                f"(layout/adapters/docling.py): a rule 'lower-case it' would "
                 f"silently accept a new class of new weights and slip it to "
                 f"the vendor under an invented name.")
         self.back = {v: k for k, v in self.to_docling.items() if v != k}

@@ -94,8 +94,18 @@ def native_dpi(page) -> float | None:
 
 
 def params(page_dpi: float | None = None,
-           page_native: float | None = None) -> dict:
+           page_native: float | None = None,
+           want_dpi: bool = True) -> dict:
     """The crop values in force. They go into the snapshot whole.
+
+    `want_dpi=False` asks for the margin ALONE, and the resolution comes back
+    as None with a source saying so. It exists because `CROP_DPI` used to be
+    read and VALIDATED on paths that never use its value: `books read` and
+    `books crop` name each crop's resolution themselves, and `CROP_DPI=0`
+    there raised a ValueError the read driver files as "crop failed" and
+    reports as THE MODEL'S defect -- our knob charged to the model, under a
+    registry line saying that path does not read it. The margin is a different
+    matter: the reading path does use it.
 
     `page_dpi` is the DETECTION resolution (`raster.dpi` of the snapshot),
     `page_native` the page's OWN (`native_dpi`).
@@ -133,6 +143,9 @@ def params(page_dpi: float | None = None,
             f"a project rule, and no crop quantity shows such a cut "
             f"(\"clipped by the sheet\" is about the sheet edge, not our "
             f"knife)")
+    if not want_dpi:
+        return {"dpi": None, "dpi_source": "named by the caller, not by a knob",
+                "margin": margin}
     raw = knobs.knob("CROP_DPI")
     if raw:
         # ZERO AND NEGATIVE ARE REFUSED ALOUD. The string "0" is truthy and
@@ -196,7 +209,7 @@ def _box_trouble(w: float, h: float) -> str | None:
     Both gave an empty intersection with the sheet and so drew the foreign
     diagnosis "does not intersect the sheet" -- for a box lying in the middle
     of the paper, sending the reader after slipped coordinates and a sheet
-    edge. `read/run.py` catches the ValueError from `cut` and counts it as
+    edge. `read/driver.py` catches the ValueError from `cut` and counts it as
     "crop failed", so the exception type did not change with the split.
 
     A SEPARATE FUNCTION for the mutation battery: a diagnosis sewn as two `if`s
@@ -226,7 +239,14 @@ def cut(doc, page_index: int, box, page_dpi: float, dst: str,
     # is passed explicitly and the answer thrown away: measured over the bench,
     # 15 601 `get_images` calls over 600 pages, none of them useful, because
     # `books read` decides each crop's resolution itself.
-    p = params(page_dpi, native_dpi(doc[page_index]) if dpi is None else None)
+    #
+    # AND NEITHER IS `CROP_DPI` (`want_dpi`). The knob was still read and
+    # validated when the caller names the resolution, so a bad value on a path
+    # that ignores it came back as "crop failed" -- printed by `report()` as
+    # the model's box being degenerate or off the sheet. The margin still
+    # comes from here; that one the reading path applies.
+    p = params(page_dpi, native_dpi(doc[page_index]) if dpi is None else None,
+               want_dpi=dpi is None)
     dpi = p["dpi"] if dpi is None else dpi
     margin = p["margin"] if margin is None else margin
 

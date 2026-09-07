@@ -32,14 +32,20 @@ MAY_IMPORT = {
 IMPORTERS_OF_REMOTE = ("remote", "cli", "processing")
 
 # Modules and packages the plan has not placed yet. `datasets`, `processing`
-# and `cli` may import them until their step moves them (the metrics and
-# the command line reach the bodies where they stand); `core`, `remote` and
+# and `cli` may import them until their step moves them; `core`, `remote` and
 # `tree` may not -- the floor never needed the exemption, and the first
 # edition of this tuple lifted it for them too (planted: `core` importing
 # `doc.html` passed). The tuple shrinks with each step and
 # `tests/test_imports.py` demands that every name in it still exists at the
 # top of the package, so a placed module cannot stay exempt by
 # forgetfulness. Empty after step 3c.
+#
+# ONE NAME IS LEFT AND NOTHING USES THE PERMISSION. `cli` is unplaced until
+# step 3c, but `test_imports.test_nothing_imports_the_command_line` bans
+# importing it from anywhere, and nothing in `src/` does (`datasets/accept.py`
+# runs it as a subprocess). The exemption is kept because the LIST is what
+# step 3c empties; the reader should not take its one entry for a dependency
+# that exists.
 UNPLACED = ("cli",)
 REACH_UNPLACED = ("datasets", "processing", "cli")
 

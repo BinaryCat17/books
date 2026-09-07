@@ -66,6 +66,20 @@ same questions.
 
 The blank-sheet fact stands where it is enforced: the transport refuses an
 empty crop (`transports/openai_http.py`), because an empty picture is the
-sheet on which the model invented five tables. The union-of-holes
-geometry the preview wrote is the builder's now (`assemble/html.py`), its
-last reader.
+sheet on which the model invented five tables. Of the two hole-geometry
+helpers the preview wrote, ONE has a reader: `_union_area` is the
+builder's now (`assemble/html.py`). `_union_rects` came with it and
+nothing read it -- it counted holes to choose between `crop` and
+`masked_page`, and that choice went with the knob. It is deleted; what it
+knew is here:
+
+> MERGES TO EXHAUSTION, NOT IN ONE PASS, and that is not nitpicking: a
+> merged box is the BOUNDING one, so it grows, and may cover one this same
+> pass has already set aside as disjoint. On a constructed input
+> `[[0,20,4,30], [0,0,10,10], [5,5,8,80]]` the old code printed "holes 2"
+> (`[0,20,4,30]` and `[0,0,10,80]`) though the second covers the first
+> entirely and the group is one.
+>
+> Over nine `bench/*/detect` directories (762 pages with artifacts) old and
+> new agreed to the unit, 1701 holes: the trouble has not surfaced in the
+> tree, and is fixed because it is not what chooses the input.

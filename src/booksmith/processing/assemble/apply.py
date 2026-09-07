@@ -645,7 +645,8 @@ def from_read(out_dir: str, read_dir: str, only_role: str = "artifact",
     """Place in the book EVERYTHING the second level read. One at a time, undoable.
 
     THE MISSING LINK, and it was missing silently. `books read` fills `content`
-    on every block, but `doc/html.py` draws an artifact as an image regardless
+    on every block, but `assemble/html.py` draws an artifact as an image
+    regardless
     of content (`if role == "artifact" or not b.content`) — RIGHT by design,
     since an artifact swap must be reversible and journalled while a rebuild
     knows nothing of the journal. The bridge was missing: read tables and

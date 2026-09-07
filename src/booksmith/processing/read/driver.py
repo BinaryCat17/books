@@ -185,6 +185,13 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
     that cut with its own knobs and dpi and so showed pictures the paid
     path never sent.
 
+    A PREVIEW SHOWS A FRESH RUN, and cannot show a resuming one: the answers
+    a resume would reuse live in the read directory, and the preview writes
+    elsewhere by construction (it refuses to land on a read directory at
+    all). So `resume` is refused here rather than quietly ignored -- ignored,
+    it would show every block as "would ask" on a book already half read,
+    and the number the preview exists to give is the number of requests.
+
     `pdf` is where the book lies NOW. The detection snapshot keeps the path it
     was read at, and on a rented machine that path does not exist: the working
     directory is its own and the file arrives as `input.pdf`. So the path may be
@@ -192,6 +199,13 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
     book this is, not where it lies.
     """
 
+    if preview and resume:
+        raise Refusal(
+            "a preview cannot resume: the answers a resuming `books read` "
+            "would reuse live in ITS directory, and a preview may not write "
+            "there. Pass resume=False and read `would_ask.json` as a fresh "
+            "run -- on a book already half read, that is more questions than "
+            "the next paid run would ask.")
     facts = _detect_facts(detect_dir)
     pdf = pdf or facts["source"]["path"]
     if not os.path.exists(pdf):
@@ -209,32 +223,50 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
     if not files:
         raise Refusal(f"no pages in {detect_dir}: run books detect first")
 
-    # ANOTHER BOOK'S PAGES. The `out` directory is assembled by hand and reused;
-    # `0007.json` from a different book would survive the run and ride into
-    # `books html`, `books text` and `books score` as part of this one. The
-    # header promised a failure on that, and there was none.
     _pages_dir = os.path.join(out_dir, "pages")
-    if os.path.isdir(_pages_dir):
-        mine_ = {os.path.basename(f) for f in files}
-        alien = sorted(set(os.listdir(_pages_dir)) - mine_)
-        if alien:
-            raise Refusal(
-                f"{_pages_dir} holds pages the detection does not have: "
-                f"{alien[:5]}{'...' if len(alien) > 5 else ''} "
-                f"({len(alien)} of them). This is a directory from another "
-                f"book or another page set; they would travel into the book "
-                f"and into the measurement as part of this one. Remove them "
-                f"or choose an empty --out.")
-    # A preview makes neither directory: empty `pages/` and `answers/` beside
-    # the crops read as a reading that returned nothing.
-    if not preview:
+    if preview:
+        # A PREVIEW MAY NOT LAND ON A PAID RUN. The crops ARE something a paid
+        # run believes: `answers/*.json` records `observed.crop` -- file, dpi,
+        # width, height, clipped_by_sheet -- describing those very files, and
+        # they are the only surviving picture of what the money was spent on.
+        # A preview writes `crops/<anchor>.png` under the same names, so
+        # `books crop --out <a read directory>` silently replaced them, at
+        # another CROP_MARGIN and with no warning at all, while `answers/`
+        # went on describing the files that were sent. `books html` refuses
+        # this class of accident by asking whether the directory is its own;
+        # so does this.
+        for tell in ("answers", "pages", "read_with.json", "run.json"):
+            if os.path.exists(os.path.join(out_dir, tell)):
+                raise Refusal(
+                    f"{out_dir} holds `{tell}`: this is a `books read` "
+                    f"directory, not a place for a preview. The crops there "
+                    f"are what was PAID for -- `answers/` describes them by "
+                    f"name, dpi and size -- and a preview would overwrite "
+                    f"them with crops nothing was asked about. Give --out "
+                    f"somewhere else.")
+    else:
+        # ANOTHER BOOK'S PAGES. The `out` directory is assembled by hand and
+        # reused; `0007.json` from a different book would survive the run and
+        # ride into `books html`, `books text` and `books score` as part of
+        # this one. The header promised a failure on that, and there was none.
+        if os.path.isdir(_pages_dir):
+            mine_ = {os.path.basename(f) for f in files}
+            alien = sorted(set(os.listdir(_pages_dir)) - mine_)
+            if alien:
+                raise Refusal(
+                    f"{_pages_dir} holds pages the detection does not have: "
+                    f"{alien[:5]}{'...' if len(alien) > 5 else ''} "
+                    f"({len(alien)} of them). This is a directory from another "
+                    f"book or another page set; they would travel into the book "
+                    f"and into the measurement as part of this one. Remove them "
+                    f"or choose an empty --out.")
         os.makedirs(_pages_dir, exist_ok=True)
         os.makedirs(os.path.join(out_dir, "answers"), exist_ok=True)
     crops_dir = os.path.join(out_dir, "crops")
     os.makedirs(crops_dir, exist_ok=True)
 
     routes = reader.routes()
-    would = []
+    would, not_asked, failed = [], [], []
     # Route completeness BEFORE the first cent and the first crop.
     labels = set()
     pages = []
@@ -392,11 +424,33 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
                 would.append({"anchor": a.anchor, "label": a.label,
                               "image": os.path.relpath(a.image, out_dir),
                               "prompt": a.prompt, "kind": a.kind,
-                              "crop_dpi": cut_dpi[a.anchor][0],
+                              # THE DPI IT WAS CUT AT, and the rule's number
+                              # beside it -- THE SAME TWO KEYS THE PAID RUN
+                              # WRITES, meaning the same two things. This
+                              # carried the rule's float alone, under the name
+                              # the paid path uses for the deed: `crop.cut`
+                              # renders at `int(dpi)`, and on a real scan the
+                              # two differ (588.911 against 588 on
+                              # bench/real/tables20.pdf). A preview that
+                              # reports a resolution nothing was cut at is
+                              # the disease `books feed` died of, in one key.
+                              "crop_dpi": info.get("dpi", cut_dpi[a.anchor][0]),
+                              "crop_dpi_by_rule": round(cut_dpi[a.anchor][0], 2),
                               "crop_dpi_reason": cut_dpi[a.anchor][1],
                               **{k: info[k] for k in ("width", "height",
                                                       "clipped_by_sheet")
                                  if k in info}})
+            # THE OTHER TWO OUTCOMES ARE WRITTEN TOO. The paid run files a
+            # record for EVERY block -- `not_asked` with its reason,
+            # `crop_failed` with the error -- and the preview kept only the
+            # questions. So the one instrument for "what will this run do
+            # before I pay" could not say which blocks it would skip, nor
+            # that a crop failed at all: `would_ask.json` was `"asks": []`
+            # and nothing else.
+            for anchor, why in sorted(silent.items()):
+                not_asked.append({"anchor": anchor, "not_asked": why})
+            for anchor, why in sorted(nocrop.items()):
+                failed.append({"anchor": anchor, "crop_failed": why})
             tally["would_ask"] = tally.get("would_ask", 0) + len(asks)
             log(f"page {pg.index}: would ask {len(asks)}, not asked "
                 f"{len(silent)}, crop failed {len(nocrop)}")
@@ -523,7 +577,8 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
                   encoding="utf-8") as f:
             json.dump({"detect": os.path.abspath(detect_dir),
                        "reader": reader.name, "policy": reader.policy_name,
-                       "generation": params, "asks": would},
+                       "generation": params, "asks": would,
+                       "not_asked": not_asked, "crop_failed": failed},
                       f, ensure_ascii=False, indent=1)
         tally["preview"] = True
     return tally

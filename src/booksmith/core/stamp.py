@@ -1,8 +1,9 @@
 """Three quantities without which a run does not repeat: file hash, commit,
 packages.
 
-APART, BECAUSE THE SNAPSHOT NOW HAS THREE WRITERS: `detect.py`, `doc/html.py`,
-`read/run.py`. With one writer these were lawfully its own; with three, a
+APART, BECAUSE THE SNAPSHOT NOW HAS THREE WRITERS: `layout/detect.py`,
+`assemble/html.py`, `read/driver.py`. With one writer these were lawfully
+their own; with three, a
 second copy is drift -- paid for once by the knob registry against the task
 builder, 13 names of 17, and `dots_ocr/entrypoint.py` still admits "nothing
 guards these two copies".
@@ -11,8 +12,9 @@ ANOTHER JUSTIFICATION STOOD HERE AND DOES NOT REPRODUCE: that `detect.py`
 "will not come up at all" on a rented machine, wanting onnxruntime and opencv.
 Both halves are false -- `import booksmith.detect` passes with `onnxruntime`,
 `cv2` and `yaml` blocked, because they are pulled LAZILY inside functions of
-`models/doclayout.py`, and on the machine they do exist, pinned by name in
-`models/paddleocr_vl/constraints.txt`. One argument is left, and it is
+`layout/adapters/doclayout.py`, and on the machine they do exist, pinned by
+name in `read/rented/paddleocr_vl/constraints.txt`. One argument is left,
+and it is
 checkable: three writers.
 
 WHAT USED TO STAND HERE, and was done on 2026-09-07 with the package move:
