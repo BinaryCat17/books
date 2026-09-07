@@ -1,0 +1,10 @@
+{
+ "book": "real-test25",
+ "about": "a real scan with NO TRUTH: a book, not a bench. Kept for measuring what needs no truth (ink, assembly order) and for looking at with the eye. `bench score` refuses it, and should.",
+ "builder": "absent",
+ "builder_note": "these three pdfs have no source anywhere -- they ARE the source, and .gitignore keeps them tracked by an exception",
+ "source": {
+  "name": "test25.pdf",
+  "sha256": "3f5d7a69852af57c15d512c0e77bb7b51d9b4fe5f30548a32bad2a4e4de5f1ab"
+ }
+}

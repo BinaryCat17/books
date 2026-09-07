@@ -1,5 +1,5 @@
 {
- "commit": "f7407d40583d9d79cb9f8ecff4d56a8382ad8fe2+dirty tree",
+ "commit": "87f99c3bd062a012c99d6c9617063df152cc4c62+dirty tree",
  "records": [
   {
    "bench": "annopage",
@@ -7281,5 +7281,5 @@
    }
   }
  ],
- "when": "2026-09-07T18:52:46+0300"
+ "when": "2026-09-07T19:22:37+0300"
 }

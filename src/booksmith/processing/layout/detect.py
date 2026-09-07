@@ -494,7 +494,7 @@ def run(pdf, outdir, pages_spec=None, log=print):
     # By class -- accepted AND best rejected. Without the second number
     # "table 0" reads as "there are no tables" when it may mean "the table was
     # 0.03 below the threshold": the first trouble is the model's, the second a
-    # knob's. Measured on bench/real/tables20.pdf: at the native threshold a
+    # knob's. Measured on bench/real-tables20/tables20.pdf: at the native threshold a
     # table is found on 4 pages of 20, and the pages were selected for tables.
     # We show what was found and ALL artefact labels, even at zero; the rest of
     # the rejected go into one line, because twenty-five classes in a row drown

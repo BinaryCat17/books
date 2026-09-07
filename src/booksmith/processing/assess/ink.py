@@ -48,7 +48,7 @@ hundred and thirty-two.
   checks boxes against truth.
 
 THE UNIT IS THE RASTER PIXEL, so everything here depends on `PAGE_DPI`. On
-bench/real/tables20.pdf with the box geometry unchanged: ink under artefact
+bench/real-tables20/tables20.pdf with the box geometry unchanged: ink under artefact
 24.83% (144 dpi) -> 25.63% (300) -> 25.99% (600); ink under boxes 99.26 ->
 99.25 -> 99.24%. Small, real and one-directional, so dpi is printed on the
 first line: without it two numbers from two runs are incomparable.
@@ -210,7 +210,7 @@ def _clip(shape, box):
     off the top-left corner covers almost the whole sheet -- `_mask((100, 100),
     [[-40, -40, -20, -20]])` gave 6561 pixels of 10000. A full walk of every
     annotation in git (42 565 boxes, 3187 pages) finds 516 boxes wholly off the
-    sheet, 514 of them in `bench/annopage-lite/dots-pages`, the `dots.ocr`
+    sheet, 514 of them in `bench/annopage-lite/detect/dots-ocr/pages`, the `dots.ocr`
     output that measured 636 layout pages.
 
     Whether that spoiled a recorded number was CHECKED, not assumed: all 516 ran

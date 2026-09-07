@@ -74,7 +74,10 @@ def write_json(records, path: str, log=print) -> str:
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         json.dump({"when": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
-                   "commit": stamp.commit(),
+                   # Ignoring the results themselves: a pass that writes 54
+                   # of these would otherwise dirty the tree with its own
+                   # first file and stamp the other 53 unusable.
+                   "commit": stamp.commit(ignore=stamp.OUTPUT_PATHS),
                    "records": [r.to_json() for r in records]},
                   f, indent=1, ensure_ascii=False, sort_keys=True)
         f.write("\n")

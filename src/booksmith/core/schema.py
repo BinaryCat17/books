@@ -85,7 +85,13 @@ FORMATS = (
         "The six synthetic benches are NOT here -- .gitignore closes them "
         "entirely and only their manifest is tracked."),
     Format(
-        "dots_pages", "bench/*/dots*/**/*.json",
+        # `detect/dots-ocr/**` COVERS BOTH HALVES, and that is the point of
+        # the pattern: the parsed pages under `pages/` and the card's raw
+        # output under `job/pass0/pages/`. They were `dots-pages/` and
+        # `dots/`, two sibling directories no command knew about, and a glob
+        # naming only the first would have halved every floor here and taken
+        # `answer` -- the model's raw output, what $0.892 bought -- to zero.
+        "dots_pages", "bench/*/detect/dots-ocr/**/*.json",
         {"detector": 1272, "reading_order": 1272, "downscale": 1272,
          "pass_no": 1236, "prompt": 1236, "input_pixel_ceiling": 1236,
          "out_of_vram": 1236, "parse_error": 1236, "answer": 636},

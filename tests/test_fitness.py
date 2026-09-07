@@ -195,7 +195,7 @@ def test_report_declares_the_whole_ruler():
 
     A number without a declared ruler already cost an irreproducible "extra
     jumps 7.0 -> 1.3". The unit is the raster pixel, so the number rides on
-    `PAGE_DPI`: the same boxes on bench/real/tables20.pdf give "ink under
+    `PAGE_DPI`: the same boxes on bench/real-tables20/tables20.pdf give "ink under
     artefacts" 24.83% at 144 dpi and 25.99% at 600.
     """
     with tempfile.TemporaryDirectory() as tmp:

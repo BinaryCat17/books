@@ -100,7 +100,7 @@ We do not control the docker daemon on a rented host, therefore:
 Superseded by the ONNX section below and kept for its numbers. The temptation:
 vLLM computes the VLM on the card, paddle is needed only for layout, so a 186 MB
 CPU wheel could replace the 3.69 GB GPU one and halve the image. Measured on
-`bench/real/test25.pdf`, 150 dpi, 16 cores, `PP-DocLayoutV2`: 7.59 s/page by
+`bench/real-test25/test25.pdf`, 150 dpi, 16 cores, `PP-DocLayoutV2`: 7.59 s/page by
 default (68 min for 539 pages), 8.26 with MKLDNN and 8 threads (74 min),
 **9.71** with MKLDNN and 16 threads (87 min). Multithreading makes it **worse**,
 against ~8 min for the VLM itself on the card.

@@ -3,7 +3,7 @@
 About PaddleOCR-VL and what is known of its behaviour on old technical
 reference books: dense two-column setting, tables with **not one rule in
 them**, columns held together by space alignment. Observed on
-`bench/real/tables20.pdf` — 20 pages of a machine-tool reconditioning manual,
+`bench/real-tables20/tables20.pdf` — 20 pages of a machine-tool reconditioning manual,
 letterpress of the fifties on yellowed paper.
 
 **Two thirds of this file were deleted, by one rule.** Everything measured

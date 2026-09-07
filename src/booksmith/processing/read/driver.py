@@ -454,7 +454,7 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
                               # the paid path uses for the deed: `crop.cut`
                               # renders at `int(dpi)`, and on a real scan the
                               # two differ (588.911 against 588 on
-                              # bench/real/tables20.pdf). A preview that
+                              # bench/real-tables20/tables20.pdf). A preview that
                               # reports a resolution nothing was cut at is
                               # the disease `books feed` died of, in one key.
                               "crop_dpi": info.get("dpi", cut_dpi[a.anchor][0]),

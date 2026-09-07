@@ -48,7 +48,13 @@ def sha256(path: str) -> str:
     return h.hexdigest()
 
 
-def commit() -> str | None:
+# What a measuring pass WRITES, and therefore may not be judged dirty by. Not
+# a general escape: every entry is an output of this project, never a source,
+# and `tests/test_data_contract.py` holds the list to that.
+OUTPUT_PATHS = ("bench/results/", "METRICS.md")
+
+
+def commit(ignore: tuple[str, ...] = ()) -> str | None:
     """The commit of the code that counted. A dirty tree is marked EXPLICITLY.
 
     Marked, not passed over: a run on uncommitted edits cannot be repeated,
@@ -90,10 +96,24 @@ def commit() -> str | None:
         head = h.stdout.strip()
         d = subprocess.run(["git", "-C", root, "status", "--porcelain"],
                            capture_output=True, text=True, timeout=10)
+        lines = [ln for ln in d.stdout.splitlines() if ln.strip()]
+        if ignore:
+            # THE OUTPUT MAY NOT INVALIDATE ITS OWN PROVENANCE. The stamp
+            # answers "which code counted this", and a file the run is
+            # WRITING is not code. `bench/results/*.json` became tracked when
+            # METRICS.md started being rendered from them, and the moment it
+            # did, a measuring pass dirtied the tree with its own first
+            # result and stamped every later one `+dirty` -- so a result
+            # could never be stamped cleanly again and the renderer refused
+            # all of them forever. The caller names what it is writing; it
+            # cannot name `src/`.
+            lines = [ln for ln in lines
+                     if not any(ln[3:].strip().strip('"').startswith(p)
+                                for p in ignore)]
         # The mark is the very string `detect._commit` wrote. One character
         # apart and the snapshots of two commands stop being comparable by
         # eye -- and by eye is exactly how they get compared.
-        return head + ("+dirty tree" if d.stdout.strip() else "")
+        return head + ("+dirty tree" if lines else "")
     except (OSError, subprocess.SubprocessError):
         return told or None
 

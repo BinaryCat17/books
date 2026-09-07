@@ -41,7 +41,7 @@ def native_dpi(page) -> float | None:
 
     THE MOST DETAILED OF THOSE COVERING THE WHOLE SHEET. Our own books arrive
     from djvu (`books prepare`), and such a PDF carries TWO layers on one
-    sheet. Measured on `bench/real/tables20.pdf`, sheet 506 x 733 points:
+    sheet. Measured on `bench/real-tables20/tables20.pdf`, sheet 506 x 733 points:
 
         layer 0: 1408 x 2038 px = 200 dpi, covers the whole sheet
         layer 1: 4222 x 6112 px = 601 dpi, covers the whole sheet, with a mask
@@ -112,7 +112,7 @@ def params(page_dpi: float | None = None,
 
     WHAT AN EMPTY `CROP_DPI` MEANS -- rewritten by MEASUREMENT, not by taste.
     It used to mean "as at detection", i.e. 144. One and the same piece of a
-    real scan (`bench/real/tables20.pdf`, raster 1408 x 2038 on a 506 x 733 pt
+    real scan (`bench/real-tables20/tables20.pdf`, raster 1408 x 2038 on a 506 x 733 pt
     sheet = 200 dpi):
 
         CROP_DPI=144   810 x 221 =  179 010 px

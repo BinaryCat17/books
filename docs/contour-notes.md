@@ -666,7 +666,7 @@ got THE SAME pixels and are measured against THE SAME truth. RTX 4090 rental:
 an object part of whose ink was covered by nothing was declared "not lost,
 curable by a label": an expensive trouble rewritten as a cheap one. Both rows
 are recomputed. dots.ocr, on the same output that lies in git
-(`bench/annopage-lite/dots-pages`, 600 pages), gives **68, not 82**; V2, which
+(`bench/annopage-lite/detect/dots-ocr/pages`, 600 pages), gives **68, not 82**; V2, which
 has no output in git, was recomputed by a fresh `books detect` over the same
 input (600 pages, 13 minutes on the CPU) and gives **83, not 87**. In both rows
 the other four cells reproduced to the digit — 92.9 / 675 / 667 / 179 and

@@ -63,11 +63,14 @@ bench/*/*.pdf
 
 # Except the three real scans (9.4 MB): they have no source anywhere -- they
 # are the source.
-!bench/real/*.pdf
+!bench/real-*/*.pdf
 
 # Sheets with boxes drawn on, for the eye: 2.8 GB for annopage, 162 MB for
 # hard36. `books overlay` draws them in minutes and they are looked at once.
-bench/*/check/
+# ONE NAME NOW: `look/<model>.pdf`. It was `check.pdf` on six benches and
+# `check/<model>.pdf` on two -- one thing under two names, and the single
+# file did not say which model drew it.
+bench/*/look/
 
 # Detector output: 25 MB for annopage per model. `books detect` computes it on
 # the CPU for free. The input snapshot is a separate file, run.json (16 KB),
@@ -99,13 +102,13 @@ bench/*/*.crop/
 bench/*/crops/
 
 # The last page of a run as a picture, 1.7 MB -- a debugging trace, not data.
-bench/*/dots/_page.png
+bench/*/detect/dots-ocr/job/_page.png
 
 # An exception to `*.log` above: 72 KB in two files, the only trace of a run
 # that was paid for ($0.892 for 600 pages on an RTX 4090; all sixteen rentals
 # of that job cost $1.370). Their last lines hold quantities docs/ cites: 8925
 # boxes, 23 unparsed, 14.22 s/page. Getting those numbers again costs money.
-!bench/*/dots/job.log
+!bench/*/detect/dots-ocr/job/job.log
 
 # Six synthetic books, from 34 MB (slovar) to 158 (spravochnik). They rebuild
 # byte for byte -- the seed, the aging profile and the generator sha256 are in

@@ -89,7 +89,7 @@ KNOBS = (
          "the resolution a page is RENDERED to for detection. The "
          "detector squeezes the raster to 800x800 itself (keep_ratio: "
          "false). THERE IS A DIFFERENCE, just not in the summary numbers: "
-         "on bench/real/tables20.pdf (20 pages) at dpi "
+         "on bench/real-tables20/tables20.pdf (20 pages) at dpi "
          "100/140/144/148/200/300/450/580/600/620 the boxes are "
          "384/381/379/378/380/379/378/378/379/379 (band 378..384, 379 "
          "falling out four times), ink under boxes 99.3% everywhere and "
