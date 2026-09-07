@@ -1,10 +1,12 @@
 # Clean slate: the plan
 
 Written 2026-09-06 from the audit, revised the same day after three skeptical
-reviews (feasibility against the tree, design, knowledge loss). Their
-objections and what was done with each are in
-`docs/journal/2026-09-06-plan-review.md`. Every step below ends with a
-skeptical review before the next begins.
+reviews (feasibility against the tree, design, knowledge loss) and again on
+2026-09-07 after a fourth. Every objection was adopted; what each one changed
+is in the text below and in the code, which is where a decision belongs, and
+the two inventories they produced are at the end of this file. Every step ends
+with a skeptical review before the next begins, and what that review found
+goes in the commit message of the work it reviewed.
 
 ## Decisions this plan rests on
 
@@ -95,10 +97,10 @@ skeptical review before the next begins.
 
 ## Baseline, measured 2026-09-06 before the first change
 
-In `docs/journal/2026-09-06-baseline.md`. Headlines: checks 304, mutations
-286 caught 286 in 114 s, anchors 73, acceptance 7 same, ratchet 1105, prose
-40.5 % of src lines by tokenizer, slovar rebuild byte-identical, fitness on
-annopage 1230 objects with 2 warned inkless against score's 1232.
+Checks 304, mutations 286 caught 286 in 114 s, anchors 73, acceptance 7 same,
+slovar rebuild byte-identical, fitness on annopage 1230 objects with 2 warned
+inkless against score's 1232. Every commit since carries its own numbers on
+its last lines; compare against those, not against this.
 
 ## Step 0: locks and instruments
 
@@ -265,8 +267,9 @@ Split in three because the audit's step 3 fused four independent risks.
 
 Policy and order tables stay in `core`; an adapter names its vocabulary.
 `VLM_INPUT`, `MASK_FILL`, `FEED_DPI` are deleted: no reader on the paid path;
-their record (the blank-sheet invention, the isolated column, 4096 against
-8207) goes to the journal verbatim and a five-line note stays beside
+their record (the blank-sheet invention, the isolated column, the token
+ceiling against the longest block) goes verbatim to
+`docs/lessons-from-deleted-code.md` and a five-line note stays beside
 `books crop`; "eight empty defaults" in knobs.py becomes seven;
 `replay-annopage.txt` regenerated with the reason (the knob deletions and
 the adapter module line). `books crop` is `read/driver.py` in preview: the
@@ -402,22 +405,29 @@ Goal: five kinds of text in five places, guarded.
   enforces each.
 * `docs/results.md` generated from `bench/results/*.json` written by
   `books bench all`.
-* `docs/journal/`: `contour-notes`, `ocr-notes`, `vast-notes`,
-  `lessons-from-deleted-code` become dated entries, plus the audit, this
-  plan, the reviews. Append-only. The lessons that are rules (chain budget,
-  `iid` after return, `cost is None`, the loop detector's 125 to 0, the 255
-  byte name, the date beside a number) are also cited from the code that
-  needs them in step 4.
+* NO JOURNAL DIRECTORY. One stood here for a week and was deleted: measured
+  over eleven entries, not one figure in it was absent from the commit
+  messages and the documents, and the reasoning it held was either already in
+  the code or belonged in `docs/rules.md`. Narrative lives in commit messages
+  -- git keeps them, attached to the change they describe, and this project
+  writes them long on purpose. A document describes the tree AS IT IS; a
+  commit message describes how it got that way. `lessons-from-deleted-code`
+  is the one exception and stays: it holds what code that NO LONGER EXISTS
+  measured, which no present-tense document can carry. The lessons that are
+  rules (chain budget, `iid` after return, `cost is None`, the loop
+  detector's 125 to 0, the 255 byte name, the date beside a number) are cited
+  from the code that needs them in step 4.
 * Comments in code, per package: a module header states what goes in and
   what comes out; a measured table stays beside the constant it bought, at
-  any length; narrative moves to the journal, and the rule the narrative
-  encoded stays in one sentence beside the code (the list of those rules is
-  in the plan review). `tree/prose.py` measures the ratio per package and
-  holds a baseline the way `tree/cyr.py` does, with `tools/prose.py` as its
-  command; today's `tools/prose_only.py` folds into it.
-* `tests/test_docs_map.py`: the four-literal number ban becomes a regex over
-  every Markdown file outside `docs/results.md`, `docs/journal/` and code
-  blocks.
+  any length; narrative goes to the commit message, and the rule the
+  narrative encoded stays in one sentence beside the code (the inventory of
+  those rules is at the end of this file). `tree/prose.py` measures the ratio
+  per package the way `tree/figures.py` counts restated measurements, with
+  `tools/prose.py` as its command; today's `tools/prose_only.py` folds into
+  it.
+* `tests/test_docs_map.py`: the four-literal number ban is already the
+  general instrument (`tree/figures.py`, ceiling 25); step 5 takes the
+  ceiling to zero and the check turns from a ratchet into a ban.
 * A table mapping the six transliterated bench names to their meaning; the
   directories keep their names because `hard/manifest.json` pins them.
 
@@ -445,3 +455,47 @@ fell and the baseline is tracked.
 Steps 0, 1, 2a-2c, 3a-3c, 4a-4c, 5: about fourteen commits. The riskiest
 is 3b, the on-disk migration; it runs on a copy first and the copy stays
 until the reports agree.
+
+## Two inventories, for steps 4 and 5
+
+Working checklists out of the plan review, not a record of it: the first is
+what step 5 may not lose when it moves prose, the second what step 4 may not
+break when it adds the first enforcement of the reworded repair rule.
+
+### Narratives that encode a rule (keep the rule beside the code)
+
+* A truth trait absent is "not said", never defaulted (`metrics` header).
+* One named gate over box candidates; no `default=` over them (`metrics`).
+* Jumps compare by count; a quantity prints its ruler's parameters.
+* Summary numbers are blind to dpi; compare per page and per label (PAGE_DPI).
+* Counts are printed by `readers()`, never typed; debt is a field (`knobs`).
+* A measurement names the adapter sha it was taken with (DOCLING_PIPELINE).
+* Knob text rides into `run.json` and must be true; an empty default is not passed on; the registry default equals `run.sh`'s `${X:-...}`.
+* One snapshot shape: `knobs/NAME/value`.
+* onnxruntime and cv2 stay lazy imports (box importability) (`stamp`).
+* The package root comes from `booksmith.__file__`, never from counting `dirname`s (`stamp`; the exact case this plan creates).
+* One dirty-tree marker string across all writers.
+* Empty `CROP_DPI` means native, else the detection dpi; "0" refused; one `EPS_PT`; native asked only when dpi is not named; clipping measured on the raw box (`core/raster`).
+* Alien pages refused; resume compares `read_with.json`; answers keyed by anchor; "asked" counts real questions; transport knobs credited to the transport (`read/driver`).
+* Parse failure is separated from delivery failure; `delivery_attempts = attempt + 1` (`http`).
+* The returned trouble word equals the attribute name (`assemble/html`).
+* One assembly rule; 474 and 453 are historical and never cited as current (`order`, `docling`).
+* Battery seams are module-level (a staticmethod put back by setattr is a function) (`doclayout`).
+* `t0` from run start; guards at module level; signals restored in `finally` (`runner`).
+* Dead-man on the machine; ARMED reported in quantities; grace validated as a number; ASCII only through the API (`vast`).
+* Socket path under 108 bytes; `deadman="not checked"` is a value (`box`).
+* No CUDA default; three filters survive `machine_id` (`spec`).
+* Annotations are not pages; sweep aside files; do not restate unverifiable provenance (`annopage`).
+* Traits travel and are counted by name; no second guard (`subset`).
+* Every `insert_textbox` checked; truth carries characters and grids (`synth`).
+* Content at the gutter means no cut; count landscape sheets (`djvu`).
+* Name from code, count from disk; reports compared whole; "snapshot old" is not "incomplete" (`schema`, `acceptance`, `replay`).
+* Three knob roles; four loud failures (`detect`).
+* One `parse_pages`; every passthrough knob has a box flag; setsid; trap; liveness before curl (entrypoints, `run.sh`).
+* Refused normalisation steps are recorded with their numbers and travel with `normalize` (`textnorm`).
+* `fitness.INK` is knowingly a second copy of `synth.INK`, held together by a test; never merged by import.
+* A vanished consumer means removal, not debt (`knobs`, PADDLE_PDX).
+
+### Enforcement points, to be kept through every move
+
+Nobody repairs the model: `read/transports/openai_http.py` (200 never repeated; body parse separated from delivery; 4xx breaks), `read/__init__.py` (no re-ask), `read/driver.py` (`_sniff` decides nothing; bytes unedited), `core/raster.py` (negative margin refused), `knobs.py` (0 is a value; six patch knobs deleted on purpose), `order.py` (list order only), `layout/adapters/docling.py` (vendor code unedited, knob default off), `layout/base.py` rule 1, `datasets/make/subset.py` (`_carry_meta` refuses overwriting truth). What was recognised is untouchable: `Said` fields, `data-*` on our wrapper, `repeats_on` hides for display only. A metric must fail: the three batteries, `knobs.audit()`, the battery seams, `tools/anchors.py`. The zeros: `read/driver.py` tally printed always, `cli._page_files` two reasons, `crop.native_dpi` None as a value, `knobs.number` refusing nan, `box.deadman` "not checked", the batteries' "no data" against "NO". A knob is declared: `knobs.knob` raising, `detect._knob_roles`, the entrypoints' passthrough. Snapshot complete and in effect: `snapshot_with_readers`, `read_with.json`, `replay._base`, `detection.sha256_snapshot`, `sha256_otsl_parser`. Same book by sha256: `read/run`, `assemble/html.build` before and after, `metrics._same_book`, `overlay._same_book`. Foreign pages refused: `detect`, `read/run`, `html` journal guard. Nothing half-built survives: the three write-asides. Exit codes carry meaning: `cli.main`, `doctor` per adapter, `tests/run.py`, `runner`, `run.sh`.

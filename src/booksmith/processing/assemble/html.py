@@ -163,7 +163,7 @@ hr.sheet[data-repeats-hidden]::after{
 # knob. Deleted rather than kept for a caller that might appear; what it knew
 # (merge to exhaustion, not in one pass -- a merged box is the BOUNDING one
 # and may cover a box the same pass set aside as disjoint) is in
-# `docs/journal/2026-09-07-preview-knobs.md` with the rest of the preview.
+# `docs/lessons-from-deleted-code.md` with the rest of the preview.
 def _union_area(holes):
     """Area of the union of rectangles: a sweep along the vertical."""
     if not holes:

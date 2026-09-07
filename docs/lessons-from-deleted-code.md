@@ -329,3 +329,113 @@ else -- an argument, a return, a log line -- is left alone. Names that live
 as VALUES are a separate job with a separate map: the same word under one
 key is a class and under another is a page of a Russian book. `sed` cannot
 do this: `src/` held 6039 Cyrillic string literals and only 556 were keys.
+
+---
+
+## The VLM-input preview and its three knobs
+
+Deleted 2026-09-07 at commit `0bb8d70`. `doc/feed.py` and the knobs
+`VLM_INPUT`, `MASK_FILL` and `FEED_DPI` cut with their own dpi and their own
+hole fill, so the preview showed pictures `books read` never sent; `books
+crop` replaced it -- the read driver in preview, cutting by the paid path's
+own rule and sending nothing. What the module recorded is kept because it was
+measured and paid for, and step 4 (correction) meets the same questions.
+
+### The header of `doc/feed.py`
+
+> What exactly goes to the VLM: a crop by box, or a page with holes.
+>
+> Two feeds, HYPOTHESES both when written. `crop` has since run for real --
+> `books read`, 436 pages, $0.545; `masked_page` never has, and cannot from
+> the paying path: `books read` cuts its own crops and never asks
+> `VLM_INPUT`, which only `books feed` reads. The two are still unmeasured
+> against each other.
+>
+>     crop         one request per text block, as the PaddleOCR-VL pipeline
+>                  ships: measured on an earlier run, 409 requests over 25
+>                  pages, sixteen a page.
+>     masked_page  one request per page, artifacts painted over. Sixteen
+>                  times fewer calls, and the model sees coherent text
+>                  whole -- hyphenation, columns, a paragraph continuing
+>                  past a figure.
+>
+> In BOTH, artifacts do not go to the VLM at all. That is the first level:
+> read the text, cut tables and figures out as pictures, do not parse them.
+> Looking inside a figure was tried and rejected -- the pangram `The quick
+> brown fox` invented off a line drawing, and a word count of rubbish over
+> twenty pages that `docs/ocr-notes.md` states.
+>
+> WHAT IS KNOWN AGAINST `masked_page`, BEFORE THE MEASUREMENT.
+>
+> * **Empty space does not keep quiet.** The probe "a blank white sheet":
+>   five tries, five different Chinese office tables. A painted rectangle
+>   is that sheet in miniature, and an invented table can appear in its
+>   place. So what to paint with is the `MASK_FILL` knob, not a constant:
+>   white is the least neutral choice there is.
+> * **Context spoils reading.** Remove the third column and the model read
+>   the second right; with the whole page it read it wrong. Here isolation
+>   helped.
+> * **The answer ceiling.** The pipeline lowers `max_new_tokens` to 4096,
+>   while the longest SINGLE text block in our books is 8207 characters. A
+>   whole page is bigger, and a cutoff in this model looks like looping.
+
+### The knobs' own words
+
+* `VLM_INPUT` (default `crop`): "what to feed the VLM: crop | masked_page".
+  Above it in the registry: none of the three measurements was taken on a
+  whole masked page -- hence a knob and not a decision.
+* `MASK_FILL` (default `white`): "hole fill under masked_page:
+  white|gray|black". Not a constant: white is the least neutral option
+  there is, and it was on blank white that the model invented tables.
+* `FEED_DPI` (default empty): "resolution of the page going to the VLM;
+  empty = as PAGE_DPI". Its reason for existing: so that `CROP_DPI` would
+  not silently set the whole-page feed's resolution too (a fourfold token
+  count at 300 dpi against 144).
+
+### What survives in code
+
+The blank-sheet fact stands where it is enforced: the transport refuses an
+empty crop (`transports/openai_http.py`), because an empty picture is the
+sheet on which the model invented five tables. Of the two hole-geometry
+helpers the preview wrote, ONE has a reader: `_union_area` is the
+builder's now (`assemble/html.py`). `_union_rects` came with it and
+nothing read it -- it counted holes to choose between `crop` and
+`masked_page`, and that choice went with the knob. It is deleted; what it
+knew is here:
+
+> MERGES TO EXHAUSTION, NOT IN ONE PASS, and that is not nitpicking: a
+> merged box is the BOUNDING one, so it grows, and may cover one this same
+> pass has already set aside as disjoint. On a constructed input
+> `[[0,20,4,30], [0,0,10,10], [5,5,8,80]]` the old code printed "holes 2"
+> (`[0,20,4,30]` and `[0,0,10,80]`) though the second covers the first
+> entirely and the group is one.
+>
+> Over nine `bench/*/detect` directories (762 pages with artifacts) old and
+> new agreed to the unit, 1701 holes: the trouble has not surfaced in the
+> tree, and is fixed because it is not what chooses the input.
+
+---
+
+## What was in `processed/` that was not needed
+
+Deleted 2026-09-07, not in git and not recoverable from it, so what it was is
+recorded here.
+
+**`processed/ogneupory-vl`, 69 MB.** The same build as `ogneupory-vl2`, made
+one minute earlier. Of 1979 files, 1977 were byte-identical; the two that
+differed were `assets/run.json` (its `when`, and the two fields that name the
+directory itself, `args.detect` and `repeat_command`) and `assets/swaps.json`,
+whose 412 swap stacks were identical once the timestamp was dropped -- same
+anchors, same `sha256_placed`, same model answers. `ogneupory-vl2` is the one
+`bench/expected/apply-status.txt` measures, and it still reports the same line
+after the deletion.
+
+**What was kept, and why it is not a duplicate.** `processed/vl-reads/` holds
+four read runs and 63 MB, and only one of them is a second copy of anything:
+`ruall.read`'s pages and answers also sit inside the book's own
+`assets/source/`, but it carries `job.log`, `vllm.json` and `vllm.log` -- the
+rented card's own record of the run, which exists nowhere else. `ru20.read`
+(20 pages) and `fey.read` (10 pages, a different book) have no second copy at
+all, and `enall.read` has 28 answers and NO `run.json`, so the book it belongs
+to is recorded nowhere -- it must not be guessed, or paid answers would be
+attributed to the wrong PDF.

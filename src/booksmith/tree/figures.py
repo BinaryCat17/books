@@ -15,10 +15,13 @@ instrument must not cry wolf: measured over these documents, a three-digit rule
 finds 114 "duplicates" and a four-digit one 29, of which two are a year and a
 graphics card. An instrument that reports 114 gets switched off.
 
-WHAT IS NOT READ. `docs/journal/*` -- a journal entry is a dated record of one
-moment, like `runs/ledger.jsonl`. Its numbers are what was true that day and
-are rewritten by nothing; forbidding them a second copy would forbid a journal
-from quoting the tree it was written about.
+WHAT IS NOT READ. Nothing but the documents themselves. The narrative of how
+the tree got here lives in commit messages, where git keeps it attached to the
+change it describes -- a `docs/journal/` of dated entries stood here for a
+while and held, measured, not one figure that was absent from the commit
+messages and the documents. A number in a commit message is a record of that
+moment and is rewritten by nothing; a number in a document is a claim about
+the tree as it is now, and two documents claiming it is where drift begins.
 
 THE CEILING MAY FALL AND NEVER RISE, the same shape as the Cyrillic ratchet.
 Step 5 of `docs/plan.md` is the documentation split, and this is the number it
