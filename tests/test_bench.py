@@ -154,3 +154,54 @@ def test_content_is_detected_from_the_truth():
             _page(0, blocks=[{"block_id": 0, "box": [0, 0, 1, 1], "label": "text",
                               "score": None, "order": 0, "content": "abc", "kind": "text"}])]))
         assert c.has_content()
+
+
+def test_a_different_experiment_may_not_be_written_under_an_existing_label():
+    """The sentence was in two documents and in no code.
+
+    `core/book.py` and `CLAUDE.md` both said a command about to write a
+    different identity under an existing label refuses and asks for `--run`.
+    `identity` was computed, written, and read back by NOTHING: two runs of
+    one model at two thresholds landed in one directory, the second over the
+    first, under its name and beside its snapshot.
+
+    Four cases, because three of them are ways of being wrong:
+      the same experiment again        -- allowed, that is a resume
+      a different identity             -- refused, and it names both
+      a run that records no identity   -- refused: "I cannot tell" is not
+                                          "the same"
+      a page selector over a whole run -- refused, because the identity is
+                                          over the model and the knobs and
+                                          cannot see one
+    """
+    from booksmith.core import book as book_mod
+    from booksmith.core.errors import Refusal
+    with tempfile.TemporaryDirectory() as d:
+        run = os.path.join(d, "detect", "M")
+        os.makedirs(run)
+        with open(os.path.join(run, "run.json"), "w", encoding="utf-8") as f:
+            json.dump({"identity": "a" * 64}, f)
+
+        book_mod.guard_identity(run, "a" * 64)          # the same: allowed
+
+        for ident, spec, tell in (("b" * 64, "", "DIFFERENT experiment"),
+                                  ("a" * 64, "1,2", "--pages")):
+            try:
+                book_mod.guard_identity(run, ident, spec)
+            except Refusal as e:
+                assert tell in str(e), (tell, str(e))
+                assert "--run" in str(e), "the refusal names no way out"
+            else:
+                raise AssertionError(f"{tell}: passed in silence")
+
+        with open(os.path.join(run, "run.json"), "w", encoding="utf-8") as f:
+            json.dump({"when": "then"}, f)
+        try:
+            book_mod.guard_identity(run, "a" * 64)
+        except Refusal as e:
+            assert "no identity" in str(e), e
+        else:
+            raise AssertionError("a run with no identity was taken as equal")
+
+        # And nothing there at all is not a conflict.
+        book_mod.guard_identity(os.path.join(d, "detect", "N"), "a" * 64)

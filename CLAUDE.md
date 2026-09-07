@@ -214,8 +214,10 @@ never the adapter's registry name: `doclayout-onnx` serves three models, and
 under one directory the second run would read as a resume of the first. That
 is what putting every detector's numbers in one table needs, and what a single
 `detect/` could not give. `run.json` carries `identity` -- a sha256 over the
-fingerprint and the values of the knobs the run actually read -- so a command
-about to write a DIFFERENT experiment under an existing label can refuse.
+fingerprint and the values of the knobs the run actually read -- and
+`books detect` REFUSES to write a different one under an existing label, a
+`--pages` run over a whole one, or a run it cannot compare because the one
+there records no identity. "I cannot tell" is not "the same".
 
 ## The book directory is self-sufficient
 

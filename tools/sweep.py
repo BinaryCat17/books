@@ -17,6 +17,7 @@ in this table.
 """
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -74,6 +75,46 @@ def label_of(env):
             os.environ.pop(k, None) if v is None else os.environ.update({k: v})
 
 
+def _has_pages(bdir, label) -> bool:
+    """Boxes on disk that were cut from THIS book's scan.
+
+    A DIRECTORY is not boxes: git creates one to hold a tracked `run.json`,
+    and the pages beside it are ignored, so `isdir` was true with nothing in
+    it. And boxes cut from ANOTHER file are worse than none -- `bench/hard`
+    was rebuilt today, so its migrated run measures a pdf that no longer
+    exists, and `bench all` refuses it (rightly) with "DIFFERENT books".
+    Neither case is "already done".
+    """
+    run = os.path.join(bdir, "detect", label)
+    d = os.path.join(run, "pages")
+    if not (os.path.isdir(d) and any(n.endswith(".json")
+                                     for n in os.listdir(d))):
+        return False
+    try:
+        with open(os.path.join(run, "run.json"), encoding="utf-8") as f:
+            was = (json.load(f).get("source") or {}).get("sha256")
+        with open(os.path.join(bdir, "manifest.json"), encoding="utf-8") as f:
+            now = (json.load(f).get("source") or {}).get("sha256")
+    except (OSError, ValueError):
+        return False
+    return bool(was) and was == now
+
+
+def _measured(bdir, bname, label) -> bool:
+    """Numbers on disk, taken by THIS tree. A results file from another
+    commit is not a measurement of this code -- that is what the header in it
+    is for."""
+    from booksmith.core import stamp
+    p = os.path.join(ROOT, "bench", "results", f"{bname}-{label}.json")
+    if not (os.path.isfile(p) and _has_pages(bdir, label)):
+        return False
+    try:
+        with open(p, encoding="utf-8") as f:
+            return json.load(f).get("commit") == stamp.commit()
+    except (OSError, ValueError, AttributeError):
+        return False
+
+
 def _run(argv, env, logfile):
     """One command, its whole output kept beside the run it belongs to."""
     with open(logfile, "a", encoding="utf-8") as f:
@@ -96,24 +137,38 @@ def main(argv):
         print("  nothing selected")
         return 1
 
-    todo, skip = [], []
+    todo, skip, broken = [], [], []
     for mname, env in models:
         try:
             label = label_of(env)
         except Exception as e:
-            print(f"  CANNOT BUILD {mname}: {type(e).__name__}: "
-                  f"{str(e)[:120]}")
-            return 1
+            # NAMED AND SKIPPED, not the end of the plan. Aborting on one
+            # missing weights file threw away the other five models' worth of
+            # work; the run says at the end which model never ran.
+            broken.append((mname, f"{type(e).__name__}: {str(e)[:110]}"))
+            continue
         for bname, bdir in books:
-            dst = os.path.join(bdir, "detect", label)
-            if os.path.isdir(dst) and not again:
+            # THE SKIP IS DECIDED BY THE MEASUREMENT, NOT BY THE BOXES.
+            # `os.path.isdir(detect/<label>)` was the test, and it is true
+            # for a directory git created to hold one tracked `run.json` with
+            # NO PAGES beside it -- so on a fresh clone the three biggest
+            # benches skipped the baseline model. Worse, the skip covered
+            # `bench all` too, so nine cells of V2 had boxes and no numbers
+            # and the table's baseline column was empty.
+            done = _measured(bdir, bname, label)
+            if done and not again:
                 skip.append((bname, label))
             else:
-                todo.append((bname, bdir, mname, label, env))
+                todo.append((bname, bdir, mname, label, env,
+                             _has_pages(bdir, label)))
+    for m, why in broken:
+        print(f"  CANNOT BUILD {m}: {why}")
     for b, l in skip:
         print(f"  have  {b:<14} {l}")
-    for b, _, m, l, _e in todo:
-        print(f"  run   {b:<14} {l}" + (f"   ({m})" if m != l else ""))
+    for b, _, m, l, _e, has in todo:
+        print(f"  {'again' if has else 'run  '} {b:<14} {l}"
+              + (f"   ({m})" if m != l else "")
+              + ("   (boxes are there; measuring only)" if has else ""))
     print(f"\n  {len(todo)} to run, {len(skip)} already there")
     if not apply_:
         print("  --apply to run, --again to redo what is there")
@@ -123,13 +178,27 @@ def main(argv):
     os.makedirs(logs, exist_ok=True)
     started = time.time()
     failed = []
-    for i, (bname, bdir, mname, label, env) in enumerate(todo, 1):
+    for i, (bname, bdir, mname, label, env, has) in enumerate(todo, 1):
         log = os.path.join(logs, f"{bname}-{label}.log")
         open(log, "w", encoding="utf-8").close()
         t0 = time.time()
         print(f"  [{i}/{len(todo)}] {bname} {label} ... ", end="", flush=True)
-        rc = _run([sys.executable, "-m", "booksmith.cli", "detect", bdir],
-                  env, log)
+        if not has or again:
+            # THE OLD RUN IS REMOVED BEFORE THE NEW ONE, and by this tool
+            # rather than by the command. `books detect` refuses to write a
+            # different experiment -- or one it cannot compare, which is
+            # every run migrated from before identities existed -- and that
+            # is right for a person typing it. A sweep whose job is to
+            # re-measure says so out loud instead, here.
+            old_run = os.path.join(bdir, "detect", label)
+            if os.path.isdir(old_run):
+                shutil.rmtree(old_run)
+                with open(log, "a", encoding="utf-8") as f:
+                    f.write(f"# removed the previous run at {old_run}\n")
+            rc = _run([sys.executable, "-m", "booksmith.cli", "detect", bdir],
+                      env, log)
+        else:
+            rc = 0
         if rc:
             print(f"DETECT FAILED rc={rc}, see {os.path.relpath(log, ROOT)}")
             failed.append((bname, label, "detect", rc))

@@ -391,6 +391,11 @@ class FitnessMetric(Metric):
         }
         params = dict(res["thresholds"])
         params["GUTTER"] = ink.GUTTER
+        # THE DPI EVERYTHING HERE IS DENOMINATED IN. `assess/ink.py` says it
+        # in its own header -- "without it two numbers from two runs are
+        # incomparable" -- and then it lived in `detail`, which a table built
+        # from `params` cannot reach.
+        params["dpi"] = res.get("dpi")
         return Record(self.name, bench_name, run_label, scalars, params, res)
 
     def report(self, rec: Record, log=print) -> None:

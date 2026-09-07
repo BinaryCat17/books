@@ -58,6 +58,7 @@ import json
 import os
 
 from booksmith.core import page, policy
+from booksmith.datasets import bench as bench_mod
 from booksmith.core.errors import Unmeasurable
 from booksmith.datasets.metrics.base import (Metric, Probe, Record, Scalar,
                                              battery_summary, run_battery)
@@ -411,7 +412,7 @@ def compare_pages(T: dict, M: dict) -> dict:
             # `assemble/html.py` walks and the book is assembled by.
             page_ranks.append((b.get("order"), x.get("order"), j))
             if (b["label"] not in arte
-                    and (t.get("meta") or {}).get("text_marked", True)):
+                    and _truth_text_state(t) == "yes"):
                 txt["found"] += 1
                 # Completeness for ARTEFACT labels comes from pass A: pass B
                 # is blind to the label, so a table caught by a `text` box
@@ -422,7 +423,7 @@ def compare_pages(T: dict, M: dict) -> dict:
         for b in t["blocks"]:
             per_label.setdefault(b["label"], [0, 0])[1] += 1
         txt["pages_total"] += 1
-        if (t.get("meta") or {}).get("text_marked", True):
+        if _truth_text_state(t) == "yes":
             txt["pages_with_text_markup"] += 1
             txt["block_count"] += len([b for b in t["blocks"]
                                   if b["label"] not in arte])
@@ -481,6 +482,37 @@ def compare_pages(T: dict, M: dict) -> dict:
 ORDER_MARKED = "marked"
 ORDER_UNMARKED = "not marked"
 ORDER_SILENT = "not_said"
+
+
+def order_rule(pages: dict) -> str:
+    """WHICH ORDER a page list is in, as the pages themselves declare it.
+
+    The contour metric derives this from the model side and reports it; the
+    assembly metric measures excess jumps over the same list and had no way
+    to say whose order it counted. One reader for both, and it takes the run's
+    pages alone -- assembly has no truth.
+    """
+    rules = sorted({str((p.get("meta") or {}).get(
+        "reading_order", "not declared (taken as 'model rank')"))
+        for p in pages.values()})
+    return ", ".join(rules) or "nothing to declare"
+
+
+def _truth_text_state(page) -> str:
+    """What TRUTH says about its own TEXT markup: one of the same three
+    states, and for the same reason.
+
+    A MISSING FLAG READ AS `True` IS THE DEFECT THIS FILE ALREADY RECORDS for
+    `order_marked` -- truth that never mentioned its text markup counted as
+    annotated, and detectors were ranked by it. `text_marked` was still asked
+    with `.get(..., True)` in two places. Measured on `bench/hard36`: 1 page
+    of 36 carries the flag at all (the other 35 say `false`), so
+    `text_furniture_found` was 0.727 = 8 of 11 blocks taken from ONE page and
+    printed as the bench's text number; `bench/hard` did the same over 6 pages
+    of 130. `Bench.trait_state` exists to give the three states and was not
+    used here.
+    """
+    return bench_mod.trait_state(page.get("meta") or {}, "text_marked")
 
 
 def _truth_order_state(page) -> str:
@@ -1899,6 +1931,10 @@ class ContourMetric(Metric):
     def record(self, res: dict, bench_name: str, run_label: str) -> Record:
         t, x, s, j = res["totals"], res["text_and_furniture"], res["sense"], res["jumps"]
         lab = label_errors(res)
+        # The pairs the confusion was counted over: one entry per matched
+        # (truth, model) block, which is the denominator both error counts
+        # are shares of.
+        pairs = sum(res["label_confusion"].values())
         scalars = {
             "artefacts_found": Scalar(t["share"], count=(t["found"], t["artifacts"])),
             "sense_whole": Scalar(
@@ -1908,10 +1944,19 @@ class ContourMetric(Metric):
                 x["share"], count=(x["found"], x["block_count"]),
                 over=(x.get("pages_with_text_markup", 0), x.get("pages_total", 0)), unit="pages",
                 why=None if x["share"] is not None else "text and furniture NOT MARKED in this truth"),
+            # BOTH CARRY THEIR DENOMINATOR, and it is not decoration: the
+            # matched-pair count moves by more than half between models, so a
+            # bare count RANKS THEM WRONG. Measured on slovar: plus-L 233 of
+            # 239 pairs against V3's 442 of 495 -- by the printed number
+            # plus-L looks twice as good and by the rate it is the worst
+            # (0.975 against 0.893). Every other scalar in this record already
+            # carried its count.
             "label_errors": Scalar(
-                lab, why=None if lab is not None else
+                lab, count=None if lab is None else (lab, pairs),
+                why=None if lab is not None else
                 "the two sides speak different label vocabularies; not compared"),
-            "role_errors": Scalar(role_errors(res)),
+            "role_errors": Scalar(role_errors(res), count=(role_errors(res),
+                                                           pairs)),
             "model_order": _order(res["model_order"]),
             "assembly_order": _order(res["assembly_order"]),
             "excess_jumps_per_page": Scalar(

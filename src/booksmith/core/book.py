@@ -206,3 +206,63 @@ class Book:
     def _listing(self, kind: str) -> str:
         got = self.runs(kind)
         return (", ".join(got) if got else f"no {kind} run in this book")
+
+
+def guard_identity(run_dir: str, identity: str, pages_spec: str = "",
+                   what: str = "this run") -> None:
+    """Refuse to write a DIFFERENT experiment under an existing label.
+
+    THE SENTENCE WAS IN TWO DOCUMENTS AND IN NO CODE. `identity` was computed
+    and written and read back by nothing, so this passed in silence:
+
+        books detect <book> --out d --pages 1                      id 2b576f4e
+        LAYOUT_SCORE_THRESHOLD=0.9 books detect <book> --out d ...  id 71ffb8b2
+
+    -- a different experiment overwriting the first, under its name and beside
+    its snapshot.
+
+    AND `--pages` IS THE SECOND HALF. The identity is over the fingerprint and
+    the knobs, and a page selector is neither, so a three-page run and a
+    thirteen-page run of one model hash the same. A partial run that lands on
+    a whole one leaves a directory whose snapshot describes a run that never
+    happened over pages that are still there from the previous one. So a
+    selector is refused over an existing run outright: `--run` names a new
+    label for it, and the two stand side by side, which is the whole point of
+    labels.
+
+    A run whose snapshot carries no identity at all is refused too, not
+    assumed equal: those are the runs migrated from before identities existed,
+    and "I cannot tell" is not "the same".
+    """
+    import json
+    snap = os.path.join(run_dir, "run.json")
+    if not os.path.isfile(snap):
+        return                       # nothing there to disagree with
+    try:
+        with open(snap, encoding="utf-8") as f:
+            was = json.load(f)
+    except (OSError, ValueError) as e:
+        raise Refusal(
+            f"{snap} cannot be read ({type(e).__name__}), and it is what says "
+            f"whether {what} is the same experiment as the one already there. "
+            f"Remove the directory or give --run a new label.")
+    old = was.get("identity")
+    if old is None:
+        raise Refusal(
+            f"{run_dir} holds a run whose snapshot records no identity -- it "
+            f"predates them -- so there is no telling whether {what} is the "
+            f"same experiment. Give --run a new label, or remove it.")
+    if old != identity:
+        raise Refusal(
+            f"{run_dir} holds a DIFFERENT experiment: identity {old[:12]} "
+            f"against {identity[:12]}. Same model, other conditions -- a knob "
+            f"the run reads, or other weights. Writing here would leave one "
+            f"snapshot over two runs' pages. Give --run a new label and the "
+            f"two stand side by side, which is what labels are for.")
+    if pages_spec:
+        raise Refusal(
+            f"{run_dir} already holds a run, and --pages {pages_spec} would "
+            f"write a PART of one over it. The identity cannot see a page "
+            f"selector -- it is over the model and the knobs -- so the "
+            f"snapshot would describe a run that never happened over pages "
+            f"left from the one that did. Give --run a new label.")

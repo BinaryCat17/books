@@ -202,3 +202,60 @@ def test_a_reading_metric_is_not_applicable_to_a_run_that_read_nothing():
     names = {m.name for m in
              base.applicable(registry.METRICS, b, run, truth, read)}
     assert "text" in names, f"a run that read something is not measured: {names}"
+
+
+def test_a_truth_silent_about_a_trait_is_not_counted_as_marked():
+    """A missing flag answers "the file did not say", never "annotated".
+
+    This file's own header records the defect for `order_marked` -- truth that
+    never mentioned its reading order counted as annotated, and detectors were
+    ranked by it. `text_marked` was still read with `.get(..., True)` in two
+    places. Measured on `bench/hard36`: one page of 36 carries the flag at all
+    and the other 35 say `false`, so `text_furniture_found` was 8 of 11 blocks
+    taken from ONE page and published as the bench's text number. `bench/hard`
+    did the same over 6 pages of 130 -- the "counted over 6 pages" caption the
+    documents quote is that accident.
+    """
+    from booksmith.datasets.metrics import contour
+    assert contour._truth_text_state({"meta": {"text_marked": True}}) == "yes"
+    assert contour._truth_text_state({"meta": {"text_marked": False}}) == "no"
+    assert contour._truth_text_state({"meta": {}}) == "not_said"
+    assert contour._truth_text_state({}) == "not_said"
+
+    # And through the metric: a truth that says nothing is measured over no
+    # pages, not over all of them.
+    truth = {i: {"index": i, "width": 100, "height": 100, "dpi": 144.0,
+                 "meta": {},
+                 "blocks": [{"block_id": 0, "box": [0, 0, 10, 10],
+                             "label": "text", "score": 1.0, "order": 0}]}
+             for i in range(3)}
+    res = contour.compare_pages(truth, truth)
+    x = res["text_and_furniture"]
+    assert x["pages_with_text_markup"] == 0 and x["share"] is None, (
+        f"a silent truth was counted as marked: {x}")
+
+
+def test_an_error_count_carries_the_pairs_it_was_counted_over():
+    """A bare count ranks models WRONG, because the denominator moves.
+
+    Measured on slovar: plus-L 233 label errors of 239 matched pairs against
+    V3's 442 of 495. By the printed number plus-L looks nearly twice as good;
+    by the rate it is the worst of the three (0.975 against 0.893). Every
+    other scalar in this record already carried its count.
+    """
+    from booksmith.datasets.metrics import contour
+    truth = {0: {"index": 0, "width": 100, "height": 100, "dpi": 144.0,
+                 "meta": {"text_marked": True},
+                 "blocks": [{"block_id": i, "box": [0, 10 * i, 10, 10 * i + 8],
+                             "label": "text", "score": 1.0, "order": i}
+                            for i in range(4)]}}
+    model = {0: {**truth[0],
+                 "blocks": [{**b, "label": "abstract" if b["block_id"] < 3
+                             else "text"} for b in truth[0]["blocks"]]}}
+    rec = contour.ContourMetric().record(
+        contour.compare_pages(truth, model), "b", "m")
+    for name in ("label_errors", "role_errors"):
+        sc = rec.scalars[name]
+        assert sc.count is not None, f"{name} carries no denominator"
+        assert sc.count[1] == 4, f"{name}: counted over {sc.count} of 4 pairs"
+    assert rec.scalars["label_errors"].count[0] == 3

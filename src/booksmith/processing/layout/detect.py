@@ -31,6 +31,7 @@ import time
 
 from booksmith.core import policy
 from booksmith.processing.layout.adapters.doclayout import DocLayout
+from booksmith.core import book
 from booksmith.core import knobs, stamp
 from booksmith.core.errors import Refusal
 from booksmith.core import raster
@@ -253,6 +254,15 @@ def run(pdf, outdir, pages_spec=None, log=print):
         raise Refusal(f"{pdf} is a directory, one book's PDF is expected")
 
     det = _adapter()
+    # WOULD THIS OVERWRITE ANOTHER EXPERIMENT. Asked BEFORE the pages, from
+    # the same two sources the snapshot will be written from, so a run that
+    # cannot be filed refuses in a second rather than after an hour of CPU.
+    # `core.book.guard_identity` says what it refuses and why.
+    book.guard_identity(
+        outdir,
+        stamp.identity(det.fingerprint(), stamp.knob_values(
+            {"knobs": _knobs_snapshot(_knob_roles(det))})),
+        pages_spec or "", f"this {det.label()} run")
     # The policy must cover the weights vocabulary WHOLE and name nothing
     # extra. Checked every run: changing weights is the likeliest way to
     # acquire a twenty-sixth class. The MODEL'S VOCABULARY picks the policy,

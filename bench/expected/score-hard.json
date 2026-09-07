@@ -1,19 +1,19 @@
 {
  "inputs": {
-  "bench/hard/detect/PP-DocLayoutV2/pages": "af009e05faf1e13b392715871ccd3042e515b733dcec896871f7240cc6c4710c",
-  "bench/hard/manifest.json": "bbba6e82d47e11ee484bc667567127200920334833b9c7d5f1a627d31818758a",
-  "bench/hard/truth": "c6736c36e4ca2e2ac7aed3c2a9796e78f2d751ed2b722d14d4ba0019639c00b0"
+  "bench/hard/detect/PP-DocLayoutV2/pages": "68f7a9744a0c00b1b3cb227fde67b35e3318416b23c7d4783b89468d1320362c",
+  "bench/hard/manifest.json": "c1fd660daaa78550f5ff2b3429c85f1539400d001c093b7157f77d0c31d6b4a5",
+  "bench/hard/truth": "a76cd7e64bc805867cf601b277e98606e688f75c1b809b016aee72bddf9dc212"
  },
  "result": {
   "assembly_order": {
-   "agreement": null,
-   "page_count": 0,
+   "agreement": 0.956693,
+   "blocks_without_rank": 0,
+   "page_count": 6,
    "pages_total": 130,
-   "pairs": 0,
-   "pairs_possible": 0,
-   "why": "truth carries no order: not marked on 124, not_said on 6 of 130 pages"
+   "pairs": 254,
+   "pairs_possible": 354
   },
-  "book": "sha256 checked: bd65ad0e4a97; raster checked: 130 pages, sizes agree",
+  "book": "sha256 checked: 141f272bee2f; raster checked: 130 pages, sizes agree",
   "by_case": {
    "043b174f": {
     "artifacts": 4,
@@ -1067,19 +1067,19 @@
    "text->text": 35
   },
   "model_order": {
-   "agreement": null,
-   "page_count": 0,
+   "agreement": 0.956693,
+   "blocks_without_rank": 0,
+   "page_count": 6,
    "pages_total": 130,
-   "pairs": 0,
-   "pairs_possible": 0,
-   "why": "truth carries no order: not marked on 124, not_said on 6 of 130 pages"
+   "pairs": 254,
+   "pairs_possible": 354
   },
-  "order_rule": "not declared (taken as 'model rank')",
+  "order_rule": "model_rank",
   "order_truth": {
    "page_count": 130,
    "states": {
-    "not marked": 124,
-    "not_said": 6
+    "marked": 6,
+    "not marked": 124
    }
   },
   "sense": {

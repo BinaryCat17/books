@@ -1,5 +1,7 @@
 {
  "book": "annopage-lite",
+ "builder": "absent",
+ "builder_note": "600 AnnoPage pages squeezed for the rented layout job",
  "about": "AnnoPage with the long side squeezed to 1 Mpixel -- exactly what dots.ocr sees; the truth is rescaled by the same factor",
  "page_count": 600,
  "text_marked": false,

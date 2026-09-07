@@ -28,6 +28,15 @@ class AssemblyMetric(Metric):
                                          count=(j.get("pages_with_2plus_columns", 0), j.get("page_count", 0))),
         }
         params = {f"COLUMN_{k}": v for k, v in (j.get("params") or {}).items()}
+        # WHOSE ORDER WAS COUNTED, beside the count. Excess jumps are counted
+        # over the page's block list, and that list is the MODEL's rank for a
+        # model that has one and OUR `(y0, x0)` rule for a model that has
+        # none -- two different quantities in one column. The spread between
+        # them is not small: on the same V2 boxes the golden bench gives 2471
+        # extra jumps by our rule against 501 by the model's rank, five times
+        # the whole span a six-model table shows. Without this field a table
+        # cannot say which of the two it is printing.
+        params["order_rule"] = contour.order_rule(pages)
         return Record(self.name, bench_name, run.label, scalars, params, j)
 
     def run(self, bench, run) -> Record:

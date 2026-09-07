@@ -1,4 +1,4 @@
-sha256 checked: bd65ad0e4a97; raster checked: 130 pages, sizes agree
+sha256 checked: 141f272bee2f; raster checked: 130 pages, sizes agree
 artefacts 736, found 316 (43%)
   crop (image): 2
   crop (table): 16
@@ -25,10 +25,9 @@ artefacts 736, found 316 (43%)
 text and furniture: blocks 49, found 45 (92%) — counted over 6 pages of 130, text not marked on the rest
 SENSE WHOLE: 274/736 (37%) — cropped 45, merged 366, called text 21, not seen 30 (object inside the box from 0.90, neighbour from 0.50)
   misses by label: chart 56/105, display_formula 59/129, image 187/446, paragraph_title 1/5, table 13/55
-truth about order: marked 0, not marked 124, NOT SAID 6 of 130 pages
-  'not said' IS NOT 'not marked': 6 truth pages have NO `order_marked` field AT ALL, and a number over them would be taken out of nothing (that is how 'agreed 73%' printed on hard36). Cured by whoever built this bench.
-order of MODEL reading against truth: NOT COMPARED — truth carries no order: not marked on 124, not_said on 6 of 130 pages (this is not zero agreement)
-order of book ASSEMBLY against truth: NOT COMPARED — truth carries no order: not marked on 124, not_said on 6 of 130 pages (this is not zero agreement); our order is built so: not declared (taken as 'model rank')
+truth about order: marked 6, not marked 124, NOT SAID 0 of 130 pages
+order of MODEL reading against truth: agreed 96%, pairs measured 254 of 354 possible by truth, over 6 pages of 130
+order of book ASSEMBLY against truth: agreed 96%, pairs measured 254 of 354 possible by truth, over 6 pages of 130; our order is built so: model_rank
 excess column jumps: 193 (1.61 per page over 120 counted pages of 130; transitions 331, columns 258 on 94 multi-column pages). boxes counted 1954, out of the count 572 full-width and 206 of other buckets; pages not counted 10 of 130 (fewer boxes than the minimum); grouping: x_overlap_of_narrow_box 0.5, full_width_box_share 0.6, min_boxes_per_page 2, buckets_counted ['artifact', 'text']
 bucket confusion: 16 of 375 pairs
 label confusion: 75 of 375 pairs (one vocabulary: PP-DocLayoutV2) — {'chart->image': 44, 'display_formula->image': 7, 'display_formula->inline_formula': 3, 'figure_title->vision_footnote': 2, 'image->chart': 5, 'image->header_image': 1, 'table->content': 6, 'table->display_formula': 2, 'table->text': 5}

@@ -689,8 +689,19 @@ class DoclingHeron(Detector):
         in EVERYTHING -- 15643 boxes against 9817, a foreign order rule instead
         of ours -- would become indistinguishable, because the value that
         decided the difference is marked in it "not relevant to this run".
+        
+        AND `ASSEMBLY_ORDER`, declared unconditionally. It acts through
+        `core.order.rule()` on every page this adapter emits without a model
+        rank of its own, and a knob that acts on even one path acts. It was
+        declared by NO adapter, so a snapshot wrote `read_by: NOBODY IN THIS
+        RUN, for_this_run: false` for a knob whose registry entry names the
+        four models it steers -- formally complete and inoperative, the exact
+        disease this contract's `knobs_read` was written against. Proved: two
+        one-page runs at `ours` and at `docling` gave DIFFERENT block orders
+        and the SAME identity.
         """
-        return ("LAYOUT_SCORE_THRESHOLD", "DOCLING_PIPELINE")
+        return ("LAYOUT_SCORE_THRESHOLD", "DOCLING_PIPELINE",
+                "ASSEMBLY_ORDER")
 
     def label_map(self) -> dict[str, str]:
         """Labels are NOT translated into the PP-DocLayoutV2 vocabulary.

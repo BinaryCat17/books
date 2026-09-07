@@ -226,9 +226,20 @@ class DocLayout(Detector):
         runs only for `DocLayout()` without a directory: a knob that acts on
         even one path acts. The opposite caution costs more -- "this knob does
         not concern you" on a run where it chose the weights.
+        
+        AND `ASSEMBLY_ORDER`, declared unconditionally. It acts through
+        `core.order.rule()` on every page this adapter emits without a model
+        rank of its own, and a knob that acts on even one path acts. It was
+        declared by NO adapter, so a snapshot wrote `read_by: NOBODY IN THIS
+        RUN, for_this_run: false` for a knob whose registry entry names the
+        four models it steers -- formally complete and inoperative, the exact
+        disease this contract's `knobs_read` was written against. Proved: two
+        one-page runs at `ours` and at `docling` gave DIFFERENT block orders
+        and the SAME identity.
         """
         return ("LAYOUT_MODEL_NAME", "LAYOUT_MODEL_DIR",
-                "LAYOUT_SCORE_THRESHOLD", "LAYOUT_TABLE_THRESHOLD")
+                "LAYOUT_SCORE_THRESHOLD", "LAYOUT_TABLE_THRESHOLD",
+                "ASSEMBLY_ORDER")
 
     def label_map(self) -> dict[str, str]:
         """The model's vocabulary IS the common one: labels are not translated."""

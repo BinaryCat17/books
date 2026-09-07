@@ -135,8 +135,19 @@ class YoloXLayout(Detector):
         `YOLOX_WEIGHTS` is declared even though `YoloXLayout(weights=…)` will
         not read it: `books detect` builds the adapter without arguments, so
         the knob decides the weights on every run that reaches a snapshot.
+        
+        AND `ASSEMBLY_ORDER`, declared unconditionally. It acts through
+        `core.order.rule()` on every page this adapter emits without a model
+        rank of its own, and a knob that acts on even one path acts. It was
+        declared by NO adapter, so a snapshot wrote `read_by: NOBODY IN THIS
+        RUN, for_this_run: false` for a knob whose registry entry names the
+        four models it steers -- formally complete and inoperative, the exact
+        disease this contract's `knobs_read` was written against. Proved: two
+        one-page runs at `ours` and at `docling` gave DIFFERENT block orders
+        and the SAME identity.
         """
-        return ("YOLOX_WEIGHTS", "LAYOUT_SCORE_THRESHOLD")
+        return ("YOLOX_WEIGHTS", "LAYOUT_SCORE_THRESHOLD",
+                "ASSEMBLY_ORDER")
 
     def label_map(self) -> dict[str, str]:
         return {}

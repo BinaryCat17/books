@@ -3985,6 +3985,33 @@ def mutations():
            "test_a_reading_metric_is_not_applicable_to_a_run_that_read_"
            "nothing")]),
 
+        ("a different experiment may be written under an existing label",
+         lambda: attrs(book, guard_identity=lambda *a, **k: None),
+         [("test_bench",
+           "test_a_different_experiment_may_not_be_written_under_an_"
+           "existing_label")]),
+
+        ("a truth silent about its text markup counts as annotated",
+         lambda: one_line(
+             "booksmith.datasets.metrics.contour",
+             '    return bench_mod.trait_state(page.get("meta") or {}, '
+             '"text_marked")',
+             '    return "yes" if (page.get("meta") or {}).get('
+             '"text_marked", True) else "no"'),
+         [("test_metrics_contract",
+           "test_a_truth_silent_about_a_trait_is_not_counted_as_marked")]),
+
+        ("the label error count loses its denominator",
+         lambda: one_line(
+             "booksmith.datasets.metrics.contour",
+             "            \"label_errors\": Scalar(\n"
+             "                lab, count=None if lab is None else "
+             "(lab, pairs),",
+             "            \"label_errors\": Scalar(\n"
+             "                lab,"),
+         [("test_metrics_contract",
+           "test_an_error_count_carries_the_pairs_it_was_counted_over")]),
+
         ("the synthetic truth moved out from under its lock",
          lambda: attrs(support, SRC=_tree_with_a_moved_truth_lock()),
          [("test_acceptance",

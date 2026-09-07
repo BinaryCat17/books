@@ -158,6 +158,22 @@ def test_adapters_declare_the_knobs_they_read():
     for cls, rel in ADAPTERS:
         with open(support.src_path(rel), encoding="utf-8") as f:
             text = f.read()
+        # AND THE MODULES THAT READ A KNOB ON THE ADAPTER'S BEHALF. A knob
+        # need not be read in the adapter's own file to be the adapter's:
+        # `ASSEMBLY_ORDER` is read inside `core/order.py:rule()`, which every
+        # adapter without a model rank calls to order its blocks. Declared by
+        # none of them for exactly that reason, it rode into four models'
+        # snapshots as "NOBODY IN THIS RUN" while steering their output --
+        # formally complete and inoperative. Proved: two runs at two values
+        # gave one identity.
+        #
+        # The list is short and explicit rather than a call graph: a graph
+        # would follow `stamp.sha256` into `os` and the check would drown.
+        for helper, called in (("core/order.py", ("order.rule(",
+                                                  "order.permutation(")),):
+            if any(c in text for c in called):
+                with open(support.src_path(helper), encoding="utf-8") as f:
+                    text += "\n" + f.read()
         # BOTH READERS. `knobs.number("NAME")` is how a numeric knob is taken
         # -- it refuses `nan`, which `float(knob(...))` accepted -- and a scan
         # that knows only `knob(` declared three live knobs dead the moment

@@ -531,8 +531,20 @@
    "page_no": 599
   }
  ],
+ "truth_traits": {
+  "order_marked": {
+   "yes": 6,
+   "no": 124,
+   "not_said": 0
+  },
+  "text_marked": {
+   "yes": 6,
+   "no": 124,
+   "not_said": 0
+  }
+ },
  "source": {
   "name": "hard.pdf",
-  "sha256": "bd65ad0e4a97e4139b8a678b0c328f37739d874466a8508ca81101b3c56211c3"
+  "sha256": "141f272bee2f7d0ef33611ae72f9f874b6248213f0d1af7321f3af997996de49"
  }
 }
