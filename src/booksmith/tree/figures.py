@@ -25,7 +25,7 @@ ONE DOCUMENT was invisible -- which is literally the case the map opens with.
 Both are counted now, so the number is the one the rule is about.
 
 WHAT IS NOT READ. `METRICS.md` alone, exempt BY NAME: it is GENERATED from
-`bench/results/*.json` and rendered afresh, so it cannot drift from what it
+`results/*.json` and rendered afresh, so it cannot drift from what it
 restates -- which is the whole thing this file counts. Every other document is
 read, the front page included; it was missing, and it holds three of these
 copies. The narrative of how the tree got here lives in commit messages, where

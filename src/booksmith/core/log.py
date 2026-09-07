@@ -1,7 +1,7 @@
 """One log line, one place. Timestamped, to STDOUT, flushed.
 
 Stdout and not stderr on purpose: the acceptance snapshots
-(`bench/expected/*.txt`) are the concatenation of both streams, and every
+(`tests/expected/*.txt`) are the concatenation of both streams, and every
 report is compared line by line; moving diagnostics to stderr would reorder
 every one of them for no gain.
 

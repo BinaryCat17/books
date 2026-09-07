@@ -13,6 +13,7 @@ class, so it fails whichever side moves.
 """
 import ast
 import inspect
+import json
 import os
 import textwrap
 
@@ -400,20 +401,58 @@ def test_identity_is_taken_from_the_real_fingerprints_not_a_hand_written_one():
 
     seen = []
     for name in detect.ADAPTERS:
-        with support.env(LAYOUT_ADAPTER=name):
+        # THE PIPELINE IS TURNED ON for the docling pair, and that is the
+        # whole point of this check: with `DOCLING_PIPELINE=off` the nest is
+        # `null` and there is nothing for a top-level filter to miss -- so a
+        # check that only ever asked the default configuration passed while
+        # the defect was live. The nest holds the pipeline's ACCUMULATING
+        # PAGE COUNTERS.
+        env = {"LAYOUT_ADAPTER": name}
+        if name.startswith("docling"):
+            env["DOCLING_PIPELINE"] = "post"
+        with support.env(**env):
             try:
-                seen.append((name, detect._adapter().fingerprint()))
+                det = detect._adapter()
+                fp = det.fingerprint()
             except Exception as e:
                 support.skip(f"{name}: {type(e).__name__}")
+            seen.append((name, fp))
     seen.append(("reader", PaddleOcrVl("PP-DocLayoutV2").fingerprint()))
+    nested = [n for n, fp in seen
+              if any(isinstance(v, dict) and v for v in fp.values())]
+    assert nested, (
+        "not one fingerprint here is NESTED, so this check cannot see a "
+        "filter that reaches only the top level -- which is the defect it "
+        "exists for")
+
+    # THROUGH `identity`, NOT THROUGH THE FILTER. The first edition of this
+    # check called `_without` itself and passed under a mutation that broke
+    # `identity`'s USE of it -- the filter was still recursive, and nothing
+    # asked what the function that matters does. So the question is asked the
+    # way the guard asks it: does the identity MOVE when a run-born number
+    # moves.
+    for name, fp in seen:
+        if not isinstance(fp.get("docling_pipeline"), dict):
+            continue
+        before = stamp.identity(fp, {})
+        after = json.loads(json.dumps(fp))
+        s = after["docling_pipeline"].get("summary")
+        assert isinstance(s, dict) and s, (
+            f"{name}: the pipeline fingerprint carries no summary, so this "
+            f"check cannot see a filter that misses one")
+        for k in s:
+            if isinstance(s[k], int):
+                s[k] += 137
+        assert stamp.identity(after, {}) == before, (
+            f"{name}: the identity MOVED when the pipeline's page counters "
+            f"did. They are run-born and nested under `docling_pipeline`, so "
+            f"a filter that reaches only the top level makes the identity a "
+            f"function of how many pages the run covered -- and the second "
+            f"run of one experiment is then refused forever")
 
     for name, fp in seen:
-        kept = dict(flat(stamp._without(fp, stamp.FINGERPRINT_NOT_IDENTITY)))
-        for path, value in kept.items():
-            leaf = path.rsplit("/", 1)[-1]
-            assert leaf not in stamp.FINGERPRINT_NOT_IDENTITY, (
-                f"{name}: {path} survived the exclusion -- it is nested, and "
-                f"the filter must reach every depth")
+        kept = stamp._without(fp, stamp.FINGERPRINT_NOT_IDENTITY)
+        for path, value in flat(kept):
             # A machine-local path in the identity means one experiment gets
             # an identity per machine. Two readings on two rented cards.
             if isinstance(value, str) and value.startswith(("/", "~")):

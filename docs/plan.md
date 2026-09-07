@@ -45,7 +45,7 @@ goes in the commit message of the work it reviewed.
    `bench/<name>/`. `bench/real/` becomes one book directory per PDF, without
    `truth/`: a book, not a bench, and `bench score` refuses it; its page
    selector `holdout20.pages.json` stays beside as `pages.json`.
-   `bench/expected/` and `bench/results/` are not books and `Book.open`
+   `tests/expected/` and `results/` are not books and `Book.open`
    refuses them (no manifest). `bench/*/html/` is a stale build and is
    deleted, not migrated; `check.pdf` and `check/<model>.pdf` become
    `look/<label>.pdf`.
@@ -104,12 +104,12 @@ its last lines; compare against those, not against this.
 
 ## Step 0: locks and instruments
 
-* `bench/expected/*.json`: the raw result dicts of `metrics.compare` on
+* `tests/expected/*.json`: the raw result dicts of `metrics.compare` on
   annopage and hard, `text.measure` on slovar truth against itself,
   `fitness.measure` on slovar, floats rounded to 6 places; each file records
   the sha256 of the truth directory and the `manifest.json` it was taken
   against. `acceptance.py` diffs them key by key at 1e-6.
-* `bench/expected/score-selfcheck.txt` and `fitness-selfcheck.txt`: probe
+* `tests/expected/score-selfcheck.txt` and `fitness-selfcheck.txt`: probe
   names are the only lock on the batteries and only text has one today.
 * `tools/anchors.py` learns `attrs(<name>, k=...)`: resolve `<name>` through
   the battery's import block and assert `hasattr`.
@@ -226,7 +226,7 @@ runner, one table.
   keep working.
 * 2a `datasets/table.py`: `applicable(bench, run)`, rows as (bench, run,
   metric, scalar); `bench all <bench> [--run L] [--json PATH]` writes
-  `bench/results/<bench>-<label>.json` by default and prints one table where
+  `results/<bench>-<label>.json` by default and prints one table where
   a null value prints its why as a footnote;
   `datasets/accept.py` (from acceptance.py) diffs Records at 1e-6 and still
   diffs the prose; `datasets/look.py` (from overlay.py), which must also draw
@@ -241,7 +241,7 @@ runner, one table.
   byte-identical to the step-0 list; manifests regenerated and their diff
   written up. The write-aside dance is left as it is.
 
-Skeptic checks: `bench/expected/*.json` equal the Records' scalars to 1e-6;
+Skeptic checks: `tests/expected/*.json` equal the Records' scalars to 1e-6;
 truth byte-identical after 2c; uncaught counts per bench unchanged (fitness
 is red by construction on slovar, matematika, zhurnal); `bench all` on
 annopage prints one table and the JSON round-trips; no upward import.
@@ -403,7 +403,7 @@ Goal: five kinds of text in five places, guarded.
   checklist each: detector, reader, transport, assess column, metric, bench).
 * `docs/rules.md`: the rules, one measurement each, and the file:line that
   enforces each.
-* `docs/results.md` generated from `bench/results/*.json` written by
+* `docs/results.md` generated from `results/*.json` written by
   `books bench all`.
 * NO JOURNAL DIRECTORY. One stood here for a week and was deleted: measured
   over eleven entries, not one figure in it was absent from the commit

@@ -118,7 +118,7 @@ def _measured(bdir, bname, label) -> bool:
     commit is not a measurement of this code -- that is what the header in it
     is for."""
     from booksmith.core import stamp
-    p = os.path.join(ROOT, "bench", "results", f"{bname}-{label}.json")
+    p = os.path.join(ROOT, "results", f"{bname}-{label}.json")
     if not (os.path.isfile(p) and _has_pages(bdir, label)):
         return False
     now = stamp.commit()
@@ -204,7 +204,7 @@ def main(argv):
         print("  --apply to run, --again to redo what is there")
         return 0
 
-    logs = os.path.join(ROOT, "bench", "results", "logs")
+    logs = os.path.join(ROOT, "results", "logs")
     os.makedirs(logs, exist_ok=True)
     started = time.time()
     failed = []

@@ -148,4 +148,4 @@ bench/*/manifest.json.new
 # ~100 KB each, 54 of them, against 22 MB of bench already tracked. What
 # stays out is `logs/`: the detector's own stdout, reproducible by re-running
 # and large.
-bench/results/logs/
+results/logs/

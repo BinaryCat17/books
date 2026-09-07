@@ -1197,7 +1197,7 @@ def main(argv=None):
     q.add_argument("--only", default="",
                    help="comma-separated metric names, instead of every applicable one")
     q.add_argument("--json", default="",
-                   help="where to write the records (default: bench/results/<bench>-<run>.json)")
+                   help="where to write the records (default: results/<bench>-<run>.json)")
     q.set_defaults(fn=cmd_bench_all)
 
     q = bs.add_parser("report",

@@ -51,7 +51,7 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))))
-EXPECTED = os.path.join(ROOT, "bench", "expected")
+EXPECTED = os.path.join(ROOT, "tests", "expected")
 
 # name -> (argv after `books`, paths that must exist for it to run at all)
 COMMANDS = {

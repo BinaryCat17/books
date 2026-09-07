@@ -110,7 +110,7 @@ src/booksmith/
                distillate),
                look.py boxes drawn over the pages, table.py every metric on
                one run side by side, accept.py reports and records against
-               bench/expected/
+               tests/expected/
   cli.py       books <command>
 tests/         collusions between files, own runner (there is no pytest in
                .venv): tests/run.py, and tests/run.py --slow --selfcheck for
@@ -159,7 +159,7 @@ books text truth/ pages/     the reading metric; --selfcheck too
 books fitness book.pdf --detect …   will the meaning arrive: ink, not boxes
 books overlay book.pdf …     truth and model disagreements over the pages
 books bench all bench/<book>  every applicable metric on one run: one table,
-                             one JSON under bench/results/. --run <model> when
+                             one JSON under results/. --run <model> when
                              the book holds several
 books bench report           every measured number in the project, rendered
                              into METRICS.md from those JSONs. GENERATED: a

@@ -308,8 +308,8 @@ def test_the_things_that_must_never_be_committed_are_ignored():
     # succeeds, the index keeps it, and the next clone is missing it. The
     # results are the evidence for every number in METRICS.md and were
     # ignored until the prose that held those numbers was deleted.
-    must_keep = ("bench/results/slovar-PP-DocLayoutV2.json",
-                 "bench/expected/help.txt",
+    must_keep = ("results/slovar-PP-DocLayoutV2.json",
+                 "tests/expected/help.txt",
                  "bench/annopage/detect/PP-DocLayoutV2/run.json")
     r = subprocess.run(["git", "check-ignore", *must_keep],
                        cwd=root, capture_output=True, text=True)
@@ -485,3 +485,28 @@ def test_no_cyrillic_key_survives_where_the_map_says_none_does():
             f"fact, which destroys the one thing a journal is for. If it was "
             f"rewritten on purpose, delete this half of the check and the "
             f"exception in CLAUDE.md with it.")
+
+
+def test_every_book_directory_is_in_the_declared_shape():
+    """"Not a single outdated file" as a property, not a tidy-up.
+
+    `bench/` had drifted into four kinds of thing under one name: books, the
+    acceptance snapshots, the measurements, and three loose pdfs. Beside them
+    1369 files from a build three weeks old that `docs/plan.md` had already
+    condemned in writing, one overlay under two names, and one detect run
+    split across two sibling directories no command knew about. Nothing was
+    caught, because nothing said what a book directory IS.
+
+    `booksmith.tree.layout` says it. This asks.
+    """
+    # THROUGH THE PACKAGE, so the battery's swapped module reaches this: a
+    # `from ... import layout` bound at import time would keep the real one
+    # and the mutation would certify nothing.
+    from booksmith import tree
+    bad = tree.layout.strays()
+    layout = tree.layout
+    assert not bad, (
+        "paths that are not in the declared shape of a book directory:\n"
+        + "\n".join(f"  {p}: {why}" for p, why in sorted(bad.items())))
+    assert len(layout.books()) >= 10, (
+        f"only {len(layout.books())} book directories found -- the walk broke")

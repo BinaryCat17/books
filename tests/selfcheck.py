@@ -56,6 +56,7 @@ from booksmith.processing.read import driver as vrun  # noqa: E402
 from booksmith.processing.read.readers.paddleocr_vl import PaddleOcrVl  # noqa: E402
 from booksmith.tree import cyr as cyrmod  # noqa: E402
 from booksmith.tree import figures as figuresmod  # noqa: E402
+from booksmith.tree import layout as layoutmod  # noqa: E402
 from booksmith.core import schema  # noqa: E402
 from booksmith.datasets import accept as acceptance  # noqa: E402
 from booksmith.core import page
@@ -1940,7 +1941,7 @@ def _map_naming_a_ghost_command():
 
 
 def _tree_that_ignores_the_results():
-    """A tree whose .gitignore swallows `bench/results/` again.
+    """A tree whose .gitignore swallows `results/` again.
 
     A tracked file falling UNDER an ignore is the direction `git status`
     cannot show: the rename succeeds, the index keeps the file, and the next
@@ -1953,20 +1954,60 @@ def _tree_that_ignores_the_results():
     root = os.path.dirname(os.path.dirname(support.SRC))
     d = tempfile.mkdtemp()
     subprocess.run(["git", "init", "-q", d], check=True)
-    for rel in ("bench/results", "bench/expected",
+    for rel in ("results", "tests/expected",
                 "bench/annopage/detect/PP-DocLayoutV2"):
         os.makedirs(os.path.join(d, rel), exist_ok=True)
-    for rel in ("bench/results/slovar-PP-DocLayoutV2.json",
-                "bench/expected/help.txt",
+    for rel in ("results/slovar-PP-DocLayoutV2.json",
+                "tests/expected/help.txt",
                 "bench/annopage/detect/PP-DocLayoutV2/run.json"):
         open(os.path.join(d, rel), "w").write("{}")
     text = open(os.path.join(root, ".gitignore"), encoding="utf-8").read()
     open(os.path.join(d, ".gitignore"), "w", encoding="utf-8").write(
-        text + "\nbench/results/\n")
+        text + "\nresults/\n")
     os.makedirs(os.path.join(d, "src"))
     os.symlink(os.path.join(root, "src", "booksmith"),
                os.path.join(d, "src", "booksmith"))
     return os.path.join(d, "src", "booksmith")
+
+
+@contextmanager
+def sources_and_root(stray, old, new):
+    """A tree that HOLDS a stray, and `layout.py` with one line broken.
+
+    Two halves, because either alone proves nothing: the real tree is in
+    shape, so a loosened rule has nothing to miss; and a stray with the rule
+    intact is caught by the unmutated code. Together they ask the only useful
+    question -- would this branch still name it.
+    """
+    import tempfile
+    root = os.path.dirname(os.path.dirname(support.SRC))
+    d = tempfile.mkdtemp()
+    book = os.path.join(d, "bench", "b")
+    os.makedirs(os.path.join(book, "detect"))
+    with open(os.path.join(book, "manifest.json"), "w") as f:
+        f.write('{"book": "b"}')
+    if stray == "a stray directory":
+        os.makedirs(os.path.join(book, "nonsense"))
+    elif stray == "a run called nonsense":
+        os.makedirs(os.path.join(book, "detect", "not a model name"))
+    else:
+        os.makedirs(os.path.join(d, "bench", "no-manifest"))
+    src = io_open_src("tree/layout.py")
+    if old not in src:
+        raise AssertionError(f"the mutation did not land: no line {old!r}")
+    mod = importlib.import_module("booksmith.tree.layout")
+    fake = importlib.util.module_from_spec(mod.__spec__)
+    exec(compile(src.replace(old, new, 1), mod.__file__, "exec"),
+         fake.__dict__)
+    fake.ROOT = d
+    parent = sys.modules["booksmith.tree"]
+    sys.modules["booksmith.tree.layout"] = fake
+    setattr(parent, "layout", fake)
+    try:
+        yield
+    finally:
+        sys.modules["booksmith.tree.layout"] = mod
+        setattr(parent, "layout", mod)
 
 
 def _tree_with_a_russian_key():
@@ -2004,12 +2045,12 @@ def _tree_with_a_moved_truth_lock():
     os.makedirs(os.path.join(d, "src"))
     os.symlink(os.path.join(root, "src", "booksmith"),
                os.path.join(d, "src", "booksmith"))
-    os.makedirs(os.path.join(d, "bench", "expected"))
+    os.makedirs(os.path.join(d, "tests", "expected"))
     os.symlink(os.path.join(root, "bench", "slovar"),
                os.path.join(d, "bench", "slovar"))
-    text = open(os.path.join(root, "bench", "expected",
+    text = open(os.path.join(root, "tests", "expected",
                              "slovar-truth.sha256"), encoding="utf-8").read()
-    open(os.path.join(d, "bench", "expected", "slovar-truth.sha256"), "w",
+    open(os.path.join(d, "tests", "expected", "slovar-truth.sha256"), "w",
          encoding="utf-8").write("0" * 64 + text[64:])
     return os.path.join(d, "src", "booksmith")
 
@@ -4153,6 +4194,32 @@ def mutations():
          lambda: attrs(support, SRC=_tree_that_ignores_the_results()),
          [("test_data_contract",
            "test_the_things_that_must_never_be_committed_are_ignored")]),
+
+        # THE TREE IS IN SHAPE, so a mutation that only loosens the rule has
+        # nothing to miss and is not a mutation at all -- the first pair here
+        # were exactly that, and passed. Each of these points the walk at a
+        # tree that HOLDS the stray, then breaks the branch that would name
+        # it.
+        ("a directory nobody declared is accepted into a book",
+         lambda: sources_and_root("a stray directory",
+                                  "            if os.path.isdir(p):",
+                                  "            if False:"),
+         [("test_data_contract",
+           "test_every_book_directory_is_in_the_declared_shape")]),
+
+        ("a run under a name that is not a model is accepted",
+         lambda: sources_and_root("a run called nonsense",
+                                  "                        if not MODEL.match(run):",
+                                  "                        if False:"),
+         [("test_data_contract",
+           "test_every_book_directory_is_in_the_declared_shape")]),
+
+        ("a directory with no manifest passes for a book",
+         lambda: sources_and_root("a directory with no manifest",
+                                  "            if os.path.isdir(p) and not os.path.isfile(",
+                                  "            if False and os.path.isfile("),
+         [("test_data_contract",
+           "test_every_book_directory_is_in_the_declared_shape")]),
 
         ("a cyrillic key comes back into the tracked data",
          lambda: attrs(schema, ROOT=_tree_with_a_russian_key()),

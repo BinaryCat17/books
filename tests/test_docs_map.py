@@ -209,7 +209,7 @@ def test_a_measurement_is_not_restated_in_a_second_document():
 
 
 def test_the_generated_metrics_file_is_generated_and_current():
-    """`METRICS.md` is rendered from `bench/results/*.json` and never edited.
+    """`METRICS.md` is rendered from `results/*.json` and never edited.
 
     A number that lives in prose is free to drift from the run it describes --
     `tree/figures.py` counts what that cost this project. A number rendered

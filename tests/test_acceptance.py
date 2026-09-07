@@ -8,7 +8,7 @@ outside scoring: 350" stopped being printed, and 350 excluded boxes were charged
 to the model instead.
 
 So these checks compare every line. `booksmith.acceptance` holds the command
-table and the snapshots live in `bench/expected/`.
+table and the snapshots live in `tests/expected/`.
 
 WHAT THESE CHECKS DO NOT SEE. Each report is produced by a SUBPROCESS, so an
 in-memory mutation of `metrics` or `policy` never reaches them. That is the
@@ -228,7 +228,7 @@ def test_the_slovar_truth_lock_still_matches_the_bench_on_disk():
     """
     import hashlib
     root_ = os.path.dirname(os.path.dirname(support.SRC))
-    lock = os.path.join(root_, "bench", "expected", "slovar-truth.sha256")
+    lock = os.path.join(root_, "tests", "expected", "slovar-truth.sha256")
     root = os.path.join(root_, "bench", "slovar")
     if not os.path.isdir(os.path.join(root, "truth")):
         support.skip("no bench/slovar/truth: build it with "

@@ -7,7 +7,7 @@ rendered from the record that produced it cannot drift from it -- and when the
 record is gone, so is the row, which is the honest outcome.
 
 WHAT IT REFUSES TO DO. It will not put cells from two trees in one table. Each
-`bench/results/*.json` carries the commit that computed it, and a table whose
+`results/*.json` carries the commit that computed it, and a table whose
 cells came from different code is not a comparison -- measured the hard way:
 inside one hour a prerequisite was corrected, five models were measured after
 it and one before, and the stale cell's twelve extra rows read as a difference
@@ -31,7 +31,7 @@ from booksmith.core import config
 from booksmith.core.errors import Refusal
 from booksmith.datasets import table
 
-RESULTS = os.path.join(config.ROOT, "bench", "results")
+RESULTS = os.path.join(config.ROOT, "results")
 OUT = os.path.join(config.ROOT, "METRICS.md")
 
 # The few a reader wants first. Everything else is in the per-bench tables
@@ -179,7 +179,7 @@ def build(log=print) -> str:
     L = [f"# What this project measures, and what it measured",
          "",
          "GENERATED -- do not edit. Every number here is rendered from the "
-         "record that produced it (`bench/results/*.json`), so it cannot "
+         "record that produced it (`results/*.json`), so it cannot "
          "drift from the run it describes. Remake it with:",
          "",
          "```",

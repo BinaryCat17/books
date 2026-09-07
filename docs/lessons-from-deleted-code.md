@@ -427,7 +427,7 @@ differed were `assets/run.json` (its `when`, and the two fields that name the
 directory itself, `args.detect` and `repeat_command`) and `assets/swaps.json`,
 whose 412 swap stacks were identical once the timestamp was dropped -- same
 anchors, same `sha256_placed`, same model answers. `ogneupory-vl2` is the one
-`bench/expected/apply-status.txt` measures, and it still reports the same line
+`tests/expected/apply-status.txt` measures, and it still reports the same line
 after the deletion.
 
 **What was kept, and why it is not a duplicate.** `processed/vl-reads/` holds

@@ -123,7 +123,7 @@ FORMATS = (
         "them: a rename mapping both onto `pages` drops the list silently and "
         "leaves valid JSON behind."),
     Format(
-        "results", "bench/results/*.json",
+        "results", "results/*.json",
         # TRACKED SINCE THE PROSE WAS DELETED. `METRICS.md` is rendered from
         # these files and from nothing else, so they are the evidence for
         # every published number and are data like the truth and the

@@ -15,7 +15,7 @@ from booksmith.core.errors import Refusal
 from booksmith.datasets import metrics as registry
 from booksmith.datasets.bench import Bench, Run, same_book
 
-RESULTS = os.path.join(config.ROOT, "bench", "results")
+RESULTS = os.path.join(config.ROOT, "results")
 
 
 def rows(bench: Bench, run: Run, which=None, log=print) -> list:

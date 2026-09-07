@@ -101,8 +101,8 @@ KINDS = ("detect", "read")
 class Book:
     """A book directory. `Bench` is this plus `truth/`.
 
-    `manifest.json` is what makes a directory a book. `bench/expected/` and
-    `bench/results/` are directories under `bench/` and are NOT books; without
+    `manifest.json` is what makes a directory a book. `tests/expected/` and
+    `results/` are directories under `bench/` and are NOT books; without
     the manifest there is nothing to say which PDF they are about, and opening
     them would measure a page set against a book nobody named.
     """

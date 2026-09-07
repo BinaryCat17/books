@@ -157,7 +157,7 @@ merged, 501 extra jumps -- not one of them moved when all 13 996 Cyrillic keys
 in `bench/annopage` were renamed, nor when the rename was stopped halfway. What
 moved was the prose around them: a line reading "350 objects out of scope"
 simply stopped being printed. Reports are therefore compared whole
-(`bench/expected/`), and separately by their numbers as multisets.
+(`tests/expected/`), and separately by their numbers as multisets.
 
 **Measuring what is left is not measuring what was done.** Deleting every
 comment line carrying Cyrillic removes 176 515 characters -- a quarter of
@@ -191,7 +191,7 @@ patches the first. In all three the first happened to be the intended one.
 **A quotation of a report goes stale exactly like a copy of a number.** Seven
 citations of `books score` and `books text` output in `docs/contour-notes.md`
 were verbatim, and the reports were translated out from under them. The fix is
-not to stop quoting but to take the quote from `bench/expected/*.txt`, which is
+not to stop quoting but to take the quote from `tests/expected/*.txt`, which is
 regenerated from the command itself.
 
 **A ratchet cannot finish a job; only a declaration can.** "No area grew" goes

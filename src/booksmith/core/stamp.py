@@ -51,7 +51,7 @@ def sha256(path: str) -> str:
 # What a measuring pass WRITES, and therefore may not be judged dirty by. Not
 # a general escape: every entry is an output of this project, never a source,
 # and `tests/test_data_contract.py` holds the list to that.
-OUTPUT_PATHS = ("bench/results/", "METRICS.md")
+OUTPUT_PATHS = ("results/", "METRICS.md")
 
 
 def commit(ignore: tuple[str, ...] = ()) -> str | None:
@@ -100,7 +100,7 @@ def commit(ignore: tuple[str, ...] = ()) -> str | None:
         if ignore:
             # THE OUTPUT MAY NOT INVALIDATE ITS OWN PROVENANCE. The stamp
             # answers "which code counted this", and a file the run is
-            # WRITING is not code. `bench/results/*.json` became tracked when
+            # WRITING is not code. `results/*.json` became tracked when
             # METRICS.md started being rendered from them, and the moment it
             # did, a measuring pass dirtied the tree with its own first
             # result and stamped every later one `+dirty` -- so a result

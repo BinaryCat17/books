@@ -1,7 +1,7 @@
 """Command for the acceptance snapshots. The table itself is
 `booksmith.acceptance`, so the mutation battery can reach it.
 
-    python3 tools/acceptance.py --save     write bench/expected/*.txt
+    python3 tools/acceptance.py --save     write tests/expected/*.txt
     python3 tools/acceptance.py            diff every report against its snapshot
 """
 import os
