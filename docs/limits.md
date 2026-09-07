@@ -203,12 +203,13 @@ direction a ratchet is blind to -- an entry that outlives the Cyrillic it
 named. That is how both earlier exemptions rotted.
 
 Then the job finished, and the declaration became the noise. Its floor was
-some 1180 characters that can NEVER go -- the names of the Russian books this
-project parses, sentences quoted from them, the page text drawn onto the
-synthetic sheets -- so it could not reach its own target, which its own header
-calls the thing that teaches everyone to ignore an instrument. Over its last
-day it fired three times and each was its own machinery: the counter's bounds,
-a check's regex, a mutation's escapes. Zero regressions. It is deleted.
+what can NEVER go -- the names of the Russian volumes this project parses,
+sentences quoted from them, the page text drawn onto the synthetic sheets --
+so it could not reach its own target, which its own header calls the thing
+that teaches everyone to ignore an instrument. Over its last day it fired
+three times and each was its own machinery: the counter's bounds, a check's
+regex, a mutation's escapes. Zero regressions. It is deleted, and what it
+knew is in `docs/lessons-from-deleted-code.md`, which owns those figures.
 
 What survived is the half that guards DATA and not prose: no Cyrillic key in
 any tracked json, checked by `tests/test_data_contract.py`, with

@@ -75,14 +75,14 @@ src/booksmith/
                countable.
 
                ONE OF THEM WAS DELETED FOR FAILING ITS OWN TEST. cyr.py
-               counted Cyrillic. Over the day it fired three times and every
-               one was its own machinery -- the counter's bounds, a check's
-               regex, a mutation's escapes -- and zero regressions. Its floor
-               was 1180 characters of Russian BOOK TITLES that can never go,
-               and its own header says "an instrument that cannot reach its
-               own target teaches everyone to ignore it". The one thing worth
-               guarding was Cyrillic KEYS in the data, and that is a check in
-               tests/test_data_contract.py, which caught a real false claim
+               counted Cyrillic; over its last day it fired only on its own
+               machinery and caught no regression, and its floor was Russian
+               BOOK TITLES that can never go -- so it could not reach its own
+               target, which its own header calls the thing that teaches
+               everyone to ignore an instrument. The one part worth guarding
+               was Cyrillic KEYS in the data, and that is a check in
+               tests/test_data_contract.py, which caught a real false claim.
+               docs/limits.md has the rule it left behind
   remote/      renting and running ANYTHING on a rented machine. Knows nothing
                about PDF or OCR and must not -- otherwise the next task means
                rewriting the renting again. Four independent ways to kill a
