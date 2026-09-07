@@ -174,3 +174,28 @@ def test_the_map_does_not_grow_back_into_a_second_copy():
     assert not back, (
         f"measurements are back in the map: {back}. They live in "
         "docs/models.md; the map points, it does not measure.")
+
+
+def test_a_measurement_is_not_restated_in_a_second_document():
+    """The rule CLAUDE.md opens with, counted at last.
+
+    "One figure -- the artifacts V2 finds on the golden bench -- stood here
+    twice, in the contour journal three times and in the source six more. A
+    second copy drifts, and it drifts silently." That rule was guarded in one
+    place only: four named numbers forbidden to return to the map. Between the
+    documents themselves nothing counted.
+
+    A ceiling, not a ban: 25 stand today and step 5 is the split that removes
+    them. It may fall and never rise -- and a fall that leaves the ceiling
+    behind is red too, or the number stops pressing.
+    """
+    from booksmith.tree import figures
+    d = figures.duplicates()
+    assert len(d) <= figures.CEILING, (
+        f"{len(d)} measurements are stated in more than one document, against "
+        f"a ceiling of {figures.CEILING}. New: "
+        f"{sorted(d)[:6]}. Point at the document that owns the number.")
+    assert len(d) == figures.CEILING, (
+        f"the ceiling is stale: {len(d)} left and it says {figures.CEILING}. "
+        f"Lower it in tree/figures.py -- a ratchet that stops pressing is not "
+        f"a ratchet.")

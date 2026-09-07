@@ -66,8 +66,14 @@ src/booksmith/
                normalisation before comparison), schema.py (key floors over
                the tracked files), config.py (.env), errors.py (Refusal rc 1,
                Unmeasurable rc 2), log.py (one log line)
-  tree/        instruments over the tree itself: cyr.py (the Cyrillic
-               ratchet), imports.py (the dependency rule, held by a test)
+  tree/        NOT PIPELINE CODE: instruments over the source tree itself,
+               here rather than in tools/ so the mutation battery can damage
+               them and see a check go red. cyr.py (the Cyrillic ratchet and
+               the residue lock), imports.py (the dependency rule above),
+               figures.py (one measurement, one document -- the ceiling falls
+               and never rises). Each is a rule this file states, made
+               countable; a rule stated and not counted is the disease the
+               whole file is written against
   remote/      renting and running ANYTHING on a rented machine. Knows nothing
                about PDF or OCR and must not -- otherwise the next task means
                rewriting the renting again. Four independent ways to kill a
@@ -110,11 +116,17 @@ tests/         collusions between files, own runner (there is no pytest in
                the mutations, ALL of which must be caught. DO NOT ASK THIS
                PROSE FOR THE NUMBERS -- ask the runner, it prints them on its
                last line
-tools/         cyr.py (Cyrillic ratchet and the residue lock), anchors.py
-               (do the battery's source patches and attribute swaps still
-               land), acceptance.py, migrate_layout.py (the package move as a
-               table), prose_only.py, keymap*.json, migrate_*.py -- the
-               instruments and the record of the renames
+tools/         thin wrappers over booksmith.tree and booksmith.datasets, so
+               the mutation battery can reach the instrument itself: cyr.py
+               (Cyrillic ratchet and the residue lock), anchors.py (do the
+               battery's source patches and attribute swaps still land),
+               acceptance.py. Beside them: migrate_layout.py (the package
+               move as a table), spread_probe.py (the spread-cut veto,
+               re-measurable -- test_djvu runs it), prose_only.py,
+               keymap.json (the key rename, READ by a check). The three
+               scripts that applied that rename are deleted: the job is
+               finished, provably, and what they knew is in
+               docs/lessons-from-deleted-code.md
 ```
 
 ## Commands
@@ -219,4 +231,15 @@ included. What is left, by area, is printed by:
 
 Every area may fall and none may rise, and each carries a second number --
 the Latin that arrived where the Cyrillic left -- because deleting a comment
-moves the first number just as well as translating it does.
+moves the first number just as well as translating it does. The keys are
+done: no Cyrillic key survives in any json of `bench/`, `processed/` or
+`runs/`, and the three tools that did it are deleted -- what they knew is in
+`docs/lessons-from-deleted-code.md`.
+
+The documents restate each other, and that is counted too:
+
+    python3 tools/figures.py
+
+A figure stated in two documents is a second copy, and a second copy drifts.
+The ceiling may fall and never rise; step 5 of `docs/plan.md` is the split
+that takes it to zero.

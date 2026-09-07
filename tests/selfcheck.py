@@ -3975,6 +3975,29 @@ def mutations():
          [("test_data_contract",
            "test_the_things_that_must_never_be_committed_are_ignored")]),
 
+        # The measurement ratchet over the documents. Both directions: a
+        # duplicate that stops being counted, and a ceiling that stops
+        # pressing.
+        ("a restated measurement is not counted as one",
+         lambda: one_line(
+             "booksmith.tree.figures",
+             "    return {n: sorted(v) for n, v in where.items() "
+             "if len(v) > 1}",
+             "    return {n: sorted(v) for n, v in where.items() "
+             "if len(v) > 2}"),
+         [("test_docs_map",
+           "test_a_measurement_is_not_restated_in_a_second_document")]),
+
+        ("the four-digit bar is dropped and the instrument cries wolf",
+         lambda: one_line(
+             "booksmith.tree.figures",
+             'if n.startswith("$") or n.endswith("%") or '
+             'len(re.sub(r"\\D", "", n)) >= 4:',
+             'if n.startswith("$") or n.endswith("%") or '
+             'len(re.sub(r"\\D", "", n)) >= 3:'),
+         [("test_docs_map",
+           "test_a_measurement_is_not_restated_in_a_second_document")]),
+
         ("the synthetic truth moved out from under its lock",
          lambda: attrs(support, SRC=_tree_with_a_moved_truth_lock()),
          [("test_acceptance",

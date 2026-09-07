@@ -272,3 +272,60 @@ not to fix them.
 * The fallback `scp` in `push()` is called on any non-zero code, 124 included,
   and goes without a `timeout`. Of no practical weight: `ServerAlive*` kill it
   in ~60 s, and 3.5 MB is what gets uploaded.
+
+---
+
+## The key migration, and the three tools that finished it
+
+Deleted 2026-09-07 as a finished job, at commit `8588cf9`; recover them with
+`git show 8588cf9:tools/migrate_keys.py` and the two beside it. The
+migration renamed 562 format names across 6037 files, of which 3102 cannot
+be regenerated -- 1272 dots pages counted on a rented GPU for $0.892, 891
+answer files read for $0.545, and two benches whose builder exists neither
+in the tree nor in git. It is provably complete: zero Cyrillic keys in the
+6041 JSON files of `bench/`, `processed/` and `runs/`. The map itself,
+`tools/keymap.json`, stays -- `tests/test_data_contract.py` looks a
+pre-migration spelling up in it rather than typing one, so the record is
+read and cannot go stale. `valuemap.json` and `htmlmap.json` went with the
+scripts that were their only readers.
+
+What the three knew, kept because the next bulk rename will meet all of it:
+
+**Prove the round trip before rewriting anything** (`migrate_keys.py`). It
+never assumed a serialisation style. For every file it first proved it could
+reproduce the ORIGINAL BYTES -- parse, re-dump under each candidate style,
+compare to disk -- and only a file that round-tripped exactly was eligible.
+The failure mode is then "this file was not migrated", printed, never "this
+file was migrated into a shape nobody expected". Measured over all 6037, two
+styles covered every file: `compact` (3591), `indent1` (2442), compact with
+a trailing newline (3), jsonl (1).
+
+**What must not be rewritten, and why.** The rent journal `runs/ledger.jsonl`
+is append-only and its Cyrillic keys are not a contract -- rewriting a
+journal after the fact destroys the one thing a journal is for. The model's
+answer subtree is untouchable by project rule, vendor keys included.
+`processed/*/book.html` and `swaps.json` are not key renames at all: the swap
+journal holds the removed fragment verbatim plus two sha256 over it, so
+rewriting the markup would mean forging the journal -- those books are
+REBUILT from `assets/source/` instead.
+
+**Five ways a key map destroys data silently** (`keymap_check.py`), checked
+before applying, not after: a name missing from the map (it simply stays
+Russian in a file whose other keys are English, and nothing says so); two
+keys mapping to one name (a merge, sometimes right and sometimes fatal, so
+every one must be declared); two such keys IN THE SAME OBJECT (the second
+overwrites the first and the file stays valid JSON -- the known instance was
+a page COUNT beside a page LIST, whose Russian names differed by one letter,
+side by side in seven bench manifests, both mapping to `pages`);
+the new name already existing as an ASCII key in the same object (the same
+destruction with no two Russian keys involved); and anything the map would
+rename inside the model's answer.
+
+**Renaming keys in CODE is five syntactic positions** (`migrate_code.py`),
+found by reading rather than assumed: a literal dict, a subscript, `.get` /
+`.setdefault` / `.pop`, a membership test (`"k" in d` -- easy to forget, and
+it is how `policy` asks about a field), and a dict comprehension. Everything
+else -- an argument, a return, a log line -- is left alone. Names that live
+as VALUES are a separate job with a separate map: the same word under one
+key is a class and under another is a page of a Russian book. `sed` cannot
+do this: `src/` held 6039 Cyrillic string literals and only 556 were keys.

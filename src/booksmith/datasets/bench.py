@@ -20,7 +20,6 @@ import json
 import os
 from dataclasses import dataclass, field
 
-from booksmith.core import policy
 from booksmith.core.errors import Unmeasurable
 from booksmith.core import page
 
@@ -195,8 +194,3 @@ def same_book(bench: Bench, run: Run) -> str:
             f"and mean nothing.")
     return f"sha256 checked: {a[:12]}"
 
-
-def vocabulary_of(run: Run) -> str | None:
-    """The label vocabulary a run's snapshot declares, or None."""
-    v = run.vocabulary
-    return v if v in policy.POLICIES else None

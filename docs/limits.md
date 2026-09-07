@@ -85,8 +85,11 @@ Everything else regenerates for free: `books synth --book <name>` (six books),
 
 **The rename of the format keys was done against this list.** A backup of all
 6037 json files was taken first, restoring it was proved (6037 of 6037
-byte-identical), and `tools/migrate_keys.py` refuses any file whose exact bytes
-it cannot first reproduce.
+byte-identical), and the migration refused any file whose exact bytes it could
+not first reproduce -- so its failure mode was "this file was not migrated",
+printed, never "migrated into a shape nobody expected". The rule outlives its
+tool: the tool is deleted, the job being finished, and what it knew is in
+`docs/lessons-from-deleted-code.md`.
 
 ---
 

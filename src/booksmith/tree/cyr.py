@@ -121,7 +121,11 @@ DATA_PREFIXES = ("bench/",)
 # that is what makes them the record of the migration, readable years later by
 # someone holding an old file. Pressing on them would set a floor the ratchet
 # can never reach, which is the one thing that teaches people to ignore it.
-RECORD_FILES = ("tools/keymap.json", "tools/valuemap.json", "tools/htmlmap.json")
+# `keymap.json` alone: it is READ, by `tests/test_data_contract.py`, which
+# looks a pre-migration spelling up in it rather than typing one. The value
+# and html maps went with the scripts that were their only readers -- a
+# record nothing reads is in git, not in the tree.
+RECORD_FILES = ("tools/keymap.json",)
 
 # Logs of a run that was paid for. `bench/*/dots/job.log` is what the rented
 # card printed while it worked, and rewriting a log after the fact destroys
@@ -304,9 +308,6 @@ RESIDUE = {
                                 "check is built from"),
     "tests/test_repeat.py": (20, "TITLE"),
     "tests/test_torn.py": (20, "TITLE"),
-    "tools/keymap_check.py": (42, "TOOL: the migration's own subject"),
-    "tools/migrate_code.py": (39, "TOOL: the migration's own subject"),
-    "tools/migrate_keys.py": (98, "TOOL: the migration's own subject"),
     "tools/spread_probe.py": (109, "TITLE, two of them"),
 }
 
@@ -366,11 +367,6 @@ def ratchet_areas(c):
     return {k: v for k, v in c.items()
             if k not in ("book_prose", "bench_data", "rename_record")
             and not k.endswith(".latin")}
-
-
-def latin_areas(c):
-    """area -> latin letters, for the areas the ratchet presses on."""
-    return {k[:-len(".latin")]: v for k, v in c.items() if k.endswith(".latin")}
 
 
 def main(argv):
