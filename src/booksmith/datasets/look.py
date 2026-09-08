@@ -29,9 +29,28 @@ import pymupdf
 from booksmith.core import stamp
 from booksmith.core.errors import Refusal
 
-# Caption font: the built-in `helv` knows no Cyrillic and drew captions as
-# emptiness -- which of the two markups a box came from was unreadable.
+# Caption font. The reason it is not the built-in `helv` was: helv knows no
+# Cyrillic and drew captions as emptiness, so which of the two markups a box
+# came from was unreadable.
+#
+# THAT REASON EXPIRED WITH THE TRANSLATION. This module draws exactly three
+# captions -- "NOT FOUND <label>", "EXTRA", and "<a> -> <b>" -- and every
+# label in all five vocabularies is Latin; there is no Cyrillic left in this
+# file at all. `helv` renders all of it. What the sentence was still buying
+# was a `die()` on any machine without that exact Debian path -- the overlay,
+# a free debugging aid, refusing to run on a distribution that spells its
+# font directory differently.
+#
+# So the file is a PREFERENCE now and not a requirement: used when it is
+# there, `helv` when it is not. The same shape as `cyr.py` and `keymap.json`
+# -- something kept because the sentence beside it still sounded right.
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+FONT_FALLBACK = "helv"
+
+
+def _caption_font() -> str:
+    """The name the text calls ask for: our loaded face, or the built-in."""
+    return "L" if os.path.exists(FONT) else FONT_FALLBACK
 
 MATCHED = (0.55, 0.55, 0.55)      # grey and thin: nothing to look at here
 NOT_FOUND = (0.85, 0.10, 0.10)     # red: in truth, absent from the model
@@ -165,7 +184,8 @@ def _label(page, box, k, color, text, above=True):
     x, y = box[0] * k + 1, box[1] * k - 2
     if not above:
         y = box[3] * k + 7
-    page.insert_text((x, max(7.0, y)), text, fontname="L", fontsize=6.0,
+    page.insert_text((x, max(7.0, y)), text, fontname=_caption_font(),
+                     fontsize=6.0,
                      color=color)
 
 
@@ -212,8 +232,6 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
     note = _same_book(pdf, marks)
     sets = [(_pages(d), tag) for d, tag in marks]
     doc = pymupdf.open(pdf)
-    if not os.path.exists(FONT):
-        die(f"no font {FONT}: the captions would come out empty")
     if only is not None:
         bad = [i for i in only if not 0 <= i < doc.page_count]
         if bad:
@@ -249,7 +267,12 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
         if page.rotation:
             die(f"page {i} is rotated by a PDF attribute ({page.rotation}°): "
                 f"the boxes would lie across it. Unrotate the PDF first.")
-        page.insert_font(fontname="L", fontfile=FONT)
+        # The file when it is there, the built-in otherwise. Both render
+        # every caption this module draws; see the note beside FONT.
+        if os.path.exists(FONT):
+            page.insert_font(fontname="L", fontfile=FONT)
+        else:
+            page.insert_font(fontname=FONT_FALLBACK)
         p0 = sets[0][0].get(i)
         if p0 is None:
             # Missing from the FIRST markup. Missing from the second too, it is

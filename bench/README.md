@@ -11,10 +11,9 @@ bench/
   hard/           the squeeze of both benches: 130 pages where two artefacts of
                   one label stand side by side (124 of them real)
   hard36/         the 36 hardest of those
-  real/           three PDFs of our own scans. NOT marked up by hand -- the one
-                  thing the bench still lacks
-  expected/       acceptance snapshots: seven command reports, compared as text
-                  by `tests/test_acceptance.py`
+  real-tables20/  \
+  real-holdout20/  |  three book directories of our own scans, one PDF each.
+  real-test25/    /   NOT marked up by hand -- the one thing the bench lacks
   spravochnik/    \
   slovar/          |  six synthetic books with EXACT truth, characters and
   matematika/      |  table grids included. Not versioned: one command rebuilds
@@ -27,22 +26,28 @@ Every book directory is built alike:
 
 ```
 bench/slovar/
-  slovar.pdf      the book itself
-  truth/          truth by page, measured by ink; a text block carries its
-                  CHARACTERS, a table its rows, columns and the text of every
-                  cell (artefact truth sits beside the page, by block number)
-  check.pdf       ONE sheet-with-boxes file -- what has to be looked at with
-                  eyes; not versioned, drawn by books overlay
-  detect/         the model's output plus the full input snapshot
-  html/book.html  the product of the first level: what the book turns into
-  manifest.json   what this truth was built with
+  slovar.pdf         the book itself, and the manifest names it
+  truth/             truth by page, measured by ink; a text block carries its
+                     CHARACTERS, a table its rows, columns and the text of
+                     every cell (artefact truth sits beside the page, by
+                     block number)
+  detect/<model>/    the model's output plus the full input snapshot, ONE
+                     DIRECTORY PER MODEL so six stand side by side
+  look/<model>.pdf   sheets with boxes on -- what has to be looked at with
+                     eyes; not versioned, drawn by `books overlay`
+  manifest.json      what this truth was built with
 ```
 
-`bench/annopage/` is the exception and the only one: there `check/` is a
-DIRECTORY with one file per detector -- `PP-DocLayoutV2.pdf`, `V3`, `plus-L`,
-`YOLOX-layout`, `docling-heron`, `docling-egret`, 496 to 498 MB each. Both are
-kept out of git by name: `bench/*/check/` for the directory, `bench/*/*.pdf`
-for the single sheet.
+NO EXCEPTIONS AND NO SECOND NAMES. There used to be two shapes here: a single
+`check.pdf` on six benches and a `check/` directory on two, so one thing had
+two names and the single file did not say which model drew it. And `html/`
+held the first level's product; `books html` writes a whole book under
+`processed/` now, and the five-week-old copies here were deleted.
+
+The shape is DECLARED, in `src/booksmith/tree/layout.py`, and
+`.venv/bin/python tools/layout.py` walks the tree against it -- so a file
+this page describes and the declaration does not is a disagreement someone
+has to settle, not prose drifting quietly.
 
 **What is versioned and what is not.** One rule, written in `.gitignore`: git
 carries what cannot be rebuilt for free -- truth, `manifest.json`, the input
@@ -67,7 +72,7 @@ benches, measured 2026-09-06:
 
 | what the bench is | what the battery does |
 |---|---|
-| the truth carries characters, `detect/pages` does not (`slovar` page 0003: 75 detected blocks, 0 with `content`, against 60 of 60 in the truth) | `books text` is zero only on `<book>/truth <book>/truth` -- 0 uncaught, 18-19 of 29 probes measured; against `detect/pages` it returns 1 with 2 to 5 uncaught, "answer shifted by a page" and "every tenth character dropped from the truth" having nothing to break |
+| the truth carries characters, `detect/<model>/pages` does not (`slovar` page 0003: 75 detected blocks, 0 with `content`, against 60 of 60 in the truth) | `books text` is zero only on `<book>/truth <book>/truth` -- 0 uncaught, 18-19 of 29 probes measured; against a run's `pages` it returns 1 with 2 to 5 uncaught, "answer shifted by a page" and "every tenth character dropped from the truth" having nothing to break |
 | annopage marks up non-text objects only | the same battery prints **uncaught 3** there, 20 of 29 probes unable to measure anything |
 | `slovar`, `matematika` and `zhurnal` print "solid dark columns 0 on 0 pages, scanned without a gutter shadow" | `books fitness --selfcheck` reds on exactly those three: the probe blows `GUTTER` to 0.0, squeezes it to 1.0 and demands the count fall below a base of zero. The other three books: 21 probes, 0 uncaught |
 | `processing/layout/adapters/doclayout.py` is no longer the code the snapshots were taken with (snapshot `c7506498`, tree `298a2d54`) | `books replay --selfcheck` returns 1 on all seven benches while uncaught losses are 0 on every one: 26 fingerprint values unverified, 4 keys absent from the start, 17 on annopage. Stale, not incomplete |
@@ -81,14 +86,15 @@ it is the guard that is missing.
 
 ## The real pages the old pipeline broke on
 
-Three PDFs in `bench/real/`, scans of one machine-tool reconditioning handbook:
+Three book directories, `bench/real-tables20/`, `real-holdout20/` and
+`real-test25/`, scans of one machine-tool reconditioning handbook:
 dense two-column setting, tables **without a single rule**, columns held
 together by spaces, in places a faded impression.
 
 | file | what it is |
 |---|---|
 | `tables20.pdf` | pages 302..321 of the book -- the ones the tables were measured on |
-| `holdout20.pdf` | the held-out sample, pages listed in `holdout20.pages.json`: 4, 40, 143, 292, 393..400, 443..450; fourteen of the twenty have no tables at all, for false positives |
+| `holdout20.pdf` | the held-out sample, pages listed in its `pages.json`: 4, 40, 143, 292, 393..400, 443..450; fourteen of the twenty have no tables at all, for false positives |
 | `test25.pdf` | twenty-five pages from the start of the book |
 
 **The parses were deleted, and not by oversight.** `mistral/` and `olmocr/`
@@ -116,12 +122,12 @@ same -- seed, aging profile, generator sha256 and commit go into
 
 ```
 books synth   --book slovar --out bench/slovar
-books detect  bench/slovar/slovar.pdf --out bench/slovar/detect
-books score   bench/slovar/truth bench/slovar/detect/pages
-books score   bench/slovar/truth bench/slovar/detect/pages --selfcheck
+books detect  bench/slovar                       # into detect/<model>/
+books score   bench/slovar/truth bench/slovar/detect/PP-DocLayoutV2/pages
+books score   bench/slovar/truth bench/slovar/detect/PP-DocLayoutV2/pages --selfcheck
 books overlay bench/slovar/slovar.pdf --truth bench/slovar/truth \
-      --detect bench/slovar/detect/pages --out bench/slovar/check.pdf
-books html    bench/slovar/detect --out bench/slovar/html
+      --detect bench/slovar/detect/PP-DocLayoutV2      # -> look/<model>.pdf
+books bench   all bench/slovar                   # every metric, into results/
 ```
 
 | book | sheet | pages | what it checks |
@@ -133,7 +139,7 @@ books html    bench/slovar/detect --out bench/slovar/html
 | `katalog` | 506x733 | 11 | a strip with no prose, a table continuation, a footnote under a table |
 | `zhurnal` | 540x760 | 10 | a boxed insert, a side caption, an abstract, a reference list |
 
-`check.pdf` shows **DISCREPANCIES**, not everything: **thin grey, unlabelled**
+A `look/` sheet shows **DISCREPANCIES**, not everything: **thin grey, unlabelled**
 means truth and model agree, and there is nothing to look at; **thick red, "НЕ
 НАШЛА"** is in the truth with no pair in the model; **orange dashes,
 "ЛИШНЯЯ"** is in the model with no pair in the truth.

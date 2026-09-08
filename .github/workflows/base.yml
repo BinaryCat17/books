@@ -78,4 +78,4 @@ jobs:
       - name: what to put in the job
         run: |
           echo "BASE_IMAGE = \"${{ steps.img.outputs.ref }}\""
-          echo "  (src/booksmith/models/paddleocr_vl/__init__.py)"
+          echo "  (src/booksmith/remote/image.py)"

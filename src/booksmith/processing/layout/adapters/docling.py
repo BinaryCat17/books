@@ -726,10 +726,12 @@ class DoclingHeron(Detector):
     def fingerprint(self) -> dict:
         # THE PIPELINE TOTAL -- AS A NUMBER AND INTO THE LOG, exactly once per
         # run. The adapter has no "run finished" hook, and `detect.py` calls
-        # `fingerprint()` four times: three BEFORE the page loop (the counter
+        # `fingerprint()` FIVE times: four BEFORE the page loop (the counter
         # is empty, nothing to print) and once AFTER, before writing
         # `run.json`; the condition "pages > 0" puts this line in the only
-        # right place. A value invisible in the log is not checked against the
+        # right place. It said four and three, and the fourth arrived with
+        # `stamp.identity` -- a count in a comment about counting, wrong the
+        # moment a caller was added and silent because nothing reads it. A value invisible in the log is not checked against the
         # expected one, on which this project has already lost evenings.
         if self._pipe is not None and self._pipe.pages:
             it = self._pipe.fingerprint()["summary"]

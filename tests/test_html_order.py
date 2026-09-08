@@ -450,9 +450,28 @@ def test_the_book_is_alone_at_the_root_and_carries_itself():
         H.build(det, out, log=lambda *_: None)
 
         in_root = sorted(os.listdir(out))
-        assert in_root == ["assets", "book.html"], (
-            f"the build root holds {in_root}, and only book.html and assets/ "
-            f"are expected. Everything but the book is kitchen")
+        # `manifest.json` JOINED THE TWO, and the rule needed saying again
+        # rather than loosening. "Exactly one file at the root" is about what
+        # a READER meets on a double click: one thing to open, no guessing
+        # between four json and a two-megabyte js. A manifest is not a
+        # candidate for opening -- it is what makes the directory a BOOK, the
+        # one file `booksmith.tree.layout`, `datasets.bench.Bench.open` and
+        # the schema floors all identify a book by.
+        #
+        # Nothing wrote it here until now, so `books html` produced a
+        # directory the layout check named a stray -- an instrument going red
+        # on correct use. The two declarations disagreed and this check was
+        # the one stating the narrower rule; both say the same thing now.
+        assert in_root == ["assets", "book.html", "manifest.json"], (
+            f"the build root holds {in_root}, and only book.html, assets/ "
+            f"and manifest.json are expected. Everything but the book and "
+            f"the fact of which book it is, is kitchen")
+        with open(os.path.join(out, "manifest.json"), encoding="utf-8") as f:
+            man = json.load(f)
+        assert (man.get("source") or {}).get("sha256") == _detect._sha256(pdf), (
+            f"the manifest does not name the scan this book was built from: "
+            f"{man.get('source')}. That is the one fact it carries, and "
+            f"`Bench.open` and the layout check both read it")
 
         with open(os.path.join(out, "book.html"), encoding="utf-8") as f:
             s = f.read()

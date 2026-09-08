@@ -20,7 +20,10 @@ cannot be traced to code and is never "already measured" -- it is re-run. The
 inverse mattered more: a CLEAN result at the same sha did not match a dirty
 `stamp.commit()` and was re-measured INTO a dirty one. And the sweep dirties
 the tree itself, by rewriting the tracked snapshots: measured mid-run, 6
-results clean and 11 dirty, and the renderer refused all 17. Commit first.
+results clean and 11 dirty, and the renderer refused all 17. Commit first --
+though `results/` and `METRICS.md` are what a measuring pass WRITES, and both
+the stamp and the question asked of it exclude them (`stamp.OUTPUT_PATHS`), so
+the sweep no longer un-measures itself by running.
 
     python3 tools/sweep.py                 what would run
     python3 tools/sweep.py --apply         run it
@@ -121,7 +124,15 @@ def _measured(bdir, bname, label) -> bool:
     p = os.path.join(ROOT, "results", f"{bname}-{label}.json")
     if not (os.path.isfile(p) and _has_pages(bdir, label)):
         return False
-    now = stamp.commit()
+    # THE SAME `ignore` THE WRITER USED, or this never answers yes. `table.py`
+    # stamps a result with `commit(ignore=OUTPUT_PATHS)` precisely so a
+    # measuring pass cannot invalidate its own provenance -- and the reader
+    # here asked the bare question, so the sweep's OWN first result dirtied
+    # the tree and every later cell read as "not measured". Resume was dead
+    # for as long as `results/` has been tracked: a 4-hour detection run that
+    # died at cell 40 started again from one. The two calls are one decision
+    # and have to be spelt the same.
+    now = stamp.commit(ignore=stamp.OUTPUT_PATHS)
     if not now or "dirty" in now:
         # Nothing measured against an uncommitted tree counts as measured:
         # what produced it cannot be recovered.

@@ -110,18 +110,25 @@ FORMATS = (
         "path ('knobs', <knob>, 'value') -- danger O3."),
     Format(
         "manifest", "bench/*/manifest.json",
-        {"book": 146, "value": 210, "default": 210, "what": 210,
-         "debt": 210, "set_externally": 210, "page_no": 130, "chars": 99,
+        # THE FLOORS MOVED WITH THE THREE REAL SCANS, and not moving them was
+        # a floor under nothing. `real-holdout20`, `real-tables20` and
+        # `real-test25` became book directories of their own and each brought
+        # a manifest, so the tree went from ten to thirteen while every number
+        # here stayed at the ten-manifest count -- and a floor three manifests
+        # below the truth is green after three whole manifests are deleted.
+        # A floor is only a floor at the value it is measured at.
+        {"book": 149, "value": 216, "default": 216, "what": 216,
+         "debt": 216, "set_externally": 216, "page_no": 130, "chars": 99,
          "char_truth": 99, "blocks_with_text": 99, "cell_count": 99,
          # WHICH BOOK THIS MANIFEST IS ABOUT. It was two keys, `pdf` and
          # `sha256 pdf`, declared by nothing -- so the one fact that says a
          # truth directory and a run are about the same file had no floor
-         # under it at all. One key now, and counted: 10 of 10 manifests.
-         "source": 10},
-        "All ten bench manifests are tracked. Note the pair `page_count` (a "
-        "number) and `pages` (a list) living in the SAME object in seven of "
-        "them: a rename mapping both onto `pages` drops the list silently and "
-        "leaves valid JSON behind."),
+         # under it at all. One key now, and counted: 13 of 13 manifests.
+         "source": 13},
+        "All thirteen bench manifests are tracked. Note the pair `page_count` "
+        "(a number) and `pages` (a list) living in the SAME object in seven "
+        "of them: a rename mapping both onto `pages` drops the list silently "
+        "and leaves valid JSON behind."),
     Format(
         "results", "results/*.json",
         # TRACKED SINCE THE PROSE WAS DELETED. `METRICS.md` is rendered from

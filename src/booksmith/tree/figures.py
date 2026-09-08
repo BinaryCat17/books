@@ -88,8 +88,18 @@ def documents():
     THE FRONT PAGE IS ONE, and was missing. So is anything under `docs/` at
     any depth: the old glob was `docs/*.md` and would not have seen
     `docs/reference/`, which step 5 creates.
+
+    `METRICS.md` IS COLLECTED HERE AND THEN DROPPED BY `GENERATED`, and the
+    two steps are not the same as never collecting it. It was never in this
+    set -- not the front page, not under `docs/` -- so the exemption removed
+    a member that was not there, and the mutation that certifies the
+    exemption (`GENERATED=()`, "the generated document is counted as a second
+    copy") changed nothing and went UNCAUGHT for as long as the battery has
+    run. An exemption that names something outside the set is indispensable
+    prose and no instrument at all.
     """
-    out = {"CLAUDE.md", "README.md", os.path.join("bench", "README.md")}
+    out = {"CLAUDE.md", "README.md", os.path.join("bench", "README.md"),
+           "METRICS.md"}
     for p in glob.glob(os.path.join(ROOT, "docs", "**", "*.md"),
                        recursive=True):
         out.add(os.path.relpath(p, ROOT))

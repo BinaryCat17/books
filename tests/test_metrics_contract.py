@@ -289,3 +289,50 @@ def test_the_five_artefact_outcomes_account_for_every_object():
         f"the five outcomes sum to {total} of {counts[0][1]} objects -- they "
         f"are not a partition, and each would still read as a plausible "
         f"share while the set means nothing")
+
+
+def test_every_scalar_that_reaches_the_document_declares_its_direction():
+    """No scalar is published with a direction nobody decided.
+
+    `report._arrow` used to answer "↑, better higher" for any name it did not
+    recognise, and that silent default was wrong for five of the twenty-nine
+    scalars in `results/`: the three detection failure modes
+    (`artefacts_cropped`, `artefacts_called_text`, `artefacts_not_seen`),
+    which were added to the metric long after the list was written, and
+    `missing`/`empty`, which were IN the list under the qualified names
+    `snapshot/missing` and `snapshot/empty` while `_arrow` is called with the
+    bare one. So METRICS.md published "missing more artefacts is better", and
+    by that legend yolox's 0.314 not-seen beat V2's 0.067.
+
+    Both failures are the same shape and neither could be seen in the
+    document: a wrong arrow reads exactly like a right one. This asks the
+    question of the RECORDS, which are tracked, so it answers on a fresh
+    clone with nothing measured and nothing rendered.
+    """
+    import glob
+    from booksmith.datasets import report
+    names = set()
+    files = sorted(glob.glob(os.path.join(ROOT, "results", "*.json")))
+    assert len(files) > 20, (
+        f"only {len(files)} result files under results/ -- this check is "
+        f"measuring nothing, and a scalar it never sees declares nothing")
+    for f in files:
+        with open(f, encoding="utf-8") as fh:
+            for rec in json.load(fh)["records"]:
+                names.update(rec.get("scalars") or {})
+    assert len(names) > 20, f"only {len(names)} scalars found: {sorted(names)}"
+    declared = (set(report.LOWER_IS_BETTER) | set(report.HIGHER_IS_BETTER)
+                | set(report.NEITHER))
+    undeclared = sorted(names - declared)
+    assert not undeclared, (
+        f"{len(undeclared)} scalars reach METRICS.md with no declared "
+        f"direction: {undeclared}. Add each to LOWER_IS_BETTER, "
+        f"HIGHER_IS_BETTER or NEITHER in booksmith/datasets/report.py")
+    # AND IN EXACTLY ONE. Two lists holding one name is not a declaration
+    # either -- `_arrow` would answer by the order its branches happen to be
+    # written in, which is not where this decision belongs.
+    for n in sorted(names):
+        where = [k for k, v in (("LOWER_IS_BETTER", report.LOWER_IS_BETTER),
+                                ("HIGHER_IS_BETTER", report.HIGHER_IS_BETTER),
+                                ("NEITHER", report.NEITHER)) if n in v]
+        assert len(where) == 1, f"`{n}` is declared in {where}"

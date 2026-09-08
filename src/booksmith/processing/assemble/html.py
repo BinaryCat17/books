@@ -1206,6 +1206,28 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
               encoding="utf-8") as f:
         json.dump(snap_out, f, ensure_ascii=False, indent=1)
 
+    # WHAT MAKES THE DIRECTORY A BOOK, and nothing wrote it. `manifest.json`
+    # carries `source: {name, sha256}` -- which scan this directory is about
+    # -- and it is the one file `booksmith.tree.layout` uses to tell a book
+    # from a stray, `datasets.bench.Bench` uses to open one, and the schema
+    # floors count. Every manifest in the tree was written by a BENCH builder
+    # (`synth`, `annopage`, `subset`); the command that builds a real book
+    # wrote none, so `processed/ogneupory-vl2` had one only because a person
+    # put it there and `processed/feynman-1` had one for the same reason.
+    #
+    # The next `books html` would therefore have made a directory the layout
+    # check names as a stray -- an instrument going red on correct use, which
+    # is worse than no instrument. The values are not invented here: `name`
+    # and `sha256` come from the snapshot's own `source` block, which is the
+    # sha256 RECOMPUTED from the file this build actually read.
+    man = os.path.join(out_dir, "manifest.json")
+    if not os.path.isfile(man):
+        with open(man, "w", encoding="utf-8") as f:
+            json.dump({"book": os.path.basename(out_dir.rstrip("/")),
+                       "source": {"name": os.path.basename(pdf),
+                                  "sha256": now}},
+                      f, ensure_ascii=False, indent=1)
+
     log(f"pages {len(files)}, blocks {sum(counts.values())} "
         f"(text {counts['text']}, artifacts {counts['artifact']}, "
         f"furniture {counts['furniture']})")

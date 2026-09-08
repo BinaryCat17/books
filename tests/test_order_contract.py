@@ -154,21 +154,24 @@ def test_our_order_values_start_with_lowercase_ours():
                 f"the word 'ours': the guard will take it for a model rank")
 
 
-def test_fingerprint_wording_stays_out_of_page_meta():
-    """LEFT EMPTY ON PURPOSE -- its subject vanished together with the defect.
-
-    It guarded the CAPITALS spelling of `doclayout.fingerprint()` against a
-    case-comparing guard, and guarded it well: the corruption "the adapter
-    wrote it capitalised" was caught here.
-
-    Case was taken out of the guard (`models/base.ours_order`) and spelling
-    stopped deciding anything: the check became an identity that cannot fail
-    under any corruption -- the battery showed it by leaving it without a
-    single mutation. A green check that checks nothing is worse than none: it
-    reports soundness. The subject is now guarded by `test_guard_ignores_case`
-    (case is stripped) and `test_no_unknown_order_values` (no new spelling
-    appears silently).
-    """
+# WHAT STOOD HERE, AND WHY IT IS A COMMENT NOW.
+# `test_fingerprint_wording_stays_out_of_page_meta` guarded the CAPITALS
+# spelling of `doclayout.fingerprint()` against a case-comparing guard, and
+# guarded it well -- the corruption "the adapter wrote it capitalised" was
+# caught here. Case was then taken out of the guard (now `core.page
+# .ours_order`), spelling stopped deciding anything, and the check became an
+# identity that cannot fail under any corruption; the battery showed it by
+# leaving it without a single mutation.
+#
+# IT WAS LEFT AS AN EMPTY `def test_*` WITH THAT REASONING IN ITS DOCSTRING,
+# AND THE DOCSTRING SAID: "A green check that checks nothing is worse than
+# none: it reports soundness." It then went on reporting soundness for
+# eighteen commits -- a body of one string literal, collected by the runner,
+# counted in "passed 373". The argument was right and was applied to
+# everything except the function it was written inside.
+#
+# Its subject is guarded by `test_guard_ignores_case` (case is stripped) and
+# `test_no_unknown_order_values` (no new spelling appears silently).
 
 
 def test_truth_side_has_three_answers_not_two():

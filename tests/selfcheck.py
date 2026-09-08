@@ -55,6 +55,7 @@ from booksmith.processing.read.transports import openai_http as vhttp  # noqa: E
 from booksmith.processing.read import driver as vrun  # noqa: E402
 from booksmith.processing.read.readers.paddleocr_vl import PaddleOcrVl  # noqa: E402
 from booksmith.tree import figures as figuresmod  # noqa: E402
+from booksmith.datasets import report as reportmod  # noqa: E402
 from booksmith.tree import layout as layoutmod  # noqa: E402
 from booksmith.core import schema  # noqa: E402
 from booksmith.datasets import accept as acceptance  # noqa: E402
@@ -1939,6 +1940,48 @@ def _map_naming_a_ghost_command():
     return _map_plus("\n\nbooks conjure                a command that is not\n")
 
 
+def _tree_with_no_data_at_all():
+    """A tree the three globs match nothing in.
+
+    THE SILENT ZERO, which is a different damage from a wrong answer: the
+    walk opens no file, finds no Cyrillic key, and reports the same green it
+    reports over 2670 of them. Measured before the floor went in -- an empty
+    directory passed. Every sibling check in `test_data_contract.py` already
+    carried a floor for this reason; this one did not.
+    """
+    import tempfile
+    d = tempfile.mkdtemp()
+    os.makedirs(os.path.join(d, "bench"))
+    os.makedirs(os.path.join(d, "runs"))
+    return d
+
+
+def _pkg_with_an_unbound_name():
+    """A package whose module reads a constant no import gave it.
+
+    The shape of the real defect: `remote/image.py` was created and both
+    constants moved into it, the sibling rented job got the import and this
+    one did not, so `books offers` and `books read --rent` raised at the line
+    naming the machine to rent -- through 373 checks and 329 mutations,
+    because nothing calls `spec()` without spending money.
+    """
+    import tempfile
+    d = tempfile.mkdtemp()
+    os.makedirs(os.path.join(d, "sub"))
+    open(os.path.join(d, "__init__.py"), "w").write("")
+    # SIXTY SOUND MODULES AND ONE BROKEN, so the UNBOUND-NAME assertion is
+    # what goes red and not the floor. The first edition wrote two files and
+    # was "caught" by `len(files) > 50` -- proving the floor works and the
+    # detection nothing at all, which is the mutation certifying the wrong
+    # half of the check.
+    for i in range(60):
+        open(os.path.join(d, f"m{i:02d}.py"), "w").write(
+            "import os\n\n\ndef where():\n    return os.sep\n")
+    open(os.path.join(d, "sub", "__init__.py"), "w").write(
+        "import os\n\n\ndef spec():\n    return os.path.join(BASE_IMAGE)\n")
+    return d
+
+
 def _tree_that_ignores_the_results():
     """A tree whose .gitignore swallows `results/` again.
 
@@ -1956,10 +1999,20 @@ def _tree_that_ignores_the_results():
     for rel in ("results", "tests/expected",
                 "bench/annopage/detect/PP-DocLayoutV2"):
         os.makedirs(os.path.join(d, rel), exist_ok=True)
-    for rel in ("results/slovar-PP-DocLayoutV2.json",
-                "tests/expected/help.txt",
-                "bench/annopage/detect/PP-DocLayoutV2/run.json"):
+    kept = ("results/slovar-PP-DocLayoutV2.json",
+            "tests/expected/help.txt",
+            "bench/annopage/detect/PP-DocLayoutV2/run.json")
+    for rel in kept:
         open(os.path.join(d, rel), "w").write("{}")
+    # TRACKED, LIKE THE REAL ONES, and the mutation certified nothing until
+    # they were. `git check-ignore` consults the index and never reports a
+    # tracked path as ignored, so a check without `--no-index` passes on the
+    # real tree whatever `.gitignore` says -- and passed while 636 tracked,
+    # paid files sat under an ignore. Here the files were written and never
+    # added, which is the one condition under which the un-fixed check DOES
+    # fail. So the mutation was caught by the property the tree it damages
+    # does not have.
+    subprocess.run(["git", "-C", d, "add", "-f", *kept], check=True)
     text = open(os.path.join(root, ".gitignore"), encoding="utf-8").read()
     open(os.path.join(d, ".gitignore"), "w", encoding="utf-8").write(
         text + "\nresults/\n")
@@ -1989,6 +2042,22 @@ def sources_and_root(stray, old, new):
         os.makedirs(os.path.join(book, "nonsense"))
     elif stray == "a run called nonsense":
         os.makedirs(os.path.join(book, "detect", "not a model name"))
+    elif stray == "a loose file under the root":
+        # `bench/results.json` and `bench/leftover.pdf` -- the two shapes the
+        # instrument was written after, and the root walk looked only at
+        # directories, so neither could ever be named.
+        open(os.path.join(d, "bench", "results.json"), "w").write("{}")
+    elif stray == "a file inside a run":
+        os.makedirs(os.path.join(book, "detect", "M"))
+        open(os.path.join(book, "detect", "M", "junk.txt"), "w").write("")
+    elif stray == "a file where a run should be":
+        open(os.path.join(book, "detect", "notes.txt"), "w").write("")
+    elif stray == "a sheet named for no run":
+        os.makedirs(os.path.join(book, "look"))
+        open(os.path.join(book, "look", "PP-plus-L.pdf"), "w").write("")
+    elif stray == "a bench whose scan is gone":
+        with open(os.path.join(book, "manifest.json"), "w") as f:
+            f.write('{"book": "b", "source": {"name": "b.pdf"}}')
     else:
         os.makedirs(os.path.join(d, "bench", "no-manifest"))
     src = io_open_src("tree/layout.py")
@@ -3811,16 +3880,6 @@ def mutations():
            "test_three_kinds_of_bad_sheet_get_three_different_marks")]),
 
 
-
-
-        # THREE DIRECTIONS, three damages: a file that declares no Cyrillic
-        # gains some; a declared count is quietly refreshed to whatever the
-        # disk says; and an entry outlives the Cyrillic it named.
-
-
-
-
-
         ("the data walk does not descend",
          lambda: attrs(schema, _walk=_walk_top_only),
          [("test_data_contract",
@@ -4007,6 +4066,20 @@ def mutations():
          [("test_docs_map",
            "test_a_measurement_is_not_restated_in_a_second_document")]),
 
+        # THE LIST AS IT STOOD WHEN IT PUBLISHED FIVE WRONG ARROWS: no
+        # `artefacts_cropped`/`_called_text`/`_not_seen` (added to the metric
+        # after this list was written) and `missing`/`empty` under the
+        # qualified names `_arrow` is never called with. Every one of the five
+        # then answered "↑, better higher" through the silent default.
+        ("the scalar directions go back to the list with the silent default",
+         lambda: attrs(reportmod, LOWER_IS_BETTER=(
+             "label_errors", "role_errors", "excess_jumps",
+             "excess_jumps_per_page", "objects_torn", "objects_left_as_text",
+             "objects_with_company", "ink_outside_boxes", "snapshot/missing",
+             "snapshot/empty")),
+         [("test_metrics_contract",
+           "test_every_scalar_that_reaches_the_document_declares_its_direction")]),
+
         ("the four-digit bar is dropped and the instrument cries wolf",
          lambda: one_line(
              "booksmith.tree.figures",
@@ -4162,27 +4235,80 @@ def mutations():
         # it.
         ("a directory nobody declared is accepted into a book",
          lambda: sources_and_root("a stray directory",
-                                  "            if os.path.isdir(p):",
-                                  "            if False:"),
+                                  "                if name not in dirs:",
+                                  "                if False:"),
          [("test_data_contract",
            "test_every_book_directory_is_in_the_declared_shape")]),
 
         ("a run under a name that is not a model is accepted",
          lambda: sources_and_root("a run called nonsense",
-                                  "                        if not MODEL.match(run):",
-                                  "                        if False:"),
+                                  "                        elif not MODEL.match(run):",
+                                  "                        elif False:"),
          [("test_data_contract",
            "test_every_book_directory_is_in_the_declared_shape")]),
 
         ("a directory with no manifest passes for a book",
          lambda: sources_and_root("a directory with no manifest",
-                                  "            if os.path.isdir(p) and not os.path.isfile(",
-                                  "            if False and os.path.isfile("),
+                                  "                if not os.path.isfile(os.path.join(p, \"manifest.json\")):",
+                                  "                if False:"),
          [("test_data_contract",
            "test_every_book_directory_is_in_the_declared_shape")]),
 
+        # FIVE BRANCHES THE WALK DID NOT HAVE, each planted and then broken.
+        # Measured before they existed: of ten strays planted by hand, the
+        # check named ONE. `check.pdf` at a book root -- the very file the
+        # reorganisation removed from six benches -- passed, because any name
+        # ending in `.pdf` did.
+        ("a loose file under a root that holds books is accepted",
+         lambda: sources_and_root("a loose file under the root",
+                                  "            elif name not in ROOT_FILES:",
+                                  "            elif False:"),
+         [("test_data_contract",
+           "test_every_book_directory_is_in_the_declared_shape")]),
+
+        ("a foreign file inside a run is accepted",
+         lambda: sources_and_root("a file inside a run",
+                                  "                                if f not in INSIDE_A_RUN[name]:",
+                                  "                                if False:"),
+         [("test_data_contract",
+           "test_every_book_directory_is_in_the_declared_shape")]),
+
+        ("a file standing where a run should be reads as a model",
+         lambda: sources_and_root("a file where a run should be",
+                                  "                        if not os.path.isdir(q):",
+                                  "                        if False:"),
+         [("test_data_contract",
+           "test_every_book_directory_is_in_the_declared_shape")]),
+
+        ("a sheet of boxes named for a model with no run is accepted",
+         lambda: sources_and_root("a sheet named for no run",
+                                  "                        elif f[:-4] != \"truth\" and f[:-4] not in runs:",
+                                  "                        elif False:"),
+         [("test_data_contract",
+           "test_every_book_directory_is_in_the_declared_shape")]),
+
+        ("a bench whose scan is gone passes as a book",
+         lambda: sources_and_root("a bench whose scan is gone",
+                                  "        if (scan and rel.split(\"/\")[0] == \"bench\"",
+                                  "        if (False and rel.split(\"/\")[0] == \"bench\""),
+         [("test_data_contract",
+           "test_every_book_directory_is_in_the_declared_shape")]),
+
+        # THE DEFECT THIS WAS WRITTEN FROM was live at HEAD and cost nothing
+        # to find only because nobody ran `books offers` while it was there.
+        # A TREE, not a `sources()` patch: the check walks `imports.PKG` on
+        # disk, so damaging a temp COPY of the sources would not reach it.
+        ("a module reads a name no import gave it",
+         lambda: attrs(imports, PKG=_pkg_with_an_unbound_name()),
+         [("test_imports", "test_no_module_uses_a_name_it_never_binds")]),
+
         ("a cyrillic key comes back into the tracked data",
          lambda: attrs(schema, ROOT=_tree_with_a_russian_key()),
+         [("test_data_contract",
+           "test_no_cyrillic_key_survives_where_the_map_says_none_does")]),
+
+        ("the walk over the tracked data matches nothing at all",
+         lambda: attrs(schema, ROOT=_tree_with_no_data_at_all()),
          [("test_data_contract",
            "test_no_cyrillic_key_survives_where_the_map_says_none_does")]),
 

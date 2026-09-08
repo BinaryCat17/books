@@ -130,3 +130,64 @@ def test_nothing_imports_the_command_line():
     importer today; this keeps it so."""
     importers = sorted({a for a, b, _ in imports.edges() if b.startswith("booksmith.cli")})
     assert not importers, importers
+
+
+def test_no_module_uses_a_name_it_never_binds():
+    """A NameError that only a rented machine would have found.
+
+    `read/rented/paddleocr_vl/__init__.py` used `BASE_IMAGE` and `IMAGE_GB`
+    and imported neither: the commit that created `remote/image.py` moved
+    both constants there, gave the import to the SIBLING rented job
+    (`layout/rented/dots_ocr`) and not to this one. So `books offers` and
+    `books read --rent` -- the two commands that touch money -- raised at the
+    line naming the machine to rent, and the tree stayed green through 373
+    checks and 329 mutations, because nothing calls `spec()` without
+    spending. The job's own guard cannot see it either: `spec()` runs
+    `compileall` first, "or we would learn it for money", and an unbound
+    global is not a syntax error.
+
+    ASKED OF EVERY MODULE, not of the imports. `booksmith.tree.imports`
+    checks the DIRECTION of an import (the layer rule); this checks that a
+    name a module reads is one it has. The two failures look nothing alike:
+    a layer violation is an import that exists and should not, this is a use
+    with no import at all.
+    """
+    import builtins
+    import glob
+    import symtable
+    # Module dunders: bound by the interpreter, never by the source.
+    DUNDERS = {"__file__", "__name__", "__doc__", "__package__", "__spec__",
+               "__loader__", "__builtins__", "__path__", "__class__"}
+    files = sorted(glob.glob(os.path.join(imports.PKG, "**", "*.py"),
+                             recursive=True))
+    assert len(files) > 50, (
+        f"only {len(files)} modules found under {imports.PKG} -- this check "
+        f"is measuring nothing")
+    bad = {}
+    for f in files:
+        with open(f, encoding="utf-8") as fh:
+            src = fh.read()
+        try:
+            st = symtable.symtable(src, f, "exec")
+        except SyntaxError as e:                 # a broken file is its own red
+            bad[os.path.relpath(f, imports.PKG)] = [f"does not parse: {e}"]
+            continue
+        top = {sym.get_name() for sym in st.get_symbols()}
+        seen = set()
+
+        def walk(t):
+            for sym in t.get_symbols():
+                n = sym.get_name()
+                if (sym.is_global() and not sym.is_assigned()
+                        and n not in top and n not in DUNDERS
+                        and not hasattr(builtins, n)):
+                    seen.add(n)
+            for c in t.get_children():
+                walk(c)
+        walk(st)
+        if seen:
+            bad[os.path.relpath(f, imports.PKG)] = sorted(seen)
+    assert not bad, (
+        "these modules read a name they never bind -- a NameError waiting "
+        "for the first caller:\n"
+        + "\n".join(f"  {f}: {', '.join(n)}" for f, n in sorted(bad.items())))

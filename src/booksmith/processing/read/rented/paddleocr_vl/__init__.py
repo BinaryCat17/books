@@ -21,6 +21,16 @@ import os
 import booksmith
 
 from booksmith.remote.spec import HostReq, JobSpec
+# THE IMAGE THIS JOB RUNS IN. Used twice below and imported by nothing until
+# now: `c362a00` created `remote/image.py` and moved these two constants
+# there, the sibling job (`layout/rented/dots_ocr/__init__.py`) got the
+# import and this one did not. `books offers` and `books read --rent` both
+# raised on the unbound name -- the two commands that touch money, broken at
+# the line that names the machine to rent, and green through every check the
+# project has, because nothing calls `spec()` without spending. `spec()`
+# runs `compileall` first "or we would learn it for money"; compileall
+# checks syntax, and an unbound global is not a syntax error.
+from booksmith.remote.image import BASE_IMAGE, IMAGE_GB
 from booksmith.core import knobs, stamp
 from booksmith.core.errors import Refusal
 

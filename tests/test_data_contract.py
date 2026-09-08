@@ -42,14 +42,20 @@ def test_every_declared_key_is_present_in_the_data():
     assert not bad, "declared keys missing from the data on disk:\n" + "\n".join(lines)
 
 
-def _before_migration(name):
-    """What this key was called before the rename, from the rename map itself."""
-    path = os.path.join(os.path.dirname(os.path.dirname(support.SRC)),
-                        "tools", "keymap.json")
-    was = [k for k, v in json.load(open(path, encoding="utf-8")).items()
-           if v == name]
-    assert len(was) == 1, f"{name}: {len(was)} old spellings in keymap.json"
-    return was[0]
+# WHAT `reading_order` WAS CALLED BEFORE THE RENAME, spelt out here.
+#
+# IT USED TO BE LOOKED UP IN `tools/keymap.json`, 562 entries and 25 779
+# bytes, and the reason given was that typing the string "would put a
+# permanent floor under this file that the translation can never remove" --
+# a floor under `tree/cyr.py`, the Cyrillic ratchet. That ratchet is deleted,
+# so the cost of typing it is now zero and the file was kept alive by an
+# argument that had already expired. Nobody re-read the argument, which is
+# the failure this project keeps finding: a thing survives because the
+# sentence next to it still sounds right.
+#
+# The map itself is not lost -- it is in git, attached to the migration that
+# used it -- and it was read by this one line and nothing else in the tree.
+WAS_CALLED = {"reading_order": "порядок чтения"}
 
 
 def test_the_guard_can_fail_when_the_code_renames():
@@ -63,11 +69,7 @@ def test_the_guard_can_fail_when_the_code_renames():
     assert seen.get("reading_order", 0) >= fmt.floors["reading_order"], (
         "the declared name is not in the data: the code renamed, the data "
         "did not")
-    # The pre-migration spelling is NOT typed here. It is looked up in
-    # `tools/keymap.json`, which is the record of the rename: typing it would
-    # put a permanent floor under this file that the translation can never
-    # remove, and would go stale the moment the map is corrected.
-    was = _before_migration("reading_order")
+    was = WAS_CALLED["reading_order"]
     assert seen.get(was, 0) == 0, (
         f"the name from before the migration, {was!r}, is still on disk in "
         f"{seen.get(was, 0)} places: the rename did not finish")
@@ -308,16 +310,40 @@ def test_the_things_that_must_never_be_committed_are_ignored():
     # succeeds, the index keeps it, and the next clone is missing it. The
     # results are the evidence for every number in METRICS.md and were
     # ignored until the prose that held those numbers was deleted.
+    #
+    # `--no-index` IS THE WHOLE CHECK. Without it `git check-ignore` consults
+    # the index and answers about TRACKED paths by never reporting them --
+    # and every path below is tracked, which is what "must keep" means. So
+    # this half could not fail, whatever `.gitignore` said, and it did not:
+    # moving the runs under a label put `bench/*/detect/*/pages/` over the
+    # dots-ocr pages and 636 tracked, PAID files went ignored underneath a
+    # green check. `git ls-files -i -c` printed all 636 the moment it was
+    # asked. The mutation certifying this built its tree WITHOUT `git add`,
+    # so it exercised the one condition the real tree does not have.
     must_keep = ("results/slovar-PP-DocLayoutV2.json",
                  "tests/expected/help.txt",
-                 "bench/annopage/detect/PP-DocLayoutV2/run.json")
-    r = subprocess.run(["git", "check-ignore", *must_keep],
+                 "bench/annopage/detect/PP-DocLayoutV2/run.json",
+                 "bench/annopage-lite/detect/dots-ocr/pages/0000.json")
+    r = subprocess.run(["git", "check-ignore", "--no-index", *must_keep],
                        cwd=root, capture_output=True, text=True)
     hidden = [ln for ln in r.stdout.splitlines() if ln.strip()]
     assert not hidden, (
         f"git now IGNORES {hidden}, and these must travel with the tree: a "
         f"result is the evidence for a published number, and a snapshot says "
         f"which knobs produced one")
+
+    # AND THE SAME QUESTION ASKED OF THE INDEX ITSELF, which is the only one
+    # that sees a file already tracked AND already ignored. `--no-index`
+    # above answers about the four paths named; this answers about all of
+    # them, including the ones nobody thought to name.
+    r = subprocess.run(["git", "ls-files", "-i", "-c", "--exclude-standard"],
+                       cwd=root, capture_output=True, text=True)
+    both = [ln for ln in r.stdout.splitlines() if ln.strip()]
+    assert not both, (
+        f"{len(both)} files are TRACKED and IGNORED at once, starting with "
+        f"{both[0]}. `git status` will never mention them; the next "
+        f"regenerate-and-add drops them and the clone after that is missing "
+        f"data with no message anywhere")
 
 
 def test_the_rented_image_was_built_from_this_dockerfile():
@@ -453,7 +479,7 @@ def test_no_cyrillic_key_survives_where_the_map_says_none_does():
             for v in o:
                 keys(v, out)
 
-    bad = {}
+    bad, seen, unreadable = {}, 0, []
     for pat in ("bench/**/*.json", "processed/**/*.json", "runs/*.jsonl"):
         for f in glob.glob(os.path.join(root, pat), recursive=True):
             found = set()
@@ -465,10 +491,31 @@ def test_no_cyrillic_key_survives_where_the_map_says_none_does():
                                 keys(json.loads(line), found)
                     else:
                         keys(json.load(fh), found)
-            except (OSError, ValueError):
+            except (OSError, ValueError) as e:
+                # A FILE THAT COULD NOT BE READ IS NOT A FILE WITH NO CYRILLIC
+                # IN IT. `continue` was silent here, so `{"стр": 3,,}` --
+                # unparseable, Cyrillic key in plain sight -- passed as
+                # clean. The project's own rule: zero from a check and zero
+                # from not understanding are different zeros.
+                unreadable.append(f"{os.path.relpath(f, root)}: {e}")
                 continue
+            seen += 1
             if found:
                 bad[os.path.relpath(f, root)] = len(found)
+
+    # A DEAD GLOB IS A SILENT ZERO, and this walk had no floor while every
+    # sibling in this file has one. Point `schema.ROOT` at an empty directory
+    # and the check went green having opened nothing -- measured, and the
+    # same green it reports over 2670 tracked json. The floor is deliberately
+    # far below what is on disk: it has to survive a clone, where the six
+    # synthetic books and all of `processed/` are behind .gitignore.
+    assert seen > 1500, (
+        f"only {seen} json were read under {root} -- this check is measuring "
+        f"nothing. Either the three globs stopped matching or the tree is not "
+        f"where schema.ROOT points.")
+    assert not unreadable, (
+        f"{len(unreadable)} tracked json could not be parsed, so nothing is "
+        f"known about the keys in them: {unreadable[:3]}")
 
     LEDGER = os.path.join("runs", "ledger.jsonl")
     others = {k: v for k, v in bad.items() if k != LEDGER}
@@ -477,14 +524,23 @@ def test_no_cyrillic_key_survives_where_the_map_says_none_does():
         f"migration is finished and its tools are deleted; a key in Russian "
         f"here means data written by code that predates it, or a rename that "
         f"went backwards.")
-    if os.path.isfile(os.path.join(root, LEDGER)):
-        assert bad.get(LEDGER), (
-            f"{LEDGER} no longer holds a Cyrillic key. It is the journal of "
-            f"the runs that were PAID FOR and is append-only -- if its old "
-            f"lines are English now, the journal was rewritten after the "
-            f"fact, which destroys the one thing a journal is for. If it was "
-            f"rewritten on purpose, delete this half of the check and the "
-            f"exception in CLAUDE.md with it.")
+    # THE EXEMPTION HALF ONLY RUNS WHERE THE JOURNAL IS, and `runs/` is in
+    # .gitignore -- asserted two checks above. So on every fresh clone and on
+    # any machine that has not rented a card, this half silently did not run
+    # while the docstring claimed the check "fails in both directions". A
+    # skip with a reason is the difference between "not applicable here" and
+    # "checked and fine", and this file skips with a reason twice already.
+    if not os.path.isfile(os.path.join(root, LEDGER)):
+        support.skip(
+            f"{LEDGER} is not here -- `runs/` is gitignored, so the "
+            f"append-only half of this check has nothing to ask")
+    assert bad.get(LEDGER), (
+        f"{LEDGER} no longer holds a Cyrillic key. It is the journal of "
+        f"the runs that were PAID FOR and is append-only -- if its old "
+        f"lines are English now, the journal was rewritten after the "
+        f"fact, which destroys the one thing a journal is for. If it was "
+        f"rewritten on purpose, delete this half of the check and the "
+        f"exception in CLAUDE.md with it.")
 
 
 def test_every_book_directory_is_in_the_declared_shape():

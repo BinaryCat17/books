@@ -18,8 +18,14 @@ ONE DIRECTORY PER BOOK, and a bench is a book that also has `truth/`:
 
 THE LAST TWO ARE THE PLAN, NOT THE TREE, and saying so is the point: `books
 read` still writes `<detect dir>.read` and `books html` still writes
-`processed/<name>/`, so `runs("read")` is always empty and `build` has no
-caller outside this file. They were advertised here and in CLAUDE.md as
+`processed/<name>/`, and `build` has no caller outside this file.
+
+"SO `runs("read")` IS ALWAYS EMPTY" STOOD HERE AND STOPPED BEING TRUE while
+this paragraph was being edited: `processed/ogneupory-vl2` holds two level-two
+runs under `read/`, moved there by hand when the book directories were given
+one shape, and `runs("read")` answers with both. So the shape exists on disk
+and no command writes it -- which is a third state, and worth more than the
+two the sentence had room for. They were advertised here and in CLAUDE.md as
 though they existed, which made 3b read as finished when a third of it is
 not. Step 3c moves the two commands onto this layout.
 

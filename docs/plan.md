@@ -15,7 +15,10 @@ goes in the commit message of the work it reviewed.
    core`. Nothing in `processing` imports `datasets`. `remote` is imported
    only by `processing/*/rented/*`, `cli/rent.py`, `cli/doctor.py` and the
    `--rent` branch of `read`. Tree instruments (`cyr`, `prose`, the import
-   graph) live in `booksmith.tree`, importable by the mutation battery;
+   graph) live in `booksmith.tree`, importable by the mutation battery. (Of
+   the three, only the import graph survives; `cyr` and `prose` were deleted
+   once their target became unreachable, and `layout` and `figures` were
+   added after this was written.)
    `tools/acceptance.py` and its siblings stay as thin
    command wrappers over them. A test over the import graph enforces the
    rule and exists from step 1.
@@ -136,14 +139,15 @@ Goal: the floor both modules stand on, and the end of the copies.
 | `textnorm.py`: `normalize`, `norm_note`, `NORM_REFUSED` with its numbers | `text.py:75-217` |
 | `errors.py`: `BooksmithError(Exception)`; `Refusal` (rc 1, one line); `Unmeasurable` (rc 2); `WeightsMissing(Unmeasurable)`; `MetricError`, `TextError` under `Unmeasurable`; the other per-module classes under `Refusal` | 12 per-module classes, 3 WeightsMissing, 59 convertible `raise SystemExit("...")` |
 | `log.py`: one `log()` to stdout with a timestamp, import-free; its header keeps `ledger.py`'s reason (a command that rents nothing must not import `vastai`) | 4 mergeable copies of 6; the two box entrypoints keep a local one and say why |
-| `tree/cyr.py`, `tree/imports.py` (the dependency rule as a test) | `cyr.py`; new |
+| `tree/cyr.py` (DELETED since), `tree/imports.py` (the dependency rule as a test) | `cyr.py`; new |
 
 Rules kept from the reviews: `stamp.sha256` and `stamp.commit` become the
 only ones (8 file hashers deleted; `apply._sha256` hashes text and stays;
 `replay._sha256` returns None on OSError and stays); every path built from
 `__file__` by `dirname` chains is audited and tested on the moved tree
 (`read/run.py` otsl hash, `stamp` root, `ledger._ROOT`, `knobs.SRC`,
-`cyr.ROOT`, `paddleocr_vl.PKG`); `raster.py` catches `Refusal` where
+`cyr.ROOT` -- gone with the file --, `paddleocr_vl.PKG`); `raster.py`
+catches `Refusal` where
 `crop.py:148-151` caught `SystemExit`; `UnknownLabel` goes under
 `Unmeasurable` (a label outside the vocabulary during `bench score` is
 "could not count"); `dots_ocr/entrypoint.py` keeps `SystemExit` because
@@ -157,10 +161,10 @@ keep their pymupdf.
 
 The migration script carried the old-to-new table, resolved every
 relative import to an absolute name against the old package by ast (104 in
-src), maps it, re-emits, and rewrites `tests/support.py`, the battery's
+src), mapped it, re-emitted, and rewrote `tests/support.py`, the battery's
 `COPY`, `sources(...)`, `one_line(...)`, its import block, and every
-`from booksmith` line in tests and tools. It prints its counts. The table
-maps SYMBOLS, not only modules, for the five modules step 1 splits:
+`from booksmith` line in tests and tools. It printed its counts. The table
+mapped SYMBOLS, not only modules, for the five modules step 1 splits:
 `models/base` (`Block`, `Page`, `ours_order` to `core.page`; `Recognizer`
 stays), `text` (`normalize`, `norm_note`, `NORM_REFUSED` to `core.textnorm`;
 `measure`, `TextError` stay), `doc/html` (`ASSETS`, `SOURCE`, `journal_path`
@@ -175,7 +179,8 @@ are updated in the same commit because `test_docs_map` chases them.
 The `__file__` checklist, each tested on the moved tree: `config.py` ROOT
 (`..`, `..`: one level deeper it points at `src/` and every secret reads as
 unset), `schema.py` ROOT (three `dirname`s: every glob counts zero),
-`acceptance.py` ROOT (three), `cyr.py` ROOT (three), `read/run.py` (the
+`acceptance.py` ROOT (three), `cyr.py` ROOT (three; the file is deleted),
+`read/run.py` (the
 `otsl.py` hash and the `run.py` self-hash, renamed to `driver.py` in 3a),
 `doc/html.py` (`sha256_crop_code` beside a crop that left; `MATHJAX`, so
 `doc/mathjax/` travels with html.py), `paddleocr_vl.PKG` (two up),

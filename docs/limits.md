@@ -116,7 +116,7 @@ than an average one (lift 0.29-0.65 against a line shift), and the leading
 form of invisible damage -- a shifted row -- is identical in every pass and
 invisible by construction.
 
-**A knob is declared in `run/knobs.py`.** Reading the environment past the
+**A knob is declared in `core/knobs.py`.** Reading the environment past the
 registry is a defect: a knob that is not in the registry does not reach the
 snapshot, and the run becomes silently unrepeatable.
 
@@ -163,10 +163,14 @@ simply stopped being printed. Reports are therefore compared whole
 comment line carrying Cyrillic removes 176 515 characters -- a quarter of
 everything this project has written into its comments -- and leaves every
 instrument green while reporting a quarter of the job done. Each area
-therefore carries a second number, the Latin in the same prose: translation
-turns Cyrillic into Latin, deletion turns it into nothing.
+therefore carried a second number, the Latin in the same prose: translation
+turns Cyrillic into Latin, deletion turns it into nothing. (Carried, past:
+the per-area split and its companion Latin count went with the ratchet.)
 
-**An exemption must be a rule, not a list.** The ratchet exempts book content
+**An exemption must be a rule, not a list.** (Past tense throughout: the
+ratchet this was learned on is deleted, and `_RU` is read by no code today --
+the suffix survives only in the constant names it was invented for.) The
+ratchet exempted book content
 -- the Russian actually drawn onto a synthetic page -- and the exemption began
 as a list of four constant names. It leaked in BOTH directions. `CASES` and
 `AGING` were on it and are not book text, which filed the ageing profile's
@@ -175,18 +179,29 @@ OPERATOR and copied into `bench/*/manifest.json`, so six book descriptions,
 643 characters, were invisible to the instrument that was supposed to be
 chasing them. Meanwhile the Russian half of the parallel-text page was an
 inline literal in the middle of a function, exempted by nothing, and
-translating it would have destroyed the page it belongs to. The rule now is
-the constant's NAME: it must end in `_RU`, so the exemption is declared where
-the content is, and a literal that is content but is not named cannot hide.
+translating it would have destroyed the page it belongs to. The rule it
+arrived at was the constant's NAME -- it had to end in `_RU`, so the
+exemption was declared where the content is, and a literal that is content
+but is not named could not hide. The rule outlives the instrument; nothing
+enforces it now.
 
 **A mutation that patches source by text must name exactly ONE place.**
 Twenty-four mutations reach inside a function by replacing one exact line.
 Move that line -- reflow, translate, rename -- and the mutation stops landing;
 the battery refuses to certify it and aborts, several minutes in, leaving
 everything after it unmeasured. `tools/anchors.py` asks the same question
-about all 52 literal patches in under a second, and it found three anchors
-that matched TWO or THREE places, where `str.replace(old, new, 1)` silently
-patches the first. In all three the first happened to be the intended one.
+of every literal patch in the battery in under a second -- ask the tool for
+the count, not this sentence, which has been wrong twice -- and it found
+three anchors that matched TWO or THREE places, where
+`str.replace(old, new, 1)` silently patches the first. In all three the first
+happened to be the intended one.
+
+**AND IT ONLY ASKS ABOUT THE HELPERS IT KNOWS.** It knew two of the three
+that patch source by text; the third, `sources_and_root`, patches
+`tree/layout.py` and was invisible to it. Rewriting that file broke two of
+its three mutations and made a third match two places, while the tool went on
+printing "land 97, do not land 0". An instrument over the instruments has the
+same blind spot as any other: what it does not enumerate, it certifies.
 
 **A quotation of a report goes stale exactly like a copy of a number.** Seven
 citations of `books score` and `books text` output in `docs/contour-notes.md`
@@ -218,10 +233,13 @@ the map that was both false and unmeasured. The rule generalises past
 Cyrillic: an instrument earns its upkeep only while its target is reachable,
 and the day the whole backlog is permanent, the instrument IS the backlog.
 
-
-
-quotation of real data from those books (in `djvu.py` the pipe inside a caption
-marks where the spread splits a word, so the spelling IS the measurement), and
-an instrument whose subject is Russian. It fails in three directions, and the
-third is the one a ratchet is blind to: an entry that outlives the Cyrillic it
-named. That is how both earlier exemptions rotted.
+**AND ONLY ONE OF ITS THREE DIRECTIONS HAD AN UNREACHABLE TARGET, which is
+the part of that deletion still owed an answer.** The ratchet direction --
+Cyrillic appearing in a file that declares none -- had an EMPTY target and
+was meeting it. The floor direction is the one that could not move. Deleting
+all three on the floor's argument left nothing watching a Russian comment or
+docstring entering `src/`, `tests/`, `docs/`, or
+`read/rented/paddleocr_vl/run.sh`, which executes on a card that bills --
+while CLAUDE.md still states the translation is DONE as a live property.
+Either that sentence gets an instrument again or it stops being written in
+the present tense; it cannot stay a claim with nothing behind it.

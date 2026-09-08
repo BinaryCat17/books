@@ -42,16 +42,53 @@ OUT = os.path.join(config.ROOT, "METRICS.md")
 # shares at all, and higher is worse for most. Read by that legend, V3's 442
 # label errors BEAT V2's 207: the very inversion the denominators were added
 # to fix, reintroduced one file over because the VALUE column is still the raw
-# count. A scalar not named here is a share where higher is better.
+# count.
+#
+# EVERY SCALAR IS DECLARED, AND AN UNDECLARED ONE REFUSES TO RENDER. The rule
+# here used to be "a scalar not named is a share where higher is better", and
+# that default was wrong for FIVE of the twenty-nine scalars on disk, in the
+# first document this project ever generated:
+#
+#   `artefacts_cropped`, `artefacts_called_text` and `artefacts_not_seen` are
+#   the failure modes of detection -- cut off, mislabelled, missed -- added
+#   after this list was written and silently inheriting "better higher". The
+#   published table told a reader that missing MORE artefacts was better, and
+#   by it yolox's 0.314 not-seen beat V2's 0.067.
+#
+#   `missing` and `empty` were named here as `snapshot/missing` and
+#   `snapshot/empty`, and `_arrow` is called with the BARE name -- so the
+#   qualified form matched nothing and both printed as "better higher" too. A
+#   list is not a declaration while a miss is indistinguishable from a share.
+#
+# So the default is gone: `_arrow` refuses a scalar in none of the three, and
+# `tests/test_metrics_contract.py` asks the question of every scalar in
+# `results/` without rendering anything.
 LOWER_IS_BETTER = (
     "label_errors", "role_errors", "excess_jumps", "excess_jumps_per_page",
     "objects_torn", "objects_left_as_text", "objects_with_company",
-    "ink_outside_boxes", "snapshot/missing", "snapshot/empty",
+    "ink_outside_boxes", "missing", "empty",
+    "artefacts_cropped", "artefacts_called_text", "artefacts_not_seen",
 )
 # Counts that are neither better nor worse -- they describe the bench or the
 # run, and ranking models by them is meaningless.
+#
+# `artefacts_merged` IS ONE, and it is the only judgement call in these three
+# lists. A merge is not damage to THIS pipeline: docs/limits.md measured it --
+# a wider picture goes to the second level and is split there, and on the 36
+# hardest pages strict matching called 20 % what arriving-whole called 91 %.
+# So it is neither a success to maximise nor a failure to minimise, and giving
+# it an arrow in either direction would rank models by a quantity this project
+# has already measured as not costing it anything.
 NEITHER = ("transitions", "pages_with_columns", "values_present",
-           "fingerprint_verified")
+           "fingerprint_verified", "artefacts_merged")
+# Named, not inferred: this is the list that makes the other two a
+# declaration instead of a residue.
+HIGHER_IS_BETTER = (
+    "area_under_boxes", "artefacts_found", "assembly_order",
+    "ink_under_artefacts", "ink_under_boxes", "model_order",
+    "object_ink_preserved", "objects_in_one_box", "objects_intact",
+    "sense_whole", "text_furniture_found",
+)
 
 HEADLINE = (
     ("contour", "artefacts_found", "tables and pictures found"),
@@ -78,10 +115,25 @@ def _cells():
 
 
 def _arrow(scalar: str) -> str:
-    """Which way is better, as a property of the scalar."""
+    """Which way is better, as a property of the scalar.
+
+    REFUSES what it does not know. Returning "↑" for an unrecognised name is
+    how three failure modes came to be published as things to maximise: the
+    scalar was added to a metric, nobody touched this file, and the document
+    read the same as if the direction had been decided.
+    """
     if scalar in NEITHER:
         return "="
-    return "↓" if scalar in LOWER_IS_BETTER else "↑"
+    if scalar in LOWER_IS_BETTER:
+        return "↓"
+    if scalar in HIGHER_IS_BETTER:
+        return "↑"
+    raise Refusal(
+        f"scalar `{scalar}` declares no direction. Add it to one of "
+        f"LOWER_IS_BETTER, HIGHER_IS_BETTER or NEITHER in "
+        f"booksmith/datasets/report.py -- a scalar with no declared "
+        f"direction used to be published as `↑`, better higher, which is "
+        f"wrong for every failure mode.")
 
 
 def _num(v):

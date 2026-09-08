@@ -131,12 +131,21 @@ tools/         thin wrappers over booksmith.tree and booksmith.datasets, so
                swaps still land), acceptance.py, figures.py, layout.py.
                Beside them: sweep.py (every model over every bench),
                spread_probe.py (the spread-cut veto, re-measurable --
-               test_djvu runs it), keymap.json (the key rename, READ by a
-               check).
+               test_djvu runs it).
 
-               NO MIGRATION SCRIPTS. There were five, each a finished job:
-               the package move, the key rename, the run labels, the book
-               directory. A script for a migration that has happened is a
+               NO MIGRATION SCRIPTS, AND NO MIGRATION DATA. There were six
+               scripts, each a finished job: the package move, the key rename
+               (three of them), the run labels, the book directory. Beside
+               them lay `keymap.json`, the whole Russian-to-English key
+               table, kept because ONE line of one check read it to look up
+               ONE key -- and kept, in its own words, because typing that key
+               here "would put a permanent floor under the Cyrillic ratchet".
+               The ratchet is deleted, so the reason went with it and the
+               file outlived its argument by a week. The string is typed in
+               the check now; the size of what that bought is in
+               docs/lessons-from-deleted-code.md, which owns the figure.
+
+               A script for a migration that has happened is a
                file that describes the past, and git already does. What each
                one KNEW is in docs/lessons-from-deleted-code.md
 ```
@@ -218,12 +227,27 @@ Stated here in one line each; the measurement that bought each one is in
 ```
 bench/<book>/ or processed/<book>/
   manifest.json        source: {name, sha256} -- which scan this is about
-  <book>.pdf           the scan itself (untracked for every bench we build)
+  <book>.pdf           the scan itself (untracked for every bench we build;
+                       a BUILT book keeps its scan in raw/, see below)
+  pages.json           a page selector, where a book has one
   truth/               only a bench has this
   detect/<model>/      a level-one run: pages/ and run.json
-  read/<model>/        a level-two run           -- PLANNED, not written yet
+  read/<model>/        a level-two run -- ON DISK, written by no command yet
+  look/<model>.pdf     boxes over the pages, for the eye (look/truth.pdf when
+                       truth is drawn with no model beside it)
   build/               the HTML and its kitchen  -- PLANNED, not written yet
+  assets/, book.html   what `books html` writes today, until 3c moves it
 ```
+
+THIS LIST IS NOT PROSE: `src/booksmith/tree/layout.py` declares the same one
+and `tools/layout.py` walks the tree against it, so a part named here and not
+there is a check that cannot fail, and a directory on disk in neither is a
+stray with a name. The two disagreed for four commits -- this block omitted
+`look/`, `pages.json`, `assets/` and `book.html`, all four of which exist and
+are allowed -- and said `read/<model>/` was "not written yet" while
+`processed/ogneupory-vl2` held two of them, moved there by hand. Three
+states, not two: MAPPED AND ON DISK; on disk and unmapped; mapped and
+nowhere. `build/` is the third.
 
 THE LABEL IS THE MODEL'S OWN NAME, asked of the adapter (`Detector.label`),
 never the adapter's registry name: `doclayout-onnx` serves three models, and

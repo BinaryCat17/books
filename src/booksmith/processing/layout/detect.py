@@ -334,11 +334,31 @@ def run(pdf, outdir, pages_spec=None, log=print):
     # metric a sample from two runs while `run.json` says nothing. Exactly the
     # lesson the registry records for `RESUME`.
     os.makedirs(pagedir, exist_ok=True)
+    # THE SNAPSHOT GOES FIRST, BEFORE ITS PAGES. `run.json` is written at the
+    # very end of this function, so a run that dies in between -- a killed
+    # process, a model that raises on page 300 of 600 -- used to leave the
+    # PREVIOUS snapshot sitting beside the NEW run's half-written pages. That
+    # directory then answers every question wrongly and none of them loudly:
+    # `guard_identity` compares the next run against an identity that belongs
+    # to boxes which no longer exist, `books replay --check` verifies a
+    # fingerprint against the wrong pages, and a metric reads a sample from
+    # one run under the knobs of another.
+    #
+    # Removed first, the same crash leaves a directory with no recorded
+    # identity -- and "I cannot tell" is a state this project already refuses
+    # out loud, which is the whole difference.
+    snap = os.path.join(outdir, "run.json")
+    had_snapshot = os.path.isfile(snap)
+    if had_snapshot:
+        os.unlink(snap)
     stale = [f for f in os.listdir(pagedir) if f.endswith(".json")]
     if stale:
         for f in stale:
             os.unlink(os.path.join(pagedir, f))
         log(f"pages of the previous run removed: {len(stale)}")
+    if had_snapshot:
+        log("the previous run.json removed BEFORE its pages: a run that dies "
+            "here leaves no identity, not a stale one")
 
     log(f"{os.path.basename(pdf)}: pages in the file {doc.page_count}, "
         f"counting {len(idxs)} at {dpi_used} dpi")

@@ -88,8 +88,30 @@ bench/*/read/*/pages/
 bench/*/read/*/answers/
 bench/*/read/*/crops/
 
-# The level-one product, 12 MB per book: `books html` from detect/.
-bench/*/html/
+# AND THE ONE RUN THAT MUST NOT BE, RE-INCLUDED BY NAME. The line above went
+# one level deeper with the run labels and swallowed the dots-ocr pages with
+# everything else: 636 TRACKED files -- 600 under `annopage-lite`, 36 under
+# `hard36` -- became "tracked and ignored", which `git ls-files -i -c` prints
+# and `git status` never will. They are half of the 1272 pages of the $0.892
+# rented-card run, the other half sitting one level lower under `job/` and
+# matched by nothing, so the one thing here that cannot be regenerated was
+# split down the middle by a pattern meant for free CPU output. Tracked files
+# stay tracked, so nothing was lost -- but delete-and-regenerate, or any fresh
+# `git add`, would have dropped them silently, and the clone after that would
+# be missing paid data with no message anywhere.
+#
+# THE RE-INCLUSION IS THE DIRECTORY, NOT THE FILES IN IT. git cannot re-include
+# a path whose parent directory is excluded -- it never descends to look -- so
+# `!.../pages/*.json` under an excluded `pages/` would do nothing at all.
+!bench/*/detect/dots-ocr/pages/
+
+# WHAT `books html` WRITES IS NO LONGER NAMED HERE. `bench/*/html/` stood for
+# the 12 MB-per-book level-one product, and `booksmith.tree.layout` now
+# declares `html/` under a book a STRAY. Two instruments answering opposite
+# ways about the same directory -- git "expected, untracked", the layout check
+# "should not be here" -- is worse than either answer alone, and the ignore was
+# the one that had already lost: the 1369 files it hid were deleted for being
+# five weeks stale, and nothing hid them from the reader.
 
 # What would go to the VLM: `books crop` writes one picture per asked block,
 # into `<detect dir>.crop/` by default. 12 MB over slovar's 13 pages is 1.4 GB
@@ -98,8 +120,25 @@ bench/*/html/
 # was closed by nothing at all (`git check-ignore` returned 1) -- first for
 # `books feed`, whose two paths stood here after the command was deleted while
 # the new one was hidden nowhere.
+#
+# AND THE DEPTH MOVED WITH THE RUN LABELS AND THIS DID NOT. `books crop` writes
+# beside the RUN DIRECTORY (`cli.py`: `abspath(d) + ".crop"`), which is
+# `bench/<book>/detect/<label>.crop/` since the labels landed -- one level
+# below what `bench/*/*.crop/` can see. Checked with `git check-ignore`: NOT
+# IGNORED. So the first `books crop` on annopage would have put ~1.4 GB into
+# `git status`, and `layout.py` would not have called it a stray either,
+# because `<label>.crop` reads to it as a model name. The old form is kept for
+# a `--out` run beside a loose PDF, which still writes at book-root depth.
 bench/*/*.crop/
+bench/*/detect/*.crop/
 bench/*/crops/
+
+# THE SAME HOLE, THE SAME LINE OF `cli.py`: `books read` writes `<run
+# dir>.read`, so `bench/<book>/detect/<label>.read/`. The three `read/*/`
+# patterns above name `bench/<book>/read/<model>/` -- the shape CLAUDE.md
+# calls PLANNED and NO COMMAND WRITES. Both are kept: one for what is written
+# today, three for what the map says will be.
+bench/*/detect/*.read/
 
 # The last page of a run as a picture, 1.7 MB -- a debugging trace, not data.
 bench/*/detect/dots-ocr/job/_page.png

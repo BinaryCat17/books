@@ -147,7 +147,10 @@ def test_every_file_the_map_points_at_exists():
     # chased. `assets/run.json` and `source/` name places INSIDE a built book
     # directory, which is not a fixed path; chasing those would make the check
     # fire on correct prose, and a check that cries wolf gets switched off.
-    TOPS = ("src/", "docs/", "tests/", "tools/", "bench/", "infra/", ".github/")
+    # `results/` BECAME A TOP-LEVEL DIRECTORY and was not added here, so a
+    # dead `results/...` path in the map would have been chased by nothing.
+    TOPS = ("src/", "docs/", "tests/", "tools/", "bench/", "infra/",
+            ".github/", "results/")
     text = _map_text()
     cited = set()
     for token in re.findall(r'`([^`\s]+)`', text):

@@ -284,10 +284,9 @@ be regenerated -- 1272 dots pages counted on a rented GPU for $0.892, 891
 answer files read for $0.545, and two benches whose builder exists neither
 in the tree nor in git. It is provably complete: zero Cyrillic keys in the
 6041 JSON files of `bench/`, `processed/` and `runs/`. The map itself,
-`tools/keymap.json`, stays -- `tests/test_data_contract.py` looks a
-pre-migration spelling up in it rather than typing one, so the record is
-read and cannot go stale. `valuemap.json` and `htmlmap.json` went with the
-scripts that were their only readers.
+`tools/keymap.json`, is gone too -- see the section on the migration scripts
+below for why it outlived them by a week. `valuemap.json` and `htmlmap.json`
+went earlier, with the scripts that were their only readers.
 
 What the three knew, kept because the next bulk rename will meet all of it:
 
@@ -454,9 +453,15 @@ times, and each time the Cyrillic it had found was its own machinery: the
 bounds of the Cyrillic block inside the counter, the same bounds inside a
 check's regex, and a Russian key written as escapes inside the mutation that
 plants one back into the data. Zero regressions in the code it was watching.
-Its floor was about 1180 characters that can NEVER go -- the names of the
-Russian volumes this project parses, sentences quoted from them, the page text
-drawn onto the synthetic sheets -- so it could not reach its own target.
+Its floor was 1405 characters in 20 files that can NEVER go -- the names of
+the Russian volumes this project parses, sentences quoted from them, and the
+page text drawn onto the synthetic sheets, which is the largest class of the
+three -- so it could not reach its own target. (Measured by re-running the
+deleted counter's own `residue()` against the tree it was deleted from, which
+found that figure where its declaration claimed eight more in one more file.
+"About 1180" was written in its epitaph and reproduces from no grouping of
+the declaration at all -- the number this document owns, stated wrong in the
+document that owns it.)
 
 **Its own header said so**: "an instrument that cannot reach its own target
 teaches everyone to ignore it." That line was written about counting
@@ -486,14 +491,32 @@ any tracked json, in `tests/test_data_contract.py`, with `runs/ledger.jsonl`
 as the one declared exception. It caught a claim in the map that was both
 false and unmeasured.
 
-## Five migration scripts, each for a job that happened
+## Six migration scripts, each for a job that happened
 
 `migrate_code.py`, `migrate_keys.py`, `keymap_check.py` (the key rename),
 `migrate_layout.py` (the package move), `migrate_runs.py` (runs under a model
-label) and `migrate_bench.py` (the book directory shape). A script for a
-migration that has already happened describes the past, and git describes it
-better. What each knew that outlives it is written above and in the sections
-before it; `tools/keymap.json` stays because a check READS it.
+label) and `migrate_bench.py` (the book directory shape). Six, and the
+heading said five while the sentence beneath it listed all six -- a count
+wrong in the document written to record what deleted things knew.
+
+A script for a migration that has already happened describes the past, and
+git describes it better. What each knew that outlives it is written above and
+in the sections before it.
+
+**And `tools/keymap.json` went after them, one week late.** 562 entries, 25 779
+bytes, the whole Russian-to-English key table -- and the sentence that stood
+here said it "stays because a check READS it". It was read by ONE line, to
+look up ONE key: what `reading_order` had been called. The check's own comment
+gave the reason for not typing that string instead: it "would put a permanent
+floor under this file that the translation can never remove" -- a floor under
+`tree/cyr.py`. The ratchet was deleted, the cost of typing became zero, and
+the map lived on for a week behind an argument that no longer had a subject.
+The string is typed in the check now, and the table is in git beside the
+migration that used it.
+
+THE SHAPE IS THE ONE THIS WHOLE DOCUMENT IS ABOUT, one turn further in: a
+thing survives because the sentence next to it still sounds right. `cyr.py`
+was deleted for it and then killed a second file by dying.
 
 `prose_only.py` compared two versions of a file ignoring comments, so a bulk
 prose edit could be proved not to have touched code. It was written for the

@@ -514,6 +514,44 @@ def cmd_crop(a):
     return 0
 
 
+def _look_at(pdf, detect_dir):
+    """Where a sheet of boxes goes: `<book>/look/<label>.pdf` inside a book.
+
+    THE DEFAULT USED TO BE `<book>/<name>.overlay.pdf`, a pdf at the book
+    root -- and `booksmith.tree.layout` now allows exactly ONE pdf there, the
+    scan the manifest names. So the command's own default wrote a file the
+    layout check calls a stray, which is the shape this project keeps paying
+    for: an instrument and a command disagreeing about where output belongs,
+    with the command winning silently until someone runs the check.
+
+    `look/<label>.pdf` was chosen when the sheets were gathered under one
+    name, and the label is the RUN's directory name -- the model's own, by
+    `Detector.label()` -- so a sheet says which model drew it. Six of them
+    said nothing (`check.pdf` on six benches) and four said a model that had
+    never existed.
+
+    Outside a book -- a loose pdf with `--detect` beside it -- there is no
+    `look/` to write into and the old name is right, so it stays.
+    """
+    book = os.path.dirname(os.path.abspath(pdf))
+    label = None
+    if detect_dir:
+        d = os.path.abspath(detect_dir).rstrip("/")
+        # `--detect bench/x/detect/<label>` or `.../<label>/pages`
+        if os.path.basename(d) == "pages":
+            d = os.path.dirname(d)
+        if os.path.basename(os.path.dirname(d)) == "detect":
+            label = os.path.basename(d)
+    if os.path.isfile(os.path.join(book, "manifest.json")):
+        # TRUTH DRAWN ALONE IS A LEGITIMATE SHEET and had nowhere to go: with
+        # no `--detect` there is no label, and falling back to the old name
+        # put a second pdf at the book root, which is the stray this default
+        # was changed to stop making. `look/truth.pdf` is declared beside the
+        # model names in `booksmith.tree.layout`.
+        return os.path.join(book, "look", (label or "truth") + ".pdf")
+    return os.path.splitext(pdf)[0] + ".overlay.pdf"
+
+
 def cmd_overlay(a):
     """Boxes over the pages: truth solid, the model's guess dashed."""
     from booksmith.processing.layout import detect
@@ -523,7 +561,7 @@ def cmd_overlay(a):
         marks.append((_pages_dir(a.detect, "--detect"), "M"))
     if not marks:
         raise Refusal("nothing to draw: give --truth and/or --detect")
-    out = a.out or os.path.splitext(a.pdf)[0] + ".overlay.pdf"
+    out = a.out or _look_at(a.pdf, a.detect)
     only = None
     if a.pages:
         # THE VERY SAME PARSE as `books detect`, not a second copy. The copy
@@ -541,6 +579,9 @@ def cmd_overlay(a):
         total = doc.page_count
         doc.close()
         only = detect.parse_pages(a.pages, total)
+    # The default now lands in `<book>/look/`, which need not exist yet --
+    # `look.build` opens the file and does not make the directory.
+    os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
     overlay.build(a.pdf, out, marks, only=only, log=log)
     return 0
 

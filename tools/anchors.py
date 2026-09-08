@@ -37,7 +37,15 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BATTERY = os.path.join(ROOT, "tests", "selfcheck.py")
 # `one_line` and `sources` both take (target, old, new); the first names a
 # module, the second a path relative to `src/booksmith/`.
-PATCHERS = {"one_line": "module", "sources": "path"}
+#
+# `sources_and_root` IS THE THIRD AND WAS NOT HERE, so the three mutations
+# over `tree/layout.py` were the only literal source patches in the battery
+# that nothing asked about -- and rewriting `strays()` broke two of them and
+# made a third ambiguous while this tool went on printing "land 97, do not
+# land 0". Its first argument is a description of the stray to plant, not a
+# target, so the file is fixed and the anchor is argument two.
+PATCHERS = {"one_line": "module", "sources": "path",
+            "sources_and_root": "tree/layout.py"}
 
 
 def literal(node):
@@ -60,6 +68,10 @@ def calls():
             continue
         kind = PATCHERS.get(node.func.id)
         if kind is None or len(node.args) < 2:
+            continue
+        if kind.endswith(".py"):
+            # The file is fixed; argument one names the stray, two the anchor.
+            yield node.lineno, "fixed", kind, literal(node.args[1])
             continue
         target, old = literal(node.args[0]), literal(node.args[1])
         yield node.lineno, kind, target, old
