@@ -68,6 +68,7 @@ LOWER_IS_BETTER = (
     "objects_torn", "objects_left_as_text", "objects_with_company",
     "ink_outside_boxes", "missing", "empty",
     "artefacts_cropped", "artefacts_called_text", "artefacts_not_seen",
+    "excess_jumps_per_transition", "excess_jumps_per_transition_one_rule",
 )
 # Counts that are neither better nor worse -- they describe the bench or the
 # run, and ranking models by them is meaningless.
@@ -97,6 +98,12 @@ HEADLINE = (
     ("fitness", "ink_under_boxes", "ink that lands inside some box"),
     ("fitness", "object_ink_preserved", "ink of the objects that survives"),
     ("assembly", "excess_jumps_per_page", "excess column jumps per page"),
+    ("assembly", "excess_jumps_per_transition",
+     "excess column jumps per transition -- the same quantity as the row "
+     "above, divided by how many moves between boxes there were"),
+    ("assembly", "excess_jumps_per_transition_one_rule",
+     "the same, with ONE ordering rule forced on every model: this column "
+     "compares BOXES, the others compare box-and-rank together"),
 )
 
 

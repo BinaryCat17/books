@@ -1,5 +1,5 @@
 {
- "commit": "0621978aa2e4ee62d439776448d17f60b1464b4c",
+ "commit": "488663a5f55ebfce93efc0ce093bd5fde0fd869f",
  "records": [
   {
    "bench": "hard36",
@@ -793,7 +793,8 @@
     "COLUMN_full_width_box_share": 0.6,
     "COLUMN_min_boxes_per_page": 2,
     "COLUMN_x_overlap_of_narrow_box": 0.5,
-    "order_rule": "model_rank"
+    "order_rule": "model_rank",
+    "order_rule_one_rule": "ours_top_down_left_right (forced)"
    },
    "run": "PP-DocLayoutV3",
    "scalars": {
@@ -807,6 +808,20 @@
       "unit": "pages"
      },
      "value": 2.6774193548387095
+    },
+    "excess_jumps_per_transition": {
+     "count": {
+      "n": 83,
+      "of": 122
+     },
+     "value": 0.680327868852459
+    },
+    "excess_jumps_per_transition_one_rule": {
+     "count": {
+      "n": 148,
+      "of": 187
+     },
+     "value": 0.7914438502673797
     },
     "pages_with_columns": {
      "count": {
@@ -918,5 +933,5 @@
    }
   }
  ],
- "when": "2026-09-07T21:00:50+0300"
+ "when": "2026-09-08T12:48:27+0300"
 }

@@ -7,7 +7,7 @@ python3 tools/sweep.py --apply      # measure
 books bench report                  # render this file
 ```
 
-All cells were computed at commit `0621978aa2e4ee62d439776448d17f60b1464b4c`, between 2026-09-07T20:57:05+0300 and 2026-09-07T21:18:15+0300.
+All cells were computed at commit `488663a5f55ebfce93efc0ce093bd5fde0fd869f`, between 2026-09-08T12:45:13+0300 and 2026-09-08T13:03:46+0300.
 
 Each cell is the value with the count behind it. Where a metric was counted over only PART of a bench, the cell says so; where it says nothing, it was counted over all of it.
 
@@ -101,6 +101,42 @@ A scalar's name carries an arrow: **↑** better higher, **↓** better lower, *
 - counted over `ours_top_down_left_right: the model gives no rank`: `PP-DocLayout_plus-L`
 - **these are two different quantities**, and the columns are not comparable across the two groups.
 
+### excess_jumps_per_transition ↓ — excess column jumps per transition -- the same quantity as the row above, divided by how many moves between boxes there were
+
+| model | annopage | atlas | hard | hard36 | katalog | matematika | slovar | spravochnik | zhurnal |
+|---|---|---|---|---|---|---|---|---|---|
+| `PP-DocLayoutV2` | 0.539 <sub>501/930</sub> | 0.000 <sub>0/2</sub> | 0.583 <sub>193/331</sub> | 0.685 <sub>87/127</sub> | — | 0.909 <sub>10/11</sub> | 0.867 <sub>130/150</sub> | 0.091 <sub>2/22</sub> | 0.000 <sub>0/10</sub> |
+| `PP-DocLayoutV3` | 0.533 <sub>498/934</sub> | 0.000 <sub>0/5</sub> | 0.610 <sub>214/351</sub> | 0.680 <sub>83/122</sub> | 0.967 <sub>347/359</sub> | 0.909 <sub>10/11</sub> | 0.548 <sub>23/42</sub> | 0.640 <sub>16/25</sub> | 0.714 <sub>20/28</sub> |
+| `PP-DocLayout_plus-L` | 0.837 <sub>2164/2586</sub> | 0.400 <sub>2/5</sub> | 0.802 <sub>526/656</sub> | 0.787 <sub>159/202</sub> | 0.000 <sub>0/13</sub> | 0.909 <sub>10/11</sub> | 0.955 <sub>214/224</sub> | 0.897 <sub>131/146</sub> | 0.925 <sub>124/134</sub> |
+| `docling-egret` | 0.868 <sub>2587/2981</sub> | 0.667 <sub>2/3</sub> | 0.820 <sub>547/667</sub> | 0.801 <sub>149/186</sub> | 0.077 <sub>2/26</sub> | — | 0.967 <sub>640/662</sub> | 0.891 <sub>204/229</sub> | 0.928 <sub>129/139</sub> |
+| `docling-heron` | 0.872 <sub>2741/3144</sub> | 0.333 <sub>2/6</sub> | 0.825 <sub>577/699</sub> | 0.799 <sub>139/174</sub> | 0.250 <sub>5/20</sub> | 0.909 <sub>10/11</sub> | 0.956 <sub>475/497</sub> | 0.841 <sub>132/157</sub> | 0.933 <sub>140/150</sub> |
+| `yolox_l0.05` | 0.792 <sub>1139/1438</sub> | 0.000 <sub>0/1</sub> | 0.747 <sub>221/296</sub> | 0.789 <sub>90/114</sub> | — | — | 0.958 <sub>431/450</sub> | 0.920 <sub>126/137</sub> | 0.931 <sub>122/131</sub> |
+
+- a dash means: no page gathered two counted boxes: nothing to jump between
+
+- counted over `model_rank`: `PP-DocLayoutV2`, `PP-DocLayoutV3`
+- counted over `ours_top_down_left_right`: `docling-egret`, `docling-heron`, `yolox_l0.05`
+- counted over `ours_top_down_left_right: the model gives no rank`: `PP-DocLayout_plus-L`
+- **these are two different quantities**, and the columns are not comparable across the two groups.
+
+### excess_jumps_per_transition_one_rule ↓ — the same, with ONE ordering rule forced on every model: this column compares BOXES, the others compare box-and-rank together
+
+| model | annopage | atlas | hard | hard36 | katalog | matematika | slovar | spravochnik | zhurnal |
+|---|---|---|---|---|---|---|---|---|---|
+| `PP-DocLayoutV2` | 0.852 <sub>2471/2900</sub> | 0.333 <sub>1/3</sub> | 0.829 <sub>669/807</sub> | 0.813 <sub>174/214</sub> | — | 0.909 <sub>10/11</sub> | 0.960 <sub>479/499</sub> | 0.868 <sub>131/151</sub> | 0.925 <sub>123/133</sub> |
+| `PP-DocLayoutV3` | 0.837 <sub>2233/2669</sub> | 0.000 <sub>0/5</sub> | 0.801 <sub>551/688</sub> | 0.791 <sub>148/187</sub> | 0.967 <sub>348/360</sub> | 0.909 <sub>10/11</sub> | 0.961 <sub>466/485</sub> | 0.893 <sub>75/84</sub> | 0.930 <sub>106/114</sub> |
+| `PP-DocLayout_plus-L` | 0.837 <sub>2164/2586</sub> | 0.400 <sub>2/5</sub> | 0.802 <sub>526/656</sub> | 0.787 <sub>159/202</sub> | 0.000 <sub>0/13</sub> | 0.909 <sub>10/11</sub> | 0.955 <sub>214/224</sub> | 0.897 <sub>131/146</sub> | 0.925 <sub>124/134</sub> |
+| `docling-egret` | 0.868 <sub>2587/2981</sub> | 0.667 <sub>2/3</sub> | 0.820 <sub>547/667</sub> | 0.801 <sub>149/186</sub> | 0.077 <sub>2/26</sub> | — | 0.967 <sub>640/662</sub> | 0.891 <sub>204/229</sub> | 0.928 <sub>129/139</sub> |
+| `docling-heron` | 0.872 <sub>2741/3144</sub> | 0.333 <sub>2/6</sub> | 0.825 <sub>577/699</sub> | 0.799 <sub>139/174</sub> | 0.250 <sub>5/20</sub> | 0.909 <sub>10/11</sub> | 0.956 <sub>475/497</sub> | 0.841 <sub>132/157</sub> | 0.933 <sub>140/150</sub> |
+| `yolox_l0.05` | 0.792 <sub>1139/1438</sub> | 0.000 <sub>0/1</sub> | 0.747 <sub>221/296</sub> | 0.789 <sub>90/114</sub> | — | — | 0.958 <sub>431/450</sub> | 0.920 <sub>126/137</sub> | 0.931 <sub>122/131</sub> |
+
+- a dash means: no page gathered two counted boxes: nothing to jump between
+
+- counted over `model_rank`: `PP-DocLayoutV2`, `PP-DocLayoutV3`
+- counted over `ours_top_down_left_right`: `docling-egret`, `docling-heron`, `yolox_l0.05`
+- counted over `ours_top_down_left_right: the model gives no rank`: `PP-DocLayout_plus-L`
+- **these are two different quantities**, and the columns are not comparable across the two groups.
+
 ## Every scalar, bench by bench
 
 ### annopage
@@ -111,10 +147,12 @@ A scalar's name carries an arrow: **↑** better higher, **↓** better lower, *
 |---|---|---|---|---|---|---|
 | `excess_jumps` ↓ | 501 | 498 | 2164 | 2587 | 2741 | 1139 |
 | `excess_jumps_per_page` ↓ | 1.080 <sub>over 464/600 pages</sub> | 1.107 <sub>over 450/600 pages</sub> | 4.941 <sub>over 438/600 pages</sub> | 5.093 <sub>over 508/600 pages</sub> | 5.281 <sub>over 519/600 pages</sub> | 3.360 <sub>over 339/600 pages</sub> |
+| `excess_jumps_per_transition` ↓ | 0.539 <sub>501/930</sub> | 0.533 <sub>498/934</sub> | 0.837 <sub>2164/2586</sub> | 0.868 <sub>2587/2981</sub> | 0.872 <sub>2741/3144</sub> | 0.792 <sub>1139/1438</sub> |
+| `excess_jumps_per_transition_one_rule` ↓ | 0.852 <sub>2471/2900</sub> | 0.837 <sub>2233/2669</sub> | 0.837 <sub>2164/2586</sub> | 0.868 <sub>2587/2981</sub> | 0.872 <sub>2741/3144</sub> | 0.792 <sub>1139/1438</sub> |
 | `pages_with_columns` = | 290 <sub>290/600</sub> | 294 <sub>294/600</sub> | 288 <sub>288/600</sub> | 275 <sub>275/600</sub> | 293 <sub>293/600</sub> | 227 <sub>227/600</sub> |
 | `transitions` = | 930 | 934 | 2586 | 2981 | 3144 | 1438 |
 
-  params, the same for every model here: `COLUMN_buckets_counted=['artifact', 'text']`, `COLUMN_full_width_box_share=0.6`, `COLUMN_min_boxes_per_page=2`, `COLUMN_x_overlap_of_narrow_box=0.5`
+  params, the same for every model here: `COLUMN_buckets_counted=['artifact', 'text']`, `COLUMN_full_width_box_share=0.6`, `COLUMN_min_boxes_per_page=2`, `COLUMN_x_overlap_of_narrow_box=0.5`, `order_rule_one_rule=ours_top_down_left_right (forced)`
 
   `PP-DocLayoutV2` differs: `order_rule=model_rank`
 
@@ -172,10 +210,10 @@ A scalar's name carries an arrow: **↑** better higher, **↓** better lower, *
 
 | scalar | PP-DocLayoutV2 | PP-DocLayoutV3 | PP-DocLayout_plus-L | docling-egret | docling-heron | yolox_l0.05 |
 |---|---|---|---|---|---|---|
-| `empty` ↓ | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 16 <sub>16/78</sub> | 22 <sub>22/84</sub> | 22 <sub>22/84</sub> | 17 <sub>17/79</sub> |
-| `fingerprint_verified` = | 0 | 0 | 1 | 1 | 1 | 1 |
-| `missing` ↓ | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/78</sub> | 0 <sub>0/84</sub> | 0 <sub>0/84</sub> | 0 <sub>0/79</sub> |
-| `values_present` = | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 78 <sub>78/78</sub> | 84 <sub>84/84</sub> | 84 <sub>84/84</sub> | 79 <sub>79/79</sub> |
+| `empty` ↓ | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 16 <sub>16/78</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 17 <sub>17/79</sub> |
+| `fingerprint_verified` = | 0 | 0 | 1 | 0 | 0 | 1 |
+| `missing` ↓ | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/78</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/79</sub> |
+| `values_present` = | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 78 <sub>78/78</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 79 <sub>79/79</sub> |
 
 ### atlas
 
@@ -185,10 +223,12 @@ A scalar's name carries an arrow: **↑** better higher, **↓** better lower, *
 |---|---|---|---|---|---|---|
 | `excess_jumps` ↓ | 0 | 0 | 2 | 2 | 2 | 0 |
 | `excess_jumps_per_page` ↓ | 0.000 <sub>over 2/11 pages</sub> | 0.000 <sub>over 6/11 pages</sub> | 0.667 <sub>over 3/11 pages</sub> | 1.000 <sub>over 2/11 pages</sub> | 0.400 <sub>over 5/11 pages</sub> | 0.000 <sub>over 1/11 pages</sub> |
+| `excess_jumps_per_transition` ↓ | 0.000 <sub>0/2</sub> | 0.000 <sub>0/5</sub> | 0.400 <sub>2/5</sub> | 0.667 <sub>2/3</sub> | 0.333 <sub>2/6</sub> | 0.000 <sub>0/1</sub> |
+| `excess_jumps_per_transition_one_rule` ↓ | 0.333 <sub>1/3</sub> | 0.000 <sub>0/5</sub> | 0.400 <sub>2/5</sub> | 0.667 <sub>2/3</sub> | 0.333 <sub>2/6</sub> | 0.000 <sub>0/1</sub> |
 | `pages_with_columns` = | 2 <sub>2/11</sub> | 5 <sub>5/11</sub> | 2 <sub>2/11</sub> | 1 <sub>1/11</sub> | 4 <sub>4/11</sub> | 1 <sub>1/11</sub> |
 | `transitions` = | 2 | 5 | 5 | 3 | 6 | 1 |
 
-  params, the same for every model here: `COLUMN_buckets_counted=['artifact', 'text']`, `COLUMN_full_width_box_share=0.6`, `COLUMN_min_boxes_per_page=2`, `COLUMN_x_overlap_of_narrow_box=0.5`
+  params, the same for every model here: `COLUMN_buckets_counted=['artifact', 'text']`, `COLUMN_full_width_box_share=0.6`, `COLUMN_min_boxes_per_page=2`, `COLUMN_x_overlap_of_narrow_box=0.5`, `order_rule_one_rule=ours_top_down_left_right (forced)`
 
   `PP-DocLayoutV2` differs: `order_rule=model_rank`
 
@@ -246,10 +286,10 @@ A scalar's name carries an arrow: **↑** better higher, **↓** better lower, *
 
 | scalar | PP-DocLayoutV2 | PP-DocLayoutV3 | PP-DocLayout_plus-L | docling-egret | docling-heron | yolox_l0.05 |
 |---|---|---|---|---|---|---|
-| `empty` ↓ | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 22 <sub>22/84</sub> | 22 <sub>22/84</sub> | 17 <sub>17/79</sub> |
-| `fingerprint_verified` = | 0 | 0 | 0 | 1 | 1 | 1 |
-| `missing` ↓ | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/84</sub> | 0 <sub>0/84</sub> | 0 <sub>0/79</sub> |
-| `values_present` = | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 84 <sub>84/84</sub> | 84 <sub>84/84</sub> | 79 <sub>79/79</sub> |
+| `empty` ↓ | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 17 <sub>17/79</sub> |
+| `fingerprint_verified` = | 0 | 0 | 0 | 0 | 0 | 1 |
+| `missing` ↓ | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/79</sub> |
+| `values_present` = | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 79 <sub>79/79</sub> |
 
 ### hard
 
@@ -259,10 +299,12 @@ A scalar's name carries an arrow: **↑** better higher, **↓** better lower, *
 |---|---|---|---|---|---|---|
 | `excess_jumps` ↓ | 193 | 214 | 526 | 547 | 577 | 221 |
 | `excess_jumps_per_page` ↓ | 1.608 <sub>over 120/130 pages</sub> | 1.769 <sub>over 121/130 pages</sub> | 4.574 <sub>over 115/130 pages</sub> | 4.521 <sub>over 121/130 pages</sub> | 4.691 <sub>over 123/130 pages</sub> | 2.402 <sub>over 92/130 pages</sub> |
+| `excess_jumps_per_transition` ↓ | 0.583 <sub>193/331</sub> | 0.610 <sub>214/351</sub> | 0.802 <sub>526/656</sub> | 0.820 <sub>547/667</sub> | 0.825 <sub>577/699</sub> | 0.747 <sub>221/296</sub> |
+| `excess_jumps_per_transition_one_rule` ↓ | 0.829 <sub>669/807</sub> | 0.801 <sub>551/688</sub> | 0.802 <sub>526/656</sub> | 0.820 <sub>547/667</sub> | 0.825 <sub>577/699</sub> | 0.747 <sub>221/296</sub> |
 | `pages_with_columns` = | 94 <sub>94/130</sub> | 94 <sub>94/130</sub> | 87 <sub>87/130</sub> | 87 <sub>87/130</sub> | 92 <sub>92/130</sub> | 63 <sub>63/130</sub> |
 | `transitions` = | 331 | 351 | 656 | 667 | 699 | 296 |
 
-  params, the same for every model here: `COLUMN_buckets_counted=['artifact', 'text']`, `COLUMN_full_width_box_share=0.6`, `COLUMN_min_boxes_per_page=2`, `COLUMN_x_overlap_of_narrow_box=0.5`
+  params, the same for every model here: `COLUMN_buckets_counted=['artifact', 'text']`, `COLUMN_full_width_box_share=0.6`, `COLUMN_min_boxes_per_page=2`, `COLUMN_x_overlap_of_narrow_box=0.5`, `order_rule_one_rule=ours_top_down_left_right (forced)`
 
   `PP-DocLayoutV2` differs: `order_rule=model_rank`
 
@@ -320,10 +362,10 @@ A scalar's name carries an arrow: **↑** better higher, **↓** better lower, *
 
 | scalar | PP-DocLayoutV2 | PP-DocLayoutV3 | PP-DocLayout_plus-L | docling-egret | docling-heron | yolox_l0.05 |
 |---|---|---|---|---|---|---|
-| `empty` ↓ | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 22 <sub>22/84</sub> | 22 <sub>22/84</sub> | 17 <sub>17/79</sub> |
-| `fingerprint_verified` = | 0 | 0 | 0 | 1 | 1 | 1 |
-| `missing` ↓ | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/84</sub> | 0 <sub>0/84</sub> | 0 <sub>0/79</sub> |
-| `values_present` = | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 84 <sub>84/84</sub> | 84 <sub>84/84</sub> | 79 <sub>79/79</sub> |
+| `empty` ↓ | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 17 <sub>17/79</sub> |
+| `fingerprint_verified` = | 0 | 0 | 0 | 0 | 0 | 1 |
+| `missing` ↓ | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/79</sub> |
+| `values_present` = | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 79 <sub>79/79</sub> |
 
 ### hard36
 
@@ -333,10 +375,12 @@ A scalar's name carries an arrow: **↑** better higher, **↓** better lower, *
 |---|---|---|---|---|---|---|
 | `excess_jumps` ↓ | 87 | 83 | 159 | 149 | 139 | 90 |
 | `excess_jumps_per_page` ↓ | 2.806 <sub>over 31/36 pages</sub> | 2.677 <sub>over 31/36 pages</sub> | 5.129 <sub>over 31/36 pages</sub> | 4.515 <sub>over 33/36 pages</sub> | 4.088 <sub>over 34/36 pages</sub> | 3.214 <sub>over 28/36 pages</sub> |
+| `excess_jumps_per_transition` ↓ | 0.685 <sub>87/127</sub> | 0.680 <sub>83/122</sub> | 0.787 <sub>159/202</sub> | 0.801 <sub>149/186</sub> | 0.799 <sub>139/174</sub> | 0.789 <sub>90/114</sub> |
+| `excess_jumps_per_transition_one_rule` ↓ | 0.813 <sub>174/214</sub> | 0.791 <sub>148/187</sub> | 0.787 <sub>159/202</sub> | 0.801 <sub>149/186</sub> | 0.799 <sub>139/174</sub> | 0.789 <sub>90/114</sub> |
 | `pages_with_columns` = | 27 <sub>27/36</sub> | 26 <sub>26/36</sub> | 27 <sub>27/36</sub> | 27 <sub>27/36</sub> | 26 <sub>26/36</sub> | 21 <sub>21/36</sub> |
 | `transitions` = | 127 | 122 | 202 | 186 | 174 | 114 |
 
-  params, the same for every model here: `COLUMN_buckets_counted=['artifact', 'text']`, `COLUMN_full_width_box_share=0.6`, `COLUMN_min_boxes_per_page=2`, `COLUMN_x_overlap_of_narrow_box=0.5`
+  params, the same for every model here: `COLUMN_buckets_counted=['artifact', 'text']`, `COLUMN_full_width_box_share=0.6`, `COLUMN_min_boxes_per_page=2`, `COLUMN_x_overlap_of_narrow_box=0.5`, `order_rule_one_rule=ours_top_down_left_right (forced)`
 
   `PP-DocLayoutV2` differs: `order_rule=model_rank`
 
@@ -394,10 +438,10 @@ A scalar's name carries an arrow: **↑** better higher, **↓** better lower, *
 
 | scalar | PP-DocLayoutV2 | PP-DocLayoutV3 | PP-DocLayout_plus-L | docling-egret | docling-heron | yolox_l0.05 |
 |---|---|---|---|---|---|---|
-| `empty` ↓ | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 22 <sub>22/84</sub> | 22 <sub>22/84</sub> | 17 <sub>17/79</sub> |
-| `fingerprint_verified` = | 0 | 0 | 0 | 1 | 1 | 1 |
-| `missing` ↓ | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/84</sub> | 0 <sub>0/84</sub> | 0 <sub>0/79</sub> |
-| `values_present` = | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 84 <sub>84/84</sub> | 84 <sub>84/84</sub> | 79 <sub>79/79</sub> |
+| `empty` ↓ | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 17 <sub>17/79</sub> |
+| `fingerprint_verified` = | 0 | 0 | 0 | 0 | 0 | 1 |
+| `missing` ↓ | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/79</sub> |
+| `values_present` = | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 79 <sub>79/79</sub> |
 
 ### katalog
 
@@ -407,12 +451,15 @@ A scalar's name carries an arrow: **↑** better higher, **↓** better lower, *
 |---|---|---|---|---|---|---|
 | `excess_jumps` ↓ | 0 | 347 | 0 | 2 | 5 | — |
 | `excess_jumps_per_page` ↓ | 0.000 <sub>over 1/11 pages</sub> | 69.400 <sub>over 5/11 pages</sub> | 0.000 <sub>over 2/11 pages</sub> | 0.400 <sub>over 5/11 pages</sub> | 1.250 <sub>over 4/11 pages</sub> | — |
+| `excess_jumps_per_transition` ↓ | — | 0.967 <sub>347/359</sub> | 0.000 <sub>0/13</sub> | 0.077 <sub>2/26</sub> | 0.250 <sub>5/20</sub> | — |
+| `excess_jumps_per_transition_one_rule` ↓ | — | 0.967 <sub>348/360</sub> | 0.000 <sub>0/13</sub> | 0.077 <sub>2/26</sub> | 0.250 <sub>5/20</sub> | — |
 | `pages_with_columns` = | 0 <sub>0/11</sub> | 4 <sub>4/11</sub> | 1 <sub>1/11</sub> | 5 <sub>5/11</sub> | 4 <sub>4/11</sub> | 0 <sub>0/11</sub> |
 | `transitions` = | 0 | 359 | 13 | 26 | 20 | 0 |
 
+- a dash: no page gathered two counted boxes: nothing to jump between
 - a dash: the quantity is UNDEFINED: not one of the 11 pages gathered 2 counted boxes (counted in all 1, out of the count 34 full-width and 16 of other buckets) — nothing to jump between. This is NOT zero jumps.
 
-  params, the same for every model here: `COLUMN_buckets_counted=['artifact', 'text']`, `COLUMN_full_width_box_share=0.6`, `COLUMN_min_boxes_per_page=2`, `COLUMN_x_overlap_of_narrow_box=0.5`
+  params, the same for every model here: `COLUMN_buckets_counted=['artifact', 'text']`, `COLUMN_full_width_box_share=0.6`, `COLUMN_min_boxes_per_page=2`, `COLUMN_x_overlap_of_narrow_box=0.5`, `order_rule_one_rule=ours_top_down_left_right (forced)`
 
   `PP-DocLayoutV2` differs: `order_rule=model_rank`
 
@@ -471,10 +518,10 @@ A scalar's name carries an arrow: **↑** better higher, **↓** better lower, *
 
 | scalar | PP-DocLayoutV2 | PP-DocLayoutV3 | PP-DocLayout_plus-L | docling-egret | docling-heron | yolox_l0.05 |
 |---|---|---|---|---|---|---|
-| `empty` ↓ | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 22 <sub>22/84</sub> | 22 <sub>22/84</sub> | 17 <sub>17/79</sub> |
-| `fingerprint_verified` = | 0 | 0 | 0 | 1 | 1 | 1 |
-| `missing` ↓ | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/84</sub> | 0 <sub>0/84</sub> | 0 <sub>0/79</sub> |
-| `values_present` = | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 84 <sub>84/84</sub> | 84 <sub>84/84</sub> | 79 <sub>79/79</sub> |
+| `empty` ↓ | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 17 <sub>17/79</sub> |
+| `fingerprint_verified` = | 0 | 0 | 0 | 0 | 0 | 1 |
+| `missing` ↓ | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/79</sub> |
+| `values_present` = | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 79 <sub>79/79</sub> |
 
 ### matematika
 
@@ -484,10 +531,14 @@ A scalar's name carries an arrow: **↑** better higher, **↓** better lower, *
 |---|---|---|---|---|---|---|
 | `excess_jumps` ↓ | 10 | 10 | 10 | 0 | 10 | 0 |
 | `excess_jumps_per_page` ↓ | 1.250 <sub>over 8/12 pages</sub> | 1.250 <sub>over 8/12 pages</sub> | 1.429 <sub>over 7/12 pages</sub> | 0.000 <sub>over 4/12 pages</sub> | 2.000 <sub>over 5/12 pages</sub> | 0.000 <sub>over 2/12 pages</sub> |
+| `excess_jumps_per_transition` ↓ | 0.909 <sub>10/11</sub> | 0.909 <sub>10/11</sub> | 0.909 <sub>10/11</sub> | — | 0.909 <sub>10/11</sub> | — |
+| `excess_jumps_per_transition_one_rule` ↓ | 0.909 <sub>10/11</sub> | 0.909 <sub>10/11</sub> | 0.909 <sub>10/11</sub> | — | 0.909 <sub>10/11</sub> | — |
 | `pages_with_columns` = | 1 <sub>1/12</sub> | 1 <sub>1/12</sub> | 1 <sub>1/12</sub> | 0 <sub>0/12</sub> | 1 <sub>1/12</sub> | 0 <sub>0/12</sub> |
 | `transitions` = | 11 | 11 | 11 | 0 | 11 | 0 |
 
-  params, the same for every model here: `COLUMN_buckets_counted=['artifact', 'text']`, `COLUMN_full_width_box_share=0.6`, `COLUMN_min_boxes_per_page=2`, `COLUMN_x_overlap_of_narrow_box=0.5`
+- a dash: no page gathered two counted boxes: nothing to jump between
+
+  params, the same for every model here: `COLUMN_buckets_counted=['artifact', 'text']`, `COLUMN_full_width_box_share=0.6`, `COLUMN_min_boxes_per_page=2`, `COLUMN_x_overlap_of_narrow_box=0.5`, `order_rule_one_rule=ours_top_down_left_right (forced)`
 
   `PP-DocLayoutV2` differs: `order_rule=model_rank`
 
@@ -545,10 +596,10 @@ A scalar's name carries an arrow: **↑** better higher, **↓** better lower, *
 
 | scalar | PP-DocLayoutV2 | PP-DocLayoutV3 | PP-DocLayout_plus-L | docling-egret | docling-heron | yolox_l0.05 |
 |---|---|---|---|---|---|---|
-| `empty` ↓ | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 22 <sub>22/84</sub> | 22 <sub>22/84</sub> | 17 <sub>17/79</sub> |
-| `fingerprint_verified` = | 0 | 0 | 0 | 1 | 1 | 1 |
-| `missing` ↓ | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/84</sub> | 0 <sub>0/84</sub> | 0 <sub>0/79</sub> |
-| `values_present` = | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 84 <sub>84/84</sub> | 84 <sub>84/84</sub> | 79 <sub>79/79</sub> |
+| `empty` ↓ | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 17 <sub>17/79</sub> |
+| `fingerprint_verified` = | 0 | 0 | 0 | 0 | 0 | 1 |
+| `missing` ↓ | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/79</sub> |
+| `values_present` = | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 79 <sub>79/79</sub> |
 
 ### slovar
 
@@ -558,10 +609,12 @@ A scalar's name carries an arrow: **↑** better higher, **↓** better lower, *
 |---|---|---|---|---|---|---|
 | `excess_jumps` ↓ | 130 | 23 | 214 | 640 | 475 | 431 |
 | `excess_jumps_per_page` ↓ | 10.833 <sub>over 12/13 pages</sub> | 2.091 <sub>over 11/13 pages</sub> | 26.750 <sub>over 8/13 pages</sub> | 53.333 <sub>over 12/13 pages</sub> | 36.538 | 35.917 <sub>over 12/13 pages</sub> |
+| `excess_jumps_per_transition` ↓ | 0.867 <sub>130/150</sub> | 0.548 <sub>23/42</sub> | 0.955 <sub>214/224</sub> | 0.967 <sub>640/662</sub> | 0.956 <sub>475/497</sub> | 0.958 <sub>431/450</sub> |
+| `excess_jumps_per_transition_one_rule` ↓ | 0.960 <sub>479/499</sub> | 0.961 <sub>466/485</sub> | 0.955 <sub>214/224</sub> | 0.967 <sub>640/662</sub> | 0.956 <sub>475/497</sub> | 0.958 <sub>431/450</sub> |
 | `pages_with_columns` = | 12 <sub>12/13</sub> | 11 <sub>11/13</sub> | 8 <sub>8/13</sub> | 12 <sub>12/13</sub> | 13 <sub>13/13</sub> | 12 <sub>12/13</sub> |
 | `transitions` = | 150 | 42 | 224 | 662 | 497 | 450 |
 
-  params, the same for every model here: `COLUMN_buckets_counted=['artifact', 'text']`, `COLUMN_full_width_box_share=0.6`, `COLUMN_min_boxes_per_page=2`, `COLUMN_x_overlap_of_narrow_box=0.5`
+  params, the same for every model here: `COLUMN_buckets_counted=['artifact', 'text']`, `COLUMN_full_width_box_share=0.6`, `COLUMN_min_boxes_per_page=2`, `COLUMN_x_overlap_of_narrow_box=0.5`, `order_rule_one_rule=ours_top_down_left_right (forced)`
 
   `PP-DocLayoutV2` differs: `order_rule=model_rank`
 
@@ -619,10 +672,10 @@ A scalar's name carries an arrow: **↑** better higher, **↓** better lower, *
 
 | scalar | PP-DocLayoutV2 | PP-DocLayoutV3 | PP-DocLayout_plus-L | docling-egret | docling-heron | yolox_l0.05 |
 |---|---|---|---|---|---|---|
-| `empty` ↓ | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 22 <sub>22/84</sub> | 22 <sub>22/84</sub> | 17 <sub>17/79</sub> |
-| `fingerprint_verified` = | 0 | 0 | 0 | 1 | 1 | 1 |
-| `missing` ↓ | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/84</sub> | 0 <sub>0/84</sub> | 0 <sub>0/79</sub> |
-| `values_present` = | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 84 <sub>84/84</sub> | 84 <sub>84/84</sub> | 79 <sub>79/79</sub> |
+| `empty` ↓ | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 17 <sub>17/79</sub> |
+| `fingerprint_verified` = | 0 | 0 | 0 | 0 | 0 | 1 |
+| `missing` ↓ | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/79</sub> |
+| `values_present` = | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 79 <sub>79/79</sub> |
 
 ### spravochnik
 
@@ -632,10 +685,12 @@ A scalar's name carries an arrow: **↑** better higher, **↓** better lower, *
 |---|---|---|---|---|---|---|
 | `excess_jumps` ↓ | 2 | 16 | 131 | 204 | 132 | 126 |
 | `excess_jumps_per_page` ↓ | 0.111 <sub>over 18/36 pages</sub> | 1.455 <sub>over 11/36 pages</sub> | 7.278 <sub>over 18/36 pages</sub> | 10.737 <sub>over 19/36 pages</sub> | 6.600 <sub>over 20/36 pages</sub> | 11.455 <sub>over 11/36 pages</sub> |
+| `excess_jumps_per_transition` ↓ | 0.091 <sub>2/22</sub> | 0.640 <sub>16/25</sub> | 0.897 <sub>131/146</sub> | 0.891 <sub>204/229</sub> | 0.841 <sub>132/157</sub> | 0.920 <sub>126/137</sub> |
+| `excess_jumps_per_transition_one_rule` ↓ | 0.868 <sub>131/151</sub> | 0.893 <sub>75/84</sub> | 0.897 <sub>131/146</sub> | 0.891 <sub>204/229</sub> | 0.841 <sub>132/157</sub> | 0.920 <sub>126/137</sub> |
 | `pages_with_columns` = | 16 <sub>16/36</sub> | 9 <sub>9/36</sub> | 12 <sub>12/36</sub> | 16 <sub>16/36</sub> | 17 <sub>17/36</sub> | 9 <sub>9/36</sub> |
 | `transitions` = | 22 | 25 | 146 | 229 | 157 | 137 |
 
-  params, the same for every model here: `COLUMN_buckets_counted=['artifact', 'text']`, `COLUMN_full_width_box_share=0.6`, `COLUMN_min_boxes_per_page=2`, `COLUMN_x_overlap_of_narrow_box=0.5`
+  params, the same for every model here: `COLUMN_buckets_counted=['artifact', 'text']`, `COLUMN_full_width_box_share=0.6`, `COLUMN_min_boxes_per_page=2`, `COLUMN_x_overlap_of_narrow_box=0.5`, `order_rule_one_rule=ours_top_down_left_right (forced)`
 
   `PP-DocLayoutV2` differs: `order_rule=model_rank`
 
@@ -693,10 +748,10 @@ A scalar's name carries an arrow: **↑** better higher, **↓** better lower, *
 
 | scalar | PP-DocLayoutV2 | PP-DocLayoutV3 | PP-DocLayout_plus-L | docling-egret | docling-heron | yolox_l0.05 |
 |---|---|---|---|---|---|---|
-| `empty` ↓ | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 22 <sub>22/84</sub> | 22 <sub>22/84</sub> | 17 <sub>17/79</sub> |
-| `fingerprint_verified` = | 0 | 0 | 0 | 1 | 1 | 1 |
-| `missing` ↓ | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/84</sub> | 0 <sub>0/84</sub> | 0 <sub>0/79</sub> |
-| `values_present` = | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 84 <sub>84/84</sub> | 84 <sub>84/84</sub> | 79 <sub>79/79</sub> |
+| `empty` ↓ | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 17 <sub>17/79</sub> |
+| `fingerprint_verified` = | 0 | 0 | 0 | 0 | 0 | 1 |
+| `missing` ↓ | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/79</sub> |
+| `values_present` = | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 79 <sub>79/79</sub> |
 
 ### zhurnal
 
@@ -706,10 +761,12 @@ A scalar's name carries an arrow: **↑** better higher, **↓** better lower, *
 |---|---|---|---|---|---|---|
 | `excess_jumps` ↓ | 0 | 20 | 124 | 129 | 140 | 122 |
 | `excess_jumps_per_page` ↓ | 0.000 | 2.500 <sub>over 8/10 pages</sub> | 12.400 | 12.900 | 14.000 | 13.556 <sub>over 9/10 pages</sub> |
+| `excess_jumps_per_transition` ↓ | 0.000 <sub>0/10</sub> | 0.714 <sub>20/28</sub> | 0.925 <sub>124/134</sub> | 0.928 <sub>129/139</sub> | 0.933 <sub>140/150</sub> | 0.931 <sub>122/131</sub> |
+| `excess_jumps_per_transition_one_rule` ↓ | 0.925 <sub>123/133</sub> | 0.930 <sub>106/114</sub> | 0.925 <sub>124/134</sub> | 0.928 <sub>129/139</sub> | 0.933 <sub>140/150</sub> | 0.931 <sub>122/131</sub> |
 | `pages_with_columns` = | 10 <sub>10/10</sub> | 8 <sub>8/10</sub> | 10 <sub>10/10</sub> | 10 <sub>10/10</sub> | 10 <sub>10/10</sub> | 9 <sub>9/10</sub> |
 | `transitions` = | 10 | 28 | 134 | 139 | 150 | 131 |
 
-  params, the same for every model here: `COLUMN_buckets_counted=['artifact', 'text']`, `COLUMN_full_width_box_share=0.6`, `COLUMN_min_boxes_per_page=2`, `COLUMN_x_overlap_of_narrow_box=0.5`
+  params, the same for every model here: `COLUMN_buckets_counted=['artifact', 'text']`, `COLUMN_full_width_box_share=0.6`, `COLUMN_min_boxes_per_page=2`, `COLUMN_x_overlap_of_narrow_box=0.5`, `order_rule_one_rule=ours_top_down_left_right (forced)`
 
   `PP-DocLayoutV2` differs: `order_rule=model_rank`
 
@@ -767,7 +824,7 @@ A scalar's name carries an arrow: **↑** better higher, **↓** better lower, *
 
 | scalar | PP-DocLayoutV2 | PP-DocLayoutV3 | PP-DocLayout_plus-L | docling-egret | docling-heron | yolox_l0.05 |
 |---|---|---|---|---|---|---|
-| `empty` ↓ | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 22 <sub>22/84</sub> | 22 <sub>22/84</sub> | 17 <sub>17/79</sub> |
-| `fingerprint_verified` = | 0 | 0 | 0 | 1 | 1 | 1 |
-| `missing` ↓ | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/84</sub> | 0 <sub>0/84</sub> | 0 <sub>0/79</sub> |
-| `values_present` = | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 84 <sub>84/84</sub> | 84 <sub>84/84</sub> | 79 <sub>79/79</sub> |
+| `empty` ↓ | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 17 <sub>17/79</sub> |
+| `fingerprint_verified` = | 0 | 0 | 0 | 0 | 0 | 1 |
+| `missing` ↓ | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/79</sub> |
+| `values_present` = | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 79 <sub>79/79</sub> |

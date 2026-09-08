@@ -1,5 +1,5 @@
 {
- "commit": "0621978aa2e4ee62d439776448d17f60b1464b4c",
+ "commit": "488663a5f55ebfce93efc0ce093bd5fde0fd869f",
  "records": [
   {
    "bench": "katalog",
@@ -471,7 +471,8 @@
     "COLUMN_full_width_box_share": 0.6,
     "COLUMN_min_boxes_per_page": 2,
     "COLUMN_x_overlap_of_narrow_box": 0.5,
-    "order_rule": "ours_top_down_left_right"
+    "order_rule": "ours_top_down_left_right",
+    "order_rule_one_rule": "ours_top_down_left_right (forced)"
    },
    "run": "yolox_l0.05",
    "scalars": {
@@ -487,6 +488,22 @@
      },
      "value": null,
      "why": "the quantity is UNDEFINED: not one of the 11 pages gathered 2 counted boxes (counted in all 1, out of the count 34 full-width and 16 of other buckets) — nothing to jump between. This is NOT zero jumps."
+    },
+    "excess_jumps_per_transition": {
+     "count": {
+      "n": null,
+      "of": 0
+     },
+     "value": null,
+     "why": "no page gathered two counted boxes: nothing to jump between"
+    },
+    "excess_jumps_per_transition_one_rule": {
+     "count": {
+      "n": null,
+      "of": 0
+     },
+     "value": null,
+     "why": "no page gathered two counted boxes: nothing to jump between"
     },
     "pages_with_columns": {
      "count": {
@@ -614,5 +631,5 @@
    }
   }
  ],
- "when": "2026-09-07T21:14:41+0300"
+ "when": "2026-09-08T13:00:46+0300"
 }

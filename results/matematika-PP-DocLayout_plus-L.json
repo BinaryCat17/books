@@ -1,5 +1,5 @@
 {
- "commit": "0621978aa2e4ee62d439776448d17f60b1464b4c",
+ "commit": "488663a5f55ebfce93efc0ce093bd5fde0fd869f",
  "records": [
   {
    "bench": "matematika",
@@ -470,7 +470,8 @@
     "COLUMN_full_width_box_share": 0.6,
     "COLUMN_min_boxes_per_page": 2,
     "COLUMN_x_overlap_of_narrow_box": 0.5,
-    "order_rule": "ours_top_down_left_right: the model gives no rank"
+    "order_rule": "ours_top_down_left_right: the model gives no rank",
+    "order_rule_one_rule": "ours_top_down_left_right (forced)"
    },
    "run": "PP-DocLayout_plus-L",
    "scalars": {
@@ -484,6 +485,20 @@
       "unit": "pages"
      },
      "value": 1.4285714285714286
+    },
+    "excess_jumps_per_transition": {
+     "count": {
+      "n": 10,
+      "of": 11
+     },
+     "value": 0.9090909090909091
+    },
+    "excess_jumps_per_transition_one_rule": {
+     "count": {
+      "n": 10,
+      "of": 11
+     },
+     "value": 0.9090909090909091
     },
     "pages_with_columns": {
      "count": {
@@ -595,5 +610,5 @@
    }
   }
  ],
- "when": "2026-09-07T21:04:05+0300"
+ "when": "2026-09-08T12:51:21+0300"
 }

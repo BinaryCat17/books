@@ -30,9 +30,11 @@ bench slovar, run PP-DocLayoutV2
   fitness  params: ink=160, intact=0.99, almost=0.95, bitten=0.8, edge_band=0.04, GUTTER=0.5, dpi=[144]
   assembly excess_jumps_per_page      10.833                             12/13 pages
   assembly excess_jumps                  130                                        
+  assembly excess_jumps_per_transition    0.867           130/150                      
+  assembly excess_jumps_per_transition_one_rule    0.960           479/499                      
   assembly transitions                   150                                        
   assembly pages_with_columns             12             12/13                      
-  assembly params: COLUMN_x_overlap_of_narrow_box=0.5, COLUMN_full_width_box_share=0.6, COLUMN_min_boxes_per_page=2, COLUMN_buckets_counted=['artifact', 'text'], order_rule=model_rank
+  assembly params: COLUMN_x_overlap_of_narrow_box=0.5, COLUMN_full_width_box_share=0.6, COLUMN_min_boxes_per_page=2, COLUMN_buckets_counted=['artifact', 'text'], order_rule=model_rank, order_rule_one_rule=ours_top_down_left_right (forced)
   snapshot values_present                 52             52/52                      
   snapshot missing                         0              0/52                      
   snapshot empty                          13             13/52                      

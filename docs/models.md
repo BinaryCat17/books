@@ -45,11 +45,23 @@ and 602 for the nearest, raw `docling-heron`. By merges it is **second** --
 |---|---|---|---|---|---|
 | PP-DocLayoutV2 (CPU) | 94.0 % | 1025 (83 %) | 1021 | 83 | 125 |
 
+**"MERGES N TIMES" IN THIS DOCUMENT IS NOT `artefacts_merged` IN
+METRICS.md, and the two disagree by design.** Here it is the count of merge
+EVENTS, keyed by label (`detail.troubles["merge (<label>)"]`, summed); there
+it is the count of OBJECTS whose sense was merged
+(`detail.sense.merged`). For V2 on `hard36` they are 307 and 297 -- both
+right, ten apart, and a reader comparing the two documents would take one for
+drift in the other. The generated table renders only the second; every
+"merges N" below is the first.
+
 Extra column jumps: **501** over the golden bench, 1.08 per page counted over
 464 of 600 pages. On `bench/hard36` it separates 80 of 403 (20 %) and merges
 307 times.
 
-Reproduce: `books score bench/annopage/truth bench/annopage/detect/pages`.
+Reproduce: `books score bench/annopage/truth
+bench/annopage/detect/PP-DocLayoutV2/pages`. (It said `detect/pages` until the
+runs moved under a label -- the only "Reproduce:" line in this document, and
+it named a path that has not existed since.)
 Method: `docs/contour-notes.md`, sections 11 and 18.
 
 ## PP-DocLayoutV3
