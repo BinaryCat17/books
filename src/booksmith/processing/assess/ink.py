@@ -58,6 +58,7 @@ page: how much stayed outside every box, i.e. what will vanish from the HTML.
 That works on any book nobody has annotated yet.
 """
 import os
+import statistics
 
 import numpy as np
 
@@ -273,7 +274,9 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
     M = page.load_pages(detect_dir)
     T = page.load_pages(truth_dir) if truth_dir else {}
     doc = raster.open_pdf(pdf)
+    areas = []            # box area / page area, one per on-sheet box
     res = {"page_count": 0, "truth_pages": len(T), "dpi": [],
+           "box_count": 0, "median_box_area": None,
            "ink_total": 0, "ink_under_boxes": 0,
            "ink_under_artifact": 0, "sheet_area": 0, "boxes_area": 0,
            "ink_outside_boxes_at_edge": 0,
@@ -357,6 +360,27 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
                 round(float(a + b) / 2 / w, 2) for a, b in zip(start, end))
         res["sheet_area"] += ink.size
         res["boxes_area"] += int(both.sum())
+        # HOW BIG A BOX IS, AS A SHARE OF ITS OWN PAGE. `area_under_boxes`
+        # exists to catch the model that boxes everything, and it is beaten
+        # from the other side: a detector that TRACES the ink with many tiny
+        # boxes takes 100% of it at 43.9% of the sheet -- LOWER area than an
+        # honest run's 61.4%, so the guard reads it as better than honest.
+        # The two degeneracies are geometric opposites and no single number
+        # separates both; this is the other half. Measured over 25 honest
+        # runs on four books, the median box is 0.7%-2.6% of its page, and
+        # every ink-tracing cheat falls 5x to 4234x below that band while the
+        # whole-sheet box sits at 1.0 -- so NEITHER end is good and it is a
+        # guard, never a rank. Per PAGE and not per sheet-size, because the
+        # golden bench mixes raster sizes.
+        for sl in (_clip(ink.shape, b) for b in arte + rest):
+            if sl is None:      # wholly off the sheet: no area to speak of
+                continue
+            ys, xs = sl
+            areas.append(float((ys.stop - ys.start) * (xs.stop - xs.start))
+                         / ink.size)
+        # EVERY BOX THE MODEL DREW, including the ones off the sheet: this is
+        # the level-two bill, one crop and one paid request each.
+        res["box_count"] += len(arte) + len(rest)
         for b in T.get(i, {}).get("blocks", []):
             if policy.role(b["label"]) != "artifact":
                 continue
@@ -422,6 +446,12 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
                 res["boxes_with_many_objects"] += 1
     doc.close()
     res["dpi"] = sorted(dpis)
+    # THE MEDIAN, NOT THE LIST. Eight thousand box areas per run would ride
+    # into `detail` and from there into `results/*.json`, fifty-four times,
+    # to answer one question. The median is what separates the honest band
+    # from a tracing cheat; the mean would not, since one full-sheet box
+    # among many tiny ones drags it back into the band.
+    res["median_box_area"] = statistics.median(areas) if areas else None
     return res
 
 

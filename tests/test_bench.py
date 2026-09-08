@@ -9,6 +9,7 @@ not name is "not said", never "no".
 import contextlib
 import json
 import os
+import shutil
 import tempfile
 
 import support
@@ -224,6 +225,26 @@ def test_the_scan_beside_the_book_is_checked_by_sha_too():
             raise AssertionError("a foreign scan beside the book was accepted")
 
 
+def test_a_truthless_book_answers_for_its_scan_from_the_checked_lookup_only():
+    """`Bench.pdf`'s LAZY BRANCH IS AN UNVERIFIED TWIN of `_scan_of`.
+
+    It looks beside the book for `source.name` -- or, when the manifest names
+    none, for `<book>.pdf` -- and hashes nothing. While it was reachable from
+    a truthless book it stood behind the checked lookup and won by fallback:
+    delete the verified candidate and the property still returned the file,
+    and the battery said so ("the scan is looked for in raw/ and not beside
+    the book" went UNCAUGHT). Asked here where the two branches DISAGREE: a
+    manifest with a sha and no name, and a plausibly-named file beside it.
+    """
+    with tempfile.TemporaryDirectory() as d, at_root(d):
+        root = _book(d, {"source": {"sha256": "cd" * 32}})
+        with open(os.path.join(root, "book.pdf"), "wb") as f:
+            f.write(b"whatever bytes")
+        b = bench.Bench.no_truth(root)
+        assert b.scan == ""
+        assert b.pdf is None, b.pdf
+
+
 def test_a_bench_whose_truth_went_missing_is_not_a_truthless_book():
     """THE TWO ZEROS, in directory form.
 
@@ -266,8 +287,14 @@ def test_the_scan_of_a_built_book_is_found_in_raw_and_checked_by_sha():
             found = bench.Bench.no_truth(_book(d, sha=real, name="right"))
             assert found.pdf == os.path.join(raw, "book.pdf")
             assert found.scan == found.pdf
+            # THE WRONG SHA SHARES ITS FIRST TWELVE CHARACTERS WITH THE RIGHT
+            # ONE. Every fixture used a sha that differed in the first byte,
+            # and the refusal prints only twelve -- so comparing twelve
+            # instead of sixty-four read identically, and a 48-bit check
+            # passed for a 256-bit one.
+            near = real[:12] + ("0" if real[12] != "0" else "1") + real[13:]
             try:
-                bench.Bench.no_truth(_book(d, sha="cd" * 32, name="wrong"))
+                bench.Bench.no_truth(_book(d, sha=near, name="wrong"))
             except Unmeasurable as e:
                 assert "is not the scan" in str(e) and real[:12] in str(e)
             else:
@@ -283,6 +310,18 @@ def test_a_run_knows_which_level_it_is_of():
         assert bench.Run.open(os.path.join(root, "detect", LABEL)).kind == "detect"
         # A bare pages directory sits outside the layout and says so.
         assert bench.Run.bare(os.path.join(root, "detect", LABEL, "pages")).kind == ""
+        # AND A RUN UNDER ANY OTHER PARENT IS "" AND NOT THAT PARENT'S NAME.
+        # Only `core.book.KINDS` names a level; without that filter a copy in
+        # a scratch directory answers `kind="tmpdir"`, `results_path` writes
+        # `<book>-tmpdir-<label>.json`, and `report._cells` then files it
+        # under "runs of another level" and it vanishes from METRICS.md.
+        # `Run.bare` exercises the `run_dir is None` branch, never this one.
+        stray = os.path.join(d, "scratch", LABEL)
+        os.makedirs(stray)
+        shutil.copytree(os.path.join(root, "detect", LABEL, "pages"),
+                        os.path.join(stray, "pages"))
+        shutil.copy(os.path.join(root, "detect", LABEL, "run.json"), stray)
+        assert bench.Run.open(stray).kind == "", bench.Run.open(stray).kind
 
 
 def test_a_run_opens_from_its_directory_and_its_pages():

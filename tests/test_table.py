@@ -107,18 +107,25 @@ def test_the_report_leaves_out_a_run_of_another_level_and_counts_it():
     reader's work; the numbers are the detector's. Left out, never dropped
     silently -- and a file written before the field existed is `detect`."""
     from booksmith.datasets import report
-    rec = Record("fitness", "b", LABEL, {"ink_under_boxes": Scalar(0.5)})
+    # TWO DIFFERENT RUN LABELS, and that is the whole check. Written with one
+    # label in both files, `cells` was keyed the same whether the read run
+    # was ingested or not, so only the COUNT could fail: the check proved
+    # the tally and never the leaving out, which is the thing that keeps a
+    # reader's number out of a column it did not earn.
+    det = Record("fitness", "b", LABEL, {"ink_under_boxes": Scalar(0.5)})
+    red = Record("fitness", "b", "SomeReader", {"ink_under_boxes": Scalar(0.9)})
     with tempfile.TemporaryDirectory() as d:
         was = report.RESULTS, table.RESULTS
         try:
             report.RESULTS = table.RESULTS = d
-            table.write_json([rec], os.path.join(d, "b-read-x.json"),
+            table.write_json([red], os.path.join(d, "b-read-SomeReader.json"),
                              log=lambda *a: None, kind="read")
-            table.write_json([rec], os.path.join(d, "b-x.json"),
+            table.write_json([det], os.path.join(d, "b-x.json"),
                              log=lambda *a: None)
             cells, _, _, other = report._cells()
+            assert ("b", "SomeReader") not in cells, cells
             assert list(cells) == [("b", LABEL)], cells
-            assert other == [("read", "b-read-x.json")], other
+            assert other == [("read", "b-read-SomeReader.json")], other
         finally:
             report.RESULTS, table.RESULTS = was
 

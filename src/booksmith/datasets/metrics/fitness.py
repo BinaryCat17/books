@@ -67,6 +67,32 @@ def _merge(M):
     return out
 
 
+def _traced(M, step=8):
+    """Every box cut into a grid of `step`-pixel squares.
+
+    THE CHEAT THAT BEATS THE OLDER GUARD. `area_under_boxes` was put beside
+    the ink numbers because one box over the whole sheet takes all the ink;
+    a model that traces the ink instead takes all of it at LESS area than an
+    honest run -- on slovar, ink under boxes 1.000 at area 0.462 against the
+    honest 0.991 at 0.665 -- so the guard reads the rubble as the better
+    model. The grid is built from the model's own boxes rather than from the
+    ink, so the mutator needs no raster and stays a pure edit of the output.
+    """
+    out = {}
+    for i, p in M.items():
+        bl, n = [], 0
+        for b in p["blocks"]:
+            x0, y0, x1, y1 = (int(v) for v in b["box"])
+            for y in range(y0, y1 + 1, step):
+                for x in range(x0, x1 + 1, step):
+                    bl.append({**b, "block_id": n,
+                               "box": [x, y, min(x + step - 1, x1),
+                                       min(y + step - 1, y1)]})
+                    n += 1
+        out[i] = {**p, "blocks": bl}
+    return out
+
+
 def _double(M):
     """Hand every artefact box out a SECOND time, now as a text one."""
     out = {}
@@ -199,6 +225,26 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
         ("one box over the whole sheet", "ink 100%, but area 100% too",
          lambda: (lambda r: r["ink_under_boxes"] == r["ink_total"]
                   and r["boxes_area"] == r["sheet_area"])(R(full))),
+        # AND THE GUARD IS BEATEN FROM THE OTHER SIDE, which is why there are
+        # three of them. Cut every box into a grid and `area_under_boxes` and
+        # `ink_under_boxes` are IDENTICAL to the digit -- the same pixels
+        # covered by rubble instead of by blocks -- while the crops level two
+        # pays for multiply. Worse in the wild: a model that traces the INK
+        # takes every pixel at LESS area than an honest run (measured on
+        # slovar, 1.000 of the ink at area 0.462 against the honest 0.991 at
+        # 0.665), so the older guard reads the rubble as the better model.
+        # The two degeneracies are geometric opposites and no one number
+        # separates both. These probes demand that each catches its own.
+        ("the boxes cut into a grid of tiny ones",
+         "the area guard does not move ONE PIXEL, and the ink does not "
+         "either -- the median box and the bill are what see it",
+         lambda: (lambda r: r["boxes_area"] == base["boxes_area"]
+                  and r["ink_under_boxes"] == base["ink_under_boxes"]
+                  and r["median_box_area"] < base["median_box_area"] / 10
+                  and r["box_count"] > base["box_count"] * 10)(R(_traced(M0)))),
+        ("one box over the whole sheet",
+         "the median box is the whole page -- the other end of the same guard",
+         lambda: R(full)["median_box_area"] == 1.0),
         # ...and it wins on OBJECTS too, where the older probe looked at page
         # ink only: the headline line of the report is taken whole by one box,
         # and that belongs in the battery, not in the header alone.
@@ -382,6 +428,28 @@ class FitnessMetric(Metric):
                                         count=(tot - res["ink_under_boxes"], tot),
                                         why=None if tot else no_ink),
             "area_under_boxes": _ratio(res["boxes_area"], res["sheet_area"], "no sheet"),
+            # THE OTHER HALF OF THE GUARD, and it exists because the first
+            # half is beaten from the opposite side. `area_under_boxes`
+            # catches the model that boxes the whole sheet; a model that
+            # TRACES the ink with tiny boxes takes 100 % of it at LESS area
+            # than an honest run -- measured on slovar: ink under boxes
+            # 1.000 at area 0.462, against the honest 0.991 at 0.665, so the
+            # declared guard reads the cheat as better than the real thing.
+            #
+            # The median box, as a share of its own page, separates them:
+            # honest 0.0155, the tracer 0.000081, the whole-sheet box 1.000.
+            # NEITHER END IS GOOD, which is why both are `=` and neither is
+            # a rank: one is a model that found nothing, the other a model
+            # that found everything and split it into rubble.
+            "median_box_area": Scalar(
+                res["median_box_area"],
+                why=None if res["median_box_area"] is not None
+                else "no box lands on any sheet"),
+            # The same question in the unit a person bills in: one box, one
+            # crop, one paid request at level two. Honest 44 a page on
+            # slovar against the tracer's 5673.
+            "boxes_per_page": _ratio(res["box_count"], res["page_count"],
+                                     "no page was measured"),
             "objects_intact": _ratio(res["intact"], obj, no_obj),
             "objects_in_one_box": _ratio(res["in_one_box"], obj, no_obj),
             "objects_torn": _ratio(res["torn"], obj, no_obj),

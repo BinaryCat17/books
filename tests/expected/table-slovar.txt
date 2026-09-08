@@ -22,6 +22,8 @@ bench slovar, run PP-DocLayoutV2
   fitness  ink_under_artefacts         0.031     33235/1057663                      
   fitness  ink_outside_boxes           0.024     24968/1057663                      
   fitness  area_under_boxes            0.665  6792980/10219040                      
+  fitness  median_box_area             0.016                                        
+  fitness  boxes_per_page             43.692            568/13                      
   fitness  objects_intact              0.333               1/3                      
   fitness  objects_in_one_box          0.333               1/3                      
   fitness  objects_torn                0.333               1/3                      

@@ -4226,6 +4226,22 @@ def mutations():
              "        if False:"),
          [("test_bench", "test_a_book_without_a_manifest_is_not_a_book")]),
 
+        # `Bench.pdf`'s lazy branch is an UNVERIFIED TWIN of `_scan_of`: it
+        # looks beside the book and hashes nothing. Reachable from a
+        # truthless book, it stands behind the checked lookup and wins by
+        # fallback -- which is how "the scan is looked for in raw/ and not
+        # beside the book" once went uncaught.
+        ("a truthless book falls back to the unchecked scan lookup",
+         lambda: one_line(
+             "booksmith.datasets.bench",
+             "        if not self.truth_dir:\n"
+             "            return self.scan or None\n"
+             "        if self.scan:",
+             "        if self.scan:"),
+         [("test_bench",
+           "test_a_truthless_book_answers_for_its_scan_from_the_checked_"
+           "lookup_only")]),
+
         # `has_content()` with no pages given goes and PARSES the truth, so a
         # book that has none raises there instead of answering. The public
         # applicability question then blew up rather than saying no.

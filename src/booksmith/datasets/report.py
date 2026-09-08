@@ -97,7 +97,14 @@ LOWER_IS_BETTER = (
 # typed here would be a second copy of it, free to drift, which is what
 # `tools/figures.py` counts -- and the first one typed was already wrong.
 NEITHER = ("transitions", "pages_with_columns", "values_present",
-           "fingerprint_verified", "artefacts_merged", "area_under_boxes")
+           "fingerprint_verified", "artefacts_merged", "area_under_boxes",
+           # The other two thirds of the box-shape guard. `area_under_boxes`
+           # is beaten by a model that traces the ink with tiny boxes -- it
+           # takes ALL the ink at LESS area than an honest run -- and these
+           # two catch that side. Both have a bad end at each extreme, so
+           # neither is a rank: read them beside `ink_under_boxes`, never
+           # down a column of their own.
+           "median_box_area", "boxes_per_page")
 # Named, not inferred: this is the list that makes the other two a
 # declaration instead of a residue.
 HIGHER_IS_BETTER = (
