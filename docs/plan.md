@@ -232,7 +232,8 @@ runner, one table.
   keep working.
 * 2a `datasets/table.py`: `applicable(bench, run)`, rows as (bench, run,
   metric, scalar); `bench all <bench> [--run L] [--json PATH]` writes
-  `results/<bench>-<label>.json` by default and prints one table where
+  `results/<bench>-<label>.json` by default -- `<bench>-<kind>-<label>.json`
+  for a level that is not detect -- and prints one table where
   a null value prints its why as a footnote;
   `datasets/accept.py` (from acceptance.py) diffs Records at 1e-6 and still
   diffs the prose; `datasets/look.py` (from overlay.py), which must also draw

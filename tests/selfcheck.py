@@ -4188,6 +4188,175 @@ def mutations():
            "test_a_reading_metric_is_not_applicable_to_a_run_that_read_"
            "nothing")]),
 
+        # A BOOK WITHOUT TRUTH GOT ITS OWN DOOR, AND THE FIRST ONE MUST STAY
+        # SHUT. `Bench.no_truth` was added so the truth-free metrics could
+        # reach the only runs that have a level two; the cheap way to write
+        # it would have been to let `Bench.open` take anything, and then a
+        # mistyped path would open as a book and be measured. Both checks
+        # are named here: the one that guards `open` and the one that guards
+        # the pair, because a loosening that only the second saw would leave
+        # the first green and vice versa.
+        ("the bench opener takes a directory with no truth in it",
+         lambda: one_line(
+             "booksmith.datasets.bench",
+             "        else:\n"
+             "            raise Unmeasurable(\n"
+             '                f"{path} is not a bench: expected a directory '
+             'holding "',
+             "        else:\n"
+             "            root, truth = path, os.path.join(path, \"truth\")\n"
+             "            _ = (\n"
+             '                f"{path} is not a bench: expected a directory '
+             'holding "'),
+         [("test_bench", "test_a_directory_without_truth_is_not_a_bench"),
+          ("test_bench",
+           "test_a_book_without_truth_opens_by_its_own_door_and_not_by_open")]),
+
+        # AND THE BOOK WITHOUT A MANIFEST IS THE OTHER HALF OF THAT DOOR.
+        # The manifest is not decoration here: it carries `source.sha256`,
+        # which is the only thing `same_book` can check a truthless book by.
+        # Drop the guard and a run of ANOTHER book scores against this one,
+        # under a name that looks right.
+        ("a book with no manifest opens anyway, and loses its identity",
+         lambda: one_line(
+             "booksmith.datasets.bench",
+             '        man = _read_json(os.path.join(path, "manifest.json"))\n'
+             "        if not man:",
+             '        man = _read_json(os.path.join(path, "manifest.json")) or {}\n'
+             "        if False:"),
+         [("test_bench", "test_a_book_without_a_manifest_is_not_a_book")]),
+
+        # `has_content()` with no pages given goes and PARSES the truth, so a
+        # book that has none raises there instead of answering. The public
+        # applicability question then blew up rather than saying no.
+        ("applicability parses the truth of a book that has none",
+         lambda: one_line(
+             "booksmith.datasets.metrics.base",
+             "    if (run is not None and bench is not None and bench.truth_dir\n"
+             "            and bench.has_content(pages)):",
+             "    if (run is not None and bench is not None\n"
+             "            and bench.has_content(pages)):"),
+         [("test_table",
+           "test_a_book_without_truth_is_measured_by_what_needs_none")]),
+
+        # The kind comes from the directory the run sits in, because that is
+        # where the book layout puts it. Blind to it, every level is
+        # `detect` and the results file is keyed on the label alone.
+        ("a run cannot say which level it is of",
+         lambda: one_line(
+             "booksmith.datasets.bench",
+             "        k = os.path.basename(os.path.dirname("
+             "os.path.abspath(self.run_dir)))\n"
+             "        return k if k in book_mod.KINDS else \"\"",
+             "        return \"\""),
+         [("test_bench", "test_a_run_knows_which_level_it_is_of"),
+          ("test_table",
+           "test_two_levels_of_one_model_do_not_land_on_one_results_file")]),
+
+        # THE SHA IS THE IDENTITY OF A TRUTHLESS BOOK. A manifest with no
+        # `source.sha256` lets `same_book` say "not checked" and another
+        # book's run measures clean under this name.
+        ("a book opens on a manifest that names no sha",
+         lambda: one_line(
+             "booksmith.datasets.bench",
+             '        sha = (man.get("source") or {}).get("sha256")\n'
+             "        if not sha:",
+             '        sha = (man.get("source") or {}).get("sha256")\n'
+             "        if False:"),
+         [("test_bench", "test_a_book_whose_manifest_names_no_sha_is_not_a_book")]),
+
+        # An interrupted bench build leaves one half of the write-aside and
+        # no `truth/`; measured truth-free it files half a record under the
+        # full one's name.
+        ("an interrupted bench build passes for a book without truth",
+         lambda: one_line(
+             "booksmith.datasets.bench",
+             "        if aside:",
+             "        if False:"),
+         [("test_bench",
+           "test_a_bench_whose_truth_went_missing_is_not_a_truthless_book")]),
+
+        # The sha is the only thing standing between a same-named scan and a
+        # number that looks sensible -- on EITHER branch, beside the book or
+        # in `raw/`. The first edition checked one of the two.
+        ("a scan whose bytes are not the ones named is measured anyway",
+         lambda: one_line(
+             "booksmith.datasets.bench",
+             "        got = stamp.sha256(cand)\n"
+             "        if got != sha:",
+             "        got = stamp.sha256(cand)\n"
+             "        if False:"),
+         [("test_bench",
+           "test_the_scan_of_a_built_book_is_found_in_raw_and_checked_by_sha"),
+          ("test_bench", "test_the_scan_beside_the_book_is_checked_by_sha_too")]),
+
+        # `source.name` decides what is opened and hashed. Unconfined, an
+        # absolute name returned itself and a relative one walked out of the
+        # repository.
+        ("a manifest steers the scan lookup with a path",
+         lambda: one_line(
+             "booksmith.datasets.bench",
+             "    if name != os.path.basename(name) or name in "
+             "(os.curdir, os.pardir):",
+             "    if False:"),
+         [("test_bench", "test_a_manifest_may_name_a_file_and_not_a_path")]),
+
+        # The scan of the three `bench/real-*` books lies BESIDE the book;
+        # looking only in `raw/` makes the books this feature exists for
+        # unmeasurable again.
+        ("the scan is looked for in raw/ and not beside the book",
+         lambda: one_line(
+             "booksmith.datasets.bench",
+             "    for cand in (os.path.join(path, name),\n"
+             '                 os.path.join(config.ROOT, "raw", name)):',
+             '    for cand in (os.path.join(config.ROOT, "raw", name),):'),
+         [("test_bench", "test_the_books_that_declare_themselves_truthless_open")]),
+
+        # A metric that does not apply produced NO LINE, so a short table
+        # could not be told from an instrument that was never run.
+        ("a withheld metric says nothing about being withheld",
+         lambda: one_line(
+             "booksmith.datasets.table",
+             "    for m in registry.METRICS:\n"
+             "        if m in can:\n"
+             "            continue",
+             "    for m in []:\n"
+             "        if m in can:\n"
+             "            continue"),
+         [("test_table",
+           "test_a_book_without_truth_is_measured_by_what_needs_none")]),
+
+        # The truth was parsed before applicability was consulted, so a book
+        # with none died there and the truth-free metrics were unreachable
+        # on the only runs that have a level two.
+        ("the table parses the truth of a book that has none",
+         lambda: one_line(
+             "booksmith.datasets.table",
+             "    pages = bench.pages() if bench.truth_dir else {}",
+             "    pages = bench.pages()"),
+         [("test_table",
+           "test_a_book_without_truth_is_measured_by_what_needs_none")]),
+
+        # A LABEL IS THE MODEL'S NAME AND TWO LEVELS CAN SHARE IT. Keyed on
+        # (book, label) alone, the second run overwrites the first.
+        ("two levels of one model land on one results file",
+         lambda: one_line(
+             "booksmith.datasets.table",
+             '    level = f"{kind}-" if kind and kind != "detect" else ""',
+             '    level = ""'),
+         [("test_table",
+           "test_two_levels_of_one_model_do_not_land_on_one_results_file")]),
+
+        # A level-two run carries the DETECTOR's boxes; in the model column
+        # the reader reads as having earned them.
+        ("a run of another level is rendered as a model of this one",
+         lambda: one_line(
+             "booksmith.datasets.report",
+             '        if kind != "detect":',
+             "        if False:"),
+         [("test_table",
+           "test_the_report_leaves_out_a_run_of_another_level_and_counts_it")]),
+
         ("the paid command writes a different experiment over the last one",
          lambda: one_line(
              "booksmith.processing.read.driver",

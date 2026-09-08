@@ -70,8 +70,12 @@ LOWER_IS_BETTER = (
     "artefacts_cropped", "artefacts_called_text", "artefacts_not_seen",
     "excess_jumps_per_transition", "excess_jumps_per_transition_one_rule",
 )
-# Counts that are neither better nor worse -- they describe the bench or the
-# run, and ranking models by them is meaningless.
+# Quantities with NO BETTER END. Two kinds, and the list holds both: some
+# describe the bench or the run, so ranking models by them is meaningless;
+# others describe the model's output and are meant to be read across models,
+# but neither direction is the good one -- they are GUARDS, consulted when a
+# ranked number looks too good. The legend below must say both, or the arrow
+# is right and the sentence explaining it is wrong.
 #
 # `artefacts_merged` IS ONE, and it is the only judgement call in these three
 # lists. A merge is not damage to THIS pipeline: docs/limits.md measured it --
@@ -80,12 +84,24 @@ LOWER_IS_BETTER = (
 # So it is neither a success to maximise nor a failure to minimise, and giving
 # it an arrow in either direction would rank models by a quantity this project
 # has already measured as not costing it anything.
+#
+# `area_under_boxes` IS ANOTHER, and it stood under `↑` while the code that
+# computes it says the opposite in its own header: "One box over the whole
+# sheet gives 100% of the ink and 100% of the objects whole, so AREA UNDER
+# BOXES is printed beside them: without it the metric is won by finding
+# nothing" (`processing/assess/ink.py`). It is the GUARD on the ink numbers,
+# not a quality of its own -- the reader consults it when `ink_under_boxes`
+# looks too good, and its extreme is the degenerate case, not the best case.
+# Published as "better higher" it told a reader to maximise exactly the thing
+# it exists to catch. The honest range is the column itself, below; a figure
+# typed here would be a second copy of it, free to drift, which is what
+# `tools/figures.py` counts -- and the first one typed was already wrong.
 NEITHER = ("transitions", "pages_with_columns", "values_present",
-           "fingerprint_verified", "artefacts_merged")
+           "fingerprint_verified", "artefacts_merged", "area_under_boxes")
 # Named, not inferred: this is the list that makes the other two a
 # declaration instead of a residue.
 HIGHER_IS_BETTER = (
-    "area_under_boxes", "artefacts_found", "assembly_order",
+    "artefacts_found", "assembly_order",
     "ink_under_artefacts", "ink_under_boxes", "model_order",
     "object_ink_preserved", "objects_in_one_box", "objects_intact",
     "sense_whole", "text_furniture_found",
@@ -97,10 +113,18 @@ HEADLINE = (
     ("contour", "assembly_order", "reading order of the assembled book"),
     ("fitness", "ink_under_boxes", "ink that lands inside some box"),
     ("fitness", "object_ink_preserved", "ink of the objects that survives"),
-    ("assembly", "excess_jumps_per_page", "excess column jumps per page"),
+    # `excess_jumps_per_page` LEFT THE HEADLINE AND KEPT ITS ROW BELOW. It is
+    # not wrong -- it is the order that actually reaches the book, which is why
+    # it is not deleted -- but it is TWO QUANTITIES IN ONE COLUMN: the model's
+    # own rank where the model has one, and our top-down rule where it has
+    # none, and `assembly.py` records the spread between them as five times the
+    # whole span a six-model table shows. A headline column is read DOWN, and
+    # this one cannot be; the footnote saying so does not make it readable. Per
+    # transition divides the confound out and is read down safely.
     ("assembly", "excess_jumps_per_transition",
-     "excess column jumps per transition -- the same quantity as the row "
-     "above, divided by how many moves between boxes there were"),
+     "excess column jumps per move between boxes -- a page-rate is in the "
+     "per-bench tables below, where it can be read beside the rule that "
+     "ordered each model"),
     ("assembly", "excess_jumps_per_transition_one_rule",
      "the same, with ONE ordering rule forced on every model: this column "
      "compares BOXES, the others compare box-and-rank together"),
@@ -108,17 +132,39 @@ HEADLINE = (
 
 
 def _cells():
-    """(bench, run) -> {metric: record dict}, and the commits they came from."""
-    out, commits, when = {}, set(), set()
+    """(bench, run) -> {metric: record dict}, the commits they came from, and
+    THE RUNS OF ANOTHER LEVEL that were left out.
+
+    This document is a cross-DETECTOR table: one row per model, one column
+    per bench, and every number a property of the boxes that model drew. A
+    level-two run's pages carry the boxes of whatever detector made them, so
+    its ink and column-jump numbers describe that detector -- put in the
+    model column under the reader's name, they read as the reader's work.
+    Six detectors and one reader in one column is the "looks sensible and
+    means nothing" case, and it was one `books bench all` away: the reader
+    rendered as a seventh model row carrying `0.857` for boxes it never
+    drew, with `?` in every other column.
+
+    So a run of any level but `detect` is kept OUT and COUNTED, never
+    silently dropped -- the count is printed under "What is not in this
+    table", which is where a reader looks for what a number's absence means.
+    """
+    out, commits, when, other = {}, set(), set(), []
     for name in sorted(os.listdir(RESULTS)) if os.path.isdir(RESULTS) else []:
         if not name.endswith(".json") or "-only-" in name:
             continue
         d = table.read_file(os.path.join(RESULTS, name))
+        # A file written before the field existed is `detect`, which every
+        # one of them was.
+        kind = d.get("kind") or "detect"
+        if kind != "detect":
+            other.append((kind, name))
+            continue
         commits.add(d["commit"])
         when.add(d["when"])
         for rec in d["records"]:
             out.setdefault((rec["bench"], rec["run"]), {})[rec["metric"]] = rec
-    return out, commits, when
+    return out, commits, when, other
 
 
 def _arrow(scalar: str) -> str:
@@ -199,8 +245,20 @@ def _table(rows, header):
 
 
 def build(log=print) -> str:
-    cells, commits, when = _cells()
+    cells, commits, when, other_levels = _cells()
     if not cells:
+        # TWO DIFFERENT EMPTIES, and the second is not "nothing measured".
+        # Results exist, and every one of them is of a level this document
+        # does not render -- telling the reader to measure would send them
+        # to repeat work that is already on disk.
+        if other_levels:
+            raise Refusal(
+                f"{RESULTS} holds {len(other_levels)} results and every one "
+                f"is of another level ("
+                + ", ".join(sorted({k for k, _ in other_levels})) +
+                f"). This document is a cross-detector table; a level-two "
+                f"run carries the boxes of whatever detector made its pages. "
+                f"Measure a detect run to have anything to render.")
         raise Refusal(
             f"no results in {RESULTS}. Measure first: `python3 "
             f"tools/sweep.py --apply` runs every model over every bench.")
@@ -275,9 +333,14 @@ def build(log=print) -> str:
          "says nothing, it was counted over all of it.",
          "",
          "A scalar's name carries an arrow: **↑** better higher, **↓** better "
-         "lower, **=** neither (it describes the bench or the run, and "
-         "ranking models by it means nothing). Two cells that cannot be "
-         "compared are never put in one column without saying so.",
+         "lower, **=** neither end is better. An `=` scalar either describes "
+         "the bench or the run, so ranking models by it means nothing, or it "
+         "is a GUARD -- read across models, but beside a ranked number "
+         "rather than as one. `area_under_boxes` is a guard: a model that "
+         "boxes the whole sheet takes 100 % of the ink with it, so a high "
+         "share of ink is only worth what the area beside it says. Two "
+         "cells that cannot be compared are never put in one column without "
+         "saying so.",
          "",
          "`—` is a value that does not exist, and the reason is under its "
          "table. `·` is a metric that does not apply to that pair. **`?` is "
@@ -295,6 +358,21 @@ def build(log=print) -> str:
              "No reading run has been measured against a truth yet, so there "
              "is no reading row at all -- `docs/limits.md` says in three "
              "reasons why, before any money is spent."),
+          "",
+          "**Runs of another level.** This is a cross-DETECTOR table: every "
+          "number is a property of the boxes a model drew. A level-two run "
+          "carries the boxes of whatever detector made its pages, so its "
+          "numbers describe that detector and not the reader named on the "
+          "directory -- in the model column the reader would read as having "
+          "earned them. "
+          + (f"{len(other_levels)} such "
+             + ("run was" if len(other_levels) == 1 else "runs were")
+             + " measured and left out: "
+             + ", ".join(f"`{n}` ({k})" for k, n in sorted(other_levels)) + "."
+             if other_levels else
+             "None has been measured yet; `books bench all <book> --kind "
+             "read` writes one, under its own name, and it is counted here "
+             "rather than dropped."),
           "",
           "**Anything a bench cannot support.** A metric whose prerequisites "
           "a bench does not meet is absent, not zero, and the reason is "

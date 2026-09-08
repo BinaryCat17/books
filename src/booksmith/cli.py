@@ -18,7 +18,7 @@
     books text truth/ pages/     READING metric: characters and table cells
     books fitness book.pdf …     will the meaning arrive: by ink, no truth
     books overlay book.pdf …     boxes over pages, to look with your own eyes
-    books bench all <run>        every applicable metric on one run: one table
+    books bench all <book>       every applicable metric on one run: one table
     books bench report           every measured number, as METRICS.md
     books ls | books down 12345 | books reap
     books ledger                 run journal and the estimate from it
@@ -739,13 +739,28 @@ def cmd_bench_all(a):
     """
     from booksmith.datasets import table
     from booksmith.datasets.bench import Bench
-    b = Bench.open(a.bench)
-    run = b.run(a.run)
+    root = a.bench.rstrip("/")
+    # A BENCH IS A BOOK WITH `truth/`, AND A PROCESSED BOOK IS THE OTHER
+    # HALF. Asked here rather than by catching `Unmeasurable` from `open`:
+    # a caught refusal cannot tell "there is no truth here, which is fine"
+    # from "this path is wrong", and the second must still reach the user.
+    if not os.path.isdir(root):
+        # SAID BEFORE EITHER DOOR IS TRIED. Both openers answer a path that
+        # does not exist by describing what they wanted to find in it --
+        # "expected manifest.json naming the scan" sends the reader looking
+        # for a file in a directory that is not there. A typo is the common
+        # case and it must read as one.
+        raise Refusal(f"{a.bench} is not a directory. `books bench all` "
+                      f"takes a book: bench/<name> or processed/<name>.")
+    has_truth = (os.path.isdir(os.path.join(root, "truth"))
+                 or os.path.basename(root) == "truth")
+    b = Bench.open(root) if has_truth else Bench.no_truth(root)
+    run = b.run(a.run, a.kind)
     which = [n.strip() for n in a.only.split(",") if n.strip()] if a.only else None
     recs = table.rows(b, run, which, log=log)
     table.render(recs, log=log)
     path = a.json or table.results_path(b, run, which)
-    table.write_json(recs, path, log=log)
+    table.write_json(recs, path, log=log, kind=run.kind)
     return 0
 
 
@@ -1230,15 +1245,26 @@ def main(argv=None):
     p = sub.add_parser("bench", help="the benches: every metric on one run, side by side")
     bs = p.add_subparsers(dest="bench_cmd", required=True)
     q = bs.add_parser("all", help="every applicable metric on one bench and run, as one table and one JSON")
-    q.add_argument("bench", help="the bench directory, e.g. bench/slovar")
+    q.add_argument("bench", help="the book directory, e.g. bench/slovar or "
+                                 "processed/ogneupory-vl2. A bench brings "
+                                 "truth/ and gets every metric; a book "
+                                 "without it gets the truth-free ones")
     q.add_argument("--run", default="",
-                   help="which detect run, by its model label. Omit it when "
-                        "the bench has exactly one; with several, the command "
-                        "refuses and lists them")
+                   help="which run, by its model label. Omit it when "
+                        "the book has exactly one of this kind; with several, "
+                        "the command refuses and lists them")
+    q.add_argument("--kind", default="detect", choices=("detect", "read"),
+                   help="which level to measure: detect, the contours "
+                        "(default), or read, the level-two reading")
     q.add_argument("--only", default="",
                    help="comma-separated metric names, instead of every applicable one")
     q.add_argument("--json", default="",
-                   help="where to write the records (default: results/<bench>-<run>.json)")
+                   help="where to write the records (default: "
+                        "results/<bench>-<run>.json, and "
+                        "<bench>-<kind>-<run>.json for a level "
+                        "that is not detect: a label is the "
+                        "model's own name and two levels can "
+                        "share one)")
     q.set_defaults(fn=cmd_bench_all)
 
     q = bs.add_parser("report",

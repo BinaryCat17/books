@@ -26,11 +26,24 @@ def rows(bench: Bench, run: Run, which=None, log=print) -> list:
     not applicable: a table with a line the bench cannot support is a
     number about nothing, and the first edition wrote one.
     """
-    pages = bench.pages()
+    # THE TRUTH IS PARSED ONLY IF THERE IS ANY. A book with no `truth/` is a
+    # legal thing to measure -- ink and column jumps need none -- and this
+    # line raised `truth of <book>: no directory` before applicability was
+    # ever consulted, so the truth-free metrics could not be reached on the
+    # only runs that have a level two. An empty dict is the honest value:
+    # `applicable` withholds "truth" and "content" from it by itself.
+    pages = bench.pages() if bench.truth_dir else {}
     # BOTH SIDES BEFORE THE QUESTION. The run's pages decide whether a reading
     # metric applies at all, and they are needed a few lines below anyway.
     model = run.pages()
+    # `applicable` DECIDES, and `prerequisites` only explains. Filtering
+    # inline here on `have` was the same arithmetic and read as harmless --
+    # and it took `applicable` off this path, so the battery's mutation of
+    # it ("applicability ignores whether the truth has content") stopped
+    # reaching the table and went UNCAUGHT. An instrument that can no longer
+    # fail is the one thing this project does not allow.
     can = registry.base.applicable(registry.METRICS, bench, run, pages, model)
+    have = registry.base.prerequisites(bench, run, pages, model)
     if which:
         unknown = [n for n in which if n not in registry.BY_NAME]
         if unknown:
@@ -45,6 +58,19 @@ def rows(bench: Bench, run: Run, which=None, log=print) -> list:
         todo = [registry.BY_NAME[n] for n in which]
     else:
         todo = can
+    # WHAT WAS WITHHELD, AND WHAT IT WANTED. A metric that does not apply
+    # produced no line at all: on a book with no truth, `contour` and `text`
+    # simply were not there, and the reader had a short table and no way to
+    # tell "this book cannot answer that" from "the instrument was never
+    # run" -- the project's two zeros, in the one place that had no word for
+    # either. The needs come from the metric's own declaration and `have`
+    # from `prerequisites`, which is the set `applicable` itself filters on,
+    # so the explanation cannot drift from the decision.
+    for m in registry.METRICS:
+        if m in can:
+            continue
+        log(f"{m.name}: NOT MEASURED, this book and run give no "
+            f"{', '.join(sorted(m.needs - have))}")
     note = same_book(bench, run)
     out = []
     for m in todo:
@@ -55,13 +81,23 @@ def rows(bench: Bench, run: Run, which=None, log=print) -> list:
 
 def results_path(bench: Bench, run: Run, which=None) -> str:
     """Where the table lands. A selection gets its own name: a partial
-    table must not replace the full one under the same file."""
+    table must not replace the full one under the same file.
+
+    AND SO DOES A LEVEL. The label is the MODEL's own name, so a detector
+    and a reader can carry the same one, and the first edition keyed the
+    file on (book, label) alone -- two levels of one model, one file, the
+    second silently overwriting the first. `detect` keeps the bare name so
+    the runs already on disk are not renamed for nothing.
+    """
     tail = "-only-" + "+".join(which) if which else ""
-    return os.path.join(RESULTS, f"{bench.name}-{run.label}{tail}.json")
+    kind = run.kind
+    level = f"{kind}-" if kind and kind != "detect" else ""
+    return os.path.join(RESULTS, f"{bench.name}-{level}{run.label}{tail}.json")
 
 
-def write_json(records, path: str, log=print) -> str:
-    """The records, under a header saying WHEN and BY WHICH CODE.
+def write_json(records, path: str, log=print, kind: str = "detect") -> str:
+    """The records, under a header saying WHEN, BY WHICH CODE and OF WHICH
+    LEVEL.
 
     The file was a bare list, and a directory of them could silently mix
     numbers computed by different code -- which happened inside one hour: a
@@ -70,10 +106,20 @@ def write_json(records, path: str, log=print) -> str:
     between MODELS. A cross-model table is only a comparison if every cell
     came from the same tree, so the commit rides in the file and the reader
     can refuse.
+
+    `kind` rides along for the same reason one level down. A LEVEL-TWO run
+    carries the boxes of whatever DETECTOR made its pages, so its ink
+    numbers describe that detector and not the reader whose name is on the
+    directory. Put in the model column of a cross-detector table, the reader
+    appears beside six detectors with a number it did not earn -- the
+    "looks sensible and means nothing" case. The report reads this field and
+    leaves such a run out, saying how many it left; a file written before
+    the field existed is `detect`, which is what all of them were.
     """
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         json.dump({"when": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+                   "kind": kind or "detect",
                    # Ignoring the results themselves: a pass that writes 54
                    # of these would otherwise dirty the tree with its own
                    # first file and stamp the other 53 unusable.

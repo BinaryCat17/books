@@ -139,6 +139,36 @@ class Metric:
         raise NotImplementedError
 
 
+def prerequisites(bench, run, pages=None, run_pages=None) -> set:
+    """WHICH OF `NEEDS` THIS BENCH AND RUN SUPPLY.
+
+    Returned rather than only consumed, because the answer to "why is this
+    metric not in the table" is `m.needs - have` and nothing else. Computed
+    twice -- once to choose the metrics, once to explain the ones left out --
+    it would be a second copy of the rules below, free to drift from them.
+    """
+    have = {"pages"}
+    if bench is not None and bench.truth_dir:
+        have.add("truth")
+    if bench is not None and bench.pdf:
+        have.add("pdf")
+    # `truth_dir` FIRST, and not for speed: `has_content()` with no pages
+    # given goes and parses the truth, and a book that has none raises there
+    # rather than answering. `table.rows` happens to pass `pages`, so the
+    # documented `pages=None` default was a landmine for the next caller --
+    # asking "is this metric applicable" blew up instead of saying no.
+    if (run is not None and bench is not None and bench.truth_dir
+            and bench.has_content(pages)):
+        have.add("content")
+    # The run's pages are ASKED FOR, not fetched: a caller that has them
+    # passes them (`table.rows` does), and a caller with only a stand-in run
+    # says nothing and gets nothing. Fetching them here would make every
+    # applicability question a directory walk.
+    if run_pages is not None and run_has_content(run, run_pages):
+        have.add("read")
+    return have
+
+
 def applicable(metrics, bench, run, pages=None, run_pages=None) -> list:
     """The metrics whose prerequisites this bench and run satisfy.
 
@@ -147,19 +177,7 @@ def applicable(metrics, bench, run, pages=None, run_pages=None) -> list:
     bench-level yes/no would either refuse `bench/hard` whole or score it
     whole, and the number the project prints there is "over 6 pages of 130".
     """
-    have = {"pages"}
-    if bench is not None and bench.truth_dir:
-        have.add("truth")
-    if bench is not None and bench.pdf:
-        have.add("pdf")
-    if run is not None and bench is not None and bench.has_content(pages):
-        have.add("content")
-    # The run's pages are ASKED FOR, not fetched: a caller that has them
-    # passes them (`table.rows` does), and a caller with only a stand-in run
-    # says nothing and gets nothing. Fetching them here would make every
-    # applicability question a directory walk.
-    if run_pages is not None and run_has_content(run, run_pages):
-        have.add("read")
+    have = prerequisites(bench, run, pages, run_pages)
     return [m for m in metrics if m.needs <= have]
 
 

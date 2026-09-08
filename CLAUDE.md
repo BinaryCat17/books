@@ -178,9 +178,13 @@ books score truth/ boxes/    contour metrics; --selfcheck runs the battery
 books text truth/ pages/     the reading metric; --selfcheck too
 books fitness book.pdf --detect …   will the meaning arrive: ink, not boxes
 books overlay book.pdf …     truth and model disagreements over the pages
-books bench all bench/<book>  every applicable metric on one run: one table,
+books bench all <book>       every applicable metric on one run: one table,
                              one JSON under results/. --run <model> when
-                             the book holds several
+                             the book holds several, --kind detect|read for
+                             which level. A BENCH gets every metric; a book
+                             with no truth/ -- processed/<book> -- gets the
+                             truth-free ones and says of the rest that the
+                             stage was not carried out, never zero
 books bench report           every measured number in the project, rendered
                              into METRICS.md from those JSONs. GENERATED: a
                              figure written by hand drifts from the run that

@@ -141,7 +141,14 @@ FORMATS = (
          "run": 1, "scalars": 1, "params": 1, "value": 1},
         "One file per (bench, model). The header (`commit`, `when`) is what "
         "lets a table refuse to mix two trees. The floors are 1 because a "
-        "clone may hold one file or fifty-four; what they guard is the NAMES."),
+        "clone may hold one file or fifty-four; what they guard is the NAMES. "
+        "`kind` IS MISSING FROM THIS LIST ON PURPOSE and it is the one field "
+        "that decides whether a run is published at all -- `report._cells` "
+        "leaves out anything but `detect`, so a rename would silently empty "
+        "the document of every level-two run. It cannot be floored yet: no "
+        "TRACKED result carries it, because the only runs of another level "
+        "are on books whose results are not committed. Add the floor with "
+        "the first one that is."),
 )
 
 
