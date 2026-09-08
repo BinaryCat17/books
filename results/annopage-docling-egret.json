@@ -1,5 +1,5 @@
 {
- "commit": "488663a5f55ebfce93efc0ce093bd5fde0fd869f",
+ "commit": "f8f29d4d0bdce883940a51bb6e7bb76c541204c2",
  "records": [
   {
    "bench": "annopage",
@@ -7401,5 +7401,5 @@
    }
   }
  ],
- "when": "2026-09-08T13:00:43+0300"
+ "when": "2026-09-08T14:07:33+0300"
 }

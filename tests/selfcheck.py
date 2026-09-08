@@ -1982,6 +1982,30 @@ def _pkg_with_an_unbound_name():
     return d
 
 
+def _results_stamped_with_a_squashed_commit():
+    """Results naming a commit this history no longer has.
+
+    The real one: `488663a`, the `wip:` commit the sweep measured against,
+    folded away by `git reset --soft` an hour later. Here any sha git cannot
+    place will do -- `reachable` answers None for one it has never seen and
+    False for one it has but cannot reach, and both mean the same thing.
+    """
+    import tempfile
+    d = tempfile.mkdtemp()
+    os.makedirs(os.path.join(d, "results"))
+    root = os.path.dirname(os.path.dirname(support.SRC))
+    for name in sorted(os.listdir(os.path.join(root, "results")))[:25]:
+        if not name.endswith(".json"):
+            continue
+        with open(os.path.join(root, "results", name), encoding="utf-8") as f:
+            j = json.load(f)
+        j["commit"] = "4886630000000000000000000000000000000000"
+        with open(os.path.join(d, "results", name), "w",
+                  encoding="utf-8") as f:
+            json.dump(j, f, ensure_ascii=False)
+    return d
+
+
 def _tree_that_ignores_the_results():
     """A tree whose .gitignore swallows `results/` again.
 
@@ -4329,6 +4353,11 @@ def mutations():
              "            pass                       # the ignore left the guarded body"),
          [("test_rent_deadlines",
            "test_no_write_in_the_cleanup_can_leave_ctrl_c_dead")]),
+
+        ("the results name a commit that was squashed away",
+         lambda: attrs(schema, ROOT=_results_stamped_with_a_squashed_commit()),
+         [("test_data_contract",
+           "test_every_result_names_a_commit_this_history_still_has")]),
 
         ("a cyrillic key comes back into the tracked data",
          lambda: attrs(schema, ROOT=_tree_with_a_russian_key()),

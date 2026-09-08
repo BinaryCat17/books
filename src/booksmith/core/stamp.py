@@ -118,6 +118,45 @@ def commit(ignore: tuple[str, ...] = ()) -> str | None:
         return told or None
 
 
+def reachable(sha: str) -> bool | None:
+    """Is this commit an ancestor of HEAD -- does the code that counted still
+    exist in this history?
+
+    A SHA IS NOT A GUARANTEE THAT THE COMMIT IS THERE. `commit()` records
+    what HEAD was at the moment of measuring, and history can be rewritten
+    afterwards: a squash, a rebase, an amend. Measured -- 54 results were
+    stamped against a `wip:` commit and the two `wip:` commits were then
+    folded into one with `git reset --soft`, so every published number named
+    a commit that `git log --all` no longer showed and a fresh clone would
+    never have. The stamp answers "which code counted this" and it had
+    stopped being able to.
+
+    ANCESTOR AND NOT EQUAL, on purpose: a result measured three commits ago
+    is still traceable, and demanding HEAD would mean re-measuring 54 cells
+    on every commit -- 20 minutes for the metrics alone, four hours if the
+    boxes went too. What must hold is that the commit is REACHABLE.
+
+    `None` when git cannot answer at all (no repository -- the rented card is
+    exactly that), which the caller must tell apart from `False`.
+    """
+    if not sha:
+        return None
+    import booksmith
+    root = os.path.dirname(os.path.dirname(
+        os.path.abspath(booksmith.__file__)))
+    try:
+        r = subprocess.run(
+            ["git", "-C", root, "merge-base", "--is-ancestor",
+             sha.split("+")[0], "HEAD"],
+            capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    # 0 is ancestor, 1 is not; anything else is git failing to answer (a
+    # sha it does not know gives 128), and "I cannot tell" is not "no".
+    return True if r.returncode == 0 else (False if r.returncode == 1
+                                           else None)
+
+
 def packages(names=DETECT_PACKAGES) -> dict:
     out = {}
     for name in names:

@@ -7,7 +7,7 @@ python3 tools/sweep.py --apply      # measure
 books bench report                  # render this file
 ```
 
-All cells were computed at commit `488663a5f55ebfce93efc0ce093bd5fde0fd869f`, between 2026-09-08T12:45:13+0300 and 2026-09-08T13:03:46+0300.
+All cells were computed at commit `f8f29d4d0bdce883940a51bb6e7bb76c541204c2`, between 2026-09-08T13:52:35+0300 and 2026-09-08T14:10:35+0300.
 
 Each cell is the value with the count behind it. Where a metric was counted over only PART of a bench, the cell says so; where it says nothing, it was counted over all of it.
 

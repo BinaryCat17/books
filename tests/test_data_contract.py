@@ -618,3 +618,42 @@ def test_the_loader_can_load_every_truth_page_this_project_has():
     assert not bad, (
         f"{len(bad)} of {checked} truth pages do not survive the project's "
         f"own loader:\n" + "\n".join(bad[:5]))
+
+
+def test_every_result_names_a_commit_this_history_still_has():
+    """A sha is not proof the commit is there.
+
+    All 54 results were stamped against a `wip:` commit; the two `wip:`
+    commits were then folded into one with `git reset --soft`, and every
+    published number named a sha `git log --all` no longer showed and a fresh
+    clone would never have. None of the renderer's other refusals sees it:
+    the stamp was not None, not `+dirty`, and all 54 AGREED WITH EACH OTHER
+    -- they agreed on a commit that was gone. "Which code counted this" is
+    the one question the stamp exists to answer, and it had stopped being
+    able to.
+
+    Asked of the tracked records rather than through the renderer, so it
+    answers on a clone with nothing rendered.
+    """
+    import glob
+    from booksmith.core import stamp
+    files = sorted(glob.glob(os.path.join(schema.ROOT, "results", "*.json")))
+    assert len(files) > 20, (
+        f"only {len(files)} results under results/ -- this check is "
+        f"measuring nothing")
+    bad = {}
+    for f in files:
+        with open(f, encoding="utf-8") as fh:
+            c = json.load(fh).get("commit")
+        # A dirty or absent stamp is a different defect and the renderer
+        # already refuses both by name; this one is about the sha itself.
+        if not c or "dirty" in c:
+            continue
+        if stamp.reachable(c) is not True:
+            bad.setdefault(c, []).append(os.path.basename(f))
+    assert not bad, (
+        "results name commits that are not in this history: "
+        + "; ".join(f"{c} ({len(v)} files)" for c, v in bad.items())
+        + ". History was rewritten under them -- a squash, a rebase, an "
+          "amend -- so the code that produced these numbers cannot be got "
+          "back. Re-measure: python3 tools/sweep.py --apply --metrics-only")

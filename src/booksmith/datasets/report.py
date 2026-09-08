@@ -27,7 +27,7 @@ and the table prints it beside the model rather than letting the reader assume.
 import collections
 import os
 
-from booksmith.core import config
+from booksmith.core import config, stamp
 from booksmith.core.errors import Refusal
 from booksmith.datasets import table
 
@@ -225,6 +225,27 @@ def build(log=print) -> str:
             f"UNCOMMITTED tree ({dirty[0]}). What code produced them cannot "
             f"be recovered, so they cannot be published beside numbers that "
             f"can. Commit, then `python3 tools/sweep.py --apply --again`.")
+    # AND THE COMMIT MUST STILL EXIST. A sha records what HEAD was while the
+    # cells were counted, and history is rewritten afterwards often enough --
+    # a squash, a rebase, an amend. Measured: all 54 results were stamped
+    # against a `wip:` commit, the `wip:` commits were then folded into one
+    # with `git reset --soft`, and every published number named a commit
+    # `git log --all` no longer showed. Nothing above catches it: the stamp
+    # was not None, not dirty, and all 54 agreed with each other -- they
+    # agreed on a commit that was gone.
+    #
+    # `None` from `reachable` is "git cannot answer" -- no repository at all,
+    # or a sha this clone has never seen -- and it is refused with the same
+    # force as `False`, because both mean the code cannot be got back.
+    unreachable = sorted(c for c in commits if stamp.reachable(c) is not True)
+    if unreachable:
+        raise Refusal(
+            f"the results name a commit that is not in this history: "
+            f"{unreachable[0]}. It was rewritten away (a squash, a rebase, an "
+            f"amend) or belongs to another clone, so the code that produced "
+            f"these numbers cannot be got back -- which is the one thing the "
+            f"stamp is for. Re-measure: `python3 tools/sweep.py --apply "
+            f"--metrics-only`.")
     if len(commits) > 1:
         raise Refusal(
             f"the results come from {len(commits)} different trees "
