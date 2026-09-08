@@ -566,3 +566,55 @@ def test_every_book_directory_is_in_the_declared_shape():
         + "\n".join(f"  {p}: {why}" for p, why in sorted(bad.items())))
     assert len(layout.books()) >= 10, (
         f"only {len(layout.books())} book directories found -- the walk broke")
+
+
+def test_the_loader_can_load_every_truth_page_this_project_has():
+    """The project's own loader against the project's own truth.
+
+    `Page.from_json` raised `TypeError: unexpected keyword argument
+    'source_category'` on 1017 of 1117 tracked truth pages -- every blocked
+    page of `annopage` and `annopage-lite`, 124 of `hard`, 35 of `hard36` --
+    because `annopage.py` writes an eighth field into the block dict and
+    `Block` declared seven. It spread to hard/hard36 because `subset.py`
+    copies blocks.
+
+    IT WAS SILENT AND TOTAL AT ONCE, which is why nothing caught it: the
+    production readers of truth go through `core.page.load_pages`, which
+    returns RAW DICTS and never builds a `Block`, and the only two callers of
+    `from_json` read DETECT output, which does not carry the field. So the
+    class that calls itself the on-disk format could not read the format, and
+    every metric in the project kept working.
+
+    Round-tripped, not merely loaded: a loader that silently drops a key is
+    the same defect one step later, and `source_category` is a key
+    `core/schema.py` puts a floor under.
+    """
+    import glob
+    from booksmith.core.page import Page
+    files = sorted(glob.glob(os.path.join(schema.ROOT, "bench", "*", "truth",
+                                          "*.json")))
+    assert len(files) > 500, (
+        f"only {len(files)} truth pages under {schema.ROOT} -- this check is "
+        f"measuring nothing")
+    bad, checked = [], 0
+    for f in files:
+        with open(f, encoding="utf-8") as fh:
+            d = json.load(fh)
+        if not d.get("blocks"):
+            continue
+        checked += 1
+        try:
+            back = json.loads(json.dumps(Page.from_json(d).to_json()))
+        except Exception as e:                    # noqa: BLE001 -- any is red
+            bad.append(f"{os.path.relpath(f, schema.ROOT)}: "
+                       f"{type(e).__name__}: {e}")
+            continue
+        if back != d:
+            lost = sorted(set(d.get("blocks", [{}])[0])
+                          - set(back.get("blocks", [{}])[0]))
+            bad.append(f"{os.path.relpath(f, schema.ROOT)}: does not "
+                       f"round-trip; keys lost: {lost}")
+    assert checked > 500, f"only {checked} truth pages carried blocks"
+    assert not bad, (
+        f"{len(bad)} of {checked} truth pages do not survive the project's "
+        f"own loader:\n" + "\n".join(bad[:5]))

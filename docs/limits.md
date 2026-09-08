@@ -233,13 +233,13 @@ the map that was both false and unmeasured. The rule generalises past
 Cyrillic: an instrument earns its upkeep only while its target is reachable,
 and the day the whole backlog is permanent, the instrument IS the backlog.
 
-**AND ONLY ONE OF ITS THREE DIRECTIONS HAD AN UNREACHABLE TARGET, which is
-the part of that deletion still owed an answer.** The ratchet direction --
-Cyrillic appearing in a file that declares none -- had an EMPTY target and
-was meeting it. The floor direction is the one that could not move. Deleting
-all three on the floor's argument left nothing watching a Russian comment or
-docstring entering `src/`, `tests/`, `docs/`, or
-`read/rented/paddleocr_vl/run.sh`, which executes on a card that bills --
-while CLAUDE.md still states the translation is DONE as a live property.
-Either that sentence gets an instrument again or it stops being written in
-the present tense; it cannot stay a claim with nothing behind it.
+**AND THE RATCHET DOES NOT COME BACK, for a reason that is not about
+reachability at all.** It watched ONE alphabet. Prose arriving in Chinese or
+Spanish would have passed it without a mark, so what it actually measured
+was not "the project speaks one language" but "the project is not drifting
+back to THIS one" -- a question that had an answer while a migration was
+running and has none now that nobody is going to write here in Russian
+again. An instrument aimed at one member of an open set is not a weaker
+instrument; it is a different claim than the one it appears to make. The
+data half stays because a Cyrillic KEY in a tracked json means the migration
+undoing itself, which is a defect with a definition.

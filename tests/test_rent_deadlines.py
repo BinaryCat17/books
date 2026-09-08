@@ -538,31 +538,48 @@ def test_no_write_in_the_cleanup_can_leave_ctrl_c_dead():
              and n.func.id == "_restore_signals"]
     assert calls, "run_job no longer restores the signal handlers at all"
 
-    protected = []
-    for t in ast.walk(fn):
-        if not (isinstance(t, ast.Try) and t.finalbody):
-            continue
-        protected += [c for stmt in t.finalbody for c in ast.walk(stmt)
-                      if isinstance(c, ast.Call)
-                      and isinstance(c.func, ast.Name)
-                      and c.func.id == "_restore_signals"]
-    # The dry-run path returns early and never ignores the signals; the one
-    # that matters is the cleanup, and it must be a `finally`.
-    assert protected, (
-        "`_restore_signals` is not in a `finally` at all: anything that "
-        "throws in the cleanup leaves SIGINT and SIGTERM ignored, and Ctrl-C "
-        "dead for the rest of the process")
+    # THE PAIRING IS THE PROPERTY, and asking it of the two halves separately
+    # was no question at all. The first edition asked "is `_restore_signals`
+    # inside SOME `finally`" and "is `_ignore_signals` inside SOME `finally`",
+    # walking every `Try` in the function -- and `run_job` has an OUTER try
+    # whose `finalbody` IS the whole cleanup, so both calls are inside it
+    # whatever the cleanup looks like inside. Measured: unwrap the inner
+    # `try/finally`, putting `_restore_signals` back as the last statement of
+    # the cleanup -- the exact defect this docstring describes -- and the
+    # check stayed GREEN. It could not fail on its own subject.
+    #
+    # What has to hold is one block: the same `Try` must IGNORE in its body
+    # and RESTORE in its finally. Then whatever is written between them is
+    # covered, which is the guesswork-free property the docstring promises.
+    def _names(nodes):
+        return {c.func.id for stmt in nodes for c in ast.walk(stmt)
+                if isinstance(c, ast.Call) and isinstance(c.func, ast.Name)}
 
-    ignore = next(n for n in ast.walk(fn)
-                  if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
-                  and n.func.id == "_ignore_signals")
-    guard = next((t for t in ast.walk(fn)
-                  if isinstance(t, ast.Try) and t.finalbody
-                  and any(c in ast.walk(stmt) for stmt in t.finalbody
-                          for c in [ignore])), None)
-    assert guard is not None, (
-        "the block that IGNORES the signals is not the block that restores "
-        "them: a throw between the two leaves them ignored")
+    def _attrs(nodes):
+        return {c.func.attr for stmt in nodes for c in ast.walk(stmt)
+                if isinstance(c, ast.Call)
+                and isinstance(c.func, ast.Attribute)}
+
+    paired = [t for t in ast.walk(fn)
+              if isinstance(t, ast.Try) and t.finalbody
+              and "_ignore_signals" in _names(t.body)
+              and "_restore_signals" in _names(t.finalbody)]
+    assert paired, (
+        "no single `try` both ignores the signals in its body and restores "
+        "them in its `finally`. `_restore_signals` may sit in an enclosing "
+        "`finally` and still be skipped: anything that throws in the cleanup "
+        "leaves SIGINT and SIGTERM at SIG_IGN, and Ctrl-C dead for the rest "
+        "of the process while a rented card bills.")
+
+    # AND THE WRITE THAT CAUSED IT MUST BE INSIDE THAT BLOCK. `ledger.append`
+    # is what raised `PermissionError` on a read-only ledger directory and
+    # took the restore with it. Naming it is not the guesswork the docstring
+    # warns against -- it is the one call the defect is on record for, and if
+    # it ever moves out of the protected body this says so.
+    assert any("append" in _attrs(t.body) for t in paired), (
+        "the ledger write is no longer inside the block whose `finally` "
+        "restores the signals -- that write is the one on record for "
+        "raising and taking Ctrl-C with it")
 
 
 def test_a_floor_that_is_not_a_number_is_refused_before_any_money():

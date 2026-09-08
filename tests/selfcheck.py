@@ -4302,6 +4302,34 @@ def mutations():
          lambda: attrs(imports, PKG=_pkg_with_an_unbound_name()),
          [("test_imports", "test_no_module_uses_a_name_it_never_binds")]),
 
+        # THE FIELD BACK OUT OF `Block`, which is the tree as it stood: the
+        # class declared seven fields and the truth carried eight, so the
+        # loader raised on 1017 of its own pages while every metric passed.
+        ("the block class loses the field the truth carries",
+         lambda: one_line(
+             "booksmith.core.page",
+             "    source_category: str | None = None",
+             "    _source_category_removed: str | None = None"),
+         [("test_data_contract",
+           "test_the_loader_can_load_every_truth_page_this_project_has")]),
+
+        # THE PAIRING BROKEN, which is the defect shape: the restore stays in
+        # a `finally`, the ignore leaves the body it guards, and the enclosing
+        # try goes on satisfying a check that asks about the two halves apart.
+        ("the cleanup ignores the signals outside the block that restores them",
+         # `sources`, NOT `one_line`: this check parses the FILE through
+         # `support.tree`, so patching the imported module leaves it reading
+         # the real one past the damage -- green on broken code, which is the
+         # trap COPY's own comment names. `remote/runner.py` is in COPY for
+         # exactly this check, and the first edition of this mutation went
+         # UNCAUGHT by walking straight into it.
+         lambda: sources(
+             "remote/runner.py",
+             "            _ignore_signals()          # first of all: the cleanup must not be interrupted",
+             "            pass                       # the ignore left the guarded body"),
+         [("test_rent_deadlines",
+           "test_no_write_in_the_cleanup_can_leave_ctrl_c_dead")]),
+
         ("a cyrillic key comes back into the tracked data",
          lambda: attrs(schema, ROOT=_tree_with_a_russian_key()),
          [("test_data_contract",

@@ -51,6 +51,21 @@ class Block:
     order: int | None = None
     content: str | None = None
     kind: str = "none"
+    # WHERE A TRUTH BLOCK CAME FROM, and only truth has it: the AnnoPage
+    # category (one of 25) the librarians marked, kept so a disagreement can
+    # be traced back to the category rather than to our label for it. It is
+    # in 3587 tracked truth blocks and `core/schema.py` puts a floor under
+    # it, so it is part of the format by decision -- and this class, which
+    # calls itself the on-disk format, did not have it. The consequence was
+    # silent and total: `Page.from_json` raised `TypeError: unexpected
+    # keyword argument` on 1017 of the project's own truth pages -- all 429
+    # blocked pages of annopage and annopage-lite, 124 of hard, 35 of hard36
+    # -- and nothing noticed, because `load_pages` hands back raw dicts and
+    # the only two production callers of `from_json` read DETECT output,
+    # which never carries the field. The rule it broke is written two files
+    # over, in `synth/__init__.py`: "a sixth field there would break
+    # Page.from_json".
+    source_category: str | None = None
 
     def area(self) -> float:
         x0, y0, x1, y1 = self.box
@@ -74,7 +89,18 @@ class Page:
     def to_json(self) -> dict:
         # `asdict` unfolds nested dataclasses itself; the former extra line
         # over `blocks` did that work twice.
-        return asdict(self)
+        d = asdict(self)
+        # AND THE TRUTH-ONLY FIELD DOES NOT GO INTO OUTPUT. `source_category`
+        # is provenance a bench truth carries and a detector cannot have, so
+        # writing `"source_category": null` into all 5790 detect pages would
+        # add a permanent null to the format for a fact detection never
+        # holds -- and would change the bytes of every page written from now
+        # on, against tracked pages of a run that was paid for. Absent means
+        # absent; `from_json` defaults it back to None either way.
+        for b in d.get("blocks", []):
+            if b.get("source_category") is None:
+                b.pop("source_category", None)
+        return d
 
     @staticmethod
     def from_json(d: dict) -> "Page":

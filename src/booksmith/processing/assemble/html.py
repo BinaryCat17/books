@@ -691,17 +691,29 @@ _MATH_CFG = ('window.MathJax={tex:{inlineMath:[["$","$"],["\\\\(","\\\\)"]],'
 
 
 def _math(out_dir: str) -> tuple[str, str]:
-    """What renders the formulas. Knob `HTML_MATH`: local | cdn | off.
+    """What renders the formulas. Knob `HTML_MATH`: inline | local | cdn | off.
 
-    Default `local` keeps the book self-contained: 2.11 MB beside it, opening
-    without a network whenever. `cdn` is for when the extra weight matters more
-    than independence, and it is DECLARED in the log, not implied. `off` is raw
-    LaTeX, as before this knob.
+    `inline` puts MathJax INSIDE the book (+2.3 MB) and is the registry's
+    default. `local` writes it as a neighbouring file, `cdn` pulls it from the
+    network on every open and says so in the log, `off` is raw LaTeX.
+
+    THE FALLBACK HERE WAS `or "local"` AND THE REGISTRY DEFAULT IS `inline`,
+    so an empty knob resurrected exactly the failure the default was chosen to
+    prevent -- measured and written into the registry: with `local` the
+    browser SILENTLY does not load the neighbouring script when the book is
+    opened over a network path, Chromium cuts the local file off, the console
+    says nothing, and the book looks built with no formulas in it. Two places
+    naming the same default, one of them the loser of a measurement.
+
+    There is no second default now. The registry is asked and its answer is
+    used; `knobs.knob` cannot return empty for a knob that declares one, and
+    if it ever does that is a defect in the registry and belongs there, not
+    papered over here with a value this module picked.
     """
     import shutil
 
     from booksmith.core import knobs
-    how = (knobs.knob("HTML_MATH") or "local").strip()
+    how = (knobs.knob("HTML_MATH") or "").strip()
     if how not in ("inline", "local", "cdn", "off"):
         raise Refusal(
             f"HTML_MATH={how!r}: I know only inline | local | cdn | off. "
