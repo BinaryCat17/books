@@ -66,6 +66,12 @@ from booksmith.core import policy
 from booksmith.core import raster
 from booksmith.core import page
 from booksmith.core.errors import Unmeasurable
+# THE SPREAD-CUTTER'S OWN NUMBERS, imported and not copied. `extract/djvu.py`
+# measured them over 568 spreads of two books and pays for them in false
+# vetoes; a second set here would be a second copy free to drift, which is
+# what `tools/figures.py` counts. Stdlib-only module, 13 ms to import.
+from booksmith.processing.extract.djvu import (
+    GUTTER_BAND, MIN_SPREAD_RATIO, RULE_RUN)
 
 # The "this is ink" threshold: darker is content, lighter is paper. The same
 # INK the synthetic bench measures its truth by, and knowingly a SECOND COPY:
@@ -105,6 +111,16 @@ EDGE = 0.04
 # every third page said none. Hence positions are printed, not assumed: on
 # another book the middle share may be anything, and the honest name would go.
 GUTTER = 0.5
+# WHERE A BINDING CAN BE. Outside the middle three fifths of the width, or --
+# on a sheet still wide enough to be an uncut spread -- in the middle fifth
+# where `djvu` would have cut it. This number was already here, as the bare
+# literal `0.2` inside the report's own sentence "in the middle of the sheet
+# (0.2..0.8 of the width)", declared nowhere and reaching no `params`.
+MID = 0.20
+# A binding shadow is a STRIP. Wider than this share of the sheet and it is
+# something else, whatever its position: the widest true shadow measured runs
+# to 0.067 of the width, the narrowest positional run it rejects to 0.106.
+JUNK_WIDTH = 0.10
 
 
 # The page raster does not change between runs, and the battery makes
@@ -229,6 +245,85 @@ def _clip(shape, box):
     return slice(y0, y1 + 1), slice(x0, x1 + 1)
 
 
+def _junk_columns(ink):
+    """The pixel columns that are BINDING SHADOW or SCAN EDGE, not content.
+
+    Junk ink is not a rounding correction: on "Технология огнеупоров" the
+    right-hand five per cent of the sheet holds 7.68 % of all the book's ink
+    against 0.26 % on the left, a thirtyfold asymmetry, and discarding it
+    takes the reported loss from 20.8 % to 6.4 %. Left in, it is counted as
+    information the model failed to deliver, and a box laid on it is counted
+    as a delivery -- 261 fake boxes lift "ink under boxes" 85.7 % -> 96.2 %
+    having found nothing.
+
+    THE RULE IS POSITIONAL, NEVER "THIS COLUMN IS DARK", and that is the
+    whole difference between a measurement and a laundered win. On
+    `bench/annopage` 1399 of 2320 solid dark columns stand MID-SHEET and are
+    dark plates and photographs -- real content. A darkness rule discards
+    57 % of that bench's ink and eats half its annotated object ink; this one
+    discards 4.8 % and eats 0.043 %.
+
+    Three tests, and a run must pass all three:
+
+      WHERE. In the outer fifths, where a binding is after a spread has been
+      cut -- and the cut leaves the shadow INSET from the new edge, up to
+      5 % of the width in, which is why `EDGE` alone cannot see it and why
+      this is not an edge band. On a sheet still wider than tall, the middle
+      fifth counts too: that is an uncut spread, and `djvu` would cut it
+      there. Both use the spread-cutter's own constants.
+
+      HOW WIDE. A shadow is a strip; past `JUNK_WIDTH` of the sheet it is
+      something else wherever it lies.
+
+      WHETHER SOMETHING CROSSES IT. A full-height table rule satisfies both
+      tests above and is content. So: in a row that is black clear across the
+      band, is there a black run spanning `RULE_RUN` of the whole width? Then
+      the band is a rule and is kept. `djvu` measured that threshold over 568
+      spreads -- 0.376 at the one real table crossing a gutter, 0.000 at the
+      other 567.
+
+    The mask is a function of the RASTER and our constants alone: it never
+    sees a box, so no model can move it. That is what makes discarding a
+    property of the ruler rather than a repair of the model.
+    """
+    h, w = ink.shape
+    dark = ink.sum(axis=0) > h * GUTTER
+    junk = np.zeros(w, bool)
+    if not dark.any():
+        return junk
+    d = np.diff(np.r_[0, dark.astype(np.int8), 0])
+    starts, ends = np.flatnonzero(d == 1), np.flatnonzero(d == -1)
+    spread = w > h * MIN_SPREAD_RATIO
+    k = max(1, int(min(h, w) * EDGE))
+    body = ink[k:h - k] if h > 2 * k else ink
+    span = int(RULE_RUN * w)
+    for a, b in zip(starts, ends):
+        c = (a + b) / 2.0 / w
+        if not (c < MID or c > 1 - MID
+                or (spread and abs(c - 0.5) <= GUTTER_BAND / 2)):
+            continue
+        if (b - a) / w > JUNK_WIDTH:
+            continue
+        # THE VETO AT ITS ENDS, and it must answer there rather than switch
+        # itself off. A span of zero means "any run at all is a rule", so
+        # nothing is junk; a span past the sheet means no run can be one, so
+        # the position and width tests decide alone. Written as `0 < span`
+        # the first case SKIPPED the veto and made MORE junk instead of
+        # none -- the probe for it read 10.53 % where it demanded 0, which
+        # is how the battery earns its keep on the code that feeds it.
+        if span <= 0:
+            continue
+        full = body[:, a:b].all(axis=1)
+        if full.any() and span <= w:
+            rows = body[full].astype(np.int32)
+            cum = np.cumsum(np.hstack(
+                [np.zeros((rows.shape[0], 1), np.int32), rows]), axis=1)
+            if ((cum[:, span:] - cum[:, :-span]) == span).any():
+                continue          # a rule crosses it: content, not junk
+        junk[a:b] = True
+    return junk
+
+
 def _mask(shape, boxes):
     m = np.zeros(shape, bool)
     for b in boxes:
@@ -278,6 +373,12 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
     res = {"page_count": 0, "truth_pages": len(T), "dpi": [],
            "box_count": 0, "median_box_area": None,
            "ink_as_text": 0, "ink_as_picture": 0,
+           # CLEAN BOTH SIDES OR NEITHER. Cleaning the
+           # denominator alone gives 104.4 % under the attack
+           # this exists to stop -- the instrument not merely
+           # gamed but broken -- and pays the attacker nine and
+           # a half points where cleaning both pays exactly zero.
+           "ink_junk": 0, "ink_clean": 0, "clean_under_boxes": 0,
            "blocks_with_content": 0,
            "ink_total": 0, "ink_under_boxes": 0,
            "ink_under_artifact": 0, "sheet_area": 0, "boxes_area": 0,
@@ -349,6 +450,12 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
         dpis.add(int(p["dpi"]))
         res["page_count"] += 1
         res["ink_total"] += int(ink.sum())
+        junk = _junk_columns(ink)
+        clean = ink.copy()
+        clean[:, junk] = False
+        res["ink_junk"] += int(ink.sum()) - int(clean.sum())
+        res["ink_clean"] += int(clean.sum())
+        res["clean_under_boxes"] += int((clean & both).sum())
         res["ink_under_boxes"] += int((ink & both).sum())
         res["ink_under_artifact"] += int((ink & ma).sum())
         # Half the golden bench's "lost" ink lies in the four-percent band at

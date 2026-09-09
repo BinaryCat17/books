@@ -462,8 +462,8 @@ def test_ink_threshold_is_part_of_the_memory_key():
 def test_battery_counts_what_it_could_not_measure():
     """Saying "uncaught 0" over five unmeasured probes is a word, not a number.
 
-    Without truth most probes have nothing to measure, and the total must name
-    how many, or the battery looks green having measured under half.
+    Without truth more probes have nothing to measure, and the total must name
+    how many, or the battery looks green having measured a part of itself.
 
     The ARITHMETIC of the total is checked, not a literal: as many probes as
     say "no data" must stand in "nothing to measure with". A literal "nothing
@@ -496,8 +496,17 @@ def test_battery_counts_what_it_could_not_measure():
         assert bad2 == 0, tail2
         assert (sum("no data" in l for l in out2[:-1])
                 == got2["unmeasurable"]), tail2
-        # without truth far more probes have nothing to measure, and it shows
-        assert got2["measured"] < got["measured"] / 2, (tail, tail2)
+        # WITHOUT TRUTH MORE PROBES GO SILENT, AND THE TOTAL SAYS HOW MANY.
+        # The direction is the invariant; the SIZE of the gap is not, and
+        # asserting it as "under half the probes measured" pinned a ratio
+        # that the metric's own growth then broke. The truth-free half --
+        # the junk mask, the box-shape guard, the destination split -- went
+        # from a handful of probes to sixteen of thirty-four, so a run
+        # without truth now measures 16 against 27 rather than under half.
+        # A check that goes red because the instrument got better at the
+        # thing it is for is measuring the wrong quantity.
+        assert got2["unmeasurable"] > got["unmeasurable"], (tail, tail2)
+        assert got2["measured"] < got["measured"], (tail, tail2)
 
 
 def test_battery_corrupts_all_three_sides():

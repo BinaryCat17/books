@@ -145,6 +145,42 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
         """Measure against spoiled TRUTH. The model output stays whole."""
         return ink.measure(pdf, detect_dir, _dump(T))
 
+    def R2():
+        """The book again, unspoiled -- for probes that move OUR threshold
+        rather than the model's output. The ink masks are cached, so this is
+        the junk mask recomputed and not the pages re-rendered."""
+        return ink.measure(pdf, detect_dir, truth_dir)
+
+    def _on_junk(M):
+        """A full-height box over every junk run: pure damage, finds nothing.
+
+        The attack `ink.py` documents, as a mutator. It needs the raster --
+        junk is a property of the sheet, not of the output -- and the ink
+        masks are cached, so it costs the reading and not the rendering.
+        """
+        import numpy as np
+        import pymupdf
+        doc = pymupdf.open(pdf)
+        try:
+            out = {}
+            for i, p in M.items():
+                im = ink._ink_of(pdf, doc, i, p["dpi"])
+                j = ink._junk_columns(im)
+                add = []
+                if j.any():
+                    d = np.diff(np.r_[0, j.astype(np.int8), 0])
+                    for a, b in zip(np.flatnonzero(d == 1),
+                                    np.flatnonzero(d == -1)):
+                        add.append({"block_id": 900000 + len(add),
+                                    "box": [int(a), 0, int(b - 1),
+                                            im.shape[0] - 1],
+                                    "label": "text", "score": 1.0, "order": 0,
+                                    "content": None, "kind": "none"})
+                out[i] = {**p, "blocks": p["blocks"] + add}
+            return out
+        finally:
+            doc.close()
+
     art = lambda b: policy.role(b["label"]) == "artifact"
     # A full-sheet box, and DELIBERATELY an artefact. It used to take the label
     # of the page's first block: a text one, and the degenerate answer is tested
@@ -225,6 +261,63 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
         ("one box over the whole sheet", "ink 100%, but area 100% too",
          lambda: (lambda r: r["ink_under_boxes"] == r["ink_total"]
                   and r["boxes_area"] == r["sheet_area"])(R(full))),
+        # ----------------------------------------- the junk mask, ours ---
+        # A THRESHOLD OF OURS DECIDES WHAT IS NOT INFORMATION, so it is
+        # probed from both ends like every other. `no data` where the book
+        # has no solid dark column at all: a drawn bench carries none, which
+        # is exactly why a drawn bench is the false-positive test.
+        # MONOTONE IN THE GATE, which is the invariant worth asserting: a
+        # wider band can only admit more, never less. It does not RISE on
+        # every book -- on "Технология огнеупоров" all 261 dark columns are
+        # already at the edges, so opening the gate finds nothing new -- and
+        # a probe demanding a rise there would be demanding a property of
+        # the paper.
+        ("the binding band blown to the whole sheet",
+         "the gate can only admit more, never less",
+         lambda: None if not base["dark_columns"] else
+                 _at("MID", 0.5, lambda: R2()["ink_junk"])
+                 >= base["ink_junk"]),
+        ("the crossing veto opened",
+         "no run can be a rule any more, so there is more junk, not less",
+         lambda: None if not base["dark_columns"] else
+                 _at("RULE_RUN", 1.01, lambda: R2()["ink_junk"])
+                 >= base["ink_junk"]),
+        ("the binding band squeezed to nothing",
+         "nothing is positional any more: no junk at all",
+         lambda: None if not base["dark_columns"] else
+                 _at("MID", 0.0, lambda: _at("MIN_SPREAD_RATIO", 10 ** 6,
+                                             lambda: R2()["ink_junk"])) == 0),
+        ("the crossing veto shut",
+         "a rule crosses everything now, so nothing is junk",
+         lambda: None if not base["ink_junk"] else
+                 _at("RULE_RUN", 0.0, lambda: R2()["ink_junk"]) == 0),
+        ("the width cap squeezed to nothing",
+         "every band is too wide to be a shadow: no junk",
+         lambda: None if not base["ink_junk"] else
+                 _at("JUNK_WIDTH", 0.0, lambda: R2()["ink_junk"]) == 0),
+        ("every pixel black",
+         "a sheet that is all ink has no binding to find",
+         lambda: _at("INK", 256, lambda: R2()["ink_junk"]) == 0),
+        # THE MASK MUST NOT SEE THE MODEL. That is the whole argument that
+        # discarding junk is a property of the ruler and not a repair of the
+        # model: no output can move it, so no model can win by it.
+        ("the model output emptied, and a box over the whole sheet",
+         "the junk mask does not move: it reads the raster, never the boxes",
+         lambda: (R(_edit(M0, lambda b: None))["ink_junk"] == base["ink_junk"]
+                  and R(full)["ink_junk"] == base["ink_junk"])),
+        # AND THE DOCUMENTED ATTACK PAYS NOTHING. A box laid on every junk
+        # run is pure damage finding nothing; on the raw number it paid
+        # 85.661 -> 95.202 on a real book, and here it must move the clean
+        # number by not one pixel.
+        ("a box on every junk run",
+         "raw rises and CLEAN does not move -- the attack's gradient is zero",
+         lambda: None if not base["ink_junk"] else
+                 (lambda r: r["ink_under_boxes"] > base["ink_under_boxes"]
+                  and r["clean_under_boxes"] == base["clean_under_boxes"])(
+                     R(_on_junk(M0)))),
+        ("clean ink under boxes never exceeds the clean ink",
+         "both sides are cleaned -- a denominator-only mask gives 105 %",
+         lambda: base["clean_under_boxes"] <= base["ink_clean"]),
         # THE SPLIT IS EXHAUSTIVE OR IT IS NOT A SPLIT. Text plus picture is
         # exactly the boxed ink, so with `ink_outside_boxes` the three
         # account for every dark pixel on the sheet and none of them twice.
@@ -450,6 +543,28 @@ class FitnessMetric(Metric):
             "ink_outside_boxes": Scalar(1 - res["ink_under_boxes"] / tot if tot else None,
                                         count=(tot - res["ink_under_boxes"], tot),
                                         why=None if tot else no_ink),
+            # THE SAME QUESTION WITH THE BINDING DISCARDED, and both are
+            # printed because replacing the raw one silently is the version
+            # that would be a repair rather than a ruler. Measured on the one
+            # real level-two run: 85.661 % raw, 94.681 % clean, the
+            # difference being 9.79 % of the sheet's ink standing in solid
+            # dark columns at the binding.
+            #
+            # CLEANED ON BOTH SIDES OR NOT AT ALL. Under the attack `ink.py`
+            # documents -- a box laid on every junk run, pure damage finding
+            # nothing -- the raw number pays 85.661 -> 95.202, the clean one
+            # moves 94.681 -> 94.681, a gradient of exactly zero, and a
+            # denominator-only clean pays 94.959 -> 105.535: not merely
+            # gamed but past 100 %, which is what an instrument looks like
+            # when it has stopped dividing a thing by the thing it is part of.
+            "ink_under_boxes_clean": _ratio(res["clean_under_boxes"],
+                                            res["ink_clean"],
+                                            "no ink left after the binding"),
+            # A PROPERTY OF THE SCAN, NOT OF THE MODEL: how much of this
+            # book is binding shadow and black scan edge. Ranking models by
+            # it is meaningless -- they all read the same paper -- and it is
+            # the number to look at when the clean and raw columns disagree.
+            "ink_junk": _ratio(res["ink_junk"], tot, no_ink),
             "area_under_boxes": _ratio(res["boxes_area"], res["sheet_area"], "no sheet"),
             # THE OTHER HALF OF THE GUARD, and it exists because the first
             # half is beaten from the opposite side. `area_under_boxes`
@@ -503,6 +618,14 @@ class FitnessMetric(Metric):
             "object_ink_preserved": _ratio(res["object_ink_in_boxes"], res["object_ink"], no_obj),
         }
         params = dict(res["thresholds"])
+        # THE JUNK MASK IS OURS AND IT IS DECLARED WHOLE. `MID`
+        # was already a bare literal inside a printed sentence,
+        # reaching no params at all; the other three are the
+        # spread-cutter's, imported so there is one copy.
+        params.update({"MID": ink.MID, "JUNK_WIDTH": ink.JUNK_WIDTH,
+                       "RULE_RUN": ink.RULE_RUN,
+                       "GUTTER_BAND": ink.GUTTER_BAND,
+                       "MIN_SPREAD_RATIO": ink.MIN_SPREAD_RATIO})
         params["GUTTER"] = ink.GUTTER
         # THE DPI EVERYTHING HERE IS DENOMINATED IN. `assess/ink.py` says it
         # in its own header -- "without it two numbers from two runs are

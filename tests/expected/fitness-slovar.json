@@ -13,6 +13,7 @@
   "box_count": 568,
   "boxes_area": 6792980,
   "boxes_with_many_objects": 0,
+  "clean_under_boxes": 1032695,
   "dark_columns": 0,
   "dark_columns_positions": [],
   "dpi": [
@@ -22,8 +23,10 @@
   "in_one_box": 1,
   "ink_as_picture": 1032695,
   "ink_as_text": 0,
+  "ink_clean": 1057663,
   "ink_in_dark_columns": 0,
   "ink_in_dark_columns_off_edge": 0,
+  "ink_junk": 0,
   "ink_outside_boxes_at_edge": 1371,
   "ink_total": 1057663,
   "ink_under_artifact": 33235,
