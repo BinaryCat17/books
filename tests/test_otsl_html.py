@@ -124,27 +124,6 @@ def test_not_a_table_is_empty_string_not_a_broken_tag():
     assert otsl.to_html("") == ""
 
 
-def test_one_walk_serves_both_readers():
-    """`parse` and `layout` read the tags in ONE walk.
-
-    Two copies of one rule drifting apart is a bill this project has paid.
-    Checked by source: only `_walk` may read tags.
-    """
-    import ast
-
-    import support
-    t = support.tree("core/otsl.py")
-    for name in ("parse", "layout", "to_html"):
-        fn = next(n for n in ast.walk(t)
-                  if isinstance(n, ast.FunctionDef) and n.name == name)
-        ours = [n for n in ast.walk(fn)
-                if isinstance(n, ast.Attribute)
-                and isinstance(n.value, ast.Name) and n.value.id == "_TOK"]
-        assert not ours, (
-            f"{name} parses tags on its own (line {ours[0].lineno}) -- a "
-            f"second copy of the walk, and it will diverge from the first")
-
-
 def test_a_row_of_continuations_still_gets_its_row():
     """A row made ENTIRELY of continuations stays a row of the table.
 

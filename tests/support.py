@@ -1,123 +1,13 @@
-"""Shared by the checks: where the sources are, source as a tree, loud skips.
-
-The checks here pin down AGREEMENTS BETWEEN FILES -- places where two files
-agreed and the agreement is written nowhere. Neither types nor reading one
-file catches that: the word "ours" in `models/*.py` decides whether
-the contour metric prints a percentage or says NOT COMPARED, and each file looks
-sound alone.
-
-Hence source read as a tree. It is needed where the value of an agreement is
-baked into a literal inside a method and cannot be had by running, short of
-raising 214 MB of model. The tree sees what a person sees, not what a stub
-returns.
-
-A SKIP IS DECLARED OUT LOUD AND WITH A REASON. A zero from a check and a zero
-from not understanding are different zeros: the runner prints skips as a
-separate number, not added to the passed.
-"""
-import ast
+"""Shared by the checks: where the sources are, and a knob set for one block."""
 import os
-import sys
+from contextlib import contextmanager
 
-# The source directory. From here, not from cwd: otherwise a check run from
-# another directory would silently find no adapter and be green on nothing.
+# The source directory, from here rather than from cwd.
 SRC = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                    "src", "booksmith")
 
-# The key by which an adapter tells the metric WHOSE order it returned.
+# The key by which an adapter tells the metric whose order it returned.
 ORDER_KEY = "reading_order"
-
-
-class Skip(Exception):
-    """Nothing to run the check with. A reason is mandatory."""
-
-
-# Who is running the checks. Set by the RUNNER itself (`tests/run.py` at
-# start), not from here: asking "is pytest importable" instead of "is it
-# running" has already cost a run. Measured (a fake `pytest` in `sys.modules`
-# with the real contract -- `Skipped(BaseException)` and `skip()`): before the
-# fix the first skip under our runner went past the `run_case` catches and
-# killed the whole run -- the summary line was not printed AT
-# ALL, so 110 passing checks vanished with one skip. There is no pytest in
-# `.venv` now, and the trouble sleeps.
-OWN_RUNNER = False
-
-
-def env(**kw):
-    """Set knobs for the duration of a block, then put back exactly what was.
-
-    Knobs are read from the environment through the registry, and a check
-    that leaves one set poisons every check after it in the same process --
-    the runner runs them all in one.
-    """
-    import contextlib
-
-    @contextlib.contextmanager
-    def _cm():
-        was = {k: os.environ.get(k) for k in kw}
-        try:
-            for k, v in kw.items():
-                os.environ[k] = v
-            yield
-        finally:
-            for k, v in was.items():
-                if v is None:
-                    os.environ.pop(k, None)
-                else:
-                    os.environ[k] = v
-    return _cm()
-
-
-def skip(reason: str):
-    """A skip with a reason. Under pytest -- its own, so any runner will do.
-
-    The choice is by WHO IS RUNNING, not by what is installed. Both signs are
-    read at once: our runner declares itself in `OWN_RUNNER`, and pytest, if
-    it really works, is by now in `sys.modules` -- it imports itself before
-    any check. The pytest import is gone from here: it turned "pytest is
-    installed" into "pytest is running".
-    """
-    pt = sys.modules.get("pytest")
-    if pt is not None and not OWN_RUNNER:
-        pt.skip(reason)
-    raise Skip(reason)
-
-
-def foreign_skip(e) -> bool:
-    """A skip declared by a FOREIGN runner: `pytest.skip()`.
-
-    It lives NEXT TO `Skip`, not in the runner, because it is one thought:
-    what counts as a skip. Two homes mean two copies of one agreement -- the
-    kind that drift apart silently (the reading-order guard already drifted
-    so, by letter case).
-
-    The separate branch is needed for this: pytest's `Skipped` inherits
-    BaseException, not Exception, and passes THROUGH the runner's ordinary
-    catches, KILLING the run. Measured with a fake module of the same
-    contract: under our runner one skip -- and under pytest's the summary
-    line was not printed at all, exit code 1 from a traceback.
-
-    The type is taken FROM pytest, not by class name: `Skipped` may name a
-    foreign exception, and a failure would then travel into the skips. Both
-    places pytest keeps it are asked: `pytest.skip.Exception` (set by the
-    `_with_exception` decorator) and `pytest.Skipped`.
-    """
-    pt = sys.modules.get("pytest")
-    if pt is None:
-        return False
-    for cls in (getattr(getattr(pt, "skip", None), "Exception", None),
-                getattr(pt, "Skipped", None)):
-        if isinstance(cls, type) and isinstance(e, cls):
-            return True
-    return False
-
-
-class Unresolved(RuntimeError):
-    """The value is in the source, and the tree could not work it out.
-
-    Silence is not allowed: an uncomputed value is NOT "no values", and
-    passing it off as an empty set would report a zero from not understanding.
-    """
 
 
 def src_path(rel: str) -> str:
@@ -127,112 +17,20 @@ def src_path(rel: str) -> str:
     return p
 
 
-def tree(rel: str) -> ast.Module:
-    with open(src_path(rel), encoding="utf-8") as f:
-        return ast.parse(f.read(), filename=rel)
-
-
-def _dotted(node) -> str:
-    if isinstance(node, ast.Name):
-        return node.id
-    if isinstance(node, ast.Attribute):
-        return _dotted(node.value) + "." + node.attr
-    raise Unresolved(f"neither a name nor an attribute: {ast.dump(node)[:80]}")
-
-
-def _lookup(module, dotted: str):
-    obj = module
-    for part in dotted.split("."):
-        obj = getattr(obj, part, None)
-        if obj is None:
-            raise Unresolved(f"{dotted}: module {module.__name__} has no such thing")
-    return obj
-
-
-def _values(node, module) -> set:
-    """What the right-hand side of `"reading_order": …` can expand into."""
-    if isinstance(node, ast.Constant):
-        return {node.value}
-    if isinstance(node, ast.IfExp):
-        return _values(node.body, module) | _values(node.orelse, module)
-    if isinstance(node, ast.Subscript):
-        obj = _lookup(module, _dotted(node.value))
-        if isinstance(obj, dict):
-            return set(obj.values())
-        raise Unresolved(f"{_dotted(node.value)} is not a dict but a {type(obj)}")
-    # CONCATENATION. `order.WORDS[which] + ": the model gives no rank"`: the
-    # rule comes from the shared dictionary and the adapter appends the tail.
-    # Expanded into a product -- every left value with every right one --
-    # or the guard would see half the string and miss a swap of the other half.
-    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
-        left, right = _values(node.left, module), _values(node.right, module)
-        return {a + b for a in left for b in right}
-    raise Unresolved(
-        f"the value of {ORDER_KEY!r} could not be computed: "
-        f"{ast.dump(node)[:120]}. This is NOT 'there are no values' -- extend "
-        f"the parse in support._values.")
-
-
-def _walk_but_fingerprint(node):
-    """The whole tree except the bodies of `fingerprint()`.
-
-    There the same field carries other values (`None` where a page's meta
-    carries words), lawfully: the fingerprint is read by a person and by the
-    snapshot, the metric's guard reads the meta of the PAGE. Mixing them would
-    check an agreement that does not exist.
-    """
-    if isinstance(node, ast.FunctionDef) and node.name == "fingerprint":
-        return
-    yield node
-    for child in ast.iter_child_nodes(node):
-        yield from _walk_but_fingerprint(child)
-
-
-def page_order_values(rel: str, module) -> set:
-    """Every value of `meta["reading_order"]` an adapter puts INTO A PAGE.
-
-    From the source, not from a run: by running one must raise three models
-    and detect a page with each, while the agreement is checked in
-    milliseconds, on every change.
-    """
-    out = set()
-    for node in _walk_but_fingerprint(tree(rel)):
-        if not isinstance(node, ast.Dict):
-            continue
-        for k, v in zip(node.keys, node.values):
-            if isinstance(k, ast.Constant) and k.value == ORDER_KEY:
-                out |= _values(v, module)
-    return out
-
-
-def meta_keys(rel: str, cls: str, method: str = "read") -> list:
-    """The order of keys in `meta=` at the `Page(...)` call inside a method.
-
-    Not cosmetics: with the knob off the page must come out BYTE FOR BYTE as
-    before the pipeline appeared, and json writes keys in dictionary order.
-    `**name` comes back as the string `**name`.
-    """
-    for node in ast.walk(tree(rel)):
-        if not (isinstance(node, ast.ClassDef) and node.name == cls):
-            continue
-        for fn in node.body:
-            if not (isinstance(fn, ast.FunctionDef) and fn.name == method):
-                continue
-            for call in ast.walk(fn):
-                if not isinstance(call, ast.Call):
-                    continue
-                if getattr(call.func, "id", None) != "Page":
-                    continue
-                for kw in call.keywords:
-                    if kw.arg != "meta" or not isinstance(kw.value, ast.Dict):
-                        continue
-                    keys = []
-                    for k, v in zip(kw.value.keys, kw.value.values):
-                        if k is None:
-                            keys.append("**" + _dotted(v))
-                        elif isinstance(k, ast.Constant):
-                            keys.append(k.value)
-                        else:
-                            raise Unresolved(f"a meta key is not a literal in {rel}")
-                    return keys
-    raise AssertionError(f"{rel}: no Page(meta=...) found in {cls}.{method}")
+@contextmanager
+def env(**kw):
+    """Set knobs for one block and restore them after, so no check poisons the next."""
+    was = {k: os.environ.get(k) for k in kw}
+    try:
+        for k, v in kw.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+        yield
+    finally:
+        for k, v in was.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v

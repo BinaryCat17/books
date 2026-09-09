@@ -48,8 +48,7 @@ import os
 # levels breaks at the first move of the file (it did, here, in the package
 # move of 2026-09-07: three levels pointed at `src/` and every glob counted
 # zero), so the test beside it checks that ROOT holds `pyproject.toml`.
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__)))))
+from booksmith.core.config import ROOT  # noqa: E402
 
 
 class Format:

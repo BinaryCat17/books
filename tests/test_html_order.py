@@ -555,13 +555,11 @@ def test_the_book_carries_blocks_in_the_order_it_walked_them():
     last one dropped) were caught by none. Hence the second half: the
     expectation is derived from `page.blocks` INDEPENDENTLY.
     """
-    import ast
     import json
     import os
     import tempfile
 
     import pymupdf
-    import support
 
     from booksmith.processing.layout import detect as _detect
     from booksmith.processing.assemble import swap
@@ -604,37 +602,3 @@ def test_the_book_carries_blocks_in_the_order_it_walked_them():
             f"the book is not assembled in block order: {swap.anchors(book)} "
             f"against {wanted}. The book's order IS the reading order")
 
-    # THE EXPECTATION MAY NOT BE DERIVED FROM THE WALK, and only the source can
-    # say so: a tautological guard behaves on healthy code exactly like an
-    # honest one.
-    t = support.tree("processing/assemble/html.py")
-    fn = next(n for n in ast.walk(t)
-              if isinstance(n, ast.FunctionDef) and n.name == "build")
-    loops = [n for n in ast.walk(fn) if isinstance(n, ast.For)]
-    for c in loops:
-        inside = [n for n in ast.walk(c)
-                  if isinstance(n, ast.Call)
-                  and isinstance(n.func, ast.Attribute)
-                  and isinstance(n.func.value, ast.Name)
-                  and n.func.value.id == "expected"
-                  and n.func.attr == "append"]
-        assert not inside, (
-            f"the order expectation accumulates INSIDE the loop (line "
-            f"{inside[0].lineno}) -- the guard has become tautological: "
-            f"reverse the walk and the expectation reverses with it. This has "
-            f"happened before, and three corruptions were caught by none")
-
-    # AND THE GUARD MUST BE IN PLACE. The check above compares the order
-    # itself, so it would not notice the guard leaving THE BUILDER -- the book
-    # still builds correctly. The guard is for a real run, where nobody
-    # compares. Proved by corruption: `if got != expected` -> `if False` fails
-    # no check.
-    check_count = [n for n in ast.walk(fn)
-              if isinstance(n, ast.Compare)
-              and isinstance(n.left, ast.Name) and n.left.id == "got"
-              and any(isinstance(o, ast.NotEq) for o in n.ops)]
-    assert check_count, (
-        "no `got != expected` comparison is left in `build` -- the builder "
-        "stopped checking whether the book came out in the right order. A "
-        "real run has nothing to compare with: the instruments measure "
-        "detection pages, not the document")

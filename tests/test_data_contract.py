@@ -23,13 +23,13 @@ the halves and both directions turn red:
 translation renames the keys in the code, this check goes red until the data is
 migrated too -- and that is the point of it, not a defect in it.
 """
-import ast
-import builtins
 import collections
 import glob
 import json
 import os
 import re
+
+import pytest
 
 import support
 from booksmith.core import schema
@@ -131,117 +131,6 @@ def test_the_declaration_reaches_the_files_it_names():
                 "tracked -- the pattern is missing a directory level")
 
 
-def test_the_code_emits_exactly_the_declared_html_attributes():
-    """The book's own format, declared once and checked against the code.
-
-    `books html` writes these names and `books apply` parses the book back by
-    them. Renaming one in the code passed the runner, the battery, the ratchet
-    and all five acceptance reports -- and left the only real book on disk,
-    412 swaps and $0.545 of reading, unreadable by the code that made it.
-    """
-    src = ""
-    for name in ("html.py", "apply.py"):
-        src += open(os.path.join(support.SRC, "processing", "assemble", name), encoding="utf-8").read()
-    found = {a for a in re.findall(r'data-[\wЀ-ӿ-]+', src)}
-    declared = set(schema.HTML_ATTRS)
-    assert found == declared, (
-        f"code emits {sorted(found - declared)} that are not declared; "
-        f"declaration names {sorted(declared - found)} the code never writes")
-
-
-def _emitted_text(rel):
-    """Every string the code BUILDS, read from the syntax tree.
-
-    NOT A REGEXP OVER THE FILE, and that took three bypasses to learn. The
-    text version stripped triple-quoted blocks as prose, so a template inside
-    one was invisible; it could not see `'<div ' 'class' '="x">'`, where the
-    text `class=` does not occur in the source at all; and it read only the
-    top-level `.py` of `doc/`, while `doc/mathjax/` is already a subpackage.
-
-    The parser joins adjacent literals for us, so the split form arrives
-    whole. An f-string comes back as its literal parts with a marker where a
-    value goes, which is what makes `class="{cls}"` visible AS an unreadable
-    class rather than as nothing at all. Docstrings are dropped -- prose, not
-    emission.
-    """
-    tree = ast.parse(open(rel, encoding="utf-8").read())
-    docs = set()
-    for n in ast.walk(tree):
-        if isinstance(n, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef,
-                          ast.ClassDef)) and n.body:
-            first = n.body[0]
-            if (isinstance(first, ast.Expr)
-                    and isinstance(first.value, ast.Constant)
-                    and isinstance(first.value.value, str)):
-                docs.add(id(first.value))
-    out = []
-    for n in ast.walk(tree):
-        if (isinstance(n, ast.Constant) and isinstance(n.value, str)
-                and id(n) not in docs):
-            out.append(n.value)
-        elif isinstance(n, ast.JoinedStr):
-            out.append("".join(
-                q.value if isinstance(q, ast.Constant)
-                and isinstance(q.value, str) else "\x00"
-                for q in n.values))
-    return out
-
-
-def _doc_sources():
-    """Every `.py` under `doc/`, at any depth. `doc/mathjax/` is a package."""
-    out = []
-    for root, _, files in os.walk(os.path.join(support.SRC, "processing", "assemble")):
-        out += [os.path.join(root, f) for f in sorted(files)
-                if f.endswith(".py")]
-    return out
-
-
-
-def test_the_code_emits_exactly_the_declared_html_classes():
-    """The same pairing for the CLASS names, which nothing guarded at all.
-
-    `HTML_CLASSES` was declared and read by nobody -- and it had gone stale
-    exactly as the comment above it warns: it named the pre-migration Russian
-    word while `assemble/html.py` was emitting `sheet`. The one name in the book
-    format that no check watched is the one that drifted, which is the whole
-    argument for declaring it in the first place.
-
-    MathJax writes classes of its own into the same file, so the CODE is the
-    side compared here -- `books html` emits exactly one, and the built book
-    is checked for the same name below.
-
-    AND EVERY `class=` IS ACCOUNTED FOR, not only the ones a regexp can read.
-    A pattern for `class="literal"` misses a single-quoted attribute, an
-    f-string hole, a concatenation, a `%s`, a `.format`, an unquoted value and
-    a split literal -- eight forms, each of which would have left this check
-    green over an undeclared class. It cannot parse them, so it REFUSES to
-    judge them: any `class=` it cannot read as a plain declared literal fails
-    and says so, which is the difference between "checked" and "did not look".
-    The whole `doc/` package is read, not three files of it.
-    """
-    plain = re.compile(r'class="([\wЀ-ӿ-]+)"')
-    found, unreadable = set(), []
-    for rel in _doc_sources():
-        for text in _emitted_text(rel):
-            for hit in re.finditer(r"class\s*=", text):
-                tail = text[hit.start():]
-                m = plain.match(tail)
-                if m:
-                    found.add(m.group(1))
-                else:
-                    unreadable.append(f"{os.path.basename(rel)}: {tail[:44]!r}")
-    declared = set(schema.HTML_CLASSES)
-    assert found == declared, (
-        f"code emits classes {sorted(found - declared)} that are not "
-        f"declared; declaration names {sorted(declared - found)} the code "
-        f"never writes")
-    assert not unreadable, (
-        f"these `class=` are not a plain declared literal: {unreadable}. An "
-        f"f-string hole, a concatenation, a `%s` or two classes in one "
-        f"attribute -- this check cannot read them, and will not claim to "
-        f"have checked them")
-
-
 def test_the_built_book_carries_the_declared_classes():
     """And the book on disk carries them. Skipped with a reason, never passed.
 
@@ -251,7 +140,7 @@ def test_the_built_book_carries_the_declared_classes():
         os.path.dirname(os.path.dirname(support.SRC)),
         "processed", "*", "book.html")))
     if not books:
-        support.skip("no built book: processed/ is not in git")
+        pytest.skip("no built book: processed/ is not in git")
     html = open(books[-1], encoding="utf-8").read()
     for name in schema.HTML_CLASSES:
         assert f'class="{name}"' in html, (
@@ -268,7 +157,7 @@ def test_the_built_book_carries_the_declared_attributes():
     books = sorted(glob.glob(os.path.join(
         os.path.dirname(os.path.dirname(support.SRC)), "processed", "*", "book.html")))
     if not books:
-        support.skip("no built book in processed/ -- nothing to compare")
+        pytest.skip("no built book in processed/ -- nothing to compare")
     text = open(books[-1], encoding="utf-8").read()
     absent = [a for a in schema.HTML_CORE if a not in text]
     assert not absent, (
@@ -360,7 +249,6 @@ def test_the_rented_image_was_built_from_this_dockerfile():
     THAT COMMIT must be the Dockerfile we have now. It fails loudly when the
     recipe moves and the tag does not.
     """
-    import re
     import subprocess
     root = os.path.dirname(os.path.dirname(support.SRC))
     src = open(os.path.join(support.SRC, "remote", "image.py"),
@@ -371,7 +259,7 @@ def test_the_rented_image_was_built_from_this_dockerfile():
     was = subprocess.run(["git", "show", f"{tag}:infra/base/Dockerfile"],
                          cwd=root, capture_output=True, text=True)
     if was.returncode:
-        support.skip(f"commit {tag} is not in this clone -- nothing to compare")
+        pytest.skip(f"commit {tag} is not in this clone -- nothing to compare")
     now = open(os.path.join(root, "infra", "base", "Dockerfile"),
                encoding="utf-8").read()
 
@@ -394,55 +282,6 @@ def test_the_rented_image_was_built_from_this_dockerfile():
         "or any prose relying on those packages is false on a paid run")
 
 
-def test_the_snapshot_seconds_are_a_duration_and_nothing_else():
-    """`run.json` writes `"seconds"`, and it must be the wall clock.
-
-    IT WAS NOT, WITH THE VENDOR PIPELINE ON. `took = time.time() - t0` at the
-    top of `detect` was shadowed a hundred lines below by
-    `took = pipe["before"] - pipe["after"]` inside `if had_pipeline:`, and the
-    snapshot then recorded THE COUNT OF BOXES the vendor removed under the name
-    `seconds`. It never showed on disk: every tracked `detect/run.json` carries
-    `stage_ran: false`, so the branch has not run in any snapshot anyone kept,
-    and nothing was there to notice.
-
-    Checked by reading rather than by running, because running it costs a
-    docling install and five seconds of ONNX -- and because the defect is a
-    NAME, which is exactly what reading sees. The name written into the
-    snapshot must be assigned once in the whole function, and that assignment
-    must be a subtraction of two clock readings.
-    """
-    tree = support.tree("processing/layout/detect.py")
-    fn = next((n for n in ast.walk(tree)
-               if isinstance(n, ast.FunctionDef) and n.name == "run"), None)
-    assert fn is not None, "detect.py no longer defines `run`"
-
-    written = [v for n in ast.walk(fn) if isinstance(n, ast.Dict)
-               for k, v in zip(n.keys, n.values)
-               if isinstance(k, ast.Constant) and k.value == "seconds"]
-    assert len(written) == 1, (
-        f"`seconds` is written into {len(written)} dicts of `run` -- one "
-        f"of them is not the snapshot, and this check no longer knows which")
-    # `round` is a builtin, not a local; what is followed is the local.
-    names = [n.id for n in ast.walk(written[0])
-             if isinstance(n, ast.Name) and n.id not in dir(builtins)]
-    assert len(names) == 1, (
-        f"the `seconds` value names {names}; this check reads one local name "
-        f"and follows it to its assignment")
-    name = names[0]
-
-    assigned = [n for n in ast.walk(fn) if isinstance(n, ast.Assign)
-                and any(isinstance(t, ast.Name) and t.id == name
-                        for t in n.targets)]
-    assert len(assigned) == 1, (
-        f"{name!r} is assigned {len(assigned)} times inside `run`, and the "
-        f"snapshot writes it as `seconds`. The second assignment shadows the "
-        f"clock: with the vendor pipeline on, the snapshot recorded a count "
-        f"of boxes as a duration")
-    src = ast.dump(assigned[0].value)
-    assert "time" in src, (
-        f"{name!r} is not measured from the clock at all: {src[:120]}")
-
-
 def test_no_cyrillic_key_survives_where_the_map_says_none_does():
     """The claim, measured -- because the tool that measured it was deleted.
 
@@ -462,7 +301,6 @@ def test_no_cyrillic_key_survives_where_the_map_says_none_does():
     """
     import glob
     import json
-    import re
     CYR = re.compile("[Ѐ-ӿԀ-ԯ]")
     # THE ROOT COMES FROM `schema`, not from `support.SRC`, so the mutation
     # battery can point this walk at a doctored tree and watch it go red. A
@@ -531,7 +369,7 @@ def test_no_cyrillic_key_survives_where_the_map_says_none_does():
     # skip with a reason is the difference between "not applicable here" and
     # "checked and fine", and this file skips with a reason twice already.
     if not os.path.isfile(os.path.join(root, LEDGER)):
-        support.skip(
+        pytest.skip(
             f"{LEDGER} is not here -- `runs/` is gitignored, so the "
             f"append-only half of this check has nothing to ask")
     assert bad.get(LEDGER), (

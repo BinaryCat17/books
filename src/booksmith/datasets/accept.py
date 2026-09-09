@@ -49,8 +49,7 @@ import re
 import subprocess
 import sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__)))))
+from booksmith.core.config import ROOT  # noqa: E402
 EXPECTED = os.path.join(ROOT, "tests", "expected")
 
 # name -> (argv after `books`, paths that must exist for it to run at all)

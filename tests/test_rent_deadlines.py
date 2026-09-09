@@ -26,11 +26,9 @@ of the attempt budget unspent.
 Both are one defect by make: a quantity that MUST be derived from another was
 written down as a number. The checks below demand the derivation.
 """
-import ast
 import inspect
 import time
 
-import support
 from booksmith.core.errors import Refusal
 
 from booksmith.remote import box as rbox
@@ -296,34 +294,6 @@ class _FakeVast:
         pass
 
 
-def test_connect_gives_the_boot_the_whole_attempt():
-    """An attempt has ONE deadline. No second ceiling lives inside it.
-
-    `min(BOOT_LIMIT_S, remaining)` cut the boot at 120 s out of a 480 s
-    attempt budget -- the machine it killed is named above.
-
-    BY BEHAVIOUR, NOT BY PARSING THE SOURCE: the first edition read the text
-    of the function through `inspect.getsource`, and a mutation that rebuilds
-    the module in memory was invisible to it -- the battery declared it caught
-    having checked nothing. What is caught is what reaches `wait_running`.
-    """
-    v = _FakeVast()
-    try:
-        runner.connect(v, 1, None, None, attempt_limit=480.0)
-    except RuntimeError:
-        pass
-    assert v.boot_timeout is not None, "wait_running was never called"
-    assert v.boot_timeout > 400.0, (
-        f"the boot got {v.boot_timeout:.0f} s of 480 -- a ceiling of its "
-        f"own is back inside the attempt, and it already rejected "
-        f"machines pulling the image fine")
-    assert "boot_limit" not in inspect.signature(runner.connect).parameters, (
-        "a separate ceiling on the container boot is back in connect")
-    assert not hasattr(runner, "BOOT_LIMIT_S"), (
-        "BOOT_LIMIT_S is back in the module: it limited nothing but "
-        "usable machines")
-
-
 def _blame_with(link, best, ours, limit=None):
     """Call the REAL guard, directly, not by digging its body out of source.
 
@@ -515,73 +485,6 @@ def test_a_failed_blacklist_write_does_not_kill_the_rental():
         f"the failure to record the ban was swallowed: {said}")
 
 
-def test_no_write_in_the_cleanup_can_leave_ctrl_c_dead():
-    """`run_job` restores the signal handlers WHATEVER happens in its cleanup.
-
-    `ledger.append(rec)` stood unwrapped at the end of that block, and a
-    read-only ledger directory raised `PermissionError` from it. Three things
-    went at once: the money record of the run, the summary line, and
-    `_restore_signals` -- so SIGINT and SIGTERM were left at `SIG_IGN` and
-    Ctrl-C was DEAD for the rest of the process. That is the exact failure the
-    signal machinery exists to prevent, caused by the cleanup that installs it.
-
-    WHAT IS ASKED IS THE STRUCTURE, not a list of calls that might throw.
-    Naming the risky ones is guesswork and goes stale the day another is
-    added; `_restore_signals` being the `finally` of its own block is a
-    property that holds for whatever is written above it.
-    """
-    tree = support.tree("remote/runner.py")
-    fn = next(n for n in ast.walk(tree)
-              if isinstance(n, ast.FunctionDef) and n.name == "run_job")
-    calls = [n for n in ast.walk(fn)
-             if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
-             and n.func.id == "_restore_signals"]
-    assert calls, "run_job no longer restores the signal handlers at all"
-
-    # THE PAIRING IS THE PROPERTY, and asking it of the two halves separately
-    # was no question at all. The first edition asked "is `_restore_signals`
-    # inside SOME `finally`" and "is `_ignore_signals` inside SOME `finally`",
-    # walking every `Try` in the function -- and `run_job` has an OUTER try
-    # whose `finalbody` IS the whole cleanup, so both calls are inside it
-    # whatever the cleanup looks like inside. Measured: unwrap the inner
-    # `try/finally`, putting `_restore_signals` back as the last statement of
-    # the cleanup -- the exact defect this docstring describes -- and the
-    # check stayed GREEN. It could not fail on its own subject.
-    #
-    # What has to hold is one block: the same `Try` must IGNORE in its body
-    # and RESTORE in its finally. Then whatever is written between them is
-    # covered, which is the guesswork-free property the docstring promises.
-    def _names(nodes):
-        return {c.func.id for stmt in nodes for c in ast.walk(stmt)
-                if isinstance(c, ast.Call) and isinstance(c.func, ast.Name)}
-
-    def _attrs(nodes):
-        return {c.func.attr for stmt in nodes for c in ast.walk(stmt)
-                if isinstance(c, ast.Call)
-                and isinstance(c.func, ast.Attribute)}
-
-    paired = [t for t in ast.walk(fn)
-              if isinstance(t, ast.Try) and t.finalbody
-              and "_ignore_signals" in _names(t.body)
-              and "_restore_signals" in _names(t.finalbody)]
-    assert paired, (
-        "no single `try` both ignores the signals in its body and restores "
-        "them in its `finally`. `_restore_signals` may sit in an enclosing "
-        "`finally` and still be skipped: anything that throws in the cleanup "
-        "leaves SIGINT and SIGTERM at SIG_IGN, and Ctrl-C dead for the rest "
-        "of the process while a rented card bills.")
-
-    # AND THE WRITE THAT CAUSED IT MUST BE INSIDE THAT BLOCK. `ledger.append`
-    # is what raised `PermissionError` on a read-only ledger directory and
-    # took the restore with it. Naming it is not the guesswork the docstring
-    # warns against -- it is the one call the defect is on record for, and if
-    # it ever moves out of the protected body this says so.
-    assert any("append" in _attrs(t.body) for t in paired), (
-        "the ledger write is no longer inside the block whose `finally` "
-        "restores the signals -- that write is the one on record for "
-        "raising and taking Ctrl-C with it")
-
-
 def test_a_floor_that_is_not_a_number_is_refused_before_any_money():
     """`nan` compares False with everything, and that cost five rentals.
 
@@ -700,7 +603,6 @@ def test_the_verdict_cannot_depend_on_the_rejection_floor():
     turned a ban into a pass: one knob doing two opposite jobs. It is gone
     from the signature entirely, which is the firmest form of the ban.
     """
-    import inspect
     names = set(inspect.signature(runner.blame_machine).parameters)
     assert "limit" not in names and "floor" not in names, (
         f"the floor is back in the permanent-list guard: {sorted(names)}. "

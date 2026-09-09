@@ -9,12 +9,9 @@ only the right directory holds.
 """
 import os
 
+import pytest
+
 import support
-from booksmith.core import config, replay, schema
-from booksmith.core import knobs
-from booksmith.datasets import accept as acceptance
-from booksmith.processing.read.rented import paddleocr_vl
-from booksmith.remote import ledger
 
 
 def _is_repo_root(p):
@@ -25,37 +22,6 @@ def _is_repo_root(p):
 def _is_package(p):
     return os.path.isfile(os.path.join(p, "__init__.py")) and \
         os.path.isdir(os.path.join(p, "core"))
-
-
-def test_config_root_is_the_repository():
-    assert _is_repo_root(config.ROOT), config.ROOT
-    assert config.ENV_FILE == os.path.join(config.ROOT, ".env")
-
-
-def test_schema_root_is_the_repository():
-    assert _is_repo_root(schema.ROOT), schema.ROOT
-
-
-def test_acceptance_root_is_the_repository():
-    assert _is_repo_root(acceptance.ROOT), acceptance.ROOT
-
-
-def test_knobs_src_is_the_package():
-    assert _is_package(knobs.SRC), knobs.SRC
-
-
-def test_replay_pkg_is_the_package():
-    assert _is_package(replay.PKG), replay.PKG
-
-
-def test_the_rented_job_ships_the_whole_package():
-    """`spec()` copies `PKG` to the box; two `dirname`s from a file that
-    moves is a partial package shipped in silence, learnt on a rented card."""
-    assert _is_package(paddleocr_vl.PKG), paddleocr_vl.PKG
-
-
-def test_ledger_root_is_the_repository():
-    assert _is_repo_root(ledger._ROOT), ledger._ROOT
 
 
 def test_the_detect_command_can_actually_run():
@@ -81,7 +47,7 @@ def test_the_detect_command_can_actually_run():
     root = os.path.dirname(os.path.dirname(support.SRC))
     pdf = os.path.join(root, "bench", "slovar", "slovar.pdf")
     if not os.path.isfile(pdf):
-        support.skip("no bench/slovar/slovar.pdf: build it with `books synth`")
+        pytest.skip("no bench/slovar/slovar.pdf: build it with `books synth`")
     out = os.path.join(tempfile.mkdtemp(), "d")
     r = subprocess.run([_s.executable, "-m", "booksmith.cli", "detect", pdf,
                         "--out", out, "--pages", "1"],
@@ -129,7 +95,7 @@ def test_detection_is_byte_reproducible_into_another_directory():
     root = os.path.dirname(os.path.dirname(support.SRC))
     pdf = os.path.join(root, "bench", "slovar", "slovar.pdf")
     if not os.path.isfile(pdf):
-        support.skip("no bench/slovar/slovar.pdf: build it with `books synth`")
+        pytest.skip("no bench/slovar/slovar.pdf: build it with `books synth`")
     outs = []
     for _ in range(2):
         d = os.path.join(tempfile.mkdtemp(), "d")

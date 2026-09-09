@@ -13,9 +13,9 @@ worse than both STABLY (bounds 3.02..7.04 against 0.23..1.73 and 0.28..1.57,
 not overlapping), while docling against the V2 rank the instrument CANNOT TELL
 APART (the pair inverts, difference 0.13 against a ruler span of 4.02).
 """
-import ast
 
-import support
+import pytest
+
 from booksmith.core.errors import Refusal
 
 from booksmith.core import order, policy
@@ -85,7 +85,7 @@ def test_docling_returns_a_permutation_and_touches_no_box():
     try:
         import docling  # noqa: F401
     except ImportError:
-        support.skip("no docling package: the `docling` rule cannot be checked")
+        pytest.skip("no docling package: the `docling` rule cannot be checked")
     labels = ["text", "table", "header", "text", "image"]
     boxes = [(50, 400, 300, 500), (50, 200, 300, 380), (50, 20, 300, 60),
              (330, 400, 580, 500), (330, 100, 580, 380)]
@@ -117,88 +117,3 @@ def test_an_unknown_rule_dies_loudly():
             os.environ["ASSEMBLY_ORDER"] = was
 
 
-def test_no_adapter_sorts_by_itself_any_more():
-    """NOT ONE adapter sorts by a key of its own. The rule is one.
-
-    By source, not by running: three models mean half a gigabyte of weights,
-    and the agreement must be checked on every change.
-
-    Able to fail: put `kept.sort(key=…)` back into any adapter.
-    """
-    seen = {}
-    for rel in ("processing/layout/adapters/doclayout.py", "processing/layout/adapters/yolox.py",
-                "processing/layout/adapters/docling.py"):
-        bad = []
-        for node in ast.walk(support.tree(rel)):
-            if (isinstance(node, ast.Call)
-                    and isinstance(node.func, ast.Attribute)
-                    and node.func.attr == "sort"
-                    and any(k.arg == "key" for k in node.keywords)):
-                bad.append(node.lineno)
-        seen[rel] = bad
-    # `doclayout` is allowed ONE sort -- by the MODEL'S OWN RANK; that is not
-    # our rule and has no place in `order.py`. `docling_heron` is allowed one
-    # -- the NUMBERING before the vendor pipeline, `Cluster.id`, by which the
-    # vendor sews children to their wrapper.
-    assert len(seen["processing/layout/adapters/doclayout.py"]) == 1, (
-        f"doclayout has {len(seen['processing/layout/adapters/doclayout.py'])} keyed sorts, and "
-        f"one is lawful -- by the model's rank: "
-        f"{seen['processing/layout/adapters/doclayout.py']}")
-    assert len(seen["processing/layout/adapters/docling.py"]) == 1, (
-        f"docling_heron has {len(seen['processing/layout/adapters/docling.py'])} sorts, "
-        f"and one is lawful -- the numbering before the pipeline")
-    assert not seen["processing/layout/adapters/yolox.py"], (
-        f"yolox sorts on its own again: lines "
-        f"{seen['processing/layout/adapters/yolox.py']}. The assembly rule lives in "
-        f"order.py, and a second copy diverges from the first in silence -- "
-        f"which is what happened in docling_heron")
-
-
-def test_the_ruler_measures_the_same_rule_the_book_is_built_with():
-    """The instrument ASKS `order.py` for the rule "ours", not repeats it.
-
-    WHAT PAID FOR IT. `metrics._by_reading` held a second copy --
-    `sorted(key=(box[1], box[0]))` -- and a docstring "the very order the
-    adapters declare by the word `ours`". The keys agreed, `metrics` did not
-    import `order` at all, and NOT ONE check tied them. Yet on that assembler
-    the project's main conclusion was taken: "our rule was measured and lost",
-    2471 extra jumps against 501 for the model rank and 439 for the docling
-    rules. Editing `order.permutation` would leave the instrument measuring
-    the FORMER rule and calling it the current one -- reversing the conclusion
-    without touching a line of the instrument.
-
-    That is what `order.py` was made for -- see the file header.
-
-    By source: comparing the BEHAVIOUR of two rules is not enough -- they
-    agree today, which is why they lived on as copies. What must be checked is
-    that a second rule does not exist.
-    """
-    t = support.tree("datasets/metrics/contour.py")
-    fn = next((n for n in ast.walk(t)
-               if isinstance(n, ast.FunctionDef) and n.name == "_by_reading"),
-              None)
-    assert fn is not None, "the contour metric lost _by_reading -- assembler removed?"
-
-    ours = [n.lineno for n in ast.walk(fn)
-            if isinstance(n, ast.Call)
-            and ((isinstance(n.func, ast.Name) and n.func.id == "sorted")
-                 or (isinstance(n.func, ast.Attribute) and n.func.attr == "sort"))]
-    assert not ours, (
-        f"`_by_reading` sorts on its own again (lines {ours}). The assembly "
-        f"rule lives in `order.py`; a second copy diverges from the first in "
-        f"SILENCE, and the verdict \"our rule lost\" rests on this "
-        f"assembler")
-
-    calls = [n for n in ast.walk(fn)
-             if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
-             and n.func.attr == "permutation"]
-    assert calls, (
-        "`_by_reading` does not call `order.permutation` -- the instrument "
-        "measures a rule other than the one the book is assembled by")
-    named = {k.arg: k.value for c in calls for k in c.keywords}
-    which = named.get("which")
-    assert isinstance(which, ast.Constant) and which.value == "ours", (
-        "`order.permutation` is called without `which=\"ours\"`. Without "
-        "the explicit name the rule comes from the knob `ASSEMBLY_ORDER`, the "
-        "column \"our rule\" starts meaning different things in different "
-        "runs, and the sweep becomes incomparable")

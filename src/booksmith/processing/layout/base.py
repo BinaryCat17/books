@@ -27,10 +27,12 @@ snapshotted, so the translation stays reversible.
 Coordinates are page pixels at `dpi`; both are stored, or two runs at different
 resolutions are incomparable.
 """
+import abc
+
 from booksmith.core.page import Page
 
 
-class Detector:
+class Detector(abc.ABC):
     """What a model adapter must be able to do.
 
     THE LIST USED TO BE SHORTER THAN THE TRUTH, and that is the defect this
@@ -93,6 +95,7 @@ class Detector:
     PAGE_META_REQUIRED = ("rank_ties", "best_rejected_by_class")
     FINGERPRINT_REQUIRED = ("sha256_weights",)
 
+    @abc.abstractmethod
     def label(self) -> str:
         """THE MODEL'S short name, and the directory a run of it lives in.
 
@@ -112,6 +115,7 @@ class Detector:
         """
         raise NotImplementedError
 
+    @abc.abstractmethod
     def fingerprint(self) -> dict:
         """What tells this run from another: weights, prompts, versions.
 
@@ -120,6 +124,7 @@ class Detector:
         """
         raise NotImplementedError
 
+    @abc.abstractmethod
     def knobs_read(self) -> tuple[str, ...]:
         """Which registry knobs THIS adapter reads. Declared as a list.
 
@@ -151,6 +156,7 @@ class Detector:
         """
         raise NotImplementedError
 
+    @abc.abstractmethod
     def read(self, image_path: str, index: int, dpi: float) -> Page:
         raise NotImplementedError
 
@@ -163,6 +169,7 @@ class Detector:
         """
         return {}
 
+    @abc.abstractmethod
     def threshold_drift(self) -> tuple[str, ...]:
         """Lines about a threshold that is NOT the weights' own, or ().
 

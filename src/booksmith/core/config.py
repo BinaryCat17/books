@@ -10,7 +10,10 @@ import os
 # Three levels up from `src/booksmith/core/`. One level short and `.env` is
 # looked for under `src/`, where it never is, and every secret reads as
 # unset -- silently, which is why `books doctor` prints where it looked.
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+import booksmith
+
+# The repository root, from the package: src/booksmith/__init__.py is three levels down.
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(booksmith.__file__))))
 ENV_FILE = os.path.join(ROOT, ".env")
 DEFAULT_SSH_KEY = os.path.expanduser("~/.ssh/id_ed25519_vast")
 

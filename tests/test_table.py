@@ -9,12 +9,11 @@ import json
 import os
 import tempfile
 
-import support
 from booksmith.core.errors import Refusal
 from booksmith.datasets import table
 from booksmith.datasets.bench import Bench
 from booksmith.datasets.metrics.base import Record, Scalar
-from test_bench import LABEL, _bench, _page, at_root
+from test_bench import LABEL, _bench, at_root
 
 
 def test_rows_refuse_an_unknown_and_an_inapplicable_metric():
@@ -182,7 +181,6 @@ def test_an_undefined_jump_count_says_why_instead_of_printing_zero():
     of running every model over every bench.
     """
     from booksmith.datasets.metrics import assembly
-    from booksmith.datasets.bench import Run
 
     class OnePerPage:
         label = "m"

@@ -30,7 +30,8 @@ closed frame of each page; named in `djvu.py`, not repaired here.
 import os
 import sys
 
-import support
+import pytest
+
 
 from booksmith.processing.extract import djvu
 
@@ -246,7 +247,7 @@ def test_the_probe_selfcheck_agrees_with_the_veto():
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     path = os.path.join(root, "tools", "spread_probe.py")
     if not os.path.exists(path):
-        support.skip(f"no {path} -- the gauge is not in the tree")
+        pytest.skip(f"no {path} -- the gauge is not in the tree")
     spec = importlib.util.spec_from_file_location("spread_probe", path)
     mod = importlib.util.module_from_spec(spec)
     sys.modules["spread_probe"] = mod

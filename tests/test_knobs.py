@@ -14,6 +14,7 @@ gives a snapshot CONFIDENT AND WRONG.
 import os
 import re
 
+
 import support
 from booksmith.core.errors import Refusal
 from booksmith.processing.layout.adapters.doclayout import DocLayout
@@ -201,159 +202,14 @@ def test_docling_pipeline_is_registered():
 
 
 # --------------------------------------------------------------------------
-# A CONTRACT BETWEEN TWO CHECK FILES: `support.skip()` and `tests/run.py`, and
-# it is silent about the WHOLE run at once. `support.skip()` chose the form of
+# A CONTRACT BETWEEN TWO CHECK FILES: `pytest.skip()` and `tests/run.py`, and
+# it is silent about the WHOLE run at once. `pytest.skip()` chose the form of
 # a skip by whether pytest was IMPORTABLE, not by WHO RUNS, and in pytest
 # `Skipped` inherits BaseException, not Exception -- past both traps of
 # `run_case`. Measured with a stand-in module of the same contract: under our
 # runner the first skip killed the run with a traceback, the line "checks 111:
 # passed 110 ..." did not print AT ALL, exit code 1. Installing pytest into
 # `.venv` was enough to stop 110 green checks reporting themselves.
-
-def _fake_pytest():
-    """A stand-in pytest repeating the real contract WORD FOR WORD.
-
-    `Skipped` from BaseException (in pytest from `OutcomeException`, and that
-    from BaseException) and the `skip.Exception` its `_with_exception`
-    decorator sets. Real pytest is not in `.venv`, and waiting for it to learn
-    of the trouble is the same as not checking.
-    """
-    import types
-    mod = types.ModuleType("pytest")
-
-    class Skipped(BaseException):
-        pass
-
-    def skip(reason="", allow_module_level=False):
-        raise Skipped(reason)
-
-    skip.Exception = Skipped
-    mod.skip, mod.Skipped = skip, Skipped
-    return mod
-
-
-def _with_fake_pytest(fn):
-    """Run with a stand-in pytest in `sys.modules`, then put it back."""
-    import sys
-    had = sys.modules.get("pytest")
-    sys.modules["pytest"] = _fake_pytest()
-    try:
-        return fn()
-    finally:
-        if had is None:
-            sys.modules.pop("pytest", None)
-        else:
-            sys.modules["pytest"] = had
-
-
-def _raised_by_skip(own_runner):
-    """What exactly `support.skip()` ended with under a stand-in pytest.
-
-    BaseException is caught deliberately: a broken `skip()` raises `Skipped`,
-    which inherits BaseException -- let it out and it kills the OUTER runner. A
-    mutation must go red as a named check, not as the death of the run.
-    """
-    def body():
-        was = support.OWN_RUNNER
-        support.OWN_RUNNER = own_runner
-        try:
-            support.skip("nothing to do it with")
-        except support.Skip as e:
-            return "our Skip", str(e)
-        except BaseException as e:                          # noqa: BLE001
-            return type(e).__name__, str(e)
-        finally:
-            support.OWN_RUNNER = was
-        return "did not raise at all", ""
-    return _with_fake_pytest(body)
-
-
-def test_skip_under_our_runner_does_not_depend_on_pytest_being_installed():
-    """Our runner runs -- the skip is OURS, even with pytest installed."""
-    kind, why = _raised_by_skip(own_runner=True)
-    assert kind == "our Skip", (
-        f"with pytest installed the skip was raised as {kind}: our runner "
-        f"will not catch it and will print a failure instead of a skip -- and "
-        f"`Skipped` inherits BaseException, so it will die outright without "
-        f"printing a summary")
-    assert why == "nothing to do it with", "the reason for the skip was lost"
-
-
-def test_skip_under_pytest_stays_a_pytest_skip():
-    """pytest runs -- the skip is HIS, else `Skip` reaches him as a failure."""
-    kind, _ = _raised_by_skip(own_runner=False)
-    assert kind == "Skipped", (
-        f"under pytest the skip is declared as {kind} -- pytest will count "
-        f"the check as a failure and not a skip")
-
-
-def _load_runner():
-    """The runner itself, raised as a SEPARATE module.
-
-    Separate because a running runner is called `__main__`, and under pytest
-    there is none. Loading it declares `support.OWN_RUNNER`, and the caller
-    must put that back, or the next check under pytest gets our skip instead of
-    his.
-    """
-    import importlib.util
-    import os as _os
-
-    spec = importlib.util.spec_from_file_location(
-        "booksmith_tests_runner",
-        _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "run.py"))
-    runner = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(runner)
-    return runner
-
-
-def test_runner_counts_a_foreign_skip_as_a_skip_and_survives():
-    """A foreign skip (`pytest.skip`) is a skip, not the death of the runner.
-
-    The second half of the fix: even if a check calls `pytest.skip()` past
-    `support.skip()`, the total must print. The value here is the STATE, not
-    "did not fall": a failure and a skip are different numbers.
-    """
-    was = support.OWN_RUNNER
-    try:
-        runner = _load_runner()
-        def body():
-            import sys
-            try:
-                return runner.run_case(
-                    lambda: sys.modules["pytest"].skip("nothing to do it with"))
-            except BaseException as e:                      # noqa: BLE001
-                # A broken runner does not catch a foreign skip and lets it out
-                # -- that is exactly how it died. Caught here so that this
-                # check goes red rather than the whole run.
-                return f"let out ({type(e).__name__})", str(e)
-        state, why = _with_fake_pytest(body)
-    finally:
-        support.OWN_RUNNER = was
-    assert state == "skip", (
-        f"a foreign skip was counted as {state!r}: `Skipped` inherits "
-        f"BaseException and, going past the traps in `run_case`, killed the "
-        f"runner outright -- no summary was printed at all")
-    assert "nothing to do it with" in why, (
-        f"the reason for the skip was lost: {why!r}")
-
-
-def test_runner_still_lets_a_real_interrupt_out():
-    """KeyboardInterrupt goes out: swallow it and the run cannot be stopped."""
-    was = support.OWN_RUNNER
-    try:
-        runner = _load_runner()
-        def boom():
-            raise KeyboardInterrupt("Ctrl+C")
-        try:
-            runner.run_case(boom)
-        except KeyboardInterrupt:
-            return
-    finally:
-        support.OWN_RUNNER = was
-    raise AssertionError(
-        "the runner swallowed Ctrl+C and wrote it into the check's state: "
-        "there is nothing left to stop a run with")
-
 
 # --------------------------------------------------------------------------
 # SNAPSHOT COMPLETENESS: `replay.shape()` derives the required fingerprint

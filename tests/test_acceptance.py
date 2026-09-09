@@ -37,6 +37,8 @@ re-saves it having read that line.
 """
 import os
 
+import pytest
+
 import support
 from booksmith.datasets import accept as acceptance
 
@@ -44,9 +46,9 @@ from booksmith.datasets import accept as acceptance
 def _one(name):
     gone = acceptance.missing(name)
     if gone:
-        support.skip(f"no input: {', '.join(gone)}")
+        pytest.skip(f"no input: {', '.join(gone)}")
     if not os.path.isfile(acceptance.path(name)):
-        support.skip(f"no snapshot {acceptance.path(name)}: "
+        pytest.skip(f"no snapshot {acceptance.path(name)}: "
                      "take one with `python3 tools/acceptance.py --save`")
     d = acceptance.differs(name)
     assert not d, (f"report {name} diverged from its snapshot:\n"
@@ -121,9 +123,9 @@ def test_the_reading_probe_battery_reports_the_same():
 def _record(name):
     gone = acceptance.record_missing(name)
     if gone:
-        support.skip(f"no input: {', '.join(gone)}")
+        pytest.skip(f"no input: {', '.join(gone)}")
     if not os.path.isfile(acceptance.record_path(name)):
-        support.skip(f"no record {acceptance.record_path(name)}: "
+        pytest.skip(f"no record {acceptance.record_path(name)}: "
                      "take one with `python3 tools/acceptance.py --save`")
     d = acceptance.record_differs(name)
     assert not d, (f"record {name} diverged from its snapshot:\n"
@@ -167,7 +169,7 @@ def test_a_record_against_other_inputs_says_inputs_moved_not_changed():
     name = "text-slovar"
     if acceptance.record_missing(name) or not os.path.isfile(
             acceptance.record_path(name)):
-        support.skip("no text-slovar record to test against")
+        pytest.skip("no text-slovar record to test against")
     with open(acceptance.record_path(name), encoding="utf-8") as f:
         want = json.load(f)
     want["inputs"] = {k: "0" * 64 for k in want["inputs"]}
@@ -231,7 +233,7 @@ def test_the_slovar_truth_lock_still_matches_the_bench_on_disk():
     lock = os.path.join(root_, "tests", "expected", "slovar-truth.sha256")
     root = os.path.join(root_, "bench", "slovar")
     if not os.path.isdir(os.path.join(root, "truth")):
-        support.skip("no bench/slovar/truth: build it with "
+        pytest.skip("no bench/slovar/truth: build it with "
                      "`books synth --book slovar --out bench/slovar`")
     want = [l.split("  ", 1) for l in
             open(lock, encoding="utf-8").read().splitlines() if l.strip()]

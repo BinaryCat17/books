@@ -12,7 +12,6 @@ import os
 import shutil
 import tempfile
 
-import support
 from booksmith.core.errors import Unmeasurable
 from booksmith.core import page
 from booksmith.core import stamp

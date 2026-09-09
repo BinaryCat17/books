@@ -9,12 +9,13 @@ checks something.
 """
 import json
 import os
-import tempfile
+
+import pytest
 
 import support
 from booksmith.datasets import metrics as registry
-from booksmith.datasets.bench import Bench, Run
-from booksmith.datasets.metrics.base import (Metric, Probe, Record, Scalar,
+from booksmith.datasets.bench import Bench
+from booksmith.datasets.metrics.base import (Metric, Probe, Scalar,
                                              applicable, run_battery)
 
 ROOT = os.path.dirname(os.path.dirname(support.SRC))
@@ -25,7 +26,7 @@ def _slovar():
     if not (os.path.isdir(os.path.join(SLOVAR, "truth"))
             and os.path.isdir(os.path.join(SLOVAR, "detect", "PP-DocLayoutV2", "pages"))
             and os.path.isfile(os.path.join(SLOVAR, "slovar.pdf"))):
-        support.skip("bench/slovar is not built here (books synth --book slovar)")
+        pytest.skip("bench/slovar is not built here (books synth --book slovar)")
     b = Bench.open(SLOVAR)
     # NAMED, not "the" run: the book holds one directory per model now, and
     # `run()` refuses when there are several -- which is the point of it.
@@ -101,7 +102,7 @@ def test_applicability_on_the_golden_bench_excludes_the_reading_metric():
     from booksmith.core import config
     root = os.path.join(config.ROOT, "bench", "annopage")
     if not os.path.isdir(os.path.join(root, "truth")):
-        support.skip("bench/annopage/truth is not here")
+        pytest.skip("bench/annopage/truth is not here")
     b = Bench.open(root)
     names = sorted(m.name for m in applicable(registry.METRICS, b, object()))
     assert "text" not in names, names

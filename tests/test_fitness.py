@@ -36,14 +36,14 @@ import os
 import sys
 import tempfile
 
+import pytest
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
 import numpy as np                                          # noqa: E402
 import pymupdf                                              # noqa: E402
 
-import support                                              # noqa: E402
-from booksmith.core import book
 from booksmith.datasets.metrics import fitness as fitmet
 from booksmith.processing.assess import ink as fitness  # noqa: E402
 
@@ -413,7 +413,7 @@ def test_the_cap_holds_the_bench_it_was_raised_for():
     import json
     d = os.path.join(os.path.dirname(HERE), "bench", "annopage", "truth")
     if not os.path.isdir(d):
-        support.skip("no bench/annopage/truth: the golden bench is not built")
+        pytest.skip("no bench/annopage/truth: the golden bench is not built")
     packed = 0
     for name in sorted(os.listdir(d)):
         if not name.endswith(".json") or name == "run.json":

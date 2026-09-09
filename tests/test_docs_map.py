@@ -18,6 +18,8 @@ that is what the measurements in `docs/models.md` and the batteries are for.
 import os
 import re
 
+import pytest
+
 import support
 from booksmith.core import schema
 
@@ -229,7 +231,7 @@ def test_the_generated_metrics_file_is_generated_and_current():
     try:
         want = report.build(log=lambda *a: None)
     except Refusal as e:
-        support.skip(f"nothing rendered: {str(e)[:80]}")
+        pytest.skip(f"nothing rendered: {str(e)[:80]}")
     path = report.OUT
     assert os.path.isfile(path), (
         f"{os.path.basename(path)} is missing while {report.RESULTS} holds "

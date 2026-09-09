@@ -35,7 +35,6 @@ import json
 import os
 import tempfile
 
-import support
 from booksmith.core import stamp
 
 from booksmith.datasets.make import annopage
@@ -223,7 +222,6 @@ def test_a_refused_build_leaves_the_golden_bench_untouched():
     over a different sample, which is caught by the page-count guard AFTER the
     main loop has written every truth file.
     """
-    import json
     import shutil
     import tempfile
     tmp = tempfile.mkdtemp()

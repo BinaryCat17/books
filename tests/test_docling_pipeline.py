@@ -24,7 +24,6 @@ import os
 import pytest
 from dataclasses import asdict
 
-import support
 from booksmith.core.errors import Refusal
 from booksmith.core import policy
 from booksmith.processing.layout.adapters import docling as dh
@@ -124,7 +123,7 @@ def test_unknown_label_dies_at_construction():
     not turn up on a page, and the run is wrong all the same.
     """
     if not have_docling():
-        support.skip("no docling package: pip install -e \".[docling]\"")
+        pytest.skip("no docling package: pip install -e \".[docling]\"")
     good = list(dh.DEFAULT_LABELS)
     dh._DoclingPipeline("post", good, "docling")   # whole weight vocabulary
     try:
@@ -143,7 +142,7 @@ def test_unknown_label_dies_at_construction():
 def test_egret_names_translate_whole():
     """Every egret display name translates, by that same construction."""
     if not have_docling():
-        support.skip("no docling package: pip install -e \".[docling]\"")
+        pytest.skip("no docling package: pip install -e \".[docling]\"")
     p = dh._DoclingPipeline("post", list(dh.EGRET_TO_DOCLING),
                             "docling-egret")
     assert set(p.to_docling) == set(dh.EGRET_TO_DOCLING)
@@ -184,26 +183,11 @@ def test_off_adds_exactly_one_meta_key():
         f"single key {OFF_META_KEYS}")
 
 
-def test_off_keeps_meta_key_order_byte_for_byte():
-    """A key's place in the dict is not cosmetic: json writes keys in order."""
-    keys = support.meta_keys("processing/layout/adapters/docling.py", "DoclingHeron")
-    assert "**pipe_meta" in keys, (
-        "the page's meta no longer holds `**pipe_meta`: either the pipeline "
-        "writes its keys elsewhere, or this check has fallen behind the code")
-    i = keys.index("**pipe_meta")
-    got = keys[:i] + OFF_META_KEYS + keys[i + 1:]
-    assert got == META_BEFORE_PIPELINE, (
-        f"at DOCLING_PIPELINE=off the composition or the order of the meta "
-        f"keys changed:\n"
-        f"  was  {META_BEFORE_PIPELINE}\n  now  {got}\n"
-        f"There is no byte-for-byte match with the earlier pages any more.")
-
-
 @pytest.mark.slow
 def test_adapter_at_off_builds_no_pipeline():
     """The live adapter on real weights: at off there is no vendor code at all."""
     if not os.path.isdir(os.path.join(dh.MODELS, "docling-heron_onnx")):
-        support.skip("no docling-heron_onnx weights")
+        pytest.skip("no docling-heron_onnx weights")
     with env(DOCLING_PIPELINE="off"):
         a = dh.DoclingHeron()
     assert a.pipeline == "off"

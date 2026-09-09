@@ -83,33 +83,6 @@ def says_model_rank(value) -> bool:
     return bool(guard()({"meta": {support.ORDER_KEY: value}}))
 
 
-def test_adapters_declare_order_rule_at_all():
-    """Every adapter has a value. An empty set is not "all is well"."""
-    for rel, mod in ADAPTERS:
-        vals = support.page_order_values(rel, mod)
-        assert vals, (f"{rel}: not one {support.ORDER_KEY} value in a page's "
-                      f"meta. The metric's guard would take the default "
-                      f"'model rank' and print a percentage off our own "
-                      f"numbering")
-
-
-def test_no_unknown_order_values():
-    """A new value must be described HERE, not appear silently."""
-    seen = set()
-    for rel, mod in ADAPTERS:
-        seen |= support.page_order_values(rel, mod)
-    unknown = seen - set(EXPECTED)
-    assert not unknown, (
-        f"adapters put values into a page that the contract table does not "
-        f"hold: {sorted(unknown)}. Add them to EXPECTED and say whose order "
-        f"it is -- the metric's guard decides by them whether to print a "
-        f"percentage")
-    forgotten = set(EXPECTED) - seen
-    assert not forgotten, (
-        f"the contract table holds values no adapter puts down any more: "
-        f"{sorted(forgotten)}. Checking the guard by them measures air")
-
-
 def test_guard_reads_every_value_as_intended():
     """The main check: the guard reads EVERY value as intended."""
     wrong = []

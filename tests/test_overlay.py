@@ -33,9 +33,7 @@ import json
 import os
 import tempfile
 
-import support
 from booksmith.core import stamp
-from booksmith.core.errors import Refusal
 
 from booksmith.datasets import look as overlay
 

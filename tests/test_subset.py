@@ -12,7 +12,6 @@ import shutil
 import tempfile
 
 import pymupdf
-import support
 from booksmith.core import stamp
 from booksmith.datasets.make import subset
 

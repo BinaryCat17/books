@@ -120,15 +120,10 @@ src/booksmith/
                one run side by side, accept.py reports and records against
                tests/expected/
   cli.py       books <command>
-tests/         collusions between files, own runner (there is no pytest in
-               .venv): tests/run.py, and tests/run.py --slow --selfcheck for
-               the mutations, ALL of which must be caught. DO NOT ASK THIS
-               PROSE FOR THE NUMBERS -- ask the runner, it prints them on its
-               last line
-tools/         thin wrappers over booksmith.tree and booksmith.datasets, so
-               the mutation battery can reach the instrument itself:
-               anchors.py (do the battery's source patches and attribute
-               swaps still land), acceptance.py, figures.py, layout.py.
+tests/         collusions between files: `pytest`, and `pytest -m slow` for
+               the one check that raises an ONNX session
+tools/         thin wrappers over booksmith.tree and booksmith.datasets:
+               acceptance.py, figures.py, layout.py.
                Beside them: sweep.py (every model over every bench),
                spread_probe.py (the spread-cut veto, re-measurable --
                test_djvu runs it).

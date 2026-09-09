@@ -18,7 +18,6 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-import support                                              # noqa: E402
 from booksmith.datasets.metrics import reading              # noqa: E402
 
 

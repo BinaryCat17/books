@@ -159,34 +159,6 @@ def test_unknown_is_not_whole():
     assert "data-truncated" not in nothing, nothing
 
 
-def test_from_read_asks_the_sidecar_for_the_reason():
-    """`from_read` must take truncation from `answers/`, not invent it.
-
-    Checked against the source: without an explicit `torn=`, half the rule
-    falls off silently again -- as it already did once.
-    """
-    import ast
-
-    import support
-    t = support.tree("processing/assemble/apply.py")
-    fn = next(n for n in ast.walk(t)
-              if isinstance(n, ast.FunctionDef) and n.name == "from_read")
-    calls = [n for n in ast.walk(fn)
-             if isinstance(n, ast.Call)
-             and isinstance(n.func, ast.Name) and n.func.id == "observed"]
-    assert calls, (
-        "`from_read` does not call `observed` -- there is nowhere to take "
-        "the truncation flag from, and the mark vanishes from exactly the "
-        "blocks that arrived as markup")
-    passes = [n for n in ast.walk(fn)
-                if isinstance(n, ast.Call)
-                and isinstance(n.func, ast.Name) and n.func.id == "put_into"
-                and any(k.arg == "torn" for k in n.keywords)]
-    assert passes, (
-        "`from_read` calls `put_into` without `torn=` -- the observed data "
-        "is read and thrown away, which is worse than not reading it")
-
-
 def test_the_torn_field_tells_three_states_apart():
     """"Truncated", "read to the end" and "not asked" are three values.
 

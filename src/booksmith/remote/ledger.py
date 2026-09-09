@@ -15,7 +15,7 @@ from booksmith.core.log import log
 
 # A relative path would silently lose the whole history when run from another
 # directory, and the pick of warmed machines with it.
-_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+from booksmith.core.config import ROOT as _ROOT  # noqa: E402
 # Declared in the registry, or `books replay --check` cannot see that the
 # ledger and the machine BLACKLIST moved elsewhere. This was the project's only
 # read of the environment past the registry, and it dragged `bad-machines.json`
