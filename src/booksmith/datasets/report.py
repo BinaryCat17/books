@@ -64,6 +64,24 @@ OUT = os.path.join(config.ROOT, "METRICS.md")
 # `tests/test_metrics_contract.py` asks the question of every scalar in
 # `results/` without rendering anything.
 LOWER_IS_BETTER = (
+    # THE READING METRIC, ALL ELEVEN, DECLARED BEFORE IT IS EVER RUN. They
+    # were undeclared for as long as this list has existed, and no check saw
+    # it: the direction check read `results/`, level two costs money, so
+    # nothing there carried a `text` record. `_arrow` refuses a name it does
+    # not know BY RAISING, so the first paid reading run would not have
+    # published a wrong arrow -- it would have made `books bench report`
+    # decline to write the document at all, after the card was rented.
+    #
+    # Distance is error: less is better, and the four CERs plus WER are all
+    # distance. `no_answer` is the model declining to read. `baits_read` is
+    # the opposite defect and the reason it is here rather than under `↑`: a
+    # bait is an artefact whose truth carries no characters, so SILENCE is
+    # the right answer and text invented for a picture is the failure.
+    # `tables_given_as_text` is a grid returned as a paragraph -- the
+    # characters may all be right and the structure is gone.
+    "CER", "WER", "CER_answered", "CER_cells", "CER_artefacts",
+    "CER_artefacts_answered", "no_answer", "baits_read",
+    "tables_given_as_text",
     "label_errors", "role_errors", "excess_jumps", "excess_jumps_per_page",
     "objects_torn", "objects_left_as_text", "objects_with_company",
     "ink_outside_boxes", "missing", "empty",
@@ -114,7 +132,20 @@ NEITHER = ("transitions", "pages_with_columns", "values_present",
            # edge. Every model reads the same paper, so ranking
            # them by it means nothing; it is what to consult
            # when the clean and raw columns disagree.
-           "ink_junk")
+           "ink_junk",
+           # `ink_under_artefacts` IS A COMPOSITION, NOT A QUALITY, and it
+           # stood under `↑` -- an unbounded reward for calling more of the
+           # sheet a picture. The truth's own artefact-ink share is the
+           # ceiling and is not printed beside it, so the column ranked the
+           # over-boxing model first: on slovar the truth share is 0.034 and
+           # plus-L topped the column at 0.286, eight and a half times it;
+           # on zhurnal the share is 0.069 and V3 topped it at 0.180 over a
+           # model sitting at 0.069 exactly with `object_ink_preserved`
+           # 0.999. Both ends are wrong -- too little and the artefacts were
+           # missed, too much and text is being cut out as pictures -- which
+           # is the same shape as `area_under_boxes` one column over, and it
+           # survived the commit that fixed that one.
+           "ink_under_artefacts")
 # Named, not inferred: this is the list that makes the other two a
 # declaration instead of a residue.
 HIGHER_IS_BETTER = (
@@ -123,8 +154,14 @@ HIGHER_IS_BETTER = (
     # ships as a plate is right, and a page that ships as a photograph of
     # itself is wrong, and the two are one number.
     "ink_as_text", "ink_under_boxes_clean",
+    # `paired` is how much of the truth the comparison actually reached, and
+    # every CER beside it is a claim about that subset: CER 0.02 over two
+    # blocks of forty is not "the model reads well". `cells_matched` is the
+    # same question for a table, by ADDRESS -- a shifted row leaves the bag
+    # of cells identical and drops this from 0.89 to 0.33.
+    "paired", "cells_matched",
     "artefacts_found", "assembly_order",
-    "ink_under_artefacts", "ink_under_boxes", "model_order",
+    "ink_under_boxes", "model_order",
     "object_ink_preserved", "objects_in_one_box", "objects_intact",
     "sense_whole", "text_furniture_found",
 )

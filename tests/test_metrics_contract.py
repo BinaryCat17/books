@@ -305,9 +305,18 @@ def test_every_scalar_that_reaches_the_document_declares_its_direction():
     by that legend yolox's 0.314 not-seen beat V2's 0.067.
 
     Both failures are the same shape and neither could be seen in the
-    document: a wrong arrow reads exactly like a right one. This asks the
-    question of the RECORDS, which are tracked, so it answers on a fresh
-    clone with nothing measured and nothing rendered.
+    document: a wrong arrow reads exactly like a right one.
+
+    ASKED OF THE REGISTRY AS WELL AS THE RECORDS, and the records alone were
+    a vacuum. `results/` holds what has been MEASURED, and the reading metric
+    never has been -- level two costs money -- so all ELEVEN of its scalars
+    were undeclared and this check passed anyway, every run, for as long as
+    it has existed. `report._arrow` refuses a name it does not know, and it
+    refuses by raising: the first reading run ever measured would not have
+    produced a wrong arrow, it would have made `books bench report` decline
+    to write METRICS.md at all, after the money was spent. A check that
+    cannot see a metric until someone pays to run it is checking the wrong
+    set.
     """
     import glob
     from booksmith.datasets import report
@@ -320,6 +329,14 @@ def test_every_scalar_that_reaches_the_document_declares_its_direction():
         with open(f, encoding="utf-8") as fh:
             for rec in json.load(fh)["records"]:
                 names.update(rec.get("scalars") or {})
+    measured = set(names)
+    b, r = _slovar()
+    for m in registry.METRICS:
+        names.update(m.run(b, r).scalars)
+    assert names - measured, (
+        "every registered metric's scalars are already in results/ -- either "
+        "a metric stopped emitting, or this loop stopped running, and the "
+        "unmeasured half of the registry is exactly what it is here for")
     assert len(names) > 20, f"only {len(names)} scalars found: {sorted(names)}"
     declared = (set(report.LOWER_IS_BETTER) | set(report.HIGHER_IS_BETTER)
                 | set(report.NEITHER))
