@@ -166,12 +166,56 @@ HIGHER_IS_BETTER = (
     "sense_whole", "text_furniture_found",
 )
 
+# THREE QUESTIONS, AND EVERY PUBLISHED ROW ANSWERS ONE OF THEM.
+#
+# The document was grouped by the FILE that computed each number --
+# `assembly`, `contour`, `fitness`, `snapshot` -- which is how the code is
+# filed and not how anything is asked. A reader wanting "how much survived"
+# gathered pieces from three tables and learnt what a book could answer only
+# by noticing dashes. Thirty-eight rows a bench, named after their source
+# module and glossed nowhere, is not a report.
+#
+# NOTHING IS AVERAGED. `text.py` and `contour.py` each say in their own
+# headers that one combined number trades one defect for another, and that
+# stands: every row keeps its own instrument, its own denominator and its own
+# thresholds in `params`. What changes is that the reader reads DOWN A
+# QUESTION instead of ACROSS AN IMPLEMENTATION. A question is a heading over
+# rows, never a row of its own -- the moment it became a number it would be
+# the combined score those headers forbid.
+QUESTIONS = (
+    ("How much of the book survived",
+     "Ink, objects and blocks -- four populations with four denominators, "
+     "which is why they are four rows and not an average. Read them with "
+     "the box-shape guards below: a model that boxes the whole sheet takes "
+     "100 % of the ink having found nothing."),
+    ("Is the order right",
+     "Where the truth marks reading order, agreement with it; where it does "
+     "not -- and it is marked on no real page in this project -- how often "
+     "the assembled order jumps between columns."),
+    ("What failed, and how",
+     "The derivatives: an artefact can be missed, cut, called text, or "
+     "merged with its neighbour, and those four account for every one that "
+     "did not arrive whole."),
+)
+
 HEADLINE = (
-    ("contour", "artefacts_found", "tables and pictures found"),
-    ("contour", "text_furniture_found", "text and furniture found"),
-    ("contour", "assembly_order", "reading order of the assembled book"),
-    ("fitness", "ink_under_boxes", "ink that lands inside some box"),
-    ("fitness", "object_ink_preserved", "ink of the objects that survives"),
+    ("How much of the book survived",
+     "contour", "artefacts_found", "tables and pictures found"),
+    ("How much of the book survived",
+     "contour", "text_furniture_found", "text and furniture found"),
+    ("How much of the book survived",
+     "fitness", "ink_under_boxes", "ink that lands inside some box"),
+    ("How much of the book survived",
+     "fitness", "ink_under_boxes_clean",
+     "the same over the ink that IS ink -- binding shadow and scan edge "
+     "discarded from BOTH sides, so a box laid on the shadow earns nothing"),
+    ("How much of the book survived",
+     "fitness", "ink_as_text",
+     "ink that leaves the book as text rather than as a picture of itself"),
+    ("How much of the book survived",
+     "fitness", "object_ink_preserved", "ink of the objects that survives"),
+    ("Is the order right",
+     "contour", "assembly_order", "reading order of the assembled book"),
     # `excess_jumps_per_page` LEFT THE HEADLINE AND KEPT ITS ROW BELOW. It is
     # not wrong -- it is the order that actually reaches the book, which is why
     # it is not deleted -- but it is TWO QUANTITIES IN ONE COLUMN: the model's
@@ -180,13 +224,31 @@ HEADLINE = (
     # whole span a six-model table shows. A headline column is read DOWN, and
     # this one cannot be; the footnote saying so does not make it readable. Per
     # transition divides the confound out and is read down safely.
-    ("assembly", "excess_jumps_per_transition",
+    ("Is the order right",
+     "assembly", "excess_jumps_per_transition",
      "excess column jumps per move between boxes -- a page-rate is in the "
      "per-bench tables below, where it can be read beside the rule that "
      "ordered each model"),
-    ("assembly", "excess_jumps_per_transition_one_rule",
+    ("Is the order right",
+     "assembly", "excess_jumps_per_transition_one_rule",
      "the same, with ONE ordering rule forced on every model: this column "
      "compares BOXES, the others compare box-and-rank together"),
+    # THE FOUR WAYS AN ARTEFACT IS LOST, and they are a partition over the
+    # same objects `artefacts_found` counts, so they are the derivatives the
+    # first question's shortfall is made of, not four more opinions.
+    ("What failed, and how",
+     "contour", "artefacts_not_seen", "artefacts the model never boxed"),
+    ("What failed, and how",
+     "contour", "artefacts_cropped", "artefacts boxed, but cut short"),
+    ("What failed, and how",
+     "contour", "artefacts_called_text",
+     "artefacts boxed as text -- they leave as a line and the structure "
+     "leaves with them"),
+    ("What failed, and how",
+     "contour", "artefacts_merged",
+     "artefacts sharing a box with a neighbour. NO ARROW: a wider picture "
+     "goes to the second level and is split there, and on the 36 hardest "
+     "pages strict matching called 20 % what arriving-whole called 91 %"),
 )
 
 
@@ -271,7 +333,14 @@ def _cell(rec, scalar, measured=True):
         return "·"
     sc = (rec.get("scalars") or {}).get(scalar)
     if sc is None:
-        return "·"
+        # A FOURTH ABSENCE, AND IT WAS WEARING THE THIRD ONE'S MARK. The
+        # metric RAN -- its record is right here -- and this scalar is not in
+        # it, which can only mean the record was written before the scalar
+        # existed. That is "not measured", `?`, and it read as `·`, "does not
+        # apply to that pair", which is a claim about the bench. Six scalars
+        # added and not yet swept published nine benches' worth of a
+        # statement nobody made.
+        return "?"
     v = _num(sc.get("value"))
     if v is None:
         return "—"
@@ -403,8 +472,10 @@ def build(log=print) -> str:
          "",
          "`—` is a value that does not exist, and the reason is under its "
          "table. `·` is a metric that does not apply to that pair. **`?` is "
-         "NOT MEASURED** -- the run was never made or never scored, and it is "
-         "not a result.",
+         "NOT MEASURED** -- the run was never made, or was scored before "
+         "this row existed, and either way it is not a result. A whole row "
+         "of `?` means the sweep has not been run since that number was "
+         "added; it does not mean the benches cannot answer it.",
          ""]
 
     # ---- what is NOT here -------------------------------------------------
@@ -442,8 +513,17 @@ def build(log=print) -> str:
           ""]
 
     # ---- the headline -----------------------------------------------------
-    L += ["## The short answer", ""]
-    for metric, scalar, what in HEADLINE:
+    L += ["Three questions, and every row below answers one of them. Each "
+          "keeps its own instrument and its own denominator -- nothing here "
+          "is averaged into a score, because the two metrics that would be "
+          "averaged each record in their own header that one combined number "
+          "trades one defect for another.", ""]
+    asked = None
+    for question, metric, scalar, what in HEADLINE:
+        if question != asked:
+            asked = question
+            L += [f"## {question}", "",
+                  dict(QUESTIONS)[question], ""]
         L += [f"### {scalar} {_arrow(scalar)} — {what}", ""]
         rows = []
         for r in runs:

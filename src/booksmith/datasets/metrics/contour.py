@@ -1972,9 +1972,13 @@ class ContourMetric(Metric):
                                                            pairs)),
             "model_order": _order(res["model_order"]),
             "assembly_order": _order(res["assembly_order"]),
-            "excess_jumps_per_page": Scalar(
-                j.get("per_page"), over=(j.get("pages_counted", 0), j.get("page_count", 0)), unit="pages",
-                why=None if j.get("per_page") is not None else j.get("why") or "not counted"),
+            # `excess_jumps_per_page` STOOD HERE AND IN `assembly`, from one
+            # call of `column_jumps` -- byte-identical in all 54 result files,
+            # printed twice in every per-bench table. The assembly one is the
+            # copy that keeps it: that metric IS the column-jump measurement,
+            # it carries `order_rule` in its params saying whose order was
+            # counted, and this one did not. A second copy drifts, and this
+            # one could only ever have drifted into being wrong.
         }
         params = {"COVER_MATCH": COVER_MATCH, "TOUCH": TOUCH, "TOL_PX": TOL_PX,
                   "SENSE_WHOLE": SENSE_WHOLE, "SENSE_NEIGHBOUR": SENSE_NEIGHBOUR}

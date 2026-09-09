@@ -652,6 +652,27 @@ def report(res: dict, log=print) -> None:
         f"{res['ink_under_artifact'] / ink * 100:.1f}%), outside every box "
         f"{(1 - res['ink_under_boxes'] / ink) * 100:.1f}% — that is what "
         f"will vanish from the HTML")
+    # AND THE SAME WITH THE BINDING DISCARDED. `books fitness` is the mode
+    # real scans are measured in -- this module's own header says so -- and
+    # it printed the raw loss alone, so the one number the junk mask exists
+    # to correct was the one number a real scan's operator saw. On the book
+    # the mask was written for that read "20.8 % will vanish" where the ink
+    # that is ink says 6.4 %.
+    clean = res.get("ink_clean") or 0
+    if clean and res.get("ink_junk"):
+        log(f"of that ink {res['ink_junk'] / ink * 100:.1f}% is binding "
+            f"shadow and scan edge, not information; over the ink that IS "
+            f"ink, under boxes {res['clean_under_boxes'] / clean * 100:.1f}%, "
+            f"outside every box "
+            f"{(1 - res['clean_under_boxes'] / clean) * 100:.1f}%")
+    # WHERE IT LEAVES, when the run has read something. A detection run has
+    # no content anywhere, so every block would leave as a picture by the
+    # builder's rule and the split would state a fact about the run wearing
+    # the shape of a fact about the model.
+    if res.get("blocks_with_content"):
+        log(f"of the sheet's ink {res['ink_as_text'] / ink * 100:.1f}% "
+            f"leaves the book as text and "
+            f"{res['ink_as_picture'] / ink * 100:.1f}% as a picture")
     # THE FIFTH THRESHOLD IS DECLARED UNCONDITIONALLY. The line printed only
     # when `lost > 0`, leaving `EDGE` droppable from the report without a check
     # going red. With nothing to lose the band is named all the same: a ruler

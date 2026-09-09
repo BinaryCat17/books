@@ -16,11 +16,9 @@ bench slovar, run PP-DocLayoutV2
   contour  role_errors                     1             1/517                      
   contour  model_order                 0.886                             13/13 pages
   contour  assembly_order              0.886                             13/13 pages
-  contour  excess_jumps_per_page      10.833                             12/13 pages
   contour  params: COVER_MATCH=0.75, TOUCH=0.1, TOL_PX=6.0, SENSE_WHOLE=0.9, SENSE_NEIGHBOUR=0.5, COLUMN_x_overlap_of_narrow_box=0.5, COLUMN_full_width_box_share=0.6, COLUMN_min_boxes_per_page=2, COLUMN_buckets_counted=['artifact', 'text']
   fitness  ink_under_boxes             0.976   1032695/1057663                      
   fitness  ink_under_artefacts         0.031     33235/1057663                      
-  fitness  ink_outside_boxes           0.024     24968/1057663                      
   fitness  ink_under_boxes_clean       0.976   1032695/1057663                      
   fitness  ink_junk                    0.000         0/1057663                      
   fitness  area_under_boxes            0.665  6792980/10219040                      

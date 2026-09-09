@@ -543,9 +543,13 @@ class FitnessMetric(Metric):
         scalars = {
             "ink_under_boxes": _ratio(res["ink_under_boxes"], tot, no_ink),
             "ink_under_artefacts": _ratio(res["ink_under_artifact"], tot, no_ink),
-            "ink_outside_boxes": Scalar(1 - res["ink_under_boxes"] / tot if tot else None,
-                                        count=(tot - res["ink_under_boxes"], tot),
-                                        why=None if tot else no_ink),
+            # `ink_outside_boxes` IS GONE, and it was two defects in one row.
+            # It was exactly `1 - ink_under_boxes`, to the last bit, in all 54
+            # result files -- two rows, one fact. And it was the row a reader
+            # took for "how much of the book was lost", while the binding
+            # shadow it counted as lost is 9.8 points of the 14.3 it reported
+            # on the one real book. What replaces it is not a complement but
+            # a measurement: `ink_under_boxes_clean`, over ink that is ink.
             # THE SAME QUESTION WITH THE BINDING DISCARDED, and both are
             # printed because replacing the raw one silently is the version
             # that would be a repair rather than a ruler. Measured on the one
