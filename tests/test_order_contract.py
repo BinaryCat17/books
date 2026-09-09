@@ -42,7 +42,7 @@ EXPECTED = {
     # duplicate suppression -- BY DESCENDING CONFIDENCE (100.0% of 3354
     # neighbouring pairs on 200 pages of `bench/annopage`), while "top down"
     # holds for about half of them, a coin toss; the exact figure diverged
-    # between copies, caveat in section 18 of `docs/contour-notes.md`. An order
+    # between copies, caveat in `METRICS.md`. An order
     # the model did not give is ours by definition, but it must be declared as
     # a RULE, not as a place in a list.
 }
@@ -288,7 +288,7 @@ def test_model_rank_still_wins_over_our_rule():
 # gave 1.81 and 1.93 jumps per page against 1.69 and 1.73 for the model itself.
 # Hence the battery printed "a model or an assembly rule may NOT be chosen by
 # this value": a verdict from the instrument's ruler, not from the data, and
-# against section 18 of `contour-notes`. Exactly 1 pair of 6 flipped, the one
+# against `METRICS.md`. Exactly 1 pair of 6 flipped, the one
 # the floor is in.
 
 def _pages_where_grouping_matters():

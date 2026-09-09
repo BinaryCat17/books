@@ -17,7 +17,7 @@ fingerprint.
 
 LETTERBOXED INPUT. 1024x768, proportions kept, grey padding 114 -- how
 unstructured feeds this model. Of the SIX bench detectors (§13 of
-`docs/contour-notes.md`) it alone does not tear the sheet's proportions, and
+`METRICS.md`) it alone does not tear the sheet's proportions, and
 that is no advantage by itself: on `kat_two_side` it still gave one box over
 both tables, score 0.71. The "input distortion showed itself on one case of
 four" of §10 was taken on V2, not here.
@@ -26,7 +26,7 @@ THE DETECTION THRESHOLD HERE IS OURS, to be read together with "the native
 0.45", which is about NMS. This build has no SELECTION threshold at all; ours
 acts, `LAYOUT_SCORE_THRESHOLD=0.5`, and `threshold_drift()` says so aloud. The
 price: on `bench/slovar` 0.5 finds 1 artifact of 3 (33 %), 0.3 finds 2 of 3
-(67 %). Every comparative yolox number in `contour-notes` was taken under a
+(67 %). Every comparative yolox number in `METRICS.md` was taken under a
 foreign (paddle) threshold applied to a model that has none.
 """
 import os

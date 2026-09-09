@@ -23,17 +23,10 @@
     books ls | books down 12345 | books reap
     books ledger                 run journal and the estimate from it
     books replay --check out/    is the input snapshot complete
+    books docs                   regenerate the documents rendered from the code
 
-THE LIST IS CHECKED AGAINST `sub.add_parser`, BOTH WAYS, by
-`tests/test_docs_map.py`: six commands of twenty were once missing — `fitness`,
-`subset`, `annopage`, `read`, `apply` (then `swap`), `text` — the whole of
-level two, invisible to whoever reads the header. The other direction was
-added after this list went on offering `books feed` for a while after the
-command was deleted: a header naming a command that does not exist sends the
-reader to a traceback.
-
-Level two repairs nothing, keeps what it observed beside the block, and is
-checked at home against a stand-in server: 27 checks, not one cent.
+This list is `books --help`, and `tests/test_docs.py` checks it against the
+parser both ways. Every command with its flags: `docs/commands.md`.
 """
 import argparse
 import json
@@ -769,10 +762,18 @@ def cmd_bench_report(a):
 
     The measurements lived as prose in five documents, and a figure stated
     twice is free to drift; rendered from the record that produced it, it
-    cannot. `tools/figures.py` counts what the prose version cost.
+    cannot.
     """
     from booksmith.datasets import report
     report.write(a.out or report.OUT, log=log)
+    return 0
+
+
+def cmd_docs(_a):
+    """Commands, knobs and metrics as documents, from the code that declares them."""
+    from booksmith.datasets import docsgen
+    for rel in docsgen.write_all(build_parser(), config.ROOT):
+        log(f"wrote {rel}")
     return 0
 
 
@@ -1093,7 +1094,7 @@ class _Parser(argparse.ArgumentParser):
         self.exit(64, f"{self.prog}: {message}\n")
 
 
-def main(argv=None):
+def build_parser():
     ap = _Parser(
         prog="books", description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -1301,7 +1302,13 @@ def main(argv=None):
                    help="print what is missing and return 1 if there is any")
     p.set_defaults(fn=replay_mod.cmd_replay)
 
-    a = ap.parse_args(argv)
+    p = sub.add_parser("docs", help="regenerate the documents rendered from the code")
+    p.set_defaults(fn=cmd_docs)
+    return ap
+
+
+def main(argv=None):
+    a = build_parser().parse_args(argv)
     try:
         return a.fn(a) or 0
     except _tool_errors() as e:

@@ -2,7 +2,7 @@
 
 WHY A REGISTRY and not one flat dictionary of cases. The handbook tests one
 kind of layout, and its numbers have said everything they can say
-(`docs/contour-notes.md`). What is needed next are pages the handbook does not
+(`METRICS.md`). What is needed next are pages the handbook does not
 have at all: the narrow columns of a dictionary, the matrices of a textbook,
 a drawing field with its title block, a catalogue page without a line of
 prose, a magazine's boxed insert.

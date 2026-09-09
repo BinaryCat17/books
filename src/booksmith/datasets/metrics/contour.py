@@ -1247,7 +1247,7 @@ def _by_reading(M, overlap=None, wide=None, min_boxes=None, roles=None):
     file never imported `order`, and NO check tied them -- while this builder
     produced the headline finding "our rule was measured and lost", 2471 excess
     jumps against 501 for the model rank and 439 for docling's rules (section
-    20 of `docs/contour-notes.md`). Editing `order.permutation` would have left
+    20 of `METRICS.md`). Editing `order.permutation` would have left
     the instrument measuring the OLD rule under the current name, the illness
     `order.py` cures. `which="ours"` is explicit and not read from
     `ASSEMBLY_ORDER`: the knob would make sweep columns incomparable between
@@ -1299,7 +1299,7 @@ def _order_variants(M):
     floor stopped being a floor wherever a point left them (numbers in
     `_by_columns`). On that the battery printed "you MUST NOT choose a model or
     an assembly rule by this quantity" -- a verdict from the ruler, not the
-    data, contradicting section 18 of `docs/contour-notes.md`. Exactly 1 pair
+    data, contradicting `METRICS.md`. Exactly 1 pair
     of 6 flipped over 16 points, the one with the floor. Refolded at every
     point, nothing flips.
     """
@@ -1944,7 +1944,7 @@ class ContourMetric(Metric):
             # the five together account for every one of them. `sense_whole`
             # was the only one that reached a scalar, and the rest lived in
             # `detail` -- where a TABLE cannot read them. Three sections of
-            # `docs/contour-notes.md` are about MERGING and its headline is
+            # `METRICS.md` are about MERGING and its headline is
             # "merging is 71% of ALL misses": the document that replaces that
             # prose could not have stated the project's central level-one
             # finding, and deleting the prose would have deleted the finding.

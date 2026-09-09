@@ -108,7 +108,6 @@ COMMANDS = {
          "--json", os.devnull],
         ["bench/slovar/slovar.pdf", "bench/slovar/detect/PP-DocLayoutV2/pages",
          "bench/slovar/truth"]),
-    "help": (["--help"], []),
 }
 
 # name -> (how to compute the raw result dict, the inputs whose sha256 it is

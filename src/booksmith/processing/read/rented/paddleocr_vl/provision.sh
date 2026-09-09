@@ -60,6 +60,9 @@ step "wheels" uv pip install -r "$HERE/constraints.txt" --torch-backend=cu130
 # are under it. Only the reader fingerprint taken beside them proves that
 # (sha256 of config.json, `read/readers/paddleocr_vl.py`).
 VL_REPO="${VL_REPO:-PaddlePaddle/PaddleOCR-VL-1.6}"
+# Downloaded on every rental: the market offers no network volumes, and a
+# local volume is tied to one physical machine, so there is no persistent
+# weight cache to mount.
 step "VL weights" hf download "$VL_REPO" --local-dir "$MODELS/vl"
 # WHERE THE WEIGHTS CAME FROM -- in a file beside them, not in the shell's
 # memory. Without it there is nothing to prove the version with: `config.json`

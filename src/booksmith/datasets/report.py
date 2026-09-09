@@ -1,7 +1,7 @@
 """Every measured number in this project, as one generated document.
 
 WHY GENERATED AND NEVER EDITED. The measurements used to live as prose in five
-documents, and `booksmith.tree.figures` counts what that cost: figures stated
+documents, and the prose that held them is deleted; figures stated
 in two documents at once, free to drift apart in silence. A number that is
 rendered from the record that produced it cannot drift from it -- and when the
 record is gone, so is the row, which is the honest outcome.
@@ -103,7 +103,7 @@ LOWER_IS_BETTER = (
 # is right and the sentence explaining it is wrong.
 #
 # `artefacts_merged` IS ONE, and it is the only judgement call in these three
-# lists. A merge is not damage to THIS pipeline: docs/limits.md measured it --
+# lists. A merge is not damage to THIS pipeline: docs/architecture.md measured it --
 # a wider picture goes to the second level and is split there, and on the 36
 # hardest pages strict matching called 20 % what arriving-whole called 91 %.
 # So it is neither a success to maximise nor a failure to minimise, and giving
@@ -120,7 +120,7 @@ LOWER_IS_BETTER = (
 # Published as "better higher" it told a reader to maximise exactly the thing
 # it exists to catch. The honest range is the column itself, below; a figure
 # typed here would be a second copy of it, free to drift, which is what
-# `tools/figures.py` counts -- and the first one typed was already wrong.
+# and the first one typed was already wrong.
 NEITHER = ("transitions", "pages_with_columns", "values_present",
            "fingerprint_verified", "artefacts_merged", "area_under_boxes",
            # The other two thirds of the box-shape guard. `area_under_boxes`
@@ -511,7 +511,7 @@ def build(log=print) -> str:
           + (f"{len(read_runs)} reading runs are measured below."
              if read_runs else
              "No reading run has been measured against a truth yet, so there "
-             "is no reading row at all -- `docs/limits.md` says in three "
+             "is no reading row at all -- the commit log says in three "
              "reasons why, before any money is spent."),
           "",
           "**Runs of another level.** This is a cross-DETECTOR table: every "

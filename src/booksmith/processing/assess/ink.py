@@ -67,7 +67,7 @@ from booksmith.core.errors import Unmeasurable
 # THE SPREAD-CUTTER'S OWN NUMBERS, imported and not copied. `extract/djvu.py`
 # measured them over 568 spreads of two books and pays for them in false
 # vetoes; a second set here would be a second copy free to drift, which is
-# what `tools/figures.py` counts. Stdlib-only module, 13 ms to import.
+# Stdlib-only module, 13 ms to import.
 from booksmith.processing.extract.djvu import (
     GUTTER_BAND, MIN_SPREAD_RATIO, RULE_RUN)
 

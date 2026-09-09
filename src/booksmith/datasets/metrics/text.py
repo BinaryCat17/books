@@ -1,7 +1,7 @@
 """Reading metric: what the model read, against text that is known.
 
 The old reading figures were measured against Mistral OCR output -- another
-model, not known text -- and are void to the last one (`docs/ocr-notes.md`).
+model, not known text -- and are void to the last one (the commit log).
 This file compares an answer against TRUTH and can fail. It measures
 CHARACTERS and CELL ADDRESSES; boxes are the contour metric (`contour.py`
 beside this file), delivery to the second level is the ink metric
@@ -32,7 +32,7 @@ cannot drift apart.
 
 THE NORMALISATION BOUNDARY IS DECLARED AND TRAVELS INTO THE RESULT, refusals
 and all (`NORM_REFUSED`, printed above every report). Six books, 32 634 cells
-(`docs/lessons-from-deleted-code.md`): NFKC and spaces remove 127 mismatches at
+(the commit log): NFKC and spaces remove 127 mismatches at
 harm 0, case 90 at 0, dash/hyphen/minus 376 at 0, decimal comma 42 at 0,
 trailing punctuation 147 at 0. Past that it harms: leading punctuation 139 at
 harm 4, all punctuation 504 at harm 108, Cyrillic/Latin lookalikes 14 finds of

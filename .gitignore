@@ -1,190 +1,60 @@
-# A comment in .gitignore lives ONLY on a line of its own: a `#` at the tail
-# of a pattern is part of the pattern to git, not an explanation. Checked here:
-# the line `raw/  # 9.7 GB` stops hiding raw/ altogether, and silently.
-
-# secrets, before anything else
+# secrets
 .env
 *.env
 !.env.example
 
-# environments
+# environments and caches
+.venv/
 venv/
 tools/venv/
-.venv/
 __pycache__/
 *.py[cod]
-.uv/
-
-# There is no pytest in .venv and the runner is our own (tests/run.py), but
-# the checks are written so pytest would pick them up unchanged -- install it
-# and the cache appears.
 .pytest_cache/
-
-# Originals: 9.7 GB of scans, 9.4 of them the AnnoPage set from Zenodo
-# (DOI 10.5281/zenodo.12788419, CC BY 4.0), re-downloadable by that DOI.
-raw/
-
-# 209 MB: the two built books and the paid reading they were made from. The
-# reading is not reproducible without another rental; see docs/limits.md.
-processed/
-
-# The rent journal: 119 records, $5.527, carrying instance_id and machine_id
-# of live vast.ai machines. They have no business going out, and nothing can
-# restore them -- keep a copy outside the repository.
-runs/
-
-# working files
-*.log
-out.tgz
-.DS_Store
+.ruff_cache/
 *.egg-info/
 build/
 dist/
+*.log
+.DS_Store
+out.tgz
 
-# ─── benches ──────────────────────────────────────────────────────────────
-# One rule: what goes into git is what cannot be rebuilt for free -- truth, the
-# input snapshot, and output paid for on a rented card. Anything the local CPU
-# produces from one command does not.
+# originals (re-downloadable), built books (paid reads), the rent journal
+raw/
+processed/
+runs/
 
-# The bench books themselves: 472 MB annopage, 168 annopage-lite, 100 hard,
-# 23 hard36. ONLY TWO OF THE FOUR REBUILD: `books annopage` makes annopage,
-# `books subset` makes hard. This once said all four do, which was untrue and
-# would have lulled anyone who went looking for the builder.
-# `annopage-lite` (squeezed to 1 Mpx) and `hard36` (the 36 hardest pages, long
-# side 1800 px, JPEG 92) were built by EXTERNAL scripts that are in neither the
-# tree nor the git history -- searched by walking all 4053 objects of the
-# repository, not only the reachable ones. The hard36 selection rule is
-# recoverable from the truth alone (stable sort of `bench/hard` by pair count,
-# take 36; the set converges exactly), but it has an undeclared tie: 21 pages
-# have exactly three pairs, 5 were taken, by enumeration order only. So those
-# two pdfs exist on one disk and nothing is left to check their manifest
-# sha256 against. The pdf sha256 is recorded in manifest.json beside them.
+# the detector's own stdout beside a result
+results/logs/
+
+# benches: what the CPU rebuilds for free is not tracked; truth, manifests,
+# snapshots and paid output are
 bench/*/*.pdf
-
-# Except the three real scans (9.4 MB): they have no source anywhere -- they
-# are the source.
 !bench/real-*/*.pdf
-
-# Sheets with boxes drawn on, for the eye: 2.8 GB for annopage, 162 MB for
-# hard36. `books overlay` draws them in minutes and they are looked at once.
-# ONE NAME NOW: `look/<model>.pdf`. It was `check.pdf` on six benches and
-# `check/<model>.pdf` on two -- one thing under two names, and the single
-# file did not say which model drew it.
 bench/*/look/
-
-# Detector output: 25 MB for annopage per model. `books detect` computes it on
-# the CPU for free. The input snapshot is a separate file, run.json (16 KB),
-# and it STAYS in git: without it there is no telling which knobs produced the
-# numbers.
-#
-# ONE LEVEL DEEPER SINCE THE RUN LABELS: `detect/<model>/pages/`. The old
-# pattern named `detect/pages/` and stopped matching the moment the runs moved
-# -- caught by the migration script itself, which staged 600 annopage pages
-# that had been ignored a second earlier. Both are kept: a bare `detect/pages`
-# is what a `--out` run beside a loose PDF still makes.
 bench/*/detect/pages/
 bench/*/detect/*/pages/
+!bench/*/detect/dots-ocr/pages/
 bench/*/read/*/pages/
 bench/*/read/*/answers/
 bench/*/read/*/crops/
-
-# AND THE ONE RUN THAT MUST NOT BE, RE-INCLUDED BY NAME. The line above went
-# one level deeper with the run labels and swallowed the dots-ocr pages with
-# everything else: 636 TRACKED files -- 600 under `annopage-lite`, 36 under
-# `hard36` -- became "tracked and ignored", which `git ls-files -i -c` prints
-# and `git status` never will. They are half of the 1272 pages of the $0.892
-# rented-card run, the other half sitting one level lower under `job/` and
-# matched by nothing, so the one thing here that cannot be regenerated was
-# split down the middle by a pattern meant for free CPU output. Tracked files
-# stay tracked, so nothing was lost -- but delete-and-regenerate, or any fresh
-# `git add`, would have dropped them silently, and the clone after that would
-# be missing paid data with no message anywhere.
-#
-# THE RE-INCLUSION IS THE DIRECTORY, NOT THE FILES IN IT. git cannot re-include
-# a path whose parent directory is excluded -- it never descends to look -- so
-# `!.../pages/*.json` under an excluded `pages/` would do nothing at all.
-!bench/*/detect/dots-ocr/pages/
-
-# WHAT `books html` WRITES IS NO LONGER NAMED HERE. `bench/*/html/` stood for
-# the 12 MB-per-book level-one product, and `booksmith.tree.layout` now
-# declares `html/` under a book a STRAY. Two instruments answering opposite
-# ways about the same directory -- git "expected, untracked", the layout check
-# "should not be here" -- is worse than either answer alone, and the ignore was
-# the one that had already lost: the 1369 files it hid were deleted for being
-# five weeks stale, and nothing hid them from the reader.
-
-# What would go to the VLM: `books crop` writes one picture per asked block,
-# into `<detect dir>.crop/` by default. 12 MB over slovar's 13 pages is 1.4 GB
-# over annopage's 600. For the six synthetic books the directory is already
-# closed by the rule below; for annopage, annopage-lite, hard and hard36 it
-# was closed by nothing at all (`git check-ignore` returned 1) -- first for
-# `books feed`, whose two paths stood here after the command was deleted while
-# the new one was hidden nowhere.
-#
-# AND THE DEPTH MOVED WITH THE RUN LABELS AND THIS DID NOT. `books crop` writes
-# beside the RUN DIRECTORY (`cli.py`: `abspath(d) + ".crop"`), which is
-# `bench/<book>/detect/<label>.crop/` since the labels landed -- one level
-# below what `bench/*/*.crop/` can see. Checked with `git check-ignore`: NOT
-# IGNORED. So the first `books crop` on annopage would have put ~1.4 GB into
-# `git status`, and `layout.py` would not have called it a stray either,
-# because `<label>.crop` reads to it as a model name. The old form is kept for
-# a `--out` run beside a loose PDF, which still writes at book-root depth.
 bench/*/*.crop/
 bench/*/detect/*.crop/
-bench/*/crops/
-
-# THE SAME HOLE, THE SAME LINE OF `cli.py`: `books read` writes `<run
-# dir>.read`, so `bench/<book>/detect/<label>.read/`. The three `read/*/`
-# patterns above name `bench/<book>/read/<model>/` -- the shape CLAUDE.md
-# calls PLANNED and NO COMMAND WRITES. Both are kept: one for what is written
-# today, three for what the map says will be.
 bench/*/detect/*.read/
-
-# The last page of a run as a picture, 1.7 MB -- a debugging trace, not data.
+bench/*/crops/
 bench/*/detect/dots-ocr/job/_page.png
-
-# An exception to `*.log` above: 72 KB in two files, the only trace of a run
-# that was paid for ($0.892 for 600 pages on an RTX 4090; all sixteen rentals
-# of that job cost $1.370). Their last lines hold quantities docs/ cites: 8925
-# boxes, 23 unparsed, 14.22 s/page. Getting those numbers again costs money.
 !bench/*/detect/dots-ocr/job/job.log
 
-# Six synthetic books, from 34 MB (slovar) to 158 (spravochnik). They rebuild
-# byte for byte -- the seed, the aging profile and the generator sha256 are in
-# manifest.json. The directory is closed by its CONTENTS (`/*`, not `/`): a
-# directory closed whole cannot be reopened from inside by any `!`.
+# the six synthetic books rebuild byte for byte from their manifest
 bench/spravochnik/*
 bench/slovar/*
 bench/matematika/*
 bench/atlas/*
 bench/katalog/*
 bench/zhurnal/*
-
-# The manifest is all that is left of a synthetic book: by it one can see that
-# a rebuild after an edit to synth.py produced a DIFFERENT book.
 !bench/*/manifest.json
 
-# WHAT A BENCH BUILDER WRITES ASIDE. `truth.new` and `truth.previous` are the
-# two halves of the write-aside dance, and `bench/hard` and `bench/annopage`
-# are tracked and closed by nothing -- so an interrupted build put a partial
-# SECOND COPY of the bench truth into the working tree, with nothing to say
-# which of the two directories is the bench. The builders sweep them now; this
-# is the second line of defence, because a kill -9 sweeps nothing.
+# a bench builder's write-aside
 bench/*/truth.new/
 bench/*/truth.previous/
 bench/*/*.pdf.new
 bench/*/manifest.json.new
-
-# WHAT `books bench all` WRITES: one JSON of records per bench and run, and
-# THEY ARE TRACKED. The rule here used to be the opposite -- "the runs it
-# measures are themselves untracked, so a result says nothing a fresh clone
-# can check" -- and it reversed the moment `METRICS.md` was rendered from
-# them and the prose that held those numbers was deleted. The evidence for a
-# published number has to travel with it: untracked, the only proof of every
-# figure in the document would live on one machine, and the check that the
-# document is current would skip on every clone.
-#
-# ~100 KB each, 54 of them, against 22 MB of bench already tracked. What
-# stays out is `logs/`: the detector's own stdout, reproducible by re-running
-# and large.
-results/logs/

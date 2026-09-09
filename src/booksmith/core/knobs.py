@@ -350,7 +350,7 @@ KNOBS = (
     # in preview instead, and reads none of the three. What they were measured
     # to know -- the whole-masked-page hypothesis, why white is the least
     # neutral fill, the token ceiling -- is kept verbatim in
-    # `docs/lessons-from-deleted-code.md`, because step 4 meets the same
+    # the commit log, because step 4 meets the same
     # questions. A knob nothing reads is not a hypothesis, it is a debt.
 
     # --- book, rental and ledger: not about parsing, about repeatability ---

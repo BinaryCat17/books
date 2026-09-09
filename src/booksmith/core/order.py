@@ -221,7 +221,7 @@ def permutation(labels, boxes, width, height, index, vocab,
     `boxes` are in page pixels, origin at the TOP LEFT as everywhere here; the
     docling rules count from the BOTTOM (`self.b > other.b`), converted here.
     Fed as they come, the book would be read bottom up and no box metric would
-    notice -- the trap named in section 19 of `docs/contour-notes.md`.
+    notice -- the trap named in `METRICS.md`.
     """
     which = which or rule()
     n = len(boxes)

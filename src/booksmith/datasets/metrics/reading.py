@@ -3,7 +3,7 @@
 `text.py` compares an answer against known characters and is the honest
 measurement of reading quality -- and it has never produced a number, because
 truth for a real scan does not exist and drawn pages are 144 dpi typeset
-imitations (`docs/limits.md` says so in three reasons). So every defect of
+imitations (the commit log says so in three reasons). So every defect of
 level two has been unmeasured, on a book that cost money to read.
 
 This file measures the ones that need no truth at all, because they are

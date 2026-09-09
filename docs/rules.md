@@ -1,0 +1,74 @@
+# The rules, and where each is enforced
+
+Each rule is one sentence, one reason, and the symbols that enforce it,
+written `path:symbol`. `tests/test_docs.py` checks that every symbol named
+here exists in the file named.
+
+**Nobody repairs the model.** No merging of boxes, no cutting across the
+gutter, no re-asking, no thresholds tuned by us. A patch does not improve the
+book; it hides the defect from the measurement.
+`src/booksmith/processing/read/transports/openai_http.py:Http.send` never
+repeats a request that got an answer.
+`src/booksmith/processing/read/driver.py:_sniff` observes what kind an
+answer looks like and decides nothing.
+`src/booksmith/core/raster.py:cut` refuses a negative margin rather than
+shrinking a box.
+`src/booksmith/processing/layout/adapters/docling.py:DoclingHeron` runs the
+vendor's own post-processing unedited, and only when the knob says so.
+
+**What was recognised is untouchable.** Everything observed lives beside the
+block and is tied to it by anchor; nothing is appended to the model's text.
+`src/booksmith/processing/read/__init__.py:Said` holds the model's bytes;
+error and finish are separate fields.
+`src/booksmith/processing/assemble/apply.py:put_into` marks the wrapper, not
+the content.
+`src/booksmith/datasets/make/subset.py:_carry_meta` refuses to overwrite a
+truth field.
+
+**A metric must be able to fail.** Feed it deliberately broken input and
+watch the number fall before believing it.
+`src/booksmith/datasets/metrics/base.py:Metric.battery` is the contract;
+every registered metric implements it, and
+`src/booksmith/datasets/metrics/mutate.py` holds the shared spoilers.
+
+**Log the quantity, not the word done.** Unfinished work is found by
+comparing a count with what was expected.
+`src/booksmith/processing/read/driver.py:report` prints the tally always.
+`src/booksmith/processing/layout/detect.py:run` prints boxes per page.
+
+**Zero from a check and zero from not understanding are different zeros.**
+A counter that can mean both must say which.
+`src/booksmith/core/page.py:load_pages` raises `Unmeasurable` on a directory
+with no pages rather than returning an empty result.
+`src/booksmith/datasets/metrics/base.py:Scalar` cannot be built null without
+a reason.
+`src/booksmith/core/errors.py:Unmeasurable` exits with a different code from
+`src/booksmith/core/errors.py:Refusal`.
+
+**A knob is declared in the registry.** A knob read past the registry does
+not reach the snapshot, and the run becomes silently unrepeatable.
+`src/booksmith/core/knobs.py:knob` raises on an undeclared name.
+`src/booksmith/core/knobs.py:snapshot_with_readers` writes every knob the
+run read into `run.json`.
+`src/booksmith/core/stamp.py:identity` hashes exactly those values.
+
+**Numbers may be flagged, never restored.** Words and structure may be
+repaired; a damaged cell is marked less often than an ordinary one, and a
+shifted row is invisible by construction.
+Stated in `src/booksmith/datasets/metrics/reading.py`; the first enforcement
+arrives with corrections as derived runs.
+
+**One run per label, and a different identity refuses.** Two experiments
+under one directory read as one run resumed.
+`src/booksmith/core/book.py:guard_identity` refuses a different identity, an
+absent one, and a partial run over a whole one.
+`src/booksmith/core/book.py:safe_label` refuses a label that is not a
+directory name rather than sanitising it.
+
+**Imports go one way.** The layer table in `docs/architecture.md`.
+`src/booksmith/tree/imports.py:MAY_IMPORT` declares it and
+`tests/test_imports.py` walks every import against it.
+
+**The same book, by hash.** A measurement names the scan it was taken on.
+`src/booksmith/datasets/bench.py:same_book` compares the manifest's hash
+with the run's, and says aloud when it could not check.

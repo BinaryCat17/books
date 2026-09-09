@@ -386,7 +386,7 @@ def test_every_book_directory_is_in_the_declared_shape():
 
     `bench/` had drifted into four kinds of thing under one name: books, the
     acceptance snapshots, the measurements, and three loose pdfs. Beside them
-    1369 files from a build three weeks old that `docs/plan.md` had already
+    1369 files from a build three weeks old that the commit log had already
     condemned in writing, one overlay under two names, and one detect run
     split across two sibling directories no command knew about. Nothing was
     caught, because nothing said what a book directory IS.

@@ -193,9 +193,6 @@ HTML_CORE = ("data-role", "data-label", "data-sheet", "data-level")
 # mutation battery reloads a check module before running it, so a patch applied
 # to the check itself is thrown away, and the mutation certifies nothing. It
 # reaches modules under `booksmith` instead.
-DOC_MAP = os.path.join(ROOT, "CLAUDE.md")
-
-
 def measure(root=ROOT):
     """format -> {key: occurrences} over the tracked files, right now."""
     out = {}

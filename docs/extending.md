@@ -1,0 +1,74 @@
+# Extending
+
+One checklist per kind of thing. Each ends with the command that proves it.
+
+## A layout detector
+
+1. A module under `src/booksmith/processing/layout/adapters/` with a class
+   that subclasses `Detector` from `src/booksmith/processing/layout/base.py`
+   and implements its abstract members: `label` (the model's own name, a
+   directory name), `fingerprint`, `knobs_read`, `read`, `threshold_drift`.
+2. Its label vocabulary, whole, as a policy in `src/booksmith/core/policy.py`:
+   every label to one of `text`, `artifact`, `furniture`. `policy.check`
+   refuses a vocabulary that is not covered exactly.
+3. Its name in `ADAPTERS` and in `_adapter` of
+   `src/booksmith/processing/layout/detect.py`.
+4. Every knob it reads, declared in `src/booksmith/core/knobs.py` and named
+   by `knobs_read`.
+5. Page `meta["reading_order"]` says whose order the blocks carry.
+6. Prove it: `books doctor`, then `books detect bench/slovar` and
+   `books bench all bench/slovar --run <label>`.
+
+## A reader
+
+1. A module under `src/booksmith/processing/read/readers/` implementing
+   `Reader` from `src/booksmith/processing/read/__init__.py`: `label`,
+   `fingerprint`, `knobs_read`, `routes` (label to prompt and kind),
+   `pixels`, `cover`.
+2. Its name in `READERS` and `build_reader` of
+   `src/booksmith/processing/read/driver.py`.
+3. If it runs on a rented card: a job under
+   `src/booksmith/processing/read/rented/<name>/` with `spec`, `run.sh`,
+   `provision.sh` and a pinned `constraints.txt`.
+4. Prove it: `books crop` on a detect run, then `books read` against
+   `tests/fake_vlm.py` through the test suite before any money moves.
+
+## A transport
+
+1. A module under `src/booksmith/processing/read/transports/` implementing
+   `Transport`: `fingerprint`, `knobs_read`, `check`, `send`.
+2. `send` returns a `Said` always; a delivery failure is a value in
+   `Said.error`, not an exception. An answer with status 200 is never
+   repeated.
+3. Prove it: the read tests against the fake server.
+
+## A metric
+
+1. A module under `src/booksmith/datasets/metrics/` with a class that
+   subclasses `Metric` from `src/booksmith/datasets/metrics/base.py`: `name`,
+   `needs` (a subset of `truth`, `pages`, `pdf`, `content`, `read`), `run` or
+   `run_loaded`, returning a `Record` of `Scalar`s.
+2. A null scalar carries a reason; a share carries its count; a coverage
+   carries its unit.
+3. A battery: probes that spoil the input and demand the number fall, using
+   the spoilers in `src/booksmith/datasets/metrics/mutate.py`.
+4. An instance in `METRICS` of `src/booksmith/datasets/metrics/__init__.py`,
+   and each scalar's direction declared for the report in
+   `src/booksmith/datasets/report.py`.
+5. Prove it: `books bench all bench/slovar`, then `books bench report`, then
+   `pytest`.
+
+## A bench
+
+1. A directory under `bench/` with `manifest.json` carrying `book` and
+   `source: {name, sha256}`, and the scan beside it.
+2. `truth/NNNN.json`, one per page, in the page format of
+   `src/booksmith/core/page.py`, with `width` and `height` in the raster the
+   runs will be compared to.
+3. Per page, `meta.text_marked` and `meta.order_marked` set honestly; a
+   missing flag reads as "not said". Table truth under
+   `meta.artifact_truth[block_id]` as rows, cols and cells. Objects the
+   vocabulary cannot express under `meta.out_of_scope`.
+4. A builder writes to `truth.new/` and renames, so an interrupted build
+   leaves no half-bench.
+5. Prove it: `books detect bench/<name>` and `books bench all bench/<name>`.

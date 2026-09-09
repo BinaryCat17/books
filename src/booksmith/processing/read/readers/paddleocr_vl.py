@@ -29,7 +29,7 @@ fells the run on an unknown label BEFORE the first cent.
 
 WHAT WE DO NOT ASK, AND THAT IS A MEASUREMENT, NOT CAUTION. `image`,
 `header_image`, `footer_image` -- reading text inside figures was TRIED AND
-REJECTED (`docs/ocr-notes.md`): the callouts `A` and `B` unread, a digit `1`
+REJECTED (the commit log): the callouts `A` and `B` unread, a digit `1`
 in their place; on two pages the schoolbook pangram `The quick brown fox…`,
 invented whole from a line drawing; on a third a loop `1.` `2.` … `100.`;
 +2100 words of rubbish over twenty
@@ -47,6 +47,16 @@ is a named counter: the first run says by number whether `text` should become
 `otsl`. Changing it by guess, without asking the bench, is repairing the
 model, and there is none of that here.
 """
+
+# THREE MECHANISMS INSIDE THE VENDOR PIPELINE PUT OUT A TABLE BOX on a fragment
+# of a page, and none may be patched at our end (the first rule):
+#   1. cross-class suppression: a box of another class at very high overlap
+#      removes the table box (`object_detection/processors.py`, iou_diff);
+#   2. nesting: a box almost wholly inside a heading, formula or title box is
+#      deleted (`layout_analysis/processors.py`, layout_merge_bboxes_mode
+#      "large"), and on a fragment the heading takes a large share of the area;
+#   3. overlap filtering: above the overlap ceiling the larger box wins, and
+#      {table, text} has no guard (`paddleocr_vl/uilts.py`, filter_overlap_boxes).
 import hashlib
 import os
 

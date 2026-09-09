@@ -14,13 +14,13 @@ because "the model said nothing", "delivery did not arrive" and "cut off at the
 answer ceiling" want three different repairs. The third is the expensive one --
 the vendor's `otsl_pad_to_sqr_v2` silently truncates rows longer than the
 "optimal width", so a table torn at the ceiling comes back PLAUSIBLE and short
-rather than broken (`docs/ocr-notes.md`), and `finish` alone tells it apart.
+rather than broken (the commit log), and `finish` alone tells it apart.
 
 THE PROMPT DECLARES THE CONTENT KIND, NOT THE ANSWER. Asked "Table
 Recognition:" means `otsl`, whatever the model replies. Sniffing the kind out
 of the answer would repair the model: a table labelled `display_formula` at
 0.95 by level one and honestly returned as an array of LaTeX
-(`docs/ocr-notes.md`, p. 40) would be recorded as latex, and a LABEL error on a
+(the commit log) would be recorded as latex, and a LABEL error on a
 correct box would dissolve into "that is how the model reads". The guess lives
 BESIDE, in `Said.meta`, as a named counter rather than a silent fix.
 

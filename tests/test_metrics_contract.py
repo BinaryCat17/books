@@ -268,7 +268,7 @@ def test_the_five_artefact_outcomes_account_for_every_object():
 
     `sense_whole` was the only one of the five that reached a scalar; the
     other four lived in `detail`, where a TABLE cannot read them. Three
-    sections of `docs/contour-notes.md` are about MERGING and its headline is
+    sections of `METRICS.md` are about MERGING and its headline is
     "merging is 71% of ALL misses", so the generated document meant to replace
     that prose could not have stated the project's central level-one finding.
 

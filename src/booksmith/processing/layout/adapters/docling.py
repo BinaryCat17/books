@@ -72,7 +72,7 @@ it is not free -- 474 extra column jumps under `post` against 453 for the very
 same boxes resorted by our key. So `post` makes the order WORSE; only `full`
 repairs it, 0.79 jumps per page. BOTH THOSE NUMBERS WERE TAKEN ON THE KEY
 `(round(y/20), x)`, WHICH AT `off` NO LONGER EXISTS: the assembly rule moved
-to `booksmith/order.py` (section 20 of `docs/contour-notes.md`), where at `off`
+to `booksmith/order.py` (`METRICS.md`), where at `off`
 the declared `(y0, x0)` or the docling rules act by `ASSEMBLY_ORDER`; the
 bucket key survives for one job only, the numbering before the vendor pipeline
 (`_our_order`). The `post` number 474 is not moved by that -- the vendor sorts

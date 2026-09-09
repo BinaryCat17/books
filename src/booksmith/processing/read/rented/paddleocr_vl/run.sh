@@ -165,6 +165,9 @@ if python -c "import vllm" 2>/dev/null; then
   # setsid gives vLLM a process group of its own.  Without it the group is
   # shared with the script, and killing the group would have killed the script
   # itself -- exactly the trouble with exit code 144.
+  # --gpu-memory-utilization below vLLM's default of 0.90: at the default the
+  # card had no room beside the model, and an ONNX session on the same card died
+  # of a failed allocation.
   setsid nohup vllm serve "$SERVE_MODEL" --trust-remote-code \
         --served-model-name "$MODEL" \
         --host 127.0.0.1 --port "$PORT" \

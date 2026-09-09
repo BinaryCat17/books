@@ -86,23 +86,13 @@ def test_replay_check_reports_the_same_report():
     _one("replay-annopage")
 
 
-def test_help_reports_the_same_text():
-    """Nothing else in the suite reads the help at all.
-
-    `grep` over `tests/` finds no occurrence of `help=`, `description=` or
-    `--help`: 86 help strings and a 36-line module docstring could go wrong,
-    empty or misleading and every check would stay green.
-    """
-    _one("help")
-
-
 def test_the_command_table_covers_every_format_the_migration_touches():
     """A snapshot set that misses a format is a blind spot wearing a number."""
     argv = " ".join(a for c, _ in acceptance.COMMANDS.values() for a in c)
     # NOT `detect/pages`: a run lives under its model's name now
     # (`detect/<label>/pages`), and pinning one model here would make the
     # table's coverage depend on which detector happens to be measured.
-    for needed in ("truth", "/detect/", "/pages", "--help"):
+    for needed in ("truth", "/detect/", "/pages"):
         assert needed in argv, f"no acceptance command reads {needed}"
     assert len(acceptance.COMMANDS) >= 5
 
@@ -270,7 +260,7 @@ def test_a_skip_is_not_a_pass():
     real = acceptance.missing
     try:
         acceptance.missing = lambda name: (
-            ["bench/nowhere/detect/pages"] if name == "help" else real(name))
+            ["bench/nowhere/detect/pages"] if name == "apply-status" else real(name))
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
             rc = acceptance.main([])

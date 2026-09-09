@@ -391,7 +391,7 @@ class DocLayout(Detector):
             # down and left to right" about half -- a coin. The exact figure is
             # NOT REPEATED HERE on purpose: it lived in four copies and drifted
             # (50.4 against 50.1); it is stated once, in section 18 of
-            # `docs/contour-notes.md`. `meta` said "ours, position in the list"
+            # `METRICS.md`. `meta` said "ours, position in the list"
             # -- honest, but a list position is an accident, not a rule, and
             # the book was assembled by it.
             #

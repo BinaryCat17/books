@@ -378,7 +378,7 @@ def _build(out_dir, cases, seed, aging, book, log) -> dict:
     # the byte, 51 bytes of difference, all 51 in `/ID`. The truth reproduced
     # exactly, file by file.
     #
-    # What those 51 bytes cost. `bench/README.md` promises the benches rebuild
+    # What those 51 bytes cost. `docs/architecture.md` promises the benches rebuild
     # byte-identical from one command, and on that rests their not being
     # versioned (472 MB for annopage). `books html` compares the book's sha256
     # with the detection snapshot and refuses to build on a mismatch -- so
