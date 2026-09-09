@@ -259,9 +259,19 @@ def _junk_columns(ink):
     THE RULE IS POSITIONAL, NEVER "THIS COLUMN IS DARK", and that is the
     whole difference between a measurement and a laundered win. On
     `bench/annopage` 1399 of 2320 solid dark columns stand MID-SHEET and are
-    dark plates and photographs -- real content. A darkness rule discards
-    57 % of that bench's ink and eats half its annotated object ink; this one
-    discards 4.8 % and eats 0.043 %.
+    dark plates and photographs -- real content. Both rules over all 600
+    golden pages, one pass, the code as it stands:
+
+        positional (this one)  discards  3.620 %  eats 0.1183 % of the
+                                                  annotated object ink
+        naive "dark column"    discards 46.254 %  eats 49.039 %
+
+    ONE FIGURE, MEASURED ONCE. An earlier edition of this paragraph carried
+    "4.8 % and 0.043 %" and the commit that shipped it carried "1.65 % and
+    0.000 %" from a 120-page sample -- three numbers for one quantity, none
+    of them checkable, because none of the new scalars is in any tracked
+    result and so none reaches METRICS.md. Both were also measured before
+    the veto was narrowed to the band, which raised the discard.
 
     Three tests, and a run must pass all three:
 
@@ -314,11 +324,24 @@ def _junk_columns(ink):
         if span <= 0:
             continue
         full = body[:, a:b].all(axis=1)
-        if full.any() and span <= w:
+        # THE RUN MUST CROSS THIS BAND, not merely exist on the page. Asked
+        # of the whole row, the veto was a PAGE-LEVEL switch: one table rule
+        # anywhere on a sheet spared every band on it. Measured over the 378
+        # pages of the book the mask is for, 28 of the 29 vetoed bands -- 97
+        # per cent -- were spared by a run that never touched them, keeping
+        # 0.652 % of the book's ink, a fifteenth of everything the mask
+        # discards. `djvu` asks the narrow question (`_run_len` through the
+        # candidate column) and this asked the wide one.
+        #
+        # A window starting at `i` covers `[i, i+span)` and meets `[a, b)`
+        # when `i < b` and `i + span > a`.
+        lo, hi = max(0, a - span + 1), min(b - 1, w - span)
+        if full.any() and span <= w and lo <= hi:
             rows = body[full].astype(np.int32)
             cum = np.cumsum(np.hstack(
                 [np.zeros((rows.shape[0], 1), np.int32), rows]), axis=1)
-            if ((cum[:, span:] - cum[:, :-span]) == span).any():
+            win = cum[:, lo + span:hi + span + 1] - cum[:, lo:hi + 1]
+            if (win == span).any():
                 continue          # a rule crosses it: content, not junk
         junk[a:b] = True
     return junk
@@ -435,14 +458,14 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
         # is therefore exhaustive against `ink_total` and never sums past it.
         pic = _mask(ink.shape, [b["box"] for b in p["blocks"]
                                 if policy.role(b["label"]) == "artifact"
-                                or not b.get("content")])
+                                or not (b.get("content") or "").strip()])
         txt = _mask(ink.shape, [b["box"] for b in p["blocks"]
                                 if policy.role(b["label"]) != "artifact"
-                                and b.get("content")]) & ~pic
+                                and (b.get("content") or "").strip()]) & ~pic
         res["ink_as_picture"] += int((ink & pic).sum())
         res["ink_as_text"] += int((ink & txt).sum())
-        res["blocks_with_content"] += sum(1 for b in p["blocks"]
-                                          if b.get("content"))
+        res["blocks_with_content"] += sum(
+            1 for b in p["blocks"] if (b.get("content") or "").strip())
         # Who arrived in which box: key is the artefact box, value is how many
         # truth objects it carries whole. Hence "arrived with company", the one
         # number of this instrument that GROWS with merging.

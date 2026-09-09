@@ -980,7 +980,14 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
                 shape_a.append(a)
             outer = nested_in.get(b.block_id)
             outer_a = anchor_of(page.index, outer) if outer is not None else None
-            if role == "artifact" or not b.content:
+            # `.strip()`, AND THE SAME FILE ALREADY STRIPS ONE LINE UP.
+            # `"   "` is truthy, so a whitespace answer took the paragraph
+            # branch: the block went into the book as an empty `<p></p>`, no
+            # crop was cut, and its ink left the book entirely while every
+            # counter recorded it as text that arrived. `from_text` above
+            # asks `(b.content or "").strip()`; the two disagreed about what
+            # counts as an answer, in one function, forty lines apart.
+            if role == "artifact" or not (b.content or "").strip():
                 rel = f"{ASSETS}/blocks/{a}.png"
                 info = crop.cut(doc, page.index, b.box, page_dpi,
                                 os.path.join(out_dir, rel))

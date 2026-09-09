@@ -4226,6 +4226,99 @@ def mutations():
              "        if False:"),
          [("test_bench", "test_a_book_without_a_manifest_is_not_a_book")]),
 
+        # ---------------------------------------------- the junk mask ---
+        # NOT ONE MUTATION TOUCHED `ink.py` when the mask shipped, and the
+        # battery's own junk probes could not stand in for them: five of the
+        # six are gated on `dark_columns` or `ink_junk`, the quantities the
+        # mask produces, so breaking it makes them fall SILENT rather than
+        # fail. The whole feature could be deleted with the suite green.
+        ("the junk mask is computed and then not applied",
+         lambda: one_line(
+             "booksmith.processing.assess.ink",
+             "        clean[:, junk] = False",
+             "        pass"),
+         [("test_fitness", "test_the_junk_mask_is_actually_applied_to_the_numbers"),
+          ("test_fitness", "test_a_box_laid_on_the_binding_earns_nothing")]),
+
+        # The rule the mask exists to REJECT: dark anywhere is junk. On the
+        # golden bench it discards 46.254 % of the ink and eats 49.039 % of
+        # the annotated object ink -- half the bench's plates.
+        ("junk is decided by darkness and not by position",
+         lambda: one_line(
+             "booksmith.processing.assess.ink",
+             "        if not (c < MID or c > 1 - MID\n"
+             "                or (spread and abs(c - 0.5) <= GUTTER_BAND / 2)):\n"
+             "            continue",
+             "        if False:\n"
+             "            continue"),
+         [("test_fitness",
+           "test_a_binding_shadow_is_junk_and_a_mid_sheet_plate_is_not")]),
+
+        ("a band of any width passes for a binding shadow",
+         lambda: one_line(
+             "booksmith.processing.assess.ink",
+             "        if (b - a) / w > JUNK_WIDTH:\n"
+             "            continue",
+             "        if False:\n"
+             "            continue"),
+         [("test_fitness", "test_a_band_too_wide_to_be_a_shadow_is_kept")]),
+
+        # The veto asked of the WHOLE ROW was a page-level switch: one table
+        # rule anywhere spared every band on the sheet, 28 of 29 in practice.
+        ("the crossing veto is asked of the page and not of the band",
+         lambda: one_line(
+             "booksmith.processing.assess.ink",
+             "        lo, hi = max(0, a - span + 1), min(b - 1, w - span)",
+             "        lo, hi = 0, w - span"),
+         [("test_fitness", "test_a_rule_crossing_the_band_keeps_it")]),
+
+        # `"   "` IS TRUTHY. The builder and the metric shared the predicate
+        # and shared the bug: a whitespace answer took the paragraph branch,
+        # `<p></p>` went into the book, no crop was cut, and the block's ink
+        # left the book while `ink_as_text` -- ranked "better higher" --
+        # counted it as arrived, bit-identical to real recognised text.
+        # BOTH PREDICATES AT ONCE, because they must AGREE. Reverting only
+        # `txt` leaves the block in both lists and the tie-break `& ~pic`
+        # removes it; reverting only `pic` leaves it in NEITHER. Either way
+        # the ink stays out of the text share and the check reads green over
+        # a real regression -- the mutation has to restore the state the
+        # code was actually in, which is the two predicates agreeing on the
+        # truthiness of `"   "`.
+        ("a whitespace answer counts as text that arrived",
+         lambda: one_line(
+             "booksmith.processing.assess.ink",
+             '                                or not (b.get("content") or "").strip()])\n'
+             '        txt = _mask(ink.shape, [b["box"] for b in p["blocks"]\n'
+             '                                if policy.role(b["label"]) != "artifact"\n'
+             '                                and (b.get("content") or "").strip()]) & ~pic',
+             '                                or not b.get("content")])\n'
+             '        txt = _mask(ink.shape, [b["box"] for b in p["blocks"]\n'
+             '                                if policy.role(b["label"]) != "artifact"\n'
+             '                                and b.get("content")]) & ~pic'),
+         [("test_fitness", "test_a_whitespace_answer_is_not_text_that_arrived")]),
+
+        # The tie-break that makes the split a partition. Boxes overlap for
+        # real, and without it text and picture double-count the shared
+        # pixel and sum past the ink they divide.
+        ("the destination split counts a shared pixel twice",
+         lambda: one_line(
+             "booksmith.processing.assess.ink",
+             '                                and (b.get("content") or "").strip()]) & ~pic',
+             '                                and (b.get("content") or "").strip()])'),
+         [("test_fitness",
+           "test_the_destination_split_is_exhaustive_and_counts_a_pixel_once")]),
+
+        # THE DIRECTION CHECK ASKS "IN EXACTLY ONE LIST", NEVER WHICH ONE.
+        # So the headline fix of `e0eaca0` could be undone -- publishing the
+        # guard as a thing to maximise again -- with the whole suite green.
+        ("a guard is published as a thing to maximise again",
+         lambda: attrs(
+             reportmod,
+             NEITHER=tuple(n for n in reportmod.NEITHER if n != "area_under_boxes"),
+             HIGHER_IS_BETTER=reportmod.HIGHER_IS_BETTER + ("area_under_boxes",)),
+         [("test_metrics_contract",
+           "test_the_arrows_that_were_wrong_once_are_pinned_by_name")]),
+
         # `Bench.pdf`'s lazy branch is an UNVERIFIED TWIN of `_scan_of`: it
         # looks beside the book and hashes nothing. Reachable from a
         # truthless book, it stands behind the checked lookup and wins by

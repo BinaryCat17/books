@@ -353,3 +353,33 @@ def test_every_scalar_that_reaches_the_document_declares_its_direction():
                                 ("HIGHER_IS_BETTER", report.HIGHER_IS_BETTER),
                                 ("NEITHER", report.NEITHER)) if n in v]
         assert len(where) == 1, f"`{n}` is declared in {where}"
+
+
+def test_the_arrows_that_were_wrong_once_are_pinned_by_name():
+    """Declared in exactly one list is not the same as declared CORRECTLY.
+
+    The direction check asks only that a name sits in one of the three
+    lists, never WHICH -- so `area_under_boxes` can be moved back under `↑`
+    and nothing reddens, undoing the commit named after it. Three arrows
+    have been wrong in this project and each cost a commit to find; they are
+    named here, with the measurement, because a wrong arrow reads exactly
+    like a right one and no other check can see the difference.
+    """
+    from booksmith.datasets import report
+    for name, want, why in (
+        # One box over the whole sheet takes 100 % of the ink and 100 % of
+        # the objects whole -- so this is the GUARD on those numbers and its
+        # maximum is the degenerate case, not the best one.
+        ("area_under_boxes", "=", "a full-sheet box scores 1.000"),
+        # A composition, not a quality. The truth's own artefact-ink share
+        # is the ceiling and is printed nowhere: under `↑` the column put
+        # plus-L first on slovar at 0.286 against a truth share of 0.034,
+        # and V3 first on zhurnal at 0.180 against 0.069, over a model
+        # sitting on the truth share exactly with better object ink.
+        ("ink_under_artefacts", "=", "8.5x the truth share topped the column"),
+        # Missing MORE artefacts is not better. Published as `↑` by a silent
+        # default, it made yolox's 0.314 not-seen beat V2's 0.067.
+        ("artefacts_not_seen", "↓", "yolox 0.314 beat V2 0.067"),
+    ):
+        got = report._arrow(name)
+        assert got == want, f"`{name}` is `{got}`, want `{want}` -- {why}"

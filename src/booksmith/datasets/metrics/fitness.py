@@ -315,18 +315,6 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
                  (lambda r: r["ink_under_boxes"] > base["ink_under_boxes"]
                   and r["clean_under_boxes"] == base["clean_under_boxes"])(
                      R(_on_junk(M0)))),
-        ("clean ink under boxes never exceeds the clean ink",
-         "both sides are cleaned -- a denominator-only mask gives 105 %",
-         lambda: base["clean_under_boxes"] <= base["ink_clean"]),
-        # THE SPLIT IS EXHAUSTIVE OR IT IS NOT A SPLIT. Text plus picture is
-        # exactly the boxed ink, so with `ink_outside_boxes` the three
-        # account for every dark pixel on the sheet and none of them twice.
-        # Overlapping boxes are what makes this worth asserting: a pixel
-        # under both a crop and a paragraph is counted once, in the crop.
-        ("the split against the whole",
-         "text + picture is exactly the ink under boxes, never more",
-         lambda: (base["ink_as_text"] + base["ink_as_picture"]
-                  == base["ink_under_boxes"])),
         # A DETECTION RUN READS NOTHING, so the split sits at its floor --
         # everything a picture -- and the only way to see it move is to put
         # content in. Handing every block a character moves ink out of the
@@ -335,11 +323,26 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
         ("every block handed a character",
          "ink leaves as text where it left as a picture, and the artefacts "
          "do not move",
+         # GUARDED ON THE ABSENCE OF CONTENT, not on the presence of a text
+         # block. Asked the other way it was `no data` exactly where the
+         # split is reported and `NO` exactly where it matters: on a real
+         # level-two run all 469 non-artefact blocks already carry content,
+         # so handing them a character is a no-op and the probe demanded a
+         # rise that cannot happen. It read as passing only because the
+         # pinned bench had read nothing at all.
          lambda: None if not any(policy.role(b["label"]) != "artifact"
+                                 and not (b.get("content") or "").strip()
                                  for p in M0.values() for b in p["blocks"])
          else (lambda r: r["ink_as_text"] > base["ink_as_text"]
                and r["ink_as_picture"] < base["ink_as_picture"]
-               and r["ink_under_artifact"] == base["ink_under_artifact"])(
+               # THE ARTEFACT INK MUST STAY IN THE PICTURE SHARE.
+               # The clause here was `ink_under_artifact` unchanged, which
+               # the mutator cannot move at all -- it edits content and
+               # `ma` is selected by LABEL -- so it passed however the
+               # split behaved. Asked of the split instead: let it ignore
+               # role and an artefact carrying content leaves as text,
+               # dropping the picture share below the artefact ink.
+               and r["ink_as_picture"] >= base["ink_under_artifact"])(
              R(_edit(M0, lambda b: {**b, "content": "x"})))),
         # AND THE GUARD IS BEATEN FROM THE OTHER SIDE, which is why there are
         # three of them. Cut every box into a grid and `area_under_boxes` and

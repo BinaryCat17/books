@@ -505,7 +505,16 @@ def test_battery_counts_what_it_could_not_measure():
         # without truth now measures 16 against 27 rather than under half.
         # A check that goes red because the instrument got better at the
         # thing it is for is measuring the wrong quantity.
-        assert got2["unmeasurable"] > got["unmeasurable"], (tail, tail2)
+        # TWICE AS MANY, not merely one more. Direction alone is satisfied
+        # by a SINGLE probe going silent, and the regression it must catch
+        # is a dozen truth-gated probes quietly answering "pass" without
+        # truth instead of "no data" -- `uncaught 0` printed over probes
+        # that measured nothing, which is what the docstring above forbids.
+        # Measured: 7 silent with truth, 18 without. The factor is stable
+        # where the old "under half the probes measured" was not, because
+        # growing the truth-FREE half (which is the work) cannot reduce the
+        # number of probes that NEED truth.
+        assert got2["unmeasurable"] >= got["unmeasurable"] * 2, (tail, tail2)
         assert got2["measured"] < got["measured"], (tail, tail2)
 
 
@@ -527,3 +536,189 @@ def test_battery_corrupts_all_three_sides():
         assert "moved off the top-left corner" in said, said
         assert "merged into one" in said, said
         assert "handed out as a text one too" in said, said
+
+
+# --- the junk mask: the three tests, each on a raster built to isolate it ---
+
+def _sheet(w, h, bands=(), rules=()):
+    """A raster with vertical `bands` (x0, x1) and horizontal `rules`.
+
+    Built as an array rather than drawn into a PDF: `_junk_columns` takes the
+    ink mask, so the page is the mask, and a check that goes through pymupdf
+    would be asking about the renderer as well.
+    """
+    import numpy as np
+    im = np.zeros((h, w), bool)
+    for x0, x1 in bands:
+        im[:, x0:x1] = True
+    for y, a, b in rules:
+        im[y:y + 2, a:b] = True
+    return im
+
+
+def test_a_binding_shadow_is_junk_and_a_mid_sheet_plate_is_not():
+    """THE POSITION TEST, WHICH NOTHING GUARDED.
+
+    The rule this commit exists to reject is "a dark column is junk", and it
+    was measured on the golden bench as discarding 50.71 % of the ink and
+    eating 49.815 % of the annotated object ink -- half the bench's plates,
+    because 1399 of its 2320 dark columns stand mid-sheet. Inverting the gate
+    in `_junk_columns` turns the shipped rule into exactly that one, and the
+    whole suite stayed green: `bench/slovar` carries no dark column at all,
+    so six of the ten junk probes read "no data" and the pinned battery
+    output recorded their silence as if it were agreement.
+    """
+    from booksmith.processing.assess import ink
+    w, h = 1000, 1400
+    shadow = ink._junk_columns(_sheet(w, h, bands=[(958, 986)]))
+    assert shadow.any() and shadow[970], "a shadow at the binding is not junk"
+    plate = ink._junk_columns(_sheet(w, h, bands=[(480, 508)]))
+    assert not plate.any(), "a dark column mid-sheet was discarded as junk"
+
+
+def test_a_band_too_wide_to_be_a_shadow_is_kept():
+    """THE WIDTH TEST. A binding shadow is a strip; a dark region taking a
+    fifth of the sheet at the edge is a plate bled to the margin."""
+    from booksmith.processing.assess import ink
+    w, h = 1000, 1400
+    assert not ink._junk_columns(_sheet(w, h, bands=[(800, 999)])).any(), \
+        "a band a fifth of the sheet wide was called a shadow"
+    # ...and one just inside the cap, at the same place, still is one.
+    assert ink._junk_columns(_sheet(w, h, bands=[(910, 999)])).any(), \
+        "a strip within the width cap was not called a shadow"
+
+
+def test_a_rule_crossing_the_band_keeps_it():
+    """THE VETO. A full-height table rule sits where a binding sits and is
+    content, so a black run crossing the band spares it -- and a run that
+    does NOT cross it must not, or one rule anywhere on a page switches the
+    binding correction off for the whole sheet."""
+    from booksmith.processing.assess import ink
+    w, h = 1000, 1400
+    band = [(958, 986)]
+    crossed = _sheet(w, h, bands=band, rules=[(700, 300, 999)])
+    assert not ink._junk_columns(crossed).any(), \
+        "a band with a table rule running through it was discarded"
+    apart = _sheet(w, h, bands=band, rules=[(700, 10, 400)])
+    assert ink._junk_columns(apart).any(), \
+        "a rule that never touches the band vetoed it anyway"
+
+
+def test_a_whitespace_answer_is_not_text_that_arrived():
+    """`"   "` IS TRUTHY, and both the metric and the builder trusted it.
+
+    `ink_as_text` is ranked "better higher", and every block given a single
+    space scored 0.944970 on bench/slovar -- bit-identical to every block
+    given real recognised text. The builder shares the predicate and shares
+    the bug: `html.py` took the paragraph branch, wrote `<p></p>`, cut no
+    crop, and the block's ink left the book while the number said it
+    arrived. One line up in the same file `from_text` already asked
+    `(b.content or "").strip()`; the two disagreed about what an answer is.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        pdf = _book([(20, 20, 120, 120)], tmp)
+        real = _pages([((20, 20, 120, 120), "text")], tmp, "real")
+        blank = _pages([((20, 20, 120, 120), "text")], tmp, "blank")
+        import json
+        for d, val in ((real, "recognised text"), (blank, "   ")):
+            f = os.path.join(d, "0000.json")
+            p = json.load(open(f, encoding="utf-8"))
+            for b in p["blocks"]:
+                b["content"] = val
+            json.dump(p, open(f, "w", encoding="utf-8"))
+        got = fitness.measure(pdf, real)["ink_as_text"]
+        assert got > 0, "real text did not leave as text"
+        assert fitness.measure(pdf, blank)["ink_as_text"] == 0, \
+            "a whitespace answer counted as text that arrived"
+
+
+def _junk_book(out):
+    """A 200x200 sheet with a 7-pt binding strip at the right edge.
+
+    THE INPUT THE JUNK PROBES NEVER HAD. They were written against
+    `bench/slovar`, which is drawn with no binding at all, so six of them
+    read `no data` and four more asserted `0 == 0`; the whole mask could be
+    deleted with the battery green. The one book in the tree that does
+    exercise them lives under `raw/` and `processed/`, and `git ls-files`
+    returns nothing for either -- so on a fresh clone those probes had never
+    run anywhere. Drawn here instead, where every clone has it.
+    """
+    return _book([(20, 20, 120, 120), (185, 0, 192, 200)], out)
+
+
+def test_the_junk_mask_is_actually_applied_to_the_numbers():
+    """`_junk_columns` may be right and reach nothing.
+
+    Deleting the one line that applies it -- `clean[:, junk] = False` --
+    leaves the mask correct, `ink_junk` zero, `clean` equal to `ink`, and
+    the entire feature inert. Every junk probe is gated on `dark_columns` or
+    `ink_junk`, the very quantities that line produces, so breaking it makes
+    the probes fall silent rather than fail: `no data` where they should say
+    NO. This asks the numbers instead of the mask.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        pdf = _junk_book(tmp)
+        det = _pages([((20, 20, 120, 120), "table")], tmp, "det")
+        r = fitness.measure(pdf, det)
+        # TWO dark columns, and only one of them is junk: the plate at 0.35
+        # of the width is dark over more than half the sheet exactly as the
+        # strip at 0.94 is, and the naive rule this mask replaces would eat
+        # it. So the fixture proves the position gate on the APPLIED path,
+        # not only on `_junk_columns` in isolation.
+        assert r["dark_columns"] == 2, r["dark_columns_positions"]
+        assert r["ink_junk"] > 0, "the binding strip was not found as junk"
+        assert r["ink_clean"] > r["ink_junk"] * 4, \
+            "the mid-sheet plate went with the binding strip"
+        assert r["ink_clean"] == r["ink_total"] - r["ink_junk"], r
+        # AND BOTH SIDES ARE CLEANED. The strip lies outside every box here,
+        # so cleaning must move the denominator and leave the numerator --
+        # a denominator-only mask is what gives a share above 100 %.
+        assert r["clean_under_boxes"] == r["ink_under_boxes"], r
+        assert r["ink_clean"] < r["ink_total"], r
+        assert r["clean_under_boxes"] / r["ink_clean"] \
+            > r["ink_under_boxes"] / r["ink_total"], "cleaning changed nothing"
+
+
+def test_a_box_laid_on_the_binding_earns_nothing():
+    """The attack the mask exists to stop, on a bench every clone has.
+
+    A box over the strip is pure damage finding nothing. It must lift the
+    RAW share and move the clean one by not one pixel -- the gradient of the
+    attack against the honest number is exactly zero.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        pdf = _junk_book(tmp)
+        honest = _pages([((20, 20, 120, 120), "table")], tmp, "honest")
+        cheat = _pages([((20, 20, 120, 120), "table"),
+                        ((185, 0, 192, 200), "text")], tmp, "cheat")
+        a, b = fitness.measure(pdf, honest), fitness.measure(pdf, cheat)
+        assert b["ink_under_boxes"] > a["ink_under_boxes"], "the attack found nothing to take"
+        assert b["clean_under_boxes"] == a["clean_under_boxes"], \
+            "a box on the binding moved the clean number"
+
+
+def test_the_destination_split_is_exhaustive_and_counts_a_pixel_once():
+    """Text plus picture is exactly the boxed ink, overlaps included.
+
+    This was asserted inside the battery, where it could not be a probe: it
+    reads the UNMUTATED measurement, so no mutator reaches it, and on a
+    bench that read nothing it reduces to `0 + X == X`. Asked here on a
+    fixture that has both content AND a box overlapping the artefact, which
+    is the only case the tie-break `& ~pic` exists for -- removing it makes
+    the two shares sum past the ink they divide.
+    """
+    import json
+    with tempfile.TemporaryDirectory() as tmp:
+        pdf = _book([(20, 20, 120, 120)], tmp)
+        det = _pages([((20, 20, 120, 120), "table"),
+                      ((20, 20, 120, 120), "text")], tmp, "det")
+        f = os.path.join(det, "0000.json")
+        p = json.load(open(f, encoding="utf-8"))
+        for b in p["blocks"]:
+            b["content"] = "recognised text"
+        json.dump(p, open(f, "w", encoding="utf-8"))
+        r = fitness.measure(pdf, det)
+        assert r["ink_as_text"] + r["ink_as_picture"] == r["ink_under_boxes"], r
+        # The overlap is real: both boxes cover the same object, so a sum
+        # that ignored it would exceed the ink under boxes.
+        assert r["ink_as_picture"] > 0 and r["ink_under_boxes"] > 0, r
