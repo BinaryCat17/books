@@ -4235,8 +4235,8 @@ def mutations():
         ("the junk mask is computed and then not applied",
          lambda: one_line(
              "booksmith.processing.assess.ink",
-             "        clean[:, junk] = False",
-             "        pass"),
+             "        if junk.any():",
+             "        if False:"),
          [("test_fitness", "test_the_junk_mask_is_actually_applied_to_the_numbers"),
           ("test_fitness", "test_a_box_laid_on_the_binding_earns_nothing")]),
 

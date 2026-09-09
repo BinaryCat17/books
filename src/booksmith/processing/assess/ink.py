@@ -474,11 +474,22 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
         res["page_count"] += 1
         res["ink_total"] += int(ink.sum())
         junk = _junk_columns(ink)
-        clean = ink.copy()
-        clean[:, junk] = False
-        res["ink_junk"] += int(ink.sum()) - int(clean.sum())
-        res["ink_clean"] += int(clean.sum())
-        res["clean_under_boxes"] += int((clean & both).sum())
+        # COUNTED OVER THE JUNK COLUMNS ALONE, never by building a second
+        # sheet. `ink.copy()` doubled the page mask to subtract a band that
+        # is at most a tenth of it by construction, and this metric already
+        # holds half a gigabyte of cached masks: the copy was paid on every
+        # page of every pass to answer a question about a narrow strip.
+        whole = int(ink.sum())
+        if junk.any():
+            j = int(ink[:, junk].sum())
+            res["clean_under_boxes"] += (int((ink & both).sum())
+                                         - int((ink[:, junk]
+                                                & both[:, junk]).sum()))
+        else:
+            j = 0
+            res["clean_under_boxes"] += int((ink & both).sum())
+        res["ink_junk"] += j
+        res["ink_clean"] += whole - j
         res["ink_under_boxes"] += int((ink & both).sum())
         res["ink_under_artifact"] += int((ink & ma).sum())
         # Half the golden bench's "lost" ink lies in the four-percent band at
