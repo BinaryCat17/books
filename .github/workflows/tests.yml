@@ -1,0 +1,16 @@
+name: tests
+on:
+  push:
+  pull_request:
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --extra detect --extra docling --group dev --frozen
+      - run: uv run pytest -q -rs | tee pytest.log
+      - name: enough checks actually ran
+        run: |
+          passed=$(grep -oE '[0-9]+ passed' pytest.log | grep -oE '[0-9]+')
+          test "${passed:-0}" -ge 250 || { echo "only ${passed:-0} checks passed: the suite is skipping itself"; exit 1; }

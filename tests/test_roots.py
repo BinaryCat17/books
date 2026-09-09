@@ -106,7 +106,6 @@ def test_the_detect_command_can_actually_run():
         f"name")
     pages = os.listdir(os.path.join(out, "pages"))
     assert len(pages) == 1, f"one page asked for, {len(pages)} written"
-    return out, root, pdf
 
 
 def test_detection_is_byte_reproducible_into_another_directory():

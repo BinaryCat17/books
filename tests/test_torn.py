@@ -81,7 +81,7 @@ def _answers(tmp, recs):
         json.dump({"page": 1, "answers": recs}, f, ensure_ascii=False)
 
 
-def test_observed_carries_the_reason_the_block_is_bad(tmp_path=None):
+def test_observed_carries_the_reason_the_block_is_bad():
     """`observed` pulls the stop reason out of `answers/` by anchor."""
     import tempfile
     with tempfile.TemporaryDirectory() as tmp:

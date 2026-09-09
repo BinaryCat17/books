@@ -20,6 +20,8 @@ same objects, the same place for the key in meta. Otherwise the comparison
 """
 import json
 import os
+
+import pytest
 from dataclasses import asdict
 
 import support
@@ -197,13 +199,9 @@ def test_off_keeps_meta_key_order_byte_for_byte():
         f"There is no byte-for-byte match with the earlier pages any more.")
 
 
+@pytest.mark.slow
 def test_adapter_at_off_builds_no_pipeline():
-    """The live adapter on real weights: at off there is no vendor code at all.
-
-    Slow (it raises an ONNX session), hence on demand: --slow.
-    """
-    if not os.environ.get("BOOKSMITH_TESTS_SLOW"):
-        support.skip("slow (~5s, raises ONNX): run it with --slow")
+    """The live adapter on real weights: at off there is no vendor code at all."""
     if not os.path.isdir(os.path.join(dh.MODELS, "docling-heron_onnx")):
         support.skip("no docling-heron_onnx weights")
     with env(DOCLING_PIPELINE="off"):

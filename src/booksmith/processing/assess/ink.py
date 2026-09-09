@@ -60,8 +60,6 @@ That works on any book nobody has annotated yet.
 import os
 import statistics
 
-import numpy as np
-
 from booksmith.core import policy
 from booksmith.core import raster
 from booksmith.core import page
@@ -197,6 +195,7 @@ def _evict_foreign(pdf):
 
 def _ink_of(pdf, doc, i, dpi):
     """The page ink mask, cached. The key includes the THRESHOLD."""
+    import numpy as np
     global _INK_CACHE_BYTES
     # The threshold is in the key for a reason: the battery moves INK to check
     # it is alive, and without it a mask computed with the OLD threshold would
@@ -222,6 +221,7 @@ def _ink_of(pdf, doc, i, dpi):
 
 
 def _ink(page, dpi):
+    import numpy as np
     pm = raster.render(page, dpi)
     g = np.frombuffer(pm.samples, np.uint8).reshape(pm.height, pm.width, pm.n)
     g = g[:, :, :3].mean(2) if pm.n >= 3 else g[:, :, 0]
@@ -333,6 +333,7 @@ def _junk_columns(ink):
     sees a box, so no model can move it. That is what makes discarding a
     property of the ruler rather than a repair of the model.
     """
+    import numpy as np
     h, w = ink.shape
     dark = ink.sum(axis=0) > h * GUTTER
     junk = np.zeros(w, bool)
@@ -385,6 +386,7 @@ def _junk_columns(ink):
 
 
 def _mask(shape, boxes):
+    import numpy as np
     m = np.zeros(shape, bool)
     for b in boxes:
         win = _clip(shape, b)
@@ -424,6 +426,7 @@ def _carried_as_text(sub, arte, rest, tot):
 
 def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
     """Fitness of the model output. Truth is not required."""
+    import numpy as np
     if not os.path.exists(pdf):
         raise Unmeasurable(f"no {pdf}")
     M = page.load_pages(detect_dir)

@@ -120,7 +120,7 @@ def test_wrong_model_name_stops_the_run():
             raise AssertionError("a foreign model name passed in silence")
 
 
-def test_delivery_refusal_is_a_value_not_a_throw(tmp_png=None):
+def test_delivery_refusal_is_a_value_not_a_throw():
     """A refused delivery comes back as a value: a run over five hundred
     blocks must not die of one broken connection."""
     png = _png()
