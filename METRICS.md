@@ -157,6 +157,28 @@ Where the truth marks reading order, agreement with it; where it does not -- and
 
 The derivatives: an artefact can be missed, cut, called text, or merged with its neighbour, and those four account for every one that did not arrive whole.
 
+### charts_as_data ↓ — charts returned as a TABLE OF NUMBERS -- values read off a curve by eye and placed in the book as text, which is the one rule this project holds hardest: numbers may be flagged, never restored
+
+| model | annopage | atlas | hard | hard36 | katalog | matematika | slovar | spravochnik | zhurnal |
+|---|---|---|---|---|---|---|---|---|---|
+| `PP-DocLayoutV2` | · | · | · | · | · | · | · | · | · |
+| `PP-DocLayoutV3` | · | · | · | · | · | · | · | · | · |
+| `PP-DocLayout_plus-L` | · | · | · | · | · | · | · | · | · |
+| `docling-egret` | · | · | · | · | · | · | · | · | · |
+| `docling-heron` | · | · | · | · | · | · | · | · | · |
+| `yolox_l0.05` | · | · | · | · | · | · | · | · | · |
+
+### looping ↓ — answers that repeat themselves
+
+| model | annopage | atlas | hard | hard36 | katalog | matematika | slovar | spravochnik | zhurnal |
+|---|---|---|---|---|---|---|---|---|---|
+| `PP-DocLayoutV2` | · | · | · | · | · | · | · | · | · |
+| `PP-DocLayoutV3` | · | · | · | · | · | · | · | · | · |
+| `PP-DocLayout_plus-L` | · | · | · | · | · | · | · | · | · |
+| `docling-egret` | · | · | · | · | · | · | · | · | · |
+| `docling-heron` | · | · | · | · | · | · | · | · | · |
+| `yolox_l0.05` | · | · | · | · | · | · | · | · | · |
+
 ### artefacts_not_seen ↓ — artefacts the model never boxed
 
 | model | annopage | atlas | hard | hard36 | katalog | matematika | slovar | spravochnik | zhurnal |

@@ -132,9 +132,10 @@ def test_applicability_is_by_prerequisite_not_by_trait():
         m.name for m in applicable(registry.METRICS, b, object(), None, r))
     # pages alone: the truth-free metrics; truth adds the contour; a PDF and
     # characters add the ink and the reading metrics
-    assert names(Truthless()) == ["assembly", "snapshot"]
-    assert names(Golden()) == ["assembly", "contour", "snapshot"]
-    assert names(Full()) == ["assembly", "contour", "fitness", "snapshot", "text"]
+    assert names(Truthless()) == ["assembly", "reading", "snapshot"]
+    assert names(Golden()) == ["assembly", "contour", "reading", "snapshot"]
+    assert names(Full()) == ["assembly", "contour", "fitness", "reading",
+                             "snapshot", "text"]
     # And the same bench with a run that read NOTHING loses only the reading
     # metric -- the prerequisite is about the run, not about the bench.
     blank = {"0000": {"blocks": [{"content": None}]}}

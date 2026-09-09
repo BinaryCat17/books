@@ -28,6 +28,7 @@ if HERE not in sys.path:
 
 import support
 from booksmith.datasets.metrics import fitness as fitmet
+from booksmith.datasets.metrics import reading as readmod
 from booksmith.core.errors import Refusal                                              # noqa: E402
 from booksmith.datasets.metrics import contour as metrics  # noqa: E402
 from booksmith.core import otsl, policy
@@ -4318,6 +4319,52 @@ def mutations():
              HIGHER_IS_BETTER=reportmod.HIGHER_IS_BETTER + ("area_under_boxes",)),
          [("test_metrics_contract",
            "test_the_arrows_that_were_wrong_once_are_pinned_by_name")]),
+
+        # ------------------------------------- the reader without truth ---
+        # THE RULE IS THE LABEL AND THE SHAPE TOGETHER. Counting the shape
+        # alone calls every real table a fabrication; a table returned as a
+        # grid is the RIGHT answer for a table.
+        ("a table of numbers is a fabricated chart whatever it was labelled",
+         lambda: one_line(
+             "booksmith.datasets.metrics.reading",
+             "            if chart and is_data_table(text):",
+             "            if is_data_table(text):"),
+         [("test_reading",
+           "test_a_chart_returned_as_numbers_is_counted_and_a_described_"
+           "one_is_not")]),
+
+        # One delimited line is a caption with a bar in it.
+        ("one delimited line is enough to be a table",
+         lambda: attrs(readmod, MIN_ROWS=1),
+         [("test_reading",
+           "test_one_delimited_line_is_a_caption_and_not_a_table")]),
+
+        # Markup that repeats for a reason -- a declared OTSL merge -- is not
+        # the model repeating itself, and asking the raw text made 13 of 33
+        # flagged blocks false.
+        ("the loop share is asked of the markup as well as the words",
+         lambda: one_line(
+             "booksmith.datasets.metrics.reading",
+             '    s = " ".join(_MARKUP.sub(" ", text).split())',
+             '    s = " ".join(text.split())'),
+         [("test_reading",
+           "test_declared_markup_that_repeats_is_not_the_model_repeating_"
+           "itself")]),
+
+        # A PROBE THAT SAYS "no data" PROVES NOTHING, and a battery of them
+        # reads `uncaught 0` having measured none of itself. That is not
+        # hypothetical here: the junk mask's probes were written against a
+        # bench with no binding, six were silent, and the whole feature could
+        # be deleted with the suite green. The reading battery is held to
+        # measuring every probe on the fixture it is given.
+        ("a probe of the reading battery has nothing to measure",
+         lambda: one_line(
+             "booksmith.datasets.metrics.reading",
+             '         lambda: None if not charts else '
+             'M(prose)["charts_as_data"] == 0),',
+             "         lambda: None),"),
+         [("test_reading",
+           "test_the_battery_can_fail_on_pages_that_carry_answers")]),
 
         # `Bench.pdf`'s lazy branch is an UNVERIFIED TWIN of `_scan_of`: it
         # looks beside the book and hashes nothing. Reachable from a

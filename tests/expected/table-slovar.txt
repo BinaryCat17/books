@@ -1,4 +1,5 @@
 text: NOT MEASURED, this book and run give no read
+reading: NOT MEASURED, this book and run give no read
 contour: sha256 checked: 8f607163c195
 fitness: sha256 checked: 8f607163c195
 assembly: sha256 checked: 8f607163c195

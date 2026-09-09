@@ -82,6 +82,13 @@ LOWER_IS_BETTER = (
     "CER", "WER", "CER_answered", "CER_cells", "CER_artefacts",
     "CER_artefacts_answered", "no_answer", "baits_read",
     "tables_given_as_text",
+    # THE READER CAUGHT WITHOUT TRUTH, which is the half of level two that
+    # can be measured at all today. `charts_as_data` is a chart -- a picture
+    # of a curve -- returned as a table of numbers read off it by eye and
+    # placed in the book as text. `looping` is the model repeating itself,
+    # asked after OTSL and LaTeX markup are stripped, so that chemistry that
+    # repeats and merge cells that are declared are not mistaken for it.
+    "charts_as_data", "looping",
     "label_errors", "role_errors", "excess_jumps", "excess_jumps_per_page",
     "objects_torn", "objects_left_as_text", "objects_with_company",
     "ink_outside_boxes", "missing", "empty",
@@ -159,7 +166,7 @@ HIGHER_IS_BETTER = (
     # blocks of forty is not "the model reads well". `cells_matched` is the
     # same question for a table, by ADDRESS -- a shifted row leaves the bag
     # of cells identical and drops this from 0.89 to 0.33.
-    "paired", "cells_matched",
+    "paired", "cells_matched", "answered",
     "artefacts_found", "assembly_order",
     "ink_under_boxes", "model_order",
     "object_ink_preserved", "objects_in_one_box", "objects_intact",
@@ -236,6 +243,13 @@ HEADLINE = (
     # THE FOUR WAYS AN ARTEFACT IS LOST, and they are a partition over the
     # same objects `artefacts_found` counts, so they are the derivatives the
     # first question's shortfall is made of, not four more opinions.
+    ("What failed, and how",
+     "reading", "charts_as_data",
+     "charts returned as a TABLE OF NUMBERS -- values read off a curve by "
+     "eye and placed in the book as text, which is the one rule this "
+     "project holds hardest: numbers may be flagged, never restored"),
+    ("What failed, and how",
+     "reading", "looping", "answers that repeat themselves"),
     ("What failed, and how",
      "contour", "artefacts_not_seen", "artefacts the model never boxed"),
     ("What failed, and how",
