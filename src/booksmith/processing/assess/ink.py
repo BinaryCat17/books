@@ -789,11 +789,3 @@ def report(res: dict, log=print) -> None:
     if res["empty_objects"]:
         log(f"WARNING: {res['empty_objects']} truth objects without ink — "
             f"a bench defect, counted neither as intact nor as torn")
-
-
-# ------------------------------------------------- the spoiling battery
-# A number is not to be trusted until shown able to fall. Each probe spoils ONE
-# thing and names what is due to move. THREE-SIDED, as in `metrics.mutations()`,
-# and two sides of three were missing here: only the MODEL OUTPUT was spoiled.
-# Not the TRUTH (a metric indifferent to truth measures one of its own inputs),
-# not OUR OWN THRESHOLDS (a dead one prints beside a live one, looking a ruler).

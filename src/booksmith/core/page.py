@@ -54,8 +54,8 @@ class Block:
     # WHERE A TRUTH BLOCK CAME FROM, and only truth has it: the AnnoPage
     # category (one of 25) the librarians marked, kept so a disagreement can
     # be traced back to the category rather than to our label for it. It is
-    # in 3587 tracked truth blocks and `core/schema.py` puts a floor under
-    # it, so it is part of the format by decision -- and this class, which
+    # in 3587 tracked truth blocks and `tests/contract/test_formats.py` puts a
+    # floor under it, so it is part of the format by decision -- and this class, which
     # calls itself the on-disk format, did not have it. The consequence was
     # silent and total: `Page.from_json` raised `TypeError: unexpected
     # keyword argument` on 1017 of the project's own truth pages -- all 429

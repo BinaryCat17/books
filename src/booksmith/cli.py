@@ -14,19 +14,20 @@
     books synth                  synthetic bench: pages with exact truth
     books annopage raw/annopage  golden bench: real pages, librarians' truth
     books subset                 distillate: artefacts side by side
-    books score truth/ boxes/    contour metrics; --selfcheck — mutation battery
+    books score truth/ boxes/    contour metrics: boxes, labels, order
     books text truth/ pages/     READING metric: characters and table cells
     books fitness book.pdf …     will the meaning arrive: by ink, no truth
     books overlay book.pdf …     boxes over pages, to look with your own eyes
     books bench all <book>       every applicable metric on one run: one table
+    books bench selfcheck <book> every metric's probes: can the numbers fall
     books bench report           every measured number, as METRICS.md
     books ls | books down 12345 | books reap
     books ledger                 run journal and the estimate from it
     books replay --check out/    is the input snapshot complete
     books docs                   regenerate the documents rendered from the code
 
-This list is `books --help`, and `tests/test_docs.py` checks it against the
-parser both ways. Every command with its flags: `docs/commands.md`.
+This list is `books --help`, and `tests/contract/test_docs.py` checks it
+against the parser both ways. Every command with its flags: `docs/commands.md`.
 """
 import argparse
 import json
@@ -511,7 +512,7 @@ def _look_at(pdf, detect_dir):
     """Where a sheet of boxes goes: `<book>/look/<label>.pdf` inside a book.
 
     THE DEFAULT USED TO BE `<book>/<name>.overlay.pdf`, a pdf at the book
-    root -- and `booksmith.tree.layout` now allows exactly ONE pdf there, the
+    root -- and `core.book.ALLOWED` names exactly ONE pdf there, the
     scan the manifest names. So the command's own default wrote a file the
     layout check calls a stray, which is the shape this project keeps paying
     for: an instrument and a command disagreeing about where output belongs,
@@ -540,7 +541,7 @@ def _look_at(pdf, detect_dir):
         # no `--detect` there is no label, and falling back to the old name
         # put a second pdf at the book root, which is the stray this default
         # was changed to stop making. `look/truth.pdf` is declared beside the
-        # model names in `booksmith.tree.layout`.
+        # model names in `core.book.BESIDE_A_RUN`.
         return os.path.join(book, "look", (label or "truth") + ".pdf")
     return os.path.splitext(pdf)[0] + ".overlay.pdf"
 
@@ -579,43 +580,15 @@ def cmd_overlay(a):
     return 0
 
 
-def _bench_and_run(truth, pages):
-    """The bench of a truth directory and the run of a pages directory, for
-    a metric's battery. A pages directory with no snapshot beside it is
-    taken bare and says so; a truth directory that is not a bench is
-    refused by `Bench.open` with the reason."""
-    from booksmith.core.errors import Unmeasurable
-    from booksmith.datasets.bench import Bench, Run
-    b = None
-    if truth:
-        try:
-            b = Bench.open(truth)
-        except Unmeasurable:
-            log(f"{truth}: not a bench directory; taken bare, the book identity "
-                f"NOT CHECKED")
-            b = Bench.bare(truth)
-    try:
-        r = Run.open(pages)
-    except Unmeasurable:
-        r = Run.bare(pages)
-    return b, r
-
-
 def cmd_score(a):
     """Contour metrics: truth against the model output.
 
-    `--selfcheck` runs THE METRIC'S battery (`datasets.metrics.contour
-    .ContourMetric.battery`), not the module function beside it: a battery
-    that nothing calls is a battery whose NameError nobody sees, and the
-    ink metric's had one for two commits.
+    Whether the numbers can fall is `books bench selfcheck`, which runs every
+    applicable metric's probes on a bench and a run.
     """
-    from booksmith.datasets.metrics import BY_NAME
     from booksmith.datasets.metrics import contour as metrics
     truth = _pages_dir(a.truth, "truth")
     det = _pages_dir(a.detect, "model boxes")
-    if a.selfcheck:
-        b, r = _bench_and_run(truth, det)
-        return 1 if BY_NAME["contour"].battery(b, r, log=log) else 0
     metrics.report(metrics.compare(truth, det), log=log)
     return 0
 
@@ -638,42 +611,18 @@ def cmd_text(a):
     instrument here already lied — "reading order agreed 73%" on a bench where
     order is not annotated at all.
     """
-    from booksmith.datasets.metrics import BY_NAME
     from booksmith.datasets.metrics import text
     truth = _pages_dir(a.truth, "truth")
     pages = _pages_dir(a.pages, "what was read")
-    if a.selfcheck:
-        b, r = _bench_and_run(truth, pages)
-        return 1 if BY_NAME["text"].battery(b, r, log=log) else 0
     text.report(text.measure(truth, pages, norm=a.norm), log=log)
     return 0
 
 
 def cmd_fitness(a):
     """Fitness of the output: will the meaning reach level two. By ink."""
-    import os
-    from booksmith.core.errors import Refusal
     from booksmith.processing.assess import ink as fitness
     det = _pages_dir(a.detect, "--detect")
     truth = _pages_dir(a.truth, "--truth") if a.truth else ""
-    if a.selfcheck:
-        from booksmith.datasets.metrics import BY_NAME
-        from booksmith.datasets.metrics import fitness as fitmet
-        if not truth:
-            # Without a bench there is no Bench: the battery of the module,
-            # with the PDF given by hand.
-            return 1 if fitmet.mutations(a.pdf, det, "", log=log) else 0
-        b, r = _bench_and_run(truth, det)
-        if b.pdf and os.path.abspath(b.pdf) != os.path.abspath(a.pdf):
-            raise Refusal(f"{a.pdf} is not the PDF of the bench {b.name} "
-                          f"({b.pdf}); the battery measures a bench against "
-                          f"its own book")
-        if not b.pdf:
-            # a bare truth: the PDF is the one given by hand
-            b.manifest = {"source": {"name": os.path.basename(a.pdf)}}
-            b.root = os.path.dirname(os.path.abspath(a.pdf)) or "."
-            b.root = os.path.dirname(os.path.abspath(a.pdf))
-        return 1 if BY_NAME["fitness"].battery(b, r, log=log) else 0
     fitness.report(fitness.measure(a.pdf, det, truth), log=log)
     return 0
 
@@ -722,6 +671,70 @@ def shlex_quote(s):
     return shlex.quote(s)
 
 
+def _open_book(path, kind, label):
+    """The book at `path` and one of its runs, as `bench all` opens them.
+
+    A BENCH IS A BOOK WITH `truth/`, AND A PROCESSED BOOK IS THE OTHER HALF.
+    Asked here rather than by catching `Unmeasurable` from `open`: a caught
+    refusal cannot tell "there is no truth here, which is fine" from "this path
+    is wrong", and the second must still reach the user.
+    """
+    from booksmith.datasets.bench import Bench
+    root = path.rstrip("/")
+    if not os.path.isdir(root):
+        # SAID BEFORE EITHER DOOR IS TRIED: both openers answer a path that is
+        # not there by describing what they wanted to find in it, which sends
+        # the reader looking for a file in a directory that does not exist.
+        raise Refusal(f"{path} is not a directory. This takes a book: "
+                      f"bench/<name> or processed/<name>.")
+    has_truth = (os.path.isdir(os.path.join(root, "truth"))
+                 or os.path.basename(root) == "truth")
+    b = Bench.open(root) if has_truth else Bench.no_truth(root)
+    return b, b.run(label, kind)
+
+
+def cmd_bench_selfcheck(a):
+    """Every applicable metric's probes on one bench and run: can they fall.
+
+    A number is not to be trusted until it has been shown able to fall, so each
+    probe spoils the input on purpose and says what must happen to the number.
+    Returns 1 if any probe went uncaught. A probe with nothing to grip on this
+    book answers "no data" and is counted apart: a battery reporting zero
+    uncaught over probes that measured nothing is what this guards against.
+    """
+    from booksmith.datasets.metrics import BY_NAME, METRICS
+    from booksmith.datasets.metrics import base
+    b, run = _open_book(a.bench, a.kind, a.run)
+    # THE TRUTH IS PARSED ONLY IF THERE IS ANY, as `table.rows` does it: a book
+    # with no `truth/` is a legal thing to probe, since the ink and column-jump
+    # metrics need none, and asking for its truth pages raises before
+    # applicability is ever consulted.
+    pages = b.pages() if b.truth_dir else {}
+    fit = base.applicable(METRICS, b, run, pages, run.pages())
+    if a.only:
+        which = [n.strip() for n in a.only.split(",") if n.strip()]
+        unknown = [n for n in which if n not in BY_NAME]
+        if unknown:
+            raise Refusal(f"no metric named {', '.join(unknown)}; there are "
+                          f"{', '.join(BY_NAME)}")
+        off = [n for n in which if BY_NAME[n] not in fit]
+        if off:
+            raise Refusal(f"{', '.join(off)} cannot be measured on {b.name} "
+                          f"with run {run.label}, so its probes say nothing")
+        fit = [BY_NAME[n] for n in which]
+    total = uncaught = mute = 0
+    for metric in fit:
+        seen, silent, bad = base.run_probes(metric.probes(b, run), log=log)
+        log(f"{metric.name}: probes {seen}, measured {seen - silent}, "
+            f"nothing to measure with {silent}, uncaught {bad}")
+        total, uncaught, mute = total + seen, uncaught + bad, mute + silent
+    left = sorted(m.name for m in METRICS if m not in fit)
+    log(f"{b.name} {run.label}: metrics {len(fit)}, probes {total}, "
+        f"nothing to measure with {mute}, UNCAUGHT {uncaught}"
+        + (f"; not probed here: {', '.join(left)}" if left else ""))
+    return 1 if uncaught else 0
+
+
 def cmd_bench_all(a):
     """Every applicable metric on one bench and one run: one table, one JSON.
 
@@ -731,24 +744,8 @@ def cmd_bench_all(a):
     first command that writes them down.
     """
     from booksmith.datasets import table
-    from booksmith.datasets.bench import Bench
     root = a.bench.rstrip("/")
-    # A BENCH IS A BOOK WITH `truth/`, AND A PROCESSED BOOK IS THE OTHER
-    # HALF. Asked here rather than by catching `Unmeasurable` from `open`:
-    # a caught refusal cannot tell "there is no truth here, which is fine"
-    # from "this path is wrong", and the second must still reach the user.
-    if not os.path.isdir(root):
-        # SAID BEFORE EITHER DOOR IS TRIED. Both openers answer a path that
-        # does not exist by describing what they wanted to find in it --
-        # "expected manifest.json naming the scan" sends the reader looking
-        # for a file in a directory that is not there. A typo is the common
-        # case and it must read as one.
-        raise Refusal(f"{a.bench} is not a directory. `books bench all` "
-                      f"takes a book: bench/<name> or processed/<name>.")
-    has_truth = (os.path.isdir(os.path.join(root, "truth"))
-                 or os.path.basename(root) == "truth")
-    b = Bench.open(root) if has_truth else Bench.no_truth(root)
-    run = b.run(a.run, a.kind)
+    b, run = _open_book(root, a.kind, a.run)
     which = [n.strip() for n in a.only.split(",") if n.strip()] if a.only else None
     recs = table.rows(b, run, which, log=log)
     table.render(recs, log=log)
@@ -1140,8 +1137,6 @@ def build_parser():
     p.add_argument("--detect", required=True, help="model output directory")
     p.add_argument("--truth", default="", help="truth; without it only what "
                    "lies outside every box is counted")
-    p.add_argument("--selfcheck", action="store_true",
-                   help="damage battery: can the number fall")
     p.set_defaults(fn=cmd_fitness)
 
     p = sub.add_parser("subset", help="distillate: artefacts side by side")
@@ -1161,8 +1156,6 @@ def build_parser():
     p = sub.add_parser("score", help="contour metrics against the bench truth")
     p.add_argument("truth", help="truth directory (bench/synth/truth)")
     p.add_argument("detect", help="model output directory (…/detect/pages)")
-    p.add_argument("--selfcheck", action="store_true",
-                   help="mutation battery: can the number fall (1 if not)")
     p.set_defaults(fn=cmd_score)
 
     p = sub.add_parser("read",
@@ -1220,8 +1213,6 @@ def build_parser():
     p.add_argument("--norm", default=text_norm_default(),
                    help="the normalisation boundary when comparing; "
                         "declared as a number and carried into the report")
-    p.add_argument("--selfcheck", action="store_true",
-                   help="damage battery: can the number fall (1 if not)")
     p.set_defaults(fn=cmd_text)
 
     p = sub.add_parser("overlay",
@@ -1268,6 +1259,20 @@ def build_parser():
                         "share one)")
     q.set_defaults(fn=cmd_bench_all)
 
+    q = bs.add_parser("selfcheck",
+                      help="every metric's probes on one bench and run: can "
+                           "the numbers fall (1 if any is uncaught)")
+    q.add_argument("bench", help="the book directory, as `bench all` takes it")
+    q.add_argument("--run", default="",
+                   help="which run, by its model label; omit it when the book "
+                        "has exactly one of this kind")
+    q.add_argument("--kind", default="detect", choices=("detect", "read"),
+                   help="which level to probe")
+    q.add_argument("--only", default="",
+                   help="comma-separated metric names, instead of every "
+                        "applicable one")
+    q.set_defaults(fn=cmd_bench_selfcheck)
+
     q = bs.add_parser("report",
                       help="every measured number as one generated document")
     q.add_argument("--out", default="",
@@ -1296,8 +1301,6 @@ def build_parser():
     # approved on an empty list — `books replay --check` with no directory
     # returned 0 and printed not a line.
     p.add_argument("outdir", nargs="+", help="parse directory")
-    p.add_argument("--selfcheck", action="store_true",
-                   help="can the check itself fail (1 if not)")
     p.add_argument("--check", action="store_true",
                    help="print what is missing and return 1 if there is any")
     p.set_defaults(fn=replay_mod.cmd_replay)

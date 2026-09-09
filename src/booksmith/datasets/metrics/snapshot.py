@@ -52,20 +52,3 @@ class SnapshotMetric(Metric):
     def report(self, rec: Record, log=print) -> None:
         for k, s in rec.scalars.items():
             log(f"{k}: {s.value if s.value is not None else s.why}")
-
-    def battery(self, bench, run, log=print) -> int:
-        """Omissions the check did not notice when each required key was
-        cut: the battery's number and nothing else. What the snapshot lacks
-        from the start is in the record's scalars, not here."""
-        if run.run_dir is None:
-            log("snapshot battery: a bare page directory, nothing to knock out")
-            return 0
-        snap = replay.facts(run.run_dir)
-        if not snap:
-            log("snapshot battery: run.json does not read -- nothing to knock out")
-            return 0
-        req = replay.required(snap, replay.shape(snap))
-        bad, absent = replay.knockout(snap, req, log)
-        log(f"snapshot battery: knocked out {len(req) - len(absent)} keys of "
-            f"{len(req)}, omissions not caught {bad}")
-        return bad

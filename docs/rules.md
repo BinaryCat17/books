@@ -1,8 +1,8 @@
 # The rules, and where each is enforced
 
 Each rule is one sentence, one reason, and the symbols that enforce it,
-written `path:symbol`. `tests/test_docs.py` checks that every symbol named
-here exists in the file named.
+written `path:symbol`. `tests/contract/test_docs.py` checks that every symbol
+named here exists in the file named.
 
 **Nobody repairs the model.** No merging of boxes, no cutting across the
 gutter, no re-asking, no thresholds tuned by us. A patch does not improve the
@@ -27,8 +27,8 @@ truth field.
 
 **A metric must be able to fail.** Feed it deliberately broken input and
 watch the number fall before believing it.
-`src/booksmith/datasets/metrics/base.py:Metric.battery` is the contract;
-every registered metric implements it, and
+`src/booksmith/datasets/metrics/base.py:Metric.probes` is the contract; every
+registered metric has a `probes/<name>.py` module beside it, and
 `src/booksmith/datasets/metrics/mutate.py` holds the shared spoilers.
 
 **Log the quantity, not the word done.** Unfinished work is found by
@@ -66,8 +66,8 @@ absent one, and a partial run over a whole one.
 directory name rather than sanitising it.
 
 **Imports go one way.** The layer table in `docs/architecture.md`.
-`src/booksmith/tree/imports.py:MAY_IMPORT` declares it and
-`tests/test_imports.py` walks every import against it.
+`src/booksmith/core/layers.py:MAY_IMPORT` declares it and
+`tests/contract/test_layers.py` walks every import against it.
 
 **The same book, by hash.** A measurement names the scan it was taken on.
 `src/booksmith/datasets/bench.py:same_book` compares the manifest's hash

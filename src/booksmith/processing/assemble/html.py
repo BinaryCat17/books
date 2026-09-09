@@ -1227,9 +1227,9 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
 
     # WHAT MAKES THE DIRECTORY A BOOK, and nothing wrote it. `manifest.json`
     # carries `source: {name, sha256}` -- which scan this directory is about
-    # -- and it is the one file `booksmith.tree.layout` uses to tell a book
-    # from a stray, `datasets.bench.Bench` uses to open one, and the schema
-    # floors count. Every manifest in the tree was written by a BENCH builder
+    # -- and it is the one file `core.book.Book.list` uses to tell a book from
+    # a stray, `datasets.bench.Bench` uses to open one, and the format floors
+    # count. Every manifest in the tree was written by a BENCH builder
     # (`synth`, `annopage`, `subset`); the command that builds a real book
     # wrote none, so `processed/ogneupory-vl2` had one only because a person
     # put it there and `processed/feynman-1` had one for the same reason.

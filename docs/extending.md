@@ -50,13 +50,16 @@ One checklist per kind of thing. Each ends with the command that proves it.
    `run_loaded`, returning a `Record` of `Scalar`s.
 2. A null scalar carries a reason; a share carries its count; a coverage
    carries its unit.
-3. A battery: probes that spoil the input and demand the number fall, using
-   the spoilers in `src/booksmith/datasets/metrics/mutate.py`.
+3. A `probes/<name>.py` module beside it, exposing `probes(bench, run)`: the
+   probes that spoil the input and demand the number fall, using the spoilers
+   in `src/booksmith/datasets/metrics/mutate.py`. Each probe names what was
+   spoiled and what must happen to the number, returns True, False, or None
+   where this book gives it nothing to grip.
 4. An instance in `METRICS` of `src/booksmith/datasets/metrics/__init__.py`,
    and each scalar's direction declared for the report in
    `src/booksmith/datasets/report.py`.
-5. Prove it: `books bench all bench/slovar`, then `books bench report`, then
-   `pytest`.
+5. Prove it: `books bench all bench/slovar`, then `books bench selfcheck
+   bench/slovar`, then `books bench report`, then `pytest`.
 
 ## A bench
 

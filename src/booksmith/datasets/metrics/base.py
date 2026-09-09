@@ -17,14 +17,14 @@ numbers drifted. So:
   the same dict they always did.
 * `Metric`: `needs` names the prerequisites (truth, pages, pdf, content, read);
   `run` measures, `report` prints the prose the metric always printed,
-  `battery` runs its probes. Traits like "is order marked" are NOT
-  prerequisites: they are per page and three-state, and the metric counts
-  them and reports "over n pages of N".
-* `run_battery`: the loop, once. It keeps the rules the three loops had
+  `probes` hands back the probes that spoil its input. Traits like "is order
+  marked" are NOT prerequisites: they are per page and three-state, and the
+  metric counts them and reports "over n pages of N".
+* `run_probes`: the loop, once. It keeps the rules the three loops had
   learnt separately: the denominator is what was PRINTED; a probe that
-  throws is a failed probe with the exception in its line; a probe may say
-  "no data", which is neither caught nor missed; and the summary is a
-  quantity, never the word "done".
+  throws is a failed probe with the exception in its line; and a probe may
+  say "no data", which is neither caught nor missed. The counts come back as
+  numbers, so the caller prints a quantity and never the word "done".
 """
 from dataclasses import dataclass, field
 
@@ -134,9 +134,17 @@ class Metric:
     def report(self, rec: Record, log=print) -> None:
         raise NotImplementedError
 
-    def battery(self, bench, run, log=print) -> int:
-        """Uncaught probes, 0 when the metric can fail on every probe."""
-        raise NotImplementedError
+    def probes(self, bench, run) -> list:
+        """The probes that spoil this bench and run: one module per metric.
+
+        `probes/<name>.py` beside the metric, so the metric module holds the
+        measurement and the probe module the damage. Overriding this is for a
+        metric whose probes are not a module of their own.
+        """
+        import importlib
+        mod = importlib.import_module(
+            f"booksmith.datasets.metrics.probes.{self.name}")
+        return mod.probes(bench, run)
 
 
 def prerequisites(bench, run, pages=None, run_pages=None) -> set:
@@ -201,7 +209,7 @@ class Probe:
     fn: object         # () -> True | False | None | (bool|None, note)
 
 
-def run_battery(probes, log=print, width=10) -> tuple:
+def run_probes(probes, log=print) -> tuple:
     """Run every probe, print every line, return (seen, mute, bad).
 
     `seen` is counted from what was printed, never from `len(probes)`: a
@@ -221,16 +229,8 @@ def run_battery(probes, log=print, width=10) -> tuple:
             ok, note = ok
             want = f"{want} [{note}]"
         mark = "no data" if ok is None else ("ok " if ok else "NO")
-        log(f"  {mark:>{width}}  {p.name}: {want}")
+        log(f"  {mark:>10}  {p.name}: {want}")
         seen += 1
         mute += ok is None
         bad += ok is False
     return seen, mute, bad
-
-
-def battery_summary(title, seen, mute, bad, log=print) -> int:
-    """The last line: a quantity, and the same shape for every battery."""
-    log(f"{title} battery: probes {seen}, measured {seen - mute}, "
-        f"nothing to measure with {mute} (see the 'no data' lines), "
-        f"uncaught {bad}")
-    return bad

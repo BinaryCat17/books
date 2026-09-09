@@ -40,21 +40,21 @@ A bench is a book that also carries `truth/`, in the same page format.
 
 ## The three layers
 
-Imports go one way. The table is the whole rule; `tests/test_imports.py`
-walks every import in the package against it.
+Imports go one way. The table is the whole rule, declared in
+`src/booksmith/core/layers.py`; `tests/contract/test_layers.py` walks every
+import in the package against it.
 
 | package | may import |
 |---|---|
 | `core` | nothing |
 | `remote` | `core` |
-| `tree` | `core` |
 | `processing` | `core`, `remote` |
 | `datasets` | `core`, `processing` |
-| `cli` | anything; nothing imports `cli` |
+| `cli` | all of them; nothing imports `cli` |
 
-`core` is the kernel: the on-disk format, the book directory, the knob
-registry, the snapshot, rendering, the label policy, the assembly order, the
-table markup parser, errors. `processing` is one book, stage by stage.
+`core` is the kernel: the on-disk format, the book directory and its shape,
+the knob registry, this layer table, the snapshot, rendering, the label policy,
+the assembly order, the table markup parser, errors. `processing` is one book, stage by stage.
 `datasets` is many books, truth and numbers. `remote` rents a machine and
 runs any job on it; it knows nothing about books, so the next task on a
 rented card does not mean rewriting the renting.
@@ -62,8 +62,8 @@ rented card does not mean rewriting the renting.
 ## The book directory
 
 One directory per book, one directory per run. A bench is a book with
-`truth/`. `src/booksmith/tree/layout.py` declares this shape and
-`tools/layout.py` walks `bench/` and `processed/` against it.
+`truth/`. The shape is declared in `src/booksmith/core/book.py` and
+`tests/contract/test_book_shape.py` walks the tree against it.
 
 ```
 bench/<book>/ or processed/<book>/
@@ -129,9 +129,11 @@ the count behind a share, the coverage it was measured over with its unit,
 and, when the value is null, the reason. A null without a reason cannot be
 constructed.
 
-Every metric has a battery of deliberately spoiled input, and the number
-must fall on each probe before the metric is believed. Which metrics exist
-and what each needs: `docs/metrics.md`. Every number: `METRICS.md`.
+Every metric has probes of deliberately spoiled input, in a module of their own
+beside it, and the number must fall on each before the metric is believed:
+`books bench selfcheck <book>` runs them on any bench, and one case per probe
+runs in the suite. Which metrics exist and what each needs: `docs/metrics.md`.
+Every number: `METRICS.md`.
 
 The benches, and how each is rebuilt:
 
@@ -170,7 +172,6 @@ each is a refactor of what exists:
 - The HTML builder split into the data pass and the emission, so the data
   pass serves a page viewer and the emission becomes an export.
 - A bytes-returning render and crop in `core/raster.py`.
-- A collection enumerator, `Book.list(root)`.
 - A knob source that is not the process environment, so one server can run
   jobs with different settings.
 

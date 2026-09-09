@@ -22,19 +22,20 @@ Single entry point: books <command>.
     books synth                  synthetic bench: pages with exact truth
     books annopage raw/annopage  golden bench: real pages, librarians' truth
     books subset                 distillate: artefacts side by side
-    books score truth/ boxes/    contour metrics; --selfcheck — mutation battery
+    books score truth/ boxes/    contour metrics: boxes, labels, order
     books text truth/ pages/     READING metric: characters and table cells
     books fitness book.pdf …     will the meaning arrive: by ink, no truth
     books overlay book.pdf …     boxes over pages, to look with your own eyes
     books bench all <book>       every applicable metric on one run: one table
+    books bench selfcheck <book> every metric's probes: can the numbers fall
     books bench report           every measured number, as METRICS.md
     books ls | books down 12345 | books reap
     books ledger                 run journal and the estimate from it
     books replay --check out/    is the input snapshot complete
     books docs                   regenerate the documents rendered from the code
 
-This list is `books --help`, and `tests/test_docs.py` checks it against the
-parser both ways. Every command with its flags: `docs/commands.md`.
+This list is `books --help`, and `tests/contract/test_docs.py` checks it
+against the parser both ways. Every command with its flags: `docs/commands.md`.
 
 positional arguments:
   {offers,prepare,detect,html,crop,fitness,subset,annopage,score,read,apply,text,overlay,synth,bench,ls,down,reap,doctor,ledger,replay,docs}
@@ -143,7 +144,7 @@ options:
 ## books fitness
 
 ```
-usage: books fitness [-h] --detect DETECT [--truth TRUTH] [--selfcheck] pdf
+usage: books fitness [-h] --detect DETECT [--truth TRUTH] pdf
 
 positional arguments:
   pdf              the pages to count ink over
@@ -153,7 +154,6 @@ options:
   --detect DETECT  model output directory
   --truth TRUTH    truth; without it only what lies outside every box is
                    counted
-  --selfcheck      damage battery: can the number fall
 ```
 
 ## books subset
@@ -188,15 +188,14 @@ options:
 ## books score
 
 ```
-usage: books score [-h] [--selfcheck] truth detect
+usage: books score [-h] truth detect
 
 positional arguments:
-  truth        truth directory (bench/synth/truth)
-  detect       model output directory (…/detect/pages)
+  truth       truth directory (bench/synth/truth)
+  detect      model output directory (…/detect/pages)
 
 options:
-  -h, --help   show this help message and exit
-  --selfcheck  mutation battery: can the number fall (1 if not)
+  -h, --help  show this help message and exit
 ```
 
 ## books read
@@ -251,7 +250,7 @@ options:
 ## books text
 
 ```
-usage: books text [-h] [--norm NORM] [--selfcheck] truth pages
+usage: books text [-h] [--norm NORM] truth pages
 
 positional arguments:
   truth        truth directory (bench/<book>/truth)
@@ -261,7 +260,6 @@ options:
   -h, --help   show this help message and exit
   --norm NORM  the normalisation boundary when comparing; declared as a number
                and carried into the report
-  --selfcheck  damage battery: can the number fall (1 if not)
 ```
 
 ## books overlay
@@ -298,16 +296,18 @@ options:
 ## books bench
 
 ```
-usage: books bench [-h] {all,report} ...
+usage: books bench [-h] {all,selfcheck,report} ...
 
 positional arguments:
-  {all,report}
-    all         every applicable metric on one bench and run, as one table and
-                one JSON
-    report      every measured number as one generated document
+  {all,selfcheck,report}
+    all                 every applicable metric on one bench and run, as one
+                        table and one JSON
+    selfcheck           every metric's probes on one bench and run: can the
+                        numbers fall (1 if any is uncaught)
+    report              every measured number as one generated document
 
 options:
-  -h, --help    show this help message and exit
+  -h, --help            show this help message and exit
 ```
 
 ## books bench all
@@ -337,6 +337,25 @@ options:
                         <bench>-<kind>-<run>.json for a level that is not
                         detect: a label is the model's own name and two levels
                         can share one)
+```
+
+## books bench selfcheck
+
+```
+usage: books bench selfcheck [-h] [--run RUN] [--kind {detect,read}]
+                             [--only ONLY]
+                             bench
+
+positional arguments:
+  bench                 the book directory, as `bench all` takes it
+
+options:
+  -h, --help            show this help message and exit
+  --run RUN             which run, by its model label; omit it when the book
+                        has exactly one of this kind
+  --kind {detect,read}  which level to probe
+  --only ONLY           comma-separated metric names, instead of every
+                        applicable one
 ```
 
 ## books bench report
@@ -400,15 +419,14 @@ options:
 ## books replay
 
 ```
-usage: books replay [-h] [--selfcheck] [--check] outdir [outdir ...]
+usage: books replay [-h] [--check] outdir [outdir ...]
 
 positional arguments:
-  outdir       parse directory
+  outdir      parse directory
 
 options:
-  -h, --help   show this help message and exit
-  --selfcheck  can the check itself fail (1 if not)
-  --check      print what is missing and return 1 if there is any
+  -h, --help  show this help message and exit
+  --check     print what is missing and return 1 if there is any
 ```
 
 ## books docs

@@ -27,30 +27,33 @@ a record is in `METRICS.md`; a verdict without a record says so.
 ```
 src/booksmith/
   core/        the kernel, imports nothing above itself: page.py (the on-disk
-               format), book.py (the book directory), knobs.py (the registry),
-               stamp.py (hash, commit, packages), replay.py (is a snapshot
-               complete), raster.py (rendering and crops), policy.py (label to
-               role), order.py (assembly order), otsl.py (table markup),
-               textnorm.py, schema.py, config.py, errors.py, log.py
+               format), book.py (the book directory and its shape), knobs.py
+               (the registry), layers.py (the layer table), stamp.py (hash,
+               commit, packages), replay.py (is a snapshot complete), raster.py
+               (rendering and crops), policy.py (label to role), order.py
+               (assembly order), otsl.py (table markup), textnorm.py, config.py,
+               errors.py, log.py
   processing/  one book, stage by stage: extract/ (djvu to PDF), layout/ (level
                one: detect.py, base.py the Detector contract, adapters/,
                rented/), read/ (level two: driver.py, readers/, transports/,
                rented/), assemble/ (html.py, swap.py, apply.py), assess/ (ink.py)
-  datasets/    many books, truth, numbers: bench.py, metrics/, make/ (synth/,
-               annopage.py, subset.py), look.py, table.py, report.py,
-               accept.py, docsgen.py
+  datasets/    many books, truth, numbers: bench.py, metrics/ (one module per
+               metric and probes/ beside them, one module of probes each),
+               make/ (synth/, annopage.py, subset.py), look.py, table.py,
+               report.py, docsgen.py
   remote/      renting and running any job on a rented machine; knows nothing
                about books
-  tree/        instruments over the source tree itself: imports.py, layout.py
   cli.py       books <command>
-tests/         pytest
-tools/         sweep.py (every model over every bench), spread_probe.py,
-               and wrappers over tree/ and datasets/
+tests/         pytest: unit/ behaviour, contract/ the declarations (layers,
+               book shape, formats, knobs, docs, data), bench/ what needs the
+               drawn bench, e2e/ what runs a command end to end
+tools/         sweep.py: every model over every bench
 ```
 
-The layer rule: `core` imports nothing; `remote` and `tree` import `core`;
-`processing` imports `core` and `remote`; `datasets` imports `core` and
-`processing`; nothing imports `cli`. Enforced by `tests/test_imports.py`.
+The layer rule: `core` imports nothing; `remote` imports `core`; `processing`
+imports `core` and `remote`; `datasets` imports `core` and `processing`; nothing
+imports `cli`. Declared in `src/booksmith/core/layers.py` and enforced by
+`tests/contract/test_layers.py`.
 
 ## The five commands that matter
 
@@ -85,8 +88,11 @@ pytest            the suite
 pytest -m slow    the one check that raises an ONNX session
 ```
 
-Checks that need the synthetic bench build it into a temporary directory.
-Checks that need detect pages or model weights skip with a reason.
+Checks that need the drawn bench get it from the `slovar` fixture, which builds
+one into a temporary directory once per session. Checks that need detect pages,
+a built book or model weights skip with a reason. Whether a metric's numbers can
+fall is one case per probe: `books bench selfcheck <book>` asks the same probes
+of any bench on disk.
 
 ## How this tree is kept
 
@@ -96,4 +102,4 @@ long on purpose: what was deleted, and where its surviving facts went. A
 measurement lives in `results/` and is rendered into `METRICS.md` by
 `books bench report`. A path cited in a document must exist, a generated
 document must be current, and prose documents carry no measurement;
-`tests/test_docs.py` holds all three.
+`tests/contract/test_docs.py` holds all three.

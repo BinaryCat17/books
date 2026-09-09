@@ -19,9 +19,10 @@ caught by the registry but by the deleted `tests/test_knobs_registry.py`,
 which parsed sources and `run.sh` as trees: the shell sets that knob by
 `export`, it never passes through `knob()`, and `KeyError` cannot see it by
 construction. Crediting the registry means believing yourself guarded where
-there is no guard. The catcher is back HALFWAY: `readers()` walks the tree and
-sees both forms -- `knob("NAME")` in python, `$NAME` in shell -- but only for
-names ALREADY declared here. A name absent from the registry (the
+there is no guard. The catcher is back HALFWAY, in
+`tests/contract/test_snapshot.py`: it walks the tree for both forms --
+`knob("NAME")` in python, `$NAME` in shell -- but only for names ALREADY
+declared here. A name absent from the registry (the
 `VL_MODEL_DIR` disease) stays invisible; catching it needs a list of legal
 shell variables, and there is none.
 
@@ -30,16 +31,16 @@ stood here twice and went stale both times; the second edition even carried
 two counts of the same thing that could not both be true. What it missed were
 live names -- `LAYOUT_ADAPTER` and `YOLOX_WEIGHTS` among them, and every
 `books detect` takes those two. A list typed by hand lies within half a year,
-silently, and people decide by it. So `readers()` counts, and one line prints
-the tally:
+silently, and people decide by it. So the consumers are counted by the walk in
+`tests/contract/test_snapshot.py`, and one line prints the registry's own
+tally:
 
-    python -c "from booksmith.core import knobs; r = knobs.readers(); print(len(knobs.KNOBS), sum(1 for v in r.values() if v), len(knobs.debts()))"
+    python -c "from booksmith.core import knobs; print(len(knobs.KNOBS), len(knobs.debts()))"
 
 The numbers are its to print and absent here ON PURPOSE: a number written in
 goes stale silently, and this file has twice been the example. Readers
 outnumber the python ones -- `read/rented/paddleocr_vl/run.sh` takes some,
-and to
-`readers()` the shell is as much a consumer as code.
+and to that walk the shell is as much a consumer as code.
 
 TWO -- `PASSES` and `LOGPROBS` -- are declared DEBT, counted by `debts()`.
 Here stood "three", `VLM_TEMPERATURE` third; that debt was cleared when the
@@ -48,8 +49,8 @@ is a field, `debt=True`, not prose alone: "declared but dead" is the number
 `len(debts())` and rides into the snapshot. `PASSES` is doubly in question --
 the clean slate measured block boxes byte-identical across all three passes,
 so passes do not affect localisation at all. Debt disagreeing with the tree is
-caught by `audit()` from `books replay --check --selfcheck`, which prints the
-count of disagreements as its own value rather than drowning it in "done".
+caught by the drift check in `tests/contract/test_snapshot.py`, which names
+each disagreement rather than drowning it in "done".
 
 THE LIST WAS EMPTIED ON PURPOSE. The old registry held twenty-three knobs, six
 -- `MULTIVIEW`, `VIEW_NMS`, `PREFER_TABLES`, `SPLIT_COLUMNS`, `REASK`,
@@ -74,8 +75,9 @@ class Knob:
     `debt=True` means "declared, read by nobody" -- a deliberate debt, not a
     working setting. It used to be prose in the header: three names in a text
     nobody checks against the code. As a field it is counted by `debts()`,
-    checked against the tree by `audit()`, and carried into the snapshot: prose
-    is read by eye and from memory, a field can be produced as a number.
+    checked against the tree by the drift check, and carried into the
+    snapshot: prose is read by eye and from memory, a field can be produced as
+    a number.
     """
     __slots__ = ("name", "default", "what", "debt")
 
@@ -322,7 +324,7 @@ KNOBS = (
     # weights there; detection now happens at home and the box receives a ready
     # `detect/` directory. Debt is the wrong mark for it: debt is "declared,
     # consumer not there YET", and here the consumer EXISTED and vanished with
-    # the work. Caught by `audit()`, not by a human.
+    # the work. Caught by the drift check, not by a human.
 
     # --- artefact crops: both values default to "as the model saw it" ---
     # Any other value would be chosen by us and not measured -- even though at
@@ -636,94 +638,3 @@ def passthrough():
     deciding the choice of weights never reaching the machine at all.
     """
     return {n: os.environ[n] for n in names() if n in os.environ}
-
-
-# The source directory, `src/booksmith`. From here rather than from the
-# process's working directory -- otherwise `readers()` run from another cwd
-# would silently find zero consumers for every knob, and `audit()` would howl
-# at the whole registry.
-SRC = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-
-def readers(root=None):
-    """Who REALLY reads each knob: name -> tuple of files, by walking the tree.
-
-    Counted, not remembered: the header's prose list named 11 live consumers
-    when there were 16, and missed five knobs read by every `books detect`.
-    Numbers in comments obey the rule numbers in the ledger do: a value, not a
-    word, and a value counted.
-
-    WHAT IT SEES AND WHAT IT DOES NOT. In `.py` the two direct forms,
-    `knob("NAME")` and `number("NAME")`; a read through a variable is
-    not found, the knob looks dead, and `audit()` howls a false alarm. The bias
-    is deliberate: a false alarm costs a minute, a silent "all is well" cost
-    the project `VL_MODEL_DIR`. In `.sh` it searches `$NAME` and `${NAME}` --
-    exactly how the shell on the rented machine takes a knob, past `knob()` and
-    past any `KeyError`.
-
-    This file is excluded from the walk: it names every name by construction
-    and would otherwise consume every knob.
-
-    The adapters' `knobs_read()` declarations are not checked here, but since
-    2026-08-29 `tests/test_knobs.py` checks them, and the cost is there too: a
-    hand-typed list ("verified by grep over the file" in doclayout,
-    docling_heron, yolox) diverges from the tree silently, and the snapshot
-    then calls a value in force that the run never saw.
-    """
-    root = root or SRC
-    me = os.path.abspath(__file__)
-    found = {k.name: [] for k in KNOBS}
-    sh = {n: re.compile(r"\$\{?" + re.escape(n) + r"\b") for n in found}
-    for dirpath, dirnames, files in os.walk(root):
-        dirnames[:] = [d for d in dirnames if d != "__pycache__"]
-        for fn in sorted(files):
-            if not fn.endswith((".py", ".sh")):
-                continue
-            path = os.path.join(dirpath, fn)
-            if os.path.abspath(path) == me:
-                continue
-            try:
-                with open(path, encoding="utf-8", errors="replace") as fh:
-                    text = fh.read()
-            except OSError:
-                continue
-            rel = os.path.relpath(path, root)
-            py = fn.endswith(".py")
-            for name in found:
-                # BOTH SPELLINGS. `number("NAME")` is the reader for numeric
-                # knobs, and this detector knew only `knob("NAME")` -- so the
-                # moment six knobs moved onto it, nine of them looked DEAD and
-                # `audit()` howled about a registry that had not changed. A
-                # detector that knows one of two ways to read is the same
-                # defect it exists to catch, one level up.
-                hit = (any(f'{fn_}("{name}")' in text
-                           or f"{fn_}('{name}')" in text
-                           or f'{fn_}("{name}",' in text
-                           or f"{fn_}('{name}'," in text
-                           for fn_ in ("knob", "number"))
-                       if py else sh[name].search(text) is not None)
-                if hit:
-                    found[name].append(rel)
-    return {n: tuple(v) for n, v in found.items()}
-
-
-def audit(root=None):
-    """Declared debt against what the tree holds. Empty means they agree.
-
-    Two troubles, both quiet. A knob started being read and `debt=True` was not
-    taken off it -- the registry lies that the setting is dead and people stop
-    passing it through. Or the last consumer was deleted with its code while
-    the knob stayed standing as alive -- exactly how the header accumulated its
-    five-name discrepancy, noticed only by proofreading.
-    """
-    who = readers(root)
-    out = []
-    for k in KNOBS:
-        seen = who[k.name]
-        if k.debt and seen:
-            out.append(f"{k.name}: declared a debt (debt=True), and yet "
-                       f"{', '.join(seen)} reads it -- drop the mark")
-        if not k.debt and not seen:
-            out.append(f"{k.name}: not one consumer found -- either it was "
-                       f"lost together with its code, or set debt=True")
-    return out

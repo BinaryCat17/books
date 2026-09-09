@@ -246,7 +246,7 @@ class Bench:
         refused.
 
         WHAT IS NOT A TELL IS LIVING UNDER `bench/`. The first edition
-        refused that too, and it was wrong twice over: `tree/layout.py` lists
+        refused that too, and it was wrong twice over: `core.book.ALLOWED` lists
         `truth/` as an OPTIONAL part and says in its own words that "a bench
         is a book with truth, and `Book.open` does not care which tree it is
         in", and three tracked books -- `bench/real-holdout20`,

@@ -25,8 +25,8 @@ is the ADAPTER FINGERPRINT, whose shape each adapter declares in its own
 branch holding two sha256 and a label map. Retyping it here would start a
 second list -- the kind that parts with the code at the first model edit, as
 the counts quoted in `composition()` once parted. So the shape is DERIVED by
-parsing the source of the adapter the snapshot names, the way `knobs.readers()`
-derives knob consumers by walking the tree.
+parsing the source of the adapter the snapshot names, the way
+`tests/contract/test_snapshot.py` derives knob consumers by walking the tree.
 
 WHAT PAID FOR THAT. The requirement used not to descend into the fingerprint
 branch AT ALL. A docling snapshot lost the whole vendor-pipeline branch --
@@ -626,107 +626,6 @@ def check(outdir, verbose=True):
     return miss
 
 
-def knockout(snap, req, log=print):
-    """Cut each required key in turn and see that `missing` notices.
-
-    Returns (omissions not caught, keys absent from the start). The battery
-    number is the first: it is the only one about the CHECK; the second is
-    about the snapshot and is reported beside it. `selfcheck` below sums both
-    with the four other troubles into one exit code; the snapshot METRIC
-    reports them apart, as scalars.
-    """
-    absent = [p for p, _ in req if not _dig(snap, p)[0]]
-    bad = 0
-    for path, what in req:
-        if path in absent:
-            continue
-        cut = json.loads(json.dumps(snap))
-        cur = cut
-        for k in path[:-1]:
-            cur = cur[k]
-        del cur[path[-1]]
-        if not any(p == path for p, _ in missing(cut, req)):
-            log(f"  NOT CAUGHT: {'/'.join(map(str, path))} -- {what}")
-            bad += 1
-    return bad, absent
-
-
-def selfcheck(outdir, log=print) -> int:
-    """Can the check fail at all. Returns the number of omissions NOT caught.
-
-    Why. The presence rule is "the key exists", and everything required is
-    written unconditionally: knob keys wholesale by `knobs.snapshot()` (which
-    enumerates the whole registry by construction), the rest as literals in
-    `layout/detect.py` and `assemble/html.py`, the fingerprint values by the
-    adapter
-    itself. So on the project's OWN output `check` cannot return 1 for any
-    input, and its ability to fail had never been shown, though the project
-    rule demands exactly that.
-
-    We knock out each required key in turn and confirm `missing` noticed. The
-    opposite trouble is caught too: a path the snapshot never had cannot be
-    knocked out, and is named separately.
-
-    SIX TROUBLES, SIX NUMBERS, ONE SUM IN THE RETURN. An omission not caught
-    (the check is asleep), a key absent from the start (the writer does not lay
-    it), knob registry drift against the source tree (`knobs.audit()`),
-    fingerprint values with nothing to verify against (another adapter took the
-    snapshot), an unidentified writer (nothing to verify with at all), and a
-    shape not derived. Separate magnitudes in the log; they add up only at the
-    exit, because they fall silent alike -- without a return code any of them
-    stays a note nobody reads. A returned zero means "asked and not found", not
-    "not asked": an unreadable `run.json` returns len(req), a shape with
-    nothing to verify against returns the count of unverified values, and a
-    shape that would not derive returns one, not silence.
-
-    THE SEVENTH NUMBER IS PRINTED BUT NOT SUMMED, by decision: fingerprint
-    values whose keys are born during a run (`uncovered()`) are cut unnoticed,
-    but that is fixed at the WRITER, and there are fifty of them on every
-    healthy docling run. Summed in, the command would burn always -- and a
-    check that always burns reports nothing and gets switched off. So the
-    number stands beside, and the return code stays about what a snapshot can
-    be fixed for.
-    """
-    snap = facts(outdir)
-    sh = shape(snap)
-    req = required(snap, sh)
-    name = os.path.relpath(outdir)
-    kn, lit, fp = composition(req)
-    # Registry drift is looked for before the snapshot: it is about the
-    # sources, not the run output, and an unreadable `run.json` is no reason to
-    # keep quiet about it.
-    drift = knobs.audit()
-    for line_ in drift:
-        log(f"  KNOB REGISTRY: {line_}")
-    log(f"{name}: requirements {len(req)} = knob keys {kn} + literals "
-        f"{lit} + fingerprint values {fp}; knobs in the registry "
-        f"{len(knobs.names())}, of those declared a debt "
-        f"{len(knobs.debts())}; registry drift against the tree {len(drift)}")
-    log(f"  {sh['row']}")
-    unc = uncovered(snap, sh)
-    if unc:
-        log(f"  fingerprint values that can be cut unnoticed: {len(unc)} "
-            f"-- their keys are born during a run (per-label thresholds, "
-            f"translation maps, pipeline summaries), and parsing the source "
-            f"does not see them. This is the WRITER's blind spot, not the "
-            f"check's: it closes by the adapter declaring their count beside "
-            f"them -- which is why it is printed as a number")
-    if not snap:
-        log(f"{name}: run.json does not read -- nothing to knock out")
-        return len(req) + len(drift)
-    bad, absent = knockout(snap, req, log)
-    log(f"{name}: knocked out {len(req) - len(absent)} keys of "
-        f"{len(req)}, omissions not caught {bad}"
-        + (f"; absent from the start {len(absent)}" if absent else "")
-        + (f"; fingerprint values with nothing to check against "
-           f"{sh['not_verified']}" if sh["not_verified"] else "")
-        + ("; the snapshot's writer was not identified" if sh["blind"] else "")
-        + ("; the fingerprint shape would not derive -- only the branch "
-           "itself was required" if sh["not_derived"] else ""))
-    return (bad + len(absent) + len(drift) + sh["not_verified"] + sh["blind"]
-            + sh["not_derived"])
-
-
 def line(outdir):
     """The ready repeat command line, if one was written down."""
     v = facts(outdir).get("repeat_command")
@@ -744,10 +643,7 @@ def cmd_replay(a):
     dirs = a.outdir or []
     rc = 0
     for d in dirs:
-        if getattr(a, "selfcheck", False):
-            if selfcheck(d):
-                rc = 1
-        elif a.check:
+        if a.check:
             if check(d):
                 rc = 1
         else:

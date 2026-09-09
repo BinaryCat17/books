@@ -35,6 +35,8 @@ put the numbers side by side" needs, and what a single `detect/` could not
 give. `run.json` carries `identity`, and a command about to write a DIFFERENT
 identity under an existing label refuses and asks for `--run`.
 """
+from __future__ import annotations
+
 import os
 import re
 
@@ -76,6 +78,55 @@ def journal_path(out_dir: str) -> str:
 # adapter's: `doclayout-onnx` is one adapter serving three models, and three
 # models under one directory look like one run resumed three times.
 LABEL_OK = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$")
+
+# ---------------------------------------------------------------- the shape
+# WHAT A BOOK DIRECTORY HOLDS, declared -- so "nothing outdated" is a property
+# of the tree and not a tidy-up someone did once. `bench/` had drifted into
+# four kinds of thing under one name, an overlay under two names and one run
+# split across two sibling directories, and nothing was caught because nothing
+# said what a book directory IS. `tests/contract/test_book_shape.py` walks
+# `bench/` and `processed/` against this.
+
+# Both roots are the same shape on purpose: a bench is a book with truth.
+BOOK_ROOTS = ("bench", "processed")
+
+# A name is either exact or a pattern; `<model>` is what `safe_label` allows.
+ALLOWED = (
+    "manifest.json",          # what makes a directory a book
+    "<source>.pdf",           # THE scan -- the one the manifest names
+    # A PAGE SELECTOR, AND IT HAS NO READER: the page numbers held out of one
+    # real scan, 97 bytes, reconstructible by nothing. Named here so the walk
+    # does not chase it, and so it is not deleted for being unread.
+    "pages.json",
+    "truth/",                 # a bench has one
+    "detect/<model>/",        # level one, one directory per model
+    "read/<model>/",          # level two
+    "look/<model>.pdf",       # boxes over the pages, for the eye
+    "look/truth.pdf",         # ... and truth drawn with no model beside it
+    "assets/",                # the kitchen of a built book
+    "book.html",              # ... and its one file
+)
+
+# What `books crop` and `books read` write BESIDE a run: `<run dir>.crop` and
+# `<run dir>.read`. Declared because they sit inside `detect/`, where a name is
+# otherwise a model and `LABEL_OK` matches `PP-DocLayoutV2.crop` perfectly.
+BESIDE_A_RUN = (".crop", ".read")
+
+# WHAT A RUN DIRECTORY HOLDS, per level. Two sets and not one union: a union is
+# a weaker check wearing the same green, and `read_with.json` under a DETECTION
+# run would mean a level-two artefact filed at level one.
+INSIDE_A_RUN = {
+    # `job/` and `job.log` are the rented level-one run, the one run in the
+    # tree with no `run.json` -- which is why absence is not checked here.
+    "detect": ("pages", "run.json", "job", "job.log"),
+    # `vllm.*` and `progress.json` come back from the card by name.
+    "read": ("pages", "answers", "crops", "html", "run.json",
+             "read_with.json", "job.log", "job",
+             "vllm.json", "vllm.log", "progress.json"),
+}
+
+# Files a root may hold that are not books. A root is for books.
+ROOT_FILES = ()
 
 
 def safe_label(name: str, what: str) -> str:
@@ -120,7 +171,7 @@ class Book:
 
     # ------------------------------------------------------------ opening
     @classmethod
-    def open(cls, path: str, what: str = "book") -> "Book":
+    def open(cls, path: str, what: str = "book") -> Book:
         path = path.rstrip("/")
         man = os.path.join(path, "manifest.json")
         if not os.path.isfile(man):
@@ -133,6 +184,25 @@ class Book:
         import json
         with open(man, encoding="utf-8") as f:
             return cls(path, json.load(f))
+
+    @classmethod
+    def list(cls, root: str) -> list[str]:
+        """Every book directory under `root`, as paths relative to it.
+
+        A book is a directory with a manifest. `os.listdir` and not
+        `glob("*")`, which skips a dotted name: a stale bench called `.old`
+        was walked by nothing at all.
+        """
+        out = []
+        for top in BOOK_ROOTS:
+            d = os.path.join(root, top)
+            if not os.path.isdir(d):
+                continue
+            for name in sorted(os.listdir(d)):
+                p = os.path.join(d, name)
+                if os.path.isfile(os.path.join(p, "manifest.json")):
+                    out.append(os.path.relpath(p, root))
+        return out
 
     # -------------------------------------------------------------- parts
     @property
