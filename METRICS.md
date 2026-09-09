@@ -64,7 +64,7 @@ Ink, objects and blocks -- four populations with four denominators, which is why
 | `docling-heron` | 0.754 <sub>557443399/739099410</sub> | 0.910 <sub>1026408/1127438</sub> | 0.795 <sub>76657835/96454397</sub> | 0.773 <sub>10718079/13857314</sub> | 0.904 <sub>1164323/1288204</sub> | 0.995 <sub>1820990/1830374</sub> | 0.982 <sub>1038992/1057663</sub> | 0.973 <sub>7244408/7443469</sub> | 0.990 <sub>2344706/2367945</sub> |
 | `yolox_l0.05` | 0.534 <sub>394361133/739099410</sub> | 0.881 <sub>993304/1127438</sub> | 0.554 <sub>53401221/96454397</sub> | 0.610 <sub>8449863/13857314</sub> | 0.880 <sub>1133679/1288204</sub> | 0.956 <sub>1749063/1830374</sub> | 0.897 <sub>949009/1057663</sub> | 0.906 <sub>6743174/7443469</sub> | 0.890 <sub>2107054/2367945</sub> |
 
-### ink_under_boxes_clean ↑ — the same over the ink that IS ink -- binding shadow and scan edge discarded from BOTH sides, so a box laid on the shadow earns nothing
+### ink_under_boxes_clean ↑ — the same over the ink that is ink: binding shadow and scan edge discarded from both sides
 
 | model | annopage | atlas | hard | hard36 | katalog | matematika | slovar | spravochnik | zhurnal |
 |---|---|---|---|---|---|---|---|---|---|
@@ -88,7 +88,7 @@ Ink, objects and blocks -- four populations with four denominators, which is why
 
 - a dash means: this run read nothing: every block would leave as a picture, which is not a measurement of one
 
-### object_ink_preserved ↑ — ink of the objects that survives
+### object_ink_preserved ↑ — ink of the truth objects that survives inside boxes
 
 | model | annopage | atlas | hard | hard36 | katalog | matematika | slovar | spravochnik | zhurnal |
 |---|---|---|---|---|---|---|---|---|---|
@@ -103,7 +103,7 @@ Ink, objects and blocks -- four populations with four denominators, which is why
 
 Where the truth marks reading order, agreement with it; where it does not -- and it is marked on no real page in this project -- how often the assembled order jumps between columns.
 
-### assembly_order ↑ — reading order of the assembled book
+### assembly_order ↑ — reading order of the assembled book agrees with truth
 
 | model | annopage | atlas | hard | hard36 | katalog | matematika | slovar | spravochnik | zhurnal |
 |---|---|---|---|---|---|---|---|---|---|
@@ -117,7 +117,7 @@ Where the truth marks reading order, agreement with it; where it does not -- and
 - a dash means: truth carries no order: not marked on 600 of 600 pages
 - a dash means: truth carries no order: not_said on 36 of 36 pages
 
-### excess_jumps_per_transition ↓ — excess column jumps per move between boxes -- a page-rate is in the per-bench tables below, where it can be read beside the rule that ordered each model
+### excess_jumps_per_transition ↓ — excess column jumps per move between boxes
 
 | model | annopage | atlas | hard | hard36 | katalog | matematika | slovar | spravochnik | zhurnal |
 |---|---|---|---|---|---|---|---|---|---|
@@ -135,7 +135,7 @@ Where the truth marks reading order, agreement with it; where it does not -- and
 - counted over `ours_top_down_left_right: the model gives no rank`: `PP-DocLayout_plus-L`
 - **these are two different quantities**, and the columns are not comparable across the two groups.
 
-### excess_jumps_per_transition_one_rule ↓ — the same, with ONE ordering rule forced on every model: this column compares BOXES, the others compare box-and-rank together
+### excess_jumps_per_transition_one_rule ↓ — the same with one ordering rule forced on every model, so the column compares boxes alone
 
 | model | annopage | atlas | hard | hard36 | katalog | matematika | slovar | spravochnik | zhurnal |
 |---|---|---|---|---|---|---|---|---|---|
@@ -156,28 +156,6 @@ Where the truth marks reading order, agreement with it; where it does not -- and
 ## What failed, and how
 
 The derivatives: an artefact can be missed, cut, called text, or merged with its neighbour, and those four account for every one that did not arrive whole.
-
-### charts_as_data ↓ — charts returned as a TABLE OF NUMBERS -- values read off a curve by eye and placed in the book as text, which is the one rule this project holds hardest: numbers may be flagged, never restored
-
-| model | annopage | atlas | hard | hard36 | katalog | matematika | slovar | spravochnik | zhurnal |
-|---|---|---|---|---|---|---|---|---|---|
-| `PP-DocLayoutV2` | · | · | · | · | · | · | · | · | · |
-| `PP-DocLayoutV3` | · | · | · | · | · | · | · | · | · |
-| `PP-DocLayout_plus-L` | · | · | · | · | · | · | · | · | · |
-| `docling-egret` | · | · | · | · | · | · | · | · | · |
-| `docling-heron` | · | · | · | · | · | · | · | · | · |
-| `yolox_l0.05` | · | · | · | · | · | · | · | · | · |
-
-### looping ↓ — answers that repeat themselves
-
-| model | annopage | atlas | hard | hard36 | katalog | matematika | slovar | spravochnik | zhurnal |
-|---|---|---|---|---|---|---|---|---|---|
-| `PP-DocLayoutV2` | · | · | · | · | · | · | · | · | · |
-| `PP-DocLayoutV3` | · | · | · | · | · | · | · | · | · |
-| `PP-DocLayout_plus-L` | · | · | · | · | · | · | · | · | · |
-| `docling-egret` | · | · | · | · | · | · | · | · | · |
-| `docling-heron` | · | · | · | · | · | · | · | · | · |
-| `yolox_l0.05` | · | · | · | · | · | · | · | · | · |
 
 ### artefacts_not_seen ↓ — artefacts the model never boxed
 
@@ -201,7 +179,7 @@ The derivatives: an artefact can be missed, cut, called text, or merged with its
 | `docling-heron` | 0.113 <sub>139/1232</sub> | 0.000 <sub>0/16</sub> | 0.084 <sub>62/736</sub> | 0.060 <sub>24/403</sub> | 0.000 <sub>0/13</sub> | 0.000 <sub>0/27</sub> | 0.000 <sub>0/3</sub> | 0.022 <sub>1/45</sub> | 0.000 <sub>0/6</sub> |
 | `yolox_l0.05` | 0.113 <sub>139/1232</sub> | 0.000 <sub>0/16</sub> | 0.076 <sub>56/736</sub> | 0.050 <sub>20/403</sub> | 0.385 <sub>5/13</sub> | 0.000 <sub>0/27</sub> | 0.000 <sub>0/3</sub> | 0.044 <sub>2/45</sub> | 0.000 <sub>0/6</sub> |
 
-### artefacts_called_text ↓ — artefacts boxed as text -- they leave as a line and the structure leaves with them
+### artefacts_called_text ↓ — artefacts boxed as text: they leave as a line and the structure leaves with them
 
 | model | annopage | atlas | hard | hard36 | katalog | matematika | slovar | spravochnik | zhurnal |
 |---|---|---|---|---|---|---|---|---|---|
@@ -212,7 +190,7 @@ The derivatives: an artefact can be missed, cut, called text, or merged with its
 | `docling-heron` | 0.045 <sub>56/1232</sub> | 0.000 <sub>0/16</sub> | 0.042 <sub>31/736</sub> | 0.035 <sub>14/403</sub> | 0.000 <sub>0/13</sub> | 0.148 <sub>4/27</sub> | 0.000 <sub>0/3</sub> | 0.044 <sub>2/45</sub> | 0.000 <sub>0/6</sub> |
 | `yolox_l0.05` | 0.014 <sub>17/1232</sub> | 0.000 <sub>0/16</sub> | 0.012 <sub>9/736</sub> | 0.010 <sub>4/403</sub> | 0.000 <sub>0/13</sub> | 0.000 <sub>0/27</sub> | 0.000 <sub>0/3</sub> | 0.000 <sub>0/45</sub> | 0.000 <sub>0/6</sub> |
 
-### artefacts_merged = — artefacts sharing a box with a neighbour. NO ARROW: a wider picture goes to the second level and is split there, and on the 36 hardest pages strict matching called 20 % what arriving-whole called 91 %
+### artefacts_merged = — artefacts sharing a box with a neighbour; no direction, since a wider picture is split at level two
 
 | model | annopage | atlas | hard | hard36 | katalog | matematika | slovar | spravochnik | zhurnal |
 |---|---|---|---|---|---|---|---|---|---|
@@ -222,6 +200,28 @@ The derivatives: an artefact can be missed, cut, called text, or merged with its
 | `docling-egret` | 0.320 <sub>394/1232</sub> | 0.250 <sub>4/16</sub> | 0.507 <sub>373/736</sub> | 0.670 <sub>270/403</sub> | 0.000 <sub>0/13</sub> | 0.481 <sub>13/27</sub> | 0.000 <sub>0/3</sub> | 0.156 <sub>7/45</sub> | 0.000 <sub>0/6</sub> |
 | `docling-heron` | 0.297 <sub>366/1232</sub> | 0.062 <sub>1/16</sub> | 0.471 <sub>347/736</sub> | 0.705 <sub>284/403</sub> | 0.000 <sub>0/13</sub> | 0.667 <sub>18/27</sub> | 0.000 <sub>0/3</sub> | 0.133 <sub>6/45</sub> | 0.000 <sub>0/6</sub> |
 | `yolox_l0.05` | 0.322 <sub>397/1232</sub> | 0.125 <sub>2/16</sub> | 0.515 <sub>379/736</sub> | 0.653 <sub>263/403</sub> | 0.000 <sub>0/13</sub> | 0.000 <sub>0/27</sub> | 0.000 <sub>0/3</sub> | 0.244 <sub>11/45</sub> | 0.000 <sub>0/6</sub> |
+
+### charts_as_data ↓ — charts returned as a table of numbers: values read off a curve and placed in the book as text
+
+| model | annopage | atlas | hard | hard36 | katalog | matematika | slovar | spravochnik | zhurnal |
+|---|---|---|---|---|---|---|---|---|---|
+| `PP-DocLayoutV2` | · | · | · | · | · | · | · | · | · |
+| `PP-DocLayoutV3` | · | · | · | · | · | · | · | · | · |
+| `PP-DocLayout_plus-L` | · | · | · | · | · | · | · | · | · |
+| `docling-egret` | · | · | · | · | · | · | · | · | · |
+| `docling-heron` | · | · | · | · | · | · | · | · | · |
+| `yolox_l0.05` | · | · | · | · | · | · | · | · | · |
+
+### looping ↓ — answers that repeat themselves
+
+| model | annopage | atlas | hard | hard36 | katalog | matematika | slovar | spravochnik | zhurnal |
+|---|---|---|---|---|---|---|---|---|---|
+| `PP-DocLayoutV2` | · | · | · | · | · | · | · | · | · |
+| `PP-DocLayoutV3` | · | · | · | · | · | · | · | · | · |
+| `PP-DocLayout_plus-L` | · | · | · | · | · | · | · | · | · |
+| `docling-egret` | · | · | · | · | · | · | · | · | · |
+| `docling-heron` | · | · | · | · | · | · | · | · | · |
+| `yolox_l0.05` | · | · | · | · | · | · | · | · | · |
 
 ## What the reading runs measured
 

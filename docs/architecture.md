@@ -161,17 +161,19 @@ The next layer is a web application: a collection of uploaded books, both
 levels run as jobs with progress, metrics per page and per book that appear
 in the interface when a metric is added, truth uploaded or drawn in the
 browser, corrections journaled, page images with the boxes over them. The
-library is the engine of that application; the seams it needs are these, and
-each is a refactor of what exists:
+library is the engine of that application. Seams already cut: every
+metric declares its scalars with a direction and a gloss, and
+`docs/metrics.json` carries that declaration as data, so a new metric
+renders without a hand-kept table; `core/raster.py` returns a page or a crop
+as bytes; `Book.list` enumerates a collection; the path rules a command
+applies live in `core/book.py`. Seams still to cut, each a refactor of what
+exists:
 
-- Metric metadata on the metric itself: direction, gloss, kind per scalar,
-  so a new metric renders without a hand-kept table.
 - Per-page results kept by the ink measurement and returned as data by the
   overlay, instead of book totals and a drawn PDF.
 - Progress as data from `detect.run` and `read_book`, not lines of text.
 - The HTML builder split into the data pass and the emission, so the data
   pass serves a page viewer and the emission becomes an export.
-- A bytes-returning render and crop in `core/raster.py`.
 - A knob source that is not the process environment, so one server can run
   jobs with different settings.
 

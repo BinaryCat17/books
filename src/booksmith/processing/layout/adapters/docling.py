@@ -90,6 +90,7 @@ from booksmith.processing.layout.base import Detector
 # be a second vocabulary of roles, and those have diverged before.
 from booksmith.core import book
 from booksmith.core import order
+from booksmith.core.order import declare as declare_order
 from booksmith.core import policy
 from booksmith.core import knobs
 from booksmith.core import stamp
@@ -632,7 +633,7 @@ class DoclingHeron(Detector):
             # constant once said "ours, top down and left to right" while the
             # sort was `(round(y/20), x)`, buckets of twenty raster pixels --
             # two rules under one name, catchable only by reading both places.
-            return blocks, {"reading_order": order.WORDS[order.rule()]}
+            return blocks, {"reading_order": declare_order("ours", order.WORDS[order.rule()])}
         blocks, m = self._pipe.apply(blocks, w, h, index)
         pp = self._pipe
         if pp.pages == 1 or pp.pages % 10 == 0:
@@ -644,7 +645,7 @@ class DoclingHeron(Detector):
                   f"{pp.resorted}, the rules permuted "
                   + (str(pp.reordered) if pp.mode == "full"
                      else "-- (never called)") + ")")
-        return blocks, {"reading_order": _DoclingPipeline.ORDER_RULE[pp.mode],
+        return blocks, {"reading_order": declare_order("ours", _DoclingPipeline.ORDER_RULE[pp.mode]),
                         "docling_pipeline": m}
 
     def thresholds(self) -> dict[str, float]:
@@ -783,7 +784,7 @@ class DoclingHeron(Detector):
             "prompts": {},
             # The model gives no reading order at all. Declared as a value, so
             # that "order 100%" by it cannot be taken for the model's merit.
-            "reading_order": None,
+            "reading_order": declare_order("none"),
             # The vendor pipeline is named at `off` too -- as a VALUE, not an
             # omission. An empty place would read as "not looked at", and this
             # is "looked at and switched off": without it two runs 5826 boxes

@@ -15,7 +15,9 @@ One checklist per kind of thing. Each ends with the command that proves it.
    `src/booksmith/processing/layout/detect.py`.
 4. Every knob it reads, declared in `src/booksmith/core/knobs.py` and named
    by `knobs_read`.
-5. Page `meta["reading_order"]` says whose order the blocks carry.
+5. Page `meta["reading_order"]` is written through `order.declare` in
+   `src/booksmith/core/order.py`: the model's rank, ours by a named rule,
+   or none.
 6. Prove it: `books doctor`, then `books detect bench/slovar` and
    `books bench all bench/slovar --run <label>`.
 
@@ -55,11 +57,13 @@ One checklist per kind of thing. Each ends with the command that proves it.
    in `src/booksmith/datasets/metrics/mutate.py`. Each probe names what was
    spoiled and what must happen to the number, returns True, False, or None
    where this book gives it nothing to grip.
-4. An instance in `METRICS` of `src/booksmith/datasets/metrics/__init__.py`,
-   and each scalar's direction declared for the report in
-   `src/booksmith/datasets/report.py`.
-5. Prove it: `books bench all bench/slovar`, then `books bench selfcheck
-   bench/slovar`, then `books bench report`, then `pytest`.
+4. Every scalar declared in the class's `scalars` as a `Spec`: its name,
+   which way is better, one sentence of what it says, and the report
+   question it headlines if any. The report and `docs/metrics.md` derive
+   from that; an undeclared scalar is refused.
+5. An instance in `METRICS` of `src/booksmith/datasets/metrics/__init__.py`.
+6. Prove it: `books bench all bench/slovar`, then `books bench selfcheck
+   bench/slovar`, then `books bench report` and `books docs`, then `pytest`.
 
 ## A bench
 

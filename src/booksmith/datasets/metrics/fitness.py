@@ -5,7 +5,7 @@ where the production pipeline can ask it of any book without truth; this file
 holds what needs the bench, and `probes/fitness.py` the damage. The shares are
 computed here once, from the same counts the report divides.
 """
-from booksmith.datasets.metrics.base import Metric, Record, Scalar
+from booksmith.datasets.metrics.base import Metric, Record, Scalar, Spec
 from booksmith.processing.assess import ink
 
 
@@ -21,6 +21,38 @@ class FitnessMetric(Metric):
     text, arrived with company, cut as one picture)."""
     name = "fitness"
     needs = frozenset({"pdf", "pages"})
+    scalars = (
+        Spec("ink_under_boxes", "higher",
+             "ink that lands inside some box", 'How much of the book survived'),
+        Spec("ink_under_boxes_clean", "higher",
+             "the same over the ink that is ink: binding shadow and scan edge discarded from both sides", 'How much of the book survived'),
+        Spec("ink_as_text", "higher",
+             "ink that leaves the book as text rather than as a picture of itself", 'How much of the book survived'),
+        Spec("object_ink_preserved", "higher",
+             "ink of the truth objects that survives inside boxes", 'How much of the book survived'),
+        Spec("ink_under_artefacts", "neither",
+             "ink under boxes of artifact role: a composition, not a quality"),
+        Spec("ink_as_picture", "neither",
+             "ink that leaves as a picture"),
+        Spec("ink_junk", "neither",
+             "ink discarded as binding shadow or scan edge: a property of the scan"),
+        Spec("area_under_boxes", "neither",
+             "share of the sheet under boxes: a full-sheet box scores the maximum"),
+        Spec("median_box_area", "neither",
+             "median box area as a share of the sheet"),
+        Spec("boxes_per_page", "neither",
+             "boxes per page"),
+        Spec("objects_intact", "higher",
+             "truth objects whose ink is intact under one box"),
+        Spec("objects_in_one_box", "higher",
+             "truth objects covered by exactly one box"),
+        Spec("objects_torn", "lower",
+             "truth objects torn between boxes"),
+        Spec("objects_left_as_text", "lower",
+             "truth objects boxed as text"),
+        Spec("objects_with_company", "lower",
+             "truth objects sharing a box"),
+    )
 
     def run(self, bench, run) -> Record:
         truth = bench.truth_dir if bench is not None and bench.truth_dir else ""

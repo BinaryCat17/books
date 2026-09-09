@@ -346,21 +346,17 @@ def test_every_scalar_that_reaches_the_document_declares_its_direction():
         "a metric stopped emitting, or this loop stopped running, and the "
         "unmeasured half of the registry is exactly what it is here for")
     assert len(names) > 20, f"only {len(names)} scalars found: {sorted(names)}"
-    declared = (set(report.LOWER_IS_BETTER) | set(report.HIGHER_IS_BETTER)
-                | set(report.NEITHER))
+    declared = set(report.specs())
     undeclared = sorted(names - declared)
     assert not undeclared, (
-        f"{len(undeclared)} scalars reach METRICS.md with no declared "
-        f"direction: {undeclared}. Add each to LOWER_IS_BETTER, "
-        f"HIGHER_IS_BETTER or NEITHER in booksmith/datasets/report.py")
-    # AND IN EXACTLY ONE. Two lists holding one name is not a declaration
-    # either -- `_arrow` would answer by the order its branches happen to be
-    # written in, which is not where this decision belongs.
-    for n in sorted(names):
-        where = [k for k, v in (("LOWER_IS_BETTER", report.LOWER_IS_BETTER),
-                                ("HIGHER_IS_BETTER", report.HIGHER_IS_BETTER),
-                                ("NEITHER", report.NEITHER)) if n in v]
-        assert len(where) == 1, f"`{n}` is declared in {where}"
+        f"{len(undeclared)} scalars reach METRICS.md with no Spec: {undeclared}. "
+        f"Declare each in its metric's `scalars`")
+    stale = sorted(declared - names)
+    assert not stale, f"declared and never published: {stale}"
+    titles = {q for q, _ in report.QUESTIONS}
+    for m in registry.METRICS:
+        for sp in m.scalars:
+            assert not sp.question or sp.question in titles, f"{m.name}.{sp.name}: {sp.question!r}"
 
 
 def test_the_arrows_that_were_wrong_once_are_pinned_by_name():

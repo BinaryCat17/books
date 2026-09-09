@@ -237,16 +237,8 @@ def _figure(anchor, b, role, src, info, inside=None, mark="", why=None):
 
 
 def is_our_dir(out_dir: str) -> bool:
-    """Was this directory built by `books html`? The tell is its own snapshot.
-
-    The old layout (`run.json` in the root) counts TOO: books built before the
-    snapshot moved into `assets/` are ours — neither to overwrite unasked nor to
-    call foreign. Lives here, not in `cli.py`: the builder writes the snapshot
-    and must own where it lies. A path retyped elsewhere drifts silently, as it
-    did when the snapshot moved.
-    """
-    return (os.path.exists(os.path.join(out_dir, ASSETS, "run.json"))
-            or os.path.exists(os.path.join(out_dir, "run.json")))
+    """Was this directory built by `books html`? The tell is its own snapshot."""
+    return os.path.exists(os.path.join(out_dir, ASSETS, "run.json"))
 
 
 def _keep_source(detect_dir: str, out_dir: str, log) -> dict:
@@ -1111,20 +1103,6 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
             f"{got[where] if where < len(got) else '(end)'}. The book's order "
             f"IS the reading order; muddled, the document stays sound to the "
             f"eye and unreadable in substance.")
-
-    # LEFTOVERS OF THE OLD LAYOUT — ALOUD, NOT SILENTLY. Rebuilding into a
-    # directory made before the kitchen moved puts `assets/` BESIDE the old
-    # `blocks/`, `blocks.json`, `run.json`: "one file in the root" quietly stops
-    # being true, the book gains two `blocks.json`, and readers take different
-    # ones. We do not remove them — someone else's work, only a human may erase.
-    leftovers = [n for n in ("blocks", "blocks.json", "run.json", "tex-svg.js")
-               if os.path.exists(os.path.join(out_dir, n))]
-    if leftovers:
-        log(f"WARNING: files of the old layout remain at the book's root: "
-            f"{', '.join(leftovers)}. The kitchen is now in `{ASSETS}/`, and "
-            f"these are a second copy nobody reads. Remove them by hand; the "
-            f"swap journal `swaps.json` at the root, however, IS READ and must "
-            f"not be touched.")
 
     # The source goes AFTER the book assembled without a refusal: no point
     # copying 22 MB for a build that is about to fail.

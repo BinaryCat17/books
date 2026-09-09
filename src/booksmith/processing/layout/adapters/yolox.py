@@ -182,7 +182,7 @@ class YoloXLayout(Detector):
             "label_vocabulary": self.labels,
             "label_map": self.label_map(),
             "prompts": {},
-            "reading_order": None,
+            "reading_order": order.declare("none"),
             "input_downscale": {"cv2_filter": INTERP, "padding": PAD},
             "duplicate_suppression": {"method": "NMS", "iou": NMS_IOU,
                                   "by_class": NMS_BY_CLASS,
@@ -297,7 +297,7 @@ class YoloXLayout(Detector):
             # carries both.
             meta={"detector": self.name,
                   "boxes_accepted": len(kept), "rank_ties": 0,
-                  "reading_order": order.WORDS[which],
+                  "reading_order": order.declare("ours", order.WORDS[which]),
                   # A QUANTITY, NOT A WORD. Here stood
                   # `f"NMS iou={NMS_IOU}"`, a string repeating a constant,
                   # while the log said nothing about HOW MUCH it suppressed.

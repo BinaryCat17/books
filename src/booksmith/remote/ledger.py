@@ -389,3 +389,18 @@ def fit(path: str = LEDGER) -> dict:
     return {"samples": len(eff), **skipped, "distinct_image_sizes": len(gbs),
             "link_efficiency_median": eff[len(eff) // 2],
             "link_efficiency_p25": eff[len(eff) // 4]}
+
+
+def totals(rows) -> dict:
+    """Runs, successes and money over the journal rows."""
+    return {"runs": len(rows),
+            "ok": sum(1 for r in rows if r.get("ok")),
+            "spent_usd": sum(r.get("cost_usd") or 0 for r in rows)}
+
+
+def observed_mbps(row) -> float | None:
+    """Delivery speed of one run from its image size and setup time, or None."""
+    setup, gb = row.get("setup_s"), row.get("image_gb")
+    if (setup or 0) > 0 and gb:
+        return gb * 8 * 1024 / setup
+    return None

@@ -288,9 +288,9 @@ class DocLayout(Detector):
                                       "mean": self.norm_mean,
                                       "std": self.norm_std}},
             "native_threshold": self.native_threshold,
-            "reading_order": ("model_rank" if getattr(self, "has_order", True)
-                               else "ours_top_down_left_right: the model "
-                                    "gives no rank"),
+            "reading_order": (order.declare("model") if getattr(self, "has_order", True)
+                               else order.declare("ours", "ours_top_down_left_right: the "
+                                                  "model gives no rank")),
             "thresholds_by_class": self.thresholds(),
             "threshold_drift": self.threshold_drift(),
             "label_vocabulary": self.labels,
@@ -467,7 +467,7 @@ class DocLayout(Detector):
                   # (`core/page.ours_order`, one place for the project). Case
                   # it strips deliberately, so lower case is convention, not
                   # condition. Changing these words, keep `ours` first.
-                  "reading_order": ("model_rank" if self.has_order else
-                                     order.WORDS[which]
-                                     + ": the model gives no rank"),
+                  "reading_order": (order.declare("model") if self.has_order else
+                                     order.declare("ours", order.WORDS[which]
+                                                   + ": the model gives no rank")),
                   "best_rejected_by_class": rejected})

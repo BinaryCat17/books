@@ -87,7 +87,7 @@ def _check_labels(page, pol, known, adapter):
     bad = sorted({b.label for b in page.blocks if b.label not in known})
     if not bad:
         return
-    raise RuntimeError(
+    raise Refusal(
         f"page {page.index}: block labels {bad} are not from the policy "
         f"vocabulary {pol} (adapter {adapter}; the vocabulary knows "
         f"{len(known)} spellings: {sorted(known)}). Counting cannot go on: "
@@ -549,7 +549,7 @@ def run(pdf, outdir, pages_spec=None, log=print):
                if had_pipeline else ""))
 
     if total == 0:
-        raise RuntimeError(
+        raise Refusal(
             f"not one box on {len(idxs)} pages -- a refusal, not an empty "
             f"book. Threshold LAYOUT_SCORE_THRESHOLD="
             f"{knobs.knob('LAYOUT_SCORE_THRESHOLD')}, weights {det.dir}. "

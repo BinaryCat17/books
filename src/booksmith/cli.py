@@ -31,7 +31,6 @@ against the parser both ways. Every command with its flags: `docs/commands.md`.
 """
 import argparse
 import json
-import re
 import os
 import sys
 
@@ -46,6 +45,7 @@ from booksmith.core import replay as replay_mod
 from booksmith.core.errors import Refusal
 from booksmith.core import raster
 from booksmith.core import book
+from booksmith.datasets import look as look_mod
 
 
 def _host_args(ap):
@@ -146,115 +146,11 @@ def cmd_detect(a):
 # in ONE line naming what it expected.
 
 
-def _page_files(d):
-    """(how many layout pages, and if zero — why exactly).
-
-    The selection is `metrics._load`'s: `.json` except `run.json`, `blocks`
-    and `index` inside. Let them diverge and this accepts a directory the
-    metric then dies on, moving the clear message one step away.
-
-    ONE file is opened, the first by name: reading the 600 golden pages to
-    choose a directory is expensive, and a book root differs from a page
-    directory by the first file already (`manifest.json` against `0000.json`).
-
-    The reason comes back as a second value because the zeroes DIFFER: "no json
-    at all" and "json, but not pages" are two different mistakes, and one line
-    for both swaps one zero for the other.
-    """
-    if not os.path.isdir(d):
-        return 0, "not a directory"
-    names = sorted(f for f in os.listdir(d)
-                   if f.endswith(".json") and f != "run.json")
-    if not names:
-        return 0, "no json files at all"
-    try:
-        with open(os.path.join(d, names[0]), encoding="utf-8") as f:
-            first = json.load(f)
-    except (OSError, ValueError) as e:
-        return 0, f"{names[0]} does not read as json ({type(e).__name__})"
-    if not (isinstance(first, dict) and "blocks" in first
-            and "index" in first):
-        return 0, (f"json files {len(names)}, but {names[0]} is not a layout "
-                   f"page: no blocks/index fields")
-    return len(names), ""
-
-
-def _pages_dir(path, what):
-    """The PAGE directory: out of the run directory, or itself.
-
-    `<out>/pages` comes back, not `<out>`: `metrics._same_book` looks for
-    `run.json` IN THE PARENT of the directory given, so substituting the parent
-    silently switches off the sha256 check of truth against output — the one
-    catching one book's truth scored against another book's boxes.
-    """
-    if not os.path.exists(path):
-        raise Refusal(
-            f"{what}: no path {path}. Expected a `books detect` run "
-            f"directory (pages/ and run.json in it) or the directory of "
-            f"layout pages itself (*.json).")
-    sub = os.path.join(path, "pages")
-    (here, why_here), (there, why_sub) = _page_files(path), _page_files(sub)
-    if there and not here:
-        # A value, not silence: a substituted directory must show in the
-        # journal, or "measured the wrong thing" reads like "measured".
-        log(f"{what}: given a run directory, taking the pages from {sub} — "
-            f"there are {there}")
-        return sub
-    if here:
-        return path
-    raise Refusal(
-        f"{what}: no layout pages found. In {path} — {why_here}; in {sub} — "
-        f"{why_sub}. Expected a `books detect` run directory (pages/ and "
-        f"run.json in it) or the page directory itself. There is nothing to "
-        f"count — and that is not a zero of losses.")
-
-
-def _run_dir(path, what):
-    """The RUN directory: the one holding `run.json`. Takes `<out>/pages` too.
-
-    The other side of the same trouble: the free crop preview died on
-    `bench/…/detect/pages` with `FileNotFoundError` on `pages/run.json`,
-    never saying it wanted the parent.
-    """
-    if not os.path.exists(path):
-        raise Refusal(
-            f"{what}: no path {path}. Expected a `books detect` run "
-            f"directory — the one holding run.json.")
-    if os.path.exists(os.path.join(path, "run.json")):
-        return path
-    up = os.path.dirname(os.path.abspath(path.rstrip("/")))
-    if _page_files(path)[0] and os.path.exists(os.path.join(up, "run.json")):
-        log(f"{what}: given a page directory, taking the snapshot from {up}")
-        return up
-    raise Refusal(
-        f"{what}: no run.json in {path}. Expected a `books detect` run "
-        f"directory (pages/ and run.json in it), not a page directory and "
-        f"not a book root.")
-
-
-def book_home(detect_dir: str) -> str:
-    """Where the book lands BY DEFAULT: somewhere permanent, not beside the run.
-
-    The default was `<run directory>/html`, true up to the first run in a
-    temporary directory: the book was built, read with the eye, and vanished
-    with it. Measured that evening: both books — 378 and 539 pages, $0.47 of
-    rental — landed in `/tmp` and had to be moved by hand.
-
-    The name comes from the SOURCE: a book must be findable by the file it was
-    made from. Unsafe characters are replaced and the length cut, recognisably.
-    """
-    with open(os.path.join(detect_dir, "run.json"), encoding="utf-8") as f:
-        snap = json.load(f)
-    stem = os.path.splitext(os.path.basename(snap["source"]["path"]))[0]
-    safe = re.sub(r"[^\w.,()-]+", "-", stem, flags=re.UNICODE).strip("-")[:80]
-    return os.path.join(config.ROOT, "processed", safe or "book")
-
-
 def cmd_html(a):
     """Level one's product: text as markup, artefacts as pictures."""
     from booksmith.processing.assemble import html as html_mod
-    d = _run_dir(a.dir, "books html")
-    out = a.out or book_home(d)
+    d = book.run_dir(a.dir, "books html")
+    out = a.out or book.home_for(d)
     # FOREIGN WORK IS NOT OVERWRITTEN: the tell of ours is the snapshot the
     # builder writes, and a non-empty directory without it means refusal out
     # loud. THE TELL IS ASKED OF THE BUILDER, NOT TYPED HERE: the snapshot
@@ -350,7 +246,7 @@ def cmd_read_rented(a, policy_name, out):
     from booksmith.processing.read.rented import paddleocr_vl as vl
     from .remote import runner
 
-    spec = vl.spec(_pdf_of(a.dir), a.dir, pages=a.pages, policy=policy_name,
+    spec = vl.spec(book.pdf_of(a.dir), a.dir, pages=a.pages, policy=policy_name,
                    budget_usd=a.budget, timeout_minutes=a.timeout)
     log(f"job {spec.name}: input {len(spec.inputs)} paths, ceiling "
         f"${spec.budget_usd:.2f} and {spec.timeout_minutes:.0f} min, card "
@@ -429,7 +325,7 @@ def cmd_read(a):
     pages = None
     if a.pages:
         from booksmith.processing.layout.detect import parse_pages
-        with raster.open_pdf(_pdf_of(a.dir)) as d:
+        with raster.open_pdf(book.pdf_of(a.dir)) as d:
             pages = set(parse_pages(a.pages, d.page_count))
 
     t = vread.read_book(a.dir, out, reader, transport,
@@ -443,11 +339,6 @@ def cmd_read(a):
     return 0
 
 
-def _pdf_of(detect_dir):
-    with open(os.path.join(detect_dir, "run.json"), encoding="utf-8") as f:
-        return json.load(f)["source"]["path"]
-
-
 def cmd_crop(a):
     """What `books read` would send, cut by `books read`'s own path, and
     nothing sent. Free.
@@ -459,7 +350,7 @@ def cmd_crop(a):
     the model never saw.
     """
     from booksmith.processing.read import driver as vread
-    d = _run_dir(a.dir, "books crop")
+    d = book.run_dir(a.dir, "books crop")
     out = a.out or (os.path.abspath(d).rstrip("/") + ".crop")
     # THE SAME TWO LINES AS `books read`, and for the same reason. This asked
     # the snapshot alone and refused when it named no dictionary -- so
@@ -467,25 +358,13 @@ def cmd_crop(a):
     # reads perfectly well, could not be previewed at all. The free command
     # must accept every input the paid one does, or it is a preview of
     # something else.
-    known = json.load(open(os.path.join(d, "run.json"), encoding="utf-8")
-                      ).get("policy", {}).get("vocabulary")
-    policy_name = a.policy or known
-    if not policy_name:
-        raise Refusal(
-            f"the snapshot {d}/run.json names no label dictionary and "
-            f"--policy is not given; the crops depend on which labels are "
-            f"asked about.")
-    if a.policy and known and a.policy != known:
-        raise Refusal(
-            f"--policy {a.policy!r} against the detection dictionary "
-            f"{known!r}: the preview would cut by one dictionary what "
-            f"`books read` asks by another.")
+    policy_name = vread.policy_for(d, a.policy)
     os.makedirs(out, exist_ok=True)
     reader = vread.build_reader(policy_name)
     pages = None
     if a.pages:
         from booksmith.processing.layout.detect import parse_pages
-        with raster.open_pdf(_pdf_of(d)) as doc:
+        with raster.open_pdf(book.pdf_of(d)) as doc:
             pages = set(parse_pages(a.pages, doc.page_count))
     t = vread.read_book(d, out, reader, None, resume=False, pages_want=pages,
                         log=log, preview=True)
@@ -508,54 +387,16 @@ def cmd_crop(a):
     return 0
 
 
-def _look_at(pdf, detect_dir):
-    """Where a sheet of boxes goes: `<book>/look/<label>.pdf` inside a book.
-
-    THE DEFAULT USED TO BE `<book>/<name>.overlay.pdf`, a pdf at the book
-    root -- and `core.book.ALLOWED` names exactly ONE pdf there, the
-    scan the manifest names. So the command's own default wrote a file the
-    layout check calls a stray, which is the shape this project keeps paying
-    for: an instrument and a command disagreeing about where output belongs,
-    with the command winning silently until someone runs the check.
-
-    `look/<label>.pdf` was chosen when the sheets were gathered under one
-    name, and the label is the RUN's directory name -- the model's own, by
-    `Detector.label()` -- so a sheet says which model drew it. Six of them
-    said nothing (`check.pdf` on six benches) and four said a model that had
-    never existed.
-
-    Outside a book -- a loose pdf with `--detect` beside it -- there is no
-    `look/` to write into and the old name is right, so it stays.
-    """
-    book = os.path.dirname(os.path.abspath(pdf))
-    label = None
-    if detect_dir:
-        d = os.path.abspath(detect_dir).rstrip("/")
-        # `--detect bench/x/detect/<label>` or `.../<label>/pages`
-        if os.path.basename(d) == "pages":
-            d = os.path.dirname(d)
-        if os.path.basename(os.path.dirname(d)) == "detect":
-            label = os.path.basename(d)
-    if os.path.isfile(os.path.join(book, "manifest.json")):
-        # TRUTH DRAWN ALONE IS A LEGITIMATE SHEET and had nowhere to go: with
-        # no `--detect` there is no label, and falling back to the old name
-        # put a second pdf at the book root, which is the stray this default
-        # was changed to stop making. `look/truth.pdf` is declared beside the
-        # model names in `core.book.BESIDE_A_RUN`.
-        return os.path.join(book, "look", (label or "truth") + ".pdf")
-    return os.path.splitext(pdf)[0] + ".overlay.pdf"
-
-
 def cmd_overlay(a):
     """Boxes over the pages: truth solid, the model's guess dashed."""
     from booksmith.processing.layout import detect
     from booksmith.datasets import look as overlay
-    marks = [(_pages_dir(a.truth, "--truth"), "T")] if a.truth else []
+    marks = [(book.pages_dir(a.truth, "--truth"), "T")] if a.truth else []
     if a.detect:
-        marks.append((_pages_dir(a.detect, "--detect"), "M"))
+        marks.append((book.pages_dir(a.detect, "--detect"), "M"))
     if not marks:
         raise Refusal("nothing to draw: give --truth and/or --detect")
-    out = a.out or _look_at(a.pdf, a.detect)
+    out = a.out or look_mod.look_at(a.pdf, a.detect)
     only = None
     if a.pages:
         # THE VERY SAME PARSE as `books detect`, not a second copy. The copy
@@ -587,8 +428,8 @@ def cmd_score(a):
     applicable metric's probes on a bench and a run.
     """
     from booksmith.datasets.metrics import contour as metrics
-    truth = _pages_dir(a.truth, "truth")
-    det = _pages_dir(a.detect, "model boxes")
+    truth = book.pages_dir(a.truth, "truth")
+    det = book.pages_dir(a.detect, "model boxes")
     metrics.report(metrics.compare(truth, det), log=log)
     return 0
 
@@ -612,8 +453,8 @@ def cmd_text(a):
     order is not annotated at all.
     """
     from booksmith.datasets.metrics import text
-    truth = _pages_dir(a.truth, "truth")
-    pages = _pages_dir(a.pages, "what was read")
+    truth = book.pages_dir(a.truth, "truth")
+    pages = book.pages_dir(a.pages, "what was read")
     text.report(text.measure(truth, pages, norm=a.norm), log=log)
     return 0
 
@@ -621,8 +462,8 @@ def cmd_text(a):
 def cmd_fitness(a):
     """Fitness of the output: will the meaning reach level two. By ink."""
     from booksmith.processing.assess import ink as fitness
-    det = _pages_dir(a.detect, "--detect")
-    truth = _pages_dir(a.truth, "--truth") if a.truth else ""
+    det = book.pages_dir(a.detect, "--detect")
+    truth = book.pages_dir(a.truth, "--truth") if a.truth else ""
     fitness.report(fitness.measure(a.pdf, det, truth), log=log)
     return 0
 
@@ -1040,24 +881,10 @@ def cmd_ledger(_a):
     if not rows:
         log(f"journal empty ({ledger_mod.LEDGER})")
         return 0
-    ok = sum(1 for r in rows if r.get("ok"))
-    spent = sum(r.get("cost_usd") or 0 for r in rows)
-    log(f"{len(rows)} runs, successful {ok}, spent ${spent:.3f}")
+    t = ledger_mod.totals(rows)
+    log(f"{t['runs']} runs, successful {t['ok']}, spent ${t['spent_usd']:.3f}")
     for r in rows[-10:]:
-        # NOT MEASURED AND ZERO ARE DIFFERENT THINGS. `else 0` stood here, and
-        # a run whose `setup_s` is zero (delivery cut short by a signal) printed
-        # as "0 Mbps" — "the link is dead" instead of "no measurement". Six
-        # such records in the printed ten, 29 over the whole journal, and all
-        # six DO carry the image size (0.06 GB): the zero is in `setup_s` alone.
-        # A negative `setup_s` means "not measured" too, not a negative speed.
-        #
-        # The formula lived as a SECOND copy: `ledger.Run.observed_mbps` did the
-        # same arithmetic returning `None`, but `asdict` takes no properties, so
-        # it never reached the journal. Of the two the dead copy held the right
-        # semantics; it is gone and its semantics moved here.
-        setup = r.get("setup_s")
-        gb = r.get("image_gb")
-        mb = (gb * 8 * 1024 / setup) if (setup or 0) > 0 and gb else None
+        mb = ledger_mod.observed_mbps(r)
         log(f"  {r.get('started_iso','')}  {r.get('job','')[:22]:22s} "
             f"{'ok ' if r.get('ok') else 'fail'}  "
             f"start {r.get('setup_s',0)/60:4.1f}m "

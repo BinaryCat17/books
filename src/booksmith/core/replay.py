@@ -82,16 +82,6 @@ PKG = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # snapshot is DATA and is not rewritten; the checker translates. A name
 # here maps to the file the same code lives in now, and `tools/migrate_
 # layout.py` is the record the table is copied from.
-RENAMED = {
-    "booksmith.models.doclayout": "booksmith.processing.layout.adapters.doclayout",
-    "booksmith.models.docling_heron": "booksmith.processing.layout.adapters.docling",
-    "booksmith.models.yolox_layout": "booksmith.processing.layout.adapters.yolox",
-    "booksmith.models.paddleocr_vl.reader": "booksmith.processing.read.readers.paddleocr_vl",
-    "booksmith.doc.html": "booksmith.processing.assemble.html",
-    "booksmith.detect": "booksmith.processing.layout.detect",
-    "booksmith.read.run": "booksmith.processing.read.driver",
-}
-
 # The key the snapshot carries the adapter fingerprint under; `detect.py`
 # writes it as `"fingerprint": fp`. The one value here not taken from the
 # adapter source, so a rename at the writer shows at once: on a FRESH snapshot
@@ -311,7 +301,6 @@ def _writer_file(mod, name):
     someone else's code and call that verification.
     """
     if isinstance(mod, str) and mod.split(".")[:1] == ["booksmith"]:
-        mod = RENAMED.get(mod, mod)
         p = os.path.join(PKG, *mod.split(".")[1:]) + ".py"
         if os.path.exists(p):
             return p, "by module name", [p]

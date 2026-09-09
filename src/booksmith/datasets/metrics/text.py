@@ -64,7 +64,7 @@ from booksmith.datasets.metrics import contour as metrics
 from booksmith.core import otsl, page, policy
 from booksmith.core.textnorm import NORM, norm_note, normalize
 from booksmith.core.errors import TextError, Unmeasurable
-from booksmith.datasets.metrics.base import Metric, Record, Scalar
+from booksmith.datasets.metrics.base import Metric, Record, Scalar, Spec
 
 
 
@@ -1019,6 +1019,30 @@ class TextMetric(Metric):
     # run must have produced some. Without it the metric measured a detection
     # run and called the result CER 1.
     needs = frozenset({"truth", "pages", "content", "read"})
+    scalars = (
+        Spec("paired", "higher",
+             "blocks paired with a truth block"),
+        Spec("CER", "lower",
+             "character error rate over paired blocks"),
+        Spec("WER", "lower",
+             "word error rate over paired blocks"),
+        Spec("CER_answered", "lower",
+             "character error rate over the blocks the reader answered"),
+        Spec("no_answer", "lower",
+             "blocks with no answer"),
+        Spec("cells_matched", "higher",
+             "table cells matched by address"),
+        Spec("CER_cells", "lower",
+             "character error rate over matched cells"),
+        Spec("tables_given_as_text", "lower",
+             "tables answered as text"),
+        Spec("baits_read", "lower",
+             "baits read as content"),
+        Spec("CER_artefacts", "lower",
+             "character error rate over artifact blocks"),
+        Spec("CER_artefacts_answered", "lower",
+             "character error rate over answered artifact blocks"),
+    )
 
     def run(self, bench, run) -> Record:
         res = measure(bench.truth_dir, run.pages_dir)

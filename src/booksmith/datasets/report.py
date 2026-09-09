@@ -33,162 +33,6 @@ from booksmith.datasets import table
 
 RESULTS = os.path.join(config.ROOT, "results")
 OUT = os.path.join(config.ROOT, "METRICS.md")
-
-# The few a reader wants first. Everything else is in the per-bench tables
-# below them; nothing is hidden, only ordered.
-# WHICH WAY IS BETTER, PER SCALAR. The legend used to say "shares are 0..1 and
-# higher is better except excess_jumps_per_page" -- and `label_errors`,
-# `role_errors`, `excess_jumps`, `transitions` and the snapshot counts are not
-# shares at all, and higher is worse for most. Read by that legend, V3's 442
-# label errors BEAT V2's 207: the very inversion the denominators were added
-# to fix, reintroduced one file over because the VALUE column is still the raw
-# count.
-#
-# EVERY SCALAR IS DECLARED, AND AN UNDECLARED ONE REFUSES TO RENDER. The rule
-# here used to be "a scalar not named is a share where higher is better", and
-# that default was wrong for FIVE of the twenty-nine scalars on disk, in the
-# first document this project ever generated:
-#
-#   `artefacts_cropped`, `artefacts_called_text` and `artefacts_not_seen` are
-#   the failure modes of detection -- cut off, mislabelled, missed -- added
-#   after this list was written and silently inheriting "better higher". The
-#   published table told a reader that missing MORE artefacts was better, and
-#   by it yolox's 0.314 not-seen beat V2's 0.067.
-#
-#   `missing` and `empty` were named here as `snapshot/missing` and
-#   `snapshot/empty`, and `_arrow` is called with the BARE name -- so the
-#   qualified form matched nothing and both printed as "better higher" too. A
-#   list is not a declaration while a miss is indistinguishable from a share.
-#
-# So the default is gone: `_arrow` refuses a scalar in none of the three, and
-# `tests/test_metrics_contract.py` asks the question of every scalar in
-# `results/` without rendering anything.
-LOWER_IS_BETTER = (
-    # THE READING METRIC, ALL ELEVEN, DECLARED BEFORE IT IS EVER RUN. They
-    # were undeclared for as long as this list has existed, and no check saw
-    # it: the direction check read `results/`, level two costs money, so
-    # nothing there carried a `text` record. `_arrow` refuses a name it does
-    # not know BY RAISING, so the first paid reading run would not have
-    # published a wrong arrow -- it would have made `books bench report`
-    # decline to write the document at all, after the card was rented.
-    #
-    # Distance is error: less is better, and the four CERs plus WER are all
-    # distance. `no_answer` is the model declining to read. `baits_read` is
-    # the opposite defect and the reason it is here rather than under `↑`: a
-    # bait is an artefact whose truth carries no characters, so SILENCE is
-    # the right answer and text invented for a picture is the failure.
-    # `tables_given_as_text` is a grid returned as a paragraph -- the
-    # characters may all be right and the structure is gone.
-    "CER", "WER", "CER_answered", "CER_cells", "CER_artefacts",
-    "CER_artefacts_answered", "no_answer", "baits_read",
-    "tables_given_as_text",
-    # THE READER CAUGHT WITHOUT TRUTH, which is the half of level two that
-    # can be measured at all today. `charts_as_data` is a chart -- a picture
-    # of a curve -- returned as a table of numbers read off it by eye and
-    # placed in the book as text. `looping` is the model repeating itself,
-    # asked after OTSL and LaTeX markup are stripped, so that chemistry that
-    # repeats and merge cells that are declared are not mistaken for it.
-    "charts_as_data", "looping",
-    "label_errors", "role_errors", "excess_jumps", "excess_jumps_per_page",
-    "objects_torn", "objects_left_as_text", "objects_with_company",
-    "ink_outside_boxes", "missing", "empty",
-    "artefacts_cropped", "artefacts_called_text", "artefacts_not_seen",
-    "excess_jumps_per_transition", "excess_jumps_per_transition_one_rule",
-)
-# Quantities with NO BETTER END. Two kinds, and the list holds both: some
-# describe the bench or the run, so ranking models by them is meaningless;
-# others describe the model's output and are meant to be read across models,
-# but neither direction is the good one -- they are GUARDS, consulted when a
-# ranked number looks too good. The legend below must say both, or the arrow
-# is right and the sentence explaining it is wrong.
-#
-# `artefacts_merged` IS ONE, and it is the only judgement call in these three
-# lists. A merge is not damage to THIS pipeline: docs/architecture.md measured it --
-# a wider picture goes to the second level and is split there, and on the 36
-# hardest pages strict matching called 20 % what arriving-whole called 91 %.
-# So it is neither a success to maximise nor a failure to minimise, and giving
-# it an arrow in either direction would rank models by a quantity this project
-# has already measured as not costing it anything.
-#
-# `area_under_boxes` IS ANOTHER, and it stood under `↑` while the code that
-# computes it says the opposite in its own header: "One box over the whole
-# sheet gives 100% of the ink and 100% of the objects whole, so AREA UNDER
-# BOXES is printed beside them: without it the metric is won by finding
-# nothing" (`processing/assess/ink.py`). It is the GUARD on the ink numbers,
-# not a quality of its own -- the reader consults it when `ink_under_boxes`
-# looks too good, and its extreme is the degenerate case, not the best case.
-# Published as "better higher" it told a reader to maximise exactly the thing
-# it exists to catch. The honest range is the column itself, below; a figure
-# typed here would be a second copy of it, free to drift, which is what
-# and the first one typed was already wrong.
-NEITHER = ("transitions", "pages_with_columns", "values_present",
-           "fingerprint_verified", "artefacts_merged", "area_under_boxes",
-           # The other two thirds of the box-shape guard. `area_under_boxes`
-           # is beaten by a model that traces the ink with tiny boxes -- it
-           # takes ALL the ink at LESS area than an honest run -- and these
-           # two catch that side. Both have a bad end at each extreme, so
-           # neither is a rank: read them beside `ink_under_boxes`, never
-           # down a column of their own.
-           "median_box_area", "boxes_per_page",
-           # A picture is not a failure: a plate SHOULD ship as a plate. It
-           # is the third slice of an exhaustive split, read beside the other
-           # two and never ranked -- a book that ships every page as a
-           # photograph of itself scores 100 % here.
-           "ink_as_picture",
-           # How much of this SCAN is binding shadow and black
-           # edge. Every model reads the same paper, so ranking
-           # them by it means nothing; it is what to consult
-           # when the clean and raw columns disagree.
-           "ink_junk",
-           # `ink_under_artefacts` IS A COMPOSITION, NOT A QUALITY, and it
-           # stood under `↑` -- an unbounded reward for calling more of the
-           # sheet a picture. The truth's own artefact-ink share is the
-           # ceiling and is not printed beside it, so the column ranked the
-           # over-boxing model first: on slovar the truth share is 0.034 and
-           # plus-L topped the column at 0.286, eight and a half times it;
-           # on zhurnal the share is 0.069 and V3 topped it at 0.180 over a
-           # model sitting at 0.069 exactly with `object_ink_preserved`
-           # 0.999. Both ends are wrong -- too little and the artefacts were
-           # missed, too much and text is being cut out as pictures -- which
-           # is the same shape as `area_under_boxes` one column over, and it
-           # survived the commit that fixed that one.
-           "ink_under_artefacts")
-# Named, not inferred: this is the list that makes the other two a
-# declaration instead of a residue.
-HIGHER_IS_BETTER = (
-    # Ink that leaves as TEXT is the book arriving as a book. Its counterpart
-    # `ink_as_picture` is NOT its opposite and is not ranked: a plate that
-    # ships as a plate is right, and a page that ships as a photograph of
-    # itself is wrong, and the two are one number.
-    "ink_as_text", "ink_under_boxes_clean",
-    # `paired` is how much of the truth the comparison actually reached, and
-    # every CER beside it is a claim about that subset: CER 0.02 over two
-    # blocks of forty is not "the model reads well". `cells_matched` is the
-    # same question for a table, by ADDRESS -- a shifted row leaves the bag
-    # of cells identical and drops this from 0.89 to 0.33.
-    "paired", "cells_matched", "answered",
-    "artefacts_found", "assembly_order",
-    "ink_under_boxes", "model_order",
-    "object_ink_preserved", "objects_in_one_box", "objects_intact",
-    "sense_whole", "text_furniture_found",
-)
-
-# THREE QUESTIONS, AND EVERY PUBLISHED ROW ANSWERS ONE OF THEM.
-#
-# The document was grouped by the FILE that computed each number --
-# `assembly`, `contour`, `fitness`, `snapshot` -- which is how the code is
-# filed and not how anything is asked. A reader wanting "how much survived"
-# gathered pieces from three tables and learnt what a book could answer only
-# by noticing dashes. Thirty-eight rows a bench, named after their source
-# module and glossed nowhere, is not a report.
-#
-# NOTHING IS AVERAGED. `text.py` and `contour.py` each say in their own
-# headers that one combined number trades one defect for another, and that
-# stands: every row keeps its own instrument, its own denominator and its own
-# thresholds in `params`. What changes is that the reader reads DOWN A
-# QUESTION instead of ACROSS AN IMPLEMENTATION. A question is a heading over
-# rows, never a row of its own -- the moment it became a number it would be
-# the combined score those headers forbid.
 QUESTIONS = (
     ("How much of the book survived",
      "Ink, objects and blocks -- four populations with four denominators, "
@@ -205,65 +49,32 @@ QUESTIONS = (
      "did not arrive whole."),
 )
 
-HEADLINE = (
-    ("How much of the book survived",
-     "contour", "artefacts_found", "tables and pictures found"),
-    ("How much of the book survived",
-     "contour", "text_furniture_found", "text and furniture found"),
-    ("How much of the book survived",
-     "fitness", "ink_under_boxes", "ink that lands inside some box"),
-    ("How much of the book survived",
-     "fitness", "ink_under_boxes_clean",
-     "the same over the ink that IS ink -- binding shadow and scan edge "
-     "discarded from BOTH sides, so a box laid on the shadow earns nothing"),
-    ("How much of the book survived",
-     "fitness", "ink_as_text",
-     "ink that leaves the book as text rather than as a picture of itself"),
-    ("How much of the book survived",
-     "fitness", "object_ink_preserved", "ink of the objects that survives"),
-    ("Is the order right",
-     "contour", "assembly_order", "reading order of the assembled book"),
-    # `excess_jumps_per_page` LEFT THE HEADLINE AND KEPT ITS ROW BELOW. It is
-    # not wrong -- it is the order that actually reaches the book, which is why
-    # it is not deleted -- but it is TWO QUANTITIES IN ONE COLUMN: the model's
-    # own rank where the model has one, and our top-down rule where it has
-    # none, and `assembly.py` records the spread between them as five times the
-    # whole span a six-model table shows. A headline column is read DOWN, and
-    # this one cannot be; the footnote saying so does not make it readable. Per
-    # transition divides the confound out and is read down safely.
-    ("Is the order right",
-     "assembly", "excess_jumps_per_transition",
-     "excess column jumps per move between boxes -- a page-rate is in the "
-     "per-bench tables below, where it can be read beside the rule that "
-     "ordered each model"),
-    ("Is the order right",
-     "assembly", "excess_jumps_per_transition_one_rule",
-     "the same, with ONE ordering rule forced on every model: this column "
-     "compares BOXES, the others compare box-and-rank together"),
-    # THE FOUR WAYS AN ARTEFACT IS LOST, and they are a partition over the
-    # same objects `artefacts_found` counts, so they are the derivatives the
-    # first question's shortfall is made of, not four more opinions.
-    ("What failed, and how",
-     "reading", "charts_as_data",
-     "charts returned as a TABLE OF NUMBERS -- values read off a curve by "
-     "eye and placed in the book as text, which is the one rule this "
-     "project holds hardest: numbers may be flagged, never restored"),
-    ("What failed, and how",
-     "reading", "looping", "answers that repeat themselves"),
-    ("What failed, and how",
-     "contour", "artefacts_not_seen", "artefacts the model never boxed"),
-    ("What failed, and how",
-     "contour", "artefacts_cropped", "artefacts boxed, but cut short"),
-    ("What failed, and how",
-     "contour", "artefacts_called_text",
-     "artefacts boxed as text -- they leave as a line and the structure "
-     "leaves with them"),
-    ("What failed, and how",
-     "contour", "artefacts_merged",
-     "artefacts sharing a box with a neighbour. NO ARROW: a wider picture "
-     "goes to the second level and is split there, and on the 36 hardest "
-     "pages strict matching called 20 % what arriving-whole called 91 %"),
-)
+
+def specs() -> dict:
+    """Every published scalar, by name, as its metric declares it."""
+    from booksmith.datasets.metrics import METRICS
+    out = {}
+    for m in METRICS:
+        for sp in m.scalars:
+            if sp.name in out:
+                raise Refusal(f"scalar `{sp.name}` is declared by two metrics")
+            out[sp.name] = sp
+    return out
+
+
+def headline() -> list:
+    """(question, metric, scalar, gloss) for every scalar that headlines a question."""
+    from booksmith.datasets.metrics import METRICS
+    titles = [q for q, _ in QUESTIONS]
+    out = []
+    for q in titles:
+        for m in METRICS:
+            for sp in m.scalars:
+                if sp.question == q:
+                    out.append((q, m.name, sp.name, sp.gloss))
+    return out
+
+
 
 
 def _cells():
@@ -314,25 +125,13 @@ def _cells():
 
 
 def _arrow(scalar: str) -> str:
-    """Which way is better, as a property of the scalar.
-
-    REFUSES what it does not know. Returning "↑" for an unrecognised name is
-    how three failure modes came to be published as things to maximise: the
-    scalar was added to a metric, nobody touched this file, and the document
-    read the same as if the direction had been decided.
-    """
-    if scalar in NEITHER:
-        return "="
-    if scalar in LOWER_IS_BETTER:
-        return "↓"
-    if scalar in HIGHER_IS_BETTER:
-        return "↑"
-    raise Refusal(
-        f"scalar `{scalar}` declares no direction. Add it to one of "
-        f"LOWER_IS_BETTER, HIGHER_IS_BETTER or NEITHER in "
-        f"booksmith/datasets/report.py -- a scalar with no declared "
-        f"direction used to be published as `↑`, better higher, which is "
-        f"wrong for every failure mode.")
+    """Which way is better, from the metric's own declaration; refuses an undeclared name."""
+    sp = specs().get(scalar)
+    if sp is None:
+        raise Refusal(
+            f"scalar `{scalar}` declares no direction: add a Spec for it to "
+            f"its metric's `scalars`.")
+    return {"higher": "↑", "lower": "↓", "neither": "="}[sp.better]
 
 
 def _num(v):
@@ -547,7 +346,7 @@ def build(log=print) -> str:
           "averaged each record in their own header that one combined number "
           "trades one defect for another.", ""]
     asked = None
-    for question, metric, scalar, what in HEADLINE:
+    for question, metric, scalar, what in headline():
         if question != asked:
             asked = question
             L += [f"## {question}", "",

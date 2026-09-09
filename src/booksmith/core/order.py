@@ -87,6 +87,27 @@ WORDS = {
 }
 
 
+MODEL_RANK = "model_rank"
+
+
+def declare(source: str, rule: str = "") -> str | None:
+    """The one way to write `meta["reading_order"]`.
+
+    `"model"`: the model's own rank. `"ours"`: our order by a rule whose word
+    starts with `ours`. `"none"`: the model gives no order at all.
+    """
+    if source == "model":
+        return MODEL_RANK
+    if source == "none":
+        return None
+    if source == "ours":
+        if not (isinstance(rule, str) and rule.strip().lower().startswith("ours")):
+            raise ValueError(f"an order of ours must be declared by a rule word "
+                             f"starting with `ours`, not {rule!r}")
+        return rule
+    raise ValueError(f"reading order source {source!r}: model, ours or none")
+
+
 def rule() -> str:
     """Which rule is in force. The knob comes through the registry, not the
     environment."""

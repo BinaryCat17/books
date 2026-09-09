@@ -9,7 +9,7 @@ in `contour` exists for exactly that).
 """
 from booksmith.core import order
 from booksmith.datasets.metrics import contour
-from booksmith.datasets.metrics.base import Metric, Record, Scalar
+from booksmith.datasets.metrics.base import Metric, Record, Scalar, Spec
 
 
 def _under_one_rule(pages: dict) -> dict:
@@ -58,6 +58,20 @@ def _under_one_rule(pages: dict) -> dict:
 class AssemblyMetric(Metric):
     name = "assembly"
     needs = frozenset({"pages"})
+    scalars = (
+        Spec("excess_jumps_per_transition", "lower",
+             "excess column jumps per move between boxes", 'Is the order right'),
+        Spec("excess_jumps_per_transition_one_rule", "lower",
+             "the same with one ordering rule forced on every model, so the column compares boxes alone", 'Is the order right'),
+        Spec("excess_jumps", "lower",
+             "column jumps beyond the unavoidable"),
+        Spec("excess_jumps_per_page", "lower",
+             "excess column jumps per page"),
+        Spec("transitions", "neither",
+             "moves between boxes"),
+        Spec("pages_with_columns", "neither",
+             "pages with more than one column"),
+    )
 
     def _record(self, bench_name, run, pages) -> Record:
         j = contour.column_jumps(pages)

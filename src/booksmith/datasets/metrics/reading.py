@@ -35,7 +35,7 @@ untrustworthy whatever the digits are.
 import re
 
 from booksmith.core import policy
-from booksmith.datasets.metrics.base import Metric, Record, Scalar
+from booksmith.datasets.metrics.base import Metric, Record, Scalar, Spec
 
 # A cell that is a bare number: what a fabricated chart table is made of.
 NUMBER = re.compile(r"^[-+]?\d+(?:[.,]\d+)?$")
@@ -148,6 +148,14 @@ class ReadingMetric(Metric):
     """
     name = "reading"
     needs = frozenset({"pages", "read"})
+    scalars = (
+        Spec("charts_as_data", "lower",
+             "charts returned as a table of numbers: values read off a curve and placed in the book as text", 'What failed, and how'),
+        Spec("looping", "lower",
+             "answers that repeat themselves", 'What failed, and how'),
+        Spec("answered", "higher",
+             "blocks answered"),
+    )
 
     def run(self, bench, run) -> Record:
         return self.record(measure(run.pages()), bench.name, run.label)

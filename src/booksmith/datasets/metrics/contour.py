@@ -59,7 +59,7 @@ import os
 from booksmith.core import page, policy
 from booksmith.datasets import bench as bench_mod
 from booksmith.core.errors import Unmeasurable
-from booksmith.datasets.metrics.base import Metric, Record, Scalar
+from booksmith.datasets.metrics.base import Metric, Record, Scalar, Spec
 
 # The match gate. ONE, and named: the model box must cover truth (no crop) and
 # lie inside it (no spill). Measured: a table torn by the gutter gave IoU 0.51
@@ -1357,6 +1357,30 @@ def _order(part: dict) -> Scalar:
 class ContourMetric(Metric):
     name = "contour"
     needs = frozenset({"truth", "pages"})
+    scalars = (
+        Spec("artefacts_found", "higher",
+             "tables and pictures found", 'How much of the book survived'),
+        Spec("text_furniture_found", "higher",
+             "text and furniture found", 'How much of the book survived'),
+        Spec("sense_whole", "higher",
+             "objects whose meaning arrived whole"),
+        Spec("assembly_order", "higher",
+             "reading order of the assembled book agrees with truth", 'Is the order right'),
+        Spec("model_order", "higher",
+             "the model's own rank agrees with truth"),
+        Spec("artefacts_not_seen", "lower",
+             "artefacts the model never boxed", 'What failed, and how'),
+        Spec("artefacts_cropped", "lower",
+             "artefacts boxed, but cut short", 'What failed, and how'),
+        Spec("artefacts_called_text", "lower",
+             "artefacts boxed as text: they leave as a line and the structure leaves with them", 'What failed, and how'),
+        Spec("artefacts_merged", "neither",
+             "artefacts sharing a box with a neighbour; no direction, since a wider picture is split at level two", 'What failed, and how'),
+        Spec("label_errors", "lower",
+             "blocks whose label is not the truth's"),
+        Spec("role_errors", "lower",
+             "blocks whose role is not the truth's"),
+    )
 
     def run(self, bench, run) -> Record:
         res = compare(bench.truth_dir, run.pages_dir)

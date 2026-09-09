@@ -755,3 +755,24 @@ def _knobs_snapshot(read_by_adapter) -> dict:
     for n in mine:
         roles.setdefault(n, "the `books read` command itself")
     return knobs.snapshot_with_readers(roles)
+
+
+def policy_for(run_dir: str, wanted: str | None) -> str:
+    """The label dictionary a preview or a read must use for this detect run.
+
+    The snapshot's own vocabulary wins; a `--policy` that disagrees with it
+    would cut by one dictionary what the paid run asks by another.
+    """
+    with open(os.path.join(run_dir, "run.json"), encoding="utf-8") as f:
+        known = json.load(f).get("policy", {}).get("vocabulary")
+    if not wanted and not known:
+        raise Refusal(
+            f"the snapshot {run_dir}/run.json names no label dictionary and "
+            f"--policy is not given; the crops depend on which labels are "
+            f"asked about.")
+    if wanted and known and wanted != known:
+        raise Refusal(
+            f"--policy {wanted!r} against the detection dictionary "
+            f"{known!r}: the preview would cut by one dictionary what "
+            f"`books read` asks by another.")
+    return wanted or known

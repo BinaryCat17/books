@@ -518,7 +518,7 @@ def test_the_builder_recognises_its_own_directory():
     <book>/assets/source`".
 
     The mark lives next to whoever WRITES the snapshot; a string typed in
-    another file drifts silently, and did. The old layout counts as ours TOO.
+    another file drifts silently, and did.
     """
     import os
     import tempfile
@@ -532,12 +532,6 @@ def test_the_builder_recognises_its_own_directory():
             "a directory with the snapshot in the kitchen was not recognised "
             "as ours -- a rebuild in place would refuse, and the advice from "
             "the build log becomes impossible to follow")
-
-    with tempfile.TemporaryDirectory() as tmp:
-        open(os.path.join(tmp, "run.json"), "w").close()
-        assert H.is_our_dir(tmp), (
-            "a book of the OLD layout was declared alien -- it is ours, "
-            "only built before the snapshot moved")
 
 
 def test_the_book_carries_blocks_in_the_order_it_walked_them():

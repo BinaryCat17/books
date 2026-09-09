@@ -179,14 +179,14 @@ class Http(Transport):
                 self.server + "/models", headers=_headers(self.key)),
                 self.timeout)
         except Exception as e:            # noqa: BLE001 -- any failure is one
-            raise RuntimeError(
+            raise Refusal(
                 f"the endpoint {self.server} does not answer /models: {e}. "
                 f"This is a DELIVERY failure, not the model's silence.") from e
         ids = [m.get("id") for m in (d.get("data") or [])]
         out = {"endpoint": self.server, "models_on_server": ids,
                "asking_for": want, "matched": want in ids}
         if not out["matched"]:
-            raise RuntimeError(
+            raise Refusal(
                 f"{self.server} carries {ids}, and we are about to ask for "
                 f"{want!r}. Counting like this writes one model's name into "
                 f"the snapshot over another model's answers -- confidently "

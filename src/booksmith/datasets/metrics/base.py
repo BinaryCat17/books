@@ -115,12 +115,33 @@ class Record:
 NEEDS = ("truth", "pages", "pdf", "content", "read")
 
 
+@dataclass(frozen=True)
+class Spec:
+    """One scalar a metric publishes: which way is better, and what it means.
+
+    `better` is `higher`, `lower` or `neither`, and there is no default: a
+    scalar published with a guessed direction told readers to maximise a
+    failure mode. `question` names the report section it headlines, or is
+    empty for a scalar that appears only in the per-bench tables.
+    """
+    name: str
+    better: str
+    gloss: str
+    question: str = ""
+
+    def __post_init__(self):
+        if self.better not in ("higher", "lower", "neither"):
+            raise ValueError(f"{self.name}: better must be higher, lower or "
+                             f"neither, not {self.better!r}")
+
+
 class Metric:
     """The contract. Subclasses set `name` and `needs` and implement three
     methods; `tests/test_metrics_contract.py` holds every registered one to
     it."""
     name: str = ""
     needs: frozenset = frozenset()
+    scalars: tuple = ()
 
     def run(self, bench, run) -> Record:
         """Measure from the directories: parses them itself."""

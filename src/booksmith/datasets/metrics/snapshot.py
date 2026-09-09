@@ -7,12 +7,22 @@ hollow is visible where its numbers are. Needs pages and a snapshot: a
 bare run (`Run.bare`) has nothing to check and says so.
 """
 from booksmith.core import replay
-from booksmith.datasets.metrics.base import Metric, Record, Scalar
+from booksmith.datasets.metrics.base import Metric, Record, Scalar, Spec
 
 
 class SnapshotMetric(Metric):
     name = "snapshot"
     needs = frozenset({"pages"})
+    scalars = (
+        Spec("values_present", "neither",
+             "keys present in the snapshot"),
+        Spec("missing", "lower",
+             "keys the snapshot lacks"),
+        Spec("empty", "lower",
+             "knob values empty in the snapshot"),
+        Spec("fingerprint_verified", "neither",
+             "fingerprint values checked against the tree"),
+    )
 
     def _record(self, bench_name, run) -> Record:
         if run.run_dir is None:

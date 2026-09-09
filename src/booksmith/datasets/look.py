@@ -447,3 +447,18 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
             f"drawn as a hairline and NOT counted as extra -- this is not "
             f"zero extra, it is 'there was nothing to compare with'")
     return counts
+
+
+def look_at(pdf: str, detect_dir: str | None) -> str:
+    """Where a sheet of boxes goes: `<book>/look/<label>.pdf` inside a book."""
+    book = os.path.dirname(os.path.abspath(pdf))
+    label = None
+    if detect_dir:
+        d = os.path.abspath(detect_dir).rstrip("/")
+        if os.path.basename(d) == "pages":
+            d = os.path.dirname(d)
+        if os.path.basename(os.path.dirname(d)) == "detect":
+            label = os.path.basename(d)
+    if os.path.isfile(os.path.join(book, "manifest.json")):
+        return os.path.join(book, "look", (label or "truth") + ".pdf")
+    return os.path.splitext(pdf)[0] + ".overlay.pdf"

@@ -39,7 +39,10 @@ from __future__ import annotations
 
 import os
 import re
+import json
 
+from booksmith.core.log import log
+from booksmith.core import config
 from booksmith.core.errors import Refusal
 
 # THE BOOK'S KITCHEN. The build root holds EXACTLY ONE file, `book.html`, and it
@@ -54,24 +57,8 @@ JOURNAL = os.path.join(ASSETS, "swaps.json")
 
 
 def journal_path(out_dir: str) -> str:
-    """Where THIS book's swap journal lives -- one rule, asked by everyone.
-
-    The journal moved into `assets/`, and books built before the move keep it
-    in the root; `assemble/apply` reads and writes the old place when it is the
-    only one there. The rebuild guard in `build` did NOT: it looked only under
-    `assets/`, so rebuilding into an old-layout book wiped the book while a
-    live journal survived and began to lie -- the exact accident the guard
-    exists to prevent, passing it by on the one layout it was needed for.
-
-    So the rule lives here, in the lower of the two modules, and both callers
-    ask it. Returns the new place when neither exists: that is where a journal
-    would be created.
-    """
-    new = os.path.join(out_dir, JOURNAL)
-    old = os.path.join(out_dir, "swaps.json")
-    if not os.path.exists(new) and os.path.exists(old):
-        return old
-    return new
+    """Where this book's swap journal lives; one rule, asked by everyone."""
+    return os.path.join(out_dir, JOURNAL)
 
 
 # A RUN LABEL IS A DIRECTORY NAME, and it is the model's name, never the
@@ -359,3 +346,82 @@ def guard_identity(run_dir: str, identity: str, pages_spec: str = "",
             f"the directory: its two sibling refusals say both and this one "
             f"said only the first, which made re-running a three-page smoke "
             f"test look forbidden.")
+
+
+# ------------------------------------------------ paths a command is given ---
+# A command takes a run directory or its pages/; these say which was given and
+# refuse with a reason naming both places looked.
+
+def page_files(d):
+    """(how many layout pages, and if zero — why exactly)."""
+    if not os.path.isdir(d):
+        return 0, "not a directory"
+    names = sorted(f for f in os.listdir(d)
+                   if f.endswith(".json") and f != "run.json")
+    if not names:
+        return 0, "no json files at all"
+    try:
+        with open(os.path.join(d, names[0]), encoding="utf-8") as f:
+            first = json.load(f)
+    except (OSError, ValueError) as e:
+        return 0, f"{names[0]} does not read as json ({type(e).__name__})"
+    if not (isinstance(first, dict) and "blocks" in first
+            and "index" in first):
+        return 0, (f"json files {len(names)}, but {names[0]} is not a layout "
+                   f"page: no blocks/index fields")
+    return len(names), ""
+
+
+def pages_dir(path, what, log=log):
+    """The PAGE directory: out of the run directory, or itself."""
+    if not os.path.exists(path):
+        raise Refusal(
+            f"{what}: no path {path}. Expected a `books detect` run "
+            f"directory (pages/ and run.json in it) or the directory of "
+            f"layout pages itself (*.json).")
+    sub = os.path.join(path, "pages")
+    (here, why_here), (there, why_sub) = page_files(path), page_files(sub)
+    if there and not here:
+        log(f"{what}: given a run directory, taking the pages from {sub} — "
+            f"there are {there}")
+        return sub
+    if here:
+        return path
+    raise Refusal(
+        f"{what}: no layout pages found. In {path} — {why_here}; in {sub} — "
+        f"{why_sub}. Expected a `books detect` run directory (pages/ and "
+        f"run.json in it) or the page directory itself. There is nothing to "
+        f"count — and that is not a zero of losses.")
+
+
+def run_dir(path, what, log=log):
+    """The RUN directory: the one holding `run.json`. Takes `<out>/pages` too."""
+    if not os.path.exists(path):
+        raise Refusal(
+            f"{what}: no path {path}. Expected a `books detect` run "
+            f"directory — the one holding run.json.")
+    if os.path.exists(os.path.join(path, "run.json")):
+        return path
+    up = os.path.dirname(os.path.abspath(path.rstrip("/")))
+    if page_files(path)[0] and os.path.exists(os.path.join(up, "run.json")):
+        log(f"{what}: given a page directory, taking the snapshot from {up}")
+        return up
+    raise Refusal(
+        f"{what}: no run.json in {path}. Expected a `books detect` run "
+        f"directory (pages/ and run.json in it), not a page directory and "
+        f"not a book root.")
+
+
+def pdf_of(detect_dir: str) -> str:
+    """The scan a detect run was taken on, as its snapshot names it."""
+    with open(os.path.join(detect_dir, "run.json"), encoding="utf-8") as f:
+        return json.load(f)["source"]["path"]
+
+
+def home_for(detect_dir: str) -> str:
+    """Where the book lands BY DEFAULT: somewhere permanent, not beside the run."""
+    with open(os.path.join(detect_dir, "run.json"), encoding="utf-8") as f:
+        snap = json.load(f)
+    stem = os.path.splitext(os.path.basename(snap["source"]["path"]))[0]
+    safe = re.sub(r"[^\w.,()-]+", "-", stem, flags=re.UNICODE).strip("-")[:80]
+    return os.path.join(config.ROOT, "processed", safe or "book")

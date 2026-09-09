@@ -15,6 +15,8 @@ not this line: `books ledger`.
 """
 import json
 import os
+
+import pytest
 from booksmith.core.errors import Refusal
 
 import support
@@ -107,13 +109,10 @@ def test_transport_asks_who_is_answering():
 
 
 def test_wrong_model_name_stops_the_run():
+    from booksmith.core.errors import Refusal
     with FakeVlm({"text": "ok"}, model="a-completely-different-one") as s:
-        try:
+        with pytest.raises(Refusal, match="a-completely-different-one"):
             _t(s.url).check()
-        except RuntimeError as e:
-            assert "a-completely-different-one" in str(e)
-        else:
-            raise AssertionError("a foreign model name passed in silence")
 
 
 def test_delivery_refusal_is_a_value_not_a_throw():

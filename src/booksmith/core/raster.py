@@ -224,14 +224,8 @@ def _box_trouble(w: float, h: float) -> str | None:
     return None
 
 
-def cut(doc, page_index: int, box, page_dpi: float, dst: str,
-        dpi: float | None = None, margin: float | None = None) -> dict:
-    """Cut the box into a file. Returns WHAT exactly was cut.
-
-    Not "done" but quantities: resulting size in points, margin applied,
-    clipping by the page edge. Without them "we cut a table" cannot be told
-    from "we cut its left half, because the box ran off the sheet".
-    """
+def _clip(doc, page_index: int, box, page_dpi: float, dpi, margin):
+    """The page, the rect to render, the dpi and margin used, and what was clipped."""
     import pymupdf
 
     # The own resolution is asked for ONLY when it was not named. Before,
@@ -282,15 +276,37 @@ def cut(doc, page_index: int, box, page_dpi: float, dst: str,
             f"does not intersect the sheet "
             f"{tuple(round(v,1) for v in page.rect)}")
 
-    os.makedirs(os.path.dirname(os.path.abspath(dst)), exist_ok=True)
-    pix = render(page, dpi, clip=clip)
-    pix.save(dst)
-    return {"file": os.path.basename(dst), "dpi": int(dpi), "margin": margin,
+    return page, clip, dpi, margin, clipped, margin_clipped
+
+
+def _facts(pix, clip, dpi, margin, clipped, margin_clipped) -> dict:
+    return {"dpi": int(dpi), "margin": margin,
             "width": pix.width, "height": pix.height,
             "clipped_by_sheet": clipped,
             "margin_clipped": margin_clipped,
             "box_in_points": [round(v, 2) for v in (clip.x0, clip.y0,
                                                       clip.x1, clip.y1)]}
+
+
+def cut(doc, page_index: int, box, page_dpi: float, dst: str,
+        dpi: float | None = None, margin: float | None = None) -> dict:
+    """Cut the box into a file. Returns what exactly was cut: size, margin, clipping."""
+    page, clip, dpi, margin, clipped, margin_clipped = _clip(
+        doc, page_index, box, page_dpi, dpi, margin)
+    os.makedirs(os.path.dirname(os.path.abspath(dst)), exist_ok=True)
+    pix = render(page, dpi, clip=clip)
+    pix.save(dst)
+    return {"file": os.path.basename(dst),
+            **_facts(pix, clip, dpi, margin, clipped, margin_clipped)}
+
+
+def cut_png(doc, page_index: int, box, page_dpi: float,
+            dpi: float | None = None, margin: float | None = None) -> tuple[bytes, dict]:
+    """The same cut as PNG bytes, for a caller that serves it rather than files it."""
+    page, clip, dpi, margin, clipped, margin_clipped = _clip(
+        doc, page_index, box, page_dpi, dpi, margin)
+    pix = render(page, dpi, clip=clip)
+    return pix.tobytes("png"), _facts(pix, clip, dpi, margin, clipped, margin_clipped)
 
 
 # ------------------------------------------------------------ rendering ---
@@ -309,6 +325,11 @@ def open_pdf(path: str):
     """
     import pymupdf
     return pymupdf.open(path)
+
+
+def render_png(page, dpi: float, clip=None) -> bytes:
+    """The page (or a clip of it) as PNG bytes at `dpi`."""
+    return render(page, dpi, clip=clip).tobytes("png")
 
 
 def render(page, dpi: float, clip=None):
