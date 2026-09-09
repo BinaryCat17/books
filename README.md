@@ -29,6 +29,7 @@ Secrets go into `.env` at the root, not versioned; the template is
 ## The five commands
 
 ```bash
+books synth --book slovar           # the smallest bench, drawn with exact truth
 books doctor                        # check everything before money moves
 books detect bench/slovar           # level one, into detect/<model>/
 books read bench/slovar/detect/PP-DocLayoutV2   # level two, paid

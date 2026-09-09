@@ -26,7 +26,9 @@ raw/<book>.djvu
 detect/<model>/pages/NNNN.json + run.json
   books crop         what read would send, cut by the same path; nothing sent
   books read         the same pages with content and kind filled in
-read/<model>/pages/NNNN.json + answers/pNNNN.json + run.json
+detect/<model>.read/pages/NNNN.json + answers/pNNNN.json + run.json
+                     (written beside the detect run today; read/<model>/ is
+                     the mapped home and the two on disk were moved by hand)
   books html         book.html, crops, blocks.json, the swap journal
 book.html + assets/
   books apply        markup placed per anchor, journaled, undoable
@@ -66,11 +68,12 @@ One directory per book, one directory per run. A bench is a book with
 ```
 bench/<book>/ or processed/<book>/
   manifest.json        source: {name, sha256}: which scan this is about
-  <book>.pdf           the scan
+  <source>.pdf         the scan, under the name the manifest gives
   truth/               only a bench has this; pages in the page format
   detect/<model>/      a level-one run: pages/ and run.json
   read/<model>/        a level-two run: pages/, answers/, crops/, run.json
   look/<model>.pdf     boxes drawn over the pages, for the eye
+  look/truth.pdf       truth drawn with no model beside it
   book.html            the built book, one file, referring to nothing outside
   assets/              its kitchen: blocks/*.png, blocks.json, run.json,
                        swaps.json, source/ (what the book was built from)

@@ -17,7 +17,7 @@ A scalar's name carries an arrow: **↑** better higher, **↓** better lower, *
 
 ## What is not in this table
 
-**The reading.** Level two runs a VLM on a rented card and costs money; nothing here rents anything. No reading run has been measured against a truth yet, so there is no reading row at all -- the commit log says in three reasons why, before any money is spent.
+**The reading.** Level two runs a VLM on a rented card and costs money; nothing here rents anything. No reading run has been measured against a truth yet, so there is no reading row at all -- `docs/architecture.md` says in three reasons why, before any money is spent.
 
 **Runs of another level.** This is a cross-DETECTOR table: every number is a property of the boxes a model drew. A level-two run carries the boxes of whatever detector made its pages, so its numbers describe that detector and not the reader named on the directory -- in the model column the reader would read as having earned them. 3 such runs are kept out of the tables above and given a section of their own at the end: `feynman-1` / `PaddleOCR-VL-1.6-0.9B` (read), `ogneupory-vl2` / `PaddleOCR-VL-1.6-0.9B+pages20` (read), `ogneupory-vl2` / `PaddleOCR-VL-1.6-0.9B` (read).
 

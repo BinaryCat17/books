@@ -66,10 +66,10 @@ def test_source_comments_cite_no_missing_document():
     assert not gone, f"source cites documents that do not exist: {gone}"
 
 
-# A measurement: four or more digits standing alone, a thousands group, a
-# dollar amount, or a percentage to a decimal. Identifiers keep their digits.
+# A measurement: a number of four or more digits, a grouped thousand, a
+# decimal, a percentage, or a dollar amount. Digits inside a word stay.
 MEASUREMENT = re.compile(
-    r"(?<![\w.])(?:\d{4,}|\d{1,3}(?: \d{3})+)(?![\w.])|\$\d|\d+\.\d+ ?%")
+    r"(?<![\w.])(?:\d{4,}|\d{1,3}(?:[ ,]\d{3})+|\d+\.\d+|\d+(?:\.\d+)? ?%)(?![\w.])|\$\d")
 
 
 def test_prose_documents_carry_no_measurement():
@@ -103,6 +103,26 @@ def test_the_metrics_report_is_current():
     assert _text("METRICS.md") == want, "METRICS.md is not what the records render to: `books bench report`"
 
 
+def _defines(src, symbol):
+    """Does the module define `symbol`, with `Class.method` matched as a member?"""
+    import ast
+    tree = ast.parse(src)
+    parts = symbol.split(".")
+    scope = tree.body
+    for i, name in enumerate(parts):
+        node = next((n for n in scope if isinstance(
+            n, (ast.FunctionDef, ast.ClassDef)) and n.name == name), None)
+        if node is None:
+            if i == len(parts) - 1 and any(
+                    isinstance(n, ast.Assign) and any(
+                        isinstance(t, ast.Name) and t.id == name for t in n.targets)
+                    for n in scope):
+                return True
+            return False
+        scope = node.body
+    return True
+
+
 def test_the_rules_name_symbols_that_exist():
     pat = re.compile(r"`((?:src|tests|tools)/[\w./-]+\.py)(?::([\w.]+))?`")
     bad = []
@@ -110,12 +130,8 @@ def test_the_rules_name_symbols_that_exist():
         full = os.path.join(ROOT, path)
         if not os.path.isfile(full):
             bad.append(path)
-            continue
-        if symbol:
-            name = symbol.split(".")[-1]
-            src = open(full, encoding="utf-8").read()
-            if not re.search(rf"^\s*(?:def|class) {re.escape(name)}\b|^{re.escape(name)} =", src, re.M):
-                bad.append(f"{path}:{symbol}")
+        elif symbol and not _defines(open(full, encoding="utf-8").read(), symbol):
+            bad.append(f"{path}:{symbol}")
     assert not bad, f"rules name symbols that do not exist: {bad}"
 
 

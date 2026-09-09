@@ -4,8 +4,9 @@ Scans of technical books into HTML, in two levels: layout detection on the
 CPU, then reading of each block by a vision-language model on a rented card.
 
 This file is the map. The architecture, the rules and the formats are in
-`docs/`; every measured number is in the generated `METRICS.md`; how the tree
-got this way is in the commit log and nowhere else.
+`docs/`; the measurements are in the generated `METRICS.md`; how the tree
+got this way is in the commit log and nowhere else. A number that has
+a record is in `METRICS.md`; a verdict without a record says so.
 
 ## Where each kind of text lives
 

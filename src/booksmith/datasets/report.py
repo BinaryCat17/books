@@ -511,7 +511,7 @@ def build(log=print) -> str:
           + (f"{len(read_runs)} reading runs are measured below."
              if read_runs else
              "No reading run has been measured against a truth yet, so there "
-             "is no reading row at all -- the commit log says in three "
+             "is no reading row at all -- `docs/architecture.md` says in three "
              "reasons why, before any money is spent."),
           "",
           "**Runs of another level.** This is a cross-DETECTOR table: every "

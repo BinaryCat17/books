@@ -210,7 +210,7 @@ def test_the_things_that_must_never_be_committed_are_ignored():
     # asked. The mutation certifying this built its tree WITHOUT `git add`,
     # so it exercised the one condition the real tree does not have.
     must_keep = ("results/slovar-PP-DocLayoutV2.json",
-                 "tests/expected/help.txt",
+                 "docs/commands.md",
                  "bench/annopage/detect/PP-DocLayoutV2/run.json",
                  "bench/annopage-lite/detect/dots-ocr/pages/0000.json")
     r = subprocess.run(["git", "check-ignore", "--no-index", *must_keep],

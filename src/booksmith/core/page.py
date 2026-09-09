@@ -4,8 +4,8 @@ One shape for a detected page, a truth page and a read page: `Page` with
 `Block`s. Truth files under `bench/*/truth/`, detection under a run's
 `pages/` and reading under its own run's `pages/` all carry exactly
 `Page.to_json()`, which is why one metric can compare any two of them.
-(Runs live under `<book>/detect/` and `<book>.detect.read/` today; the plan's
-step 3b puts them under `detect/<label>/` and `read/<label>/`.) The rules about what may be done to a block are in
+(Detection runs live under `<book>/detect/<label>/`; a read run is written
+beside its detect run as `<label>.read/` today.) The rules about what may be done to a block are in
 `layout/base.py`, beside the adapter contract; this file is the shape only.
 
 `KINDS` names what a read block's `content` may be treated as, minus `none`,

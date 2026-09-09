@@ -1,7 +1,8 @@
 # Models, and the verdict on each
 
-What each model is, where it runs, and the decision. Every number behind a
-verdict is in `METRICS.md`; nothing here restates one.
+What each model is, where it runs, and the decision. The numbers behind
+the contour verdicts are in `METRICS.md`; nothing here restates one. The
+dots.ocr records were not kept, so its verdict stands on this text alone.
 
 ## Layout detectors, level one
 
@@ -34,6 +35,18 @@ two tables of the probe page.
 **YOLOX-l on DocLayNet** has no selection threshold of its own, so ours
 applies and the adapter says so. The weakest separation measured.
 
+## dots.ocr, a layout model on a rented card
+
+**dots.ocr** is the proof and is rejected as a replacement. It answered the
+one open question: on a page with two tables separated by clean paper, every
+CPU detector returned one box and dots.ocr returned three, so the merge is a
+property of the model and training fixes it. As level one it crops tighter
+than the truth and cuts content, is ten times slower, fragments far more
+often, and hits its answer-length ceiling on dense strips. Its reading
+order is the order of generation and does not compare with the rest. There
+is no launch button for it; its directory is kept for the traps that ate
+the failed rentals.
+
 ## Reading models, level two
 
 **PaddleOCR-VL** is in use and the only model paid for. It read a real book
@@ -48,16 +61,6 @@ nesting rules that delete a box mostly inside a heading, and an overlap
 filter in which the larger box wins. They are named beside the reader in
 `src/booksmith/processing/read/readers/paddleocr_vl.py`, and patching them
 is forbidden by the first rule.
-
-**dots.ocr** is the proof and is rejected as a replacement. It answered the
-one open question: on a page with two tables separated by clean paper, every
-CPU detector returned one box and dots.ocr returned two, so the merge is a
-property of the model and training fixes it. As level one it crops tighter
-than the truth and cuts content, is ten times slower, fragments far more
-often, and hits its answer-length ceiling on dense strips. Its reading
-order is the order of generation and does not compare with the rest. There
-is no launch button for it; its directory is kept for the traps that ate
-the failed rentals.
 
 ## Checked and rejected
 

@@ -15,7 +15,7 @@ numbers drifted. So:
   measurement, not of the run, and it belongs in the measurement's record).
   `detail` is the raw result dict, unchanged, so the acceptance records lock
   the same dict they always did.
-* `Metric`: `needs` names the prerequisites (truth, pages, pdf, content);
+* `Metric`: `needs` names the prerequisites (truth, pages, pdf, content, read);
   `run` measures, `report` prints the prose the metric always printed,
   `battery` runs its probes. Traits like "is order marked" are NOT
   prerequisites: they are per page and three-state, and the metric counts

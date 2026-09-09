@@ -54,9 +54,19 @@ def metrics_doc() -> str:
 
 def render_all(parser) -> dict:
     """Relative path -> text, for every document `books docs` owns."""
-    return {"docs/commands.md": commands(parser),
-            "docs/knobs.md": knobs_doc(),
-            "docs/metrics.md": metrics_doc()}
+    # argparse wraps help to the terminal width; pinned so the file is the
+    # same on every machine.
+    was = os.environ.get("COLUMNS")
+    os.environ["COLUMNS"] = "80"
+    try:
+        return {"docs/commands.md": commands(parser),
+                "docs/knobs.md": knobs_doc(),
+                "docs/metrics.md": metrics_doc()}
+    finally:
+        if was is None:
+            os.environ.pop("COLUMNS", None)
+        else:
+            os.environ["COLUMNS"] = was
 
 
 def write_all(parser, root: str) -> list:
