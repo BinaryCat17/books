@@ -1,5 +1,6 @@
 {
- "commit": "f8f29d4d0bdce883940a51bb6e7bb76c541204c2",
+ "commit": "42a6d749e8f87765e4ff3016662791e112cb7e4b",
+ "kind": "detect",
  "records": [
   {
    "bench": "slovar",
@@ -276,14 +277,6 @@
      },
      "value": 0.6891470180305131
     },
-    "excess_jumps_per_page": {
-     "over": {
-      "n": 13,
-      "of": 13,
-      "unit": "pages"
-     },
-     "value": 36.53846153846154
-    },
     "label_errors": {
      "value": null,
      "why": "the two sides speak different label vocabularies; not compared"
@@ -331,8 +324,11 @@
     "almost_intact": 0,
     "arrived_with_company": 0,
     "bitten": 0,
+    "blocks_with_content": 0,
+    "box_count": 803,
     "boxes_area": 5945155,
     "boxes_with_many_objects": 0,
+    "clean_under_boxes": 1038992,
     "dark_columns": 0,
     "dark_columns_positions": [],
     "dpi": [
@@ -340,14 +336,19 @@
     ],
     "empty_objects": 0,
     "in_one_box": 2,
+    "ink_as_picture": 1038992,
+    "ink_as_text": 0,
+    "ink_clean": 1057663,
     "ink_in_dark_columns": 0,
     "ink_in_dark_columns_off_edge": 0,
+    "ink_junk": 0,
     "ink_outside_boxes_at_edge": 1378,
     "ink_total": 1057663,
     "ink_under_artifact": 5681,
     "ink_under_boxes": 1038992,
     "intact": 2,
     "left_as_text": 1,
+    "median_box_area": 0.013945145532261347,
     "object_ink": 35792,
     "object_ink_in_boxes": 5681,
     "objects": 3,
@@ -368,6 +369,11 @@
    "metric": "fitness",
    "params": {
     "GUTTER": 0.5,
+    "GUTTER_BAND": 0.2,
+    "JUNK_WIDTH": 0.1,
+    "MID": 0.2,
+    "MIN_SPREAD_RATIO": 1.15,
+    "RULE_RUN": 0.25,
     "almost": 0.95,
     "bitten": 0.8,
     "dpi": [
@@ -386,12 +392,27 @@
      },
      "value": 0.5817723582645727
     },
-    "ink_outside_boxes": {
+    "boxes_per_page": {
      "count": {
-      "n": 18671,
+      "n": 803,
+      "of": 13
+     },
+     "value": 61.76923076923077
+    },
+    "ink_as_picture": {
+     "value": null,
+     "why": "this run read nothing: every block would leave as a picture, which is not a measurement of one"
+    },
+    "ink_as_text": {
+     "value": null,
+     "why": "this run read nothing: every block would leave as a picture, which is not a measurement of one"
+    },
+    "ink_junk": {
+     "count": {
+      "n": 0,
       "of": 1057663
      },
-     "value": 0.017653070968730145
+     "value": 0.0
     },
     "ink_under_artefacts": {
      "count": {
@@ -406,6 +427,16 @@
       "of": 1057663
      },
      "value": 0.9823469290312699
+    },
+    "ink_under_boxes_clean": {
+     "count": {
+      "n": 1038992,
+      "of": 1057663
+     },
+     "value": 0.9823469290312699
+    },
+    "median_box_area": {
+     "value": 0.013945145532261347
     },
     "object_ink_preserved": {
      "count": {
@@ -640,5 +671,5 @@
    }
   }
  ],
- "when": "2026-09-08T14:01:28+0300"
+ "when": "2026-09-09T14:49:35+0300"
 }

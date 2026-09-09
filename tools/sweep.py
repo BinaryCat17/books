@@ -287,7 +287,7 @@ def main(argv):
     for bname, bdir, label in _read_runs(ROOT):
         t0 = time.time()
         print(f"  {bname:22} read/{label:28} ", end="", flush=True)
-        log = os.path.join(LOGS, f"{bname}-read-{label}.log")
+        log = os.path.join(logs, f"{bname}-read-{label}.log")
         rc = _run([sys.executable, "-m", "booksmith.cli", "bench", "all",
                    bdir, "--kind", "read", "--run", label], dict(os.environ), log)
         if rc:

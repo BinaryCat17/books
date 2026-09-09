@@ -1,0 +1,759 @@
+{
+ "commit": "42a6d749e8f87765e4ff3016662791e112cb7e4b",
+ "kind": "read",
+ "records": [
+  {
+   "bench": "ogneupory-vl2",
+   "detail": {
+    "almost_intact": 0,
+    "arrived_with_company": 0,
+    "bitten": 0,
+    "blocks_with_content": 6080,
+    "box_count": 6156,
+    "boxes_area": 187899322,
+    "boxes_with_many_objects": 0,
+    "clean_under_boxes": 29188719,
+    "dark_columns": 261,
+    "dark_columns_positions": [
+     0.19,
+     0.97,
+     0.04,
+     0.99,
+     0.97,
+     0.66,
+     0.97,
+     0.01,
+     0.02,
+     0.03,
+     0.95,
+     0.95,
+     0.96,
+     0.95,
+     0.96,
+     0.01,
+     0.02,
+     0.01,
+     0.03,
+     0.04,
+     0.02,
+     0.97,
+     0.98,
+     0.97,
+     0.96,
+     0.97,
+     0.96,
+     0.97,
+     0.98,
+     0.22,
+     0.26,
+     0.3,
+     0.97,
+     0.95,
+     0.02,
+     0.95,
+     0.02,
+     0.04,
+     0.02,
+     0.97,
+     0.98,
+     0.95,
+     0.03,
+     0.95,
+     0.95,
+     0.93,
+     0.94,
+     0.04,
+     0.91,
+     0.93,
+     0.95,
+     1.0,
+     0.94,
+     1.0,
+     0.94,
+     0.96,
+     0.94,
+     0.95,
+     0.97,
+     0.96,
+     0.96,
+     0.99,
+     0.96,
+     1.0,
+     0.96,
+     1.0,
+     0.93,
+     1.0,
+     0.93,
+     1.0,
+     0.93,
+     0.99,
+     0.93,
+     0.95,
+     1.0,
+     0.92,
+     0.99,
+     0.92,
+     1.0,
+     0.9,
+     0.97,
+     0.99,
+     0.91,
+     0.97,
+     0.99,
+     0.95,
+     0.99,
+     0.94,
+     0.96,
+     0.99,
+     0.99,
+     0.99,
+     0.94,
+     0.99,
+     0.96,
+     0.99,
+     0.95,
+     0.99,
+     0.99,
+     0.97,
+     0.99,
+     0.95,
+     0.99,
+     0.94,
+     0.99,
+     0.89,
+     0.93,
+     0.99,
+     0.92,
+     0.98,
+     0.92,
+     0.98,
+     0.93,
+     0.9,
+     0.91,
+     0.95,
+     0.94,
+     0.96,
+     0.95,
+     0.93,
+     0.95,
+     0.92,
+     0.93,
+     0.92,
+     0.91,
+     0.92,
+     0.91,
+     0.92,
+     0.93,
+     0.93,
+     0.94,
+     0.94,
+     0.94,
+     0.94,
+     0.94,
+     0.03,
+     0.96,
+     0.97,
+     0.95,
+     0.99,
+     0.04,
+     0.96,
+     1.0,
+     0.94,
+     0.95,
+     0.05,
+     1.0,
+     0.97,
+     1.0,
+     1.0,
+     0.99,
+     0.99,
+     0.95,
+     0.99,
+     0.06,
+     1.0,
+     0.95,
+     0.99,
+     0.96,
+     0.99,
+     0.96,
+     0.99,
+     0.93,
+     0.96,
+     0.99,
+     0.96,
+     0.99,
+     0.96,
+     0.96,
+     0.99,
+     0.96,
+     0.98,
+     1.0,
+     0.96,
+     0.97,
+     1.0,
+     0.95,
+     0.97,
+     1.0,
+     0.95,
+     1.0,
+     0.94,
+     1.0,
+     0.95,
+     0.99,
+     0.94,
+     1.0,
+     0.94,
+     1.0,
+     0.94,
+     1.0,
+     0.93,
+     0.94,
+     1.0,
+     0.93,
+     0.95,
+     0.95,
+     0.94,
+     0.94,
+     0.95,
+     0.97,
+     1.0,
+     0.96,
+     0.94,
+     0.93,
+     0.94,
+     0.93,
+     0.93,
+     0.93,
+     0.93,
+     0.94,
+     0.93,
+     0.99,
+     0.95,
+     0.95,
+     0.95,
+     0.97,
+     0.96,
+     0.96,
+     0.97,
+     0.99,
+     0.94,
+     0.94,
+     0.94,
+     0.99,
+     0.05,
+     1.0,
+     0.95,
+     1.0,
+     0.94,
+     1.0,
+     0.95,
+     0.99,
+     0.91,
+     0.96,
+     0.97,
+     0.99,
+     0.99,
+     0.97,
+     0.96,
+     0.99,
+     0.03,
+     0.99,
+     0.96,
+     0.04,
+     0.07,
+     0.06,
+     0.05,
+     0.97,
+     0.97,
+     0.04,
+     0.96,
+     0.98,
+     0.96,
+     0.98,
+     0.06,
+     0.11,
+     0.13,
+     0.03,
+     0.05,
+     0.03
+    ],
+    "dpi": [
+     144
+    ],
+    "empty_objects": 0,
+    "in_one_box": 0,
+    "ink_as_picture": 2979534,
+    "ink_as_text": 26300614,
+    "ink_clean": 30611614,
+    "ink_in_dark_columns": 3602739,
+    "ink_in_dark_columns_off_edge": 2651415,
+    "ink_junk": 3569827,
+    "ink_outside_boxes_at_edge": 1704154,
+    "ink_total": 34181441,
+    "ink_under_artifact": 2957800,
+    "ink_under_boxes": 29280148,
+    "intact": 0,
+    "left_as_text": 0,
+    "median_box_area": 0.011400988766216055,
+    "object_ink": 0,
+    "object_ink_in_boxes": 0,
+    "objects": 0,
+    "page_count": 378,
+    "pages_with_dark_column": 230,
+    "sheet_area": 294316190,
+    "split_between_boxes": 0,
+    "thresholds": {
+     "almost": 0.95,
+     "bitten": 0.8,
+     "edge_band": 0.04,
+     "ink": 160,
+     "intact": 0.99
+    },
+    "torn": 0,
+    "truth_pages": 0
+   },
+   "metric": "fitness",
+   "params": {
+    "GUTTER": 0.5,
+    "GUTTER_BAND": 0.2,
+    "JUNK_WIDTH": 0.1,
+    "MID": 0.2,
+    "MIN_SPREAD_RATIO": 1.15,
+    "RULE_RUN": 0.25,
+    "almost": 0.95,
+    "bitten": 0.8,
+    "dpi": [
+     144
+    ],
+    "edge_band": 0.04,
+    "ink": 160,
+    "intact": 0.99
+   },
+   "run": "PaddleOCR-VL-1.6-0.9B",
+   "scalars": {
+    "area_under_boxes": {
+     "count": {
+      "n": 187899322,
+      "of": 294316190
+     },
+     "value": 0.6384267273913814
+    },
+    "boxes_per_page": {
+     "count": {
+      "n": 6156,
+      "of": 378
+     },
+     "value": 16.285714285714285
+    },
+    "ink_as_picture": {
+     "count": {
+      "n": 2979534,
+      "of": 34181441
+     },
+     "value": 0.08716817994887928
+    },
+    "ink_as_text": {
+     "count": {
+      "n": 26300614,
+      "of": 34181441
+     },
+     "value": 0.7694413468408192
+    },
+    "ink_junk": {
+     "count": {
+      "n": 3569827,
+      "of": 34181441
+     },
+     "value": 0.10443758061574994
+    },
+    "ink_under_artefacts": {
+     "count": {
+      "n": 2957800,
+      "of": 34181441
+     },
+     "value": 0.08653233782624904
+    },
+    "ink_under_boxes": {
+     "count": {
+      "n": 29280148,
+      "of": 34181441
+     },
+     "value": 0.8566095267896985
+    },
+    "ink_under_boxes_clean": {
+     "count": {
+      "n": 29188719,
+      "of": 30611614
+     },
+     "value": 0.95351780536629
+    },
+    "median_box_area": {
+     "value": 0.011400988766216055
+    },
+    "object_ink_preserved": {
+     "count": {
+      "n": 0,
+      "of": 0
+     },
+     "value": null,
+     "why": "no truth given: the object half needs it"
+    },
+    "objects_in_one_box": {
+     "count": {
+      "n": 0,
+      "of": 0
+     },
+     "value": null,
+     "why": "no truth given: the object half needs it"
+    },
+    "objects_intact": {
+     "count": {
+      "n": 0,
+      "of": 0
+     },
+     "value": null,
+     "why": "no truth given: the object half needs it"
+    },
+    "objects_left_as_text": {
+     "count": {
+      "n": 0,
+      "of": 0
+     },
+     "value": null,
+     "why": "no truth given: the object half needs it"
+    },
+    "objects_torn": {
+     "count": {
+      "n": 0,
+      "of": 0
+     },
+     "value": null,
+     "why": "no truth given: the object half needs it"
+    },
+    "objects_with_company": {
+     "count": {
+      "n": 0,
+      "of": 0
+     },
+     "value": null,
+     "why": "no truth given: the object half needs it"
+    }
+   }
+  },
+  {
+   "bench": "ogneupory-vl2",
+   "detail": {
+    "boxes_counted": 3086,
+    "boxes_other_buckets": 500,
+    "by_page": {
+     "16": 12,
+     "17": 4,
+     "18": 5,
+     "19": 13,
+     "20": 3,
+     "21": 10,
+     "23": 5,
+     "24": 8,
+     "25": 7,
+     "29": 14,
+     "30": 6,
+     "31": 1,
+     "34": 1,
+     "35": 14,
+     "37": 5,
+     "38": 10,
+     "39": 14,
+     "40": 6,
+     "41": 2,
+     "42": 5,
+     "43": 8,
+     "44": 2,
+     "47": 12,
+     "48": 7,
+     "49": 10,
+     "50": 12,
+     "51": 14,
+     "52": 13,
+     "53": 10,
+     "55": 4,
+     "56": 1,
+     "59": 20,
+     "63": 9,
+     "64": 2,
+     "65": 4,
+     "67": 1,
+     "68": 1,
+     "71": 1,
+     "79": 6,
+     "80": 3,
+     "81": 5,
+     "88": 2,
+     "89": 4,
+     "93": 10,
+     "94": 5,
+     "99": 3,
+     "100": 3,
+     "106": 4,
+     "108": 1,
+     "110": 1,
+     "119": 1,
+     "120": 7,
+     "121": 6,
+     "122": 16,
+     "124": 2,
+     "129": 1,
+     "133": 1,
+     "137": 1,
+     "138": 4,
+     "139": 1,
+     "143": 7,
+     "144": 6,
+     "146": 2,
+     "147": 2,
+     "148": 6,
+     "149": 2,
+     "150": 8,
+     "151": 1,
+     "156": 1,
+     "163": 1,
+     "169": 9,
+     "171": 3,
+     "172": 6,
+     "173": 4,
+     "177": 1,
+     "178": 10,
+     "180": 11,
+     "182": 2,
+     "183": 1,
+     "186": 2,
+     "187": 5,
+     "188": 6,
+     "197": 6,
+     "198": 2,
+     "200": 1,
+     "201": 3,
+     "203": 1,
+     "204": 4,
+     "208": 5,
+     "211": 3,
+     "217": 2,
+     "219": 2,
+     "222": 3,
+     "226": 5,
+     "234": 1,
+     "236": 1,
+     "237": 3,
+     "238": 4,
+     "247": 3,
+     "248": 2,
+     "249": 6,
+     "250": 3,
+     "251": 5,
+     "252": 1,
+     "253": 2,
+     "255": 8,
+     "256": 5,
+     "257": 7,
+     "263": 5,
+     "265": 6,
+     "268": 3,
+     "269": 2,
+     "281": 1,
+     "282": 4,
+     "283": 2,
+     "284": 6,
+     "285": 5,
+     "289": 5,
+     "290": 1,
+     "292": 8,
+     "294": 9,
+     "297": 4,
+     "300": 1,
+     "301": 4,
+     "306": 2,
+     "307": 1,
+     "309": 7,
+     "310": 3,
+     "313": 1,
+     "314": 1,
+     "315": 9,
+     "318": 1,
+     "319": 4,
+     "321": 2,
+     "322": 2,
+     "323": 2,
+     "326": 3,
+     "328": 4,
+     "329": 8,
+     "331": 5,
+     "332": 5,
+     "333": 3,
+     "335": 3,
+     "341": 2,
+     "345": 2,
+     "346": 8,
+     "347": 11,
+     "348": 7,
+     "349": 2,
+     "351": 2,
+     "352": 10,
+     "353": 7,
+     "354": 8,
+     "356": 5,
+     "358": 5,
+     "362": 1,
+     "363": 3,
+     "366": 5,
+     "368": 3,
+     "369": 2,
+     "370": 1
+    },
+    "columns": 659,
+    "excess_jumps": 763,
+    "full_width_boxes": 2570,
+    "page_count": 378,
+    "pages_counted": 286,
+    "pages_not_counted_too_few_boxes": 92,
+    "pages_with_2plus_columns": 224,
+    "params": {
+     "buckets_counted": [
+      "artifact",
+      "text"
+     ],
+     "full_width_box_share": 0.6,
+     "min_boxes_per_page": 2,
+     "x_overlap_of_narrow_box": 0.5
+    },
+    "per_page": 2.667832167832168,
+    "transitions": 1136,
+    "why": ""
+   },
+   "metric": "assembly",
+   "params": {
+    "COLUMN_buckets_counted": [
+     "artifact",
+     "text"
+    ],
+    "COLUMN_full_width_box_share": 0.6,
+    "COLUMN_min_boxes_per_page": 2,
+    "COLUMN_x_overlap_of_narrow_box": 0.5,
+    "order_rule": "model_rank",
+    "order_rule_one_rule": "ours_top_down_left_right (forced)"
+   },
+   "run": "PaddleOCR-VL-1.6-0.9B",
+   "scalars": {
+    "excess_jumps": {
+     "value": 763
+    },
+    "excess_jumps_per_page": {
+     "over": {
+      "n": 286,
+      "of": 378,
+      "unit": "pages"
+     },
+     "value": 2.667832167832168
+    },
+    "excess_jumps_per_transition": {
+     "count": {
+      "n": 763,
+      "of": 1136
+     },
+     "value": 0.6716549295774648
+    },
+    "excess_jumps_per_transition_one_rule": {
+     "count": {
+      "n": 832,
+      "of": 1205
+     },
+     "value": 0.6904564315352697
+    },
+    "pages_with_columns": {
+     "count": {
+      "n": 224,
+      "of": 378
+     },
+     "value": 224
+    },
+    "transitions": {
+     "value": 1136
+    }
+   }
+  },
+  {
+   "bench": "ogneupory-vl2",
+   "detail": {
+    "empty": [
+     [
+      "knobs",
+      "YOLOX_WEIGHTS",
+      "value"
+     ],
+     [
+      "knobs",
+      "LAYOUT_MODEL_DIR",
+      "value"
+     ],
+     [
+      "knobs",
+      "CROP_DPI",
+      "value"
+     ],
+     [
+      "knobs",
+      "BOOKSMITH_LEDGER",
+      "value"
+     ]
+    ],
+    "missing": [
+     [
+      "knobs",
+      "HTML_MATH",
+      "value"
+     ],
+     [
+      "knobs",
+      "HTML_IMAGES",
+      "value"
+     ],
+     [
+      "knobs",
+      "HTML_REPEATS",
+      "value"
+     ]
+    ],
+    "required": 52,
+    "shape": "the fingerprint of adapter paddleocr-vl is NOT VERIFIED: processing/read/readers/paddleocr_vl.py is not the code that counted (snapshot d3c19bf1, tree 97cf7a34) -- 8 fingerprint values went unchecked, and 0 of them are absent from the snapshot. This is 'snapshot OLD', not 'snapshot INCOMPLETE'"
+   },
+   "metric": "snapshot",
+   "params": {},
+   "run": "PaddleOCR-VL-1.6-0.9B",
+   "scalars": {
+    "empty": {
+     "count": {
+      "n": 4,
+      "of": 52
+     },
+     "value": 4
+    },
+    "fingerprint_verified": {
+     "value": 0
+    },
+    "missing": {
+     "count": {
+      "n": 3,
+      "of": 52
+     },
+     "value": 3
+    },
+    "values_present": {
+     "count": {
+      "n": 49,
+      "of": 52
+     },
+     "value": 49
+    }
+   }
+  }
+ ],
+ "when": "2026-09-09T15:01:54+0300"
+}
