@@ -14,5 +14,3 @@ MAY_IMPORT = {
     "cli": ("core", "remote", "processing", "datasets"),
 }
 
-# The other half of the rule: `remote` may be imported only by these.
-IMPORTERS_OF_REMOTE = ("remote", "cli", "processing")

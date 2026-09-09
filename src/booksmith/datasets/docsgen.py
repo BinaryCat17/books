@@ -1,6 +1,6 @@
 """The documents rendered from the code: commands, knobs, metrics.
 
-`books docs` writes them; `tests/test_docs.py` regenerates and compares, so a
+`books docs` writes them; `tests/contract/test_docs.py` regenerates and compares, so a
 committed copy that drifts from the code is red. `METRICS.md` is generated
 too, by `books bench report` from `results/`, and is listed here so the
 documents test knows which files are not prose.

@@ -48,7 +48,7 @@ PROBE_DPI = 72              # ink counted on a reduced page.  IT WAS 36, where
                             # other 378.  Cost 15%: the book probe 32 s -> 37 s.
                             # Rebuilt, the "Справочник" went 760 -> 759 pages
                             # (one spread saved), "Огнеупоры" 378 -> 378 (there
-                            # the veto fires at no dpi).  tests/test_djvu.py
+                            # the veto fires at no dpi).  tests/unit/test_djvu.py
                             # counts the step FROM THIS KNOB, not from 36, or it
                             # could not be moved
 RULE_BAND = 0.012           # band around the cut, in fractions of spread width
@@ -130,7 +130,7 @@ def _gutter(page, rect):
     Precision 0 of 11.  Not the threshold's fault: the black was the BINDING
     SHADOW in the top rows of the gutter, and "continuous" the code never
     checked at all (see `dark_rows`).  The gauge now lives in
-    `tools/spread_probe.py`, so the next claim has a way to fail.
+    `tests/e2e/spread_probe.py`, so the next claim has a way to fail.
 
     SECOND CORRECTION.  "Continuous" was not enough.  On the "Справочник по
     чугунному литью" the veto fired **44 times of 379 spreads (11.6%)** -- 716

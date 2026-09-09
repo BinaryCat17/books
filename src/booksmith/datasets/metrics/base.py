@@ -137,7 +137,7 @@ class Spec:
 
 class Metric:
     """The contract. Subclasses set `name` and `needs` and implement three
-    methods; `tests/test_metrics_contract.py` holds every registered one to
+    methods; `tests/contract/test_metrics_contract.py` holds every registered one to
     it."""
     name: str = ""
     needs: frozenset = frozenset()

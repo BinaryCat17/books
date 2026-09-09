@@ -15,7 +15,7 @@ Carried over from the old `jobs/paddleocr/entrypoint.py` with its rules:
 WHAT THIS FILE CANNOT DO, WHICH MATTERS MORE THAN WHAT IT CAN.
 
 `VL_MODEL_DIR` -- the knob deciding which weights vLLM raises -- was NOT
-caught by the registry but by the deleted `tests/test_knobs_registry.py`,
+caught by the registry but by the deleted `tests/contract/test_knobs.py`,
 which parsed sources and `run.sh` as trees: the shell sets that knob by
 `export`, it never passes through `knob()`, and `KeyError` cannot see it by
 construction. Crediting the registry means believing yourself guarded where

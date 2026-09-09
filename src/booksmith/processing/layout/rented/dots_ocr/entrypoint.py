@@ -55,7 +55,7 @@ def parse_pages(spec, n):
 
     THE PARSING IS REPEATED, not borrowed: four files ride to the rented
     machine (`inputs` in `spec()` of the neighbouring `__init__.py`), the
-    booksmith package not among them. `tests/test_parse_pages.py` holds the
+    booksmith package not among them. `tests/contract/test_parse_pages.py` holds the
     two copies together -- it loads THIS file by path and puts both through
     thirteen inputs -- so an edit here must be repeated in `detect.parse_pages`
     and back. The dash is the one lawful difference: it means the whole book

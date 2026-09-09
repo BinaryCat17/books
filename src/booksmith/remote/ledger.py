@@ -48,7 +48,7 @@ class Run:
     # because it DECIDES: the rejection floor is `min(limit, 0.5*ours)`, and
     # the permanent blacklist refuses to act when it is zero. It was decided
     # by and never written down, so the only record of it was prose -- and the
-    # prose disagreed with itself, 1.8 Mbit/s in `tests/test_rent_deadlines.py`
+    # prose disagreed with itself, 1.8 Mbit/s in `tests/unit/test_rent_deadlines.py`
     # against 2.8 in `remote/box.py`, both about 3 September 2026, with the
     # 119 rows of this ledger unable to settle it. `None` means NOT MEASURED,
     # which is not 0.0.

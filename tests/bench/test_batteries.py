@@ -11,16 +11,21 @@ of them went silent, and a silent probe is where breakage looks like health.
 `None` is "nothing to grip on this book" and is a skip, never a pass.
 """
 import pytest
-from conftest import slovar_bench
+from conftest import slovar_bench, tree_detect_run
 
 from booksmith.datasets import metrics as registry
 from booksmith.datasets.bench import Run
 from booksmith.datasets.metrics import base
 
-BENCH = slovar_bench()
-RUN = Run.bare(BENCH.truth_dir, "truth")
-FIT = base.applicable(registry.METRICS, BENCH, RUN, BENCH.pages(), RUN.pages())
-BUILT = {m.name: m.probes(BENCH, RUN) for m in FIT}
+# Built at collection so each probe is a case of its own. A build or probe
+# failure skips this module and nothing else: the rest of the suite needs no bench.
+try:
+    BENCH = slovar_bench()
+    RUN = Run.bare(BENCH.truth_dir, "truth")
+    FIT = base.applicable(registry.METRICS, BENCH, RUN, BENCH.pages(), RUN.pages())
+    BUILT = {m.name: m.probes(BENCH, RUN) for m in FIT}
+except Exception as e:
+    pytest.skip(f"the drawn bench could not be built or probed: {e}", allow_module_level=True)
 
 # What each metric had when the probes were counted here. A floor, not an exact
 # count: a metric may grow a probe, and losing one is what this notices.
@@ -28,6 +33,15 @@ LEAST = {"contour": 34, "fitness": 32, "text": 29, "assembly": 3, "reading": 6}
 
 PARAMS = [pytest.param(p, id=f"{name}-{p.name}")
           for name, ps in sorted(BUILT.items()) for p in ps]
+
+# The same probes over a real detect run, where the tree holds one: a third of
+# the probes have nothing to grip on truth against itself.
+_TREE = tree_detect_run()
+if _TREE is not None:
+    _B2, _R2 = _TREE
+    _FIT2 = base.applicable(registry.METRICS, _B2, _R2, _B2.pages(), _R2.pages())
+    PARAMS += [pytest.param(p, id=f"{m.name}-{p.name}[{_R2.label}]")
+               for m in _FIT2 for p in m.probes(_B2, _R2)]
 
 
 def test_every_metric_the_drawn_bench_reaches_is_probed():
@@ -59,3 +73,15 @@ def test_the_probe_moves_the_number(probe):
     if ok is None:
         pytest.skip("no data")
     assert ok, f"{probe.name}: {probe.want}" + (f" [{note}]" if note else "")
+
+
+@pytest.mark.parametrize("name,scalar,want", [
+    ("contour", "artefacts_found", 1.0), ("contour", "text_furniture_found", 1.0),
+    ("contour", "model_order", 1.0), ("contour", "label_errors", 0),
+    ("text", "CER", 0.0), ("text", "paired", 1.0),
+])
+def test_truth_against_itself_is_the_perfect_score(name, scalar, want):
+    """The baseline every probe lowers: without it a probe proves only a fall."""
+    rec = registry.BY_NAME[name].run(BENCH, RUN)
+    got = rec.scalars[scalar].value
+    assert got == want, f"{name}.{scalar} on truth against truth is {got}, not {want}"

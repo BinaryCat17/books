@@ -164,41 +164,6 @@ def extra_kind(box, paired, unpaired, outside, tb) -> str:
     return "spurious_box"
 
 
-def cover_many(a, boxes) -> float:
-    """What share of `a` the UNION of the boxes covers.
-
-    Exact, not sampled: clipped rectangles compressed into a coordinate grid,
-    area over occupied cells. An approximation is worse than nothing -- this
-    number tells "part of the object is gone" from "split across two boxes".
-
-    UNCALLED, AND A DEBT WITH A KNOWN ADDRESS: struck out as dead once, and a
-    sceptic reversed the strike. `sense()` covers one box at a time, so a
-    half-and-half split lands in "cropped" though the union covers the object
-    whole; this is the missing half. Wiring it in moves the golden-bench column
-    "cropped 85" -- a change of metric to measure and explain, not a tidy-up.
-    """
-    ax0, ay0, ax1, ay1 = a
-    aw, ah = ax1 - ax0, ay1 - ay0
-    if aw <= 0 or ah <= 0:
-        return 0.0
-    cl = []
-    for b in boxes:
-        x0, y0 = max(ax0, b[0]), max(ay0, b[1])
-        x1, y1 = min(ax1, b[2]), min(ay1, b[3])
-        if x1 > x0 and y1 > y0:
-            cl.append((x0, y0, x1, y1))
-    if not cl:
-        return 0.0
-    xs = sorted({ax0, ax1, *(v for r in cl for v in (r[0], r[2]))})
-    ys = sorted({ay0, ay1, *(v for r in cl for v in (r[1], r[3]))})
-    area = 0.0
-    for i in range(len(xs) - 1):
-        for j in range(len(ys) - 1):
-            cx, cy = (xs[i] + xs[i + 1]) / 2, (ys[j] + ys[j + 1]) / 2
-            if any(r[0] <= cx <= r[2] and r[1] <= cy <= r[3] for r in cl):
-                area += (xs[i + 1] - xs[i]) * (ys[j + 1] - ys[j])
-    return area / (aw * ah)
-
 def _pad(b, d):
     return (b[0] - d, b[1] - d, b[2] + d, b[3] + d)
 
@@ -607,7 +572,7 @@ def _order_agree(by_page, idx: int, ceiling: int, pages: int,
 # PRINTOUT, ALL THREE. That already cost one unreproducible measurement (see
 # the header): "7.0 -> 1.3" where the same saved boxes give 4.53 -> 0.79 today,
 # reference input 4.49 -> 0.79. How much of a difference is the ruler and not
-# the data is answered by `column_jumps_sweep`, printed by `--selfcheck`.
+# the data is answered by the probes over the column rule.
 COLUMN_OVERLAP = 0.5   # share of the NARROWER box width their x-intersection
                        # must cover for the two to count as one column. At 0.5
                        # a box lies at least half in the column; at 0.1 columns
@@ -788,51 +753,12 @@ def _sweep_points(grid: dict, cross: bool) -> list:
     return [{}] + [{k: v} for k in sorted(grid) for v in grid[k]]
 
 
-def column_jumps_sweep(M: dict, grid: dict = None, cross: bool = False,
-                       key: str = "per_page") -> dict:
-    """The range the quantity roams over as the grouping parameters move.
-
-    Baseline at declared defaults, minimum, maximum, every point by name. A
-    dash (`None`) is a lawful answer for a point: at a box minimum of 5 a bench
-    may yield no counted page at all, which is no zero.
-    """
-    pts = []
-    for p in _sweep_points(grid or COLUMN_SWEEP, cross):
-        v = column_jumps(M, **p)
-        pts.append({"params": column_params(**p), "shifted": p,
-                    "value": v[key], "pages_counted": v["pages_counted"]})
-    vals = [p["value"] for p in pts if p["value"] is not None]
-    base = pts[0]["value"] if not cross else column_jumps(M)[key]
-    return {"quantity": key, "points": len(pts), "baseline": base,
-            "min": min(vals) if vals else None,
-            "max": max(vals) if vals else None,
-            "dashes": sum(1 for p in pts if p["value"] is None),
-            "by_point": pts}
-
-
 def _fmt_point(shift: dict) -> str:
     """Name a sweep point in words: WHAT is shifted off the default."""
     if not shift:
         return "default"
     return ", ".join(f"{_SWEEP_NAMES.get(k, k)} {v}"
                      for k, v in sorted(shift.items()))
-
-
-def _ranking_rule(rk: dict) -> str:
-    """The rule for pairs the sweep never saw: this quantity does not settle a
-    close pair. Closeness is the quantity's OWN range over the sweep -- the
-    play of the ruler any smaller gap would be paid in."""
-    play, near = rk.get("ruler_play"), rk.get("closest_pair_at_default")
-    if play is None:
-        return ""
-    out = (f"Ruler play over the sweep {play:.2f}: a pair parted at the "
-           f"default by less than this is NOT SETTLED by the quantity.")
-    if near:
-        d, who = near
-        out += (f" The closest pair here is {who}, difference {d:.2f}"
-                + (" (below the play: this cannot count as a win)."
-                   if d < play else "."))
-    return out
 
 
 def column_jumps_ranking(variants: dict, grid: dict = None,

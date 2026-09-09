@@ -565,14 +565,21 @@ def cmd_bench_selfcheck(a):
         fit = [BY_NAME[n] for n in which]
     total = uncaught = mute = 0
     for metric in fit:
-        seen, silent, bad = base.run_probes(metric.probes(b, run), log=log)
+        probes = metric.probes(b, run)
+        if not probes:
+            log(f"{metric.name}: no probes on this run, nothing to knock out")
+            continue
+        seen, silent, bad = base.run_probes(probes, log=log)
         log(f"{metric.name}: probes {seen}, measured {seen - silent}, "
             f"nothing to measure with {silent}, uncaught {bad}")
         total, uncaught, mute = total + seen, uncaught + bad, mute + silent
-    left = sorted(m.name for m in METRICS if m not in fit)
+    applicable = base.applicable(METRICS, b, run, pages, run.pages())
+    not_here = sorted(m.name for m in METRICS if m not in applicable)
+    not_asked = sorted(m.name for m in applicable if m not in fit)
     log(f"{b.name} {run.label}: metrics {len(fit)}, probes {total}, "
         f"nothing to measure with {mute}, UNCAUGHT {uncaught}"
-        + (f"; not probed here: {', '.join(left)}" if left else ""))
+        + (f"; cannot be measured here: {', '.join(not_here)}" if not_here else "")
+        + (f"; not selected: {', '.join(not_asked)}" if not_asked else ""))
     return 1 if uncaught else 0
 
 
@@ -710,7 +717,7 @@ def _doctor_read():
 
     The key lives OUTSIDE the knob registry on purpose: everything declared
     there lands in `run.json` as a value, and the snapshot goes into git. The
-    price is a name invisible to `knobs.readers()` — the `VL_MODEL_DIR` disease
+    price is a name no registry walk sees — the `VL_MODEL_DIR` disease
     in miniature — so it must be spoken at least here.
     """
     ep = knobs.knob("VLM_ENDPOINT")

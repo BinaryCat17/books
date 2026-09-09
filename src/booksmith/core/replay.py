@@ -24,7 +24,7 @@ is the ADAPTER FINGERPRINT, whose shape each adapter declares in its own
 `fingerprint()`: paddle one way, yolox another, docling with a vendor-pipeline
 branch holding two sha256 and a label map. Retyping it here would start a
 second list -- the kind that parts with the code at the first model edit, as
-the counts quoted in `composition()` once parted. So the shape is DERIVED by
+the counts once quoted in prose parted. So the shape is DERIVED by
 parsing the source of the adapter the snapshot names, the way
 `tests/contract/test_snapshot.py` derives knob consumers by walking the tree.
 
@@ -64,7 +64,7 @@ Measured by cutting one at a time: a doclayout snapshot leaves 25 of 50
 uncovered, docling with the pipeline on 49 of 80 (2026-08-29, two pages of
 `bench/matematika`).
 
-How much of what right now the commands and `composition()` print themselves:
+How much of what right now the suite prints themselves:
 numbers in prose age silently, as this header has already witnessed.
 """
 import ast
@@ -467,22 +467,6 @@ def required(snap=None, sh=None):
         sh = shape(snap) if sh is None else sh
         req += sh["derived"]
     return tuple(req)
-
-
-def composition(req=None):
-    """What the requirement is made of: (knob keys, literals, fingerprint).
-
-    The numbers are COUNTED. The `selfcheck` docstring below used to say "28
-    requirements of 36 ... twenty keys laid out by knobs.snapshot() ... eight
-    more are literals", and by 2026-08-29 not one of the three held: the knob
-    registry grew and the text beside it was not recounted. The third term
-    cannot be a number in prose at all -- every adapter has its own
-    fingerprint.
-    """
-    req = required() if req is None else req
-    kn = sum(1 for p, _ in req if p and p[0] == "knobs")
-    fp = sum(1 for p, _ in req if p and p[0] == FP)
-    return kn, len(req) - kn - fp, fp
 
 
 def _dig(d, path):

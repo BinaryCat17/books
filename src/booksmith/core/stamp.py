@@ -50,7 +50,7 @@ def sha256(path: str) -> str:
 
 # What a measuring pass WRITES, and therefore may not be judged dirty by. Not
 # a general escape: every entry is an output of this project, never a source,
-# and `tests/test_data_contract.py` holds the list to that.
+# and `tests/contract/test_data_contract.py` holds the list to that.
 OUTPUT_PATHS = ("results/", "METRICS.md")
 
 

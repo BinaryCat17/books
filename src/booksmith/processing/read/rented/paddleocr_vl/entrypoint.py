@@ -12,7 +12,7 @@ ignored), and this file only fills in paths and calls
 `booksmith.processing.read.driver`.
 So at home and on the card the SAME code runs, byte for byte, and it was
 checked at home against a stand-in server -- free and in advance
-(`tests/test_read.py`, 27 checks).
+(`tests/e2e/test_read.py`, 27 checks).
 
 WHAT IS LOCAL RATHER THAN SHARED. Exactly three things, all three about the
 machine being someone else's: the path to the book (it arrives as `input.pdf`

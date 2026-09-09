@@ -1,29 +1,28 @@
-"""Fixtures the suite shares: the synthetic bench, built once.
+"""Fixtures the suite shares: the synthetic bench, built once per session.
 
 `bench/slovar` is untracked, so a check that needs truth builds its own copy
-here instead of reading the tree. The build takes seconds and is memoised for
-the whole session, because `tests/bench/test_batteries.py` needs the probe
-list at collection time, before any fixture has run.
+here. The build is memoised because tests/bench/test_batteries.py needs the
+probe list at collection time, before any fixture has run.
 """
 import atexit
+import os
 import shutil
 import tempfile
 
 import pytest
 
-from booksmith.core import knobs
+from booksmith.core import config, knobs
 from booksmith.datasets.bench import Bench, Run
 from booksmith.datasets.make import synth
 
 _BUILT = {}
 
 
-def slovar_bench(out=None) -> Bench:
+def slovar_bench() -> Bench:
     """The `slovar` bench, drawn with the knob defaults the CLI uses."""
     if "bench" not in _BUILT:
-        d = str(out) if out is not None else tempfile.mkdtemp(prefix="slovar-")
-        if out is None:
-            atexit.register(shutil.rmtree, d, ignore_errors=True)
+        d = tempfile.mkdtemp(prefix="slovar-")
+        atexit.register(shutil.rmtree, d, ignore_errors=True)
         synth.build(d, None, knobs.number("SYNTH_SEED", kind=int),
                     knobs.knob("SYNTH_AGING"), book="slovar",
                     log=lambda *_a: None)
@@ -31,9 +30,20 @@ def slovar_bench(out=None) -> Bench:
     return _BUILT["bench"]
 
 
+def tree_detect_run(label="PP-DocLayoutV2"):
+    """The tracked tree's own `bench/slovar` with a real detect run, when this
+    machine holds one; None on a clone."""
+    root = os.path.join(config.ROOT, "bench", "slovar")
+    run = os.path.join(root, "detect", label)
+    if not (os.path.isdir(os.path.join(root, "truth")) and os.path.isfile(
+            os.path.join(run, "run.json")) and os.path.isdir(os.path.join(run, "pages"))):
+        return None
+    return Bench.open(root), Run.open(run)
+
+
 @pytest.fixture(scope="session")
-def slovar(tmp_path_factory):
-    return slovar_bench(tmp_path_factory.mktemp("slovar"))
+def slovar():
+    return slovar_bench()
 
 
 @pytest.fixture(scope="session")

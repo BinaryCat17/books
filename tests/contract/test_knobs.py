@@ -164,7 +164,7 @@ def test_adapters_declare_the_knobs_they_read():
 
 
 # --------------------------------------------------------------------------
-# A CONTRACT BETWEEN TWO CHECK FILES: `pytest.skip()` and `tests/run.py`, and
+# A CONTRACT BETWEEN TWO CHECK FILES: `pytest.skip()` and pytest, and
 # it is silent about the WHOLE run at once. `pytest.skip()` chose the form of
 # a skip by whether pytest was IMPORTABLE, not by WHO RUNS, and in pytest
 # `Skipped` inherits BaseException, not Exception -- past both traps of
@@ -175,7 +175,7 @@ def test_adapters_declare_the_knobs_they_read():
 
 # -------------------------------------------------------- .sh AND THE REGISTRY
 # A promise nothing kept BEFORE this check. `processing/read/rented/paddleocr_vl/run.sh` says
-# word for word: "a drift will be caught by `tests/test_knobs.py`, which
+# word for word: "a drift will be caught by `tests/contract/test_knobs.py`, which
 # compares the right-hand sides of `${X:-…}` with it [the registry]". No such
 # comparison existed: no check opened a `.sh`, and `knobs.readers()` looks in
 # shell only for the PRESENCE of `$NAME`. A guard existing as one line of prose

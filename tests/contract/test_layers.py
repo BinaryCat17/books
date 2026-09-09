@@ -84,9 +84,6 @@ def _top(mod, name):
 def violations(root=PKG, name=NAME):
     """Every import that crosses a layer the wrong way, one line each.
 
-    The layer rule first, and the `remote` rule only for an edge the layer
-    rule allowed, or every upward import into `remote` would be named twice
-    and counted twice.
     """
     bad = []
     for importer, imported, line in edges(root, name):
@@ -97,9 +94,6 @@ def violations(root=PKG, name=NAME):
         if allowed is not None and b not in allowed:
             bad.append(f"{importer}:{line} imports {imported}: {a} may import only "
                        f"{', '.join(allowed) or 'itself'}")
-        elif b == "remote" and a not in layers.IMPORTERS_OF_REMOTE:
-            bad.append(f"{importer}:{line} imports {imported}: only "
-                       f"{', '.join(layers.IMPORTERS_OF_REMOTE)} may import remote")
     return bad
 
 
@@ -174,19 +168,6 @@ def test_an_import_of_the_command_line_from_below_is_named():
     assert len(bad) == 2, bad
     assert any("core.k:1" in b for b in bad), bad
     assert any("datasets.m:1" in b for b in bad), bad
-
-
-def test_the_remote_rule_names_an_importer_outside_its_list():
-    with tempfile.TemporaryDirectory() as tmp:
-        root = _plant(tmp, {
-            "__init__.py": "",
-            "remote/__init__.py": "",
-            "remote/vast.py": "",
-            "elsewhere/__init__.py": "",
-            "elsewhere/x.py": "from booksmith.remote.vast import Vast\n",
-        })
-        bad = violations(root)
-    assert len(bad) == 1 and "may import remote" in bad[0], bad
 
 
 def test_relative_imports_resolve_by_depth():

@@ -259,7 +259,7 @@ class Bench:
 
         NOT a loosening of `open`. `open` still refuses a directory with no
         `truth/`, because a bench without truth is a caller's mistake and
-        `tests/test_bench.py` holds it to that; this is a second door, named
+        `tests/unit/test_bench.py` holds it to that; this is a second door, named
         for what it opens, and `truth_dir` stays empty so `applicable`
         withholds every metric that needs truth.
         """

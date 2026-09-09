@@ -144,9 +144,10 @@ def test_a_bench_keeps_the_scan_its_manifest_names():
     """
     import subprocess
     absent, _ = _split(strays())
-    r = subprocess.run(["git", "ls-files", *book_mod.BOOK_ROOTS], cwd=ROOT,
+    r = subprocess.run(["git", "ls-files", "-z", *book_mod.BOOK_ROOTS], cwd=ROOT,
                        capture_output=True, text=True)
-    tracked = set(r.stdout.split())
+    assert r.returncode == 0, r.stderr
+    tracked = set(p for p in r.stdout.split("\0") if p)
     gone = {p: w for p, w in absent.items() if p in tracked}
     if absent and not gone:
         pytest.skip(f"{len(absent)} bench scans are not here and not one of "

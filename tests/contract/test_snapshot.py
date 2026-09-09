@@ -23,6 +23,13 @@ from booksmith.core import knobs, replay
 SRC = support.SRC
 
 
+def composition(req):
+    """What the requirement is made of: (knob keys, literals, fingerprint)."""
+    kn = sum(1 for p, _ in req if p and p[0] == "knobs")
+    fp = sum(1 for p, _ in req if p and p[0] == replay.FP)
+    return kn, len(req) - kn - fp, fp
+
+
 def readers(root=None):
     """Who REALLY reads each knob: name -> tuple of files, by walking the tree.
 
@@ -135,7 +142,7 @@ def selfcheck(outdir, log=print) -> int:
     sh = replay.shape(snap)
     req = replay.required(snap, sh)
     name = os.path.relpath(outdir)
-    kn, lit, fp = replay.composition(req)
+    kn, lit, fp = composition(req)
     # Registry drift is looked for before the snapshot: it is about the
     # sources, and an unreadable `run.json` is no reason to keep quiet about it.
     drift = audit()

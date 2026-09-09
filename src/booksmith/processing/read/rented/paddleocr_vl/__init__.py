@@ -12,7 +12,7 @@ DIRECTORIES: the detect output (the boxes we cut by) and THE `src/booksmith`
 PACKAGE ITSELF. The package instead of retyped code is a decision, not a
 convenience: the neighbouring `dots_ocr/entrypoint.py` carries its own copy of
 the page parser, and the two diverged on four inputs of thirteen before
-`tests/test_parse_pages.py` held them. It weighs 1.2 MB of `.py`, 5.5 MB on
+`tests/contract/test_parse_pages.py` held them. It weighs 1.2 MB of `.py`, 5.5 MB on
 disk as it rides (`doc/mathjax`, fresh `__pycache__`), against 2.2 GB of
 weights -- negligible, where a divergence of copies costs a run.
 """
@@ -40,7 +40,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # FROM THE PACKAGE ITSELF, never by counting `dirname`s: this file moved two
 # levels deeper in the package move of 2026-09-07, and two `dirname`s would
 # have shipped `processing/read` to the box as "booksmith" -- a partial
-# package, learnt for money. `tests/test_roots.py` holds it.
+# package, learnt for money. `tests/e2e/test_detect.py` holds it.
 PKG = os.path.dirname(os.path.abspath(booksmith.__file__))
 
 

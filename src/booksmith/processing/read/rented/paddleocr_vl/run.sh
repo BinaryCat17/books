@@ -60,7 +60,7 @@ export PATH="/opt/env/bin:$PATH"
 # the inner default is not checked at all.
 #
 # THIS PROMISE LIVED HERE BEFORE THE CHECK DID. There was no comparison at all:
-# not one file in `tests/` opened a `.sh`, and `knobs.readers()` looks in the
+# not one file in `tests/` opened a `.sh`, and the registry walk in the suite looks in the
 # shell only for the PRESENCE of `$NAME`, not the value. A promised and absent
 # guard is worse than an absent one: it is cited when decisions are made.
 export VL_MODEL_DIR="${VL_MODEL_DIR:-/models/vl}"

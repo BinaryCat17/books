@@ -1087,7 +1087,7 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
             #   * the `undead` loop above finishes off up to MAX_ATTEMPTS = 5
             #     machines at `Vast.RETRY_S` = (4, 8, 16, 32, 60) -- up to 120 s of
             #     pauses each, 600 s per loop, against DEADMAN_GRACE_S = 900 that
-            #     `tests/test_rent_deadlines.py` guards for ONE destroy, not five.
+            #     `tests/unit/test_rent_deadlines.py` guards for ONE destroy, not five.
             #     An earlier stop starts the watch's clock before those minutes;
             #   * `box.py`, next to `SHORT_CMD_S`, tells how going to the network
             #     from a `finally` on a silent machine used to end.

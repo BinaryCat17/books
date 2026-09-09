@@ -44,7 +44,7 @@ class Detector(abc.ABC):
     are exactly the ones with no default anywhere to catch them.
 
     The contract is now checked against the pipeline rather than believed:
-    `tests/test_models_contract.py` reads every attribute `detect.py` asks of
+    `tests/contract/test_models_contract.py` reads every attribute `detect.py` asks of
     an adapter and requires it here, and requires every name here to be asked
     for somewhere. It fails in both directions, which a list nobody compares
     cannot do.
@@ -140,7 +140,7 @@ class Detector(abc.ABC):
         past the registry, here past the consumer.
 
         WHY DECLARED, NOT DERIVED. The one catcher that derived the list by
-        parsing sources, `tests/test_knobs_registry.py`, is deleted and not
+        parsing sources, `tests/contract/test_knobs.py`, is deleted and not
         restored -- but the read also hides outside the class (`weights_dir()`
         in `doclayout.py`, called from `__init__`), arrives from the caller's
         default (`YoloXLayout(weights=…)` reads no knob at all) or never passes

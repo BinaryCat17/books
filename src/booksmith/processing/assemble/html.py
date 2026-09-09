@@ -438,7 +438,7 @@ def torn_grid(grid: dict | None) -> str | None:
     knowing, while the grid screams 2047 cells in a row.
 
     So the rule looks at SHAPE, both halves checked by mutation
-    (`tests/selfcheck.py`): one row wider than three cells, one column deeper
+    (the suite): one row wider than three cells, one column deeper
     than three. On "Refractory technology" EXACTLY ONE table of 104 falls under
     each — `p0055-b11` (2047 cells in a row), `p0166-b2` (7 rows of one cell).
     Median width 5 cells, second-widest row 11.
