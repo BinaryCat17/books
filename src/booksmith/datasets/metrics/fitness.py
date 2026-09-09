@@ -225,6 +225,29 @@ def mutations(pdf: str, detect_dir: str, truth_dir: str = "", log=print) -> int:
         ("one box over the whole sheet", "ink 100%, but area 100% too",
          lambda: (lambda r: r["ink_under_boxes"] == r["ink_total"]
                   and r["boxes_area"] == r["sheet_area"])(R(full))),
+        # THE SPLIT IS EXHAUSTIVE OR IT IS NOT A SPLIT. Text plus picture is
+        # exactly the boxed ink, so with `ink_outside_boxes` the three
+        # account for every dark pixel on the sheet and none of them twice.
+        # Overlapping boxes are what makes this worth asserting: a pixel
+        # under both a crop and a paragraph is counted once, in the crop.
+        ("the split against the whole",
+         "text + picture is exactly the ink under boxes, never more",
+         lambda: (base["ink_as_text"] + base["ink_as_picture"]
+                  == base["ink_under_boxes"])),
+        # A DETECTION RUN READS NOTHING, so the split sits at its floor --
+        # everything a picture -- and the only way to see it move is to put
+        # content in. Handing every block a character moves ink out of the
+        # picture share and into the text one, and the artefact-role blocks
+        # must NOT move: a plate stays a plate whatever the reader returns.
+        ("every block handed a character",
+         "ink leaves as text where it left as a picture, and the artefacts "
+         "do not move",
+         lambda: None if not any(policy.role(b["label"]) != "artifact"
+                                 for p in M0.values() for b in p["blocks"])
+         else (lambda r: r["ink_as_text"] > base["ink_as_text"]
+               and r["ink_as_picture"] < base["ink_as_picture"]
+               and r["ink_under_artifact"] == base["ink_under_artifact"])(
+             R(_edit(M0, lambda b: {**b, "content": "x"})))),
         # AND THE GUARD IS BEATEN FROM THE OTHER SIDE, which is why there are
         # three of them. Cut every box into a grid and `area_under_boxes` and
         # `ink_under_boxes` are IDENTICAL to the digit -- the same pixels
@@ -450,6 +473,28 @@ class FitnessMetric(Metric):
             # slovar against the tracer's 5673.
             "boxes_per_page": _ratio(res["box_count"], res["page_count"],
                                      "no page was measured"),
+            # WHERE THE INK ENDS UP, and this is the question the project is
+            # for: how much of the book survives, and as WHAT. The two shares
+            # plus `ink_outside_boxes` are exhaustive against the sheet's ink
+            # -- measured on the one real level-two run, 76.944 % as text,
+            # 8.717 % as a picture, 14.339 % under no box, summing to
+            # 100.000 %. The rule is the BUILDER's, asked of `html.py` rather
+            # than restated: a crop where `role == "artifact" or not content`,
+            # a paragraph otherwise.
+            #
+            # NONE, NOT ZERO, ON A RUN THAT READ NOTHING. A detection run has
+            # no content anywhere, so every block is a picture by that rule
+            # and "0 % leaves as text" would be printed as a fact about the
+            # model. It is a fact about the run, and the two zeros are the
+            # rule this project keeps hardest.
+            "ink_as_text": _ratio(res["ink_as_text"], tot, no_ink)
+            if res["blocks_with_content"] else Scalar(
+                None, why="this run read nothing: every block would leave as "
+                          "a picture, which is not a measurement of one"),
+            "ink_as_picture": _ratio(res["ink_as_picture"], tot, no_ink)
+            if res["blocks_with_content"] else Scalar(
+                None, why="this run read nothing: every block would leave as "
+                          "a picture, which is not a measurement of one"),
             "objects_intact": _ratio(res["intact"], obj, no_obj),
             "objects_in_one_box": _ratio(res["in_one_box"], obj, no_obj),
             "objects_torn": _ratio(res["torn"], obj, no_obj),

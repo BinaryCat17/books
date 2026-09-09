@@ -104,10 +104,20 @@ NEITHER = ("transitions", "pages_with_columns", "values_present",
            # two catch that side. Both have a bad end at each extreme, so
            # neither is a rank: read them beside `ink_under_boxes`, never
            # down a column of their own.
-           "median_box_area", "boxes_per_page")
+           "median_box_area", "boxes_per_page",
+           # A picture is not a failure: a plate SHOULD ship as a plate. It
+           # is the third slice of an exhaustive split, read beside the other
+           # two and never ranked -- a book that ships every page as a
+           # photograph of itself scores 100 % here.
+           "ink_as_picture")
 # Named, not inferred: this is the list that makes the other two a
 # declaration instead of a residue.
 HIGHER_IS_BETTER = (
+    # Ink that leaves as TEXT is the book arriving as a book. Its counterpart
+    # `ink_as_picture` is NOT its opposite and is not ranked: a plate that
+    # ships as a plate is right, and a page that ships as a photograph of
+    # itself is wrong, and the two are one number.
+    "ink_as_text",
     "artefacts_found", "assembly_order",
     "ink_under_artefacts", "ink_under_boxes", "model_order",
     "object_ink_preserved", "objects_in_one_box", "objects_intact",

@@ -277,6 +277,8 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
     areas = []            # box area / page area, one per on-sheet box
     res = {"page_count": 0, "truth_pages": len(T), "dpi": [],
            "box_count": 0, "median_box_area": None,
+           "ink_as_text": 0, "ink_as_picture": 0,
+           "blocks_with_content": 0,
            "ink_total": 0, "ink_under_boxes": 0,
            "ink_under_artifact": 0, "sheet_area": 0, "boxes_area": 0,
            "ink_outside_boxes_at_edge": 0,
@@ -317,6 +319,29 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
                 if policy.role(b["label"]) != "artifact"]
         ma, mr = _mask(ink.shape, arte), _mask(ink.shape, rest)
         both = ma | mr
+        # WHERE THE INK ENDS UP, by the builder's own rule and not a second
+        # copy of it: `assemble/html.py` emits a crop when
+        # `role == "artifact" or not b.content` and a paragraph otherwise, so
+        # that is the line asked here. The question this answers is the one
+        # the project is for -- how much of the book survives, and as WHAT --
+        # and it was answerable from these masks all along while the report
+        # said only "ink under boxes".
+        #
+        # A PIXEL IS COUNTED ONCE, and a picture wins the tie. Boxes overlap
+        # for real (`text_inside_non_artifact_box` runs to 1935 on one book),
+        # and a crop ships whole whatever lies over it, so ink under both a
+        # crop and a paragraph is counted as leaving in the crop. The split
+        # is therefore exhaustive against `ink_total` and never sums past it.
+        pic = _mask(ink.shape, [b["box"] for b in p["blocks"]
+                                if policy.role(b["label"]) == "artifact"
+                                or not b.get("content")])
+        txt = _mask(ink.shape, [b["box"] for b in p["blocks"]
+                                if policy.role(b["label"]) != "artifact"
+                                and b.get("content")]) & ~pic
+        res["ink_as_picture"] += int((ink & pic).sum())
+        res["ink_as_text"] += int((ink & txt).sum())
+        res["blocks_with_content"] += sum(1 for b in p["blocks"]
+                                          if b.get("content"))
         # Who arrived in which box: key is the artefact box, value is how many
         # truth objects it carries whole. Hence "arrived with company", the one
         # number of this instrument that GROWS with merging.
