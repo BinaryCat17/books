@@ -79,6 +79,28 @@ def _books(root):
     return out
 
 
+def _read_runs(root):
+    """(book, directory, label) for every level-two run on disk.
+
+    Found by walking `processed/`, not by a list: a book with a reading run
+    is a thing that exists or does not, and the nine-name `BOOKS` tuple above
+    is a list of what to DETECT, which is a different question. A book with
+    no `read/` contributes nothing and is not mentioned.
+    """
+    out = []
+    base = os.path.join(root, "processed")
+    for name in sorted(os.listdir(base)) if os.path.isdir(base) else []:
+        d = os.path.join(base, name)
+        reads = os.path.join(d, "read")
+        if not (os.path.isfile(os.path.join(d, "manifest.json"))
+                and os.path.isdir(reads)):
+            continue
+        for label in sorted(os.listdir(reads)):
+            if os.path.isdir(os.path.join(reads, label, "pages")):
+                out.append((name, d, label))
+    return out
+
+
 def label_of(env):
     """Ask the ADAPTER its label, before any page is read."""
     from booksmith.processing.layout import detect
@@ -254,6 +276,25 @@ def main(argv):
             failed.append((bname, label, "bench all", rc))
             continue
         print(f"{took:6.1f}s")
+    # THE LEVEL-TWO RUNS, WHICH THIS SWEEP COULD NOT REACH. `BOOKS` names
+    # nine directories under `bench/`, so `processed/` was invisible to it --
+    # and `processed/` is where the only runs that have READ anything live.
+    # Every scalar about reading was therefore measured by nobody, and the
+    # renderer refuses a table whose cells come from two commits, so they
+    # could not be added afterwards either: they had to ride in this pass or
+    # not at all. Nothing is DETECTED here -- the boxes already exist and
+    # cost a rented card -- only measured.
+    for bname, bdir, label in _read_runs(ROOT):
+        t0 = time.time()
+        print(f"  {bname:22} read/{label:28} ", end="", flush=True)
+        log = os.path.join(LOGS, f"{bname}-read-{label}.log")
+        rc = _run([sys.executable, "-m", "booksmith.cli", "bench", "all",
+                   bdir, "--kind", "read", "--run", label], dict(os.environ), log)
+        if rc:
+            print(f"METRICS FAILED rc={rc}, see {os.path.relpath(log, ROOT)}")
+            failed.append((bname, label, "bench all --kind read", rc))
+            continue
+        print(f"{time.time() - t0:6.1f}s")
     print(f"\n  {len(todo) - len(failed)} of {len(todo)} done in "
           f"{(time.time() - started) / 60:.1f} min")
     for b, l, what, rc in failed:

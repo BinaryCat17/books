@@ -278,11 +278,22 @@ def _cells():
         # A file written before the field existed is `detect`, which every
         # one of them was.
         kind = d.get("kind") or "detect"
-        if kind != "detect":
-            other.append((kind, name))
-            continue
         commits.add(d["commit"])
         when.add(d["when"])
+        if kind != "detect":
+            # HELD OUT OF THE MODEL COLUMN, NOT OUT OF THE DOCUMENT. Its
+            # numbers describe the detector whose boxes it inherited, so it
+            # cannot stand beside six detectors as a seventh -- but it is
+            # the only run that has READ anything, and the scalars about
+            # reading have nowhere else to appear. It gets its own section
+            # and the same commit rule: published means held to it.
+            by = {}
+            for rec in d["records"]:
+                by[rec["metric"]] = rec
+            other.append((kind, name, d["records"][0]["bench"] if d["records"]
+                          else name, d["records"][0]["run"] if d["records"]
+                          else "", by))
+            continue
         for rec in d["records"]:
             out.setdefault((rec["bench"], rec["run"]), {})[rec["metric"]] = rec
     return out, commits, when, other
@@ -496,9 +507,12 @@ def build(log=print) -> str:
           "directory -- in the model column the reader would read as having "
           "earned them. "
           + (f"{len(other_levels)} such "
-             + ("run was" if len(other_levels) == 1 else "runs were")
-             + " measured and left out: "
-             + ", ".join(f"`{n}` ({k})" for k, n in sorted(other_levels)) + "."
+             + ("run is" if len(other_levels) == 1 else "runs are")
+             + " kept out of the tables above and given a section of "
+             + ("its" if len(other_levels) == 1 else "their")
+             + " own at the end: "
+             + ", ".join(f"`{b}` / `{r}` ({k})"
+                         for k, _, b, r, _ in sorted(other_levels)) + "."
              if other_levels else
              "None has been measured yet; `books bench all <book> --kind "
              "read` writes one, under its own name, and it is counted here "
@@ -560,6 +574,29 @@ def build(log=print) -> str:
                     L += ["- **these are two different quantities**, and the "
                           "columns are not comparable across the two groups."]
         L += [""]
+
+    # ---- the level-two runs, apart ----------------------------------------
+    if other_levels:
+        L += ["## What the reading runs measured", "",
+              "A level-two run carries the boxes of whatever DETECTOR made "
+              "its pages, so none of these numbers ranks the reader against "
+              "the models above and none is in their tables. What it does "
+              "carry is the only measurement of a book that has actually "
+              "been read: how much of its ink leaves as text rather than as "
+              "a picture of itself, and how much of the sheet was never "
+              "information at all.", ""]
+        for kind, name, b, r, by in sorted(other_levels):
+            L += [f"### {b} — {r} ({kind})", ""]
+            rows = []
+            for metric in sorted(by):
+                for s, sc in sorted((by[metric].get("scalars") or {}).items()):
+                    rows.append([f"`{s}` {_arrow(s)}", metric,
+                                 _cell(by[metric], s)])
+            L += _table(rows, ["scalar", "metric", "value"]) + [""]
+            notes = sorted({_why(by[m], s) for m in by
+                            for s in (by[m].get("scalars") or {})} - {None})
+            if notes:
+                L += [f"- a dash: {n}" for n in notes] + [""]
 
     # ---- per bench, everything -------------------------------------------
     L += ["## Every scalar, bench by bench", ""]

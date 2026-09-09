@@ -125,7 +125,8 @@ def test_the_report_leaves_out_a_run_of_another_level_and_counts_it():
             cells, _, _, other = report._cells()
             assert ("b", "SomeReader") not in cells, cells
             assert list(cells) == [("b", LABEL)], cells
-            assert other == [("read", "b-read-SomeReader.json")], other
+            assert [(k, n, b, r) for k, n, b, r, _ in other] \
+                == [("read", "b-read-SomeReader.json", "b", "SomeReader")], other
         finally:
             report.RESULTS, table.RESULTS = was
 
