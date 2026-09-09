@@ -51,7 +51,7 @@ import tempfile
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
     os.path.dirname(os.path.abspath(__file__)))), "src"))
-from booksmith.processing.extract import djvu  # noqa: E402
+from booksmith.processing.extract import djvu
 
 
 def unpack(src, tmp):

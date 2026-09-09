@@ -229,7 +229,7 @@ def _paths(expr, tree, cls, depth=0):
         return set()
     if isinstance(expr, ast.Dict):
         out = set()
-        for k, v in zip(expr.keys, expr.values):
+        for k, v in zip(expr.keys, expr.values, strict=True):
             # `**other_dict` is skipped: its keys are invisible from here,
             # and an invented key is worse than an unnamed one.
             if not (isinstance(k, ast.Constant) and isinstance(k.value, str)):

@@ -87,7 +87,7 @@ def _outcome(fn, value):
         return ("pages", fn(value, TOTAL))
     except (SystemExit, Refusal):
         return ("refusal aloud", None)
-    except BaseException as e:               # noqa: BLE001 -- the kind matters
+    except BaseException as e:
         return (f"fell any which way: {type(e).__name__}", None)
 
 

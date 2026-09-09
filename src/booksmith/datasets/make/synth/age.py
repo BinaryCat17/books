@@ -108,7 +108,6 @@ def _binding(img, seed: int):
     rather than a continuous rule. A synthetic spread must carry it, or the
     veto is checked on a case that does not exist in nature.
     """
-    import cv2
     import numpy as np
 
     rng = np.random.default_rng(seed + 7)

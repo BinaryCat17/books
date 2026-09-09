@@ -226,7 +226,6 @@ def parse_pages(spec, total):
 
 def run(pdf, outdir, pages_spec=None, log=print):
     """Run the detector over the PDF pages. Returns the directory path."""
-    import pymupdf
 
     dpi_raw = knobs.knob("PAGE_DPI")
     dpi = float(dpi_raw)
@@ -321,7 +320,7 @@ def run(pdf, outdir, pages_spec=None, log=print):
     try:
         doc = raster.open_pdf(pdf)
         pages_total = doc.page_count
-    except Exception as e:                   # noqa: BLE001 -- foreign tree
+    except Exception as e:
         raise Refusal(
             f"{pdf} does not open as a PDF: {type(e).__name__}: {e}") from None
     if not pages_total:

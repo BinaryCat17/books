@@ -208,9 +208,9 @@ def build(log=print) -> str:
                 f"{RESULTS} holds {len(other_levels)} results and every one "
                 f"is of another level ("
                 + ", ".join(sorted({k for k, _ in other_levels})) +
-                f"). This document is a cross-detector table; a level-two "
-                f"run carries the boxes of whatever detector made its pages. "
-                f"Measure a detect run to have anything to render.")
+                "). This document is a cross-detector table; a level-two "
+                "run carries the boxes of whatever detector made its pages. "
+                "Measure a detect run to have anything to render.")
         raise Refusal(
             f"no results in {RESULTS}. Measure first: `python3 "
             f"tools/sweep.py --apply` runs every model over every bench.")
@@ -266,7 +266,7 @@ def build(log=print) -> str:
     runs = sorted({r for _, r in cells})
     commit = next(iter(commits))
 
-    L = [f"# What this project measures, and what it measured",
+    L = ["# What this project measures, and what it measured",
          "",
          "GENERATED -- do not edit. Every number here is rendered from the "
          "record that produced it (`results/*.json`), so it cannot "
@@ -398,11 +398,11 @@ def build(log=print) -> str:
               "been read: how much of its ink leaves as text rather than as "
               "a picture of itself, and how much of the sheet was never "
               "information at all.", ""]
-        for kind, name, b, r, by in sorted(other_levels):
+        for kind, _name, b, r, by in sorted(other_levels):
             L += [f"### {b} — {r} ({kind})", ""]
             rows = []
             for metric in sorted(by):
-                for s, sc in sorted((by[metric].get("scalars") or {}).items()):
+                for s, _sc in sorted((by[metric].get("scalars") or {}).items()):
                     rows.append([f"`{s}` {_arrow(s)}", metric,
                                  _cell(by[metric], s)])
             L += _table(rows, ["scalar", "metric", "value"]) + [""]
@@ -435,7 +435,7 @@ def build(log=print) -> str:
             # a comparison of two.
             missing = [r for r in runs if r not in present]
             if missing:
-                L += [f"  not measured on this bench: "
+                L += ["  not measured on this bench: "
                       + ", ".join(f"`{r}`" for r in missing), ""]
             notes = sorted({_why(here[r].get(metric), s)
                             for r in present for s in names} - {None})

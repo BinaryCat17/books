@@ -114,7 +114,7 @@ def main(argv=None):
 if __name__ == "__main__":
     try:
         sys.exit(main())
-    except Exception as e:                                   # noqa: BLE001
+    except Exception as e:
         # A refusal from the package is ONE LINE and exit 1 here as at home.
         # The class is imported HERE and not at the top: this script starts
         # before `--pkg` is on `sys.path`. By the time an exception arrives

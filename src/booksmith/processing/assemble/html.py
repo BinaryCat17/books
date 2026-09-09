@@ -32,14 +32,13 @@ from booksmith.core.errors import Refusal
 # Shortest normalised text accepted as evidence. Sweep at `repeats_on`: the
 # false-positive curve is flat (9.3..12.0 % over 2..8), so this is argued, not
 # tuned.
-REPEAT_MIN = 3
 from booksmith.core.page import Page
 from booksmith.core import knobs
-
-
 from booksmith.core import book, raster as crop
 from booksmith.core.book import ASSETS, SOURCE
 from booksmith.processing.assemble import swap
+
+REPEAT_MIN = 3
 
 CSS = """
 body{max-width:52em;margin:2em auto;padding:0 1em;
@@ -170,7 +169,7 @@ def _union_area(holes):
         return 0
     xs = sorted({v for h in holes for v in (h[0], h[2])})
     total = 0
-    for a, b in zip(xs, xs[1:]):
+    for a, b in zip(xs, xs[1:], strict=False):
         spans = sorted((h[1], h[3]) for h in holes if h[0] <= a and h[2] >= b)
         cov, end = 0, None
         for y0, y1 in spans:
@@ -574,7 +573,7 @@ def _twice_area(boxes):
         return 0.0
     xs = sorted({v for b in boxes for v in (b[0], b[2])})
     total = 0.0
-    for a, c in zip(xs, xs[1:]):
+    for a, c in zip(xs, xs[1:], strict=False):
         if c <= a:
             continue
         ev = []
@@ -1093,7 +1092,7 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
     # names the PLACE of divergence: without it there is nothing to fix.
     got = swap.anchors(page_html)
     if got != expected:
-        where = next((i for i, (a, b) in enumerate(zip(got, expected)) if a != b),
+        where = next((i for i, (a, b) in enumerate(zip(got, expected, strict=False)) if a != b),
                    min(len(got), len(expected)))
         raise Refusal(
             f"the book is assembled NOT in the order it was walked: "
@@ -1182,12 +1181,12 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
                  # Truncation is DECLARED, not silent: a list of twenty for
                  # twenty-one troubles would read as complete.
                  "truncated_anchors": (
-                     (torn_a[:20] + (["…and %d more" % (torn_n - 20)]
+                     (torn_a[:20] + ([f"…and {torn_n - 20} more"]
                                      if torn_n > 20 else []))
                      if obs else None),
                  "impossible_table_shape": shape_n if obs else None,
                  "impossible_table_anchors": (
-                     (shape_a[:20] + (["…and %d more" % (shape_n - 20)]
+                     (shape_a[:20] + ([f"…and {shape_n - 20} more"]
                                       if shape_n > 20 else []))
                      if obs else None),
                  "nested_artifacts": nested,
@@ -1288,10 +1287,10 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
             + (f"; impossible: {', '.join(shape_a[:5])}"
                f"{'…' if shape_n > 5 else ''}" if shape_n else ""))
         if torn_n or shape_n:
-            log(f"  THESE BLOCKS ARE IN THE BOOK and marked "
-                f"data-truncated / data-table-shape. The model's text is not "
-                f"edited by a byte: the truncation is its defect, ours is to "
-                f"name it aloud")
+            log("  THESE BLOCKS ARE IN THE BOOK and marked "
+                "data-truncated / data-table-shape. The model's text is not "
+                "edited by a byte: the truncation is its defect, ours is to "
+                "name it aloud")
     else:
         log("reading observations: NO answers/ alongside -- whether these "
             "blocks were read and how it ended, there is nothing to say. This "

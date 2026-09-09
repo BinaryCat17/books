@@ -243,7 +243,7 @@ def run_probes(probes, log=print) -> tuple:
         want = p.want
         try:
             ok = p.fn()
-        except Exception as e:                                  # noqa: BLE001
+        except Exception as e:
             ok = False
             want = f"{want} — THE PROBE THREW {type(e).__name__}: {e}"
         if isinstance(ok, tuple):

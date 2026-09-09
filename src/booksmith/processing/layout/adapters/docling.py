@@ -337,7 +337,7 @@ class _DoclingPipeline:
             # thinning shifts everyone, and what must be measured is the
             # permutation of the survivors, not their loss.
             ids = [c.id for c in clusters]
-            resorted = sum(1 for a, b in zip(ids, sorted(ids)) if a != b)
+            resorted = sum(1 for a, b in zip(ids, sorted(ids), strict=True) if a != b)
 
         # At `post` the reading-order rules are NOT CALLED AT ALL, so their
         # number here is a dash: a zero from no-check and a zero from
@@ -392,7 +392,7 @@ class _DoclingPipeline:
         # to `detect.py` as "boxes reordered", which sums it over pages and
         # prints the total; the two fields below split it into causes.
         final_ids = [c.id for c in clusters]
-        displaced = sum(1 for a, b in zip(final_ids, sorted(final_ids))
+        displaced = sum(1 for a, b in zip(final_ids, sorted(final_ids), strict=True)
                         if a != b)
         # WHO STAYED ON TOP. Going into children and vanishing from the book
         # are not the same thing, and only this set tells them apart: the
@@ -832,7 +832,7 @@ class DoclingHeron(Detector):
 
         thr = self.thresholds()
         kept, rejected = [], {}
-        for cid, box, sc in zip(labels, boxes, scores):
+        for cid, box, sc in zip(labels, boxes, scores, strict=True):
             cid, sc = int(cid), float(sc)
             if not 0 <= cid < len(self.labels):
                 raise RuntimeError(
@@ -857,7 +857,7 @@ class DoclingHeron(Detector):
             index=index, width=w, height=h, dpi=dpi, blocks=blocks,
             raw={"output_rows": int(len(scores)),
                  "all_rows": [[float(c), float(s), *[float(v) for v in b]]
-                                for c, b, s in zip(labels, boxes, scores)]},
+                                for c, b, s in zip(labels, boxes, scores, strict=True)]},
             # NO `raster` PATH HERE. It named the scratch PNG the page was
             # rendered to -- a file deleted at the end of the run, under a
             # machine-local absolute path, baked into every page of every

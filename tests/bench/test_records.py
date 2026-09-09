@@ -110,7 +110,7 @@ def _walk_diff(want, got, at, out):
     elif isinstance(want, list) and isinstance(got, list):
         if len(want) != len(got):
             out.append(f"{at}: {len(want)} items -> {len(got)}")
-        for i, (a, b) in enumerate(zip(want, got)):
+        for i, (a, b) in enumerate(zip(want, got, strict=False)):
             _walk_diff(a, b, f"{at}[{i}]", out)
     elif (isinstance(want, (int, float)) and isinstance(got, (int, float))
           and not isinstance(want, bool) and not isinstance(got, bool)):

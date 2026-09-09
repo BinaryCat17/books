@@ -17,7 +17,6 @@ for a formula. The page would come out full of squares and the numbers healthy.
 """
 from booksmith.datasets.make.synth.draw import (
     PROSE_EN,
-    SynthError,
     _fill,
     _flow,
     _formula,
@@ -237,7 +236,7 @@ def c_mat_greek(doc, rng):
     pg = _sheet(doc); t = []
     y = _flow(pg, t, MARGIN, TOP, 150, PROSE_EN, w=COLW)
     y += 16
-    for k, f in enumerate(("sigma = P / F ≤ [σ]", "α + β = γ ± δ",
+    for _k, f in enumerate(("sigma = P / F ≤ [σ]", "α + β = γ ± δ",
                            "∑ a_i x^i → ∞", "√(x² + y²) ≥ 0",
                            "∫ f(t) dt = F(b) − F(a)")):
         _formula(pg, t, MARGIN + 60, y, f, size=8.0, sheet_w=PW)

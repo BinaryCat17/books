@@ -53,8 +53,6 @@ number sag. Three-sided -- model output, TRUTH (a metric indifferent to truth
 measures one input and is always right), OUR OWN thresholds -- each apart,
 since moved together they hide the inert one.
 """
-import json
-import os
 
 from booksmith.core import page, policy
 from booksmith.datasets import bench as bench_mod
@@ -360,7 +358,7 @@ def compare_pages(T: dict, M: dict) -> dict:
         tot["artifacts"] += len(tb)
         tot["found"] += found
 
-        def bed(name, n=1):
+        def bed(name, n=1, c=c):
             c["troubles"][name] = c["troubles"].get(name, 0) + n
             beds[name] = beds.get(name, 0) + n
 
@@ -885,7 +883,7 @@ def column_jumps_ranking(variants: dict, grid: dict = None,
         for b in range(a + 1, len(names)):
             na, nb = names[a], names[b]
             signs = set()
-            for va, vb in zip(vals[na], vals[nb]):
+            for va, vb in zip(vals[na], vals[nb], strict=True):
                 if va is None or vb is None or va == vb:
                     continue
                 signs.add(va < vb)
@@ -1165,7 +1163,7 @@ def _mix_columns(M, overlap=None, wide=None, min_boxes=None, roles=None):
     for i, p in M.items():
         part, rest = _columns_of(p, wide, roles)
         buckets = {}
-        for c, b in zip(_columns([b["box"] for b in part], overlap), part):
+        for c, b in zip(_columns([b["box"] for b in part], overlap), part, strict=True):
             buckets.setdefault(c, []).append(b)
         mixed = []
         while any(buckets.values()):

@@ -571,7 +571,7 @@ def test_the_channel_that_decides_reaches_the_ledger():
     runner._our_downlink_mbps = lambda *a, **k: 3.25
     try:
         runner._rent(_RefusingVast(), _spec(), None, {}, rec, [], time.time())
-    except BaseException:                                   # noqa: BLE001
+    except BaseException:
         pass                          # the rental refuses; the record is why
     finally:
         runner._our_downlink_mbps = was

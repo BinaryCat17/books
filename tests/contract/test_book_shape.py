@@ -195,7 +195,7 @@ def test_the_loader_can_load_every_truth_page_this_project_has():
         checked += 1
         try:
             back = json.loads(json.dumps(Page.from_json(d).to_json()))
-        except Exception as e:                    # noqa: BLE001 -- any is red
+        except Exception as e:
             bad.append(f"{os.path.relpath(f, ROOT)}: {type(e).__name__}: {e}")
             continue
         if back != d:

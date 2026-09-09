@@ -185,7 +185,7 @@ def test_page_the_model_did_not_mark_is_loud():
         except Exception as e:
             assert "marked up no page" in str(e), e
         else:
-            assert False, "the model's silence passed in silence"
+            raise AssertionError("the model's silence passed in silence")
 
 
 # --- the ruler --------------------------------------------------------------

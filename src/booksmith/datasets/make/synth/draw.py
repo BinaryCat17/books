@@ -12,7 +12,6 @@ and passes it, because a drawer called for another book would otherwise
 silently draw on the handbook's format -- the unit trap that once carried
 half a spread off the edge of the sheet.
 """
-import os
 
 from booksmith.core.errors import Refusal
 
@@ -203,7 +202,7 @@ def _chart(pg, truth, x, y, w, h, caption="Fig. 9  Hardness vs carbon"):
     pts = [pymupdf.Point(x + w * i / 24.0,
                          y + h - h * (0.2 + 0.7 * math.sin(i / 7.0) ** 2))
            for i in range(25)]
-    for a, b in zip(pts, pts[1:]):
+    for a, b in zip(pts, pts[1:], strict=False):
         pg.draw_line(a, b, color=(0, 0, 0), width=0.6)
     for i in range(6):
         pg.insert_text((x - 12, y + h - i * h / 5.0), str(i * 20),
@@ -224,7 +223,6 @@ def _figure(pg, truth, x, y, w, h, caption="Fig. 26.67  General arrangement"):
     and I filed the refusal as a model defect. A drawing must look like a
     drawing, or the bench measures something other than its name.
     """
-    import math
     import pymupdf
     R = pymupdf.Rect(x, y, x + w, y + h)
     pg.draw_rect(R, color=(0, 0, 0), width=0.7)
@@ -242,7 +240,7 @@ def _figure(pg, truth, x, y, w, h, caption="Fig. 26.67  General arrangement"):
     pts = [(bx, cy + r), (bx, cy - r * 0.8), (bx + w * 0.12, cy - r * 0.8),
            (bx + w * 0.12, cy - r * 1.25), (bx + w * 0.3, cy - r * 1.25),
            (bx + w * 0.3, cy + r)]
-    for a, b in zip(pts, pts[1:]):
+    for a, b in zip(pts, pts[1:], strict=False):
         pg.draw_line(pymupdf.Point(*a), pymupdf.Point(*b), color=(0, 0, 0),
                      width=0.6)
     # section hatching -- in a SMALL patch, as on a real drawing
@@ -317,7 +315,6 @@ def _halftone(pg, truth, x, y, w, h, caption="Fig. 31  Milling head, photograph"
 
 def _stamp(pg, truth, x, y, r=34.0):
     """Oval stamp over the text: the model has a separate `seal` class."""
-    import pymupdf
     R = _rect(x - r, y - r * 0.6, x + r, y + r * 0.6)
     pg.draw_oval(R, color=(0.25, 0.25, 0.25), width=1.1)
     pg.draw_oval(_rect(x - r * 0.8, y - r * 0.45, x + r * 0.8, y + r * 0.45),
@@ -641,7 +638,7 @@ def _callouts(pg, truth, cx, cy, r, items, sheet_w):
     """Callouts: a line from the part to a number in a circle."""
     import math
     import pymupdf
-    for k, (ang, n) in enumerate(items):
+    for _k, (ang, n) in enumerate(items):
         a = math.radians(ang)
         x0, y0 = cx + r * math.cos(a), cy + r * math.sin(a)
         x1, y1 = cx + (r + 46) * math.cos(a), cy + (r + 46) * math.sin(a)
@@ -704,7 +701,6 @@ def _page(doc, wide=False, pw=None, ph=None):
     book would silently draw on the handbook format -- the same unit trap that
     already cost one spread.
     """
-    import pymupdf
     pw = PW if pw is None else pw
     ph = PH if ph is None else ph
     pg = doc.new_page(width=(2 * pw if wide else pw), height=ph)

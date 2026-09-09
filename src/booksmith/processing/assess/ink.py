@@ -345,7 +345,7 @@ def _junk_columns(ink):
     k = max(1, int(min(h, w) * EDGE))
     body = ink[k:h - k] if h > 2 * k else ink
     span = int(RULE_RUN * w)
-    for a, b in zip(starts, ends):
+    for a, b in zip(starts, ends, strict=True):
         c = (a + b) / 2.0 / w
         if not (c < MID or c > 1 - MID
                 or (spread and abs(c - 0.5) <= GUTTER_BAND / 2)):
@@ -563,7 +563,7 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
             res["dark_columns"] += len(start)
             res["pages_with_dark_column"] += 1
             res["dark_columns_positions"].extend(
-                round(float(a + b) / 2 / w, 2) for a, b in zip(start, end))
+                round(float(a + b) / 2 / w, 2) for a, b in zip(start, end, strict=True))
         res["sheet_area"] += ink.size
         res["boxes_area"] += int(both.sum())
         # HOW BIG A BOX IS, AS A SHARE OF ITS OWN PAGE. `area_under_boxes`

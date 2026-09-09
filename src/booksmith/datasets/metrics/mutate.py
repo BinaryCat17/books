@@ -6,7 +6,6 @@ battery and were copied, with small differences, into the reading and ink
 batteries; the differences were not measured, so the copies stay where
 they differ and only the identical ones live here.
 """
-import copy
 
 
 def map_boxes(M, fn):

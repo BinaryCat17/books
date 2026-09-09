@@ -206,7 +206,7 @@ def _corrupt_truth(T, fn):
     """Corrupting THE TRUTH ITSELF: a metric blind to truth measures one of its
     inputs and will always be right."""
     Q = copy.deepcopy(T)
-    for i, _, b in m._blocks(Q):
+    for _i, _, b in m._blocks(Q):
         c = b.get("content")
         if isinstance(c, str) and c.strip():
             out = fn(c)
@@ -391,7 +391,7 @@ def probes(bench, run) -> list:
         S = _shift_boxes(A)
         if not any(x is not None and y is not None
                    and not metrics.matches(x, y)
-                   for (_, _, a), (_, _, s) in zip(m._blocks(A), m._blocks(S))
+                   for (_, _, a), (_, _, s) in zip(m._blocks(A), m._blocks(S), strict=True)
                    for x, y in ((m._box(a), m._box(s)),)):
             return None
         return grew(M(S)["matching"]["anchor_box_mismatch"],
@@ -448,7 +448,7 @@ def probes(bench, run) -> list:
                     old = pb.get("content")
                     if not old or fn(old) == old:
                         continue                    # nothing to corrupt here
-                    return M(_edit(P, i, k, lambda _: fn(old)))[
+                    return M(_edit(P, i, k, lambda _, old=old: fn(old)))[
                         "artifacts_with_truth"][field]
         return None
 

@@ -289,7 +289,7 @@ def test_the_five_artefact_outcomes_account_for_every_object():
              "artefacts_called_text", "artefacts_not_seen"]
     counts = [rec.scalars[p].count for p in parts]
     assert all(c is not None for c in counts), (
-        f"an outcome carries no count: {dict(zip(parts, counts))}")
+        f"an outcome carries no count: {dict(zip(parts, counts, strict=False))}")
     over = {c[1] for c in counts}
     assert len(over) == 1, f"the five are over different populations: {over}"
     total = sum(c[0] for c in counts)

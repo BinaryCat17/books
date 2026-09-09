@@ -241,7 +241,7 @@ def main(argv):
     os.makedirs(logs, exist_ok=True)
     started = time.time()
     failed = []
-    for i, (bname, bdir, mname, label, env, has) in enumerate(todo, 1):
+    for i, (bname, bdir, _mname, label, env, has) in enumerate(todo, 1):
         log = os.path.join(logs, f"{bname}-{label}.log")
         open(log, "w", encoding="utf-8").close()
         t0 = time.time()

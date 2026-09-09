@@ -160,7 +160,7 @@ def c_russian(doc, rng):
     narrow = (HEADS_RU[0], HEADS_RU[1], HEADS_RU[3])
     _table(pg, t, COL_X[0] + 6, y + 14,
            list(zip(narrow, (COL_X[0] + 6, COL_X[0] + 76,
-                             COL_X[0] + 146))), 6)
+                             COL_X[0] + 146), strict=False)), 6)
     _flow(pg, t, COL_X[0], y + 130, BOT, PROSE_RU)
     y2 = _flow(pg, t, COL_X[1], TOP, 280, PROSE_RU)
     _figure(pg, t, COL_X[1], y2 + 12, COLW, 100, FIG_CAPTION_RU)
@@ -306,7 +306,7 @@ def c_russian_table_wide(doc, rng):
     _flow(pg, t, MARGIN, TOP, 230, PROSE_RU, w=2 * COLW + GUT)
     _table(pg, t, MARGIN + 6, 260,
            list(zip(HEADS_RU, (MARGIN + 6, MARGIN + 96, MARGIN + 186,
-                               MARGIN + 276, MARGIN + 356))), 16, colw=76)
+                               MARGIN + 276, MARGIN + 356), strict=False)), 16, colw=76)
     _flow(pg, t, MARGIN, 470, BOT, PROSE_RU, w=2 * COLW + GUT)
     return pg, t
 
@@ -442,7 +442,7 @@ def c_marginalia(doc, rng):
         t.append((MARGIN, y0, MARGIN + COLW + GUT + 30, y1, "text"))
         _say(t, body)
     xm = MARGIN + COLW + GUT + 46
-    for k, y0 in enumerate((TOP + 20, 260, 470, 640)):
+    for _k, y0 in enumerate((TOP + 20, 260, 470, 640)):
         r = _rect(xm, y0, PW - MARGIN, y0 + 60)
         body = _fill(pg, r,
                      "Note. See Sec. 26 for the tolerance grades used here. ",

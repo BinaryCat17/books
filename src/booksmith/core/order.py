@@ -262,7 +262,7 @@ def permutation(labels, boxes, width, height, index, vocab,
     h = float(height)
     size = Size(width=float(width), height=h)
     els = []
-    for i, (lab, b) in enumerate(zip(labels, boxes)):
+    for i, (lab, b) in enumerate(zip(labels, boxes, strict=True)):
         els.append(RoElement(
             cid=i, text="", page_no=int(index), page_size=size,
             label=DocItemLabel(tr.get(lab, "text")),

@@ -162,7 +162,7 @@ def packages(names=DETECT_PACKAGES) -> dict:
     for name in names:
         try:
             out[name] = __import__(name).__version__
-        except Exception:                      # noqa: BLE001
+        except Exception:
             out[name] = None                   # a value, not a gap
     out["python"] = sys.version.split()[0]
     return out

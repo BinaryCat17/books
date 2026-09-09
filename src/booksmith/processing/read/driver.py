@@ -672,8 +672,6 @@ def snapshot(detect_dir: str, out_dir: str, reader: Reader,
     """Input snapshot: the same fields as detection, and at last a non-empty
     `prompts`."""
     facts = _detect_facts(detect_dir)
-    read_knobs = {**{n: "reading adapter" for n in reader.knobs_read()},
-                  **{n: "transport" for n in transport.knobs_read()}}
     # One source for "what this run read", as in detection, and the very
     # function the guard above asked: the identity that refuses a run and the
     # identity recorded in it are one number.

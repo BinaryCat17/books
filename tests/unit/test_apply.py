@@ -16,10 +16,9 @@ import json
 import os
 import tempfile
 
+from booksmith.core.book import JOURNAL
 from booksmith.processing.assemble import apply as ap
-from booksmith.processing.assemble import html as dhtml
 from booksmith.processing.assemble import swap
-from booksmith.core.errors import Refusal
 
 A, B = "p0042-b17", "p0042-b18"
 BOOK = ("<!doctype html><html><body>\n<p>before</p>"
@@ -166,7 +165,7 @@ def test_journal_keeps_what_was_taken():
     with tempfile.TemporaryDirectory() as tmp:
         book(tmp)
         ap.put(tmp, A, "<table>x</table>", source="probe", log=lambda *_: None)
-        j = json.load(open(os.path.join(tmp, ap.JOURNAL), encoding="utf-8"))
+        j = json.load(open(os.path.join(tmp, JOURNAL), encoding="utf-8"))
         rec = j["swaps"][A][-1]
         assert rec["removed"] == '<figure id="p0042-b17">table picture</figure>', (
             "the journal did not keep what was removed -- there will be "
@@ -262,7 +261,7 @@ def test_a_broken_journal_is_not_an_empty_journal():
     with tempfile.TemporaryDirectory() as tmp:
         book(tmp)
         ap.put(tmp, A, "<table>first</table>", log=lambda *_: None)
-        p = os.path.join(tmp, ap.JOURNAL)
+        p = os.path.join(tmp, JOURNAL)
         whole = open(p, encoding="utf-8").read()
         with open(p, "w", encoding="utf-8") as f:
             f.write(whole[:len(whole) // 2])          # a broken write
@@ -299,7 +298,7 @@ def test_journal_is_written_atomically():
         book(tmp)
         for i in range(3):
             ap.put(tmp, A, f"<table>variant {i}</table>", log=lambda *_: None)
-        p = os.path.join(tmp, ap.JOURNAL)
+        p = os.path.join(tmp, JOURNAL)
         whole = open(p, encoding="utf-8").read()
 
         def half(obj, f, **kw):

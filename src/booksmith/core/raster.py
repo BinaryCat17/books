@@ -59,7 +59,7 @@ def native_dpi(page) -> float | None:
         return None
     try:
         imgs = page.get_images(full=True)
-    except Exception:                              # noqa: BLE001
+    except Exception:
         return None
     best = 0.0
     for im in imgs:
@@ -68,7 +68,7 @@ def native_dpi(page) -> float | None:
             continue
         try:
             rects = page.get_image_rects(xref)
-        except Exception:                          # noqa: BLE001
+        except Exception:
             continue
         for r in rects:
             # Only images COVERING THE WHOLE SHEET: a stamp or inset in a

@@ -156,7 +156,7 @@ def probes(bench, run) -> list:
                 if j.any():
                     d = np.diff(np.r_[0, j.astype(np.int8), 0])
                     for a, b in zip(np.flatnonzero(d == 1),
-                                    np.flatnonzero(d == -1)):
+                                    np.flatnonzero(d == -1), strict=True):
                         add.append({"block_id": 900000 + len(add),
                                     "box": [int(a), 0, int(b - 1),
                                             im.shape[0] - 1],

@@ -26,7 +26,7 @@ from booksmith.processing.assemble import swap
 # `put` answers "no such anchor" for every block and the command prints a
 # healthy "refused N" instead of "the naming scheme has split".
 from booksmith.core import book
-from booksmith.core.book import ASSETS, JOURNAL, SOURCE
+from booksmith.core.book import ASSETS, SOURCE
 from booksmith.core import page
 from booksmith.processing.assemble.html import (
     anchor_of,

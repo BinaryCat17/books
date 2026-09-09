@@ -21,7 +21,6 @@ what the pair exists to show.
 from booksmith.datasets.make.synth.draw import (
     ENTRY_EN,
     ENTRY_RU,
-    SynthError,
     _entries,
     _figure,
     _grid,
@@ -179,7 +178,7 @@ def c_slov_parallel(doc, rng):
     # A truth block is the PARAGRAPH of five aligned lines, not one line.
     while y < BOT_Y - 50:
         y0, yy = y, y
-        for x, lang in zip(xs, ("en", "ru")):
+        for x, lang in zip(xs, ("en", "ru"), strict=False):
             yy = y0
             drawn = []
             for j in range(5):

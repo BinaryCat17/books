@@ -421,7 +421,7 @@ class DocLayout(Detector):
             Block(block_id=i, box=(float(r[2]), float(r[3]),
                                    float(r[4]), float(r[5])),
                   label=label, score=score, order=rank)
-            for i, ((r, label, score), rank) in enumerate(zip(kept, ranks))]
+            for i, ((r, label, score), rank) in enumerate(zip(kept, ranks, strict=True))]
 
         return Page(
             index=index, width=w, height=h, dpi=dpi, blocks=blocks,

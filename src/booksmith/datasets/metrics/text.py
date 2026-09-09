@@ -55,8 +55,6 @@ patch) and it reports 2 uncaught. Distance is checked against direct DP on 700
 random pairs, 0 discrepancies.
 """
 import html as _html
-import json
-import os
 import re
 from html.parser import HTMLParser
 
@@ -930,8 +928,8 @@ def report(res: dict, log=print) -> None:
         log(f"  no answer {ar['no_answer']}, not paired "
             f"{ar['unmatched']}, invented on empty truth "
             f"{ar['invented_on_empty_truth']}")
-        log(f"  these are NOT baits: they DO have character truth, and "
-            f"reading them is right work, not invention")
+        log("  these are NOT baits: they DO have character truth, and "
+            "reading them is right work, not invention")
     a = res["baits"]
     if not a["artifacts"]:
         log("baits: no artifacts without text in truth — nothing to "

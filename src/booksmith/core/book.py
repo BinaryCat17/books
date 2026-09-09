@@ -272,8 +272,8 @@ class Book:
             raise Refusal(
                 f"{self.name} has no {kind} run at all. Make one first: "
                 + (f"`books detect {self.root}`" if kind == "detect" else
-                   f"`books read <detect dir>` -- level two does not write "
-                   f"into the book directory yet, see the header"))
+                   "`books read <detect dir>` -- level two does not write "
+                   "into the book directory yet, see the header"))
         raise Refusal(
             f"{self.name} has {len(got)} {kind} runs and none was named: "
             f"{', '.join(got)}. Say --run <label>; measuring \"the\" run "

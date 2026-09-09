@@ -103,7 +103,7 @@ def _watchdog(vast: Vast, get_iid, budget: Budget, done: threading.Event):
                 fired = True
             if vast.destroy(iid):
                 return
-        except Exception as e:                     # noqa: BLE001 -- a last line may not fall
+        except Exception as e:
             log(f"  watchdog: {type(e).__name__}: {e}")
 
 
@@ -257,7 +257,7 @@ def connect(vast: Vast, iid: int, spec: JobSpec, ssh_key: str | None,
         # silent too, else an interrupted run leaves the machine immortal.
         try:
             box.stop_heartbeat()
-        except Exception as e:                                  # noqa: BLE001
+        except Exception as e:
             log(f"pulse not stopped after the link failed: {e}")
         raise
     return box
@@ -534,7 +534,7 @@ def blame_machine(offer: dict, reason: str, *, ours: float, link: float,
     # silence is worse than both.
     try:
         mark(offer.get("machine_id"), reason)
-    except Exception as e:                                  # noqa: BLE001
+    except Exception as e:
         say(f"  WARNING: machine {offer.get('machine_id')} could NOT be "
             f"written to the blacklist ({e}) -- it will be offered again. "
             f"The run goes on; the list is what failed, not the rental")
@@ -772,9 +772,9 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
             # below used to be false at zero and the machine died silently: ssh
             # ready in 5 s in the log, then nothing, then "DESTROYED" half a
             # minute later. Five in a row looked like "the market is bad".
-            log(f"ZERO bytes to us in the time allowed -- taking another. "
-                f"This is the machine: the probe measures by time, so a "
-                f"live channel would give some number, however small")
+            log("ZERO bytes to us in the time allowed -- taking another. "
+                "This is the machine: the probe measures by time, so a "
+                "live channel would give some number, however small")
             # And onto the permanent list -- the case the list was made for. A
             # 62 kbit/s machine does not give 4 MB in 25 seconds, so `probe`
             # returns 0.0 and lands HERE, not in the `link < floor` branch
@@ -814,7 +814,7 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
         # and it SPEAKS.
         try:
             box.stop_heartbeat()
-        except Exception as e:                                  # noqa: BLE001
+        except Exception as e:
             log(f"WARNING: the abandoned machine's pulse still runs "
                 f"({e}) -- our own thread may be holding its dead-man's "
                 f"watch off; check `books ls`")
@@ -1003,7 +1003,7 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
                                         "the card does not initialise (CUDA)")
                         log(f"machine {rec.machine_id} blacklisted: the "
                             f"card does not initialise")
-            except Exception as e:                          # noqa: BLE001
+            except Exception as e:
                 # SAID, NOT SWALLOWED. This was a bare `pass`, so a failed
                 # blacklist write here left no trace at all -- and the very
                 # next thing the operator reads is a run that finished, with
@@ -1158,7 +1158,7 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
             # by the cleanup that installs it.
             try:
                 ledger.append(rec)
-            except Exception as e:                              # noqa: BLE001
+            except Exception as e:
                 log(f"WARNING: the run could NOT be written to the ledger ({e}) "
                     f"-- the money below is real and was not recorded. The run "
                     f"itself is finished; it is the record that failed")

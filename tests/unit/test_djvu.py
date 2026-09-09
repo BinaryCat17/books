@@ -27,7 +27,6 @@ The probe was 36 dpi and is now 72, for a third defect of the same make: at
 The other two are caught at no threshold -- their rules stop against the
 closed frame of each page; named in `djvu.py`, not repaired here.
 """
-import pytest
 
 from booksmith.processing.extract import djvu
 

@@ -20,7 +20,6 @@ from booksmith.datasets.make.synth.draw import (
     _frame_stamp,
     _grid,
     _halftone,
-    _line,
     _page,
     _plate,
     _put,

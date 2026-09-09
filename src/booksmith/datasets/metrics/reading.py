@@ -34,7 +34,6 @@ untrustworthy whatever the digits are.
 """
 import re
 
-from booksmith.core import policy
 from booksmith.datasets.metrics.base import Metric, Record, Scalar, Spec
 
 # A cell that is a bare number: what a fabricated chart table is made of.

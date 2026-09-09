@@ -65,7 +65,6 @@ output. That reference is deleted and the denominator was selective -- a table
 Mistral missed never entered it. Nothing to inherit; let the bench set it.
 """
 import os
-import re
 from booksmith.core.errors import Refusal
 
 

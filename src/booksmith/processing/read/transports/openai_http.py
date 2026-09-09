@@ -151,7 +151,7 @@ class Http(Transport):
                 "model_asked": self.model,
                 "timeout_s": self.timeout, "delivery_retries": self.retries,
                 # The key itself is NOT written: snapshots go to git.
-                "api_key": ("present, %d chars" % len(self.key)) if self.key
+                "api_key": f"present, {len(self.key)} chars" if self.key
                         else "no"}
 
     def knobs_read(self) -> tuple[str, ...]:
@@ -178,7 +178,7 @@ class Http(Transport):
             d = _read_json(urllib.request.Request(
                 self.server + "/models", headers=_headers(self.key)),
                 self.timeout)
-        except Exception as e:            # noqa: BLE001 -- any failure is one
+        except Exception as e:
             raise Refusal(
                 f"the endpoint {self.server} does not answer /models: {e}. "
                 f"This is a DELIVERY failure, not the model's silence.") from e
@@ -232,7 +232,7 @@ class Http(Transport):
                 # pointless and paid for. We repeat only what can be temporary.
                 if e.code < 500:
                     break
-            except Exception as e:        # noqa: BLE001 -- break, timeout, DNS
+            except Exception as e:
                 last = f"{type(e).__name__}: {e}"
             else:
                 if not d.get("choices"):

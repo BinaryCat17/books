@@ -22,12 +22,12 @@ from booksmith.core.errors import Refusal
 import support
 from fake_vlm import FakeVlm
 
-from booksmith.core import otsl  # noqa: E402
-from booksmith.core.page import Block, Page  # noqa: E402
-from booksmith.processing.read import Ask, Route  # noqa: E402
-from booksmith.processing.read.transports import openai_http as vhttp  # noqa: E402
-from booksmith.processing.read import driver as vrun  # noqa: E402
-from booksmith.processing.read.readers.paddleocr_vl import PaddleOcrVl  # noqa: E402
+from booksmith.core import otsl
+from booksmith.core.page import Block, Page
+from booksmith.processing.read import Ask, Route
+from booksmith.processing.read.transports import openai_http as vhttp
+from booksmith.processing.read import driver as vrun
+from booksmith.processing.read.readers.paddleocr_vl import PaddleOcrVl
 
 
 # -------------------------------------------------------------- routes ---
@@ -120,7 +120,7 @@ def test_delivery_refusal_is_a_value_not_a_throw():
     blocks must not die of one broken connection."""
     png = _png()
     with FakeVlm({"http": 500}) as s:
-        t = _t(s.url)
+        _t(s.url)
         os.environ["VLM_RETRIES"] = "0"
         said = vhttp.Http().send(Ask("p0-b0", png, "OCR:", "text", "text"))
         assert said.error and said.text is None

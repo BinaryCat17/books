@@ -671,9 +671,9 @@ def cmd_doctor(_a):
     # environment first — and a rented card's vLLM listens on the loopback and
     # asks for none.
     if not os.path.exists(config.ENV_FILE):
-        log(f"  [ – ] .env in the root — none; it is needed only for "
-            f"VLM_API_KEY when reading over a network endpoint. Sample: "
-            f".env.example")
+        log("  [ – ] .env in the root — none; it is needed only for "
+            "VLM_API_KEY when reading over a network endpoint. Sample: "
+            ".env.example")
 
     try:
         v = Vast()
@@ -718,7 +718,7 @@ def _doctor_read():
     log("reading blocks (books read, level two):")
     if ep:
         log(f"  [ok  ] VLM_ENDPOINT={ep}, key VLM_API_KEY "
-            f"{'present, %d chars' % len(key) if key else 'not set'}")
+            f"{f'present, {len(key)} chars' if key else 'not set'}")
         return f"endpoint set, key {'present' if key else 'none'}"
     log("  [—   ] VLM_ENDPOINT not set: `books read` will refuse out loud "
         "rather than knock at nothing. There is no default on purpose. On a "
@@ -780,7 +780,7 @@ def _doctor_detect():
             t = time.time()
             try:
                 det = detect._adapter()
-            except (Exception, SystemExit) as e:         # noqa: BLE001
+            except (Exception, SystemExit) as e:
                 # `SystemExit` is caught ON PURPOSE: at
                 # `DOCLING_PIPELINE=full` with no vendor package the docling
                 # adapter leaves by exactly that, and acceptance catching only
@@ -846,7 +846,7 @@ def _doctor_docling():
         gone.append("docling.utils.layout_postprocessor")
     try:
         __import__("rtree")
-    except Exception as e:                               # noqa: BLE001
+    except Exception as e:
         gone.append(f"rtree ({type(e).__name__})")
     vers = {}
     for dist in ("docling-slim", "docling", "rtree"):
