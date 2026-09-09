@@ -57,7 +57,7 @@ MODELS = (
 )
 
 BOOKS = ("slovar", "katalog", "matematika", "atlas", "zhurnal", "spravochnik",
-         "hard36", "hard", "annopage")
+         "hard", "annopage")
 
 
 def _books(root):

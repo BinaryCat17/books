@@ -142,7 +142,6 @@ The benches, and how each is rebuilt:
 | `slovar`, `spravochnik`, `matematika`, `atlas`, `katalog`, `zhurnal` | drawn, exact: characters, grids, ink | `books synth --book <name>`, byte for byte |
 | `annopage` | real pages, objects by librarians, no text | `books annopage raw/annopage` |
 | `hard` | the distillate of annopage: same-label neighbours side by side | `books subset` |
-| `annopage-lite`, `hard36` | the same truth, squeezed | nothing: built by a script that no longer exists |
 | `real-*` | none: books, not benches | they are the source |
 
 ## What cannot be measured yet

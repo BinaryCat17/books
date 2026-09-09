@@ -84,7 +84,6 @@ ALLOWED = (
     # A PAGE SELECTOR, AND IT HAS NO READER: the page numbers held out of one
     # real scan, 97 bytes, reconstructible by nothing. Named here so the walk
     # does not chase it, and so it is not deleted for being unread.
-    "pages.json",
     "truth/",                 # a bench has one
     "detect/<model>/",        # level one, one directory per model
     "read/<model>/",          # level two
@@ -103,9 +102,7 @@ BESIDE_A_RUN = (".crop", ".read")
 # a weaker check wearing the same green, and `read_with.json` under a DETECTION
 # run would mean a level-two artefact filed at level one.
 INSIDE_A_RUN = {
-    # `job/` and `job.log` are the rented level-one run, the one run in the
-    # tree with no `run.json` -- which is why absence is not checked here.
-    "detect": ("pages", "run.json", "job", "job.log"),
+    "detect": ("pages", "run.json"),
     # `vllm.*` and `progress.json` come back from the card by name.
     "read": ("pages", "answers", "crops", "html", "run.json",
              "read_with.json", "job.log", "job",

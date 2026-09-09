@@ -33,7 +33,6 @@ bench/*/*.pdf
 bench/*/look/
 bench/*/detect/pages/
 bench/*/detect/*/pages/
-!bench/*/detect/dots-ocr/pages/
 bench/*/read/*/pages/
 bench/*/read/*/answers/
 bench/*/read/*/crops/
@@ -41,8 +40,6 @@ bench/*/*.crop/
 bench/*/detect/*.crop/
 bench/*/detect/*.read/
 bench/*/crops/
-bench/*/detect/dots-ocr/job/_page.png
-!bench/*/detect/dots-ocr/job/job.log
 
 # the six synthetic books rebuild byte for byte from their manifest
 bench/spravochnik/*

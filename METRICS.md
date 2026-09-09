@@ -31,73 +31,73 @@ Ink, objects and blocks -- four populations with four denominators, which is why
 
 ### artefacts_found ↑ — tables and pictures found
 
-| model | annopage | atlas | hard | hard36 | katalog | matematika | slovar | spravochnik | zhurnal |
-|---|---|---|---|---|---|---|---|---|---|
-| `PP-DocLayoutV2` | 0.567 <sub>698/1232</sub> | 0.750 <sub>12/16</sub> | 0.429 <sub>316/736</sub> | 0.199 <sub>80/403</sub> | 0.846 <sub>11/13</sub> | 0.704 <sub>19/27</sub> | 0.667 <sub>2/3</sub> | 0.756 <sub>34/45</sub> | 0.833 <sub>5/6</sub> |
-| `PP-DocLayoutV3` | 0.553 <sub>681/1232</sub> | 0.688 <sub>11/16</sub> | 0.401 <sub>295/736</sub> | 0.206 <sub>83/403</sub> | 0.846 <sub>11/13</sub> | 0.741 <sub>20/27</sub> | 0.667 <sub>2/3</sub> | 0.689 <sub>31/45</sub> | 1.000 <sub>6/6</sub> |
-| `PP-DocLayout_plus-L` | 0.511 <sub>630/1232</sub> | 0.875 <sub>14/16</sub> | 0.357 <sub>263/736</sub> | 0.176 <sub>71/403</sub> | 0.769 <sub>10/13</sub> | 0.778 <sub>21/27</sub> | 1.000 <sub>3/3</sub> | 0.733 <sub>33/45</sub> | 1.000 <sub>6/6</sub> |
-| `docling-egret` | 0.537 <sub>661/1232</sub> | 0.750 <sub>12/16</sub> | 0.402 <sub>296/736</sub> | 0.191 <sub>77/403</sub> | 0.538 <sub>7/13</sub> | 0.111 <sub>3/27</sub> | 0.667 <sub>2/3</sub> | 0.733 <sub>33/45</sub> | 1.000 <sub>6/6</sub> |
-| `docling-heron` | 0.563 <sub>694/1232</sub> | 0.875 <sub>14/16</sub> | 0.431 <sub>317/736</sub> | 0.218 <sub>88/403</sub> | 0.462 <sub>6/13</sub> | 0.111 <sub>3/27</sub> | 0.667 <sub>2/3</sub> | 0.800 <sub>36/45</sub> | 1.000 <sub>6/6</sub> |
-| `yolox_l0.05` | 0.299 <sub>368/1232</sub> | 0.688 <sub>11/16</sub> | 0.166 <sub>122/736</sub> | 0.094 <sub>38/403</sub> | 0.308 <sub>4/13</sub> | 0.000 <sub>0/27</sub> | 0.333 <sub>1/3</sub> | 0.267 <sub>12/45</sub> | 0.667 <sub>4/6</sub> |
+| model | annopage | atlas | hard | katalog | matematika | slovar | spravochnik | zhurnal |
+|---|---|---|---|---|---|---|---|---|
+| `PP-DocLayoutV2` | 0.567 <sub>698/1232</sub> | 0.750 <sub>12/16</sub> | 0.429 <sub>316/736</sub> | 0.846 <sub>11/13</sub> | 0.704 <sub>19/27</sub> | 0.667 <sub>2/3</sub> | 0.756 <sub>34/45</sub> | 0.833 <sub>5/6</sub> |
+| `PP-DocLayoutV3` | 0.553 <sub>681/1232</sub> | 0.688 <sub>11/16</sub> | 0.401 <sub>295/736</sub> | 0.846 <sub>11/13</sub> | 0.741 <sub>20/27</sub> | 0.667 <sub>2/3</sub> | 0.689 <sub>31/45</sub> | 1.000 <sub>6/6</sub> |
+| `PP-DocLayout_plus-L` | 0.511 <sub>630/1232</sub> | 0.875 <sub>14/16</sub> | 0.357 <sub>263/736</sub> | 0.769 <sub>10/13</sub> | 0.778 <sub>21/27</sub> | 1.000 <sub>3/3</sub> | 0.733 <sub>33/45</sub> | 1.000 <sub>6/6</sub> |
+| `docling-egret` | 0.537 <sub>661/1232</sub> | 0.750 <sub>12/16</sub> | 0.402 <sub>296/736</sub> | 0.538 <sub>7/13</sub> | 0.111 <sub>3/27</sub> | 0.667 <sub>2/3</sub> | 0.733 <sub>33/45</sub> | 1.000 <sub>6/6</sub> |
+| `docling-heron` | 0.563 <sub>694/1232</sub> | 0.875 <sub>14/16</sub> | 0.431 <sub>317/736</sub> | 0.462 <sub>6/13</sub> | 0.111 <sub>3/27</sub> | 0.667 <sub>2/3</sub> | 0.800 <sub>36/45</sub> | 1.000 <sub>6/6</sub> |
+| `yolox_l0.05` | 0.299 <sub>368/1232</sub> | 0.688 <sub>11/16</sub> | 0.166 <sub>122/736</sub> | 0.308 <sub>4/13</sub> | 0.000 <sub>0/27</sub> | 0.333 <sub>1/3</sub> | 0.267 <sub>12/45</sub> | 0.667 <sub>4/6</sub> |
 
 ### text_furniture_found ↑ — text and furniture found
 
-| model | annopage | atlas | hard | hard36 | katalog | matematika | slovar | spravochnik | zhurnal |
-|---|---|---|---|---|---|---|---|---|---|
-| `PP-DocLayoutV2` | — | 1.000 <sub>12/12</sub> | 0.918 <sub>45/49</sub> <sub>over 6/130 pages</sub> | — | 0.891 <sub>49/55</sub> | 1.000 <sub>104/104</sub> | 0.990 <sub>515/520</sub> | 0.955 <sub>322/337</sub> | 0.956 <sub>175/183</sub> |
-| `PP-DocLayoutV3` | — | 1.000 <sub>12/12</sub> | 0.939 <sub>46/49</sub> <sub>over 6/130 pages</sub> | — | 0.909 <sub>50/55</sub> | 1.000 <sub>104/104</sub> | 0.948 <sub>493/520</sub> | 0.760 <sub>256/337</sub> | 0.874 <sub>160/183</sub> |
-| `PP-DocLayout_plus-L` | — | 0.667 <sub>8/12</sub> | 0.918 <sub>45/49</sub> <sub>over 6/130 pages</sub> | — | 0.782 <sub>43/55</sub> | 1.000 <sub>104/104</sub> | 0.454 <sub>236/520</sub> | 0.976 <sub>329/337</sub> | 0.956 <sub>175/183</sub> |
-| `docling-egret` | — | 0.917 <sub>11/12</sub> | 0.857 <sub>42/49</sub> <sub>over 6/130 pages</sub> | — | 0.891 <sub>49/55</sub> | 0.933 <sub>97/104</sub> | 0.950 <sub>494/520</sub> | 0.955 <sub>322/337</sub> | 0.984 <sub>180/183</sub> |
-| `docling-heron` | — | 1.000 <sub>12/12</sub> | 0.939 <sub>46/49</sub> <sub>over 6/130 pages</sub> | — | 0.964 <sub>53/55</sub> | 0.990 <sub>103/104</sub> | 0.994 <sub>517/520</sub> | 0.991 <sub>334/337</sub> | 0.989 <sub>181/183</sub> |
-| `yolox_l0.05` | — | 0.500 <sub>6/12</sub> | 0.796 <sub>39/49</sub> <sub>over 6/130 pages</sub> | — | 0.600 <sub>33/55</sub> | 0.933 <sub>97/104</sub> | 0.931 <sub>484/520</sub> | 0.932 <sub>314/337</sub> | 0.874 <sub>160/183</sub> |
+| model | annopage | atlas | hard | katalog | matematika | slovar | spravochnik | zhurnal |
+|---|---|---|---|---|---|---|---|---|
+| `PP-DocLayoutV2` | — | 1.000 <sub>12/12</sub> | 0.918 <sub>45/49</sub> <sub>over 6/130 pages</sub> | 0.891 <sub>49/55</sub> | 1.000 <sub>104/104</sub> | 0.990 <sub>515/520</sub> | 0.955 <sub>322/337</sub> | 0.956 <sub>175/183</sub> |
+| `PP-DocLayoutV3` | — | 1.000 <sub>12/12</sub> | 0.939 <sub>46/49</sub> <sub>over 6/130 pages</sub> | 0.909 <sub>50/55</sub> | 1.000 <sub>104/104</sub> | 0.948 <sub>493/520</sub> | 0.760 <sub>256/337</sub> | 0.874 <sub>160/183</sub> |
+| `PP-DocLayout_plus-L` | — | 0.667 <sub>8/12</sub> | 0.918 <sub>45/49</sub> <sub>over 6/130 pages</sub> | 0.782 <sub>43/55</sub> | 1.000 <sub>104/104</sub> | 0.454 <sub>236/520</sub> | 0.976 <sub>329/337</sub> | 0.956 <sub>175/183</sub> |
+| `docling-egret` | — | 0.917 <sub>11/12</sub> | 0.857 <sub>42/49</sub> <sub>over 6/130 pages</sub> | 0.891 <sub>49/55</sub> | 0.933 <sub>97/104</sub> | 0.950 <sub>494/520</sub> | 0.955 <sub>322/337</sub> | 0.984 <sub>180/183</sub> |
+| `docling-heron` | — | 1.000 <sub>12/12</sub> | 0.939 <sub>46/49</sub> <sub>over 6/130 pages</sub> | 0.964 <sub>53/55</sub> | 0.990 <sub>103/104</sub> | 0.994 <sub>517/520</sub> | 0.991 <sub>334/337</sub> | 0.989 <sub>181/183</sub> |
+| `yolox_l0.05` | — | 0.500 <sub>6/12</sub> | 0.796 <sub>39/49</sub> <sub>over 6/130 pages</sub> | 0.600 <sub>33/55</sub> | 0.933 <sub>97/104</sub> | 0.931 <sub>484/520</sub> | 0.932 <sub>314/337</sub> | 0.874 <sub>160/183</sub> |
 
 - a dash means: text and furniture NOT MARKED in this truth
 
 ### ink_under_boxes ↑ — ink that lands inside some box
 
-| model | annopage | atlas | hard | hard36 | katalog | matematika | slovar | spravochnik | zhurnal |
-|---|---|---|---|---|---|---|---|---|---|
-| `PP-DocLayoutV2` | 0.727 <sub>537247851/739099410</sub> | 0.860 <sub>969214/1127438</sub> | 0.771 <sub>74357353/96454397</sub> | 0.757 <sub>10495785/13857314</sub> | 0.967 <sub>1246014/1288204</sub> | 0.994 <sub>1819435/1830374</sub> | 0.976 <sub>1032695/1057663</sub> | 0.963 <sub>7170933/7443469</sub> | 0.990 <sub>2343459/2367945</sub> |
-| `PP-DocLayoutV3` | 0.665 <sub>491613557/739099410</sub> | 0.874 <sub>985726/1127438</sub> | 0.698 <sub>67298678/96454397</sub> | 0.700 <sub>9700902/13857314</sub> | 0.924 <sub>1190444/1288204</sub> | 0.994 <sub>1820031/1830374</sub> | 0.986 <sub>1043227/1057663</sub> | 0.953 <sub>7090749/7443469</sub> | 0.900 <sub>2131854/2367945</sub> |
-| `PP-DocLayout_plus-L` | 0.745 <sub>550633038/739099410</sub> | 0.898 <sub>1012742/1127438</sub> | 0.782 <sub>75471257/96454397</sub> | 0.734 <sub>10175878/13857314</sub> | 0.965 <sub>1243512/1288204</sub> | 0.993 <sub>1818237/1830374</sub> | 0.868 <sub>918559/1057663</sub> | 0.969 <sub>7211591/7443469</sub> | 0.988 <sub>2340141/2367945</sub> |
-| `docling-egret` | 0.761 <sub>562593874/739099410</sub> | 0.989 <sub>1114659/1127438</sub> | 0.791 <sub>76324624/96454397</sub> | 0.752 <sub>10414007/13857314</sub> | 0.867 <sub>1117305/1288204</sub> | 0.992 <sub>1816455/1830374</sub> | 0.980 <sub>1036339/1057663</sub> | 0.967 <sub>7197149/7443469</sub> | 0.990 <sub>2345179/2367945</sub> |
-| `docling-heron` | 0.754 <sub>557443399/739099410</sub> | 0.910 <sub>1026408/1127438</sub> | 0.795 <sub>76657835/96454397</sub> | 0.773 <sub>10718079/13857314</sub> | 0.904 <sub>1164323/1288204</sub> | 0.995 <sub>1820990/1830374</sub> | 0.982 <sub>1038992/1057663</sub> | 0.973 <sub>7244408/7443469</sub> | 0.990 <sub>2344706/2367945</sub> |
-| `yolox_l0.05` | 0.534 <sub>394361133/739099410</sub> | 0.881 <sub>993304/1127438</sub> | 0.554 <sub>53401221/96454397</sub> | 0.610 <sub>8449863/13857314</sub> | 0.880 <sub>1133679/1288204</sub> | 0.956 <sub>1749063/1830374</sub> | 0.897 <sub>949009/1057663</sub> | 0.906 <sub>6743174/7443469</sub> | 0.890 <sub>2107054/2367945</sub> |
+| model | annopage | atlas | hard | katalog | matematika | slovar | spravochnik | zhurnal |
+|---|---|---|---|---|---|---|---|---|
+| `PP-DocLayoutV2` | 0.727 <sub>537247851/739099410</sub> | 0.860 <sub>969214/1127438</sub> | 0.771 <sub>74357353/96454397</sub> | 0.967 <sub>1246014/1288204</sub> | 0.994 <sub>1819435/1830374</sub> | 0.976 <sub>1032695/1057663</sub> | 0.963 <sub>7170933/7443469</sub> | 0.990 <sub>2343459/2367945</sub> |
+| `PP-DocLayoutV3` | 0.665 <sub>491613557/739099410</sub> | 0.874 <sub>985726/1127438</sub> | 0.698 <sub>67298678/96454397</sub> | 0.924 <sub>1190444/1288204</sub> | 0.994 <sub>1820031/1830374</sub> | 0.986 <sub>1043227/1057663</sub> | 0.953 <sub>7090749/7443469</sub> | 0.900 <sub>2131854/2367945</sub> |
+| `PP-DocLayout_plus-L` | 0.745 <sub>550633038/739099410</sub> | 0.898 <sub>1012742/1127438</sub> | 0.782 <sub>75471257/96454397</sub> | 0.965 <sub>1243512/1288204</sub> | 0.993 <sub>1818237/1830374</sub> | 0.868 <sub>918559/1057663</sub> | 0.969 <sub>7211591/7443469</sub> | 0.988 <sub>2340141/2367945</sub> |
+| `docling-egret` | 0.761 <sub>562593874/739099410</sub> | 0.989 <sub>1114659/1127438</sub> | 0.791 <sub>76324624/96454397</sub> | 0.867 <sub>1117305/1288204</sub> | 0.992 <sub>1816455/1830374</sub> | 0.980 <sub>1036339/1057663</sub> | 0.967 <sub>7197149/7443469</sub> | 0.990 <sub>2345179/2367945</sub> |
+| `docling-heron` | 0.754 <sub>557443399/739099410</sub> | 0.910 <sub>1026408/1127438</sub> | 0.795 <sub>76657835/96454397</sub> | 0.904 <sub>1164323/1288204</sub> | 0.995 <sub>1820990/1830374</sub> | 0.982 <sub>1038992/1057663</sub> | 0.973 <sub>7244408/7443469</sub> | 0.990 <sub>2344706/2367945</sub> |
+| `yolox_l0.05` | 0.534 <sub>394361133/739099410</sub> | 0.881 <sub>993304/1127438</sub> | 0.554 <sub>53401221/96454397</sub> | 0.880 <sub>1133679/1288204</sub> | 0.956 <sub>1749063/1830374</sub> | 0.897 <sub>949009/1057663</sub> | 0.906 <sub>6743174/7443469</sub> | 0.890 <sub>2107054/2367945</sub> |
 
 ### ink_under_boxes_clean ↑ — the same over the ink that is ink: binding shadow and scan edge discarded from both sides
 
-| model | annopage | atlas | hard | hard36 | katalog | matematika | slovar | spravochnik | zhurnal |
-|---|---|---|---|---|---|---|---|---|---|
-| `PP-DocLayoutV2` | 0.751 <sub>535089502/712341651</sub> | 0.860 <sub>969214/1127438</sub> | 0.790 <sub>74338517/94131254</sub> | 0.779 <sub>10475009/13450086</sub> | 0.974 <sub>1197423/1229718</sub> | 0.994 <sub>1819435/1830374</sub> | 0.976 <sub>1032695/1057663</sub> | 0.979 <sub>7170933/7327794</sub> | 0.990 <sub>2343459/2367945</sub> |
-| `PP-DocLayoutV3` | 0.687 <sub>489721197/712341651</sub> | 0.874 <sub>985726/1127438</sub> | 0.715 <sub>67277234/94131254</sub> | 0.721 <sub>9693175/13450086</sub> | 0.928 <sub>1141634/1229718</sub> | 0.994 <sub>1820031/1830374</sub> | 0.986 <sub>1043227/1057663</sub> | 0.958 <sub>7017726/7327794</sub> | 0.900 <sub>2131854/2367945</sub> |
-| `PP-DocLayout_plus-L` | 0.769 <sub>548069179/712341651</sub> | 0.898 <sub>1012742/1127438</sub> | 0.801 <sub>75445199/94131254</sub> | 0.756 <sub>10169710/13450086</sub> | 0.972 <sub>1195382/1229718</sub> | 0.993 <sub>1818237/1830374</sub> | 0.868 <sub>918559/1057663</sub> | 0.984 <sub>7211591/7327794</sub> | 0.988 <sub>2340141/2367945</sub> |
-| `docling-egret` | 0.786 <sub>560132483/712341651</sub> | 0.989 <sub>1114659/1127438</sub> | 0.810 <sub>76279004/94131254</sub> | 0.774 <sub>10405280/13450086</sub> | 0.909 <sub>1117305/1229718</sub> | 0.992 <sub>1816455/1830374</sub> | 0.980 <sub>1036339/1057663</sub> | 0.982 <sub>7197149/7327794</sub> | 0.990 <sub>2345179/2367945</sub> |
-| `docling-heron` | 0.780 <sub>555463036/712341651</sub> | 0.910 <sub>1026408/1127438</sub> | 0.814 <sub>76616803/94131254</sub> | 0.795 <sub>10694336/13450086</sub> | 0.907 <sub>1115883/1229718</sub> | 0.995 <sub>1820990/1830374</sub> | 0.982 <sub>1038992/1057663</sub> | 0.986 <sub>7227284/7327794</sub> | 0.990 <sub>2344706/2367945</sub> |
-| `yolox_l0.05` | 0.552 <sub>393074841/712341651</sub> | 0.881 <sub>993304/1127438</sub> | 0.567 <sub>53384887/94131254</sub> | 0.628 <sub>8441329/13450086</sub> | 0.882 <sub>1084222/1229718</sub> | 0.956 <sub>1749063/1830374</sub> | 0.897 <sub>949009/1057663</sub> | 0.920 <sub>6743174/7327794</sub> | 0.890 <sub>2107054/2367945</sub> |
+| model | annopage | atlas | hard | katalog | matematika | slovar | spravochnik | zhurnal |
+|---|---|---|---|---|---|---|---|---|
+| `PP-DocLayoutV2` | 0.751 <sub>535089502/712341651</sub> | 0.860 <sub>969214/1127438</sub> | 0.790 <sub>74338517/94131254</sub> | 0.974 <sub>1197423/1229718</sub> | 0.994 <sub>1819435/1830374</sub> | 0.976 <sub>1032695/1057663</sub> | 0.979 <sub>7170933/7327794</sub> | 0.990 <sub>2343459/2367945</sub> |
+| `PP-DocLayoutV3` | 0.687 <sub>489721197/712341651</sub> | 0.874 <sub>985726/1127438</sub> | 0.715 <sub>67277234/94131254</sub> | 0.928 <sub>1141634/1229718</sub> | 0.994 <sub>1820031/1830374</sub> | 0.986 <sub>1043227/1057663</sub> | 0.958 <sub>7017726/7327794</sub> | 0.900 <sub>2131854/2367945</sub> |
+| `PP-DocLayout_plus-L` | 0.769 <sub>548069179/712341651</sub> | 0.898 <sub>1012742/1127438</sub> | 0.801 <sub>75445199/94131254</sub> | 0.972 <sub>1195382/1229718</sub> | 0.993 <sub>1818237/1830374</sub> | 0.868 <sub>918559/1057663</sub> | 0.984 <sub>7211591/7327794</sub> | 0.988 <sub>2340141/2367945</sub> |
+| `docling-egret` | 0.786 <sub>560132483/712341651</sub> | 0.989 <sub>1114659/1127438</sub> | 0.810 <sub>76279004/94131254</sub> | 0.909 <sub>1117305/1229718</sub> | 0.992 <sub>1816455/1830374</sub> | 0.980 <sub>1036339/1057663</sub> | 0.982 <sub>7197149/7327794</sub> | 0.990 <sub>2345179/2367945</sub> |
+| `docling-heron` | 0.780 <sub>555463036/712341651</sub> | 0.910 <sub>1026408/1127438</sub> | 0.814 <sub>76616803/94131254</sub> | 0.907 <sub>1115883/1229718</sub> | 0.995 <sub>1820990/1830374</sub> | 0.982 <sub>1038992/1057663</sub> | 0.986 <sub>7227284/7327794</sub> | 0.990 <sub>2344706/2367945</sub> |
+| `yolox_l0.05` | 0.552 <sub>393074841/712341651</sub> | 0.881 <sub>993304/1127438</sub> | 0.567 <sub>53384887/94131254</sub> | 0.882 <sub>1084222/1229718</sub> | 0.956 <sub>1749063/1830374</sub> | 0.897 <sub>949009/1057663</sub> | 0.920 <sub>6743174/7327794</sub> | 0.890 <sub>2107054/2367945</sub> |
 
 ### ink_as_text ↑ — ink that leaves the book as text rather than as a picture of itself
 
-| model | annopage | atlas | hard | hard36 | katalog | matematika | slovar | spravochnik | zhurnal |
-|---|---|---|---|---|---|---|---|---|---|
-| `PP-DocLayoutV2` | — | — | — | — | — | — | — | — | — |
-| `PP-DocLayoutV3` | — | — | — | — | — | — | — | — | — |
-| `PP-DocLayout_plus-L` | — | — | — | — | — | — | — | — | — |
-| `docling-egret` | — | — | — | — | — | — | — | — | — |
-| `docling-heron` | — | — | — | — | — | — | — | — | — |
-| `yolox_l0.05` | — | — | — | — | — | — | — | — | — |
+| model | annopage | atlas | hard | katalog | matematika | slovar | spravochnik | zhurnal |
+|---|---|---|---|---|---|---|---|---|
+| `PP-DocLayoutV2` | — | — | — | — | — | — | — | — |
+| `PP-DocLayoutV3` | — | — | — | — | — | — | — | — |
+| `PP-DocLayout_plus-L` | — | — | — | — | — | — | — | — |
+| `docling-egret` | — | — | — | — | — | — | — | — |
+| `docling-heron` | — | — | — | — | — | — | — | — |
+| `yolox_l0.05` | — | — | — | — | — | — | — | — |
 
 - a dash means: this run read nothing: every block would leave as a picture, which is not a measurement of one
 
 ### object_ink_preserved ↑ — ink of the truth objects that survives inside boxes
 
-| model | annopage | atlas | hard | hard36 | katalog | matematika | slovar | spravochnik | zhurnal |
-|---|---|---|---|---|---|---|---|---|---|
-| `PP-DocLayoutV2` | 0.894 <sub>149614306/167384248</sub> | 0.903 <sub>893972/989602</sub> | 0.922 <sub>26637623/28887708</sub> | 0.948 <sub>5527339/5828260</sub> | 1.000 <sub>782395/782450</sub> | 0.746 <sub>24672/33072</sub> | 0.928 <sub>33218/35792</sub> | 0.925 <sub>1159274/1253127</sub> | 0.913 <sub>149586/163915</sub> |
-| `PP-DocLayoutV3` | 0.915 <sub>153165766/167384248</sub> | 0.932 <sub>922349/989602</sub> | 0.883 <sub>25503180/28887708</sub> | 0.899 <sub>5240006/5828260</sub> | 0.925 <sub>723781/782450</sub> | 0.948 <sub>31360/33072</sub> | 0.933 <sub>33409/35792</sub> | 0.945 <sub>1184191/1253127</sub> | 0.987 <sub>161766/163915</sub> |
-| `PP-DocLayout_plus-L` | 0.945 <sub>158095780/167384248</sub> | 0.948 <sub>937895/989602</sub> | 0.936 <sub>27048832/28887708</sub> | 0.948 <sub>5527880/5828260</sub> | 0.746 <sub>583683/782450</sub> | 0.887 <sub>29335/33072</sub> | 0.979 <sub>35041/35792</sub> | 0.945 <sub>1184531/1253127</sub> | 0.983 <sub>161057/163915</sub> |
-| `docling-egret` | 0.893 <sub>149507725/167384248</sub> | 1.000 <sub>989344/989602</sub> | 0.933 <sub>26966397/28887708</sub> | 0.916 <sub>5338682/5828260</sub> | 0.380 <sub>297618/782450</sub> | 0.855 <sub>28267/33072</sub> | 0.150 <sub>5381/35792</sub> | 0.728 <sub>912197/1253127</sub> | 0.999 <sub>163764/163915</sub> |
-| `docling-heron` | 0.945 <sub>158239797/167384248</sub> | 0.954 <sub>944195/989602</sub> | 0.900 <sub>26005793/28887708</sub> | 0.949 <sub>5532404/5828260</sub> | 0.556 <sub>434907/782450</sub> | 0.867 <sub>28664/33072</sub> | 0.159 <sub>5681/35792</sub> | 0.843 <sub>1056143/1253127</sub> | 0.997 <sub>163364/163915</sub> |
-| `yolox_l0.05` | 0.719 <sub>120330962/167384248</sub> | 0.942 <sub>932686/989602</sub> | 0.697 <sub>20144631/28887708</sub> | 0.821 <sub>4785188/5828260</sub> | 0.748 <sub>585542/782450</sub> | 0.000 <sub>0/33072</sub> | 0.102 <sub>3662/35792</sub> | 0.707 <sub>886497/1253127</sub> | 0.898 <sub>147146/163915</sub> |
+| model | annopage | atlas | hard | katalog | matematika | slovar | spravochnik | zhurnal |
+|---|---|---|---|---|---|---|---|---|
+| `PP-DocLayoutV2` | 0.894 <sub>149614306/167384248</sub> | 0.903 <sub>893972/989602</sub> | 0.922 <sub>26637623/28887708</sub> | 1.000 <sub>782395/782450</sub> | 0.746 <sub>24672/33072</sub> | 0.928 <sub>33218/35792</sub> | 0.925 <sub>1159274/1253127</sub> | 0.913 <sub>149586/163915</sub> |
+| `PP-DocLayoutV3` | 0.915 <sub>153165766/167384248</sub> | 0.932 <sub>922349/989602</sub> | 0.883 <sub>25503180/28887708</sub> | 0.925 <sub>723781/782450</sub> | 0.948 <sub>31360/33072</sub> | 0.933 <sub>33409/35792</sub> | 0.945 <sub>1184191/1253127</sub> | 0.987 <sub>161766/163915</sub> |
+| `PP-DocLayout_plus-L` | 0.945 <sub>158095780/167384248</sub> | 0.948 <sub>937895/989602</sub> | 0.936 <sub>27048832/28887708</sub> | 0.746 <sub>583683/782450</sub> | 0.887 <sub>29335/33072</sub> | 0.979 <sub>35041/35792</sub> | 0.945 <sub>1184531/1253127</sub> | 0.983 <sub>161057/163915</sub> |
+| `docling-egret` | 0.893 <sub>149507725/167384248</sub> | 1.000 <sub>989344/989602</sub> | 0.933 <sub>26966397/28887708</sub> | 0.380 <sub>297618/782450</sub> | 0.855 <sub>28267/33072</sub> | 0.150 <sub>5381/35792</sub> | 0.728 <sub>912197/1253127</sub> | 0.999 <sub>163764/163915</sub> |
+| `docling-heron` | 0.945 <sub>158239797/167384248</sub> | 0.954 <sub>944195/989602</sub> | 0.900 <sub>26005793/28887708</sub> | 0.556 <sub>434907/782450</sub> | 0.867 <sub>28664/33072</sub> | 0.159 <sub>5681/35792</sub> | 0.843 <sub>1056143/1253127</sub> | 0.997 <sub>163364/163915</sub> |
+| `yolox_l0.05` | 0.719 <sub>120330962/167384248</sub> | 0.942 <sub>932686/989602</sub> | 0.697 <sub>20144631/28887708</sub> | 0.748 <sub>585542/782450</sub> | 0.000 <sub>0/33072</sub> | 0.102 <sub>3662/35792</sub> | 0.707 <sub>886497/1253127</sub> | 0.898 <sub>147146/163915</sub> |
 
 ## Is the order right
 
@@ -105,28 +105,27 @@ Where the truth marks reading order, agreement with it; where it does not -- and
 
 ### assembly_order ↑ — reading order of the assembled book agrees with truth
 
-| model | annopage | atlas | hard | hard36 | katalog | matematika | slovar | spravochnik | zhurnal |
-|---|---|---|---|---|---|---|---|---|---|
-| `PP-DocLayoutV2` | — | 0.952 | 0.957 <sub>over 6/130 pages</sub> | — | 0.989 | 1.000 | 0.886 | 0.989 | 1.000 |
-| `PP-DocLayoutV3` | — | 1.000 | 0.958 <sub>over 6/130 pages</sub> | — | 0.939 | 1.000 | 0.999 | 0.985 | 0.970 |
-| `PP-DocLayout_plus-L` | — | 0.882 | 0.913 <sub>over 6/130 pages</sub> | — | 0.953 | 1.000 | 0.730 | 0.807 | 0.773 |
-| `docling-egret` | — | 0.895 | 0.908 <sub>over 6/130 pages</sub> | — | 0.944 | 1.000 | 0.683 | 0.803 | 0.769 |
-| `docling-heron` | — | 0.913 | 0.917 <sub>over 6/130 pages</sub> | — | 0.961 | 1.000 | 0.689 | 0.809 | 0.771 |
-| `yolox_l0.05` | — | 0.900 | 0.904 <sub>over 6/130 pages</sub> | — | 0.936 | 1.000 | 0.686 | 0.798 | 0.749 |
+| model | annopage | atlas | hard | katalog | matematika | slovar | spravochnik | zhurnal |
+|---|---|---|---|---|---|---|---|---|
+| `PP-DocLayoutV2` | — | 0.952 | 0.957 <sub>over 6/130 pages</sub> | 0.989 | 1.000 | 0.886 | 0.989 | 1.000 |
+| `PP-DocLayoutV3` | — | 1.000 | 0.958 <sub>over 6/130 pages</sub> | 0.939 | 1.000 | 0.999 | 0.985 | 0.970 |
+| `PP-DocLayout_plus-L` | — | 0.882 | 0.913 <sub>over 6/130 pages</sub> | 0.953 | 1.000 | 0.730 | 0.807 | 0.773 |
+| `docling-egret` | — | 0.895 | 0.908 <sub>over 6/130 pages</sub> | 0.944 | 1.000 | 0.683 | 0.803 | 0.769 |
+| `docling-heron` | — | 0.913 | 0.917 <sub>over 6/130 pages</sub> | 0.961 | 1.000 | 0.689 | 0.809 | 0.771 |
+| `yolox_l0.05` | — | 0.900 | 0.904 <sub>over 6/130 pages</sub> | 0.936 | 1.000 | 0.686 | 0.798 | 0.749 |
 
 - a dash means: truth carries no order: not marked on 600 of 600 pages
-- a dash means: truth carries no order: not_said on 36 of 36 pages
 
 ### excess_jumps_per_transition ↓ — excess column jumps per move between boxes
 
-| model | annopage | atlas | hard | hard36 | katalog | matematika | slovar | spravochnik | zhurnal |
-|---|---|---|---|---|---|---|---|---|---|
-| `PP-DocLayoutV2` | 0.539 <sub>501/930</sub> | 0.000 <sub>0/2</sub> | 0.583 <sub>193/331</sub> | 0.685 <sub>87/127</sub> | — | 0.909 <sub>10/11</sub> | 0.867 <sub>130/150</sub> | 0.091 <sub>2/22</sub> | 0.000 <sub>0/10</sub> |
-| `PP-DocLayoutV3` | 0.533 <sub>498/934</sub> | 0.000 <sub>0/5</sub> | 0.610 <sub>214/351</sub> | 0.680 <sub>83/122</sub> | 0.967 <sub>347/359</sub> | 0.909 <sub>10/11</sub> | 0.548 <sub>23/42</sub> | 0.640 <sub>16/25</sub> | 0.714 <sub>20/28</sub> |
-| `PP-DocLayout_plus-L` | 0.837 <sub>2164/2586</sub> | 0.400 <sub>2/5</sub> | 0.802 <sub>526/656</sub> | 0.787 <sub>159/202</sub> | 0.000 <sub>0/13</sub> | 0.909 <sub>10/11</sub> | 0.955 <sub>214/224</sub> | 0.897 <sub>131/146</sub> | 0.925 <sub>124/134</sub> |
-| `docling-egret` | 0.868 <sub>2587/2981</sub> | 0.667 <sub>2/3</sub> | 0.820 <sub>547/667</sub> | 0.801 <sub>149/186</sub> | 0.077 <sub>2/26</sub> | — | 0.967 <sub>640/662</sub> | 0.891 <sub>204/229</sub> | 0.928 <sub>129/139</sub> |
-| `docling-heron` | 0.872 <sub>2741/3144</sub> | 0.333 <sub>2/6</sub> | 0.825 <sub>577/699</sub> | 0.799 <sub>139/174</sub> | 0.250 <sub>5/20</sub> | 0.909 <sub>10/11</sub> | 0.956 <sub>475/497</sub> | 0.841 <sub>132/157</sub> | 0.933 <sub>140/150</sub> |
-| `yolox_l0.05` | 0.792 <sub>1139/1438</sub> | 0.000 <sub>0/1</sub> | 0.747 <sub>221/296</sub> | 0.789 <sub>90/114</sub> | — | — | 0.958 <sub>431/450</sub> | 0.920 <sub>126/137</sub> | 0.931 <sub>122/131</sub> |
+| model | annopage | atlas | hard | katalog | matematika | slovar | spravochnik | zhurnal |
+|---|---|---|---|---|---|---|---|---|
+| `PP-DocLayoutV2` | 0.539 <sub>501/930</sub> | 0.000 <sub>0/2</sub> | 0.583 <sub>193/331</sub> | — | 0.909 <sub>10/11</sub> | 0.867 <sub>130/150</sub> | 0.091 <sub>2/22</sub> | 0.000 <sub>0/10</sub> |
+| `PP-DocLayoutV3` | 0.533 <sub>498/934</sub> | 0.000 <sub>0/5</sub> | 0.610 <sub>214/351</sub> | 0.967 <sub>347/359</sub> | 0.909 <sub>10/11</sub> | 0.548 <sub>23/42</sub> | 0.640 <sub>16/25</sub> | 0.714 <sub>20/28</sub> |
+| `PP-DocLayout_plus-L` | 0.837 <sub>2164/2586</sub> | 0.400 <sub>2/5</sub> | 0.802 <sub>526/656</sub> | 0.000 <sub>0/13</sub> | 0.909 <sub>10/11</sub> | 0.955 <sub>214/224</sub> | 0.897 <sub>131/146</sub> | 0.925 <sub>124/134</sub> |
+| `docling-egret` | 0.868 <sub>2587/2981</sub> | 0.667 <sub>2/3</sub> | 0.820 <sub>547/667</sub> | 0.077 <sub>2/26</sub> | — | 0.967 <sub>640/662</sub> | 0.891 <sub>204/229</sub> | 0.928 <sub>129/139</sub> |
+| `docling-heron` | 0.872 <sub>2741/3144</sub> | 0.333 <sub>2/6</sub> | 0.825 <sub>577/699</sub> | 0.250 <sub>5/20</sub> | 0.909 <sub>10/11</sub> | 0.956 <sub>475/497</sub> | 0.841 <sub>132/157</sub> | 0.933 <sub>140/150</sub> |
+| `yolox_l0.05` | 0.792 <sub>1139/1438</sub> | 0.000 <sub>0/1</sub> | 0.747 <sub>221/296</sub> | — | — | 0.958 <sub>431/450</sub> | 0.920 <sub>126/137</sub> | 0.931 <sub>122/131</sub> |
 
 - a dash means: no page gathered two counted boxes: nothing to jump between
 
@@ -137,14 +136,14 @@ Where the truth marks reading order, agreement with it; where it does not -- and
 
 ### excess_jumps_per_transition_one_rule ↓ — the same with one ordering rule forced on every model, so the column compares boxes alone
 
-| model | annopage | atlas | hard | hard36 | katalog | matematika | slovar | spravochnik | zhurnal |
-|---|---|---|---|---|---|---|---|---|---|
-| `PP-DocLayoutV2` | 0.852 <sub>2471/2900</sub> | 0.333 <sub>1/3</sub> | 0.829 <sub>669/807</sub> | 0.813 <sub>174/214</sub> | — | 0.909 <sub>10/11</sub> | 0.960 <sub>479/499</sub> | 0.868 <sub>131/151</sub> | 0.925 <sub>123/133</sub> |
-| `PP-DocLayoutV3` | 0.837 <sub>2233/2669</sub> | 0.000 <sub>0/5</sub> | 0.801 <sub>551/688</sub> | 0.791 <sub>148/187</sub> | 0.967 <sub>348/360</sub> | 0.909 <sub>10/11</sub> | 0.961 <sub>466/485</sub> | 0.893 <sub>75/84</sub> | 0.930 <sub>106/114</sub> |
-| `PP-DocLayout_plus-L` | 0.837 <sub>2164/2586</sub> | 0.400 <sub>2/5</sub> | 0.802 <sub>526/656</sub> | 0.787 <sub>159/202</sub> | 0.000 <sub>0/13</sub> | 0.909 <sub>10/11</sub> | 0.955 <sub>214/224</sub> | 0.897 <sub>131/146</sub> | 0.925 <sub>124/134</sub> |
-| `docling-egret` | 0.868 <sub>2587/2981</sub> | 0.667 <sub>2/3</sub> | 0.820 <sub>547/667</sub> | 0.801 <sub>149/186</sub> | 0.077 <sub>2/26</sub> | — | 0.967 <sub>640/662</sub> | 0.891 <sub>204/229</sub> | 0.928 <sub>129/139</sub> |
-| `docling-heron` | 0.872 <sub>2741/3144</sub> | 0.333 <sub>2/6</sub> | 0.825 <sub>577/699</sub> | 0.799 <sub>139/174</sub> | 0.250 <sub>5/20</sub> | 0.909 <sub>10/11</sub> | 0.956 <sub>475/497</sub> | 0.841 <sub>132/157</sub> | 0.933 <sub>140/150</sub> |
-| `yolox_l0.05` | 0.792 <sub>1139/1438</sub> | 0.000 <sub>0/1</sub> | 0.747 <sub>221/296</sub> | 0.789 <sub>90/114</sub> | — | — | 0.958 <sub>431/450</sub> | 0.920 <sub>126/137</sub> | 0.931 <sub>122/131</sub> |
+| model | annopage | atlas | hard | katalog | matematika | slovar | spravochnik | zhurnal |
+|---|---|---|---|---|---|---|---|---|
+| `PP-DocLayoutV2` | 0.852 <sub>2471/2900</sub> | 0.333 <sub>1/3</sub> | 0.829 <sub>669/807</sub> | — | 0.909 <sub>10/11</sub> | 0.960 <sub>479/499</sub> | 0.868 <sub>131/151</sub> | 0.925 <sub>123/133</sub> |
+| `PP-DocLayoutV3` | 0.837 <sub>2233/2669</sub> | 0.000 <sub>0/5</sub> | 0.801 <sub>551/688</sub> | 0.967 <sub>348/360</sub> | 0.909 <sub>10/11</sub> | 0.961 <sub>466/485</sub> | 0.893 <sub>75/84</sub> | 0.930 <sub>106/114</sub> |
+| `PP-DocLayout_plus-L` | 0.837 <sub>2164/2586</sub> | 0.400 <sub>2/5</sub> | 0.802 <sub>526/656</sub> | 0.000 <sub>0/13</sub> | 0.909 <sub>10/11</sub> | 0.955 <sub>214/224</sub> | 0.897 <sub>131/146</sub> | 0.925 <sub>124/134</sub> |
+| `docling-egret` | 0.868 <sub>2587/2981</sub> | 0.667 <sub>2/3</sub> | 0.820 <sub>547/667</sub> | 0.077 <sub>2/26</sub> | — | 0.967 <sub>640/662</sub> | 0.891 <sub>204/229</sub> | 0.928 <sub>129/139</sub> |
+| `docling-heron` | 0.872 <sub>2741/3144</sub> | 0.333 <sub>2/6</sub> | 0.825 <sub>577/699</sub> | 0.250 <sub>5/20</sub> | 0.909 <sub>10/11</sub> | 0.956 <sub>475/497</sub> | 0.841 <sub>132/157</sub> | 0.933 <sub>140/150</sub> |
+| `yolox_l0.05` | 0.792 <sub>1139/1438</sub> | 0.000 <sub>0/1</sub> | 0.747 <sub>221/296</sub> | — | — | 0.958 <sub>431/450</sub> | 0.920 <sub>126/137</sub> | 0.931 <sub>122/131</sub> |
 
 - a dash means: no page gathered two counted boxes: nothing to jump between
 
@@ -159,69 +158,69 @@ The derivatives: an artefact can be missed, cut, called text, or merged with its
 
 ### artefacts_not_seen ↓ — artefacts the model never boxed
 
-| model | annopage | atlas | hard | hard36 | katalog | matematika | slovar | spravochnik | zhurnal |
-|---|---|---|---|---|---|---|---|---|---|
-| `PP-DocLayoutV2` | 0.067 <sub>82/1232</sub> | 0.188 <sub>3/16</sub> | 0.041 <sub>30/736</sub> | 0.032 <sub>13/403</sub> | 0.000 <sub>0/13</sub> | 0.148 <sub>4/27</sub> | 0.333 <sub>1/3</sub> | 0.044 <sub>2/45</sub> | 0.167 <sub>1/6</sub> |
-| `PP-DocLayoutV3` | 0.121 <sub>149/1232</sub> | 0.125 <sub>2/16</sub> | 0.120 <sub>88/736</sub> | 0.139 <sub>56/403</sub> | 0.154 <sub>2/13</sub> | 0.185 <sub>5/27</sub> | 0.333 <sub>1/3</sub> | 0.067 <sub>3/45</sub> | 0.000 <sub>0/6</sub> |
-| `PP-DocLayout_plus-L` | 0.060 <sub>74/1232</sub> | 0.125 <sub>2/16</sub> | 0.045 <sub>33/736</sub> | 0.037 <sub>15/403</sub> | 0.077 <sub>1/13</sub> | 0.000 <sub>0/27</sub> | 0.000 <sub>0/3</sub> | 0.044 <sub>2/45</sub> | 0.000 <sub>0/6</sub> |
-| `docling-egret` | 0.057 <sub>70/1232</sub> | 0.000 <sub>0/16</sub> | 0.038 <sub>28/736</sub> | 0.092 <sub>37/403</sub> | 0.385 <sub>5/13</sub> | 0.148 <sub>4/27</sub> | 0.333 <sub>1/3</sub> | 0.067 <sub>3/45</sub> | 0.000 <sub>0/6</sub> |
-| `docling-heron` | 0.056 <sub>69/1232</sub> | 0.062 <sub>1/16</sub> | 0.048 <sub>35/736</sub> | 0.055 <sub>22/403</sub> | 0.538 <sub>7/13</sub> | 0.074 <sub>2/27</sub> | 0.333 <sub>1/3</sub> | 0.022 <sub>1/45</sub> | 0.000 <sub>0/6</sub> |
-| `yolox_l0.05` | 0.314 <sub>387/1232</sub> | 0.188 <sub>3/16</sub> | 0.288 <sub>212/736</sub> | 0.226 <sub>91/403</sub> | 0.154 <sub>2/13</sub> | 1.000 <sub>27/27</sub> | 0.667 <sub>2/3</sub> | 0.289 <sub>13/45</sub> | 0.167 <sub>1/6</sub> |
+| model | annopage | atlas | hard | katalog | matematika | slovar | spravochnik | zhurnal |
+|---|---|---|---|---|---|---|---|---|
+| `PP-DocLayoutV2` | 0.067 <sub>82/1232</sub> | 0.188 <sub>3/16</sub> | 0.041 <sub>30/736</sub> | 0.000 <sub>0/13</sub> | 0.148 <sub>4/27</sub> | 0.333 <sub>1/3</sub> | 0.044 <sub>2/45</sub> | 0.167 <sub>1/6</sub> |
+| `PP-DocLayoutV3` | 0.121 <sub>149/1232</sub> | 0.125 <sub>2/16</sub> | 0.120 <sub>88/736</sub> | 0.154 <sub>2/13</sub> | 0.185 <sub>5/27</sub> | 0.333 <sub>1/3</sub> | 0.067 <sub>3/45</sub> | 0.000 <sub>0/6</sub> |
+| `PP-DocLayout_plus-L` | 0.060 <sub>74/1232</sub> | 0.125 <sub>2/16</sub> | 0.045 <sub>33/736</sub> | 0.077 <sub>1/13</sub> | 0.000 <sub>0/27</sub> | 0.000 <sub>0/3</sub> | 0.044 <sub>2/45</sub> | 0.000 <sub>0/6</sub> |
+| `docling-egret` | 0.057 <sub>70/1232</sub> | 0.000 <sub>0/16</sub> | 0.038 <sub>28/736</sub> | 0.385 <sub>5/13</sub> | 0.148 <sub>4/27</sub> | 0.333 <sub>1/3</sub> | 0.067 <sub>3/45</sub> | 0.000 <sub>0/6</sub> |
+| `docling-heron` | 0.056 <sub>69/1232</sub> | 0.062 <sub>1/16</sub> | 0.048 <sub>35/736</sub> | 0.538 <sub>7/13</sub> | 0.074 <sub>2/27</sub> | 0.333 <sub>1/3</sub> | 0.022 <sub>1/45</sub> | 0.000 <sub>0/6</sub> |
+| `yolox_l0.05` | 0.314 <sub>387/1232</sub> | 0.188 <sub>3/16</sub> | 0.288 <sub>212/736</sub> | 0.154 <sub>2/13</sub> | 1.000 <sub>27/27</sub> | 0.667 <sub>2/3</sub> | 0.289 <sub>13/45</sub> | 0.167 <sub>1/6</sub> |
 
 ### artefacts_cropped ↓ — artefacts boxed, but cut short
 
-| model | annopage | atlas | hard | hard36 | katalog | matematika | slovar | spravochnik | zhurnal |
-|---|---|---|---|---|---|---|---|---|---|
-| `PP-DocLayoutV2` | 0.069 <sub>85/1232</sub> | 0.000 <sub>0/16</sub> | 0.061 <sub>45/736</sub> | 0.052 <sub>21/403</sub> | 0.000 <sub>0/13</sub> | 0.037 <sub>1/27</sub> | 0.000 <sub>0/3</sub> | 0.022 <sub>1/45</sub> | 0.000 <sub>0/6</sub> |
-| `PP-DocLayoutV3` | 0.075 <sub>92/1232</sub> | 0.062 <sub>1/16</sub> | 0.053 <sub>39/736</sub> | 0.045 <sub>18/403</sub> | 0.000 <sub>0/13</sub> | 0.000 <sub>0/27</sub> | 0.000 <sub>0/3</sub> | 0.000 <sub>0/45</sub> | 0.000 <sub>0/6</sub> |
-| `PP-DocLayout_plus-L` | 0.132 <sub>163/1232</sub> | 0.062 <sub>1/16</sub> | 0.114 <sub>84/736</sub> | 0.107 <sub>43/403</sub> | 0.000 <sub>0/13</sub> | 0.481 <sub>13/27</sub> | 0.000 <sub>0/3</sub> | 0.022 <sub>1/45</sub> | 0.000 <sub>0/6</sub> |
-| `docling-egret` | 0.108 <sub>133/1232</sub> | 0.000 <sub>0/16</sub> | 0.083 <sub>61/736</sub> | 0.050 <sub>20/403</sub> | 0.000 <sub>0/13</sub> | 0.074 <sub>2/27</sub> | 0.000 <sub>0/3</sub> | 0.022 <sub>1/45</sub> | 0.000 <sub>0/6</sub> |
-| `docling-heron` | 0.113 <sub>139/1232</sub> | 0.000 <sub>0/16</sub> | 0.084 <sub>62/736</sub> | 0.060 <sub>24/403</sub> | 0.000 <sub>0/13</sub> | 0.000 <sub>0/27</sub> | 0.000 <sub>0/3</sub> | 0.022 <sub>1/45</sub> | 0.000 <sub>0/6</sub> |
-| `yolox_l0.05` | 0.113 <sub>139/1232</sub> | 0.000 <sub>0/16</sub> | 0.076 <sub>56/736</sub> | 0.050 <sub>20/403</sub> | 0.385 <sub>5/13</sub> | 0.000 <sub>0/27</sub> | 0.000 <sub>0/3</sub> | 0.044 <sub>2/45</sub> | 0.000 <sub>0/6</sub> |
+| model | annopage | atlas | hard | katalog | matematika | slovar | spravochnik | zhurnal |
+|---|---|---|---|---|---|---|---|---|
+| `PP-DocLayoutV2` | 0.069 <sub>85/1232</sub> | 0.000 <sub>0/16</sub> | 0.061 <sub>45/736</sub> | 0.000 <sub>0/13</sub> | 0.037 <sub>1/27</sub> | 0.000 <sub>0/3</sub> | 0.022 <sub>1/45</sub> | 0.000 <sub>0/6</sub> |
+| `PP-DocLayoutV3` | 0.075 <sub>92/1232</sub> | 0.062 <sub>1/16</sub> | 0.053 <sub>39/736</sub> | 0.000 <sub>0/13</sub> | 0.000 <sub>0/27</sub> | 0.000 <sub>0/3</sub> | 0.000 <sub>0/45</sub> | 0.000 <sub>0/6</sub> |
+| `PP-DocLayout_plus-L` | 0.132 <sub>163/1232</sub> | 0.062 <sub>1/16</sub> | 0.114 <sub>84/736</sub> | 0.000 <sub>0/13</sub> | 0.481 <sub>13/27</sub> | 0.000 <sub>0/3</sub> | 0.022 <sub>1/45</sub> | 0.000 <sub>0/6</sub> |
+| `docling-egret` | 0.108 <sub>133/1232</sub> | 0.000 <sub>0/16</sub> | 0.083 <sub>61/736</sub> | 0.000 <sub>0/13</sub> | 0.074 <sub>2/27</sub> | 0.000 <sub>0/3</sub> | 0.022 <sub>1/45</sub> | 0.000 <sub>0/6</sub> |
+| `docling-heron` | 0.113 <sub>139/1232</sub> | 0.000 <sub>0/16</sub> | 0.084 <sub>62/736</sub> | 0.000 <sub>0/13</sub> | 0.000 <sub>0/27</sub> | 0.000 <sub>0/3</sub> | 0.022 <sub>1/45</sub> | 0.000 <sub>0/6</sub> |
+| `yolox_l0.05` | 0.113 <sub>139/1232</sub> | 0.000 <sub>0/16</sub> | 0.076 <sub>56/736</sub> | 0.385 <sub>5/13</sub> | 0.000 <sub>0/27</sub> | 0.000 <sub>0/3</sub> | 0.044 <sub>2/45</sub> | 0.000 <sub>0/6</sub> |
 
 ### artefacts_called_text ↓ — artefacts boxed as text: they leave as a line and the structure leaves with them
 
-| model | annopage | atlas | hard | hard36 | katalog | matematika | slovar | spravochnik | zhurnal |
-|---|---|---|---|---|---|---|---|---|---|
-| `PP-DocLayoutV2` | 0.036 <sub>44/1232</sub> | 0.062 <sub>1/16</sub> | 0.029 <sub>21/736</sub> | 0.030 <sub>12/403</sub> | 0.000 <sub>0/13</sub> | 0.074 <sub>2/27</sub> | 0.000 <sub>0/3</sub> | 0.000 <sub>0/45</sub> | 0.000 <sub>0/6</sub> |
-| `PP-DocLayoutV3` | 0.018 <sub>22/1232</sub> | 0.000 <sub>0/16</sub> | 0.012 <sub>9/736</sub> | 0.002 <sub>1/403</sub> | 0.000 <sub>0/13</sub> | 0.000 <sub>0/27</sub> | 0.000 <sub>0/3</sub> | 0.000 <sub>0/45</sub> | 0.000 <sub>0/6</sub> |
-| `PP-DocLayout_plus-L` | 0.030 <sub>37/1232</sub> | 0.000 <sub>0/16</sub> | 0.031 <sub>23/736</sub> | 0.032 <sub>13/403</sub> | 0.000 <sub>0/13</sub> | 0.037 <sub>1/27</sub> | 0.000 <sub>0/3</sub> | 0.000 <sub>0/45</sub> | 0.000 <sub>0/6</sub> |
-| `docling-egret` | 0.042 <sub>52/1232</sub> | 0.000 <sub>0/16</sub> | 0.035 <sub>26/736</sub> | 0.042 <sub>17/403</sub> | 0.077 <sub>1/13</sub> | 0.000 <sub>0/27</sub> | 0.000 <sub>0/3</sub> | 0.044 <sub>2/45</sub> | 0.000 <sub>0/6</sub> |
-| `docling-heron` | 0.045 <sub>56/1232</sub> | 0.000 <sub>0/16</sub> | 0.042 <sub>31/736</sub> | 0.035 <sub>14/403</sub> | 0.000 <sub>0/13</sub> | 0.148 <sub>4/27</sub> | 0.000 <sub>0/3</sub> | 0.044 <sub>2/45</sub> | 0.000 <sub>0/6</sub> |
-| `yolox_l0.05` | 0.014 <sub>17/1232</sub> | 0.000 <sub>0/16</sub> | 0.012 <sub>9/736</sub> | 0.010 <sub>4/403</sub> | 0.000 <sub>0/13</sub> | 0.000 <sub>0/27</sub> | 0.000 <sub>0/3</sub> | 0.000 <sub>0/45</sub> | 0.000 <sub>0/6</sub> |
+| model | annopage | atlas | hard | katalog | matematika | slovar | spravochnik | zhurnal |
+|---|---|---|---|---|---|---|---|---|
+| `PP-DocLayoutV2` | 0.036 <sub>44/1232</sub> | 0.062 <sub>1/16</sub> | 0.029 <sub>21/736</sub> | 0.000 <sub>0/13</sub> | 0.074 <sub>2/27</sub> | 0.000 <sub>0/3</sub> | 0.000 <sub>0/45</sub> | 0.000 <sub>0/6</sub> |
+| `PP-DocLayoutV3` | 0.018 <sub>22/1232</sub> | 0.000 <sub>0/16</sub> | 0.012 <sub>9/736</sub> | 0.000 <sub>0/13</sub> | 0.000 <sub>0/27</sub> | 0.000 <sub>0/3</sub> | 0.000 <sub>0/45</sub> | 0.000 <sub>0/6</sub> |
+| `PP-DocLayout_plus-L` | 0.030 <sub>37/1232</sub> | 0.000 <sub>0/16</sub> | 0.031 <sub>23/736</sub> | 0.000 <sub>0/13</sub> | 0.037 <sub>1/27</sub> | 0.000 <sub>0/3</sub> | 0.000 <sub>0/45</sub> | 0.000 <sub>0/6</sub> |
+| `docling-egret` | 0.042 <sub>52/1232</sub> | 0.000 <sub>0/16</sub> | 0.035 <sub>26/736</sub> | 0.077 <sub>1/13</sub> | 0.000 <sub>0/27</sub> | 0.000 <sub>0/3</sub> | 0.044 <sub>2/45</sub> | 0.000 <sub>0/6</sub> |
+| `docling-heron` | 0.045 <sub>56/1232</sub> | 0.000 <sub>0/16</sub> | 0.042 <sub>31/736</sub> | 0.000 <sub>0/13</sub> | 0.148 <sub>4/27</sub> | 0.000 <sub>0/3</sub> | 0.044 <sub>2/45</sub> | 0.000 <sub>0/6</sub> |
+| `yolox_l0.05` | 0.014 <sub>17/1232</sub> | 0.000 <sub>0/16</sub> | 0.012 <sub>9/736</sub> | 0.000 <sub>0/13</sub> | 0.000 <sub>0/27</sub> | 0.000 <sub>0/3</sub> | 0.000 <sub>0/45</sub> | 0.000 <sub>0/6</sub> |
 
 ### artefacts_merged = — artefacts sharing a box with a neighbour; no direction, since a wider picture is split at level two
 
-| model | annopage | atlas | hard | hard36 | katalog | matematika | slovar | spravochnik | zhurnal |
-|---|---|---|---|---|---|---|---|---|---|
-| `PP-DocLayoutV2` | 0.304 <sub>375/1232</sub> | 0.000 <sub>0/16</sub> | 0.497 <sub>366/736</sub> | 0.737 <sub>297/403</sub> | 0.154 <sub>2/13</sub> | 0.074 <sub>2/27</sub> | 0.000 <sub>0/3</sub> | 0.156 <sub>7/45</sub> | 0.000 <sub>0/6</sub> |
-| `PP-DocLayoutV3` | 0.293 <sub>361/1232</sub> | 0.125 <sub>2/16</sub> | 0.476 <sub>350/736</sub> | 0.667 <sub>269/403</sub> | 0.000 <sub>0/13</sub> | 0.074 <sub>2/27</sub> | 0.000 <sub>0/3</sub> | 0.244 <sub>11/45</sub> | 0.000 <sub>0/6</sub> |
-| `PP-DocLayout_plus-L` | 0.344 <sub>424/1232</sub> | 0.000 <sub>0/16</sub> | 0.541 <sub>398/736</sub> | 0.720 <sub>290/403</sub> | 0.154 <sub>2/13</sub> | 0.370 <sub>10/27</sub> | 0.000 <sub>0/3</sub> | 0.178 <sub>8/45</sub> | 0.000 <sub>0/6</sub> |
-| `docling-egret` | 0.320 <sub>394/1232</sub> | 0.250 <sub>4/16</sub> | 0.507 <sub>373/736</sub> | 0.670 <sub>270/403</sub> | 0.000 <sub>0/13</sub> | 0.481 <sub>13/27</sub> | 0.000 <sub>0/3</sub> | 0.156 <sub>7/45</sub> | 0.000 <sub>0/6</sub> |
-| `docling-heron` | 0.297 <sub>366/1232</sub> | 0.062 <sub>1/16</sub> | 0.471 <sub>347/736</sub> | 0.705 <sub>284/403</sub> | 0.000 <sub>0/13</sub> | 0.667 <sub>18/27</sub> | 0.000 <sub>0/3</sub> | 0.133 <sub>6/45</sub> | 0.000 <sub>0/6</sub> |
-| `yolox_l0.05` | 0.322 <sub>397/1232</sub> | 0.125 <sub>2/16</sub> | 0.515 <sub>379/736</sub> | 0.653 <sub>263/403</sub> | 0.000 <sub>0/13</sub> | 0.000 <sub>0/27</sub> | 0.000 <sub>0/3</sub> | 0.244 <sub>11/45</sub> | 0.000 <sub>0/6</sub> |
+| model | annopage | atlas | hard | katalog | matematika | slovar | spravochnik | zhurnal |
+|---|---|---|---|---|---|---|---|---|
+| `PP-DocLayoutV2` | 0.304 <sub>375/1232</sub> | 0.000 <sub>0/16</sub> | 0.497 <sub>366/736</sub> | 0.154 <sub>2/13</sub> | 0.074 <sub>2/27</sub> | 0.000 <sub>0/3</sub> | 0.156 <sub>7/45</sub> | 0.000 <sub>0/6</sub> |
+| `PP-DocLayoutV3` | 0.293 <sub>361/1232</sub> | 0.125 <sub>2/16</sub> | 0.476 <sub>350/736</sub> | 0.000 <sub>0/13</sub> | 0.074 <sub>2/27</sub> | 0.000 <sub>0/3</sub> | 0.244 <sub>11/45</sub> | 0.000 <sub>0/6</sub> |
+| `PP-DocLayout_plus-L` | 0.344 <sub>424/1232</sub> | 0.000 <sub>0/16</sub> | 0.541 <sub>398/736</sub> | 0.154 <sub>2/13</sub> | 0.370 <sub>10/27</sub> | 0.000 <sub>0/3</sub> | 0.178 <sub>8/45</sub> | 0.000 <sub>0/6</sub> |
+| `docling-egret` | 0.320 <sub>394/1232</sub> | 0.250 <sub>4/16</sub> | 0.507 <sub>373/736</sub> | 0.000 <sub>0/13</sub> | 0.481 <sub>13/27</sub> | 0.000 <sub>0/3</sub> | 0.156 <sub>7/45</sub> | 0.000 <sub>0/6</sub> |
+| `docling-heron` | 0.297 <sub>366/1232</sub> | 0.062 <sub>1/16</sub> | 0.471 <sub>347/736</sub> | 0.000 <sub>0/13</sub> | 0.667 <sub>18/27</sub> | 0.000 <sub>0/3</sub> | 0.133 <sub>6/45</sub> | 0.000 <sub>0/6</sub> |
+| `yolox_l0.05` | 0.322 <sub>397/1232</sub> | 0.125 <sub>2/16</sub> | 0.515 <sub>379/736</sub> | 0.000 <sub>0/13</sub> | 0.000 <sub>0/27</sub> | 0.000 <sub>0/3</sub> | 0.244 <sub>11/45</sub> | 0.000 <sub>0/6</sub> |
 
 ### charts_as_data ↓ — charts returned as a table of numbers: values read off a curve and placed in the book as text
 
-| model | annopage | atlas | hard | hard36 | katalog | matematika | slovar | spravochnik | zhurnal |
-|---|---|---|---|---|---|---|---|---|---|
-| `PP-DocLayoutV2` | · | · | · | · | · | · | · | · | · |
-| `PP-DocLayoutV3` | · | · | · | · | · | · | · | · | · |
-| `PP-DocLayout_plus-L` | · | · | · | · | · | · | · | · | · |
-| `docling-egret` | · | · | · | · | · | · | · | · | · |
-| `docling-heron` | · | · | · | · | · | · | · | · | · |
-| `yolox_l0.05` | · | · | · | · | · | · | · | · | · |
+| model | annopage | atlas | hard | katalog | matematika | slovar | spravochnik | zhurnal |
+|---|---|---|---|---|---|---|---|---|
+| `PP-DocLayoutV2` | · | · | · | · | · | · | · | · |
+| `PP-DocLayoutV3` | · | · | · | · | · | · | · | · |
+| `PP-DocLayout_plus-L` | · | · | · | · | · | · | · | · |
+| `docling-egret` | · | · | · | · | · | · | · | · |
+| `docling-heron` | · | · | · | · | · | · | · | · |
+| `yolox_l0.05` | · | · | · | · | · | · | · | · |
 
 ### looping ↓ — answers that repeat themselves
 
-| model | annopage | atlas | hard | hard36 | katalog | matematika | slovar | spravochnik | zhurnal |
-|---|---|---|---|---|---|---|---|---|---|
-| `PP-DocLayoutV2` | · | · | · | · | · | · | · | · | · |
-| `PP-DocLayoutV3` | · | · | · | · | · | · | · | · | · |
-| `PP-DocLayout_plus-L` | · | · | · | · | · | · | · | · | · |
-| `docling-egret` | · | · | · | · | · | · | · | · | · |
-| `docling-heron` | · | · | · | · | · | · | · | · | · |
-| `yolox_l0.05` | · | · | · | · | · | · | · | · | · |
+| model | annopage | atlas | hard | katalog | matematika | slovar | spravochnik | zhurnal |
+|---|---|---|---|---|---|---|---|---|
+| `PP-DocLayoutV2` | · | · | · | · | · | · | · | · |
+| `PP-DocLayoutV3` | · | · | · | · | · | · | · | · |
+| `PP-DocLayout_plus-L` | · | · | · | · | · | · | · | · |
+| `docling-egret` | · | · | · | · | · | · | · | · |
+| `docling-heron` | · | · | · | · | · | · | · | · |
+| `yolox_l0.05` | · | · | · | · | · | · | · | · |
 
 ## What the reading runs measured
 
@@ -557,88 +556,6 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 | `objects_left_as_text` ↓ | 0.057 <sub>42/734</sub> | 0.037 <sub>27/734</sub> | 0.040 <sub>29/734</sub> | 0.074 <sub>54/734</sub> | 0.075 <sub>55/734</sub> | 0.033 <sub>24/734</sub> |
 | `objects_torn` ↓ | 0.071 <sub>52/734</sub> | 0.129 <sub>95/734</sub> | 0.075 <sub>55/734</sub> | 0.074 <sub>54/734</sub> | 0.090 <sub>66/734</sub> | 0.311 <sub>228/734</sub> |
 | `objects_with_company` ↓ | 0.518 <sub>380/734</sub> | 0.480 <sub>352/734</sub> | 0.579 <sub>425/734</sub> | 0.586 <sub>430/734</sub> | 0.571 <sub>419/734</sub> | 0.497 <sub>365/734</sub> |
-
-- a dash: this run read nothing: every block would leave as a picture, which is not a measurement of one
-
-  params, the same for every model here: `GUTTER=0.5`, `GUTTER_BAND=0.2`, `JUNK_WIDTH=0.1`, `MID=0.2`, `MIN_SPREAD_RATIO=1.15`, `RULE_RUN=0.25`, `almost=0.95`, `bitten=0.8`, `dpi=[144]`, `edge_band=0.04`, `ink=160`, `intact=0.99`
-
-**snapshot**
-
-| scalar | PP-DocLayoutV2 | PP-DocLayoutV3 | PP-DocLayout_plus-L | docling-egret | docling-heron | yolox_l0.05 |
-|---|---|---|---|---|---|---|
-| `empty` ↓ | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 17 <sub>17/79</sub> |
-| `fingerprint_verified` = | 0 | 0 | 0 | 0 | 0 | 1 |
-| `missing` ↓ | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/79</sub> |
-| `values_present` = | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 79 <sub>79/79</sub> |
-
-### hard36
-
-**assembly**
-
-| scalar | PP-DocLayoutV2 | PP-DocLayoutV3 | PP-DocLayout_plus-L | docling-egret | docling-heron | yolox_l0.05 |
-|---|---|---|---|---|---|---|
-| `excess_jumps` ↓ | 87 | 83 | 159 | 149 | 139 | 90 |
-| `excess_jumps_per_page` ↓ | 2.806 <sub>over 31/36 pages</sub> | 2.677 <sub>over 31/36 pages</sub> | 5.129 <sub>over 31/36 pages</sub> | 4.515 <sub>over 33/36 pages</sub> | 4.088 <sub>over 34/36 pages</sub> | 3.214 <sub>over 28/36 pages</sub> |
-| `excess_jumps_per_transition` ↓ | 0.685 <sub>87/127</sub> | 0.680 <sub>83/122</sub> | 0.787 <sub>159/202</sub> | 0.801 <sub>149/186</sub> | 0.799 <sub>139/174</sub> | 0.789 <sub>90/114</sub> |
-| `excess_jumps_per_transition_one_rule` ↓ | 0.813 <sub>174/214</sub> | 0.791 <sub>148/187</sub> | 0.787 <sub>159/202</sub> | 0.801 <sub>149/186</sub> | 0.799 <sub>139/174</sub> | 0.789 <sub>90/114</sub> |
-| `pages_with_columns` = | 27 <sub>27/36</sub> | 26 <sub>26/36</sub> | 27 <sub>27/36</sub> | 27 <sub>27/36</sub> | 26 <sub>26/36</sub> | 21 <sub>21/36</sub> |
-| `transitions` = | 127 | 122 | 202 | 186 | 174 | 114 |
-
-  params, the same for every model here: `COLUMN_buckets_counted=['artifact', 'text']`, `COLUMN_full_width_box_share=0.6`, `COLUMN_min_boxes_per_page=2`, `COLUMN_x_overlap_of_narrow_box=0.5`, `order_rule_one_rule=ours_top_down_left_right (forced)`
-
-  `PP-DocLayoutV2` differs: `order_rule=model_rank`
-
-  `PP-DocLayoutV3` differs: `order_rule=model_rank`
-
-  `PP-DocLayout_plus-L` differs: `order_rule=ours_top_down_left_right: the model gives no rank`
-
-  `docling-egret` differs: `order_rule=ours_top_down_left_right`
-
-  `docling-heron` differs: `order_rule=ours_top_down_left_right`
-
-  `yolox_l0.05` differs: `order_rule=ours_top_down_left_right`
-
-**contour**
-
-| scalar | PP-DocLayoutV2 | PP-DocLayoutV3 | PP-DocLayout_plus-L | docling-egret | docling-heron | yolox_l0.05 |
-|---|---|---|---|---|---|---|
-| `artefacts_called_text` ↓ | 0.030 <sub>12/403</sub> | 0.002 <sub>1/403</sub> | 0.032 <sub>13/403</sub> | 0.042 <sub>17/403</sub> | 0.035 <sub>14/403</sub> | 0.010 <sub>4/403</sub> |
-| `artefacts_cropped` ↓ | 0.052 <sub>21/403</sub> | 0.045 <sub>18/403</sub> | 0.107 <sub>43/403</sub> | 0.050 <sub>20/403</sub> | 0.060 <sub>24/403</sub> | 0.050 <sub>20/403</sub> |
-| `artefacts_found` ↑ | 0.199 <sub>80/403</sub> | 0.206 <sub>83/403</sub> | 0.176 <sub>71/403</sub> | 0.191 <sub>77/403</sub> | 0.218 <sub>88/403</sub> | 0.094 <sub>38/403</sub> |
-| `artefacts_merged` = | 0.737 <sub>297/403</sub> | 0.667 <sub>269/403</sub> | 0.720 <sub>290/403</sub> | 0.670 <sub>270/403</sub> | 0.705 <sub>284/403</sub> | 0.653 <sub>263/403</sub> |
-| `artefacts_not_seen` ↓ | 0.032 <sub>13/403</sub> | 0.139 <sub>56/403</sub> | 0.037 <sub>15/403</sub> | 0.092 <sub>37/403</sub> | 0.055 <sub>22/403</sub> | 0.226 <sub>91/403</sub> |
-| `assembly_order` ↑ | — | — | — | — | — | — |
-| `label_errors` ↓ | 8 <sub>8/89</sub> | 11 <sub>11/96</sub> | — | — | — | — |
-| `model_order` ↑ | — | — | — | — | — | — |
-| `role_errors` ↓ | 1 <sub>1/89</sub> | 5 <sub>5/96</sub> | 3 <sub>3/82</sub> | 9 <sub>9/94</sub> | 6 <sub>6/102</sub> | 0 <sub>0/46</sub> |
-| `sense_whole` ↑ | 0.149 <sub>60/403</sub> | 0.146 <sub>59/403</sub> | 0.104 <sub>42/403</sub> | 0.146 <sub>59/403</sub> | 0.146 <sub>59/403</sub> | 0.062 <sub>25/403</sub> |
-| `text_furniture_found` ↑ | — | — | — | — | — | — |
-
-- a dash: text and furniture NOT MARKED in this truth
-- a dash: the two sides speak different label vocabularies; not compared
-- a dash: truth carries no order: not_said on 36 of 36 pages
-
-  params, the same for every model here: `COLUMN_buckets_counted=['artifact', 'text']`, `COLUMN_full_width_box_share=0.6`, `COLUMN_min_boxes_per_page=2`, `COLUMN_x_overlap_of_narrow_box=0.5`, `COVER_MATCH=0.75`, `SENSE_NEIGHBOUR=0.5`, `SENSE_WHOLE=0.9`, `TOL_PX=6.0`, `TOUCH=0.1`
-
-**fitness**
-
-| scalar | PP-DocLayoutV2 | PP-DocLayoutV3 | PP-DocLayout_plus-L | docling-egret | docling-heron | yolox_l0.05 |
-|---|---|---|---|---|---|---|
-| `area_under_boxes` = | 0.604 <sub>47926624/79298034</sub> | 0.540 <sub>42784210/79298034</sub> | 0.573 <sub>45439407/79298034</sub> | 0.574 <sub>45500090/79298034</sub> | 0.601 <sub>47662762/79298034</sub> | 0.496 <sub>39339941/79298034</sub> |
-| `boxes_per_page` = | 22.000 <sub>792/36</sub> | 18.417 <sub>663/36</sub> | 19.083 <sub>687/36</sub> | 31.944 <sub>1150/36</sub> | 32.000 <sub>1152/36</sub> | 11.278 <sub>406/36</sub> |
-| `ink_as_picture` = | — | — | — | — | — | — |
-| `ink_as_text` ↑ | — | — | — | — | — | — |
-| `ink_junk` = | 0.029 <sub>407228/13857314</sub> | 0.029 <sub>407228/13857314</sub> | 0.029 <sub>407228/13857314</sub> | 0.029 <sub>407228/13857314</sub> | 0.029 <sub>407228/13857314</sub> | 0.029 <sub>407228/13857314</sub> |
-| `ink_under_artefacts` = | 0.303 <sub>4193178/13857314</sub> | 0.289 <sub>4004842/13857314</sub> | 0.317 <sub>4394075/13857314</sub> | 0.304 <sub>4210109/13857314</sub> | 0.335 <sub>4646699/13857314</sub> | 0.262 <sub>3625712/13857314</sub> |
-| `ink_under_boxes` ↑ | 0.757 <sub>10495785/13857314</sub> | 0.700 <sub>9700902/13857314</sub> | 0.734 <sub>10175878/13857314</sub> | 0.752 <sub>10414007/13857314</sub> | 0.773 <sub>10718079/13857314</sub> | 0.610 <sub>8449863/13857314</sub> |
-| `ink_under_boxes_clean` ↑ | 0.779 <sub>10475009/13450086</sub> | 0.721 <sub>9693175/13450086</sub> | 0.756 <sub>10169710/13450086</sub> | 0.774 <sub>10405280/13450086</sub> | 0.795 <sub>10694336/13450086</sub> | 0.628 <sub>8441329/13450086</sub> |
-| `median_box_area` = | 0.012 | 0.012 | 0.013 | 0.007 | 0.009 | 0.026 |
-| `object_ink_preserved` ↑ | 0.948 <sub>5527339/5828260</sub> | 0.899 <sub>5240006/5828260</sub> | 0.948 <sub>5527880/5828260</sub> | 0.916 <sub>5338682/5828260</sub> | 0.949 <sub>5532404/5828260</sub> | 0.821 <sub>4785188/5828260</sub> |
-| `objects_in_one_box` ↑ | 0.908 <sub>365/402</sub> | 0.841 <sub>338/402</sub> | 0.886 <sub>356/402</sub> | 0.848 <sub>341/402</sub> | 0.896 <sub>360/402</sub> | 0.716 <sub>288/402</sub> |
-| `objects_intact` ↑ | 0.908 <sub>365/402</sub> | 0.841 <sub>338/402</sub> | 0.886 <sub>356/402</sub> | 0.848 <sub>341/402</sub> | 0.896 <sub>360/402</sub> | 0.716 <sub>288/402</sub> |
-| `objects_left_as_text` ↓ | 0.052 <sub>21/402</sub> | 0.030 <sub>12/402</sub> | 0.042 <sub>17/402</sub> | 0.082 <sub>33/402</sub> | 0.082 <sub>33/402</sub> | 0.045 <sub>18/402</sub> |
-| `objects_torn` ↓ | 0.070 <sub>28/402</sub> | 0.142 <sub>57/402</sub> | 0.070 <sub>28/402</sub> | 0.134 <sub>54/402</sub> | 0.092 <sub>37/402</sub> | 0.244 <sub>98/402</sub> |
-| `objects_with_company` ↓ | 0.769 <sub>309/402</sub> | 0.692 <sub>278/402</sub> | 0.774 <sub>311/402</sub> | 0.729 <sub>293/402</sub> | 0.784 <sub>315/402</sub> | 0.659 <sub>265/402</sub> |
 
 - a dash: this run read nothing: every block would leave as a picture, which is not a measurement of one
 

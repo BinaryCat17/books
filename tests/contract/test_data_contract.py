@@ -67,7 +67,7 @@ def test_the_things_that_must_never_be_committed_are_ignored():
     must_keep = ("results/slovar-PP-DocLayoutV2.json",
                  "docs/commands.md",
                  "bench/annopage/detect/PP-DocLayoutV2/run.json",
-                 "bench/annopage-lite/detect/dots-ocr/pages/0000.json")
+                 "bench/annopage/truth/0001.json")
     r = subprocess.run(["git", "check-ignore", "--no-index", *must_keep],
                        cwd=root, capture_output=True, text=True)
     hidden = [ln for ln in r.stdout.splitlines() if ln.strip()]
@@ -140,7 +140,7 @@ def test_the_rented_image_was_built_from_this_dockerfile():
 def test_no_cyrillic_key_survives_where_the_map_says_none_does():
     """The claim, measured -- because the tool that measured it was deleted.
 
-    `tools/keymap_check.py` walked `bench/`, `processed/` and `runs/` looking
+    a deleted check walked `bench/`, `processed/` and `runs/` looking
     for Cyrillic keys; it went when the key migration finished, and the map
     then acquired the sentence "no Cyrillic key survives in any json of
     bench/, processed/ or runs/". That sentence was FALSE --
@@ -199,7 +199,7 @@ def test_no_cyrillic_key_survives_where_the_map_says_none_does():
     # same green it reports over 2670 tracked json. The floor is deliberately
     # far below what is on disk: it has to survive a clone, where the six
     # synthetic books and all of `processed/` are behind .gitignore.
-    assert seen > 1500, (
+    assert seen > 700, (
         f"only {seen} json were read under {root} -- this check is measuring "
         f"nothing. Either the three globs stopped matching or the tree is not "
         f"where the root points.")

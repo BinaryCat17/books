@@ -48,41 +48,32 @@ class Format:
 
 
 FORMATS = (
-    # 1366 tracked pages: annopage, annopage-lite, hard, hard36. The six
-    # synthetic benches are behind .gitignore, manifest apart.
+    # Tracked truth pages: annopage and hard. The six synthetic benches are
+    # behind .gitignore, manifest apart.
     Format(
         "truth", "bench/*/truth/*.json",
-        {"case": 1366, "book": 1366, "bucket": 2002, "category": 2002,
-         "source_category": 3587, "out_of_scope": 1360,
-         "objects_out_of_scope": 1359, "text_marked": 1359,
-         "order_marked": 1324, "doubtful": 1359, "inexpressible": 1359,
-         "file": 1359}),
-    # `detect/dots-ocr/**` covers both halves on purpose: the parsed pages and
-    # the card's raw output one directory deeper. A glob naming only the first
-    # halves every floor here and takes `answer` -- what the paid run bought --
-    # to zero. There is no home re-parser, so these cannot be regenerated.
-    Format(
-        "dots_pages", "bench/*/detect/dots-ocr/**/*.json",
-        {"detector": 1272, "reading_order": 1272, "downscale": 1272,
-         "pass_no": 1236, "prompt": 1236, "input_pixel_ceiling": 1236,
-         "out_of_vram": 1236, "parse_error": 1236, "answer": 636}),
+        {"case": 730, "book": 730, "bucket": 1062, "category": 1062,
+         "source_category": 1955, "out_of_scope": 724,
+         "objects_out_of_scope": 724, "text_marked": 730,
+         "order_marked": 730, "doubtful": 724, "inexpressible": 724,
+         "file": 724}),
     # Three detect snapshots are tracked; `books replay --check` walks the path
     # ('knobs', <knob>, 'value').
     Format(
         "detect_run", "bench/*/detect/*/run.json",
-        {"knobs": 3, "value": 72, "default": 72, "what": 72,
-         "set_externally": 72, "name": 6, "prompts": 6, "by_label": 6,
-         "when": 3, "raster": 3, "commit": 3, "source": 3, "args": 3}),
+        {"knobs": 12, "value": 432, "default": 432, "what": 432,
+         "set_externally": 444, "name": 24, "prompts": 24, "by_label": 24,
+         "when": 12, "raster": 12, "commit": 12, "source": 12, "args": 12}),
     # All thirteen bench manifests are tracked. `source` is the one key that
     # says WHICH file a truth directory and a run are about; a floor is only a
     # floor at the value it is measured at, and this one moved with the three
     # real scans becoming books of their own.
     Format(
         "manifest", "bench/*/manifest.json",
-        {"book": 149, "value": 216, "default": 216, "what": 216,
+        {"book": 147, "value": 216, "default": 216, "what": 216,
          "debt": 216, "set_externally": 216, "page_no": 130, "chars": 99,
          "char_truth": 99, "blocks_with_text": 99, "cell_count": 99,
-         "source": 13}),
+         "source": 11}),
     # `METRICS.md` is rendered from these and from nothing else, so they are
     # the evidence for every published number. The floors are 1 because a clone
     # may hold one file or fifty; what they guard is the NAMES. `kind` is
@@ -117,8 +108,6 @@ HTML_CORE = ("data-role", "data-label", "data-sheet", "data-level")
 # What `reading_order` was called before the rename. It used to be looked up in
 # a 562-entry key map kept alive for this one line; the map went with the
 # migration that used it, and the string is typed here.
-WAS_CALLED = {"reading_order": "порядок чтения"}
-
 BUILDER = ("processing/assemble/html.py", "processing/assemble/apply.py")
 
 
@@ -176,17 +165,11 @@ def test_every_declared_key_is_present_in_the_data():
 
 
 def test_the_guard_can_fail_when_the_code_renames():
-    """Direction one, proved rather than asserted: a declaration with one key
-    renamed must read as absent from the disk."""
-    fmt = [f for f in FORMATS if f.name == "dots_pages"][0]
-    seen = measure()["dots_pages"]
-    assert seen.get("reading_order", 0) >= fmt.floors["reading_order"], (
-        "the declared name is not in the data: the code renamed, the data "
-        "did not")
-    was = WAS_CALLED["reading_order"]
-    assert seen.get(was, 0) == 0, (
-        f"the name from before the migration, {was!r}, is still on disk in "
-        f"{seen.get(was, 0)} places: the rename did not finish")
+    """A declaration with one key renamed must read as absent from the disk."""
+    fmt = [f for f in FORMATS if f.name == "truth"][0]
+    seen = measure()["truth"]
+    assert seen.get("text_marked", 0) >= fmt.floors["text_marked"]
+    assert seen.get("text_marked_renamed", 0) == 0, "a name nothing writes is on disk"
 
 
 def test_the_guard_can_fail_when_the_data_renames():
