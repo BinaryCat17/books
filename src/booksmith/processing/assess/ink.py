@@ -123,10 +123,19 @@ MID = 0.20
 JUNK_WIDTH = 0.10
 
 
-# The page raster does not change between runs, and the battery makes
-# TWENTY-THREE passes over the book (24 `measure` calls, 23 of them reading the
-# raster). Counted on bench/hard36: 828 renders with no cache over 36 pages,
-# exactly 23 x 36.
+# The page raster does not change between runs, and the battery makes THIRTY-ONE
+# passes over the book (32 `measure` calls, 31 of them reading the raster).
+# Counted on bench/hard36: 828 renders with no cache over 36 pages, exactly
+# 23 x 36 -- that was 23 passes, and the number is a count of probes, so it
+# moves whenever one is added. It is measured, not maintained: ask the battery.
+#
+# THE JUNK MASK RIDES THE SAME ARGUMENT and was recomputed on every one of the
+# thirty-one. It is a function of the raster and six constants -- the property
+# no model can move, which is what makes it cacheable -- and it cost 63 % on
+# top of a warm pass over bench/hard (6.9 s against 4.2 s), 41 % of a warm
+# pass over the golden bench. Cached on the same page, those 32 calls become
+# 12 distinct masks: the twelve threshold combinations the battery actually
+# exercises, and hits for the rest.
 #
 # THE COST IS MEASURED TOO, on an IDLE machine: 120 golden pages render with
 # thresholding in 33.4 s -- 278 ms a page, best of three, load average 0.6-1.0
@@ -243,6 +252,34 @@ def _clip(shape, box):
     if x1 < x0 or y1 < y0:
         return None
     return slice(y0, y1 + 1), slice(x0, x1 + 1)
+
+
+_JUNK_CACHE: dict = {}
+
+
+def _junk_of(pdf, i, dpi, ink):
+    """`_junk_columns`, cached on the same page the ink mask is cached on.
+
+    IT IS A FUNCTION OF THE RASTER AND SIX CONSTANTS, which is the property
+    the whole design rests on -- no model can move it -- and it is exactly
+    what makes it cacheable. Recomputed, it cost 41 % of a warm pass over the
+    golden bench and added 84 % to it, because the battery makes thirty-one
+    passes over a book and every one of them rebuilt the same answer from a
+    raster this module goes to great length to keep.
+
+    THE KEY CARRIES THE CONSTANTS, for the reason the ink key carries `INK`:
+    the battery moves all six to check they are alive, and a mask returned
+    from a key that ignored them would make a live threshold look dead and
+    the probe would blame the metric for nothing. The value is one boolean
+    per column -- a couple of kilobytes against the megabytes of the ink mask
+    it rides beside -- so it is not capped and not evicted.
+    """
+    key = (pdf, i, int(dpi), INK, GUTTER, MID, JUNK_WIDTH,
+           RULE_RUN, GUTTER_BAND, MIN_SPREAD_RATIO, EDGE)
+    hit = _JUNK_CACHE.get(key)
+    if hit is None:
+        hit = _JUNK_CACHE[key] = _junk_columns(ink)
+    return hit
 
 
 def _junk_columns(ink):
@@ -473,7 +510,7 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
         dpis.add(int(p["dpi"]))
         res["page_count"] += 1
         res["ink_total"] += int(ink.sum())
-        junk = _junk_columns(ink)
+        junk = _junk_of(pdf, i, p["dpi"], ink)
         # COUNTED OVER THE JUNK COLUMNS ALONE, never by building a second
         # sheet. `ink.copy()` doubled the page mask to subtract a band that
         # is at most a tenth of it by construction, and this metric already
