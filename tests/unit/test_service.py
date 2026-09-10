@@ -21,7 +21,7 @@ def test_a_user_store_runs_a_preset_whole_or_the_defaults_and_the_admin_anything
         service.check(user, {"PAGE_DPI": "73"}, PRESETS)
     with pytest.raises(Refusal):
         service.check(user, {"PAGE_DPI": "72", "CROP_MARGIN": "0"}, PRESETS)
-    service.check(service.ADMIN, {"PAGE_DPI": "73"}, PRESETS)
+    service.check(service.admin(), {"PAGE_DPI": "73"}, PRESETS)
     with pytest.raises(Refusal):
         service.detect(user, str(tmp_path / "elsewhere" / "book.pdf"), {})
 
@@ -72,7 +72,7 @@ def test_a_named_entry_fills_the_endpoint_after_the_check_and_carries_its_key(tm
         service._job(user, {}, "nope")
     with pytest.raises(Refusal):
         service._job(user, {}, "img")
-    j = service._job(service.ADMIN, {}, "vlm")
+    j = service._job(service.admin(), {}, "vlm")
     assert j.settings["VLM_ENDPOINT"] == "http://127.0.0.1:9/v1"
     assert j.secrets["VLM_API_KEY"] == "sk-a-secret"
     with j.active():
@@ -83,6 +83,6 @@ def test_a_named_entry_fills_the_endpoint_after_the_check_and_carries_its_key(tm
     presets["lay"]["api_key"] = "sk-lay"
     with job.Job(secrets={"VLM_API_KEY": "sk-operator"}).active():
         mine = service._job(user, {}, "lay")
-        theirs = service._job(service.ADMIN, {}, "lay")
+        theirs = service._job(service.admin(), {}, "lay")
     assert mine.secrets == {"LAYOUT_API_KEY": "sk-lay"}
     assert theirs.secrets == {"VLM_API_KEY": "sk-operator", "LAYOUT_API_KEY": "sk-lay"}

@@ -88,3 +88,9 @@ address and the adapter that reached it are not in the hash.
 with the knobs read on both sides, and
 `src/booksmith/core/stamp.py:KNOBS_NOT_IDENTITY` keeps the endpoints and the
 adapter's name out.
+
+**A store reaches only itself.** A user's job reads and writes under the
+user's store, by real path, outputs included; the admin's store is the data
+home. `src/booksmith/service.py:_inside` refuses every path a service
+function is given that lies outside, and the web's routes take names, never
+paths, so there is nothing to refuse.

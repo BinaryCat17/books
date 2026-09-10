@@ -56,6 +56,7 @@ class FakeVlm:
                     img = base64.b64decode(uri.split(",", 1)[1])
                 srv.seen.append({"prompt": prompt, "bytes": len(img),
                                  "model": req.get("model"),
+                                 "authorization": self.headers.get("Authorization"),
                                  "generation": {k: v for k, v in req.items()
                                                 if k in ("temperature",
                                                          "max_tokens")}})

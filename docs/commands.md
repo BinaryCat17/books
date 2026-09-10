@@ -4,7 +4,7 @@
 
 ```
 usage: books [-h]
-             {offers,prepare,detect,hybrid,html,crop,fitness,subset,annopage,score,read,apply,text,overlay,synth,bench,ls,down,reap,serve,doctor,ledger,replay,docs} ...
+             {offers,prepare,detect,hybrid,html,crop,fitness,subset,annopage,score,read,apply,text,overlay,synth,bench,ls,down,reap,web,serve,doctor,ledger,replay,docs} ...
 
 Single entry point: books <command>.
 
@@ -33,6 +33,8 @@ Single entry point: books <command>.
     books bench report           every measured number, as METRICS.md
     books serve layout           a detector of the tree's own behind the protocol
     books serve vlm              a vLLM behind describe and health, chat passed through
+    books web serve              the backend: users, jobs and HTTP over the service
+    books web user <name>        a user of the web, with a store of their own
     books ls | books down 12345 | books reap
     books ledger                 run journal and the estimate from it
     books replay --check out/    is the input snapshot complete
@@ -42,7 +44,7 @@ This list is `books --help`, and `tests/contract/test_docs.py` checks it
 against the parser both ways. Every command with its flags: `docs/commands.md`.
 
 positional arguments:
-  {offers,prepare,detect,hybrid,html,crop,fitness,subset,annopage,score,read,apply,text,overlay,synth,bench,ls,down,reap,serve,doctor,ledger,replay,docs}
+  {offers,prepare,detect,hybrid,html,crop,fitness,subset,annopage,score,read,apply,text,overlay,synth,bench,ls,down,reap,web,serve,doctor,ledger,replay,docs}
     offers              look at the market, renting nothing
     prepare             unfold djvu into PDF
     detect              level-one contours, locally
@@ -64,6 +66,7 @@ positional arguments:
     ls                  what is rented right now
     down                destroy an instance
     reap                destroy everything our runs left behind
+    web                 the backend: users, jobs and HTTP over the service
     serve               a model of the tree's own behind the model protocol
     doctor              check the environment before spending money
     ledger              run journal and the estimate from it
@@ -422,6 +425,45 @@ usage: books reap [-h]
 
 options:
   -h, --help  show this help message and exit
+```
+
+## books web
+
+```
+usage: books web [-h] {serve,user} ...
+
+positional arguments:
+  {serve,user}
+    serve       run the backend until stopped
+    user        a user of the web, with a store of their own; the password
+                from BOOKSMITH_PASSWORD or a prompt
+
+options:
+  -h, --help    show this help message and exit
+```
+
+## books web serve
+
+```
+usage: books web serve [-h] [--host HOST] [--port PORT]
+
+options:
+  -h, --help   show this help message and exit
+  --host HOST
+  --port PORT
+```
+
+## books web user
+
+```
+usage: books web user [-h] [--role {admin,user}] name
+
+positional arguments:
+  name
+
+options:
+  -h, --help           show this help message and exit
+  --role {admin,user}
 ```
 
 ## books serve

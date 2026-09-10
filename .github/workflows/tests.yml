@@ -8,7 +8,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
-      - run: uv sync --extra remote --extra detect --extra docling --group dev --frozen
+      - run: uv sync --extra remote --extra detect --extra docling --extra web --group dev --frozen
       - run: set -o pipefail; uv run pytest -q -rs | tee pytest.log
       - name: enough checks actually ran
         run: |

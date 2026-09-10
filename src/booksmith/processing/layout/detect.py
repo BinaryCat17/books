@@ -12,6 +12,7 @@ run and a label outside the policy vocabulary all refuse out loud.
 import os
 import shlex
 import sys
+import tempfile
 import time
 
 from booksmith.processing.layout.adapters.doclayout import DocLayout
@@ -279,7 +280,10 @@ def run(pdf, outdir, pages_spec=None, det=None, hybrid=False):
         f"counting {len(idxs)} at {dpi_used} dpi")
 
     t0 = time.time()
-    tmp = os.path.join(outdir, f".page.{os.getpid()}.png")
+    # A name of its own, not the process's: two jobs of one process into one
+    # directory would otherwise overwrite each other's raster mid-page.
+    fd, tmp = tempfile.mkstemp(prefix=".page.", suffix=".png", dir=outdir)
+    os.close(fd)
     counts, rej_best, rej_pages = {}, {}, {}
     artefacts = ties = 0
     spellings = set()

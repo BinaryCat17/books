@@ -27,6 +27,7 @@ from booksmith.core import knobs
 from booksmith.core import book, raster as crop
 from booksmith.core.book import ASSETS, SOURCE
 from booksmith.processing.assemble import swap
+from booksmith.core import job
 from booksmith.core.log import log
 
 # Shortest normalised text taken as evidence: below it a match is coincidence.
@@ -724,9 +725,13 @@ def build(detect_dir: str, out_dir: str) -> dict:
     ink2 = sheet_pt_all = 0.0
     worst2 = (0.0, None)
     biggest = (0.0, None)
-    for fp in files:
+    for page_n, fp in enumerate(files, 1):
+        # A build is a job: it says where it is and can be stopped between pages.
+        job.current().check()
         with open(fp, encoding="utf-8") as f:
             page = Page.from_json(json.load(f))
+        if page_n % 10 == 0 or page_n == len(files):
+            log(f"  {page_n}/{len(files)} pages built", n=page_n, of=len(files))
         order_src = _order_src(page)
         order_src_n[order_src] = order_src_n.get(order_src, 0) + 1
         arts = [b for b in page.blocks if pol.role(b.label) == "artifact"]

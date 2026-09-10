@@ -131,7 +131,7 @@ def read_identity(reader: Reader, transport) -> tuple[str, dict]:
 
 
 def read_book(detect_dir: str, out_dir: str, reader: Reader,
-              transport: Transport, resume: bool = True,
+              transport: Transport | None, resume: bool = True,
               pages_want=None, pdf: str | None = None,
               preview: bool = False) -> dict:
     """Walk the book and fill in block content. Returns quantities.

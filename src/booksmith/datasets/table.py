@@ -8,7 +8,7 @@ import json
 import os
 import time
 
-from booksmith.core import config, stamp
+from booksmith.core import job, stamp
 from booksmith.core.errors import Refusal
 from booksmith.datasets import metrics as registry
 from booksmith.datasets.bench import Bench, Run, same_book
@@ -57,17 +57,22 @@ def rows(bench: Bench, run: Run, which=None) -> list:
             f"{', '.join(sorted(m.needs - have))}")
     note = same_book(bench, run)
     out = []
-    for m in todo:
-        log(f"{m.name}: {note}")
+    for i, m in enumerate(todo, 1):
+        # Asked before every metric: a measure is a job, and a job can be stopped.
+        job.current().check()
+        log(f"{m.name}: {note}", n=i, of=len(todo), metric=m.name)
         out.append(m.run_loaded(bench, run, pages, model, note))
     return out
 
 
-def results_path(bench: Bench, run: Run, which=None, store: str = config.ROOT) -> str:
-    """Where the table lands, under the store's `results/`. A selection gets
-    its own name, and so does a level: a detector and a reader can share a
-    label, and one file for both would overwrite. `detect` keeps the bare
-    name, renaming nothing on disk."""
+def results_path(bench: Bench, run: Run, which=None, store: str | None = None) -> str:
+    """Where the table lands, under the store's `results/`, the store being
+    the one the bench lies in unless named. A selection gets its own name,
+    and so does a level: a detector and a reader can share a label, and one
+    file for both would overwrite. `detect` keeps the bare name, renaming
+    nothing on disk."""
+    from booksmith.core import book as book_mod
+    store = store or book_mod.store_of(bench.root)
     tail = "-only-" + "+".join(which) if which else ""
     kind = run.kind
     level = f"{kind}-" if kind and kind != "detect" else ""

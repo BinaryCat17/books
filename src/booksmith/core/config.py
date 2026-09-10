@@ -1,32 +1,54 @@
-"""Secrets and paths.
+"""Two roots, and the secrets.
 
-Secrets live in `.env` at the project root (mode 600, not versioned). The code
-only reads that file and passes the values on through stdin or the
-environment, so they reach neither command arguments nor the onstart scripts
-vast.ai keeps and shows in its console.
+`INSTALL` is where the package is: the repository on a developer's machine,
+the source of the generated documents and the commit stamp, and what the
+suite walks. `home()` is where the data is: the admin's store with its
+`bench/`, `processed/`, `results/`, `raw/`, `models.json` and the web's
+database, and the users' stores under `users/`. `BOOKSMITH_HOME` names it;
+unset, the data home is the install path, and nothing changes for a
+developer's tree. Not a knob: where a run is filed is not what a run does.
+
+Secrets live in `.env` in the data home (mode 600, not versioned). The code
+only reads that file and passes the values on through the job, so they
+reach neither command arguments nor a snapshot.
 """
 import os
 
 import booksmith
 
 # The repository root: src/booksmith/__init__.py is three levels down.
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(booksmith.__file__))))
-ENV_FILE = os.path.join(ROOT, ".env")
+INSTALL = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(booksmith.__file__))))
+# The old name, for what means the repository: tests, documents, the commit.
+ROOT = INSTALL
 DEFAULT_SSH_KEY = os.path.expanduser("~/.ssh/id_ed25519_vast")
 
 
+def home() -> str:
+    """The data root: `BOOKSMITH_HOME`, else the install path. Asked at each
+    use, not at import, so a process that sets it before its first store
+    is honoured."""
+    return os.path.abspath(os.environ.get("BOOKSMITH_HOME") or INSTALL)
+
+
+def env_file() -> str:
+    return os.path.join(home(), ".env")
+
+
 def env(name: str, default: str | None = None) -> str | None:
-    """From the environment, else from .env, else the default."""
+    """From the environment, else from `.env` in the data home, else the default."""
     if os.environ.get(name):
         return os.environ[name]
     # One location only, so no two places can disagree about where secrets live.
-    for path in (ENV_FILE,):
-        if os.path.exists(path):
-            for line in open(path):
+    path = env_file()
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            for line in f:
                 line = line.strip()
                 if line.startswith(name + "="):
                     return line.split("=", 1)[1].strip()
     return default
+
+
 def secrets() -> dict[str, str]:
     """What the command line hands its job: the one key `.env` may hold. The
     web builds its jobs' secrets from the model registry instead."""

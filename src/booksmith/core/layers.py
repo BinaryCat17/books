@@ -13,6 +13,8 @@ MAY_IMPORT = {
     # The model side of the protocol: a detector or a vLLM behind HTTP.
     "serving": ("core", "processing"),
     "service": ("core", "remote", "processing", "datasets"),
-    "cli": ("core", "remote", "processing", "datasets", "service", "serving"),
+    # The web: users, jobs and HTTP over the service.
+    "web": ("core", "remote", "processing", "datasets", "service"),
+    "cli": ("core", "remote", "processing", "datasets", "service", "serving", "web"),
 }
 

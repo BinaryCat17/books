@@ -32,17 +32,19 @@ src/booksmith/
   remote/      renting and running any job on a rented machine; knows nothing
                about books
   serving/     the model side of the protocol: a detector or a vLLM behind HTTP
+  web/         users, their stores, jobs in the background, HTTP over service.py
   service.py   what the CLI and the web share: stores, presets, one function
                per command
   cli.py       books <command>
 tests/         pytest: unit/ behaviour, contract/ the declarations, bench/ what
-               needs the drawn bench, e2e/ what runs a command end to end
+               needs the drawn bench, e2e/ what runs a command end to end,
+               web/ the backend over a data home of its own
 tools/         sweep.py: every model over every bench
 ```
 
 Imports go one way, down that list; the table is `src/booksmith/core/layers.py`.
 
-## The five commands that matter
+## The commands that matter
 
 ```
 books doctor                 check everything before money moves
@@ -50,6 +52,7 @@ books detect <book|pdf>      level one, locally and free
 books read <detect dir>      level two, paid
 books html <dir>             the book as HTML
 books bench all <bench>      every applicable metric, one table, one JSON
+books web serve              the backend over the data home
 ```
 
 All of them, with their flags: `docs/commands.md`.
@@ -61,8 +64,8 @@ be able to fail. Log the quantity, not the word done. Zero from a check and
 zero from not understanding are different zeros. A knob is declared in the
 registry and read through the job. Numbers may be flagged, never restored. One
 run per label, and a different identity refuses. Imports go one way. The same
-book, by hash. Identity is what a model serves, never where it runs. Each
-with the symbol that enforces it: `docs/rules.md`.
+book, by hash. Identity is what a model serves, never where it runs. A store
+reaches only itself. Each with the symbol that enforces it: `docs/rules.md`.
 
 ## Tests
 

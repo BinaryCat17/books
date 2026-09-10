@@ -13,15 +13,15 @@ from booksmith.core import knobs
 from booksmith.core.log import log
 from booksmith.core.page import write_json
 
-# A relative path would lose the whole history when run from another directory,
-# and the pick of warmed machines with it.
-from booksmith.core.config import ROOT as _ROOT
+# The data home and not a relative path, which would lose the whole history
+# when run from another directory, and the pick of warmed machines with it.
+from booksmith.core import config
 
 
 def file() -> str:
     """Where the journal is, asked at each use and not at import so a job's
     own setting is honoured."""
-    return knobs.knob("BOOKSMITH_LEDGER") or os.path.join(_ROOT, "runs", "ledger.jsonl")
+    return knobs.knob("BOOKSMITH_LEDGER") or os.path.join(config.home(), "runs", "ledger.jsonl")
 
 
 def bad_file() -> str:

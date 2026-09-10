@@ -14,6 +14,7 @@ import pymupdf
 from booksmith.core import stamp
 from booksmith.core.errors import Refusal
 from booksmith.core import book
+from booksmith.core import job
 from booksmith.core.log import log
 
 # Caption font: a PREFERENCE, not a requirement -- used when it is there, the
@@ -185,6 +186,9 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None) -> dict:
     for i, page in enumerate(doc):
         if only is not None and i not in only:
             continue
+        job.current().check()
+        if (i + 1) % 20 == 0 or i + 1 == doc.page_count:
+            log(f"  {i + 1}/{doc.page_count} sheets", n=i + 1, of=doc.page_count)
         if page.rotation:
             die(f"page {i} is rotated by a PDF attribute ({page.rotation}°): "
                 f"the boxes would lie across it. Unrotate the PDF first.")

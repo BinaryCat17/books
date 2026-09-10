@@ -1,12 +1,12 @@
 """The service: what the CLI and the web share, one function per command.
 
 A store is a root directory in the shape `core/book.py` declares, `bench/`
-and `processed/` under it. A user owns one; the admin's is the repository
-root. Ownership of a book, its runs and its truth is the store it lies in.
-Every function takes the store and the settings of the run and works under a
-job bound to them, on paths inside that store. A store other than the admin's
-may run only a preset from the admin's `models.json`, or the registry's
-defaults.
+and `processed/` under it. A user owns one, under `users/` in the data home;
+the admin's is the data home itself. Ownership of a book, its runs and its
+truth is the store it lies in. Every function takes the store and the
+settings of the run and works under a job bound to them, on paths inside
+that store, outputs included. A store other than the admin's may run only a
+preset from the admin's `models.json`, or the registry's defaults.
 
 Models are data: `models.json` is `{name: {kind, endpoint | image + provider,
 knobs, api_key, idle_s, budget}}`. `kind` is layout, reader or hybrid; `knobs`
@@ -19,13 +19,18 @@ snapshot. The fingerprint, label and identity stay the model's own.
 import dataclasses
 import json
 import os
+import re
+import shutil
 from collections.abc import Mapping
 
-from booksmith.core import book, config, job, knobs, served
+from booksmith.core import book, config, job, knobs, served, stamp
 from booksmith.core.errors import Refusal
 from booksmith.core.log import log
 
-ADMIN = config.ROOT
+
+def admin() -> str:
+    """The admin's store: the data home."""
+    return config.home()
 
 
 def registry(raw: object, where: str = "models.json") -> dict:
@@ -60,17 +65,30 @@ def registry(raw: object, where: str = "models.json") -> dict:
     return out
 
 
+def models_path() -> str:
+    return os.path.join(admin(), "models.json")
+
+
 def models() -> dict:
     """The presets the admin declared, checked."""
-    path = os.path.join(ADMIN, "models.json")
+    path = models_path()
     if not os.path.isfile(path):
         return {}
     with open(path, encoding="utf-8") as f:
         return registry(json.load(f), path)
 
 
+def write_models(raw: object) -> dict:
+    """The registry written whole, checked first: a file that does not pass
+    `registry` is never on disk."""
+    checked = registry(raw)
+    from booksmith.core.page import write_json
+    write_json(models_path(), raw, indent=1)
+    return checked
+
+
 def _admin(store: str) -> bool:
-    return os.path.abspath(store) == os.path.abspath(ADMIN)
+    return os.path.realpath(store) == os.path.realpath(admin())
 
 
 def _entry(model: str, presets: Mapping) -> dict:
@@ -102,9 +120,15 @@ def check(store: str, settings: Mapping, presets: Mapping | None = None,
               "defaults.")
 
 
-def _inside(store: str, path: str) -> str:
-    if not _admin(store) and not os.path.abspath(path).startswith(
-            os.path.abspath(store) + os.sep):
+def _inside(store: str, path: str | None) -> str | None:
+    """A path a store other than the admin's may read or write: one under
+    the store by its real path, so a link inside the store reaches nothing
+    outside it. None passes: it is a default the callee derives inside."""
+    if path is None or _admin(store):
+        return path
+    real = os.path.realpath(path)
+    root = os.path.realpath(store)
+    if real != root and not real.startswith(root + os.sep):
         raise Refusal(f"{path} lies outside the store {store}")
     return path
 
@@ -132,7 +156,8 @@ def _job(store: str, settings: Mapping, model: str = "",
     entry's key among the secrets. Empty settings under a named entry are
     the entry's knobs: a preset runs whole, never under the defaults by
     accident. A store other than the admin's starts with no secrets but the
-    entry's: the process's own key is the operator's, not the tenant's."""
+    entry's: the process's own key is the operator's, not the tenant's. The
+    caller's job keeps its stop and its sink, so two jobs stop apart."""
     presets = models()
     settings = dict(settings)
     if model and not settings:
@@ -168,16 +193,93 @@ def open_book(path: str, kind: str, label: str) -> tuple:
     return b, b.run(label, kind)
 
 
+# ------------------------------------------------------------------ books
 def books(store: str) -> list[str]:
     return book.Book.list(store)
 
 
+def book_dir(store: str, name: str) -> str:
+    """The directory of a book named as `books` lists it, `bench/<x>` or
+    `processed/<x>`, inside the store; anything else is refused by name."""
+    if name not in books(store):
+        raise Refusal(f"no book {name!r} in this store; there are "
+                      f"{books(store) or 'none'}")
+    return os.path.join(store, name)
+
+
+_SAFE = re.compile(r"[^\w.,()-]+", re.UNICODE)
+
+
+def upload(store: str, scan: str, name: str = "") -> str:
+    """A scan into the store as a book: `processed/<name>/` with the scan
+    beside its manifest, the hash taken once here and trusted after. A name
+    already taken, or a scan the store already holds under another name, is
+    refused: two books of one scan measure as one and read as two."""
+    if not os.path.isfile(scan):
+        raise Refusal(f"no file {scan}")
+    stem = name or os.path.splitext(os.path.basename(scan))[0]
+    safe = _SAFE.sub("-", stem).strip("-")[:80]
+    if not safe:
+        raise Refusal(f"{stem!r} leaves no name for a book directory")
+    dest = os.path.join(store, "processed", safe)
+    if os.path.exists(dest):
+        raise Refusal(f"the store already holds a book named {safe!r}")
+    sha = stamp.sha256(scan)
+    for rel in books(store):
+        with open(os.path.join(store, rel, "manifest.json"), encoding="utf-8") as f:
+            had = (json.load(f).get("source") or {}).get("sha256")
+        if had == sha:
+            raise Refusal(f"this scan is already the book {rel}: same sha256")
+    from booksmith.core.page import write_json
+    fname = os.path.basename(scan)
+    os.makedirs(dest)
+    shutil.copy2(scan, os.path.join(dest, fname))
+    write_json(os.path.join(dest, "manifest.json"),
+               {"book": safe, "source": {"name": fname, "sha256": sha}}, indent=1)
+    log(f"book {safe}: {fname}, sha256 {sha[:12]}", book=safe)
+    return dest
+
+
+def runs(store: str, name: str) -> list[dict]:
+    """Every run of a book: kind, label, identity, page count, and whether
+    its snapshot is there, which is what makes a directory a run."""
+    from booksmith.core.page import load_pages
+    d = book_dir(store, name)
+    out = []
+    for kind in book.KINDS:
+        base = os.path.join(d, kind)
+        if not os.path.isdir(base):
+            continue
+        for label in sorted(os.listdir(base)):
+            rd = os.path.join(base, label)
+            pages = os.path.join(rd, "pages")
+            if not os.path.isdir(pages):
+                continue
+            snap_path = os.path.join(rd, "run.json")
+            snap = {}
+            if os.path.isfile(snap_path):
+                with open(snap_path, encoding="utf-8") as f:
+                    snap = json.load(f)
+            try:
+                n = len(load_pages(pages))
+            except Exception:
+                n = 0
+            out.append({"kind": kind, "label": label, "identity": snap.get("identity"),
+                        "pages": n, "complete": bool(snap),
+                        "level": "hybrid" if snap.get("layout") == "own" else kind,
+                        "when": snap.get("when")})
+    return out
+
+
+# ------------------------------------------------------------- level one
 def _level_one(store: str, target: str, settings: Mapping, pages: str | None,
-               out: str | None, model: str, hybrid: bool) -> str:
+               out: str | None, model: str, hybrid: bool,
+               base: job.Job | None) -> str:
     from booksmith.processing.layout import detect as level_one
     _inside(store, target)
+    _inside(store, out)
     kind, suffix = ("read", ".hybrid") if hybrid else ("detect", ".detect")
-    with _job(store, settings, model).active():
+    with _job(store, settings, model, base).active():
         # The adapter before the pages: its label files the run, and a run
         # that cannot be filed refuses before a page is rendered. Built once
         # and handed to the loop, so one run loads one session.
@@ -199,39 +301,56 @@ def _level_one(store: str, target: str, settings: Mapping, pages: str | None,
 
 
 def detect(store: str, target: str, settings: Mapping, pages: str | None = None,
-           out: str | None = None, model: str = "") -> str:
+           out: str | None = None, model: str = "",
+           base: job.Job | None = None) -> str:
     """Level one over a book directory or a bare PDF. Returns the run
     directory: under the book as `detect/<label>/`, else beside the file."""
-    return _level_one(store, target, settings, pages, out, model, hybrid=False)
+    return _level_one(store, target, settings, pages, out, model, False, base)
 
 
 def hybrid(store: str, target: str, settings: Mapping, pages: str | None = None,
-           out: str | None = None, model: str = "") -> str:
+           out: str | None = None, model: str = "",
+           base: job.Job | None = None) -> str:
     """Boxes and content in one call from a served hybrid model, filed as a
     read run with its own boxes: `read/<label>/` under the book, else beside
     the file. Returns the run directory."""
-    return _level_one(store, target, settings, pages, out, model, hybrid=True)
+    return _level_one(store, target, settings, pages, out, model, True, base)
+
+
+# ------------------------------------------------------------- level two
+def _book_of(run_dir: str) -> book.Book | None:
+    """The book a run directory lies under, or None beside a bare file."""
+    up = os.path.dirname(os.path.dirname(os.path.abspath(run_dir.rstrip("/"))))
+    if os.path.isfile(os.path.join(up, "manifest.json")):
+        return book.Book.open(up)
+    return None
 
 
 def read(store: str, detect_dir: str, settings: Mapping, out: str | None = None,
-         pages: str = "", policy: str = "", model: str = "") -> str:
+         pages: str = "", policy: str = "", model: str = "",
+         base: job.Job | None = None) -> str:
     """Level two over a detect run, through `VLM_ENDPOINT`; `pages` as
-    `books detect` counts them, from one. Returns the run directory,
-    `<detect dir>.read` unless named."""
+    `books detect` counts them, from one. Returns the run directory:
+    `read/<label>/` under the book the detect run lies in, else
+    `<detect dir>.read`, unless named."""
     from booksmith.core import raster
     from booksmith.processing.layout.detect import parse_pages
     from booksmith.processing.read import driver
     from booksmith.processing.read.transports import openai_http
     _inside(store, detect_dir)
-    with _job(store, settings, model).active():
-        out = out or (os.path.abspath(detect_dir).rstrip("/") + ".read")
+    _inside(store, out)
+    with _job(store, settings, model, base).active():
         want = None
         if pages:
             with raster.open_pdf(book.pdf_of(detect_dir)) as d:
                 want = set(parse_pages(pages, d.page_count))
         pol = driver.policy_for(detect_dir, policy, what="the paid run")
-        os.makedirs(out, exist_ok=True)
         reader = driver.build_reader(pol)
+        if out is None:
+            bk = _book_of(detect_dir)
+            out = (bk.run_dir("read", reader.label()) if bk is not None
+                   else os.path.abspath(detect_dir).rstrip("/") + ".read")
+        os.makedirs(out, exist_ok=True)
         transport = openai_http.build()
         who = transport.check()
         log(f"endpoint {who['endpoint']}: answers {who['models_on_server']}, "
@@ -246,19 +365,143 @@ def read(store: str, detect_dir: str, settings: Mapping, out: str | None = None,
         return out
 
 
+def crop(store: str, detect_dir: str, settings: Mapping, out: str | None = None,
+         pages: str = "", policy: str = "", base: job.Job | None = None) -> dict:
+    """What `books read` would send, cut by its own path: the driver in
+    preview, nothing sent. Returns the tally."""
+    from booksmith.core import raster
+    from booksmith.processing.layout.detect import parse_pages
+    from booksmith.processing.read import driver
+    _inside(store, detect_dir)
+    _inside(store, out)
+    with _job(store, settings, "", base).active():
+        d = book.run_dir(detect_dir, "books crop")
+        out = out or (os.path.abspath(d).rstrip("/") + ".crop")
+        pol = driver.policy_for(d, policy, what="the preview")
+        os.makedirs(out, exist_ok=True)
+        reader = driver.build_reader(pol)
+        want = None
+        if pages:
+            with raster.open_pdf(book.pdf_of(d)) as doc:
+                want = set(parse_pages(pages, doc.page_count))
+        t = driver.read_book(d, out, reader, None, resume=False, pages_want=want,
+                             preview=True)
+        t["out"] = out
+        return t
+
+
+# ----------------------------------------------------------------- the book
+def html(store: str, run_dir: str, settings: Mapping, out: str | None = None,
+         base: job.Job | None = None) -> str:
+    """The book as HTML out of a detect or read run: into the book directory
+    the run lies in, else the store's `processed/`, unless named. Foreign
+    work is not overwritten: a non-empty directory the builder did not make
+    is a refusal out loud. Returns the build directory."""
+    from booksmith.processing.assemble import html as html_mod
+    _inside(store, run_dir)
+    _inside(store, out)
+    with _job(store, settings, "", base).active():
+        d = book.run_dir(run_dir, "books html")
+        named = out is not None
+        out = out or book.home_for(d, store)
+        if (not named and os.path.isdir(out) and os.listdir(out)
+                and not html_mod.is_our_dir(out)
+                and not os.path.isfile(os.path.join(out, "manifest.json"))):
+            raise Refusal(
+                f"{out} already holds something not ours: neither "
+                f"`{html_mod.ASSETS}/run.json` nor `run.json` in the root — so "
+                f"the directory was not built by `books html`. Overwriting it "
+                f"silently is not allowed: give --out or remove it by hand.")
+        html_mod.build(d, out)
+        return out
+
+
+def overlay(store: str, pdf: str, truth: str | None, detect_dir: str | None,
+            out: str | None = None, pages: str = "",
+            base: job.Job | None = None) -> str:
+    """Boxes over the pages, for the eye: truth, the model's, or both.
+    Returns the PDF written."""
+    from booksmith.datasets import look
+    from booksmith.processing.layout import detect as level_one
+    from booksmith.core import raster
+    for p in (pdf, truth, detect_dir, out):
+        _inside(store, p)
+    marks = [(book.pages_dir(truth, "--truth"), "T")] if truth else []
+    if detect_dir:
+        marks.append((book.pages_dir(detect_dir, "--detect"), "M"))
+    if not marks:
+        raise Refusal("nothing to draw: give --truth and/or --detect")
+    with _job(store, {}, "", base).active():
+        out = out or look.look_at(pdf, detect_dir)
+        only = None
+        if pages:
+            with raster.open_pdf(pdf) as doc:
+                only = level_one.parse_pages(pages, doc.page_count)
+        os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
+        look.build(pdf, out, marks, only=only)
+        return out
+
+
+# --------------------------------------------------------------- measuring
 def bench(store: str, path: str, settings: Mapping, run: str = "",
           kind: str = "detect", only: list | None = None,
-          json_path: str | None = None) -> str:
+          json_path: str | None = None, base: job.Job | None = None) -> str:
     """Every applicable metric on one run of a book: one table printed, one
     JSON written under the store's `results/`. Returns the JSON path."""
     from booksmith.datasets import table
     _inside(store, path)
-    with _job(store, settings).active():
+    _inside(store, json_path)
+    with _job(store, settings, "", base).active():
         b, r = open_book(path, kind, run)
         recs = table.rows(b, r, only)
         table.render(recs)
         json_path = json_path or table.results_path(b, r, only, store)
         return table.write_json(recs, json_path, kind=r.level)
+
+
+def selfcheck(store: str, path: str, run: str = "", kind: str = "detect",
+              only: list | None = None, base: job.Job | None = None) -> dict:
+    """Every applicable metric's probes on one bench and run: can the numbers
+    fall. Returns the counts; `uncaught` is what a caller exits on."""
+    from booksmith.datasets.metrics import BY_NAME, METRICS
+    from booksmith.datasets.metrics import base as mbase
+    _inside(store, path)
+    with _job(store, {}, "", base).active():
+        b, r = open_book(path, kind, run)
+        pages = b.pages() if b.truth_dir else {}
+        fit = mbase.applicable(METRICS, b, r, pages, r.pages())
+        if only:
+            unknown = [n for n in only if n not in BY_NAME]
+            if unknown:
+                raise Refusal(f"no metric named {', '.join(unknown)}; there are "
+                              f"{', '.join(BY_NAME)}")
+            off = [n for n in only if BY_NAME[n] not in fit]
+            if off:
+                raise Refusal(f"{', '.join(off)} cannot be measured on {b.name} "
+                              f"with run {r.label}, so its probes say nothing")
+            fit = [BY_NAME[n] for n in only]
+        total = uncaught = mute = 0
+        for i, metric in enumerate(fit, 1):
+            job.current().check()
+            probes = metric.probes(b, r)
+            if not probes:
+                log(f"{metric.name}: no probes on this run, nothing to knock out",
+                    n=i, of=len(fit))
+                continue
+            seen, silent, bad = mbase.run_probes(probes)
+            log(f"{metric.name}: probes {seen}, measured {seen - silent}, "
+                f"nothing to measure with {silent}, uncaught {bad}",
+                n=i, of=len(fit), probes=seen, uncaught=bad)
+            total, uncaught, mute = total + seen, uncaught + bad, mute + silent
+        applicable = mbase.applicable(METRICS, b, r, pages, r.pages())
+        not_here = sorted(m.name for m in METRICS if m not in applicable)
+        not_asked = sorted(m.name for m in applicable if m not in fit)
+        log(f"{b.name} {r.label}: metrics {len(fit)}, probes {total}, "
+            f"nothing to measure with {mute}, UNCAUGHT {uncaught}"
+            + (f"; cannot be measured here: {', '.join(not_here)}" if not_here else "")
+            + (f"; not selected: {', '.join(not_asked)}" if not_asked else ""))
+        return {"metrics": len(fit), "probes": total, "mute": mute,
+                "uncaught": uncaught, "not_here": not_here, "not_asked": not_asked}
 
 
 def report(store: str, out: str | None = None) -> str:

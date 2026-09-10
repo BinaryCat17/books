@@ -11,6 +11,10 @@ import tempfile
 
 import pytest
 
+# The suite walks the repository: a developer's data home, exported in the
+# shell, must not become the admin's store under test.
+os.environ.pop("BOOKSMITH_HOME", None)
+
 from booksmith.core import config, knobs
 from booksmith.datasets.bench import Bench, Run
 from booksmith.datasets.make import synth

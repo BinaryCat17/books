@@ -25,6 +25,8 @@
     books bench report           every measured number, as METRICS.md
     books serve layout           a detector of the tree's own behind the protocol
     books serve vlm              a vLLM behind describe and health, chat passed through
+    books web serve              the backend: users, jobs and HTTP over the service
+    books web user <name>        a user of the web, with a store of their own
     books ls | books down 12345 | books reap
     books ledger                 run journal and the estimate from it
     books replay --check out/    is the input snapshot complete
@@ -48,10 +50,8 @@ from booksmith.core import knobs
 from booksmith.core import replay as replay_mod
 from booksmith.core import job
 from booksmith.core.errors import Cancelled, Refusal
-from booksmith.core import raster
 from booksmith.core import book
 from booksmith import service
-from booksmith.datasets import look as look_mod
 
 
 def _host_args(ap):
@@ -114,7 +114,7 @@ def cmd_detect(a):
     over both.
     """
     import shlex
-    out = service.detect(config.ROOT, a.file, knobs.passthrough(), a.pages, a.out,
+    out = service.detect(service.admin(), a.file, knobs.passthrough(), a.pages, a.out,
                          a.model or "")
     # Quoted: five of the nine files in raw/ carry spaces and brackets, and a
     # hint you cannot paste into a shell is not a hint.
@@ -127,7 +127,7 @@ def cmd_hybrid(a):
     run with its own boxes: `read/<label>/` under a book directory, else
     beside the file."""
     import shlex
-    out = service.hybrid(config.ROOT, a.file, knobs.passthrough(), a.pages, a.out,
+    out = service.hybrid(service.admin(), a.file, knobs.passthrough(), a.pages, a.out,
                          a.model or "")
     log(f"snapshot completeness: books replay --check {shlex.quote(out)}")
     log(f"next: books html {out}   |   books bench all <book> --kind read")
@@ -142,21 +142,8 @@ def cmd_hybrid(a):
 
 def cmd_html(a):
     """Level one's product: text as markup, artefacts as pictures."""
-    from booksmith.processing.assemble import html as html_mod
-    d = book.run_dir(a.dir, "books html")
-    out = a.out or book.home_for(d, config.ROOT)
-    # Foreign work is not overwritten: the tell of ours is the snapshot the
-    # builder writes, and a non-empty directory without it is a refusal out
-    # loud. The tell is asked of the builder and not typed here, or a snapshot
-    # that moves inside the build directory turns our own work into foreign.
-    if (not a.out and os.path.isdir(out) and os.listdir(out)
-            and not html_mod.is_our_dir(out)):
-        raise Refusal(
-            f"{out} already holds something not ours: neither "
-            f"`{html_mod.ASSETS}/run.json` nor `run.json` in the root — so "
-            f"the directory was not built by `books html`. Overwriting it "
-            f"silently is not allowed: give --out or remove it by hand.")
-    html_mod.build(d, out)
+    out = service.html(service.admin(), a.dir, knobs.passthrough(), a.out)
+    log(f"built into {out}")
     return 0
 
 
@@ -275,7 +262,7 @@ def cmd_read(a):
         os.makedirs(out, exist_ok=True)
         return cmd_read_rented(a, policy_name, out)
 
-    service.read(config.ROOT, a.dir, knobs.passthrough(), out, a.pages or "",
+    service.read(service.admin(), a.dir, knobs.passthrough(), out, a.pages or "",
                  a.policy or "", a.model or "")
     log(f"next: books html {out}   |   books text <truth> {out}/pages")
     return 0
@@ -288,22 +275,9 @@ def cmd_crop(a):
     prompts and generation parameters, written to `crops/` and `would_ask.json`.
     A preview cutting by knobs of its own shows pictures the model never sees.
     """
-    from booksmith.processing.read import driver as vread
-    d = book.run_dir(a.dir, "books crop")
-    out = a.out or (os.path.abspath(d).rstrip("/") + ".crop")
-    # The same two lines as `books read`, and for the same reason: the free
-    # command must accept every input the paid one does, or it is a preview of
-    # something else.
-    pol = vread.policy_for(d, a.policy, what="the preview")
-    os.makedirs(out, exist_ok=True)
-    reader = vread.build_reader(pol)
-    pages = None
-    if a.pages:
-        from booksmith.processing.layout.detect import parse_pages
-        with raster.open_pdf(book.pdf_of(d)) as doc:
-            pages = set(parse_pages(a.pages, doc.page_count))
-    t = vread.read_book(d, out, reader, None, resume=False, pages_want=pages,
-                        preview=True)
+    t = service.crop(service.admin(), a.dir, knobs.passthrough(), a.out,
+                     a.pages or "", a.policy or "")
+    out = t["out"]
     log(f"would ask {t.get('would_ask', 0)} of {t['block_count']} blocks; not "
         f"asked {t['not_asked']}, crop failed {t['crop_failed']}")
     # The troubles are printed, not left in the file: a preview is looked at to
@@ -323,27 +297,7 @@ def cmd_crop(a):
 
 def cmd_overlay(a):
     """Boxes over the pages: truth solid, the model's guess dashed."""
-    from booksmith.processing.layout import detect
-    from booksmith.datasets import look as overlay
-    marks = [(book.pages_dir(a.truth, "--truth"), "T")] if a.truth else []
-    if a.detect:
-        marks.append((book.pages_dir(a.detect, "--detect"), "M"))
-    if not marks:
-        raise Refusal("nothing to draw: give --truth and/or --detect")
-    out = a.out or look_mod.look_at(a.pdf, a.detect)
-    only = None
-    if a.pages:
-        # The very same parse as `books detect`, not a second copy: that one
-        # counts from one, takes ranges, and declares a number past the end of
-        # the book out loud instead of drawing the wrong sheet in silence.
-        doc = raster.open_pdf(a.pdf)
-        total = doc.page_count
-        doc.close()
-        only = detect.parse_pages(a.pages, total)
-    # The default lands in `<book>/look/`, which need not exist yet --
-    # `look.build` opens the file and does not make the directory.
-    os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
-    overlay.build(a.pdf, out, marks, only=only)
+    service.overlay(service.admin(), a.pdf, a.truth, a.detect, a.out, a.pages or "")
     return 0
 
 
@@ -449,44 +403,9 @@ def cmd_bench_selfcheck(a):
     "no data" and is counted apart, or zero uncaught over probes that measured
     nothing would read as health.
     """
-    from booksmith.datasets.metrics import BY_NAME, METRICS
-    from booksmith.datasets.metrics import base
-    b, run = service.open_book(a.bench, a.kind, a.run)
-    # The truth is parsed only if there is any, as `table.rows` does it: a book
-    # with no `truth/` is a legal thing to probe, the ink and column-jump metrics
-    # needing none, and asking for its truth pages raises before applicability
-    # is ever consulted.
-    pages = b.pages() if b.truth_dir else {}
-    fit = base.applicable(METRICS, b, run, pages, run.pages())
-    if a.only:
-        which = [n.strip() for n in a.only.split(",") if n.strip()]
-        unknown = [n for n in which if n not in BY_NAME]
-        if unknown:
-            raise Refusal(f"no metric named {', '.join(unknown)}; there are "
-                          f"{', '.join(BY_NAME)}")
-        off = [n for n in which if BY_NAME[n] not in fit]
-        if off:
-            raise Refusal(f"{', '.join(off)} cannot be measured on {b.name} "
-                          f"with run {run.label}, so its probes say nothing")
-        fit = [BY_NAME[n] for n in which]
-    total = uncaught = mute = 0
-    for metric in fit:
-        probes = metric.probes(b, run)
-        if not probes:
-            log(f"{metric.name}: no probes on this run, nothing to knock out")
-            continue
-        seen, silent, bad = base.run_probes(probes)
-        log(f"{metric.name}: probes {seen}, measured {seen - silent}, "
-            f"nothing to measure with {silent}, uncaught {bad}")
-        total, uncaught, mute = total + seen, uncaught + bad, mute + silent
-    applicable = base.applicable(METRICS, b, run, pages, run.pages())
-    not_here = sorted(m.name for m in METRICS if m not in applicable)
-    not_asked = sorted(m.name for m in applicable if m not in fit)
-    log(f"{b.name} {run.label}: metrics {len(fit)}, probes {total}, "
-        f"nothing to measure with {mute}, UNCAUGHT {uncaught}"
-        + (f"; cannot be measured here: {', '.join(not_here)}" if not_here else "")
-        + (f"; not selected: {', '.join(not_asked)}" if not_asked else ""))
-    return 1 if uncaught else 0
+    which = [n.strip() for n in a.only.split(",") if n.strip()] if a.only else None
+    t = service.selfcheck(service.admin(), a.bench, a.run, a.kind, which)
+    return 1 if t["uncaught"] else 0
 
 
 def cmd_bench_all(a):
@@ -496,7 +415,7 @@ def cmd_bench_all(a):
     typed into prose by hand drifts from the runs it claims to describe.
     """
     which = [n.strip() for n in a.only.split(",") if n.strip()] if a.only else None
-    service.bench(config.ROOT, a.bench, knobs.passthrough(), a.run, a.kind, which, a.json)
+    service.bench(service.admin(), a.bench, knobs.passthrough(), a.run, a.kind, which, a.json)
     return 0
 
 
@@ -506,14 +425,14 @@ def cmd_bench_report(a):
     A figure stated twice is free to drift; rendered from the record that
     produced it, it cannot.
     """
-    service.report(config.ROOT, a.out)
+    service.report(service.admin(), a.out)
     return 0
 
 
 def cmd_docs(_a):
     """Commands, knobs and metrics as documents, from the code that declares them."""
     from booksmith.datasets import docsgen
-    for rel in docsgen.write_all(build_parser(), config.ROOT):
+    for rel in docsgen.write_all(build_parser(), config.INSTALL):
         log(f"wrote {rel}")
     return 0
 
@@ -552,6 +471,32 @@ def cmd_serve_vlm(a):
     from booksmith.serving import vlm as serving
     return serving.main(a.host, a.port, a.upstream or "",
                         key=config.env("BOOKSMITH_SERVE_KEY"), log_dir=a.log_dir)
+
+
+def cmd_web_serve(a):
+    """The backend, until stopped: users, jobs and HTTP over the service."""
+    from booksmith.web import app as web_app
+    return web_app.serve(a.host, a.port)
+
+
+def cmd_web_user_add(a):
+    """A user of the web with a store of their own. The password comes from
+    `BOOKSMITH_PASSWORD` or a prompt, never from the command line, where
+    every shell keeps a history."""
+    import getpass
+    from booksmith.web import auth as web_auth
+    from booksmith.web.db import Db
+    from booksmith.web.settings import Settings
+    s = Settings.from_env()
+    password = os.environ.get("BOOKSMITH_PASSWORD") or getpass.getpass("password: ")
+    db = Db(s.db_path)
+    try:
+        user_id = web_auth.add_user(db, a.name, password, a.role)
+        store = s.store_of(user_id, a.role)
+    finally:
+        db.close()
+    log(f"user {a.name} ({a.role}), id {user_id}, store {store}")
+    return 0
 
 
 def cmd_reap(_a):
@@ -1035,6 +980,18 @@ def build_parser():
 
     p = sub.add_parser("reap", help="destroy everything our runs left behind")
     p.set_defaults(fn=cmd_reap)
+
+    p = sub.add_parser("web", help="the backend: users, jobs and HTTP over the service")
+    ws = p.add_subparsers(dest="what", required=True)
+    q = ws.add_parser("serve", help="run the backend until stopped")
+    q.add_argument("--host", default="127.0.0.1")
+    q.add_argument("--port", type=int, default=8080)
+    q.set_defaults(fn=cmd_web_serve)
+    q = ws.add_parser("user", help="a user of the web, with a store of their own; "
+                                   "the password from BOOKSMITH_PASSWORD or a prompt")
+    q.add_argument("name")
+    q.add_argument("--role", default="user", choices=("admin", "user"))
+    q.set_defaults(fn=cmd_web_user_add)
 
     p = sub.add_parser("serve", help="a model of the tree's own behind the model protocol")
     ss = p.add_subparsers(dest="what", required=True)

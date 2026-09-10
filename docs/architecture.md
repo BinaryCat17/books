@@ -50,6 +50,7 @@ import in the package against it.
 | `datasets` | `core`, `processing` |
 | `serving` | `core`, `processing` |
 | `service` | `core`, `remote`, `processing`, `datasets` |
+| `web` | `core`, `remote`, `processing`, `datasets`, `service` |
 | `cli` | all of them; nothing imports `cli` |
 
 `core` is the kernel: the formats, the registries and the rules the rest
@@ -59,7 +60,8 @@ of the protocol: a detector or a vLLM of the tree's own behind HTTP.
 runs any job on it; it knows nothing about books, so the next task on a
 rented card does not mean rewriting the renting. `service` is what the CLI
 and the web share: one function per command, each taking a store and the
-run's settings.
+run's settings. `web` is users, their stores, jobs in the background and
+HTTP over the service.
 
 ## The model protocol
 
@@ -125,11 +127,16 @@ One directory per book, one directory per run. A bench is a book with
 `truth/`. The shape is declared in `src/booksmith/core/book.py` and
 `tests/contract/test_book_shape.py` walks the tree against it. A store is a
 directory holding `bench/` and `processed/` in this shape, with its own
-`results/` and `raw/`; the repository root is the admin's store, a user's
-is another such directory, and a book's owner is the store it lies in; a
-book under neither `bench/` nor `processed/` is the admin's. A store other
-than the admin's reaches only its own paths and runs only a preset from the
-admin's `models.json`, or the registry's defaults. An entry of that registry
+`results/` and `raw/`. There are two roots, declared in
+`src/booksmith/core/config.py`: the install path, which is the repository,
+the source of the generated documents and the commit, and the data home,
+`BOOKSMITH_HOME`, which is the admin's store and falls back to the install
+path when unset, so a developer's tree is its own data home. A user's store
+is `users/<id>/` under the data home, and a book's owner is the store it
+lies in; a book under neither `bench/` nor `processed/` is the admin's. A
+store other than the admin's reaches only its own paths, outputs included,
+by their real paths, and runs only a preset from the admin's `models.json`,
+or the registry's defaults. An entry of that registry
 names a model: its kind, layout, reader or hybrid; its knobs, the values a
 preset runs with; and either the endpoint it answers at or the image and
 provider that will bring one up. A key for the endpoint rides in the entry
@@ -159,6 +166,21 @@ label, a partial run over a whole one, or a run it cannot compare.
 The built book is self-sufficient except for the scan: MathJax and the crops
 are inlined, and `assets/source/` holds the pages and answers it was built
 from, so `books apply` rebuilds from there on any machine.
+
+## The web
+
+`books web serve` runs the backend, `src/booksmith/web/`: users with hashed
+passwords and cookie sessions, two roles, one sqlite file in the data home
+for users, sessions and jobs, and routes that take names, never paths. A
+job is a row and a thread over one job context of its own, whose settings
+are the registry entry's, whose secrets are the entry's key, whose stop is
+the row's cancel and whose sink turns the log's counts into progress on the
+row and into events a client listens to. Every long loop says where it is
+and asks for the stop between pages, metrics or probes. The run directory
+stays the record of the result; a row left running by a dead process is
+failed at the next boot, never resumed blind. `books web user` makes a
+user and their store. What the web does goes through `service`, with the
+job handed in, so the command line and the web run one code.
 
 ## The page format
 

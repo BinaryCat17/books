@@ -46,9 +46,10 @@ BOOK_ROOTS = ("bench", "processed")
 
 def store_of(book_dir: str) -> str:
     """The store a book lies in: the directory above its `bench/` or
-    `processed/`; the repository root for a book that lies in neither."""
+    `processed/`; the admin's store, the data home, for a book that lies
+    in neither."""
     parent = os.path.dirname(os.path.abspath(book_dir.rstrip("/")))
-    return os.path.dirname(parent) if os.path.basename(parent) in BOOK_ROOTS else config.ROOT
+    return os.path.dirname(parent) if os.path.basename(parent) in BOOK_ROOTS else config.home()
 
 # A name is either exact or a pattern; `<model>` is what `safe_label` allows.
 ALLOWED = (
@@ -170,13 +171,6 @@ class Book:
     def truth_dir(self) -> str | None:
         d = os.path.join(self.root, "truth")
         return d if os.path.isdir(d) else None
-
-    @property
-    def build(self) -> str:
-        return os.path.join(self.root, "build")
-
-    def journal(self) -> str:
-        return journal_path(self.build)
 
     # --------------------------------------------------------------- runs
     def run_dir(self, kind: str, label: str) -> str:
@@ -370,9 +364,14 @@ def pdf_of(detect_dir: str) -> str:
         return json.load(f)["source"]["path"]
 
 
-def home_for(detect_dir: str, store: str) -> str:
-    """Where the book lands BY DEFAULT: the store's `processed/`, not beside the run."""
-    with open(os.path.join(detect_dir, "run.json"), encoding="utf-8") as f:
+def home_for(run_dir: str, store: str) -> str:
+    """Where the book lands BY DEFAULT: the book directory the run lies in,
+    which the shape admits `book.html` and `assets/` into; for a run beside
+    a bare file, the store's `processed/` under the scan's name."""
+    up = os.path.dirname(os.path.dirname(os.path.abspath(run_dir.rstrip("/"))))
+    if os.path.isfile(os.path.join(up, "manifest.json")):
+        return up
+    with open(os.path.join(run_dir, "run.json"), encoding="utf-8") as f:
         snap = json.load(f)
     stem = os.path.splitext(os.path.basename(snap["source"]["path"]))[0]
     safe = re.sub(r"[^\w.,()-]+", "-", stem, flags=re.UNICODE).strip("-")[:80]
