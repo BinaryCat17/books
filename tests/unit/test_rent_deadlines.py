@@ -11,8 +11,11 @@ The checks below demand the derivation.
 import inspect
 import time
 
+import pytest
+
 from booksmith.core.errors import Refusal
 
+pytest.importorskip("vastai")          # the `remote` extra
 from booksmith.remote import box as rbox
 from booksmith.remote import ledger
 from booksmith.remote import runner

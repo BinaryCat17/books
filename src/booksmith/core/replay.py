@@ -11,9 +11,11 @@ that moves the return code), present and empty, nothing to verify it against,
 not covered by the requirement at all, and a shape that would not derive.
 """
 import ast
+import argparse
 import hashlib
 import json
 import os
+from collections.abc import Iterable, Iterator, Sequence
 
 from booksmith.core import knobs
 from booksmith.core.log import log
@@ -26,7 +28,7 @@ PKG = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FP = "fingerprint"
 
 
-def facts(outdir):
+def facts(outdir: str) -> dict:
     """The run snapshot from `run.json`. An unreadable file is an empty snapshot."""
     # Two places, both lawful: a detect run keeps the snapshot at its root, a book
     # directory in `assets/`, whose name is asked of the writer rather than typed.
@@ -45,7 +47,7 @@ def facts(outdir):
 
 # sha256 of the whole file, ours rather than imported: a check must not fail
 # because the code it checks is broken.
-def _sha256(path):
+def _sha256(path: str) -> str | None:
     h = hashlib.sha256()
     try:
         with open(path, "rb") as f:
@@ -58,8 +60,8 @@ def _sha256(path):
 
 # The registry. A key is a path in the nested `run.json`, and the rule is blunt:
 # the key must exist. `null` is a lawful value; a missing key is an omission.
-def _base(knob_names):
-    r = []
+def _base(knob_names: Iterable[str]) -> tuple:
+    r: list[tuple[tuple, str]] = []
     for name in knob_names:
         r.append((("knobs", name, "value"), f"knob {name}"))
     r += [
@@ -88,11 +90,11 @@ def _base(knob_names):
 # The shape is derived from the adapter source by a walk of the python tree,
 # literals only: calling its `fingerprint()` would raise an ONNX session.
 
-def _classes(tree):
+def _classes(tree: ast.Module) -> dict[str, ast.ClassDef]:
     return {n.name: n for n in tree.body if isinstance(n, ast.ClassDef)}
 
 
-def _class_attr(cls, attr):
+def _class_attr(cls: ast.ClassDef, attr: str) -> object:
     """The value of a literal class attribute (`name = "docling-heron"`)."""
     for n in cls.body:
         if isinstance(n, ast.Assign) and isinstance(n.value, ast.Constant):
@@ -102,7 +104,7 @@ def _class_attr(cls, attr):
     return None
 
 
-def _fp_defs(tree):
+def _fp_defs(tree: ast.Module) -> dict[str, ast.FunctionDef]:
     """Every `fingerprint` in the module: {class name: function node}."""
     out = {}
     for n in tree.body:
@@ -113,7 +115,8 @@ def _fp_defs(tree):
     return out
 
 
-def _fp_def(tree, cls_name):
+def _fp_def(tree: ast.Module, cls_name: str | None
+            ) -> tuple[ast.FunctionDef | None, str | None]:
     """The `fingerprint` of the class or of its ancestor within the module.
 
     Inheritance counts: `DoclingEgret(DoclingHeron)` declares none of its own,
@@ -133,7 +136,7 @@ def _fp_def(tree, cls_name):
     return None, None
 
 
-def _paths(expr, tree, cls, depth=0):
+def _paths(expr: ast.expr, tree: ast.Module, cls: str | None, depth: int = 0) -> set:
     """The paths this expression will CERTAINLY put into the snapshot."""
     if depth > 8:
         return set()
@@ -163,19 +166,20 @@ def _paths(expr, tree, cls, depth=0):
     return set()
 
 
-def _returned(fn, tree, cls, depth=0):
+def _returned(fn: ast.FunctionDef, tree: ast.Module, cls: str | None,
+              depth: int = 0) -> set:
     """Paths from all the `return`s of a function -- intersected, not first."""
-    rs = [n for n in ast.walk(fn)
-          if isinstance(n, ast.Return) and n.value is not None]
-    if not rs:
+    vals = [n.value for n in ast.walk(fn)
+            if isinstance(n, ast.Return) and n.value is not None]
+    if not vals:
         return set()
-    out = _paths(rs[0].value, tree, cls, depth)
-    for r in rs[1:]:
-        out &= _paths(r.value, tree, cls, depth)
+    out = _paths(vals[0], tree, cls, depth)
+    for v in vals[1:]:
+        out &= _paths(v, tree, cls, depth)
     return out
 
 
-def _sources():
+def _sources() -> Iterator[str]:
     for root, dirs, files in os.walk(PKG):
         dirs[:] = [d for d in dirs if d != "__pycache__"]
         for n in sorted(files):
@@ -183,7 +187,7 @@ def _sources():
                 yield os.path.join(root, n)
 
 
-def _parse(path):
+def _parse(path: str) -> ast.Module | None:
     try:
         with open(path, encoding="utf-8") as f:
             return ast.parse(f.read())
@@ -191,7 +195,7 @@ def _parse(path):
         return None
 
 
-def _writer_file(mod, name):
+def _writer_file(mod: object, name: object) -> tuple[str | None, str | None, list[str]]:
     """The snapshot writer's file: by module name (`adapter/module`), else by the
     class's declared `name`. Identification, not verification -- the sha256 below
     settles that. Returns (file, how, every match); several is not identified.
@@ -214,15 +218,16 @@ def _writer_file(mod, name):
     return None, None, hits
 
 
-def shape(snap):
+def shape(snap: dict) -> dict:
     """The adapter fingerprint shape derived from source, and what verified it.
 
     `not_verified` is "shape derived, but not from the code that computed";
     `blind` is "the writer is not identified", where the amount is unknown too.
     """
-    r = {"name": None, "file": None, "how": None, "verified": False,
-         "derived": [], "not_verified": 0, "of_those_missing": 0, "blind": 0,
-         "not_derived": 0, "row": ""}
+    r: dict[str, object] = {
+        "name": None, "file": None, "how": None, "verified": False,
+        "derived": [], "not_verified": 0, "of_those_missing": 0, "blind": 0,
+        "not_derived": 0, "row": ""}
     if not snap:
         r["row"] = "fingerprint: there is no snapshot -- nothing to check"
         return r
@@ -249,7 +254,8 @@ def shape(snap):
     now = _sha256(path)
     tree = _parse(path)
     owner = _owner_class(tree, name) if tree else None
-    fn, def_cls = _fp_def(tree, owner) if owner else (None, None)
+    fn, def_cls = (_fp_def(tree, owner) if tree is not None and owner
+                   else (None, None))
     if tree is None or (owner is None and _fp_defs(tree)):
         # The file was found, but who in it wrote the fingerprint is unknown, and
         # taking any of several would check the shape against a foreign class.
@@ -318,7 +324,7 @@ def shape(snap):
     return r
 
 
-def _owner_class(tree, name):
+def _owner_class(tree: ast.Module, name: object) -> str | None:
     """The adapter class in the module: by declared `name`, else the only one."""
     for cname, c in _classes(tree).items():
         if _class_attr(c, "name") == name:
@@ -328,11 +334,11 @@ def _owner_class(tree, name):
 
 
 # Knob names come from the registry: two lists of knobs are two lists that part.
-def knob_names():
+def knob_names() -> tuple:
     return knobs.names()
 
 
-def required(snap=None, sh=None):
+def required(snap: dict | None = None, sh: dict | None = None) -> tuple:
     """Requirements: the common ones plus those derived from this snapshot's adapter.
 
     With no snapshot, only the common ones: whose fingerprint to demand is
@@ -345,7 +351,7 @@ def required(snap=None, sh=None):
     return tuple(req)
 
 
-def _dig(d, path):
+def _dig(d: dict, path: tuple) -> tuple[bool, object]:
     """Whether the snapshot holds this path. Returns (present, value)."""
     cur = d
     for k in path:
@@ -355,7 +361,7 @@ def _dig(d, path):
     return True, cur
 
 
-def missing(snap, req=None):
+def missing(snap: dict, req: Sequence | None = None) -> list:
     """What the snapshot lacks. Pairs of (path, what it settles)."""
     out = []
     for path, what in (req if req is not None else required()):
@@ -365,12 +371,12 @@ def missing(snap, req=None):
     return out
 
 
-def _empty(v):
+def _empty(v: object) -> bool:
     return v is None or (isinstance(v, (str, bytes, list, tuple, dict))
                          and len(v) == 0)
 
 
-def hollow(snap, req=None):
+def hollow(snap: dict, req: Sequence | None = None) -> list:
     """Values that are there but empty. A separate trouble, a separate number.
 
     Empty is lawful -- a detector has no prompts, a knob may have no value -- but
@@ -384,14 +390,14 @@ def hollow(snap, req=None):
     return out
 
 
-def _fp_paths(snap):
+def _fp_paths(snap: dict) -> set:
     """Every path inside the fingerprint branch of THE SNAPSHOT (not of the requirement)."""
     ok, fp = _dig(snap, (FP,))
     if not ok or not isinstance(fp, dict):
         return set()
     have = set()
 
-    def walk(node, pre):
+    def walk(node: dict, pre: tuple) -> None:
         for k, v in node.items():
             have.add(pre + (k,))
             if isinstance(v, dict):
@@ -401,7 +407,7 @@ def _fp_paths(snap):
     return have
 
 
-def uncovered(snap, sh):
+def uncovered(snap: dict, sh: dict) -> list:
     """Fingerprint values the snapshot has and the requirement did not cover.
 
     The blind spot of shape derivation, named by a number: shapes are derived by
@@ -412,7 +418,7 @@ def uncovered(snap, sh):
     return sorted(_fp_paths(snap) - {path for path, _ in sh["derived"]})
 
 
-def check(outdir, verbose=True):
+def check(outdir: str, verbose: bool = True) -> list:
     """Whether the parse snapshot is complete. Returns the list of what is missing."""
     snap = facts(outdir)
     sh = shape(snap)
@@ -465,13 +471,13 @@ def check(outdir, verbose=True):
     return miss
 
 
-def line(outdir):
+def line(outdir: str) -> str | None:
     """The ready repeat command line, if one was written down."""
     v = facts(outdir).get("repeat_command")
     return v if isinstance(v, str) else None
 
 
-def cmd_replay(a):
+def cmd_replay(a: argparse.Namespace) -> int:
     """`books replay [--check] <directory>...`
 
     Without `--check` it prints the repeat line; with it, what the snapshot

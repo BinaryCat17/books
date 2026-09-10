@@ -8,5 +8,5 @@ start before the package is on `sys.path`.
 from booksmith.core import job
 
 
-def log(*a, **fields):
+def log(*a: object, **fields: object) -> None:
     job.current().sink({"text": " ".join(str(x) for x in a), **fields})

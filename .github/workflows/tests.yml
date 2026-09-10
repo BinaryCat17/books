@@ -8,10 +8,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
-      - run: uv sync --extra detect --extra docling --group dev --frozen
+      - run: uv sync --extra remote --extra detect --extra docling --group dev --frozen
       - run: set -o pipefail; uv run pytest -q -rs | tee pytest.log
       - name: enough checks actually ran
         run: |
           passed=$(grep -oE '[0-9]+ passed' pytest.log | grep -oE '[0-9]+')
           test "${passed:-0}" -ge 550 || { echo "only ${passed:-0} checks passed: the suite is skipping itself"; exit 1; }
       - run: uv run ruff check src tests tools
+      - run: uv run mypy

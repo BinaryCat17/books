@@ -11,6 +11,7 @@ command about to write a different one under an existing label refuses.
 """
 from __future__ import annotations
 
+import builtins
 import os
 import re
 import json
@@ -122,7 +123,7 @@ class Book:
             return cls(path, json.load(f))
 
     @classmethod
-    def list(cls, root: str) -> list[str]:
+    def list(cls, root: str) -> builtins.list[str]:
         """Every book directory under `root`, as paths relative to it.
 
         A book is a directory with a manifest. `os.listdir`, not `glob("*")`,
@@ -175,7 +176,7 @@ class Book:
             raise Refusal(f"{kind!r} is not a kind of run; I know {KINDS}")
         return os.path.join(self.root, kind, safe_label(label, kind))
 
-    def runs(self, kind: str) -> list[str]:
+    def runs(self, kind: str) -> builtins.list[str]:
         """Labels of the runs of one kind, sorted.
 
         A directory without `run.json` is not a run and is not listed: half a run
@@ -271,7 +272,7 @@ def guard_identity(run_dir: str, identity: str, pages_spec: str = "",
 # A command takes a run directory or its `pages/`; these say which was given,
 # and refuse naming both places looked.
 
-def page_files(d):
+def page_files(d: str) -> tuple[int, str]:
     """(how many layout pages, and if zero — why exactly)."""
     if not os.path.isdir(d):
         return 0, "not a directory"
@@ -291,7 +292,7 @@ def page_files(d):
     return len(names), ""
 
 
-def pages_dir(path, what):
+def pages_dir(path: str, what: str) -> str:
     """The PAGE directory: out of the run directory, or itself."""
     if not os.path.exists(path):
         raise Refusal(
@@ -313,7 +314,7 @@ def pages_dir(path, what):
         f"count — and that is not a zero of losses.")
 
 
-def run_dir(path, what):
+def run_dir(path: str, what: str) -> str:
     """The RUN directory: the one holding `run.json`. Takes `<out>/pages` too."""
     if not os.path.exists(path):
         raise Refusal(

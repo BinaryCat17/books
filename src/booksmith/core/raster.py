@@ -10,6 +10,8 @@ meaning the scan's own -- all the ink the file holds and not one dot invented.
 one cuts into the box, which the rules forbid, and is refused aloud.
 """
 import os
+from collections.abc import Sequence
+from typing import Any
 
 from booksmith.core import knobs
 from booksmith.core.errors import Refusal
@@ -19,7 +21,7 @@ from booksmith.core.errors import Refusal
 EPS_PT = 0.01
 
 
-def native_dpi(page) -> float | None:
+def native_dpi(page: Any) -> float | None:
     """The page's own resolution: how much ink it holds, above which a cut
     interpolates. The most detailed image covering the whole sheet, a PDF out of
     djvu carrying two. `None` is "nothing to say with", never "144".
@@ -95,13 +97,13 @@ def params(page_dpi: float | None = None,
     return {"dpi": dpi, "dpi_source": src, "margin": margin}
 
 
-def box_to_points(box, page_dpi: float):
+def box_to_points(box: Sequence[float], page_dpi: float) -> tuple[float, ...]:
     """A box in raster pixels at `page_dpi` -> PDF points (72 per inch)."""
     k = 72.0 / page_dpi
     return tuple(v * k for v in box)
 
 
-def _clipped(rect, clip) -> bool:
+def _clipped(rect: Any, clip: Any) -> bool:
     """Is `rect` clipped down to `clip`, with tolerance rather than exactly.
 
     The one comparison rule of the file: an exact one lies at every resolution
@@ -125,7 +127,8 @@ def _box_trouble(w: float, h: float) -> str | None:
     return None
 
 
-def _clip(doc, page_index: int, box, page_dpi: float, dpi, margin):
+def _clip(doc: Any, page_index: int, box: Sequence[float], page_dpi: float,
+          dpi: float | None, margin: float | None) -> tuple:
     """The page, the rect to render, the dpi and margin used, and what was clipped."""
     import pymupdf
 
@@ -164,7 +167,8 @@ def _clip(doc, page_index: int, box, page_dpi: float, dpi, margin):
     return page, clip, dpi, margin, clipped, margin_clipped
 
 
-def _facts(pix, clip, dpi, margin, clipped, margin_clipped) -> dict:
+def _facts(pix: Any, clip: Any, dpi: float, margin: float, clipped: bool,
+           margin_clipped: bool) -> dict:
     return {"dpi": int(dpi), "margin": margin,
             "width": pix.width, "height": pix.height,
             "clipped_by_sheet": clipped,
@@ -173,7 +177,7 @@ def _facts(pix, clip, dpi, margin, clipped, margin_clipped) -> dict:
                                                       clip.x1, clip.y1)]}
 
 
-def cut(doc, page_index: int, box, page_dpi: float, dst: str,
+def cut(doc: Any, page_index: int, box: Sequence[float], page_dpi: float, dst: str,
         dpi: float | None = None, margin: float | None = None) -> dict:
     """Cut the box into a file. Returns what exactly was cut: size, margin, clipping."""
     page, clip, dpi, margin, clipped, margin_clipped = _clip(
@@ -185,7 +189,7 @@ def cut(doc, page_index: int, box, page_dpi: float, dst: str,
             **_facts(pix, clip, dpi, margin, clipped, margin_clipped)}
 
 
-def cut_png(doc, page_index: int, box, page_dpi: float,
+def cut_png(doc: Any, page_index: int, box: Sequence[float], page_dpi: float,
             dpi: float | None = None, margin: float | None = None) -> tuple[bytes, dict]:
     """The same cut as PNG bytes, for a caller that serves it rather than files it."""
     page, clip, dpi, margin, clipped, margin_clipped = _clip(
@@ -198,7 +202,7 @@ def cut_png(doc, page_index: int, box, page_dpi: float,
 # Every rasterisation on the read path goes through these two, so one file knows
 # the renderer; the writers that draw and assemble PDFs keep pymupdf themselves.
 
-def open_pdf(path: str):
+def open_pdf(path: str) -> Any:
     """The document, as pymupdf opens it. One place to swap the engine.
 
     pymupdf is imported here and not at the top: the knob registry's readers and
@@ -208,12 +212,12 @@ def open_pdf(path: str):
     return pymupdf.open(path)
 
 
-def render_png(page, dpi: float, clip=None) -> bytes:
+def render_png(page: Any, dpi: float, clip: Any = None) -> bytes:
     """The page (or a clip of it) as PNG bytes at `dpi`."""
     return render(page, dpi, clip=clip).tobytes("png")
 
 
-def render(page, dpi: float, clip=None):
+def render(page: Any, dpi: float, clip: Any = None) -> Any:
     """The page (or a clip of it) as a pixmap at `dpi`, integer as pymupdf wants.
 
     pymupdf truncates a fractional dpi itself, so callers pass the dpi they record.

@@ -81,7 +81,7 @@ def anchor(index: int, block_id: int) -> str:
     return f"p{index:04d}-b{block_id}"
 
 
-def write_json(path: str, obj, indent: int | None = None) -> None:
+def write_json(path: str, obj: object, indent: int | None = None) -> None:
     """Write `obj` as JSON through a temp file beside `path` and `os.replace`,
     so a reader never sees a truncated file and a death mid-write leaves the
     old one in place."""
@@ -98,7 +98,7 @@ def write_json(path: str, obj, indent: int | None = None) -> None:
 OUR_ORDER = "ours"
 
 
-def ours_order(value) -> bool:
+def ours_order(value: object) -> bool:
     """Is this our order, by the value of `meta["reading_order"]`.
 
     Anything that is not a string is unknown, not "the model's": False, and the

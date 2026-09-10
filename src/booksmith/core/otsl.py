@@ -25,7 +25,7 @@ TAGS = CONTENT + EMPTY + SPAN + BREAK
 _TOK = re.compile(r"<(" + "|".join(TAGS) + r")>")
 
 
-def looks_like(s) -> bool:
+def looks_like(s: object) -> bool:
     """Does this look like OTSL at all. A cheap check before parsing.
 
     One tag is not enough: prose that merely mentions a `<lcel>` would parse into
@@ -37,7 +37,7 @@ def looks_like(s) -> bool:
     return "nl" in toks or len(toks) >= 2
 
 
-def grid(s):
+def grid(s: str) -> dict | None:
     """{(row, col): text}, or None when there are no OTSL tags at all.
 
     `None` is "this is not OTSL", never "the table is empty"; whoever needs the
@@ -46,7 +46,7 @@ def grid(s):
     return parse(s)[0] if looks_like(s) else None
 
 
-def parse(s):
+def parse(s: str) -> tuple[dict | None, dict]:
     """(grid, tally). The tally is what the parse did not understand, as numbers.
 
     Rows of unequal length, continuations with nothing to lean on, text before
@@ -56,7 +56,7 @@ def parse(s):
     return cells, tally
 
 
-def _walk(s):
+def _walk(s: str) -> tuple[dict | None, dict, dict]:
     """One walk of the tags for the whole file: (grid, address owners, tally).
 
     `owner` maps an address to its root, so a merge is one the model marked and
@@ -80,10 +80,11 @@ def _walk(s):
     if tail.strip():
         tally["text_after_last_tag"] = len(tail.strip())
 
-    cells, r, c = {}, 0, 0
-    owner = {}                  # address -> address of the root it obeys
-    tag_of = {}                 # root address -> the tag declaring it
-    widths = []
+    cells: dict[tuple[int, int], str] = {}
+    r, c = 0, 0
+    owner: dict[tuple[int, int], tuple[int, int]] = {}   # address -> its root
+    tag_of: dict[tuple[int, int], str] = {}              # root -> the tag declaring it
+    widths: list[int] = []
     for i, m in enumerate(toks):
         name = m.group(1)
         if name in BREAK:
@@ -136,7 +137,7 @@ def _walk(s):
     return (cells or None), {"owner": owner, "tag": tag_of}, tally
 
 
-def layout(s):
+def layout(s: str) -> tuple[list, dict]:
     """(cells with merges, tally): where a merge's root is and how far it runs.
 
     One record per cell rather than per address. A non-rectangular merge is
@@ -148,7 +149,7 @@ def layout(s):
     if not cells:
         return [], tally
     owner, tag_of = own["owner"], own["tag"]
-    ours = {}
+    ours: dict[tuple[int, int], list] = {}
     for addr, root in owner.items():
         ours.setdefault(root, []).append(addr)
     out = []
@@ -182,7 +183,7 @@ def layout(s):
     return out, tally
 
 
-def to_html(s) -> str:
+def to_html(s: str) -> str:
     """OTSL -> an HTML table. A translation, not a repair: the same cell count.
 
     A span collapses into `colspan`/`rowspan` by the model's mark and `<th>`
@@ -195,7 +196,7 @@ def to_html(s) -> str:
     # A table row is a grid row, not "a row where a root turned up": a row made
     # entirely of continuations, or an empty one (`<nl><nl>`), keeps its `<tr>`,
     # or the cells below it drift into other columns.
-    by_rows = {}
+    by_rows: dict[int, list] = {}
     for c in cs:
         by_rows.setdefault(c["row"], []).append(c)
     rows = t["rows"]

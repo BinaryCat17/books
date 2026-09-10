@@ -4,13 +4,9 @@ version = "0.2.0"
 description = "Scans of technical books -> HTML, locally and on rented GPUs"
 requires-python = ">=3.10"
 dependencies = [
-    # pymupdf -- page raster and spread cutting (djvu.py).
-    # vastai -- the only rental client (remote/vast.py).
-    # requests and pillow were dropped: they came with the Mistral and
-    # pdf_layer engines and are imported nowhere since those were deleted.
-    # HTTP in live code goes through urllib from the standard library.
+    # pymupdf -- page raster and spread cutting (djvu.py). HTTP in live code
+    # goes through urllib from the standard library.
     "pymupdf>=1.24",
-    "vastai>=1.5.5",
 ]
 
 # Layout detection locally, on the CPU: `books detect`. A separate extra
@@ -18,6 +14,12 @@ dependencies = [
 # need them, and onnxruntime with opencv weigh close to half a gigabyte.
 #   pip install -e ".[detect]"
 [project.optional-dependencies]
+# Renting a card: `books read --rent`, `books offers`, `books ls`, `books down`,
+# `books reap`. The library imports it only inside those paths.
+#   pip install -e ".[remote]"
+remote = [
+    "vastai>=1.5.5",
+]
 detect = [
     "onnxruntime>=1.20",
     "numpy>=1.26",
@@ -62,6 +64,7 @@ where = ["src"]
 
 [dependency-groups]
 dev = [
+    "mypy>=2.3",
     "pytest>=9.1.1",
     "ruff>=0.16.6",
 ]
@@ -71,6 +74,13 @@ testpaths = ["tests"]
 pythonpath = ["src", "tests"]
 addopts = "-q -rs -m 'not slow'"
 markers = ["slow: needs model weights or a long run; select with -m slow"]
+
+# Types are required where the web layer will lean: the kernel and, later, the
+# service. The rest of the tree is checked as it is annotated.
+[tool.mypy]
+files = ["src/booksmith/core"]
+ignore_missing_imports = true
+disallow_untyped_defs = true
 
 [tool.ruff]
 line-length = 100

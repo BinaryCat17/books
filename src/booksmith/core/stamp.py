@@ -9,6 +9,7 @@ experiments. What moves without the experiment moving is excluded from it, or a
 legitimate second run is refused; what the experiment moves with is included,
 or the second silently resumes the first.
 """
+from collections.abc import Iterable
 import hashlib
 import json
 import os
@@ -90,7 +91,7 @@ def reachable(sha: str) -> bool | None:
                                            else None)
 
 
-def packages(names=DETECT_PACKAGES) -> dict:
+def packages(names: Iterable[str] = DETECT_PACKAGES) -> dict:
     out = {}
     for name in names:
         try:
@@ -130,7 +131,7 @@ KNOBS_NOT_IDENTITY = {
 }
 
 
-def _without(obj, names):
+def _without(obj: object, names: Iterable[str]) -> object:
     """The mapping with `names` dropped at every depth.
 
     Every depth, because docling nests its pipeline's fingerprint under

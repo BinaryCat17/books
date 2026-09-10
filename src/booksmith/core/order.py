@@ -10,6 +10,8 @@ and cost `docling-slim` and `rtree`, +54 MB.
 No box coordinate is touched here -- only the order of the list, which is ours.
 """
 import functools
+from collections.abc import Iterable, Sequence
+from typing import Any
 from booksmith.core.errors import Refusal
 
 RULES = ("ours", "docling")
@@ -103,7 +105,7 @@ _LABELS = {
 }
 
 
-def cover(vocab, which=None) -> str | None:
+def cover(vocab: Iterable[str], which: str | None = None) -> str | None:
     """Is there a translation for this vocabulary. Fails before page one.
 
     Asked only for the `docling` rule, the one that reads labels, and by the
@@ -123,7 +125,7 @@ def cover(vocab, which=None) -> str | None:
 
 
 @functools.lru_cache(maxsize=1)
-def _predictor():
+def _predictor() -> Any:
     """One order predictor per run.
 
     Its constructor sets two numbers of its own (`dilated_page_element`, the
@@ -143,8 +145,8 @@ def _predictor():
     return ReadingOrderPredictor()
 
 
-def permutation(labels, boxes, width, height, index, vocab,
-                which=None) -> list[int]:
+def permutation(labels: Sequence[str], boxes: Sequence, width: float, height: float,
+                index: int, vocab: Iterable[str], which: str | None = None) -> list[int]:
     """Permutation of the block list, as indices, since three adapters carry
     three list shapes and the shared rule knows none of them. `boxes` are page
     pixels, origin top left; the docling rules count from the bottom.
@@ -163,7 +165,9 @@ def permutation(labels, boxes, width, height, index, vocab,
         PageElement as RoElement)
     from docling_core.types.doc import CoordOrigin, DocItemLabel, Size
 
-    tr = _LABELS[cover(vocab, which)]
+    name = cover(vocab, which)
+    assert name is not None            # `ours` returned above
+    tr = _LABELS[name]
     h = float(height)
     size = Size(width=float(width), height=h)
     els = []

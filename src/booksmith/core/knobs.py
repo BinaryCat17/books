@@ -22,36 +22,14 @@ class Knob:
     """
     __slots__ = ("name", "default", "what", "debt")
 
-    def __init__(self, name, default, what, debt=False):
+    def __init__(self, name: str, default: str, what: str, debt: bool = False) -> None:
         self.name, self.default, self.what = name, default, what
         self.debt = bool(debt)
 
 
 KNOBS = (
     Knob("PAGE_DPI", "144",
-         "the resolution a page is RENDERED to for detection. The "
-         "detector squeezes the raster to 800x800 itself (keep_ratio: "
-         "false). THERE IS A DIFFERENCE, just not in the summary numbers: "
-         "on bench/real-tables20/tables20.pdf (20 pages) at dpi "
-         "100/140/144/148/200/300/450/580/600/620 the boxes are "
-         "384/381/379/378/380/379/378/378/379/379 (band 378..384, 379 "
-         "falling out four times), ink under boxes 99.3% everywhere and "
-         "99.4% at 100 -- both numbers blind to dpi. The run repeats: two "
-         "repeats at 300 dpi gave byte-identical blocks, so the band "
-         "378..384 is dpi and not run noise. The LABEL tells them apart: "
-         "paragraph_title 42/41/39/40/39/38/36/34/32/34 -- a monotone "
-         "decline four times wider than the noise of neighbouring dpi "
-         "(39..41 at 140/144/148); text meanwhile stands still "
-         "(236..241), so boxes are LOST, not carried over. The cause is "
-         "not the resolution but the FILTER: the adapter squeezes the "
-         "raster with cv2.INTER_CUBIC (interp: 2 from the weights), at "
-         "600 dpi that is a 7.6-fold vertical shrink, i.e. subsampling -- "
-         "4.3% of the halftones reach the net against 16.6% with "
-         "INTER_AREA. Swapping the interpolation for INTER_AREA at 600 "
-         "dpi brings paragraph_title back 32 -> 40 without moving the "
-         "total (379), and takes a table away (5 -> 4); at 144 dpi the "
-         "same swap gives 382 boxes and 3 tables instead of 5. No dpi and "
-         "no filter adds a table. On box coordinates it tells directly"),
+         "the resolution a page is rendered to for detection; the detector squeezes the raster to its own input size, so the dpi decides little and the squeeze's filter more"),
 
     # Raising dpi buys nothing: 600 pays four times the raster for the same 379
     # boxes and loses eight headings, and the interpolation is the weights' own.
@@ -61,12 +39,7 @@ KNOBS = (
          "model name for vLLM and for the client"),
     Knob("VL_MODEL_DIR", "", "VLM weights dir; run.sh sets it, vLLM reads"),
     Knob("LAYOUT_ADAPTER", "doclayout",
-         "which detection adapter to call; the list is "
-         "detect.py:ADAPTERS, four of them: doclayout (PaddleOCR "
-         "PP-DocLayout*, 25 labels on V2/V3, 20 on plus-L), docling (IBM "
-         "heron RT-DETRv2, 17), docling-egret (IBM egret D-FINE, 17), "
-         "yolox (DocLayNet, 11). Different label dictionaries and "
-         "different policies -- comparable only blind to the label"),
+         "which detection adapter to call, one of `detect.py:ADAPTERS`; each has its own label dictionary and policy, so two are comparable only blind to the label"),
     Knob("YOLOX_WEIGHTS", "",
          "which YOLOX weights to take: yolox_l0.05.onnx (the default) or "
          "yolox_tiny.onnx"),
@@ -75,11 +48,7 @@ KNOBS = (
     # A threshold for all classes at once, and a knob of its own, because in
     # paddlex a threshold dict holding one class silently gives the rest 0.5.
     Knob("LAYOUT_SCORE_THRESHOLD", "0.5",
-         "detection threshold. On doclayout -- common to every class "
-         "EXCEPT table (24 of the 25 classes on V2/V3, 19 of the 20 on "
-         "plus-L), the default native to the weights. On docling, "
-         "docling-egret and yolox -- one for ALL classes, table included, "
-         "and the weights carry no native threshold at all"),
+         "the detection threshold: on doclayout the one native to the weights for every class but table, on docling, docling-egret and yolox one for all classes, table included, since those weights carry none of their own"),
     Knob("LAYOUT_TABLE_THRESHOLD", "0.5",
          "the native table detection threshold; read by doclayout ONLY -- "
          "in the other three adapters a table goes by "
@@ -89,42 +58,14 @@ KNOBS = (
     # `off` by default: every bench detector is measured raw, and the pipeline
     # costs 132 of the golden bench's artifacts found for 95 more merges.
     Knob("DOCLING_PIPELINE", "off",
-         "the docling vendor pipeline over the boxes: off | post (its "
-         "postprocessing) | full (that plus reading-order RULES, not a "
-         "model). Read by the docling and docling-egret adapters; "
-         "indigestible to the rest. The numbers beside this knob were "
-         "taken on HERON -- egret has a price of its own, measured "
-         "separately and different"),
+         "the docling vendor pipeline over the boxes: off, post (its postprocessing) or full (that plus its reading-order rules, which are not a model); read by the docling and docling-egret adapters only"),
     Knob("ASSEMBLY_ORDER", "ours",
-         "what assembles the book when the model has NO reading rank of "
-         "its own: ours (our rule, top to bottom and left to right) | "
-         "docling (reading_order_rb -- 740 lines of vendor RULES, not a "
-         "model; needs the docling package, +54 MB). Read by plus-L, "
-         "heron, egret and yolox; PP-DocLayoutV2 and V3 have a rank of "
-         "their OWN and this knob does not touch them at all. Measured on "
-         "the 600 pages of the golden bench, THE SAME V2 boxes permuted "
-         "three ways: our rule 2471 extra jumps, the model's own rank "
-         "501, the docling rules 439. Ours is worse than both STEADILY -- "
-         "over 16 sweep points the limits are 3.02..7.04 against "
-         "0.23..1.73 and 0.28..1.57, not overlapping at all. And docling "
-         "against the V2 rank the instrument does NOT tell apart: the "
-         "pair is inverted, difference 0.13 against a ruler span of 4.02 "
-         "-- which is why V2 keeps its own rank. The default is ours and "
-         "not the best by number for exactly one reason: docling is a "
-         "package, and `books detect --adapter yolox` must not fall on a "
-         "fresh environment over a sorting rule"),
+         "what assembles the book when the model has no reading rank of its own: ours (top to bottom, left to right) or docling (the vendor's rules, needing the docling package); PP-DocLayoutV2 and V3 carry a rank and ignore it, and ours is the default so that a detect run on a fresh environment never falls over a sorting rule"),
 
     # --- artifact crops: both values default to "as the model saw it" ---
     # Any other value would be ours and not measured; the bench will set it.
     Knob("CROP_DPI", "",
-         "crop sharpness. Empty = the scan's OWN resolution (as much as "
-         "the file holds and not a dot more), and if that cannot be "
-         "determined -- as detection had it. Here stood 'empty = as "
-         "PAGE_DPI', wrong on both counts; a knob's text rides into "
-         "run.json, so the snapshot described it falsely. Read by "
-         "core/raster.py, and through it by `books html`; `books read` and "
-         "`books crop` do NOT read it -- there the model's window decides "
-         "the resolution"),
+         "crop sharpness for `books html`: empty is the scan's own resolution, else as detection had it; `books read` and `books crop` do not read it, the model's window deciding there"),
     # Zero is a value: the pipeline cuts exactly along the box, and any margin
     # edits the model's box.
     Knob("CROP_MARGIN", "0",
@@ -132,60 +73,13 @@ KNOBS = (
 
     # --- book, rental and ledger: not about parsing, about repeatability ---
     Knob("HTML_MATH", "inline",
-         "how formulas are drawn in the book: inline (MathJax INSIDE the "
-         "book, +2.3 MB to the file) | local (as a neighbouring "
-         "tex-svg.js) | cdn (pulled from the network on every open) | off "
-         "(raw LaTeX). The default is `inline`, and it was paid for like "
-         "this: with `local` the browser silently DOES NOT LOAD the "
-         "neighbouring script when the book is opened over a network path "
-         "(\\\\wsl.localhost\\... from Windows) -- Chromium cuts the local "
-         "file off, the console says nothing, and the book looks built "
-         "without formulas. An embedded script knows no such trouble. The "
-         "measurement this knob was made for: «Технология огнеупоров» "
-         "holds 2260 formulas among 6080 read blocks, and without "
-         "rendering the reader sees "
-         "\\[\\mathrm{Al}_{2}\\mathrm{O}_{3}\\] instead of a formula"),
+         "how formulas are drawn in the book: inline (MathJax inside the file), local (a neighbouring script, which a browser silently refuses to load over a network path), cdn (fetched on every open) or off (raw LaTeX)"),
     Knob("HTML_IMAGES", "inline",
-         "how the book carries the cut-out artefacts: inline (data: links "
-         "INSIDE the html; the file is self-contained and opens by any "
-         "path) | linked (links to assets/blocks/*.png). The PNGs are put "
-         "into assets/blocks in BOTH cases -- edits, measurements and the "
-         "second level need them, not reading alone. The price of inline "
-         "on «Технология огнеупоров»: 488 crops, 11.2 MB on disk -> "
-         "14.9 MB in base64, the book 2.3 -> ~19 MB. The default is "
-         "`inline` for the same reason as HTML_MATH: a book gets opened "
-         "over a network path, and then neighbouring files fail to load "
-         "in silence"),
+         "how the book carries the cut-out artefacts: inline (data links inside the html, so the file opens by any path) or linked (assets/blocks/*.png, which a browser silently refuses over a network path); the PNGs are written in both cases"),
     Knob("HTML_REPEATS", "hide",
-         "what to do with a PROVEN repeat inside a page: hide (not shown "
-         "to the reader; the markup stays, only the display is hidden) | "
-         "show (show everything, hiding nothing). The proof is one: the "
-         "same text belongs to a block that STAYS in the book; compared "
-         "at the latex step, whose measurement is in `text.NORM_STEPS`. "
-         "On «Технология огнеупоров» 728 of 1935 nested blocks are "
-         "hidden, the share of false ones among them 11.7 % by the worst "
-         "background. THE KNOB IS NOT HERE FOR BEAUTY: it is the only "
-         "build operation that TAKES text off the reader's eyes, and it "
-         "must have a switch -- the cost of an error is asymmetric here, "
-         "a false hiding carries words away while a missed repeat leaves "
-         "one line too many"),
+         "what to do with a proven repeat inside a page: hide (kept in the markup, not displayed) or show; the one build operation that takes text off the reader's eyes, so it has a switch"),
     Knob("MIN_LINK_MBPS", "2.0",
-         "the link threshold a machine is rejected by, Mbps, measured TO "
-         "US. It separates a working machine from a broken one, not a "
-         "fast one from a slow one: two orders of magnitude lie between "
-         "them (7 against 0.06). THIS NUMBER IS NOT DERIVED FROM THE "
-         "WORK, and that has to be known before blaming the market. A "
-         "`vl-read` job of 20 pages weighs 872 KB: at 0.34 Mbps it "
-         "travels in 20 s, at 0.062 (that same broken machine from the "
-         "probe's docstring) in 112 s. So for the task ITSELF the "
-         "threshold of 2.0 is tenfold excessive, and by it machines are "
-         "rejected for good. Measured 3 September 2026: our own link over "
-         "HTTP 4.6 Mbps, while a single ssh stream to the rented machine "
-         "gave 0.34, and it went onto the eternal blacklist. Loosening "
-         "the threshold knowingly is exactly what it was put in the "
-         "registry for; loosening it, take the number FROM THE JOB SIZE "
-         "and not from taste, and remember that below the threshold a "
-         "machine returns its result slowly too"),
+         "the link threshold in Mbps, measured to us, below which a machine is rejected and blacklisted; it tells a broken machine from a working one, not a slow from a fast, and is not derived from the job's size"),
     # For a machine that has no git: the rented box has none, and without this
     # the one paid run would be the one with no record of the code that made it.
     Knob("BOOKSMITH_COMMIT", "",
@@ -237,7 +131,7 @@ KNOBS = (
     # Both are declared though at temperature 0 they change nothing: "top_p was
     # not set" and "top_p was not looked at" are different runs, and above 0 both
     # decide the answer with nowhere to recover them from.
-    Knob("VLM_TOP_P", "1.0", "probability cutoff; 1.0 = cut nothing"),
+    Knob("VLM_TOP_P", "1.0", "probability cutoff; one cuts nothing"),
     Knob("VLM_SEED", "0", "generation seed; decides at temperature > 0"),
     Knob("PASSES", "1",
          "how many reads; summing up is the runner's job, not the "
@@ -261,7 +155,7 @@ KNOBS = (
 KNOB = {k.name: k for k in KNOBS}
 
 
-def knob(name):
+def knob(name: str) -> str:
     """A knob's value: from the job's settings, else the registry default.
 
     Read at use, inside the job: an adapter, reader or transport built outside
@@ -277,7 +171,7 @@ def knob(name):
     return k.default if v is None else v
 
 
-def number(name, *, kind=float, negative=False):
+def number(name: str, *, kind: type = float, negative: bool = False) -> float:
     """A knob's value as a number, refusing what a number should not be.
 
     `nan` and `inf` are refused: `nan` compares False with everything, so a
@@ -302,7 +196,7 @@ def number(name, *, kind=float, negative=False):
     return v
 
 
-def snapshot():
+def snapshot() -> dict:
     """Every knob at once: what stood, what the default was, was it set.
 
     "Debt" and the "read by" field `detect.py` adds are different questions: read
@@ -316,7 +210,7 @@ def snapshot():
             for k in KNOBS}
 
 
-def snapshot_with_readers(roles):
+def snapshot_with_readers(roles: dict) -> dict:
     """The knob snapshot, each knob saying who reads it in this run.
 
     Here because two commands snapshot and both must write the one shape `books
@@ -331,16 +225,16 @@ def snapshot_with_readers(roles):
     return snap
 
 
-def debts():
+def debts() -> tuple:
     """Knobs declared debt: no consumer, and none due yet."""
     return tuple(k.name for k in KNOBS if k.debt)
 
 
-def names():
+def names() -> tuple:
     return tuple(k.name for k in KNOBS)
 
 
-def passthrough():
+def passthrough() -> dict:
     """What to pass to the rented machine: only what the operator set.
 
     Defaults are not substituted -- they live in this file alone -- and the list

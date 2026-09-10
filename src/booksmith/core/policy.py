@@ -10,6 +10,7 @@ text in the flow, and `furniture` -- running heads, folios, footnotes -- is
 text most likely unwanted, marked and kept until the bench decides.
 """
 
+from collections.abc import Iterable
 from booksmith.core.errors import Unmeasurable
 # One policy per label vocabulary; `ROLE` is their union, and a label may not mean two things.
 PP_DOCLAYOUT_V2 = {
@@ -154,7 +155,7 @@ class UnknownLabel(Unmeasurable):
     """The model's label is not described by the policy. Fell, do not guess."""
 
 
-def check(labels, policy: str = "PP-DocLayoutV2") -> None:
+def check(labels: Iterable[str], policy: str = "PP-DocLayoutV2") -> None:
     """The policy must cover the model's vocabulary whole, and hold nothing extra.
 
     Checked every run, the vocabulary arriving with the weights, and against one
@@ -178,7 +179,7 @@ def check(labels, policy: str = "PP-DocLayoutV2") -> None:
             f"eternal zero in the report.")
 
 
-def for_labels(labels) -> str:
+def for_labels(labels: Iterable[str]) -> str:
     """Which policy describes this vocabulary of labels.
 
     Chosen by the model's own class list rather than a name we typed, comparing

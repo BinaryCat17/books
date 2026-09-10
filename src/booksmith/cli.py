@@ -39,7 +39,6 @@ from booksmith.core import config
 from booksmith.processing.read.rented import paddleocr_vl
 from .remote import ledger as ledger_mod
 from .remote.spec import HostReq
-from .remote.vast import Vast
 from booksmith.core.log import log
 from booksmith.core import knobs
 from booksmith.core import replay as replay_mod
@@ -68,6 +67,7 @@ def cmd_offers(a):
     # The CUDA requirement comes from the model, not from the rental layer:
     # `HostReq` has no default on purpose. Whoever builds the job names it.
     host.cuda_min = paddleocr_vl.CUDA_MIN
+    from .remote.vast import Vast
     v = Vast()
     warm = ledger_mod.warm_machines(a.image or paddleocr_vl.BASE_IMAGE)
     v.pick(host, paddleocr_vl.IMAGE_GB, a.minutes, warm, show=8,
@@ -565,6 +565,7 @@ def cmd_docs(_a):
 
 
 def cmd_ls(_a):
+    from .remote.vast import Vast
     v = Vast()
     rows = v.v.show_instances()
     log(f"balance: ${v.balance():.3f}")
@@ -579,10 +580,12 @@ def cmd_ls(_a):
 
 
 def cmd_down(a):
+    from .remote.vast import Vast
     return 0 if Vast().destroy(a.id) else 1
 
 
 def cmd_reap(_a):
+    from .remote.vast import Vast
     Vast().reap()
     return 0
 
@@ -619,6 +622,7 @@ def cmd_doctor(_a):
             ".env.example")
 
     try:
+        from .remote.vast import Vast
         v = Vast()
         bal = v.balance()
         check(f"vast.ai key (balance ${bal:.3f})", True)

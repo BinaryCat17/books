@@ -7,7 +7,7 @@ import re
 import pytest
 
 from booksmith import cli
-from booksmith.core import config
+from booksmith.core import config, knobs
 from booksmith.datasets import docsgen
 
 ROOT = config.ROOT
@@ -74,11 +74,17 @@ MEASUREMENT = re.compile(
 
 
 def test_prose_documents_carry_no_measurement():
+    """Knob descriptions count as prose: they render into docs/knobs.md and
+    ride into every run.json."""
     found = {}
     for rel in _prose():
         hits = [m.group(0) for m in MEASUREMENT.finditer(_text(rel))]
         if hits:
             found[rel] = hits
+    for k in knobs.KNOBS:
+        hits = [m.group(0) for m in MEASUREMENT.finditer(k.what)]
+        if hits:
+            found[f"knob {k.name}"] = hits
     assert not found, (
         f"measurements in prose: {found}. A number lives in results/ and is "
         f"rendered into METRICS.md; prose points at it")

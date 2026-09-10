@@ -11,7 +11,7 @@ import contextvars
 import os
 import threading
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 
@@ -33,19 +33,19 @@ class _Environ(Mapping):
     one after the default job was made must see it. The registry is imported
     at each call because `knobs` imports this module."""
     @staticmethod
-    def _names():
+    def _names() -> tuple:
         from booksmith.core import knobs
         return knobs.names()
 
-    def __getitem__(self, name):
+    def __getitem__(self, name: str) -> str:
         if name in self._names():
             return os.environ[name]
         raise KeyError(name)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         return (n for n in self._names() if n in os.environ)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return sum(1 for _ in self)
 
 
@@ -60,7 +60,7 @@ class Job:
             raise Cancelled("the job was stopped")
 
     @contextmanager
-    def active(self):
+    def active(self) -> Iterator["Job"]:
         from booksmith.core import knobs
         bad = sorted(set(self.settings) - set(knobs.names()))
         if bad:
@@ -80,7 +80,7 @@ def current() -> Job:
     return _current.get(_DEFAULT)
 
 
-def spawn(fn, *args) -> threading.Thread:
+def spawn(fn: Callable, *args: object) -> threading.Thread:
     """A daemon thread that sees the current job: a thread inherits no context
     variable on its own, and its lines would fall to the default sink."""
     ctx = contextvars.copy_context()
