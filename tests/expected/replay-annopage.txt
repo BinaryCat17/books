@@ -1,9 +1,0 @@
-bench/annopage/detect/PP-DocLayoutV2: values in the snapshot 52 of 53, missing 1, empty 13 (of those, knobs with no value 7); NOT EVERYTHING WAS CHECKED -- 26 fingerprint values have nothing to be checked against
-  the fingerprint of adapter doclayout-onnx is NOT VERIFIED: processing/layout/adapters/doclayout.py is not the code that counted (snapshot 3793f489, tree <current source>) -- 26 fingerprint values went unchecked, and 0 of them are absent from the snapshot. This is 'snapshot OLD', not 'snapshot INCOMPLETE'
-  absent knobs/LAYOUT_ENDPOINT/value                 -- knob LAYOUT_ENDPOINT
-  empty prompts                                      -- every adapter prompt, byte for byte
-  empty generation/temperature                       -- generation temperature
-  empty generation/max_tokens                        -- ceiling on answer length
-  empty generation/top_p                             -- probability cutoff
-  empty generation/seed                              -- generation seed
-  empty weights/vl                                   -- VLM weights fingerprint

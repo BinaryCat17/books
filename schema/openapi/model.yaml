@@ -1,0 +1,33 @@
+openapi: 3.1.0
+info: {title: booksmith model protocol, version: "1"}
+paths:
+  /booksmith/describe:
+    get:
+      summary: What the model is
+      responses:
+        "200": {content: {application/json: {schema: {$ref: ../describe.schema.json}}}}
+        "401": {$ref: "#/components/responses/key"}
+  /booksmith/health:
+    get:
+      summary: Ready or not, and when it last worked
+      responses:
+        "200": {content: {application/json: {schema: {$ref: ../health.schema.json}}}}
+  /booksmith/layout:
+    post:
+      summary: One page in, one page out (layout and hybrid models)
+      requestBody: {required: true, content: {application/json: {schema: {$ref: ../layout-request.schema.json}}}}
+      responses:
+        "200": {content: {application/json: {schema: {$ref: ../page.schema.json}}}}
+        "400": {description: not a PNG, or not a page}
+        "401": {$ref: "#/components/responses/key"}
+  /v1/chat/completions:
+    post:
+      summary: The OpenAI chat route (reader and hybrid models), passed through unchanged
+      responses:
+        "200": {description: as vLLM answers}
+components:
+  securitySchemes:
+    bearer: {type: http, scheme: bearer}
+  responses:
+    key: {description: a key is required, and this is not it}
+security: [{bearer: []}]

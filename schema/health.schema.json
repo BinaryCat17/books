@@ -1,0 +1,33 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "booksmith/health",
+ "title": "Health",
+ "type": "object",
+ "properties": {
+  "ready": {
+   "type": "boolean"
+  },
+  "label": {
+   "type": "string"
+  },
+  "last_request": {
+   "anyOf": [
+    {
+     "type": "number"
+    },
+    {
+     "type": "null"
+    }
+   ]
+  },
+  "requests": {
+   "type": "integer"
+  }
+ },
+ "required": [
+  "ready",
+  "label",
+  "requests"
+ ],
+ "additionalProperties": false
+}

@@ -1,0 +1,119 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "booksmith/page",
+ "title": "Page",
+ "type": "object",
+ "properties": {
+  "index": {
+   "type": "integer"
+  },
+  "width": {
+   "type": "integer"
+  },
+  "height": {
+   "type": "integer"
+  },
+  "dpi": {
+   "type": "number"
+  },
+  "blocks": {
+   "type": "array",
+   "items": {
+    "$ref": "#/$defs/block"
+   }
+  },
+  "raw": {
+   "anyOf": [
+    {
+     "type": "object"
+    },
+    {
+     "type": "null"
+    }
+   ]
+  },
+  "meta": {
+   "type": "object"
+  }
+ },
+ "required": [
+  "index",
+  "width",
+  "height",
+  "dpi",
+  "blocks"
+ ],
+ "additionalProperties": false,
+ "$defs": {
+  "block": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "block_id",
+    "box",
+    "label"
+   ],
+   "properties": {
+    "block_id": {
+     "type": "integer"
+    },
+    "box": {
+     "type": "array",
+     "items": {
+      "type": "number"
+     },
+     "minItems": 4,
+     "maxItems": 4
+    },
+    "label": {
+     "type": "string"
+    },
+    "score": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "order": {
+     "anyOf": [
+      {
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "content": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "kind": {
+     "type": "string",
+     "enum": [
+      "html",
+      "otsl",
+      "latex",
+      "text",
+      "none"
+     ],
+     "default": "none"
+    },
+    "source_category": {
+     "type": "string"
+    }
+   }
+  }
+ },
+ "description": "One page as a model returned it, or as truth marks it. Boxes are in page pixels at dpi, origin top left. A truth page's meta carries the three-state traits text_marked, order_marked and labelled."
+}

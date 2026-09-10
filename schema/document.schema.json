@@ -1,0 +1,355 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "booksmith/document",
+ "title": "Document",
+ "type": "object",
+ "properties": {
+  "version": {
+   "type": "integer"
+  },
+  "run": {
+   "type": "object",
+   "required": [
+    "kind",
+    "label",
+    "identity"
+   ],
+   "properties": {
+    "kind": {
+     "type": "string",
+     "enum": [
+      "detect",
+      "read"
+     ]
+    },
+    "label": {
+     "type": "string"
+    },
+    "identity": {
+     "type": "string",
+     "pattern": "^[0-9a-f]{64}$"
+    }
+   }
+  },
+  "source": {
+   "type": "object",
+   "required": [
+    "sha256"
+   ],
+   "properties": {
+    "name": {
+     "type": "string"
+    },
+    "sha256": {
+     "type": "string",
+     "pattern": "^[0-9a-f]{64}$"
+    }
+   }
+  },
+  "policy": {
+   "type": "object"
+  },
+  "page_dpi": {
+   "type": "number"
+  },
+  "observed": {
+   "type": "boolean"
+  },
+  "pages": {
+   "type": "array",
+   "items": {
+    "$ref": "#/$defs/page"
+   }
+  }
+ },
+ "required": [
+  "version",
+  "run",
+  "source",
+  "policy",
+  "page_dpi",
+  "observed",
+  "pages"
+ ],
+ "additionalProperties": false,
+ "$defs": {
+  "block": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "anchor",
+    "page",
+    "block_id",
+    "label",
+    "cls",
+    "role",
+    "box",
+    "kind",
+    "order_source",
+    "as_picture",
+    "nested_in_text",
+    "nested_in_text_strict"
+   ],
+   "properties": {
+    "anchor": {
+     "type": "string",
+     "pattern": "^p[0-9]{4,}(-b[0-9]+)?$"
+    },
+    "page": {
+     "type": "integer"
+    },
+    "block_id": {
+     "type": "integer"
+    },
+    "label": {
+     "type": "string"
+    },
+    "cls": {
+     "type": "string",
+     "enum": [
+      "algorithm",
+      "caption",
+      "chart",
+      "code",
+      "display_formula",
+      "footer_image",
+      "footnote",
+      "header_image",
+      "inline_formula",
+      "page_footer",
+      "page_header",
+      "picture",
+      "seal",
+      "table",
+      "text"
+     ]
+    },
+    "role": {
+     "type": "string",
+     "enum": [
+      "artifact",
+      "furniture",
+      "text"
+     ]
+    },
+    "score": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "order": {
+     "anyOf": [
+      {
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "order_source": {
+     "type": "string"
+    },
+    "content": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "kind": {
+     "type": "string",
+     "enum": [
+      "html",
+      "otsl",
+      "latex",
+      "text",
+      "none"
+     ]
+    },
+    "box": {
+     "type": "array",
+     "items": {
+      "type": "number"
+     },
+     "minItems": 4,
+     "maxItems": 4
+    },
+    "reading": {
+     "anyOf": [
+      {
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "hit_ceiling": {
+     "anyOf": [
+      {
+       "type": "boolean"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "repeat_of": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "repeat_verdict": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "table_shape": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "inside_artifacts": {
+     "anyOf": [
+      {
+       "type": "array",
+       "items": {
+        "type": "string",
+        "pattern": "^p[0-9]{4,}(-b[0-9]+)?$"
+       }
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "inside": {
+     "anyOf": [
+      {
+       "type": "string",
+       "pattern": "^p[0-9]{4,}(-b[0-9]+)?$"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "contains": {
+     "anyOf": [
+      {
+       "type": "array",
+       "items": {
+        "type": "string",
+        "pattern": "^p[0-9]{4,}(-b[0-9]+)?$"
+       }
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "nested_in_text": {
+     "type": "boolean"
+    },
+    "nested_in_text_strict": {
+     "type": "boolean"
+    },
+    "as_picture": {
+     "type": "boolean"
+    },
+    "why_empty": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   }
+  },
+  "page": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "index",
+    "width",
+    "height",
+    "dpi",
+    "order_source",
+    "blocks"
+   ],
+   "properties": {
+    "index": {
+     "type": "integer"
+    },
+    "width": {
+     "type": "integer"
+    },
+    "height": {
+     "type": "integer"
+    },
+    "dpi": {
+     "type": "number"
+    },
+    "order_source": {
+     "type": "string"
+    },
+    "trouble": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "image_share": {
+     "type": "number"
+    },
+    "largest_artifact_share": {
+     "type": "number"
+    },
+    "repeats_verbatim": {
+     "type": "integer"
+    },
+    "nested_artifacts": {
+     "type": "integer"
+    },
+    "blocks": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/block"
+     }
+    }
+   }
+  }
+ },
+ "description": "The book as data, assembled from a run's pages by one rule: blocks in reading order with their role by the run's policy, their content by kind, what nests and repeats, and what the reading said. Every export renders this and nothing else; the run's pages stay untouched."
+}

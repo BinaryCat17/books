@@ -1,101 +1,21 @@
 [project]
 name = "booksmith"
-version = "0.2.0"
-description = "Scans of technical books -> HTML, locally and on rented GPUs"
-requires-python = ">=3.10"
-dependencies = [
-    # pymupdf -- page raster and spread cutting (djvu.py). HTTP in live code
-    # goes through urllib from the standard library.
-    "pymupdf>=1.24",
-]
+version = "0.3.0"
+requires-python = ">=3.12"
 
-# Layout detection locally, on the CPU: `books detect`. A separate extra
-# rather than a core dependency, because renting and `books prepare` do not
-# need them, and onnxruntime with opencv weigh close to half a gigabyte.
-#   pip install -e ".[detect]"
-[project.optional-dependencies]
-# Renting a card: `books read --rent`, `books offers`, `books ls`, `books down`,
-# `books reap`. The library imports it only inside those paths.
-#   pip install -e ".[remote]"
-remote = [
-    "vastai>=1.5.5",
-]
-detect = [
-    "onnxruntime>=1.20",
-    "numpy>=1.26",
-    "opencv-python-headless>=4.9",
-    "pyyaml>=6.0",
-]
+[tool.uv]
+package = false
 
-# The vendor docling pipeline over heron and egret boxes -- knob
-# `DOCLING_PIPELINE`. A separate extra for the same reason as detect: with the
-# knob off the adapter must run WITHOUT this package, and with the knob on and
-# the package missing it must fail aloud and name this install line.
-#   pip install -e ".[docling]"     # or: uv pip install "docling-slim==..." rtree
-# THE PRICE AS A NUMBER: 25 wheels, +54 MB to the environment (510 -> 570 MB,
-# measured with du -sb: 515238976 -> 571366772 bytes). No torch among them --
-# hence `docling-slim` and not `docling`: the full distribution pulls parsing
-# engines (torch, transformers, easyocr) running to gigabytes, and what we need
-# is exactly two files of pure python over the boxes:
-# `docling/utils/layout_postprocessor.py` and
-# `docling/models/postprocessing/reading_order_rb.py`.
-# `rtree` is neither decoration nor a transitive dependency: the
-# postprocessor builds an R-tree over the boxes
-# (`docling/datamodel/spatial.py`), and without that wheel importing
-# `layout_postprocessor` fails on the first page.
-# The version is PINNED to a point, not a range: both files are rules, and an
-# edit to a rule at the vendor would silently change our boxes and our order.
-# A version drift would show up as a drift in the sha256 of both files in the
-# fingerprint -- but only after the fact, and a pin catches it before.
-docling = [
-    "docling-slim==2.123.1",
-    "rtree>=1.3",
-]
-web = [
-    "argon2-cffi>=23.1",
-    "fastapi>=0.115",
-    "python-multipart>=0.0.9",
-    "uvicorn>=0.30",
-]
-
-[project.scripts]
-books = "booksmith.cli:main"
-
-[build-system]
-requires = ["setuptools>=68"]
-build-backend = "setuptools.build_meta"
-
-[tool.setuptools.packages.find]
-where = ["src"]
+[tool.uv.workspace]
+members = ["images/backend", "images/metrics", "images/layout", "images/vlm", "images/datasets", "images/fleet"]
 
 [dependency-groups]
-dev = [
-    "httpx>=0.27",
-    "mypy>=2.3",
-    "pytest>=9.1.1",
-    "ruff>=0.16.6",
-]
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-pythonpath = ["src", "tests"]
-addopts = "-q -rs -m 'not slow'"
-markers = ["slow: needs model weights or a long run; select with -m slow"]
-
-# Types are required where the web layer will lean: the kernel and, later, the
-# service. The rest of the tree is checked as it is annotated.
-[tool.mypy]
-files = ["src/booksmith/core", "src/booksmith/service.py", "src/booksmith/web"]
-ignore_missing_imports = true
-disallow_untyped_defs = true
-# What the checked files import is analysed for their sake and not reported:
-# the rest of the tree is checked as it is annotated.
-follow_imports = "silent"
+dev = ["pytest>=9", "ruff>=0.16", "mypy>=2", "httpx>=0.27"]
 
 [tool.ruff]
-line-length = 100
-target-version = "py310"
+line-length = 110
+target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E4", "E9", "F", "UP", "B", "RUF100"]
-ignore = ["E702", "E741", "E731", "B904"]
+select = ["E4", "E9", "F", "UP", "B"]
+ignore = ["E741", "E731", "B904", "B905"]

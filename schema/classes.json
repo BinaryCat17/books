@@ -1,0 +1,172 @@
+{
+ "$comment": "The class table: every label a model names maps onto one of these.",
+ "classes": {
+  "text": {
+   "role": "text",
+   "order": "text"
+  },
+  "caption": {
+   "role": "text",
+   "order": "caption"
+  },
+  "algorithm": {
+   "role": "text",
+   "order": "code"
+  },
+  "inline_formula": {
+   "role": "text",
+   "order": "text"
+  },
+  "code": {
+   "role": "artifact",
+   "order": "code"
+  },
+  "display_formula": {
+   "role": "artifact",
+   "order": "picture"
+  },
+  "table": {
+   "role": "artifact",
+   "order": "table"
+  },
+  "chart": {
+   "role": "artifact",
+   "order": "picture"
+  },
+  "seal": {
+   "role": "artifact",
+   "order": "picture"
+  },
+  "picture": {
+   "role": "artifact",
+   "order": "picture"
+  },
+  "header_image": {
+   "role": "artifact",
+   "order": "page_header"
+  },
+  "footer_image": {
+   "role": "artifact",
+   "order": "page_footer"
+  },
+  "page_header": {
+   "role": "furniture",
+   "order": "page_header"
+  },
+  "page_footer": {
+   "role": "furniture",
+   "order": "page_footer"
+  },
+  "footnote": {
+   "role": "furniture",
+   "order": "footnote"
+  }
+ },
+ "roles": [
+  "artifact",
+  "furniture",
+  "text"
+ ],
+ "vocabularies": {
+  "PP-DocLayoutV2": {
+   "table": "table",
+   "chart": "chart",
+   "image": "picture",
+   "display_formula": "display_formula",
+   "header_image": "header_image",
+   "footer_image": "footer_image",
+   "seal": "seal",
+   "abstract": "text",
+   "algorithm": "algorithm",
+   "aside_text": "text",
+   "content": "text",
+   "doc_title": "text",
+   "figure_title": "caption",
+   "paragraph_title": "text",
+   "reference": "text",
+   "reference_content": "text",
+   "text": "text",
+   "vertical_text": "text",
+   "inline_formula": "inline_formula",
+   "formula_number": "text",
+   "header": "page_header",
+   "footer": "page_footer",
+   "number": "page_footer",
+   "footnote": "footnote",
+   "vision_footnote": "footnote"
+  },
+  "PP-DocLayout_plus-L": {
+   "table": "table",
+   "chart": "chart",
+   "image": "picture",
+   "formula": "display_formula",
+   "seal": "seal",
+   "abstract": "text",
+   "algorithm": "algorithm",
+   "aside_text": "text",
+   "content": "text",
+   "doc_title": "text",
+   "figure_title": "caption",
+   "paragraph_title": "text",
+   "reference": "text",
+   "reference_content": "text",
+   "text": "text",
+   "formula_number": "text",
+   "header": "page_header",
+   "footer": "page_footer",
+   "number": "page_footer",
+   "footnote": "footnote"
+  },
+  "Docling": {
+   "table": "table",
+   "picture": "picture",
+   "formula": "display_formula",
+   "code": "code",
+   "caption": "caption",
+   "list_item": "text",
+   "section_header": "text",
+   "text": "text",
+   "title": "text",
+   "document_index": "text",
+   "form": "text",
+   "key_value_region": "text",
+   "checkbox_selected": "text",
+   "checkbox_unselected": "text",
+   "page_header": "page_header",
+   "page_footer": "page_footer",
+   "footnote": "footnote"
+  },
+  "Docling-egret": {
+   "Table": "table",
+   "Picture": "picture",
+   "Formula": "display_formula",
+   "Code": "code",
+   "Caption": "caption",
+   "List-item": "text",
+   "Section-header": "text",
+   "Text": "text",
+   "Title": "text",
+   "Document Index": "text",
+   "Form": "text",
+   "Key-Value Region": "text",
+   "Checkbox-Selected": "text",
+   "Checkbox-Unselected": "text",
+   "Page-header": "page_header",
+   "Page-footer": "page_footer",
+   "Footnote": "footnote"
+  },
+  "DocLayNet": {
+   "Table": "table",
+   "Picture": "picture",
+   "Formula": "display_formula",
+   "Caption": "caption",
+   "List-item": "text",
+   "Section-header": "text",
+   "Text": "text",
+   "Title": "text",
+   "Page-header": "page_header",
+   "Page-footer": "page_footer",
+   "Footnote": "footnote"
+  }
+ }
+}

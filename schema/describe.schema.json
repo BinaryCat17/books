@@ -1,0 +1,148 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "booksmith/describe",
+ "title": "Describe",
+ "type": "object",
+ "properties": {
+  "protocol": {
+   "const": 1
+  },
+  "kind": {
+   "type": "string",
+   "enum": [
+    "layout",
+    "reader",
+    "hybrid"
+   ]
+  },
+  "label": {
+   "type": "string",
+   "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]*$"
+  },
+  "fingerprint": {
+   "type": "object",
+   "required": [
+    "sha256_weights"
+   ],
+   "properties": {
+    "sha256_weights": {
+     "anyOf": [
+      {
+       "type": "string",
+       "pattern": "^[0-9a-f]{64}$"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   }
+  },
+  "knobs": {
+   "type": "object",
+   "additionalProperties": {
+    "type": "string"
+   }
+  },
+  "classes": {
+   "type": "object",
+   "additionalProperties": {
+    "type": "string",
+    "enum": [
+     "algorithm",
+     "caption",
+     "chart",
+     "code",
+     "display_formula",
+     "footer_image",
+     "footnote",
+     "header_image",
+     "inline_formula",
+     "page_footer",
+     "page_header",
+     "picture",
+     "seal",
+     "table",
+     "text"
+    ]
+   }
+  },
+  "vocabulary": {
+   "type": "string"
+  },
+  "reading_order": {
+   "type": "string",
+   "enum": [
+    "own",
+    "none"
+   ]
+  },
+  "kinds": {
+   "type": "array",
+   "items": {
+    "type": "string",
+    "enum": [
+     "html",
+     "otsl",
+     "latex",
+     "text"
+    ]
+   }
+  },
+  "openai": {
+   "anyOf": [
+    {
+     "type": "object",
+     "required": [
+      "base",
+      "model"
+     ],
+     "properties": {
+      "base": {
+       "type": "string"
+      },
+      "model": {
+       "type": "string"
+      }
+     }
+    },
+    {
+     "type": "null"
+    }
+   ]
+  },
+  "commit": {
+   "anyOf": [
+    {
+     "type": "string"
+    },
+    {
+     "type": "null"
+    }
+   ]
+  },
+  "adapter_sha256": {
+   "anyOf": [
+    {
+     "type": "string",
+     "pattern": "^[0-9a-f]{64}$"
+    },
+    {
+     "type": "null"
+    }
+   ]
+  }
+ },
+ "required": [
+  "protocol",
+  "kind",
+  "label",
+  "fingerprint",
+  "knobs",
+  "classes",
+  "reading_order",
+  "kinds"
+ ],
+ "additionalProperties": false,
+ "description": "What a model says of itself. The identity of a run through it is the hash of fingerprint and both sides' knob values: what the model serves, never where it runs."
+}

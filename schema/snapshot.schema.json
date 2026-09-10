@@ -1,0 +1,116 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "booksmith/snapshot",
+ "title": "Snapshot",
+ "type": "object",
+ "properties": {
+  "when": {
+   "type": "string"
+  },
+  "label": {
+   "type": "string"
+  },
+  "identity": {
+   "type": "string",
+   "pattern": "^[0-9a-f]{64}$"
+  },
+  "commit": {
+   "anyOf": [
+    {
+     "type": "string"
+    },
+    {
+     "type": "null"
+    }
+   ]
+  },
+  "source": {
+   "type": "object",
+   "required": [
+    "sha256"
+   ],
+   "properties": {
+    "path": {
+     "type": "string"
+    },
+    "sha256": {
+     "type": "string",
+     "pattern": "^[0-9a-f]{64}$"
+    }
+   }
+  },
+  "raster": {
+   "type": "object",
+   "required": [
+    "dpi"
+   ],
+   "properties": {
+    "dpi": {
+     "type": "number"
+    },
+    "scale": {
+     "type": "number"
+    }
+   }
+  },
+  "knobs": {
+   "type": "object"
+  },
+  "fingerprint": {
+   "type": "object"
+  },
+  "policy": {
+   "type": "object"
+  },
+  "served": {
+   "anyOf": [
+    {
+     "type": "object"
+    },
+    {
+     "type": "null"
+    }
+   ]
+  },
+  "adapter": {
+   "type": "object"
+  },
+  "args": {
+   "type": "object"
+  },
+  "layout": {
+   "type": "string",
+   "enum": [
+    "own"
+   ]
+  },
+  "detection": {
+   "anyOf": [
+    {
+     "type": "object"
+    },
+    {
+     "type": "null"
+    }
+   ]
+  },
+  "kinds": {
+   "type": "array",
+   "items": {
+    "type": "string"
+   }
+  }
+ },
+ "required": [
+  "when",
+  "label",
+  "identity",
+  "source",
+  "raster",
+  "knobs",
+  "fingerprint",
+  "policy"
+ ],
+ "additionalProperties": true,
+ "description": "run.json beside a run's pages: what produced them and under which settings. layout=own marks a hybrid, a read run whose boxes are its own."
+}

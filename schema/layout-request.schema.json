@@ -1,0 +1,25 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "booksmith/layout-request",
+ "title": "LayoutRequest",
+ "type": "object",
+ "properties": {
+  "index": {
+   "type": "integer"
+  },
+  "dpi": {
+   "type": "number"
+  },
+  "image": {
+   "type": "string",
+   "pattern": "^data:image/png;base64,"
+  }
+ },
+ "required": [
+  "index",
+  "dpi",
+  "image"
+ ],
+ "additionalProperties": false,
+ "description": "One page for a layout or hybrid model; the answer is a Page."
+}

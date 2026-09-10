@@ -1,0 +1,91 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "booksmith/catalog",
+ "title": "Catalog",
+ "type": "array",
+ "description": "Every metric with its needs and the scalars it publishes: what a client renders from.",
+ "items": {
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+   "metric",
+   "needs",
+   "description",
+   "scalars"
+  ],
+  "properties": {
+   "metric": {
+    "type": "string"
+   },
+   "needs": {
+    "type": "array",
+    "items": {
+     "type": "string",
+     "enum": [
+      "truth",
+      "pages",
+      "pdf",
+      "content",
+      "read"
+     ]
+    }
+   },
+   "description": {
+    "type": "string"
+   },
+   "scalars": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "name",
+      "better",
+      "gloss",
+      "per",
+      "side",
+      "unit"
+     ],
+     "properties": {
+      "name": {
+       "type": "string"
+      },
+      "better": {
+       "type": "string",
+       "enum": [
+        "higher",
+        "lower",
+        "neither"
+       ]
+      },
+      "gloss": {
+       "type": "string"
+      },
+      "question": {
+       "type": "string"
+      },
+      "per": {
+       "type": "string",
+       "enum": [
+        "page",
+        "block",
+        "none"
+       ]
+      },
+      "side": {
+       "type": "string",
+       "enum": [
+        "",
+        "truth",
+        "run"
+       ]
+      },
+      "unit": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  }
+ }
+}

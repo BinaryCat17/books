@@ -1,0 +1,146 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "booksmith/record",
+ "title": "Record",
+ "type": "object",
+ "properties": {
+  "metric": {
+   "type": "string"
+  },
+  "bench": {
+   "type": "string"
+  },
+  "run": {
+   "type": "string"
+  },
+  "book": {
+   "anyOf": [
+    {
+     "type": "string"
+    },
+    {
+     "type": "null"
+    }
+   ]
+  },
+  "identity": {
+   "anyOf": [
+    {
+     "type": "string",
+     "pattern": "^[0-9a-f]{64}$"
+    },
+    {
+     "type": "null"
+    }
+   ]
+  },
+  "source_sha256": {
+   "anyOf": [
+    {
+     "type": "string",
+     "pattern": "^[0-9a-f]{64}$"
+    },
+    {
+     "type": "null"
+    }
+   ]
+  },
+  "scalars": {
+   "type": "object",
+   "additionalProperties": {
+    "$ref": "#/$defs/scalar"
+   }
+  },
+  "params": {
+   "type": "object"
+  },
+  "detail": {
+   "type": "object"
+  }
+ },
+ "required": [
+  "metric",
+  "bench",
+  "run",
+  "scalars",
+  "params",
+  "detail"
+ ],
+ "additionalProperties": false,
+ "$defs": {
+  "scalar": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "value"
+   ],
+   "properties": {
+    "value": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "count": {
+     "type": "object",
+     "required": [
+      "n",
+      "of"
+     ],
+     "properties": {
+      "n": {
+       "type": "integer"
+      },
+      "of": {
+       "type": "integer"
+      }
+     }
+    },
+    "over": {
+     "type": "object",
+     "required": [
+      "n",
+      "of",
+      "unit"
+     ],
+     "properties": {
+      "n": {
+       "type": "integer"
+      },
+      "of": {
+       "type": "integer"
+      },
+      "unit": {
+       "type": "string"
+      }
+     }
+    },
+    "why": {
+     "type": "string"
+    },
+    "per": {
+     "type": "object",
+     "additionalProperties": {
+      "type": "number"
+     },
+     "propertyNames": {
+      "type": "string",
+      "pattern": "^p[0-9]{4,}(-b[0-9]+)?$"
+     }
+    },
+    "side": {
+     "type": "string",
+     "enum": [
+      "truth",
+      "run"
+     ]
+    }
+   }
+  }
+ },
+ "description": "What one metric said of one run. A scalar without a value carries why; per holds the same quantity at each anchor, of the side it names."
+}
