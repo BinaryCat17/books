@@ -4,7 +4,6 @@ A foreign json is refused, not scored; a page directory with no snapshot is
 refused by `Run.open` and taken by `Run.bare` only, which then says NOT CHECKED;
 a trait the file does not name is "not said", never "no".
 """
-import contextlib
 import json
 import os
 import shutil
@@ -13,6 +12,7 @@ import tempfile
 from booksmith.core.errors import Unmeasurable
 from booksmith.core import page
 from booksmith.core import stamp
+from booksmith.core import config
 from booksmith.datasets import bench
 
 
@@ -25,27 +25,16 @@ LABEL = "PP-DocLayoutV2"
 
 
 def _book(d, man=None, sha="cd" * 32, name="book"):
-    """A book directory with a manifest and no truth."""
-    root = os.path.join(d, name)
+    """A book directory with a manifest and no truth, in the store `d`: a
+    truthless book's scan is looked for in its store's `raw/`, so the store
+    is the temporary directory and never the developer's."""
+    root = os.path.join(d, "processed", name)
     os.makedirs(root, exist_ok=True)
     if man is None:
         man = {"source": {"name": "book.pdf", "sha256": sha}}
     with open(os.path.join(root, "manifest.json"), "w", encoding="utf-8") as f:
         json.dump(man, f)
     return root
-
-
-@contextlib.contextmanager
-def at_root(d):
-    """`config.ROOT` pointed at `d` for the duration: `_scan_of` looks for the
-    manifest's `source.name` under `<ROOT>/raw/` by name, so a truthless book
-    opened while ROOT is the repository asks about the developer's `raw/`."""
-    was = bench.config.ROOT
-    bench.config.ROOT = d
-    try:
-        yield d
-    finally:
-        bench.config.ROOT = was
 
 
 def _bench(root, sha="ab" * 32, pages=None, run_sha=None, label=LABEL):
@@ -95,7 +84,7 @@ def test_a_book_without_truth_opens_by_its_own_door_and_not_by_open():
     """`no_truth` is a second door, never a loosening of the first: a bench
     without truth is a caller's mistake. Both halves are asked at once, or an
     opener that began accepting truthless directories would leave this green."""
-    with tempfile.TemporaryDirectory() as d, at_root(d):
+    with tempfile.TemporaryDirectory() as d:
         root = _book(d)
         b = bench.Bench.no_truth(root)
         assert b.name == "book" and b.truth_dir == ""
@@ -147,7 +136,7 @@ def test_the_books_that_declare_themselves_truthless_open():
     tracked, carry no truth, and say so in their own manifests. A rule that a
     book under `bench/` must hold truth would make the three unreachable."""
     for n in ("real-tables20", "real-holdout20", "real-test25"):
-        b = bench.Bench.no_truth(os.path.join(bench.config.ROOT, "bench", n))
+        b = bench.Bench.no_truth(os.path.join(config.ROOT, "bench", n))
         assert b.truth_dir == "" and b.sha256
         # The scan is tracked beside the book, and it is verified: these are
         # the only books where the beside-the-book branch runs for real.
@@ -172,7 +161,7 @@ def test_a_manifest_may_name_a_file_and_not_a_path():
 def test_the_scan_beside_the_book_is_checked_by_sha_too():
     """The scan beside the book is checked by sha as the one in `raw/` is: where
     the wrong bytes lie makes no difference to the number they produce."""
-    with tempfile.TemporaryDirectory() as d, at_root(d):
+    with tempfile.TemporaryDirectory() as d:
         root = _book(d)                       # manifest says sha "cd" * 32
         with open(os.path.join(root, "book.pdf"), "wb") as f:
             f.write(b"not a pdf at all")
@@ -188,7 +177,7 @@ def test_a_truthless_book_answers_for_its_scan_from_the_checked_lookup_only():
     """`Bench.pdf` answers from the checked lookup only: the lazy branch is an
     unverified twin that looks beside the book and hashes nothing, and it wins by
     fallback. Asked here where the two branches disagree."""
-    with tempfile.TemporaryDirectory() as d, at_root(d):
+    with tempfile.TemporaryDirectory() as d:
         root = _book(d, {"source": {"sha256": "cd" * 32}})
         with open(os.path.join(root, "book.pdf"), "wb") as f:
             f.write(b"whatever bytes")
@@ -225,20 +214,19 @@ def test_the_scan_of_a_built_book_is_found_in_raw_and_checked_by_sha():
         with open(os.path.join(raw, "book.pdf"), "wb") as f:
             f.write(b"a scan, for the purposes of a hash")
         real = stamp.sha256(os.path.join(raw, "book.pdf"))
-        with at_root(d):
-            found = bench.Bench.no_truth(_book(d, sha=real, name="right"))
-            assert found.pdf == os.path.join(raw, "book.pdf")
-            assert found.scan == found.pdf
-            # The wrong sha shares its first twelve characters with the right
-            # one: the refusal prints only twelve, so a fixture differing in the
-            # first byte would pass a 48-bit check for a 256-bit one.
-            near = real[:12] + ("0" if real[12] != "0" else "1") + real[13:]
-            try:
-                bench.Bench.no_truth(_book(d, sha=near, name="wrong"))
-            except Unmeasurable as e:
-                assert "is not the scan" in str(e) and real[:12] in str(e)
-            else:
-                raise AssertionError("a foreign scan in raw/ was accepted")
+        found = bench.Bench.no_truth(_book(d, sha=real, name="right"))
+        assert found.pdf == os.path.join(raw, "book.pdf")
+        assert found.scan == found.pdf
+        # The wrong sha shares its first twelve characters with the right
+        # one: the refusal prints only twelve, so a fixture differing in the
+        # first byte would pass a 48-bit check for a 256-bit one.
+        near = real[:12] + ("0" if real[12] != "0" else "1") + real[13:]
+        try:
+            bench.Bench.no_truth(_book(d, sha=near, name="wrong"))
+        except Unmeasurable as e:
+            assert "is not the scan" in str(e) and real[:12] in str(e)
+        else:
+            raise AssertionError("a foreign scan in raw/ was accepted")
 
 
 def test_a_run_knows_which_level_it_is_of():

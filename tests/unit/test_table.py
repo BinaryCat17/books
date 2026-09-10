@@ -11,7 +11,7 @@ from booksmith.core.errors import Refusal
 from booksmith.datasets import table
 from booksmith.datasets.bench import Bench
 from booksmith.datasets.metrics.base import Record, Scalar
-from test_bench import LABEL, _bench, at_root
+from test_bench import LABEL, _bench
 import support
 
 
@@ -49,8 +49,10 @@ def test_a_book_without_truth_is_measured_by_what_needs_none():
     """The truth is parsed only if there is any: opening with `bench.pages()`
     unconditionally kills a book with no `truth/` before applicability is ever
     consulted, and the truth-free metrics are what a level-two run has."""
-    with tempfile.TemporaryDirectory() as d, at_root(d):
-        root = _bench(os.path.join(d, "b"))
+    with tempfile.TemporaryDirectory() as d:
+        # Under `processed/`, so the book's store is this directory and the
+        # scan is looked for in its `raw/`, never the developer's.
+        root = _bench(os.path.join(d, "processed", "b"))
         os.rename(os.path.join(root, "truth"), os.path.join(d, "away"))
         b = Bench.no_truth(root)
         recs = table.rows(b, b.run())
