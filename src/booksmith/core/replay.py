@@ -234,11 +234,15 @@ def shape(snap: dict) -> dict:
     spoken = snap.get("served")
     if isinstance(spoken, dict):
         # A served model: the describe IS the declaration of the shape, so
-        # every value it carried is required, and its code and commit stand
-        # where a parse of the adapter's source would. Nothing here can check
-        # them against code, and the row says so rather than "verified".
+        # every value it declared is required under `fingerprint` -- derived
+        # from the describe's copy, not from the snapshot's, or a value cut
+        # from the snapshot would take its requirement with it. Its code and
+        # commit stand where a parse of the adapter's source would; nothing
+        # here can check them against code, and the row says so.
         label = spoken.get("label")
-        paths = sorted(_fp_paths(snap))
+        declared = spoken.get("fingerprint")
+        declared = declared if isinstance(declared, dict) else {}
+        paths = sorted(_paths_of(declared, (FP,)))
         r["name"] = f"served {label}"
         r["how"] = "by the model's own describe"
         r["derived"] = (
@@ -246,6 +250,21 @@ def shape(snap: dict) -> dict:
             + [(p, f"a fingerprint value the served model {label} declared")
                for p in paths])
         sha, commit = spoken.get("adapter_sha256"), spoken.get("commit")
+        ok_fp, written = _dig(snap, (FP,))
+        if not declared:
+            r["blind"] = 1
+            r["row"] = (f"fingerprint NOT VERIFIED: the served model {label} "
+                        f"declared no fingerprint in its describe")
+            return r
+        if ok_fp and written != declared:
+            # Two fingerprints in one snapshot that disagree: the run does not
+            # know what it was made by, which is worse than an old snapshot.
+            r["blind"] = 1
+            r["row"] = (
+                f"fingerprint NOT VERIFIED: the snapshot's `{FP}` and the "
+                f"fingerprint the served model {label} declared DISAGREE -- "
+                f"the run cannot say which model made it")
+            return r
         r["row"] = (
             f"the fingerprint of the served model {label} is what its "
             f"describe declared: {len(paths)} values, code "
@@ -413,21 +432,26 @@ def hollow(snap: dict, req: Sequence | None = None) -> list:
     return out
 
 
+def _paths_of(node: dict, pre: tuple) -> set:
+    """Every path inside a mapping, prefixed."""
+    have = set()
+
+    def walk(d: dict, at: tuple) -> None:
+        for k, v in d.items():
+            have.add(at + (k,))
+            if isinstance(v, dict):
+                walk(v, at + (k,))
+
+    walk(node, pre)
+    return have
+
+
 def _fp_paths(snap: dict) -> set:
     """Every path inside the fingerprint branch of THE SNAPSHOT (not of the requirement)."""
     ok, fp = _dig(snap, (FP,))
     if not ok or not isinstance(fp, dict):
         return set()
-    have = set()
-
-    def walk(node: dict, pre: tuple) -> None:
-        for k, v in node.items():
-            have.add(pre + (k,))
-            if isinstance(v, dict):
-                walk(v, pre + (k,))
-
-    walk(fp, (FP,))
-    return have
+    return _paths_of(fp, (FP,))
 
 
 def uncovered(snap: dict, sh: dict) -> list:

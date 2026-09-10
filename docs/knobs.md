@@ -32,7 +32,7 @@ which detection adapter to call, one of `detect.py:ADAPTERS`; each has its own l
 
 default: ``
 
-address of a served layout or hybrid model, the root its /booksmith routes hang from; read by the served adapter alone, and no default
+address of a served layout or hybrid model, the root its /booksmith routes hang from; read by the served adapter, and by the doctor to know whether there is one to ask; no default
 
 ## YOLOX_WEIGHTS
 

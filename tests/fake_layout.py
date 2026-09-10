@@ -42,7 +42,8 @@ class FakeLayout:
 
     def __init__(self, truth_dir, kind="layout", label="truth",
                  vocabulary="PP-DocLayoutV2", fingerprint=None, knobs=None,
-                 keep_content=False, kinds=("text",)):
+                 keep_content=False, kinds=("text",), openai=None,
+                 answer=None):
         self.pages = truth_pages(truth_dir)
         self.kind, self.label, self.keep_content = kind, label, keep_content
         labels = list(policy.POLICIES[vocabulary])
@@ -56,7 +57,9 @@ class FakeLayout:
             vocabulary=vocabulary, reading_order="own",
             knobs=dict(knobs or {}),
             kinds=tuple(kinds) if kind == "hybrid" else (),
-            commit="fake", adapter_sha256="0" * 64)
+            openai=openai, commit="fake", adapter_sha256="0" * 64)
+        # `answer(page dict) -> page dict` edits what a page answers with.
+        self.answer = answer
         self.seen = []
         self.requests = 0
         self.last_request = None
@@ -89,13 +92,15 @@ class FakeLayout:
                 req = served.LayoutRequest.from_json(
                     json.loads(self.rfile.read(n) or b"{}"))
                 srv.seen.append({"index": req.index, "dpi": req.dpi,
-                                 "bytes": len(req.image)})
+                                 "bytes": len(req.image),
+                                 "authorization": self.headers.get("Authorization")})
                 srv.requests += 1
                 srv.last_request = time.time()
                 page = srv.pages.get(req.index)
                 if page is None:
                     return self._json(404, {"error": f"no page {req.index}"})
-                return self._json(200, srv._answer(page))
+                out = srv._answer(page)
+                return self._json(200, srv.answer(out) if srv.answer else out)
 
         self.httpd = HTTPServer(("127.0.0.1", 0), H)
         self.port = self.httpd.server_address[1]

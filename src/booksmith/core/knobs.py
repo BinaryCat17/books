@@ -41,7 +41,7 @@ KNOBS = (
     # An empty default drops the run instead of being passed on, as with
     # VLM_ENDPOINT: a silent localhost would call a refused connection silence.
     Knob("LAYOUT_ENDPOINT", "",
-         "address of a served layout or hybrid model, the root its /booksmith routes hang from; read by the served adapter alone, and no default"),
+         "address of a served layout or hybrid model, the root its /booksmith routes hang from; read by the served adapter, and by the doctor to know whether there is one to ask; no default"),
     Knob("YOLOX_WEIGHTS", "",
          "which YOLOX weights to take: yolox_l0.05.onnx (the default) or "
          "yolox_tiny.onnx"),

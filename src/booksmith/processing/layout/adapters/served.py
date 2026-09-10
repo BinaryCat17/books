@@ -12,7 +12,7 @@ identity, so a served run of a model equals an in-process run of it.
 """
 from __future__ import annotations
 
-from booksmith.core import book, knobs, served
+from booksmith.core import book, job, knobs, served
 from booksmith.core.errors import Refusal
 from booksmith.core.page import KINDS, Page
 from booksmith.processing.layout.base import Detector
@@ -27,16 +27,19 @@ class Served(Detector):
 
     name = "served"
 
-    def __init__(self, endpoint: str | None = None):
-        self.endpoint = served.root_of(endpoint or knobs.knob("LAYOUT_ENDPOINT"))
+    def __init__(self) -> None:
+        self.endpoint = served.root_of(knobs.knob("LAYOUT_ENDPOINT"))
         if not self.endpoint:
             raise Refusal(
                 "LAYOUT_ENDPOINT is empty: no model address was given. There "
                 "is no default on purpose -- a silent localhost would make "
                 "the run knock at nothing and call that the model's silence.")
+        # The key is the job's secret, never a knob: a snapshot must not hold it.
+        self.headers = served.bearer(
+            str(job.current().secrets.get("LAYOUT_API_KEY") or ""))
         try:
             answer = served.fetch(self.endpoint + served.DESCRIBE,
-                                  timeout=TIMEOUT_S)
+                                  timeout=TIMEOUT_S, headers=self.headers)
         except served.Unreachable as e:
             raise Refusal(
                 f"{self.endpoint} does not describe itself: {e.why}. A "
@@ -55,6 +58,7 @@ class Served(Detector):
                 f"{self.describe.label}: the fingerprint lacks {missing}, "
                 f"which the snapshot indexes and the identity stands on.")
         self.labels: tuple[str, ...] = tuple(self.describe.labels)
+        self._known = set(self.labels)
         # The policy is the model's declaration, as an in-process adapter's
         # class attribute is; `detect.py` checks it covers the labels whole.
         self.policy_name = self.describe.vocabulary
@@ -88,10 +92,11 @@ class Served(Detector):
     # ------------------------------------------------------------ the count --
     def read(self, image_path: str, index: int, dpi: float) -> Page:
         uri, _ = served.data_uri(image_path)
+        sent = served.png_size(image_path)
         req = served.LayoutRequest(index=index, dpi=dpi, image=uri)
         try:
             answer = served.fetch(self.endpoint + served.LAYOUT, req.to_json(),
-                                  timeout=TIMEOUT_S)
+                                  timeout=TIMEOUT_S, headers=self.headers)
         except served.Unreachable as e:
             raise Refusal(
                 f"page {index}: {self.describe.label} at {self.endpoint} did "
@@ -113,6 +118,25 @@ class Served(Detector):
             raise Refusal(
                 f"page {index}: the answer's meta lacks {lacking}, which the "
                 f"detect loop indexes on every page")
+        # The sheet the boxes are on must be the sheet that was sent: a page
+        # filed at another dpi or size under this run's snapshot would put
+        # every box a factor off, plausibly.
+        if float(page.dpi) != float(dpi):
+            raise Refusal(
+                f"page {index}: {self.describe.label} answered at dpi "
+                f"{page.dpi}, and the raster was sent at {dpi}")
+        if sent is not None and (page.width, page.height) != sent:
+            raise Refusal(
+                f"page {index}: {self.describe.label} answered a sheet of "
+                f"{page.width}x{page.height}, and the raster sent was "
+                f"{sent[0]}x{sent[1]}")
+        foreign_labels = sorted({b.label for b in page.blocks
+                                 if b.label not in self._known})
+        if foreign_labels:
+            raise Refusal(
+                f"page {index}: {self.describe.label} returned labels "
+                f"{foreign_labels[:5]} it did not declare in its describe; "
+                f"a label outside the declared vocabulary has no role")
         if self.describe.kind == "layout":
             spoken = [b.block_id for b in page.blocks
                       if b.content is not None or b.kind != "none"]
@@ -136,4 +160,10 @@ class Served(Detector):
                 raise Refusal(
                     f"page {index}: {self.describe.label} declared kinds "
                     f"{list(self.describe.kinds)} and returned {foreign}")
+            mute = [b.block_id for b in page.blocks
+                    if b.content is not None and b.kind == "none"]
+            if mute:
+                raise Refusal(
+                    f"page {index}: blocks {mute[:5]} carry content and no "
+                    f"kind; text nobody says how to treat is filed nowhere")
         return page

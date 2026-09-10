@@ -15,10 +15,14 @@ from booksmith.datasets.bench import Bench, Run
 from booksmith.processing.layout import detect
 from fake_layout import FakeLayout
 
-# A one-pixel PNG: the stand-in never looks at the image.
-PNG = (b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
-       b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\rIDATx\x9cc\xf8\xff"
-       b"\xff?\x00\x05\xfe\x02\xfe\xa7V\xbd\xfa\x00\x00\x00\x00IEND\xaeB`\x82")
+def _raster(bench, tmp_path):
+    """Page 0 of the bench's scan at the detect dpi: the sheet the adapter
+    sends, and so the one the answer must be about."""
+    from booksmith.core import raster
+    png = str(tmp_path / "p0.png")
+    with raster.open_pdf(bench.pdf) as doc:
+        raster.render(doc[0], 144).save(png)
+    return png
 
 
 def _copy(slovar, tmp_path):
@@ -98,9 +102,7 @@ def test_identity_is_the_fingerprint_with_the_knobs_of_both_sides():
 # ------------------------------------------------------------ the adapter
 
 def test_the_adapter_refuses_what_the_model_did_not_declare(slovar, tmp_path):
-    png = str(tmp_path / "p.png")
-    with open(png, "wb") as f:
-        f.write(PNG)
+    png = _raster(slovar, tmp_path)
     with FakeLayout(slovar.truth_dir, keep_content=True) as fake:
         with _served(fake.url).active():
             det = detect._adapter()
@@ -114,6 +116,69 @@ def test_the_adapter_refuses_what_the_model_did_not_declare(slovar, tmp_path):
     assert "describe" in str(e.value)
     with _served("").active(), pytest.raises(Refusal):
         detect._adapter()
+
+
+def test_the_adapter_refuses_a_page_that_is_not_the_sheet_it_sent(slovar, tmp_path):
+    """The raster went out at one dpi and size; a page at another is filed
+    a factor off, plausibly. And a label or a kind the describe did not
+    declare has no role and no route."""
+    b = slovar
+    png = _raster(b, tmp_path)
+    assert served.png_size(png) is not None
+    cases = {
+        "dpi": (lambda d: {**d, "dpi": 72.0}, "layout"),
+        "sheet": (lambda d: {**d, "width": d["width"] // 2}, "layout"),
+        "declare": (lambda d: {**d, "blocks": [
+            {**d["blocks"][0], "label": "martian"}]}, "layout"),
+        "kind": (lambda d: {**d, "blocks": [
+            {**d["blocks"][0], "kind": "none"}]}, "hybrid"),
+    }
+    for word, (edit, kind) in cases.items():
+        with FakeLayout(b.truth_dir, kind=kind, answer=edit) as fake:
+            with _served(fake.url).active():
+                det = detect._adapter()
+                with pytest.raises(Refusal) as e:
+                    det.read(png, 0, 144.0)
+                assert word in str(e.value), (word, str(e.value))
+    # The page as the model answered it, unedited, passes the same checks.
+    with FakeLayout(b.truth_dir) as fake, _served(fake.url).active():
+        page = detect._adapter().read(png, 0, 144.0)
+        assert page.width and page.dpi == 144.0
+
+
+def test_a_layout_key_rides_as_a_secret_and_reaches_the_endpoint(slovar, tmp_path):
+    png = _raster(slovar, tmp_path)
+    with FakeLayout(slovar.truth_dir) as fake:
+        j = job.Job(settings={"LAYOUT_ADAPTER": "served", "LAYOUT_ENDPOINT": fake.url},
+                    secrets={"LAYOUT_API_KEY": "sk-layout"})
+        with j.active():
+            det = detect._adapter()
+            assert det.read(png, 0, 144.0).index == 0
+        assert fake.seen[-1]["authorization"] == "Bearer sk-layout"
+        assert "sk-layout" not in json.dumps(det.served())
+
+
+def test_level_two_reads_through_a_hybrid_only_when_it_serves_the_chat_route(slovar):
+    from booksmith.processing.read.transports import openai_http
+    with FakeLayout(slovar.truth_dir, kind="hybrid") as fake:
+        with job.Job(settings={"VLM_ENDPOINT": fake.url + "/v1"}).active():
+            with pytest.raises(Refusal) as e:
+                openai_http.Http().check()
+            assert "chat route" in str(e.value)
+    with FakeLayout(slovar.truth_dir, kind="hybrid", openai={"model": "M"}) as fake:
+        with job.Job(settings={"VLM_ENDPOINT": fake.url + "/v1",
+                               "MODEL_NAME": "M"}).active():
+            who = openai_http.Http().check()
+            assert who["matched"] and who["describe"]["label"] == "truth"
+        with job.Job(settings={"VLM_ENDPOINT": fake.url + "/v1",
+                               "MODEL_NAME": "N"}).active():
+            with pytest.raises(Refusal):
+                openai_http.Http().check()
+    with FakeLayout(slovar.truth_dir) as fake:
+        with job.Job(settings={"VLM_ENDPOINT": fake.url + "/v1"}).active():
+            with pytest.raises(Refusal) as e:
+                openai_http.Http().check()
+            assert "layout model" in str(e.value)
 
 
 # ---------------------------------------------------------- a served run
@@ -148,6 +213,23 @@ def test_a_served_run_measures_as_truth_against_itself_and_a_changed_model_is_re
     # The re-stamp tool leaves a run stamped by today's rule alone.
     old, new = _restamp_tool().restamp(os.path.join(out, "run.json"))
     assert old == new
+    # The replay check requires what the model declared, out of the describe:
+    # a value cut from the snapshot's fingerprint is missing, not forgotten,
+    # and two fingerprints that disagree leave the check blind.
+    from booksmith.core import replay
+    snap_path = os.path.join(out, "run.json")
+    with support.said():
+        assert replay.check(out) == []
+    with open(snap_path, encoding="utf-8") as f:
+        snap = json.load(f)
+    cut = json.loads(json.dumps(snap))
+    del cut["fingerprint"]["label_map"]
+    with open(snap_path, "w", encoding="utf-8") as f:
+        json.dump(cut, f)
+    with support.said():
+        gone = replay.check(out)
+    assert [p for p, _ in gone] == [("fingerprint", "label_map")]
+    assert replay.shape(cut)["blind"] == 1, "a disagreement went unnoticed"
 
 
 def test_a_hybrid_files_as_a_read_run_with_its_own_boxes(slovar, tmp_path):
@@ -189,8 +271,11 @@ def test_a_served_run_of_a_tracked_model_has_the_tracked_identity(slovar):
         pytest.skip("no tracked PP-DocLayoutV2 run on this clone")
     with open(path, encoding="utf-8") as f:
         snap = json.load(f)
+    # Every knob the tracked run read, the command's included: a shim
+    # snapshots its own side whole, and the names the identity excludes may
+    # differ between the sides without a word.
     theirs = {n: e["value"] for n, e in snap["knobs"].items()
-              if e.get("for_this_run") and n not in detect.COMMAND_KNOBS}
+              if e.get("for_this_run")}
     with FakeLayout(slovar.truth_dir, label=snap["label"],
                     fingerprint=snap["fingerprint"], knobs=theirs) as fake:
         with _served(fake.url, PAGE_DPI=snap["knobs"]["PAGE_DPI"]["value"]).active():

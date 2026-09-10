@@ -6,7 +6,7 @@ import json
 import pytest
 
 from booksmith import service
-from booksmith.core import knobs
+from booksmith.core import job, knobs
 from booksmith.core.errors import Refusal
 
 PRESETS = {"fast": {"kind": "layout", "endpoint": "http://127.0.0.1:1/",
@@ -62,6 +62,9 @@ def test_a_named_entry_fills_the_endpoint_after_the_check_and_carries_its_key(tm
     assert j.settings["LAYOUT_ADAPTER"] == "served"
     assert j.settings["LAYOUT_ENDPOINT"] == "http://127.0.0.1:9/"
     assert j.settings["PAGE_DPI"] == "72"
+    # Empty settings under a named entry run the entry's knobs, not the
+    # defaults: a preset runs whole.
+    assert service._job(user, {}, "lay").settings["PAGE_DPI"] == "72"
     # The check sees the user's settings, not the settings plus the endpoint.
     with pytest.raises(Refusal):
         service._job(user, {"PAGE_DPI": "73"}, "lay")
@@ -75,3 +78,11 @@ def test_a_named_entry_fills_the_endpoint_after_the_check_and_carries_its_key(tm
     with j.active():
         snap = knobs.snapshot()
     assert "sk-a-secret" not in json.dumps(snap), "the key reached a snapshot"
+    # A layout entry's key travels under the layout adapter's name, and a
+    # store other than the admin's never inherits the process's own key.
+    presets["lay"]["api_key"] = "sk-lay"
+    with job.Job(secrets={"VLM_API_KEY": "sk-operator"}).active():
+        mine = service._job(user, {}, "lay")
+        theirs = service._job(service.ADMIN, {}, "lay")
+    assert mine.secrets == {"LAYOUT_API_KEY": "sk-lay"}
+    assert theirs.secrets == {"VLM_API_KEY": "sk-operator", "LAYOUT_API_KEY": "sk-lay"}

@@ -168,8 +168,11 @@ def merge_knobs(server: Mapping, client: Mapping) -> dict:
     """The knobs read on both sides of a served model, as one mapping. A name
     read on both with two values is refused, not chosen: the run would then
     be an experiment nobody can name."""
+    # Only names the identity keeps: the adapter that reached the model and
+    # the address it was reached at differ between the two sides by nature.
     both = {k: (server[k], client[k]) for k in server
-            if k in client and str(server[k]) != str(client[k])}
+            if k in client and k not in KNOBS_NOT_IDENTITY
+            and str(server[k]) != str(client[k])}
     if both:
         from booksmith.core.errors import Refusal
         raise Refusal(

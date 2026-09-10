@@ -129,17 +129,23 @@ def _job(store: str, settings: Mapping, model: str = "",
          base: job.Job | None = None) -> job.Job:
     """The job of one run: the caller's job, or the current one, with the
     settings checked, the entry's endpoint filled in after the check, and the
-    entry's key among the secrets."""
+    entry's key among the secrets. Empty settings under a named entry are
+    the entry's knobs: a preset runs whole, never under the defaults by
+    accident. A store other than the admin's starts with no secrets but the
+    entry's: the process's own key is the operator's, not the tenant's."""
     presets = models()
+    settings = dict(settings)
+    if model and not settings:
+        settings = dict(_entry(model, presets)["knobs"])
     check(store, settings, presets, model)
     base = base if base is not None else job.current()
-    settings = dict(settings)
-    secrets = dict(base.secrets)
+    secrets = dict(base.secrets) if _admin(store) else {}
     if model:
         e = _entry(model, presets)
         settings = _with_endpoint(settings, e, model)
         if e.get("api_key"):
-            secrets["VLM_API_KEY"] = str(e["api_key"])
+            name = "VLM_API_KEY" if e["kind"] == "reader" else "LAYOUT_API_KEY"
+            secrets[name] = str(e["api_key"])
     return dataclasses.replace(base, settings=settings, secrets=secrets)
 
 

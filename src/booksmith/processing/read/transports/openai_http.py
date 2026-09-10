@@ -121,11 +121,14 @@ class Http(Transport):
             spoken = None
         if spoken is not None:
             d = served.Describe.from_json(spoken)
-            if d.kind == "layout":
-                raise Refusal(
-                    f"{self.server} is a layout model ({d.label}); level "
-                    f"two needs a reader or a hybrid.")
             name = (d.openai or {}).get("model")
+            if d.kind == "layout" or not name:
+                raise Refusal(
+                    f"{self.server} is a {d.kind} model ({d.label}) "
+                    + ("with no chat route" if d.kind == "hybrid" else "")
+                    + "; level two asks over the chat route, which a reader "
+                      "serves and a hybrid may. A hybrid without one answers "
+                      "the layout route alone: run `books hybrid`.")
             out = {"endpoint": self.server, "models_on_server": [name],
                    "asking_for": want, "matched": want == name,
                    "describe": d.to_json()}

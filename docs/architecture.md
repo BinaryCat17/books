@@ -68,15 +68,17 @@ its vocabulary and, for a reader, the name its chat route answers to.
 `GET /booksmith/health` says whether it is ready and when it last worked.
 `POST /booksmith/layout` takes one page as a data URI and returns one page
 in the page format; a hybrid fills `content` and `kind` too. A reader keeps
-the OpenAI chat route at `/v1` beside them, and a bare vLLM with no describe
-is still accepted through `/models`.
+the OpenAI chat route at `/v1` beside them, and so may a hybrid, which level
+two then reads through; a bare vLLM with no describe is still accepted
+through `/models`.
 
 `LAYOUT_ADAPTER=served` reaches a layout or hybrid model at
 `LAYOUT_ENDPOINT` through
 `src/booksmith/processing/layout/adapters/served.py`, which asks describe
-once, posts each page, and refuses an answer that is not a page, a label the
-model did not declare, or text from a model that declared none. A layout
-answer is never asked twice. Identity is what a model serves, never where it
+once, posts each page, and refuses an answer that is not a page, a page at
+another dpi or size than the raster sent, a label the model did not declare,
+or text from a model that declared none. A layout answer is never asked
+twice. Identity is what a model serves, never where it
 runs: the run's identity hashes the describe's fingerprint with the knobs the
 server read and the knobs this process read, and the address and the adapter
 that reached it stay out, so a served run of a model and an in-process run

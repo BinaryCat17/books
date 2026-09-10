@@ -63,6 +63,25 @@ def data_uri(path: str) -> tuple[str, int]:
     return f"data:{MIME[ext]};base64," + base64.b64encode(raw).decode(), len(raw)
 
 
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+
+
+def png_size(path: str) -> tuple[int, int] | None:
+    """(width, height) out of a PNG header, or None for another kind. The
+    answer to a page must be the size of the raster sent, and the header is
+    the cheapest witness of what was sent."""
+    with open(path, "rb") as f:
+        head = f.read(24)
+    if len(head) < 24 or head[:8] != PNG_SIGNATURE:
+        return None
+    return (int.from_bytes(head[16:20], "big"), int.from_bytes(head[20:24], "big"))
+
+
+def bearer(key: str | None) -> dict[str, str]:
+    """The one header a key travels in, or none."""
+    return {"Authorization": "Bearer " + key} if key else {}
+
+
 def root_of(endpoint: str) -> str:
     """The root the `/booksmith` routes hang from: an OpenAI endpoint ends in
     `/v1`, and the shim serves both from one root."""
@@ -83,9 +102,11 @@ def _str_map(v: object, what: str) -> dict[str, str]:
 class Describe:
     """What a served model says of itself. `fingerprint` is the adapter's own,
     whole, and must carry `sha256_weights`; `knobs` are the values the server's
-    adapter read under its job, name to string, as the snapshot writes them;
-    `labels` and `vocabulary` say what a layout or hybrid model can name;
-    `openai` says where and as what a reader answers the chat route."""
+    adapter read under its job, name to string, as the snapshot writes them,
+    and they enter the identity as read, declared here or not, since they
+    decided the answer; `labels` and `vocabulary` say what a layout or hybrid
+    model can name; `openai` says where and as what a reader answers the chat
+    route, and a hybrid that carries it can be read through as well."""
     kind: str
     label: str
     fingerprint: dict
