@@ -7,7 +7,6 @@ percentage out of nothing is born of two copies of one contract.
 from booksmith.processing.assemble import html as H
 from booksmith.core import page as B
 from booksmith.core import book
-from booksmith.core import page
 
 
 def test_book_builder_reads_the_order_rule_through_the_one_contract():
@@ -31,9 +30,9 @@ def test_book_builder_reads_the_order_rule_through_the_one_contract():
 def test_anchor_is_page_scoped():
     """The anchor is per page: `block_id` restarts on every page, and a book-wide
     `b17` would give five hundred identical anchors for a swap to land in."""
-    assert page.anchor(42, 17) == "p0042-b17"
-    assert page.anchor(0, 0) == "p0000-b0"
-    assert page.anchor(1, 17) != page.anchor(2, 17)
+    assert B.anchor(42, 17) == "p0042-b17"
+    assert B.anchor(0, 0) == "p0000-b0"
+    assert B.anchor(1, 17) != B.anchor(2, 17)
 
 
 # --- crops: the builder's contract with the model's box ---------------------
@@ -468,7 +467,7 @@ def test_the_book_carries_blocks_in_the_order_it_walked_them():
         with open(os.path.join(out, "book.html"), encoding="utf-8") as f:
             book = f.read()
 
-        wanted = [page.anchor(0, i) for i in range(3)]
+        wanted = [B.anchor(0, i) for i in range(3)]
         assert swap.anchors(book) == wanted, (
             f"the book is not assembled in block order: {swap.anchors(book)} "
             f"against {wanted}. The book's order IS the reading order")

@@ -18,7 +18,7 @@ that measured it.
 ## Install
 
 ```bash
-uv sync --extra detect --extra docling --group dev
+uv sync --extra remote --extra detect --extra docling --group dev
 .venv/bin/vastai set api-key <KEY>          # only for renting
 ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_vast -N ''
 ```

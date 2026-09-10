@@ -60,7 +60,7 @@ def _sha256(path: str) -> str | None:
 
 # The registry. A key is a path in the nested `run.json`, and the rule is blunt:
 # the key must exist. `null` is a lawful value; a missing key is an omission.
-def _base(knob_names: Iterable[str]) -> tuple:
+def _base(knob_names: Iterable[str]) -> tuple[tuple[tuple, str], ...]:
     r: list[tuple[tuple, str]] = []
     for name in knob_names:
         r.append((("knobs", name, "value"), f"knob {name}"))
@@ -334,11 +334,12 @@ def _owner_class(tree: ast.Module, name: object) -> str | None:
 
 
 # Knob names come from the registry: two lists of knobs are two lists that part.
-def knob_names() -> tuple:
+def knob_names() -> tuple[str, ...]:
     return knobs.names()
 
 
-def required(snap: dict | None = None, sh: dict | None = None) -> tuple:
+def required(snap: dict | None = None, sh: dict | None = None
+             ) -> tuple[tuple[tuple, str], ...]:
     """Requirements: the common ones plus those derived from this snapshot's adapter.
 
     With no snapshot, only the common ones: whose fingerprint to demand is

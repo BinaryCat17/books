@@ -643,13 +643,19 @@ def run_job(spec: JobSpec, outdir: str, ssh_key: str | None = None,
         return 0
 
     # The local directory needs cleaning too: rsync runs without --delete, so
-    # the last run's pages would stay among the new ones and `_run_facts` would
-    # write the old run.json into the ledger as this run's data.
+    # the last run's pages would stay among the new ones.
     if not spec.resume and os.path.isdir(outdir) and os.listdir(outdir):
         import shutil
         shutil.rmtree(outdir)
         log(f"local directory {outdir} cleared of the previous run")
     os.makedirs(outdir, exist_ok=True)
+    # The job's own reports go whatever the resume: a job that fails before
+    # writing its own would otherwise file the last run's in the ledger.
+    for name in ("run.json", "vllm.json"):
+        try:
+            os.unlink(os.path.join(outdir, name))
+        except FileNotFoundError:
+            pass
     guards: list[threading.Event] = []
     # Machines that had to be abandoned but could not be destroyed: finished
     # off at the end, or they bill until their own dead-man's watch.

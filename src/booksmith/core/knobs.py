@@ -31,8 +31,6 @@ KNOBS = (
     Knob("PAGE_DPI", "144",
          "the resolution a page is rendered to for detection; the detector squeezes the raster to its own input size, so the dpi decides little and the squeeze's filter more"),
 
-    # Raising dpi buys nothing: 600 pays four times the raster for the same 379
-    # boxes and loses eight headings, and the interpolation is the weights' own.
 
     # --- model and weights: without them a run cannot be repeated ---
     Knob("MODEL_NAME", "PaddleOCR-VL-1.6-0.9B",
@@ -55,8 +53,7 @@ KNOBS = (
          "LAYOUT_SCORE_THRESHOLD"),
 
     # --- the docling vendor pipeline over heron and egret boxes --------------
-    # `off` by default: every bench detector is measured raw, and the pipeline
-    # costs 132 of the golden bench's artifacts found for 95 more merges.
+    # `off` by default: every bench detector is measured raw.
     Knob("DOCLING_PIPELINE", "off",
          "the docling vendor pipeline over the boxes: off, post (its postprocessing) or full (that plus its reading-order rules, which are not a model); read by the docling and docling-egret adapters only"),
     Knob("ASSEMBLY_ORDER", "ours",
@@ -65,7 +62,7 @@ KNOBS = (
     # --- artifact crops: both values default to "as the model saw it" ---
     # Any other value would be ours and not measured; the bench will set it.
     Knob("CROP_DPI", "",
-         "crop sharpness for `books html`: empty is the scan's own resolution, else as detection had it; `books read` and `books crop` do not read it, the model's window deciding there"),
+         "crop sharpness for `books html`: empty is the scan's own resolution, or detection's when that cannot be told; `books read` and `books crop` do not read it, the model's window deciding there"),
     # Zero is a value: the pipeline cuts exactly along the box, and any margin
     # edits the model's box.
     Knob("CROP_MARGIN", "0",
@@ -79,7 +76,7 @@ KNOBS = (
     Knob("HTML_REPEATS", "hide",
          "what to do with a proven repeat inside a page: hide (kept in the markup, not displayed) or show; the one build operation that takes text off the reader's eyes, so it has a switch"),
     Knob("MIN_LINK_MBPS", "2.0",
-         "the link threshold in Mbps, measured to us, below which a machine is rejected and blacklisted; it tells a broken machine from a working one, not a slow from a fast, and is not derived from the job's size"),
+         "the link threshold in Mbps, measured to us, below which a machine is rejected, and blacklisted only when a faster witness makes the link the machine's own; it tells a broken machine from a working one, not a slow from a fast, and is not derived from the job's size"),
     # For a machine that has no git: the rented box has none, and without this
     # the one paid run would be the one with no record of the code that made it.
     Knob("BOOKSMITH_COMMIT", "",
@@ -111,9 +108,9 @@ KNOBS = (
     Knob("VLM_ENDPOINT", "",
          "address of an OpenAI-compatible service, /v1 included; no "
          "default"),
-    # 4096 is the stock pipeline's, below the model's native 8192, and a knob
-    # because our longest single text block is 8207 characters -- and truncation
-    # here looks like looping, which only the `finish` field tells apart.
+    # The stock pipeline's ceiling, below the model's native one, and a knob
+    # because a long text block exceeds it -- and truncation here looks like
+    # looping, which only the `finish` field tells apart.
     Knob("VLM_MAX_TOKENS", "4096", "ceiling of an answer, in tokens"),
     Knob("VLM_TIMEOUT_S", "120", "how long to wait for one answer, s"),
     # A 200 is never retried whatever it carries: re-asking repairs the model.
@@ -225,12 +222,12 @@ def snapshot_with_readers(roles: dict) -> dict:
     return snap
 
 
-def debts() -> tuple:
+def debts() -> tuple[str, ...]:
     """Knobs declared debt: no consumer, and none due yet."""
     return tuple(k.name for k in KNOBS if k.debt)
 
 
-def names() -> tuple:
+def names() -> tuple[str, ...]:
     return tuple(k.name for k in KNOBS)
 
 

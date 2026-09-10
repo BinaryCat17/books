@@ -75,10 +75,12 @@ class Page:
 KINDS = ("html", "otsl", "latex", "text")
 
 
-def anchor(index: int, block_id: int) -> str:
+def anchor(index: int, block_id: int | None = None) -> str:
     """The address of a block, `p<index>-b<block_id>` with the index four digits
-    wide; block ids restart on every page, so the page is part of it."""
-    return f"p{index:04d}-b{block_id}"
+    wide, or of the page alone when no block is named; block ids restart on
+    every page, so the page is part of a block's."""
+    p = f"p{index:04d}"
+    return p if block_id is None else f"{p}-b{block_id}"
 
 
 def write_json(path: str, obj: object, indent: int | None = None) -> None:

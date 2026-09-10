@@ -252,7 +252,7 @@ def _book(tmp):
     with open(os.path.join(tmp, "detect", "run.json"), "w",
               encoding="utf-8") as f:
         json.dump({"source": {"path": pdf, "sha256": stamp.sha256(pdf)},
-                   "raster": {"dpi": 144.0},
+                   "raster": {"dpi": 144.0}, "identity": "a fake detection",
                    "commit": None, "adapter": {"name": "a fake one"},
                    "weights": {"layout": None}}, f, ensure_ascii=False)
     return pdf
@@ -506,7 +506,7 @@ def _raster_book(tmp):
     with open(os.path.join(tmp, "detect", "run.json"), "w",
               encoding="utf-8") as f:
         json.dump({"source": {"path": pdf, "sha256": stamp.sha256(pdf)},
-                   "raster": {"dpi": 144.0},
+                   "raster": {"dpi": 144.0}, "identity": "a fake detection",
                    "commit": None, "adapter": {"name": "a fake one"},
                    "weights": {"layout": None}}, f, ensure_ascii=False)
     return pdf

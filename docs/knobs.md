@@ -74,7 +74,7 @@ what assembles the book when the model has no reading rank of its own: ours (top
 
 default: ``
 
-crop sharpness for `books html`: empty is the scan's own resolution, else as detection had it; `books read` and `books crop` do not read it, the model's window deciding there
+crop sharpness for `books html`: empty is the scan's own resolution, or detection's when that cannot be told; `books read` and `books crop` do not read it, the model's window deciding there
 
 ## CROP_MARGIN
 
@@ -104,7 +104,7 @@ what to do with a proven repeat inside a page: hide (kept in the markup, not dis
 
 default: `2.0`
 
-the link threshold in Mbps, measured to us, below which a machine is rejected and blacklisted; it tells a broken machine from a working one, not a slow from a fast, and is not derived from the job's size
+the link threshold in Mbps, measured to us, below which a machine is rejected, and blacklisted only when a faster witness makes the link the machine's own; it tells a broken machine from a working one, not a slow from a fast, and is not derived from the job's size
 
 ## BOOKSMITH_COMMIT
 

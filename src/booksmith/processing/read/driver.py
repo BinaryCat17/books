@@ -14,6 +14,7 @@ import json
 import os
 import re
 import shlex
+import shutil
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -183,19 +184,6 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
                     f"them with crops nothing was asked about. Give --out "
                     f"somewhere else.")
     else:
-        # A page the detection does not have would ride into the book as one of
-        # its own, and into the measurement with it.
-        if os.path.isdir(_pages_dir):
-            mine_ = {os.path.basename(f) for f in files}
-            alien = sorted(set(os.listdir(_pages_dir)) - mine_)
-            if alien:
-                raise Refusal(
-                    f"{_pages_dir} holds pages the detection does not have: "
-                    f"{alien[:5]}{'...' if len(alien) > 5 else ''} "
-                    f"({len(alien)} of them). This is a directory from another "
-                    f"book or another page set; they would travel into the book "
-                    f"and into the measurement as part of this one. Remove them "
-                    f"or choose an empty --out.")
         os.makedirs(_pages_dir, exist_ok=True)
         os.makedirs(os.path.join(out_dir, "answers"), exist_ok=True)
     crops_dir = os.path.join(out_dir, "crops")
@@ -228,21 +216,44 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
                                # the address does not decide the answer, the
                                # model name does
                                if k in ("transport", "model_asked")},
-                 # The boxes the answers are about: a resume over another
-                 # detection's answers would reuse them by anchor alone.
-                 "detection": facts.get("identity")}
+                 # The book and the boxes the answers are about: a resume
+                 # over another detection's answers would reuse them by
+                 # anchor alone, and one model gives one identity on any book.
+                 "detection": {"identity": facts.get("identity"),
+                               "source": facts["source"]["sha256"]}}
         setup_path = os.path.join(out_dir, "read_with.json")
         if resume and os.path.exists(setup_path):
             with open(setup_path, encoding="utf-8") as f:
                 was = json.load(f)
-            same_setup = was == setup
+            # A detection without an identity cannot be told from another.
+            same_setup = was == setup and facts.get("identity") is not None
             if not same_setup:
                 diff = [k for k in setup if was.get(k) != setup[k]]
-                log(f"READ WITH SOMETHING ELSE: {diff} differ -- resuming is "
-                    f"not allowed, asking everything again. Otherwise the "
-                    f"snapshot would declare new values in force over old "
-                    f"answers.")
+                log(f"READ WITH SOMETHING ELSE: {diff or ['detection']} "
+                    f"differ -- resuming is not allowed, asking everything "
+                    f"again. Otherwise the snapshot would declare new values "
+                    f"in force over old answers.")
+                # The old answers are that other setup's: cleared, so that
+                # the check below and a resume on the box see this run alone.
+                for sub in ("pages", "answers"):
+                    shutil.rmtree(os.path.join(out_dir, sub), ignore_errors=True)
+                os.makedirs(_pages_dir, exist_ok=True)
+                os.makedirs(os.path.join(out_dir, "answers"), exist_ok=True)
         page.write_json(setup_path, setup, indent=1)
+        # A page the detection does not have would ride into the book as one
+        # of its own, and into the measurement with it; a `.tmp` a crash left
+        # is a stump the next write replaces, not a page.
+        mine_ = {os.path.basename(f) for f in files}
+        alien = sorted(n for n in os.listdir(_pages_dir)
+                       if n.endswith(".json") and n not in mine_)
+        if alien:
+            raise Refusal(
+                f"{_pages_dir} holds pages the detection does not have: "
+                f"{alien[:5]}{'...' if len(alien) > 5 else ''} "
+                f"({len(alien)} of them). This is a directory from another "
+                f"book or another page set; they would travel into the book "
+                f"and into the measurement as part of this one. Remove them "
+                f"or choose an empty --out.")
     doc = crop.open_pdf(pdf)
     # Own resolution per page, memoised: sheet sizes differ inside one book.
     native_of = {}
@@ -270,7 +281,7 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
 
     for n, (fp, pg) in enumerate(pages, 1):
         job.current().check()
-        tag = f"p{pg.index:04d}"
+        tag = page.anchor(pg.index)
         ans_path = os.path.join(out_dir, "answers", f"{tag}.json")
         old = {}
         if resume and os.path.exists(ans_path) and same_setup:

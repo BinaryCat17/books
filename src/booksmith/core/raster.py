@@ -128,7 +128,8 @@ def _box_trouble(w: float, h: float) -> str | None:
 
 
 def _clip(doc: Any, page_index: int, box: Sequence[float], page_dpi: float,
-          dpi: float | None, margin: float | None) -> tuple:
+          dpi: float | None, margin: float | None
+          ) -> tuple[Any, Any, float, float, bool, bool]:
     """The page, the rect to render, the dpi and margin used, and what was clipped."""
     import pymupdf
 

@@ -33,7 +33,7 @@ class _Environ(Mapping):
     one after the default job was made must see it. The registry is imported
     at each call because `knobs` imports this module."""
     @staticmethod
-    def _names() -> tuple:
+    def _names() -> tuple[str, ...]:
         from booksmith.core import knobs
         return knobs.names()
 
