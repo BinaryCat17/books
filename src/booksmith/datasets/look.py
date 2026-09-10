@@ -13,6 +13,7 @@ import os
 import pymupdf
 from booksmith.core import stamp
 from booksmith.core.errors import Refusal
+from booksmith.core.log import log
 
 # Caption font: a PREFERENCE, not a requirement -- used when it is there, the
 # built-in `helv` when it is not, which renders all three captions this module
@@ -139,8 +140,7 @@ def _label(page, box, k, color, text, above=True):
                      color=color)
 
 
-def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
-          log=print) -> dict:
+def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None) -> dict:
     """Lay markup over the PDF pages, showing the divergences. `marks` is a list
     of (directory, tag); a single one is drawn whole. What truth does not mark
     up (`text_marked`) is a hairline counted apart, never spurious."""

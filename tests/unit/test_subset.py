@@ -11,6 +11,7 @@ import tempfile
 import pymupdf
 from booksmith.core import stamp
 from booksmith.datasets.make import subset
+import support
 
 
 def _truth(index, meta=None):
@@ -74,7 +75,7 @@ def test_a_refused_build_does_not_destroy_good_truth():
     _bench(root, "good", pages=2)
     out = os.path.join(tmp, "hard")
 
-    subset.build(["good"], out, root=root, log=lambda *a: None)
+    subset.build(["good"], out, root=root)
     tdir = os.path.join(out, "truth")
     before = sorted(os.listdir(tdir))
     assert len(before) == 2, before
@@ -83,7 +84,7 @@ def test_a_refused_build_does_not_destroy_good_truth():
     # The same book, now with a truth field that collides with ours.
     _bench(root, "clash", pages=2, meta={"from_book": "somebody else"})
     try:
-        subset.build(["good", "clash"], out, root=root, log=lambda *a: None)
+        subset.build(["good", "clash"], out, root=root)
     except subset.SubsetError:
         pass
     else:
@@ -105,7 +106,7 @@ def test_the_build_leaves_no_working_directory_behind():
     root = os.path.join(tmp, "bench")
     _bench(root, "good", pages=1)
     out = os.path.join(tmp, "hard")
-    subset.build(["good"], out, root=root, log=lambda *a: None)
+    subset.build(["good"], out, root=root)
     left = [d for d in os.listdir(out) if d.startswith("truth.")]
     assert not left, f"working directories left behind: {left}"
     shutil.rmtree(tmp, ignore_errors=True)
@@ -124,12 +125,12 @@ def test_no_refusal_leaves_a_half_built_bench_behind():
     root = os.path.join(tmp, "bench")
     _bench(root, "good", pages=2)
     out = os.path.join(tmp, "hard")
-    subset.build(["good"], out, root=root, log=lambda *a: None)
+    subset.build(["good"], out, root=root)
 
     _bench(root, "clash", pages=1, meta={"from_book": "somebody else"})
     for books in (["good", "nosuchbook"], ["good", "clash"]):
         try:
-            subset.build(books, out, root=root, log=lambda *a: None)
+            subset.build(books, out, root=root)
         except subset.SubsetError:
             pass
         else:
@@ -148,7 +149,7 @@ def test_truth_pdf_and_manifest_are_swapped_together():
     root = os.path.join(tmp, "bench")
     _bench(root, "small", pages=2)
     out = os.path.join(tmp, "hard")
-    subset.build(["small"], out, root=root, log=lambda *a: None)
+    subset.build(["small"], out, root=root)
     was = {n: open(os.path.join(out, "truth", n), encoding="utf-8").read()
            for n in os.listdir(os.path.join(out, "truth"))}
     man_was = open(os.path.join(out, "manifest.json"), encoding="utf-8").read()
@@ -166,7 +167,7 @@ def test_truth_pdf_and_manifest_are_swapped_together():
 
     stamp.sha256 = boom
     try:
-        subset.build(["small", "more"], out, root=root, log=lambda *a: None)
+        subset.build(["small", "more"], out, root=root)
     except RuntimeError:
         pass
     else:
@@ -196,8 +197,8 @@ def test_the_traits_reach_the_manifest_and_the_log():
     root = os.path.join(tmp, "bench")
     _bench(root, "good", pages=2, meta={"order_marked": True})
     out = os.path.join(tmp, "hard")
-    said = []
-    man = subset.build(["good"], out, root=root, log=said.append)
+    with support.said() as said:
+        man = subset.build(["good"], out, root=root)
 
     assert subset.TRAITS, "TRAITS is empty: the passport declares nothing"
     got = man.get("truth_traits") or {}

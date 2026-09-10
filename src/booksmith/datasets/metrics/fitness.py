@@ -125,5 +125,5 @@ class FitnessMetric(Metric):
         params["dpi"] = res.get("dpi")
         return Record(self.name, bench_name, run_label, scalars, params, res)
 
-    def report(self, rec: Record, log=print) -> None:
-        ink.report(rec.detail, log=log)
+    def report(self, rec: Record) -> None:
+        ink.report(rec.detail)

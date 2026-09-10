@@ -21,6 +21,8 @@ from booksmith.core import book
 from booksmith.core import knobs, stamp
 from booksmith.core.errors import Refusal
 from booksmith.core import raster
+from booksmith.core.log import log
+from booksmith.core import job
 
 # The "text / artefact / service" policy lives only in `policy.py`; two lists drift.
 # Artefact labels come from the active policy, not the union: an unnameable class
@@ -158,7 +160,7 @@ def parse_pages(spec, total):
     return [p - 1 for p in sorted(set(want))]
 
 
-def run(pdf, outdir, pages_spec=None, log=print):
+def run(pdf, outdir, pages_spec=None):
     """Run the detector over the PDF pages. Returns the directory path."""
 
     dpi_raw = knobs.knob("PAGE_DPI")
@@ -201,7 +203,7 @@ def run(pdf, outdir, pages_spec=None, log=print):
 
     # What the operator set, and on its own line what this adapter never reads.
     roles = _knob_roles(det)
-    given = [n for n in knobs.names() if n in os.environ]
+    given = list(knobs.passthrough())
     dead = [n for n in given if roles[n] is None]
     # The zero is printed too: a zero from a check, not the silence of a skipped step.
     log(f"knobs set from outside {len(given)}"
@@ -266,6 +268,7 @@ def run(pdf, outdir, pages_spec=None, log=print):
             "modes": set(), "missing_numbers": set()}
     try:
         for n, i in enumerate(idxs, 1):
+            job.current().check()
             raster.render(doc[i], dpi_used).save(tmp)
             page = det.read(tmp, i, float(dpi_used))
             # Before the write: an unknown label spelling must not reach the directory.
@@ -301,7 +304,8 @@ def run(pdf, outdir, pages_spec=None, log=print):
                 counts[b.label] = counts.get(b.label, 0) + 1
                 artefacts += b.label in arte
             if n % 10 == 0 or n == len(idxs):
-                log(f"  {n}/{len(idxs)} pages, boxes {sum(counts.values())}")
+                log(f"  {n}/{len(idxs)} pages, boxes {sum(counts.values())}",
+                    page=i, n=n, of=len(idxs), boxes=sum(counts.values()))
     finally:
         doc.close()
         if os.path.exists(tmp):

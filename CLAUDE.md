@@ -33,7 +33,7 @@ src/booksmith/
                commit, packages), replay.py (is a snapshot complete), raster.py
                (rendering and crops), policy.py (label to role), order.py
                (assembly order), otsl.py (table markup), textnorm.py, config.py,
-               errors.py, log.py
+               errors.py, job.py (a run's settings, stop and sink), log.py
   processing/  one book, stage by stage: extract/ (djvu to PDF), layout/ (level
                one: detect.py, base.py the Detector contract, adapters/,
                rented/), read/ (level two: driver.py, readers/, transports/,

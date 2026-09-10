@@ -15,6 +15,7 @@ import shutil
 from booksmith.core import knobs
 from booksmith.core import stamp
 from booksmith.core.errors import Refusal
+from booksmith.core.log import log
 
 # --- direct match: only this enters the measurement -----------------------
 DIRECT = {
@@ -102,7 +103,7 @@ def _classes(root):
 
 
 def build(root: str, out_dir: str, split: str = "test", limit: int = 0,
-          truth_only: bool = False, log=print) -> dict:
+          truth_only: bool = False) -> dict:
     """Fold a bench book out of AnnoPage: a PDF plus truth in our format, every
     page sized so that rendering at `PAGE_DPI` returns exactly the source raster
     and nothing has to be converted. The aside files go on the way out."""
@@ -111,7 +112,7 @@ def build(root: str, out_dir: str, split: str = "test", limit: int = 0,
              os.path.join(out_dir, "annopage.pdf.new"),
              os.path.join(out_dir, "manifest.json.new"))
     try:
-        return _build(root, out_dir, split, limit, truth_only, log)
+        return _build(root, out_dir, split, limit, truth_only)
     except BaseException:
         for p in aside:
             try:
@@ -121,7 +122,7 @@ def build(root: str, out_dir: str, split: str = "test", limit: int = 0,
         raise
 
 
-def _build(root, out_dir, split, limit, truth_only, log) -> dict:
+def _build(root, out_dir, split, limit, truth_only) -> dict:
     import cv2
     import pymupdf
 

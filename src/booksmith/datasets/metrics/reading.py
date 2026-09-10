@@ -11,6 +11,7 @@ were invented from a picture.
 import re
 
 from booksmith.datasets.metrics.base import Metric, Record, Scalar, Spec
+from booksmith.core.log import log
 
 # A cell that is a bare number: what a fabricated chart table is made of.
 NUMBER = re.compile(r"^[-+]?\d+(?:[.,]\d+)?$")
@@ -87,7 +88,7 @@ def measure(pages) -> dict:
     return res
 
 
-def report(res: dict, log=print) -> None:
+def report(res: dict) -> None:
     log(f"answered {res['answered']} of {res['blocks']} blocks "
         f"(shingle {SHINGLE}, repeat share {LOOP_SHARE}, "
         f"numeric share {NUMERIC_SHARE})")
@@ -147,5 +148,5 @@ class ReadingMetric(Metric):
                   "NUMERIC_SHARE": NUMERIC_SHARE, "MIN_ROWS": MIN_ROWS}
         return Record(self.name, bench_name, run_label, scalars, params, res)
 
-    def report(self, rec: Record, log=print) -> None:
-        report(rec.detail, log=log)
+    def report(self, rec: Record) -> None:
+        report(rec.detail)

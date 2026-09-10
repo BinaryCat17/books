@@ -27,6 +27,7 @@ from booksmith.core import knobs
 from booksmith.core import book, raster as crop
 from booksmith.core.book import ASSETS, SOURCE
 from booksmith.processing.assemble import swap
+from booksmith.core.log import log
 
 # Shortest normalised text taken as evidence: below it a match is coincidence.
 REPEAT_MIN = 3
@@ -220,7 +221,7 @@ def is_our_dir(out_dir: str) -> bool:
     return os.path.exists(os.path.join(out_dir, ASSETS, "run.json"))
 
 
-def _keep_source(detect_dir: str, out_dir: str, log) -> dict:
+def _keep_source(detect_dir: str, out_dir: str) -> dict:
     """Put beside the book what it was built from.
 
     `blocks.json` carries no `content`, so without this the read text lives only
@@ -625,7 +626,7 @@ def _math(out_dir: str) -> tuple[str, str]:
             f"neighbouring files needed")
 
 
-def build(detect_dir: str, out_dir: str, log=print) -> dict:
+def build(detect_dir: str, out_dir: str) -> dict:
     """Build HTML from a `books detect` directory. Returns the build's numbers."""
 
     detect_dir = os.path.abspath(detect_dir)
@@ -919,7 +920,7 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
 
     # The source goes after the book assembles without a refusal: no point
     # copying 22 MB for a build that is about to fail.
-    _keep_source(detect_dir, out_dir, log)
+    _keep_source(detect_dir, out_dir)
     out_html = os.path.join(out_dir, "book.html")
     with open(out_html, "w", encoding="utf-8") as f:
         f.write(page_html)

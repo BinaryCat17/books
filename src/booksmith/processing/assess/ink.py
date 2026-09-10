@@ -20,6 +20,7 @@ from booksmith.core.errors import Unmeasurable
 # would be free to drift from the code that pays for them in false vetoes.
 from booksmith.processing.extract.djvu import (
     GUTTER_BAND, MIN_SPREAD_RATIO, RULE_RUN)
+from booksmith.core.log import log
 
 # The "this is ink" threshold: darker is content, lighter is paper. A knowing
 # second copy of `synth.INK`, since the metric must not depend on who draws the
@@ -418,7 +419,7 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
     return res
 
 
-def report(res: dict, log=print) -> None:
+def report(res: dict) -> None:
     n, s = res["objects"], res["page_count"]
     ink = res["ink_total"]
     # The ruler is declared whole and on the first line, dpi included, and read

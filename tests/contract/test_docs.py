@@ -97,7 +97,7 @@ def test_the_metrics_report_is_current():
     from booksmith.core.errors import Refusal
     from booksmith.datasets import report
     try:
-        want = report.build(log=lambda *a: None)
+        want = report.build()
     except Refusal as e:
         pytest.skip(f"nothing rendered: {str(e)[:80]}")
     assert os.path.isfile(report.OUT), "METRICS.md is missing: `books bench report` writes it"

@@ -304,7 +304,7 @@ def test_three_kinds_of_bad_sheet_get_three_different_marks():
                        "weights": {"layout": None}}, f, ensure_ascii=False)
 
         out = os.path.join(tmp, "html")
-        H.build(det, out, log=lambda *_: None)
+        H.build(det, out)
         book = open(os.path.join(out, "book.html"), encoding="utf-8").read()
 
     import re
@@ -365,7 +365,7 @@ def test_the_book_is_alone_at_the_root_and_carries_itself():
                        "weights": {"layout": None}}, f, ensure_ascii=False)
 
         out = os.path.join(tmp, "html")
-        H.build(det, out, log=lambda *_: None)
+        H.build(det, out)
 
         in_root = sorted(os.listdir(out))
         # "Exactly one file at the root" is about what a reader meets on a double
@@ -471,7 +471,7 @@ def test_the_book_carries_blocks_in_the_order_it_walked_them():
                        "weights": {"layout": None}}, f, ensure_ascii=False)
 
         out = os.path.join(tmp, "html")
-        H.build(det, out, log=lambda *_: None)
+        H.build(det, out)
         with open(os.path.join(out, "book.html"), encoding="utf-8") as f:
             book = f.read()
 

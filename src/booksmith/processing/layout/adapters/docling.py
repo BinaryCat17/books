@@ -20,6 +20,7 @@ from booksmith.core import order
 from booksmith.core.order import declare as declare_order
 from booksmith.core import policy
 from booksmith.core import knobs
+from booksmith.core.log import log
 from booksmith.core import stamp
 from booksmith.core.errors import Refusal, WeightsMissing
 
@@ -390,7 +391,7 @@ class DoclingHeron(Detector):
         blocks, m = self._pipe.apply(blocks, w, h, index)
         pp = self._pipe
         if pp.pages == 1 or pp.pages % 10 == 0:
-            print(f"  [docling pipeline {pp.mode}] {pp.pages} pp.: boxes "
+            log(f"  [docling pipeline {pp.mode}] {pp.pages} pp.: boxes "
                   f"{pp.before} -> {pp.after}, into children {pp.kids} (of "
                   f"those, artefacts in text wrappers {pp.arte_in_text}, "
                   f"lost {pp.arte_lost}), "
@@ -453,7 +454,7 @@ class DoclingHeron(Detector):
                        if self._pipe.mode == "full" else
                        "resorted by the docling postprocessor by "
                        "(top, left), there is no model rank")
-            print(f"docling pipeline {self._pipe.mode}: pages "
+            log(f"docling pipeline {self._pipe.mode}: pages "
                   f"{it['page_count']}, boxes {it['boxes_before']} -> "
                   f"{it['boxes_after']} ({share:.1f}%), into children "
                   f"{it['moved_to_children']}, of those artefacts in text "

@@ -12,11 +12,12 @@ from booksmith.core import config, stamp
 from booksmith.core.errors import Refusal
 from booksmith.datasets import metrics as registry
 from booksmith.datasets.bench import Bench, Run, same_book
+from booksmith.core.log import log
 
 RESULTS = os.path.join(config.ROOT, "results")
 
 
-def rows(bench: Bench, run: Run, which=None, log=print) -> list:
+def rows(bench: Bench, run: Run, which=None) -> list:
     """Records of every applicable metric, or of the named ones. Truth and the
     run's pages are parsed once here and the metrics take the dicts; `which` may
     not name a metric this bench and run cannot support."""
@@ -73,7 +74,7 @@ def results_path(bench: Bench, run: Run, which=None) -> str:
     return os.path.join(RESULTS, f"{bench.name}-{level}{run.label}{tail}.json")
 
 
-def write_json(records, path: str, log=print, kind: str = "detect") -> str:
+def write_json(records, path: str, kind: str = "detect") -> str:
     """The records under a header saying when, by which code and of which level.
     The commit rides in the file so a cross-model table comes from one tree;
     `kind` keeps a level-two run, whose boxes are a detector's, out of the model column."""
@@ -128,7 +129,7 @@ def _fmt(s) -> str:
     return str(s.value)
 
 
-def render(records, log=print) -> None:
+def render(records) -> None:
     """One line per scalar: metric, name, value, the counts behind a share,
     the coverage in its unit, and a footnote where the value is absent."""
     if not records:

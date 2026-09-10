@@ -17,6 +17,7 @@ import pymupdf
 from booksmith.core import policy
 from booksmith.core import stamp
 from booksmith.core.errors import Refusal
+from booksmith.core.log import log
 
 
 class SubsetError(Refusal):
@@ -72,14 +73,14 @@ def _trait_state(meta: dict, key: str) -> str:
 
 
 
-def build(books, out_dir: str, root: str = "bench", log=print) -> dict:
+def build(books, out_dir: str, root: str = "bench") -> dict:
     """Build the distillate out of the named bench books. Nothing half-built is
     left behind: the aside files are removed on the way out unless the swap
     completed, the default `out_dir` being tracked and ignoring none of them."""
-    return _swept(_build, books, out_dir, root, log)
+    return _swept(_build, books, out_dir, root)
 
 
-def _swept(fn, books, out_dir, root, log):
+def _swept(fn, books, out_dir, root):
     """Run the build; on any failure remove what it wrote aside."""
     # `truth.previous` too: the swap leaves the old truth aside under that name,
     # and a second copy in a tracked directory says nothing about which is the
@@ -89,7 +90,7 @@ def _swept(fn, books, out_dir, root, log):
              os.path.join(out_dir, "hard.pdf.new"),
              os.path.join(out_dir, "manifest.json.new"))
     try:
-        return fn(books, out_dir, root, log)
+        return fn(books, out_dir, root)
     except BaseException:
         for p in aside:
             try:
@@ -99,7 +100,7 @@ def _swept(fn, books, out_dir, root, log):
         raise
 
 
-def _build(books, out_dir: str, root: str, log) -> dict:
+def _build(books, out_dir: str, root: str) -> dict:
     arte = set(policy.artefacts())
     os.makedirs(out_dir, exist_ok=True)
     tdir = os.path.join(out_dir, "truth")
@@ -122,8 +123,7 @@ def _build(books, out_dir: str, root: str, log) -> dict:
     # files held by a command that has given up.
     doc = pymupdf.open()
     try:
-        return _pages(books, root, arte, doc, work, wpdf, wman, tdir, out_dir,
-                      log)
+        return _pages(books, root, arte, doc, work, wpdf, wman, tdir, out_dir)
     finally:
         try:
             doc.close()
@@ -131,7 +131,7 @@ def _build(books, out_dir: str, root: str, log) -> dict:
             pass                      # already closed by the happy path
 
 
-def _pages(books, root, arte, doc, work, wpdf, wman, tdir, out_dir, log):
+def _pages(books, root, arte, doc, work, wpdf, wman, tdir, out_dir):
     kept, per_book, pairs_total = [], {}, 0
     traits = {k: {"yes": 0, "no": 0, "not_said": 0} for k in TRAITS}
     for bk in books:

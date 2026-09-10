@@ -17,6 +17,7 @@ from booksmith.core import otsl, page, policy
 from booksmith.core.textnorm import NORM, norm_note, normalize
 from booksmith.core.errors import TextError, Unmeasurable
 from booksmith.datasets.metrics.base import Metric, Record, Scalar, Spec
+from booksmith.core.log import log
 
 
 
@@ -718,7 +719,7 @@ def measure_pages(T: dict, P: dict, norm: str = NORM) -> dict:
 
 
 # ------------------------------------------------------------------ report
-def report(res: dict, log=print) -> None:
+def report(res: dict) -> None:
     if res.get("book"):
         log(res["book"])
     n = res["normalization"]
@@ -962,5 +963,5 @@ class TextMetric(Metric):
                   **{f"geometry_{k}": v for k, v in (res.get("geometry_gate") or {}).items()}}
         return Record(self.name, bench_name, run_label, scalars, params, res)
 
-    def report(self, rec: Record, log=print) -> None:
-        report(rec.detail, log=log)
+    def report(self, rec: Record) -> None:
+        report(rec.detail)

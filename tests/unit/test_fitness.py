@@ -22,6 +22,7 @@ from booksmith.datasets.bench import Run
 from booksmith.datasets.metrics import base
 from booksmith.datasets.metrics.probes.fitness import probes
 from booksmith.processing.assess import ink as fitness
+import support
 
 
 # --- what we measure with ---------------------------------------------------
@@ -53,8 +54,8 @@ def _pages(blocks, out, name):
 
 
 def _said(res):
-    out = []
-    fitness.report(res, log=out.append)
+    with support.said() as out:
+        fitness.report(res)
     return "\n".join(out)
 
 
@@ -393,9 +394,9 @@ class _Bench:
 
 def _probes(pdf, det, truth=""):
     """Run every probe of the ink metric over a hand-built book."""
-    out = []
     ps = probes(_Bench(pdf, truth), Run.bare(det))
-    seen, mute, bad = base.run_probes(ps, log=out.append)
+    with support.said() as out:
+        seen, mute, bad = base.run_probes(ps)
     return seen, mute, bad, out
 
 

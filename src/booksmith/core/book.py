@@ -62,10 +62,9 @@ BESIDE_A_RUN = (".crop", ".read")
 # let `read_with.json` sit under a detect run as a level-two file at level one.
 INSIDE_A_RUN = {
     "detect": ("pages", "run.json"),
-    # `vllm.*` and `progress.json` come back from the card by name.
+    # `vllm.*` come back from the card by name.
     "read": ("pages", "answers", "crops", "html", "run.json",
-             "read_with.json", "job.log", "job",
-             "vllm.json", "vllm.log", "progress.json"),
+             "read_with.json", "job.log", "job", "vllm.json", "vllm.log"),
 }
 
 # Files a root may hold that are not books. A root is for books.
@@ -292,7 +291,7 @@ def page_files(d):
     return len(names), ""
 
 
-def pages_dir(path, what, log=log):
+def pages_dir(path, what):
     """The PAGE directory: out of the run directory, or itself."""
     if not os.path.exists(path):
         raise Refusal(
@@ -314,7 +313,7 @@ def pages_dir(path, what, log=log):
         f"count — and that is not a zero of losses.")
 
 
-def run_dir(path, what, log=log):
+def run_dir(path, what):
     """The RUN directory: the one holding `run.json`. Takes `<out>/pages` too."""
     if not os.path.exists(path):
         raise Refusal(

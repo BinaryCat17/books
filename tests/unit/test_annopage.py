@@ -99,8 +99,7 @@ def test_a_failed_build_does_not_destroy_good_truth():
                 json.dump({"marker": "the truth that was already here"}, f)
         before = sorted(os.listdir(tdir))
         try:
-            annopage.build(root, out, split="test", truth_only=True,
-                           log=lambda *a: None)
+            annopage.build(root, out, split="test", truth_only=True)
         except annopage.AnnoPageError:
             pass
         else:
@@ -137,8 +136,7 @@ def test_the_sheet_follows_the_declared_knob():
                 "pass and would read the first value every time, reporting "
                 "agreement it never measured")
             try:
-                man = annopage.build(root, out, split="test",
-                                     log=lambda *a: None)
+                man = annopage.build(root, out, split="test")
             finally:
                 if old is None:
                     os.environ.pop("PAGE_DPI", None)
@@ -167,7 +165,7 @@ def test_a_refused_build_leaves_the_golden_bench_untouched():
     root, out = os.path.join(tmp, "raw"), os.path.join(tmp, "out")
     names = _real_names()
     _mini(root, names=names, yaml_names=names, pages=6)
-    annopage.build(root, out, split="test", log=lambda *a: None)
+    annopage.build(root, out, split="test")
 
     tdir = os.path.join(out, "truth")
     was = {n: open(os.path.join(tdir, n), encoding="utf-8").read()
@@ -176,8 +174,7 @@ def test_a_refused_build_leaves_the_golden_bench_untouched():
     pdf_was = open(os.path.join(out, "annopage.pdf"), "rb").read()
 
     try:
-        annopage.build(root, out, split="test", limit=3, truth_only=True,
-                       log=lambda *a: None)
+        annopage.build(root, out, split="test", limit=3, truth_only=True)
     except annopage.AnnoPageError:
         pass
     else:
@@ -212,7 +209,7 @@ def test_a_refused_build_leaves_the_golden_bench_untouched():
 
     stamp.sha256 = boom
     try:
-        annopage.build(root, out, split="test", log=lambda *a: None)
+        annopage.build(root, out, split="test")
     except RuntimeError:
         pass
     else:

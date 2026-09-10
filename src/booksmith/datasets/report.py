@@ -14,6 +14,7 @@ import os
 from booksmith.core import config, stamp
 from booksmith.core.errors import Refusal
 from booksmith.datasets import table
+from booksmith.core.log import log
 
 RESULTS = os.path.join(config.ROOT, "results")
 OUT = os.path.join(config.ROOT, "METRICS.md")
@@ -149,7 +150,7 @@ def _table(rows, header):
     return out
 
 
-def build(log=print) -> str:
+def build() -> str:
     cells, commits, when, other_levels = _cells()
     if not cells:
         # Two different empties: results exist and every one is of a level this
@@ -391,8 +392,8 @@ def build(log=print) -> str:
     return "\n".join(L).rstrip("\n") + "\n"
 
 
-def write(path: str = OUT, log=print) -> str:
-    text = build(log=log)
+def write(path: str = OUT) -> str:
+    text = build()
     with open(path, "w", encoding="utf-8") as f:
         f.write(text)
     log(f"{path}: {len(text.splitlines())} lines")

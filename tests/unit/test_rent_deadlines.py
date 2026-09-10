@@ -16,6 +16,7 @@ from booksmith.core.errors import Refusal
 from booksmith.remote import box as rbox
 from booksmith.remote import ledger
 from booksmith.remote import runner
+import support
 
 
 class _FakeSsh(rbox.Box):
@@ -487,16 +488,15 @@ def test_a_refusal_of_access_is_named_apart_from_a_stubborn_machine():
 
     from booksmith.remote import vast as vmod
 
-    was_sleep, was_log = _t.sleep, vmod.log
-    stated = []
+    was_sleep = _t.sleep
     v = vmod.Vast.__new__(vmod.Vast)
     v.v = _FakeVastApi("403 Client Error: Forbidden")
     _t.sleep = lambda s: None
-    vmod.log = stated.append
     try:
-        assert v.destroy(1) is False
+        with support.said() as stated:
+            assert v.destroy(1) is False
     finally:
-        _t.sleep, vmod.log = was_sleep, was_log
+        _t.sleep = was_sleep
     everything = "\n".join(stated)
     assert "REFUSAL OF ACCESS" in everything, (
         f"403 named as an ordinary destroy failure:\n{everything[:400]}")

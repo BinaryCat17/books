@@ -12,6 +12,7 @@ from booksmith.datasets import table
 from booksmith.datasets.bench import Bench
 from booksmith.datasets.metrics.base import Record, Scalar
 from test_bench import LABEL, _bench, at_root
+import support
 
 
 def test_rows_refuse_an_unknown_and_an_inapplicable_metric():
@@ -19,13 +20,13 @@ def test_rows_refuse_an_unknown_and_an_inapplicable_metric():
         b = Bench.open(_bench(os.path.join(d, "b")))
         run = b.run()
         try:
-            table.rows(b, run, ["bogus"], log=lambda *a: None)
+            table.rows(b, run, ["bogus"])
         except Refusal as e:
             assert "no metric named bogus" in str(e), e
         else:
             raise AssertionError("an unknown metric name was accepted")
         try:
-            table.rows(b, run, ["text"], log=lambda *a: None)     # no content in this truth
+            table.rows(b, run, ["text"])     # no content in this truth
         except Refusal as e:
             assert "text cannot be measured" in str(e) and "content" in str(e), e
         else:
@@ -38,7 +39,7 @@ def test_rows_parse_the_truth_once_and_pass_dicts_to_the_metrics():
         loads = []
         real = b.pages
         b.pages = lambda: (loads.append(1), real())[1]
-        recs = table.rows(b, b.run(), ["contour"], log=lambda *a: None)
+        recs = table.rows(b, b.run(), ["contour"])
     assert len(loads) == 1, f"the truth was parsed {len(loads)} times"
     assert [r.metric for r in recs] == ["contour"]
     assert recs[0].detail["book"].startswith("sha256 checked"), recs[0].detail["book"]
@@ -52,7 +53,7 @@ def test_a_book_without_truth_is_measured_by_what_needs_none():
         root = _bench(os.path.join(d, "b"))
         os.rename(os.path.join(root, "truth"), os.path.join(d, "away"))
         b = Bench.no_truth(root)
-        recs = table.rows(b, b.run(), log=lambda *a: None)
+        recs = table.rows(b, b.run())
         got = sorted(r.metric for r in recs)
         # Truth-free only, and NOT contour or text: what needs truth is
         # withheld by `applicable`, not answered with a zero.
@@ -60,8 +61,8 @@ def test_a_book_without_truth_is_measured_by_what_needs_none():
         assert recs[0].detail is not None
         # What was withheld says so, and says what it wanted: no line at all
         # cannot be told from an instrument that was never run.
-        said = []
-        table.rows(b, b.run(), log=said.append)
+        with support.said() as said:
+            table.rows(b, b.run())
         text = "\n".join(said)
         assert "contour: NOT MEASURED, this book and run give no truth" in text, text
         assert "text: NOT MEASURED, this book and run give no content, read, truth" \
@@ -105,9 +106,8 @@ def test_the_report_leaves_out_a_run_of_another_level_and_counts_it():
         try:
             report.RESULTS = table.RESULTS = d
             table.write_json([red], os.path.join(d, "b-read-SomeReader.json"),
-                             log=lambda *a: None, kind="read")
-            table.write_json([det], os.path.join(d, "b-x.json"),
-                             log=lambda *a: None)
+                             kind="read")
+            table.write_json([det], os.path.join(d, "b-x.json"))
             cells, _, _, other = report._cells()
             assert ("b", "SomeReader") not in cells, cells
             assert list(cells) == [("b", LABEL)], cells
@@ -123,7 +123,7 @@ def test_records_come_back_from_disk_as_json_left_them():
                   "c": Scalar(None, over=(0, 3), unit="pages", why="none marked")},
                  {"T": 1.5}, {"by_page": {3: 1.0}})
     with tempfile.TemporaryDirectory() as d:
-        path = table.write_json([rec], os.path.join(d, "x.json"), log=lambda *a: None)
+        path = table.write_json([rec], os.path.join(d, "x.json"))
         back = table.read_json(path)
     assert len(back) == 1 and back[0].scalars == rec.scalars and back[0].params == rec.params
     # detail comes back as JSON left it: integer keys are strings there
@@ -146,8 +146,8 @@ def test_render_prints_counts_coverage_and_footnotes():
         "found": Scalar(0.5, count=(1, 2)),
         "order": Scalar(None, over=(0, 3), unit="pages", why="none marked"),
     }, {"T": 1})
-    lines = []
-    table.render([rec], log=lines.append)
+    with support.said() as lines:
+        table.render([rec])
     text = "\n".join(lines)
     assert "1/2" in text and "0/3 pages" in text and "[1] m/order: none marked" in text
     assert "params: T=1" in text

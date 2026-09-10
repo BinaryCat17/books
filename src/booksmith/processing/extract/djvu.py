@@ -13,6 +13,7 @@ import re
 import shutil
 import subprocess
 from booksmith.core.errors import Refusal
+from booksmith.core.log import log
 
 MIN_SPREAD_RATIO = 1.15     # wider than tall by this much -- call it a spread
 GUTTER_BAND = 0.20          # where to look for the cut: middle ± a tenth
@@ -155,7 +156,7 @@ def _forced_gutter(page, rect):
     return rect.x0 + rect.width * (best + 0.5) / pix.width
 
 
-def to_pdf(src, dst=None, split="auto", log=print):
+def to_pdf(src, dst=None, split="auto"):
     """Unfold djvu into PDF, cutting the spreads; returns the PDF's path.
     `split` is `auto` (per book), `yes` (all landscape sheets) or `no`. A
     finished file is judged by the mark in its metadata, not mtime; unmarked is stale.

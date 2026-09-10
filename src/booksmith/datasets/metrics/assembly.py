@@ -100,5 +100,5 @@ class AssemblyMetric(Metric):
     def run_loaded(self, bench, run, truth, pages, note) -> Record:
         return self._record(bench.name if bench is not None else "", run, pages)
 
-    def report(self, rec: Record, log=print) -> None:
-        contour._report_jumps(rec.detail, log)
+    def report(self, rec: Record) -> None:
+        contour._report_jumps(rec.detail)

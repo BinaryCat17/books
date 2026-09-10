@@ -23,6 +23,14 @@ class Unmeasurable(BooksmithError):
     """An instrument could not count. rc 2, distinct from a number that failed."""
 
 
+class Cancelled(BooksmithError):
+    """The job was stopped from outside. rc 130, the shell's own code for it.
+
+    Not a `RuntimeError`: the renter takes one of those for a bad machine and
+    moves on to the next.
+    """
+
+
 class WeightsMissing(Unmeasurable):
     """Weights are missing, incomplete, or would give plausible shifted boxes.
 

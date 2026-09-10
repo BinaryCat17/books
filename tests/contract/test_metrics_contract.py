@@ -144,14 +144,14 @@ def test_applicability_is_by_prerequisite_not_by_trait():
 
 
 def test_the_probe_loop_counts_what_it_printed():
-    lines = []
-    seen, mute, bad = run_probes([
-        Probe("a spoiled thing", "the number falls", lambda: True),
-        Probe("nothing to spoil", "no data", lambda: None),
-        Probe("a spoiled thing the metric ignores", "the number falls", lambda: False),
-        Probe("a probe that breaks", "the number falls", lambda: 1 / 0),
-        Probe("a spoiled thing with a note", "falls", lambda: (True, "12 -> 3")),
-    ], log=lines.append)
+    with support.said() as lines:
+        seen, mute, bad = run_probes([
+            Probe("a spoiled thing", "the number falls", lambda: True),
+            Probe("nothing to spoil", "no data", lambda: None),
+            Probe("a spoiled thing the metric ignores", "the number falls", lambda: False),
+            Probe("a probe that breaks", "the number falls", lambda: 1 / 0),
+            Probe("a spoiled thing with a note", "falls", lambda: (True, "12 -> 3")),
+        ])
     assert (seen, mute, bad) == (5, 1, 2), (seen, mute, bad)
     assert any("THE PROBE THREW ZeroDivisionError" in l for l in lines), lines
     assert any("[12 -> 3]" in l for l in lines), lines
@@ -163,13 +163,11 @@ def test_the_truth_free_metrics_catch_every_probe_on_a_real_run():
     fail. Every metric on the drawn bench is `tests/bench/test_batteries.py`;
     these two are asked of a real detect run, the only input with keys to cut."""
     b, r = _slovar()
-    lines = []
-    seen, _, bad = run_probes(registry.BY_NAME["assembly"].probes(b, r),
-                              log=lines.append)
+    with support.said() as lines:
+        seen, _, bad = run_probes(registry.BY_NAME["assembly"].probes(b, r))
     assert bad == 0, lines
     assert seen == 3, lines
-    seen, _, bad = run_probes(registry.BY_NAME["snapshot"].probes(b, r),
-                             log=lambda *a: None)
+    seen, _, bad = run_probes(registry.BY_NAME["snapshot"].probes(b, r))
     assert bad == 0
     assert seen > 20, f"{seen} required keys were knocked out of the snapshot"
 

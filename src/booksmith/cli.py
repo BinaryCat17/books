@@ -31,6 +31,7 @@ against the parser both ways. Every command with its flags: `docs/commands.md`.
 """
 import argparse
 import os
+import signal
 import sys
 
 from booksmith.core import config
@@ -41,7 +42,8 @@ from .remote.vast import Vast
 from booksmith.core.log import log
 from booksmith.core import knobs
 from booksmith.core import replay as replay_mod
-from booksmith.core.errors import Refusal
+from booksmith.core import job
+from booksmith.core.errors import Cancelled, Refusal
 from booksmith.core import raster
 from booksmith.core import book
 from booksmith.datasets import look as look_mod
@@ -125,7 +127,7 @@ def cmd_detect(a):
         out = out or bk.run_dir("detect", detect._adapter().label())
         a = _with(a, file=pdf)
     out = out or os.path.splitext(a.file)[0] + ".detect"
-    detect.run(a.file, out, a.pages, log=log)
+    detect.run(a.file, out, a.pages)
     # Quoted: five of the nine files in raw/ carry spaces and brackets, and a
     # hint you cannot paste into a shell is not a hint.
     log(f"snapshot completeness: books replay --check {shlex.quote(out)}")
@@ -154,7 +156,7 @@ def cmd_html(a):
             f"`{html_mod.ASSETS}/run.json` nor `run.json` in the root — so "
             f"the directory was not built by `books html`. Overwriting it "
             f"silently is not allowed: give --out or remove it by hand.")
-    html_mod.build(d, out, log=log)
+    html_mod.build(d, out)
     return 0
 
 
@@ -176,10 +178,10 @@ def cmd_apply(a):
                     "--from together with --anchor or --undo: these are "
                     "different jobs. --from places EVERYTHING read, "
                     "--anchor one block.")
-            ap.from_read(d, a.from_read, log=log)
+            ap.from_read(d, a.from_read)
             return 0
         if a.status:
-            ap.status(d, log=log)
+            ap.status(d)
             return 0
         if a.undo and not a.anchor:
             raise ap.SwapError(
@@ -187,14 +189,14 @@ def cmd_apply(a):
                 "Unnamed, the command would roll back who knows what; the "
                 "list of replaced ones is `books apply <dir> --status`.")
         if a.undo:
-            ap.undo(d, a.anchor, log=log)
+            ap.undo(d, a.anchor)
         elif a.anchor:
             if not a.file:
                 raise ap.SwapError("nothing to place: give --file with the "
                                    "block markup, or --undo")
             with open(a.file, encoding="utf-8") as f:
                 ap.put(d, a.anchor, f.read(), kind=a.kind,
-                       source=a.source or os.path.basename(a.file), log=log)
+                       source=a.source or os.path.basename(a.file))
         else:
             # No keys means do the work, not a report: the book remembers which
             # read it was built from, and `books apply book` is what a person
@@ -210,7 +212,7 @@ def cmd_apply(a):
                     f"<books read dir>`. What is already replaced is shown "
                     f"by `--status`.")
             log(f"source taken from the book's snapshot: {src}")
-            ap.from_read(d, src, log=log)
+            ap.from_read(d, src)
     except ap.SwapError as e:
         log(str(e))
         return 1
@@ -289,8 +291,8 @@ def cmd_read(a):
             pages = set(parse_pages(a.pages, d.page_count))
 
     t = vread.read_book(a.dir, out, reader, transport,
-                        resume=not a.no_resume, pages_want=pages, log=log)
-    vread.report(t, log=log)
+                        resume=not a.no_resume, pages_want=pages)
+    vread.report(t)
     p = vread.snapshot(a.dir, out, reader, transport, t,
                        {"detect": a.dir, "out": out, "pages": a.pages,
                         "policy": policy_name})
@@ -321,7 +323,7 @@ def cmd_crop(a):
         with raster.open_pdf(book.pdf_of(d)) as doc:
             pages = set(parse_pages(a.pages, doc.page_count))
     t = vread.read_book(d, out, reader, None, resume=False, pages_want=pages,
-                        log=log, preview=True)
+                        preview=True)
     log(f"would ask {t.get('would_ask', 0)} of {t['block_count']} blocks; not "
         f"asked {t['not_asked']}, crop failed {t['crop_failed']}")
     # The troubles are printed, not left in the file: a preview is looked at to
@@ -361,7 +363,7 @@ def cmd_overlay(a):
     # The default lands in `<book>/look/`, which need not exist yet --
     # `look.build` opens the file and does not make the directory.
     os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
-    overlay.build(a.pdf, out, marks, only=only, log=log)
+    overlay.build(a.pdf, out, marks, only=only)
     return 0
 
 
@@ -374,7 +376,7 @@ def cmd_score(a):
     from booksmith.datasets.metrics import contour as metrics
     truth = book.pages_dir(a.truth, "truth")
     det = book.pages_dir(a.detect, "model boxes")
-    metrics.report(metrics.compare(truth, det), log=log)
+    metrics.report(metrics.compare(truth, det))
     return 0
 
 
@@ -398,7 +400,7 @@ def cmd_text(a):
     from booksmith.datasets.metrics import text
     truth = book.pages_dir(a.truth, "truth")
     pages = book.pages_dir(a.pages, "what was read")
-    text.report(text.measure(truth, pages, norm=a.norm), log=log)
+    text.report(text.measure(truth, pages, norm=a.norm))
     return 0
 
 
@@ -407,7 +409,7 @@ def cmd_fitness(a):
     from booksmith.processing.assess import ink as fitness
     det = book.pages_dir(a.detect, "--detect")
     truth = book.pages_dir(a.truth, "--truth") if a.truth else ""
-    fitness.report(fitness.measure(a.pdf, det, truth), log=log)
+    fitness.report(fitness.measure(a.pdf, det, truth))
     return 0
 
 
@@ -417,7 +419,7 @@ def cmd_subset(a):
     books = [x.strip() for x in (a.books or
              "spravochnik,slovar,matematika,atlas,katalog,zhurnal,annopage"
              ).split(",") if x.strip()]
-    subset.build(books, a.out or "bench/hard", log=log)
+    subset.build(books, a.out or "bench/hard")
     return 0
 
 
@@ -427,7 +429,7 @@ def cmd_annopage(a):
     out = a.out or "bench/annopage"
     log(f"AnnoPage from {a.root}, split {a.split}")
     annopage.build(a.root, out, split=a.split, limit=a.limit,
-                   truth_only=a.truth_only, log=log)
+                   truth_only=a.truth_only)
     log(f"next: books detect {shlex_quote(out)}/annopage.pdf "
         f"--out {shlex_quote(out)}/detect")
     return 0
@@ -444,7 +446,7 @@ def cmd_synth(a):
         f"ageing {knobs.knob('SYNTH_AGING')}, "
         f"seed {knobs.knob('SYNTH_SEED')}")
     synth.build(out, cases, knobs.number("SYNTH_SEED", kind=int),
-                knobs.knob("SYNTH_AGING"), book=a.book, log=log)
+                knobs.knob("SYNTH_AGING"), book=a.book)
     log(f"next: books detect {shlex_quote(out)}/{a.book}.pdf "
         f"--out {shlex_quote(out)}/detect")
     return 0
@@ -511,7 +513,7 @@ def cmd_bench_selfcheck(a):
         if not probes:
             log(f"{metric.name}: no probes on this run, nothing to knock out")
             continue
-        seen, silent, bad = base.run_probes(probes, log=log)
+        seen, silent, bad = base.run_probes(probes)
         log(f"{metric.name}: probes {seen}, measured {seen - silent}, "
             f"nothing to measure with {silent}, uncaught {bad}")
         total, uncaught, mute = total + seen, uncaught + bad, mute + silent
@@ -535,10 +537,10 @@ def cmd_bench_all(a):
     root = a.bench.rstrip("/")
     b, run = _open_book(root, a.kind, a.run)
     which = [n.strip() for n in a.only.split(",") if n.strip()] if a.only else None
-    recs = table.rows(b, run, which, log=log)
-    table.render(recs, log=log)
+    recs = table.rows(b, run, which)
+    table.render(recs)
     path = a.json or table.results_path(b, run, which)
-    table.write_json(recs, path, log=log, kind=run.kind)
+    table.write_json(recs, path, kind=run.kind)
     return 0
 
 
@@ -549,7 +551,7 @@ def cmd_bench_report(a):
     produced it, it cannot.
     """
     from booksmith.datasets import report
-    report.write(a.out or report.OUT, log=log)
+    report.write(a.out or report.OUT)
     return 0
 
 
@@ -699,36 +701,30 @@ def _doctor_detect():
     active = knobs.knob("LAYOUT_ADAPTER")
     # The same `_adapter()` `books detect` calls, its name given through the
     # knob: parsing names here would be a fourth list.
-    saved = os.environ.get("LAYOUT_ADAPTER")
     have, t0 = [], time.time()
-    try:
-        for which in detect.ADAPTERS:
-            os.environ["LAYOUT_ADAPTER"] = which
-            t = time.time()
-            try:
+    for which in detect.ADAPTERS:
+        t = time.time()
+        try:
+            with job.Job(settings={**knobs.passthrough(),
+                                   "LAYOUT_ADAPTER": which}).active():
                 det = detect._adapter()
-            except (Exception, SystemExit) as e:
-                # `SystemExit` is caught on purpose: at `DOCLING_PIPELINE=full`
-                # with no vendor package the docling adapter leaves by exactly
-                # that, and one adapter of four must not end the check. "No
-                # weights" and "weights present, adapter would not rise" are
-                # different troubles: a download cures only the first.
-                kind = ("no weights" if type(e).__name__ == "WeightsMissing"
-                        else f"DID NOT RISE ({type(e).__name__})")
-                log(f"  [ – ] {which:14s} {kind}: {e}")
-                continue
-            w = getattr(det, "onnx", "") or ""
-            mb = os.path.getsize(w) / 2 ** 20 if os.path.exists(w) else 0.0
-            have.append(which)
-            log(f"  [ok  ] {which:14s} {det.name}, labels "
-                f"{len(det.labels)}, weights {mb:.0f} MB, rose in "
-                f"{time.time() - t:.1f} s — {det.dir}")
-            det = None                        # not holding 4 graphs at once
-    finally:
-        if saved is None:
-            os.environ.pop("LAYOUT_ADAPTER", None)
-        else:
-            os.environ["LAYOUT_ADAPTER"] = saved
+        except (Exception, SystemExit) as e:
+            # `SystemExit` is caught on purpose: at `DOCLING_PIPELINE=full`
+            # with no vendor package the docling adapter leaves by exactly
+            # that, and one adapter of four must not end the check. "No
+            # weights" and "weights present, adapter would not rise" are
+            # different troubles: a download cures only the first.
+            kind = ("no weights" if type(e).__name__ == "WeightsMissing"
+                    else f"DID NOT RISE ({type(e).__name__})")
+            log(f"  [ – ] {which:14s} {kind}: {e}")
+            continue
+        w = getattr(det, "onnx", "") or ""
+        mb = os.path.getsize(w) / 2 ** 20 if os.path.exists(w) else 0.0
+        have.append(which)
+        log(f"  [ok  ] {which:14s} {det.name}, labels "
+            f"{len(det.labels)}, weights {mb:.0f} MB, rose in "
+            f"{time.time() - t:.1f} s — {det.dir}")
+        det = None                        # not holding 4 graphs at once
     log(f"  adapters risen {len(have)} of {len(detect.ADAPTERS)}"
         f" ({', '.join(have) if have else 'none at all'}), the check took "
         f"{time.time() - t0:.0f} s; the book is now counted by "
@@ -801,7 +797,7 @@ def _doctor_docling():
 def cmd_ledger(_a):
     rows = ledger_mod.read()
     if not rows:
-        log(f"journal empty ({ledger_mod.LEDGER})")
+        log(f"journal empty ({ledger_mod.file()})")
         return 0
     t = ledger_mod.totals(rows)
     log(f"{t['runs']} runs, successful {t['ok']}, spent ${t['spent_usd']:.3f}")
@@ -1051,8 +1047,28 @@ def build_parser():
 
 def main(argv=None):
     a = build_parser().parse_args(argv)
+    stop = job.current().stop
+    stop.clear()
+
+    def handler(signum, _frame):
+        # The first signal unfolds into an exception, so every `finally` runs
+        # and a rented machine is destroyed; a second one, the reflex once the
+        # first looks hung, only keeps `stop` set and lets the cleanup finish.
+        first = not stop.is_set()
+        stop.set()
+        if first:
+            raise Cancelled(f"signal {signum}")
+    was = {}
+    for s in (signal.SIGINT, signal.SIGTERM):
+        try:
+            was[s] = signal.signal(s, handler)
+        except ValueError:
+            pass                           # not the main thread: no signals here
     try:
         return a.fn(a) or 0
+    except Cancelled as e:
+        log(f"stopped: {e}")
+        return 130
     except _tool_errors() as e:
         # Code 2 is "could not count", against 1 — "counted, and the number
         # failed": merged, a silent instrument and a failed metric read alike.
@@ -1063,6 +1079,9 @@ def main(argv=None):
         # ordinary exception, so no caller in between special-cases it.
         log(str(e))
         return 1
+    finally:
+        for sig, h in was.items():
+            signal.signal(sig, h)
 
 
 if __name__ == "__main__":

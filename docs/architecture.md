@@ -165,16 +165,15 @@ metric declares its scalars with a direction and a gloss, and
 `docs/metrics.json` carries that declaration as data, so a new metric
 renders without a hand-kept table; `core/raster.py` returns a page or a crop
 as bytes; `Book.list` enumerates a collection; the path rules a command
-applies live in `core/book.py`. Seams still to cut, each a refactor of what
-exists:
+applies live in `core/book.py`; `core/job.py` carries a run's settings, its
+stop and its output sink, so one process runs jobs with different settings,
+a job can be stopped between pages, and a line's numbers reach a server as
+fields. Seams still to cut, each a refactor of what exists:
 
 - Per-page results kept by the ink measurement and returned as data by the
   overlay, instead of book totals and a drawn PDF.
-- Progress as data from `detect.run` and `read_book`, not lines of text.
 - The HTML builder split into the data pass and the emission, so the data
   pass serves a page viewer and the emission becomes an export.
-- A knob source that is not the process environment, so one server can run
-  jobs with different settings.
 - A run snapshot that stores each knob's name and value and points at the
   registry for its description, instead of carrying the description text.
 

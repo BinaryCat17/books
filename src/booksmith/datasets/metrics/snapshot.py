@@ -6,6 +6,7 @@ run (`Run.bare`) has nothing to check and says so.
 """
 from booksmith.core import replay
 from booksmith.datasets.metrics.base import Metric, Record, Scalar, Spec
+from booksmith.core.log import log
 
 
 class SnapshotMetric(Metric):
@@ -58,6 +59,6 @@ class SnapshotMetric(Metric):
     def run_loaded(self, bench, run, truth, pages, note) -> Record:
         return self._record(bench.name if bench is not None else "", run)
 
-    def report(self, rec: Record, log=print) -> None:
+    def report(self, rec: Record) -> None:
         for k, s in rec.scalars.items():
             log(f"{k}: {s.value if s.value is not None else s.why}")

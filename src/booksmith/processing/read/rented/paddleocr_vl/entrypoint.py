@@ -80,8 +80,8 @@ def main(argv=None):
 
     t = vread.read_book(a.detect, a.out, reader, transport,
                         resume=not a.no_resume,
-                        pages_want=pages, log=log, pdf=a.pdf)
-    vread.report(t, log=log)
+                        pages_want=pages, pdf=a.pdf)
+    vread.report(t)
     vread.snapshot(a.detect, a.out, reader, transport, t,
                    {"detect": a.detect, "out": a.out, "pages": a.pages,
                     "on_box": True})

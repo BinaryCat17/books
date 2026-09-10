@@ -13,6 +13,7 @@ from vastai import VastAI
 from . import pricing
 from .spec import HostReq, JobSpec
 from booksmith.core.log import log
+from booksmith.core import job
 from booksmith.core.errors import Refusal
 
 # ssh on a vast instance hijacks the login into tmux, so `ssh host 'cmd'` runs
@@ -199,6 +200,7 @@ class Vast:
         """
         t0, last = time.time(), None
         while time.time() - t0 < timeout:
+            job.current().check()
             inst = self.instance(iid) or {}
             status = inst.get("actual_status")
             msg = (inst.get("status_msg") or "").strip().splitlines()

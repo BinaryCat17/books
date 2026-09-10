@@ -199,7 +199,7 @@ def test_bulk_counts_spans_declared_and_placed():
                      # Non-rectangular: 1 declared and it cannot be placed --
                      # without this case the two numbers agree.
                      "<fcel>h<lcel><nl><fcel>v<ucel><nl>"])
-        t = ap.from_read(tmp, os.path.join(tmp, "read"), log=lambda *_: None)
+        t = ap.from_read(tmp, os.path.join(tmp, "read"))
         assert t["merges_declared"] == 2, t
         assert t["merges_in_book"] == 1, t
         assert t["tables_with_merges"] == 2, t
@@ -217,11 +217,9 @@ def test_bulk_counts_the_impossible_shape_of_the_book_not_of_the_run():
     with tempfile.TemporaryDirectory() as tmp:
         _bench(tmp, ["<fcel>a<fcel>b<fcel>c<fcel>d<fcel>e<nl>",  # 1x5 -- no
                      "<fcel>a<fcel>b<nl><fcel>1<fcel>2<nl>"])
-        first = ap.from_read(tmp, os.path.join(tmp, "read"),
-                             log=lambda *_: None)
+        first = ap.from_read(tmp, os.path.join(tmp, "read"))
         assert first["impossible_table_shape"] == 1, first
-        again = ap.from_read(tmp, os.path.join(tmp, "read"),
-                             log=lambda *_: None)
+        again = ap.from_read(tmp, os.path.join(tmp, "read"))
         assert again["placed"] == 0 and again["already_placed"] == 2, again
         assert again["impossible_table_shape"] == 1, (
             "on a repeat run the number went to zero -- so it is about the "
@@ -236,7 +234,7 @@ def test_bulk_marks_the_torn_block_in_the_book():
     with tempfile.TemporaryDirectory() as tmp:
         _bench(tmp, ["<fcel>a<fcel>b<nl><fcel>1<fcel>2<nl>",
                      "<fcel>c<fcel>d<nl><fcel>3<fcel>4<nl>"], cut={1})
-        ap.from_read(tmp, os.path.join(tmp, "read"), log=lambda *_: None)
+        ap.from_read(tmp, os.path.join(tmp, "read"))
         book = open(os.path.join(tmp, "book.html"), encoding="utf-8").read()
         assert book.count('data-truncated="yes"') == 1, book
         # And the mark sits on the TRUNCATED one, not the first to hand.
@@ -252,7 +250,7 @@ def test_bulk_names_the_rewrap_apart_from_new_work():
     from booksmith.processing.assemble import apply as ap
     with tempfile.TemporaryDirectory() as tmp:
         _bench(tmp, ["<fcel>a<fcel>b<nl><fcel>1<fcel>2<nl>"])
-        t1 = ap.from_read(tmp, os.path.join(tmp, "read"), log=lambda *_: None)
+        t1 = ap.from_read(tmp, os.path.join(tmp, "read"))
         assert t1["placed"] == 1 and t1["rewrapped"] == 0, (
             "the first swap is real work, not a re-wrap")
         # A real rewrap: the same model bytes, a different wrapper -- how a book
@@ -266,8 +264,7 @@ def test_bulk_names_the_rewrap_apart_from_new_work():
 
         ap._wrap_fragment = other_wrapper
         try:
-            t2 = ap.from_read(tmp, os.path.join(tmp, "read"),
-                              log=lambda *_: None)
+            t2 = ap.from_read(tmp, os.path.join(tmp, "read"))
         finally:
             ap._wrap_fragment = was
         assert t2["placed"] == 1, t2
@@ -276,14 +273,14 @@ def test_bulk_names_the_rewrap_apart_from_new_work():
             f"in the journal would mean work that never happened: {t2}")
         # A third run with the old wrapper: the body differs again, the model
         # bytes do not -- work AND a rewrap.
-        t3 = ap.from_read(tmp, os.path.join(tmp, "read"), log=lambda *_: None)
+        t3 = ap.from_read(tmp, os.path.join(tmp, "read"))
         assert t3["rewrapped"] == t3["placed"] == 1, t3
         # The last stack step is compared, not the first: putting the model
         # answer back over a hand edit is work, though the first step of the
         # stack holds the same bytes.
         ap.put(tmp, "p0000-b0", "<fcel>by hand<nl>", kind="otsl",
-               source="a person", log=lambda *_: None)
-        t4 = ap.from_read(tmp, os.path.join(tmp, "read"), log=lambda *_: None)
+               source="a person")
+        t4 = ap.from_read(tmp, os.path.join(tmp, "read"))
         assert t4["placed"] == 1, t4
         assert t4["rewrapped"] == 0, (
             "putting the model's answer back over a hand edit was recorded "
@@ -302,7 +299,7 @@ def test_a_refused_block_is_not_counted_as_being_in_the_book():
                      # 1x5: impossible shape, AND the fragment is refused.
                      "<fcel>a<fcel>b<fcel>c<fcel>d<fcel>e<nl>"
                      "<!--bs:p0000-b9-->"])
-        t = ap.from_read(tmp, os.path.join(tmp, "read"), log=lambda *_: None)
+        t = ap.from_read(tmp, os.path.join(tmp, "read"))
         assert t["refused"] == 1, t
         assert t["impossible_table_shape"] == 0, (
             "a refused block was counted among the book's blocks -- and it "

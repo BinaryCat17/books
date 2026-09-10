@@ -15,6 +15,7 @@ import tempfile
 from booksmith.core import stamp
 
 from booksmith.datasets import look as overlay
+import support
 
 
 def _stand(d, pages=3, model_skip=()):
@@ -43,8 +44,8 @@ def _stand(d, pages=3, model_skip=()):
 
 
 def _say(pdf, marks, only=None):
-    said = []
-    overlay.build(pdf, pdf + ".ov.pdf", marks, only=only, log=said.append)
+    with support.said() as said:
+        overlay.build(pdf, pdf + ".ov.pdf", marks, only=only)
     return "\n".join(said)
 
 
@@ -68,14 +69,9 @@ def test_pages_are_counted_from_one_like_detect():
         for spec, want in (("2", [1]), ("1-3", [0, 1, 2]),
                            ("1 3", [0, 2])):
             out = os.path.join(d, f"p{spec.replace(' ', '_')}.pdf")
-            said = []
-            was = cli.log
-            cli.log = said.append          # `log` in cli is an imported name
-            try:
+            with support.said() as said:
                 assert cli.main(["overlay", pdf, "--truth", t,
                                  "--pages", spec, "--out", out]) == 0
-            finally:
-                cli.log = was
             # The output holds only the requested sheets, so the count is checked
             # by two quantities: how many sheets came out, and which page of
             # the book came first -- the instrument names the second itself.
@@ -205,18 +201,16 @@ def test_the_sheet_shouts_at_exactly_what_the_number_calls_extra():
         counts = {}
         overlay.build(pdf, os.path.join(d, "o.pdf"),
                       [(os.path.join(d, "truth", "pages"), "T"),
-                       (os.path.join(d, "model", "pages"), "M")],
-                      log=lambda *a: None)
+                       (os.path.join(d, "model", "pages"), "M")])
         c = metrics.compare(os.path.join(d, "truth", "pages"),
                             os.path.join(d, "model", "pages"))
         del counts
         beds = c["troubles"] if "troubles" in c else {}
         want = beds.get("spurious_box", 0)
-        said = []
-        got = overlay.build(pdf, os.path.join(d, "o2.pdf"),
-                            [(os.path.join(d, "truth", "pages"), "T"),
-                             (os.path.join(d, "model", "pages"), "M")],
-                            log=said.append)["spurious"]
+        with support.said():
+            got = overlay.build(pdf, os.path.join(d, "o2.pdf"),
+                                [(os.path.join(d, "truth", "pages"), "T"),
+                                 (os.path.join(d, "model", "pages"), "M")])["spurious"]
         assert want == 1, f"the bench is built wrong: score calls {want} spurious"
         assert got == want, (
             f"the sheet shouts about {got} boxes while the number calls "

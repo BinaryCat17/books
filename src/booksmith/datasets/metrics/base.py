@@ -9,6 +9,7 @@ traits like "is order marked" are not prerequisites but per-page counts. In
 failed probe, and "no data" is neither caught nor missed.
 """
 from dataclasses import dataclass, field
+from booksmith.core.log import log
 
 
 @dataclass(frozen=True)
@@ -117,7 +118,7 @@ class Metric:
         once for the whole table."""
         raise NotImplementedError
 
-    def report(self, rec: Record, log=print) -> None:
+    def report(self, rec: Record) -> None:
         raise NotImplementedError
 
     def probes(self, bench, run) -> list:
@@ -176,7 +177,7 @@ class Probe:
     fn: object         # () -> True | False | None | (bool|None, note)
 
 
-def run_probes(probes, log=print) -> tuple:
+def run_probes(probes) -> tuple:
     """Run every probe, print every line, return (seen, mute, bad). `seen` is
     counted from what was printed, never from `len(probes)`; a probe that throws
     is a failed probe; `None` is "nothing to measure with", counted apart."""

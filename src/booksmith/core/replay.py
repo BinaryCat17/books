@@ -16,6 +16,7 @@ import json
 import os
 
 from booksmith.core import knobs
+from booksmith.core.log import log
 
 # Package root: adapter sources are looked up under it (see `_writer_file`).
 PKG = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -421,7 +422,7 @@ def check(outdir, verbose=True):
     if verbose:
         name = os.path.relpath(outdir)
         if not snap:
-            print(f"{name}: run.json does not read -- no snapshot at all")
+            log(f"{name}: run.json does not read -- no snapshot at all")
         kn_h = sum(1 for p, _ in hol if p and p[0] == "knobs")
         # The caveat stands on the same line as the number, or "0 missing" reads
         # as complete where the fingerprint was merely never checked.
@@ -438,14 +439,14 @@ def check(outdir, verbose=True):
             # fingerprint shape would not derive, so only the branch is required.
             caveat = ("; NOT EVERYTHING WAS CHECKED -- the fingerprint "
                       "shape would not derive, only the branch is required")
-        print(f"{name}: values in the snapshot {len(req) - len(miss)} of "
+        log(f"{name}: values in the snapshot {len(req) - len(miss)} of "
               f"{len(req)}, missing {len(miss)}, empty {len(hol)} "
               f"(of those, knobs with no value {kn_h}){caveat}")
-        print(f"  {sh['row']}")
+        log(f"  {sh['row']}")
         unc = uncovered(snap, sh)
         if unc:
             names = [" / ".join(p[1:]) for p in unc[:5]]
-            print(f"  NOT covered by the requirement: {len(unc)} "
+            log(f"  NOT covered by the requirement: {len(unc)} "
                   f"fingerprint values of the {len(_fp_paths(snap))} lying "
                   f"in the snapshot -- their keys are born during a run "
                   f"(per-label thresholds, translation maps, summaries) and "
@@ -454,13 +455,13 @@ def check(outdir, verbose=True):
                   + ", ".join(names)
                   + (f" and {len(unc) - 5} more" if len(unc) > 5 else ""))
         for path, what in miss:
-            print(f"  absent {'/'.join(map(str, path)):43s} -- {what}")
+            log(f"  absent {'/'.join(map(str, path)):43s} -- {what}")
         # Empty knobs are not listed by name: there are always many, and an empty
         # string is the ordinary "not set"; their number is above.
         for path, what in hol:
             if path and path[0] == "knobs":
                 continue
-            print(f"  empty {'/'.join(map(str, path)):44s} -- {what}")
+            log(f"  empty {'/'.join(map(str, path)):44s} -- {what}")
     return miss
 
 
@@ -485,9 +486,9 @@ def cmd_replay(a):
         else:
             v = line(d)
             if v:
-                print(v)
+                log(v)
             else:
-                print(f"{os.path.relpath(d)}: there is no repeat line -- "
+                log(f"{os.path.relpath(d)}: there is no repeat line -- "
                       f"the snapshot is incomplete, see books replay --check")
                 rc = 1
     return rc

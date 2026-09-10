@@ -15,9 +15,16 @@ from booksmith.core.log import log
 # A relative path would lose the whole history when run from another directory,
 # and the pick of warmed machines with it.
 from booksmith.core.config import ROOT as _ROOT
-# Declared in the registry, or `books replay --check` cannot see that the ledger
-# and the machine blacklist moved elsewhere.
-LEDGER = knobs.knob("BOOKSMITH_LEDGER") or os.path.join(_ROOT, "runs", "ledger.jsonl")
+
+
+def file() -> str:
+    """Where the journal is: the knob, else `runs/ledger.jsonl` at the root.
+    Asked at each use and not at import, so a job's own setting is honoured."""
+    return knobs.knob("BOOKSMITH_LEDGER") or os.path.join(_ROOT, "runs", "ledger.jsonl")
+
+
+def bad_file() -> str:
+    return os.path.join(os.path.dirname(file()), "bad-machines.json")
 
 
 
@@ -78,7 +85,8 @@ def _ensure_dir(path: str) -> None:
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
 
 
-def append(run: Run, path: str = LEDGER) -> None:
+def append(run: Run, path: str = "") -> None:
+    path = path or file()
     _ensure_dir(path)
     d = asdict(run)
     d["started_iso"] = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(run.started))
@@ -86,7 +94,8 @@ def append(run: Run, path: str = LEDGER) -> None:
         f.write(json.dumps(d, ensure_ascii=False) + "\n")
 
 
-def read(path: str = LEDGER) -> list[dict]:
+def read(path: str = "") -> list[dict]:
+    path = path or file()
     if not os.path.exists(path):
         return []
     rows = []
@@ -100,13 +109,14 @@ def read(path: str = LEDGER) -> list[dict]:
     return rows
 
 
-def warm_machines(image: str, path: str = LEDGER) -> list[int]:
+def warm_machines(image: str, path: str = "") -> list[int]:
     """Machines where this image has already come up, freshest first.
 
     The docker cache lives on the physical machine, and so does vast's own ssh
     build on top, which costs more than the image: 34 seconds warm against six
     minutes. The mark of warmth is reaching ssh, not the task succeeding.
     """
+    path = path or file()
     seen: dict[int, float] = {}
     for r in read(path):
         if (r.get("image") == image and r.get("machine_id")
@@ -116,7 +126,7 @@ def warm_machines(image: str, path: str = LEDGER) -> list[int]:
     return [m for m, _ in sorted(seen.items(), key=lambda kv: -kv[1])]
 
 
-def slow_machines(image: str, path: str = LEDGER,
+def slow_machines(image: str, path: str = "",
                   job: str | None = None) -> list[int]:
     """Machines the ledger shows to be twice slower than the best.
 
@@ -124,6 +134,7 @@ def slow_machines(image: str, path: str = LEDGER,
     selection: fast_machines drops a slow one and the warm list hands it back.
     Without `job` times are incomparable and no machine is marked slow.
     """
+    path = path or file()
     fast = set(fast_machines(image, path, job))
     seen = set()
     for r in read(path):
@@ -134,7 +145,7 @@ def slow_machines(image: str, path: str = LEDGER,
     return sorted(seen - fast)
 
 
-def fast_machines(image: str, path: str = LEDGER,
+def fast_machines(image: str, path: str = "",
                   job: str | None = None) -> list[int]:
     """Machines sorted by measured speed, fastest first.
 
@@ -144,6 +155,7 @@ def fast_machines(image: str, path: str = LEDGER,
     what this ranks is the link, not the card, and a book's first run under a
     new `job` rejects nobody by time.
     """
+    path = path or file()
     probes: dict[int, list[float]] = {}
     times: dict[int, list[float]] = {}
     bad = set(bad_machines())
@@ -176,9 +188,6 @@ def fast_machines(image: str, path: str = LEDGER,
     return ranked
 
 
-BAD = os.path.join(os.path.dirname(LEDGER), "bad-machines.json")
-
-
 def _read_bad(path: str) -> tuple[dict, str]:
     """(machine list, reason for distrust); an empty list and a broken file differ.
 
@@ -202,13 +211,14 @@ def _read_bad(path: str) -> tuple[dict, str]:
     return data, ""
 
 
-def mark_bad(machine_id: int | None, reason: str, path: str = BAD) -> None:
+def mark_bad(machine_id: int | None, reason: str, path: str = "") -> None:
     """Remember a machine that will not do -- forever, not for one run.
 
     Without it a machine we once reached ssh on counts as warm even when the link
     to it is 62 kbit/s. `machine_id` may arrive empty, an offer's field being
     optional: nothing to record then, and the run must not die over it either.
     """
+    path = path or bad_file()
     try:
         key = str(int(machine_id))
     except (TypeError, ValueError):
@@ -238,12 +248,13 @@ def mark_bad(machine_id: int | None, reason: str, path: str = BAD) -> None:
         f"{len(data)} in the list")
 
 
-def bad_machines(path: str = BAD) -> list[int]:
+def bad_machines(path: str = "") -> list[int]:
     """Machines never to take again.
 
     Silent only when the list is empty: an unread list looks exactly like an
     empty one.
     """
+    path = path or bad_file()
     data, broken = _read_bad(path)
     if broken:
         log(f"WARNING: blacklist {path} does not parse ({broken}) -- "
@@ -262,7 +273,7 @@ def bad_machines(path: str = BAD) -> list[int]:
     return out
 
 
-def fit(path: str = LEDGER) -> dict:
+def fit(path: str = "") -> dict:
     """Estimate LINK_EFFICIENCY from the actual runs, or refuse and say why.
 
     The estimate divides `image_gb * 8 * 1024 / setup_s` by the advertised link,
@@ -271,6 +282,7 @@ def fit(path: str = LEDGER) -> dict:
     by the missing `reject_s`, are skipped one by one and the skip is counted;
     one of them must not cancel the count over all the others.
     """
+    path = path or file()
     eff, gbs, old_shape = [], set(), 0
     for r in read(path):
         adv, setup, gb = r.get("inet_down_adv"), r.get("setup_s"), r.get("image_gb")

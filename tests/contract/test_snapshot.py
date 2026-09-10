@@ -13,6 +13,7 @@ import os
 import re
 
 import support
+from booksmith.core.log import log
 from booksmith.core import knobs, replay
 
 SRC = support.SRC
@@ -78,7 +79,7 @@ def audit(root=None):
     return out
 
 
-def knockout(snap, req, log=print):
+def knockout(snap, req):
     """Cut each required key in turn and see that `replay.missing` notices.
     Returns (omissions not caught, keys absent from the start): the first is the
     only number about the check, the second is about the snapshot."""
@@ -98,7 +99,7 @@ def knockout(snap, req, log=print):
     return bad, absent
 
 
-def selfcheck(outdir, log=print) -> int:
+def selfcheck(outdir) -> int:
     """Can the check fail at all: the sum of six troubles, each printed apart --
     they fall silent alike, so they add up only at the exit, and a zero means
     "asked and not found". A seventh prints unsummed: it is fixed at the writer."""
@@ -128,7 +129,7 @@ def selfcheck(outdir, log=print) -> int:
     if not snap:
         log(f"{name}: run.json does not read -- nothing to knock out")
         return len(req) + len(drift)
-    bad, absent = knockout(snap, req, log)
+    bad, absent = knockout(snap, req)
     log(f"{name}: knocked out {len(req) - len(absent)} keys of "
         f"{len(req)}, omissions not caught {bad}"
         + (f"; absent from the start {len(absent)}" if absent else "")
@@ -233,7 +234,7 @@ def test_shape_that_could_not_be_derived_is_loud_not_silent():
         assert not sh["verified"], (
             "the shape was not derived and the fingerprint was called "
             "CHECKED -- that word beside an underived shape was the chief lie")
-        assert selfcheck(_tmp_out(tmp, snap), log=lambda *_a: None) > 0, (
+        assert selfcheck(_tmp_out(tmp, snap)) > 0, (
             "the self-check returned zero on a snapshot with no fingerprint: "
             "a zero from not understanding passed off as a zero from a check")
     finally:

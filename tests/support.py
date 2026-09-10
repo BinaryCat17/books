@@ -2,6 +2,8 @@
 import os
 from contextlib import contextmanager
 
+from booksmith.core import job
+
 # The source directory, from here rather than from cwd.
 SRC = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                    "src", "booksmith")
@@ -15,6 +17,14 @@ def src_path(rel: str) -> str:
     if not os.path.isfile(p):
         raise AssertionError(f"no source {rel} (looked in {SRC})")
     return p
+
+
+@contextmanager
+def said():
+    """The lines the block logs, as a list: a job whose sink keeps the text."""
+    lines = []
+    with job.Job(sink=lambda e: lines.append(e["text"])).active():
+        yield lines
 
 
 @contextmanager

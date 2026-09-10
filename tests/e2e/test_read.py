@@ -265,7 +265,7 @@ def _run(tmp, plan, out_dir=None, snapshot=False, **kw):
         os.environ["MODEL_NAME"] = s.model
         r = PaddleOcrVl("PP-DocLayoutV2")
         t = vrun.read_book(os.path.join(tmp, "detect"), out, r, vhttp.Http(),
-                           log=lambda *a: None, **kw)
+                           **kw)
         if snapshot:
             # The guard reads `run.json`, which only `snapshot()` writes: a run
             # without one is not a run and nothing is refused over it.
@@ -376,7 +376,7 @@ def test_resume_does_not_ask_twice():
         os.environ["VLM_ENDPOINT"] = s.url
         t2 = vrun.read_book(os.path.join(tmp, "detect"), out,
                             PaddleOcrVl("PP-DocLayoutV2"), vhttp.Http(),
-                            resume=True, log=lambda *a: None)
+                            resume=True)
         assert len(s.seen) == 0, f"{len(s.seen)} blocks were asked again"
     assert t2["reused_from_previous_run"] == 2
 
@@ -427,7 +427,7 @@ def _preview(tmp):
     out = os.path.join(tmp, "crop")
     r = PaddleOcrVl("PP-DocLayoutV2")
     t = vrun.read_book(os.path.join(tmp, "detect"), out, r, None,
-                       resume=False, log=lambda *a: None, preview=True)
+                       resume=False, preview=True)
     return out, t
 
 
@@ -550,7 +550,7 @@ def test_a_preview_refuses_to_land_on_a_paid_read_directory():
     r = PaddleOcrVl("PP-DocLayoutV2")
     try:
         vrun.read_book(os.path.join(tmp, "detect"), paid, r, None,
-                       resume=False, log=lambda *a: None, preview=True)
+                       resume=False, preview=True)
     except Refusal as e:
         assert "answers" in str(e), e
     else:
@@ -585,7 +585,7 @@ def test_a_preview_may_not_resume():
     try:
         vrun.read_book(os.path.join(tmp, "detect"),
                        os.path.join(tmp, "crop2"), r, None,
-                       resume=True, log=lambda *a: None, preview=True)
+                       resume=True, preview=True)
     except Refusal as e:
         assert "resume" in str(e)
     else:

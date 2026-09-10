@@ -21,11 +21,12 @@ from booksmith.datasets.make.synth.draw import (DPI, FONT, FONT_MONO, PT, SynthE
                                                 _said_reset, _said_take)
 from booksmith.datasets.make.synth.truth import (GROW, GUESSED, INK, KEEP, _measure,
                                                  _text_check)
+from booksmith.core.log import log
 
 __all__ = ["build", "AGING", "INK", "SynthError"]
 
 def build(out_dir: str, cases=None, seed: int = 1, aging: str = "old",
-          book: str = "spravochnik", log=print) -> dict:
+          book: str = "spravochnik") -> dict:
     """Build the synthetic book: a PDF plus exact truth for every page. The
     product is an ordinary PDF, so the whole pipeline works on it unamended.
     Nothing half-built survives a refusal: the aside files go on the way out."""
@@ -36,7 +37,7 @@ def build(out_dir: str, cases=None, seed: int = 1, aging: str = "old",
              os.path.join(out_dir, f"{book}.pdf.new"),
              os.path.join(out_dir, "manifest.json.new"))
     try:
-        return _build(out_dir, cases, seed, aging, book, log)
+        return _build(out_dir, cases, seed, aging, book)
     except BaseException:
         for p in aside:
             try:
@@ -46,7 +47,7 @@ def build(out_dir: str, cases=None, seed: int = 1, aging: str = "old",
         raise
 
 
-def _build(out_dir, cases, seed, aging, book, log) -> dict:
+def _build(out_dir, cases, seed, aging, book) -> dict:
     import cv2
     import numpy as np
     import pymupdf

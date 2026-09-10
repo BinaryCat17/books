@@ -14,6 +14,7 @@ import pytest
 from booksmith.core import config, knobs
 from booksmith.datasets.bench import Bench, Run
 from booksmith.datasets.make import synth
+import support
 
 _BUILT = {}
 
@@ -23,9 +24,9 @@ def slovar_bench() -> Bench:
     if "bench" not in _BUILT:
         d = tempfile.mkdtemp(prefix="slovar-")
         atexit.register(shutil.rmtree, d, ignore_errors=True)
-        synth.build(d, None, knobs.number("SYNTH_SEED", kind=int),
-                    knobs.knob("SYNTH_AGING"), book="slovar",
-                    log=lambda *_a: None)
+        with support.said():
+            synth.build(d, None, knobs.number("SYNTH_SEED", kind=int),
+                        knobs.knob("SYNTH_AGING"), book="slovar")
         _BUILT["bench"] = Bench.open(d)
     return _BUILT["bench"]
 

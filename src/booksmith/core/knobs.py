@@ -10,7 +10,7 @@ How many there are and who reads them is not written here: the registry counts
 itself, and `tests/contract/test_snapshot.py` walks the tree for `knob("NAME")`
 in python and `$NAME` in shell -- but only for names already declared here.
 """
-import os
+from booksmith.core import job
 from booksmith.core.errors import Refusal
 
 
@@ -262,14 +262,14 @@ KNOB = {k.name: k for k in KNOBS}
 
 
 def knob(name):
-    """A knob's value: from the environment, else the registry default."""
+    """A knob's value: from the job's settings, else the registry default."""
     try:
         k = KNOB[name]
     except KeyError:
         raise KeyError(f"knob {name} is not declared in KNOBS: declare it "
                        f"there instead of reading the environment past "
                        f"the registry") from None
-    v = os.environ.get(k.name)
+    v = job.current().settings.get(k.name)
     return k.default if v is None else v
 
 
@@ -305,8 +305,9 @@ def snapshot():
     by is about this run, debt about the whole tree.
 
     """
+    given = job.current().settings
     return {k.name: {"value": knob(k.name), "default": k.default,
-                     "set_externally": k.name in os.environ, "what": k.what,
+                     "set_externally": k.name in given, "what": k.what,
                      "debt": k.debt}
             for k in KNOBS}
 
@@ -341,4 +342,5 @@ def passthrough():
     Defaults are not substituted -- they live in this file alone -- and the list
     comes from the registry, so it cannot fall behind it.
     """
-    return {n: os.environ[n] for n in names() if n in os.environ}
+    given = job.current().settings
+    return {n: given[n] for n in names() if n in given}

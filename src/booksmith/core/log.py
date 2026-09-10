@@ -1,15 +1,12 @@
-"""One log line, one place. Timestamped, to stdout, flushed.
+"""One line of output, one place: an event on the current job.
 
-Stdout and not stderr: the acceptance snapshots (`tests/expected/*.txt`) are
-the concatenation of both streams compared line by line, so a diagnostic on
-stderr would reorder every report.
-
-Import-free: `books ledger` rents nothing and must not pull in the `vastai`
-package. The two entrypoints that run on the rented box keep a copy of these
-two lines, because they start before the package is on `sys.path`.
+`log("text", page=3)` is text with fields beside it. The default sink prints
+the text with a timestamp; a server's keeps the fields. The two entrypoints
+that run on the rented box keep a printing copy of their own, because they
+start before the package is on `sys.path`.
 """
-import time
+from booksmith.core import job
 
 
-def log(*a):
-    print(f"[{time.strftime('%H:%M:%S')}]", *a, flush=True)
+def log(*a, **fields):
+    job.current().sink({"text": " ".join(str(x) for x in a), **fields})

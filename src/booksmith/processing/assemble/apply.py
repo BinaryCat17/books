@@ -25,6 +25,7 @@ from booksmith.processing.assemble.html import (
     torn_grid,
     torn_of)
 from booksmith.core.errors import Refusal
+from booksmith.core.log import log
 
 
 
@@ -346,7 +347,7 @@ def put_into(html: str, anchor: str, fragment: str, kind: str, source: str,
 
 
 def put(out_dir: str, anchor: str, fragment: str, kind: str = "html",
-        source: str = "", log=print) -> dict:
+        source: str = "") -> dict:
     """Place one piece of markup where a block is. Magnitudes, not "done".
 
     The rule lives wholly in `put_into`; only the I/O around it is here. The
@@ -386,7 +387,7 @@ def put(out_dir: str, anchor: str, fragment: str, kind: str = "html",
             "anchor_count": len(after), "undo_depth": len(j["swaps"][anchor])}
 
 
-def undo(out_dir: str, anchor: str, log=print) -> dict:
+def undo(out_dir: str, anchor: str) -> dict:
     """Return what stood before the last swap."""
     path = book_path(out_dir)
     j = load_journal(out_dir)
@@ -441,7 +442,7 @@ def undo(out_dir: str, anchor: str, log=print) -> dict:
             "undo_depth": len(stack)}
 
 
-def status(out_dir: str, log=print) -> dict:
+def status(out_dir: str) -> dict:
     """What is swapped and what is still an image — journal compared against book.
 
     The journal alone drifts from the book silently: `books html --out` into the
@@ -521,8 +522,7 @@ def source_of(out_dir: str) -> str | None:
     return path
 
 
-def from_read(out_dir: str, read_dir: str, only_role: str = "artifact",
-              log=print) -> dict:
+def from_read(out_dir: str, read_dir: str, only_role: str = "artifact") -> dict:
     """Place in the book everything level two read. One at a time, undoable.
 
     The build draws an artifact as an image whatever its content, a swap being

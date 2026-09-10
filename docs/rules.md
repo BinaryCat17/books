@@ -35,6 +35,8 @@ registered metric has a `probes/<name>.py` module beside it, and
 comparing a count with what was expected.
 `src/booksmith/processing/read/driver.py:report` prints the tally always.
 `src/booksmith/processing/layout/detect.py:run` prints boxes per page.
+`src/booksmith/core/log.py:log` carries the numbers as fields beside the
+text, so a sink counts without parsing a line.
 
 **Zero from a check and zero from not understanding are different zeros.**
 A counter that can mean both must say which.
@@ -45,9 +47,14 @@ a reason.
 `src/booksmith/core/errors.py:Unmeasurable` exits with a different code from
 `src/booksmith/core/errors.py:Refusal`.
 
-**A knob is declared in the registry.** A knob read past the registry does
-not reach the snapshot, and the run becomes silently unrepeatable.
-`src/booksmith/core/knobs.py:knob` raises on an undeclared name.
+**A knob is declared in the registry and read through the job.** A knob
+read past the registry does not reach the snapshot, and the run becomes
+silently unrepeatable; a value read past the job cannot differ between two
+jobs in one process.
+`src/booksmith/core/knobs.py:knob` raises on an undeclared name and takes
+the value from `src/booksmith/core/job.py:current`.
+`src/booksmith/core/job.py:Job.active` refuses a setting no knob is
+declared for.
 `src/booksmith/core/knobs.py:snapshot_with_readers` writes every knob the
 run read into `run.json`.
 `src/booksmith/core/stamp.py:identity` hashes exactly those values.

@@ -12,6 +12,9 @@ import subprocess
 import tempfile
 import threading
 import time
+
+from booksmith.core import job
+from booksmith.core.errors import Cancelled
 from booksmith.core.log import log
 
 # One multiplexed connection per machine: a fresh handshake costs 4-5 seconds.
@@ -64,12 +67,32 @@ class Box:
     def _addr(self) -> str:
         return f"{self.user}@{self.host}"
 
+    def _run(self, cmd: list, timeout: float | None = None) -> subprocess.CompletedProcess:
+        """`subprocess.run` that honours the job's stop: the child is polled
+        every second and killed on a stop or past `timeout`, the latter
+        raising `TimeoutExpired` as `subprocess.run` would."""
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                             text=True)
+        t0 = time.time()
+        while True:
+            try:
+                out, err = p.communicate(timeout=1.0)
+                return subprocess.CompletedProcess(cmd, p.returncode, out, err)
+            except subprocess.TimeoutExpired:
+                stopped = job.current().stop.is_set()
+                if stopped or (timeout is not None and time.time() - t0 > timeout):
+                    p.kill()
+                    p.communicate()
+                    if stopped:
+                        job.current().check()
+                    raise subprocess.TimeoutExpired(cmd, timeout) from None
+
     def wait_ready(self, timeout: float = 420) -> None:
         t0, err = time.time(), ""
         while time.time() - t0 < timeout:
+            job.current().check()
             try:
-                p = subprocess.run(self._ssh + [self._addr, "true"],
-                                   capture_output=True, text=True, timeout=45)
+                p = self._run(self._ssh + [self._addr, "true"], timeout=45)
             except subprocess.TimeoutExpired:
                 # While the container comes up the port often does not answer
                 # and ssh hangs: normal, not a failure.
@@ -98,8 +121,7 @@ class Box:
                 return 124, f"deadline gone before the start: {cmd[:80]}"
             limit = None if deadline is None else deadline - time.time()
             try:
-                p = subprocess.run(full, capture_output=True, text=True,
-                                   timeout=limit)
+                p = self._run(full, timeout=limit)
             except subprocess.TimeoutExpired:
                 # 124 -- the same code `_rsync` answers with on timeout.
                 return 124, f"ssh missed the deadline: {cmd[:80]}"
@@ -111,12 +133,16 @@ class Box:
         # loading the model) must still reach the deadline check below.
         try:
             while True:
+                if job.current().stop.is_set():
+                    p.kill()               # the ssh; the box's own watch takes the rest
+                    p.wait(timeout=10)
+                    job.current().check()
                 ready, _, _ = select.select([p.stdout], [], [], 5.0)
                 if ready:
                     line = p.stdout.readline()
                     if not line:
                         break                      # EOF: the process ended
-                    print("    " + line.rstrip(), flush=True)
+                    log("    " + line.rstrip(), remote=True)
                 elif p.poll() is not None:
                     break
                 if deadline and time.time() > deadline:
@@ -225,8 +251,7 @@ class Box:
                        (["-i", self.key] if self.key else []))
         cmd = ["rsync", "-az", "--partial", "-e", rsh] + (extra or []) + [src, dst]
         try:
-            p = subprocess.run(cmd, capture_output=True, text=True,
-                               timeout=timeout or self.RSYNC_TIMEOUT_S)
+            p = self._run(cmd, timeout=timeout or self.RSYNC_TIMEOUT_S)
         except subprocess.TimeoutExpired:
             # `--partial` leaves the unfinished part, so the next try continues.
             log(f"  rsync overran "
@@ -247,7 +272,7 @@ class Box:
                        (["-i", self.key] if self.key else []))
         cmd = ["rsync", "-az", "--partial", "-e", rsh] + extra + [src, dst]
         try:
-            p = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+            p = self._run(cmd, timeout=600)
         except subprocess.TimeoutExpired:
             return None
         if p.returncode != 0:
@@ -323,7 +348,7 @@ class Box:
                 # `/.` and not the bare directory -- see the docstring.
                 scp_src = local.rstrip("/") + "/."
             cmd += [scp_src, f"{self._addr}:{self.workdir}/{remote_rel}"]
-            p = subprocess.run(cmd, capture_output=True, text=True)
+            p = self._run(cmd)
             if p.returncode != 0:
                 raise RuntimeError(
                     f"upload of {local} failed: {p.stderr.strip()}")
@@ -355,13 +380,12 @@ class Box:
         def loop():
             while not self._stop_hb.wait(every):
                 try:
-                    subprocess.run(self._ssh + [self._addr, "touch /root/.alive"],
-                                   capture_output=True, timeout=30)
+                    self._run(self._ssh + [self._addr, "touch /root/.alive"],
+                              timeout=30)
                 except Exception:
                     pass
         self._stop_hb.clear()
-        self._hb_thread = threading.Thread(target=loop, daemon=True)
-        self._hb_thread.start()
+        self._hb_thread = job.spawn(loop)
 
     def stop_heartbeat(self) -> None:
         """Stop the pulse -- mandatory before abandoning the machine.
@@ -428,13 +452,15 @@ class Box:
                    exclude: tuple[str, ...] = ()) -> None:
         """Pull results as the work goes, not only at the end."""
         def loop():
-            while not self._stop_sync.wait(every):
-                # A shorter ceiling than the final fetch: this one repeats.
-                self.pull(remote_rel, local_dir, quiet=True, exclude=exclude,
-                          timeout=300)
+            try:
+                while not self._stop_sync.wait(every):
+                    # A shorter ceiling than the final fetch: this one repeats.
+                    self.pull(remote_rel, local_dir, quiet=True, exclude=exclude,
+                              timeout=300)
+            except Cancelled:
+                return                 # the main thread is unwinding already
         self._stop_sync.clear()
-        self._sync_thread = threading.Thread(target=loop, daemon=True)
-        self._sync_thread.start()
+        self._sync_thread = job.spawn(loop)
         log(f"  background sync {remote_rel} -> {local_dir} "
             f"every {every:.0f} s")
 

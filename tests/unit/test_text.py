@@ -7,6 +7,7 @@ is fatal to the instrument, and its numerator and denominator must be counted
 over the same role, or a book with formulas reports "CER 0 on all 130 of 104".
 """
 from booksmith.datasets.metrics import text
+import support
 
 
 def _pages(blocks, side=None):
@@ -29,8 +30,8 @@ def _formula_block(i, content):
 
 def _say(truth, answer):
     """The report as lines. Exactly what a person will see."""
-    out = []
-    text.report(text.measure_pages(truth, answer), log=out.append)
+    with support.said() as out:
+        text.report(text.measure_pages(truth, answer))
     return "\n".join(out)
 
 

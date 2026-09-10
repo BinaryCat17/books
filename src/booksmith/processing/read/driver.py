@@ -22,7 +22,7 @@ from booksmith.processing.read import Ask, Reader, Transport
 from booksmith.core import otsl, policy
 from booksmith.core import raster as crop
 from booksmith.core.page import Page
-from booksmith.core import book, knobs, stamp
+from booksmith.core import book, job, knobs, stamp
 from booksmith.core.log import log
 from booksmith.core.errors import Refusal
 
@@ -130,7 +130,7 @@ def read_identity(reader: Reader, transport) -> tuple[str, dict]:
 
 def read_book(detect_dir: str, out_dir: str, reader: Reader,
               transport: Transport, resume: bool = True,
-              pages_want=None, log=log, pdf: str | None = None,
+              pages_want=None, pdf: str | None = None,
               preview: bool = False) -> dict:
     """Walk the book and fill in block content. Returns quantities.
 
@@ -266,7 +266,8 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
     by_kind = {}
     worst = []
 
-    for fp, pg in pages:
+    for n, (fp, pg) in enumerate(pages, 1):
+        job.current().check()
         tag = f"p{pg.index:04d}"
         ans_path = os.path.join(out_dir, "answers", f"{tag}.json")
         old = {}
@@ -432,10 +433,11 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
         with open(ans_path, "w", encoding="utf-8") as f:
             json.dump({"page": pg.index, "answers": answers}, f,
                       ensure_ascii=False, indent=1)
-        log(f"p. {pg.index}: asked {len(asks)}, read "
-            f"{sum(1 for a in answers if a.get('text'))}, "
+        got = sum(1 for a in answers if a.get('text'))
+        log(f"p. {pg.index}: asked {len(asks)}, read {got}, "
             f"silences {sum(1 for a in answers if a.get('text') == '')}, "
-            f"refusals {sum(1 for a in answers if a.get('error'))}")
+            f"refusals {sum(1 for a in answers if a.get('error'))}",
+            page=pg.index, n=n, of=len(pages), asked=len(asks), read=got)
     doc.close()
 
     tally["by_kind"] = by_kind
@@ -453,7 +455,7 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
     return tally
 
 
-def report(t: dict, log=log) -> None:
+def report(t: dict) -> None:
     """Quantities, not "done". The five zeros are printed apart."""
     log(f"pages {t['page_count']}, blocks {t['block_count']}: asked "
         f"{t['asked']}, not asked {t['not_asked']}")

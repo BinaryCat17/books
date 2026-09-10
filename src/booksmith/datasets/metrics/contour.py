@@ -13,6 +13,7 @@ from booksmith.core import page, policy
 from booksmith.datasets import bench as bench_mod
 from booksmith.core.errors import Unmeasurable
 from booksmith.datasets.metrics.base import Metric, Record, Scalar, Spec
+from booksmith.core.log import log
 
 # The one match gate: two-sided cover, so a box neither crops truth nor spills.
 COVER_MATCH = 0.75
@@ -674,7 +675,7 @@ def role_errors(res: dict) -> int:
                != policy.role(k.split("->", 1)[1]))
 
 
-def _report_order(res: dict, log) -> None:
+def _report_order(res: dict) -> None:
     """Reading order, a line per question: what truth knows, the model rank,
     the assembly order the reader will see, and excess column jumps. Fused,
     they fall silent about all of them the moment a model gives no rank."""
@@ -707,10 +708,10 @@ def _report_order(res: dict, log) -> None:
                 f"{o['pages_total']}"
                 + (f", blocks without rank {o['blocks_without_rank']}"
                    if o.get("blocks_without_rank") else "") + tail)
-    _report_jumps(res["jumps"], log)
+    _report_jumps(res["jumps"])
 
 
-def _report_jumps(j: dict, log) -> None:
+def _report_jumps(j: dict) -> None:
     """Excess jumps, three answers never to be confused: a dash (no page
     reached `COLUMN_MIN_BOXES`), a computed zero (one column, no transitions),
     a number. The parameters print in all three, or two runs do not compare."""
@@ -739,7 +740,7 @@ def _report_jumps(j: dict, log) -> None:
                 f"{tail}")
 
 
-def report(res: dict, log=print) -> None:
+def report(res: dict) -> None:
     if res.get("book"):
         log(res["book"])
     t, x = res["totals"], res["text_and_furniture"]
@@ -771,7 +772,7 @@ def report(res: dict, log=print) -> None:
     if miss:
         log("  misses by label: " + ", ".join(
             f"{k} {v['found']}/{v['truth']}" for k, v in miss.items()))
-    _report_order(res, log)
+    _report_order(res)
     n_pairs = sum(res["label_confusion"].values())
     # Buckets always print: the only part of the confusion that crosses a
     # vocabulary border.
@@ -1048,5 +1049,5 @@ class ContourMetric(Metric):
         params.update({f"COLUMN_{k}": v for k, v in (j.get("params") or {}).items()})
         return Record(self.name, bench_name, run_label, scalars, params, res)
 
-    def report(self, rec: Record, log=print) -> None:
-        report(rec.detail, log=log)
+    def report(self, rec: Record) -> None:
+        report(rec.detail)

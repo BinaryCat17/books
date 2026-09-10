@@ -10,6 +10,7 @@ the book as text.
 """
 from booksmith.datasets.metrics import base, reading
 from booksmith.datasets.metrics.probes.reading import probes
+import support
 
 
 def _pages(blocks):
@@ -76,10 +77,10 @@ def test_a_formula_whose_CONTENT_repeats_is_the_residual_false_positive():
 
 def test_the_battery_can_fail_on_pages_that_carry_answers():
     """Every probe measures something, on an input built here: a set of probes that all say "no data" measures nothing."""
-    lines = []
     pages = _pages([("chart", CHART), ("text", "recognised words here"),
                     ("table", "a | b\n1 | 2")])
-    seen, mute, bad = base.run_probes(probes(None, _Run(pages)), log=lines.append)
+    with support.said() as lines:
+        seen, mute, bad = base.run_probes(probes(None, _Run(pages)))
     assert bad == 0, lines
     assert (seen, mute) == (6, 0), (seen, mute, lines)
     assert not any("no data" in l for l in lines), lines
