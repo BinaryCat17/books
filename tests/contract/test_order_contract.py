@@ -134,6 +134,9 @@ def _fake_page(rows, labels):
     r.norm_mean = [0.0] * 3
     r.norm_std = [1.0] * 3
     arr = np.array(rows, np.float32)
+    # Decided from the graph's declared shape in the constructor; the stand-in
+    # graph declares by its rows, six columns meaning no rank.
+    r.has_order = arr.shape[1] >= 7
     r.sess = type("Graph", (), {
         "run": lambda _self, _names, _feed: [arr, np.array([len(rows)])]})()
     tmp = tempfile.mkdtemp(prefix="booksmith-order-")

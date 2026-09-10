@@ -74,11 +74,14 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      # Built into the daemon and not pushed yet: the image answers as itself
+      # first, or a broken build would already be the tag.
       - uses: docker/build-push-action@v6
         with:
           context: .
           file: infra/models/layout-cpu/Dockerfile
-          push: true
+          load: true
+          push: false
           tags: ${{ steps.img.outputs.ref }}
           build-args: |
             MODEL_REPO=${{ matrix.repo }}
@@ -87,18 +90,31 @@ jobs:
             LAYOUT_MODEL_NAME=${{ matrix.model }}
             COMMIT=${{ steps.img.outputs.commit }}
           provenance: false
-      # The image must answer as itself before it is trusted: describe, and
-      # a page through the layout route.
-      - name: describe
+      # Describe, and one page through the layout route: the raster path,
+      # opencv and the temporary file are exercised, not only the import.
+      - name: describe and one page
         run: |
           docker run -d --rm -p 8000:8000 --name m ${{ steps.img.outputs.ref }}
-          for i in $(seq 1 60); do
-            curl -sf http://127.0.0.1:8000/booksmith/describe && break
+          for i in $(seq 1 90); do
+            curl -sf http://127.0.0.1:8000/booksmith/describe -o /dev/null && break
             sleep 2
           done
           curl -sf http://127.0.0.1:8000/booksmith/describe | python3 -c \
             'import json,sys; d=json.load(sys.stdin); print(d["label"], len(d["classes"]), "labels", d["fingerprint"]["sha256_weights"][:12])'
+          python3 - <<'PY' > /tmp/req.json
+          import base64, json, struct, zlib
+          w, h = 400, 600
+          raw = b"".join(b"\x00" + b"\xff" * (w * 3) for _ in range(h))
+          def chunk(t, d): return struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d) & 0xffffffff)
+          png = (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0))
+                 + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b""))
+          print(json.dumps({"index": 0, "dpi": 144.0, "image": "data:image/png;base64," + base64.b64encode(png).decode()}))
+          PY
+          curl -sf -X POST -H 'Content-Type: application/json' --data @/tmp/req.json \
+            http://127.0.0.1:8000/booksmith/layout | python3 -c \
+            'import json,sys; p=json.load(sys.stdin); print("page", p["index"], p["width"], "x", p["height"], "at", p["dpi"], "dpi:", len(p["blocks"]), "blocks")'
           docker stop m
+      - run: docker push ${{ steps.img.outputs.ref }}
 
   vlm:
     if: ${{ inputs.which == 'all' || inputs.which == 'vlm' }}

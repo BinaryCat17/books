@@ -104,6 +104,17 @@ class DocLayout(Detector):
             self.onnx, providers=["CPUExecutionProvider"])
         self.ort_version = ort.__version__
         self.providers = list(self.sess.get_providers())
+        # Whether the weights carry a reading rank is graph metadata, static:
+        # the first output's column count, eight or seven with a rank, six
+        # without. Decided here, before any page, so the fingerprint and the
+        # describe say the same thing at construction as after the book.
+        cols = self.sess.get_outputs()[0].shape
+        if len(cols) != 2 or not isinstance(cols[1], int):
+            raise WeightsMissing(
+                f"the graph's first output has shape {cols}, and a box table "
+                f"of a fixed number of columns was expected; whether these "
+                f"weights carry a rank cannot be told")
+        self.has_order = cols[1] >= 7
 
     # --------------------------------------------------------- thresholds
     def thresholds(self) -> dict[str, float]:
@@ -181,7 +192,7 @@ class DocLayout(Detector):
                                       "mean": self.norm_mean,
                                       "std": self.norm_std}},
             "native_threshold": self.native_threshold,
-            "reading_order": (order.declare("model") if getattr(self, "has_order", True)
+            "reading_order": (order.declare("model") if self.has_order
                                else order.declare("ours", "ours_top_down_left_right: the "
                                                   "model gives no rank")),
             "thresholds_by_class": self.thresholds(),
@@ -227,7 +238,11 @@ class DocLayout(Detector):
                 f"first graph output {out.shape}: expected a box table of the "
                 f"shape [N, >=6] (class, score, four coordinates). Parsing it "
                 f"blind means inventing boxes.")
-        self.has_order = has_rank(out)
+        if has_rank(out) != self.has_order:
+            raise RuntimeError(
+                f"page {index}: the graph answered {out.shape[1]} columns and "
+                f"its declared shape said {'a rank' if self.has_order else 'none'}; "
+                f"a rank read from one and not the other is invented order")
 
         thr = self.thresholds()
         kept, rejected = [], {}

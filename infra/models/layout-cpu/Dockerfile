@@ -33,15 +33,17 @@ RUN apt-get update -qq \
 
 COPY --from=ghcr.io/astral-sh/uv:0.12.5 /uv /usr/local/bin/
 
+# The weights before the code: a change to the tree must not pull them again.
+# Where the adapters look is paddlex's convention, kept so the same code runs
+# here and on a developer's machine. The repository names are what the
+# adapters' own messages name; the first build is where they are proven.
+RUN uv pip install --system --no-cache "huggingface_hub[cli]"
+RUN hf download "$MODEL_REPO" --local-dir "/root/.paddlex/official_models/$MODEL_DIR"
+
 WORKDIR /app
 COPY pyproject.toml README.md /app/
 COPY src /app/src
-RUN uv pip install --system --no-cache ".[detect]" \
- && uv pip install --system --no-cache "huggingface_hub[cli]"
-
-# Where the adapters look: paddlex's convention, kept so the same code runs
-# here and on a developer's machine.
-RUN hf download "$MODEL_REPO" --local-dir "/root/.paddlex/official_models/$MODEL_DIR"
+RUN uv pip install --system --no-cache ".[detect]"
 
 ENV LAYOUT_ADAPTER=$LAYOUT_ADAPTER \
     LAYOUT_MODEL_NAME=$LAYOUT_MODEL_NAME \

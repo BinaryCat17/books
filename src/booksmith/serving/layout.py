@@ -11,18 +11,20 @@ the raster is written to a temporary one and removed after the answer.
 from __future__ import annotations
 
 import base64
+import contextvars
 import json
 import os
 import sys
 import tempfile
 import threading
 import time
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler
 
 from booksmith.core import knobs, order, served, stamp
 from booksmith.core.errors import BooksmithError, Refusal
 from booksmith.core.log import log
 from booksmith.processing.layout.base import Detector
+from booksmith.serving.threads import Server, key_ok, run_until_stopped
 
 
 def _adapter_sha(det: Detector) -> str | None:
@@ -43,6 +45,9 @@ class Service:
             raise Refusal("a hybrid declares the kinds of content it returns")
         self.det, self.kind, self.key = det, kind, key
         self.pol = det.policy()
+        # The job the describe is taken under is the job every page is read
+        # under, whichever thread asks.
+        self.context = contextvars.copy_context()
         self.lock = threading.Lock()
         self.requests = 0
         self.last_request: float | None = None
@@ -104,9 +109,7 @@ def handler_for(svc: Service) -> type:
             self.wfile.write(b)
 
         def _allowed(self) -> bool:
-            if not svc.key:
-                return True
-            if self.headers.get("Authorization") == "Bearer " + svc.key:
+            if key_ok(self.headers.get("Authorization"), svc.key):
                 return True
             self._json(401, {"error": "a key is required, and this is not it"})
             return False
@@ -125,8 +128,8 @@ def handler_for(svc: Service) -> type:
                 return
             if self.path != served.LAYOUT:
                 return self._json(404, {"error": f"no route {self.path}"})
-            n = int(self.headers.get("Content-Length") or 0)
             try:
+                n = int(self.headers.get("Content-Length") or 0)
                 req = served.LayoutRequest.from_json(
                     json.loads(self.rfile.read(n) or b"{}"))
                 return self._json(200, svc.layout(req))
@@ -138,9 +141,10 @@ def handler_for(svc: Service) -> type:
     return H
 
 
-def serve(svc: Service, host: str = "127.0.0.1", port: int = 0) -> ThreadingHTTPServer:
-    """The server, bound and not yet running: the caller says when."""
-    return ThreadingHTTPServer((host, port), handler_for(svc))
+def serve(svc: Service, host: str = "127.0.0.1", port: int = 0) -> Server:
+    """The server, bound and not yet running: the caller says when. Its
+    request threads read the job this was called under."""
+    return Server((host, port), handler_for(svc), svc.context)
 
 
 def main(host: str, port: int, kind: str = "layout",
@@ -157,11 +161,6 @@ def main(host: str, port: int, kind: str = "layout",
     srv = serve(svc, host, port)
     log(f"listening on http://{srv.server_address[0]}:{srv.server_address[1]}"
         f"{served.DESCRIBE}")
-    try:
-        srv.serve_forever()
-    except KeyboardInterrupt:
-        pass
-    finally:
-        srv.server_close()
-        log(f"served {svc.requests} pages")
+    run_until_stopped(srv, f"{d.label}")
+    log(f"served {svc.requests} pages")
     return 0

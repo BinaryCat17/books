@@ -35,7 +35,7 @@ ENV VIRTUAL_ENV=/opt/env PATH=/opt/env/bin:$PATH
 # uv above must be the one that built it (see the file's header).
 COPY src/booksmith/processing/read/rented/paddleocr_vl/constraints.txt /tmp/constraints.txt
 RUN uv pip install -r /tmp/constraints.txt --torch-backend=cu130 \
- && uv pip install "huggingface_hub[cli]"
+ && uv pip install -c /tmp/constraints.txt "huggingface_hub[cli]"
 
 # The 1.6 repository, and its name written beside the weights: config.json is
 # byte-identical between releases, so the name is the only proof of which.
@@ -48,10 +48,17 @@ COPY src /app/src
 COPY infra/models/paddleocr-vl/start.sh /app/start.sh
 RUN uv pip install --no-deps . && chmod +x /app/start.sh
 
+# The weights hash, taken here once and cached beside them: two gigabytes
+# read at build, not at every start of a container whose upper layer is
+# discarded. The cache key carries the files' modification times; whether
+# the image layer keeps them to the nanosecond is checked at the first
+# build by a start that logs no second hashing.
+RUN python -c "from booksmith.serving.vlm import weights_sha256; print(weights_sha256('/models/vl')[:12])"
+
+# Only what the registry has no default for: where the weights are, and the
+# commit. The model name, the port and the sampler switch are the registry's
+# defaults, and a copy here would be a third one nothing compares.
 ENV VL_MODEL_DIR=/models/vl \
-    MODEL_NAME=PaddleOCR-VL-1.6-0.9B \
-    PORT=8118 \
-    VLLM_USE_FLASHINFER_SAMPLER=0 \
     BOOKSMITH_COMMIT=$COMMIT \
     PYTHONUNBUFFERED=1
 

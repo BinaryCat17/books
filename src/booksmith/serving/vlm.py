@@ -5,13 +5,22 @@ and health beside it and passes `/v1/*` through byte for byte -- no retry, no
 edit, no second ask, which is the first rule of the tree. The subprocess is
 raised the way the rented run script raised it: in a process group of its
 own, killed as a group, watched for its readiness on `/v1/models` before the
-shim calls itself ready. The weights are hashed once at start and cached
-beside them, so the describe's `sha256_weights` says which weights answer,
-which the served model name never did.
+shim calls itself ready. The weights are hashed once over the tensors and the
+two files that differ between releases, cached beside them, so the
+describe's `sha256_weights` says which weights answer, which the served model
+name never did; the image takes that hash at build.
+
+The pass-through reads an answer whole before answering: the tree's
+transport never streams, and a foreign client that asked to would get every
+event at once when the answer is complete. `VLM_TIMEOUT_S` bounds one read
+of the socket, so a generation silent that long is a status the transport
+rightly never repeats.
 """
 from __future__ import annotations
 
+import contextvars
 import hashlib
+import importlib.metadata
 import json
 import os
 import signal
@@ -19,11 +28,12 @@ import subprocess
 import time
 import urllib.error
 import urllib.request
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler
 
-from booksmith.core import knobs, served
+from booksmith.core import job, knobs, served
 from booksmith.core.errors import Refusal
 from booksmith.core.log import log
+from booksmith.serving.threads import Server, key_ok, run_until_stopped
 
 KINDS = ("text", "otsl", "latex")
 # What the identity of the weights is taken over: the tensors and the two
@@ -55,8 +65,13 @@ def weights_sha256(weights_dir: str) -> str:
         with open(os.path.join(weights_dir, n), "rb") as f:
             for chunk in iter(lambda: f.read(1 << 20), b""):
                 h.update(chunk)
-    with open(cache, "w", encoding="utf-8") as f:
-        json.dump({"over": key, "sha256": h.hexdigest()}, f)
+    try:
+        with open(cache, "w", encoding="utf-8") as f:
+            json.dump({"over": key, "sha256": h.hexdigest()}, f)
+    except OSError as e:
+        # Read-only weights are lawful; the hash is then taken at every start.
+        log(f"the weights hash could not be cached beside the weights ({e}); "
+            f"it will be taken again at the next start")
     return h.hexdigest()
 
 
@@ -100,6 +115,7 @@ class Upstream:
                 self.proc.wait(timeout=10)
             except subprocess.TimeoutExpired:
                 os.killpg(self.proc.pid, signal.SIGKILL)
+                self.proc.wait(timeout=10)
         except ProcessLookupError:
             pass
 
@@ -123,6 +139,7 @@ class Service:
                  upstream: Upstream | None = None):
         self.upstream_url = upstream_url.rstrip("/")
         self.model_name, self.key, self.upstream = model_name, key, upstream
+        self.context = contextvars.copy_context()
         self.requests = 0
         self.last_request: float | None = None
         self.started = time.time()
@@ -142,10 +159,11 @@ class Service:
             weights["sha256_weights"] = None
             weights["why_empty"] = ("no weights on this machine: the shim "
                                     "stands before a vLLM it did not raise")
+        # The version off the installed distribution: importing vllm would
+        # pull torch into a second process on the card.
         try:
-            import vllm
-            version = getattr(vllm, "__version__", None)
-        except ImportError:
+            version: str | None = importlib.metadata.version("vllm")
+        except importlib.metadata.PackageNotFoundError:
             version = None
         self.describe = served.Describe(
             kind="reader", label=model_name,
@@ -169,6 +187,7 @@ class Service:
         Refusal with the tail of its log; a dead subprocess is one too."""
         t0 = time.time()
         while time.time() - t0 < timeout:
+            job.current().check()
             if self.upstream is not None and not self.upstream.alive():
                 raise Refusal(f"vLLM died at start; its log is {self.upstream.log_path}")
             if self.ready():
@@ -209,13 +228,16 @@ def handler_for(svc: Service) -> type:
             self.wfile.write(b)
 
         def _allowed(self) -> bool:
-            if not svc.key or self.headers.get("Authorization") == "Bearer " + svc.key:
+            if key_ok(self.headers.get("Authorization"), svc.key):
                 return True
             self._json(401, {"error": "a key is required, and this is not it"})
             return False
 
         def _through(self, method: str) -> None:
-            n = int(self.headers.get("Content-Length") or 0)
+            try:
+                n = int(self.headers.get("Content-Length") or 0)
+            except ValueError:
+                return self._json(400, {"error": "Content-Length is not a number"})
             body = self.rfile.read(n) if n else None
             code, ctype, out = svc.proxy(method, self.path, body, dict(self.headers))
             if method == "POST" and self.path.endswith("/chat/completions"):
@@ -244,8 +266,8 @@ def handler_for(svc: Service) -> type:
     return H
 
 
-def serve(svc: Service, host: str = "127.0.0.1", port: int = 0) -> ThreadingHTTPServer:
-    return ThreadingHTTPServer((host, port), handler_for(svc))
+def serve(svc: Service, host: str = "127.0.0.1", port: int = 0) -> Server:
+    return Server((host, port), handler_for(svc), svc.context)
 
 
 def main(host: str, port: int, upstream_url: str = "", key: str | None = None,
@@ -263,7 +285,9 @@ def main(host: str, port: int, upstream_url: str = "", key: str | None = None,
                       os.path.join(log_dir, "vllm.log"))
         up.start()
         upstream_url = up.url
-    svc = Service(upstream_url, model, weights, key, up)
+    # The weights are described only where this process raised the vLLM
+    # over them: a foreign upstream answers with weights nobody here saw.
+    svc = Service(upstream_url, model, weights if up is not None else None, key, up)
     try:
         took = svc.wait_ready()
         log(f"vLLM answers as {model} after {took:.0f} s; weights "
@@ -271,13 +295,8 @@ def main(host: str, port: int, upstream_url: str = "", key: str | None = None,
         srv = serve(svc, host, port)
         log(f"listening on http://{srv.server_address[0]}:{srv.server_address[1]}"
             f"{served.DESCRIBE}, chat route passed through")
-        try:
-            srv.serve_forever()
-        except KeyboardInterrupt:
-            pass
-        finally:
-            srv.server_close()
-            log(f"served {svc.requests} requests")
+        run_until_stopped(srv, model)
+        log(f"served {svc.requests} requests")
     finally:
         if up is not None:
             up.stop()

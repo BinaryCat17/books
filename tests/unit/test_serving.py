@@ -48,7 +48,9 @@ class TruthDetector(Detector):
         return ()
 
     def read(self, image_path, index, dpi):
-        knobs.knob("LAYOUT_SCORE_THRESHOLD")
+        # The value read at read time goes into the page: a request thread
+        # that reads another job than the describe was taken under shows here.
+        seen = knobs.knob("LAYOUT_SCORE_THRESHOLD")
         d = json.loads(json.dumps(self.pages[index]))
         for b in d["blocks"]:
             b.pop("source_category", None)
@@ -56,7 +58,8 @@ class TruthDetector(Detector):
         d["meta"] = {**d["meta"], "detector": self.name,
                      "boxes_accepted": len(d["blocks"]), "rank_ties": 0,
                      "best_rejected_by_class": {},
-                     "reading_order": order.MODEL_RANK}
+                     "reading_order": order.MODEL_RANK,
+                     "threshold_read": seen}
         d["raw"] = None
         return page_mod.Page.from_json(d)
 
@@ -109,6 +112,8 @@ def test_a_detector_behind_the_shim_is_the_same_experiment(slovar, tmp_path):
             got = det.read(png, 0, 144.0).to_json()
             theirs = detect._identity(det, detect._knob_roles(det))
         assert got == want, "the page changed on the way through the shim"
+        assert got["meta"]["threshold_read"] == "0.7", (
+            "the request thread read another job than the describe was taken under")
         health = served.Health.from_json(served.fetch(url + served.HEALTH))
         assert health.ready and health.requests == 1 and health.last_request
     assert theirs == mine, "a served run is not the in-process run's experiment"
@@ -135,20 +140,27 @@ def test_the_shim_demands_its_key_and_refuses_what_is_not_a_page(slovar, tmp_pat
         serving_layout.Service(TruthDetector(slovar.truth_dir), kind="hybrid")
 
 
-def test_the_real_detector_through_the_shim_gives_the_in_process_pages(slovar, tmp_path):
+@pytest.mark.parametrize("model", ["PP-DocLayoutV2", "PP-DocLayout_plus-L"])
+def test_the_real_detector_through_the_shim_gives_the_in_process_pages(slovar, tmp_path, model):
     """With weights on this machine: the tree's own detector behind the shim
     answers the pages it answers in process, byte for byte after `raw`, and
-    the two runs are one experiment."""
+    the two runs are one experiment -- the describe taken before any page
+    and the snapshot after the book saying the same thing, rank or none."""
+    settings = {"LAYOUT_MODEL_NAME": model}
     try:
-        with support.said():
+        with support.said(), job.Job(settings=settings).active():
             local = detect._adapter()
+            svc = serving_layout.Service(local)
+            mine = detect._identity(local, detect._knob_roles(local))
     except Exception as e:  # weights or onnxruntime absent
-        pytest.skip(f"no in-process detector here: {type(e).__name__}: {str(e)[:60]}")
+        pytest.skip(f"no in-process {model} here: {type(e).__name__}: {str(e)[:60]}")
     png = _raster(slovar, tmp_path)
-    want = local.read(png, 0, 144.0).to_json()
+    with job.Job(settings=settings).active():
+        want = local.read(png, 0, 144.0).to_json()
+        after = detect._identity(local, detect._knob_roles(local))
+    assert after == mine, "the identity moved once a page was read"
+    assert svc.describe.reading_order == ("own" if model == "PP-DocLayoutV2" else "none")
     want.pop("raw", None)
-    mine = detect._identity(local, detect._knob_roles(local))
-    svc = serving_layout.Service(local)
     with _up(serving_layout, svc) as url:
         with _client(url).active():
             det = detect._adapter()
@@ -159,12 +171,29 @@ def test_the_real_detector_through_the_shim_gives_the_in_process_pages(slovar, t
     assert theirs == mine
 
 
+def test_a_stop_ends_the_server(slovar):
+    """`docker stop` is a signal, and the command line turns a signal into
+    the job's stop: the server must end on it, not on a kill ten seconds on."""
+    from booksmith.serving import threads
+    svc = serving_layout.Service(TruthDetector(slovar.truth_dir))
+    lines = []
+    j = job.Job(sink=lambda e: lines.append(e["text"]))
+    with j.active():
+        srv = serving_layout.serve(svc)
+        threading.Timer(0.3, j.stop.set).start()
+        threads.run_until_stopped(srv, "truth")
+    assert any("stopping" in ln for ln in lines)
+    with pytest.raises(served.Unreachable):
+        served.fetch(f"http://127.0.0.1:{srv.server_address[1]}" + served.HEALTH, timeout=1)
+
+
 # --------------------------------------------------------------- the vlm shim
 
 def test_a_vllm_behind_the_shim_is_read_through_unchanged(slovar, tmp_path):
     png = _raster(slovar, tmp_path)
     with FakeVlm({"text": "the words", "finish": "stop"}) as fake:
-        svc = serving_vlm.Service(fake.url.removesuffix("/v1"), fake.model)
+        with job.Job(settings={"VLM_TIMEOUT_S": "5"}).active():
+            svc = serving_vlm.Service(fake.url.removesuffix("/v1"), fake.model)
         assert svc.describe.kind == "reader"
         assert svc.describe.openai == {"base": "/v1", "model": fake.model}
         assert svc.describe.fingerprint["sha256_weights"] is None
