@@ -1,30 +1,12 @@
-"""Rental deadlines: two ceilings, each of which binned GOOD machines.
+"""Rental deadlines: two ceilings, each of which binned good machines.
 
-THERE WERE NO CHECKS ON `remote/` AT ALL, and neither defect below was found
-by reading the code. Both came out of a PAID RUN on 3 September 2026: three
-good machines binned in a row, $0.081 and 13 minutes out of 60 before it was
-stopped by hand.
+Both are one defect by make: a quantity that must be derived from another was
+written down as a number. The probe's deadline was wired in while the rejection
+floor follows our own channel, so a slow but usable machine timed out; and
+container start was cut by `min(BOOT_LIMIT_S, remaining)`, cutting off a machine
+that was pulling its image fine with most of the attempt budget unspent.
 
-THE PROBE COULD NOT KEEP UP WITH ITS OWN FLOOR. The rejection floor in
-`runner` follows our own channel (`min(limit, 0.5*ours)`), while the probe's
-deadline was wired in: 4 MB in 25 s. At the floor of 0.90 Mbit/s seen that
-evening, `ours` was 1.8; 32 megabits take 18 s at best and do not fit into 25
-with the ssh handshake. The probe returned 0 -- a "timeout" no different from
-a dead machine.
-
-`remote/box.py` recounts the same evening with `ours` at 2.8 and the floor at
-1.42. Both cannot describe one attempt, and neither can be checked: until the
-fix beside `test_the_channel_that_decides_reaches_the_ledger`, our own
-downlink was measured on every rental and written down nowhere. It is a ledger
-field now, so the next run settles it instead of the next argument.
-
-A CEILING INSIDE A CEILING. Container start was cut by `min(BOOT_LIMIT_S,
-remaining)` = `min(120, 480)` = 120 s. Machine 49873851 was pulling the image
-fine ("Download complete", "Pull complete") and was cut off at 2:12 with 360 s
-of the attempt budget unspent.
-
-Both are one defect by make: a quantity that MUST be derived from another was
-written down as a number. The checks below demand the derivation.
+The checks below demand the derivation.
 """
 import inspect
 import time
@@ -55,22 +37,14 @@ class _Stream:
         self.total, self.sent = total, 0
         self.stdout = self
 
-    # How much virtual time one `read` costs. A pipe hands over what has
-    # ARRIVED, not what was asked for, and that difference is the whole reason
-    # the probe reads for a time rather than for a size.
+    # How much virtual time one `read` costs. A pipe hands over what has arrived,
+    # not what was asked for, which is why the probe reads for a time.
     QUANTUM = 0.01
 
     def read(self, n):
-        # ON A CLOCK OF OUR OWN, and that is the whole point. This used to read
-        # `time.time()` and sleep 10 ms when nothing had arrived yet, so the
-        # measurement rode the scheduler: under a stall the probe's elapsed
-        # time grew while no bytes flowed, and the check failed about 1.4 % of
-        # runs -- a defect of the check, not of the probe.
-        #
-        # The first virtual-clock edition then handed over the WHOLE request
-        # and charged the clock for it, so one 64 KiB read at 62 kbit/s cost
-        # 8.5 virtual seconds and the probe could not be seen to overrun its
-        # deadline at all. A pipe gives what a quantum of time delivered.
+        # On a clock of our own: the real clock makes the measurement ride the
+        # scheduler, and handing over a whole request in one read would charge
+        # the clock for bytes a quantum never delivered.
         if self.total is not None and self.sent >= self.total:
             return b""              # the stream is over
         give = int(self.mbps * 1e6 / 8 * self.QUANTUM)
@@ -88,23 +62,16 @@ class _Stream:
 
 
 def _probe_at(mbps, seconds=0.6, total=None):
-    """Run the real `Box.probe` against a pipe of a given rate.
-
-    The pipe and the probe share ONE virtual clock, so the answer depends on
-    the probe's arithmetic and on nothing else -- not on the scheduler, not on
-    how long this machine takes to run a loop.
-    """
+    """Run the real `Box.probe` against a pipe of a given rate. The pipe and the
+    probe share one virtual clock, so the answer depends on the probe's
+    arithmetic and on nothing else."""
     return _probe_timed(mbps, seconds, total)[0]
 
 
 class _Clock:
-    """A stand-in for the `time` module, seen only by `remote.box`.
-
-    NOT `time.time = ...`. The first edition assigned through `rbox.time`,
-    which IS the stdlib module, so the patch was process-wide for the length
-    of the probe -- in a project that runs heartbeat threads. Replacing the
-    NAME in one module's namespace reaches only the code under test.
-    """
+    """A stand-in for the `time` module, seen only by `remote.box`. The name is
+    replaced in one module's namespace, not `time.time` itself, which would
+    patch the whole process for the length of the probe."""
 
     def __init__(self, at):
         self.at = at
@@ -136,25 +103,13 @@ def _probe_timed(mbps, seconds=0.6, total=None):
 
 
 def test_a_narrow_channel_is_measured_not_called_broken():
-    """A narrow channel gives a SMALL NUMBER, not a zero.
-
-    The probe used to demand exactly 4 MB and wait 25 s for them; short of
-    that it returned 0.0, and a zero in `runner` means "the machine is
-    broken" -- "we failed to receive" written down as "it cannot send",
-    indistinguishable BY CONSTRUCTION. Can fail: bring back the count of "did
-    exactly mb megabytes arrive".
-
-    IT USED TO BE THE FLAKY CHECK OF THIS FILE, about 1.4 % of calls, and the
-    defect was in the check: the stub rode the real clock and slept 10 ms when
-    nothing had arrived, so a scheduler stall grew the probe's elapsed time
-    while no bytes flowed. Pipe and probe now share one virtual clock, and the
-    answer depends on the probe's arithmetic alone.
-    """
+    """A narrow channel gives a small number, not a zero: a zero in `runner`
+    means "the machine is broken", so "we failed to receive" written down as "it
+    cannot send" is indistinguishable by construction."""
     narrow = _probe_at(1.16)
-    # A BAND OF 0.5..3.0 LET A DOUBLING THROUGH: 1.16 read as 2.32 fits it,
-    # and 2.32 clears the default rejection floor of 2.0 -- a machine too slow
-    # to use, accepted. Under a virtual clock the probe's arithmetic is exact,
-    # so the band is what exactness allows and not what a scheduler forced.
+    # A band of 0.5..3.0 would let a doubling through: 1.16 read as 2.32 clears
+    # the default rejection floor of 2.0. Under a virtual clock the arithmetic is
+    # exact, so the band is what exactness allows.
     assert 1.10 <= narrow <= 1.25, (
         f"a 1.16 Mbit/s channel measured as {narrow:.2f} -- under a clock "
         f"this probe controls, the arithmetic is exact, and anything else is "
@@ -167,12 +122,8 @@ def test_a_narrow_channel_is_measured_not_called_broken():
 
 
 def test_a_broken_machine_still_gives_a_number_below_any_floor():
-    """A broken machine gives 0.06, not zero -- and is binned anyway.
-
-    The probe was written for a machine at 62 kbit/s that took 3.5 MB in
-    seven and a half minutes. Making it honest made it easy to make it blind:
-    here it RUNS against such a pipe and must return a number BELOW the floor.
-    """
+    """A broken machine gives 0.06, not zero -- and is binned anyway: the probe
+    runs against such a pipe and must return a number below the floor."""
     broken = _probe_at(0.062)
     assert 0.055 <= broken <= 0.070, (
         f"a 62 kbit/s machine measured as {broken:.4f} -- exact arithmetic "
@@ -190,23 +141,12 @@ def test_a_broken_machine_still_gives_a_number_below_any_floor():
 
 
 def test_the_probe_stops_ON_TIME_and_not_on_a_byte_count():
-    """It reads FOR A TIME. Reading for a SIZE is the defect it was born from.
-
-    The original probe demanded exactly 4 MB and returned 0.0 short of them,
-    so a slow machine was written down as a broken one. Under a virtual clock
-    the RATE alone cannot tell the two loops apart -- `while got < 4 MB` and
-    `while elapsed < seconds` both divide the same bytes by the same time --
-    so what is measured here is the DEADLINE: a 62 kbit/s pipe needs 516
-    seconds to hand over 4 MB and must be let go after the 0.6 it was given.
-
-    Without this, a size demand passed every check in the file.
-    """
-    # ONE READ MAY STRADDLE THE DEADLINE and that is lawful: the loop checks
-    # the clock, then reads, and the read takes time. TWO is a `do-while`
-    # dressed as a deadline, and on a real twelve-second probe over a slow
-    # link one chunk can be many seconds. The band is therefore one quantum
-    # either side, not the fourfold slack it began with -- ten chunks past the
-    # end passed that.
+    """It reads for a time; reading for a size is the defect it was born from.
+    The rate alone cannot tell the two loops apart, so what is measured here is
+    the deadline: a 62 kbit/s pipe is let go after the 0.6 it was given."""
+    # One read may straddle the deadline and that is lawful: the loop checks the
+    # clock, then reads, and the read takes time. Two is a `do-while` dressed as
+    # a deadline, so the band is one quantum either side.
     slack = _Stream.QUANTUM
     for mbps in (0.062, 1.16, 50.0):
         _, took, _cmd = _probe_timed(mbps, seconds=0.6)
@@ -222,19 +162,9 @@ def test_the_probe_stops_ON_TIME_and_not_on_a_byte_count():
 
 
 def test_the_probe_asks_THE_MACHINE_and_asks_it_for_a_bounded_stream():
-    """It must contact the box, over ssh, for `mb_cap` of random bytes.
-
-    `subprocess.Popen` is replaced wholesale by the stub, so nothing looked at
-    the command it was given -- and a probe reading OUR OWN `/dev/urandom`
-    passed every check in this file, reporting hundreds of Mbit/s for every
-    machine. The 62 kbit/s machine the whole apparatus exists for would have
-    sailed through. "Measured the link" and "measured nothing" were the same
-    to the suite.
-
-    `mb_cap` is checked too: it appears only inside the command string, so it
-    was untested by construction, and without it the probe asks for an endless
-    stream from a machine that is billing.
-    """
+    """It must contact the box, over ssh, for `mb_cap` of random bytes: with
+    `Popen` replaced wholesale, a probe reading our own `/dev/urandom` would
+    report hundreds of Mbit/s for every machine. `mb_cap` is checked too."""
     _, _, cmd = _probe_timed(50.0, seconds=0.6)
     assert cmd is not None, "the probe started no process at all"
     argv = cmd if isinstance(cmd, list) else [cmd]
@@ -251,14 +181,9 @@ def test_the_probe_asks_THE_MACHINE_and_asks_it_for_a_bounded_stream():
 
 
 def test_the_probe_divides_by_the_time_it_actually_took():
-    """A stream that ends early is measured over the time it USED.
-
-    Dividing by the constant `seconds` instead of the measured span passed
-    every check, because `total` was used at exactly one value in this file --
-    zero -- where both arithmetics give 0.0. A machine whose ssh dies after a
-    third of the budget, having delivered its bytes at full speed, must read
-    at full speed and not at a third of it.
-    """
+    """A stream that ends early is measured over the time it used: a machine whose
+    ssh dies after a third of the budget, having delivered its bytes at full
+    speed, must read at full speed and not at a third of it."""
     mbps, seconds = 30.0, 0.6
     bytes_in_a_third = int(mbps * 1e6 / 8 * (seconds / 3))
     got, took, _ = _probe_timed(mbps, seconds=seconds, total=bytes_in_a_third)
@@ -272,11 +197,8 @@ def test_the_probe_divides_by_the_time_it_actually_took():
 
 
 def test_a_dead_channel_is_the_only_zero():
-    """Zero is left to exactly one case: NOT ONE BYTE arrived.
-
-    That is the one thing `runner` may answer "take another" to without
-    doubting.
-    """
+    """Zero is left to exactly one case: not one byte arrived. That is the one
+    thing `runner` may answer "take another" to without doubting."""
     assert _probe_at(0.0, total=0) == 0.0, "a dead pipe gave a non-zero"
 
 
@@ -295,15 +217,9 @@ class _FakeVast:
 
 
 def _blame_with(link, best, ours, limit=None):
-    """Call the REAL guard, directly, not by digging its body out of source.
-
-    The first edition pulled `_blame` out of `_rent` with `ast` and ran it in
-    a fake environment, the guard being locked in a closure -- so it checked
-    TEXT, and the battery honestly said NOT CAUGHT on both mutations, which
-    rebuild the module in memory. The guard lives at module level now, and
-    nothing is left to check but behaviour. `limit` is absent from the
-    signature, and that is checked too.
-    """
+    """Call the real guard directly. It lives at module level, so nothing is left
+    to check but behaviour; `limit` is absent from the signature, and that is
+    checked too."""
     recorded = []
     runner.blame_machine({"machine_id": 777}, "trial", ours=ours, link=link,
                          best_link=best,
@@ -313,14 +229,9 @@ def _blame_with(link, best, ours, limit=None):
 
 
 def test_a_machine_is_blamed_only_with_a_witness():
-    """Onto the PERMANENT list only when another machine gave three times as
-    much.
-
-    What it cost (3 September 2026): the guard compared our HTTP channel with
-    the floor (`ours < 2*limit`) while the probe measures ssh. Our gap between
-    transports is tenfold -- HTTP 4.6 and 2.4 against ssh 0.34 and 0.25 from
-    TWO DIFFERENT machines in a row -- both listed for nothing.
-    """
+    """Onto the permanent list only when another machine gave three times as
+    much: the guard compares ssh with ssh, since our gap between transports is
+    tenfold and the HTTP channel against the floor lists a machine for nothing."""
     assert _blame_with(link=0.25, best=0.34, ours=4.6) == [], (
         "machine listed FOREVER although the best one seen gave only 0.34 "
         "against its 0.25 -- no witness that the machine is at fault")
@@ -330,11 +241,9 @@ def test_a_machine_is_blamed_only_with_a_witness():
     assert _blame_with(link=0.25, best=7.0, ours=0.0) == [], (
         "listed while our own channel was not measured")
 
-    # ABOVE THE WITNESS FLOOR, so the RATIO is what decides here and nothing
-    # else. Without this pair the floor answers both cases and the ratio can
-    # be deleted unnoticed -- which is exactly what happened when the floor
-    # was added: two mutations over `best_link < 3 * link` stopped being
-    # caught, because 0.34 never reached the ratio at all.
+    # Above the witness floor, so the ratio is what decides here and nothing
+    # else: without this pair the floor answers both cases and the ratio could
+    # be deleted unnoticed.
     assert _blame_with(link=2.0, best=3.0, ours=4.6) == [], (
         "machine listed FOREVER on 2.0 Mbit/s while the best seen was 3.0 -- "
         "a witness must be three times better, not merely better")
@@ -344,11 +253,9 @@ def test_a_machine_is_blamed_only_with_a_witness():
 
 
 def _loop(links, ours=4.6):
-    """Replay `_rent`'s blame path over a sequence of probe readings.
-
-    `best_link` is raised BEFORE the machine is judged, exactly as `_rent`
-    does it, so what comes out is what the real loop would do.
-    """
+    """Replay `_rent`'s blame path over a sequence of probe readings. `best_link`
+    is raised before the machine is judged, exactly as `_rent` does it, so what
+    comes out is what the real loop would do."""
     best, banned = 0.0, []
     for i, link in enumerate(links):
         best = max(best, link)
@@ -358,20 +265,9 @@ def _loop(links, ours=4.6):
 
 
 def test_the_permanent_list_is_reachable_at_the_default_floor():
-    """A guard that can never fire is not a guard, and this one could not.
-
-    The witness floor was first set to 2.0 -- the same number as the default
-    `MIN_LINK_MBPS`. A machine only reaches `blame_machine` after being
-    REJECTED, so every reading in `best_link` is below the rejection floor:
-    `best_link < floor <= limit`. With the two equal, the first gate was true
-    every time and NOTHING could be blacklisted, including the 62 kbit/s
-    machine `_rent`'s own comment says the list was made for. Swept over 2744
-    three-probe sequences at the default: zero blacklistings.
-
-    So the two numbers must not meet, and this says so with a machine the
-    loop can actually produce: one at 1.5 Mbit/s -- under the floor of 2.0,
-    hence rejected, hence a witness -- and one at 0.1 after it.
-    """
+    """A guard that can never fire is not a guard: a machine reaches
+    `blame_machine` only after being rejected, so every reading in `best_link` is
+    below the rejection floor, and the two floors must not meet."""
     from booksmith.core import knobs
     floor = float(knobs.KNOB["MIN_LINK_MBPS"].default)
     assert runner.WITNESS_MBPS < floor, (
@@ -387,18 +283,9 @@ def test_the_permanent_list_is_reachable_at_the_default_floor():
 
 
 def test_a_path_dying_at_our_end_blames_nobody_at_all():
-    """The whole rent loop, not one call: a sick path bans NO machine.
-
-    Requiring a witness above zero closed exactly one input -- `best_link ==
-    0.0` -- and a probe that receives ONE BYTE in twelve seconds returns
-    6.7e-07, not zero. Replayed over five machines, a path leaking a single
-    64 KiB chunk to the first of them banned the other four FOREVER, and this
-    project has no command that takes an entry off that list.
-
-    So the witness has a floor of its own, and this drives the three shapes a
-    sick path takes: one machine leaks a chunk, one leaks a byte, and all of
-    them dribble.
-    """
+    """The whole rent loop, not one call: a sick path bans no machine. A probe
+    that receives one byte in twelve seconds returns 6.7e-07 and not zero, so the
+    witness has a floor of its own; three shapes of a sick path are driven here."""
     for name, links in (
             ("one 64 KiB chunk", [0.0437, 0.0, 0.0, 0.0, 0.0]),
             ("one byte in twelve seconds", [6.67e-07, 0.0, 0.0, 0.0, 0.0]),
@@ -419,14 +306,9 @@ def test_a_path_dying_at_our_end_blames_nobody_at_all():
 
 
 def test_a_path_that_sagged_mid_loop_condemns_nobody():
-    """`best_link` is a maximum and never decays, so a witness goes stale.
-
-    Replayed at a raised rejection floor: one machine at 7 Mbit/s, then four
-    reading 2.0-2.3 -- all four onto the PERMANENT list, because the 7 was
-    recorded before our own path sagged and nothing said it had. The guard
-    re-measures our downlink at the moment of blaming, which turns that
-    inference into a measurement.
-    """
+    """`best_link` is a maximum and never decays, so a witness goes stale: a
+    reading taken while our own path was six times faster is no contrast. The
+    guard re-measures our downlink at the moment of blaming."""
     recorded = []
     got = runner.blame_machine({"machine_id": 9}, "trial", ours=20.0,
                                ours_now=3.0, link=2.2, best_link=7.0,
@@ -444,18 +326,9 @@ def test_a_path_that_sagged_mid_loop_condemns_nobody():
 
 
 def test_a_zero_probe_with_no_witness_at_all_blames_nobody():
-    """The commonest zero, and the one the arithmetic used to let through.
-
-    `best_link < 3 * link` reads `0.0 < 0.0` at a zero probe -- False -- so the
-    machine went onto the PERMANENT list with nothing to compare it against.
-    That is the shape of a dead path at OUR end: the probe measures by time, so
-    every machine returns zero, and every one of them would have been banned
-    forever, starting with the first.
-
-    Both directions, because only one of them was ever wrong: a zero with no
-    witness blames nobody, and a zero beside a machine that DID deliver is the
-    machine's fault and must still be listed.
-    """
+    """The commonest zero: `best_link < 3 * link` reads `0.0 < 0.0` -- False -- so
+    the machine went onto the permanent list with nothing to compare it against.
+    Both directions, because only one of them goes wrong."""
     assert _blame_with(link=0.0, best=0.0, ours=4.6) == [], (
         "machine listed FOREVER on a zero probe while NO machine had yet "
         "given us anything over ssh -- there is no witness at all, and this "
@@ -466,13 +339,9 @@ def test_a_zero_probe_with_no_witness_at_all_blames_nobody():
 
 
 def test_a_failed_blacklist_write_does_not_kill_the_rental():
-    """Failing to WRITE DOWN a ban may not abandon a running machine.
-
-    `mark_bad` writes a file, and a file write can fail -- a read-only ledger
-    directory took the whole rental with a `PermissionError` out of the middle
-    of `_rent`, machine taken and billing. The OTHER caller of `mark_bad`, the
-    CUDA branch, has always been wrapped; the money-path one was not.
-    """
+    """Failing to write down a ban may not abandon a running machine: `mark_bad`
+    writes a file, and a read-only ledger directory would take the whole rental
+    out of the middle of `_rent`, machine taken and billing."""
     said = []
 
     def refuses(mid, why):
@@ -486,14 +355,9 @@ def test_a_failed_blacklist_write_does_not_kill_the_rental():
 
 
 def test_a_floor_that_is_not_a_number_is_refused_before_any_money():
-    """`nan` compares False with everything, and that cost five rentals.
-
-    `float("nan")` is a legal float, so `MIN_LINK_MBPS=nan` passed the
-    registry and made `link >= floor` and `link < floor` BOTH false: every
-    machine fell through every branch to "the reason was not named", five
-    rentals paid for and not one of them accepted or blamed. A typo that
-    costs money must refuse before the first rental.
-    """
+    """`nan` compares False with everything: `MIN_LINK_MBPS=nan` makes `link >=
+    floor` and `link < floor` both false, so every machine falls through to "the
+    reason was not named". A typo that costs money refuses before the rental."""
     import os
     was = os.environ.get("MIN_LINK_MBPS")
     for bad in ("nan", "inf", "-1", "narrow"):
@@ -514,17 +378,9 @@ def test_a_floor_that_is_not_a_number_is_refused_before_any_money():
 
 
 def test_both_journal_writers_survive_a_bare_file_name():
-    """`BOOKSMITH_LEDGER` may be a bare name, and both writers must cope.
-
-    `os.path.dirname("bad-machines.json")` is `""`, and `os.makedirs("")`
-    raises `FileNotFoundError`. `append` guarded with `or "."` and `mark_bad`
-    did not -- two copies of one line, one of them right. The unguarded one
-    runs from the MIDDLE of `_rent`, with the machine taken and billing, on
-    the path that blacklists a machine.
-
-    Both are called here, not read: a check that greps for `or "."` would pass
-    on a third copy written a fourth way.
-    """
+    """`BOOKSMITH_LEDGER` may be a bare name, and both writers must cope:
+    `os.path.dirname("bad-machines.json")` is `""` and `os.makedirs("")` raises.
+    Both are called here, not read: a grep would pass on a third copy."""
     import os
     import tempfile
     tmp = tempfile.mkdtemp()
@@ -543,21 +399,9 @@ def test_both_journal_writers_survive_a_bare_file_name():
 
 
 def test_the_channel_that_decides_reaches_the_ledger():
-    """`ours` sets the floor and gates the blacklist, so it must be recorded.
-
-    It was not. The only record of it was prose, and the prose disagreed with
-    itself about the same evening -- 1.8 Mbit/s in the header of this file
-    against 2.8 in `remote/box.py`, both about 3 September 2026 -- while the
-    119 rows of the ledger could not settle it, because the quantity was never
-    written down. A number that decides a PERMANENT ban and lives only in a
-    comment is the "log the quantity" rule broken at the source.
-
-    DRIVEN, NOT DECLARED. The first edition of this check asked the dataclass
-    whether it had the field; deleting the line in `_rent` that FILLS it left
-    every check in the project green. A field nobody writes is the same
-    silence in a different place, so `_rent` is run -- against a rental that
-    refuses at once -- and the record is read afterwards.
-    """
+    """`ours` sets the floor and gates the blacklist, so it must be recorded: a
+    number that decides a permanent ban and lives only in a comment is the "log
+    the quantity" rule broken at the source. Driven, not declared: `_rent` runs."""
     from dataclasses import asdict
     row = asdict(ledger.Run(job="t", image="i", gpu="g"))
     assert "our_downlink_mbps" in row, (
@@ -597,12 +441,9 @@ def _spec():
 
 
 def test_the_verdict_cannot_depend_on_the_rejection_floor():
-    """The rejection floor takes NO part in the permanent-list verdict.
-
-    The guard used to look at `limit`, and lowering the floor from 2.0 to 0.4
-    turned a ban into a pass: one knob doing two opposite jobs. It is gone
-    from the signature entirely, which is the firmest form of the ban.
-    """
+    """The rejection floor takes no part in the permanent-list verdict: one knob
+    doing two opposite jobs turned a ban into a pass when the floor was lowered.
+    It is gone from the signature, which is the firmest form of the ban."""
     names = set(inspect.signature(runner.blame_machine).parameters)
     assert "limit" not in names and "floor" not in names, (
         f"the floor is back in the permanent-list guard: {sorted(names)}. "
@@ -625,19 +466,9 @@ class _FakeVastApi:
 
 
 def test_destroy_backs_off_instead_of_hammering():
-    """The pauses GROW, and their sum stays under the dead man's grace.
-
-    What it cost (3 September 2026): a flat 4 s pause over five attempts
-    stood here, and each attempt makes TWO API calls -- destroy plus check.
-    Ten requests in twenty seconds. When vast.ai began answering 403 the code
-    kept hammering at the same rate, and the key stopped opening ANYTHING,
-    `/users/current` included (checked with `curl` on the same key: the
-    refusal came from them, not from our wrapper).
-
-    The sum must be LESS than the dead man's grace: if destruction fails
-    outright the machine puts itself out, and stretching the attempts past
-    that grace is paying to wait for nothing.
-    """
+    """The pauses grow, and their sum stays under the dead man's grace: a refusal
+    by rate answered at the same rate cost the key its access, and waiting past
+    that grace is paying to wait for a machine that puts itself out."""
     from booksmith.remote.vast import Vast
     steps = list(Vast.RETRY_S)
     assert steps == sorted(steps) and steps[-1] > steps[0] * 4, (
@@ -649,13 +480,9 @@ def test_destroy_backs_off_instead_of_hammering():
 
 
 def test_a_refusal_of_access_is_named_apart_from_a_stubborn_machine():
-    """403 and 429 are A REFUSAL OF ACCESS, not "the machine disobeyed".
-
-    Different troubles: "destruction did not work" is cured by a retry, "we
-    are not being let in" is made worse by one. And the `alive` check that
-    follows then answers "alive" only because there is nobody to ask -- the
-    absence of an observation, not an observation.
-    """
+    """403 and 429 are a refusal of access, not "the machine disobeyed": a retry
+    cures the second and worsens the first, and the `alive` check that follows
+    answers "alive" only because there is nobody to ask."""
     import time as _t
 
     from booksmith.remote import vast as vmod
@@ -678,11 +505,8 @@ def test_a_refusal_of_access_is_named_apart_from_a_stubborn_machine():
 
 
 class _BoxThatFailsAfterPulse:
-    """A machine whose pulse started and whose link then broke.
-
-    Exactly the case that left an abandoned machine immortal: the pulse
-    starts BEFORE the first network command, and that command fails normally.
-    """
+    """A machine whose pulse started and whose link then broke: the pulse starts
+    before the first network command, and that command can fail normally."""
 
     declared: list = []
 
@@ -704,19 +528,9 @@ class _BoxThatFailsAfterPulse:
 
 
 def test_a_failed_connect_leaves_no_machine_with_a_live_pulse():
-    """A failure AFTER `start_heartbeat` must put the pulse out.
-
-    WHAT THIS COST. `connect` starts the pulse and then goes to the network
-    (`check_deadman`), where a failure is normal. Before the repair the `box`
-    never reached the caller -- the variable in `_rent` stayed UNBOUND,
-    `stop_heartbeat` raised `UnboundLocalError`, and a silent
-    `except Exception: pass` swallowed it. The machine went to `undead` WITH A
-    LIVE PULSE: our thread kept touching `/root/.alive` every 30 s to the end
-    of the run, switching OFF the dead man's watch -- the only one of the four
-    ways of putting a machine out that depends neither on our key nor on our
-    process. On a second attempt the pulse put out would be the PREVIOUS
-    machine's. And not one line went to the log.
-    """
+    """A failure after `start_heartbeat` must put the pulse out: our thread
+    touching `/root/.alive` every 30 s switches off the dead man's watch, the one
+    way of putting a machine out that needs neither our key nor our process."""
     _BoxThatFailsAfterPulse.declared = []
     was = runner.Box
     runner.Box = _BoxThatFailsAfterPulse

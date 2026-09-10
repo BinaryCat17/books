@@ -40,9 +40,8 @@ def strays(root=ROOT):
         scan = _scan_of(book)
         if (scan and rel.split(os.sep)[0] == "bench"
                 and not os.path.isfile(os.path.join(book, scan))):
-            # A PART THAT IS ABSENT IS NOT A PART THAT IS FINE: a bench whose
-            # scan has gone leaves every measurement over it unrepeatable.
-            # Asked of `bench/` only: a BUILT book keeps its scan in `raw/`.
+            # A missing bench scan leaves every measurement over it unrepeatable.
+            # Asked of `bench/` only: a built book keeps its scan in `raw/`.
             bad[f"{rel}/{scan}"] = (
                 f"{MISSING_SCAN}, so nothing can be re-measured over this "
                 f"bench and its sha256 checks nothing")
@@ -134,14 +133,9 @@ def test_every_book_directory_is_in_the_declared_shape():
 
 
 def test_a_bench_keeps_the_scan_its_manifest_names():
-    """The other half: a part that is absent is not a part that is fine.
-
-    A bench scan is UNTRACKED -- drawn by `books synth`, built by `books
-    annopage` and `books subset` -- so a clone holds none of them and there is
-    nothing to ask; the three real scans are tracked, because they are the
-    source. A scan that is missing and TRACKED is a bench nothing can be
-    re-measured over, and that is red.
-    """
+    """The other half: a part that is absent is not a part that is fine. A bench
+    scan is untracked -- drawn or built locally -- so a clone has nothing to ask;
+    a scan missing while tracked is a bench nothing can be re-measured over."""
     import subprocess
     absent, _ = _split(strays())
     r = subprocess.run(["git", "ls-files", "-z", *book_mod.BOOK_ROOTS], cwd=ROOT,
@@ -172,16 +166,9 @@ def test_the_walk_names_a_planted_stray(tmp_path):
 
 
 def test_the_loader_can_load_every_truth_page_this_project_has():
-    """The project's own loader against the project's own truth.
-
-    `Page.from_json` raised on 1017 of 1117 tracked truth pages -- every
-    blocked page of `annopage` and `annopage-lite` -- because the bench writes
-    an eighth field into the block dict and `Block` declared seven. It was
-    silent and total at once: the production readers go through
-    `core.page.load_pages`, which returns raw dicts and never builds a
-    `Block`. Round-tripped, not merely loaded: a loader that silently drops a
-    key is the same defect one step later.
-    """
+    """The project's own loader against the project's own truth, round-tripped:
+    the production readers go through `core.page.load_pages`, which returns raw
+    dicts, so a loader that drops a key is the same defect one step later."""
     files = sorted(glob.glob(os.path.join(ROOT, "bench", "*", "truth",
                                           "*.json")))
     assert len(files) > 500, (

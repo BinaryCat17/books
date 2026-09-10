@@ -1,58 +1,28 @@
 """Cut an artifact out of a page along the model's box.
 
-We cut FROM THE PDF, not from the raster the detector was fed, and the reason
-is a number: detection runs at `PAGE_DPI` = 144, where a dense unruled table
-gives six or seven dots per character height -- level two would fail on such a
-crop and be blamed for it. From the PDF any resolution can be had without
-asking the detector again.
+Cut from the PDF, not from the raster the detector was fed: detection runs at
+`PAGE_DPI` = 144, six or seven dots per character height on a dense unruled
+table, while from the PDF any resolution can be had without asking again.
 
-TWO KNOBS, BOTH DECLARED IN THE REGISTRY. `CROP_DPI` is the crop resolution;
-empty means the scan's OWN, all the ink the file holds and not one dot
-invented. `CROP_MARGIN` is padding around the box, in fractions of its size,
-and its default 0 is not laziness but a VALUE: the pipeline cuts exactly on the
-box (`layout_unclip_ratio` = [1.0, 1.0]), and any non-zero padding edits the
-model's box, which the rules forbid. A negative one CUTS INTO that box and is
-refused aloud -- `CROP_MARGIN=-0.1` ate a tenth off each side, the crop went
-into the book gnawed, and no quantity showed it: "clipped by the sheet"
-measures the SHEET's edge, not our knife. Should a bench show that padding is
-needed, it comes back as a number with a measurement.
-
-The measurements behind both defaults are in `params` below.
+Two knobs, both in the registry. `CROP_DPI` is the crop resolution, empty
+meaning the scan's own -- all the ink the file holds and not one dot invented.
+`CROP_MARGIN` is padding around the box in fractions of its size; a negative
+one cuts into the box, which the rules forbid, and is refused aloud.
 """
 import os
 
 from booksmith.core import knobs
 from booksmith.core.errors import Refusal
 
-# Box comparison tolerance, in PDF points. ONE for the whole file, and not to
-# taste: pymupdf holds coordinates in single precision and runs intersection
-# through float32 once more. Measured on `bench/atlas`: at `PAGE_DPI` = 144 the
-# factor 72/144 = 0.5 is binary-exact and diverges not at all (0 boxes of 28);
-# at 150, 200 and 300 it is 28 of 28, up to 1.7e-05 point, and exact comparison
-# declared a box lying wholly inside the sheet clipped by it. 0.01 point is
-# 1/7200 inch, below the smallest typographic space, so under it a "clip" is
-# indistinguishable from representation noise.
+# Box tolerance in PDF points: pymupdf works in float32, and 0.01 pt (1/7200
+# inch) is below the smallest typographic space, so a smaller gap is noise.
 EPS_PT = 0.01
 
 
 def native_dpi(page) -> float | None:
-    """The page's OWN resolution: how much ink it really holds. Above that grid
-    a cut yields interpolation, not ink.
-
-    THE MOST DETAILED OF THOSE COVERING THE WHOLE SHEET. Our own books arrive
-    from djvu (`books prepare`), and such a PDF carries TWO layers on one
-    sheet. Measured on `bench/real-tables20/tables20.pdf`, sheet 506 x 733 points:
-
-        layer 0: 1408 x 2038 px = 200 dpi, covers the whole sheet
-        layer 1: 4222 x 6112 px = 601 dpi, covers the whole sheet, with a mask
-
-    The detailed layer is the letters, and the first version took a resolution
-    only when the sheet held ONE image -- it gave up on such books and returned
-    `None`.
-
-    `None` means "nothing to say with": vector page (a digital PDF has no grid)
-    or no image over the whole sheet. A VALUE, not a zero -- the caller must
-    tell "resolution unknown" from "resolution 144".
+    """The page's own resolution: how much ink it holds, above which a cut
+    interpolates. The most detailed image covering the whole sheet, a PDF out of
+    djvu carrying two. `None` is "nothing to say with", never "144".
     """
     w_pt = float(page.rect.width)
     if w_pt <= 0:
@@ -71,24 +41,11 @@ def native_dpi(page) -> float | None:
         except Exception:
             continue
         for r in rects:
-            # Only images COVERING THE WHOLE SHEET: a stamp or inset in a
-            # corner can be arbitrarily detailed, and cutting the whole page by
-            # it would inflate every crop for nothing.
+            # Only images covering the whole sheet: an inset may be arbitrarily detailed.
             if r.width < w_pt * 0.9 or r.width <= 0:
                 continue
-            # DIVIDE BY THE PLACEMENT WIDTH, NOT THE SHEET WIDTH. A raster can
-            # be WIDER than the sheet -- a spread scan the sheet takes half
-            # of -- and dividing by the sheet overstated the grid by exactly
-            # that ratio.
-            #
-            # Measured on five pages of each of six books: overstated in FOUR
-            # of the six, up to 2.47x. Worst case, "Технология огнеупоров":
-            # sheet 278.2 pt, raster 2867 px placed on 688.1 pt, read as 741.9
-            # dpi against a real grid of 300.0. The price was measured against
-            # the embedded raster itself: four times the pixels bought +0.02
-            # correlation with truth, where the genuine detailed layer gives
-            # +0.18. That is the "rasteriser's guess" `params()` promises not
-            # to buy.
+            # By the placement width, not the sheet's: a spread raster is wider
+            # than the sheet that takes half of it, and would overstate the grid.
             best = max(best, w_px / float(r.width) * 72.0)
     return best or None
 
@@ -96,44 +53,9 @@ def native_dpi(page) -> float | None:
 def params(page_dpi: float | None = None,
            page_native: float | None = None,
            want_dpi: bool = True) -> dict:
-    """The crop values in force. They go into the snapshot whole.
-
-    `want_dpi=False` asks for the margin ALONE, and the resolution comes back
-    as None with a source saying so. It exists because `CROP_DPI` used to be
-    read and VALIDATED on paths that never use its value: `books read` and
-    `books crop` name each crop's resolution themselves, and `CROP_DPI=0`
-    there raised a ValueError the read driver files as "crop failed" and
-    reports as THE MODEL'S defect -- our knob charged to the model, under a
-    registry line saying that path does not read it. The margin is a different
-    matter: the reading path does use it.
-
-    `page_dpi` is the DETECTION resolution (`raster.dpi` of the snapshot),
-    `page_native` the page's OWN (`native_dpi`).
-
-    WHAT AN EMPTY `CROP_DPI` MEANS -- rewritten by MEASUREMENT, not by taste.
-    It used to mean "as at detection", i.e. 144. One and the same piece of a
-    real scan (`bench/real-tables20/tables20.pdf`, raster 1408 x 2038 on a 506 x 733 pt
-    sheet = 200 dpi):
-
-        CROP_DPI=144   810 x 221 =  179 010 px
-        CROP_DPI=200  1125 x 306 =  344 250 px   <- the scan's own grid
-        CROP_DPI=288  1620 x 441 =  714 420 px   } above it interpolation,
-        CROP_DPI=400  2249 x 612 = 1376 388 px   } no more ink appears
-
-    So "as at detection" threw away 48 % of the ink that IS in the file. Empty
-    now means "as much as the scan holds, not one dot more"; detection is
-    untouched, it counts at `PAGE_DPI`. Nor is more safer: above the own grid
-    what is added is the rasteriser's guess, and it costs twice, because
-    PaddleOCR-VL has `max_pixels` around a million and squeezes an inflated
-    crop back in its own processor -- we would pay to compress an invention.
-
-    AND IT IS THE DETECTION RUN'S RESOLUTION, NOT THE CURRENT PROCESS'S. Empty
-    `CROP_DPI` used to expand to `PAGE_DPI` here and now: `bench/atlas`
-    detected at `PAGE_DPI=150` and assembled at the default printed 26 crops at
-    144 dpi while the coordinates were converted from 150 -- "as the model saw
-    it" made untrue, silently. The environment is asked only when no argument
-    comes, and when the own resolution is unknown (vector, several images on a
-    sheet) the detection one is taken; `dpi_source` names which it was.
+    """The crop values in force, going into the snapshot whole; `dpi_source`
+    names where the resolution came from. `page_dpi` is the detection run's,
+    `page_native` the page's own, and `want_dpi=False` asks the margin alone.
     """
     margin = knobs.number("CROP_MARGIN", negative=True)
     if margin < 0:
@@ -148,17 +70,8 @@ def params(page_dpi: float | None = None,
                 "margin": margin}
     raw = knobs.knob("CROP_DPI")
     if raw:
-        # ZERO AND NEGATIVE ARE REFUSED ALOUD. The string "0" is truthy and
-        # went straight through this branch: `get_pixmap(dpi=0)` in pymupdf
-        # falls back to 72 dpi silently, so the book was cut four times coarser
-        # than ordered while the record said "dpi 0". Checked: `CROP_DPI=0`
-        # gives a 150x100 px crop where 600 would give 1250x833.
-        #
-        # `nan` PASSED BOTH OF THESE. `float("nan")` raises nothing and
-        # `nan <= 0` is False, so the guard that refuses zero out loud let the
-        # worse value through in silence -- the same hole `_min_link_mbps` had.
-        # The finite check lives once, in `knobs.number`; zero and negative
-        # stay here, because the reason they are refused is this file's.
+        # Zero and negative are refused aloud: `get_pixmap(dpi=0)` falls back to
+        # 72 dpi in silence. The finite check lives once, in `knobs.number`.
         try:
             _v = knobs.number("CROP_DPI")
         except Refusal as e:
@@ -177,9 +90,7 @@ def params(page_dpi: float | None = None,
                                      "sharpness cannot be determined (vector, "
                                      "or several images on the sheet)")
     else:
-        # The detection resolution was not named -- take the environment and
-        # SAY so. A zero from a check and a zero from not knowing: this value
-        # is not "agreed with detection", it is "nothing to agree with".
+        # The detection resolution was not named: take the environment and say so.
         dpi, src = knobs.number("PAGE_DPI"), "PAGE_DPI of this process"
     return {"dpi": dpi, "dpi_source": src, "margin": margin}
 
@@ -191,13 +102,10 @@ def box_to_points(box, page_dpi: float):
 
 
 def _clipped(rect, clip) -> bool:
-    """Is `rect` clipped down to `clip` -- WITH TOLERANCE, not exactly.
+    """Is `rect` clipped down to `clip`, with tolerance rather than exactly.
 
-    The comparison rule in this file is ONE, and it lives here. "Clipped by the
-    sheet" used to compare exactly (`(raw & page.rect) != raw`) while its
-    neighbour "margin clipped by the sheet" used the 0.01 tolerance: two rules
-    on two adjacent lines, and the first lied at every resolution whose factor
-    is not binary-exact (see `EPS_PT`).
+    The one comparison rule of the file: an exact one lies at every resolution
+    whose conversion factor is not binary-exact (see `EPS_PT`).
     """
     return (abs(clip.width - rect.width) > EPS_PT
             or abs(clip.height - rect.height) > EPS_PT)
@@ -206,15 +114,8 @@ def _clipped(rect, clip) -> bool:
 def _box_trouble(w: float, h: float) -> str | None:
     """What is wrong with the box itself: `INVERTED` | `DEGENERATE` | None.
 
-    Both gave an empty intersection with the sheet and so drew the foreign
-    diagnosis "does not intersect the sheet" -- for a box lying in the middle
-    of the paper, sending the reader after slipped coordinates and a sheet
-    edge. `read/driver.py` catches the ValueError from `cut` and counts it as
-    "crop failed", so the exception type did not change with the split.
-
-    A SEPARATE FUNCTION for the mutation battery: a diagnosis sewn as two `if`s
-    inside `cut` cannot be broken, and a guard that cannot be broken is not
-    proven.
+    Kept apart from "does not intersect the sheet", which both would otherwise
+    draw, and its own function so the mutation battery can break the guard.
     """
     if w < 0 or h < 0:
         return ("INVERTED: the right edge is left of the left one, or the "
@@ -228,17 +129,8 @@ def _clip(doc, page_index: int, box, page_dpi: float, dpi, margin):
     """The page, the rect to render, the dpi and margin used, and what was clipped."""
     import pymupdf
 
-    # The own resolution is asked for ONLY when it was not named. Before,
-    # `native_dpi(doc[page_index])` was computed always, including when `dpi`
-    # is passed explicitly and the answer thrown away: measured over the bench,
-    # 15 601 `get_images` calls over 600 pages, none of them useful, because
-    # `books read` decides each crop's resolution itself.
-    #
-    # AND NEITHER IS `CROP_DPI` (`want_dpi`). The knob was still read and
-    # validated when the caller names the resolution, so a bad value on a path
-    # that ignores it came back as "crop failed" -- printed by `report()` as
-    # the model's box being degenerate or off the sheet. The margin still
-    # comes from here; that one the reading path applies.
+    # The own resolution and `CROP_DPI` are asked for only when the caller names
+    # neither, or a knob a path ignores could come back as "crop failed".
     p = params(page_dpi, native_dpi(doc[page_index]) if dpi is None else None,
                want_dpi=dpi is None)
     dpi = p["dpi"] if dpi is None else dpi
@@ -257,15 +149,8 @@ def _clip(doc, page_index: int, box, page_dpi: float, dpi, margin):
         x0, y0, x1, y1 = (x0 - w * margin, y0 - h * margin,
                           x1 + w * margin, y1 + h * margin)
     want = pymupdf.Rect(x0, y0, x1, y1)
-    # Intersection with the sheet. The model's box may run off the edge -- its
-    # defect, and it must be SEEN as a number, not silently trimmed.
-    #
-    # The model's defect and the consequence of OUR knob are different numbers.
-    # The former version measured the overrun of the box ALREADY widened by
-    # CROP_MARGIN, so setting a margin was enough for a box lying wholly inside
-    # the sheet to be declared clipped, and the block's caption in the book
-    # gained "the box ran off the sheet" -- a false accusation of the model,
-    # the more frequent the larger the margin.
+    # A box running off the sheet is the model's defect and shows as a number,
+    # measured on the raw box: on the widened one our margin would accuse the model.
     raw = pymupdf.Rect(*box_to_points(box, page_dpi))
     clipped = _clipped(raw, raw & page.rect)
     clip = want & page.rect
@@ -310,18 +195,14 @@ def cut_png(doc, page_index: int, box, page_dpi: float,
 
 
 # ------------------------------------------------------------ rendering ---
-# Every rasterisation on the READ PATH goes through these two, so that one
-# file knows the page renderer: detection, the crops, the ink metric and the
-# builder used to call `get_pixmap` each on their own. The writers (the
-# synthetic bench, the djvu unfolding, the overlay, the distillate) draw and
-# assemble PDFs and keep pymupdf themselves; this is a seam for RENDERING.
+# Every rasterisation on the read path goes through these two, so one file knows
+# the renderer; the writers that draw and assemble PDFs keep pymupdf themselves.
 
 def open_pdf(path: str):
     """The document, as pymupdf opens it. One place to swap the engine.
 
-    pymupdf is imported HERE, not at the top: this module is imported by the
-    knob registry's readers and by the box entrypoint before any PDF is
-    touched, and `cut` above has always imported it lazily for that reason.
+    pymupdf is imported here and not at the top: the knob registry's readers and
+    the box entrypoint import this module before any PDF is touched.
     """
     import pymupdf
     return pymupdf.open(path)
@@ -335,8 +216,6 @@ def render_png(page, dpi: float, clip=None) -> bytes:
 def render(page, dpi: float, clip=None):
     """The page (or a clip of it) as a pixmap at `dpi`, integer as pymupdf wants.
 
-    `int(dpi)`: pymupdf truncates a fractional dpi itself, and a caller that
-    passed 143.5 and believed it got 143.5 wrote a raster the snapshot could
-    not name. Callers pass the dpi they RECORD.
+    pymupdf truncates a fractional dpi itself, so callers pass the dpi they record.
     """
     return page.get_pixmap(dpi=int(dpi), clip=clip)

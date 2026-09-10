@@ -1,9 +1,7 @@
 """The table: one parse, a guarded selection, records that come back.
 
-`books bench all` is the deliverable of step 2a and had no check of its own
-until its review said so. Built on a made-up bench with one metric, so a
-fresh clone checks it; the real numbers are locked by the acceptance report
-`table-slovar`.
+Built on a made-up bench with one metric, so a fresh clone checks it; the real
+numbers are locked by the acceptance report `table-slovar`.
 """
 import json
 import os
@@ -47,14 +45,9 @@ def test_rows_parse_the_truth_once_and_pass_dicts_to_the_metrics():
 
 
 def test_a_book_without_truth_is_measured_by_what_needs_none():
-    """THE TRUTH IS PARSED ONLY IF THERE IS ANY.
-
-    `rows` opened with `bench.pages()` unconditionally, so a book with no
-    `truth/` died there -- before applicability was ever consulted -- and
-    the truth-free metrics could not be reached on the only runs that have
-    a level two. Reverting that one line left every check green, which is
-    why this one exists.
-    """
+    """The truth is parsed only if there is any: opening with `bench.pages()`
+    unconditionally kills a book with no `truth/` before applicability is ever
+    consulted, and the truth-free metrics are what a level-two run has."""
     with tempfile.TemporaryDirectory() as d, at_root(d):
         root = _bench(os.path.join(d, "b"))
         os.rename(os.path.join(root, "truth"), os.path.join(d, "away"))
@@ -65,10 +58,8 @@ def test_a_book_without_truth_is_measured_by_what_needs_none():
         # withheld by `applicable`, not answered with a zero.
         assert got == ["assembly", "snapshot"], got
         assert recs[0].detail is not None
-        # WHAT WAS WITHHELD SAYS SO, AND SAYS WHAT IT WANTED. A metric that
-        # did not apply produced no line at all, so a short table could not
-        # be told from an instrument that was never run -- the two zeros,
-        # in the one place with no word for either.
+        # What was withheld says so, and says what it wanted: no line at all
+        # cannot be told from an instrument that was never run.
         said = []
         table.rows(b, b.run(), log=said.append)
         text = "\n".join(said)
@@ -84,10 +75,9 @@ def test_a_book_without_truth_is_measured_by_what_needs_none():
 
 
 def test_two_levels_of_one_model_do_not_land_on_one_results_file():
-    """The label is the MODEL's own name, so a detector and a reader can
-    share it. Keyed on (book, label) alone the second run overwrote the
-    first, and a level-two run's ink numbers describe the DETECTOR whose
-    boxes it inherited."""
+    """The label is the model's own name, so a detector and a reader can share
+    it. Keyed on (book, label) alone the second run overwrites the first, and a
+    level-two run's ink numbers would describe the detector it inherited."""
     with tempfile.TemporaryDirectory() as d:
         root = _bench(os.path.join(d, "b"))
         det = Bench.open(root).run()
@@ -102,15 +92,12 @@ def test_two_levels_of_one_model_do_not_land_on_one_results_file():
 
 
 def test_the_report_leaves_out_a_run_of_another_level_and_counts_it():
-    """A cross-DETECTOR table with a reader in the model column reads as the
-    reader's work; the numbers are the detector's. Left out, never dropped
-    silently -- and a file written before the field existed is `detect`."""
+    """A cross-detector table with a reader in the model column reads as the
+    reader's work while the numbers are the detector's. Left out, never dropped
+    silently; a file written before the field existed is `detect`."""
     from booksmith.datasets import report
-    # TWO DIFFERENT RUN LABELS, and that is the whole check. Written with one
-    # label in both files, `cells` was keyed the same whether the read run
-    # was ingested or not, so only the COUNT could fail: the check proved
-    # the tally and never the leaving out, which is the thing that keeps a
-    # reader's number out of a column it did not earn.
+    # Two different run labels, and that is the whole check: with one label in
+    # both files only the count could fail, never the leaving out.
     det = Record("fitness", "b", LABEL, {"ink_under_boxes": Scalar(0.5)})
     red = Record("fitness", "b", "SomeReader", {"ink_under_boxes": Scalar(0.9)})
     with tempfile.TemporaryDirectory() as d:
@@ -167,19 +154,9 @@ def test_render_prints_counts_coverage_and_footnotes():
 
 
 def test_an_undefined_jump_count_says_why_instead_of_printing_zero():
-    """`.get(key, 0)` defaults on a MISSING key, not on a null one.
-
-    `column_jumps` returns `excess_jumps: None` whenever not one page gathered
-    enough boxes to jump between -- "the quantity is UNDEFINED", which is the
-    whole reason it says so -- and the assembly record asked for it with a
-    default of 0. The default never applied, so `Scalar(None)` raised "a
-    scalar without a value must say why" and the whole table died.
-
-    Found by the sweep, on the first (bench, model) pair that ever produced
-    an empty count: `bench/katalog` under yolox, where every box is
-    full-width. Nothing in the tree had made one before, which is the point
-    of running every model over every bench.
-    """
+    """`.get(key, 0)` defaults on a missing key, not on a null one: `column_jumps`
+    returns `excess_jumps: None` when no page gathered enough boxes to jump
+    between, and a default of 0 never applies to it."""
     from booksmith.datasets.metrics import assembly
 
     class OnePerPage:

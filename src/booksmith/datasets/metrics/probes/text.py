@@ -43,8 +43,7 @@ def _pick_table(P, T):
         for j, b in enumerate(P[i]["blocks"]):
             t = ids.get(b.get("block_id"))
             # `_answer_grid`, not `_html_grid`: a real model answers in OTSL,
-            # where this probe and four neighbours would say "no data" while the
-            # battery still reported zero uncaught.
+            # and five probes would say "no data" on it.
             if t is not None and m._truth_grid(t, side) is not None \
                     and m._answer_grid(b.get("content"), b.get("kind")):
                 return i, j
@@ -61,8 +60,7 @@ def _pick_bait(P, T):
             t = ids.get(b.get("block_id"))
             if t is None or t.get("content") is not None:
                 continue
-            # NO GRID AND NO CHARACTERS. Without the character check the probe
-            # corrupted a FORMULA with known truth and reddened a healthy metric.
+            # No grid AND no characters: a formula has truth and is no bait.
             if (m._truth_grid(t, side) is None and m._truth_text(t, side) is None
                     and policy.role(t["label"]) == "artifact"):
                 return i, j
@@ -217,9 +215,8 @@ def _corrupt_truth(T, fn):
 
 
 def _corrupt_truth_cell(T):
-    """Corrupt one cell OF THE TRUTH. The grid lives BESIDE the page, keyed by
-    block id as a string: an earlier edition edited the block's own `meta`,
-    corrupted nothing, and credited itself for an experiment never run."""
+    """Corrupt one cell OF THE TRUTH. The grid lives beside the page, keyed by
+    block id as a string, so editing the block's own `meta` corrupts nothing."""
     Q = copy.deepcopy(T)
     for i, _, b in m._blocks(Q):
         side = m.page_side(Q[i])
@@ -268,8 +265,8 @@ def _drop_block(P):
 
 def _add_block(P):
     """A spurious answer block, boxed over an existing one so that it clears the
-    gate and still stays spurious. THE COPY'S ANCHOR IS STRIPPED: with it, the
-    extra block landed in "anchor to nowhere" instead of "spurious in answer"."""
+    gate and stays spurious. The copy's anchor is stripped, or it lands in
+    "anchor to nowhere" instead of "spurious in the answer"."""
     i = m._pages(P)[0]
     Q = copy.deepcopy(P)
     b = copy.deepcopy(Q[i]["blocks"][0])
@@ -378,12 +375,9 @@ def probes(bench, run) -> list:
             M(mm)["matching"]["unmatched_truth"], b_lost)
 
     def anchor_gate():
-        """GUARD OVER THE "anchor off box" GATE: an anchor is verified, not
-        trusted, so a box shift must break pairing EVEN WHERE ALL WAS PAIRED BY
-        ANCHOR. Not always applicable, and both guards are asked of the INPUT:
-        with no block paired by anchor there is nothing to break, and where the
-        shift sinks into the pixel tolerance "did not land" and "gate gone"
-        would answer alike."""
+        """Guard over the anchor-off-box gate: an anchor is verified, not
+        trusted, so a box shift must break pairing even where all was paired by
+        anchor. A shift inside the tolerance proves nothing either way."""
         A = _anchor_all(P)
         was = M(A)["matching"]
         if not was["by_anchor"]:
@@ -398,9 +392,9 @@ def probes(bench, run) -> list:
                     was["anchor_box_mismatch"])
 
     def anchor_page_gate():
-        """THE SECOND GATE OF THE SAME STAGE, COVERED BY NOTHING: with the
-        off-page gate removed the battery still reported zero uncaught. The
-        corruption must use the per-page label; a bare number carries no page."""
+        """The second gate of the same stage, with its own probe. The corruption
+        must use the per-page label: a bare number carries no page, so the
+        off-page gate cannot fire on it."""
         A = _anchor_all_paged(P)
         was = M(A)["matching"]
         if not was["by_anchor"]:
@@ -414,8 +408,8 @@ def probes(bench, run) -> list:
         return None if (not ok or b_cer is None) else cer(tt=tt) > b_cer
 
     def _same_numbers_in_otsl():
-        """A table in OTSL scores THE SAME as one in HTML. Measured before the
-        fix at `_answer_grid`: 100% as HTML, 0% as OTSL."""
+        """A table in OTSL scores the same as one in HTML: parsing is ours, and
+        its defect must not be billed to the model."""
         if bi is None:
             return None
         src = P[bi]["blocks"][bj].get("content") or ""
@@ -431,10 +425,9 @@ def probes(bench, run) -> list:
                 and a["given_as_text"] == b["given_as_text"])
 
     def _artefact_truth(fn, field):
-        """Corrupt an artifact that HAS character truth. Keep looking until a
-        block there is something to corrupt in, and the corruption must CHANGE
-        something: silence on the first of twenty-six formulas put out both
-        probes at once and the battery printed zero uncaught."""
+        """Corrupt an artifact that HAS character truth, looking on until a block
+        the corruption really changes: a first block it leaves alone would put
+        out both probes at once."""
         for i in sorted(T):
             if i not in P:
                 continue
@@ -531,8 +524,7 @@ def probes(bench, run) -> list:
                   m.measure_pages(T, mm, norm="none")["text"]["CER"]
                   != m.measure_pages(T, P, norm="none")["text"]["CER"])(
              one(_spelling))),
-        # --- what model reading will be judged by: three defects that were
-        # costly on the first paid run
+        # --- three defects a paid reading run is judged by
         ("the table given as OTSL instead of HTML",
          "the same numbers (the parsing is ours, not the model's trouble)",
          _same_numbers_in_otsl),

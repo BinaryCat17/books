@@ -1,33 +1,12 @@
-"""The instrument the project looks with ITS EYES -- and it had no checks.
+"""The instrument the project looks with its eyes.
 
-No `overlay` in `tests/`, none of the 158 checks, none of the 134 mutations.
-The price is special: `books score` lies with a number, and a number can be
-rechecked by another; `books overlay` lies with a PICTURE, and a picture is
-rechecked by eye -- the reader leaves certain he saw it himself. In this
-session we looked by eye four times, and twice it overturned a claim numbers
-had held up.
+The price of a defect here is special: `books score` lies with a number, and a
+number can be rechecked by another; `books overlay` lies with a picture, and a
+picture is rechecked by eye -- the reader leaves certain he saw it himself.
 
-Four defects are pinned here, all found by audit and all reproduced:
-
-    --pages counted from ZERO   `books detect` counts from one, and this
-                                parser knew no ranges `40-42` at all (a bare
-                                ValueError). You look at the wrong sheet and
-                                never learn of it -- and by eye is exactly how
-                                one looks: detect a page or two and glance
-
-    a page missing from one     3 pages of 13 taken from the model: "NOT FOUND
-    markup was skipped in       6" did not budge and "divergences" got FEWER
-    silence                     (10 -> 7) -- the model looked better because
-                                part of its answer was gone. `books score` on
-                                the same input refuses to count aloud
-
-    one markup -> three zeroes  "matched 0, NOT FOUND 0, EXTRA 0; divergences
-                                on 0 pages" with the boxes drawn. A zero from
-                                not understanding, in the SUMMARY line
-
-    "600 sheets" with one       `doc.page_count` was printed; three different
-    drawn                       quantities (pages of the book, sheets, boxes)
-                                travelled under one word
+So the summary counts the sheets it drew and no other quantity, names every page
+missing from a markup, says "nothing to compare with" rather than three zeroes,
+and shouts at exactly what `books score` calls spurious.
 """
 import json
 import os
@@ -79,20 +58,9 @@ def _drawn_sheets(out_pdf):
 
 
 def test_pages_are_counted_from_one_like_detect():
-    """`--pages` is counted here THE SAME WAY as in `books detect`.
-
-    One parser for both, not a second copy: `books detect --pages 2` gives
-    sheet 0001, and `books overlay --pages 2` must draw that one. It used to
-    draw 0002, in silence.
-
-    CALLED THROUGH THE CLI, NOT THE PARSER DIRECTLY, and that is the substance
-    of the check. Its first edition asserted `detect.parse_pages("2", 3) ==
-    [1]` and then passed that set to `build` itself -- measuring that the
-    parser counts from one (true before the repair too) and NOT that
-    `cmd_overlay` calls it. Reverting `cli.py` whole and a point mutation on
-    the repaired line both gave ZERO red checks -- a hole of the very class
-    being repaired beside it.
-    """
+    """`--pages` is counted here the same way as in `books detect`: one parser for
+    both, so `--pages 2` draws sheet 0001. Called through the CLI, or the check
+    measures the parser and not that `cmd_overlay` calls it."""
     from booksmith import cli
     with tempfile.TemporaryDirectory() as d:
         pdf = _stand(d)
@@ -108,9 +76,8 @@ def test_pages_are_counted_from_one_like_detect():
                                  "--pages", spec, "--out", out]) == 0
             finally:
                 cli.log = was
-            # The output holds ONLY the requested sheets (else `--pages 102`
-            # on the golden bench would give 494 MB), so the count is checked
-            # by two quantities: how many sheets came out, and WHICH page of
+            # The output holds only the requested sheets, so the count is checked
+            # by two quantities: how many sheets came out, and which page of
             # the book came first -- the instrument names the second itself.
             got = _drawn_sheets(out)
             assert got == list(range(len(want))), (
@@ -127,20 +94,16 @@ def test_pages_are_counted_from_one_like_detect():
 
 
 def test_a_page_out_of_the_book_is_loud():
-    """A number past the end of the book is a complaint, not an empty run.
-
-    `overlay`'s own parser used to put the number straight into the index,
-    and an empty set gave a silent "divergences on 0 pages".
-    """
+    """A number past the end of the book is a complaint, not an empty run: the
+    number put straight into the index gave a silent "divergences on 0 pages"."""
     import contextlib
     import io
     from booksmith import cli
     with tempfile.TemporaryDirectory() as d:
         pdf = _stand(d)
         t = os.path.join(d, "truth", "pages")
-        # A refusal leaves `main` as exit code 1 and ONE logged line, not as
-        # an exception: `cli.main` catches `Refusal` so that the operator sees
-        # a line and not a stack.
+        # A refusal leaves `main` as exit code 1 and one logged line: `cli.main`
+        # catches `Refusal` so the operator sees a line and not a stack.
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
             rc = cli.main(["overlay", pdf, "--truth", t, "--pages", "9",
@@ -151,12 +114,8 @@ def test_a_page_out_of_the_book_is_loud():
 
 
 def test_a_page_missing_from_one_markup_is_named():
-    """A page missing from one markup is NAMED, not skipped.
-
-    Can fail: bring back the `continue` without a counter -- the sheet comes
-    out looking whole while the numbers improve because part of the answer
-    went missing.
-    """
+    """A page missing from one markup is named, not skipped: without a counter the
+    sheet comes out looking whole while the numbers improve."""
     with tempfile.TemporaryDirectory() as d:
         pdf = _stand(d, model_skip=(1,))
         s = _say(pdf, [(os.path.join(d, "truth", "pages"), "T"),
@@ -166,12 +125,8 @@ def test_a_page_missing_from_one_markup_is_named():
 
 
 def test_a_page_missing_from_the_truth_is_named_too():
-    """The mirror side: a hole in the TRUTH is named as one in the model is.
-
-    The sceptic showed that both sides were repaired and one was checked:
-    replacing `counts["missing_in_truth"].append(i)` with `pass` reddened NOT
-    ONE of the 163 checks. A guard with half of it checked is half a guard.
-    """
+    """The mirror side: a hole in the truth is named as one in the model is. A
+    guard with half of it checked is half a guard."""
     with tempfile.TemporaryDirectory() as d:
         pdf = _stand(d)
         os.unlink(os.path.join(d, "truth", "pages", "0001.json"))
@@ -181,12 +136,8 @@ def test_a_page_missing_from_the_truth_is_named_too():
 
 
 def test_one_markup_says_there_is_nothing_to_compare():
-    """One markup means "NOTHING TO COMPARE WITH", not three zeroes.
-
-    Three zeroes with boxes drawn read as "it all agreed" -- the same zero
-    from not understanding as "chapters 0" for "I did not recognise them",
-    here in the summary line.
-    """
+    """One markup means "nothing to compare with", not three zeroes: three zeroes
+    with boxes drawn read as "it all agreed"."""
     with tempfile.TemporaryDirectory() as d:
         pdf = _stand(d)
         s = _say(pdf, [(os.path.join(d, "truth", "pages"), "T")])
@@ -195,11 +146,8 @@ def test_one_markup_says_there_is_nothing_to_compare():
 
 
 def test_the_summary_counts_sheets_not_pages_of_the_book():
-    """The summary names the sheets DRAWN, and the boxes separately.
-
-    `doc.page_count` used to be printed: `--pages 102` on the golden bench
-    gave "600 sheets" with one drawn.
-    """
+    """The summary names the sheets drawn, and the boxes separately:
+    `doc.page_count` printed instead gave "600 sheets" with one drawn."""
     with tempfile.TemporaryDirectory() as d:
         pdf = _stand(d)
         s = _say(pdf, [(os.path.join(d, "truth", "pages"), "T")], only=[0])
@@ -207,11 +155,8 @@ def test_the_summary_counts_sheets_not_pages_of_the_book():
 
 
 def test_what_was_not_checked_by_sha256_is_named():
-    """Unverified markup is NAMED, not passed over in silence.
-
-    It used to print "sha256 checked for T" and not a word about "M" being
-    unchecked at all: half a guard read as the whole guard.
-    """
+    """Unverified markup is named, not passed over in silence: half a guard read
+    as the whole guard."""
     with tempfile.TemporaryDirectory() as d:
         pdf = _stand(d)
         with open(os.path.join(d, "truth", "manifest.json"), "w",
@@ -224,18 +169,9 @@ def test_what_was_not_checked_by_sha256_is_named():
 
 
 def test_the_sheet_shouts_at_exactly_what_the_number_calls_extra():
-    """"EXTRA" on the sheet == "spurious box" in `books score`. One rule.
-
-    WHY. The instrument split boxes into loud and quiet by one sign -- an
-    artefact label -- and shouted orange at everything: on the golden bench
-    508 boxes, of which `books score` calls 110 spurious and DELIBERATELY
-    forgives 350 (69 %) as "on an object outside the measure". A person looked
-    and sentenced the model by a number the instrument beside it refutes.
-
-    Can fail: bring back the sign by label and "EXTRA" grows past "spurious
-    box". Here it shows on three boxes instead of 350, but the rule is the
-    same and it is ONE: `metrics.extra_kind`, called by both.
-    """
+    """"EXTRA" on the sheet is "spurious box" in `books score`, by one rule:
+    `metrics.extra_kind`, called by both. Splitting boxes by label instead shouts
+    at every box on an object outside the measure, which score forgives."""
     import json as _j
 
     from booksmith.datasets.metrics import contour as metrics
@@ -290,16 +226,9 @@ def test_the_sheet_shouts_at_exactly_what_the_number_calls_extra():
 
 
 def test_a_changed_label_is_not_painted_like_an_extra_box():
-    """The caption "label: A -> B" and "EXTRA" get DIFFERENT colours.
-
-    Both used to take the one orange constant, and the caption hung over a
-    GREY box: its colour contradicted the box it belongs to. Measured by eye
-    on `bench/slovar` p. 2 (56 such captions of 56 pairs): of the two genuine
-    "EXTRA" boxes on the sheet one was invisible -- three points from a
-    caption of the same colour in the same size.
-
-    Can fail: bring the colours back together.
-    """
+    """The caption "label: A -> B" and "EXTRA" get different colours: one orange
+    constant for both hangs the caption over a grey box and drowns a real
+    spurious box three points from a caption of the same colour."""
     assert overlay.LABEL != overlay.SPURIOUS, (
         "a changed label is painted as a spurious box -- orange stops "
         "meaning 'the model found something extra', and a real spurious box "

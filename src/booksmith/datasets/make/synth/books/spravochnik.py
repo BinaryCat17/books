@@ -66,14 +66,9 @@ def c_table_across_gutter(doc, rng):
 
 
 def c_three_column_table(doc, rng):
-    """Three SEPARATE tables side by side: the model takes one of three
-    (p. 317).
-
-    The gaps between the tables are deliberately three times the gaps between
-    their columns, and each has its own caption. The first edition did neither:
-    the gaps were equal and what was drawn was ONE six-column table. The
-    detector returned one box and was right; I filed that as a defect.
-    """
+    """Three SEPARATE tables side by side: the model takes one of three (p. 317).
+    The gaps between the tables are three times the gaps between their columns
+    and each has its own caption, or what is drawn is one table."""
     pg = _page(doc); t = []
     _flow(pg, t, MARGIN, TOP, 190, PROSE_EN, w=2 * COLW + GUT)
     for i, x in enumerate((MARGIN + 6, MARGIN + 158, MARGIN + 310)):
@@ -189,12 +184,9 @@ def _half(pg, t, x0, rng, kind):
 
 
 def c_spread(doc, rng):
-    """A SPREAD: two book pages scanned as one sheet.
-
-    Half our library lies this way -- 1693 pages of 3268. The sheet is wider
-    than tall, with a shadowed gutter down the middle. It checks two things:
-    the spread cut in `djvu.py`, and the detector if a spread reached it whole.
-    """
+    """A SPREAD: two book pages scanned as one sheet, as half our library lies.
+    Wider than tall, with a shadowed gutter down the middle; it checks the spread
+    cut in `djvu.py` and the detector if a spread reaches it whole."""
     pg = _page(doc, wide=True); t = []
     _half(pg, t, 0.0, rng, "table")
     _half(pg, t, PW, rng, "figure")
@@ -202,13 +194,9 @@ def c_spread(doc, rng):
 
 
 def c_spread_rotated(doc, rng):
-    """A SPREAD ROTATED 90°: for a large full-width table.
-
-    Everywhere in handbooks: a table or drawing that will not fit across is
-    printed along. Reading order for such a page is undefined, and the detector
-    sees it squashed into 800x800 without keeping the aspect ratio -- the
-    distortion is at its worst here.
-    """
+    """A SPREAD ROTATED 90°, as a handbook prints a table that will not fit
+    across. Reading order for such a page is undefined, and the detector sees it
+    squashed into a square without the aspect ratio -- the worst distortion."""
     pg = _page(doc, wide=True); t = []
     _flow(pg, t, MARGIN, TOP, 150, PROSE_EN, w=2 * PW - 2 * MARGIN)
     _table(pg, t, MARGIN + 6, 180,
@@ -332,10 +320,10 @@ def c_spread_rotated_figure(doc, rng):
     return pg, t
 
 
-# --- added cases: harder than the earlier ones ------------------------------
-# The earlier twenty-three mostly held one artifact per page with wide gaps.
-# A real book does not: two artifacts of different kinds stand adjacent, column
-# gaps are narrower than the leading, and a library stamp sits over it all.
+# --- the harder cases -------------------------------------------------------
+# A real book does not hold one artifact per page with wide gaps: two artifacts
+# of different kinds stand adjacent, column gaps are narrower than the leading,
+# and a library stamp sits over it all.
 
 def c_table_two_side_by_side(doc, rng):
     """TWO tables side by side -- a common handbook spread (three exist)."""
@@ -378,11 +366,9 @@ def c_table_spanning_header(doc, rng):
 
 
 def c_table_dense_no_rules(doc, rng):
-    """A dense unruled table: column gaps as narrow as the leading.
-
-    The hardest kind and the commonest in our books. A bench without it
-    measures an easier task than the real one -- the reproach it once earned.
-    """
+    """A dense unruled table, column gaps as narrow as the leading: the hardest
+    kind and the commonest in our books, and a bench without it measures an
+    easier task than the real one."""
     pg = _page(doc); t = []
     _flow(pg, t, MARGIN, TOP, 130, PROSE_EN, w=2 * COLW + GUT)
     _table(pg, t, MARGIN + 6, 158, _grid(MARGIN + 6, 9, colw=44, gap=2.0), 62,

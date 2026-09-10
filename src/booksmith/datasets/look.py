@@ -1,26 +1,11 @@
 """`books overlay` -- look with your eyes at what the number measured.
 
 A bench that checks itself by numbers and that nobody has seen is not an
-instrument. In one session this bench lied with boxes six times and the number
-never looked ill: empty text boxes, half a spread off the sheet, a "drawing" of
-forty-seven parallel lines, a formula box wider than its formula, a line for a
-paragraph, one box over a running head of two. All six show on the sheet, none
-in the report.
-
-WE SHOW DIVERGENCES, NOT EVERYTHING. The first edition drew both markups whole:
-on a page where the model is right, two hundred nearly coincident rectangles
-with two captions over each -- the sheet stopped being readable exactly where
-there was nothing to read. Now a matched pair is one thin grey box without a
-caption, and only the divergence is shouted: what the model missed and what it
-found that is not there.
-
-THERE IS NO LEGEND. In a corner it lay over the first blocks of the page; on a
-sheet of its own it is one more sheet nobody looks at. The colours below speak
+instrument. WE SHOW DIVERGENCES, NOT EVERYTHING: a matched pair is one thin grey
+box with no caption, and only the divergence is shouted -- what the model missed
+and what it found that is not there. There is no legend; the colours below speak
 for themselves, and a caption stands only where there is something to say.
-
-DASHES ARE GIVEN AS A STRING, not a tuple. The first edition passed
-`dashes=(0, 3)`; pymupdf wants `"[3 3] 0"` and silently drew SOLID -- both
-markups looked identical, and nothing whatever told them apart.
+Dashes go in AS A STRING, `"[3 3] 0"`: pymupdf takes a tuple and draws solid.
 """
 import json
 import os
@@ -29,21 +14,10 @@ import pymupdf
 from booksmith.core import stamp
 from booksmith.core.errors import Refusal
 
-# Caption font. The reason it is not the built-in `helv` was: helv knows no
-# Cyrillic and drew captions as emptiness, so which of the two markups a box
-# came from was unreadable.
-#
-# THAT REASON EXPIRED WITH THE TRANSLATION. This module draws exactly three
-# captions -- "NOT FOUND <label>", "EXTRA", and "<a> -> <b>" -- and every
-# label in all five vocabularies is Latin; there is no Cyrillic left in this
-# file at all. `helv` renders all of it. What the sentence was still buying
-# was a `die()` on any machine without that exact Debian path -- the overlay,
-# a free debugging aid, refusing to run on a distribution that spells its
-# font directory differently.
-#
-# So the file is a PREFERENCE now and not a requirement: used when it is
-# there, `helv` when it is not. The same shape as `cyr.py` and `keymap.json`
-# -- something kept because the sentence beside it still sounded right.
+# Caption font: a PREFERENCE, not a requirement -- used when it is there, the
+# built-in `helv` when it is not, which renders all three captions this module
+# draws. Requiring the file would refuse the overlay on a machine that spells
+# its font directory differently.
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 FONT_FALLBACK = "helv"
 
@@ -56,14 +30,9 @@ MATCHED = (0.55, 0.55, 0.55)      # grey and thin: nothing to look at here
 NOT_FOUND = (0.85, 0.10, 0.10)     # red: in truth, absent from the model
 SPURIOUS = (0.95, 0.55, 0.00)       # orange: in the model, absent from truth
 ONE = (0.15, 0.35, 0.85)         # blue: one markup, nothing to compare with
-# A DIVERGENT LABEL is not "a spurious box" and has its own colour now. The
-# caption "label: A -> B" took the same orange as "EXTRA" and hung over a GREY
-# box: its colour contradicted its own box, and the reader hunted an orange
-# rectangle that was not there. On `bench/slovar` 207 of 517 pairs (40%) carry
-# it, on one sheet 56 of 56; by eye a caption is 1.47 times wider than its box,
-# 61 of 62 are covered by another, and a real "EXTRA" beside them goes
-# invisible. Narrow -- 10 or more captions on 5 sheets of 859, all slovar -- but
-# colour cures it, patience does not.
+# A divergent label is not a spurious box and has a colour of its own: in the
+# orange of "EXTRA" over a grey box, its colour contradicted its own box and a
+# real "EXTRA" beside it went invisible.
 LABEL = (0.45, 0.25, 0.65)        # purple: same box, different name
 
 
@@ -98,17 +67,13 @@ def _same_book(pdf: str, marks) -> str:
                     f"snapshot says sha256 {j[:12]}, {pdf} says {mine[:12]}. "
                     f"The boxes drawn would look like a defect of the model.")
             if tag not in said:
-                # ONCE PER MARKUP, not per snapshot found. `said.append` used to
-                # sit inside the loop over the two files, and with both
-                # `manifest.json` and `run.json` in one directory the line
-                # named the same markup twice.
+                # Once per markup, not per snapshot found: both files can lie
+                # in one directory.
                 said.append(tag)
         if len(said) == was:
             unchecked.append(tag)
-    # WHAT WAS NOT CHECKED IS NAMED ALOUD. It used to print "sha256 verified
-    # for" the first markup and say not a word about the second being
-    # unchecked: half a guard read as the whole guard. The same zero from not
-    # understanding -- "we did not look" dressed as "it matched".
+    # What was not checked is named aloud: half a guard printed as the whole
+    # guard is "we did not look" dressed as "it matched".
     ok = f"sha256 verified for {', '.join(said)}" if said else None
     no = (f"NOT VERIFIED for {', '.join(unchecked)}: no snapshot lies beside "
           f"it, nothing to say whether this markup is about that book"
@@ -134,23 +99,9 @@ def _pages(d: str) -> dict:
 
 
 def _pair(truth, model):
-    """Match one page's boxes: (pairs, truth left over, model left over). The
-    match is what `books score` measures by, or sheet and number say different
-    things.
-
-    ARTEFACT IS MATCHED WITH ARTEFACT. `books score` looks for a truth artefact
-    only among the model's ARTEFACT boxes (pass A); its label-blind pass serves
-    reading order and text, not the final share. Blind matching drew a table
-    covered by a `text` box in thin grey as "matched", counted it matched and
-    kept the page out of the divergences -- where the number called it lost:
-    51 artefacts over nine benches (33 annopage, 14 hard, 2 matematika, one
-    each atlas and hard36), 31 of them tables eaten by a text box (table->text
-    17, table->content 13, table->reference 1).
-
-    The side comes from the same `label in arte` as in `compare_pages`, not from
-    `policy.role`: a label the policy does not describe must behave here as it
-    does in score, or sheet and number diverge again, now on the exception.
-    """
+    """Match one page's boxes: (pairs, truth left over, model left over) by the
+    rule `books score` measures with, artefact against artefact, the side taken
+    from `label in arte`, so sheet and number cannot say different things."""
     from booksmith.datasets.metrics.contour import _pick, _area
     from booksmith.core import policy
     arte = set(policy.artefacts())
@@ -158,9 +109,8 @@ def _pair(truth, model):
     for side in (True, False):
         t = [b for b in truth if (b["label"] in arte) == side]
         m = [x for x in model if (x["label"] in arte) == side]
-        # The greed order comes from the same side of `books score`: artefacts
-        # in markup order as in pass A, the rest largest first as in pass B. One
-        # rule with another order would part the pairs on contested places.
+        # The greed order is `books score`'s: artefacts in markup order as in
+        # pass A, the rest largest first as in pass B.
         if not side:
             t = sorted(t, key=lambda z: -_area(z["box"]))
         used = set()
@@ -191,21 +141,9 @@ def _label(page, box, k, color, text, above=True):
 
 def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
           log=print) -> dict:
-    """Lay markup over the PDF pages, SHOWING THE DIVERGENCES.
-
-    `marks` is a list of (directory, tag). Two markups are compared; a single
-    one is drawn whole, because there is nothing to compare it with.
-
-    WHAT TRUTH DOES NOT MARK UP IS NOT "SPURIOUS". Truth declares that itself,
-    by the meta field `text_marked`; no field means it does mark up. Boxes of
-    unmarked classes are drawn as a blue hairline without a caption and go into
-    a quantity of their own, not into "spurious".
-
-    THIS IS SAID ALWAYS, not only when such boxes turn up. "Outside the markup
-    0" has two kinds: truth marks text up and nothing is extra -- and truth
-    marks no text while the model produced none. Silence passes the second for
-    the first, a zero from not understanding for a zero from a check.
-    """
+    """Lay markup over the PDF pages, showing the divergences. `marks` is a list
+    of (directory, tag); a single one is drawn whole. What truth does not mark
+    up (`text_marked`) is a hairline counted apart, never spurious."""
     from booksmith.core import policy
 
     def role(label: str) -> str:
@@ -216,16 +154,9 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
             return "artifact"
 
     def die(msg: str):
-        """Close the document and fail with OUR message.
-
-        The message is built at the call site, BEFORE the document is closed.
-        Guards used to `doc.close()` a line above `raise OverlayError(...
-        doc.page_count ...)`, and pymupdf 1.28.2 throws on a closed document --
-        `page_count` a ValueError "document closed", `page.rotation` an
-        AssertionError "page is None". That flew out instead of the explanation,
-        and as a bare stack trace: `overlay.build` is wrapped in nothing in
-        cli.py. Checked on all four guards that read after closing.
-        """
+        """Close the document and fail with our message. The message is built at
+        the call site, BEFORE the close: pymupdf throws on a closed document, and
+        that would fly out as a bare trace instead of the explanation."""
         doc.close()
         raise OverlayError(msg)
 
@@ -244,21 +175,14 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
 
     counts = {"matched": 0, "missed": 0, "spurious": 0, "outside_markup": 0,
               "pages_without_text_markup": 0, "pages_compared": 0,
-              # MISSES ARE COUNTED BY NAME. A page absent from one markup used
-              # to be skipped by both `continue` branches in silence, and the
-              # sheet looked complete. Measured: drop 3 pages of 13 from the
-              # model on slovar and "NOT FOUND 6" does not flinch while
-              # divergences get FEWER (10 -> 7) -- the model improved by losing
-              # part of its answer. `books score` on that input refuses to
-              # count aloud: "the model marked up no pages [0, 5, 11]".
+              # Misses are counted BY NAME: a page absent from one markup and
+              # skipped in silence leaves a sheet that looks complete, and a
+              # model that loses part of its answer looks improved.
               "missing_in_truth": [], "missing_in_model": [], "in_neither": 0,
               "pages": []}
-    # TWO QUANTITIES, and there used to be one. `drawn` counts BOXES (in every
-    # branch, and the "not one landed" guard stands on it); `sheets` counts the
-    # SHEETS reached. The summary printed `doc.page_count`, a third quantity:
-    # `--pages 102` on the golden bench gave "600 sheets" with one drawn.
-    # Three things under one word is the trouble of "chapters 0" standing for
-    # "I did not recognise them".
+    # Two quantities: `drawn` counts BOXES in every branch, and the "not one
+    # landed" guard stands on it; `sheets` counts the SHEETS reached. Neither is
+    # `doc.page_count`, which is a third.
     drawn = 0
     sheets = 0
     for i, page in enumerate(doc):
@@ -275,10 +199,8 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
             page.insert_font(fontname=FONT_FALLBACK)
         p0 = sets[0][0].get(i)
         if p0 is None:
-            # Missing from the FIRST markup. Missing from the second too, it is
-            # a sheet nobody marked up (ordinary with a partial `books detect`).
-            # Present in the second, it is a hole in the first, and silence
-            # about that is not allowed.
+            # Missing from the FIRST markup: missing from the second too, it is
+            # a sheet nobody marked up; present there, a hole in the first.
             if len(sets) > 1 and sets[1][0].get(i) is not None:
                 counts["missing_in_truth"].append(i)
             else:
@@ -300,38 +222,23 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
         if p1 is None:
             counts["missing_in_model"].append(i)
             continue
-        # EACH MARKUP HAS ITS OWN SCALE. The first one's coefficient used to be
-        # taken and applied to the second in silence: if the model's output
-        # raster differs from truth's by even a pixel, the boxes lie shifted and
-        # the sheet looks convincing.
+        # Each markup has its own scale: one coefficient for both lays the
+        # second's boxes shifted over a convincing-looking sheet.
         if (p1["width"], p1["height"]) != (p0["width"], p0["height"]):
             die(f"page {i}: truth raster {p0['width']}x{p0['height']}, "
                 f"model raster {p1['width']}x{p1['height']} -- the boxes "
                 f"would lie in different coordinate systems.")
         sheets += 1
         pairs, lost, extra = _pair(p0["blocks"], p1["blocks"])
-        # The sign comes from TRUTH and is per page; no field means it marks up.
-        # Per page is not pedantry: on the hard36 bench text is marked on one
-        # page of thirty-six, and a sign "for the whole bench" would lie about
-        # both halves at once.
+        # The sign comes from TRUTH and is PER PAGE; no field means it marks up.
+        # One sign for a mixed bench would lie about both halves at once.
         marked = bool((p0.get("meta") or {}).get("text_marked", True))
         counts["pages_compared"] += 1
         counts["pages_without_text_markup"] += 0 if marked else 1
-        # WE SHOUT ONLY AT WHAT THE NUMBER ALSO CALLS SPURIOUS. The sign used to
-        # be one -- is the label an artefact -- and the sheet shouted orange at
-        # everything: 508 boxes on the golden bench, of which `books score`
-        # itself calls 110 spurious and DELIBERATELY forgives 350 (69%) as
-        # "on an object outside scoring". Truth put those objects beyond
-        # the scored boundary; blaming the model for a find there punishes it
-        # for a line WE drew, and a person sentenced the model by a number the
-        # instrument beside it refutes.
-        #
-        # The rule comes from `metrics.extra_kind` -- ONE for sheet and number,
-        # not a second copy: copies drifting apart has already cost this project
-        # thirteen names of seventeen.
-        #
-        # The `out_of_scope` field had NEVER been read here, though it lies
-        # right beside: non-empty on 288 golden-bench pages of 600, 904 objects.
+        # We shout only at what the number also calls spurious: blaming the
+        # model for a find beyond the scored boundary punishes it for a line WE
+        # drew. The rule is `metrics.extra_kind`, one for sheet and number, and
+        # `out_of_scope` lies right beside the boxes.
         from booksmith.datasets.metrics.contour import extra_kind
         from booksmith.core import policy as _pol
         _arte = set(_pol.artefacts())
@@ -344,9 +251,7 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
         for x in extra:
             if x["label"] in _arte:
                 # `marked` plays no part here: it is about TEXT markup, and an
-                # artefact is always marked. The old disjunction made it dead
-                # the other way -- on the golden bench `text_marked` is false on
-                # 600 pages of 600, so the second term always decided.
+                # artefact is always marked.
                 kind = extra_kind(x["box"], paired, unpaired, outside, tb)
                 x = dict(x, _trouble=kind)
                 (loud if kind == "spurious_box" else quiet).append(x)
@@ -359,10 +264,8 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
         if lost or loud:
             counts["pages"].append(i)
         for b, x in pairs:
-            # A matched pair is drawn as ONE thin box with no caption: two
-            # nearly coincident boxes with two captions over each are what made
-            # the sheet unreadable. The label, where it diverged, is the only
-            # thing worth saying here.
+            # A matched pair is ONE thin box with no caption; the label, where
+            # it diverged, is the only thing worth saying here.
             _rect(page, x["box"], k, MATCHED, 0.7)
             if b["label"] != x["label"]:
                 _label(page, x["box"], k, LABEL,
@@ -373,9 +276,8 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
             _label(page, b["box"], k, NOT_FOUND, f"NOT FOUND  {b['label']}")
             drawn += 1
         for x in quiet:
-            # Not drawing these at all is not an option: the sheet would say
-            # nothing about the model having found anything -- a zero from not
-            # understanding, passed off as a clean page.
+            # Not drawing these is not an option: the sheet would look clean
+            # where in fact nothing was compared.
             _rect(page, x["box"], k, ONE, 0.5, dashes="[1 2] 0")
             drawn += 1
         for x in loud:
@@ -389,17 +291,10 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
         die(f"not one markup page landed on {pdf}: the PDF has "
             f"{doc.page_count} pages, and the markup indices are others")
     n = doc.page_count
-    # THE OUTPUT CARRIES ONLY WHAT WAS ASKED FOR. The whole document used to be
-    # saved: `--pages 102` on the golden bench gave a 494 MB file, 417 KB LARGER
-    # than the source, and the default `--out` put those 494 MB into
-    # `bench/annopage/`. `only` governed the drawing loop alone. Measured:
-    # `doc.select([102])` gives 658 KB in 0.1 s -- 751 times smaller, 50 times
-    # faster.
-    #
-    # THE NUMBERING SHIFTS BY THIS, said aloud: in the output file the requested
-    # sheets run consecutively from the first. A silent renumbering in an
-    # instrument meant for the eye is the `--pages` off-by-one from the other
-    # side.
+    # The output carries only what was asked for: saving the whole document put
+    # half a gigabyte beside a one-page request. THE NUMBERING SHIFTS BY THIS,
+    # and is said aloud below -- the requested sheets run consecutively from the
+    # first, and a silent renumbering in an instrument for the eye is a trap.
     picked = None
     if only is not None and len(only) < n:
         picked = sorted(only)
@@ -414,11 +309,8 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
             f"{picked[0] + 1} of the book"
             + (f", the last is {picked[-1] + 1}" if len(picked) > 1 else ""))
     if len(sets) == 1:
-        # NOTHING TO COMPARE WITH -- and that is not "matched 0, NOT FOUND
-        # 0, EXTRA 0", which is what it used to print with boxes drawn: three
-        # zeros and "divergences on 0 pages" read as "everything agreed" though
-        # no comparison happened. A zero from not understanding, in the summary
-        # line.
+        # Nothing to compare with, and that is not "matched 0, NOT FOUND 0,
+        # EXTRA 0", which reads as "everything agreed".
         log(f"  one markup, {sets[0][1]}: these {drawn} boxes have NOTHING "
             f"TO COMPARE WITH. This is not 'no divergences' -- a second "
             f"markup was never supplied")
@@ -436,9 +328,8 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None,
                 f"has: {p[:8]}{' …' if len(p) > 8 else ''}. These sheets were "
                 f"NOT compared, and their boxes did not enter the numbers "
                 f"above -- sheet and number cannot be compared here")
-    # A quantity rather than silence: "EXTRA 508" without this line would read
-    # as "the whole sheet was checked", though text on these pages was not
-    # checked at all.
+    # A quantity rather than silence: without this line "EXTRA 508" reads as
+    # "the whole sheet was checked".
     if counts["pages_without_text_markup"]:
         log(f"  truth does NOT mark text up on "
             f"{counts['pages_without_text_markup']} pages of "

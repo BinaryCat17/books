@@ -1,10 +1,7 @@
 """The distillate: what it carries over, and what a refusal must not destroy.
 
-WHY THIS FILE EXISTS. `subset.py` had no check at all -- 2570 characters of
-prose about what it guards, and not one line proving any of it. Two defects
-were found by reading it, and both are of the kind reading finds and running
-does not: a guard that cannot fail, and a destruction that only shows on the
-day the build refuses.
+Two properties `subset.py` promises which only reading found: a guard that can
+fail, and a refusal that leaves the previous truth standing.
 """
 import json
 import os
@@ -41,15 +38,9 @@ def _bench(root, book, pages=1, meta=None):
 
 
 def test_the_carry_over_keeps_every_truth_field():
-    """Truth fields survive the carry; ours are added beside them.
-
-    THE GUARD THAT USED TO STAND HERE COULD NOT FAIL. It was
-    `lost = [k for k in src if k not in meta]` over `meta = {**src, **extra}`
-    -- empty by construction, because a dict built from `**src` holds every key
-    of `src`. It read as protection and protected nothing. The property is real
-    and is proved here on built input instead, which is a thing that can go
-    red.
-    """
+    """Truth fields survive the carry; ours are added beside them. Proved on built
+    input, because over `meta = {**src, **extra}` a comparison of keys is empty by
+    construction and protects nothing."""
     src = {"order_marked": True, "text_marked": False, "dpi_note": "600"}
     got = subset._carry_meta({"meta": dict(src)},
                              {"from_book": "slovar", "page_in_book": 7},
@@ -75,19 +66,9 @@ def test_a_field_of_ours_may_not_overwrite_a_truth_field():
 
 
 def test_a_refused_build_does_not_destroy_good_truth():
-    """A build that refuses leaves the previous truth standing.
-
-    `truth/` was emptied at the top of `build`, before a loop that can refuse
-    four ways: no such pdf, no such page in it, a distillate field clashing
-    with a truth field, and not one page selected. Every one of those left the
-    bench truth EMPTY -- a refusal meant to protect the data destroying it.
-    The same accident cost 595 of 600 files on the golden bench, and was fixed
-    there and not here.
-
-    The refusal used is the clash, because it happens in the MIDDLE of the
-    loop: by then some pages have been written, so a build that wrote into
-    place would already have replaced part of the truth.
-    """
+    """A build that refuses leaves the previous truth standing: `truth/` emptied
+    at the top of `build` turns each of four refusals into a loss of the data the
+    refusal exists to protect. The clash used here fires mid-loop."""
     tmp = tempfile.mkdtemp()
     root = os.path.join(tmp, "bench")
     _bench(root, "good", pages=2)
@@ -118,11 +99,8 @@ def test_a_refused_build_does_not_destroy_good_truth():
 
 
 def test_the_build_leaves_no_working_directory_behind():
-    """The aside directory is swapped in, not left beside the truth.
-
-    A `truth.new` left on disk would be read by nothing and copied by
-    everything -- and on the next build it is silently reused.
-    """
+    """The aside directory is swapped in, not left beside the truth: a `truth.new`
+    on disk is read by nothing, copied by everything, and silently reused."""
     tmp = tempfile.mkdtemp()
     root = os.path.join(tmp, "bench")
     _bench(root, "good", pages=1)
@@ -139,13 +117,9 @@ def _aside(out):
 
 
 def test_no_refusal_leaves_a_half_built_bench_behind():
-    """Aside files are swept on the way out, and that matters where it lands.
-
-    The default `out_dir` is `bench/hard`, which is TRACKED and does not
-    ignore `truth.new`: a refused `books subset` used to put a partial second
-    copy of the bench truth into the working tree, with nothing to say which
-    of the two directories is the bench.
-    """
+    """Aside files are swept on the way out, and where it lands matters: the
+    default `out_dir` is tracked and does not ignore `truth.new`, so a refusal
+    would leave a partial second copy of the bench truth in the working tree."""
     tmp = tempfile.mkdtemp()
     root = os.path.join(tmp, "bench")
     _bench(root, "good", pages=2)
@@ -167,16 +141,9 @@ def test_no_refusal_leaves_a_half_built_bench_behind():
 
 
 def test_truth_pdf_and_manifest_are_swapped_together():
-    """Three parts that refer to one another, and they move as one.
-
-    `t["index"]` addresses a page of THAT pdf and the manifest holds its
-    sha256 and page count. The first edition of the write-aside moved only the
-    truth, so a crash in between left `truth/` describing four pages and
-    `hard.pdf` holding eight -- the mixed bench, moved one file over.
-
-    The crash is placed after the pdf is written and before the swap, which is
-    exactly the window that used to be open.
-    """
+    """Three parts that refer to one another move as one: `t["index"]` addresses a
+    page of that pdf and the manifest holds its sha256 and page count. The crash
+    is placed after the pdf is written and before the swap."""
     tmp = tempfile.mkdtemp()
     root = os.path.join(tmp, "bench")
     _bench(root, "small", pages=2)
@@ -222,15 +189,9 @@ def test_truth_pdf_and_manifest_are_swapped_together():
 
 
 def test_the_traits_reach_the_manifest_and_the_log():
-    """The passport is the thing this file exists for, and it was unguarded.
-
-    `TRAITS` names the truth traits without which a metric silently changes
-    its answer, and the manifest carries their state so a reader knows what
-    CAN be measured here before the first `books score`. Emptying `TRAITS`
-    left every check green while `truth_traits` became `{}` and the passport
-    lines vanished from the log -- the same silence that once printed "pairs
-    211, agreed 73 %" out of nothing.
-    """
+    """The passport is what this file exists for: `TRAITS` names the truth traits
+    without which a metric silently changes its answer, and the manifest carries
+    their state, so an empty `TRAITS` must not pass."""
     tmp = tempfile.mkdtemp()
     root = os.path.join(tmp, "bench")
     _bench(root, "good", pages=2, meta={"order_marked": True})

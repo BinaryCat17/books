@@ -1,39 +1,13 @@
-"""THE BOOK DIRECTORY: where its parts live, asked by everyone.
+"""The book directory: where its parts live, asked by everyone.
 
-The build root holds exactly one file, `book.html`; everything else is
-kitchen under `assets/`. Three modules used to know the layout by their own
-copy (the builder, the swap layer, the snapshot checker) and one of them
-lied on the one layout it was needed for; now they ask here.
+One directory per book, and a bench is a book that also has `truth/`.
+`manifest.json` is what makes a directory a book, and `ALLOWED` below declares
+the whole shape. The build root holds exactly one file, `book.html`; everything
+else is kitchen under `assets/`.
 
-ONE DIRECTORY PER BOOK, and a bench is a book that also has `truth/`:
-
-    <book>/
-      manifest.json      source: {name, sha256} -- written by the first
-                         command that makes the directory
-      <name>.pdf         the scan (untracked for every bench we build)
-      truth/             only a bench has this
-      detect/<label>/    a level-one run: pages/ and run.json
-      read/<label>/      a level-two run          <- NOT WRITTEN YET
-      build/             the HTML and its kitchen <- NOT WRITTEN YET
-
-THE LAST TWO ARE THE PLAN, NOT THE TREE, and saying so is the point: `books
-read` still writes `<detect dir>.read` and `books html` still writes
-`processed/<name>/`, and `build` has no caller outside this file.
-
-"SO `runs("read")` IS ALWAYS EMPTY" STOOD HERE AND STOPPED BEING TRUE while
-this paragraph was being edited: `processed/ogneupory-vl2` holds two level-two
-runs under `read/`, moved there by hand when the book directories were given
-one shape, and `runs("read")` answers with both. So the shape exists on disk
-and no command writes it -- which is a third state, and worth more than the
-two the sentence had room for. They were advertised here and in CLAUDE.md as
-though they existed, which made 3b read as finished when a third of it is
-not. Step 3c moves the two commands onto this layout.
-
-THE LABEL IS THE MODEL'S NAME (`Detector.label`), so two models measured on
-one book do not overwrite each other -- which is what "run every detector and
-put the numbers side by side" needs, and what a single `detect/` could not
-give. `run.json` carries `identity`, and a command about to write a DIFFERENT
-identity under an existing label refuses and asks for `--run`.
+A run's label is the model's own name (`Detector.label`), so two models measured
+on one book do not overwrite each other. `run.json` carries `identity`, and a
+command about to write a different one under an existing label refuses.
 """
 from __future__ import annotations
 
@@ -45,12 +19,7 @@ from booksmith.core.log import log
 from booksmith.core import config
 from booksmith.core.errors import Refusal
 
-# THE BOOK'S KITCHEN. The build root holds EXACTLY ONE file, `book.html`, and it
-# is self-contained; crops, the observed, the snapshot and the swap journal move
-# here. Not tidiness: the book is opened by double-click, and a root with four
-# json files and a two-megabyte js makes the reader choose what to open. Crops
-# stay files EVEN WHEN inlined (`HTML_IMAGES=inline`): edits, measurements and
-# the second level need them, not just reading.
+# Crops stay files even when inlined: edits, measurements and level two need them.
 ASSETS = "assets"
 SOURCE = os.path.join(ASSETS, "source")
 JOURNAL = os.path.join(ASSETS, "swaps.json")
@@ -61,18 +30,13 @@ def journal_path(out_dir: str) -> str:
     return os.path.join(out_dir, JOURNAL)
 
 
-# A RUN LABEL IS A DIRECTORY NAME, and it is the model's name, never the
-# adapter's: `doclayout-onnx` is one adapter serving three models, and three
-# models under one directory look like one run resumed three times.
+# A run label is a directory name, and the model's name, never the adapter's:
+# `doclayout-onnx` serves three models, which under one label look like one run.
 LABEL_OK = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$")
 
 # ---------------------------------------------------------------- the shape
-# WHAT A BOOK DIRECTORY HOLDS, declared -- so "nothing outdated" is a property
-# of the tree and not a tidy-up someone did once. `bench/` had drifted into
-# four kinds of thing under one name, an overlay under two names and one run
-# split across two sibling directories, and nothing was caught because nothing
-# said what a book directory IS. `tests/contract/test_book_shape.py` walks
-# `bench/` and `processed/` against this.
+# What a book directory holds; `tests/contract/test_book_shape.py` walks the
+# roots against it, so a stray directory has a name or is a failure.
 
 # Both roots are the same shape on purpose: a bench is a book with truth.
 BOOK_ROOTS = ("bench", "processed")
@@ -81,9 +45,6 @@ BOOK_ROOTS = ("bench", "processed")
 ALLOWED = (
     "manifest.json",          # what makes a directory a book
     "<source>.pdf",           # THE scan -- the one the manifest names
-    # A PAGE SELECTOR, AND IT HAS NO READER: the page numbers held out of one
-    # real scan, 97 bytes, reconstructible by nothing. Named here so the walk
-    # does not chase it, and so it is not deleted for being unread.
     "truth/",                 # a bench has one
     "detect/<model>/",        # level one, one directory per model
     "read/<model>/",          # level two
@@ -93,14 +54,12 @@ ALLOWED = (
     "book.html",              # ... and its one file
 )
 
-# What `books crop` and `books read` write BESIDE a run: `<run dir>.crop` and
-# `<run dir>.read`. Declared because they sit inside `detect/`, where a name is
-# otherwise a model and `LABEL_OK` matches `PP-DocLayoutV2.crop` perfectly.
+# What `books crop` and `books read` write beside a run. Declared because they
+# sit inside `detect/`, where a name is otherwise a model's.
 BESIDE_A_RUN = (".crop", ".read")
 
-# WHAT A RUN DIRECTORY HOLDS, per level. Two sets and not one union: a union is
-# a weaker check wearing the same green, and `read_with.json` under a DETECTION
-# run would mean a level-two artefact filed at level one.
+# What a run directory holds, per level. Two sets and not a union, which would
+# let `read_with.json` sit under a detect run as a level-two file at level one.
 INSIDE_A_RUN = {
     "detect": ("pages", "run.json"),
     # `vllm.*` and `progress.json` come back from the card by name.
@@ -116,11 +75,8 @@ ROOT_FILES = ()
 def safe_label(name: str, what: str) -> str:
     """The label, or a Refusal naming what to pass instead.
 
-    REFUSED, NEVER SANITISED. Two models whose names differ only where the
-    sanitiser bites -- a slash, a space -- would land in ONE directory, and
-    the second would read as a resume of the first: same label, other
-    weights, and the snapshot of the first still in place. A refusal costs a
-    typed `--run`; the silent version costs a measurement nobody can trust.
+    Refused, never sanitised: two names differing only where a sanitiser bites
+    would land in one directory, the second reading as a resume of the first.
     """
     name = (name or "").strip()
     if not LABEL_OK.match(name):
@@ -134,18 +90,15 @@ def safe_label(name: str, what: str) -> str:
     return name
 
 
-# The two kinds of run a book holds. Not a free string: a typo would make a
-# directory nobody looks in, and `runs()` would report the book as having none.
+# The two kinds of run a book holds; not a free string, or `runs()` looks in nothing.
 KINDS = ("detect", "read")
 
 
 class Book:
     """A book directory. `Bench` is this plus `truth/`.
 
-    `manifest.json` is what makes a directory a book. `tests/expected/` and
-    `results/` are directories under `bench/` and are NOT books; without
-    the manifest there is nothing to say which PDF they are about, and opening
-    them would measure a page set against a book nobody named.
+    `manifest.json` is what makes a directory a book: `tests/expected/` and
+    `results/` are not books, there being nothing to say which PDF they are about.
     """
 
     def __init__(self, root: str, manifest: dict):
@@ -173,9 +126,8 @@ class Book:
     def list(cls, root: str) -> list[str]:
         """Every book directory under `root`, as paths relative to it.
 
-        A book is a directory with a manifest. `os.listdir` and not
-        `glob("*")`, which skips a dotted name: a stale bench called `.old`
-        was walked by nothing at all.
+        A book is a directory with a manifest. `os.listdir`, not `glob("*")`,
+        which skips a dotted name and would walk past a bench called `.old`.
         """
         out = []
         for top in BOOK_ROOTS:
@@ -191,17 +143,10 @@ class Book:
     # -------------------------------------------------------------- parts
     @property
     def pdf(self) -> str | None:
-        """The scan, by NAME beside the manifest -- never by a stored path.
-
-        `Bench.pdf` is the same fact by a second rule (a `<name>.pdf` fallback
-        and a relative path); the manifest key was unified and the resolvers
-        were not. Harmless while every manifest carries `source.name`, and
-        3c folds `Bench` onto this one.
+        """The scan, by name beside the manifest, never by a stored path.
 
         The manifest is tracked and the PDF is not, so an absolute path in it
-        would be false on every other machine; `run.json` stores the path it
-        was read at, which is the right place for it (it records what
-        happened) and the wrong place to resolve from (the book moves).
+        would be false on any other machine; `run.json` records the path used.
         """
         name = (self.manifest.get("source") or {}).get("name")
         if not name:
@@ -232,9 +177,10 @@ class Book:
         return os.path.join(self.root, kind, safe_label(label, kind))
 
     def runs(self, kind: str) -> list[str]:
-        """Labels of the runs of one kind, sorted. A directory without
-        `run.json` is not a run and is not listed: half a run counted as one
-        is how a measurement gets taken against a page set nobody snapshotted.
+        """Labels of the runs of one kind, sorted.
+
+        A directory without `run.json` is not a run and is not listed: half a run
+        counted as one is a measurement against a page set nobody snapshotted.
         """
         if kind not in KINDS:
             raise Refusal(f"{kind!r} is not a kind of run; I know {KINDS}")
@@ -247,13 +193,8 @@ class Book:
             and os.path.isdir(os.path.join(base, n, "pages")))
 
     def one_run(self, kind: str, label: str = "") -> str:
-        """The directory of THE run of this kind, or a Refusal that LISTS the
-        labels.
-
-        Zero and several are different failures and are said differently. The
-        old shape -- one `detect/` per book -- could not have this problem and
-        could not answer "which model was that", which is the whole reason
-        the labels exist.
+        """The directory of the run of this kind, or a Refusal that lists the
+        labels. Zero and several are different failures, and are said differently.
         """
         if label:
             d = self.run_dir(kind, label)
@@ -284,29 +225,11 @@ class Book:
 
 def guard_identity(run_dir: str, identity: str, pages_spec: str = "",
                    what: str = "this run") -> None:
-    """Refuse to write a DIFFERENT experiment under an existing label.
+    """Refuse to write a different experiment under an existing label.
 
-    THE SENTENCE WAS IN TWO DOCUMENTS AND IN NO CODE. `identity` was computed
-    and written and read back by nothing, so this passed in silence:
+    A page selector is refused too, the identity being blind to one, and so is a
+    snapshot that records no identity at all -- "I cannot tell" is not "the same".
 
-        books detect <book> --out d --pages 1                      id 2b576f4e
-        LAYOUT_SCORE_THRESHOLD=0.9 books detect <book> --out d ...  id 71ffb8b2
-
-    -- a different experiment overwriting the first, under its name and beside
-    its snapshot.
-
-    AND `--pages` IS THE SECOND HALF. The identity is over the fingerprint and
-    the knobs, and a page selector is neither, so a three-page run and a
-    thirteen-page run of one model hash the same. A partial run that lands on
-    a whole one leaves a directory whose snapshot describes a run that never
-    happened over pages that are still there from the previous one. So a
-    selector is refused over an existing run outright: `--run` names a new
-    label for it, and the two stand side by side, which is the whole point of
-    labels.
-
-    A run whose snapshot carries no identity at all is refused too, not
-    assumed equal: those are the runs migrated from before identities existed,
-    and "I cannot tell" is not "the same".
     """
     import json
     snap = os.path.join(run_dir, "run.json")
@@ -346,8 +269,8 @@ def guard_identity(run_dir: str, identity: str, pages_spec: str = "",
 
 
 # ------------------------------------------------ paths a command is given ---
-# A command takes a run directory or its pages/; these say which was given and
-# refuse with a reason naming both places looked.
+# A command takes a run directory or its `pages/`; these say which was given,
+# and refuse naming both places looked.
 
 def page_files(d):
     """(how many layout pages, and if zero — why exactly)."""

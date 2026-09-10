@@ -1,32 +1,12 @@
-"""The layout detector as a contour recogniser in its own right.
+"""PP-DocLayoutV2/V3 (ONNX) straight off the graph: boxes, labels, reading order.
 
-The FIRST HALF of the first level: boxes, labels and reading order, no VLM call.
-Local, on the CPU, free -- 214 MB of weights, a couple of seconds a page. Its
-worth: contour metrics get checked on a real model's real output without
-renting a card.
+In: a page raster. Out: a `Page` with no text. Local and free, on the CPU.
 
-WHY PAST THE PADDLEX PIPELINE. By measurement, not from love of the low level.
-Its postprocessing ERASES THE READING ORDER OF EXACTLY WHAT WE CUT OUT: over
-539 pages of one book `block_order` is `null` for 683 of 683 `image`, 695 of
-695 `figure_title`, 584 of 584 `table`, 534 of 534 `number` -- and 0 of 6431
-`text`. The raw output ranks EVERY box: 1254 of 1254 over 65 pages of `bench/`.
-The order is there; it is thrown away selectively. It deletes boxes too: over
-six books (3268 pages) `image` 2660 -> 1872, `inline_formula` 15541 -> 14.
-Geometry it barely touches -- boxes match the detector's byte for byte -- so
-the stages select, they do not reshape.
-
-WHAT THESE NUMBERS CANNOT JUDGE. Those runs carried our own patch layer: the
-same directories' `job.log` lists "layout detection in twelve looks" and "text
-blocks resembling a table go for a re-ask". So the pipeline's TABLE COUNT is
-not comparable with ours -- theirs came of relabelling by our own hand, not of
-the library. Only what the patches never touched compares: reading order and
-box deletion, above.
-
-WHAT THIS MODULE MUST NOT DO. Merge boxes, cut across a gutter, re-ask, resolve
-a `{table, text}` conflict. Threshold selection is all that happens here, and
-the threshold comes from the weights. The graph's raw answer is kept WHOLE,
-before selection: otherwise the threshold, our one intervention, cannot be
-replayed without paying for a recount.
+Past the paddlex pipeline: its postprocessing erases the reading rank of exactly
+what we cut out (`block_order` null for every image, table and figure_title over
+539 pages) and deletes boxes. Nothing here merges boxes, cuts across a gutter,
+re-asks or resolves a `{table, text}` conflict; threshold selection is all that
+happens, and the graph's raw answer is kept whole before it.
 """
 import os
 
@@ -37,9 +17,7 @@ from booksmith.core import order
 from booksmith.core import stamp
 from booksmith.core.errors import WeightsMissing
 
-# Where paddlex keeps its official weights: a foreign library's convention, not
-# a setting of ours. `LAYOUT_MODEL_DIR` is empty exactly to say "take them
-# where they lie by default", and the resolved path goes into the fingerprint.
+# Where paddlex keeps its official weights: a foreign convention, not a setting of ours.
 PADDLEX_MODELS = os.path.expanduser("~/.paddlex/official_models")
 
 
@@ -55,32 +33,22 @@ def weights_dir() -> str:
 
 
 # ---------------------------------------------------------- reading order
-# ONE SEAM, HERE FOR THE BATTERY, which breaks the checked place IN MEMORY. The
-# probe "our rule displaced the model rank" needs a MODULE-level name to patch:
-# assembly order is checked by BEHAVIOUR, and tree parsing would see `.sort(`
-# and agree with any key. Its pair, "an order the model never gave is not set
-# at all", patches `order.permutation`, where the rule now lives. Of the module
-# and not the class: `setattr` puts a `staticmethod` back as a PLAIN function,
-# the call would arrive shifted by an argument, and the damage would outlive
-# the mutation (TypeError).
+# A module-level name the battery patches in memory; of the module, not the class,
+# since `setattr` puts a `staticmethod` back as a plain function.
 
 
 def has_rank(out) -> bool:
-    """Do the weights carry a READING RANK. Six columns mean they do not.
-
-    `PP-DocLayout_plus-L` had no pointer net yet -- class, score, four
-    coordinates, and that is all; V2 added it. A VALUE, not an omission, and it
-    goes into the fingerprint explicitly.
+    """Do the weights carry a reading rank. Six columns mean they do not:
+    `PP-DocLayout_plus-L` has no pointer net, V2 does. A value, not an
+    omission, and it goes into the fingerprint explicitly.
     """
     return out.shape[1] >= 7
 
 
 class DocLayout(Detector):
     """PP-DocLayoutV2 (ONNX) directly: boxes, labels, reading order.
-
-    `read()` returns a `Page` without one character of text: `content` `None`
-    on every block, `kind` `"none"`. Text is the first level's second half, a
-    separate recogniser.
+    `read()` returns a `Page` without one character of text -- `content` `None`,
+    `kind` `"none"`. Text is level two, a separate recogniser.
     """
 
     name = "doclayout-onnx"
@@ -102,27 +70,16 @@ class DocLayout(Detector):
         with open(cfg_path, encoding="utf-8") as f:
             cfg = yaml.safe_load(f)
 
-        # The label vocabulary comes from the WEIGHTS, not the pipeline yaml,
-        # whose index comments lie: `9: footer`, `13: header`, `23: text`,
-        # where in fact 9 is `footer_image`, 13 `header_image`, 23
-        # `vertical_text`. Index 21 = `table` agrees in both, which is why it
-        # went unnoticed.
+        # The vocabulary comes from the weights, not the pipeline yaml, whose comments lie.
         self.labels: list[str] = list(cfg["label_list"])
 
-        # Preprocessing comes from the weights too; not one number here is
-        # ours. `target_size` is stored as (HEIGHT, WIDTH), the way
-        # `Resize.generate_scale` reads it in PaddleDetection (`resize_h,
-        # resize_w = self.target_size`). At 800x800 the swap is invisible, so
-        # the order stays explicit and the fields are named -- otherwise the
-        # first non-square weights skew the scale while boxes stay plausible.
+        # Preprocessing comes from the weights; `target_size` is (height, width), as
+        # `Resize.generate_scale` reads it -- at 800x800 a swap would be invisible.
         rz = next(p for p in cfg["Preprocess"] if p.get("type") == "Resize")
         self.target_h, self.target_w = (int(v) for v in rz["target_size"])
         self.keep_ratio = bool(rz.get("keep_ratio", False))
         if self.keep_ratio:
-            # `read()` squeezes the raster to exactly target_h x target_w.
-            # keep_ratio would need padding, subtracted back out of the
-            # coordinates. Such weights we refuse LOUDLY -- in silence they
-            # would give plausible, shifted boxes.
+            # `read()` squeezes with no padding, so keep_ratio weights come out shifted.
             raise WeightsMissing(
                 "the weights say keep_ratio: true, while the adapter squeezes "
                 "the raster with no padding. The boxes would come out shifted "
@@ -130,10 +87,7 @@ class DocLayout(Detector):
         self.interp = int(rz.get("interp", 2))
         self.native_threshold = float(cfg.get("draw_threshold", 0.5))
 
-        # Normalization is read from the weights, not assumed. These have
-        # `norm_type: none`, mean 0, std 1 -- division by 255 and nothing else,
-        # so while that holds the difference is invisible; on the first weights
-        # with mean/std a silent assumption would give plausible wrong boxes.
+        # Normalization comes from the weights, not assumed: these divide by 255 and no more.
         nm = next((p for p in cfg["Preprocess"]
                    if p.get("type") == "NormalizeImage"), None)
         self.norm_type = (nm or {}).get("norm_type", "none")
@@ -153,28 +107,18 @@ class DocLayout(Detector):
 
     # --------------------------------------------------------- thresholds
     def thresholds(self) -> dict[str, float]:
-        """A threshold for EACH of the 25 classes, no default picked up en route.
-
-        Not a one-key dict, and that is paid for: in paddlex postprocessing a
-        threshold dict with one class silently gives the rest 0.5, so "lower
-        the table threshold" moved every class at once. We write the selection
-        here; same rule -- list them all.
-
-        `table` comes from `LAYOUT_TABLE_THRESHOLD`, the other twenty-four from
-        `LAYOUT_SCORE_THRESHOLD`. Two knobs because the table is the only class
-        whose threshold this project has already tinkered with, and that trace
-        must stay separately visible.
+        """A threshold for each class, no default picked up en route: a one-key
+        dict silently gives the rest 0.5, so every class is listed. `table` has
+        a knob of its own, being the one class already tinkered with.
         """
         common = knobs.number("LAYOUT_SCORE_THRESHOLD")
         table = knobs.number("LAYOUT_TABLE_THRESHOLD")
         return {lab: (table if lab == "table" else common) for lab in self.labels}
 
     def threshold_drift(self) -> list[str]:
-        """How the ACTING thresholds differ from the weights' native one.
-
-        The value is compared, not the registry default: the earlier version
-        checked `KNOB[...].default`, so `LAYOUT_SCORE_THRESHOLD=0.99` passed in
-        silence and the guard slept in the one case it was written for.
+        """How the acting thresholds differ from the weights' native one: the
+        value is compared, not the registry default, or a knob set to 0.99
+        would pass in silence.
         """
         out = []
         for name in ("LAYOUT_SCORE_THRESHOLD", "LAYOUT_TABLE_THRESHOLD"):
@@ -186,66 +130,22 @@ class DocLayout(Detector):
 
     # -------------------------------------------------------- fingerprint
     def model_name(self) -> str:
-        """The model name comes from the WEIGHTS (`Global.model_name`), not the knob.
-
-        `LAYOUT_MODEL_NAME` only picks the default directory (see
-        `weights_dir`); with `LAYOUT_MODEL_DIR` set it has nothing to do with
-        the weights lying there. Measured: with
-        `LAYOUT_MODEL_DIR=~/.paddlex/official_models/PP-DocLayoutV3_onnx` and
-        the knob at its default, the snapshot wrote "model: PP-DocLayoutV2"
-        beside the sha256 of V3 weights, the log "PP-DocLayoutV2 from
-        ...V3_onnx".
-
-        Nothing else catches it: V2 and V3 label vocabularies match BYTE FOR
-        BYTE (25 classes each) and native `draw_threshold` is 0.5 for both, so
-        by construction neither the policy guard (`policy.for_labels` chooses
-        by vocabulary) nor `threshold_drift` sees V3 put in for V2.
-        `PP-DocLayout_plus-L` has another vocabulary (20 classes) and a
-        differently named policy that reaches the log, so THAT substitution
-        shows without the name. The invisible pair is V2/V3.
+        """The name comes from the weights (`Global.model_name`), not the knob,
+        which only picks the default directory. V2 and V3 share a vocabulary and
+        a native threshold, so nothing else here would catch one put in for the other.
         """
         import yaml
 
         cfg_path = os.path.join(self.dir, "inference.yml")
         with open(cfg_path, encoding="utf-8") as f:
             g = yaml.safe_load(f).get("Global") or {}
-        # Weights with no name mean "not declared", not a licence to fall
-        # back on the knob: that silent substitution is what is fixed here.
+        # No name in the weights means "not declared", not a licence to use the knob.
         return g.get("model_name") or "not declared in the weights"
 
     def knobs_read(self) -> tuple[str, ...]:
-        """The knobs THIS adapter reads. Verified by grep over the file.
-
-        `knobs.knob()` is called five times over four names:
-        `LAYOUT_MODEL_DIR` and `LAYOUT_MODEL_NAME` in `weights_dir()`,
-        `LAYOUT_SCORE_THRESHOLD` and `LAYOUT_TABLE_THRESHOLD` in `thresholds()`
-        and `threshold_drift()`, `LAYOUT_MODEL_NAME` again in `fingerprint()`
-        (the "name by knob" field).
-
-        Both weights knobs are declared UNCONDITIONALLY, though `weights_dir()`
-        runs only for `DocLayout()` without a directory: a knob that acts on
-        even one path acts. The opposite caution costs more -- "this knob does
-        not concern you" on a run where it chose the weights.
-        
-        AND `ASSEMBLY_ORDER`, declared unconditionally. It acts through
-        `core.order.rule()` on every page this adapter emits without a model
-        rank of its own, and a knob that acts on even one path acts. It was
-        declared by NO adapter, so a snapshot wrote `read_by: NOBODY IN THIS
-        RUN, for_this_run: false` for a knob whose registry entry names the
-        four models it steers -- formally complete and inoperative, the exact
-        disease this contract's `knobs_read` was written against. Proved: two
-        one-page runs at `ours` and at `docling` gave DIFFERENT block orders
-        and the SAME identity.
-
-        THE PRICE, STATED: this adapter serves models that HAVE a rank (V2,
-        V3) and one that does not (plus-L), and an unconditional declaration
-        puts the knob in the identity of runs it provably did not touch --
-        every result on disk records `order_rule=model_rank`. So changing
-        `ASSEMBLY_ORDER` refuses a second V2 run under the rule
-        `core/stamp.py` calls the dangerous direction. Declared anyway, and
-        the alternative is worse: a per-model condition here is a second
-        place that knows which weights carry a rank, and the first place
-        (`has_rank`) is already read from the weights themselves.
+        """The knobs this adapter reads, verified by grep over the file. All
+        declared unconditionally, `ASSEMBLY_ORDER` included: a knob that acts on
+        even one path acts, at the price of entering identities it did not steer.
         """
         return ("LAYOUT_MODEL_NAME", "LAYOUT_MODEL_DIR",
                 "LAYOUT_SCORE_THRESHOLD", "LAYOUT_TABLE_THRESHOLD",
@@ -256,14 +156,9 @@ class DocLayout(Detector):
         return {}
 
     def label(self) -> str:
-        """From the WEIGHTS, not from `LAYOUT_MODEL_NAME`.
-
-        The knob is what was ASKED for and the weights are what answered, and
-        the whole reason `model_name()` exists is that the two diverged once.
-        Filing a run under the knob would name the directory after a request.
-        Weights that declare no name give "not declared in the weights", which
-        `safe_label` refuses -- correctly: there is nothing to name the run
-        after, and `--run` is the answer.
+        """From the weights, not from `LAYOUT_MODEL_NAME`: the knob is what was
+        asked for and the weights are what answered. Undeclared weights give a
+        name `safe_label` refuses, and `--run` is the answer.
         """
         return book.safe_label(self.model_name(), "the layout weights")
 
@@ -272,9 +167,7 @@ class DocLayout(Detector):
         return {
             "name": self.name,
             "model": self.model_name(),
-            # The knob stands beside the name from the weights NOT for
-            # decoration: their divergence IS a weights substitution, visible
-            # no other way.
+            # Beside the name from the weights: their divergence is a weights swap.
             "name_from_knob": knobs.knob("LAYOUT_MODEL_NAME"),
             "weights_dir": self.dir,
             "sha256_weights": stamp.sha256(self.onnx),
@@ -294,8 +187,7 @@ class DocLayout(Detector):
             "thresholds_by_class": self.thresholds(),
             "threshold_drift": self.threshold_drift(),
             "label_vocabulary": self.labels,
-            # Declared even when empty: an empty dict means "the model's
-            # vocabulary is the common one", and that is a VALUE.
+            # Declared even when empty: an empty dict is a value, not a gap.
             "label_map": self.label_map(),
             # The detector has no prompts at all -- also a value, not a gap.
             "prompts": {},
@@ -313,11 +205,8 @@ class DocLayout(Detector):
         h, w = img.shape[:2]
         rz = cv2.resize(img, (self.target_w, self.target_h),
                         interpolation=self.interp)
-        # BGR -> RGB: cv2 reads BGR, PaddleDetection's Decode converts to
-        # RGB. NOTHING CHECKS THIS: the synthetic bench is achromatic (`_age`
-        # greys the page), and on grey a channel swap is invisible. The order
-        # comes from foreign code, NOT from measurement -- it needs a colour
-        # page, and until then it is a convention, not a fact.
+        # BGR -> RGB, as PaddleDetection's Decode does. Nothing checks it: the
+        # bench is achromatic, and on grey a channel swap is invisible.
         x = rz[:, :, ::-1].astype(np.float32)
         if self.norm_scale:
             x /= 255.0
@@ -325,11 +214,7 @@ class DocLayout(Detector):
             x = (x - np.array(self.norm_mean, np.float32)) / np.array(
                 self.norm_std, np.float32)
         x = x.transpose(2, 0, 1)[None]
-        # The number of graph outputs is NOT fixed: PP-DocLayoutV2 has two --
-        # boxes [N,8] and a counter; PP-DocLayoutV3 three -- boxes [N,7], a
-        # counter and a reading-order relation matrix [N,200,200]. Unpacking
-        # two rigidly dropped the run on the first page of the new weights: a
-        # model update ran into one line.
+        # The number of graph outputs is not fixed: V2 gives two, V3 three.
         outs = self.sess.run(None, {
             "image": x,
             "im_shape": np.array([[float(self.target_h),
@@ -352,58 +237,21 @@ class DocLayout(Detector):
                 continue
             label = self.labels[cid]
             if score < thr[label]:
-                # The best REJECTED per class: without it "table 0" reads as
-                # "no table on the page" when it may mean "a table 0.03 below
-                # the threshold", and that one is settled by a knob.
+                # The best rejected per class: "table 0" may mean "0.03 below the threshold".
                 if score > rejected.get(label, 0.0):
                     rejected[label] = score
                 continue
             kept.append((row, label, score))
 
-        # Reading order. The graph gives eight numbers per box: class, score,
-        # four coordinates and the rank -- twice, column 6 being exactly the
-        # rounding of column 7 (checked over 6000 rows, 6000 of 6000). Either
-        # sort gives one order.
-        #
-        # `Block.order` gets the MODEL'S OWN RANK, not our sort position. That
-        # matters twice:
-        #
-        #  * ranks come with HOLES where the threshold removed a box.
-        #    Continuous numbering erased that trace, and two runs at different
-        #    thresholds gave incomparable `order` for the same box;
-        #  * ranks come TIED: 48 boxes of exactly equal rank on 18 pages of 65,
-        #    among them `{table, text}` pairs on one rectangle. We do NOT
-        #    resolve the tie -- a stable sort on the single rank leaves them as
-        #    the graph handed them over, for a declared policy one level up.
-        #    The earlier version added the LABEL as a second key, so the
-        #    alphabet resolved {table, text} on one rectangle, `table` always
-        #    before `text`, and the HTML builder took that for reading order:
-        #    exactly the decision for the model we promised not to make.
+        # `Block.order` is the model's own rank, not our sort position: the ranks
+        # come with holes where the threshold removed a box, and come tied -- a tie
+        # is left as the graph handed it over rather than resolved by us.
         which = None if self.has_order else order.rule()
         if self.has_order:
             kept.sort(key=lambda t: float(t[0][6]))
         else:
-            # THE MODEL GIVES NO RANK -- THEN THE ORDER IS OURS, AND
-            # DECLARED. Nothing stood here, and boxes went into the book as the
-            # graph handed them over after duplicate suppression: BY DESCENDING
-            # CONFIDENCE. Measured (plus-L, 200 pages of `bench/annopage`, 3354
-            # adjacent box pairs): descending confidence 100.0% of pairs, "top
-            # down and left to right" about half -- a coin. The exact figure is
-            # NOT REPEATED HERE on purpose: it lived in four copies and drifted
-            # (50.4 against 50.1); it is stated once, in section 18 of
-            # `METRICS.md`. `meta` said "ours, position in the list"
-            # -- honest, but a list position is an accident, not a rule, and
-            # the book was assembled by it.
-            #
-            # We fix not the model's boxes but the order the model never gave:
-            # ours by definition, so a DECLARED rule. IT LIVES IN `order.py`,
-            # ONE FOR THE PROJECT, chosen by `ASSEMBLY_ORDER`. `our_order_key`
-            # stood here -- first of FOUR copies across three adapters, two of
-            # which sorted by a key other than the one they declared -- and the
-            # choice between it and the graph order was UNSETTLED. Measurement
-            # settled it, and both lost to a third: on the same V2 boxes our
-            # rule gives 2471 extra jumps, the model rank 501, docling's rules
-            # 439, ours worse than both at all 16 sweep points (`order.py`).
+            # No model rank, so the order is ours and declared: the rule lives in
+            # `order.py`, one for the project, chosen by `ASSEMBLY_ORDER`.
             names = [_l for _r, _l, _s in kept]
             order.cover(self.labels, which)
             perm = order.permutation(
@@ -411,9 +259,7 @@ class DocLayout(Detector):
                         for r, _l, _s in kept],
                 w, h, index, self.labels, which)
             kept = [kept[i] for i in perm]
-        # No model rank -- then `order` is our sort position, and the
-        # fingerprint says so: calling it a rank would credit the model with an
-        # order it never gave.
+        # With no model rank `order` is our sort position, and the fingerprint says so.
         ranks = ([int(round(float(r[6]))) for r, _l, _s in kept]
                  if self.has_order else list(range(len(kept))))
         ties = len(ranks) - len(set(ranks))
@@ -425,48 +271,18 @@ class DocLayout(Detector):
 
         return Page(
             index=index, width=w, height=h, dpi=dpi, blocks=blocks,
-            # The graph's answer WHOLE, before selection -- the module
-            # header says why the evidence cannot be thrown away.
+            # The graph's answer whole, before selection: the threshold must replay.
             raw={"output_rows": int(out.shape[0]),
                  "columns": int(out.shape[1]),
                  "graph_outputs": len(outs),
                  "all_rows": [[float(v) for v in r] for r in out]},
-            # NO `raster` PATH HERE. It named the scratch PNG the page was
-            # rendered to -- a file deleted at the end of the run, under a
-            # machine-local absolute path, baked into every page of every
-            # book. Nothing read it, and it made two runs of ONE model
-            # byte-different when the run directory moved: 13 of 13 slovar
-            # pages differed on it alone and were identical without it. The
-            # facts worth keeping are the dpi and the size, and `Page`
-            # carries both.
+            # No `raster` path: a machine-local scratch name makes identical runs differ.
             meta={"detector": self.name,
                   "boxes_accepted": len(kept),
                   "rank_ties": ties,
-                  # WHOSE ORDER THIS IS -- told to the METRIC, not only to
-                  # the snapshot: `metrics._model_has_rank` reads the PAGE's
-                  # `meta`, not the fingerprint, and without the field defaults
-                  # to "model rank". The six-column build (PP-DocLayout_plus-L;
-                  # weights beside V2, switched on by LAYOUT_MODEL_DIR) has no
-                  # rank at all, `order` is our numbering of graph rows, and on
-                  # the stored plus-L runs the metric printed "agreed"
-                  # 29/36/41/44/46/44 % over six benches instead of "NOT
-                  # COMPARED" -- a zero from misunderstanding dressed as a
-                  # percentage, and a low one: it reads as "the model reads the
-                  # page in the wrong order".
-                  #
-                  # The battery showed it was noise: the probe "reading order
-                  # reversed: it fell" answered NO on those same six runs,
-                  # because reversing OUR numbering raised agreement to
-                  # 71/64/59/56/54/56 % -- wobbling around half. With this line
-                  # the probe prints "no data", and uncaught mutations on
-                  # plus-L fell by one in each of the six runs; on the nine V2
-                  # benches (real ranks) it was 0 and stayed 0.
-                  #
-                  # THE WORD `ours` MUST COME FIRST: that prefix is the whole
-                  # signal by which the guard knows our order
-                  # (`core/page.ours_order`, one place for the project). Case
-                  # it strips deliberately, so lower case is convention, not
-                  # condition. Changing these words, keep `ours` first.
+                  # Whose order this is: `metrics._model_has_rank` reads the page `meta`,
+                  # not the fingerprint, and defaults to "model rank" without it.
+                  # `ours` must come first -- `core/page.ours_order` keys on that prefix.
                   "reading_order": (order.declare("model") if self.has_order else
                                      order.declare("ours", order.WORDS[which]
                                                    + ": the model gives no rank")),

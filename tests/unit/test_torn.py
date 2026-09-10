@@ -1,23 +1,11 @@
 """A truncated answer reaches the book, and an impossible shape is named.
 
-WHY THIS FILE EXISTS -- measured, not feared. `books read` counts five zeroes
-apart and says them aloud: the reading snapshot of "Технология огнеупоров"
-carries "hit the ceiling: 14" and lists all fourteen anchors. Past `read/` the
-knowledge vanished: `grep` found neither `finish` nor "truncated" anywhere
-else. All fourteen went into the book (118 471 characters, 12.95 % of
-everything read), none looking torn.
-
-WHY THE FIVE GUARDS OF `books apply` WERE NOT ENOUGH. A truncated fragment
-carries no foreign markers, is not empty, declares its kind, leaves the anchor
-set alone and holds no unfinished comment -- it passes all five. The worst,
-`p0055-b11`, is a 4x4 table on the scan and a `<table>` with 2047 `<td>` in
-ONE row in the book: that row alone holds 36 % of the cells in the book.
-
-AND WHY THE TEARING COUNTERS MISS IT. For `p0055-b11` they are all clean --
-0 continuations to nowhere, 0 rows of unequal length, 0 text outside tags.
-Not because the table is whole, but because the answer holds no `<nl>` at
-all: no rows to compare, nowhere for a continuation to go. A zero from not
-understanding, taken for a zero from checking. So `torn_grid` looks at SHAPE.
+A truncated fragment carries no foreign markers, is not empty, declares its
+kind, leaves the anchor set alone and holds no unfinished comment, so all five
+guards of `books apply` pass it. The tearing counters miss it too: an answer cut
+before its first `<nl>` has no rows to compare and nowhere for a continuation to
+go, which is a zero from not understanding rather than from checking. So
+`torn_grid` looks at shape, and the reason a block is empty travels with it.
 """
 import json
 import os
@@ -31,9 +19,7 @@ def test_torn_grid_catches_the_shape_no_tearing_counter_can_see():
     """A one-row and a one-column table are named; a real one stays silent."""
     # The very `p0055-b11`: 2047 cells in one row, tearing counters clean.
     assert "2047" in (H.torn_grid({"rows": 1, "grid_cells": 2047}) or "")
-    # And the mirror case -- `p0166-b2` of the real book: 7 rows in one
-    # column, `finish=stop`, every tearing counter clean. No instrument in
-    # the project found it before this rule.
+    # And the mirror case: 7 rows in one column, every tearing counter clean.
     assert "7" in (H.torn_grid({"rows": 7, "grid_cells": 7}) or "")
     # A real table of the book (`p0005-b2`) -- silent.
     assert H.torn_grid({"rows": 9, "grid_cells": 63}) is None
@@ -49,10 +35,8 @@ def test_torn_grid_zero_from_absence_is_not_zero_from_checking():
     assert H.torn_grid({"rows": 1, "grid_cells": 3}) is None
     # 1x4 is not, and the border is named by a number, not by eye.
     assert H.torn_grid({"rows": 1, "grid_cells": 4}) is not None
-    # THE SAME FROM THE OTHER SIDE. Without this pair nothing held the column
-    # threshold: the mutation `rows > 3 -> rows > 1` went through the battery
-    # unnoticed, because no check ever fed it a legal single column.
-    # Three cells in a column are legal (row labels without data).
+    # The same from the other side: without this pair nothing holds the column
+    # threshold. Three cells in a column are legal (row labels without data).
     assert H.torn_grid({"rows": 2, "grid_cells": 2}) is None
     assert H.torn_grid({"rows": 3, "grid_cells": 3}) is None
     # Four are not.
@@ -60,10 +44,9 @@ def test_torn_grid_zero_from_absence_is_not_zero_from_checking():
 
 
 def test_torn_grid_falls_on_deliberately_broken_input():
-    """The rule must be able to fail: feed it something knowingly broken.
-
-    A real grid of the book with its rows taken away (hitting the ceiling
-    cuts the answer before the first `<nl>`) must stop being legal."""
+    """The rule must be able to fail: a real grid of the book with its rows taken
+    away -- hitting the ceiling cuts the answer before the first `<nl>` -- must
+    stop being legal."""
     whole = {"rows": 9, "grid_cells": 63}
     assert H.torn_grid(whole) is None
     damaged = dict(whole, rows=1)
@@ -102,18 +85,16 @@ def test_observed_carries_the_reason_the_block_is_bad():
 
 
 def test_no_answers_is_silence_not_a_clean_bill():
-    """No `answers/` gives EMPTY, and the build must say so in words rather
-    than print "truncated 0" -- the trouble the project rule about two zeroes
-    is made of: "chapters 0" meant "I did not recognise them"."""
+    """No `answers/` gives empty, and the build must say so in words rather than
+    print "truncated 0", which is the second of the two zeros."""
     import tempfile
     with tempfile.TemporaryDirectory() as tmp:
         assert H.observed(tmp) == {}
 
 
 def test_broken_answers_file_does_not_silently_erase_the_others():
-    """One unreadable `answers/` file does not take its neighbours with it.
-
-    Losing the observed silently is the same as never collecting it, but it
+    """One unreadable `answers/` file does not take its neighbours with it:
+    losing the observed silently is the same as never collecting it, but it
     looks like a healthy run."""
     import tempfile
     with tempfile.TemporaryDirectory() as tmp:
@@ -129,15 +110,9 @@ def test_broken_answers_file_does_not_silently_erase_the_others():
 # ----------------------------- second half: the swap inside the book ---
 
 def test_the_mark_survives_the_replacement():
-    """The `books apply` wrapper CARRIES the truncation mark, not strips it.
-
-    The build marks 14 truncated blocks; `books apply` puts its own `<div>`
-    over four of them -- and the book was left with 10 marks of 14. The four
-    lost were exactly those that reached the reader as markup: a torn table,
-    formula and chart. Half the rule lived in `html.py` and was held by
-    checks, half in `apply.py` and was not: deleting two lines of
-    `_wrap_fragment` reddened none of the 217 checks.
-    """
+    """The `books apply` wrapper carries the truncation mark, not strips it: half
+    the rule lives in `html.py` and half in `apply.py`, and the blocks that reach
+    the reader as markup are exactly the ones that lose their mark."""
     from booksmith.processing.assemble import apply as ap
     intact = ap._wrap_fragment("p1-b0", "<fcel>a<fcel>b<nl>", "otsl",
                                "a probe", torn=False)
@@ -148,25 +123,17 @@ def test_the_mark_survives_the_replacement():
 
 
 def test_unknown_is_not_whole():
-    """`torn=None` means "not asked"; "whole" does not follow from it.
-
-    A single swap (`--anchor … --file …`) has nothing observed beside it.
-    Silence is right; lying was easy either way -- mark by default, or
-    declare the block whole.
-    """
+    """`torn=None` means "not asked"; "whole" does not follow from it. A single
+    swap has nothing observed beside it, and silence is the right answer."""
     from booksmith.processing.assemble import apply as ap
     nothing = ap._wrap_fragment("p1-b0", "<fcel>a<nl>", "otsl", "by hand")
     assert "data-truncated" not in nothing, nothing
 
 
 def test_the_torn_field_tells_three_states_apart():
-    """"Truncated", "read to the end" and "not asked" are three values.
-
-    Measured: of 6156 blocks 14 are truncated, 6073 were read to the end, and
-    69 (pictures) were never asked -- their route is empty with a declared
-    reason. The field printed the same `False` for the last two, merging the
-    two zeroes it exists to keep apart. An empty `outcome` separates them.
-    """
+    """"Truncated", "read to the end" and "not asked" are three values: printing
+    the same `False` for the last two merges the zeroes the field exists to keep
+    apart. An empty `outcome` separates them."""
     import tempfile
     with tempfile.TemporaryDirectory() as tmp:
         _answers(tmp, [
@@ -177,9 +144,8 @@ def test_the_torn_field_tells_three_states_apart():
             {"anchor": "p0001-b2", "outcome": None, "observed": {}},
         ])
         o = H.observed(tmp)
-        # Call the RULE instead of repeating it here: a check that restates
-        # what it checks is a tautology and lets mutations through. It did --
-        # the mutation "not asked counts as read" passed the first edition.
+        # Call the rule instead of repeating it here: a check that restates what
+        # it checks is a tautology and lets mutations through.
         state = {a: H.torn_of(v) for a, v in o.items()}
         assert state == {"p0001-b0": True, "p0001-b1": False,
                              "p0001-b2": None}, state
@@ -187,12 +153,10 @@ def test_the_torn_field_tells_three_states_apart():
         assert H.torn_of(None) is None and H.torn_of({}) is None
 
 
-# ---------------- swap quantities: nothing caught their regression ---
+# ---------------- swap quantities: the bench on which each can fail ---
 #
-# The acceptance pass ran seven mutations against all 225 checks and showed
-# the new counters closed BY FORM ONLY: the quantity exists, break it and
-# nobody reddens -- the state in which "104 tables at colspan 0" lived a whole
-# run. Below is the bench on which each of them can fail.
+# A counter can exist and be closed by form only: break it and nobody reddens.
+# The cases below are chosen so that each quantity moves on its own.
 
 def _bench(tmp, chunks, cut=()):
     """A book of N blocks, a reading directory and the observed beside it."""
@@ -225,19 +189,15 @@ def _bench(tmp, chunks, cut=()):
 
 
 def test_bulk_counts_spans_declared_and_placed():
-    """Merges are TWO quantities, and the gap between them is visible.
-
-    Without both, a regression back into repeated cells is invisible in the
-    log.
-    """
+    """Merges are two quantities, and the gap between them is visible: without
+    both, a regression back into repeated cells is invisible in the log."""
     import tempfile
     from booksmith.processing.assemble import apply as ap
     with tempfile.TemporaryDirectory() as tmp:
         _bench(tmp, ["<fcel>h<lcel><nl><fcel>1<fcel>2<nl>",     # 1 merge
                      "<fcel>a<fcel>b<nl><fcel>1<fcel>2<nl>",    # no merges
-                     # NON-RECTANGULAR: 1 declared, and it cannot be
-                     # placed -- without this case the two numbers agree
-                     # and could have been equated unnoticed.
+                     # Non-rectangular: 1 declared and it cannot be placed --
+                     # without this case the two numbers agree.
                      "<fcel>h<lcel><nl><fcel>v<ucel><nl>"])
         t = ap.from_read(tmp, os.path.join(tmp, "read"), log=lambda *_: None)
         assert t["merges_declared"] == 2, t
@@ -249,12 +209,9 @@ def test_bulk_counts_spans_declared_and_placed():
 
 
 def test_bulk_counts_the_impossible_shape_of_the_book_not_of_the_run():
-    """The shape is counted over the BOOK: a repeat run prints the same.
-
-    The count moved twice and lied twice: among the newly placed (zero on an
-    assembled book holding two impossible tables), and at the top of the loop
-    (counting blocks the guards refused to place).
-    """
+    """The shape is counted over the book: a repeat run prints the same. Counted
+    among the newly placed it reads zero on an assembled book, and counted at the
+    top of the loop it includes blocks the guards refused to place."""
     import tempfile
     from booksmith.processing.assemble import apply as ap
     with tempfile.TemporaryDirectory() as tmp:
@@ -288,12 +245,9 @@ def test_bulk_marks_the_torn_block_in_the_book():
 
 
 def test_bulk_names_the_rewrap_apart_from_new_work():
-    """"Rewrapped" is held apart from "placed".
-
-    Changing OUR wrapper is a real swap and joins the undo stack, but it is
-    not work: the model bytes are the same. So the sha compared is of the
-    MODEL ANSWER, not of the finished body, which differs by the wrapper.
-    """
+    """"Rewrapped" is held apart from "placed": changing our wrapper is a real
+    swap and joins the undo stack, but the model bytes are the same, so the sha
+    compared is of the model answer and not of the finished body."""
     import tempfile
     from booksmith.processing.assemble import apply as ap
     with tempfile.TemporaryDirectory() as tmp:
@@ -301,9 +255,8 @@ def test_bulk_names_the_rewrap_apart_from_new_work():
         t1 = ap.from_read(tmp, os.path.join(tmp, "read"), log=lambda *_: None)
         assert t1["placed"] == 1 and t1["rewrapped"] == 0, (
             "the first swap is real work, not a re-wrap")
-        # A REAL REWRAP: same model bytes, a different wrapper. This is how a
-        # book assembled by an older edition of the code looks after a new
-        # `apply`: on the refractories book, 63 blocks of 412.
+        # A real rewrap: the same model bytes, a different wrapper -- how a book
+        # assembled by an older edition looks after a new `apply`.
         was = ap._wrap_fragment
 
         def other_wrapper(anchor, fragment, kind, source, role="unknown",
@@ -325,10 +278,9 @@ def test_bulk_names_the_rewrap_apart_from_new_work():
         # bytes do not -- work AND a rewrap.
         t3 = ap.from_read(tmp, os.path.join(tmp, "read"), log=lambda *_: None)
         assert t3["rewrapped"] == t3["placed"] == 1, t3
-        # THE LAST STACK STEP IS COMPARED, NOT THE FIRST. Someone fixed the
-        # block by hand -- putting the model answer back is WORK, though the
-        # first step of the stack holds the same bytes. Without this case both
-        # comparisons answer alike and `[-1]` -> `[0]` passes unnoticed.
+        # The last stack step is compared, not the first: putting the model
+        # answer back over a hand edit is work, though the first step of the
+        # stack holds the same bytes.
         ap.put(tmp, "p0000-b0", "<fcel>by hand<nl>", kind="otsl",
                source="a person", log=lambda *_: None)
         t4 = ap.from_read(tmp, os.path.join(tmp, "read"), log=lambda *_: None)
@@ -340,12 +292,9 @@ def test_bulk_names_the_rewrap_apart_from_new_work():
 
 
 def test_a_refused_block_is_not_counted_as_being_in_the_book():
-    """A block the guards refused never enters the numbers OF THE BOOK.
-
-    The shape count once stood before the guards and told of the book what is
-    not in it. The refusal here is real: a foreign block marker inside the
-    fragment, caught by `_check_fragment`.
-    """
+    """A block the guards refused never enters the numbers of the book. The
+    refusal here is real: a foreign block marker inside the fragment, caught by
+    `_check_fragment`."""
     import tempfile
     from booksmith.processing.assemble import apply as ap
     with tempfile.TemporaryDirectory() as tmp:
@@ -361,14 +310,9 @@ def test_a_refused_block_is_not_counted_as_being_in_the_book():
 
 
 def test_the_caption_names_which_zero_it_was():
-    """The caption of an empty block names the REASON, not "not read".
-
-    Measured: `p0024-b23` (a binding-shadow strip, 12x408 px) carries
-    `outcome: stop`, `error: null` and empty text in `answers/` -- the model
-    ANSWERED WITH NOTHING. The book said "not read", read as "we never read
-    it". The five zeroes of `books read` collapsed into one, and the one that
-    spoke was lying.
-    """
+    """The caption of an empty block names the reason, not "not read": a model
+    that answered with nothing is not a block nobody asked about, and the five
+    zeroes of `books read` must not collapse into one."""
     stayed_silent = H.why_empty({"outcome": "stop", "error": None})
     not_asked = H.why_empty({"outcome": None, "error": None})
     refusal = H.why_empty({"outcome": None, "error": "timeout"})

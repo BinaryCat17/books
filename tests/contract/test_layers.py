@@ -25,11 +25,8 @@ def _module(path, root, name):
 
 def _resolve(node, pkg, name, known):
     """The modules an import statement names, against the tree in `known`.
-
     `from X import a, b` names `X.a` when that is a module of the tree, else
-    `X`: the layer rule cares which PACKAGE is touched, and a function
-    imported from a package touches that package.
-    """
+    `X`: a function imported from a package touches that package."""
     if isinstance(node, ast.Import):
         return [a.name for a in node.names if a.name.split(".")[0] == name]
     if node.level == 0:
@@ -82,9 +79,7 @@ def _top(mod, name):
 
 
 def violations(root=PKG, name=NAME):
-    """Every import that crosses a layer the wrong way, one line each.
-
-    """
+    """Every import that crosses a layer the wrong way, one line each."""
     bad = []
     for importer, imported, line in edges(root, name):
         a, b = _top(importer, name), _top(imported, name)
@@ -150,11 +145,7 @@ def test_a_planted_upward_import_is_named():
 
 
 def test_an_import_of_the_command_line_from_below_is_named():
-    """`cli` may reach every package; no package may reach `cli`.
-
-    An exemption stood here for the modules the plan had not placed. It faced
-    the imported side, so `core` importing one of them passed.
-    """
+    """`cli` may reach every package; no package may reach `cli`."""
     with tempfile.TemporaryDirectory() as tmp:
         root = _plant(tmp, {
             "__init__.py": "",
@@ -187,10 +178,9 @@ def test_relative_imports_resolve_by_depth():
 
 
 def test_the_root_package_imports_nothing():
-    """`import booksmith` is invisible to the resolver (the root has no top
-    package), so the root must stay empty of imports: `stamp.commit` does
-    exactly that import to find the package on disk, and a root that pulled
-    in, say, the renting client would make every command import it."""
+    """`import booksmith` is invisible to the resolver, so the root must stay
+    empty of imports: `stamp.commit` does that import to find the package on
+    disk, and a root pulling in the renting client would burden every command."""
     src = open(os.path.join(PKG, "__init__.py"), encoding="utf-8").read()
     tree = ast.parse(src)
     bad = [n.lineno for n in ast.walk(tree) if isinstance(n, (ast.Import, ast.ImportFrom))]

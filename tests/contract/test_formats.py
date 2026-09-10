@@ -1,23 +1,12 @@
 """The names the code walks by must exist in the data on disk, in quantity.
 
-The suite otherwise runs on fixtures built by the code under test, so it is
-blind by construction to the code and the data on disk drifting apart -- and
-that drift is the failure mode of every rename. Four renames would have been
-silent: the reading-order key, the text-marked flag, the knob keys, the
-out-of-scope list; the runner and the batteries stayed byte-identical while
-whole lines left the reports and 350 excluded boxes were charged to a model.
-
-The shape of the guard is what makes it work: the key NAME comes from the code
-below, the COUNT comes off the disk. Both from one side and it travels with the
-code; split, it goes red in both directions.
-
-    code renamed, data untouched -> the declared name is missing from disk
-    data renamed, code untouched -> the declared name is below its floor
-
-The floors are measured, not guessed, and they are floors rather than exact
-counts so that adding a bench does not redden them. They were counted on
-TRACKED files only: `processed/` and the synthetic benches are absent from git,
-and a guard that needs them cannot run on a fresh clone.
+The rest of the suite runs on fixtures built by the code under test, so it is
+blind to code and data drifting apart -- the failure mode of every rename. The
+key name comes from the code below, the count off the disk, so a rename on
+either side goes red: a missing name means the code moved, a count under the
+floor means the data did. The floors are measured, and are floors rather than
+exact counts so that adding a bench does not redden them; they were counted on
+tracked files only, `processed/` and the synthetic benches being absent from git.
 """
 import collections
 import glob
@@ -31,11 +20,8 @@ from booksmith.core.config import ROOT
 
 class Format:
     """One on-disk format: where its files are, and what must be inside them.
-
-    `floors` is `key -> smallest number of occurrences seen across every
-    tracked file of this format`. A key present here and absent from the data
-    is the loudest thing this file can say.
-    """
+    `floors` is `key -> smallest number of occurrences over the tracked files`;
+    a declared key absent from the data is the loudest thing this file says."""
 
     def __init__(self, name, pattern, floors):
         self.name = name
@@ -65,30 +51,24 @@ FORMATS = (
          "set_externally": 444, "name": 24, "prompts": 24, "by_label": 24,
          "when": 12, "raster": 12, "commit": 12, "source": 12, "args": 12}),
     # All thirteen bench manifests are tracked. `source` is the one key that
-    # says WHICH file a truth directory and a run are about; a floor is only a
-    # floor at the value it is measured at, and this one moved with the three
-    # real scans becoming books of their own.
+    # says which file a truth directory and a run are about.
     Format(
         "manifest", "bench/*/manifest.json",
         {"book": 147, "value": 216, "default": 216, "what": 216,
          "debt": 216, "set_externally": 216, "page_no": 130, "chars": 99,
          "char_truth": 99, "blocks_with_text": 99, "cell_count": 99,
          "source": 11}),
-    # `METRICS.md` is rendered from these and from nothing else, so they are
-    # the evidence for every published number. The floors are 1 because a clone
-    # may hold one file or fifty; what they guard is the NAMES. `kind` is
-    # missing on purpose -- no TRACKED result carries it yet, and it is the
-    # field that decides whether a run is published at all.
+    # `METRICS.md` is rendered from these and nothing else. The floors are 1
+    # because a clone may hold one file or fifty; what they guard is the names.
+    # `kind` is absent on purpose: no tracked result carries it yet.
     Format(
         "results", "results/*.json",
         {"records": 1, "commit": 1, "when": 1, "metric": 1, "bench": 1,
          "run": 1, "scalars": 1, "params": 1, "value": 1}),
 )
 
-# THE BOOK IS A FORMAT TOO. `books html` writes these names and `books apply`
-# parses the book back out with selectors over them, so renaming one in the
-# code leaves every check green while the only book on disk carries the old
-# names and can never be found again.
+# The book is a format too: `books html` writes these names and `books apply`
+# parses the book back out with selectors over them.
 HTML_ATTRS = (
     "data-no-text", "data-kind", "data-inside", "data-image-share",
     "data-truncated", "data-repeat", "data-repeat-text", "data-empty",
@@ -96,18 +76,13 @@ HTML_ATTRS = (
     "data-furniture-only", "data-level", "data-table-shape",
     "data-placed-by", "data-label",
 )
-# The class names. Declared and then guarded by nothing, this line drifted
-# exactly as predicted: it named the pre-migration word while the builder
-# emitted `sheet`.
+# The class names the builder emits.
 HTML_CLASSES = ("sheet",)
-# The four EVERY built book must carry, whatever is on its pages: a page
-# marker, a block role, a model label and a nesting level. The other thirteen
-# are conditional and cannot be required of a particular book.
+# The four every built book must carry, whatever is on its pages; the other
+# thirteen are conditional and cannot be required of a particular book.
 HTML_CORE = ("data-role", "data-label", "data-sheet", "data-level")
 
-# What `reading_order` was called before the rename. It used to be looked up in
-# a 562-entry key map kept alive for this one line; the map went with the
-# migration that used it, and the string is typed here.
+# The two modules that write the book and parse it back out.
 BUILDER = ("processing/assemble/html.py", "processing/assemble/apply.py")
 
 
@@ -199,9 +174,8 @@ def test_the_floors_are_not_all_zero():
 
 
 def test_the_declaration_reaches_the_files_it_names():
-    """A dead glob is a silent zero: the first draft matched half the tracked
-    dots pages, because half of them live one directory deeper, and half a
-    floor is worse than none -- it looks measured."""
+    """A dead glob is a silent zero, and half a floor is worse than none: it
+    looks measured."""
     for fmt in FORMATS:
         files = fmt.files()
         assert files, f"{fmt.name}: pattern {fmt.pattern} matches nothing"
@@ -212,8 +186,7 @@ def test_the_declaration_reaches_the_files_it_names():
 
 
 def test_the_builder_emits_every_declared_attribute():
-    """The code side of the book format, which nothing read while the class
-    name in it went stale."""
+    """The code side of the book format: every declared name is emitted."""
     src = ""
     for rel in BUILDER:
         with open(os.path.join(ROOT, "src", "booksmith", rel),

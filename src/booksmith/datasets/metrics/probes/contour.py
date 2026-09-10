@@ -1,10 +1,9 @@
 """Probes of the contour metric: spoil the boxes, the labels, truth, thresholds.
 
-Each probe corrupts EXACTLY ONE thing. Two at once cannot tell a live figure
-from one stuck to its neighbour: moved together with the others, `COVER_MATCH`
-never fired while the battery reported "fell" nine runs in a row. A probe with
-nothing to grip on this book is NOT a failure but "no data" -- "no more merges"
-on a book with one artefact per page says nothing about the metric.
+Each probe corrupts EXACTLY ONE thing: two at once cannot tell a live figure
+from one stuck to its neighbour. A probe with nothing to grip on this book is
+NOT a failure but "no data" -- "no more merges" on a book with one artefact per
+page says nothing about the metric.
 """
 from booksmith.core import policy
 from booksmith.datasets.metrics import contour as m
@@ -95,10 +94,9 @@ def probes(bench, run) -> list:
     T = m._load(bench.truth_dir, "truth")
     M = m._load(run.pages_dir, "model boxes")
     arte = set(policy.artefacts())
-    # The label for the "rename one class" probe comes FROM THE DATA: `table`
-    # in one vocabulary, `Table` in another, and a hard-coded name gave a false
-    # "NO" on three detectors of six. SORTED before `max`, or a tie is broken
-    # by hash order and the probe names a different label in every process.
+    # The label for the "rename one class" probe comes from the DATA: a
+    # hard-coded name is a different vocabulary's. Sorted before `max`, or a tie
+    # goes by hash order and the probe names another label in every process.
     m_arte = [b["label"] for p in M.values() for b in p["blocks"]
               if b["label"] in arte]
     pick = max(sorted(set(m_arte)), key=m_arte.count) if m_arte else None
@@ -113,8 +111,7 @@ def probes(bench, run) -> list:
     plain = max(sorted(set(m_txt)), key=m_txt.count) if m_txt else None
     base = m.compare_pages(T, M)
     b_found = base["totals"]["share"]
-    # `agreement` is lawfully None where order is not annotated, and must not be
-    # multiplied by a hundred: that killed the whole battery on the golden bench.
+    # `agreement` is lawfully None where order is not annotated.
     b_ord = base["model_order"]["agreement"]
     # The ASSEMBLY order is the second quantity and needs probes of its own: it
     # is the one that reaches the book.
@@ -149,12 +146,8 @@ def probes(bench, run) -> list:
 
     def mergeable():
         """Will a merged model box really cover more than one TRUTH artefact.
-
         The guard looks at BOTH inputs: the damage edits model output while the
-        trouble is counted against truth. Asking truth alone declared the probe
-        applicable where nothing could be measured -- 3 false verdicts over 33
-        truth/detector pairs. The threshold is `eaten`'s.
-        """
+        trouble is counted against truth. The threshold is `eaten`'s."""
         for i, t in T.items():
             mb = [b["box"] for b in M[i]["blocks"] if b["label"] in arte]
             if len(mb) < 2:
@@ -192,10 +185,9 @@ def probes(bench, run) -> list:
         return False
 
     def _mixable():
-        """Does shuffling the columns change anything at all: on a page where
-        the model already deals blocks round robin the damage is empty. The
-        guard looks at the BLOCK ORDER, not at the quantity, so it cannot cover
-        a dead metric."""
+        """Does shuffling the columns change anything at all: on a page already
+        dealt round robin the damage is empty. The guard looks at the BLOCK
+        ORDER, not at the quantity, so it cannot cover a dead metric."""
         mixed = m._mix_columns(M)
         return any([b["box"] for b in m._columns_of(mixed[i])[0]]
                    != [b["box"] for b in m._columns_of(p)[0]]
@@ -223,13 +215,9 @@ def probes(bench, run) -> list:
                 f"softer {c_lo * 100:.0f}%")
 
     def not_dead():
-        """TWO QUESTIONS, AND ONE PROBE MUST NOT ASK BOTH. Monotony is a
-        property of the METRIC and holds on any book; "is the threshold dead" is
-        a property of the BOOK -- where every matched pair lies far from the
-        border there is nothing to move. Predicting that is no more accurate
-        than the metric itself, so nothing moved either way prints "no data".
-        An inert threshold cannot hide there: it would say so on every book.
-        """
+        """Monotony is a property of the METRIC and holds on any book, while "is
+        the threshold dead" is a property of the BOOK, so nothing moved prints
+        "no data" -- an inert threshold would say so on every book."""
         hi, lo = min(0.95, keep_c + 0.15), max(0.05, keep_c - 0.35)
         moved = (at(cover=hi)["totals"]["share"] < b_found
                  or at(cover=lo)["totals"]["share"] > b_found)
@@ -250,12 +238,9 @@ def probes(bench, run) -> list:
                 f"{keep_c:.2f}")
 
     def tiny_shift():
-        """Small damage must NOT be caught, and the tolerance is COMPUTED, not
-        decreed: a pair sitting on the cover border tips on a three-pixel shift
-        because the data is on the edge, not because the metric shakes. A shift
-        of d pixels changes two-sided cover by at most d/width + d/height, so a
-        pair with less headroom tips BY CONSTRUCTION.
-        """
+        """Small damage must NOT be caught, and the tolerance is computed, not
+        decreed: a shift of d pixels changes two-sided cover by at most
+        d/width + d/height, so a pair with less headroom tips by construction."""
         d = 3.0
         tiny = found(_shift(M, d, d))
         n = base["totals"]["artifacts"]
@@ -281,13 +266,9 @@ def probes(bench, run) -> list:
                 f"many pairs sit right on the cover border")
 
     def ranking_stable():
-        """SPREAD ALONE DOES NOT FORBID THE QUANTITY: moving all variants
-        together, the choice between them holds. What forbids it is variants
-        swapping places -- then the sign of a difference rests on our grouping
-        parameters and not on the data, and choosing a model or an assembly rule
-        by this quantity is forbidden. The variants are refolded at every point,
-        because a floor folded at one point is no floor at another.
-        """
+        """Spread alone does not forbid the quantity; variants swapping places
+        does, the sign of a difference then resting on our grouping parameters.
+        The variants are refolded at every point."""
         rk = m.column_jumps_ranking(m._order_variants(M))
         return (rk["stable"],
                 f"{rk['variants']} variants, {rk['pairs']} pairs over "
@@ -308,9 +289,8 @@ def probes(bench, run) -> list:
          lambda: found(_grow(M, 0.6)) < b_found),
         ("artefacts dropped altogether", "zero",
          lambda: found(_only(M, lambda b: b["label"] not in arte)) == 0.0),
-        # A TEXT label of the same vocabulary, not an invented one: an invented
-        # one breaks the diagnosis, so the probe would fail with someone else's
-        # error instead of its answer.
+        # A text label of the same vocabulary: an invented one breaks the
+        # diagnosis, and the probe would fail with someone else's error.
         (f"artefacts called {plain}", "zero",
          lambda: None if not plain
                  else found(_relabel(M, lambda l: plain if l in arte else l)) == 0.0),
@@ -336,9 +316,8 @@ def probes(bench, run) -> list:
         ("all boxes into one column", "excess jumps zero",
          lambda: None if not b_jump
                  else R(m._one_column(M))["jumps"]["excess_jumps"] == 0),
-        # TWO ZEROS, A PROBE FOR EACH. The one above demands the quantity fall
-        # to zero where it is computed; this one demands NO QUANTITY AT ALL on a
-        # one-box page, where a zero would lie "assembly runs straight through".
+        # Two zeros, a probe for each: the one above demands the quantity fall
+        # to zero, this one that there be no quantity at all on a one-box page.
         ("a page with one counted box", "the quantity is a DASH, not a zero",
          one_box_dash),
         # --- damage aimed at the NAMED counters
@@ -347,10 +326,9 @@ def probes(bench, run) -> list:
                  else _beds(R(_merge_all(M, arte)), "merge") > b_merge),
         ("every artefact cut in half", "more fragmentations",
          lambda: _beds(R(_split_all(M, arte)), "fragmentation") > b_split),
-        # A nested box has TWO names, each needing its probe: a copy of a scored
-        # box is a duplicate, a half whose artefact is no longer found is
-        # "inside a miss" with no original. One damage lifting both could not
-        # tell a live counter from one stuck to its neighbour.
+        # A nested box has two names, each needing its own probe: a copy of a
+        # scored box is a duplicate, a half whose artefact is no longer found is
+        # "inside a miss".
         ("boxes duplicated", "more nested duplicates",
          lambda: None if not nested_pair()
                  else _beds(R(_duplicate(M)), "nested duplicate") > b_dup),
@@ -359,8 +337,7 @@ def probes(bench, run) -> list:
                  else _beds(R(_split_all(M, arte)), "inside a miss") > b_in),
         # --- damage aimed at LABEL CONFUSION
         # "No data", not "NO", when the sides speak different vocabularies:
-        # above 100% errors there are none, and this printed "NO" for a fault of
-        # comparison where every pair was an error before any damage.
+        # above 100% errors there are none to add.
         (f"label {pick} replaced by {other}", "more label errors",
          lambda: _grew(m.label_errors(R(_relabel(
                      M, lambda l: other if l == pick else l))), b_lab)
@@ -383,8 +360,7 @@ def probes(bench, run) -> list:
                  else R(_merge_all(M, arte))["sense"]["merged"]
                       > base["sense"]["merged"]),
         # 0.85 a side is 0.72 of the area: the object no longer fits but is
-        # still visible, i.e. CROPPED. A stronger squeeze drives it into "not
-        # seen", another loss than the probe name promises.
+        # still visible, i.e. cropped; a stronger squeeze drives it to not seen.
         ("boxes shrunk 0.85x", "more cropped",
          lambda: R(_grow(M, 0.85))["sense"]["cropped"] > base["sense"]["cropped"]),
         ("boxes shrunk by half", "fewer intact",
@@ -396,9 +372,8 @@ def probes(bench, run) -> list:
          lambda: found(tt=_shift_rel(T, 0.34)) < b_found),
         ("truth inflated 1.5x", "fell",
          lambda: found(tt=_grow(T, 1.5)) < b_found),
-        # The order-annotation flag is an input like the boxes, and damaging it
-        # must yield SILENCE, not a number: a `True` default made an erased flag
-        # indistinguishable from a declared one.
+        # The order-annotation flag is an input like the boxes: damaging it must
+        # yield silence, not a number.
         ("the order-marked flag erased from truth",
          "NOT COMPARED, not a number",
          lambda: None if b_asm is None

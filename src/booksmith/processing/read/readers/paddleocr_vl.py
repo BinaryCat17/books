@@ -1,62 +1,19 @@
-"""PaddleOCR-VL 1.6 as a READER: which prompt on which label, and what kind
-of answer comes back.
+"""PaddleOCR-VL 1.6 as a reader: which prompt on which label, and what kind of
+answer comes back. No request and no address here -- delivery is the transport's
+side of the seam in `read/__init__.py`.
 
-Not one request and not one address here -- that belongs to the MODEL, not to
-delivery (the seam is in `read/__init__.py`). The file is declarations
-throughout, each taken from the model card or paid for by a measurement;
-guesses have no place in it.
-
-THE PROMPTS ARE THE VENDOR'S, BYTE FOR BYTE. The model card and the vLLM
-recipe name six tasks by the same strings:
-
-    "OCR:"  "Table Recognition:"  "Formula Recognition:"
-    "Chart Recognition:"  "Spotting:"  "Seal Recognition:"
-
-Five of the six are declared below; `Spotting:` we never ask.
-
-No system message, temperature 0. The prompt is ALL there is to steer the
-answer with -- nothing asks for "such-and-such a format" -- so the kind of
-content is decided by the choice of task, not by a request.
-
-WHY THE ROUTES ARE NAMED ONE BY ONE AND NOT DERIVED FROM THE ROLE. The role
-(`policy.role`) answers "cut out or print", not "what to ask":
-`display_formula` and `table` are both `artifact`, while their prompts and
-answer kinds differ. The vocabulary is besides OWN to every detector -- 25
-names for PP-DocLayoutV2, 20 for plus-L, 17 each for both docling models, 11
-for DocLayNet -- and "what I do not know I ask as text" would silently lead
-the twenty-sixth class of new weights by the wrong prompt. `Reader.cover()`
-fells the run on an unknown label BEFORE the first cent.
-
-WHAT WE DO NOT ASK, AND THAT IS A MEASUREMENT, NOT CAUTION. `image`,
-`header_image`, `footer_image` -- reading text inside figures was TRIED AND
-REJECTED (the commit log): the callouts `A` and `B` unread, a digit `1`
-in their place; on two pages the schoolbook pangram `The quick brown fox…`,
-invented whole from a line drawing; on a third a loop `1.` `2.` … `100.`;
-+2100 words of rubbish over twenty
-pages in all. A line drawing is noise to this model, and it cannot keep
-silent.
-
-WHAT IS DECLARED CAUTIOUSLY AND AWAITS A MEASUREMENT. `chart` and `seal` carry
-the vendor's prompts, but the KIND of their answer we have never measured.
-`text` is declared, the most cautious of the four: `books text` compares it BY
-CHARACTERS and the book shows it escaped, so an error of declaration
-underrates the model without spoiling the book with an invented
-table. Beside the answer always lies a GUESS at the kind (`read/driver.py`
-sniffs it into `observed.kind_sniffed`), and its divergence from the declared
-is a named counter: the first run says by number whether `text` should become
-`otsl`. Changing it by guess, without asking the bench, is repairing the
-model, and there is none of that here.
+The prompts are the vendor's, byte for byte: five of the model card's six tasks
+are declared below, `Spotting:` is never asked. No system message, temperature 0
+-- the prompt is all there is to steer the answer with, so the kind of content
+follows from the choice of task, and the routes are named one by one rather than
+derived from the role, each detector's label vocabulary being its own.
 """
 
-# THREE MECHANISMS INSIDE THE VENDOR PIPELINE PUT OUT A TABLE BOX on a fragment
-# of a page, and none may be patched at our end (the first rule):
-#   1. cross-class suppression: a box of another class at very high overlap
-#      removes the table box (`object_detection/processors.py`, iou_diff);
-#   2. nesting: a box almost wholly inside a heading, formula or title box is
-#      deleted (`layout_analysis/processors.py`, layout_merge_bboxes_mode
-#      "large"), and on a fragment the heading takes a large share of the area;
-#   3. overlap filtering: above the overlap ceiling the larger box wins, and
-#      {table, text} has no guard (`paddleocr_vl/uilts.py`, filter_overlap_boxes).
+# A table box on a page fragment can be suppressed inside the vendor pipeline --
+# cross-class suppression (`object_detection/processors.py`, iou_diff), nesting
+# (`layout_analysis/processors.py`, layout_merge_bboxes_mode "large"), overlap
+# filtering (`paddleocr_vl/uilts.py`, filter_overlap_boxes) -- and none of the
+# three may be patched at our end.
 import hashlib
 import os
 
@@ -72,16 +29,13 @@ FORMULA = "Formula Recognition:"
 CHART = "Chart Recognition:"
 SEAL = "Seal Recognition:"
 
-# ONE reason, shared by every silent label of every vocabulary -- three of
-# them under PP-DocLayoutV2, one under each of the other four.
+# One reason, shared by every silent label of every vocabulary.
 NO_PICTURE = ("reading inside figures was tried and rejected: callouts "
               "unread, an invented pangram on two pages, a runaway loop on a "
               "third, +2100 words of garbage over twenty pages")
 
-# Routes by the DETECTOR'S VOCABULARY. The top-level key is the policy name,
-# exactly as in `policy.POLICIES`: two dictionaries would drift apart, and
-# that has happened here already (the knob registry against the job builder,
-# 13 names of 17).
+# Routes by the detector's vocabulary; the top-level key is the policy name,
+# exactly as in `policy.POLICIES`, or the two dictionaries drift apart.
 _TEXT_V2 = ("abstract", "algorithm", "aside_text", "content", "doc_title",
             "figure_title", "footer", "footnote", "formula_number", "header",
             "number", "paragraph_title", "reference", "reference_content",
@@ -114,6 +68,9 @@ def _routes(text_labels, table, formula, picture, extra=()):
     return r
 
 
+# `chart` and `seal` are asked with the vendor's prompts and declared `text`,
+# the cautious kind: `books text` compares by characters, so a wrong declaration
+# underrates the model rather than putting an invented table in the book.
 ROUTES = {
     "PP-DocLayoutV2": _routes(
         _TEXT_V2, ("table",), ("display_formula", "inline_formula"),
@@ -125,9 +82,8 @@ ROUTES = {
         extra={"chart": Route(CHART, "text"), "seal": Route(SEAL, "text")}),
     "Docling": _routes(
         _TEXT_DOCLING, ("table",), ("formula",), ("picture",),
-        # `code` in docling is a program listing. The model has no "Code
-        # Recognition:" prompt; we ask as text, because a listing IS
-        # characters, and `text` here is not caution but the substance.
+        # `code` in docling is a program listing, and the model has no "Code
+        # Recognition:" prompt; a listing is characters, so `text` is exact.
         extra={"code": Route(OCR, "text")}),
     "Docling-egret": _routes(
         _TEXT_EGRET, ("Table",), ("Formula",), ("Picture",),
@@ -140,17 +96,9 @@ ROUTES = {
 def _weights() -> dict:
     """What weights lie under the model. Declared emptiness, not silence.
 
-    What the field is for: a server's NAME proves nothing about the weights
-    under it, and this fingerprint is the only thing that does
-    (`read/transports/openai_http.py`
-    says so at `check`). The measurement it is written from: `provision.sh`
-    pulled `PaddlePaddle/PaddleOCR-VL` while `MODEL_NAME` declared
-    `PaddleOCR-VL-1.6-0.9B` -- DIFFERENT weights, the 1.6 repository being
-    separate -- and the run would have come out successful and wrong, the
-    snapshot naming a version it never counted with.
-
-    At home there are no weights at all, and then a reason stands here, not a
-    `null`.
+    A server's name proves nothing about the weights under it, and this field is
+    the only thing that does. Where there are no weights on this machine a
+    reason stands here, never a `null`.
     """
     d = knobs.knob("VL_MODEL_DIR")
     if not d or not os.path.isdir(d):
@@ -159,13 +107,9 @@ def _weights() -> dict:
                                 "this machine but by the one VLM_ENDPOINT "
                                 "points at"}
     out = {"dir": d, "file_count": len(os.listdir(d))}
-    # WHERE THE WEIGHTS CAME FROM is the main field, and `provision.sh` writes
-    # it beside them. Here stood only `sha256 config.json`, called the sole
-    # proof of the version. A measurement refuted that: for `PaddleOCR-VL-1.6`
-    # and for the old `PaddleOCR-VL` that file MATCHES BYTE FOR BYTE -- 2059
-    # bytes, sha256 ce7f4565f8b1db78… -- so the guard missed exactly the run
-    # it was written for ("we pull one, we declare another"), catching only
-    # "no weights at all".
+    # Where the weights came from is the main field, and `provision.sh` writes
+    # it beside them: `config.json` matches byte for byte between the 1.6
+    # repository and the old one, so it cannot tell them apart.
     src = os.path.join(d, "SOURCE.json")
     if os.path.exists(src):
         try:
@@ -181,9 +125,8 @@ def _weights() -> dict:
                                "provision.sh writes it, so the weights were "
                                "not put here by it, and there is nothing to "
                                "say about which they are")
-    # We hash the file that DIFFERS between the two repositories, not the one
-    # that matches. `config.json` is kept beside it as a second number: it is
-    # about the architecture, and its matching is itself a quantity.
+    # Hash the file that differs between the two repositories; `config.json`
+    # stands beside it as a second number, about the architecture.
     for name in ("tokenizer_config.json", "config.json"):
         f = os.path.join(d, name)
         out["sha256 " + name] = (
@@ -216,11 +159,9 @@ class PaddleOcrVl(Reader):
                 "model": knobs.knob("MODEL_NAME"),
                 "label_vocabulary": self.policy_name,
                 "weights": _weights(),
-                # The prompts ride into the snapshot WHOLE, not as a number:
-                # this is what fills the `prompts` field of the snapshot
-                # registry (`run/replay.py`), empty on every run before this
-                # reader. The prompt is the only thing that steers the answer
-                # here, and not to record it is not to record the run.
+                # The prompts ride into the snapshot whole: the prompt is the
+                # only thing steering the answer, and not to record it is not
+                # to record the run.
                 "prompts": {lab: rt.prompt for lab, rt in sorted(r.items())
                            if rt.asked()},
                 "never_asked": {lab: rt.why for lab, rt in sorted(r.items())
@@ -237,10 +178,8 @@ class PaddleOcrVl(Reader):
     def pixels(self) -> tuple[int, int]:
         """The crop window declared by the model itself. Not our numbers.
 
-        `min_pixels` = 112 896 and `max_pixels` = 1280 * 28 * 28 = 1 003 520,
-        from the PaddleOCR-VL card. Below the lower its processor stretches
-        the crop by interpolation (measured earlier: a table crop at 144 dpi
-        came out 375 x 66 = 24 750 px, four times under, and was stretched);
-        above the upper it shrinks.
+        `min_pixels` 112 896 and `max_pixels` 1280 * 28 * 28, from the
+        PaddleOCR-VL card: below the lower bound its processor stretches the
+        crop by interpolation, above the upper one it shrinks it.
         """
         return (112896, 1280 * 28 * 28)

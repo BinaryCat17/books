@@ -1,16 +1,11 @@
-"""Swapping a block in a finished BOOK: files, journal, undo.
+"""Swapping a block in a finished book: files, journal, undo.
 
-`test_swap.py` guards pure strings; here the files begin, and with them the one
-thing the whole two-level scheme was started for: "a swap can be checked,
-undone and redone by another model without touching the book".
-
-The promise stands on three things, each checked here:
-  * what was taken out is KEPT, else there is nothing to undo with;
-  * a stack, not a last value: two swaps in a row undo one at a time, else the
-    middle state vanishes silently;
-  * after an undo the book matches the original BYTE FOR BYTE -- "almost
-    matches" means nothing when one character in five hundred pages is
-    invisible to everybody.
+`test_swap.py` guards pure strings; here the files begin, and with them the
+thing the two-level scheme was started for: a swap can be checked, undone and
+redone by another model without touching the book. That stands on three
+properties, each checked here -- what was taken out is kept, the journal is a
+stack rather than a last value, and after an undo the book matches the original
+byte for byte.
 """
 import json
 import os
@@ -49,11 +44,8 @@ def test_put_then_undo_restores_the_book_byte_for_byte():
 
 
 def test_stack_unwinds_in_reverse_order():
-    """Two swaps in a row -- two undo steps, not one.
-
-    That is how the second level works: the model answered, the answer was no
-    good, another model redid it.
-    """
+    """Two swaps in a row -- two undo steps, not one: the model answered, the
+    answer was no good, another model redid it."""
     with tempfile.TemporaryDirectory() as tmp:
         book(tmp)
         ap.put(tmp, A, "<table>first</table>", source="model-1", log=lambda *_: None)
@@ -76,18 +68,9 @@ def test_neighbour_is_untouched():
 
 
 def test_fragment_with_marks_is_refused_by_the_fragment_check():
-    """A mark inside the inserted fragment is a ghost anchor.
-
-    The trouble would surface not here but on the NEXT swap, as "opening marks
-    2" about another block, with the book already half re-marked.
-
-    There are TWO guards for it and the check demands the FIRST. The second --
-    comparing the anchor set after the swap -- catches the same fragment, so
-    replacing the first with a stub passed the battery unnoticed: the check
-    went red by another's merit. It must be caught at the source, before the
-    book is read at all: only there is it visible that the FRAGMENT is at
-    fault.
-    """
+    """A mark inside the inserted fragment is a ghost anchor, and the check
+    demands the first of the two guards: caught at the source, before the book is
+    read, is the only place where the fragment itself is visibly at fault."""
     with tempfile.TemporaryDirectory() as tmp:
         book(tmp)
         try:
@@ -141,11 +124,8 @@ def test_undo_without_a_swap_is_loud_and_distinct():
 
 
 def test_edit_outside_the_journal_blocks_undo():
-    """The book was edited by hand -- a blind undo would erase that edit.
-
-    "Undo" sounds safe, which is exactly why the check is needed: without it
-    the command silently destroys somebody else's work.
-    """
+    """The book was edited by hand -- a blind undo would erase that edit. "Undo"
+    sounds safe, which is exactly why the check is needed."""
     with tempfile.TemporaryDirectory() as tmp:
         p = book(tmp)
         ap.put(tmp, A, "<table>answer</table>", log=lambda *_: None)
@@ -184,13 +164,9 @@ def test_status_tells_three_zeroes_apart():
             "are different zeros")
 
 def test_unterminated_mark_is_caught_by_the_anchor_guard():
-    """An unterminated mark passes the FRAGMENT check and is caught by ANCHORS.
-
-    The second guard exists for this case alone: the fragment holds no complete
-    mark, `_check_fragment` lets it through, and `swap.anchors` finds a closing
-    `-->` further down the book and gives birth to a rubbish anchor. The check
-    demands THAT guard -- take it away and it would go red by the first one.
-    """
+    """An unterminated mark passes the fragment check and is caught by anchors:
+    the fragment holds no complete mark, and `swap.anchors` finds a closing `-->`
+    further down the book and gives birth to a rubbish anchor."""
     with tempfile.TemporaryDirectory() as tmp:
         book(tmp)
         try:
@@ -205,20 +181,9 @@ def test_unterminated_mark_is_caught_by_the_anchor_guard():
 
 
 def test_unclosed_comment_is_caught_by_its_own_guard():
-    """An unclosed comment eats the block's closing mark.
-
-    The FIFTH guard, raised because the four before it let this through, every
-    one: the fragment carries no block marks, is not empty, its kind is
-    declared, and the anchor set does NOT change -- `swap.anchors` looks for
-    `<!--bs:`, and a bare `<!--` is no anchor to it. Measured before the fix on
-    a book of 26 blocks: the command answered "placed 154, taken 175, anchors
-    26", while by the VISIBLE markup (once the browser has eaten the comments)
-    div went open 0 -> 1, closed 0 -> 0, figure 26 -> 25 -- the rest of the
-    book inside an unclosed div.
-
-    The check demands THIS guard: the anchor comparison is silent here by
-    construction.
-    """
+    """An unclosed comment eats the block's closing mark: it carries no block
+    marks, is not empty, declares its kind and changes no anchor -- `swap.anchors`
+    looks for `<!--bs:` -- so it needs a guard of its own."""
     with tempfile.TemporaryDirectory() as tmp:
         book(tmp)
         try:
@@ -233,11 +198,8 @@ def test_unclosed_comment_is_caught_by_its_own_guard():
 
 
 def test_a_closed_comment_is_not_refused():
-    """A guard must be able NOT to fire as well: a closed comment is lawful.
-
-    Without this half the check is green from forbidding everything, and the
-    second level may lawfully return markup with a comment inside.
-    """
+    """A guard must be able not to fire as well: a closed comment is lawful, and
+    the second level may return markup with a comment inside."""
     with tempfile.TemporaryDirectory() as tmp:
         book(tmp)
         ap.put(tmp, A, "<table><!-- totals row --><tr><td>1</td></tr></table>",
@@ -251,13 +213,9 @@ def test_a_closed_comment_is_not_refused():
 
 
 def test_a_broken_journal_is_not_an_empty_journal():
-    """An unreadable journal must stop the work, not pretend to be empty.
-
-    The temptation to return `{"swaps": {}}` would cost the whole book: the
-    next swap would write its one record over the stump and the undo stack of
-    ALL previous swaps would vanish silently. Also checked: the stump is left
-    on disk untouched -- it will be repaired by hand.
-    """
+    """An unreadable journal stops the work rather than pretending to be empty:
+    returning `{"swaps": {}}` would let the next swap write over the stump and
+    lose every undo stack. The stump is left on disk untouched."""
     with tempfile.TemporaryDirectory() as tmp:
         book(tmp)
         ap.put(tmp, A, "<table>first</table>", log=lambda *_: None)
@@ -282,13 +240,9 @@ def test_a_broken_journal_is_not_an_empty_journal():
 
 
 def test_journal_is_written_atomically():
-    """A broken journal write may not erase the undo stack of the whole book.
-
-    `open(p, "w")` truncates the old file FIRST, and whatever happens next
-    leaves a stump in its place. Measured on a journal of three swaps (2101
-    bytes): the old way left 1076 bytes on disk, unreadable as json; the
-    present one leaves the journal whole and the stump in `swaps.json.tmp`.
-    """
+    """A broken journal write may not erase the undo stack of the whole book:
+    `open(p, "w")` truncates the old file first, so the write goes aside and a
+    broken one leaves the stump in `swaps.json.tmp`."""
     import json as _json
 
     class Boom(RuntimeError):
@@ -332,9 +286,8 @@ def _bulk_stand(tmp, blocks=6):
             swap.wrap(f"p0000-b{i}",
                       f'<figure id="p0000-b{i}">picture</figure>')
             for i in range(blocks)) + "\n</body></html>\n")
-    # What is observed on the side lies in the KITCHEN (`assets/`): the root of
-    # a build holds one file. The path is asked of the module rather than typed
-    # as a string -- else the fixture drifts from the builder silently.
+    # What is observed lies in the kitchen (`assets/`): the root of a build holds
+    # one file. The path is asked of the module rather than typed as a string.
     os.makedirs(os.path.join(tmp, ap.ASSETS), exist_ok=True)
     with open(os.path.join(tmp, ap.ASSETS, "blocks.json"), "w",
               encoding="utf-8") as f:
@@ -349,18 +302,9 @@ def _bulk_stand(tmp, blocks=6):
 
 
 def test_bulk_reads_the_book_once_not_once_per_block():
-    """A bulk swap reads the book ONCE, not once per block.
-
-    What it cost: `from_read` called `put` per swap, and `put` re-read the
-    whole book and parsed ALL its anchors twice; `block_role` re-read
-    `blocks.json` per block. Measured on "Refractory technology" (2.3 MB, 6156
-    blocks, 412 swaps): 363 seconds against 5 after the fix, several gigabytes
-    of reading. The bodies matched byte for byte afterwards, and the journal
-    too -- 412 anchors with the same hashes.
-
-    FILE OPENINGS are counted, not time: time measures the machine, openings
-    the design. It can fail: put `put` back inside the loop.
-    """
+    """A bulk swap reads the book once, not once per block: `put` per swap re-read
+    the whole book and parsed all its anchors twice. File openings are counted,
+    not time -- time measures the machine, openings the design."""
     import builtins
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -396,11 +340,8 @@ def test_bulk_reads_the_book_once_not_once_per_block():
 
 
 def test_bulk_and_single_put_agree_block_for_block():
-    """The bulk swap and the single one give ONE AND THE SAME book.
-
-    A speed-up must be only a speed-up. Checked the way the real book was:
-    bodies compared byte for byte.
-    """
+    """The bulk swap and the single one give one and the same book: a speed-up
+    must be only a speed-up, and the bodies are compared byte for byte."""
     with tempfile.TemporaryDirectory() as t1, tempfile.TemporaryDirectory() as t2:
         _bulk_stand(t1)
         _bulk_stand(t2)
@@ -415,20 +356,9 @@ def test_bulk_and_single_put_agree_block_for_block():
 
 
 def test_putting_the_same_markup_twice_changes_nothing():
-    """A REPEAT IS NOT WORK: the book untouched, the undo stack no taller.
-
-    WHAT IT COST. Before this check a second `books apply` put everything
-    again: the content did not change and the journal doubled -- on "Refractory
-    technology" 412 swaps became 824 and the depth of EVERY stack became two.
-    `--undo` would then take two calls to get the picture back, and "how many
-    times the book was built" became indistinguishable from "how many times the
-    block was redone". It also makes the default safe: typing `books apply
-    book` twice breaks nothing.
-
-    A repeat is a body that matched COMPLETELY -- kind, source and role
-    included. The same fragment from another model is work and it passes:
-    checked below.
-    """
+    """A repeat is not work: the book untouched, the undo stack no taller, so
+    `books apply book` twice breaks nothing. A repeat is a body that matched
+    completely -- kind, source and role included."""
     with tempfile.TemporaryDirectory() as tmp:
         book(tmp)
         first = ap.put(tmp, A, "<p>one</p>", kind="html", source="m1",
@@ -458,19 +388,9 @@ def test_putting_the_same_markup_twice_changes_nothing():
 
 
 def test_the_source_inside_the_book_beats_the_recorded_path():
-    """The source INSIDE the book beats the path from the snapshot.
-
-    The snapshot records an ABSOLUTE path, which lies in the commonest case of
-    all -- the book copied to another machine, or the reading directory moved.
-    `books html` puts the source into `assets/source`, and it travels with the
-    book.
-
-    WHAT IT COST. The book directory held everything to READ the book and not
-    everything to REBUILD it: `blocks.json` carries box, label, order and role,
-    but no `content`. The read text lived only as markup in `book.html` and in
-    a foreign directory paid for on the card -- delete that and the book takes
-    a new rental to assemble (915 078 characters, $0.545).
-    """
+    """The source inside the book beats the path from the snapshot, which is
+    absolute and lies in the commonest case of all: the book copied to another
+    machine, or the reading directory moved."""
     with tempfile.TemporaryDirectory() as tmp:
         book(tmp)
         os.makedirs(os.path.join(tmp, ap.ASSETS), exist_ok=True)
@@ -492,13 +412,9 @@ def test_the_source_inside_the_book_beats_the_recorded_path():
 
 
 def test_the_book_remembers_where_it_was_built_from():
-    """`books apply` with no keys takes the source from the book's snapshot.
-
-    Nothing to ask twice: `books html` wrote the path into `assets/run.json`,
-    and a man who types `books apply book` may expect it to assemble. No
-    snapshot, or the directory gone -- `None`, said out loud rather than
-    placing nothing.
-    """
+    """`books apply` with no keys takes the source from the book's snapshot: no
+    snapshot, or the directory gone, gives `None`, said out loud rather than
+    placing nothing."""
     with tempfile.TemporaryDirectory() as tmp:
         book(tmp)
         assert ap.source_of(tmp) is None, (

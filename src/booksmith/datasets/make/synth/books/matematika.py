@@ -1,19 +1,12 @@
 """A mathematics course: half the page is display formulas.
 
-WHY THIS BOOK. In the handbook `display_formula` is tested by ONE page, and
-six policy labels -- `inline_formula`, `formula_number`, `algorithm`,
-`abstract`, `reference`, `reference_content` -- are not tested at all.
-
-Its main trap is the MATRIX. To the eye it is a grid of numbers in brackets,
-i.e. a table; in substance it is one formula. The price of the error is named
-in advance: as a table, level two parses it into a grid of cells and loses the
-meaning; as a formula, it hands it over whole. The determinant is placed
-beside a REAL table of the same proportions, so that "called it a table"
-cannot be written off as general blindness.
-
-Glyphs are checked BEFORE drawing: a missing glyph is drawn by DejaVu not as
-emptiness but as a .notdef box -- ink -- and `_measure` would calmly take that
-for a formula. The page would come out full of squares and the numbers healthy.
+Here `display_formula` and six labels the handbook never exercises are tested.
+The main trap is the MATRIX: a grid of numbers in brackets to the eye, one
+formula in substance, and the price is named -- as a table level two parses it
+into cells and loses the meaning. It stands beside a REAL table of the same
+proportions, so "called it a table" cannot be written off as blindness. Glyphs
+are checked BEFORE drawing: a missing one draws as a .notdef box, which is ink,
+and the page would come out full of squares with healthy-looking numbers.
 """
 from booksmith.datasets.make.synth.draw import (
     PROSE_EN,
@@ -63,11 +56,8 @@ def c_mat_plain_prose(doc, rng):
 
 
 def c_mat_display_numbered(doc, rng):
-    """Six display formulas numbered at the RIGHT margin.
-
-    Is the number a separate block or part of the formula? And does the
-    formula's box spill out to the margin and swallow it?
-    """
+    """Six display formulas numbered at the RIGHT margin: is the number a block
+    of its own, or does the formula's box spill to the margin and swallow it?"""
     pg = _sheet(doc); t = []
     y = _flow(pg, t, MARGIN, TOP, 150, PROSE_EN, w=COLW)
     for k, f in enumerate(FORMULAS[:6]):
@@ -104,10 +94,8 @@ def c_mat_matrix(doc, rng):
 
 def c_mat_matrix_vs_table(doc, rng):
     """THE PAIR: a matrix and a REAL table of the same proportions on one page.
-
-    If the model calls both tables, that is blindness and not a label error,
-    and without the pair there is nothing to tell the two apart with.
-    """
+    Calling both tables is blindness and not a label error, and without the pair
+    there is nothing to tell the two apart with."""
     pg = _sheet(doc); t = []
     _flow(pg, t, MARGIN, TOP, 120, PROSE_EN, w=COLW)
     _matrix(pg, t, MARGIN + 10, 150, 5, 4, kind="matrix", sheet_w=PW)
@@ -199,11 +187,9 @@ def c_mat_inline(doc, rng):
         _say(t, body)
         # an inline formula drawn over a line of the paragraph
         _put(pg, MARGIN + 120, y + 30, "(a + b)/2c", 6.6, font="M", sheet_w=PW)
-        # The inline formula is drawn OVER the paragraph and has no box of
-        # its own -- that is the case. So its characters belong to this same
-        # block, and without `add=True` they would be drawn but not declared:
-        # a comparison against the text layer would report a discrepancy where
-        # the bench is behaving exactly as designed.
+        # The inline formula is drawn OVER the paragraph and has no box of its
+        # own -- that is the case -- so its characters belong to this block, and
+        # without `add=True` the text-layer check would report them missing.
         _say(t, "(a + b)/2c", add=True)
         y += 84
     return pg, t

@@ -1,10 +1,8 @@
 """The mutators the batteries share: ways to spoil a page set on purpose.
 
 Each takes the pages dict a metric measures (`{index: page}`) and returns a
-spoiled copy; the original is never touched. They lived in the contour
-battery and were copied, with small differences, into the reading and ink
-batteries; the differences were not measured, so the copies stay where
-they differ and only the identical ones live here.
+spoiled copy; the original is never touched. Only the mutators the batteries
+hold in common live here.
 """
 
 
@@ -18,13 +16,9 @@ def shift(M, dx, dy):
 
 
 def shift_rel(M, frac):
-    """A shift BY A FRACTION of the box size, not by a constant forty pixels.
-
-    A constant shift checks nothing on large artefacts: a 900x400 box moved by
-    40 still covers truth by 96% and passes, and on a book of large artefacts
-    the probe "shift by 40" reported "DID NOT FALL" -- rightly, there was
-    nothing to fall from.
-    """
+    """A shift by a FRACTION of the box size, not by a constant: a 900x400 box
+    moved forty pixels still covers truth by 96%, so a constant shift checks
+    nothing on a book of large artefacts."""
     def g(b):
         d = frac * max(4.0, min(b[2] - b[0], b[3] - b[1]))
         return (b[0] + d, b[1] + d, b[2] + d, b[3] + d)

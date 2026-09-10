@@ -1,28 +1,14 @@
-"""Reading blocks on a rented card. Executed ON the box.
+"""Reading blocks on a rented card. Executed on the box.
 
-NOT ONE RULE IS REPEATED HERE, and that is the main difference from the
-neighbouring `dots_ocr/entrypoint.py`, which carries its own copy of the page
-parser and says so about itself. The project has already paid for such a
-divergence -- the knob registry against the job builder, 13 names of 17 --
-and there is no reason to pay twice.
+No rule is repeated here: the package itself travels (`spec()` sends
+`src/booksmith` as an input file), and this file only fills in paths and calls
+`booksmith.processing.read.driver`, so home and card run the same bytes.
 
-Instead of a copy, THE PACKAGE ITSELF travels: `spec()` sends `src/booksmith`
-as an input file (1.1 MB against 6.2 GB of weights, a quantity that can be
-ignored), and this file only fills in paths and calls
-`booksmith.processing.read.driver`.
-So at home and on the card the SAME code runs, byte for byte, and it was
-checked at home against a stand-in server -- free and in advance
-(`tests/e2e/test_read.py`, 27 checks).
-
-WHAT IS LOCAL RATHER THAN SHARED. Exactly three things, all three about the
-machine being someone else's: the path to the book (it arrives as `input.pdf`
-while the detection snapshot remembers the home path), the address of the
-vLLM that was brought up, and where the result goes.
-
-WHAT MUST FAIL HERE AND NOT HALFWAY. A missing package, a missing detection
-directory, an endpoint answering with another model's name. Each of the three
-costs exactly as much as the card ticks, so each is checked before the first
-crop.
+Three things are local, all about the machine being someone else's: the path to
+the book, which arrives as `input.pdf` while the detection snapshot remembers
+the home one; the address of the vLLM brought up; and where the result goes. A
+missing package, a missing detection directory or an endpoint answering with
+another model's name fails before the first crop, the card ticking meanwhile.
 """
 import argparse
 import os
@@ -47,20 +33,15 @@ def main(argv=None):
     ap.add_argument("--model", default="")
     ap.add_argument("--pages", default="")
     ap.add_argument("--policy", default="PP-DocLayoutV2")
-    # `run.sh` passes this flag when `RESUME=0`, and `RESUME` is a declared
-    # registry knob forwarded by `knobs.passthrough()`. The flag did not exist
-    # here at all, so an operator who set `RESUME=0` got `error: unrecognized
-    # arguments: --no-resume`, exit code 2 -- AFTER the rental, the unrolling
-    # and the vLLM coming up. The other half of the same defect: `resume` was
-    # not passed to `read_book` either, so at `RESUME=1` the knob decided
-    # nothing. It had no third behaviour.
+    # `run.sh` passes this when `RESUME=0`, `RESUME` being a registry knob
+    # forwarded by `knobs.passthrough()`; the flag and `read_book(resume=...)`
+    # are the two halves of that one knob.
     ap.add_argument("--no-resume", action="store_true",
                     help="ask again even for what has already been read")
     a = ap.parse_args(argv)
 
-    # The package is looked for EXPLICITLY and the failure is loud: without
-    # it an `ImportError` would come from the middle of the pass -- on the
-    # money, and halfway.
+    # The package is looked for explicitly and the failure is loud: otherwise an
+    # `ImportError` arrives from the middle of the pass, on the money.
     if a.pkg not in sys.path:
         sys.path.insert(0, a.pkg)
     try:
@@ -78,9 +59,8 @@ def main(argv=None):
                          f"not arrive")
 
     # The address and the model name go through the environment, because the
-    # transport reads them from the knob registry. Nothing here goes past the
-    # registry: a knob read around it does not reach the snapshot, and the run
-    # becomes silently unrepeatable.
+    # transport reads them from the knob registry: a knob read around it does
+    # not reach the snapshot, and the run becomes silently unrepeatable.
     os.environ["VLM_ENDPOINT"] = a.server
     if a.model:
         os.environ["MODEL_NAME"] = a.model
@@ -115,11 +95,9 @@ if __name__ == "__main__":
     try:
         sys.exit(main())
     except Exception as e:
-        # A refusal from the package is ONE LINE and exit 1 here as at home.
-        # The class is imported HERE and not at the top: this script starts
-        # before `--pkg` is on `sys.path`. By the time an exception arrives
-        # the package is importable, or the error is that it is not, and
-        # then it is a traceback, which is evidence, and stays one.
+        # A refusal from the package is one line and exit 1, as at home. The
+        # class is imported here because this script starts before `--pkg` is on
+        # `sys.path`; if the package will not import, the traceback is evidence.
         try:
             from booksmith.core.errors import BooksmithError
         except ImportError:

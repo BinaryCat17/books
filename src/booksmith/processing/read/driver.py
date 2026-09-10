@@ -1,44 +1,13 @@
-"""`books read` -- second level: walk the book and fill in block content.
+"""`books read` -- level two: walk the book and fill in block content.
 
-THE PRODUCT IS THE SAME `pages/*.json` AS DETECTION, and that decision carries
-the file: same boxes, labels and order, with `content` and `kind` filled in.
-Everything downstream then costs nothing, and it is code, not a promise:
+The product is the same `pages/*.json` as detection -- same boxes, labels and
+order, with `content` and `kind` filled in -- so html, text, score, fitness,
+overlay and replay read it unchanged. `content` carries the model's bytes and
+nothing more: seconds, tokens, finish reason, kind guess and delivery refusal go
+to `answers/*.json`, tied to the block by its anchor.
 
-    books html  -- <p> when a TEXT block has content, an image otherwise. An
-                   artefact stays an image whatever its content (`if role ==
-                   "artifact" or not b.content`), by design: a swap must be
-                   reversible and journalled, and a rebuild knows nothing of
-                   the journal. Read tables and formulas go in through
-                   `books apply --from`, one at a time and undoable
-    books text  -- `measure(truth_dir, pages_dir)` reads exactly this directory,
-                   and so do books score, fitness, overlay and replay
-
-A format of our own would have cost six adapters.
-
-WHAT IS OBSERVED LIVES BESIDE. `content` carries THE MODEL'S BYTES and nothing
-more; seconds, tokens, finish reason, kind guess and delivery refusal go to
-`answers/*.json`, tied to the block by its anchor. The rule cost nine misses
-out of thirty-three when marks were written into the text instead.
-
-WHAT MUST FAIL ALOUD ON THIS PATH:
-
-  * a label the reader routes nowhere (`Reader.cover`): a new weights class
-    would ride the wrong prompt and be filed as reading;
-  * an endpoint answering with ANOTHER model's name (`Transport.check`): the
-    snapshot would name one model while another answered;
-  * zero blocks to read -- an empty run must not look successful;
-  * a detection directory with no `run.json`, or with another book's pages;
-  * a PDF whose sha256 differs from the detection snapshot: boxes measured on
-    one file, crops cut from another.
-
-FIVE DIFFERENT ZEROS, COUNTED APART. Merged, they all print "read 0"
-while meaning something different every time:
-
-    not asked        -- route empty with a declared reason (figures)
-    delivery failed  -- no answer at all: broken link, timeout, not 200
-    model silent     -- an answer came, and it was empty
-    hit the ceiling  -- `finish="length"`; torn OTSL looks whole
-    read             -- the only case where `content` is non-empty
+The zeros are counted apart -- not asked, delivery failed, model silent, hit the
+ceiling, read -- because merged they all print "read 0".
 """
 import glob
 import json
@@ -57,9 +26,7 @@ from booksmith.core import book, knobs, stamp
 from booksmith.core.log import log
 from booksmith.core.errors import Refusal
 
-# Reader registry, a list for the same reason the detector one is: while a
-# model name is wired into an import, "would another be better" cannot even be
-# asked. A new reader is a line here and one file beside the model.
+# The known readers; a new one is a line here and one file beside the model.
 READERS = ("paddleocr-vl",)
 
 
@@ -77,13 +44,11 @@ def build_reader(policy_name: str) -> Reader:
 
 
 def _sniff(text: str) -> str:
-    """A GUESS at the kind of answer. Lives BESIDE and decides nothing.
+    """A guess at the kind of answer. Lives beside it and decides nothing.
 
-    The PROMPT declares the kind (`read/__init__.py`), not the answer: sniffing
-    it would be fixing the model -- a table returned as prose would slip into
-    text, and a LABEL error on a correct box dissolve into "that is how the
-    model reads". Where guess and declaration disagree, that is a named counter,
-    and it is what shows the declaration itself needs changing.
+    The prompt declares the kind, not the answer; where guess and declaration
+    disagree that is a counter (`kind_not_as_promised`), which is the sign the
+    declaration wants changing -- never a fix applied to the answer.
     """
     if not text:
         return "empty"
@@ -92,12 +57,7 @@ def _sniff(text: str) -> str:
         return "otsl"
     if "<table" in t.lower() or "<td" in t.lower():
         return "html"
-    # LATEX IS RECOGNISED WIDER than by three tells. Measured on the previous
-    # edition: of eight plausible answers to a formula, six came out `text`
-    # (`x^{2}+y^{2}=z^{2}`, `\\alpha + \\beta`, `\\sum_{i=1}^{n} a_i`,
-    # `A_{ij} = B_{ij}`), and "kind not as promised" grew on every formula,
-    # demanding a change to a CORRECT declaration. An instrument that lies
-    # towards alarm is no better than one lying towards calm.
+    # Wide on purpose: a narrow net drops plausible formulas into "text".
     if (t.startswith("$") or re.search(r"\\[A-Za-z]{2,}", t)
             or re.search(r"[_^]\{", t) or re.search(r"[A-Za-z0-9)\]]\^[A-Za-z0-9{]", t)):
         return "latex"
@@ -106,33 +66,17 @@ def _sniff(text: str) -> str:
 
 def crop_dpi_for(box, page_dpi: float, native: float | None,
                  window, sheet=None) -> tuple[float, str]:
-    """What resolution to cut THIS block at, and why that one.
+    """What resolution to cut this block at, and why that one.
 
-    A RULE, NOT A NUMBER. As much as the scan HAS (`native`), no more than the
-    model eats (`window`, its own bounds). None of the three is ours: sharpness
-    comes from the scan, bounds from the model, box size from the detector.
-
-    Not more: above its own grid what gets added is the rasteriser's guess, not
-    ink, and the model shrinks the crop back anyway -- paying twice to compress
-    an invention. Not less: on `bench/slovar` at detection resolution 555 crops
-    of 566 fall below the model's lower bound, so nine times in ten it stretched
-    our ink itself.
-
-    AND NEVER ABOVE THE GRID even when the block is smaller than the lower
-    bound: that would be inventing dots and calling it reading. The case
-    becomes a number (`below_model_min`) for the bench to explain.
+    A rule, not a number: as much as the scan has (`native`), no more than the
+    model eats (`window`), and never above the scan's own grid -- a block below
+    the model's lower bound becomes the number `below_model_min` instead.
     """
     base = float(native or page_dpi)
     if not window:
         return base, "native_scan_dpi_no_model_bounds"
     lo, hi = window
-    # COUNT BY WHAT WILL ACTUALLY BE CUT. A model box can hang off the sheet and
-    # `crop.cut` cuts the INTERSECTION; sizing by the full box clamps the crop to
-    # a size that is not on paper, and a badly overhanging box then gets LESS
-    # resolution than the model's window allows. On the bench that is 28 boxes of
-    # 33 640, overhangs no larger than 4.8 pixels -- real data has not caught it
-    # yet, but the rule must measure the rectangle it cuts, or two numbers drift
-    # apart in silence.
+    # Size by the intersection with the sheet -- that is what `crop.cut` cuts.
     x0, y0, x1, y1 = box
     if sheet is not None:
         sx0, sy0, sx1, sy1 = sheet
@@ -173,9 +117,9 @@ def _detect_facts(detect_dir: str) -> dict:
 
 
 def read_identity(reader: Reader, transport) -> tuple[str, dict]:
-    """(identity, the knob block it was taken from). ONE SOURCE for the guard
-    and for the snapshot, so the number that refuses a run and the number
-    recorded in it cannot be two different numbers."""
+    """(identity, the knob block it came from). One source for the guard and for
+    the snapshot, so the number that refuses a run and the number recorded in it
+    cannot differ."""
     roles = {**{n: "reading adapter" for n in reader.knobs_read()},
              **{n: "transport" for n in (transport.knobs_read()
                                          if transport is not None else ())}}
@@ -190,25 +134,10 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
               preview: bool = False) -> dict:
     """Walk the book and fill in block content. Returns quantities.
 
-    `preview` stops after the crops: every crop is cut exactly as the paid
-    run cuts it, every question is built exactly as the paid run builds it,
-    and none is sent -- the list goes to `would_ask.json` beside the crops.
-    That is `books crop`. It replaced a separate preview (`doc/feed.py`)
-    that cut with its own knobs and dpi and so showed pictures the paid
-    path never sent.
-
-    A PREVIEW SHOWS A FRESH RUN, and cannot show a resuming one: the answers
-    a resume would reuse live in the read directory, and the preview writes
-    elsewhere by construction (it refuses to land on a read directory at
-    all). So `resume` is refused here rather than quietly ignored -- ignored,
-    it would show every block as "would ask" on a book already half read,
-    and the number the preview exists to give is the number of requests.
-
-    `pdf` is where the book lies NOW. The detection snapshot keeps the path it
-    was read at, and on a rented machine that path does not exist: the working
-    directory is its own and the file arrives as `input.pdf`. So the path may be
-    given; the sha256 CHECK stays mandatory whatever it is, being about which
-    book this is, not where it lies.
+    `preview` cuts every crop and builds every question as the paid run does,
+    sends none, writes the list to `would_ask.json`, and cannot resume: the
+    answers a resume reuses live in a directory a preview may not write to.
+    `pdf` is where the book lies now; its sha256 is checked whatever the path.
     """
 
     if preview and resume:
@@ -219,12 +148,7 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
             "run -- on a book already half read, that is more questions than "
             "the next paid run would ask.")
     if not preview:
-        # WOULD THIS OVERWRITE ANOTHER EXPERIMENT. Asked before the first
-        # cent, from the same source the snapshot is written from. `books
-        # read` is THE COMMAND THAT SPENDS MONEY and it was the one with no
-        # guard at all: a second run at another temperature, seed or prompt
-        # RESUMED the first one's answers in place, and `core/book.py` stated
-        # the guard generally while only `books detect` had it.
+        # Would this overwrite another experiment, asked before the first cent.
         ident, _ = read_identity(reader, transport)
         book.guard_identity(out_dir, ident,
                             "" if pages_want is None else "a page selection",
@@ -248,16 +172,7 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
 
     _pages_dir = os.path.join(out_dir, "pages")
     if preview:
-        # A PREVIEW MAY NOT LAND ON A PAID RUN. The crops ARE something a paid
-        # run believes: `answers/*.json` records `observed.crop` -- file, dpi,
-        # width, height, clipped_by_sheet -- describing those very files, and
-        # they are the only surviving picture of what the money was spent on.
-        # A preview writes `crops/<anchor>.png` under the same names, so
-        # `books crop --out <a read directory>` silently replaced them, at
-        # another CROP_MARGIN and with no warning at all, while `answers/`
-        # went on describing the files that were sent. `books html` refuses
-        # this class of accident by asking whether the directory is its own;
-        # so does this.
+        # A preview may not overwrite the crops a paid run's answers/ describes.
         for tell in ("answers", "pages", "read_with.json", "run.json"):
             if os.path.exists(os.path.join(out_dir, tell)):
                 raise Refusal(
@@ -268,10 +183,8 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
                     f"them with crops nothing was asked about. Give --out "
                     f"somewhere else.")
     else:
-        # ANOTHER BOOK'S PAGES. The `out` directory is assembled by hand and
-        # reused; `0007.json` from a different book would survive the run and
-        # ride into `books html`, `books text` and `books score` as part of
-        # this one. The header promised a failure on that, and there was none.
+        # A page the detection does not have would ride into the book as one of
+        # its own, and into the measurement with it.
         if os.path.isdir(_pages_dir):
             mine_ = {os.path.basename(f) for f in files}
             alien = sorted(set(os.listdir(_pages_dir)) - mine_)
@@ -307,26 +220,13 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
     params = _gen_params()
     window = reader.pixels()
     same_setup = True
-    # WHAT WE READ WITH LAST TIME. Resuming must compare this, not merely that a
-    # file exists. Measured before the comparison: change the model, the token
-    # ceiling or the prompts and not one block was re-asked, while `run.json`
-    # declared the NEW values in force -- a snapshot "complete and not in
-    # effect", the disease this header is written against. And the only record of
-    # what was paid for (seconds, tokens) was overwritten by the second, free
-    # run.
-    #
-    # A PREVIEW HAS NO TRANSPORT and writes none of this. It cannot say what it
-    # read with -- nothing was read -- and a `read_with.json` naming a transport
-    # that never answered would be believed by the next paid `books read`
-    # resuming into the same directory: it would compare against a setup no
-    # money ever bought and reuse nothing while claiming the answers match.
+    # Resuming compares what we read with, not merely that a file exists.
+    # A preview writes none of it: it has no transport that ever answered.
     if not preview:
         setup = {"reader": reader.fingerprint(), "generation": params,
                  "transport": {k: v for k, v in transport.fingerprint().items()
-                               # the address moves from run to run (stand-in
-                               # server port, a loopback on the box) and does
-                               # not decide the model's answer; the model name
-                               # does.
+                               # the address does not decide the answer, the
+                               # model name does
                                if k in ("transport", "model_asked")}}
         setup_path = os.path.join(out_dir, "read_with.json")
         if resume and os.path.exists(setup_path):
@@ -342,23 +242,7 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
         with open(setup_path, "w", encoding="utf-8") as f:
             json.dump(setup, f, ensure_ascii=False, indent=1)
     doc = crop.open_pdf(pdf)
-    # OWN RESOLUTION PER PAGE, not the first page's for the whole book.
-    #
-    # The sheet is NOT one and the same: "Фейнмановские лекции" carry 255
-    # distinct sheet sizes over 260 pages, "Технология огнеупоров" 178 over 378.
-    #
-    # Per page costs nothing: the answer is memoised here, one `get_images` per
-    # page rather than per block. The 15 601 calls against 600 pages that made
-    # this "saving" negative were `crop.cut` asking `native_dpi` on every block
-    # and dropping the answer; it stopped asking once `dpi` is passed, which on
-    # this path it always is.
-    #
-    # The price of the error is measured. Feynman pages 0-2 are vector (the
-    # title) and 257 of 260 carry a 300 dpi raster; the first page's resolution
-    # is `None`, so the whole book was cut at 144: 15.1 million pixels instead
-    # of 59.0, 2.69 million of ink instead of 9.38 (3.89x and 3.49x), 125 crops
-    # of 177 below the model's lower bound instead of 79. One book in nine, and
-    # the one showing that "by the first page" rested on a coincidence.
+    # Own resolution per page, memoised: sheet sizes differ inside one book.
     native_of = {}
 
     def _native(i):
@@ -372,12 +256,7 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
              "not_asked": 0, "read": 0, "model_silent": 0,
              "delivery_failed": 0, "hit_ceiling": 0,
              "kind_not_as_promised": 0, "reused_from_previous_run": 0,
-             # THE SIXTH ZERO, nameless until now. The transport can return an
-             # answer under SOMEONE ELSE'S anchor (shuffled order, a gateway
-             # that rewrote the request), and the block was then left without
-             # any record: none of the five counters moved, `answers/` empty,
-             # `content` empty, the answer paid for. Measured: three answers
-             # with foreign anchors gave "sum of outcomes 0 with 3 blocks".
+             # without it an answer under a foreign anchor leaves no record
              "answer_wrong_anchor": 0, "asked_no_answer": 0,
              "crop_failed": 0, "crop_dpi_reason_counts": {},
              "native_book_dpi": native,
@@ -408,7 +287,7 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
                 tally["reused_from_previous_run"] += 1
                 continue
             rel = os.path.join(crops_dir, f"{anchor}.png")
-            # The sheet in pixels of THE SAME raster the boxes live in.
+            # The sheet in pixels of the same raster the boxes live in.
             _r = doc[pg.index].rect
             sheet = (0.0, 0.0, _r.width * page_dpi / 72.0,
                      _r.height * page_dpi / 72.0)
@@ -418,22 +297,14 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
             tally["crop_dpi_reason_counts"][why] = (
                 tally["crop_dpi_reason_counts"].get(why, 0) + 1)
             try:
-                # THE RETURN IS NOT THROWN AWAY. `crop.cut` reports width,
-                # height, `clipped_by_sheet` and the HONEST dpi (cut at, not
-                # asked for), and this pass used to lose them: about a crop that
-                # went to the model bitten off by the sheet edge, `answers/`
-                # said nothing. Measured: clipped by sheet 28 of 15 601 bench
-                # boxes (0.18%), but 8 of 177 on a real scan -- 4.5%.
+                # crop.cut reports the dpi it cut at and clipped_by_sheet, and
+                # `answers/` keeps both: a crop bitten off by the sheet edge is
+                # a fact about what the model was sent.
                 cut_info[anchor] = crop.cut(doc, pg.index, b.box, page_dpi,
                                             rel, dpi=cdpi)
             except (ValueError, IndexError, RuntimeError) as e:
-                # THE MODEL'S BOX IS NOT REPAIRED, nor is the book abandoned over
-                # it. A degenerate box, a box off the sheet, a page beyond the
-                # PDF are defects of the model or of a foreign directory, and
-                # each used to drop the run with a bare traceback MID-BOOK:
-                # everything already read left without a snapshot, money spent
-                # and nothing to show. Now it is a QUANTITY with a counter and
-                # the run goes on.
+                # A degenerate or off-sheet box is the model's defect, and it
+                # becomes a quantity: the run does not die mid-book over it.
                 tally["crop_failed"] += 1
                 bad_crops.append(f"{anchor}: {type(e).__name__}: {e}")
                 nocrop[anchor] = f"{type(e).__name__}: {e}"
@@ -447,29 +318,17 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
                 would.append({"anchor": a.anchor, "label": a.label,
                               "image": os.path.relpath(a.image, out_dir),
                               "prompt": a.prompt, "kind": a.kind,
-                              # THE DPI IT WAS CUT AT, and the rule's number
-                              # beside it -- THE SAME TWO KEYS THE PAID RUN
-                              # WRITES, meaning the same two things. This
-                              # carried the rule's float alone, under the name
-                              # the paid path uses for the deed: `crop.cut`
-                              # renders at `int(dpi)`, and on a real scan the
-                              # two differ (588.911 against 588 on
-                              # bench/real-tables20/tables20.pdf). A preview that
-                              # reports a resolution nothing was cut at is
-                              # the disease `books feed` died of, in one key.
+                              # The dpi it was cut at, with the rule's fraction
+                              # beside it, not instead: `crop.cut` renders at
+                              # `int(dpi)`. The same two keys the paid run writes.
                               "crop_dpi": info.get("dpi", cut_dpi[a.anchor][0]),
                               "crop_dpi_by_rule": round(cut_dpi[a.anchor][0], 2),
                               "crop_dpi_reason": cut_dpi[a.anchor][1],
                               **{k: info[k] for k in ("width", "height",
                                                       "clipped_by_sheet")
                                  if k in info}})
-            # THE OTHER TWO OUTCOMES ARE WRITTEN TOO. The paid run files a
-            # record for EVERY block -- `not_asked` with its reason,
-            # `crop_failed` with the error -- and the preview kept only the
-            # questions. So the one instrument for "what will this run do
-            # before I pay" could not say which blocks it would skip, nor
-            # that a crop failed at all: `would_ask.json` was `"asks": []`
-            # and nothing else.
+            # Every block gets a record here as in a paid run: a preview must
+            # say what it would skip, not only what it would ask.
             for anchor, why in sorted(silent.items()):
                 not_asked.append({"anchor": anchor, "not_asked": why})
             for anchor, why in sorted(nocrop.items()):
@@ -490,9 +349,8 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
                         continue
                     said[s.anchor] = s
 
-        # Assemble the page. Block order is the ORIGINAL one, not the order the
-        # answers came in: with VLM_CONCURRENCY > 1 they arrive shuffled, and
-        # filing by arrival would silently reorder the book.
+        # Block order is the original one: under concurrency answers arrive
+        # shuffled, and filing by arrival would reorder the book.
         answers = []
         for b in pg.blocks:
             anchor = f"{tag}-b{b.block_id}"
@@ -502,8 +360,7 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
                 answers.append({"anchor": anchor, "not_asked": silent[anchor]})
                 continue
             if anchor in nocrop:
-                # The block was NOT asked: there was nothing to cut. This is not
-                # "asked and no answer" -- one trouble would count as two.
+                # Not asked -- there was nothing to cut; not "asked, no answer".
                 b.content, b.kind = None, "none"
                 answers.append({"anchor": anchor,
                                 "crop_failed": nocrop[anchor]})
@@ -513,9 +370,8 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
             else:
                 s = said.get(anchor)
                 if s is None:
-                    # Asked, and no answer under this anchor. Silence is not
-                    # allowed: the block would leave the book and `answers/`
-                    # without a single record.
+                    # Asked, and nothing came under this anchor: every block
+                    # leaves a record in `answers/`.
                     tally["asked_no_answer"] += 1
                     b.content, b.kind = None, "none"
                     answers.append({"anchor": anchor,
@@ -525,12 +381,8 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
                 rec = s.to_json()
                 rec["label"] = b.label
                 if anchor in cut_dpi:
-                    # dpi comes FROM THE CROP, not from the rule: `crop.cut`
-                    # renders at `int(dpi)` while the rule gives a fraction,
-                    # and the recorded `round` disagreed with the deed on 328
-                    # boxes of 379. The disagreement is worth one dpi (0.13% of
-                    # width) -- but the number in the journal must be the one it
-                    # was cut at.
+                    # The journal's dpi is the one it was cut at; the rule's
+                    # fraction stands beside it under its own name.
                     info = cut_info.get(anchor) or {}
                     rec["observed"]["crop_dpi"] = info.get(
                         "dpi", cut_dpi[anchor][0])
@@ -539,10 +391,7 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
                     rec["observed"]["crop_dpi_reason"] = cut_dpi[anchor][1]
                     rec["observed"]["crop"] = info or None
                 rec["observed"]["kind_sniffed"] = _sniff(s.text or "")
-                # OTSL TORNNESS IS COUNTED BESIDE the answer. `otsl.parse`
-                # already counted rows of unequal length, continuations to
-                # nowhere and text outside the tags, and threw it all away: no
-                # run could print the numbers that tell a table torn at the
+                # OTSL tornness beside the answer: it tells a table torn at the
                 # ceiling from a whole one.
                 if rt.kind == "otsl" and s.text:
                     g, t = otsl.parse(s.text)
@@ -561,7 +410,7 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
             else:
                 tally["read"] += 1
                 tally["chars"] += len(txt)
-                # THE MODEL'S BYTES, unedited. The kind is the prompt's.
+                # The model's bytes, unedited; the kind is the prompt's.
                 b.content, b.kind = txt, rt.kind
                 by_kind[rt.kind] = by_kind.get(rt.kind, 0) + 1
                 if rec["observed"].get("kind_sniffed") not in (rt.kind, None):
@@ -569,11 +418,8 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
             if rec.get("outcome") == "length":
                 tally["hit_ceiling"] += 1
                 worst.append(anchor)
-            # ONLY REAL QUESTIONS COUNT. Blocks taken from a previous run landed
-            # here too: a second `books read` printed "asked 567" with ZERO
-            # calls to the service, and "seconds per block" divided by that same
-            # number. Two quantities under one name, drifting apart by
-            # construction.
+            # Only questions actually sent count as asked; a reused answer is
+            # not one, and seconds per block divides by this number.
             if anchor in asked_now:
                 tally["asked"] += 1
 
@@ -620,9 +466,8 @@ def report(t: dict, log=log) -> None:
         f"{t['native_book_dpi'] and round(t['native_book_dpi']) or '--'} dpi, "
         f"model window {t['model_window'] or 'not declared'}; "
         f"{t['crop_dpi_reason_counts'] or '--'}")
-    # The five troubles are printed ALWAYS, zeros included: a line that
-    # disappears at zero reads as "this never happens" rather than "it did not
-    # happen this time".
+    # Printed always, zeros included: a line that vanishes at zero reads as
+    # "this never happens".
     log(f"  model silent {t['model_silent']}, delivery failed "
         f"{t['delivery_failed']}, hit the ceiling {t['hit_ceiling']}, "
         f"answer past the anchor {t['answer_wrong_anchor']}, asked with no "
@@ -651,13 +496,11 @@ def report(t: dict, log=log) -> None:
 
 
 def _repeat_line(detect_dir: str, out_dir: str, args: dict) -> str:
-    """The repeat line. EXECUTABLE and COMPLETE.
+    """The repeat line: executable and complete.
 
-    Without `--pages` and `--policy` it repeats a DIFFERENT run; `books detect`
-    puts `--pages` into its own, and two commands disagreeing here is
-    indefensible. Quoting is mandatory: five files of nine in `raw/` carry
-    spaces and brackets, and an unquoted repeat line is not a repeat line but a
-    description of one.
+    Without `--pages` and `--policy` it repeats a different run. Quoting is
+    mandatory -- source names carry spaces and brackets, and an unquoted line
+    describes a command rather than being one.
     """
     argv = ["books", "read", detect_dir, "--out", out_dir]
     if args.get("pages"):
@@ -669,12 +512,10 @@ def _repeat_line(detect_dir: str, out_dir: str, args: dict) -> str:
 
 def snapshot(detect_dir: str, out_dir: str, reader: Reader,
              transport: Transport, tally: dict, args: dict) -> str:
-    """Input snapshot: the same fields as detection, and at last a non-empty
+    """Input snapshot: the same fields as detection, and a non-empty
     `prompts`."""
     facts = _detect_facts(detect_dir)
-    # One source for "what this run read", as in detection, and the very
-    # function the guard above asked: the identity that refuses a run and the
-    # identity recorded in it are one number.
+    # One source: the identity that refuses a run and the one recorded are one.
     ident, knob_block = read_identity(reader, transport)
     snap = {
         "when": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
@@ -682,12 +523,10 @@ def snapshot(detect_dir: str, out_dir: str, reader: Reader,
         "raster": facts["raster"],
         "args": args,
         "commit": stamp.commit(),
-        # See `core/stamp.identity`. VLM_SEED is in it on purpose: two
-        # readings at two seeds are two experiments, and `consistency`
-        # measures agreement between exactly that pair.
+        # VLM_SEED is in the identity on purpose: two seeds are two experiments.
         "identity": ident,
         "label": reader.label(),
-        # The same book as detection, hash checked BEFORE the work (read_book).
+        # The same book as detection, hash checked before the work (read_book).
         "source": facts["source"],
         "detection": {"dir": os.path.abspath(detect_dir),
                      "commit": facts.get("commit"),
@@ -699,9 +538,8 @@ def snapshot(detect_dir: str, out_dir: str, reader: Reader,
                     "sha256": stamp.sha256(
                         sys.modules[type(reader).__module__].__file__),
                     "sha256_command": stamp.sha256(os.path.abspath(__file__)),
-                    # OTSL parsing is OUR code and decides the numbers no less
-                    # than the model does. Without its hash two runs with
-                    # different parsers would look identical.
+                    # Our OTSL parser decides the numbers too: without its hash
+                    # two runs with different parsers look identical.
                     "sha256_otsl_parser": stamp.sha256(otsl.__file__)},
         "policy": policy.snapshot(getattr(reader, "policy_name", None)),
         "prompts": reader.fingerprint().get("prompts", {}),
@@ -709,12 +547,8 @@ def snapshot(detect_dir: str, out_dir: str, reader: Reader,
         "packages": stamp.packages(stamp.READ_PACKAGES),
         "weights": {"vl": reader.fingerprint().get("weights"),
                  "layout": facts.get("weights", {}).get("layout")},
-        # THE FINGERPRINT IS THE READER'S, unwrapped. `core/replay.py` derives the
-        # required shape from the active adapter's `fingerprint()` and looks for
-        # its fields right here; nested under a "reader" key they gave six lines
-        # of "no fingerprint/prompts" -- the snapshot declared INCOMPLETE while
-        # everything was written. The transport gets its own field: it is no
-        # model adapter, and mixing them declares two fingerprints one.
+        # Unwrapped, where `core/replay.py` looks for its fields; the transport
+        # keeps a field of its own rather than being folded in here.
         "fingerprint": reader.fingerprint(),
         "transport_fingerprint": transport.fingerprint(),
         "summary": tally,
@@ -730,25 +564,15 @@ def _knobs_snapshot(read_by_adapter) -> dict:
     """Knobs marked with who reads them. Shape shared with detection.
 
     The split is not decoration: a snapshot with every knob in one heap is
-    COMPLETE and not in effect. A heron run swore `LAYOUT_MODEL_NAME=
-    PP-DocLayoutV2` -- a value that adapter does not read at all -- and `books
-    replay --check` approved it.
+    complete and not in effect, and `books replay --check` approves it.
     """
-    # `CROP_DPI` IS ABSENT HERE, and not out of forgetfulness. The reading path
-    # does not read it at all: each crop's resolution is decided by
-    # `crop_dpi_for` (scan plus model window), and `crop.cut` is called with an
-    # explicit `dpi=`. Checked: `CROP_DPI=72` and `CROP_DPI=1200` do not move a
-    # `books read` crop by a pixel -- nor a `books crop` one, which walks this
-    # same path -- while `books html` obeys it. Declaring it in force would
-    # repeat the disease above.
+    # CROP_DPI is absent because this path does not read it: `crop_dpi_for`
+    # decides each crop's resolution and `crop.cut` gets an explicit `dpi=`.
     mine = ("VLM_READER", "VLM_TRANSPORT", "VLM_CONCURRENCY",
             "VLM_TEMPERATURE", "VLM_MAX_TOKENS", "VLM_TOP_P", "VLM_SEED",
             "CROP_MARGIN", "PAGE_DPI")
-    # THE "WHAT WE ASK / HOW WE DELIVER" SEAM LIVES IN THE SNAPSHOT TOO. Roles
-    # used to be folded into one tuple with "reading adapter" on all of them --
-    # so `VLM_ENDPOINT`, `VLM_RETRIES` and `VLM_TIMEOUT_S`, read by the
-    # transport, were credited to the model. The seam the whole of
-    # `read/__init__.py` exists for was erased in the snapshot.
+    # The ask/deliver seam holds in the snapshot too: transport knobs are the
+    # transport's, not the model's.
     roles = dict(read_by_adapter)
     for n in mine:
         roles.setdefault(n, "the `books read` command itself")

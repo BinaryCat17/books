@@ -1,10 +1,8 @@
 """The snapshot metric: is a run's `run.json` complete, as a `Record`.
 
-`core.replay.check` prints five separate numbers and returns the missing
-keys; this is the same check as scalars, so a table can carry "values
-present 38 of 55" beside the contour numbers and a run whose snapshot is
-hollow is visible where its numbers are. Needs pages and a snapshot: a
-bare run (`Run.bare`) has nothing to check and says so.
+The check of `core.replay`, published as scalars, so a run whose snapshot is
+hollow is visible where its numbers are. Needs pages and a snapshot: a bare
+run (`Run.bare`) has nothing to check and says so.
 """
 from booksmith.core import replay
 from booksmith.datasets.metrics.base import Metric, Record, Scalar, Spec

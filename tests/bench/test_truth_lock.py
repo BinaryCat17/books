@@ -1,10 +1,7 @@
 """The drawn truth, by sha256, against the bench built here and now.
 
-The lock was written to prove that moving the generator changed no truth, and
-it did prove it -- by hand, twice. A lock checked by hand is checked until
-someone forgets, and then it is a file that agrees with nothing. It is read
-here, so a generator change that moves the truth says so in the suite rather
-than in a number three steps later.
+A generator change that moves the truth fails here rather than in a number
+three steps later. The lock is tests/expected/slovar-truth.sha256.
 """
 import hashlib
 import os

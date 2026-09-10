@@ -1,33 +1,12 @@
-"""YOLOX-layout (unstructured.io): the ONLY non-DETR model on the bench.
+"""YOLOX-layout (unstructured.io): the only non-DETR model on the bench.
 
-Why this one. The other five bench detectors are DETRs -- RT-DETR-L with and
-without a pointer net, RT-DETR with masks, RT-DETRv2, D-FINE -- one family:
-fixed queries, one-to-one Hungarian matching, duplicate suppression as a
-LEARNED skill. If merging neighbouring blocks comes of that construction, a
-model of another paradigm has to behave differently. YOLOX is anchor-free and
-convolutional, predicts densely over a grid, and suppresses duplicates by
-algorithm (NMS) rather than by training.
-
-WHAT WE DO WITH THE OUTPUT, AND WHY IT IS NOT A PATCH. The graph returns a RAW
-grid: offsets in cells and the logarithm of the size. Decoding it and NMS are
-part of YOLOX's own inference as its authors describe it, not our box editing:
-without them the model has no answer at all. We merge nothing, cut nothing,
-move nothing; the NMS threshold is the native 0.45, declared in the
-fingerprint.
-
-LETTERBOXED INPUT. 1024x768, proportions kept, grey padding 114 -- how
-unstructured feeds this model. Of the SIX bench detectors (§13 of
-`METRICS.md`) it alone does not tear the sheet's proportions, and
-that is no advantage by itself: on `kat_two_side` it still gave one box over
-both tables, score 0.71. The "input distortion showed itself on one case of
-four" of §10 was taken on V2, not here.
-
-THE DETECTION THRESHOLD HERE IS OURS, to be read together with "the native
-0.45", which is about NMS. This build has no SELECTION threshold at all; ours
-acts, `LAYOUT_SCORE_THRESHOLD=0.5`, and `threshold_drift()` says so aloud. The
-price: on `bench/slovar` 0.5 finds 1 artifact of 3 (33 %), 0.3 finds 2 of 3
-(67 %). Every comparative yolox number in `METRICS.md` was taken under a
-foreign (paddle) threshold applied to a model that has none.
+In: a page raster, letterboxed to 1024x768 with grey padding. Out: DocLayNet-
+labelled boxes with no reading rank at all.
+Anchor-free and convolutional, it suppresses duplicates by algorithm (NMS at the
+reference 0.45) rather than by training -- the one paradigm here that can say
+whether block merging comes of the DETR construction. Decoding the raw grid and
+NMS are the model's own inference, not our editing. The selection threshold is
+ours: this build has none, so `LAYOUT_SCORE_THRESHOLD` acts and is declared.
 """
 import os
 
@@ -40,39 +19,15 @@ from booksmith.core import stamp
 from booksmith.core.errors import WeightsMissing
 
 MODELS = os.path.expanduser("~/.paddlex/official_models")
-# Class order -- DocLayNet alphabetical, the way unstructured numbers them.
-# Checked on a catalogue strip: class 5 landed on a running head, class 8 on a
-# table, so `Page-header` and `Table` are in their places.
+# DocLayNet alphabetical, the way unstructured numbers the classes.
 LABELS = ("Caption", "Footnote", "Formula", "List-item", "Page-footer",
           "Page-header", "Picture", "Section-header", "Table", "Text", "Title")
 STRIDES = (8, 16, 32)
 PAD = 114               # grey padding, as in unstructured
-# THE DOWNSCALE FILTER. A bare `interpolation=1` inside `_letterbox` once, it
-# never reached the fingerprint, unlike `PAD` next to it -- yet it decides
-# more than any other number here: on `bench/slovar` (13 pages, all else fixed)
-# 520 boxes with LINEAR, 492 with NEAREST, 497 with CUBIC, 519 with AREA, and
-# boxes matching the baseline 0, 1 and 28 respectively. The filter moves ALL
-# coordinates. In `doclayout` it is read from the weights and lies in the
-# fingerprint; here `books replay --check` could not see it by construction,
-# and the run was silently unrepeatable. 1 = cv2.INTER_LINEAR -- how the
-# reference YOLOX implementation feeds this model.
+# 1 = cv2.INTER_LINEAR, as the reference YOLOX code feeds it; it moves every coordinate.
 INTERP = 1
-NMS_IOU = 0.45          # the NMS threshold of the reference YOLOX code.
-                        # "Native" means "from the reference code", NOT "from
-                        # the weights": the weights carry no metadata at all
-                        # (producer='pytorch', empty description, empty
-                        # custom_metadata_map), only a LICENSE.txt beside them,
-                        # without 0.45 in it. The fingerprint admits that in
-                        # `verified_against_unstructured: false`. It decides
-                        # little: over all 600 golden pages, 5053 boxes at iou
-                        # 0.10 against 5097 at 0.45, 0.9 %. NMS_BY_CLASS below
-                        # decides far more: 68 boxes.
-# Duplicates suppressed BY CLASS -- how YOLOX's own `multiclass_nms` is built
-# (its class-agnostic mode is off by default). The unstructured wrapper may
-# have chosen otherwise and their code could not tell us, so the choice is
-# declared here and travels into the fingerprint instead of being implied. It
-# shows on boxes of different classes lying in one place: per class, both
-# survive.
+NMS_IOU = 0.45          # from the reference YOLOX code, not the weights: they hold no metadata
+# By class, as YOLOX's own `multiclass_nms` is: declared, since the wrapper may differ.
 NMS_BY_CLASS = True
 
 
@@ -96,8 +51,7 @@ class YoloXLayout(Detector):
         self.ort_version = ort.__version__
         self.providers = list(self.sess.get_providers())
         shape = self.sess.get_inputs()[0].shape
-        # The input of this build is RIGID: (1,3,1024,768). No dynamic axes,
-        # no other size can be fed -- fail aloud, do not fit it silently.
+        # The input of this build is rigid: (1,3,1024,768), no dynamic axes.
         self.in_h, self.in_w = int(shape[2]), int(shape[3])
         self.labels = list(LABELS)
         out = self.sess.get_outputs()[0].shape
@@ -123,28 +77,9 @@ class YoloXLayout(Detector):
                 f"acts over all {len(self.labels)} classes"]
 
     def knobs_read(self) -> tuple[str, ...]:
-        """Two knobs, checked by grep: `knob()` is called here three times.
-
-        `YOLOX_WEIGHTS` in `__init__` (which weights to take),
-        `LAYOUT_SCORE_THRESHOLD` in `thresholds()` and `threshold_drift()`.
-        `LAYOUT_TABLE_THRESHOLD` is not read: DocLayNet's `Table` takes the
-        common threshold and has none of its own. The paddle weights name and
-        directory do not concern this model -- the path is built from `MODELS`
-        and `self.weights`.
-
-        `YOLOX_WEIGHTS` is declared even though `YoloXLayout(weights=…)` will
-        not read it: `books detect` builds the adapter without arguments, so
-        the knob decides the weights on every run that reaches a snapshot.
-        
-        AND `ASSEMBLY_ORDER`, declared unconditionally. It acts through
-        `core.order.rule()` on every page this adapter emits without a model
-        rank of its own, and a knob that acts on even one path acts. It was
-        declared by NO adapter, so a snapshot wrote `read_by: NOBODY IN THIS
-        RUN, for_this_run: false` for a knob whose registry entry names the
-        four models it steers -- formally complete and inoperative, the exact
-        disease this contract's `knobs_read` was written against. Proved: two
-        one-page runs at `ours` and at `docling` gave DIFFERENT block orders
-        and the SAME identity.
+        """The knobs this adapter reads, checked by grep. `ASSEMBLY_ORDER` is
+        among them because this model has no rank of its own; all three are
+        declared unconditionally, a knob that acts on even one path acting.
         """
         return ("YOLOX_WEIGHTS", "LAYOUT_SCORE_THRESHOLD",
                 "ASSEMBLY_ORDER")
@@ -153,9 +88,9 @@ class YoloXLayout(Detector):
         return {}
 
     def label(self) -> str:
-        """The WEIGHTS FILE's stem. One adapter, one architecture, and the
-        weights are chosen by `YOLOX_WEIGHTS` -- so the file is the only
-        thing that tells two runs of this adapter apart."""
+        """The weights file's stem: one adapter, one architecture, and the
+        weights are chosen by `YOLOX_WEIGHTS`, so the file is the only thing
+        that tells two runs of this adapter apart."""
         return book.safe_label(os.path.splitext(self.weights)[0],
                                "the YOLOX weights file")
 
@@ -171,13 +106,7 @@ class YoloXLayout(Detector):
                      "padding": PAD, "keep_aspect": True},
             "native_threshold": None,
             "thresholds_by_class": self.thresholds(),
-            # NOT an empty list. `threshold_drift()` here ALWAYS says
-            # something -- "no native threshold, ours acts" -- and that is what
-            # makes visible that the selection threshold is OURS, not the
-            # weights'. Here stood a wired-in `[]`: the snapshot answered "no
-            # drift" and contradicted its own guard, the adapter shouting into
-            # the log and keeping quiet in `run.json`. heron and doclayout
-            # already do it right; the third of three was forgotten.
+            # Always non-empty here: the selection threshold is ours, and `run.json` says it.
             "threshold_drift": self.threshold_drift(),
             "label_vocabulary": self.labels,
             "label_map": self.label_map(),
@@ -222,12 +151,7 @@ class YoloXLayout(Detector):
         best = sc.max(1)
 
         thr = self.thresholds()
-        # Threshold for keeping raw rows. The whole grid (16128 cells) stays
-        # out of the json, but the evidence MUST cover everything accepted: the
-        # selection threshold comes from a knob and can be below 0.01, and then
-        # a threshold sweep over the snapshot lies downward -- on atlas at
-        # LAYOUT_SCORE_THRESHOLD=0.005, 20 of 75 accepted boxes had not one row
-        # in the raw output.
+        # The evidence must cover everything accepted, even at a knob set below 0.01.
         raw_keep = min(0.01, min(thr.values()))
         keep_idx, rejected = [], {}
         for i in range(len(best)):
@@ -237,20 +161,14 @@ class YoloXLayout(Detector):
                     rejected[lab] = float(best[i])
                 continue
             keep_idx.append(i)
-        # HOW MANY ENTERED SUPPRESSION. A quantity the log did not hold at
-        # all, while our own line kills 196..333 boxes a page (measured, 5
-        # slovar pages: 318->39, 340->57, 402->69, 253->57, 311->45).
+        # How many entered suppression: NMS drops 196..333 boxes a page.
         before_nms = len(keep_idx)
         keep_idx = _nms(boxes[keep_idx], best[keep_idx], cls[keep_idx],
                         keep_idx, NMS_IOU, by_class=NMS_BY_CLASS)
 
         kept = [(self.labels[int(cls[i])], float(best[i]),
                  [float(v) for v in boxes[i]]) for i in keep_idx]
-        # THE ASSEMBLY RULE LIVES IN `order.py`, ONE PER PROJECT. Here stood a
-        # sort of its own, `(t[2][1], t[2][0])` -- the third copy of the rule
-        # out of four, and two of those four sorted by a DIFFERENT key than
-        # they declared. This model has no rank, so the order is ours, and
-        # choosing it is the `ASSEMBLY_ORDER` knob's business, not this file's.
+        # This model has no rank, so the order is ours: the rule lives in `order.py`.
         which = order.rule()
         order.cover(self.labels, which)
         perm = order.permutation([t[0] for t in kept], [t[2] for t in kept],
@@ -260,21 +178,8 @@ class YoloXLayout(Detector):
                   for i, (lab, s, b) in enumerate(kept)]
         return Page(
             index=index, width=w, height=h, dpi=dpi, blocks=blocks,
-            # "output rows" is what the graph RETURNED, "feature grid cells"
-            # what decoding by STRIDES gives. Both used to come from
-            # out.shape[0], and the log compared a number with itself.
-            #
-            # THERE IS STILL NOTHING TO CHECK THEM AGAINST, and that has to be
-            # said plainly: they are equal BY CONSTRUCTION -- the constructor
-            # refuses to build when `out[1] != want`, and the input shape is
-            # static. Measured over 53 pages, 6 books, 4 dpi and both weight
-            # files: 0 divergences, both quantities 16128 everywhere. The fix
-            # was about where the numbers came from, not their independence.
-            #
-            # THE INDEPENDENT QUANTITIES ARE THE OTHER TWO, below: how many raw
-            # rows passed `raw_keep` (588..1520 on the same pages), and how
-            # many boxes entered suppression against how many were accepted. A
-            # slump of "four times fewer candidates" used to pass in silence.
+            # `output_rows` and `feature_grid_cells` are equal by construction, so they
+            # check nothing; the independent quantities are the rows above `raw_keep`.
             raw={"output_rows": int(out.shape[0]),
                  "output_columns": int(out.shape[1]),
                  "feature_grid_cells": int(len(g)),
@@ -287,22 +192,11 @@ class YoloXLayout(Detector):
                  "raw_rows_keep_threshold": raw_keep,
                  "rows_above_keep_threshold":
                      int((best >= raw_keep).sum())},
-            # NO `raster` PATH HERE. It named the scratch PNG the page was
-            # rendered to -- a file deleted at the end of the run, under a
-            # machine-local absolute path, baked into every page of every
-            # book. Nothing read it, and it made two runs of ONE model
-            # byte-different when the run directory moved: 13 of 13 slovar
-            # pages differed on it alone and were identical without it. The
-            # facts worth keeping are the dpi and the size, and `Page`
-            # carries both.
+            # No `raster` path: a machine-local scratch name makes identical runs differ.
             meta={"detector": self.name,
                   "boxes_accepted": len(kept), "rank_ties": 0,
                   "reading_order": order.declare("ours", order.WORDS[which]),
-                  # A QUANTITY, NOT A WORD. Here stood
-                  # `f"NMS iou={NMS_IOU}"`, a string repeating a constant,
-                  # while the log said nothing about HOW MUCH it suppressed.
-                  # It broke the project rule outright: into the log goes a
-                  # quantity, not the word "done".
+                  # A quantity, not the word "done": how much was suppressed.
                   "duplicate_suppression": {"method": "NMS", "iou": NMS_IOU,
                                         "by_class": NMS_BY_CLASS,
                                         "boxes_in": before_nms,

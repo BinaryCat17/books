@@ -1,16 +1,12 @@
 """The drawers: what puts ink on a synthetic page, and the truth it says.
 
-Every drawer takes the page, the truth list and a place, draws, appends
-the box it drew with its label to the truth in POINTS, and tells `_say`
-what characters it put there (the truth of characters travels beside the
-box, by the block that is being appended). The measured truth in pixels is
-`truth.py`'s business, after the page is rasterised; aging is `age.py`'s.
-
-The sheet constants at the bottom are THE HANDBOOK'S format and the
-default of `_page` and `_flow`; every other book declares its own SHEET
-and passes it, because a drawer called for another book would otherwise
-silently draw on the handbook's format -- the unit trap that once carried
-half a spread off the edge of the sheet.
+Every drawer takes the page, the truth list and a place, draws, appends the box
+it drew with its label to the truth in POINTS, and tells `_say` what characters
+it put there. The measured truth in pixels is `truth.py`'s business, after the
+page is rasterised; aging is `age.py`'s. The sheet constants at the bottom are
+THE HANDBOOK'S format and the default of `_page` and `_flow`; every other book
+declares its own SHEET and passes it, or a drawer called for another book draws
+on the handbook's format in silence.
 """
 
 from booksmith.core.errors import Refusal
@@ -22,11 +18,9 @@ FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf"
 FONT_MONO = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"
 
 
-# DRAWN ONTO THE PAGE, therefore book content, therefore a name ending in
-# `_RU` names Russian PAGE TEXT: it is the book the bench pretends to be,
-# and the ink measurement is taken over these very glyphs. English here would
-# change the raster of the two Cyrillic pages of the handbook and move every
-# ink figure measured on them.
+# Drawn onto the page, so a name ending in `_RU` names Russian PAGE TEXT: it is
+# the book the bench pretends to be, and the ink is measured over these very
+# glyphs, so English here would move every figure taken on those pages.
 BOX_TITLE_RU = "ВРЕЗКА"
 FIG_CAPTION_RU = "Рис. 3.  Схема испытания"
 HEADS_RU = ("Марка", "σ, МПа", "δ, %", "НВ",
@@ -50,22 +44,11 @@ class SynthError(Refusal):
 
 
 # ------------------------------------------------------ truth of CHARACTERS
-# `content` was `None` on all 4984 blocks of all six books until this existed.
-#
-# WHY A SEPARATE DICT, NOT A SIXTH TUPLE ELEMENT. `truth.append((...))` occurs
-# 62 times in the bench (37 here, 25 in `books/*.py`), and five places take the
-# 5-tuple apart and rebuild it -- BEHAVING DIFFERENTLY: three would silently
-# drop a sixth element (`_measure`, rebuilding a 5-tuple through `out.append`;
-# the rotation; the skew), two would fail on unpacking (the
-# `for x0, y0, x1, y1, lab in boxes` loop and the points-to-pixels pass in
-# `build`). In three places of five the character truth would vanish WITHOUT A
-# WORD -- exactly how this file has already lied four times with
-# healthy-looking numbers. The key is the BLOCK NUMBER, the `block_id` of
-# `layout/base.py`.
-#
-# The dict is filled while a page is drawn and taken right after. All four
-# transforms preserve the order of `truth`, so a block's number is its place
-# in the truth list.
+# A separate dict and not a sixth tuple element: five places take the 5-tuple
+# apart and rebuild it, and three of them would drop a sixth element without a
+# word. The key is the BLOCK NUMBER, the `block_id` of `layout/base.py`; the
+# dict is filled while a page is drawn and taken right after, and all four box
+# transforms preserve the order of `truth`.
 _SAID: dict[int, dict] = {}
 
 
@@ -80,14 +63,9 @@ def _said_take() -> dict[int, dict]:
 
 
 def _say(truth, text=None, *, cells=None, spans=None, add=False):
-    """Record character truth for the LAST truth block added.
-
-    Called immediately after `truth.append((...))`, so the block number is
-    `len(truth) - 1` and the link depends on nothing else. Breaking that
-    adjacency is the only way to lie here, so a second write to the same number
-    without `add=True` raises: truth overwritten is indistinguishable from
-    truth absent.
-    """
+    """Record character truth for the LAST truth block added: called right after
+    `truth.append((...))`, so the number is `len(truth) - 1` and the link depends
+    on nothing else. A second write to that number without `add=True` raises."""
     if not truth:
         raise SynthError("`_say` called before a truth box was added")
     i = len(truth) - 1
@@ -113,21 +91,9 @@ def _say(truth, text=None, *, cells=None, spans=None, add=False):
 
 
 def _fill(pg, rect, text, size, font="F"):
-    """Pack the box with prose TO CAPACITY and return WHAT WAS DRAWN.
-
-    Checking the return code is not pedantry: without it the box stays empty
-    silently and the bench measures blank paper, believing it measures prose.
-
-    The BODY is returned, not the leftover height: nobody read the leftover
-    (checked on all ten calls), and only the body says what landed in the box.
-
-    THE TEXT LAYER SEES MORE THAN ONE PASS: at `rc > size*1.4` the body grows
-    and `insert_textbox` runs again over what is already drawn. Measured on one
-    210x80 pt box: two passes, 108 words in the body, 175 in the PDF text
-    layer. Only the last line of each intermediate pass differs, its
-    justification changing once a line appears below -- a smear on the raster,
-    ghosts in the layer. Hence `_text_check` counts ghosts SEPARATELY.
-    """
+    """Pack the box with prose TO CAPACITY and return WHAT WAS DRAWN: unchecked,
+    the return code lets the box stay empty in silence. The PDF text layer keeps
+    every intermediate pass, hence `_text_check` counting ghosts separately."""
     import pymupdf
     body = text
     for _ in range(40):
@@ -152,12 +118,9 @@ def _rect(x0, y0, x1, y1):
 
 def _table(pg, truth, x, y, cols, rows, size=6.4, label="table",
            ruled=False, colw=62.0, step=9.0):
-    """A table of the requested size. `ruled` -- with or without rules.
-
-    Both are needed: in our books tables hold together by aligned whitespace,
-    the hardest kind for a detector, but ruled ones occur too, and the
-    difference must show as a number, not be assumed.
-    """
+    """A table of the requested size, `ruled` with or without rules. Both are
+    needed: our tables hold together by aligned whitespace, the hardest kind for
+    a detector, but ruled ones occur too and the difference must show."""
     grid = [[c for c, _cx in cols]]
     for c, cx in cols:
         pg.insert_text((cx, y), c, fontname="F", fontsize=size)
@@ -215,14 +178,9 @@ def _chart(pg, truth, x, y, w, h, caption="Fig. 9  Hardness vs carbon"):
 
 
 def _figure(pg, truth, x, y, w, h, caption="Fig. 26.67  General arrangement"):
-    """Line drawing: outline, circles, centre lines, dimension arrows.
-
-    NOT parallel hatching across the whole rectangle. The first edition drew
-    that, and a large drawing came out as a ruled form -- forty-seven even
-    lines the full width. The detector honestly declined to call it `image`,
-    and I filed the refusal as a model defect. A drawing must look like a
-    drawing, or the bench measures something other than its name.
-    """
+    """Line drawing: outline, circles, centre lines, dimension arrows, and no
+    parallel hatching across the whole rectangle, which reads as a ruled form.
+    A drawing must look like a drawing, or the bench measures another thing."""
     import pymupdf
     R = pymupdf.Rect(x, y, x + w, y + h)
     pg.draw_rect(R, color=(0, 0, 0), width=0.7)
@@ -265,12 +223,9 @@ def _figure(pg, truth, x, y, w, h, caption="Fig. 26.67  General arrangement"):
 
 
 def _text_w(text: str, size: float, font: str = "F") -> float:
-    """Line width BY FONT METRICS, not by len(text)*coefficient.
-
-    The old estimate `len(caption) * 3.1` fell short on all thirteen captions
-    of the bench, and `_measure` can only shrink to the ink and grow by GROW
-    pixels -- so an undersized box stayed undersized, an undeserved miss.
-    """
+    """Line width BY FONT METRICS, never by len(text) times a coefficient:
+    `_measure` can only shrink to the ink and grow by GROW pixels, so an
+    undersized box stays undersized and the miss is undeserved."""
     import pymupdf
     f = pymupdf.Font(fontfile=FONT_MONO if font == "M" else FONT)
     return f.text_length(text, fontsize=size)
@@ -286,12 +241,9 @@ def _caption(pg, truth, x, y, text, size=6.2, label="figure_title"):
 
 
 def _halftone(pg, truth, x, y, w, h, caption="Fig. 31  Milling head, photograph"):
-    """A halftone PHOTOGRAPH in dots, not a line drawing.
-
-    Different physics: a drawing is thin black lines on white, a photograph a
-    grey mass of printer's dots. The model calls both `image` but confuses
-    each with text differently, so both must be measured.
-    """
+    """A halftone PHOTOGRAPH in dots, not a line drawing: different physics, and
+    the model calls both `image` while confusing each with text differently, so
+    both must be measured."""
     import numpy as np
     import pymupdf
     n = 4
@@ -332,11 +284,9 @@ def _stamp(pg, truth, x, y, r=34.0):
 
 
 def _leader_table(pg, truth, x, y, rows, w=230.0, size=6.4, label="table"):
-    """Table on dot leaders: a column of names, dots, a column of numbers.
-
-    Exactly what separates a contents list from a table -- ONE feature, and the
-    model trips on it. Here it is a TABLE; in `contents_dots`, a contents list.
-    """
+    """Table on dot leaders: a column of names, dots, a column of numbers. One
+    feature separates it from a contents list and the model trips on it: here it
+    is a TABLE, in `contents_dots` a contents list."""
     grid = []
     for i in range(rows):
         yy = y + i * 9.4
@@ -344,11 +294,9 @@ def _leader_table(pg, truth, x, y, rows, w=230.0, size=6.4, label="table"):
         pg.insert_text((x, yy), name + " " + "." * 28, fontname="F", fontsize=size)
         pg.insert_text((x + w - 26, yy), f"{12 + i * 3}.{i % 9}", fontname="F",
                        fontsize=size)
-        # LEADER DOTS ARE NOT PART OF THE CELL -- a decision, not sloppiness:
-        # a leader is a typographic rule set in dots, standing BETWEEN two
-        # cells and belonging to neither. In the cell, it would oblige the
-        # second level to emit twenty-eight dots to "match" -- a penalty for
-        # the right answer.
+        # Leader dots are not part of the cell: a leader is a typographic rule
+        # standing BETWEEN two cells and belonging to neither, and in the cell it
+        # would oblige level two to emit twenty-eight dots to "match".
         grid.append([name, f"{12 + i * 3}.{i % 9}"])
     truth.append((x - 4, y - 8, x + w, y + (rows - 1) * 9.4 + 4, label))
     _say(truth, cells=grid)
@@ -367,11 +315,9 @@ def _span_header_table(pg, truth, x, y, groups, rows, colw=54.0, size=6.2):
         pg.draw_line(_rect(cx, y + 3, cx + span - 8, y + 3).tl,
                      _rect(cx, y + 3, cx + span - 8, y + 3).tr,
                      color=(0, 0, 0), width=0.4)
-        # A spanning cell takes TWO records: the name in the group's first
-        # cell, blanks in the rest, plus "row 0, column c, width n". A grid
-        # alone cannot express it, and without the second record a two-tier
-        # header is indistinguishable from a plain one -- this case's chief
-        # damage, "header flattened into one row", would go uncaught.
+        # A spanning cell takes TWO records: the name in the group's first cell
+        # with blanks in the rest, plus "row 0, column c, width n". A grid alone
+        # cannot tell a two-tier header from one flattened into a single row.
         spans.append({"row": 0, "col": len(cols), "cols": n})
         for j in range(n):
             cols.append(cx + j * colw)
@@ -396,10 +342,9 @@ def _span_header_table(pg, truth, x, y, groups, rows, colw=54.0, size=6.2):
 
 
 # -------------------------------------------------------- drawers for books
-# Everything below is called from `booksmith/books/*.py`. Each drawer takes
+# Everything below is called from `synth/books/*.py`. Each drawer takes its
 # coordinates EXPLICITLY and never reads the sheet size from the module: the
-# bench books differ in format, and a drawer taking the size from there would
-# silently draw on the wrong sheet.
+# bench books differ in format, and the module default is the handbook's.
 
 def _has_glyphs(text: str, font: str = "F") -> list[str]:
     """Which characters the font lacks. A missing glyph draws as a .notdef box
@@ -422,13 +367,9 @@ def _line(pg, x0, y0, x1, y1, width=0.9):
 
 
 def _put(pg, x, y, text, size=6.4, font="F", right=None, sheet_w=None):
-    """A line, checked to fit on the sheet.
-
-    THE SECOND TRAP OF THE SAME KIND as `insert_textbox`. Past the right edge
-    `insert_text` clips the ink and returns 1, as on success: a line 1516 pt
-    wide on a 506 pt sheet is "drawn" and 505 pt of it is visible, while the
-    truth box claims the full width -- a permanent miss.
-    """
+    """A line, checked to fit on the sheet: past the right edge `insert_text`
+    clips the ink and returns 1 as on success, while the truth box goes on
+    claiming the full width -- a permanent miss."""
     w = _text_w(text, size, font)
     if right is not None:
         x = right - w
@@ -480,9 +421,8 @@ def _entries(pg, truth, x, y, y_end, w, sheet_w, words, size=5.8,
                 rest = ln[len(head):].lstrip()
                 _put(pg, xx + wl + 2, y, rest, size, sheet_w=sheet_w)
                 # Truth is WHAT IS DRAWN, letter by letter: the spaced-out
-                # "A b u t" is recorded as such. Recording the logical
-                # "Abutment" would declare a divergence from the paper normal,
-                # and the text-layer check would stop being a check.
+                # "A b u t" is recorded as such, or the text-layer check stops
+                # being a check.
                 drawn.append(sp + " " + rest)
             else:
                 _put(pg, xx, y, ln, size, sheet_w=sheet_w)
@@ -498,10 +438,8 @@ def _entries(pg, truth, x, y, y_end, w, sheet_w, words, size=5.8,
 def _running_head(pg, truth, x0, x1, y, left, right, page_no, size=5.6,
                   rule=True):
     """Running head: a word left, a word right, a rule under them, a folio."""
-    # TWO blocks, not one across the width. Checked: the model returns two
-    # `header` boxes at 0.92, left word and right, and it is right -- half a
-    # measure of blank paper lies between them. The glued truth read "header 0
-    # of 12", blaming the model for our own error of granularity.
+    # TWO blocks, not one across the width: half a measure of blank paper lies
+    # between them, so two `header` boxes is the right answer.
     wl = _put(pg, x0, y, left, size, sheet_w=x1 + 40)
     truth.append((x0 - 2, y - size - 1, x0 + wl + 2, y + 2, "header"))
     _say(truth, left)
@@ -602,13 +540,9 @@ def _refs(pg, truth, x, y, y_end, w, sheet_w, size=5.6, start=1):
 
 def _frame_stamp(pg, truth, x0, y0, x1, y1, title="GENERAL ARRANGEMENT",
                  no="26.67"):
-    """A drawing frame with a TITLE BLOCK in the lower right corner.
-
-    The title block is a grid of celled text, a table to the eye and `table`
-    in the truth, which is what it is. The drawing frame runs along the sheet
-    edge and does NOT enter the truth: the detector must not box the whole
-    sheet, and if it does, the spill counter says so.
-    """
+    """A drawing frame with a TITLE BLOCK in the lower right corner. The title
+    block is a grid of celled text and `table` in the truth; the frame along the
+    sheet edge does NOT enter the truth, so a box over the whole sheet spills."""
     import pymupdf
     pg.draw_rect(pymupdf.Rect(x0, y0, x1, y1), color=(0, 0, 0), width=1.4)
     sw, sh = 168.0, 46.0
@@ -680,13 +614,10 @@ def _plate(pg, truth, x, y, w, h, views=1):
     return y + h
 
 
-# A handbook page is DENSE top to bottom -- its chief property, which the first
-# edition did not reproduce: content filled the upper half, the rest was blank
-# paper, and such a page looks like nothing to a detector.
-#
-# All coordinates here are in POINTS (1 point = 2 pixels at 144 dpi). Mixing
-# units has already cost one spread: the half at `x0 + 46` with `x0` in pixels
-# ran off the sheet and the right-hand page came out blank.
+# A handbook page is DENSE top to bottom: that is its chief property, and a page
+# whose lower half is blank paper looks like nothing to a detector. All
+# coordinates here are in POINTS (1 point = 2 pixels at 144 dpi); mixing units
+# has already carried half a spread off the edge of the sheet.
 PW, PH = W * PT, H * PT          # sheet in points: 506 x 733
 MARGIN, COLW, GUT = 34.0, 210.0, 18.0
 TOP, BOT = 40.0, 700.0
@@ -694,13 +625,9 @@ COL_X = (MARGIN, MARGIN + COLW + GUT)
 
 
 def _page(doc, wide=False, pw=None, ph=None):
-    """A sheet. The size is an EXPLICIT parameter, not only a module constant.
-
-    Bench books differ in format: the dictionary is narrow, the atlas
-    landscape. With the size from the module alone, a drawer called for another
-    book would silently draw on the handbook format -- the same unit trap that
-    already cost one spread.
-    """
+    """A sheet, its size an EXPLICIT parameter and not only a module constant:
+    the bench books differ in format -- the dictionary narrow, the atlas
+    landscape -- and the module default is the handbook's."""
     pw = PW if pw is None else pw
     ph = PH if ph is None else ph
     pg = doc.new_page(width=(2 * pw if wide else pw), height=ph)

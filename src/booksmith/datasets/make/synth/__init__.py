@@ -1,33 +1,12 @@
 """Synthetic bench: old-handbook pages with exact truth.
 
-WHY. Contour metrics cannot be checked on real scans: there is no truth for
-them, and truth borrowed from another model is what this project already
-deleted. Here it is given BY CONSTRUCTION -- we drew the box.
-
-THE LESSON OF THIS FILE, PAID FOR WITH TWO FALSE CONCLUSIONS.
-`insert_textbox` draws **nothing** when the text does not fit, and silently
-returns a negative number. My first two editions shipped pages with blank
-paper where the prose should be, and the conclusion drawn from them was "the
-detector cannot see synthetics". It saw exactly what was there. So every call
-is checked here, and `_fill` packs the box to capacity.
-
-AGING IS NOT DECORATION, IT CHANGES THE MODEL'S ANSWER -- measured, see `_age`.
-
-TRUTH OF CHARACTERS, NOT ONLY OF BOXES. The bench draws the text and knows it
-letter by letter -- and used to throw it away: `content` was `None` on every
-block of all six books. Now a block of role text/service carries `content`
-(93 pages, 1211 blocks, 393 847 characters, 73 863 words), and a table carries
-rows, columns and every cell's text (52 tables, 7743 cells) in
-`meta["artifact_truth"]` by block id. An artifact keeps `content` null, a value
--- see `build`. This is the only place in the project where text is known other
-than on another model's word: the old reading quality numbers were annulled for
-being measured against Mistral OCR output.
-
-WHAT IT DOES NOT GIVE. It does not reproduce fifties letterpress on yellowed
-paper -- the kind that reads `Laths` for `Lathes`. Its glyphs are clean and
-ours, so it measures ASSEMBLY FIDELITY (what arrived, where it landed, whether
-a cell was lost), not reading robustness to typographic damage. That needs the
-golden bench, hand-marked on real pages.
+Truth is given BY CONSTRUCTION -- we drew the box -- a real scan having none, and
+characters with it: `content` on a text block, a table's cells in
+`meta["artifact_truth"]`. `insert_textbox` draws NOTHING when the text does not
+fit and returns a negative number, so every call is checked and `_fill` packs the
+box to capacity. What it does not give is fifties letterpress on yellowed paper:
+the glyphs are clean and ours, so it measures ASSEMBLY FIDELITY and not reading
+robustness to typographic damage.
 """
 import hashlib
 import json
@@ -47,17 +26,9 @@ __all__ = ["build", "AGING", "INK", "SynthError"]
 
 def build(out_dir: str, cases=None, seed: int = 1, aging: str = "old",
           book: str = "spravochnik", log=print) -> dict:
-    """Build the synthetic book: a PDF plus exact truth for every page.
-
-    The product is an ordinary PDF, so `books detect`, `books html` and
-    `books crop` work on it unamended: the bench is not a separate pipeline,
-    just such a book with a known answer.
-
-    NOTHING HALF-BUILT SURVIVES A REFUSAL. The aside files are removed on the
-    way out unless the swap completed -- `bench/<book>/truth.new` beside a
-    tracked bench is a partial second copy of the truth, and the next reader
-    has no way to tell which one is the bench.
-    """
+    """Build the synthetic book: a PDF plus exact truth for every page. The
+    product is an ordinary PDF, so the whole pipeline works on it unamended.
+    Nothing half-built survives a refusal: the aside files go on the way out."""
     # `truth.previous` too: the swap leaves the old truth aside under that
     # name, and a bench directory ignores neither it nor `truth.new`.
     aside = (os.path.join(out_dir, "truth.new"),
@@ -100,15 +71,10 @@ def _build(out_dir, cases, seed, aging, book, log) -> dict:
 
     os.makedirs(out_dir, exist_ok=True)
     truth_dir = os.path.join(out_dir, "truth")
-    # WRITTEN ASIDE AND SWAPPED IN ONLY AFTER THE LAST REFUSAL -- the third of
-    # the three bench builders to learn this, and the same accident each time.
-    # `truth/` was emptied HERE, before a loop that raises `SynthError` eight
-    # ways (an empty truth box, a `_say` out of step with `truth.append`, a
-    # box count that does not match, a collapsed box after ageing, a page that
-    # will not re-compress). Any of them left the bench a MIXTURE: some truth
-    # files from the new build, the rest destroyed, the pdf and manifest from
-    # the old one. Cheaper here than on the golden bench, since synth rebuilds
-    # from a seed -- but a mixture is not a bench, and nothing said so.
+    # Written aside and swapped in only after the last refusal: the loop below
+    # raises `SynthError` eight ways, and emptying `truth/` here would leave the
+    # bench a mixture -- some truth files new, the rest destroyed, the pdf and
+    # manifest from the old build.
     work = truth_dir + ".new"
     wpdf = os.path.join(out_dir, f"{book}.pdf.new")
     wman = os.path.join(out_dir, "manifest.json.new")
@@ -123,9 +89,8 @@ def _build(out_dir, cases, seed, aging, book, log) -> dict:
     pages, counts = [], {}
     for i, name in enumerate(names):
         doc = pymupdf.open()
-        # Seed by CASE NAME, not by position: positional seeding meant that
-        # inserting one page silently changed the aging of every page after it,
-        # and two runs with different `--cases` were incomparable.
+        # Seed by CASE NAME, not by position: positional seeding makes
+        # inserting one page change the aging of every page after it.
         page_seed = seed ^ (int.from_bytes(
             hashlib.blake2b(f"{book}/{name}".encode(), digest_size=4).digest(),
             "big") & 0x7FFFFFFF)
@@ -167,24 +132,13 @@ def _build(out_dir, cases, seed, aging, book, log) -> dict:
         # turning the words by the same two matrices gains the number nothing).
         check = _text_check(raw_words, boxes, said, name)
 
-        # THE OTHER SIDE OF THE SAME CHECK: ink WITHOUT a truth box.
-        # `_measure` holds one side -- no truth box without ink under it -- and
-        # NOTHING held the other: the bench kept quiet about what was drawn and
-        # not declared, and the number looked healthy. And so it went:
-        # `contents_dots` declared a 68 pt box under the word "CONTENTS", whose
-        # width is 73 pt, and the last letter stayed outside the truth (a blob
-        # 13x18 px = 93 px). That box is now laid by measure (`_text_w`, as in
-        # `_caption`) and the number fell 93 -> 0.
-        #
-        # A MAGNITUDE, NOT A BAN AND NOT AN AMNESTY. Some ink outside the truth
-        # is drawn ON PURPOSE: the drawing frame along the sheet edge (17030 px
-        # over three atlas pages), the rules under running heads and over
-        # footnotes, the dictionary column rules. No "outside the measurement"
-        # field as annopage has, and there will not be one: there the amnesty
-        # covers a librarian's category our dictionary cannot express, here we
-        # drew it ourselves, and forgiving the model our own box would decide
-        # for it where it may err. So the magnitude is counted and logged: a
-        # blob that grew undeclared shows on the first build.
+        # The other side of `_measure`: ink WITHOUT a truth box. A magnitude,
+        # not a ban and not an amnesty -- the sheet frame, the rules under
+        # running heads, the column rules are drawn on purpose, and there is no
+        # "outside the measurement" field as annopage has, since we drew them
+        # ourselves and forgiving the model our own box would decide for it
+        # where it may err. So a blob that grew undeclared shows on the first
+        # build.
         left = (cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) < INK).astype(np.uint8)
         for bx in boxes:
             left[max(0, int(bx[1])):int(round(bx[3])),
@@ -202,10 +156,8 @@ def _build(out_dir, cases, seed, aging, book, log) -> dict:
                 "size_on_clean_raster": [sw, sh], "box": None}
             spot_box = (sx, sy, sx + sw, sy + sh)
 
-        # The binding shadow comes BEFORE the rotation. The gutter halves the
-        # SPREAD, not the raster: on a page rotated 90° it runs across the
-        # sheet. The old edition drew it after the rotation, across the real
-        # gutter, and the truth's "gutter" field named the wrong axis.
+        # The binding shadow comes BEFORE the rotation: the gutter halves the
+        # SPREAD, not the raster, and after a 90° turn it is no longer an x.
         gutter = None
         if name in B_SPREADS:
             img, gutter = _binding(img, page_seed)
@@ -216,10 +168,7 @@ def _build(out_dir, cases, seed, aging, book, log) -> dict:
             img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
             boxes = [(*_rot90_box(b[:4], src_h), b[4]) for b in boxes]
             # The blob rides the same two transforms as the truth boxes: it
-            # must lie in the coordinates of THE page it is recorded beside.
-            # Untransformed, the box on `atl_rotated_plate` gave x=1421 on a
-            # sheet 1012 wide, pointing off the sheet -- the trouble the gutter
-            # cost, fixed the same way, by order of operations.
+            # must lie in the coordinates of the page it is recorded beside.
             if spot_box is not None:
                 spot_box = _rot90_box(spot_box, src_h)
             if gutter is not None:
@@ -243,15 +192,11 @@ def _build(out_dir, cases, seed, aging, book, log) -> dict:
         ok, enc = cv2.imencode(".png", img)
         page.insert_image(page.rect, stream=enc.tobytes())
 
-        # CHARACTERS GO INTO A BLOCK BY THE LABEL'S ROLE, NOT BY THE LABEL.
-        # `content` is filled only for roles text and service -- there the
-        # characters ARE the first level's product. An ARTIFACT keeps `content`
-        # null, and that is a VALUE, not an omission: it never travels to a VLM
-        # as text at all -- the reader routes an artefact label nowhere
-        # (`read/__init__.py`) -- its characters are the
-        # SECOND level's answer, and their reference lies beside, in
-        # `meta["artifact_truth"]`, by block number. The `Block` schema is
-        # untouched: a sixth field there would break `Page.from_json`.
+        # Characters go into a block by the label's ROLE, not by the label:
+        # `content` is filled for roles text and service, where the characters
+        # are level one's product. An ARTIFACT keeps `content` null, and that is
+        # a VALUE -- its characters are level two's answer, and their reference
+        # lies beside in `meta["artifact_truth"]`, by block number.
         from booksmith.core import policy
         blocks, art_truth = [], {}
         no_chars = []
@@ -298,34 +243,23 @@ def _build(out_dir, cases, seed, aging, book, log) -> dict:
                                 # not a forgotten box. The blob box is in THIS
                                 # page's coordinates, to be found by eye.
                                 "ink_outside_truth": undecl,
-                                # A FLAG, NOT A GUESS. `subset.py` and
-                                # `books score` read `text_marked` as three
-                                # answers -- yes, no, not said -- and the last
-                                # is not no. The synthetics used to say
-                                # NOTHING. Set BY FACT: yes only when every
-                                # block of role text and service has
-                                # characters; one silent hole and it says no.
+                                # A flag, not a guess: `text_marked` has three
+                                # answers and "not said" is not "no". Set BY
+                                # FACT -- yes only when every block of role
+                                # text and service carries characters.
                                 "text_marked": not no_chars,
-                                # THE READING ORDER IS KNOWN BY CONSTRUCTION:
+                                # The reading order is known by construction:
                                 # the drawers append blocks in the order a
-                                # reader takes them, and `order` above is
-                                # that index. The flag was missing, and the
-                                # one bench where order is exact could not
-                                # score it: thirteen pages of slovar printed
-                                # NOT SAID (the audit of 2026-09-06). A case
-                                # that draws out of reading order is a truth
-                                # defect for the eyes and `books look`.
-                                # THE CONVENTION FOR WHAT IS NOT PROSE: the
-                                # order metric scores every matched block,
-                                # furniture and artefacts included, and the
-                                # generator places them by the book's habit,
-                                # not by a reader's -- the folio last on the
-                                # handbook, the atlas and the magazine, the
-                                # running head and folio FIRST on the
-                                # dictionary and the catalogue; marginalia
-                                # after the body they stand beside; footnotes
-                                # per column. A model's disagreement on those
-                                # pairs is disagreement with a convention.
+                                # reader takes them, and `order` above is that
+                                # index. THE CONVENTION FOR WHAT IS NOT PROSE:
+                                # furniture and artefacts go by the book's
+                                # habit -- the folio last on the handbook, the
+                                # atlas and the magazine, running head and
+                                # folio FIRST on the dictionary and the
+                                # catalogue; marginalia after the body they
+                                # stand beside; footnotes per column -- so a
+                                # model's disagreement there is with a
+                                # convention.
                                 "order_marked": True,
                                 "char_truth": chars,
                                 "text_layer_check": check,
@@ -372,26 +306,17 @@ def _build(out_dir, cases, seed, aging, book, log) -> dict:
     # Named after the BOOK, not `synth.pdf` everywhere: six books under one
     # file name confuse at the first glance at a directory.
     pdf = os.path.join(out_dir, f"{book}.pdf")
-    # `no_new_id=True` -- NOT DECORATION. Without it MuPDF writes random bytes
-    # into `/ID` on every save, and one command with one seed gave DIFFERENT
-    # files: two consecutive `books synth --book slovar` runs, the same size to
-    # the byte, 51 bytes of difference, all 51 in `/ID`. The truth reproduced
-    # exactly, file by file.
-    #
-    # What those 51 bytes cost. `docs/architecture.md` promises the benches rebuild
-    # byte-identical from one command, and on that rests their not being
-    # versioned (472 MB for annopage). `books html` compares the book's sha256
-    # with the detection snapshot and refuses to build on a mismatch -- so
-    # rebuilding a bench silently invalidated EVERY earlier run over it,
-    # discoverable only by a refused build. With this flag two runs give
-    # byte-equal files; `reproducible=True` does NOT.
+    # `no_new_id=True` -- not decoration: without it MuPDF writes random bytes
+    # into `/ID` on every save and one command with one seed gives different
+    # files. The benches go unversioned because they rebuild byte-identical, and
+    # `books html` refuses a book whose sha256 has moved, so a rebuild would
+    # invalidate every earlier run over it. `reproducible=True` does NOT do this.
     out.save(wpdf, garbage=3, deflate=True, no_new_id=True)
     out.close()
 
-    # THE TRUTH SNAPSHOT. Without it editing any drawer changes the truth
-    # silently, and yesterday's number becomes incomparable with today's.
-    # `books score` uses it to check that truth and model output are about one
-    # PDF; here it also records HOW that truth was built.
+    # The truth snapshot: without it editing a drawer changes the truth silently
+    # and yesterday's number stops comparing with today's. It also records HOW
+    # that truth was built.
     def total_of(key, margin):
         return sum(pp[key][margin] for pp in pages)
     total = {"chars": total_of("char_truth", "chars"),
@@ -409,18 +334,15 @@ def _build(out_dir, cases, seed, aging, book, log) -> dict:
             "words_in_text_layer_total": total_of("text_layer_check",
                                            "words_in_layer")}
 
-    # The generator hashes ITSELF by its own `__file__`, not by a path built
-    # beside it: the package move rewrote the sibling name once and the hash
-    # would have pointed at a file that is not there.
+    # Hashed by its own `__file__`: a path built beside it can name a file that
+    # is no longer there.
     here = os.path.dirname(os.path.abspath(__file__))
     package = {f: stamp.sha256(os.path.join(here, f))
                for f in ("__init__.py", "draw.py", "age.py", "truth.py")}
     man = {"book": book, "about": getattr(mod, "ABOUT", ""),
            "page_count": len(pages), "synth_seed": seed, "aging": aging,
-           # THE GENERATOR IS A PACKAGE: four files decide a page, and the
-           # book module a fifth. Each is hashed by its own `__file__`; a
-           # path built beside the file once pointed at a file that had
-           # moved.
+           # The generator is a PACKAGE: four files decide a page, and the
+           # book module a fifth. Each of them is hashed.
            "generator": {"file": "datasets/make/synth/__init__.py",
                          "sha256": package["__init__.py"], "package": package,
                          "commit": stamp.commit(),
@@ -462,11 +384,9 @@ def _build(out_dir, cases, seed, aging, book, log) -> dict:
                 f"be removed by hand")
     log(f"pages {len(pages)}, truth blocks {sum(counts.values())} "
         f"({', '.join(f'{k} {v}' for k, v in sorted(counts.items()))})")
-    # A MAGNITUDE, NOT THE WORD "DONE". Each of these has caught trouble the
-    # word "done" would have passed: blocks_with_text below the count of text
-    # blocks is a silent hole in the truth; missing-from-layer above zero is a
-    # truth richer than the paper; words outside the truth is a piece of the
-    # page never declared (the catalogue numbers).
+    # A magnitude, not the word "done": blocks_with_text below the count of text
+    # blocks is a silent hole in the truth, missing-from-layer above zero a truth
+    # richer than the paper, words outside the truth a piece never declared.
     log(f"character truth: {total['chars']} chars, {total['words']} words "
         f"in {total['blocks_with_text']} blocks"
         + (f"; text blocks with NO CHARS "

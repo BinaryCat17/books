@@ -1,11 +1,8 @@
 """The book builder and the reading-order contract.
 
-The `reading order` field has TWO readers -- the metric's guard and the book
-builder -- and only the first was watched: a skeptic put a drifted copy of the
-rule (no case folding) back into `doc/html._ours` and all sixty checks stayed
-green. The cost is known from next door: on `bench/hard36` the metric printed
-"reading order agrees 73%" where order is marked on none of the 36 pages. A
-number out of nothing is born of two copies of one contract.
+The `reading order` field has two readers -- the metric's guard and the book
+builder -- and a second copy of the rule in the builder drifts silently: a
+percentage out of nothing is born of two copies of one contract.
 """
 from booksmith.processing.assemble import html as H
 from booksmith.core import page as B
@@ -13,17 +10,9 @@ from booksmith.core import book
 
 
 def test_book_builder_reads_the_order_rule_through_the_one_contract():
-    """`doc/html` must call `core.page.ours_order`, not a copy of its own.
-
-    THE PROBE SET MUST CONTAIN BOTH ANSWERS, and that is asserted rather than
-    assumed. After the marker word moved from the Russian one to `ours` these
-    values were left behind, and every one of the nine then returned False from
-    BOTH sides: the check compared False with False nine times and would have
-    passed a broken copy whole. It was caught while translating the prose
-    around it, not by the check itself and not by the battery -- the mutation
-    that guards it plants a Russian-worded copy and so kept working by
-    accident.
-    """
+    """`assemble/html` must call `core.page.ours_order`, not a copy of its own.
+    The probe set must contain both answers, and that is asserted rather than
+    assumed: comparing False with False nine times would pass a broken copy."""
     probes = ("ours_top_down_left_right", "OURS, in bands", "  ours  ",
               "Ours_by_choice", "model_rank", "", None, 0, "generation_order")
     answers = {B.ours_order(v) for v in probes}
@@ -39,11 +28,8 @@ def test_book_builder_reads_the_order_rule_through_the_one_contract():
 
 
 def test_anchor_is_page_scoped():
-    """The anchor is PER PAGE: `block_id` restarts on every page.
-
-    A book-wide `b17` over five hundred pages would give five hundred identical
-    anchors, and a second-level swap would land in the wrong place.
-    """
+    """The anchor is per page: `block_id` restarts on every page, and a book-wide
+    `b17` would give five hundred identical anchors for a swap to land in."""
     assert H.anchor_of(42, 17) == "p0042-b17"
     assert H.anchor_of(0, 0) == "p0000-b0"
     assert H.anchor_of(1, 17) != H.anchor_of(2, 17)
@@ -51,9 +37,8 @@ def test_anchor_is_page_scoped():
 
 # --- crops: the builder's contract with the model's box ---------------------
 #
-# One contract, one file: `doc/html` cuts with `doc/crop` by the model's box
-# and prints its numbers into the caption. Each check below closes a trouble
-# reproduced on `bench/atlas`.
+# One contract, one file: `assemble/html` cuts with `core/raster` by the model's
+# box and prints its numbers into the caption.
 
 def _sheet():
     """An empty 720x506 pt sheet in memory. No bench: this must run in any
@@ -65,24 +50,16 @@ def _sheet():
 
 
 def test_clipping_is_measured_with_a_tolerance_not_exactly():
-    """The "clipped by the sheet" flag at a dpi with no binary-exact scale.
-
-    pymupdf holds coordinates in single precision and runs them through float32
-    again when intersecting. On `bench/atlas` at `PAGE_DPI` = 144 the scale
-    72/144 = 0.5 is exact and 0 of 28 were clipped; at 150, 28 of 28, and 26
-    crops of 26 got "the box left the sheet" over a disagreement of 1.7e-05 pt.
-
-    AND THE REVERSE: a real clip must stay visible. A metric that cannot fire
-    is not proven.
-    """
+    """The "clipped by the sheet" flag at a dpi with no binary-exact scale:
+    pymupdf intersects in single precision, so a disagreement of 1.7e-05 pt read
+    as "the box left the sheet". And the reverse: a real clip stays visible."""
     import os
     import tempfile
     from booksmith.core import raster as crop
     doc = _sheet()
     dpi = 150.0                       # 72/150 = 0.48 -- NOT binary-exact
-    # The box is IN PIXELS, and not round on purpose: at 100 and 300 px the
-    # points come out whole and the check would be green on broken code. 113 px
-    # gives 54.239999999999995 pt -- what it used to fail on.
+    # The box is in pixels, and not round on purpose: at 100 and 300 px the
+    # points come out whole and the check would be green on broken code.
     inside_px = [113, 74, 1332, 803]
     out_px = [113, 74, int((720 + 20) / 0.48), 803]      # 20 pt off the sheet
     with tempfile.TemporaryDirectory() as tmp:
@@ -98,16 +75,9 @@ def test_clipping_is_measured_with_a_tolerance_not_exactly():
 
 
 def test_degenerate_and_inverted_boxes_are_named_by_their_own_trouble():
-    """A degenerate or an inverted box is not "off the sheet".
-
-    Both gave an empty intersection and got the wrong diagnosis -- "does not
-    meet the sheet" -- for a box in the middle of the paper, sending the reader
-    after shifted coordinates.
-
-    THE PROBE WORDS ARE `doc/crop`'s OWN, and that file is still Russian: this
-    check greps its message, so the words stay as they are until it is
-    translated.
-    """
+    """A degenerate or an inverted box is not "off the sheet": both give an empty
+    intersection, and the wrong diagnosis sends the reader after shifted
+    coordinates for a box in the middle of the paper."""
     import os
     import tempfile
     from booksmith.core import raster as crop
@@ -134,13 +104,9 @@ def test_degenerate_and_inverted_boxes_are_named_by_their_own_trouble():
 
 
 def test_negative_margin_is_refused_out_loud():
-    """A negative `CROP_MARGIN` CUTS the model's box instead of giving margin.
-
-    Before the fix: `CROP_MARGIN=-0.1` on the box (96, 96, 192, 144) pt
-    returned (105.6, 100.8, 182.4, 139.2) -- a tenth eaten off each side --
+    """A negative `CROP_MARGIN` cuts the model's box instead of giving margin,
     with both clip flags False. Editing the model's box is forbidden, hence a
-    failure and not a silent clamp to zero.
-    """
+    failure and not a silent clamp to zero."""
     import os
     from booksmith.core import raster as crop
     was = os.environ.get("CROP_MARGIN")
@@ -159,16 +125,9 @@ def test_negative_margin_is_refused_out_loud():
 
 
 def test_native_dpi_divides_by_the_placement_not_by_the_sheet():
-    """Native sharpness is counted from the image's PLACEMENT width.
-
-    A spread scan is WIDER than the sheet: `books prepare` halves it and lays
-    both halves with `show_pdf_page`, so a 2867 px raster sits on 688 pt while
-    the sheet is 278 pt. Dividing by the sheet overstated the grid by the
-    factor the raster is wider -- up to 2.47x on four books of six. `djvudump`
-    declares 300 / 600 / 300 dpi on three books of three; the new formula
-    agrees, the old one does not. `native_dpi` did not appear in `tests/` at
-    all.
-    """
+    """Native sharpness is counted from the image's placement width: a spread scan
+    is wider than the sheet, `books prepare` halves it and lays both halves with
+    `show_pdf_page`, and dividing by the sheet overstates the grid."""
     import pymupdf
     from booksmith.core import raster as crop
 
@@ -216,14 +175,9 @@ def test_native_dpi_says_nothing_when_there_is_nothing_to_say():
 
 
 def test_crop_dpi_counts_what_will_actually_be_cut():
-    """Sharpness counts the box's INTERSECTION with the sheet, not the box.
-
-    `crop.cut` cuts the intersection -- the model's box may hang off the paper.
-    By the FULL box, one hanging over by half got 83.7 dpi instead of 118.4, so
-    the model's window was never filled. On the bench such boxes are 28 of
-    33 640 and hang over by at most 4.8 px -- real data never caught it, but
-    the two numbers must be counted on one rectangle.
-    """
+    """Sharpness counts the box's intersection with the sheet, not the box:
+    `crop.cut` cuts the intersection and the model's box may hang off the paper,
+    so the two numbers must be counted on one rectangle."""
     from booksmith.processing.read.driver import crop_dpi_for
     W = (112896, 1003520)
     sheet = (0.0, 0.0, 1012.0, 1466.0)
@@ -242,19 +196,9 @@ def test_crop_dpi_counts_what_will_actually_be_cut():
 
 
 def test_crop_dpi_never_comes_from_the_environment_silently():
-    """An empty `CROP_DPI` is not "as in THIS process", and it names its home.
-
-    The default moved twice, by measurement. It was "`PAGE_DPI` of the current
-    process": detection of `bench/atlas` at `PAGE_DPI=150` and a build at the
-    default printed "26 crops at 144 dpi" while coordinates came from 150. Then
-    "same as detection", also too little -- on a real 200 dpi scan, cutting at
-    144 throws away 48% of the ink in the file (measured in `crop.params`).
-    Today it is the scan's OWN sharpness; the guard is unchanged: a number must
-    name its source, and a silent environment may not be one.
-
-    The two probe words below are `doc/crop`'s own answers and stay Russian
-    until that file is translated.
-    """
+    """An empty `CROP_DPI` is not "as in this process", and it names its home:
+    the default is the scan's own sharpness, then detection, and a number taken
+    from the environment says so in words."""
     from booksmith.core import raster as crop
     # own sharpness known -- it is taken, detection is irrelevant
     p = crop.params(150.0, page_native=300.0)
@@ -269,12 +213,9 @@ def test_crop_dpi_never_comes_from_the_environment_silently():
 
 
 def test_crop_dpi_takes_the_ink_that_exists_and_invents_none():
-    """Crop sharpness is a rule: all there is, but no more than the window.
-
-    None of the three is ours: sharpness from the scan, bounds from the model
-    (`Reader.pixels`), box size from the detector. Above our own grid we NEVER
-    go -- that would invent dots and call them reading.
-    """
+    """Crop sharpness is a rule: all there is, but no more than the window. None
+    of the three is ours -- sharpness from the scan, bounds from the model, box
+    size from the detector -- and above our own grid it never goes."""
     from booksmith.processing.read.driver import crop_dpi_for
     W = (112896, 1003520)
     # block below the lower bound: stay on our grid and say so
@@ -293,14 +234,9 @@ def test_crop_dpi_takes_the_ink_that_exists_and_invents_none():
 
 
 def test_nesting_survives_blocks_without_a_model_rank():
-    """`Block.order = None` is allowed OUTRIGHT -- the build may not fall.
-
-    Three adapters of four give no rank (yolox and both docling), and in the
-    fourth it is empty for exactly what the first level cuts out as pictures
-    (100% of `image`, `figure_title`, `table`). A "rank / no rank" pair on one
-    rectangle brought the WHOLE book down: `TypeError: '>=' not supported
-    between instances of 'NoneType' and 'int'`.
-    """
+    """`Block.order = None` is allowed outright and the build may not fall: three
+    adapters of four give no rank, and in the fourth it is empty for exactly what
+    the first level cuts out as pictures."""
     from booksmith.core.page import Block
     box = (0.0, 0.0, 100.0, 100.0)
     pairs = ((3, None), (None, 3), (None, None), (1, 2))
@@ -320,14 +256,9 @@ def test_nesting_survives_blocks_without_a_model_rank():
 
 
 def test_three_kinds_of_bad_sheet_get_three_different_marks():
-    """A refusing sheet comes in THREE kinds, and they may not be confused.
-
-    There were two, and the third printed somebody else's mark: `blank` meant
-    "blocks exist, no text among them", so a sheet with a single page number
-    (`footer`, furniture) got the red "the whole column went into pictures" at
-    `data-image-share="0.00"` -- an element contradicting itself. Measured:
-    `bench/atlas` p. 0.
-    """
+    """A refusing sheet comes in three kinds and they may not be confused: a sheet
+    with a single page number is furniture, not "the whole column went into
+    pictures" at `data-image-share="0.00"`, which contradicts itself."""
     import json
     import os
     import tempfile
@@ -397,22 +328,9 @@ def test_three_kinds_of_bad_sheet_get_three_different_marks():
 
 
 def test_the_book_is_alone_at_the_root_and_carries_itself():
-    """EXACTLY ONE file at the root of a build, and it points nowhere outside.
-
-    The layout: the book is opened by double click, and a root holding four
-    json files and a two-megabyte js beside it leaves the reader guessing which
-    one to open. The kitchen moves into `assets/`.
-
-    Self-sufficiency is paid for: at `HTML_MATH=local` MathJax sat in a
-    neighbouring file, and the book opened over a network path
-    (`\\\\wsl.localhost\\...` from Windows) showed formulas as RAW LaTeX --
-    Chromium silently refuses a local script from a UNC path, the console is
-    empty, and the book looks built. Images would go the same way. Hence the
-    defaults `HTML_MATH=inline`, `HTML_IMAGES=inline`.
-
-    Crops stay files in `assets/blocks` ALWAYS: edits, measurements and the
-    second level read them.
-    """
+    """Exactly one file at the root of a build, beside the kitchen and the
+    manifest, and it points nowhere outside: over a network path a browser
+    silently refuses a local script, hence `HTML_MATH` and `HTML_IMAGES` inline."""
     import json
     import os
     import re
@@ -450,18 +368,10 @@ def test_the_book_is_alone_at_the_root_and_carries_itself():
         H.build(det, out, log=lambda *_: None)
 
         in_root = sorted(os.listdir(out))
-        # `manifest.json` JOINED THE TWO, and the rule needed saying again
-        # rather than loosening. "Exactly one file at the root" is about what
-        # a READER meets on a double click: one thing to open, no guessing
-        # between four json and a two-megabyte js. A manifest is not a
-        # candidate for opening -- it is what makes the directory a BOOK, the
-        # one file `core.book.Book.list`, `datasets.bench.Bench.open` and the
-        # format floors all identify a book by.
-        #
-        # Nothing wrote it here until now, so `books html` produced a
-        # directory the layout check named a stray -- an instrument going red
-        # on correct use. The two declarations disagreed and this check was
-        # the one stating the narrower rule; both say the same thing now.
+        # "Exactly one file at the root" is about what a reader meets on a double
+        # click. A manifest is not a candidate for opening: it is what makes the
+        # directory a book, and `core.book.Book.list`, `datasets.bench.Bench.open`
+        # and the format floors all identify a book by it.
         assert in_root == ["assets", "book.html", "manifest.json"], (
             f"the build root holds {in_root}, and only book.html, assets/ "
             f"and manifest.json are expected. Everything but the book and "
@@ -475,10 +385,9 @@ def test_the_book_is_alone_at_the_root_and_carries_itself():
 
         with open(os.path.join(out, "book.html"), encoding="utf-8") as f:
             s = f.read()
-        # What the book LOADS, not any link: `src=` on images and scripts plus
-        # stylesheets. A plain `<a href="https://…">` is not caught -- there
-        # are two, both in MathJax's "About" dialog, and neither affects
-        # offline reading.
+        # What the book loads, not any link: `src=` on images and scripts plus
+        # stylesheets. A plain `<a href="https://…">` is not caught: there are two,
+        # both in MathJax's "About" dialog, and neither affects offline reading.
         loads = [u for u in re.findall(r'\ssrc="([^"]+)"', s)
                   if not u.startswith("data:")]
         loads += re.findall(r'<link[^>]+href="([^"]+)"', s)
@@ -495,31 +404,17 @@ def test_the_book_is_alone_at_the_root_and_carries_itself():
 
 
 def test_the_anchor_rule_has_exactly_one_home():
-    """The block anchor is built by ONE rule for the project.
-
-    A second private copy lived in the swap layer (`from_read`) and would
-    have drifted silently: the book and blocks.json naming fragments one way,
-    the journal another, nothing left to tie a swap to a block. A third
-    stood in the VLM-input preview until the preview went (step 3a).
-    """
+    """The block anchor is built by one rule for the project: a private copy in
+    the swap layer would drift silently, and nothing would be left to tie a swap
+    to a block."""
     from booksmith.processing.assemble import apply as ap
     assert ap.anchor_of is H.anchor_of, "the swap layer made its own anchor"
 
 
 def test_the_builder_recognises_its_own_directory():
-    """The "this directory is ours" mark belongs to the BUILDER, not callers.
-
-    The "do not overwrite what is not ours" guard in `cli.py` looked for
-    `run.json` at the ROOT. The snapshot moved into `assets/`, and the guard
-    began refusing a directory this very command had made a minute earlier --
-    with a LIE: "this is probably a book of the previous pipeline", of which
-    none are left. Under the same refusal fell the advice the build itself
-    prints: "the book rebuilds without it -- `books html
-    <book>/assets/source`".
-
-    The mark lives next to whoever WRITES the snapshot; a string typed in
-    another file drifts silently, and did.
-    """
+    """The "this directory is ours" mark belongs to the builder, not to callers:
+    the snapshot lives in `assets/`, and a guard looking for `run.json` at the
+    root refuses the directory this very command has just made."""
     import os
     import tempfile
 
@@ -535,20 +430,9 @@ def test_the_builder_recognises_its_own_directory():
 
 
 def test_the_book_carries_blocks_in_the_order_it_walked_them():
-    """The book's order is CHECKED against the block list, not assumed.
-
-    The builder walks `page.blocks` as they come and the book inherits their
-    order -- the model's rank or our rule. Nothing checked that: a skeptic
-    reversed the walk with one word (`reversed`) and the battery stayed green,
-    201 checks, 0 failures. The book would read backwards, and all three
-    instruments measure DETECTION pages, not the built document.
-
-    SUCH A GUARD IS EASY TO MAKE TAUTOLOGICAL, and the first draft was: the
-    expectation accumulated inside the loop it guards -- reverse the walk and
-    the expectation reverses with it. Three corruptions (reversed, off by one,
-    last one dropped) were caught by none. Hence the second half: the
-    expectation is derived from `page.blocks` INDEPENDENTLY.
-    """
+    """The book's order is checked against the block list, not assumed: all three
+    instruments measure detection pages, not the built document. The expectation
+    is derived independently, or reversing the walk reverses it too."""
     import json
     import os
     import tempfile
@@ -568,7 +452,7 @@ def test_the_book_carries_blocks_in_the_order_it_walked_them():
 
         det = os.path.join(tmp, "detect")
         os.makedirs(os.path.join(det, "pages"))
-        # ASYMMETRIC on purpose: reversed, the order must not match itself. On
+        # Asymmetric on purpose: reversed, the order must not match itself. On
         # two blocks a reversal shows, on one it does not.
         pg = Page(index=0, width=1000, height=1400, dpi=144.0, blocks=[
             Block(block_id=0, box=(50.0, 50.0, 950.0, 300.0), label="text",

@@ -1,15 +1,9 @@
 """The adapter contract is compared with the pipeline, not believed.
 
-WHY THIS FILE EXISTS. `models.base.Detector` said "exactly two things" and
-declared five members while `detect.py` asked for eight. The four it did not
-declare -- `dir`, `labels`, `policy_name`, `threshold_drift` -- have no default
-anywhere, so an adapter written to the contract as documented would import
-cleanly and fall at the first run, on the money path for any model that needs
-renting.
-
-A contract nobody compares is prose. The comparison is mechanical here: the
-names come from the CODE that uses them and the declaration comes from the
-class, so it fails whichever side moves.
+A contract nobody compares is prose. `layout.base.Detector` declares what an
+adapter must implement, `detect.py` and `cli.py` are what asks; the names come
+from the code that uses them and the declaration from the class, so this fails
+whichever side moves.
 """
 import json
 
@@ -26,35 +20,20 @@ ADAPTERS = (("doclayout.py", "DocLayout"),
             ("yolox.py", "YoloXLayout"))
 
 
-# Every file that drives an adapter. `detect.py` is the pipeline; `cli.py`
-# asks `books doctor` questions of the same object, and its `getattr(det,
-# "onnx", "")` was invisible to a check that read `detect.py` alone.
+# Every file that drives an adapter. `detect.py` is the pipeline; `cli.py` asks
+# `books doctor` questions of the same object.
 DRIVERS = ("processing/layout/detect.py", "cli.py")
 
 
-# Names that hold an adapter. Attribute accesses on ANY name were the first
-# version, and it was nearly inert: 672 names matched, so a dead contract
-# member escaped unless its name was invented -- `close`, `keys`, `items`,
-# `count`, `width` all passed. An adapter is held in few places and they are
-# nameable.
+# Names that hold an adapter. Named rather than every attribute access, which
+# matches 672 names and lets a dead contract member escape.
 HOLDERS = ("det", "adapter", "rec", "self")
 
 
 def test_every_adapter_we_ship_satisfies_the_contract():
-    """And the adapters keep it -- by behaviour, not by inheritance.
-
-    `issubclass` proves nothing here: every member with a default is inherited
-    whether or not the adapter meant it. What is asked is that the ones with
-    NO default are actually implemented.
-
-    SELECTED BY WHAT THE CONTRACT DOES, not by whether it is documented. The
-    first edition asked for "callable and has a docstring", and the count came
-    out at four by coincidence: `read` -- no default, the one method called
-    per page -- was EXCLUDED for having no docstring, so an adapter without it
-    passed; and `label_map`, which the contract grants a documented default,
-    was INCLUDED, so an adapter was forbidden to rely on it. What is asked now
-    is exactly the members whose contract version refuses to answer.
-    """
+    """The adapters keep the contract by behaviour, not by inheritance:
+    `issubclass` proves nothing, since every member with a default is inherited
+    whether or not the adapter meant it. What is asked is the members with none."""
     import importlib
     must = sorted(base.Detector.__abstractmethods__)
     assert "read" in must and "label_map" not in must, (
@@ -79,14 +58,9 @@ def test_every_adapter_we_ship_satisfies_the_contract():
 # ------------------------------------------------- the run label and identity
 
 def test_every_detector_declares_a_label_and_it_is_a_directory_name():
-    """A label with no default, for the reason `knobs_read` has none.
-
-    The label is the MODEL's name and it becomes a directory. An adapter
-    silent out of forgetfulness would be filed under whatever a base class
-    guessed, and a guessed directory is a measurement filed against the wrong
-    model. Built here rather than parsed, so the answer comes from the weights
-    on disk.
-    """
+    """A label with no default, for the reason `knobs_read` has none: the label
+    is the model's name and becomes a directory, and a guessed directory is a
+    measurement filed against the wrong model. Built here, not parsed."""
     from booksmith.core import book
     from booksmith.processing.layout import detect
     seen = {}
@@ -168,15 +142,9 @@ def test_identity_reads_only_the_knobs_the_run_read():
 
 
 def test_identity_does_not_depend_on_the_order_the_dict_was_built_in():
-    """A hash over a mapping is a hash over an ORDER unless it is sorted.
-
-    IN PROCESS, and deliberately: the first version of this check ran the
-    hash in three subprocesses under three `PYTHONHASHSEED` values, which
-    reads well and proves less -- a subprocess re-imports the real module, so
-    the mutation that unsorts the hash never reached it and the battery
-    reported the check as covered while it was not. The property itself is
-    order-independence, and it is visible from here.
-    """
+    """A hash over a mapping is a hash over an order unless it is sorted. Asked
+    in process: a subprocess re-imports the real module, so a mutation that
+    unsorts the hash would never reach it."""
     from booksmith.core import stamp
     a = {"b": 1, "a": [3, 2], "m": {"y": 1, "x": 2}}
     b = {"m": {"x": 2, "y": 1}, "a": [3, 2], "b": 1}
@@ -189,24 +157,9 @@ def test_identity_does_not_depend_on_the_order_the_dict_was_built_in():
 
 
 def test_identity_is_taken_from_the_real_fingerprints_not_a_hand_written_one():
-    """Both identity defects hid behind a fixture.
-
-    The checks above build a fingerprint by hand -- `{"model": "X",
-    "sha256_weights": "ab", "weights_dir": …}` -- and the only end-to-end one
-    runs `doclayout`, the single adapter whose fingerprint is neither nested
-    nor run-born. So two defects lived in the shape of the REAL ones:
-
-      docling nests the vendor pipeline's fingerprint under
-      `docling_pipeline`, and that nest holds accumulating page counters
-      under `summary`. The exclusion filtered the top level only, so a
-      pipeline run's identity was a function of how many pages it covered.
-
-      the reader's `weights` block opens with `dir`, which is `VL_MODEL_DIR`
-      -- the exact fact the knob exclusion exists for, admitted one field
-      over. Two readings on two rented cards, two identities.
-
-    So this one asks the adapters themselves.
-    """
+    """Asked of the adapters themselves, not of a fingerprint written by hand:
+    the real ones nest -- docling under `docling_pipeline`, which holds page
+    counters -- and open with a path, both of which a top-level filter misses."""
     from booksmith.core import stamp
     from booksmith.processing.layout import detect
     from booksmith.processing.read.readers.paddleocr_vl import PaddleOcrVl
@@ -223,12 +176,8 @@ def test_identity_is_taken_from_the_real_fingerprints_not_a_hand_written_one():
 
     seen = []
     for name in detect.ADAPTERS:
-        # THE PIPELINE IS TURNED ON for the docling pair, and that is the
-        # whole point of this check: with `DOCLING_PIPELINE=off` the nest is
-        # `null` and there is nothing for a top-level filter to miss -- so a
-        # check that only ever asked the default configuration passed while
-        # the defect was live. The nest holds the pipeline's ACCUMULATING
-        # PAGE COUNTERS.
+        # The pipeline is turned on for the docling pair: with it off the nest
+        # is `null` and there is nothing for a top-level filter to miss.
         env = {"LAYOUT_ADAPTER": name}
         if name.startswith("docling"):
             env["DOCLING_PIPELINE"] = "post"
@@ -247,12 +196,8 @@ def test_identity_is_taken_from_the_real_fingerprints_not_a_hand_written_one():
         "filter that reaches only the top level -- which is the defect it "
         "exists for")
 
-    # THROUGH `identity`, NOT THROUGH THE FILTER. The first edition of this
-    # check called `_without` itself and passed under a mutation that broke
-    # `identity`'s USE of it -- the filter was still recursive, and nothing
-    # asked what the function that matters does. So the question is asked the
-    # way the guard asks it: does the identity MOVE when a run-born number
-    # moves.
+    # Through `identity`, not through the filter: the question is whether the
+    # identity moves when a run-born number does.
     for name, fp in seen:
         if not isinstance(fp.get("docling_pipeline"), dict):
             continue
@@ -275,8 +220,8 @@ def test_identity_is_taken_from_the_real_fingerprints_not_a_hand_written_one():
     for name, fp in seen:
         kept = stamp._without(fp, stamp.FINGERPRINT_NOT_IDENTITY)
         for path, value in flat(kept):
-            # A machine-local path in the identity means one experiment gets
-            # an identity per machine. Two readings on two rented cards.
+            # A machine-local path in the identity means one experiment gets an
+            # identity per machine.
             if isinstance(value, str) and value.startswith(("/", "~")):
                 raise AssertionError(
                     f"{name}: {path} = {value!r} is an absolute path and is "

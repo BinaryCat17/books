@@ -1,22 +1,12 @@
-"""The docling vendor pipeline: translation by name, and the price of the
-knob being off.
+"""The docling vendor pipeline: translation by name, and the price of `off`.
 
-Two things, both about a conspiracy of two files.
+The translation of our weights' labels into docling's vocabulary is declared by
+name (`EGRET_TO_DOCLING`), not by a rule that would accept a new class under an
+invented name; an unknown name fails the construction, not page four hundred.
 
-FIRST. The translation of our weights' labels into docling's vocabulary is
-declared BY NAME (`EGRET_TO_DOCLING`), not by a rule "lowercase, hyphen into
-underscore". A rule would silently accept an eighteenth class of new weights
-and hand it to the vendor under an invented name. So an unknown name must
-fail the CONSTRUCTION of the pipeline -- on page zero and over the whole
-weight vocabulary at once, not on page four hundred after twenty minutes of
-counting.
-
-SECOND. `DOCLING_PIPELINE=off` is the default, and it was bought by
-measurement: the pipeline worsens merging (366 -> 461), findability (694 ->
-562) and wholeness of meaning (602 -> 500). Switched off it must therefore be
-not merely harmless but IDENTICAL to the earlier code: the same boxes, the
-same objects, the same place for the key in meta. Otherwise the comparison
-"the knob is off, nothing changed" stumbles over json key order, not boxes.
+`DOCLING_PIPELINE=off` is the default, and switched off the pipeline must be not
+merely harmless but identical to the code without it: the same boxes, the same
+objects, the same place for the key in meta.
 """
 import json
 import os
@@ -31,19 +21,15 @@ from booksmith.core.page import Block
 from booksmith.core import knobs
 
 OFF_META_KEYS = ["reading_order"]
-# The composition and order of the page's meta keys BEFORE the pipeline
-# existed. The pipeline put `**pipe_meta` exactly where "reading order" had
-# stood, and at `off` it unfolds into that same key -- the page comes out
-# byte for byte as before.
+# The composition and order of the page's meta keys without the pipeline; at
+# `off` the pipeline unfolds into that same key and the page comes out as before.
 META_BEFORE_PIPELINE = ["detector", "boxes_accepted",
                         "rank_ties", "reading_order",
                         "best_rejected_by_class"]
 
 
 class env:
-    """A knob for the length of a check. The environment is live:
-    put back as it was.
-    """
+    """A knob for the length of a check; the environment is live and is put back."""
 
     def __init__(self, **kw):
         self.kw, self.old = kw, {}
@@ -85,11 +71,8 @@ def test_three_modes_not_two():
 
 
 def test_unknown_mode_dies_loudly():
-    """`DOCLING_PIPELINE=on` fails the run and names what it does know.
-
-    The fall costs milliseconds and happens BEFORE docling is imported: the
-    mode check is the first line of the constructor.
-    """
+    """`DOCLING_PIPELINE=on` fails the run and names what it does know, before
+    docling is imported: the mode check is the first line of the constructor."""
     try:
         dh._DoclingPipeline("on", list(dh.DEFAULT_LABELS), "docling")
     except Refusal as e:
@@ -99,13 +82,9 @@ def test_unknown_mode_dies_loudly():
 
 
 def test_translation_covers_both_dictionaries():
-    """The translation is checked against BOTH policy vocabularies, not one.
-
-    The keys of `EGRET_TO_DOCLING` are egret's display names, the values are
-    heron's snake_case. Those same two sets are declared by the policies
-    `Docling-egret` and `Docling`. Let them drift apart and the vendor gets
-    an invented name, while `policy.check` fails the run on our own bench.
-    """
+    """The translation is checked against both policy vocabularies, not one: the
+    keys of `EGRET_TO_DOCLING` are egret's display names, the values heron's
+    snake_case, and a drift hands the vendor an invented name."""
     assert set(dh.EGRET_TO_DOCLING) == set(policy.DOCLING_EGRET), (
         "the translation table and the egret policy diverged: "
         f"{sorted(set(dh.EGRET_TO_DOCLING) ^ set(policy.DOCLING_EGRET))}")
@@ -117,11 +96,9 @@ def test_translation_covers_both_dictionaries():
 
 
 def test_unknown_label_dies_at_construction():
-    """An unknown name fails the CONSTRUCTION, not the first page.
-
-    Checked over the whole weight vocabulary at once: a foreign label might
-    not turn up on a page, and the run is wrong all the same.
-    """
+    """An unknown name fails the construction, not the first page: checked over
+    the whole weight vocabulary at once, since a foreign label might not turn up
+    on a page and the run is wrong all the same."""
     if not have_docling():
         pytest.skip("no docling package: pip install -e \".[docling]\"")
     good = list(dh.DEFAULT_LABELS)
@@ -159,11 +136,9 @@ def _blocks():
 
 
 def test_off_returns_the_very_same_frames():
-    """With the knob off the boxes are neither copied nor touched AT ALL.
-
-    Identity of the object is compared, not equality: a copy made just in
-    case would already be a place where something can change.
-    """
+    """With the knob off the boxes are neither copied nor touched at all: identity
+    of the object is compared, not equality -- a copy made just in case is already
+    a place where something can change."""
     adapter = object.__new__(dh.DoclingHeron)
     adapter._pipe = None
     blocks = _blocks()

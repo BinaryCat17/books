@@ -1,10 +1,8 @@
 """The spread-cut gauge agrees with the veto in `djvu.py`.
 
-An agreement between two files: the gauge draws its own fourteen sheets and
-carries its own copy of the column choice, so drifting from `djvu.py` it keeps
-printing numbers -- about something other than what the pipeline does. That is
-how "a 0.5 % threshold catches 84 % of the controls" became unverifiable: the
-script that measured it never entered the tree.
+The gauge draws its own fourteen sheets and carries its own copy of the column
+choice, so a drift from `djvu.py` would leave it printing numbers about
+something other than what the pipeline does.
 """
 import importlib.util
 import io
@@ -31,8 +29,7 @@ def test_the_probe_selfcheck_agrees_with_the_veto():
     buf = io.StringIO()
     with redirect_stdout(buf):
         bad = mod.selfcheck()
-    # `selfcheck` returns 1 on ANY divergence, not their number: they are
-    # named in what it printed, so take them from there -- otherwise a failure
-    # says "1" and keeps quiet about which sheet diverged.
+    # `selfcheck` returns 1 on any divergence; the sheets that diverged are
+    # named in what it printed.
     assert bad == 0, (f"the gauge diverged from the veto, sheets "
                       f"{len(mod.CASES)}:\n" + buf.getvalue())

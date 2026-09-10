@@ -1,58 +1,12 @@
-"""Reading metric: what the model read, against text that is known.
+"""Reading metric: an answer compared against text that is KNOWN.
 
-The old reading figures were measured against Mistral OCR output -- another
-model, not known text -- and are void to the last one (the commit log).
-This file compares an answer against TRUTH and can fail. It measures
-CHARACTERS and CELL ADDRESSES; boxes are the contour metric (`contour.py`
-beside this file), delivery to the second level is the ink metric
-(`processing/assess/ink.py`), and one combined number would only trade one
-defect for another.
-
-FOUR ZEROS THAT MUST NOT BE CONFUSED -- half the code below is for them.
-
-  * AN ARTIFACT: silence is the right answer.
-  * THE MODEL WAS SILENT: its cheapest defect, since silence earns CER 0 over
-    the answered subset. Counted wholly wrong in the book CER; CER over
-    answered is a separate line.
-  * TRUTH NOT ANNOTATED: out of the denominator, own line.
-  * NOT PAIRED: unknowable, counted at the full length of truth.
-
-PAIRING, three stages in falling trust: anchor verified by box -> ids agreeing
-wholesale, box-verified too -> geometry (`_match`, `_anchor_num`). The report
-names each: 100% by anchor and 100% by geometry are worth different things.
-There is NO fallback -- a rejected anchor consumes the answer block, since
-pairing a block whose anchor points elsewhere passes off a foreign answer as
-this one's (flawless boxes, anchors swapped: share 0.0, by anchor 0, by number
-0, by geometry 0, anchor off box 2). Anchors lie, and so does geometry: two
-columns side by side walk a pair to the neighbour. So THE SHARE PAIRED AND THE
-STAGE THAT PAIRED IT ARE ALWAYS PRINTED -- CER 0.02 over two blocks of forty
-otherwise reads as "the model reads well". The gate is `metrics.matches`
-unchanged (two-way coverage 0.75, 6 px), so "box found" and "block paired"
-cannot drift apart.
-
-THE NORMALISATION BOUNDARY IS DECLARED AND TRAVELS INTO THE RESULT, refusals
-and all (`NORM_REFUSED`, printed above every report). Six books, 32 634 cells
-(the commit log): NFKC and spaces remove 127 mismatches at
-harm 0, case 90 at 0, dash/hyphen/minus 376 at 0, decimal comma 42 at 0,
-trailing punctuation 147 at 0. Past that it harms: leading punctuation 139 at
-harm 4, all punctuation 504 at harm 108, Cyrillic/Latin lookalikes 14 finds of
-29 with the step against 16 of 29 without it (lifts 2.70 and 3.06), and here a
-lookalike IS the recognition error. Hyphenation is not joined either: it is a rule of the MODEL's output, and joining while comparing
-would clear a model that glued where it must not.
-
-A ROW SHIFT IN A TABLE is the leading invisible damage, so cells are compared
-BY ADDRESS: the bag of cells is identical before and after a shift (equal as a
-Counter) while the share matched by address falls 0.89 -> 0.33, 8 of 9 against
-3 of 9.
-
-`books text bench/slovar/truth bench/slovar/truth` compares truth with itself
-and prints three of the four zeros at once: 523 of 523 blocks paired by number,
-text 520 blocks and 56578 characters at CER 0.0000, tables 2 blocks and 227
-cells with NO ANSWER AT ALL (not "0% matched"), one bait silent, truth unmarked
-0. Identity is only a floor; that the numbers can move is said by the mutation
-battery, which can fail too -- let normalisation glue hyphens (the forbidden
-patch) and it reports 2 uncaught. Distance is checked against direct DP on 700
-random pairs, 0 discrepancies.
+Takes truth pages and a read run, returns a Record. It measures CHARACTERS and
+CELL ADDRESSES -- boxes are `contour.py`, delivery to level two is
+`assess/ink.py` -- since one combined number trades one defect for another.
+Four zeros stay apart: an artifact (silence is right), the model silent, truth
+not annotated, not paired. Cells are compared BY ADDRESS, a row shift leaving
+the bag of cells identical. The share paired and the stage that paired it
+always print, a CER over two blocks of forty being a figure about pairing.
 """
 import html as _html
 import re
@@ -68,18 +22,10 @@ from booksmith.datasets.metrics.base import Metric, Record, Scalar, Spec
 
 
 # ----------------------------------------------------------------- distance
-#
 # Levenshtein, exact, bit-parallel (Myers, 1999): a matrix column in two
-# integers, 64 bits at a time. Direct DP is 4 million cells on a pair of
-# 2000-character paragraphs, and there are six hundred pages; on 500 pairs of
-# 869 characters at 5% corruption, Ukkonen band 30.5 s against bit-parallel
-# 1.04 s, same distances on 700 random pairs. A metric too slow to run measures
-# nothing.
-#
-# The budget stands regardless: 100 000 characters against 100 000 is 10^10
-# cells, half a minute for one pair. Past it the distance is called an UPPER
-# BOUND on its own line -- an estimate passed off as exact would make CER
-# unable to fall on exactly the longest blocks.
+# integers, 64 bits at a time. Past the budget the distance is called an UPPER
+# BOUND on its own line, an estimate passed off as exact keeping CER from
+# falling on exactly the longest blocks.
 _BUDGET = 300_000_000     # cells per pair, about a second of counting
 
 
@@ -124,7 +70,6 @@ def _dist(a, b):
 
 
 # ------------------------------------------------------------------- tables
-#
 # Structural truth arrives in `meta`, as a list of rows or of addressed cells;
 # nothing is GUESSED, and unparsable table keys are a loud error, since
 # skipping prints "cells 0", read as "there are no tables".
@@ -160,15 +105,9 @@ SIDE_KEYS = ("artifact_truth", "artefact truth")
 
 
 def page_side(page) -> dict:
-    """Artifact truth living BESIDE the page, linked by block id.
-
-    `synth` puts the grid in the PAGE's `meta` under the block id as a string
-    key; `_truth_grid` looked in the BLOCK's `meta`, which `Block` does not
-    have. On a fresh `katalog`, `books synth` printed 13 tables with a grid and
-    3982 cells while `text.report` said the book has no structural truth. The
-    key is coerced to a string deliberately: json makes keys strings, the id in
-    memory is an int, and `side[3]` would miss `side["3"]` silently.
-    """
+    """Artifact truth living beside the page, linked by block id. The key is
+    coerced to a string: json makes keys strings and the id in memory is an
+    int, so `side[3]` would miss `side["3"]` silently."""
     m = (page.get("meta") or {}) if isinstance(page, dict) else {}
     for k in SIDE_KEYS:
         v = m.get(k)
@@ -179,14 +118,10 @@ def page_side(page) -> dict:
 
 def _truth_grid(b, side=None):
     """Grid of a table's truth, or None -- a table with no structural truth.
-
     Looked for in the block's `meta` and in the page's artifact truth (`side`):
-    markup may carry the grid inside, our bench puts it aside.
-    """
-    # THE TWO PLACES ARE READ INDEPENDENTLY. Under `if not m and side` the
-    # sidecar was read only for a block with empty `meta`: any unrelated key on
-    # 523 blocks turned "tables: 2 blocks, 227 cells" into "no structural
-    # truth", the tables reclassified as baits, silently.
+    markup may carry the grid inside, our bench puts it aside."""
+    # The two places are read independently: an unrelated key in the block's
+    # `meta` must not hide the sidecar.
     m = b.get("meta") or {}
     aside = (side or {}).get(str(b.get("block_id"))) or {}
 
@@ -200,8 +135,7 @@ def _truth_grid(b, side=None):
 
     src, from_side = _pick(m), _pick(aside)
     if src is not None and from_side is not None and src != from_side:
-        # Both sides speak and disagree. Taking either silently chooses for
-        # the operator which truth to believe.
+        # Both sides speak and disagree; taking either chooses for the operator.
         raise TextError(
             f"block {b.get('block_id')}: a grid is in the block's meta AND "
             f"beside the page, and they disagree. Which to believe is not "
@@ -221,22 +155,12 @@ def _truth_grid(b, side=None):
 
 
 def _truth_text(b, side=None):
-    """The artifact's CHARACTERS, lying beside the page, or None.
-
-    The same bridge as `_truth_grid`, for truth the instrument read only as a
-    table grid (the cost is in the artifact branch of `measure_pages`). `None`
-    means no character truth, so the block is a bait; an empty string is
-    declared emptiness, compared as emptiness.
-    """
+    """The artifact's CHARACTERS, lying beside the page, or None. The same
+    bridge as `_truth_grid`: None means no character truth and the block is a
+    bait, an empty string is declared emptiness and compared as emptiness."""
     aside = (side or {}).get(str(b.get("block_id"))) or {}
     if not isinstance(aside, dict):
         return None
-    # ONE KEY, `text`. The second name this used to accept, the pre-migration
-    # `знаки`, was dead: it is in no tracked file, in no file under
-    # `processed/` or `runs/`, and it was never declared in `tools/keymap.json`
-    # -- so the rename could not have produced it and nothing writes it. A
-    # reader for a key nobody writes is not compatibility, it is a name that
-    # outlived its data.
     v = aside.get("text")
     if isinstance(v, str):
         return v
@@ -255,12 +179,9 @@ def _truth_both(b, side=None):
 
 
 class _TableHTML(HTMLParser):
-    """Grid out of an HTML table: tr/td/th, colspan and rowspan.
-
-    A spanning cell occupies all of its addresses, or a row shift under a
-    spanning header would be compared against emptiness and fall for the wrong
-    reason.
-    """
+    """Grid out of an HTML table: tr/td/th, colspan and rowspan. A spanning
+    cell occupies all of its addresses, or a row shift under a spanning header
+    would be compared against emptiness and fall for the wrong reason."""
 
     def __init__(self):
         super().__init__(convert_charrefs=True)
@@ -329,20 +250,9 @@ def _html_grid(s):
 
 
 def _answer_grid(s, kind=None):
-    """Grid out of the model's answer, whatever shape it arrived in.
-
-    `kind="otsl"` was once a valid answer for a table while the grid was parsed
-    from HTML ONLY. On `bench/slovar` (2 tables, 227 cells), one flawlessly
-    read table fed both ways:
-
-        HTML: matched 227 (100%), cell CER 0.0000, given as text 0
-        OTSL: matched   0 (0%),   cell CER 1.0000, given as text 2
-
-    PaddleOCR-VL returns OTSL: flawless reading earned a zero and the charge
-    "given as prose", our parser's defect billed to the model. Parsing lives in
-    `booksmith/otsl.py`, hashed separately, because "why is the number bad"
-    needs three answers -- silence, a failed parse, wrong characters.
-    """
+    """Grid out of the model's answer, whatever shape it arrived in. Both
+    parsers are tried: a reader answering OTSL where only HTML was parsed earns
+    a zero and the charge "given as prose" for our own parser's defect."""
     if not s:
         return None
     if kind == "otsl":
@@ -351,19 +261,9 @@ def _answer_grid(s, kind=None):
 
 
 def _grid_html(g):
-    """Grid back into HTML, for the battery: corruption is convenient over a
-    grid, and the metric must get exactly what a model would send.
-
-    THE CELL IS ESCAPED. Unescaped, `a<b&c` came back as `a` (`<b&c` read as a
-    tag): the corrupted cell was truncated BEFORE the corruption went in, and
-    the battery measured a string it never reported. On the chemistry book, 249 blocks of 6812 carry `<` or `&` (text 65,
-    latex 77, otsl 107), and 24 of the 5726 cells parsed by `otsl.grid` (`< 3`,
-    `<1,0`, `<28 (Al2O3)`, `>60 MgO; 5—18 (Cr2O3)`); an
-    earlier zero was counted with a regex carrying the same defect, stopping at
-    `<`. None of the 24 was in fact corrupted -- browsers take `<` as a literal
-    unless a letter follows -- and bench truth has a genuine zero, 1211 blocks
-    with no `<` and no `&`.
-    """
+    """Grid back into HTML, for the battery: the metric must get exactly what a
+    model would send. The cell is escaped, or a cell holding `<` comes back
+    truncated and the battery measures a string it never reported."""
     if not g:
         return "<table></table>"
     rows = max(r for r, _ in g) + 1
@@ -390,16 +290,8 @@ _ANCHOR_RE = re.compile(r"^p(\d+)-b(\d+)$")
 
 def _anchor_num(v):
     """Block number out of an anchor: a bare int or the label `p0042-b17`.
-
-    The label is mandatory -- `doc/html.anchor_of` writes it and the second
-    level replaces by it; numbers only raised `TextError` on real output, so
-    anchor pairing worked zero times out of zero. RETURNS (page, block), the
-    page NOT discarded: `p0007-b3` on block 0 of page 0 was once paired with
-    block 3 of that page at "anchor to nowhere 0". Of 568 anchors from
-    detection output only 101 (18%) hit the same truth object -- 42 blocks
-    found where truth has 40 -- so 82% would pair the wrong block under "100%
-    by anchor".
-    """
+    Returns (page, block) with the page NOT discarded, or an anchor naming
+    another page would pair with a block of this one under "100% by anchor"."""
     if isinstance(v, bool):
         return None
     if isinstance(v, int):
@@ -443,11 +335,9 @@ def _box(b):
 
 
 def _match(tb, pb, page_index=None):
-    """Pairs (truth index, answer index, how paired) and the leftovers.
-
-    Stages: anchor -> ids agreeing wholesale -> geometry, the anchor verified
-    on page number and box exactly as the `number` stage is.
-    """
+    """Pairs (truth index, answer index, how paired) and the leftovers. Stages
+    in falling trust: anchor -> ids agreeing wholesale -> geometry, the anchor
+    verified on page number and box exactly as the `number` stage is."""
     pairs, dead, off_page, off_box = [], 0, 0, 0
     t_by_id = {}
     for i, b in enumerate(tb):
@@ -460,8 +350,8 @@ def _match(tb, pb, page_index=None):
             continue
         pg_, num = a
         if pg_ is not None and page_index is not None and pg_ != page_index:
-            # The anchor names ANOTHER page. Pairing it with a block of this
-            # one passes off a foreign answer as this one's, "by anchor".
+            # The anchor names another page: pairing here would pass off a
+            # foreign answer as this one's, "by anchor".
             off_page += 1
             used_p.add(j)
             continue
@@ -541,9 +431,8 @@ def _load(d, what="pages"):
 def measure(truth_dir: str, pages_dir: str, norm: str = NORM) -> dict:
     """Compare what was read against truth. The numbers are in the result."""
     T, P = _load(truth_dir, "truth"), _load(pages_dir, "what was read")
-    # Book and raster checks come ready-made from the contour metric. Through
-    # getattr deliberately: these are private names of another file, and a
-    # rename must produce a loud NOT CHECKED, not an AttributeError.
+    # Book and raster checks come from the contour metric, through getattr: a
+    # rename of those private names must give a loud NOT CHECKED, not a crash.
     def _check(name, *a):
         fn = getattr(metrics, name, None)
         if fn is None:
@@ -575,17 +464,15 @@ def measure_pages(T: dict, P: dict, norm: str = NORM) -> dict:
            "truth_chars_answered": 0,
            "char_distance_answered": 0,
            "no_answer": 0, "unmatched": 0,
-           # Truth is an EMPTY STRING and the model wrote something:
-           # invisible to CER (nothing to divide by), and once a bait
-           # counted as READ.
+           # Truth is an empty string and the model wrote something:
+           # invisible to CER, there being nothing to divide by.
            "invented_on_empty_truth": 0}
     bait = {"artifacts": 0, "read": 0, "stayed_silent": 0,
             "unmatched": 0}
     mt = {"truth_blocks": 0, "by_anchor": 0, "by_number": 0, "by_geometry": 0,
           "unmatched_truth": 0, "extra_in_answer": 0,
-          # THREE DIFFERENT ANCHOR FAILURES, silent about all three once
-          # merged: no such block number / another page / boxes disagree. The
-          # last two went uncounted while anchors were trusted.
+          # Three anchor failures, apart: no such block number, another page,
+          # boxes disagree.
           "anchor_to_nowhere": 0, "anchor_wrong_page": 0,
           "anchor_box_mismatch": 0, "answer_without_box": 0}
     pg = {"truth": len(T), "answer": len(P), "no_answer": 0, "spurious": 0}
@@ -602,8 +489,8 @@ def measure_pages(T: dict, P: dict, norm: str = NORM) -> dict:
         side = page_side(t)
         mt["truth_blocks"] += len(tb)
         if p is None:
-            # The page is absent from the answer. Its blocks were not "read
-            # to zero", they were never paired -- its own report line.
+            # The page is absent from the answer: its blocks were never
+            # paired, which is not "read to zero".
             pg["no_answer"] += 1
             pairs, lost_t, lost_p, dead = [], list(range(len(tb))), [], (0, 0, 0)
             pb = []
@@ -648,10 +535,8 @@ def measure_pages(T: dict, P: dict, norm: str = NORM) -> dict:
                         if c is None or not c.strip():
                             tab["no_answer"] += 1
                         else:
-                            # A table given as prose: the cell addresses are
-                            # gone, the characters remain. NOT the same as
-                            # silence, and dearer -- structure is not
-                            # recoverable.
+                            # A table given as prose: the addresses are gone,
+                            # dearer than silence and not recoverable.
                             tab["given_as_text"] += 1
                 if mg is None:
                     tab["cell_distance"] += chars
@@ -744,9 +629,6 @@ def measure_pages(T: dict, P: dict, norm: str = NORM) -> dict:
                     per_block.append(rec)
                     continue
                 # ---- an artifact WITH TRUTH: formula, caption, diagram label.
-                # THE PRICE IS MEASURED: this branch used to be a bait, and on
-                # `bench/matematika` 26 formulas answered BYTE-FOR-BYTE from
-                # truth gave "26 artifacts, READ 26 (100%), silent 0".
                 art["block_count"] += 1
                 rec["bucket"] = "artifact_with_truth"
                 ref = normalize(aside_text, norm)
@@ -792,13 +674,9 @@ def measure_pages(T: dict, P: dict, norm: str = NORM) -> dict:
         return (a / b) if b else None
 
     def table_ratios(tab):
-        """Table shares -- or None when there is nothing to judge by.
-
-        Zero answered blocks means "nothing to compare", not "zero per cent
-        matched": dividing by all cells printed "matched 0 (0%), cell CER
-        1.0000" where the model never answered, and floored the battery, whose
-        probe "a cell corrupted in truth" cannot lower a CER already 1.
-        """
+        """Table shares, or None when there is nothing to judge by: zero
+        answered blocks means "nothing to compare", not "zero per cent
+        matched", and a CER already floored at 1 cannot fall for the battery."""
         answered = tab["block_count"] - tab["no_answer"] - tab["unmatched"]
         if answered <= 0:
             return {"share_cells_matched": None, "cer_cells": None,
@@ -823,8 +701,7 @@ def measure_pages(T: dict, P: dict, norm: str = NORM) -> dict:
                           txt["truth_chars_answered"]),
                          "share_no_answer": frac(txt["no_answer"],
                                                  txt["block_count"])}),
-        # The denominator is cells IN ANSWERED blocks, not all cells; see
-        # `table_ratios` for what dividing by all of them cost.
+        # The denominator is cells in answered blocks, not all cells.
         "tables": dict(tab, **table_ratios(tab)),
         "artifacts_with_truth": dict(
             art,
@@ -913,8 +790,7 @@ def report(res: dict, log=print) -> None:
         c, ca = ar["CER"], ar["cer_answered"]
         answered = ar["block_count"] - ar["no_answer"] - ar["unmatched"]
         if not answered:
-            # As for tables: silence on ALL of them once printed "CER
-            # 1.0000", computed from nothing and read as measured.
+            # As for tables: silence on all of them is not "CER 1.0".
             log(f"artifacts WITH TRUTH (formulas, captions): blocks "
                 f"{ar['block_count']}, characters {ar['truth_chars']}, but "
                 f"THERE IS NO ANSWER TO A SINGLE ONE — nothing to compare, "
@@ -943,13 +819,8 @@ def report(res: dict, log=print) -> None:
         f"a model answer {res['answers_on_unmarked']} — there is nothing to "
         f"check them against, this is NOT zero reading; wrong answer kind: "
         f"{res['answer_kind_wrong']}")
-    # Only blocks WITH AN ERROR: "worst block: CER 0.000" admits there is
-    # nothing to print. TEXT AND ARTIFACTS COUNT APART, paid for twice in one
-    # day: `scored` took both and divided by text blocks alone, printing "CER 0
-    # on all 130 scored out of 104" on `matematika`, where the guard "NOTHING
-    # to compare" then never fired. And an artifact record has no `WER`, which
-    # this line printed: one wrong letter in one formula brought `books text`
-    # down with `KeyError: 'WER'` -- money spent, answers written, no report.
+    # Only blocks with an error, and text and artifacts counted apart: no one
+    # denominator fits both, and an artifact record has no `WER` to print.
     txt_rec = [r for r in res["per_block"] if r.get("bucket") == "text"]
     art_rec = [r for r in res["per_block"]
                if r.get("bucket") == "artifact_with_truth"]
@@ -976,8 +847,8 @@ def report(res: dict, log=print) -> None:
 
 
 # ------------------------------------------------ what the probes also use
-# The damage itself is `probes/text.py`; these three are the metric's own
-# helpers, walked over by the measurement and by the probes alike.
+# The metric's own helpers, walked over by the measurement and by
+# `probes/text.py` alike.
 def _pages(P):
     return sorted(P)
 
@@ -1000,7 +871,7 @@ def _grid_otsl(g):
 # ------------------------------------------------- the metric, as a Metric ---
 # The measurement above returns its dict; this turns it into a `Record` and
 # names the thresholds that rode in. Every scalar the report prints as NOT
-# COMPARED / NOT MARKED is a None with the report's own reason.
+# COMPARED or NOT MARKED is a None carrying the report's own reason.
 def _share_count(value, n, of, why):
     """A share with the counts behind it, or the reason there is none."""
     return Scalar(value, count=(n, of), why=None if value is not None else why)
@@ -1013,9 +884,8 @@ def _over_blocks(value, n, of, why):
 
 class TextMetric(Metric):
     name = "text"
-    # `read` as well as `content`: the truth must carry characters AND this
-    # run must have produced some. Without it the metric measured a detection
-    # run and called the result CER 1.
+    # `read` as well as `content`: truth must carry characters and this run
+    # must have produced some, or a detection run reads as CER 1.
     needs = frozenset({"truth", "pages", "content", "read"})
     scalars = (
         Spec("paired", "higher",

@@ -1,39 +1,12 @@
 """AnnoPage: THE GOLDEN BENCH -- real pages, truth from librarians.
 
-What the synthetic bench cannot give: it is drawn with a font, not printed by
-letterpress, and says nothing about reading characters -- its own header says
-so. AnnoPage is **7550 annotation files** to **5690** published pages of
-historical documents, marked by experts over 25 non-text categories. Here stood
-"7550 pages", which is wrong: the difference of 1860 is annotations pointing at
-pages of OTHER datasets the archive does not hold (exactly that many lines in
-`images.txt`), and they are the same "annotations without an image" counter.
-Zenodo, DOI 10.5281/zenodo.12788419, CC BY 4.0.
-
-WHAT THERE IS NOTHING TO SAY ABOUT, WHICH IS NOT THE SAME AS "WRONG". The
-archive says only "mostly from czech written documents" (`README.md`) -- no
-date, no methodology, and no DOI inside the ZIP (listed exhaustively: 13252
-entries). "1485 and later, mostly Czech and German, by the Czech methodology"
-stood here and is removed: nothing here can check it, which is not the same as
-calling it an invention.
-
-WHAT IS MARKED AND WHAT IS NOT. ONLY non-text objects, 25 categories. The truth
-holds no text blocks at all, so this bench measures artifact localisation and
-nothing else. The report line "text and service" must say "no data" on it, not
-"zero": different zeros.
-
-THREE BUCKETS OF CATEGORIES, AND THE BORDER IS OUR DECISION, DECLARED ALOUD.
-
-* `DIRECT` -- our model has a label for exactly this. Only these enter the
-  measurement.
-* `DOUBTFUL` -- the match is plausible but not unambiguous (map, advertisement,
-  musical notation, handwritten note). Collapsing them to `image` would decide
-  a disputed case for the model and credit us with finds we did not make.
-* `INEXPRESSIBLE` -- book decor: initial, vignette, frieze, exlibris, signet,
-  ornament. PP-DocLayoutV2's vocabulary holds nothing about it, so a miss here
-  would be the VOCABULARY's miss, not the model's.
-
-Doubtful and inexpressible are not dropped in silence: their counts print
-beside the total, so "found 40 %" cannot be read as "40 % of the page parsed".
+7550 annotation files over 5690 published pages of historical documents, marked
+by experts over 25 non-text categories; Zenodo, DOI 10.5281/zenodo.12788419,
+CC BY 4.0. ONLY non-text objects are marked, so the truth holds no text block at
+all and a text metric must answer "no data" here rather than zero. The
+categories fall in three buckets and the border is our decision: `DIRECT` enters
+the measurement, `DOUBTFUL` and `INEXPRESSIBLE` are counted beside the total
+rather than dropped, so "found 40 %" cannot read as "40 % of the page parsed".
 """
 import json
 import os
@@ -73,12 +46,9 @@ class AnnoPageError(Refusal):
 
 
 def _yaml_names(root):
-    """The "index -> name" map from `dataset.yaml`. `None` if there is no file.
-
-    Parsed in five lines rather than by a library: one flat `names:` section of
-    "  0: Name", not worth dragging `yaml` into the module for. Split on the
-    FIRST colon -- category names hold commas, and may one day hold a colon.
-    """
+    """The "index -> name" map from `dataset.yaml`, or None if there is no file.
+    One flat `names:` section, parsed here rather than by a library, split on the
+    FIRST colon: category names hold commas and may one day hold a colon."""
     p = os.path.join(root, "dataset.yaml")
     if not os.path.exists(p):
         return None
@@ -112,14 +82,10 @@ def _classes(root):
             f"{unknown}. There is no default on purpose -- a silent "
             f"\"inexpressible\" would turn into an eternal undercount with "
             f"no explanation.")
-    # THE ORDER OF THE LINES IS CHECKED AGAINST A SECOND SOURCE, not taken on
-    # faith: until now only the SET of names was checked. The price of missing
-    # it: swap `Table` and `Vignette` in `classes.txt` and the build passes in
-    # silence while the measurement gets 1121 objects instead of 1232 and 13
-    # tables instead of 124 -- the whole golden bench sails, and nothing says
-    # so. The second source lies in the same archive and had never been read
-    # once. (Today they AGREE, 25 of 25 -- the truth is intact; the guard is
-    # set not after an accident but so that there is none.)
+    # The ORDER of the lines is checked against a second source in the same
+    # archive, not taken on faith: the label in an annotation is an INDEX, so
+    # two names swapped would fold the whole bench truth under foreign labels
+    # in silence.
     ymap = _yaml_names(root)
     if ymap is not None:
         wrong = [(i, n, ymap.get(i)) for i, n in enumerate(names)
@@ -137,19 +103,9 @@ def _classes(root):
 
 def build(root: str, out_dir: str, split: str = "test", limit: int = 0,
           truth_only: bool = False, log=print) -> dict:
-    """Fold a bench book out of AnnoPage: a PDF plus truth in our format.
-
-    A page gets the size at which rendering at `PAGE_DPI` returns EXACTLY the
-    source raster: then truth coordinates and model boxes live in one system
-    and nothing has to be converted.
-
-    NOTHING HALF-BUILT IS LEFT BEHIND. This file records the accident that
-    taught the write-aside -- 595 of 600 truth files destroyed by a refusal
-    meant to protect them -- and then left `truth.new` on disk after every one
-    of those refusals. `bench/annopage` is tracked and ignores neither that
-    name nor `truth.previous`, so a refused build put a partial second copy of
-    the golden bench into the working tree.
-    """
+    """Fold a bench book out of AnnoPage: a PDF plus truth in our format, every
+    page sized so that rendering at `PAGE_DPI` returns exactly the source raster
+    and nothing has to be converted. The aside files go on the way out."""
     aside = (os.path.join(out_dir, "truth.new"),
              os.path.join(out_dir, "truth.previous"),
              os.path.join(out_dir, "annopage.pdf.new"),
@@ -169,12 +125,10 @@ def _build(root, out_dir, split, limit, truth_only, log) -> dict:
     import cv2
     import pymupdf
 
-    # THE SCALE COMES FROM THE DECLARED KNOB, not from a wired-in 0.5 = 72/144
-    # that was true only at the default: raise `PAGE_DPI` to 300 and the bench
-    # would be built about a raster four times smaller than declared while the
-    # truth went on writing "dpi: 144.0". Caught by the size check in `metrics`
-    # -- a FOREIGN file, and not always; the builder itself was silent. Read
-    # through the registry, or the run misses the snapshot.
+    # The scale comes from the declared knob, not from a wired-in 72/144 true
+    # only at the default: otherwise the bench is built about one raster while
+    # the truth writes another. Read through the registry, or the run misses
+    # the snapshot.
     dpi = knobs.number("PAGE_DPI")
     if dpi <= 0:
         raise AnnoPageError(
@@ -190,27 +144,18 @@ def _build(root, out_dir, split, limit, truth_only, log) -> dict:
     stems = sorted(f[:-4] for f in os.listdir(ldir) if f.endswith(".txt"))
     os.makedirs(out_dir, exist_ok=True)
     tdir = os.path.join(out_dir, "truth")
-    # TRUTH IS WRITTEN ASIDE AND SWAPPED IN ONLY AFTER THE GUARDS. `truth/` was
-    # cleared HERE while the `--truth-only` guards (page count, sheet size)
-    # stood a hundred lines below, after the main loop -- telling the truth,
-    # and telling it LATE. On a copy of the bench `build(..., limit=5,
-    # truth_only=True)` killed the build with "600 pages, truth rewritten to 5:
-    # different samples", and by that moment FIVE of the 600 good truth files
-    # were left: 595 destroyed by a refusal meant to protect them. Recovered by
-    # `git checkout`, and only because this bench is tracked; in a fresh
-    # directory, by nothing.
+    # Truth is written aside and swapped in only after the guards: clearing
+    # `truth/` before the `--truth-only` checks below destroys the bench that a
+    # refusal was meant to protect.
     work = tdir + ".new"
     if os.path.isdir(work):
         shutil.rmtree(work)
     os.makedirs(work)
 
-    # 1860 annotations point at pages of OTHER datasets the archive does not
-    # hold. Not a loss but a declared property of the SAMPLE, so it is counted
-    # before the main loop and over the whole sample. Inside the loop the count
-    # broke off at --limit with it: `--split train --limit 5` printed "without
-    # image 178" against an honest 1860, and on a sample whose gaps come after
-    # the limit, a flat 0 -- "did not get there" dressed as "no gaps". The
-    # pre-pass costs 0.1 s over 6950 annotations, only os.path.exists.
+    # Annotations pointing at pages the archive does not hold are a declared
+    # property of the SAMPLE, so they are counted before the main loop and over
+    # the whole sample: counted inside it, the count breaks off at `--limit` and
+    # "did not get there" prints as "no gaps".
     images = {}
     for stem in stems:
         for ext in (".jpg", ".jpeg", ".png", ".tif", ".tiff"):
@@ -257,10 +202,9 @@ def _build(root, out_dir, split, limit, truth_only, log) -> dict:
                     kind = "doubtful" if cat in DOUBTFUL else "inexpressible"
                     counts[kind][cat] = counts[kind].get(cat, 0) + 1
                     drop[kind] += 1
-                    # The box STAYS in the truth, in a list of its own. Drop
-                    # it and every model box landing on an advertisement or an
-                    # initial would count as superfluous -- and the model is
-                    # not at fault there: we failed to express the category.
+                    # The box stays in the truth, in a list of its own: dropped,
+                    # a model box landing on it would count as superfluous, and
+                    # the fault would be our vocabulary's, not the model's.
                     outside.append({"box": [round(v, 1) for v in box],
                                     "category": cat, "bucket": kind})
 
@@ -278,14 +222,10 @@ def _build(root, out_dir, split, limit, truth_only, log) -> dict:
                                 "out_of_scope": outside,
                                 # NO text blocks in the truth AT ALL.
                                 "text_marked": False,
-                                # AND NO READING ORDER EITHER. The `order`
-                                # below is the line number in the annotation
-                                # file, and that file is grouped by class: on
-                                # page 51 orders 0,1,2,3 sit at y0 = 1560,
-                                # 3004, 673, 4129. Checking anyone's reading
-                                # order against it measures a different
-                                # quantity; the metric reads this flag and
-                                # prints a dash.
+                                # And no reading order either: `order` below is
+                                # the line number in a file grouped by class,
+                                # so the metric reads this flag and prints a
+                                # dash.
                                 "order_marked": False}}, f,
                       ensure_ascii=False)
         pages.append({"page": used, "size": [w, h], "file": stem,
@@ -331,10 +271,8 @@ def _build(root, out_dir, split, limit, truth_only, log) -> dict:
                     f"raster {w}x{h} -- this truth is not about this pdf.")
         chk.close()
     else:
-        # ASIDE, LIKE THE TRUTH. This wrote `pdf` in place while the truth
-        # waited in `truth.new`, so a fall between the two left `truth/`
-        # describing one sample and the pdf beside it holding another -- the
-        # mixture this dance exists to prevent, in the file it does not cover.
+        # Aside, like the truth: the pdf and the truth swap together, or one
+        # sample's truth ends up beside another sample's pdf.
         doc.save(wpdf, garbage=3, deflate=True)
         doc.close()
 
@@ -358,12 +296,10 @@ def _build(root, out_dir, split, limit, truth_only, log) -> dict:
     with open(wman, "w", encoding="utf-8") as f:
         json.dump(man, f, ensure_ascii=False, indent=1)
 
-    # GUARDS PASSED -- NOW ALL THREE MAY BE SWAPPED, and nothing below here can
-    # refuse. Old truth aside, new into place, old removed: break in the middle
-    # and either the previous truth or the new one stands, never emptiness. The
-    # `rmtree` at the end is caught because it runs AFTER the point of no
-    # return, and a throw there used to leave the manifest unwritten -- a new
-    # bench with an old passport, whose recorded sha256 names another pdf.
+    # Guards passed: all three may be swapped, and nothing below can refuse. Old
+    # truth aside, new into place, old removed -- break in the middle and one
+    # truth or the other stands, never emptiness. The final `rmtree` is caught
+    # because it runs after the point of no return.
     keep = tdir + ".previous"
     if os.path.isdir(keep):
         shutil.rmtree(keep)

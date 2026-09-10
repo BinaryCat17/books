@@ -1,18 +1,15 @@
 """Secrets and paths.
 
-Secrets live in `.env` at the project root (mode 600, not versioned). The user
-types them there in their own terminal; the code only reads the file and passes
-the values on through stdin or the environment -- so they reach neither command
-arguments nor the onstart scripts vast.ai keeps and shows in its console.
+Secrets live in `.env` at the project root (mode 600, not versioned). The code
+only reads that file and passes the values on through stdin or the
+environment, so they reach neither command arguments nor the onstart scripts
+vast.ai keeps and shows in its console.
 """
 import os
 
-# Three levels up from `src/booksmith/core/`. One level short and `.env` is
-# looked for under `src/`, where it never is, and every secret reads as
-# unset -- silently, which is why `books doctor` prints where it looked.
 import booksmith
 
-# The repository root, from the package: src/booksmith/__init__.py is three levels down.
+# The repository root: src/booksmith/__init__.py is three levels down.
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(booksmith.__file__))))
 ENV_FILE = os.path.join(ROOT, ".env")
 DEFAULT_SSH_KEY = os.path.expanduser("~/.ssh/id_ed25519_vast")
@@ -22,10 +19,7 @@ def env(name: str, default: str | None = None) -> str | None:
     """From the environment, else from .env, else the default."""
     if os.environ.get(name):
         return os.environ[name]
-    # ONE path, not two. The fallback `tools/.env` kept three places
-    # disagreeing: the sample said put it in `tools/.env`, this file's header
-    # said "at the root", a third named its own. While the fallback worked the
-    # divergence hurt nobody, and so was never fixed.
+    # One location only, so no two places can disagree about where secrets live.
     for path in (ENV_FILE,):
         if os.path.exists(path):
             for line in open(path):

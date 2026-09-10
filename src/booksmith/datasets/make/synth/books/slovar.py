@@ -1,22 +1,12 @@
 """A dictionary: narrow columns in small type -- what the handbook lacks.
 
-THE QUESTION THIS BOOK ASKS. It is measured that the detector pulls into a
-table's box whatever stands beside it horizontally. The converse is measured
-too: columns of PROSE it separates correctly -- 98 pairs of text boxes stand
-side by side over 36 handbook pages. So merging is a property of the table,
-not of adjacency as such.
-
-The dictionary puts that to the test: its columns are prose, but they look
-more like a table than anything else (aligned short lines, hanging indent, a
-narrow column, small type). The gap sweeps from 26 points down to 5, and one
-page puts a VERTICAL RULE into the gap. Until now the only thing that made the
-detector separate two tables was the gutter shadow -- a physical cut. The rule
-is that same cut, drawn.
-
-The pair `slov_index_numbers` / `slov_abbrev_table` is made deliberately
-indistinguishable by eye: the same grid, TEXT (an index) in the first and a
-TABLE in the second. The price of a label error on indistinguishable pages is
-what the pair exists to show.
+The question: is merging a property of the TABLE or of adjacency as such. These
+columns are prose, and they look more like a table than anything else -- aligned
+short lines, hanging indent, narrow measure, small type. The gap sweeps from 26
+points down to 5, and one page puts a VERTICAL RULE into it, the drawn version
+of the gutter cut. The pair `slov_index_numbers` / `slov_abbrev_table` is
+deliberately indistinguishable by eye: the same grid, text in the first and a
+table in the second.
 """
 from booksmith.datasets.make.synth.draw import (
     ENTRY_EN,
@@ -45,10 +35,9 @@ WORDS_EN = ("Abutment", "Backlash", "Camshaft", "Dowel", "Eccentric",
             "Flywheel", "Gudgeon", "Hardening", "Indexing", "Journal",
             "Keyway", "Lapping", "Mandrel", "Nitriding", "Overhang",
             "Pinion", "Quenching", "Reaming", "Spindle", "Tailstock")
-# The Russian half of the parallel-text page is BOOK CONTENT: it is drawn
-# onto the sheet, and the sheet is a page of a Russian-English dictionary.
-# It lives in a constant whose name ends in `_RU`, which is how page text is
-# told from our own prose. Translating it would destroy the page.
+# The Russian half of the parallel-text page is BOOK CONTENT drawn onto the
+# sheet: a name ending in `_RU` marks page text, and translating it would
+# destroy the page.
 TAIL_RU = "деталь, несущая нагрузку в сборке"
 WORDS_RU = ("Вал", "Втулка", "Гайка", "Допуск", "Заготовка", "Износ",
             "Калибр", "Люнет", "Муфта", "Наплавка", "Оправка", "Патрон",
@@ -99,11 +88,9 @@ def c_slov_4col_tight(doc, rng):
 
 
 def c_slov_4col_ruled(doc, rng):
-    """The same, with a vertical rule in EVERY gap.
-
-    Until now the only thing that made the detector separate two tables was
-    the gutter shadow, a physical cut. The rule is that cut, drawn.
-    """
+    """The same, with a vertical rule in EVERY gap: the drawn version of the
+    gutter cut, the only thing so far that made the detector separate two
+    tables."""
     pg = _sheet(doc); t = []
     xs, w = _fill_cols(pg, t, 4, 5.0, WORDS_EN, size=4.8)
     for x in xs[1:]:
@@ -112,17 +99,14 @@ def c_slov_4col_ruled(doc, rng):
 
 
 def c_slov_index_numbers(doc, rng):
-    """An index: a word and page numbers, comma separated, three columns.
-
-    TEXT, not a table. The pair to `slov_abbrev_table`, where the same grid IS
-    a table.
-    """
+    """An index: a word and page numbers, comma separated, three columns. TEXT,
+    not a table -- the pair to `slov_abbrev_table`, where the same grid is
+    one."""
     pg = _sheet(doc); t = []
     xs, w = _cols(3, 10.0)
-    # A truth block is the GROUP of lines under a letter, not one line. A
-    # single line is never a block: no detector returns such a box at any
-    # threshold, and "found 0 of 204" would have read as the model being blind
-    # when it was our own granularity mistake.
+    # A truth block is the GROUP of lines under a letter, not one line: no
+    # detector returns a box for a single line at any threshold, so "found 0 of
+    # 204" would be our granularity mistake read as the model being blind.
     for c, x in enumerate(xs):
         y = TOP
         n = c * 7
@@ -167,10 +151,8 @@ def c_slov_abbrev_table(doc, rng):
 
 
 def c_slov_parallel(doc, rng):
-    """Parallel text: entry and translation, aligned line for line.
-
-    The most table-like kind of TEXT there is: two columns, rows at one height.
-    """
+    """Parallel text, entry and translation aligned line for line: the most
+    table-like kind of TEXT there is -- two columns, rows at one height."""
     pg = _sheet(doc); t = []
     xs, w = _cols(2, 14.0)
     y = TOP
@@ -199,10 +181,8 @@ def c_slov_parallel(doc, rng):
 
 
 def c_slov_grammar_block(doc, rng):
-    """A 3x4 grid of forms INSIDE a narrow column, text tight above and below.
-
-    Vertical merging has only ever been tested on a full-measure page.
-    """
+    """A 3x4 grid of forms INSIDE a narrow column, text tight above and below:
+    vertical merging where the rest of the bench tests it full measure."""
     pg = _sheet(doc); t = []
     xs, w = _cols(2, 20.0)
     _entries(pg, t, xs[0], TOP, 250, w, PW, WORDS_EN, size=5.4)
@@ -214,11 +194,8 @@ def c_slov_grammar_block(doc, rng):
 
 
 def c_slov_running_head(doc, rng):
-    """A running head with a word range, a rule and a folio.
-
-    The class `header` has never been tested by the bench: the handbook has
-    only `number`.
-    """
+    """A running head with a word range, a rule and a folio: the class `header`,
+    which the handbook does not carry at all."""
     pg = _sheet(doc); t = []
     _running_head(pg, t, MARGIN, PW - MARGIN, TOP - 12, "ABUTMENT", "CAMSHAFT",
                   417)

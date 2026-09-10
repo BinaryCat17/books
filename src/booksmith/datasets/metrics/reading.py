@@ -1,36 +1,12 @@
 """What the reader got wrong that can be seen WITHOUT truth.
 
-`text.py` compares an answer against known characters and is the honest
-measurement of reading quality -- and it has never produced a number, because
-truth for a real scan does not exist and drawn pages are 144 dpi typeset
-imitations (the commit log says so in three reasons). So every defect of
-level two has been unmeasured, on a book that cost money to read.
-
-This file measures the ones that need no truth at all, because they are
-defects a reader can be caught in by looking only at what it returned.
-
-THE FABRICATED CHART IS THE ONE THAT MATTERS. A `chart` is a picture of a
-curve. Asked to read it, the model returns a TABLE OF NUMBERS -- values read
-off the curve by eye, to two decimals -- and those numbers are placed into
-the book as text. Measured on the one real level-two run: of 60 answered
-chart blocks, 58 came back as two or more delimited rows and 56 of those are
-majority numeric. One of them, `p0019-b9`, even repeats the axis label as a
-data row. This is the project's own rule -- "numbers may only be flagged,
-never restored" -- broken by the model, in the shipped HTML, and the counter
-aimed at it cannot fire: `readers/paddleocr_vl.py` routes `chart` with the
-promise `text`, `driver._sniff` answers `text` for a pipe table, promise and
-guess agree, and `kind_not_as_promised` stays silent on all sixty.
-
-WHY IT CANNOT FALSE-POSITIVE ON A REAL TABLE. The rule asks for delimited
-numeric rows under a `chart` LABEL. A table returned as a grid is right, and
-`table` blocks are routed to OTSL, not to this shape. Measured over all 6080
-answered blocks of that run: `chart` is the ONLY label that produces two or
-more delimited rows -- 58 blocks against zero for every other label.
-
-WHAT IT DOES NOT CLAIM. It does not say the numbers are wrong; nothing here
-can, without the page. It says they were INVENTED FROM A PICTURE, which is a
-statement about where they came from, and that is what makes the reading
-untrustworthy whatever the digits are.
+Truth for a real scan does not exist, so this file measures the defects a reader
+can be caught in by looking only at what it returned. The FABRICATED CHART is the
+one that matters: asked to read a picture of a curve, the model returns a table of
+numbers read off it by eye, and they go into the book as text. The rule asks for
+delimited numeric rows under a `chart` LABEL, both together. It does not claim
+the numbers are wrong -- nothing here can, without the page -- only that they
+were invented from a picture.
 """
 import re
 
@@ -43,10 +19,7 @@ NUMERIC_SHARE = 0.5
 # Two rows is a table; one delimited line is a caption with a bar in it.
 MIN_ROWS = 2
 # The shingle for degenerate repetition, and the share of it that must be
-# repeats. Measured over the real run: stripping OTSL and LaTeX markup first
-# and asking for 0.30 flags 20 blocks of which 19 are genuine -- 95 per cent.
-# Asked of the raw text at 0.20 it flags 33 of which 13 are chemistry that
-# repeats because the chemistry does, dot leaders, and `<lcel>` merge runs.
+# repeats: at 0.30 over stripped text, 19 of 20 flagged blocks are genuine.
 SHINGLE = 20
 LOOP_SHARE = 0.30
 _MARKUP = re.compile(r"<(?:fcel|ecel|lcel|ucel|xcel|ched|rhed|srow|nl)>"
@@ -75,14 +48,9 @@ def is_data_table(text):
 
 
 def loop_share(text):
-    """How much of the answer is a repeat of itself, markup discarded.
-
-    Markup first, and that is the whole difference between a detector and a
-    nuisance: `\\mathrm{Al}_2\\mathrm{O}_3` repeats because the chemistry
-    does, `<lcel><lcel><lcel>` is a DECLARED merge, and a dot leader is a
-    property list. Stripped, what is left repeating is the model repeating
-    itself.
-    """
+    """How much of the answer is a repeat of itself, markup discarded first:
+    chemistry repeats because the chemistry does, `<lcel>` is a declared merge,
+    a dot leader is a property list. What is left repeating is the model."""
     s = " ".join(_MARKUP.sub(" ", text).split())
     if len(s) <= SHINGLE:
         return 0.0
@@ -137,14 +105,9 @@ def report(res: dict, log=print) -> None:
 
 
 class ReadingMetric(Metric):
-    """The truth-free half of level two.
-
-    `needs` is `pages` and `read` and nothing more: the labels and the
-    answers are both in the run's own pages, so this measures on any book
-    that has been read, with no truth and no scan. `read` is the prerequisite
-    that says THIS RUN produced characters -- without it every share here
-    would be 0 of 0 and print as a fact about the model.
-    """
+    """The truth-free half of level two: labels and answers are both in the
+    run's own pages, so it measures any book that has been read, with no truth
+    and no scan; `read` says THIS RUN produced the characters."""
     name = "reading"
     needs = frozenset({"pages", "read"})
     scalars = (

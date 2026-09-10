@@ -1,17 +1,13 @@
 """Counting on the rented machine: dots.ocr layout boxes, page by page.
 
-WHAT HERE MUST FALL RATHER THAN KEEP QUIET. An empty answer from the model, an
-answer no JSON parses out of, coordinates off the sheet, a category outside
-the vocabulary. Each would once have given "a page without boxes" -- looking
-like a defect of the model while being ours.
+In: a PDF and a page selection. Out: one `pass<r>/pages/NNNN.json` per page,
+written as the work goes, so a fall on page 90 of 130 leaves 90 pages and the
+`outputs` sync brings them home.
 
-THE RESULT IS WRITTEN PAGE BY PAGE, not at the end: a fall on page 90 of 130
-must leave 90 pages. The `outputs` directory syncs to us as the work goes, so
-what is already counted arrives even if the machine dies.
-
-DRIFT. With `--repeats N` the same pages are counted N times, each pass into
-its own directory. The comparison is made AT HOME, not here: counting the
-difference on the card would pay video-memory prices for arithmetic.
+An empty answer, an answer no JSON parses out of, coordinates off the sheet or
+a category outside the vocabulary fall out loud rather than pass for a page
+without boxes. With `--repeats N` each pass gets its own directory; the
+comparison is made at home, not at video-memory prices.
 """
 import argparse
 import json
@@ -38,46 +34,15 @@ def log(*a):
 
 
 def parse_pages(spec, n):
-    """`--pages 1,4,7-9` -> page indices, COUNTING THE INPUT FROM ONE.
-
-    The numbering is the one `--pages` has in `books detect` (`parse_pages` in
-    `src/booksmith/processing/layout/detect.py`). There used to be a count of
-    its own here, from
-    zero: the same string `1,4,7-9` meant different pages in two commands of
-    the project (`[1,4,7,8,9]` here against `[0,3,6,7,8]` there), and
-    `--pages 130` on a 130-page book was refused from here. A silent
-    divergence: the wrong page is asked for, and a full plausible answer comes
-    back, indistinguishable from the right one.
-
-    The index that goes into the file name and into the `index` field stays
-    zero-based as it was: the bench truth lies in `0000.json`, and the
-    translation is done only here, at the edge of the argument.
-
-    THE PARSING IS REPEATED, not borrowed: four files ride to the rented
-    machine (`inputs` in `spec()` of the neighbouring `__init__.py`), the
-    booksmith package not among them. `tests/contract/test_parse_pages.py` holds the
-    two copies together -- it loads THIS file by path and puts both through
-    thirteen inputs -- so an edit here must be repeated in `detect.parse_pages`
-    and back. The dash is the one lawful difference: it means the whole book
-    HERE only (`run.sh` passes `${4:--}`), and the check holds that both ways.
-    Before it there was no guard, and the copies did diverge; on which inputs
-    stands at the space below.
-
-    A zero as a number is a refusal out loud, not a quiet shift by one page:
-    that is how the old habit `--pages 0-9` falls. An empty range (`3-1`) is a
-    refusal too: it would give zero pages at exit code 0, so an empty rental
-    would look like a success.
+    """`--pages 1,4,7-9` -> zero-based indices, counting the input from one as
+    `detect.parse_pages` does; `-` means the whole book, here only. A copy of
+    that function, held to it by `tests/contract/test_parse_pages.py`.
     """
     if not spec or spec == "-":
         log(f"pages: the whole book, {n} of them")
         return list(range(n))
     want = []
-    # A SPACE SEPARATES JUST LIKE A COMMA, as in `detect.parse_pages`. It did
-    # not here, and the copies diverged on four inputs of thirteen: "1 3" and
-    # "1 4 7-9" gave pages there and a bare
-    # `ValueError: invalid literal for int()` here, while "x" and "7-x" were
-    # refused there with a sample and here by the same traceback. This is
-    # parsed ON THE RENTED CARD, after the weights are unrolled: for money.
+    # A space separates just like a comma, as in `detect.parse_pages`.
     for part in str(spec).replace(" ", ",").split(","):
         part = part.strip()
         if not part:
@@ -115,20 +80,16 @@ def parse_pages(spec, n):
     if not want:
         raise SystemExit(f"the page set {spec!r} is empty: nothing to count")
     idxs = [p - 1 for p in sorted(set(want))]
-    # Into the log a quantity, not "understood": what came out of the string
-    # is visible BEFORE the card starts ticking.
+    # A quantity, not "understood": the meaning is visible before the card ticks.
     log(f"pages {spec!r} understood from one: {len(idxs)} of them, "
         f"{idxs[0]+1} to {idxs[-1]+1} (indices {idxs[0]}..{idxs[-1]})")
     return idxs
 
 
 def extract(text):
-    """Parse the model's answer into a list of boxes.
-
-    An unparsable answer is an error out loud. AN EMPTY LIST is not counted an
-    error: a page without boxes can be genuine, and falling on it would mean
-    judging for the model. `main` counts such pages apart from the unparsed,
-    and `tally` prints both.
+    """Parse the model's answer into a list of boxes. An unparsable answer is
+    an error out loud; an empty list is not -- a page without boxes can be
+    genuine, and `main` counts those apart from the unparsed.
     """
     t = text.strip()
     m = re.search(r"```(?:json)?\s*(.+?)```", t, re.S)
@@ -144,18 +105,9 @@ def extract(text):
 
 
 def tally(pages, boxes, empty, bad):
-    """The pass in QUANTITIES: how many boxes the model gave at all.
-
-    Without a box count the log lied with success. An empty list is a lawful
-    answer of the model ("there are no boxes on this page"), so `extract` does
-    not fall on it and the page does NOT go among the unparsed. Measured on a
-    stand-in output -- 130 pages, `[]` on each -- the old log printed "130
-    pages, unparsed 0" and exit code 0, so a zero catch over a whole rental
-    was indistinguishable from a full success.
-
-    The zero of an empty page and the zero of an unparsed one are DIFFERENT
-    zeroes, hence counted apart; and where there is nothing to divide by it
-    prints "no data" instead of 0.0 boxes per page.
+    """The pass in quantities: how many boxes the model gave at all. The zero
+    of an empty page and the zero of an unparsed one are different zeroes,
+    counted apart; with nothing to divide by it says "no data".
     """
     ok = pages - bad
     s = (f"{pages} pages, boxes {boxes}, empty pages {empty}, "
@@ -163,9 +115,7 @@ def tally(pages, boxes, empty, bad):
          + (f"boxes per parsed page {boxes/ok:.1f}" if ok
             else "boxes per parsed page: no data"))
     if pages and not boxes:
-        # There is nothing here to judge by whether this is a refusal or a
-        # genuinely empty selection: `--pages 5` on a blank sheet gives a
-        # lawful zero. So the quantity shouts and the decision stays at home.
+        # A lawful zero and a refusal look alike here, so the decision stays at home.
         s = "NOT ONE BOX in the whole pass. " + s
     return s
 
@@ -176,14 +126,7 @@ def main():
     ap.add_argument("--out", required=True)
     ap.add_argument("--repeats", type=int, default=1)
     ap.add_argument("--pages", default="-")
-    # THE INPUT CEILING. Golden-bench pages run to 4.9 megapixels, and the
-    # vision encoder gave OutOfMemory on 5.42 GiB in a single softmax. Not
-    # repairing the model: EVERY detector of the bench shrinks its input
-    # (800x800, 640x640, 1024x768), only for a generative model the ceiling is
-    # set by a pixel count. The value goes into each page's
-    # `meta.input_pixel_ceiling`: this job writes no run snapshot, and
-    # `DOTS_MAX_PIXELS` is read past the knob registry (`dots_ocr/__init__.py`
-    # says so of both its knobs).
+    # The input ceiling: the vision encoder runs out of memory on a 4.9-Mpixel page.
     ap.add_argument("--max-pixels", type=int,
                     default=int(os.environ.get("DOTS_MAX_PIXELS",
                                                1280 * 28 * 28)))
@@ -196,11 +139,7 @@ def main():
 
     log("loading the model")
     t0 = time.time()
-    # A DIRECTORY NAME WITHOUT A DOT. Loading by the repository name is
-    # impossible: the dot in "dots.ocr" becomes a package separator in the
-    # remote-code loader, and the relative import inside the model falls.
-    # provision.sh puts the weights here; a missing directory is a refusal out
-    # loud, not a quiet attempt to download by name.
+    # A directory without a dot: the dot in "dots.ocr" breaks the remote-code import.
     name = os.environ.get("DOTS_DIR", "/models/DotsOCR")
     if not os.path.isdir(name):
         raise SystemExit(
@@ -218,20 +157,10 @@ def main():
     model.eval()
     log(f"model up in {time.time()-t0:.0f} s")
 
-    # THE PROCESSOR'S EXTRA KEYS. It lays down more than `generate` takes --
-    # for dots.ocr `mm_token_type_ids`, and the run fell on the very first
-    # page with a ValueError: `generate` checks what it is handed against its
-    # own list and falls listing the extras. Selecting by the `forward`
-    # SIGNATURE IS IMPOSSIBLE: dots.ocr takes **kwargs there, the filter
-    # switches itself off, and the run falls exactly the same way -- that has
-    # cost two rentals already. So we read the names out of the error itself,
-    # remember and repeat. What is dropped is printed as a quantity: dropping
-    # a stranger's key in silence means feeding the model the wrong thing.
+    # `generate` refuses extra processor keys; the names come from its error, not the signature.
     drop = set()
 
-    # The fallback: if `generate` still complains after the dropping, we
-    # leave ONLY what generation is impossible without. The list is short and
-    # known for the Qwen2-VL family of vision models dots.ocr is built on.
+    # Last resort: what generation is impossible without in the Qwen2-VL family.
     CORE = ("input_ids", "attention_mask", "pixel_values", "image_grid_thw")
 
     def generate(inputs, **kw):
@@ -276,14 +205,7 @@ def main():
             page.get_pixmap(dpi=int(DPI)).save(tmp)
             im = Image.open(tmp).convert("RGB")
             w, h = im.size
-            # We shrink OURSELVES, not relying on the processor: the model's
-            # boxes will come in the coordinates of the picture we sent, and
-            # the way back must be ours and explicit, not guessed.
-            # THE NAME `scale`, NOT `k`. The loop variable of
-            # `for k, item in enumerate(...)` below overwrote the scale
-            # factor, and the very first box gave a division by zero: 36 pages
-            # of 36 written down as "unparsed" while the model answered
-            # flawlessly.
+            # We shrink ourselves: boxes come back in the sent picture's coordinates.
             scale = 1.0
             if w * h > a.max_pixels:
                 scale = (a.max_pixels / (w * h)) ** 0.5
@@ -298,22 +220,17 @@ def main():
             inputs = proc(text=[text], images=[im], return_tensors="pt")
             inputs = {k: v.to("cuda") for k, v in inputs.items()}
             if n == 1 and r == 0:
-                # What the processor gave at all -- as a quantity, once.
-                # Without it, working out a stranger's refusal costs a fresh
-                # rental.
+                # What the processor gave at all, once: a refusal is unreadable without it.
                 log(f"  the processor returned the keys: {sorted(inputs)}")
             oom = False
             try:
-                # Greedy decoding, no sampling: otherwise our own drift would
-                # be added to the kernels', with nothing to separate them by.
+                # Greedy decoding: sampling would add our drift to the kernels', inseparably.
                 with torch.inference_mode():
                     out = generate(inputs, max_new_tokens=4096,
                                    do_sample=False, temperature=None,
                                    top_p=None, top_k=None)
             except torch.OutOfMemoryError:
-                # One page must not kill the run: the rest are counted and
-                # have arrived. The skip is written INTO THE PAGE as a
-                # quantity, not as a silent zero of boxes.
+                # One page must not kill the run; the skip is written into the page itself.
                 torch.cuda.empty_cache()
                 oom = True
                 out = None
@@ -337,16 +254,13 @@ def main():
                     blocks.append({
                         "block_id": k, "box": [x0, y0, x1, y1],
                         "label": cat, "score": None,
-                        # The reading order of this model is the ORDER OF
-                        # GENERATION, written down as a value, not passed off
-                        # as a rank.
+                        # This model's reading order is the order of generation.
                         "order": k, "content": None, "kind": "none"})
             except Exception as e:
                 err = f"{type(e).__name__}: {e}"
                 bad += 1
             else:
-                # Parsed -- so we count HOW MANY boxes the model gave. An
-                # empty page here is not an error, and not a success either.
+                # An empty page here is neither an error nor a success.
                 seen += len(blocks)
                 if not blocks:
                     empty += 1

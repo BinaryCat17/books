@@ -1,27 +1,12 @@
 """The locks: a metric's raw result dict, and a command's report, verbatim.
 
-WHY WHOLE REPORTS AND NOT FIVE NUMBERS. The five headline figures were tried
-against a real migration and they are blind: renaming all 13 996 Cyrillic keys
-of `bench/annopage` and leaving the code alone moved not one of them, nor did
-stopping the rename halfway. What moved was the prose around them -- a line
-reading "on an object outside scoring: 350" stopped being printed, and 350
-excluded boxes were charged to the model instead; "sha256 checked" became "no
-such field", collapsing the difference between checked and unable to check.
-
-WHY THE RECORDS BESIDE THE REPORTS. A report is prose, and prose can be
-rearranged without a number moving. The reverse also happens: a result dict
-grows a key no report prints, or one the report rounds. So the RAW DICT is kept
-as JSON, floats rounded to six places, compared key by key at 1e-6 -- and that
-is the lock a package move is measured with: a metric moved to another file
-must return the same dict to the last key.
-
-A missing input is a skip with a reason, never a pass: most of what these read
-is behind .gitignore, so a fresh clone can prove little. `slovar` is drawn by
-the fixture, so the reading record is measured everywhere.
-
-To re-take a lock, run the command and write its output to the file the test
-names; there is no blanket save, on purpose -- a blanket save blesses every
-other lock blind.
+Whole reports, not a few headline figures: the prose around a number carries
+what the number does not -- a line that stops being printed hides excluded
+boxes, or the difference between checked and unable to check. Beside each
+report the raw dict is kept as JSON, floats rounded to six places and
+compared at 1e-6, so a metric moved to another file must return the same
+dict key for key. A missing input is a skip with a reason, never a pass; to
+re-take a lock, write the command's output to the file the test names.
 """
 import difflib
 import json
@@ -37,10 +22,8 @@ from booksmith.core.config import ROOT
 EXPECTED = os.path.join(ROOT, "tests", "expected")
 TOLERANCE = 1e-6
 
-# The clock on every log line moves on its own. So does the hash of a SOURCE
-# file as it is now -- `replay --check` prints it to say the snapshot was taken
-# with other code, and it changes on every edit to the adapter, comments
-# included. The hash IN THE SNAPSHOT is data and is kept.
+# The clock moves on its own, and so does the hash of the source as it is now;
+# the hash inside the snapshot is data and is kept.
 _CLOCK = re.compile(r"^\[\d\d:\d\d:\d\d\] ", re.M)
 _TREE_HASH = re.compile(r"(tree )[0-9a-f]{8,}")
 
@@ -57,11 +40,8 @@ def _need(paths):
 
 def _run(argv):
     """The command's output, verbatim but for the clock, stdout and stderr.
-
-    COLUMNS is pinned because argparse wraps to the terminal width: at
-    COLUMNS=40 one report differed by 76 lines while nothing had changed. A
-    snapshot that depends on the window it was taken in is not a snapshot.
-    """
+    COLUMNS is pinned because argparse wraps to the terminal width, and a
+    snapshot that depends on the window it was taken in is not a snapshot."""
     env = dict(os.environ, PYTHONPATH=os.path.join(ROOT, "src"), COLUMNS="80")
     r = subprocess.run([sys.executable, "-m", "booksmith.cli"] + argv,
                        cwd=ROOT, capture_output=True, text=True, env=env)
@@ -114,8 +94,8 @@ def _walk_diff(want, got, at, out):
             _walk_diff(a, b, f"{at}[{i}]", out)
     elif (isinstance(want, (int, float)) and isinstance(got, (int, float))
           and not isinstance(want, bool) and not isinstance(got, bool)):
-        # NaN FIRST: `abs(x - nan) > t` is False for every x, so a metric that
-        # started returning NaN where it returned 0.5 read as "same record".
+        # NaN first: abs(x - nan) > t is False for every x, so NaN would
+        # otherwise pass as equal.
         if (want != want) != (got != got):
             out.append(f"{at}: {want} -> {got}")
         elif want == want and abs(want - got) > TOLERANCE:
@@ -156,12 +136,9 @@ def test_the_contour_record_on_hard_is_the_same_dict():
 
 
 def test_the_reading_record_on_slovar_is_the_same_dict(slovar):
-    """Truth against itself: the one input where reading has a known answer.
-
-    The bench is drawn by the fixture rather than read from the tree, so this
-    record is measured on every machine -- and it is the lock that says the
-    drawn truth and the reading metric still agree to the last key.
-    """
+    """Truth against itself: the one input where reading has a known answer. The
+    bench is drawn by the fixture rather than read from the tree, so this record
+    is measured on every machine."""
     from booksmith.datasets.metrics import text
     _record("text-slovar", text.measure(slovar.truth_dir, slovar.truth_dir))
 
@@ -194,16 +171,15 @@ def test_the_record_diff_sees_a_moved_number_and_a_lost_key():
 # ------------------------------------------------------------- the reports
 
 def test_replay_check_reports_the_same_report():
-    """`replay --check` returns 1 whether or not anything is wrong: 52 of 52
-    values present and rc=1, both before damage and after. The return code
-    carries no signal here, only the report does."""
+    """`replay --check` returns 1 whether or not anything is wrong: the return
+    code carries no signal here, only the report does."""
     _report("replay-annopage",
             ["replay", "--check", "bench/annopage/detect/PP-DocLayoutV2"],
             ["bench/annopage/detect/PP-DocLayoutV2/run.json"])
 
 
 def test_the_table_reports_the_same_report():
-    """Every applicable metric on one run, as one text. The run is NAMED, or
+    """Every applicable metric on one run, as one text. The run is named, or
     the report would depend on how many models happen to be built here; the
     JSON goes to the bin so that the report is the only thing compared."""
     _report("table-slovar",
@@ -214,9 +190,8 @@ def test_the_table_reports_the_same_report():
 
 
 def test_the_built_book_reports_the_same_swaps():
-    """`books html` and `books apply` were read by no lock at all, and three of
-    the seven defects a key migration left lived exactly there: three sheet
-    counters frozen at zero, a dead CSS selector, and a file quietly dropped
-    out of `assets/source`."""
+    """`books html` and `books apply` under a lock: the swap status report,
+    where a frozen sheet counter or a file dropped from `assets/source`
+    shows up."""
     _report("apply-status", ["apply", "processed/ogneupory-vl2", "--status"],
             ["processed/ogneupory-vl2/assets/swaps.json"])

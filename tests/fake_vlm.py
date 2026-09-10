@@ -1,17 +1,12 @@
 """A stand-in VLM: an OpenAI-compatible endpoint that answers to order.
 
-WHY. The whole of level two -- crops, prompts, answer parsing, page assembly,
-five different zeros, the snapshot -- is checked HERE, for nothing, and only
-then goes to a rented card. The previous level two paid rental after rental to
-debug its parser: thirteen runs and $0.52, two of them useful, and every trap
-turned out to be ours, not one the model's.
+The whole of level two -- crops, prompts, answer parsing, page assembly,
+five kinds of zero, the snapshot -- is checked against it locally, before
+any rented card. The server answers exactly what it was told to: a string,
+emptiness, a cut at the ceiling, a 500, so each of level two's troubles
+reproduces in milliseconds.
 
-The server answers exactly what it was told to: a string, emptiness, a cut at
-the ceiling, a 500. So each of level two's five troubles reproduces on the spot
-in milliseconds instead of waiting for the model to deign to fall silent.
-
-It is a model in no sense: it does not read the image and does not pretend to.
-It checks OUR half.
+It is a model in no sense: it does not read the image. It checks our half.
 """
 import base64
 import json
@@ -20,16 +15,9 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 
 class FakeVlm:
-    """A service on a random port. `plan` decides what it answers.
-
-    `plan` is one answer for every request, or a dict {prompt -> answer}, or a
-    function (prompt, image) -> answer. An answer is a dict:
-
-        {"text": "...", "finish": "stop"}   an ordinary answer
-        {"text": "", "finish": "stop"}      the model stayed silent
-        {"text": "...", "finish": "length"} cut off at the ceiling
-        {"http": 500}                       delivery refused
-    """
+    """A service on a random port; `plan` decides what it answers: one answer, a
+    dict {prompt -> answer}, or a callable (prompt, image) -> answer, where an
+    answer is {"text", "finish"} or {"http": code}."""
 
     def __init__(self, plan, model="PaddleOCR-VL-1.6-0.9B"):
         self.plan, self.model = plan, model
@@ -61,9 +49,8 @@ class FakeVlm:
                                if c.get("type") == "text"), "")
                 uri = next((c.get("image_url", {}).get("url") for c in content
                             if c.get("type") == "image_url"), "")
-                # The image bytes are taken WHOLE: the checks verify that the
-                # crop which reached the model is that one and not its
-                # neighbour.
+                # The image bytes whole: the checks verify which crop reached
+                # the model.
                 img = b""
                 if "," in uri:
                     img = base64.b64decode(uri.split(",", 1)[1])

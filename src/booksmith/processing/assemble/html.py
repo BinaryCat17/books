@@ -1,20 +1,13 @@
-"""First-level product: readable HTML from the contours.
+"""Level one's product: readable HTML from the contours.
 
-Text as markup, artifacts as images in place, in the model's reading order. The
-second level swaps images for markup one at a time, via `swap.py`.
+Text as markup, artifacts as images in place, in the model's reading order.
+Level two swaps images for markup one at a time, via `swap.py`.
 
-WHAT NEVER TOUCHES WHAT — a rule, not taste. The observed is NOT written into
-the text: score, label, rank, a clipped box live in `blocks.json`, tied by
-anchor. Such marks (`⚠`, `≠`, `<mark>`, a scan link) once went into the markup,
-editing the model's output in place, and it cost: the marker landed in cells
-before the table caption was read and the box stopped recognising its own
-table — 9 misses out of 33. `data-*` sits on OUR `<figure>`/`<p>` wrapper.
-
-WHY TEXT TOO BECOMES AN IMAGE FOR NOW: `books detect` gives contours only and
-`Block.content` is empty everywhere, so a textless block goes out as a crop
-tagged `data-text="unread"` -- the eye can check contours and reading order
-BEFORE a metric fixes them. Once reading exists those blocks travel as text,
-with no change here.
+The observed is never written into the text: score, label, rank, a clipped box
+live in `blocks.json`, tied by anchor, and `data-*` sits on our `<figure>`/`<p>`
+wrapper. A block with no content goes out as a crop tagged `data-text="unread"`,
+so contours and reading order can be checked by eye before a metric fixes them;
+once it has content it travels as text, with no change here.
 """
 import glob
 import html as _html
@@ -29,15 +22,13 @@ from booksmith.core import policy
 from booksmith.core import stamp, textnorm
 from booksmith.core.errors import Refusal
 
-# Shortest normalised text accepted as evidence. Sweep at `repeats_on`: the
-# false-positive curve is flat (9.3..12.0 % over 2..8), so this is argued, not
-# tuned.
 from booksmith.core.page import Page
 from booksmith.core import knobs
 from booksmith.core import book, raster as crop
 from booksmith.core.book import ASSETS, SOURCE
 from booksmith.processing.assemble import swap
 
+# Shortest normalised text taken as evidence: below it a match is coincidence.
 REPEAT_MIN = 3
 
 CSS = """
@@ -155,14 +146,6 @@ hr.sheet[data-repeats-hidden]::after{
 """
 
 
-# `_union_area` came from the VLM-input preview when it went; the builder is
-# its last reader. The preview's OTHER helper, `_union_rects` -- holes merged
-# into connected groups -- came with it and nothing read it: it counted holes
-# to choose between `crop` and `masked_page`, and that choice went with the
-# knob. Deleted rather than kept for a caller that might appear; what it knew
-# (merge to exhaustion, not in one pass -- a merged box is the BOUNDING one
-# and may cover a box the same pass set aside as disjoint) is in
-# the commit log with the rest of the preview.
 def _union_area(holes):
     """Area of the union of rectangles: a sweep along the vertical."""
     if not holes:
@@ -184,18 +167,16 @@ def _union_area(holes):
 
 
 def anchor_of(page_index: int, block_id: int) -> str:
-    """Block anchor. PER PAGE: `block_id` restarts on every page."""
+    """Block anchor. Per page: `block_id` restarts on every page."""
     return f"p{page_index:04d}-b{block_id}"
 
 
 def why_empty(o: dict | None) -> str:
-    """WHY a block has no text -- in words, not one flat "unread".
+    """Why a block has no text -- in words, not one flat "unread".
 
-    `books read` counts FIVE zeros apart in `answers/`; the book collapsed them
-    into one. Measured: `p0024-b23` (gutter-shadow strip, 12x408 px) has outcome
-    `stop`, error `null`, empty text -- the model ANSWERED EMPTY, while the
-    caption said "unread", i.e. "we never read it". `None` on input is a sixth
-    case: nothing observed alongside.
+    `books read` counts five zeros apart in `answers/`, and they must not
+    collapse here: "the model answered empty" is not "we never read it". `None`
+    on input is a sixth case, nothing observed alongside.
     """
     if o is None:
         return "whether it was read: nothing to say -- no answers/ alongside"
@@ -210,7 +191,7 @@ def why_empty(o: dict | None) -> str:
 
 
 def _figure(anchor, b, role, src, info, inside=None, mark="", why=None):
-    """Artifact as an image. `src` is a READY source, not a path.
+    """Artifact as an image. `src` is a ready source, not a path.
 
     It may be a half-megabyte `data:image/png;base64,…`, which is pointless and
     costly to escape; `_img_src` builds it, where the inline-or-link choice is
@@ -221,9 +202,8 @@ def _figure(anchor, b, role, src, info, inside=None, mark="", why=None):
         cap = f"detail of {inside} · " + cap
     if info.get("clipped_by_sheet"):
         cap += " · the box left the sheet"
-    # A separate attribute: a backslash inside an f-string is Python 3.12 syntax
-    # and the package declares 3.10. WHY it is empty goes into the caption: a
-    # mute attribute made the book call the model's silence unread.
+    # A separate attribute: a backslash inside an f-string wants Python 3.12
+    # and the package declares 3.10. Why it is empty goes into the caption.
     unread = "" if role == "artifact" else ' data-text="unread"'
     if role != "artifact" and why:
         cap += " · " + why
@@ -241,19 +221,14 @@ def is_our_dir(out_dir: str) -> bool:
 
 
 def _keep_source(detect_dir: str, out_dir: str, log) -> dict:
-    """Put beside the book WHAT IT WAS BUILT FROM.
+    """Put beside the book what it was built from.
 
-    NOT TIDINESS: `blocks.json` carries fifteen fields per block but not
-    `content`, so the read text lived only as markup inside `book.html` and in a
-    foreign read directory paid for on a rented card. Delete that and the only
-    way back is a new rental -- on "Refractory technology", 915 078 characters
-    and $0.545. THE SECOND WIN MATTERS MORE: `books apply` with no keys takes
-    the source from the book's snapshot, where an ABSOLUTE path is recorded, so
-    moving the book or the read directory left it not knowing what to place.
-
-    Copy, not move: one read serves several builds (`HTML_IMAGES`, crop
-    sharpness). `answers/` comes too — seconds, tokens, stop reason are the only
-    answer to "why is this block bad".
+    `blocks.json` carries no `content`, so without this the read text lives only
+    as markup in `book.html` and in a read directory paid for on a rented card.
+    And `books apply` with no keys takes the source from here rather than from
+    the snapshot's absolute path, so the book survives being moved. Copy, not
+    move: one read serves several builds, and `answers/` comes too — seconds,
+    tokens and stop reason are the only answer to "why is this block bad".
     """
     dst = os.path.join(out_dir, SOURCE)
     if os.path.abspath(detect_dir) == os.path.abspath(dst):
@@ -267,13 +242,9 @@ def _keep_source(detect_dir: str, out_dir: str, log) -> dict:
         if os.path.isdir(src):
             shutil.copytree(src, os.path.join(dst, name))
             was[name] = len(os.listdir(src))
-    # WHAT IS NAMED HERE MUST BE FOUND. After the rename to `read_with.json`
-    # the old name stayed on disk and this line skipped it quietly: 2945 bytes
-    # of reading fingerprint -- model name, repo, weights sha256, 25 prompts --
-    # never moved into `source/`, while acceptance still showed the same 412
-    # swaps. Costlier: `books read --resume` detects "read by something else"
-    # through this file, so without it a model change on a resumed PAID run
-    # stops being visible.
+    # What is named here must be found: `books read --resume` sees "read by
+    # something else" through `read_with.json`, so losing it hides a model
+    # change on a resumed paid run.
     for name, required in (("run.json", True), ("read_with.json", False)):
         src = os.path.join(detect_dir, name)
         if os.path.isfile(src):
@@ -295,32 +266,18 @@ def _keep_source(detect_dir: str, out_dir: str, log) -> dict:
 
 
 def observed(detect_dir: str) -> dict:
-    """READING observations by anchor: what `books read` already wrote aside.
+    """Reading observations by anchor: what `books read` already wrote aside.
 
-    `books read` counts five zeros apart and names them ("cut off by the
-    ceiling: 14" with all fourteen anchors), and that knowledge then vanished: a
-    `pages/*.json` block has seven fields and no truncation flag, `blocks.json`
-    carried twelve and none either (fifteen now), `finish_reason` appeared
-    nowhere outside `read/`.
-
-    THE COST OF SILENCE, on "Refractory technology": 14 truncated of 6156
-    blocks — 0.23 %, 118 471 characters, 12.95 % of the book's read text
-    (915 078). All fourteen entered the book, four via `books apply` (two
-    tables, a formula, a chart) and ten as ordinary `<p>`, none distinguishable
-    from a whole one. The worst, `p0055-b11`, is 4x4 on the scan and a `<table>`
-    with 2047 `<td>` in ONE row in the book — 36 % of the book's cells.
-
-    `content` is untouched byte for byte: the observed travels as its own field,
-    tied by anchor. A missing `answers/` is NOT an error — a detect directory
-    has none by construction — and the empty dict means "cannot say whether
-    these were read", said aloud rather than printed as "truncated 0".
+    A truncated answer is indistinguishable from a whole one in the markup, so
+    the flag has to come from here. `content` is untouched byte for byte: the
+    observed travels as its own field, tied by anchor. A missing `answers/` is
+    not an error — a detect directory has none — and the empty dict means
+    "cannot say whether these were read", never "truncated 0".
     """
     out = {}
     for fp in sorted(glob.glob(os.path.join(detect_dir, "answers", "*.json"))):
-        # CATCH "WRONG JSON" TOO: a file parsing into a LIST raises
-        # `AttributeError` on `.get` and would kill the whole build where the
-        # right answer is "nothing observed for this page". The neighbouring
-        # pages must still arrive.
+        # A file parsing into a list must not kill the build: the right answer
+        # is "nothing observed for this page", and the neighbours still arrive.
         try:
             with open(fp, encoding="utf-8") as f:
                 recs = json.load(f).get("answers") or []
@@ -345,38 +302,20 @@ def observed(detect_dir: str) -> dict:
 def repeats_on(page, covered) -> dict:
     """Which blocks of the page repeat what is already printed. By `block_id`.
 
-    ONE CLAIM, ONCE PROVED WRONG: "hide this block and no character of the page
-    is lost". So a block is compared NOT with its owner and NOT with the whole
-    page, but with the blocks that REMAIN.
-
-    1935 candidates on "Refractory technology": HIDDEN 728 (37.6 %), kept for
-    layout 65, differs 1142; background on a foreign page 85 (+1), 38 (+5), 36
-    (+37), 17 (+200). The measure is the false share AMONG THE HIDDEN at the
-    worst background, 11.7 %. Rejected: a block compared with ITSELF gave 99.0 %
-    against a 1.9-6.7 % background where self-match is impossible.
-
-    GEOMETRY IS NO SUBSTITUTE: a nested block has its text in THAT SAME owner
-    for only 476 of 1935, another 140 elsewhere on the page. So the answer names
-    the CARRIER of the proof; naming the enclosing box, 23 of 841 named one
-    without that text.
-
-    THE LENGTH THRESHOLD IS A WEAK LEVER: 2/3/4/5/6/8 give false shares 11.7 /
-    10.7 / 11.0 / 12.0 / 9.8 / 9.3 % at 841 / 793 / 672 / 591 / 461 / 227 hidden
-    — flat, so choosing by it chases noise. A two-character match ("°c", "50")
-    is coincidence.
-
-    LAYOUT IS NOT TRADED FOR RAW SOURCE: where the carrier holds the same text
-    as raw latex, hiding the typeset block shows `FeO-SiO_{2}` instead of a
-    formula. 66 such stay visible.
+    One claim: hide this block and no character of the page is lost. So a block
+    is compared not with its owner and not with the whole page but with the
+    blocks that remain, and the answer names the carrier of the proof; geometry
+    is no substitute, a nested block's text standing in its own owner for barely
+    a quarter of the cases. Where the carrier holds the same text as raw latex
+    the block stays visible: hiding the typeset for the raw makes the page worse.
     """
     from_text = [b for b in page.blocks
                  if policy.role(b.label) != "artifact" and (b.content or "").strip()]
     nested = {b.block_id for b in from_text
               if any(o.block_id != b.block_id and covered(b.box, o.box)
                      for o in from_text)}
-    # THE REMAINING — and only them. A candidate matched against another
-    # candidate would let both be hidden: each "exists at the neighbour", and
-    # neither stays in the book.
+    # The remaining, and only them: a candidate matched against another
+    # candidate would let both be hidden, and neither would stay in the book.
     kept = [b for b in from_text if b.block_id not in nested]
     norm = {b.block_id: textnorm.normalize(b.content, "latex") for b in kept}
     out = {}
@@ -396,14 +335,11 @@ def repeats_on(page, covered) -> dict:
 
 
 def _raw_latex_at(carrier: str, own: str) -> bool:
-    r"""The carrier holds the same text as RAW latex, and we hide the typeset.
+    r"""The carrier holds the same text as raw latex, and we hide the typeset.
 
-    A separate function for the mutation battery. Measured on the real book:
-    65 blocks where the carrier shows `FeO-SiO_{2}` and the hidden block holds
-    `\[\mathrm{FeO}-\mathrm{SiO}_{2}\]`. Hiding the second worsens the page and
-    wins nothing. This said 66 and was stale by one; the figure the build
-    prints is the outcome -- `books html <book>/assets/source` reports it as
-    "proven but KEPT".
+    A separate function for the mutation battery. The carrier shows
+    `FeO-SiO_{2}` where the hidden block holds
+    `\[\mathrm{FeO}-\mathrm{SiO}_{2}\]`, and hiding the second wins nothing.
     """
     math = ("\\[", "\\(", "$")
     if not any(m in own for m in math):
@@ -414,51 +350,33 @@ def _raw_latex_at(carrier: str, own: str) -> bool:
 
 
 def torn_of(o: dict | None) -> bool | None:
-    """Was the answer truncated: THREE states, not two.
+    """Was the answer truncated: three states, not two.
 
-    `True` — hit the ceiling (`finish_reason == "length"`). `False` — finished
-    by itself. `None` — nobody to ask: no `answers/` alongside, or the block was
-    NEVER ASKED (figures, an empty route with a declared reason).
-
-    A separate function for the mutation battery: a check that cannot be broken
-    is not proved (as `apply._same`). Of 6156 blocks 14 are truncated, 6073
-    finished, 69 never asked; without `None` the last two both printed `False` —
-    a field made AGAINST merging two zeros was merging them itself.
+    `True` — hit the ceiling (`finish_reason == "length"`). `False` — finished by
+    itself. `None` — nobody to ask: no `answers/` alongside, or the block was
+    never asked. A separate function so the mutation battery can break it.
     """
     by_what = (o or {}).get("outcome")
     return None if by_what is None else (by_what == "length")
 
 
 def torn_grid(grid: dict | None) -> str | None:
-    """An OTSL grid that CANNOT be a real table, in one phrase.
+    """An OTSL grid that cannot be a real table, in one phrase.
 
-    TORNNESS WAS NOT ENOUGH: `otsl.parse` counts continuations to nowhere, rows
-    of unequal length and text outside tags, and on the truncated `p0055-b11`
-    all of them are CLEAN — the answer holds not one `<nl>`. A zero from not
-    knowing, while the grid screams 2047 cells in a row.
-
-    So the rule looks at SHAPE, both halves checked by mutation
-    (the suite): one row wider than three cells, one column deeper
-    than three. On "Refractory technology" EXACTLY ONE table of 104 falls under
-    each — `p0055-b11` (2047 cells in a row), `p0166-b2` (7 rows of one cell).
-    Median width 5 cells, second-widest row 11.
-
-    THE THRESHOLD BARELY MATTERS HERE: a sweep 1..11 gives two finds at 1..6 and
-    one at 7..11, `p0166-b2` falling off at its own number. No false positives
-    at any threshold, but measured on ONE book and 104 tables.
-
-    Returns the REASON in words, or None — "the shape is not forbidden", not
-    "the table is good": cell contents are outside this rule.
+    Tornness is not enough: on an answer holding not one `<nl>` every count
+    `otsl.parse` makes is clean while the grid holds thousands of cells in a row.
+    So the rule looks at shape — one row wider than three cells, one column
+    deeper than three — and returns the reason in words, or `None`, which is
+    "the shape is not forbidden", not "the table is good": cell contents are
+    outside this rule.
     """
     if not grid:
         return None
     rows, cells = grid.get("rows") or 0, grid.get("grid_cells") or 0
     if rows == 1 and cells > 3:
         return f"the whole table in one row: {cells} cells"
-    # SAY EXACTLY WHAT IS MEASURED. Judging by the AVERAGE (`cells // rows`)
-    # called a 10-row / 19-cell grid — a two-column table missing one cell —
-    # single-column. An average claims nothing about columns; the observation
-    # can: exactly as many cells as rows.
+    # Exactly what is measured, not an average: `cells // rows` calls a 10-row
+    # 19-cell grid single-column, where "as many cells as rows" is observable.
     if rows > 3 and cells == rows:
         return f"{rows} rows and only {cells} cells -- one per row"
     return None
@@ -492,7 +410,7 @@ def _img_src(path: str, rel: str, how: str) -> str:
     """How the book points at a crop: by path or by its own bytes.
 
     `inline` — `data:image/png;base64,…`: a third larger, but the book opens
-    FROM ANY path. `linked` is four times smaller, yet over a network path
+    from any path. `linked` is four times smaller, yet over a network path
     (`\\\\wsl.localhost\\...`) the browser silently refuses neighbouring files
     and the reader sees a book without a single picture.
     """
@@ -504,7 +422,7 @@ def _img_src(path: str, rel: str, how: str) -> str:
 
 
 def _union_share(boxes, sheet):
-    """Share of the sheet under artifacts, by UNION rather than a sum of areas:
+    """Share of the sheet under artifacts, by union rather than a sum of areas:
     nested boxes would otherwise count twice."""
     if not boxes or sheet <= 0:
         return 0.0
@@ -514,23 +432,20 @@ def _union_share(boxes, sheet):
 def _nesting(arts) -> dict:
     """Who is inside whom. Returns {inner block_id: outer block_id}.
 
-    THROWS NOTHING AWAY — it only names the relation. The larger area is outer;
-    on equal areas (it happens: `image` and `table` arrive on ONE rectangle) the
-    outer is the one earlier by the model's own rank — its rank, not ours.
+    Throws nothing away — it only names the relation. The larger area is outer;
+    on equal areas (`image` and `table` do arrive on one rectangle) the outer is
+    the one earlier by the model's own rank, not by ours.
     """
     def area(b):
         return max(0.0, b.box[2] - b.box[0]) * max(0.0, b.box[3] - b.box[1])
 
     def rank(b):
-        """The block's place in the model's order as a KEY, not a bare `order`.
+        """The block's place in the model's order as a key, not a bare `order`.
 
-        `layout/base.py` allows `Block.order = None`: three adapters of four
-        give no rank (yolox, both docling), and on the fourth it is empty for
-        exactly what the first level cuts as images — 100 % of `image`,
-        `figure_title`, `table`. Comparing `(o.order, o.block_id)` directly
-        killed the WHOLE build on a ranked / unranked pair (`TypeError: '>=' not
-        supported between instances of 'NoneType' and 'int'`). Unranked compares
-        by `block_id`, AFTER the ranked: parse order, not our invention.
+        `Block.order` may be `None`: three adapters of four give no rank, and
+        comparing `(o.order, o.block_id)` directly raises on a mixed pair.
+        Unranked compares by `block_id`, after the ranked: parse order, not our
+        invention.
         """
         return (b.order is None, b.order or 0, b.block_id)
 
@@ -546,9 +461,8 @@ def _nesting(arts) -> dict:
                 continue
             inner[b.block_id] = o.block_id
             break
-    # The chain is cut: an outer box that itself lies inside a third stays outer
-    # for its own inner one, or the "detail of" caption would point at
-    # nothing.
+    # The chain is cut: an outer box itself inside a third stays outer for its
+    # own inner one, or the "detail of" caption would point at nothing.
     return inner
 
 
@@ -563,7 +477,7 @@ def _covered(inner, outer, part=0.9):
 
 
 def _twice_area(boxes):
-    """Area covered by TWO boxes or more. Vertical sweep, as in `_union_area`;
+    """Area covered by two boxes or more. Vertical sweep, as in `_union_area`;
     triple cover is not counted three times.
 
     Exactly this ink reaches the book twice: in its own crop and inside someone
@@ -595,17 +509,10 @@ def _twice_area(boxes):
 def _sheet_trouble(blocks, arts) -> str | None:
     """What is wrong with the sheet: `empty` | `no-text` | `furniture-only` | None.
 
-    THREE FAILURES, TWO MARKS, and the third printed someone else's: "no text"
-    meant only "blocks exist, none of them text", so a sheet with one folio
-    (`footer`, bucket "furniture") got the red "the whole column went into
-    pictures" at
-    `data-image-share="0.00"` — `bench/atlas` p. 0, and over the book "pages
-    with no text block" read 9 against eight real.
-
-    A separate function, not three lines in `build`, for the mutation battery: a
-    guard that cannot be broken is not proved. THE RETURNED WORD IS ALSO THE
-    ATTRIBUTE NAME (`data-empty`, `data-no-text`, `data-furniture-only`): there
-    is no second copy of these names in this file.
+    Three failures, never merged: "no text" is "blocks exist, none of them text",
+    and a sheet holding one folio is the third case, not that one. A separate
+    function so the mutation battery can break it; the returned word is also the
+    attribute name, with no second copy of these names in this file.
     """
     if not blocks:
         return "empty"
@@ -617,11 +524,9 @@ def _sheet_trouble(blocks, arts) -> str | None:
 def _order_src(page) -> str:
     """Where this page's `order` came from, in the adapter's own words.
 
-    Three states, never confused: NO field — the snapshot is silent (all nine
-    bench directories predate it); `null` — the adapter said "don't know"; a
-    string — it named the source. The "model rank" default for a missing field
-    lives in `metrics._model_has_rank` and is NOT repeated here: passing the
-    unknown off as the model's is the substitution being fixed.
+    Three states, never confused: no field — the snapshot is silent; `null` — the
+    adapter said "don't know"; a string — it named the source. The default for a
+    missing field lives in `metrics._model_has_rank`, not here.
     """
     m = page.meta or {}
     if "reading_order" not in m:
@@ -633,47 +538,33 @@ def _order_src(page) -> str:
 
 
 def _ours(v) -> bool:
-    """Is this order ours? One rule for the whole project — `models.base`.
+    """Is this order ours? One rule for the whole project — `core.page`.
 
-    A local copy of this check would drift from the one in `metrics` at the
-    first wording change; the contract and the cost of drift are recorded where
-    the field is written, in the adapter contract.
+    A local copy would drift from the one in `metrics` at the first wording
+    change; the contract is recorded where the field is written.
     """
     from booksmith.core.page import ours_order
     return ours_order(v)
 
 
-# Formula renderer. SVG is not taste: of the three it alone lives in ONE file
-# and pulls no separate fonts, and the book must open offline — it goes on a
-# disk and is read half a year later. KaTeX weighs less (268 KB against 2.11 MB)
-# but wants thirty font files; MathJax in chtml, the same.
+# Formula renderer. SVG alone lives in one file and pulls no separate fonts, and
+# the book must open offline; KaTeX weighs less (268 KB against 2.11 MB) but
+# wants thirty font files, as does MathJax in chtml.
 MATHJAX = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                        "mathjax", "tex-svg.js")
 
-# `pre` IS STRUCK FROM THE SKIP LIST ON PURPOSE: MathJax skips it by default,
-# while the second level puts a formula artifact into exactly `<pre>`
-# (`assemble/apply.render`, kind `latex`). The default would leave the very
-# blocks
-# this is built for as source — 2260 formulas of 6080 read blocks on
-# "Refractory technology".
+# `pre` is struck from the skip list on purpose: MathJax skips it by default,
+# while level two puts a formula artifact into exactly `<pre>`
+# (`assemble/apply.render`, kind `latex`).
 _SKIP = ("script", "noscript", "style", "textarea", "code", "annotation",
          "annotation-xml")
 
-# `$...$` is on; MathJax has it OFF by default (only `\\(...\\)`), and the model
-# writes inline maths in dollars -- "where $\\alpha$ is the coefficient".
-#
-# THE MENU IS OFF, AND NOT FUSSINESS. The MathJax menu (`ui/menu`) and
-# `a11y/assistive-mml` are not in the bundle: they LOAD as separate files. In an
-# inlined script the path base is empty, the address resolves against the book,
-# and the browser answers:
-#
-#   Unsafe attempt to load URL …/book.html from frame with URL …/book.html.
-#   'file:' URLs are treated as unique security origins.
-#
-# Formulas render anyway, but a book read off a disk must go to the network for
-# nothing, and a red console line on every open teaches one to ignore the
-# console. THE PRICE: right-click no longer shows a formula's source TeX; the
-# model's bytes remain in `assets/source/pages` and the `model_answer` field
+# `$...$` is on; MathJax has it off by default (only `\\(...\\)`), and the model
+# writes inline maths in dollars. The menu is off because `ui/menu` and
+# `a11y/assistive-mml` are not in the bundle but load as separate files, which an
+# inlined script resolves against the book -- a `file:` origin the browser
+# refuses, on every open. The price: right-click no longer shows a formula's
+# source TeX, which stays in `assets/source/pages` and the `model_answer` field
 # of `assets/swaps.json`.
 _MATH_CFG = ('window.MathJax={tex:{inlineMath:[["$","$"],["\\\\(","\\\\)"]],'
              'displayMath:[["\\\\[","\\\\]"],["$$","$$"]]},'
@@ -684,22 +575,13 @@ _MATH_CFG = ('window.MathJax={tex:{inlineMath:[["$","$"],["\\\\(","\\\\)"]],'
 def _math(out_dir: str) -> tuple[str, str]:
     """What renders the formulas. Knob `HTML_MATH`: inline | local | cdn | off.
 
-    `inline` puts MathJax INSIDE the book (+2.3 MB) and is the registry's
+    `inline` puts MathJax inside the book (+2.3 MB) and is the registry's
     default. `local` writes it as a neighbouring file, `cdn` pulls it from the
     network on every open and says so in the log, `off` is raw LaTeX.
 
-    THE FALLBACK HERE WAS `or "local"` AND THE REGISTRY DEFAULT IS `inline`,
-    so an empty knob resurrected exactly the failure the default was chosen to
-    prevent -- measured and written into the registry: with `local` the
-    browser SILENTLY does not load the neighbouring script when the book is
-    opened over a network path, Chromium cuts the local file off, the console
-    says nothing, and the book looks built with no formulas in it. Two places
-    naming the same default, one of them the loser of a measurement.
-
-    There is no second default now. The registry is asked and its answer is
-    used; `knobs.knob` cannot return empty for a knob that declares one, and
-    if it ever does that is a defect in the registry and belongs there, not
-    papered over here with a value this module picked.
+    There is no second default here: the registry is asked and its answer used. A
+    fallback of this module's own would be a second place naming a default, and
+    with `local` over a network path the book looks built with no formulas in it.
     """
     import shutil
 
@@ -733,9 +615,8 @@ def _math(out_dir: str) -> tuple[str, str]:
                 f"({os.path.getsize(MATHJAX)/1e6:.1f} MB). WARNING: over a "
                 f"network path (\\\\wsl.localhost\\...) the browser will "
                 f"silently not load this file, and there will be no formulas")
-    # inline: WE EMBED. A `</script>` inside the bundle would tear our tag, so
-    # the sequence is split — an old, safe trick: the same string to JS, no
-    # longer a tag end to the HTML parser.
+    # Inline: a `</script>` inside the bundle would tear our tag, so the
+    # sequence is split -- the same string to JS, no tag end to the parser.
     with open(MATHJAX, encoding="utf-8") as f:
         code = f.read().replace("</script>", "<\\/script>")
     return (cfg + f'<script id="MathJax-script">{code}</script>',
@@ -750,14 +631,10 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
     detect_dir = os.path.abspath(detect_dir)
     out_dir = os.path.abspath(out_dir)
 
-    # THE SECOND LEVEL'S SWAP JOURNAL, AND THIS STANDS FIRST. Rebuilding into
-    # the same directory wipes the book with every swap while `swaps.json`
-    # survives and starts lying: it claims "N swapped" about a book showing
-    # pictures again, and `books apply --undo` then misdiagnoses "the book was
-    # edited past the journal". It was edited by this very command, so this
-    # command must say so. A refusal about DESTROYING the output belongs above
-    # every complaint about the input -- it stood below them, so a book with a
-    # journal and a missing source PDF was told about the PDF.
+    # Level two's swap journal, and this stands first: rebuilding into the same
+    # directory wipes the book while `swaps.json` survives and starts lying, and
+    # `books apply --undo` would then blame an edit past the journal. A refusal
+    # about destroying the output belongs above every complaint about the input.
     _j = book.journal_path(out_dir)
     if os.path.exists(_j):
         try:
@@ -782,13 +659,8 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
             f"HTML is built from the PDF, not from the detection raster -- a "
             f"crop of a dense table at {page_dpi:.0f} dpi is unreadable.")
 
-    # THE SOURCE CHECK STANDS HERE, not at the end, and that cost experience.
-    # sha256 used to run after all the work: `slovar`'s 568 crops cut, book.html
-    # and blocks.json on disk, and only then a ValueError. A PDF swapped under
-    # the same path (a djvu rebuilt with another spread cut, another book of the
-    # same name) gave the worst outcome — a book made from a FOREIGN file and
-    # WITHOUT a snapshot, run.json being written below and never reached — plus
-    # a traceback instead of an explanation.
+    # The source check stands here, not at the end: after the work it would give
+    # a book made from a foreign file and no snapshot, `run.json` never reached.
     said = (snap.get("source") or {}).get("sha256")
     now = stamp.sha256(pdf)
     if said and said != now:
@@ -797,10 +669,8 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
             f"{said[:12]}, now it is {now[:12]}. The crops would come from one "
             f"file and the boxes from another. Recompute books detect, or put "
             f"back the PDF the boxes were counted on.")
-    # A number, not "matched". A snapshot WITHOUT the sha256 field is not
-    # "checked and equal" but "nothing to check against", and it says so. The
-    # branch serves snapshots predating the field; all nine
-    # `bench/*/detect/run.json` carry it non-empty, so nothing reaches it now.
+    # A number, not "matched": a snapshot without the field is "nothing to check
+    # against", not "checked and equal", and it says so.
     log(f"source {os.path.basename(pdf)} sha256 {now[:12]}"
         + (" -- matched the detection snapshot" if said
            else " -- the detection snapshot named no sha256, nothing to "
@@ -814,9 +684,8 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
                          f"first")
 
     doc = crop.open_pdf(pdf)
-    # Read BEFORE the loop, not inside: otherwise once per crop (488 on the
-    # book) and — worse — an environment edit mid-run would give a book with
-    # some pictures inlined and some not.
+    # Read before the loop, not inside: an environment edit mid-run would give a
+    # book with some pictures inlined and some not.
     img_how = _img_how()
     repeats_how = _repeats_how()
     blockdir = os.path.join(out_dir, ASSETS, "blocks")
@@ -827,51 +696,30 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
     body, side = [], {}
     counts = {r: 0 for r in policy.ROLES}
     cut_n = clipped = 0
-    # Three troubles that SILENTLY spoil the book; all must be numbers, not
-    # discoveries made while reading the finished HTML.
-    #
-    #  * INK TWICE — sheet share under two crops or more. Boxes may overlap and
-    #    we cut by every one, so the same lines reach the book as two pictures.
-    #    Opposite of a loss, so measure area, not blocks: hard36 gave 792 blocks,
-    #    792 anchors, 792 crops, none lost. On `slovar`, `reference` and
-    #    `reference_content` overlap 166 times (one covers up to 20 neighbours),
-    #    a column reaches the book twice — 23.45% of all paper — where two
-    #    earlier counters printed 0 and 0, both seeing only artifact boxes.
-    #  * `nested artifacts` — two artifact boxes, one inside the other; raw
-    #    output is unsuppressed and both reach the build. Which one gets the
-    #    block is undeclared, so it needs its own number.
-    #  * A PAGE WITHOUT TEXT — the bench's costliest: the whole column in one
-    #    `table` box, the page a single <figure> with not one line. Double ink
-    #    and nesting are blind to it, so two numbers stand apart: pages with no
-    #    text, and the largest share of a sheet in one box.
+    # Three troubles that silently spoil the book, each a number rather than a
+    # discovery made while reading the finished HTML: ink twice -- the sheet
+    # share under two crops or more, measured as area because boxes may overlap
+    # and we cut by every one; nested artifacts -- two artifact boxes one inside
+    # the other, where which of them gets the block is undeclared; and a page
+    # with no text block at all, which the first two are blind to.
     dup_text = nested = no_text = no_blocks = only_service = 0
     obs = observed(detect_dir)
     torn_n = shape_n = 0
     torn_a, shape_a = [], []
-    # THE OTHER HALF OF THE SAME QUESTION, counted by nobody until now.
-    # `dup_text` is text inside an ARTIFACT box; this is text inside a TEXT box —
-    # the same words as two <p>, no crops cut, so the first number is blind to it
-    # by construction. Measured on "Refractory technology": 175 against 1935,
-    # eleven times more, almost all `inline_formula` (1847 of 1935) — inline
-    # maths boxed over the paragraph, read twice, printed as its own <p>.
-    #
-    # THE DENOMINATOR IS NAMED IN THE NAME: nesting into ANY non-artifact box,
-    # text and furniture together. The strict reading (bucket "text" both sides)
-    # is printed beside it: 1935 against 1879, difference 56.
+    # The other half of the same question: `dup_text` is text inside an artifact
+    # box, this is text inside a text box -- the same words as two <p>, no crops
+    # cut, so the first number is blind to it. The denominator is in the name,
+    # nesting into any non-artifact box; the strict reading stands beside it.
     dup_in_text = 0
-    # COUNTED HERE RATHER THAN REMEMBERED: the strict number was once printed
-    # INTO THE LOG AS A CONSTANT, so on `bench/slovar` the line honestly printed
-    # 233 and promised 1879 in the same breath — a number from another book.
+    # Counted, never remembered: a constant here prints another book's number.
     dup_in_text_strict = 0
-    # A REPEAT IS NOT MERE NESTING: nesting is a fact about the model's BOXES, a
-    # repeat a claim about TEXT needing comparison. Both counted, both printed:
-    # 1935 nested against 1916 repeats — nineteen blocks nest by box while their
-    # text did not match, and dropping them would be a loss.
+    # A repeat is not mere nesting: nesting is a fact about the model's boxes, a
+    # repeat a claim about text needing comparison. Both counted, both printed.
     repeat_count = differs = by_layout = 0
-    # WHOSE ORDER WAS ASSEMBLED — the book's chief property, named nowhere until
-    # now. On three adapters of four `Block.order` is our top-down left-to-right
-    # sort, not the model's rank, and the adapter says so in the page meta field
-    # `reading_order`. Counted per page: a hand-made directory can be mixed.
+    # Whose order was assembled: on three adapters of four `Block.order` is our
+    # own top-down left-to-right sort, not the model's rank, and the adapter says
+    # so in the page meta field `reading_order`. Counted per page, a hand-made
+    # directory being able to mix them.
     order_src_n = {}
     ink2 = sheet_pt_all = 0.0
     worst2 = (0.0, None)
@@ -885,9 +733,8 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
         repeats_page = repeats_on(page, _covered)
         sheet = float(page.width) * float(page.height)
         share = _union_share([b.box for b in arts], sheet)
-        # One word, one rule (`_sheet_trouble`). Three failures, never confused:
-        # "saw nothing", "saw one thing covering everything", "saw only
-        # furniture". Reasoning and cost live at the rule; no second copy here.
+        # One word, one rule (`_sheet_trouble`): "saw nothing", "saw one thing
+        # covering everything", "saw only furniture", never confused.
         trouble = _sheet_trouble(page.blocks, arts)
         empty = trouble == "empty"
         blank = trouble == "no-text"
@@ -900,10 +747,8 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
                 biggest = (one, page.index)
         nested_in = _nesting(arts)
         nested += len(nested_in)
-        # RULE 2: a column wholly gone into pictures is marked on the sheet, and
-        # so is HOW MUCH IS HIDDEN HERE. Every other shortening is visible
-        # (empty crop, truncation, empty sheet); the only one that REMOVES TEXT
-        # was mute — 728 blocks vanished without a trace.
+        # How much is hidden here is marked on the sheet: every other shortening
+        # is visible by itself, and this is the only one that removes text.
         hidden_here = sum(1 for v in repeats_page.values() if v[1] == "verbatim")
         body.append(
             f'<hr class="sheet" data-sheet="{page.index}" '
@@ -912,10 +757,8 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
                if hidden_here and repeats_how == "hide" else "")
             + (f' data-{trouble}="yes"' if trouble else '') + '>')
         cuts = []
-        # NOT INSIDE THE LOOP: building the expectation during the walk made the
-        # guard tautological — reverse the walk and the expectation reverses
-        # too. Three mutations (reversed, shift by one, drop the last) — NOT ONE
-        # was caught. It must follow from `page.blocks` on its own.
+        # Not inside the loop: an expectation built during the walk is
+        # tautological -- reverse the walk and it reverses with it.
         expected.extend(anchor_of(page.index, b.block_id) for b in page.blocks)
         for b in page.blocks:
             a = anchor_of(page.index, b.block_id)
@@ -924,9 +767,8 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
                       if o.block_id != b.block_id and _covered(b.box, o.box)]
             if role != "artifact" and inside:
                 dup_text += 1
-            # The same nesting measure over TEXT boxes: words that reached the
-            # book twice, as two <p>. A block does not cover itself; artifacts
-            # were counted above.
+            # The same nesting measure over text boxes: words that reached the
+            # book twice, as two <p>. A block does not cover itself.
             outside = [o for o in page.blocks
                        if o.block_id != b.block_id
                        and policy.role(o.label) != "artifact"
@@ -936,7 +778,7 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
                 if role == "text" and any(policy.role(o.label) == "text"
                                            for o in outside):
                     dup_in_text_strict += 1
-            # Decided BEFORE the loop, for the whole page at once: it needs to
+            # Decided before the loop, for the whole page at once: it needs to
             # know which blocks remain, unknown inside the walk.
             repeat = repeat_text = None
             if b.block_id in repeats_page:
@@ -947,15 +789,15 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
                 differs += repeat_text == "differs"
                 by_layout += repeat_text == "layout"
             counts[role] += 1
-            # WHAT READING SAID: an attribute, not an edit — `content` travels
-            # as the model's bytes, the observed alongside.
+            # What reading said: an attribute, not an edit — `content` stays the
+            # model's bytes and the observed travels alongside.
             o = obs.get(a) or {}
             torn = torn_of(o)
             shape = torn_grid(o.get("otsl_grid"))
             mark = ' data-truncated="yes"' if torn else ""
             if repeat:
-                # UNDER `show` THE MARK STAYS AND THE HIDING DOES NOT: the
-                # observed remains, only its consequence is switched off.
+                # Under `show` the mark stays and the hiding does not: only the
+                # consequence of the observation is switched off.
                 kind = (repeat_text if repeats_how == "hide"
                        else ("shown by HTML_REPEATS=show"
                              if repeat_text == "verbatim" else repeat_text))
@@ -971,21 +813,16 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
                 shape_a.append(a)
             outer = nested_in.get(b.block_id)
             outer_a = anchor_of(page.index, outer) if outer is not None else None
-            # `.strip()`, AND THE SAME FILE ALREADY STRIPS ONE LINE UP.
-            # `"   "` is truthy, so a whitespace answer took the paragraph
-            # branch: the block went into the book as an empty `<p></p>`, no
-            # crop was cut, and its ink left the book entirely while every
-            # counter recorded it as text that arrived. `from_text` above
-            # asks `(b.content or "").strip()`; the two disagreed about what
-            # counts as an answer, in one function, forty lines apart.
+            # `.strip()`: `"   "` is truthy, so a whitespace answer would take
+            # the paragraph branch -- an empty `<p></p>`, no crop cut, the ink
+            # gone while every counter called it text. `from_text` asks the same.
             if role == "artifact" or not (b.content or "").strip():
                 rel = f"{ASSETS}/blocks/{a}.png"
                 info = crop.cut(doc, page.index, b.box, page_dpi,
                                 os.path.join(out_dir, rel))
-                # A CROP IS ALWAYS A FILE, reaching the book as a link or as its
-                # own bytes; the second copy does not cancel the first. Files
-                # serve edits, measurements and the second level; the book
-                # serves reading from any path.
+                # A crop is always a file, reaching the book as a link or as its
+                # own bytes: files serve edits, measurements and level two, the
+                # book serves reading from any path.
                 src = _img_src(os.path.join(out_dir, rel), rel, img_how)
                 cut_n += 1
                 clipped += bool(info["clipped_by_sheet"])
@@ -1005,19 +842,15 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
                        # `None` across the board means "no `answers/`
                        # alongside", not "read without trouble".
                        "reading": (o or None),
-                       # THREE VALUES, NOT TWO. `torn or None` made `null` mean
-                       # both "read whole" (6073 blocks) and "never asked" (69
-                       # figures) — a field made AGAINST merging two zeros
-                       # merged them itself.
+                       # Three values, not two: `torn or None` would make `null`
+                       # mean both "read whole" and "never asked".
                        "hit_ceiling": torn,
                        "repeat_of": repeat,
                        "repeat_verdict": repeat_text,
                        "table_shape": shape,
                        "label": b.label, "score": b.score,
-                       # The field was called "model rank" and lied on three
-                       # adapters of four, where it is OUR position in the list.
-                       # Ours named theirs printed the order metric percentages
-                       # out of nothing — 86% for YOLOX, which has no rank.
+                       # A position in the list, not a model rank on three
+                       # adapters of four: `order_source` says which it is.
                        "order": b.order, "order_source": order_src,
                        "role": role,
                        "box": list(b.box), "crop": info or None,
@@ -1027,15 +860,11 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
                        "contains": [anchor_of(page.index, k)
                                     for k, v in nested_in.items()
                                     if v == b.block_id] or None}
-        # Counted over boxes ACTUALLY cut, in sheet points rather than `b.box`:
-        # a crop has its own margin (`CROP_MARGIN`) and its own clip by the sheet
-        # edge, and it is the crop that reaches the book.
-        # WHAT THIS NUMBER CANNOT SEE: crops, not ink in general. On `slovar`
-        # all 166 overlaps are text over text (`reference` over
-        # `reference_content`, both "text" by policy). Once reading exists such
-        # blocks travel as lines, no crops are cut and this falls to zero — while
-        # the words stay doubled, as two <p>. That zero will be a zero from not
-        # knowing, needing its own number over all blocks, not over crops.
+        # Counted over the boxes actually cut, in sheet points rather than
+        # `b.box`: a crop has its own margin (`CROP_MARGIN`) and its own clip by
+        # the sheet edge, and it is the crop that reaches the book. It sees
+        # crops, not ink in general -- text over text falls to zero once such
+        # blocks travel as lines, while the words stay doubled as two <p>.
         r = doc[page.index].rect
         sheet_pt = float(r.width) * float(r.height)
         twice = min(_twice_area(cuts), sheet_pt)
@@ -1045,27 +874,15 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
             worst2 = (twice / sheet_pt, page.index)
     doc.close()
 
-    # THE SECOND CHECK, AFTER THE WORK. The first asks "is this the file the
-    # boxes were computed on"; this one, "was it swapped WHILE we cut". Measured
-    # on a copy of `slovar/detect`, PDF swapped 1.5 s in: the build ran to the
-    # end without a complaint, 568 crops came from two files, the snapshot swore
-    # by the first one's hash, `replay --check` printed "41 of 41" and returned
-    # 0 — a lying run declared repeatable, which the first check cannot catch by
-    # construction. Cost: one pass, `slovar.pdf` is 10.7 MB and hashes in
-    # 0.010 s against 6.1 s for the build.
-    #
-    # WHAT THE PAIR STILL MISSES: a there-and-back swap. The PDF replaced by an
-    # all-black one from second 1.2 to 3.2 of a 6.3 s build and restored before
-    # the end: exit code 0, 476 crops of 568 differ from the reference, 367 pure
-    # black, all three snapshot hashes matched, `books replay --check` printed
-    # "42 of 42". Both checks look at the EDGES; the middle is invisible to
-    # them. Only a page hash beside every crop closes it; not done.
+    # The second check, after the work: the first asks "is this the file the
+    # boxes were computed on", this one "was it swapped while we cut". Both look
+    # at the edges -- a there-and-back swap inside the build is invisible to
+    # them, and only a page hash beside every crop would close that.
     try:
         after = stamp.sha256(pdf)
     except OSError as e:
-        # A SECOND read, and the file may have vanished meanwhile. The first
-        # check answers the same trouble with SystemExit and text; a traceback
-        # here would make one trouble speak in two voices.
+        # A second read, and the file may have vanished meanwhile: a refusal
+        # here as at the first check, or one trouble speaks in two voices.
         raise Refusal(
             f"{pdf} vanished during the build: {type(e).__name__}: {e}. "
             f"The book is not written.") from None
@@ -1083,13 +900,10 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
                  f"<title>{_html.escape(os.path.basename(pdf))}</title>"
                  f"<style>{CSS}</style>{math_head}</head>\n<body>\n"
                  + "\n".join(body) + "\n</body></html>\n")
-    # THE BOOK'S ORDER IS CHECKED, NOT ASSUMED. The builder walks `page.blocks`
-    # as they are and the book inherits their order — the model's rank or our
-    # `order.py`. NOTHING checked that: a sceptic reversed the walk with one word
-    # (`reversed`) and the full battery stayed green, 201 checks, 0 failures,
-    # because all three instruments measure detect PAGES, not the assembled
-    # document. One pass over the string catches any permutation, and the failure
-    # names the PLACE of divergence: without it there is nothing to fix.
+    # The book's order is checked, not assumed: every metric measures detect
+    # pages and not the assembled document, so a reversed walk would pass them
+    # all. One pass over the string catches any permutation, and the failure
+    # names the place of divergence.
     got = swap.anchors(page_html)
     if got != expected:
         where = next((i for i, (a, b) in enumerate(zip(got, expected, strict=False)) if a != b),
@@ -1103,7 +917,7 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
             f"IS the reading order; muddled, the document stays sound to the "
             f"eye and unreadable in substance.")
 
-    # The source goes AFTER the book assembled without a refusal: no point
+    # The source goes after the book assembles without a refusal: no point
     # copying 22 MB for a build that is about to fail.
     _keep_source(detect_dir, out_dir, log)
     out_html = os.path.join(out_dir, "book.html")
@@ -1124,24 +938,19 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
         "raster": dict(snap["raster"]),
         "args": {"detect": detect_dir, "out": out_dir},
         "commit": stamp.commit(),
-        # sha256 RECOMPUTED, not copied from the detect snapshot: a PDF at the
-        # same path can be rebuilt (another spread cut, another pymupdf, another
-        # book of the same name), crops would come from the new file, the
-        # snapshot would swear by the old, and `replay --check` would print
-        # "full" and return 0 — a lying run declared repeatable. Same number as
-        # checked BEFORE the first crop; the file is read once, not thrice.
+        # sha256 recomputed, not copied from the detect snapshot: a PDF rebuilt
+        # at the same path gives crops from the new file under a snapshot
+        # swearing by the old, which `replay --check` would call repeatable.
         "source": {**snap["source"], "sha256": now,
                      "sha256_per_detect_snapshot": said,
-                     # Both, not one: "equal before and after" claims about the
-                     # WHOLE run; one number before the work, only its start.
+                     # Both, not one: two numbers claim about the whole run,
+                     # one only about its start.
                      "sha256_after_build": after},
         "adapter": {
             "name": "doc.html",
-            # THE MODULE NAME is how `books replay --check` finds this
-            # snapshot's writer and matches its fingerprint against today's
-            # code. Without it the check printed "fingerprint never verified"
-            # and `--selfcheck` returned 1: the step that makes the book was
-            # the only one never verified. Same key `detect.py` writes.
+            # The module name is how `books replay --check` finds this
+            # snapshot's writer and matches its fingerprint against the code.
+            # The same key `detect.py` writes.
             "module": __name__,
             "sha256": stamp.sha256(os.path.join(here, "html.py")),
             "sha256_crop_code": stamp.sha256(crop.__file__),
@@ -1150,7 +959,7 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
                 os.path.join(detect_dir, "run.json"))},
         "policy": policy.snapshot(),
         "crop": crop.params(page_dpi),
-        # The build has no prompts, no generation, no weights — these are VALUES.
+        # The build has no prompts, no generation, no weights — these are values.
         "prompts": {},
         "generation": {"temperature": None, "max_tokens": None,
                        "top_p": None, "seed": None},
@@ -1173,13 +982,12 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
                  "comparison_normalization": textnorm.norm_note("latex"),
                  "text_inside_text_box_strict":
                      dup_in_text_strict,
-                 # A number, not only an attribute. `null` (not 0) means "no
-                 # `answers/` alongside, nothing to say": the two zeros must
-                 # differ in the snapshot too, not only in the log.
+                 # `null`, not 0: "no `answers/` alongside, nothing to say"
+                 # must differ from zero troubles in the snapshot too.
                  "reading_observed": bool(obs) or None,
                  "hit_ceiling": torn_n if obs else None,
-                 # Truncation is DECLARED, not silent: a list of twenty for
-                 # twenty-one troubles would read as complete.
+                 # The list says when it is cut short: twenty of twenty-one
+                 # would read as complete.
                  "truncated_anchors": (
                      (torn_a[:20] + ([f"…and {torn_n - 20} more"]
                                      if torn_n > 20 else []))
@@ -1202,20 +1010,11 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
               encoding="utf-8") as f:
         json.dump(snap_out, f, ensure_ascii=False, indent=1)
 
-    # WHAT MAKES THE DIRECTORY A BOOK, and nothing wrote it. `manifest.json`
-    # carries `source: {name, sha256}` -- which scan this directory is about
-    # -- and it is the one file `core.book.Book.list` uses to tell a book from
-    # a stray, `datasets.bench.Bench` uses to open one, and the format floors
-    # count. Every manifest in the tree was written by a BENCH builder
-    # (`synth`, `annopage`, `subset`); the command that builds a real book
-    # wrote none, so `processed/ogneupory-vl2` had one only because a person
-    # put it there and `processed/feynman-1` had one for the same reason.
-    #
-    # The next `books html` would therefore have made a directory the layout
-    # check names as a stray -- an instrument going red on correct use, which
-    # is worse than no instrument. The values are not invented here: `name`
-    # and `sha256` come from the snapshot's own `source` block, which is the
-    # sha256 RECOMPUTED from the file this build actually read.
+    # `manifest.json` is what makes the directory a book: it carries
+    # `source: {name, sha256}`, and by it `core.book.Book.list` tells a book from
+    # a stray, `datasets.bench.Bench` opens one, and the format floors count. The
+    # values are not invented here -- both come from the snapshot's own `source`
+    # block, whose sha256 is recomputed from the file this build read.
     man = os.path.join(out_dir, "manifest.json")
     if not os.path.isfile(man):
         with open(man, "w", encoding="utf-8") as f:
@@ -1227,10 +1026,9 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
     log(f"pages {len(files)}, blocks {sum(counts.values())} "
         f"(text {counts['text']}, artifacts {counts['artifact']}, "
         f"furniture {counts['furniture']})")
-    # THE SHARPNESS APPLIED, not the default. `crop.params()` with no argument
-    # let an empty `CROP_DPI` expand to the process's `PAGE_DPI`: `bench/atlas`
-    # detected at `PAGE_DPI=150` and built at the default claimed "26 crops at
-    # 144 dpi" while coordinates were rescaled from 150.
+    # The sharpness applied, not the default: `crop.params()` with no argument
+    # lets an empty `CROP_DPI` expand to the process's own `PAGE_DPI`, which the
+    # detection need not have used.
     _cp = crop.params(page_dpi)
     log(f"crops {cut_n} at {_cp['dpi']:.0f} dpi ({_cp['dpi_source']}), "
         f"margin {_cp['margin']}, clipped by the sheet {clipped}")
@@ -1257,14 +1055,12 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
            if dup_in_text == dup_in_text_strict else
            f", the difference of {dup_in_text - dup_in_text_strict} falls on "
            f"furniture boxes"))
-    # HIDING THE PROVEN IS ALLOWED, THE UNPROVEN IS NOT, so each count is
-    # printed apart: "1935 hidden" would sound the same where the comparison
-    # matched and where it did not.
+    # Hiding the proven is allowed, the unproven is not, so the counts print
+    # apart: one number would sound the same where the comparison matched and
+    # where it did not.
     if repeat_count + differs + by_layout == 0:
-        # A ZERO FROM NOT KNOWING, SAID ALOUD. On a detect directory without
-        # reading (`bench/slovar`) there are 233 nested boxes and content in
-        # none — nothing to compare — where "proven 0, differs 0" read as "no
-        # repeats found".
+        # A zero from not knowing, said aloud: nested boxes with content in none
+        # of them is not "no repeats found".
         log(f"repeats: NOTHING TO COMPARE WITH -- {dup_in_text} nested "
             f"boxes and content in none of them. This is not \"no repeats "
             f"found\"")
@@ -1303,9 +1099,8 @@ def build(detect_dir: str, out_dir: str, log=print) -> dict:
         f"(the whole column went into pictures), largest share of a sheet in "
         f"one box {biggest[0]*100:.0f}%"
         + (f" on p. {biggest[1]}" if biggest[1] is not None else ""))
-    # WHOSE ORDER — as a number. Without it the header's "in the model's reading
-    # order" was a claim nobody checked: with yolox and both docling the order
-    # is OURS, and the eye cannot tell.
+    # Whose order, as a number: with yolox and both docling the order is ours,
+    # and the eye cannot tell.
     ours = sum(n for v, n in order_src_n.items() if _ours(v))
     if len(order_src_n) == 1:
         v, n = next(iter(order_src_n.items()))

@@ -1,24 +1,13 @@
 """One family of errors, so the command line answers every trouble alike.
 
-Two kinds, told apart by what the operator should do next:
-
-* `Refusal` -- the run cannot start or continue for a reason the message
-  names: a missing file, an empty page set, a knob outside its range, a
-  book that is not the one the snapshot names. Exit code 1, ONE LINE, no
-  traceback. Library code raises it where it used to raise
-  `SystemExit("...")`; a `SystemExit` in a library forced every caller to
-  special-case a `BaseException`, and a rented box that caught `Exception`
-  let one through to the ledger as a free success.
-* `Unmeasurable` -- an instrument could not count: weights missing, a
-  label outside every vocabulary, a truth directory with no pages. Exit
-  code 2, so that "the instrument did not run" and "the number failed" stay
-  two different zeros.
-
-Both are `Exception`s, not `BaseException`s: `except Exception` in the
-batteries and on the box keeps catching them, which is the point.
-
-Per-module classes (`MetricError`, `SynthError`, ...) subclass one of the
-two and stay in their modules, where the battery patches them.
+`Refusal` is the run that cannot start or continue for a reason the message
+names -- a missing file, an empty page set, a knob outside its range: exit
+code 1, one line, no traceback. `Unmeasurable` is the instrument that could
+not count: exit code 2, so that "the instrument did not run" and "the number
+failed" stay two different zeros. Both are `Exception`s, not
+`BaseException`s, so `except Exception` in the batteries and on the rented box
+keeps catching them. Per-module classes (`MetricError`, `SynthError`, ...)
+subclass one of the two and stay in their modules.
 """
 
 
@@ -37,16 +26,13 @@ class Unmeasurable(BooksmithError):
 class WeightsMissing(Unmeasurable):
     """Weights are missing, incomplete, or would give plausible shifted boxes.
 
-    Not a refusal: the adapter is a library, and the bench must catch this
-    like any other trouble instead of dying with the process. Once there
-    were three of these, one per adapter, and the command line listed all
-    three by module path to map them to exit code 2.
+    Not a refusal: the adapter is a library, and the bench catches this like
+    any other trouble instead of dying with the process.
     """
 
 
 class TextError(Unmeasurable):
-    """The reading metric could not count: no pages, a normalisation level
-    nobody declared, a truth it cannot pair. Declared here and not in the
-    metric because `core.textnorm` raises it too, and core imports nothing
-    above itself.
+    """The reading metric could not count: no pages, an undeclared
+    normalisation level, a truth it cannot pair. Here and not in the metric
+    because `core.textnorm` raises it too and core imports nothing above itself.
     """

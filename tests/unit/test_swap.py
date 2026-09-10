@@ -1,18 +1,12 @@
 """Replacing a block with second-level markup: pure functions, checked whole.
 
-`assemble/swap.py` calls itself the one layer of the pipeline checkable entirely
-without a second of compute, "and so the one to cover before all others".
-Covered.
-
 Four functions carry the promise of the two-level scheme -- `span`, `get`,
-`swap`, `restore`: a replacement can be CHECKED, ROLLED BACK and redone by
-another model without touching the book. Without rollback it is an edit of the
-book.
+`swap`, `restore`: a replacement can be checked, rolled back and redone by
+another model without touching the book. Without rollback it is an edit of it.
 
-Corruption here is quiet by construction. The markup comes from a model and
-can be anything -- unclosed tags, stray `<`, broken entities -- none visible
-to the eye in a five-hundred-page book. One thing will be: at the NEXT
-replacement, "opening 0, closing 1" about another block.
+Corruption here is quiet by construction: the markup comes from a model and can
+be anything -- unclosed tags, stray `<`, broken entities -- none of it visible
+to the eye in a five-hundred-page book.
 """
 from booksmith.processing.assemble import swap
 
@@ -55,11 +49,8 @@ def test_swap_leaves_the_neighbour_byte_for_byte():
 
 
 def test_broken_markup_from_the_model_goes_in_as_is():
-    """No HTML parsing here, deliberately: the model returns what it returns.
-
-    An unclosed tag and a bare `<` must arrive byte for byte, or the first
-    crooked answer would spread over the whole book.
-    """
+    """No HTML parsing here, deliberately: an unclosed tag and a bare `<` must
+    arrive byte for byte, or one crooked answer spreads over the whole book."""
     fragment = "<table><tr><td>a < b<td>2</table"
     new, _ = swap.swap(doc(), A, fragment)
     assert swap.get(new, A) == fragment
@@ -76,10 +67,8 @@ def test_missing_anchor_is_loud():
 
 
 def test_double_anchor_is_loud():
-    """An anchor collision: a running `b17` would give five hundred alike.
-
-    "Take the first" means rewriting the wrong block and never learning of it.
-    """
+    """An anchor collision: "take the first" means rewriting the wrong block and
+    never learning of it."""
     d = doc() + swap.wrap(A, "the same one on another page")
     try:
         swap.span(d, A)
@@ -100,12 +89,9 @@ def test_inverted_anchor_is_loud():
 
 
 def test_crossed_anchors_are_loud():
-    """A crossing: both marks once each, and the borders interlocked.
-
-    Counting "one each" misses it. `get(A)` returned a body with a foreign
-    opening mark inside, `swap(A, …)` erased it with the body, and it showed
-    at the NEXT replacement, the book already half re-marked.
-    """
+    """A crossing: both marks once each, and the borders interlocked. Counting
+    "one each" misses it, and swapping A would erase B's boundary along with the
+    body, to surface only at B."""
     d = (swap.OPEN.format(A) + "1" + swap.OPEN.format(B) + "2"
          + swap.CLOSE.format(A) + "3" + swap.CLOSE.format(B))
     try:
@@ -120,12 +106,8 @@ def test_crossed_anchors_are_loud():
 
 
 def test_nested_anchors_are_not_a_crossing():
-    """Nesting is not a crossing, and the two are not to be muddled.
-
-    BOTH marks of B lie inside A's body: a replacement does not tear the
-    neighbour's border, only the neighbour -- seen at once, not a hundred
-    pages later.
-    """
+    """Nesting is not a crossing: both marks of B lie inside A's body, so a
+    replacement tears the neighbour, not the neighbour's border."""
     d = (swap.OPEN.format(A) + "before" + swap.wrap(B, "inner") + "after"
          + swap.CLOSE.format(A))
     assert swap.get(d, B) == "inner"

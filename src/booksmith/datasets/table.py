@@ -1,10 +1,8 @@
 """Every applicable metric on one bench and one run: rows, one table, JSON.
 
-The numbers used to land on stdout only, three commands with three argument
-shapes, and every comparison between detectors was typed into prose by
-hand. This is the one place they are laid side by side and written down.
-A null value prints its reason as a footnote, never a blank: "the truth
-carries no order" and "zero agreement" must not read alike.
+The one place the numbers are laid side by side and written down. A null value
+prints its reason as a footnote, never a blank: "the truth carries no order"
+and "zero agreement" must not read alike.
 """
 import json
 import os
@@ -19,29 +17,19 @@ RESULTS = os.path.join(config.ROOT, "results")
 
 
 def rows(bench: Bench, run: Run, which=None, log=print) -> list:
-    """Records of every applicable metric, or of the named ones.
-
-    The truth is parsed ONCE here and the run's pages once; the metrics take
-    the dicts. `which` names metrics by name and may not name one that is
-    not applicable: a table with a line the bench cannot support is a
-    number about nothing, and the first edition wrote one.
-    """
-    # THE TRUTH IS PARSED ONLY IF THERE IS ANY. A book with no `truth/` is a
-    # legal thing to measure -- ink and column jumps need none -- and this
-    # line raised `truth of <book>: no directory` before applicability was
-    # ever consulted, so the truth-free metrics could not be reached on the
-    # only runs that have a level two. An empty dict is the honest value:
-    # `applicable` withholds "truth" and "content" from it by itself.
+    """Records of every applicable metric, or of the named ones. Truth and the
+    run's pages are parsed once here and the metrics take the dicts; `which` may
+    not name a metric this bench and run cannot support."""
+    # The truth is parsed only if there is any: a book with no `truth/` is a
+    # legal thing to measure, and `applicable` withholds "truth" and "content"
+    # from an empty dict by itself.
     pages = bench.pages() if bench.truth_dir else {}
     # BOTH SIDES BEFORE THE QUESTION. The run's pages decide whether a reading
     # metric applies at all, and they are needed a few lines below anyway.
     model = run.pages()
-    # `applicable` DECIDES, and `prerequisites` only explains. Filtering
-    # inline here on `have` was the same arithmetic and read as harmless --
-    # and it took `applicable` off this path, so the battery's mutation of
-    # it ("applicability ignores whether the truth has content") stopped
-    # reaching the table and went UNCAUGHT. An instrument that can no longer
-    # fail is the one thing this project does not allow.
+    # `applicable` decides and `prerequisites` only explains: filtering inline
+    # on `have` would take `applicable` off this path, where the battery's
+    # mutation of it must still reach the table.
     can = registry.base.applicable(registry.METRICS, bench, run, pages, model)
     have = registry.base.prerequisites(bench, run, pages, model)
     if which:
@@ -58,14 +46,10 @@ def rows(bench: Bench, run: Run, which=None, log=print) -> list:
         todo = [registry.BY_NAME[n] for n in which]
     else:
         todo = can
-    # WHAT WAS WITHHELD, AND WHAT IT WANTED. A metric that does not apply
-    # produced no line at all: on a book with no truth, `contour` and `text`
-    # simply were not there, and the reader had a short table and no way to
-    # tell "this book cannot answer that" from "the instrument was never
-    # run" -- the project's two zeros, in the one place that had no word for
-    # either. The needs come from the metric's own declaration and `have`
-    # from `prerequisites`, which is the set `applicable` itself filters on,
-    # so the explanation cannot drift from the decision.
+    # What was withheld, and what it wanted: a metric that does not apply must
+    # not simply be absent, or "this book cannot answer that" reads as "the
+    # instrument was never run". The needs and `have` come from one place, so
+    # the explanation cannot drift from the decision.
     for m in registry.METRICS:
         if m in can:
             continue
@@ -80,15 +64,9 @@ def rows(bench: Bench, run: Run, which=None, log=print) -> list:
 
 
 def results_path(bench: Bench, run: Run, which=None) -> str:
-    """Where the table lands. A selection gets its own name: a partial
-    table must not replace the full one under the same file.
-
-    AND SO DOES A LEVEL. The label is the MODEL's own name, so a detector
-    and a reader can carry the same one, and the first edition keyed the
-    file on (book, label) alone -- two levels of one model, one file, the
-    second silently overwriting the first. `detect` keeps the bare name so
-    the runs already on disk are not renamed for nothing.
-    """
+    """Where the table lands. A selection gets its own name, and so does a
+    level: a detector and a reader can share a label, and one file for both
+    would overwrite. `detect` keeps the bare name, renaming nothing on disk."""
     tail = "-only-" + "+".join(which) if which else ""
     kind = run.kind
     level = f"{kind}-" if kind and kind != "detect" else ""
@@ -96,26 +74,9 @@ def results_path(bench: Bench, run: Run, which=None) -> str:
 
 
 def write_json(records, path: str, log=print, kind: str = "detect") -> str:
-    """The records, under a header saying WHEN, BY WHICH CODE and OF WHICH
-    LEVEL.
-
-    The file was a bare list, and a directory of them could silently mix
-    numbers computed by different code -- which happened inside one hour: a
-    prerequisite was corrected, five models were measured after it and one
-    before, and the stale file's twelve extra rows read as a difference
-    between MODELS. A cross-model table is only a comparison if every cell
-    came from the same tree, so the commit rides in the file and the reader
-    can refuse.
-
-    `kind` rides along for the same reason one level down. A LEVEL-TWO run
-    carries the boxes of whatever DETECTOR made its pages, so its ink
-    numbers describe that detector and not the reader whose name is on the
-    directory. Put in the model column of a cross-detector table, the reader
-    appears beside six detectors with a number it did not earn -- the
-    "looks sensible and means nothing" case. The report reads this field and
-    leaves such a run out, saying how many it left; a file written before
-    the field existed is `detect`, which is what all of them were.
-    """
+    """The records under a header saying when, by which code and of which level.
+    The commit rides in the file so a cross-model table comes from one tree;
+    `kind` keeps a level-two run, whose boxes are a detector's, out of the model column."""
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         json.dump({"when": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
@@ -138,18 +99,15 @@ def read_json(path: str) -> list:
 
 
 def read_file(path: str) -> dict:
-    """The whole file: `when`, `commit` and the raw records.
-
-    A file without the header is REFUSED rather than read as records: it was
-    written by other code, which is the one thing the header exists to say.
-    """
+    """The whole file: `when`, `commit` and the raw records. A file with no
+    header is REFUSED rather than read as records: it was written by other code,
+    which is the one thing the header exists to say."""
     try:
         with open(path, encoding="utf-8") as f:
             d = json.load(f)
     except ValueError as e:
-        # A HALF-WRITTEN FILE IS WHAT A RUNNING SWEEP LEAVES, and this
-        # function's own docstring promises a Refusal for a file it cannot
-        # use. It raised a bare JSONDecodeError instead.
+        # A half-written file is what an interrupted sweep leaves, and this
+        # promises a Refusal for a file it cannot use.
         raise Refusal(
             f"{path} is not readable JSON ({e}). A results file is written "
             f"whole at the end of `books bench all`; a broken one is a run "

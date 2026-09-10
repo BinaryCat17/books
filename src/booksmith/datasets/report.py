@@ -1,28 +1,12 @@
 """Every measured number in this project, as one generated document.
 
-WHY GENERATED AND NEVER EDITED. The measurements used to live as prose in five
-documents, and the prose that held them is deleted; figures stated
-in two documents at once, free to drift apart in silence. A number that is
-rendered from the record that produced it cannot drift from it -- and when the
-record is gone, so is the row, which is the honest outcome.
-
-WHAT IT REFUSES TO DO. It will not put cells from two trees in one table. Each
-`results/*.json` carries the commit that computed it, and a table whose
-cells came from different code is not a comparison -- measured the hard way:
-inside one hour a prerequisite was corrected, five models were measured after
-it and one before, and the stale cell's twelve extra rows read as a difference
-between MODELS.
-
-EVERY VALUE CARRIES WHAT IT IS OVER. A bare share ranks models wrong, and this
-project has the receipt: label errors printed as a count made the model with
-239 matched pairs look twice as good as the one with 495. So a cell is
-`value  n/of` and, where a metric declares coverage, `over` in its unit. A
-missing value prints as the reason it is missing, never as a blank or a zero.
-
-AND `excess_jumps` IS NOT ONE COLUMN. It counts jumps over the page's block
-list, which is the MODEL's rank for a model that has one and OUR top-down rule
-for a model that has none -- two quantities. The `order_rule` param says which,
-and the table prints it beside the model rather than letting the reader assume.
+GENERATED AND NEVER EDITED: a number rendered from the record that produced it
+cannot drift from it, and when the record is gone so is the row. It refuses to
+put cells from two trees in one table, each `results/*.json` carrying the commit
+that computed it. Every value carries what it is over, a bare share ranking
+models wrong, and a missing value prints its reason, never a blank or a zero.
+`excess_jumps` is not one column: the `order_rule` param says whose order was
+counted, and the table prints it beside the model.
 """
 import collections
 import os
@@ -78,23 +62,9 @@ def headline() -> list:
 
 
 def _cells():
-    """(bench, run) -> {metric: record dict}, the commits they came from, and
-    THE RUNS OF ANOTHER LEVEL that were left out.
-
-    This document is a cross-DETECTOR table: one row per model, one column
-    per bench, and every number a property of the boxes that model drew. A
-    level-two run's pages carry the boxes of whatever detector made them, so
-    its ink and column-jump numbers describe that detector -- put in the
-    model column under the reader's name, they read as the reader's work.
-    Six detectors and one reader in one column is the "looks sensible and
-    means nothing" case, and it was one `books bench all` away: the reader
-    rendered as a seventh model row carrying `0.857` for boxes it never
-    drew, with `?` in every other column.
-
-    So a run of any level but `detect` is kept OUT and COUNTED, never
-    silently dropped -- the count is printed under "What is not in this
-    table", which is where a reader looks for what a number's absence means.
-    """
+    """(bench, run) -> {metric: record dict}, the commits they came from, and the
+    runs of ANOTHER LEVEL left out: their pages carry the boxes of whatever
+    detector made them, so they are kept out of the model column and counted."""
     out, commits, when, other = {}, set(), set(), []
     for name in sorted(os.listdir(RESULTS)) if os.path.isdir(RESULTS) else []:
         if not name.endswith(".json") or "-only-" in name:
@@ -106,12 +76,9 @@ def _cells():
         commits.add(d["commit"])
         when.add(d["when"])
         if kind != "detect":
-            # HELD OUT OF THE MODEL COLUMN, NOT OUT OF THE DOCUMENT. Its
-            # numbers describe the detector whose boxes it inherited, so it
-            # cannot stand beside six detectors as a seventh -- but it is
-            # the only run that has READ anything, and the scalars about
-            # reading have nowhere else to appear. It gets its own section
-            # and the same commit rule: published means held to it.
+            # Held out of the model column, not out of the document: it is the
+            # only run that has READ anything, so it gets a section of its own
+            # under the same commit rule.
             by = {}
             for rec in d["records"]:
                 by[rec["metric"]] = rec
@@ -141,29 +108,18 @@ def _num(v):
 
 
 def _cell(rec, scalar, measured=True):
-    """One value with everything it is over, or the reason there is none.
-
-    THREE ABSENCES, KEPT APART, because they are the project's own rule about
-    two different zeros. `?` -- this pair was never measured, and nothing here
-    is a result about it. `·` -- it was measured and this metric does not
-    apply to it. `—` -- it applies, and the value does not exist, with the
-    reason under the table. One dot used to mean the first two, under a legend
-    claiming the second: a bench measured on two of six models read as a
-    complete comparison of six.
-    """
+    """One value with everything it is over, or the reason there is none. Three
+    absences stay apart: `?` never measured, `·` measured and this metric does
+    not apply, `—` applies and the value does not exist, reason under the table."""
     if not measured:
         return "?"
     if rec is None:
         return "·"
     sc = (rec.get("scalars") or {}).get(scalar)
     if sc is None:
-        # A FOURTH ABSENCE, AND IT WAS WEARING THE THIRD ONE'S MARK. The
-        # metric RAN -- its record is right here -- and this scalar is not in
-        # it, which can only mean the record was written before the scalar
-        # existed. That is "not measured", `?`, and it read as `·`, "does not
-        # apply to that pair", which is a claim about the bench. Six scalars
-        # added and not yet swept published nine benches' worth of a
-        # statement nobody made.
+        # A fourth absence: the metric ran and this scalar is not in its record,
+        # so the record predates the scalar. That is "not measured", not `·`,
+        # which would be a claim about the bench.
         return "?"
     v = _num(sc.get("value"))
     if v is None:
@@ -174,11 +130,8 @@ def _cell(rec, scalar, measured=True):
         out += f" <sub>{c['n']}/{c['of']}</sub>"
     o = sc.get("over")
     if o and o["n"] != o["of"]:
-        # PARTIAL COVERAGE ONLY, and it is the thing worth shouting: "45 of 49
-        # blocks, counted over 6 of 130 pages" is a different claim from the
-        # same share over all of them, and collapsing the two is how a number
-        # measured on six pages was read as a number about a hundred and
-        # thirty. Full coverage is the quiet case and stays quiet.
+        # Partial coverage only: "45 of 49 blocks over 6 of 130 pages" is a
+        # different claim from the same share over all of them. Full is quiet.
         out += f" <sub>over {o['n']}/{o['of']} {o.get('unit') or ''}</sub>"
     return out
 
@@ -199,10 +152,8 @@ def _table(rows, header):
 def build(log=print) -> str:
     cells, commits, when, other_levels = _cells()
     if not cells:
-        # TWO DIFFERENT EMPTIES, and the second is not "nothing measured".
-        # Results exist, and every one of them is of a level this document
-        # does not render -- telling the reader to measure would send them
-        # to repeat work that is already on disk.
+        # Two different empties: results exist and every one is of a level this
+        # document does not render, so "measure first" is the wrong answer.
         if other_levels:
             raise Refusal(
                 f"{RESULTS} holds {len(other_levels)} results and every one "
@@ -214,14 +165,9 @@ def build(log=print) -> str:
         raise Refusal(
             f"no results in {RESULTS}. Measure first: `python3 "
             f"tools/sweep.py --apply` runs every model over every bench.")
-    # AN UNCOMMITTED TREE IS ITS OWN ANSWER, and a clearer one than "two
-    # different commits" -- the marker is the same sha with `+dirty tree`
-    # after it, and the first edition printed both truncated to twelve
-    # characters, so the refusal read "44553f64829c and 44553f64829c".
-    # `stamp.commit()` returns None on a box with no git -- the rented card is
-    # exactly that -- and `sorted` over None and a string raises a bare
-    # TypeError three lines down. A result that cannot name its code is the
-    # same trouble as a dirty one and is said so.
+    # An uncommitted tree and a stamp of None (a box with no git: the rented
+    # card is one) are each their own refusal, before the "two different
+    # commits" one: a result that cannot name its code cannot be published.
     if None in commits:
         raise Refusal(
             "some results record no commit at all: they were measured where "
@@ -235,18 +181,9 @@ def build(log=print) -> str:
             f"UNCOMMITTED tree ({dirty[0]}). What code produced them cannot "
             f"be recovered, so they cannot be published beside numbers that "
             f"can. Commit, then `python3 tools/sweep.py --apply --again`.")
-    # AND THE COMMIT MUST STILL EXIST. A sha records what HEAD was while the
-    # cells were counted, and history is rewritten afterwards often enough --
-    # a squash, a rebase, an amend. Measured: all 54 results were stamped
-    # against a `wip:` commit, the `wip:` commits were then folded into one
-    # with `git reset --soft`, and every published number named a commit
-    # `git log --all` no longer showed. Nothing above catches it: the stamp
-    # was not None, not dirty, and all 54 agreed with each other -- they
-    # agreed on a commit that was gone.
-    #
-    # `None` from `reachable` is "git cannot answer" -- no repository at all,
-    # or a sha this clone has never seen -- and it is refused with the same
-    # force as `False`, because both mean the code cannot be got back.
+    # And the commit must still exist: a squash, a rebase or an amend leaves a
+    # sha every result agrees on and nothing can be got back from. `None` from
+    # `reachable` is "git cannot answer" and is refused as hard as `False`.
     unreachable = sorted(c for c in commits if stamp.reachable(c) is not True)
     if unreachable:
         raise Refusal(
@@ -364,13 +301,8 @@ def build(log=print) -> str:
                         for b in benches for r in runs} - {None})
         if notes:
             L += [""] + [f"- a dash means: {n}" for n in notes]
-        # WHOSE ORDER, BESIDE THE JUMPS. Excess jumps are counted over the
-        # page's block list -- the MODEL's rank for a model that has one, and
-        # OUR top-down rule for a model that has none. On the same boxes the
-        # golden bench gives 2471 by our rule against 501 by the rank, five
-        # times the spread a table shows, so two models under one heading with
-        # two rules are not a comparison. This header claimed the table prints
-        # it, and only the per-bench section did.
+        # Whose order, beside the jumps: two models under one heading with two
+        # ordering rules are not a comparison.
         if scalar.startswith("excess_jumps"):
             rules = collections.defaultdict(set)
             for r in runs:
@@ -430,9 +362,8 @@ def build(log=print) -> str:
                             + [_cell(here[r].get(metric), s,
                                      measured=(b, r) in cells) for r in runs])
             L += [f"**{metric}**", ""] + _table(rows, ["scalar"] + runs) + [""]
-            # EVERY MODEL IS A COLUMN, measured or not. Dropping the unmeasured
-            # ones from the header made a bench measured on two of six read as
-            # a comparison of two.
+            # Every model is a column, measured or not: dropping the unmeasured
+            # ones makes a bench measured on two of six read as a table of two.
             missing = [r for r in runs if r not in present]
             if missing:
                 L += ["  not measured on this bench: "
@@ -441,9 +372,8 @@ def build(log=print) -> str:
                             for r in present for s in names} - {None})
             if notes:
                 L += [f"- a dash: {n}" for n in notes] + [""]
-            # THE PARAMS THE NUMBERS DEPEND ON, per model, because they are
-            # not always the same one: `order_rule` differs between a model
-            # with a reading rank and a model without.
+            # The params the numbers depend on, per model: `order_rule` differs
+            # between a model with a reading rank and one without.
             par = {r: (here[r].get(metric) or {}).get("params") or {}
                    for r in present}
             shared = {k: v for k, v in (par[present[0]] or {}).items()

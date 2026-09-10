@@ -1,19 +1,11 @@
 """A parts catalogue: a page with nothing on it but the table.
 
-WHY. In the handbook a table is always surrounded by prose, and it was "found"
-in large part BECAUSE there was text to tell it from. Here the table IS the
-page: a running head above, a folio below, forty rows of figures between. The
-hypothesis: with nothing around it, the detector either boxes the whole page
-or tears the table into pieces.
-
-The second hypothesis is CONTINUATION. A real catalogue carries one table
-across a dozen pages: the header repeats and "Continuation of Table 7" stands
-at the left. Does the model tell a repeated header from a running head, and
-does it glue the continuation line onto the table?
-
-The control is `kat_two_stacked`, two tables one under the other. The handbook
-passes that pair correctly, so a failure here is about the bare page and not
-about the pair itself.
+In the handbook a table is found partly BECAUSE there is prose to tell it from;
+here the table IS the page -- a running head above, a folio below, forty rows of
+figures between -- so the question is whether the detector boxes the whole page
+or tears the table up. The second question is CONTINUATION: a repeated header
+and "Continuation of Table 7" at the left. The control `kat_two_stacked` is a
+pair the handbook passes, so a failure here is about the bare page.
 """
 from booksmith.datasets.make.synth.draw import (
     PROSE_EN,
@@ -50,13 +42,10 @@ def _cat_table(pg, t, x, y, n_cols, rows, colw=52.0, step=9.6, size=5.8,
     cols = _grid(x, n_cols, colw=colw, gap=6.0)
     y1 = _table(pg, t, x, y, cols, rows, size=size, colw=colw, step=step)
     if numbered:
-        # ROW NUMBERS ARE DRAWN LEFT OF THE TABLE BOX (x-20 against x-6) AND
-        # HAVE NO BOX OF THEIR OWN -- that IS the case `kat_row_numbers`: does
-        # the model take them as a separate box or pull them into the table?
-        # So they are ink and words OUTSIDE every truth box, and the bench must
-        # NAME that with a number rather than hide it. The "words outside the
-        # truth" counter in `build` catches exactly these, and its non-zero
-        # value here is a declared property of the page, not a defect.
+        # Row numbers are drawn LEFT of the table box and have no box of their
+        # own -- that is the case: a separate box, or pulled into the table? So
+        # they are ink and words outside every truth box, and the "words outside
+        # the truth" counter is non-zero here by design, not by defect.
         for r in range(rows):
             _put(pg, x - 20, y + 10 + r * step, f"{r + 1}", size, sheet_w=PW)
     return y1
@@ -170,11 +159,9 @@ def c_kat_spread_continue(doc, rng):
 
 
 def c_kat_sparse_tail(doc, rng):
-    """A four-row tail of a table and an empty bottom third of the page.
-
-    A real catalogue ends like this. Does the model glue the running head or
-    the folio onto so short a tail?
-    """
+    """A four-row tail of a table and an empty bottom third of the page, as a
+    real catalogue ends: does the model glue the running head or the folio onto
+    so short a tail?"""
     pg = _sheet(doc); t = []
     _head(pg, t, 224)
     w = _put(pg, MARGIN + 8, TOP + 30, "Continuation of Table 7", 6.6,

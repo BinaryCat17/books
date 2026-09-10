@@ -28,7 +28,7 @@ needs: pages, truth
 
 needs: pages, pdf
 
-Shares from the measurement's counts: the six the report divides (ink under boxes, under artefacts, outside; area under boxes; objects intact; object ink preserved) and four it prints as counts, expressed here over the object count so that two runs compare (torn, left as text, arrived with company, cut as one picture).
+Shares from the ink measurement's counts: the six the report divides and the four it prints as counts, the latter expressed over the object count so that two runs compare.
 
 | scalar | better | what it says |
 |---|---|---|
@@ -100,7 +100,7 @@ needs: pages
 
 needs: pages, read
 
-The truth-free half of level two.
+The truth-free half of level two: labels and answers are both in the run's own pages, so it measures any book that has been read, with no truth and no scan; `read` says THIS RUN produced the characters.
 
 | scalar | better | what it says |
 |---|---|---|

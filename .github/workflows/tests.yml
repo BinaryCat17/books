@@ -9,7 +9,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
       - run: uv sync --extra detect --extra docling --group dev --frozen
-      - run: uv run pytest -q -rs | tee pytest.log
+      - run: set -o pipefail; uv run pytest -q -rs | tee pytest.log
       - name: enough checks actually ran
         run: |
           passed=$(grep -oE '[0-9]+ passed' pytest.log | grep -oE '[0-9]+')

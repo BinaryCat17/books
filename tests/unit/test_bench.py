@@ -1,10 +1,8 @@
 """One loader, one identity check, three trait states -- and each can fail.
 
-Six directory parsers and three same-book checks became `datasets.bench`.
-What they had learnt is kept here as checks: a foreign json is refused,
-not scored; a page directory with no snapshot is refused by `Run.open` and
-taken by `Run.bare` only, which then says NOT CHECKED; a trait the file does
-not name is "not said", never "no".
+A foreign json is refused, not scored; a page directory with no snapshot is
+refused by `Run.open` and taken by `Run.bare` only, which then says NOT CHECKED;
+a trait the file does not name is "not said", never "no".
 """
 import contextlib
 import json
@@ -39,16 +37,9 @@ def _book(d, man=None, sha="cd" * 32, name="book"):
 
 @contextlib.contextmanager
 def at_root(d):
-    """`config.ROOT` pointed at `d` for the duration.
-
-    `_scan_of` looks for the manifest's `source.name` under
-    `<ROOT>/raw/`, BY NAME, so any check that opens a truthless book while
-    ROOT is the real repository is asking a question about the developer's
-    `raw/` directory. Planting `raw/book.pdf` and `raw/x.pdf` -- the two
-    names these fixtures use -- turned two checks red on a tree where
-    nothing was wrong. A fixture's own docstring warned about this and the
-    checks below it did it anyway.
-    """
+    """`config.ROOT` pointed at `d` for the duration: `_scan_of` looks for the
+    manifest's `source.name` under `<ROOT>/raw/` by name, so a truthless book
+    opened while ROOT is the repository asks about the developer's `raw/`."""
     was = bench.config.ROOT
     bench.config.ROOT = d
     try:
@@ -66,10 +57,8 @@ def _bench(root, sha="ab" * 32, pages=None, run_sha=None, label=LABEL):
     with open(os.path.join(root, "manifest.json"), "w") as f:
         json.dump({"book": os.path.basename(root),
                    "source": {"name": "x.pdf", "sha256": sha}}, f)
-    # A RUN LIVES UNDER THE MODEL'S NAME. The fixture used to make
-    # `detect/pages`, which was the whole layout when a book held one run;
-    # a book holds one per model now, and "the run" is only defined when
-    # there is exactly one.
+    # A run lives under the model's name: a book holds one directory per model,
+    # and "the run" is defined only when there is exactly one.
     run = os.path.join(root, "detect", label)
     os.makedirs(os.path.join(run, "pages"))
     for i in range(3):
@@ -103,16 +92,9 @@ def test_a_directory_without_truth_is_not_a_bench():
 
 
 def test_a_book_without_truth_opens_by_its_own_door_and_not_by_open():
-    """`no_truth` is a SECOND DOOR, never a loosening of the first.
-
-    The two books in the tree that carry a level-two run carry no truth, so
-    every truth-free metric was unreachable on exactly the runs it was
-    written for. The fix must not be "let `open` take anything": a bench
-    without truth is a caller's mistake and the check above holds `open` to
-    saying so. This asks both halves at once, which is why it is one check
-    -- an opener that started accepting truthless directories would leave
-    this green if it only asked the new door.
-    """
+    """`no_truth` is a second door, never a loosening of the first: a bench
+    without truth is a caller's mistake. Both halves are asked at once, or an
+    opener that began accepting truthless directories would leave this green."""
     with tempfile.TemporaryDirectory() as d, at_root(d):
         root = _book(d)
         b = bench.Bench.no_truth(root)
@@ -121,7 +103,7 @@ def test_a_book_without_truth_opens_by_its_own_door_and_not_by_open():
         # The scan is in neither place, and that is None -- not a raise: a
         # book whose scan is absent is measurable by everything but ink.
         assert b.pdf is None
-        # THE FIRST DOOR IS STILL SHUT.
+        # The first door is still shut.
         try:
             bench.Bench.open(root)
         except Unmeasurable as e:
@@ -137,23 +119,17 @@ def test_a_book_without_a_manifest_is_not_a_book():
         try:
             bench.Bench.no_truth(d)
         except Unmeasurable as e:
-            # THE WHOLE PHRASE, not just "manifest.json". The refusal one
-            # guard along -- "manifest.json names no source.sha256" --
-            # contains that word too, so the loose assertion stayed green
-            # with this guard deleted.
+            # The whole phrase, not just "manifest.json": the refusal one guard
+            # along contains that word too.
             assert "is not a book: expected manifest.json" in str(e), e
         else:
             raise AssertionError("a directory with no manifest opened as a book")
 
 
 def test_a_book_whose_manifest_names_no_sha_is_not_a_book():
-    """A MANIFEST IS NOT ENOUGH; the sha is the thing.
-
-    `{"about": "anything"}` is a manifest and carries no identity, and a
-    book opened on one measured another book's run clean under its own
-    name, logging "sha256 not checked: the field is absent from the
-    snapshot" -- the exact outcome the manifest was demanded to prevent.
-    """
+    """A manifest is not enough; the sha is the thing: `{"about": "anything"}` is
+    a manifest and carries no identity, and a book opened on one measures another
+    book's run clean under its own name."""
     with tempfile.TemporaryDirectory() as d:
         for man in ({"about": "a book"}, {"source": {}},
                     {"source": {"name": "book.pdf"}}):
@@ -167,18 +143,9 @@ def test_a_book_whose_manifest_names_no_sha_is_not_a_book():
 
 
 def test_the_books_that_declare_themselves_truthless_open():
-    """THE THREE BOOKS THIS FEATURE EXISTS FOR, asked by name.
-
-    `bench/real-*` are tracked, carry no truth, and say so in their own
-    manifests -- "a real scan with NO TRUTH: a book, not a bench. Kept for
-    measuring what needs no truth (ink, assembly order)". The first edition
-    of `no_truth` refused every book under `bench/`, reasoning that a bench
-    holds truth by declaration; `core.book.ALLOWED` says the opposite in as many
-    words ("a bench is a book with truth, and `Book.open` does not care which
-    tree it is in") and lists `truth/` as an optional part. The rule made
-    these three permanently unreachable and told the reader to repair a tree
-    that was not broken.
-    """
+    """The three books this feature exists for, asked by name: `bench/real-*` are
+    tracked, carry no truth, and say so in their own manifests. A rule that a
+    book under `bench/` must hold truth would make the three unreachable."""
     for n in ("real-tables20", "real-holdout20", "real-test25"):
         b = bench.Bench.no_truth(os.path.join(bench.config.ROOT, "bench", n))
         assert b.truth_dir == "" and b.sha256
@@ -188,14 +155,9 @@ def test_the_books_that_declare_themselves_truthless_open():
 
 
 def test_a_manifest_may_name_a_file_and_not_a_path():
-    """`source.name` DECIDES WHAT GETS OPENED AND HASHED, so it is confined.
-
-    An absolute name made `os.path.join(book, name)` return the name itself,
-    so `/etc/hosts` resolved, existed and came back before the sha branch
-    was reached. A relative one walked out of the repository and was
-    accepted whenever the manifest's own sha matched what it pointed at --
-    and the manifest author writes both halves of that comparison.
-    """
+    """`source.name` decides what gets opened and hashed, so it is confined to a
+    file name: an absolute one resolves outside the book, and a relative one
+    walks out of the repository whenever the manifest's own sha matches it."""
     with tempfile.TemporaryDirectory() as d:
         for bad in ("/etc/hosts", "../../../../etc/passwd", "..", "a/b.pdf"):
             root = _book(d, {"source": {"name": bad, "sha256": "ab" * 32}})
@@ -208,10 +170,8 @@ def test_a_manifest_may_name_a_file_and_not_a_path():
 
 
 def test_the_scan_beside_the_book_is_checked_by_sha_too():
-    """The first edition checked only the `raw/` branch -- and said in its
-    own docstring that it checked "here and nowhere else" -- so a file
-    sitting beside the manifest went to `ink.measure` unverified. Where the
-    wrong bytes lie makes no difference to the number they produce."""
+    """The scan beside the book is checked by sha as the one in `raw/` is: where
+    the wrong bytes lie makes no difference to the number they produce."""
     with tempfile.TemporaryDirectory() as d, at_root(d):
         root = _book(d)                       # manifest says sha "cd" * 32
         with open(os.path.join(root, "book.pdf"), "wb") as f:
@@ -225,16 +185,9 @@ def test_the_scan_beside_the_book_is_checked_by_sha_too():
 
 
 def test_a_truthless_book_answers_for_its_scan_from_the_checked_lookup_only():
-    """`Bench.pdf`'s LAZY BRANCH IS AN UNVERIFIED TWIN of `_scan_of`.
-
-    It looks beside the book for `source.name` -- or, when the manifest names
-    none, for `<book>.pdf` -- and hashes nothing. While it was reachable from
-    a truthless book it stood behind the checked lookup and won by fallback:
-    delete the verified candidate and the property still returned the file,
-    and the battery said so ("the scan is looked for in raw/ and not beside
-    the book" went UNCAUGHT). Asked here where the two branches DISAGREE: a
-    manifest with a sha and no name, and a plausibly-named file beside it.
-    """
+    """`Bench.pdf` answers from the checked lookup only: the lazy branch is an
+    unverified twin that looks beside the book and hashes nothing, and it wins by
+    fallback. Asked here where the two branches disagree."""
     with tempfile.TemporaryDirectory() as d, at_root(d):
         root = _book(d, {"source": {"sha256": "cd" * 32}})
         with open(os.path.join(root, "book.pdf"), "wb") as f:
@@ -245,18 +198,12 @@ def test_a_truthless_book_answers_for_its_scan_from_the_checked_lookup_only():
 
 
 def test_a_bench_whose_truth_went_missing_is_not_a_truthless_book():
-    """THE TWO ZEROS, in directory form.
-
-    "No truth/ here" cannot tell a book that never had truth from a bench
-    whose build was interrupted -- `.gitignore` carries a rule for
-    `bench/*/truth.previous/` because that happens. Measured truth-free, the
-    half-record lands under the full one's name and METRICS.md publishes
-    "contour does not apply to atlas".
-    """
+    """The two zeros, in directory form: "no truth/ here" cannot tell a book that
+    never had truth from a bench whose build was interrupted, and the half-record
+    would land under the full one's name."""
     with tempfile.TemporaryDirectory() as d:
-        # BOTH HALVES OF THE WRITE-ASIDE. `.gitignore` names them in one
-        # sentence; an interrupted FIRST build leaves `truth.new/` with no
-        # `truth.previous/` beside it, and only the second was a tell.
+        # Both halves of the write-aside: an interrupted first build leaves
+        # `truth.new/` with no `truth.previous/` beside it.
         for half in ("truth.previous", "truth.new"):
             root = _book(d, name=f"b-{half}")
             os.makedirs(os.path.join(root, half))
@@ -269,13 +216,9 @@ def test_a_bench_whose_truth_went_missing_is_not_a_truthless_book():
 
 
 def test_the_scan_of_a_built_book_is_found_in_raw_and_checked_by_sha():
-    """`raw/` IS SEARCHED BY FILENAME, so the sha is what makes it safe.
-
-    A built book keeps its scan in `raw/`, so looking only beside the book
-    left the ink half inapplicable on every one. But `raw/` is keyed by name
-    under the repository root: without the sha, a same-named different scan
-    would be measured and look sensible. Both halves are asked here.
-    """
+    """`raw/` is searched by filename, so the sha is what makes it safe: a built
+    book keeps its scan there, and a same-named different scan would be measured
+    and look sensible. Both halves are asked here."""
     with tempfile.TemporaryDirectory() as d:
         raw = os.path.join(d, "raw")
         os.makedirs(raw)
@@ -286,11 +229,9 @@ def test_the_scan_of_a_built_book_is_found_in_raw_and_checked_by_sha():
             found = bench.Bench.no_truth(_book(d, sha=real, name="right"))
             assert found.pdf == os.path.join(raw, "book.pdf")
             assert found.scan == found.pdf
-            # THE WRONG SHA SHARES ITS FIRST TWELVE CHARACTERS WITH THE RIGHT
-            # ONE. Every fixture used a sha that differed in the first byte,
-            # and the refusal prints only twelve -- so comparing twelve
-            # instead of sixty-four read identically, and a 48-bit check
-            # passed for a 256-bit one.
+            # The wrong sha shares its first twelve characters with the right
+            # one: the refusal prints only twelve, so a fixture differing in the
+            # first byte would pass a 48-bit check for a 256-bit one.
             near = real[:12] + ("0" if real[12] != "0" else "1") + real[13:]
             try:
                 bench.Bench.no_truth(_book(d, sha=near, name="wrong"))
@@ -301,20 +242,17 @@ def test_the_scan_of_a_built_book_is_found_in_raw_and_checked_by_sha():
 
 
 def test_a_run_knows_which_level_it_is_of():
-    """The label is the MODEL's name, so a detector and a reader can share
-    one; without the kind two levels land on one results file and the second
+    """The label is the model's name, so a detector and a reader can share one;
+    without the kind two levels land on one results file and the second
     overwrites the first."""
     with tempfile.TemporaryDirectory() as d:
         root = _bench(os.path.join(d, "b"))
         assert bench.Run.open(os.path.join(root, "detect", LABEL)).kind == "detect"
         # A bare pages directory sits outside the layout and says so.
         assert bench.Run.bare(os.path.join(root, "detect", LABEL, "pages")).kind == ""
-        # AND A RUN UNDER ANY OTHER PARENT IS "" AND NOT THAT PARENT'S NAME.
-        # Only `core.book.KINDS` names a level; without that filter a copy in
-        # a scratch directory answers `kind="tmpdir"`, `results_path` writes
-        # `<book>-tmpdir-<label>.json`, and `report._cells` then files it
-        # under "runs of another level" and it vanishes from METRICS.md.
-        # `Run.bare` exercises the `run_dir is None` branch, never this one.
+        # A run under any other parent is "" and not that parent's name: only
+        # `core.book.KINDS` names a level, and a copy in a scratch directory
+        # would otherwise be filed as a run of another level and vanish.
         stray = os.path.join(d, "scratch", LABEL)
         os.makedirs(stray)
         shutil.copytree(os.path.join(root, "detect", LABEL, "pages"),
@@ -411,23 +349,9 @@ def test_content_is_detected_from_the_truth():
 
 
 def test_a_different_experiment_may_not_be_written_under_an_existing_label():
-    """The sentence was in two documents and in no code.
-
-    `core/book.py` and `CLAUDE.md` both said a command about to write a
-    different identity under an existing label refuses and asks for `--run`.
-    `identity` was computed, written, and read back by NOTHING: two runs of
-    one model at two thresholds landed in one directory, the second over the
-    first, under its name and beside its snapshot.
-
-    Four cases, because three of them are ways of being wrong:
-      the same experiment again        -- allowed, that is a resume
-      a different identity             -- refused, and it names both
-      a run that records no identity   -- refused: "I cannot tell" is not
-                                          "the same"
-      a page selector over a whole run -- refused, because the identity is
-                                          over the model and the knobs and
-                                          cannot see one
-    """
+    """Writing a different identity under an existing label is refused, with
+    `--run` named. The same experiment again is a resume; a different identity, a
+    run that records none, and `--pages` over a whole run are all refused."""
     from booksmith.core import book as book_mod
     from booksmith.core.errors import Refusal
     with tempfile.TemporaryDirectory() as d:

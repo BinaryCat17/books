@@ -1,19 +1,12 @@
-"""Swapping a block inside a finished book: the second level in place, and undo.
+"""Swapping a block inside a finished book: level two in place, and undo.
 
-The whole two-level scheme was built for this — "a swap can be checked, undone
-and redone by another model without touching the book". `swap.py` keeps that
-promise over strings; files, journal and time live here.
+`swap.py` keeps the promise over strings; files, journal and time live here. A
+swap without undo is an edit of the book, so the journal keeps a stack per
+anchor rather than the last value: two swaps in a row unwind one step at a time,
+and after a full unwind the book matches the original byte for byte.
 
-WHY THE JOURNAL IS MANDATORY. A swap without undo is an edit of the book: the
-second level will be wrong and there will be nothing to return. The journal
-keeps a STACK per anchor, not the last value — two swaps in a row (the VLM
-answered, the answer was poor, redone by another model) unwind one step at a
-time, in reverse, where a flat "what was here" field would lose the middle
-state silently. After a full unwind the book matches the original byte for byte.
-
-DELIBERATELY ABSENT: not one call to a model. This layer only puts ready markup
-where an image was; producing it is `books read`'s business, and it has run —
-412 swaps on "Refractory technology".
+Not one call to a model here. This layer puts ready markup where an image was;
+producing it is `books read`'s business.
 """
 import hashlib
 import json
@@ -21,10 +14,8 @@ import os
 import time
 
 from booksmith.processing.assemble import swap
-# The block anchor is built by ONE rule for the whole project. A third copy
-# lived here (in `from_read`), and drift from `html.anchor_of` would be silent:
-# `put` answers "no such anchor" for every block and the command prints a
-# healthy "refused N" instead of "the naming scheme has split".
+# The block anchor is built by one rule for the whole project (`html.anchor_of`);
+# a copy drifting from it would answer "no such anchor" for every block.
 from booksmith.core import book
 from booksmith.core.book import ASSETS, SOURCE
 from booksmith.core import page
@@ -48,9 +39,8 @@ def _sha256(text: str) -> str:
 def _same(now: str, promised: str) -> bool:
     """Does what lies in the block match what the swap put there?
 
-    A function and not a line inside `undo` purely for the mutation battery: a
-    check that cannot be broken is not proved. Same project rule as for the
-    metrics — first make sure the number can fall.
+    A function rather than a line inside `undo` so the mutation battery can
+    break it: a check that cannot be broken is not proved.
     """
     return _sha256(now) == promised
 
@@ -63,22 +53,16 @@ def book_path(out_dir: str) -> str:
 
 
 def load_journal(out_dir: str) -> dict:
-    """Read the journal. An UNREADABLE journal is trouble out loud, not an empty
+    """Read the journal. An unreadable journal is trouble out loud, not an empty
     one.
 
     "No journal" and "journal unreadable" are different zeros, and the second
-    must stop the work: returning an empty one would cost the whole book, since
-    `put` writes over the stub at once and the undo stack of every earlier swap
-    is gone for good.
+    must stop the work: `put` writes over a stub at once, and the undo stack of
+    every earlier swap is then gone for good.
     """
-    # OLD LAYOUT — NOT AN EMPTY JOURNAL. The journal moved into `assets/`, and
-    # books built before the move keep it in the root. Missing that, we
-    # declared "no swaps: the second level has not walked this book yet" where
-    # the undo stack of all the paid work lay: 412 swaps on `ruall.read/html`,
-    # 17 on `ru20.read/html`. Worse, the next swap would start a SECOND journal
-    # and leave the first unreachable. The rule is `book.journal_path`, asked
-    # by the rebuild guard too -- it used to have a third copy that looked only
-    # under `assets/`.
+    # `book.journal_path` is the one rule: a book built before the journal moved
+    # into `assets/` keeps it in the root, and starting a second journal would
+    # leave the first, holding all the paid work, unreachable.
     p = book.journal_path(out_dir)
     if not os.path.exists(p):
         return {"book": "book.html", "swaps": {}}
@@ -102,32 +86,23 @@ def load_journal(out_dir: str) -> dict:
 
 
 def save_journal(out_dir: str, j: dict) -> str:
-    """Write the journal ATOMICALLY: temp file alongside, then `os.replace`.
+    """Write the journal atomically: temp file alongside, then `os.replace`.
 
-    `open(p, "w")` truncates the old file FIRST, so anything that happens next
-    (no space, Ctrl-C inside `json.dump`, a disk pulled) leaves a stub where the
-    undo stack of the WHOLE book was — one broken write takes away the ability
-    to undo ANY earlier swap. Measured: a journal of 3 swaps of one anchor, 2101
-    bytes, `json.dump` killed midway. The old way left a 1076-byte stub
-    unreadable as json; the new way leaves the old journal intact (2101 bytes,
-    3 swaps) and the stub in `swaps.json.tmp`, where it changes nothing.
-
-    `os.replace` is atomic within one filesystem, so the temp file goes BESIDE
-    the journal, not into /tmp.
+    `open(p, "w")` truncates the old file first, so a write that fails halfway
+    would leave a stub where the undo stack of the whole book was. `os.replace`
+    is atomic within one filesystem, so the temp file goes beside the journal.
     """
-    # WRITE WHERE WE READ, by the same rule `load_journal` asks.
+    # Write where we read, by the same rule `load_journal` asks.
     p = book.journal_path(out_dir)
-    # The kitchen may not exist yet: `books html` creates it, and a swap can
-    # work over a book it did not build. Refusing here would report "the swap
-    # failed" where only a folder failed.
+    # The kitchen may not exist yet: a swap can work over a book it did not
+    # build, and refusing here would report a failed swap over a missing folder.
     os.makedirs(os.path.dirname(p) or ".", exist_ok=True)
     tmp = p + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(j, f, ensure_ascii=False, indent=1)
         f.flush()
-        # Bytes to disk BEFORE the rename: without fsync the rename can land
-        # ahead of the content, and a power cut leaves a zero-length file under
-        # the right name.
+        # Bytes to disk before the rename: otherwise it can land ahead of the
+        # content, and a power cut leaves a zero-length file under the right name.
         os.fsync(f.fileno())
     os.replace(tmp, p)
     return p
@@ -136,10 +111,8 @@ def save_journal(out_dir: str, j: dict) -> str:
 def _check_fragment(fragment: str, anchor: str) -> None:
     """The fragment we place must carry no foreign block marks.
 
-    A mark inside it is a ghost anchor: `swap.anchors` counts one extra, the
-    next swap's `span` sees two opening marks and refuses, and the trouble
-    surfaces far from where it was made. One pass over the string catches it in
-    place.
+    A mark inside it is a ghost anchor: the next swap's `span` sees two opening
+    marks and refuses, far from where the trouble was made.
     """
     bad = swap._marks_in(fragment)
     if bad:
@@ -171,24 +144,12 @@ def _unclosed_comment(text: str) -> int:
 def _check_comments(body: str, anchor: str) -> None:
     """An unfinished comment in what will lie in the book.
 
-    THE FIFTH GUARD, and it exists because the four before it missed this one
-    every time. A fragment `<table>…</table><!-- did not finish` carries no
-    block marks (`_check_fragment` is silent), is not empty, has its kind
-    declared, and does NOT CHANGE the anchor set — `swap.anchors` looks for
-    `<!--bs:`, and a bare `<!--` is no anchor to it. Measured on `bench/atlas`
-    (26 blocks): the command answered "placed 154, taken 175, anchors 26"
-    while the browser read `<!-- did not finish</div><!--/bs:p0001-b0-->` as
-    ONE comment, eating OUR closing `</div>` and OUR closing mark. Visibly: div
-    opened 0 -> 1, closed 0 -> 0, figure 26 -> 25, and the rest of the book
-    moved inside the unclosed div.
-
-    The mirror half — an unclosed OPENING mark (`<!--bs:… ` with no `-->`) — is
-    left to the anchor comparison, and this guard runs AFTER it on purpose: it
-    would otherwise take away the only case by which that comparison is proved.
-
-    We look at the BODY AFTER rendering: `render` escapes `<` for `text`,
-    `latex` and `otsl`, and complaining about `<!--` there would refuse a lawful
-    swap.
+    Such a fragment carries no block marks, is not empty, has its kind declared
+    and changes no anchor, while the browser stretches the comment to our closing
+    block mark and eats the wrapper's closing tag with it. Runs after the anchor
+    comparison, so as not to take away the only case that comparison is proved
+    by, and looks at the body after rendering: `render` escapes `<` for `text`,
+    `latex` and `otsl`, where a bare `<!--` is a lawful swap.
     """
     i = _unclosed_comment(body)
     if i < 0:
@@ -202,11 +163,10 @@ def _check_comments(body: str, anchor: str) -> None:
 
 
 def block_roles(out_dir: str) -> dict:
-    """Every role at once. Reads `blocks.json` ONCE.
+    """Every role at once. Reads `blocks.json` once.
 
-    `block_role` was called once per block, and a book holds six thousand:
-    rebuilding "Refractory technology" spent gigabytes of reading on it. Same
-    rule, same file, fewer reads.
+    A book holds thousands of blocks, and `block_role` reads the file for each
+    of them. Same rule, same file, fewer reads.
     """
     p = os.path.join(out_dir, ASSETS, "blocks.json")
     if not os.path.exists(p):
@@ -221,10 +181,8 @@ def block_roles(out_dir: str) -> dict:
 def block_role(out_dir: str, anchor: str) -> str:
     """A block's role from the build's `blocks.json`, or `unknown`.
 
-    Read, not assigned: the wrapper used to set the artifact role ALWAYS, while
-    `blocks.json` under the same anchor could say text. The second level is
-    sometimes needed by a text block too, and the book is read by that attribute
-    later.
+    Read, not assigned: level two is sometimes wanted for a text block too, and
+    the book is read by that attribute later.
     """
     p = os.path.join(out_dir, ASSETS, "blocks.json")
     if not os.path.exists(p):
@@ -240,31 +198,21 @@ def block_role(out_dir: str, anchor: str) -> str:
 def _anchors_unchanged(before, after) -> bool:
     """Does the book hold the same anchor set after the swap?
 
-    A seam for the battery, like `_same`. It catches what the fragment check
-    does NOT: an unclosed mark (`<!--bs:xyz` with no `-->`) holds no complete
-    marks, `_check_fragment` lets it through, and `swap.anchors` finds a closing
-    `-->` further down the book and gives birth to a junk anchor. Measured:
-    `<p>text <!--bs:p0001-b9 inside</p>` yields "appeared ['p0001-b9
-    inside…']", and the book is not written.
+    A seam for the battery, like `_same`. It catches what the fragment check does
+    not: an unclosed mark (`<!--bs:xyz` with no `-->`) holds no complete marks,
+    and `swap.anchors` finds a `-->` further down and bears a junk anchor.
     """
     return after == before
 
 
 def render(fragment: str, kind: str) -> str:
-    """The model's answer -> what the browser shows. TRANSLATION, not repair.
+    """The model's answer -> what the browser shows. Translation, not repair.
 
-    WHY. `page.KINDS` declares four kinds while the fragment was always inserted as
-    HTML, and three of the four silently spoiled the book, the command reporting
-    a healthy number throughout. Measured: `<fcel>Year<fcel>Total<nl>…` under
-    `--kind otsl` gave the run-on "YearTotal199812,4" — no rows, no columns,
-    exactly what HTML rather than Markdown was chosen for; `--kind text` lost
-    "<n/a>" whole (the browser eats an unknown tag); `--kind latex` went in
-    raw.
-
-    THE MODEL'S BYTES GO NOWHERE. Display only: the answer lies in
-    `pages/*.json` and the reading directory's `answers/`, the journal keeps
-    what was placed, whole, and the translation replays from them. We do not
-    edit the answer, we SHOW it.
+    `page.KINDS` declares four kinds, and inserting all four as HTML spoils
+    three: OTSL runs its cells into one line, `text` loses `<n/a>` to the
+    browser, `latex` goes in raw. The model's bytes go nowhere — the answer lies
+    in `pages/*.json` and the reading's `answers/`, the journal keeps what was
+    placed whole, and this translation replays from them.
     """
     import html as _h
     from booksmith.core import otsl
@@ -283,32 +231,14 @@ def render(fragment: str, kind: str) -> str:
 
 def _wrap_fragment(anchor: str, fragment: str, kind: str, source: str,
                    role: str = "unknown", torn: bool | None = None) -> str:
-    """Wrap the second level's answer in OUR wrapper, its bytes untouched.
+    """Wrap level two's answer in our wrapper, its bytes untouched.
 
-    We mark the wrapper, not the content: the recognised is untouchable. Marks
-    written straight into the markup cost nine misses of thirty-three.
-
-    TABLE SHAPE IS A MARK, NOT A SIXTH GUARD, and gets no ordinal on purpose —
-    it rejects nobody. All five guards of `put_into` let OTSL cut off by the
-    ceiling through: no foreign marks, not empty, kind declared, anchor set
-    unchanged, no unfinished comment. Two tables of 104 entered "Refractory
-    technology" that way, the worst `p0055-b11`: 4x4 on the scan, in the book a
-    `<table>` with 2047 `<td>` in ONE row — 36 % of every cell in the book.
-
-    WHY A MARK AND NOT A REFUSAL: a refusal hides the defect from measurement.
-    The book would be silently one table short and "placed 412" become "411"
-    with no explanation; a mark keeps the answer byte for byte and says so out
-    loud, in the book and in the `books apply` summary.
-
-    CEILING TRUNCATION TRAVELS INTO THE WRAPPER WITH THE FRAGMENT. The build
-    marks truncated blocks `data-truncated`, but a swap puts its OWN `<div>`
-    there, and the mark vanished on exactly the blocks that reached the reader
-    as markup: 10 of 14 left, the four lost being those `books apply` had placed
-    (two tables, a formula, a chart).
-
-    `torn=None` is "not asked", NOT "whole": a single swap has no observations
-    alongside and must not lie with a "whole" mark, so the mark goes on only on
-    an explicit True.
+    The wrapper is marked, never the content: the recognised is untouchable. A
+    table shape that cannot exist and an answer cut off at the ceiling become
+    marks rather than refusals — a refusal hides the defect from the measurement,
+    leaving the book one table short with nothing said. The truncation mark
+    travels in with the fragment, the swap replacing the build's own `<div>`.
+    `torn=None` is "not asked", not "whole": the mark needs an explicit True.
     """
     import html as _h
     shape = torn_grid(_grid_tally(fragment, kind))
@@ -324,17 +254,11 @@ def _wrap_fragment(anchor: str, fragment: str, kind: str, source: str,
 
 def _count_in_book(tally: dict, misshapen: list, anchor: str,
                     body: str, kind: str) -> None:
-    """What went into the BOOK — as a number. A separate function for the battery.
+    """What went into the book — as a number. A separate function for the battery.
 
-    WHERE IT BELONGS. The count moved twice and lied twice: among the newly
-    placed, a repeat run over a built book printed "impossible shape at 0"
-    with two impossible tables inside it; at the top of the loop it counted
-    blocks the guards REFUSED to place, saying of the book what is not in it.
-    One right place — after the guards, before the `continue` on "already
-    there".
-
-    Without a seam this cannot be broken: both earlier versions passed the whole
-    battery green.
+    Called after the guards and before the `continue` on "already there": among
+    the newly placed it would miss what a repeat run leaves standing, and above
+    the guards it would count blocks that were refused.
     """
     shape = torn_grid(_grid_tally(body, kind))
     if shape:
@@ -345,9 +269,8 @@ def _count_in_book(tally: dict, misshapen: list, anchor: str,
     from booksmith.core import otsl as _otsl
     cells, t = _otsl.layout(body)
     announced = t.get("merges", 0)
-    # DECLARED and PLACED are counted APART, from different sources: the
-    # model's marks, and cells that actually got a span. Equating them takes
-    # from the instrument its only way to show a translation loss.
+    # Declared and placed are counted apart, from the model's marks and from
+    # cells that really got a span: equated, they hide a translation loss.
     placed = sum(1 for c in cells if c["rows"] > 1 or c["cols"] > 1)
     tally["merges_declared"] += announced
     tally["merges_in_book"] += placed
@@ -358,9 +281,9 @@ def _grid_tally(fragment: str, kind: str) -> dict | None:
     """The fragment's grid, if it is OTSL. `None` is "not measurable by grid",
     not "whole".
 
-    Their parsing and our judgement are split on purpose: `otsl.parse` returns a
-    tally, `torn_grid` judges the shape. Merging them would create a second
-    place where "impossible table" is decided.
+    Parsing and judgement stay split: `otsl.parse` returns a tally, `torn_grid`
+    judges the shape, and merging them would make a second place where
+    "impossible table" is decided.
     """
     if kind != "otsl" or not fragment:
         return None
@@ -374,23 +297,14 @@ def _grid_tally(fragment: str, kind: str) -> dict | None:
 
 def put_into(html: str, anchor: str, fragment: str, kind: str, source: str,
              role: str, torn: bool | None = None) -> tuple[str, dict, str]:
-    """THE CORE of a swap: all FIVE guards, and NOT ONE touch of the disk.
+    """The core of a swap: all five guards, and not one touch of the disk.
 
     In order: an undeclared kind; a foreign mark inside the fragment or an empty
     fragment (`_check_fragment`); no such anchor in the book; the anchor set
-    changed by the swap; an UNFINISHED COMMENT in what will lie in the book. The
-    count is not decoration — it is how one checks that all of them are listed,
-    and "four" stood here for a while, inviting nobody to look for the fifth
-    that names itself fifth two hundred lines above.
-
-    Split out for a second consumer. `put` reads the book, places one swap and
-    writes back — right when there is one swap. `from_read` places them by the
-    hundred, and each used to reread the whole book and parse ALL its anchors
-    twice: on "Refractory technology" (2.3 MB, 412 swaps of 6156 blocks) six
-    minutes instead of seconds. A second copy of the guards would be worse than
-    a slow build — two copies drifting apart is trouble already paid for.
-
-    Returns (new book, journal entry, what was removed).
+    changed by the swap; an unfinished comment in what will lie in the book.
+    Returns (new book, journal entry, what was removed). `from_read` places
+    swaps by the hundred through this same function, one read of the book for
+    all of them, rather than owning a second copy of the guards.
     """
     if kind not in page.KINDS:
         raise SwapError(f"kind {kind!r} is not declared: I know only {page.KINDS}")
@@ -405,16 +319,9 @@ def put_into(html: str, anchor: str, fragment: str, kind: str, source: str,
     body = _wrap_fragment(anchor, fragment, kind, source or "by hand",
                           role=role, torn=torn)
 
-    # A REPEAT IS NOT WORK. If exactly these bytes already lie in the block the
-    # book would not change, the undo stack would gain a step, and `--undo`
-    # would take two calls to get the image back. Measured before this check: a
-    # second `--from` on the same book reported "placed 412" with content
-    # unchanged and the journal grew from 412 swaps to 824 — the depth of EVERY
-    # stack became two.
-    #
-    # We compare the FINISHED BODY, not the raw fragment: the body carries kind,
-    # source and role, so only a fully identical swap is a repeat. The same
-    # fragment from another model is work, and it goes through.
+    # A repeat is not work: the same bytes again leave the book unchanged while
+    # the undo stack gains a step. The finished body is compared, not the raw
+    # fragment, so the same answer from another model is work and goes through.
     if swap.get(html, anchor) == body:
         return html, None, body
 
@@ -442,17 +349,12 @@ def put_into(html: str, anchor: str, fragment: str, kind: str, source: str,
 
 def put(out_dir: str, anchor: str, fragment: str, kind: str = "html",
         source: str = "", log=print) -> dict:
-    """Place ONE piece of markup where a block is. Magnitudes, not "done".
+    """Place one piece of markup where a block is. Magnitudes, not "done".
 
-    The rule lives wholly in `put_into`; only the I/O around it is here.
-
-    THE TRUNCATION FLAG IS TAKEN HERE TOO, not only by the batch swap. Without
-    `torn=` a single swap SILENTLY REMOVED the mark: `books apply --anchor
-    p0055-b11 --file … --kind otsl` dropped the book's mark count from 14 to 13
-    and `--status` said nothing. The excuse "a single swap has no observations
-    alongside" was false — they lie INSIDE the book, in `assets/source/answers/`,
-    and `out_dir` is passed here. With no source inside `torn_of` returns
-    `None`, "nothing to say", which is not "whole".
+    The rule lives wholly in `put_into`; only the I/O around it is here. The
+    truncation flag is taken here too, from the observations inside the book
+    (`assets/source/answers/`): with no source there `torn_of` returns `None`,
+    "nothing to say", which is not "whole".
     """
     path = book_path(out_dir)
     with open(path, encoding="utf-8") as f:
@@ -461,9 +363,8 @@ def put(out_dir: str, anchor: str, fragment: str, kind: str = "html",
         html, anchor, fragment, kind, source, block_role(out_dir, anchor),
         torn=torn_of(observed(os.path.join(out_dir, SOURCE)).get(anchor)))
     if entry is None:
-        # Silently returning "placed 0" would be a zero from not knowing: "the
-        # block already carries exactly this" and "the swap failed" are
-        # different answers.
+        # "The block already carries exactly this" and "the swap failed" are
+        # different answers; a bare "placed 0" would merge them.
         j = load_journal(out_dir)
         depth = len(j["swaps"].get(anchor, []))
         log(f"{anchor}: EXACTLY THIS ALREADY STANDS there ({kind}, "
@@ -502,8 +403,7 @@ def undo(out_dir: str, anchor: str, log=print) -> dict:
         html = f.read()
     rec = stack[-1]
 
-    # Compare WHAT IS THERE NOW against what we put there: there used to be no
-    # such comparison at all, and "undo" sounds safe.
+    # What lies there now against what the swap put there: "undo" sounds safe.
     now = swap.get(html, anchor)
     if not _same(now, rec["sha256_placed"]):
         raise SwapError(
@@ -514,13 +414,8 @@ def undo(out_dir: str, anchor: str, log=print) -> dict:
 
     new_html = swap.restore(html, anchor, rec["removed"])
 
-    # COMPARE WHAT CAME BACK, not what the journal promised. There used to be
-    # one `restore` line here while the journal's `sha256_removed` was printed —
-    # a magnitude this command did NOT compute. Measured: replacing the removed
-    # field in swaps.json with 47 characters while `sha256_removed` stayed
-    # untouched gave exit code 0 and "undone to 2319ff87fc44 (47 chars)",
-    # where the hash belongs to the original 192 — the command was producing
-    # someone else's proof. The hash printed is the COMPUTED one.
+    # Compare what came back, not what the journal promised, and print the
+    # computed hash: otherwise the command produces someone else's proof.
     back = swap.get(new_html, anchor)
     got = _sha256(back)
     if got != rec["sha256_removed"]:
@@ -532,15 +427,11 @@ def undo(out_dir: str, anchor: str, log=print) -> dict:
 
     stack.pop()
     if not stack:
-        # The entry is NOT deleted: an empty stack and "this anchor was never
-        # touched" are different states, and `pop` made them indistinguishable.
-        # Measured: put -> undo -> status printed "the second level has not
-        # walked this book yet" about a book walked twice, and the third zero
-        # declared in `status` was unreachable by construction.
+        # The entry stays: an empty stack and "this anchor was never touched"
+        # are different states, and `pop` would merge them.
         j["swaps"][anchor] = []
-    # The journal is written BEFORE the book: a failure on the journal (no
-    # space, a read-only directory) would leave a changed book with no undo
-    # record — the very state the journal exists to make impossible.
+    # The journal is written before the book: a failure on it would otherwise
+    # leave a changed book with no undo record.
     save_journal(out_dir, j)
     with open(path, "w", encoding="utf-8") as f:
         f.write(new_html)
@@ -553,14 +444,11 @@ def undo(out_dir: str, anchor: str, log=print) -> dict:
 
 
 def status(out_dir: str, log=print) -> dict:
-    """What is swapped and what is still an image — journal COMPARED against book.
+    """What is swapped and what is still an image — journal compared against book.
 
-    Only the journal used to be read, and it could drift from the book silently.
-    The cheapest way to split the two is our own command: `books html --out`
-    into the same directory rebuilds from scratch knowing nothing of
-    `swaps.json`, and the journal then claims "1 swapped" about a book holding
-    the original image. The operator learned of it only at undo, as the false
-    accusation "the book was edited past the journal".
+    The journal alone drifts from the book silently: `books html --out` into the
+    same directory rebuilds knowing nothing of `swaps.json`, and the journal then
+    claims a swap over a block holding the original image.
     """
     path = book_path(out_dir)
     with open(path, encoding="utf-8") as f:
@@ -611,17 +499,12 @@ def status(out_dir: str, log=print) -> dict:
 def source_of(out_dir: str) -> str | None:
     """Which reading directory the book was built from — by its own snapshot.
 
-    `books html` writes `args.detect` into `assets/run.json`, so asking the
-    operator is asking twice: the book remembers what made it.
-
-    `None` if there is no snapshot, the field is empty, or the directory is gone
-    from disk. Three different "no"s deliberately NOT told apart: the caller
-    needs `--from` either way and will name the reason from the path.
+    `books html` writes `args.detect` into `assets/run.json`, so the book
+    remembers what made it. `None` if there is no snapshot, the field is empty or
+    the directory is gone: the caller needs `--from` either way.
     """
-    # THE SOURCE INSIDE THE BOOK FIRST. `books html` puts it in
-    # `assets/source`, the only path that survives moving the directory to
-    # another machine. The snapshot records an ABSOLUTE path, and it lies
-    # exactly when the book has been copied — the commonest case.
+    # The source inside the book first: `assets/source` is the only path that
+    # survives the directory moving, the snapshot recording an absolute one.
     own = os.path.join(out_dir, SOURCE)
     if os.path.isdir(os.path.join(own, "pages")):
         return own
@@ -642,23 +525,13 @@ def source_of(out_dir: str) -> str | None:
 
 def from_read(out_dir: str, read_dir: str, only_role: str = "artifact",
               log=print) -> dict:
-    """Place in the book EVERYTHING the second level read. One at a time, undoable.
+    """Place in the book everything level two read. One at a time, undoable.
 
-    THE MISSING LINK, and it was missing silently. `books read` fills `content`
-    on every block, but `assemble/html.py` draws an artifact as an image
-    regardless
-    of content (`if role == "artifact" or not b.content`) — RIGHT by design,
-    since an artifact swap must be reversible and journalled while a rebuild
-    knows nothing of the journal. The bridge was missing: read tables and
-    formulas reached the book by no route at all, `otsl.to_html` called by
-    nobody.
-
-    Text blocks do NOT come here by default (`only_role="artifact"`): the build
-    prints them as `<p>` on non-empty `content`, and swapping them too would
-    give one block two owners.
-
-    Returns magnitudes, not "done": placed, skipped, refused — and why refused,
-    by name.
+    The build draws an artifact as an image whatever its content, a swap being
+    reversible and journalled where a rebuild knows nothing of the journal; this
+    is the bridge read tables and formulas reach the book by. Text blocks stay
+    out by default (`only_role="artifact"`): the build prints them as `<p>` on
+    non-empty content, and swapping them too would give one block two owners.
     """
     import glob as _glob
 
@@ -669,31 +542,24 @@ def from_read(out_dir: str, read_dir: str, only_role: str = "artifact",
     tally = {"block_count": 0, "placed": 0, "already_placed": 0,
              "nothing_to_place": 0, "wrong_bucket": 0, "refused": 0,
              "chars": 0, "impossible_table_shape": 0,
-             # REWRAPPED IS NOT NEW WORK, and without this number it looks
-             # like it. Measured: a book built by the old code gives "placed
-             # 5" under the new `apply` — same model bytes, OUR wrapper changed
-             # (marks added). "A repeat is free" holds within one edition of the
-             # code; a new wrapper is a real swap and belongs on the undo stack,
-             # but calling it "placed" journals work that never happened.
+             # the same model bytes under a new wrapper of ours: a real swap
+             # and a stack step, but calling it "placed" would journal work
+             # that never happened
              "rewrapped": 0,
-             # MERGES AS A MAGNITUDE, without which they are mute: that is how
-             # "104 tables at colspan 0" lived through a whole run unnoticed,
-             # neither journal nor snapshot nor `blocks.json` counting spans,
-             # and a regression back to zero would be as invisible.
+             # spans are mute without a number, and a regression of them back
+             # to zero would be invisible
              "merges_declared": 0, "merges_in_book": 0,
              "tables_with_merges": 0}
     refused = []
-    # Placed AND MARKED, listed apart: see the summary lines at the end.
+    # Placed and marked, listed apart: see the summary lines at the end.
     misshapen = []
-    # READING OBSERVATIONS — from where the content comes. Without them the
-    # truncation mark was lost on exactly the blocks that reached the reader as
-    # markup: the build set 14 marks, the swap removed 4.
+    # Reading observations, from where the content comes: without them the
+    # truncation mark is lost on the blocks that reach the reader as markup.
     obs = observed(read_dir)
     src = os.path.basename(os.path.abspath(read_dir))
 
-    # READ AND WRITE ONCE, not per swap: `put` used to be called here, and with
-    # it the quadratic reread of `put_into`. The guards are the very same ones —
-    # they live there and are not repeated here by a word.
+    # Read and write once, not per swap: calling `put` here would bring a reread
+    # of the whole book with it. The guards are the same ones, not repeated.
     path = book_path(out_dir)
     with open(path, encoding="utf-8") as f:
         html = f.read()
@@ -717,27 +583,24 @@ def from_read(out_dir: str, read_dir: str, only_role: str = "artifact",
             try:
                 html, entry, _ = put_into(
                     html, anchor, body, b.get("kind") or "html", src, role,
-                    # ONE RULE, AND IT IS CALLED. A second copy of `torn_of`
-                    # stood here inline — the very thing the rule's seam exists
-                    # to prevent. It collapsed three states into two ("not
-                    # asked" became "finished") and, being unsubstitutable, kept
-                    # the battery out of the book path entirely.
+                    # One rule, and it is called: an inline copy collapsed
+                    # "not asked" into "finished" and, unsubstitutable, kept
+                    # the battery off the book path.
                     torn=torn_of(obs.get(anchor)))
             except SwapError as e:
                 tally["refused"] += 1
                 refused.append(f"{anchor}: {str(e)[:80]}")
                 continue
-            # COUNTED HERE, past both refusals — only then does the number
-            # describe the BOOK and not this run's work. See `_count_in_book`.
+            # Counted past the refusals — only then does the number describe
+            # the book and not this run's work. See `_count_in_book`.
             _count_in_book(tally, misshapen, anchor, body,
                             b.get("kind") or "html")
             if entry is None:            # exactly this already lies there
                 tally["already_placed"] += 1
                 continue
-            # THE SAME MODEL BYTES UNDER A DIFFERENT WRAPPER — its own
-            # magnitude. Compared by the sha of the MODEL'S ANSWER, not the
-            # finished body: the body differs by exactly our wrapper, and what
-            # must be compared is what was paid for on the card.
+            # Compared by the sha of the model's answer, not the finished body:
+            # the body differs by our wrapper, and what was paid for is the
+            # answer.
             previous = j["swaps"].get(anchor) or []
             if previous and previous[-1].get("sha256_model_answer") == \
                     entry.get("sha256_model_answer"):
@@ -746,9 +609,8 @@ def from_read(out_dir: str, read_dir: str, only_role: str = "artifact",
             tally["placed"] += 1
             tally["chars"] += len(body)
 
-    # Journal before book, same reason as in `undo`: break the write between
-    # them and undo knows of a swap the book does not have — safer than the
-    # reverse.
+    # Journal before book, as in `undo`: a break between them leaves undo
+    # knowing of a swap the book does not have, which is the safer half.
     if tally["placed"]:
         save_journal(out_dir, j)
         with open(path, "w", encoding="utf-8") as f:
@@ -761,11 +623,9 @@ def from_read(out_dir: str, read_dir: str, only_role: str = "artifact",
         + (f"; of those placed {tally['rewrapped']} — REWRAPPED: the model's "
            f"bytes are the same, OUR wrapper changed, no new work here"
            if tally["rewrapped"] else ""))
-    # FOUR different zeros, each with its own cause. The fourth — "everything
-    # is already there" — arrived with idempotence; before it a repeat printed
-    # "not one block landed: no \"artifact\" bucket among what was read"
-    # with 412 blocks standing: a talking step lying with a zero, and it
-    # sounded like a verdict on the reading.
+    # Four different zeros, each with its own cause: "everything is already
+    # there" is not "not one block landed", and neither is a verdict on the
+    # reading.
     if not tally["placed"]:
         if not tally["block_count"]:
             log("no blocks in the reading at all — this is not "
@@ -783,15 +643,11 @@ def from_read(out_dir: str, read_dir: str, only_role: str = "artifact",
                 f"what was read")
     for r in refused[:5]:
         log(f"  REFUSED {r}")
-    # PLACED DOES NOT MEAN GOOD, its own magnitude. Printed ALWAYS, zero
-    # included: a line that vanishes at zero reads as "this never happens". Of
-    # 104 tables placed on "Refractory technology" one is a `<table>` with
-    # 2047 cells in a single row, and "placed 412" was silent about it.
-    # TWO NUMBERS, NOT ONE. Apart means the translation lost a merge the model
-    # declared; together means everything it marked arrived.
-    # THE WORDS "IN THE BOOK", NOT "PLACED": both lines describe the WHOLE
-    # BOOK, and on a repeat run "placed 0" beside "at 2 placed" would read as
-    # a contradiction.
+    # Placed does not mean good, and this prints always, zero included: a line
+    # that vanishes at zero reads as "this never happens". The two merge numbers
+    # stand apart — apart means the translation lost a merge the model declared.
+    # Both lines say "in the book", not "placed", because they describe the whole
+    # book and not this run's work.
     log(f"  merges: the model declared {tally['merges_declared']} in "
         f"{tally['tables_with_merges']} tables, in the book stand "
         f"{tally['merges_in_book']}"
@@ -804,15 +660,11 @@ def from_read(out_dir: str, read_dir: str, only_role: str = "artifact",
         f"blocks OF THE BOOK — the model's answer is left byte for byte, "
         f"marked data-table-shape"
         + (f": {'; '.join(misshapen[:3])}" if misshapen else ""))
-    # A MARK NO CSS DRAWS IS A MARK IN THE JOURNAL ONLY. Measured: a book built
-    # by the old code gets `data-truncated` and `data-table-shape` in its body
-    # after `apply` while its `<style>` has no rules for them, and tables
-    # collapsed into spans lose the `overflow-x` guard. We do not edit the CSS:
-    # the book is the build's product, and a swap has no business in it.
+    # A mark no CSS draws is a mark in the journal only. The CSS is not edited
+    # here: the book is the build's product, and a swap has no business in it.
     if tally["placed"] or tally["impossible_table_shape"]:
-        # LOOK AT WHAT IS ALREADY READ. The first version reread the file and
-        # broke the guard "the batch swap reads the book ONCE": a check for a
-        # warning must not cost what it warns about.
+        # Look at what is already read: a check for a warning must not cost the
+        # reread this function exists to avoid.
         _book = html
         absent = [name for name, rule in
                (("truncation marks", "[data-truncated]"),

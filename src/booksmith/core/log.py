@@ -1,15 +1,12 @@
-"""One log line, one place. Timestamped, to STDOUT, flushed.
+"""One log line, one place. Timestamped, to stdout, flushed.
 
-Stdout and not stderr on purpose: the acceptance snapshots
-(`tests/expected/*.txt`) are the concatenation of both streams, and every
-report is compared line by line; moving diagnostics to stderr would reorder
-every one of them for no gain.
+Stdout and not stderr: the acceptance snapshots (`tests/expected/*.txt`) are
+the concatenation of both streams compared line by line, so a diagnostic on
+stderr would reorder every report.
 
-Import-free on purpose: `books ledger` is a command that rents nothing and
-must not import the `vastai` package, which is why `remote/ledger.py` once
-kept a `log` of its own rather than take `remote/vast.py`'s. Four copies
-of these two lines are gone; the two entrypoints that run ON THE RENTED BOX
-keep theirs, because they start before the package is on `sys.path`.
+Import-free: `books ledger` rents nothing and must not pull in the `vastai`
+package. The two entrypoints that run on the rented box keep a copy of these
+two lines, because they start before the package is on `sys.path`.
 """
 import time
 

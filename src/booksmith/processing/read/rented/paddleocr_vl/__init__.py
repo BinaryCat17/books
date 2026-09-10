@@ -1,56 +1,38 @@
 """PaddleOCR-VL on a rented card: delivery, and the figures for ranking.
 
-WHAT IS HERE: only what the runner needs to pick a machine and price a run.
-The reading lives next door in `reader.py`; a `Detector` of `models.base`
-is not here and will not be -- this model reads, it does not detect layout.
-`books read` has ridden this spec: 436 pages over eight rentals ($0.545 by
-`runs/ledger.jsonl`, two of them successful).
+Only what the runner needs to pick a machine and price a run. The reading
+itself lives in `readers/paddleocr_vl.py`, and no `Detector` belongs here --
+this model reads, it does not detect layout.
 
-`spec()` below assembles the job. To the machine ride the book, the four job
-files (`run.sh`, `provision.sh`, `constraints.txt`, `entrypoint.py`) and TWO
-DIRECTORIES: the detect output (the boxes we cut by) and THE `src/booksmith`
-PACKAGE ITSELF. The package instead of retyped code is a decision, not a
-convenience: the neighbouring `dots_ocr/entrypoint.py` carries its own copy of
-the page parser, and the two diverged on four inputs of thirteen before
-`tests/contract/test_parse_pages.py` held them. It weighs 1.2 MB of `.py`, 5.5 MB on
-disk as it rides (`doc/mathjax`, fresh `__pycache__`), against 2.2 GB of
-weights -- negligible, where a divergence of copies costs a run.
+`spec()` assembles the job. To the machine ride the book, the four job files
+(`run.sh`, `provision.sh`, `constraints.txt`, `entrypoint.py`) and two
+directories: the detect output we cut by, and `src/booksmith` itself. The
+package rather than retyped code, so home and box run the same bytes.
 """
 import os
 
 import booksmith
 
 from booksmith.remote.spec import HostReq, JobSpec
-# THE IMAGE THIS JOB RUNS IN. Used twice below and imported by nothing until
-# now: `c362a00` created `remote/image.py` and moved these two constants
-# there, the sibling job (`layout/rented/dots_ocr/__init__.py`) got the
-# import and this one did not. `books offers` and `books read --rent` both
-# raised on the unbound name -- the two commands that touch money, broken at
-# the line that names the machine to rent, and green through every check the
-# project has, because nothing calls `spec()` without spending. `spec()`
-# runs `compileall` first "or we would learn it for money"; compileall
-# checks syntax, and an unbound global is not a syntax error.
+# The image this job runs in; `remote/image.py` owns both constants, so the
+# sibling jobs cannot name two different machines.
 from booksmith.remote.image import BASE_IMAGE, IMAGE_GB
 from booksmith.core import knobs, stamp
 from booksmith.core.errors import Refusal
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-# The package root, `src/booksmith`. From here rather than from the working
-# directory -- otherwise a job assembled elsewhere would carry emptiness.
-# FROM THE PACKAGE ITSELF, never by counting `dirname`s: this file moved two
-# levels deeper in the package move of 2026-09-07, and two `dirname`s would
-# have shipped `processing/read` to the box as "booksmith" -- a partial
-# package, learnt for money. `tests/e2e/test_detect.py` holds it.
+# The package root, `src/booksmith`, asked of the package itself: the working
+# directory or a count of `dirname`s would ship emptiness or a partial package
+# the moment this file moves.
 PKG = os.path.dirname(os.path.abspath(booksmith.__file__))
 
 
-# Wheels plus weights as they travel the wire: 9.0 GB of environment on disk
-# arrive as compressed wheels, the weights (2.2 GB) do not compress at all.
-# Measured: 82 seconds.
+# What crosses the wire: 9.0 GB of environment arrive as compressed wheels, the
+# 2.2 GB of weights not compressed at all.
 PAYLOAD_GB = 7.2
 
-# Raising vLLM on a 5 GHz CPU. Not the card: imports, torch.compile and the
-# model warm-up. On a slower host it grew to 374 s.
+# Raising vLLM on a 5 GHz CPU -- imports, torch.compile, model warm-up, not the
+# card itself; 374 s on a slower host.
 WARMUP_S = 65.0
 
 # The torch wheels are for CUDA 13, which needs driver 580+.
@@ -62,11 +44,9 @@ def spec(pdf: str, detect_dir: str, pages: str = "",
          budget_usd: float = 0.60, timeout_minutes: float = 60.0) -> JobSpec:
     """The job for the runner: read a book's blocks on a rented card.
 
-    WHAT IS CHECKED HERE, AT HOME AND FOR FREE: all eight inputs -- the book,
-    the detect pages and their snapshot, the four job files, the package. Any
-    one missing would otherwise surface on the rented card, for money; the
-    previous level two was debugged exactly so -- thirteen launches, $0.52,
-    two useful.
+    All eight inputs are checked at home and for free -- the book, the detect
+    pages and their snapshot, the four job files, the package -- because any one
+    missing would otherwise surface on the rented card, for money.
     """
     for p, what in ((pdf, "book"),
                     (os.path.join(detect_dir, "pages"), "detection pages"),
@@ -81,13 +61,7 @@ def spec(pdf: str, detect_dir: str, pages: str = "",
                     (PKG, "the booksmith package")):
         if not os.path.exists(p):
             raise Refusal(f"no {p} ({what})")
-    # THE PACKAGE MUST COMPILE, AND THAT IS CHECKED RIGHT BEFORE THE UPLOAD.
-    # Measured: during edits the tree failed to parse for half a minute
-    # (`SyntaxError` in `read/driver.py`), and in that window a book of code
-    # that
-    # does not start would have ridden to the box -- learnt after a whole
-    # rental of provisioning, weights and vLLM warm-up. The check costs a
-    # fraction of a second.
+    # The package must compile, and that is checked right before the upload.
     import compileall
     if not compileall.compile_dir(PKG, quiet=2, force=True):
         raise Refusal(
@@ -105,21 +79,16 @@ def spec(pdf: str, detect_dir: str, pages: str = "",
             PKG: "booksmith",
             os.path.join(HERE, "run.sh"): "run.sh",
             os.path.join(HERE, "provision.sh"): "provision.sh",
-            # WITHOUT IT PROVISIONING FALLS TWO MINUTES AFTER PAYMENT.
-            # `provision.sh` installs the wheels with
-            # `uv pip install -r "$HERE/constraints.txt"`, where `$HERE` is
-            # its own directory on the box. The file was not listed in
-            # `inputs`, and `set -euo pipefail` felled the script:
-            #     error: File not found: `/root/job/constraints.txt`
-            # Checked on an assembled box layout with stand-in `uv` and `hf`.
+            # Without it provisioning falls two minutes after payment:
+            # `provision.sh` installs from `$HERE/constraints.txt` under
+            # `set -euo pipefail`.
             os.path.join(HERE, "constraints.txt"): "constraints.txt",
             os.path.join(HERE, "entrypoint.py"): "entrypoint.py",
         },
         outputs="outputs",
-        # The crops are NOT pulled back: a local command cuts them out of the
-        # book in seconds, and they weigh more than all the rest together.
-        # Measured on the neighbouring job: 167 MB of pictures out of a 179 MB
-        # directory, at 2.9 Mbit/s -- sixteen minutes of transfer for nothing.
+        # The crops are not pulled back: a local command cuts them out of the
+        # book in seconds, and they outweigh all the rest together (167 MB of a
+        # 179 MB directory).
         pull_exclude=("crops/",),
         image_gb=IMAGE_GB,
         payload_gb=PAYLOAD_GB,
@@ -127,21 +96,16 @@ def spec(pdf: str, detect_dir: str, pages: str = "",
         minutes=25.0,
         budget_usd=budget_usd,
         timeout_minutes=timeout_minutes,
-        # WHAT THE OPERATOR SET rides to the machine WHOLE, not by selection.
-        # The list is built from the registry (`knobs.passthrough`), not typed
-        # by hand: hand-typed it had already diverged, 13 names of 17, with
-        # four knobs deciding the choice of weights never riding at all.
-        # Defaults are NOT substituted: they have one place of residence, the
-        # registry, and a second copy in `run.sh` would mean a changed default
-        # never reaching the machine.
+        # What the operator set rides to the machine whole, taken from the
+        # registry (`knobs.passthrough`) rather than typed by hand. A default is
+        # never substituted here: the registry is its one place of residence.
         env={"HF_HUB_DISABLE_PROGRESS_BARS": "1",
-             # The commit comes from here: on the box there is no one to ask,
-             # git is not in the image. Placed UNDER `passthrough`, so that
-             # what the operator set by hand outweighs the builder's guess.
+             # The commit comes from here, git not being in the image; under
+             # `passthrough`, so a hand-set value outweighs this guess.
              "BOOKSMITH_COMMIT": stamp.commit() or "",
              **knobs.passthrough()},
         host=HostReq(gpu="RTX_4090", disk_gb=60, max_dph=0.60,
-                     # The CUDA requirement is the TASK's, see `CUDA_MIN`.
+                     # The CUDA requirement is the task's, see `CUDA_MIN`.
                      cuda_min=CUDA_MIN),
     )
 

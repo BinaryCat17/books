@@ -1,11 +1,9 @@
 """`books detect` end to end: a page really goes through, twice the same.
 
-Both checks run the command as a subprocess, and they are the only ones that
-walk the whole detect path -- every other check builds its detection fixture by
-hand. The day the path from a module to its own source file broke, every real
-run raised FileNotFoundError and the suite stayed green.
+Both checks run the command as a subprocess and are the only ones that walk the
+whole detect path -- every other check builds its detection fixture by hand.
 
-The bench comes from the fixture, drawn here; the WEIGHTS cannot be drawn, so
+The bench comes from the fixture, drawn here; the weights cannot be drawn, so
 their absence is a skip with a reason.
 """
 import json
@@ -39,15 +37,9 @@ def _detect(what, out):
 
 
 def test_the_detect_command_can_actually_run(slovar):
-    """`books detect` was BROKEN for a day and the suite was green.
-
-    The package move left the command's own source path assembled from a base
-    plus a literal, right while the base was `src/booksmith` and doubled the
-    moment the module moved a directory down. Every real run raised
-    FileNotFoundError; nothing noticed, because every check builds its detection
-    fixture BY HAND and the locks READ a detect directory rather than producing
-    one. So this one produces one, through the command line.
-    """
+    """The whole path through the command line, weights and all: every other
+    check builds its detection fixture by hand and the locks read a detect
+    directory rather than producing one."""
     _weights()
     out = os.path.join(tempfile.mkdtemp(), "d")
     r = _detect(slovar.pdf, out)
@@ -57,9 +49,7 @@ def test_the_detect_command_can_actually_run(slovar):
     snap = json.load(open(os.path.join(out, "run.json"), encoding="utf-8"))
     for key in ("identity", "label", "source", "fingerprint", "knobs"):
         assert snap.get(key), f"the snapshot has no {key}"
-    # THE MODULE THE SNAPSHOT NAMES IS ON DISK. This line ended in `or True` for
-    # a day -- a check that cannot fail, reading to the mutation battery as
-    # coverage.
+    # The module the snapshot names is on disk.
     mod = os.path.join(ROOT, "src",
                        snap["adapter"]["module"].replace(".", "/") + ".py")
     assert os.path.isfile(mod), (
@@ -71,17 +61,9 @@ def test_the_detect_command_can_actually_run(slovar):
 
 
 def test_detection_is_byte_reproducible_into_another_directory(slovar):
-    """The same model on the same page, twice, into two directories.
-
-    A sweep lays six models beside each other and its numbers are only a
-    comparison if each is reproducible. It was not: every page carried the
-    absolute path of the scratch PNG it was rendered to -- a file deleted at the
-    end of the run -- so two runs of ONE model differed on every page and were
-    identical without it. Nothing read the key.
-
-    This also pins `--out` against the book directory: resolving the scan only
-    when `--out` was absent handed the directory itself to the renderer.
-    """
+    """The same model on the same page, twice, into two directories: a sweep's
+    numbers compare only if each run repeats byte for byte, and no page may
+    carry a path that changes between runs. `--out` is pinned here too."""
     _weights()
     outs = []
     for _ in range(2):

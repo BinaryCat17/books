@@ -1,10 +1,8 @@
 """Renting on vast.ai over the SDK.
 
-This used to parse the CLI's stdout, and half the trouble grew from there:
-`destroy instance` asked for confirmation and **returned 0 even when it refused
-to work**, so the script reported a destruction while the money kept running.
-The SDK asks nothing -- `destroy_instance(id)`. The re-query check stays all
-the same: it costs one call, and the mistake costs money.
+The SDK and not the CLI, whose `destroy instance` asks for confirmation and
+returns 0 even when it refuses to work -- a destruction reported while the money
+runs on. The re-query check stays all the same: it costs one call.
 """
 import os
 import re
@@ -17,40 +15,23 @@ from .spec import HostReq, JobSpec
 from booksmith.core.log import log
 from booksmith.core.errors import Refusal
 
-# ssh on a vast instance hijacks the login into tmux, so `ssh host 'cmd'`
-# prints "no sessions" and RUNS NOTHING; cured by this file. rsync goes in at
-# once, or fetching results would not be incremental. authorized_keys
-# permissions are fixed in a loop, not once: vast writes the file
-# world-readable at an undefined moment, sometimes later than our onstart, and
-# sshd reads it on every connection. The image does the same through
-# StrictModes no, which cannot be relied on: vast caches the built image by
-# name and tag, and the machine may hold a build off an older base.
+# ssh on a vast instance hijacks the login into tmux, so `ssh host 'cmd'` runs
+# nothing; cured by this file, which also puts rsync in at once, or fetching
+# results would not be incremental. authorized_keys permissions are fixed in a
+# loop, not once: vast writes the file world-readable at an undefined moment, and
+# sshd reads it on every connection.
 #
 # ------------------------------------------------------------ deadman watch
-# Destruction used to rest on a live local process -- the `finally` in run_job
-# and a guard in its thread. One reboot of the operator's machine and the
-# instance lived on billing while its task died with the ssh: instance
-# 48131402, seven minutes for nothing.
-#
-# So the switch moved ONTO the rented machine. vast puts CONTAINER_API_KEY and
-# CONTAINER_ID into the container -- the key by which an instance may destroy
-# itself -- and a background loop watches the age of /root/.alive, touched
-# every 30 seconds by the living operator (Box.start_heartbeat). No touch for
-# longer than DEADMAN_GRACE_S and the machine destroys itself.
-#
-# The grace sits in /root/.alive.grace, not baked into the loop: with --keep
-# the instance is deliberately left without an operator and gets another
-# number.
+# The last switch lives on the rented machine: a loop destroys the instance with
+# the container's own CONTAINER_API_KEY once /root/.alive, touched every 30
+# seconds by the operator (Box.start_heartbeat), goes stale. The grace sits in a
+# file and not in the loop: with --keep the instance is left without an operator
+# on purpose and gets another number.
 DEADMAN_GRACE_S = 900
 
-# Where the watch reports it is ARMED. Without this file nothing could check
-# it: on an empty CONTAINER_API_KEY the loop lived as if nothing were wrong and
-# knocked `curl -X DELETE` with an empty Bearer every half minute -- the last
-# line against a money leak switched off and looking like work, its errors
-# going to /root/deadman.log, which we do not fetch. The watch now reports in
-# QUANTITIES (pid of its shell, instance id, LENGTH of the key -- the length,
-# not the key: the report lies on the machine and travels into our log), and
-# `Box.check_deadman` reads it right after ssh, before anything is uploaded.
+# Where the watch reports it is armed; without the file nothing could check it,
+# and an empty CONTAINER_API_KEY would look like work. The report holds
+# quantities only -- pid, instance id, the length of the key and not the key.
 DEADMAN_STATE = "/root/.deadman.state"
 
 ONSTART = (
@@ -63,23 +44,19 @@ ONSTART = (
     "   K=$(tr '\\0' '\\n' < $E | sed -n 's/^CONTAINER_API_KEY=//p' | head -1); fi; "
     " if [ -z \"$I\" ]; then "
     "   I=$(tr '\\0' '\\n' < $E | sed -n 's/^CONTAINER_ID=//p' | head -1); fi; "
-    # The report is written FROM INSIDE the background loop, right before
-    # `while`: it testifies not that onstart had the variables but that the
-    # watch reached its loop with a non-empty key and id; empty means exit with
-    # a shout into the file we read.
-    # Its words are LATIN, and that is not style: the string travels to vast
-    # through the API, lands as an onstart file, is run by the machine's shell
-    # and returns over ssh, and whether UTF-8 survives that can only be checked
-    # by renting. A false "watch not armed" would cost the alarm its
-    # credibility.
+    # The report is written from inside the background loop, right before
+    # `while`: it testifies that the watch reached its loop with a key and an id,
+    # not merely that onstart had them.
+    # Latin words, and not for style: the string crosses the vast API, an onstart
+    # file, the machine's shell and ssh, and UTF-8 over that path cannot be
+    # checked without renting.
     " if [ -z \"$K\" ] || [ -z \"$I\" ]; then "
     "   echo \"NOT-ARMED key=${{#K}} id='$I'\" > {state}; exit 1; fi; "
     " echo \"ARMED pid=$$ id=$I key=${{#K}} grace={grace}s\" > {state}; "
     " while sleep 30; do "
-    # `|| echo` caught only a MISSING file. An empty one (a torn write) gave an
-    # empty G and `[ N -gt ]` a syntax error -- that is, a lie: the machine
-    # never killed itself and wrote the errors quietly into /root/deadman.log,
-    # which we do not fetch.
+    # A `case` and not `|| echo`: an empty file (a torn write) would give an
+    # empty G and `[ N -gt ]`, a syntax error, and a machine that never kills
+    # itself, its errors going into /root/deadman.log, which we do not fetch.
     "   G=$(cat /root/.alive.grace 2>/dev/null); "
     "   case \"$G\" in \'\'|0|*[!0-9]*) G={grace};; esac; "
     "   A=$(stat -c %Y /root/.alive 2>/dev/null || echo 0); "
@@ -110,25 +87,10 @@ class Vast:
                payload_gb: float = 0.0, warmup_s: float = 0.0) -> list[dict]:
         q = host.query()
         log(f"search: {q}, disk {host.disk_gb} GB")
-        # `storage` is the disk the server prices `dph_total` AGAINST
-        # (`vastai/api/offers.py`: `q["allocated_storage"] = storage`), SDK
-        # default 5.0 GiB. We rent 60, and THREE things hang on that number:
-        # the server-side `dph_total<max_dph` filter, our budget ceiling and
-        # the ledger cost.
-        #
-        # Measured on the live market 03.09.2026 (RTX_4090, same query, only
-        # `storage` differing; 17 offers in BOTH answers): at 60 GiB the price
-        # is $0.013…$0.051 an hour higher -- median $0.026, 3.8% (up to 8.4%).
-        # The fourfold spread is the host's disk price, $0.16 to $0.53 per
-        # GB-month.
-        #
-        # WHAT IT DID NOT SHOW: the order did not change today -- of 14 shared
-        # offers not one moved, the cheapest is the same, so "the ranking
-        # picked the wrong machine" is unclaimable. What it did show: those
-        # same 3.8% understate the budget ceiling (`Budget` divides money by
-        # `dph`), the ledger cost and that server threshold. Of today's 17
-        # offers NOT ONE crossed our $0.60 from the disk change -- only one
-        # already closer to the ceiling than the surcharge would.
+        # `storage` is the disk the server prices `dph_total` against, SDK
+        # default 5 GiB against the 60 we rent, and three things hang on that
+        # price: the server-side `dph_total<max_dph` filter, our budget ceiling
+        # and the ledger cost. At 60 GiB the hour is a median 3.8% dearer.
         found = self.v.search_offers(q, order="dph_total",
                                      storage=float(host.disk_gb))
         if not found:
@@ -149,9 +111,7 @@ class Vast:
                                  "checked was rejected on channel")
         if prefer_machines:
             # A priority list, not a set: first comes whoever computed fastest
-            # for us. This used to take `ranked[0]` of the intersection, the
-            # cheapest of the known ones -- and cheap and fast are different
-            # machines.
+            # for us, and cheap and fast are different machines.
             by_machine = {}
             for o in ranked:
                 by_machine.setdefault(o.get("machine_id"), o)
@@ -168,12 +128,11 @@ class Vast:
     # -------------------------------------------------------------- renting
     def create(self, offer_id: int, spec: JobSpec,
                on_created=None) -> int:
-        """Create the instance and hand its id out AT ONCE.
+        """Create the instance and hand its id out at once.
 
-        Binding the ssh key, five retries of 4 s, used to live in here. All
-        that time the instance already existed and took money while the caller
-        did not know its id: Ctrl-C in that window and there was nothing to
-        destroy.
+        Binding the ssh key does not belong in here: through its retries the
+        instance exists and takes money while the caller does not know its id,
+        so a Ctrl-C in that window would have nothing to destroy.
         """
         res = self.v.create_instance(
             id=int(offer_id),
@@ -185,7 +144,7 @@ class Vast:
             onstart_cmd=ONSTART.format(workdir=spec.workdir,
                                        grace=DEADMAN_GRACE_S,
                                        state=DEADMAN_STATE),
-            # Without this a failed placement silently creates a STOPPED
+            # Without this a failed placement silently creates a stopped
             # instance that goes on charging for disk.
             cancel_unavail=True,
         )
@@ -198,7 +157,7 @@ class Vast:
         return int(iid)
 
     def attach_key(self, iid: int, key_path: str) -> bool:
-        """A key registered on the account does NOT reach the instance.
+        """A key registered on the account does not reach the instance.
 
         It must be attached to this very instance, or you get `Permission
         denied (publickey)` -- after the image has been downloaded.
@@ -223,11 +182,9 @@ class Vast:
     def instance(self, iid: int) -> dict | None:
         """The instance description; None only when it surely does not exist.
 
-        On a request error we raise rather than return None: the caller must
-        tell "they answered that the machine is gone" from "we could not ask".
-        Any 500 or timeout used to look like "no instance", and --reuse took a
-        SECOND card while the first billed on to its own watch. Polarity as in
-        alive(): unknown is not dead.
+        On a request error we raise rather than return None: the caller must tell
+        "they answered that the machine is gone" from "we could not ask".
+        Polarity as in alive(): unknown is not dead.
         """
         rows = self.v.show_instance(id=int(iid))
         return rows[0] if isinstance(rows, list) and rows else (
@@ -260,10 +217,9 @@ class Vast:
     def ssh_target(self, iid: int) -> tuple[str, str, str]:
         """The machine's address: direct first, the proxy as fallback.
 
-        `ssh_url` gives out the sshN.vast.ai proxy, and it fails: the tunnel to
-        the container sometimes does not come up at all -- "remote port
-        forwarding failed for listen port" -- while the direct port answers.
-        Direct is also faster: rsync of the result crosses no relay.
+        `ssh_url` hands out the sshN.vast.ai proxy, whose tunnel to the container
+        sometimes does not come up at all while the direct port answers. Direct
+        is also faster: rsync of the result crosses no relay.
         """
         inst = self.instance(iid) or {}
         ip = inst.get("public_ipaddr")
@@ -288,28 +244,18 @@ class Vast:
             return True          # could not ask -> assume it is alive
         return any(str(i.get("id")) == str(iid) for i in rows)
 
-    # The backoff GROWS. A flat 4 s pause over five attempts, each making TWO
-    # API calls (destroy plus check), is ten requests in twenty seconds:
-    # unnoticeable while all is well, but let the API refuse and the code
-    # hammers AT THE SAME RATE, answering a rate limit by speeding up. Measured
-    # 3 September 2026: after such a burst the key returned 403 to EVERYTHING,
-    # `/users/current` included, and `curl` with the same key showed the
-    # refusal came from vast.ai, not from our wrapper.
-    #
-    # The backoffs sum to 2 minutes, deliberately under the deadman grace
-    # (900 s): even if destruction fails outright the machine puts itself out.
+    # The backoff grows: a flat pause answers a rate limit by hammering at the
+    # same rate, and after such a burst the key returned 403 to everything. The
+    # sum is two minutes, deliberately under the deadman grace, so even an
+    # outright failure to destroy ends with the machine putting itself out.
     RETRY_S = (4, 8, 16, 32, 60)
 
     def destroy(self, iid) -> bool:
-        """Kill an instance. Returns False rather than raising, ALWAYS.
+        """Kill an instance. Returns False rather than raising, always.
 
-        THE COERCION LIVES HERE, and it did not: every caller wrote
-        `destroy(int(iid))`, and four of those calls are in cleanup blocks --
-        `int(None)` from a `finally` is the shape that has already cost this
-        project a run, and one of them sat before the line that restores the
-        signal handlers, so a bad id would have left Ctrl-C dead. A kill that
-        refuses must refuse the way the rest of this method does: by saying
-        so and returning False.
+        The coercion of the id lives here because four of the callers are cleanup
+        blocks, where an `int(None)` would fly out of a `finally` -- one of them
+        before the signal handlers are restored, leaving Ctrl-C dead.
         """
         try:
             iid = int(iid)
@@ -324,11 +270,9 @@ class Vast:
                 self.v.destroy_instance(id=int(iid))
             except Exception as e:
                 refusal = e
-                # A REFUSAL OF ACCESS IS ANOTHER TROUBLE and must be named as
-                # one. "Destroy did not work" means the machine disobeyed; 403
-                # and 429 mean we are not let in, and then not only this
-                # attempt is pointless but the `alive` check after it -- it
-                # will answer "alive" merely because there is nobody to ask.
+                # A refusal of access is another trouble and is named as one:
+                # after 403 or 429 not this attempt alone is pointless but the
+                # `alive` check, which answers "alive" with nobody to ask.
                 we_are_refused = any(k in str(e) for k in ("403", "429"))
                 log(f"  attempt {attempt+1} to destroy failed: {e}"
                     + ("  -- this is a REFUSAL OF ACCESS, not the machine "

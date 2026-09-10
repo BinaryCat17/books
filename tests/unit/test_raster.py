@@ -1,11 +1,8 @@
-"""Two NameErrors the package move left in guards, pinned.
+"""Two guards that must fire as refusals, not as NameErrors.
 
-`core/raster.py` caught a `Refusal` it never imported, so `CROP_DPI=nan`,
-the exact input the guard three lines above it was written for, died with
-a NameError instead of being counted as a failed crop. `core/textnorm.py`
-raised a `TextError` it could not see, so a misspelt `--norm` was a
-traceback instead of "could not count". Both found by the step-1 review,
-neither by the battery: no probe fed either guard the bad value.
+`core/raster.py` refuses a `CROP_DPI` that is not a positive number, and
+`core/textnorm.py` an undeclared `--norm` level. A module that names an error
+class must import it, or the guard dies where it should speak.
 """
 import os
 
@@ -46,17 +43,9 @@ def test_an_undeclared_normalisation_level_is_a_text_error():
 
 
 def test_a_bad_crop_dpi_does_not_break_a_path_that_names_the_resolution():
-    """Our knob's error used to be charged to the model.
-
-    `books read` and `books crop` decide each crop's resolution themselves and
-    never use `CROP_DPI` -- but `params` was called unconditionally and
-    validated it anyway, so `CROP_DPI=0` raised a ValueError the read driver
-    files as "crop failed" and `report()` prints as "the model's box is
-    degenerate or lies off the sheet. That is its defect, not ours."
-
-    The margin is a different matter and still comes from the environment:
-    the reading path applies it.
-    """
+    """A knob's error must not be charged to the model: `books read` and `books
+    crop` decide each crop's resolution themselves and never use `CROP_DPI`, so
+    validating it there files our defect as "crop failed"."""
     import tempfile
     import pymupdf
     doc = pymupdf.open()

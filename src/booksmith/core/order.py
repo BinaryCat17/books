@@ -1,84 +1,22 @@
-"""BOOK ASSEMBLY ORDER -- one rule for the project, not four copies.
+"""The book assembly order: one rule for the project, chosen by a knob.
 
-WHAT IT DECIDES. Level one returns contours; the book still has to be folded
-into a sequence. Two models of six predict the reading order THEMSELVES --
-`PP-DocLayoutV2` and `V3`, a real network rank. `plus-L`, `heron`, `egret` and
-`YOLOX` have none, so we set the order. This file is "we".
+Level one returns contours; the book still has to be folded into a sequence.
+`PP-DocLayoutV2` and `V3` predict the reading order themselves; `plus-L`,
+`heron`, `egret` and `YOLOX` do not, and this file supplies it. `ASSEMBLY_ORDER`
+picks between `ours`, which sorts by (y0, x0), and `docling`, the vendor's rules
+over eight of their labels, which find columns where (y0, x0) reads across them
+and cost `docling-slim` and `rtree`, +54 MB.
 
-WHY A FILE OF ITS OWN. The rule lived in FOUR places of three adapters, and in
-two of them it was NOT what it declared:
-
-    doclayout.py:441   our_order_key       -> (y0, x0)          declared right
-    yolox_layout.py    kept.sort           -> (y0, x0)          declared right
-    docling_heron.py   kept.sort  x2       -> (round(y/20), x)  DECLARED AS
-                                              "ours, top down and left to
-                                              right", which it is not
-
-Twenty-pixel buckets are the very thing `doclayout.py` had rejected (the
-reason stands below, at the sort). Two rules under one name, visible only by
-reading all four places at once. Now the place is one.
-
-WHICH RULE IS BETTER IS MEASURED, AND OURS LOST. THE SAME `PP-DocLayoutV2`
-boxes, 600 golden pages, permuted three ways, one `books score`, one
-denominator (464 pages counted):
-
-    ours (y0, x0)             2471 extra jumps   5.33 per page
-    the model's own rank, V2   501               1.08
-    docling rules              439               0.95
-    docling rules blindfolded  454               0.98   (every label = text)
-
-Control: the "rank" variant gave exactly the 501 `books score` prints on the
-working output -- coordinates untouched, only the list permuted. The
-blindfolded run shows the win comes NOT from our label translation but from the
-rules finding columns; 439 against 454 is the price of the translation, small.
-
-STABILITY IS CHECKED, AND THE ANSWER IS TWO DIFFERENT ONES.
-`metrics.column_jumps_ranking` over 16 sweep points of the grouping
-parameters:
-
-    RULER SPAN 4.02
-    bounds:  ours (y0, x0)      3.021 .. 7.041
-             model rank V2      0.229 .. 1.733
-             docling rules      0.284 .. 1.569
-    inverted pairs: "model rank V2 against docling rules"
-
-* **ours is worse than both STABLY** -- the bounds do not overlap at any of the
-  16 points. That is the one being replaced;
-* **docling rules against the V2 rank the instrument CANNOT TELL APART** -- the
-  pair inverts, the difference at the default being 0.13 against a span of
-  4.02. So V2 and V3 keep their rank: trading working and free for a 54 MB
-  dependency without a number is taste, not measurement.
-
-WHY (y0, x0) LOSES THOUGH IT SOUNDS RIGHT: on a two-column page it reads ACROSS
-the columns -- a line of the left, a line of the right, the left again. Every
-crossing is an extra jump, justly: a book folded that way interleaves columns.
-
-WHAT THIS IS NOT: fixing the model. No box coordinate is touched, nothing
-merged, cut or dropped -- only the ORDER OF THE LIST, and that was always ours.
-The rule "nobody fixes the model" does not apply here.
-
-WHAT `docling` COSTS, before switching it on:
-
-* `docling-slim` and `rtree`, +54 MB (no torch);
-* THE ORDER DEPENDS ON THE PYTHON VERSION. `reading_order_rb.py` holds two
-  non-transitive `sorted()` calls (lines 535 and 556, both sorting
-  `PageElement` by one `__lt__`), and on the same 600 pages python 3.12.3 and
-  3.13.13 diverged on THREE pages, the boxes identical to the last digit. The
-  version travels into the snapshot (`detect._packages`), so the divergence is
-  at least visible;
-* the rules look at only EIGHT labels of their vocabulary, translated by name
-  in `_LABELS`.
+No box coordinate is touched here -- only the order of the list, which is ours.
 """
 import functools
 from booksmith.core.errors import Refusal
 
 RULES = ("ours", "docling")
+# `ours` is free; `docling` folds better -- 439 extra column jumps against 2471.
 DEFAULT = "ours"
 
-# Words for the page `meta`, and also what `metrics._model_has_rank` reads:
-# `ours` MUST stay the first word of the string (case is folded for it in
-# `core/page.ours_order`), or the metric takes a foreign rule for a model
-# rank and prints an agreement percentage out of nothing.
+# `ours` must stay the first word, or the metric takes our order for a model rank.
 WORDS = {
     "ours": "ours_top_down_left_right",
     "docling": ("ours_by_choice_but_the_rule_is_foreign: reading_order_rb "
@@ -122,20 +60,8 @@ def rule() -> str:
     return v
 
 
-# TRANSLATED BY NAME, NOT DERIVED FROM THE ROLE. Same argument as the reading
-# routes in `read/readers/paddleocr_vl.py`: each detector has its OWN
-# vocabulary -- 25 names in V2, 20 in plus-L, 17 in each docling model, 11 in
-# DocLayNet -- and "what I do not know is text" would silently carry the
-# twenty-sixth class of new weights under a wrong name. The role
-# (`policy.role`) will not do: it answers "cut out or print", while the rules
-# need "page header or page footer", which the role "service" does not tell
-# apart.
-#
-# The rules look at exactly eight names (checked by reading
-# `reading_order_rb`): CAPTION, CODE, FOOTNOTE, PAGE_FOOTER, PAGE_HEADER,
-# PICTURE, TABLE, TEXT. Anything unlisted is TEXT, and that is a VALUE, not a
-# default: the rules have no separate behaviour for "paragraph" and "section
-# header".
+# Translated by name, not by role: the rules need page header against page footer.
+# They read eight names; anything unlisted rides as `text`, a value, not a default.
 _LABELS = {
     "PP-DocLayoutV2": {
         "header": "page_header", "header_image": "page_header",
@@ -178,21 +104,10 @@ _LABELS = {
 
 
 def cover(vocab, which=None) -> str | None:
-    """Is there a translation for THIS vocabulary. Fails before page one.
+    """Is there a translation for this vocabulary. Fails before page one.
 
-    ASKED ONLY WHEN NEEDED. The `ours` rule needs no labels -- it looks at
-    coordinates -- and demanding a declared policy for it would kill a run over
-    a vocabulary the rule never touches. The first edition did that, caught by
-    a stub adapter with one label.
-
-    `vocab` is the model's FULL vocabulary (`self.labels`), not the page's
-    labels: the policy is chosen by vocabulary, not by a hand-typed name --
-    `policy.for_labels` again, called here rather than rewritten.
-
-    An unknown label inside a known vocabulary is no trouble: it rides as
-    `text`, a declared value. A foreign vocabulary whole is: the rules have
-    separate behaviour for running heads, and under a foreign one a running
-    head would sail into the body of the page. Silently.
+    Asked only for the `docling` rule, the one that reads labels, and by the
+    model's full vocabulary -- a foreign one sails a running head into the body.
     """
     if (which or rule()) == "ours":
         return None
@@ -209,12 +124,10 @@ def cover(vocab, which=None) -> str | None:
 
 @functools.lru_cache(maxsize=1)
 def _predictor():
-    """ONE order predictor per run.
+    """One order predictor per run.
 
     Its constructor sets two numbers of its own (`dilated_page_element`, the
-    horizontal expansion threshold 0.15); building it afresh per page would
-    promise they may drift. Same argument as `_DoclingPipeline` in
-    `layout/adapters/docling.py`.
+    horizontal threshold 0.15), and one per page would let them drift.
     """
     try:
         from docling.models.postprocessing.reading_order_rb import (
@@ -232,28 +145,20 @@ def _predictor():
 
 def permutation(labels, boxes, width, height, index, vocab,
                 which=None) -> list[int]:
-    """Permutation of the block list. Returns INDICES, not blocks.
-
-    Indices on purpose: three adapters carry three list shapes (a
-    `(label, score, box)` tuple in yolox and heron, a numpy row in doclayout),
-    and the shared rule must know none of them. Each used to sort itself, and
-    the shapes drifted along with the rules.
-
-    `boxes` are in page pixels, origin at the TOP LEFT as everywhere here; the
-    docling rules count from the BOTTOM (`self.b > other.b`), converted here.
-    Fed as they come, the book would be read bottom up and no box metric would
-    notice -- the trap named in `METRICS.md`.
+    """Permutation of the block list, as indices, since three adapters carry
+    three list shapes and the shared rule knows none of them. `boxes` are page
+    pixels, origin top left; the docling rules count from the bottom.
     """
     which = which or rule()
     n = len(boxes)
     if n == 0:
         return []
     if which == "ours":
-        # NO y buckets, on purpose: `round(y/20)` is raster pixels, and at
-        # another PAGE_DPI row neighbours would swap places with no knob to
-        # declare it.
+        # No y buckets: `round(y/20)` is raster pixels, so at another PAGE_DPI
+        # row neighbours would swap places with no knob to declare it.
         return sorted(range(n), key=lambda i: (boxes[i][1], boxes[i][0]))
 
+    # The vendor's two non-transitive sorts make this order python-version dependent.
     from docling.models.postprocessing.reading_order_rb import (
         PageElement as RoElement)
     from docling_core.types.doc import CoordOrigin, DocItemLabel, Size
@@ -270,10 +175,7 @@ def permutation(labels, boxes, width, height, index, vocab,
             b=h - float(b[3]), t=h - float(b[1]),
             coord_origin=CoordOrigin.BOTTOMLEFT))
     out = [e.cid for e in _predictor().predict_reading_order(els)]
-    # A PERMUTATION MUST BE A PERMUTATION. The rules split running heads and
-    # body into three lists and stitch them back; lose an element there and a
-    # box would vanish from the book silently, while the count "after" would
-    # merely look a little smaller.
+    # A permutation must be a permutation, or a box vanishes from the book silently.
     if sorted(out) != list(range(n)):
         raise RuntimeError(
             f"the docling order rules returned something that is not a "

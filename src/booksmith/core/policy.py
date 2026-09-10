@@ -1,37 +1,23 @@
 """What level one does with a block: `text`, `artifact` or `furniture`.
 
-OURS, not the model's, and so declared outright, whole, and carried into the
-snapshot: "40 artifacts" cannot be read back without it, short of opening the
-same commit.
+Ours, not the model's: declared whole and carried into the snapshot, or "40
+artifacts" cannot be read back. The policy is complete by construction -- a
+label absent from here fells the run, and there is no default, so new weights
+with one more class cannot pour it into the prose unnoticed.
 
-THE POLICY IS COMPLETE BY CONSTRUCTION, AND THAT IS THE POINT OF THE FILE. A
-label absent from here fells the run. No default, deliberately: in the paddlex
-postprocessing a threshold dict holding one class silently gave the rest 0.5,
-so "lower the table threshold" changed the behaviour of all twenty-five. The
-same trap waits here: new weights with a twenty-sixth class would pour it into
-the prose without a word.
-
-THREE ROLES, NOT TWO. `artifact` is cut out as a picture and inserted as is;
-level two takes it apart, in isolation from its neighbours. `text` stays text
-in the flow. `furniture` -- running heads, folios, footnotes -- is formally
-text and most likely unwanted, but dropping it NOW is a decision without a
-measurement, so it is marked and kept: the mark costs nothing, the dropped
-could not be restored. The bench decides.
+`artifact` is cut out as a picture for level two to take apart, `text` stays
+text in the flow, and `furniture` -- running heads, folios, footnotes -- is
+text most likely unwanted, marked and kept until the bench decides.
 """
 
 from booksmith.core.errors import Unmeasurable
-# SEVERAL POLICIES -- one per LABEL VOCABULARY. With one detector the policy
-# was one, and "is another model better" could not even be measured: a foreign
-# label felled the run. Now each vocabulary is declared apart and whole, and
-# `ROLE` is their union with a contradiction check -- one label cannot mean
-# two things in two vocabularies.
+# One policy per label vocabulary; `ROLE` is their union, and a label may not mean two things.
 PP_DOCLAYOUT_V2 = {
     # --- cut out as a picture ------------------------------------------
     "table": "artifact",
     "chart": "artifact",
     "image": "artifact",
-    # A formula as a block is a picture. It goes to HTML badly and not always,
-    # and deciding that is level two's business, not ours.
+    # A formula as a block is a picture; whether it becomes HTML is level two's business.
     "display_formula": "artifact",
     "header_image": "artifact",
     "footer_image": "artifact",
@@ -49,10 +35,7 @@ PP_DOCLAYOUT_V2 = {
     "reference_content": "text",
     "text": "text",
     "vertical_text": "text",
-    # CAREFUL, A BORDERLINE CASE. An inline formula lives INSIDE the flow, and
-    # cutting it out as a picture tears a sentence in half. So text -- with a
-    # caveat: the content is then lost silently while every contour number
-    # stays perfect. First candidate for a measurement.
+    # Text, not a picture: cutting an inline formula out would tear the sentence in half.
     "inline_formula": "text",
     "formula_number": "text",
 
@@ -64,10 +47,7 @@ PP_DOCLAYOUT_V2 = {
     "vision_footnote": "furniture",
 }
 
-# DocLayNet -- the vocabulary the YOLO layout detectors are trained on
-# (yolov10/11 doclaynet, DocLayout-YOLO). Eleven classes against our
-# twenty-five: one formula here for every kind, and no reading order at all.
-# Declared so the architectures can be compared at all.
+# DocLayNet, what the YOLO detectors are trained on: eleven classes, one formula, no order.
 DOCLAYNET = {
     "Table": "artifact",
     "Picture": "artifact",
@@ -82,11 +62,7 @@ DOCLAYNET = {
     "Footnote": "furniture",
 }
 
-# Docling heron/egret (IBM): seventeen classes, RT-DETRv2 on other data.
-# Declared for the CROSS-CHECK: two independent models on the same pages
-# answer whether merging is a property of the architecture or of the sample.
-# It has NO `chart` class -- charts go to `picture`, to be remembered when
-# comparing: our `chart` is inexpressible to it.
+# Docling heron/egret (IBM): seventeen classes, and no `chart` -- charts go to `picture`.
 DOCLING = {
     "table": "artifact",
     "picture": "artifact",
@@ -107,10 +83,7 @@ DOCLING = {
     "footnote": "furniture",
 }
 
-# PP-DocLayout_plus-L -- V2's predecessor in the same family: twenty classes
-# instead of twenty-five, ONE `formula` for display and inline both, and NO
-# reading order (V2's pointer network brought that). Declared to measure the
-# pedigree: what the five added classes and the pointer network gave.
+# PP-DocLayout_plus-L, V2's predecessor: twenty classes, one `formula`, no reading order.
 PP_DOCLAYOUT_PLUS_L = {
     "table": "artifact",
     "chart": "artifact",
@@ -134,10 +107,7 @@ PP_DOCLAYOUT_PLUS_L = {
     "footnote": "furniture",
 }
 
-# Docling egret (D-FINE): the same seventeen classes as heron, but the names
-# are spelled otherwise -- capitalised and hyphenated. A separate policy, not
-# a merge: merging would erase the difference of the vocabularies, our only
-# way to tell a translation error from a model error.
+# Docling egret (D-FINE): heron's classes spelled otherwise, kept apart so a naming error shows.
 DOCLING_EGRET = {
     "Table": "artifact",
     "Picture": "artifact",
@@ -185,15 +155,10 @@ class UnknownLabel(Unmeasurable):
 
 
 def check(labels, policy: str = "PP-DocLayoutV2") -> None:
-    """The policy must cover the model's vocabulary WHOLE.
+    """The policy must cover the model's vocabulary whole, and hold nothing extra.
 
-    Checked every run, not once: the vocabulary arrives with the weights, and
-    changing weights is the likeliest way to acquire a twenty-sixth class.
-    Something extra in the policy is trouble too: `"figure"` instead of
-    `"image"` would give "artifacts 0" for ever and silently.
-
-    Compared against ONE named vocabulary, not the union: the union covers
-    foreign labels too, and the check would stop catching what it is for.
+    Checked every run, the vocabulary arriving with the weights, and against one
+    named vocabulary rather than the union, which covers foreign labels too.
     """
     if policy not in POLICIES:
         raise UnknownLabel(
@@ -214,13 +179,10 @@ def check(labels, policy: str = "PP-DocLayoutV2") -> None:
 
 
 def for_labels(labels) -> str:
-    """Which policy describes THIS vocabulary of labels.
+    """Which policy describes this vocabulary of labels.
 
-    Chosen by the MODEL'S VOCABULARY, not a name we typed out: a weights
-    name can be mistaken, the class list arrives from the weights
-    themselves. The SETS are compared exactly -- rename one label and no
-    policy fits any more. None fitting is a fall; two fitting does not happen,
-    the class sets of our models being distinct.
+    Chosen by the model's own class list rather than a name we typed, comparing
+    the sets exactly: a renamed label fits nothing, and none fitting is a fall.
     """
     have = set(labels)
     fit = [n for n, t in POLICIES.items() if set(t) == have]

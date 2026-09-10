@@ -1,17 +1,12 @@
 """The second level: blocks read by a model -- the whole path, for no cents.
 
-OUR half is checked, from prompt routes to the snapshot, five different
-zeroes among them. The model is stood in for by `fake_vlm.FakeVlm`, an
+Our half is checked, from prompt routes to the snapshot, five kinds of zero
+among them. The model is stood in for by `fake_vlm.FakeVlm`, an
 OpenAI-compatible endpoint answering to order; it does not read the picture
 and does not pretend to.
 
-WHY BEFORE THE FIRST PAID RUN. The order of work here is the reverse of the
-usual: bench and instrument first, model after. The PREVIOUS second level was
-debugged on a rented card -- thirteen launches, $0.52, two of them useful --
-and every trap turned out to be ours, not the model's. That tally belongs to
-the deleted pipeline and matches no job in the ledger today; the current
-reading is `vl-read`, 8 rentals of which 2 succeeded, $0.545. Ask the ledger,
-not this line: `books ledger`.
+The order of work is bench and instrument first, model after, so a trap that
+is ours is found before a card is rented.
 """
 import json
 import os
@@ -33,12 +28,9 @@ from booksmith.processing.read.readers.paddleocr_vl import PaddleOcrVl
 # -------------------------------------------------------------- routes ---
 
 def test_every_label_of_every_dictionary_has_a_route():
-    """A label without a route drops the run BEFORE the first cent.
-
-    No default "whatever I don't know, ask OCR:", deliberately: each detector
-    has its OWN label dictionary, and the twenty-sixth class of new weights
-    would leave under the wrong prompt, its answer written down as reading.
-    """
+    """A label without a route drops the run before the first cent. No default
+    "whatever I don't know, ask OCR:": each detector has its own dictionary, and
+    an unknown class would otherwise leave under the wrong prompt."""
     from booksmith.core import policy
     for name, d in policy.POLICIES.items():
         PaddleOcrVl(name).cover(d.keys())          # throws on a hole
@@ -97,12 +89,8 @@ def _t(url, model="PaddleOCR-VL-1.6-0.9B"):
 
 
 def test_transport_asks_who_is_answering():
-    """The check asks not "are you alive" but "what is your name".
-
-    Paid for on the first level: `curl /v1/models` was answered by an ORPHAN
-    of the previous run holding 60 % of the video memory, and the script took
-    it for its own.
-    """
+    """The check asks not "are you alive" but "what is your name": an orphan of
+    a previous run holding the video memory answers /v1/models too."""
     with FakeVlm({"text": "ok"}) as s:
         out = _t(s.url).check()
         assert out["matched"] and out["models_on_server"] == [s.model]
@@ -129,11 +117,9 @@ def test_delivery_refusal_is_a_value_not_a_throw():
 
 
 def test_answer_200_is_never_repeated():
-    """Asking again after an answer is forbidden by rule and said in code.
-
-    A 200 with nothing in it IS an answer, and asking again would be
-    repairing the model. Calls to the service are counted: exactly one.
-    """
+    """Asking again after an answer is forbidden by rule and said in code: a 200
+    with nothing in it is an answer, and asking again would be repairing the
+    model. Calls to the service are counted: exactly one."""
     png = _png()
     os.environ["VLM_RETRIES"] = "3"
     with FakeVlm({"text": ""}) as s:
@@ -153,12 +139,9 @@ def test_delivery_refusal_is_repeated():
 
 
 def test_empty_crop_is_loud():
-    """An empty crop never leaves for the model.
-
-    On a blank white sheet this model returns full tables -- five different
-    ones in five tries. Send emptiness and you get an invention written down
-    as reading.
-    """
+    """An empty crop never leaves for the model: on a blank white sheet this
+    model returns full tables, and emptiness sent would come back as an
+    invention written down as reading."""
     import tempfile
     p = os.path.join(tempfile.mkdtemp(), "empty.png")
     open(p, "wb").close()
@@ -171,11 +154,8 @@ def test_empty_crop_is_loud():
 
 
 def test_the_very_crop_reaches_the_model():
-    """THAT crop reached the model, not the neighbouring one.
-
-    Paid for on the first level: a loop variable overwrote the scale factor,
-    and 36 pages of 36 were written down unparsed on a faultless answer.
-    """
+    """That crop reached the model, not the neighbouring one: the bytes that
+    arrived and the prompt beside them are both compared."""
     png = _png()
     n = os.path.getsize(png)
     with FakeVlm({"text": "ok"}) as s:
@@ -187,24 +167,16 @@ def test_the_very_crop_reaches_the_model():
 # ------------------------------------------------------------- parsing ---
 
 def test_otsl_grid_matches_html_grid_cell_for_cell():
-    """A grid from OTSL and the same grid from HTML agree address by address.
-
-    The reading instrument parsed a table ONLY out of HTML, so a faultless
-    answer from PaddleOCR-VL -- which returns OTSL -- got "matched by address
-    0 (0 %)" and the brand "handed over as text": the model accused of a
-    defect in our parser.
-    """
-    # What is compared is NOT the OTSL parser but THE function the instrument
-    # pulls a grid out of a model answer with. The first edition called
-    # `otsl.grid` and `_html_grid` separately, and the mutation "blind to OTSL
-    # again" passed it by: a broken `_answer_grid` never touched the check.
+    """A grid from OTSL and the same grid from HTML agree address by address:
+    the instrument must read both, or a faultless OTSL answer scores zero."""
+    # Not the OTSL parser alone but the function the instrument pulls a grid
+    # out of a model answer with.
     from booksmith.datasets.metrics import text as booktext
     want = {(0, 0): "A", (0, 1): "B", (1, 0): "1", (1, 1): "2"}
     g1 = booktext._answer_grid("<fcel>A<fcel>B<nl><fcel>1<fcel>2<nl>", "otsl")
     g2 = booktext._answer_grid("<table><tr><td>A</td><td>B</td></tr>"
                                "<tr><td>1</td><td>2</td></tr></table>", "html")
-    # And the kind declared by the prompt does not lock the parser: a model
-    # asked for a table and answering HTML HAS READ THE TABLE.
+    # The declared kind does not lock the parser: HTML for a table is read.
     g3 = booktext._answer_grid("<fcel>A<fcel>B<nl><fcel>1<fcel>2<nl>", "html")
     assert g1 == g2 == g3 == want
 
@@ -216,11 +188,8 @@ def test_otsl_span_occupies_all_its_addresses():
 
 
 def test_torn_otsl_is_counted_not_repaired():
-    """Torn OTSL stays torn and is counted as a number.
-
-    The vendor's `otsl_pad_to_sqr_v2` does the opposite -- pads and truncates
-    in silence -- and a table torn at the ceiling comes back plausible.
-    """
+    """Torn OTSL stays torn and is counted as a number: padding it, as the
+    vendor does, returns a table torn at the ceiling as a plausible one."""
     _, t = otsl.parse("<fcel>a<fcel>b<nl><fcel>c<nl>")
     assert t["rows_of_unequal_length"] == 1
     _, t2 = otsl.parse("<lcel>x<nl>")
@@ -298,8 +267,8 @@ def _run(tmp, plan, out_dir=None, snapshot=False, **kw):
         t = vrun.read_book(os.path.join(tmp, "detect"), out, r, vhttp.Http(),
                            log=lambda *a: None, **kw)
         if snapshot:
-            # The guard reads `run.json`, which only `snapshot()` writes: a
-            # run without one is not a run and nothing is refused over it.
+            # The guard reads `run.json`, which only `snapshot()` writes: a run
+            # without one is not a run and nothing is refused over it.
             vrun.snapshot(os.path.join(tmp, "detect"), out, r, vhttp.Http(),
                           t, {})
     return out, t
@@ -317,7 +286,7 @@ def test_read_fills_content_in_the_same_page_schema():
     by = {b.block_id: b for b in p.blocks}
     assert by[0].content == "a line of prose" and by[0].kind == "text"
     assert by[1].content == "<fcel>A<fcel>B<nl>" and by[1].kind == "otsl"
-    # The picture was never asked -- and that is NOT model silence.
+    # The picture was never asked, and that is not model silence.
     assert by[2].content is None and by[2].kind == "none"
     assert t["not_asked"] == 1 and t["read"] == 2
 
@@ -426,14 +395,9 @@ def test_empty_run_is_not_a_success():
 
 
 def test_snapshot_carries_prompts_and_our_parser():
-    """The snapshot carries prompts, generation and the hash of OUR OTSL
-    parser.
-
-    Prompts are the only thing here that steers the answer, and the "prompts"
-    field was empty in every run of the project until now. The OTSL parser is
-    hashed apart: it decides the numbers no less than the model, and two runs
-    with different parsers must differ in the snapshot.
-    """
+    """The snapshot carries prompts, generation and the hash of our OTSL parser:
+    prompts are the only thing here that steers the answer, and the parser
+    decides the numbers no less than the model does."""
     import tempfile
     tmp = tempfile.mkdtemp()
     _book(tmp)
@@ -450,14 +414,13 @@ def test_snapshot_carries_prompts_and_our_parser():
     assert snap["generation"]["max_tokens"] == 4096
     assert len(snap["adapter"]["sha256_otsl_parser"]) == 64
     assert snap["fingerprint"]["weights"]["dir"] is None
-    # The key does NOT go into the snapshot: snapshots are committed to git.
+    # The key does not go into the snapshot: snapshots are committed to git.
     assert snap["transport_fingerprint"]["api_key"] == "no"
 
 
 # ------------------------------------------------------------- preview ---
-# `books crop`. It exists because the preview it replaced (`books feed`) cut
-# with knobs and a dpi of its own and showed pictures the paid path never
-# sent. So the check is not "it wrote something" but THE SAME BYTES.
+# `books crop`: the check is not "it wrote something" but the same bytes the
+# paid path sends.
 
 
 def _preview(tmp):
@@ -469,11 +432,9 @@ def _preview(tmp):
 
 
 def test_the_preview_cuts_the_very_crops_the_paid_run_cuts():
-    """Byte for byte, and the questions with them.
-
-    A preview whose pictures differ from the paid run's is worse than none:
-    it is looked at BEFORE the money and believed.
-    """
+    """Byte for byte, and the questions with them: a preview whose pictures
+    differ from the paid run's is worse than none, being looked at before the
+    money and believed."""
     import hashlib
     import tempfile
     tmp = tempfile.mkdtemp()
@@ -487,8 +448,7 @@ def test_the_preview_cuts_the_very_crops_the_paid_run_cuts():
         return {f: hashlib.sha256(open(os.path.join(c, f), "rb").read()
                                   ).hexdigest() for f in os.listdir(c)}
     a, b = crops(prev), crops(paid)
-    # The names are the same by construction (one anchor rule), so printing
-    # them says nothing: the message must name the quantity that differs.
+    # The names match by construction, so the message must name what differs.
     diff = sorted(set(a.items()) ^ set(b.items()))
     assert a and not diff, (
         f"the preview cut something else: {[(n, h[:12]) for n, h in diff]} "
@@ -498,25 +458,18 @@ def test_the_preview_cuts_the_very_crops_the_paid_run_cuts():
                           encoding="utf-8"))["asks"]
     assert {x["anchor"] for x in asks} == {f[:-4] for f in a}
     assert tp["would_ask"] == len(asks) == 2, tp
-    # The picture is not the whole question: the prompt and the kind decide
-    # what comes back, and a preview that shows the crop alone shows half.
+    # The prompt and the kind decide what comes back; a crop alone shows half.
     assert {x["kind"] for x in asks} == {"text", "otsl"}
     assert all(x["prompt"] for x in asks)
-    # And the resolution rule with the reason it fired, which is what the
-    # preview is looked at FOR: too coarse a crop is decided here, not after
-    # the run.
+    # The resolution rule with the reason it fired: too coarse a crop is
+    # decided here, not after the run.
     assert all(x["crop_dpi"] > 0 and x["crop_dpi_reason"] for x in asks)
 
 
 def test_the_preview_writes_nothing_a_paid_run_would_believe():
-    """No `read_with.json`, no `pages/`, no `answers/`.
-
-    `read_with.json` is what a resuming `books read` compares against to
-    decide whether the old answers may stand. Written by a preview -- which
-    has no transport at all -- it would name a setup no money ever bought.
-    Empty `pages/` and `answers/` beside the crops read as a reading that
-    returned nothing.
-    """
+    """No `read_with.json`, no `pages/`, no `answers/`: a preview has no
+    transport, so `read_with.json` would name a setup no money bought, and an
+    empty `pages/` reads as a reading that returned nothing."""
     import tempfile
     tmp = tempfile.mkdtemp()
     _book(tmp)
@@ -527,15 +480,9 @@ def test_the_preview_writes_nothing_a_paid_run_would_believe():
 
 
 def _raster_book(tmp):
-    """A book whose crop is DOWNSCALED to the model's ceiling.
-
-    Needed because the plain fixture cannot tell the two dpi quantities
-    apart: its page is vector, `native_dpi` is None, both boxes fall below
-    the model's lower bound, and the rule returns exactly `PAGE_DPI`. Here
-    the page carries a 2000x2000 raster on 200x200 pt (720 dpi of its own)
-    and the box is nearly the whole sheet, so the rule answers with a
-    FRACTION and `crop.cut` renders at `int()` of it.
-    """
+    """A book whose crop is downscaled to the model's ceiling: a 2000x2000
+    raster on 200x200 pt with the box nearly the whole sheet, so the rule
+    answers with a fraction. The plain fixture cannot separate the two dpi."""
     import pymupdf
     from booksmith.core import stamp
     pdf = os.path.join(tmp, "r.pdf")
@@ -566,14 +513,9 @@ def _raster_book(tmp):
 
 
 def test_the_preview_reports_the_dpi_it_cut_at_not_the_rule_s_number():
-    """The same key must mean the same thing in both files.
-
-    `crop.cut` renders at `int(dpi)` while the rule gives a fraction, and the
-    paid run was fixed to record the DEED under `crop_dpi` and the rule under
-    `crop_dpi_by_rule` -- the two disagreed on 328 boxes of 379. The preview
-    wrote the rule's float under the name of the deed, so the one number it
-    reports about resolution was a number nothing was cut at.
-    """
+    """The same key must mean the same thing in both files: `crop_dpi` is the
+    deed and `crop_dpi_by_rule` the rule, and `crop.cut` renders at `int(dpi)`
+    while the rule gives a fraction."""
     import tempfile
     tmp = tempfile.mkdtemp()
     _raster_book(tmp)
@@ -595,15 +537,9 @@ def test_the_preview_reports_the_dpi_it_cut_at_not_the_rule_s_number():
 
 
 def test_a_preview_refuses_to_land_on_a_paid_read_directory():
-    """The crops ARE something a paid run believes.
-
-    `answers/*.json` records `observed.crop` -- file, dpi, width, height,
-    clipped by the sheet -- describing those very files, and they are the
-    only surviving picture of what the money bought. A preview writes
-    `crops/<anchor>.png` under the same names, so `books crop --out <a read
-    directory>` replaced them at whatever CROP_MARGIN was in force, with no
-    warning, while `answers/` went on describing the files that were sent.
-    """
+    """The crops are something a paid run believes: `answers/*.json` describes
+    those very files, the only surviving picture of what the money bought, and
+    a preview writes `crops/<anchor>.png` under the same names."""
     import tempfile
     tmp = tempfile.mkdtemp()
     _book(tmp)
@@ -625,13 +561,9 @@ def test_a_preview_refuses_to_land_on_a_paid_read_directory():
 
 
 def test_the_preview_names_the_blocks_it_would_not_ask_about():
-    """The paid run files a record for EVERY block; the preview kept only
-    the questions.
-
-    So the one instrument for "what will this run do before I pay" could not
-    say which blocks it would skip and why -- and with a crop failing, it
-    said `"asks": []` and nothing else at all.
-    """
+    """The preview files a record for every block, not only the questions: what
+    a run would skip and why is half the answer to "what will this run do
+    before I pay"."""
     import tempfile
     tmp = tempfile.mkdtemp()
     _book(tmp)                      # its third block is a picture: not asked
@@ -643,10 +575,9 @@ def test_the_preview_names_the_blocks_it_would_not_ask_about():
 
 
 def test_a_preview_may_not_resume():
-    """Ignored, `resume` would show every block as "would ask" on a book
-    already half read -- and the number of requests is what the preview is
-    for. The answers a resume would reuse live in the read directory, where
-    a preview may not write."""
+    """A preview may not resume: `resume` would show every block as "would ask"
+    on a book already half read, and the answers it would reuse live in the
+    read directory, where a preview may not write."""
     import tempfile
     tmp = tempfile.mkdtemp()
     _book(tmp)
@@ -662,18 +593,9 @@ def test_a_preview_may_not_resume():
 
 
 def test_a_second_reading_at_other_settings_may_not_resume_the_first():
-    """The one command that spends money had no guard at all.
-
-    `books detect` refuses to write a different experiment under an existing
-    label; `books read` did not, and `core/book.py` stated the guard
-    generally. So a second run at another temperature, seed or prompt RESUMED
-    the first run's answers in place -- under its name, beside its snapshot,
-    and with `read_with.json` comparing a setup nobody had paid for.
-
-    The identity the guard asks is the same number the snapshot records: one
-    function, so the number that refuses a run and the number written into it
-    cannot be two.
-    """
+    """A run at another temperature, seed or prompt may not resume the first:
+    the identity the guard asks is the same number the snapshot records, so
+    what refuses a run and what is written into it cannot be two."""
     import tempfile
     tmp = tempfile.mkdtemp()
     _book(tmp)

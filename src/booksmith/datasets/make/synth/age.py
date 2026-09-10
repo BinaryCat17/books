@@ -16,26 +16,19 @@ AGING = {
                  skew=0.5, jpeg=85),
     "old": dict(blur=0.8, noise=5.5, speck=0.0012, tint=(232, 12, 8),
                 skew=1.2, jpeg=68),
-    # decayed: show-through from the back and a dark scan edge added to `old`.
-    # Neither moves a truth box. The skew is DELIBERATELY that of `old`, skew
-    # being the ONLY part of aging that does move them (through `_xform_box`);
-    # at equal skew the two profiles' boxes match byte for byte, so a
-    # difference in the number belongs to the paper. The old edition set 1.8
-    # while the README promised "decayed does not move truth boxes" -- it moved
-    # all 382.
+    # decayed: show-through from the back and a dark scan edge over `old`.
+    # Neither moves a truth box, and the skew is DELIBERATELY `old`'s -- skew is
+    # the only part of aging that does move them -- so at equal skew the two
+    # profiles' boxes match byte for byte and a difference belongs to the paper.
     "decayed": dict(blur=1.1, noise=7.5, speck=0.0026, tint=(214, 20, 14),
                    skew=1.2, jpeg=52, bleed=0.16, edge=0.55),
 }
 
 
 def _age(img, profile: str, seed: int):
-    """Age the raster. Returns (raster, rotation matrix or None).
-
-    Aging is not decoration: measured on one page, the CLEAN page has no
-    `table` box at all while the aged one grows one (0.583) -- with a competing
-    `text` 0.567 on the same rectangle, the signature of the very defect
-    diagnosed on a real book. Clean paper would measure a different task.
-    """
+    """Age the raster; returns (raster, rotation matrix or None). Aging is not
+    decoration: on one page the clean raster yields no `table` box at all while
+    the aged one does, so clean paper would measure a different task."""
     import cv2
     import numpy as np
 
@@ -47,12 +40,10 @@ def _age(img, profile: str, seed: int):
     g = cv2.GaussianBlur(g, (0, 0), p["blur"])          # ink spread
     h, w = g.shape
     if p.get("bleed"):
-        # Show-through: the mirrored page, blurred and weak. The plague of old
-        # thin paper, and exactly the kind of "text" that is not on the page
-        # while a box can still land on it. With an OFFSET: without one,
-        # symmetric layout puts the mirror on its own text and show-through
-        # becomes thicker ink, testing something other than its name. A book's
-        # back lines up with its front neither by line nor by column.
+        # Show-through: the mirrored page, blurred and weak -- the kind of
+        # "text" that is not on the page while a box can still land on it. WITH
+        # AN OFFSET, or a symmetric layout puts the mirror on its own text and
+        # show-through becomes thicker ink instead.
         back = cv2.GaussianBlur(g[:, ::-1], (0, 0), p["blur"] * 3.0)
         sx, sy = int(w * 0.035), int(h * 0.012)
         back = np.roll(np.roll(back, sy, axis=0), sx, axis=1)
@@ -65,11 +56,10 @@ def _age(img, profile: str, seed: int):
     spec = rng.random(g.shape) < p["speck"]             # specks
     g[spec] = rng.uniform(40, 120, spec.sum())
     if p.get("edge"):
-        # Dark scan edge: a book shot on a flatbed has a black border. A band
-        # 1-3% of the sheet wide, on one random side. Its own generator, or the
-        # edge draws would shift the stream and the SKEW ANGLE of a profile
-        # with an edge would differ from one without -- truth boxes diverging
-        # where a match is promised.
+        # Dark scan edge: a band 1-3% of the sheet wide on one random side. Its
+        # OWN generator, or these draws shift the stream and with it the skew
+        # angle, so a profile with an edge would move truth boxes and one
+        # without would not.
         erng = np.random.default_rng(seed + 991)
         side = int(erng.integers(0, 4))
         d = int(max(6, min(h, w) * erng.uniform(0.008, 0.03)))
@@ -86,10 +76,8 @@ def _age(img, profile: str, seed: int):
     M = None
     if p["skew"]:
         # Its OWN generator: from the shared one the angle would depend on how
-        # many draws were taken above, and that count depends on `speck`. That
-        # is how two profiles with the SAME skew diverged on all 382 truth
-        # boxes, by up to 28 pixels, and cross-profile comparison silently
-        # measured a different truth.
+        # many draws `speck` took above, and two profiles with the same skew
+        # would diverge on every truth box.
         ang = np.random.default_rng(seed + 4409).uniform(-p["skew"], p["skew"])
         M = cv2.getRotationMatrix2D((w / 2, h / 2), ang, 1.0)
         g = cv2.warpAffine(g, M, (w, h), flags=cv2.INTER_CUBIC,
@@ -101,13 +89,9 @@ def _age(img, profile: str, seed: int):
 
 
 def _binding(img, seed: int):
-    """The binding shadow down the middle of a spread.
-
-    The very shadow the cut veto once got wrong eleven times out of eleven: the
-    blackness at the gutter came from the shadow while the code checked a band
-    rather than a continuous rule. A synthetic spread must carry it, or the
-    veto is checked on a case that does not exist in nature.
-    """
+    """The binding shadow down the middle of a spread. A synthetic spread must
+    carry it, or the spread-cut veto is checked on a case that does not exist in
+    nature."""
     import numpy as np
 
     rng = np.random.default_rng(seed + 7)
@@ -123,12 +107,9 @@ def _binding(img, seed: int):
 
 
 def _xform_box(box, M):
-    """A box after an affine transform: the rectangle bounding its corners.
-
-    For a model with axis-aligned boxes that is the correct truth: a rotated
-    rectangle cannot be expressed there, and the one bounding it is exactly
-    what the detector is obliged to return.
-    """
+    """A box after an affine transform: the rectangle bounding its corners. For
+    a model with axis-aligned boxes that IS the correct truth -- a rotated
+    rectangle cannot be expressed there, and the bounding one is what it owes."""
     import numpy as np
     x0, y0, x1, y1 = box
     pts = np.array([[x0, y0, 1], [x1, y0, 1], [x1, y1, 1], [x0, y1, 1]]).T
@@ -147,14 +128,9 @@ def _clip_box(box, w, h):
 
 
 def _rot90_box(box, src_h):
-    """A box after the raster is rotated 90° clockwise.
-
-    A point y goes to x' = src_h - 1 - y, so [y0, y1] becomes
-    [src_h-1-y1, src_h-1-y0]; the RIGHT edge is half-open and so equals
-    src_h - y0, not src_h - 1 - y0. The old edition lost a pixel on every box
-    of a rotated page -- little, but exactly the direction the truth is obliged
-    not to err in.
-    """
+    """A box after the raster is rotated 90° clockwise. A point y goes to
+    x' = src_h - 1 - y, and the RIGHT edge is half-open, so it equals src_h - y0
+    and not src_h - 1 - y0."""
     x0, y0, x1, y1 = box
     return (src_h - 1 - y1, x0, src_h - y0, x1)
 

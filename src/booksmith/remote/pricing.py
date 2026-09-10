@@ -1,50 +1,37 @@
 """What a run really costs, and which offer to take.
 
-Ranking by $/hour is wrong, for two measured reasons:
-
-1. **A cold start costs money**, and it runs over two channels an order of
-   magnitude apart: the image goes through docker, everything else past it.
-2. **Traffic costs money.** Over 41 RTX 4090 offers the price of inbound
-   traffic was non-zero on every one, $0.4 to $29.3 per TB, median $2.7. On an
-   expensive host, delivering the environment costs more than the work does.
+Ranking by $/hour is wrong for two reasons. A cold start costs money and runs
+over two channels an order of magnitude apart: the image through docker,
+everything else past it. And inbound traffic is charged on every offer -- $0.4
+to $29.3 per TB, median $2.7 over 41 of them -- so on an expensive host
+delivering the environment costs more than the work does.
 """
 from dataclasses import dataclass
 
 # ------------------------------------------------------------ through docker
-# Three layers at once, one HTTP connection inside a layer, and the registry
-# caps it near 25 Mbit/s. Measured: 6.02 GB in 10.7 minutes on a machine with a
-# 1518 Mbit/s channel -- 76 Mbit/s, five per cent of the link.
+# One HTTP connection inside a layer and a registry capping it near 25 Mbit/s:
+# 6.02 GB in 10.7 minutes on a 1518 Mbit/s link, five per cent of it.
 DOCKER_EFFICIENCY = 0.05
 DOCKER_CEILING_MBPS = 120.0
 
-# Unpacking: gzip inside a layer is single-threaded, and layers are applied
-# strictly one after another. Measured on the same image: nine more minutes
-# after "Download complete", i.e. 11 MB/s of compressed input. The disk (8166
-# MB/s NVMe) has nothing to do with it -- the single gzip thread is the wall.
+# Unpacking: gzip inside a layer is single-threaded and layers apply strictly
+# one after another -- 11 MB/s of compressed input, whatever the disk can do.
 UNPACK_MBPS = 11.0
 
 # --------------------------------------------------------------- past docker
-# uv and hf open dozens of connections and saturate the link. Measured: a
-# machine advertising 639 Mbit/s took ~7 GB in 82 s, about 700 Mbit/s. We use
-# 0.85, leaving room for hosts whose advertised figure is optimistic.
-#
-# Unpacking wheels is not counted separately: uv decompresses on every core
-# while still downloading, and it fitted inside those same 82 seconds.
+# uv and hf open dozens of connections and saturate the link: ~7 GB in 82 s
+# where 639 Mbit/s was advertised, wheels unpacked inside the same time. The
+# margin leaves room for a host whose advertised figure is optimistic.
 PAYLOAD_EFFICIENCY = 0.85
 
 BOOT_SECONDS = 95.0            # rent -> ssh: vast adds its own ssh to the image
 
 # -------------------------------------------------------------------- warmup
-# Bringing vLLM up is imports, torch.compile and a model warmup -- processor
-# work, not card work. The spread between hosts is sixfold: 65 s on a Ryzen
-# 7800X3D (5.0 GHz) against 374 s where the clock was lower. Neither link nor
-# disk explains it; both were measured on an RTX 4090.
-#
-# The model is deliberately crude, inverse in the clock, and rests on one
-# reliable point. It belongs in the RANKING, not in a filter: this is a trade
-# (a faster processor costs about $0.06/hour more and saves up to five minutes
-# of start), and the full-cost arithmetic is what should settle it. Start time
-# goes into the ledger so the coefficient can be fitted.
+# Bringing vLLM up is imports, torch.compile and a model warmup: processor work,
+# not card work, and the spread between hosts is sixfold -- 65 s at 5.0 GHz
+# against 374 s at a lower clock. The model is crude and inverse in the clock,
+# so it belongs in the ranking and not in a filter: a faster processor is a
+# trade of about $0.06/hour against up to five minutes of start.
 WARMUP_REF_GHZ = 5.0           # the clock the figure above was measured at
 
 
@@ -89,7 +76,7 @@ def estimate(offer: dict, image_gb: float, minutes: float,
 
 def rank(offers: list[dict], image_gb: float, minutes: float,
          payload_gb: float = 0.0, warmup_s: float = 0.0, **kw) -> list[dict]:
-    """Offers by ascending FULL cost of the run, each with an `_est` field."""
+    """Offers by ascending full cost of the run, each with an `_est` field."""
     out = []
     for o in offers:
         e = estimate(o, image_gb, minutes, payload_gb, warmup_s, **kw)
@@ -99,8 +86,7 @@ def rank(offers: list[dict], image_gb: float, minutes: float,
 
 def describe(offer: dict) -> str:
     e = offer["_est"]
-    # `.get(k, 0)` does not save us: the key exists and the value is None,
-    # and the format then throws.
+    # `.get(k, 0)` does not save us: the key exists with the value None.
     down = float(offer.get("inet_down") or 0)
     disk = float(offer.get("disk_bw") or 0)
     return (f"#{offer['id']}  ${offer['dph_total']:.3f}/hour  "

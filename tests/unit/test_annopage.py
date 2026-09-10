@@ -1,35 +1,12 @@
 """The golden bench builder: two places where it could lie silently.
 
-THIS FILE HAD NOT ONE CHECK, and every headline number of the project stands
-on its product: 698 objects of 1232, 646 whole in meaning, 94.0% of the ink,
-`PP-DocLayoutV2` chosen as the base of level one. Not one of the 152 earlier
-checks touched `annopage.py`.
+A label in the markup is an index whose name comes from line N of `classes.txt`,
+so the order is checked against `dataset.yaml` in the same archive: the set of
+names alone passes a swap. And `truth/` may not be cleaned before the guards
+that can refuse the build, or a refusal destroys what it protects.
 
-The conspiracy is between `annopage.py` and THE AnnoPage ARCHIVE, and it was
-written down as prose alone. Both defects below were found and measured on
-the live bench, both were fixed after the find, and both can return -- hence
-pinned here.
-
-    class order on faith    a label in the markup is an INDEX, and its name
-                            comes from line N of `classes.txt`; only the SET
-                            of names was checked. Swapping `Table` and
-                            `Vignette` passed silently, and the measurement
-                            became 1121 objects instead of 1232, 13 tables
-                            instead of 124. A second source of the same map,
-                            `dataset.yaml`, lies in the same archive and had
-                            never been read
-
-    truth wiped before      `truth/` was cleaned before the main loop while
-    the guards              the `--truth-only` guards stood a hundred lines
-                            below. On a copy of the bench the build fell
-                            saying "600 pages, truth rewritten to 5" -- and
-                            by that moment FIVE of 600 good files were left.
-                            595 destroyed by the refusal meant to protect
-                            them
-
-The bench here is OUR OWN, tiny and synthetic: `raw/annopage` is 3.5 GB, is
-on no other machine, and a check that silently skipped itself without it
-would be exactly the zero from not understanding that CLAUDE.md warns of.
+The bench here is our own, tiny and synthetic: `raw/annopage` is on no other
+machine, and a check that skipped itself without it would be a silent zero.
 """
 import json
 import os
@@ -42,12 +19,8 @@ from booksmith.datasets.make import annopage
 
 def _mini(root, names=None, yaml_names=None, pages=2):
     """A tiny archive of AnnoPage shape: two pages, one object each."""
-    # NO DEFAULT WORTH THE NAME. This read `annopage._classes.__doc__ or []`,
-    # and `_classes` has no docstring -- so the fallback was `[]` and
-    # `classes.txt` would have been a lone newline; had a docstring ever been
-    # added, `list(str)` would have given a list of single CHARACTERS. Every
-    # caller passes `names=`, so the branch was dead as well as wrong; a
-    # refusal says so instead.
+    # No default worth the name: every caller passes `names=`, so a refusal is
+    # better than a fallback that would write a lone newline into classes.txt.
     if names is None:
         raise AssertionError("_mini needs names= -- there is no sane default")
     names = list(names)
@@ -80,13 +53,9 @@ def _real_names():
 
 
 def test_class_order_is_checked_against_the_second_source():
-    """`classes.txt` against `dataset.yaml`: a disagreement fails ALOUD.
-
-    Can fail: drop the comparison and swapping two lines passes silently
-    while the whole bench assembles under other people's labels. On the live
-    archive the two maps AGREE today (25 of 25), so the guard is not being
-    set in the tracks of an accident.
-    """
+    """`classes.txt` against `dataset.yaml`: a disagreement fails aloud. Can fail:
+    drop the comparison and swapping two lines passes while the whole bench
+    assembles under other people's labels; on the live archive the two agree."""
     names = _real_names()
     swapped = list(names)
     swapped[0], swapped[1] = swapped[1], swapped[0]
@@ -105,10 +74,8 @@ def test_class_order_is_checked_against_the_second_source():
 
 
 def test_matching_sources_are_accepted():
-    """The other side: matching maps do NOT fail the build.
-
-    Without it the guard could be "fixed" by forbidding everything.
-    """
+    """The other side: matching maps do not fail the build, or the guard could be
+    "fixed" by forbidding everything."""
     names = _real_names()
     with tempfile.TemporaryDirectory() as d:
         _mini(d, names=names, yaml_names=names)
@@ -116,14 +83,9 @@ def test_matching_sources_are_accepted():
 
 
 def test_a_failed_build_does_not_destroy_good_truth():
-    """A guard's refusal does NOT destroy the truth already lying there.
-
-    That very defect: the build fell with truthful words, having already
-    erased 595 files of 600. The check lays down knowingly foreign truth,
-    fails the build by the `--truth-only` guard (a pdf that is not there),
-    and demands the foreign truth be left untouched -- because what to do
-    about a mismatch is for a human to decide, not for a fragment of a build.
-    """
+    """A guard's refusal does not destroy the truth already lying there: the check
+    lays down knowingly foreign truth, fails the build by the `--truth-only`
+    guard, and demands it untouched -- a mismatch is for a human to decide."""
     names = _real_names()
     with tempfile.TemporaryDirectory() as d:
         root = os.path.join(d, "raw")
@@ -154,16 +116,9 @@ def test_a_failed_build_does_not_destroy_good_truth():
 
 
 def test_the_sheet_follows_the_declared_knob():
-    """The sheet size is computed FROM `PAGE_DPI`, not from a wired-in 0.5.
-
-    The size means one thing: rendering at `PAGE_DPI` must return exactly the
-    source raster. A wired 0.5 is right only at the default 144; at 288 the
-    bench would assemble about a raster twice as fine as declared, while the
-    truth went on writing "dpi: 144.0". The size comparison in `metrics`
-    caught that -- someone else's file -- and the builder itself kept quiet.
-
-    Can fail: put `w * 0.5` back and the sheet at 288 stays as it was.
-    """
+    """The sheet size is computed from `PAGE_DPI`, not from a wired-in 0.5:
+    rendering at `PAGE_DPI` must return exactly the source raster, and a wired
+    0.5 is right only at the default. Can fail: put `w * 0.5` back."""
     import pymupdf
 
     from booksmith.core import knobs
@@ -176,13 +131,7 @@ def test_the_sheet_follows_the_declared_knob():
             _mini(root, names=names, yaml_names=names)
             old = os.environ.get("PAGE_DPI")
             os.environ["PAGE_DPI"] = dpi
-            # NO CACHE TO CLEAR, and a guard hid that. The line here was
-            # `knobs.knob.cache_clear() if hasattr(knobs.knob, "cache_clear")
-            # else None`; `knobs.knob` is a plain function, so the `hasattr`
-            # was always False and the call never ran. Harmless today and
-            # blind in the direction that matters: memoise `knob()` and this
-            # sweep would compare 144 against 144 and go green on a wired-in
-            # scale -- the very defect it exists to catch. Asserted instead.
+            # Memoised, `knob()` would make this sweep compare 144 with 144.
             assert not hasattr(knobs.knob, "cache_clear"), (
                 "`knobs.knob` is memoised now: this sweep sets PAGE_DPI per "
                 "pass and would read the first value every time, reporting "
@@ -209,19 +158,9 @@ def test_the_sheet_follows_the_declared_knob():
 
 
 def test_a_refused_build_leaves_the_golden_bench_untouched():
-    """The accident this file records, and the half of it that was missing.
-
-    `annopage.build` learned the write-aside after a refusal destroyed 595 of
-    600 truth files -- and then left `truth.new` on disk after every refusal,
-    with the pdf written in place and the manifest written after the swap. So
-    a refusal could leave a partial second copy of the golden bench in a
-    tracked directory, and a fall between the writes could leave `truth/`
-    describing one sample beside a pdf holding another.
-
-    The refusal used is the one the file's own comment names: `--truth-only`
-    over a different sample, which is caught by the page-count guard AFTER the
-    main loop has written every truth file.
-    """
+    """A refusal leaves the golden bench untouched: no `truth.new` beside it, the
+    pdf unswapped, the manifest unmoved. The refusal used is `--truth-only` over
+    a different sample, caught after the main loop has written every file."""
     import shutil
     import tempfile
     tmp = tempfile.mkdtemp()
@@ -260,11 +199,9 @@ def test_a_refused_build_leaves_the_golden_bench_untouched():
         f"second copy of the truth, in a directory git tracks and does not "
         f"ignore, with nothing to say which of the two is the bench")
 
-    # AND THE PDF TRAVELS WITH THEM. The refusal above never reaches the save
-    # (`--truth-only` writes no pdf), so the window between "pdf written" and
-    # "truth swapped" needs a crash of its own -- staged at the hash of the
-    # aside pdf, which is the last thing before the manifest and therefore
-    # after the new pdf exists and before anything is swapped.
+    # And the pdf travels with them. The refusal above writes no pdf, so the
+    # window between "pdf written" and "truth swapped" needs a crash of its own,
+    # staged at the hash of the aside pdf: after it exists, before any swap.
     _mini(root, names=names, yaml_names=names, pages=4)
     real = stamp.sha256
 

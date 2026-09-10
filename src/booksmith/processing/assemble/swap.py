@@ -1,20 +1,14 @@
 """Swapping one block for second-level markup -- and undoing it.
 
-The whole two-level scheme exists for this: "a swap can be checked, undone and
-redone by another model without touching the book". That rests on one thing --
-replacing a block EXACTLY, without touching its neighbours and without parsing
-the document. Hence a pair of comments for the borders:
+A block is replaced exactly, without touching its neighbours and without parsing
+the document; a pair of comments marks the borders:
 
     <!--bs:p0042-b17-->…any markup…<!--/bs:p0042-b17-->
 
-Parsing HTML would be a needless risk: the second level returns markup a model
-wrote, and it can be anything -- unclosed tags, stray `<`, broken entities. An
-exact string search does not care. The price: the marks show in the page
-source, not in the browser.
-
-Every function here is PURE -- string in, string out, no files, no models -- so
-this is the one layer checkable whole without a second of compute, and the
-first one to cover.
+Level two returns markup a model wrote, which may be anything -- unclosed tags,
+stray `<`, broken entities -- and an exact string search does not care. The
+price is that the marks show in the page source. Every function here is pure:
+string in, string out, no files and no models.
 """
 
 from booksmith.core.errors import Refusal
@@ -39,8 +33,7 @@ def wrap(anchor: str, body: str) -> str:
 def anchors(html: str) -> list[str]:
     """Which blocks the document holds, in order of appearance.
 
-    The DOCUMENT order, not a sorted one: it is the reading order, and losing
-    it is not allowed.
+    The document order, not a sorted one: it is the reading order.
     """
     out, i = [], 0
     head = OPEN.split("{}")[0]          # "<!--bs:"
@@ -73,13 +66,11 @@ def _marks_in(fragment: str) -> list[str]:
 
 
 def span(html: str, anchor: str) -> tuple[int, int]:
-    """Borders of the block BODY: (after the opening mark, before the closing).
+    """Borders of the block body: (after the opening mark, before the closing).
 
-    A doubled mark is trouble said aloud, not "take the first": that is how an
-    anchor collision is caught. `block_id` restarts on every page, so a
-    book-wide `b17` over five hundred pages would give five hundred identical
-    anchors. The per-page `p0042-b17` forbids it, but the check costs one
-    `count` and will outlive the next naming scheme.
+    A doubled mark is trouble said aloud rather than "take the first": that is
+    how an anchor collision is caught. `block_id` restarts on every page, so the
+    anchor is per page, and the check outlives the next naming scheme.
     """
     o, c = marks(anchor)
     n_o, n_c = html.count(o), html.count(c)
@@ -92,13 +83,9 @@ def span(html: str, anchor: str) -> tuple[int, int]:
     if b < a:
         raise AnchorError(f"mark {anchor} is inverted: the closing one comes "
                           f"before the opening")
-    # CROSSING. Counting "one each" catches a lost, a doubled and an inverted
-    # pair of ONE anchor, but not two interlocked: in
-    # `<!--bs:A-->1<!--bs:B-->2<!--/bs:A-->3<!--/bs:B-->` both marks are one
-    # each and nothing complained. `get('A')` returned a body with a foreign
-    # opening mark inside, `swap('A', …)` erased it along with the body, and
-    # the trouble surfaced at the NEXT swap -- "opening 0, closing 1" -- with
-    # the book already half re-marked and the message naming the wrong block.
+    # Two interlocked pairs are each "one of each", so counting cannot see them:
+    # in `<!--bs:A-->1<!--bs:B-->2<!--/bs:A-->3<!--/bs:B-->` swapping A destroys
+    # B's border, and it would surface only on the next swap, of B.
     body = html[a:b]
     for other in _marks_in(body):
         if other == anchor:
@@ -121,9 +108,8 @@ def get(html: str, anchor: str) -> str:
 def swap(html: str, anchor: str, fragment: str) -> tuple[str, str]:
     """Put new markup in the block's place.
 
-    Returns (new document, WHAT stood there). The second is not a convenience
-    but the condition of the promise: without the removed piece there is no
-    undo, and a swap without undo is not a swap but an edit of the book.
+    Returns (new document, what stood there). Without the removed piece there is
+    no undo, and a swap without undo is an edit of the book.
     """
     a, b = span(html, anchor)
     return html[:a] + fragment + html[b:], html[a:b]

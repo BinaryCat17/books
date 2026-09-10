@@ -2,8 +2,7 @@
 
 The contract is deliberately narrow: the runner knows only the input files,
 the command and the directory with the result. Nothing about PDF, OCR or
-PaddleOCR belongs here -- otherwise the next ML task would again demand
-rewriting the rental.
+PaddleOCR belongs here, or the next ML task means rewriting the rental again.
 """
 from dataclasses import dataclass, field
 
@@ -16,27 +15,16 @@ class HostReq:
     num_gpus: int = 1
     disk_gb: int = 60
     max_dph: float = 0.60
-    # The channel became the machine's main parameter: nearly the whole
-    # environment arrives over it at start, in dozens of
-    # connections, pressing right against the advertised width. 639 Mbit/s
-    # gave 82 seconds for 7 GB.
+    # Nearly the whole environment arrives over the channel at start: 7 GB in
+    # 82 seconds on a machine advertising 639 Mbit/s.
     min_down_mbps: int = 500
-    # The disk, on the contrary, got cheap: writing 11 GB at 500 MB/s is 22 s.
-    # The old threshold of 1500 cut off half the market for the sake of
-    # unpacking an image we no longer unpack.
+    # The disk is cheap: writing 11 GB at 500 MB/s is 22 seconds.
     min_disk_bw: int = 500
     min_reliability: float = 0.98
-    # NO DEFAULT, and that is not an omission. The CUDA requirement is a
-    # property of the TASK, not of the landlord: any number here would be
-    # chosen for one model, and `remote/` must know none. It used to say
-    # "12.9" -- a version for wheels long gone, overridden in exactly one
-    # place (`books offers`, renting nothing), so the paying path took it.
-    # Now the task says for itself.
-    #
-    # The price of silence: without the filter the market is wider, and an
-    # unfit card is weeded out only after payment. So whoever builds the job
-    # MUST set it from the model adapter -- `read/rented/paddleocr_vl.spec()` on
-    # the paying path, `cli.cmd_offers` on the one that rents nothing.
+    # No default: the CUDA requirement is a property of the task, not of the
+    # landlord, so whoever builds the job sets it from the model adapter.
+    # Without the filter the market is wider and an unfit card is weeded out
+    # only after payment.
     cuda_min: str | None = None
     machine_id: int | None = None      # warmed machine: image already cached
     region: str | None = None
@@ -56,24 +44,12 @@ class HostReq:
         if self.cuda_min:
             q.append(f"cuda_vers>={self.cuda_min}")
         if self.machine_id:
-            # Pinning to a warmed machine drops the host QUALITY filters:
-            # channel, disk bandwidth, verification, reliability. Our ledger
-            # replaces them -- we have counted on this machine, and it is
-            # blacklisted if it counted badly.
-            #
-            # Three filters must not be dropped, and used to be dropped
-            # silently:
-            #
-            # * `cuda_vers` -- a requirement of the TASK, not of the landlord
-            #   (see `cuda_min` above): a warm docker cache says nothing about
-            #   the driver version;
-            # * `disk_space` -- CAPACITY, not speed. An offer with less than
-            #   `disk_gb` free cannot be taken, and that is learnt at creation;
-            # * `gpu_name` -- a physical machine may hold several cards, and
-            #   `machine_id` alone promises no particular one.
-            #
-            # The price ceiling stays as it was: otherwise a warmed machine is
-            # rented at any price.
+            # Pinning to a warmed machine drops the host quality filters --
+            # channel, disk bandwidth, verification, reliability -- which the
+            # ledger replaces. Three must not be dropped: `cuda_vers` belongs to
+            # the task and a warm docker cache says nothing about the driver,
+            # `disk_space` is capacity and not speed, `gpu_name` because a
+            # machine may hold several cards. Nor may the price ceiling.
             q = [f"machine_id={self.machine_id}", f"num_gpus={self.num_gpus}",
                  f"gpu_name={self.gpu}", "rentable=true",
                  f"dph_total<{self.max_dph}",
@@ -89,10 +65,9 @@ class HostReq:
 class JobSpec:
     """The job whole. Everything the runner needs to know.
 
-    `inputs` -- local path -> path relative to the working directory on the
-    box. `command` runs in the working directory; its stdout is streamed to
-    us. `outputs` -- the directory on the box synced back AS THE WORK GOES,
-    not only at the end: a fall on page 400 of 539 must leave 400 pages.
+    `inputs` maps a local path to one relative to the working directory on the
+    box, where `command` runs with its stdout streamed to us. `outputs` is the
+    directory synced back as the work goes, not only at the end.
     """
 
     name: str
@@ -100,48 +75,34 @@ class JobSpec:
     command: str
     inputs: dict[str, str] = field(default_factory=dict)
     outputs: str = "outputs"
-    # What not to pull off the machine at all. Useful when the result
-    # directory is mostly what we do not need: measured on an earlier run,
-    # 167 MB of pictures out of a 179 MB directory. The reason is deliberately
-    # without file names: the product they were made for died with the
-    # markdown assembly, the field stayed general.
-    #
-    # The weight of every exclusion is measured dry BEFORE the pull
-    # (`weigh_exclude`): a "saving" that cost four books their markup was
-    # never once said out loud until it started being counted.
+    # What not to pull off the machine at all, for a result directory that is
+    # mostly what we do not need. Every exclusion is weighed dry before the
+    # pull (`weigh_exclude`), so no saving goes unnamed.
     pull_exclude: tuple[str, ...] = ()
     env: dict[str, str] = field(default_factory=dict)
     host: HostReq = field(default_factory=HostReq)
 
-    # Estimates for ranking offers and for the budget. `minutes` comes from
-    # past runs; `image_gb` is the one constant 0.06 of every ledger record,
-    # which is why `ledger.link_efficiency` refuses to divide by it.
+    # Estimates for ranking offers and for the budget. `image_gb` is the same
+    # in every record, which is why `ledger.link_efficiency` will not divide by it.
     image_gb: float = 0.06
-    # Bytes the task pulls at start past docker (wheels, weights). They ride
-    # a wholly different channel than the image, hence counted apart: the same
-    # gigabyte takes ten times less time here.
+    # Bytes pulled at start past docker (wheels, weights): a different channel
+    # from the image, hence counted apart.
     payload_gb: float = 0.0
-    # What the task spends warming up before counting: for us, raising vLLM.
-    # Normalised to 5 GHz -- it is bound by the CPU, not the
-    # card, and wanders sixfold between hosts.
+    # Warming up before the count (raising vLLM), normalised to 5 GHz: the
+    # processor bounds it, not the card, and it wanders sixfold between hosts.
     warmup_s: float = 0.0
     minutes: float = 20.0
 
-    # Hard limits: a limit reached = the box dies, whatever is running. Only
-    # the term binds at these defaults, and `runner.Budget` says so aloud --
-    # `max_dph` x `timeout_minutes` is $0.90 against the declared $1.00, so
-    # `budget_usd` never fires.
+    # Hard limits: a limit reached kills the box, whatever is running. At these
+    # defaults only the term binds -- $0.90 of ceiling against $1.00 of budget.
     budget_usd: float = 1.00
     timeout_minutes: float = 90.0
 
-    # The path on the box. Our own directory, not `/workspace`: that one is
-    # not in every image, and a task counting on it falls already on the
-    # rented card. The name is neutral -- it used to be `/root/ocrjob`: the
-    # rental layer knew which task would ride on it.
+    # Our own directory, not `/workspace`, which is not in every image; the
+    # name is neutral because the rental layer knows no task by name.
     workdir: str = "/root/job"
-    # Whether to continue the previous run's work on this machine. No by
-    # default: with --reuse the same directory name otherwise passes someone
-    # else's result off as ours.
+    # Continue the previous run's work on this machine. Off by default: with
+    # --reuse the same directory name would pass someone else's result as ours.
     resume: bool = False
 
     def label(self) -> str:

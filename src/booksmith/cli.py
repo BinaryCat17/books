@@ -63,7 +63,7 @@ def cmd_offers(a):
     """Show the market as the ranking sees it. Rents nothing."""
     host = HostReq(gpu=a.gpu, disk_gb=a.disk, max_dph=a.max_dph,
                    machine_id=a.machine)
-    # The CUDA requirement comes FROM THE MODEL, not from the rental layer:
+    # The CUDA requirement comes from the model, not from the rental layer:
     # `HostReq` has no default on purpose. Whoever builds the job names it.
     host.cuda_min = paddleocr_vl.CUDA_MIN
     v = Vast()
@@ -77,8 +77,8 @@ def cmd_prepare(a):
     """djvu -> PDF with the spreads cut apart. Local and free.
 
     Its own command, not merely a step inside the parse: spreads must be seen
-    with the eye before paying for a card. Two of the three books added lay as
-    spreads, and the recogniser would read two pages as one.
+    with the eye before paying for a card, or the recogniser reads two pages of
+    a spread as one.
     """
     from booksmith.processing.extract import djvu
     print(djvu.to_pdf(a.file, dst=a.out, split=a.split))
@@ -86,9 +86,11 @@ def cmd_prepare(a):
 
 
 def _with(a, **kw):
-    """A copy of the parsed arguments with fields replaced. argparse gives a
-    Namespace, and mutating the caller's would leave the change behind for a
-    second command in the same process (the tests run several)."""
+    """A copy of the parsed arguments with fields replaced.
+
+    Mutating the caller's Namespace would leave the change behind for a second
+    command in the same process (the tests run several).
+    """
     import copy
     out = copy.copy(a)
     for k, v in kw.items():
@@ -99,22 +101,17 @@ def _with(a, **kw):
 def cmd_detect(a):
     """Level-one contours over the PDF pages. No VLM, no rental, no money.
 
-    WHERE IT LANDS. Given a BOOK DIRECTORY, under `detect/<label>/`, where the
-    label is the model's own name -- so a second detector measured on the same
-    book stands beside the first instead of overwriting it, which is what
-    putting every model's numbers in one table needs. Given a bare PDF, beside
-    it as before, because a loose file has no book directory to put a run in.
-    `--out` still wins over both: it is how a run is put somewhere for a look.
+    Given a book directory the run lands under `detect/<label>/`, the label
+    being the model's own name, so a second detector stands beside the first
+    instead of overwriting it; given a bare PDF, beside the file. `--out` wins
+    over both.
     """
     import shlex
     from booksmith.processing.layout import detect
     out = a.out
     if os.path.isfile(os.path.join(a.file, "manifest.json")):
-        # A BOOK DIRECTORY RESOLVES TO ITS SCAN whatever `--out` says. The
-        # first edition did this only when `--out` was absent, so `books
-        # detect <book> --out <dir>` handed the directory itself to the
-        # renderer and died on "one book's PDF is expected". `--out` decides
-        # WHERE a run lands, never WHAT is read.
+        # A book directory resolves to its scan whatever `--out` says: `--out`
+        # decides where a run lands, never what is read.
         bk = book.Book.open(a.file, "books detect")
         pdf = bk.pdf
         if pdf is None:
@@ -124,9 +121,8 @@ def cmd_detect(a):
                 f"not beside the manifest. The book directory is where the "
                 f"scan lives; a run cannot be measured against a file that "
                 f"is not there.")
-        # THE LABEL BEFORE THE PAGES. Building the adapter costs a session
-        # load and no pages, and asking it its name here means a run that
-        # cannot be filed refuses BEFORE the work rather than after it.
+        # The label before the pages: building the adapter costs a session load
+        # and no pages, so a run that cannot be filed refuses before the work.
         out = out or bk.run_dir("detect", detect._adapter().label())
         a = _with(a, file=pdf)
     out = out or os.path.splitext(a.file)[0] + ".detect"
@@ -138,12 +134,9 @@ def cmd_detect(a):
 
 
 # --------------------------------------------- the directories commands take
-# `books detect` leaves TWO directories side by side: `<out>` with the snapshot
-# `run.json`, and `<out>/pages` with the layout pages. Half the commands wanted
-# the first (`html`, `crop`, `replay --check`), half the second (`score`,
-# `text`, `fitness --detect`), and the operator learned which from a six-frame
-# traceback. Below both forms are taken by both sides, and a missing path fails
-# in ONE line naming what it expected.
+# `books detect` leaves two directories side by side: `<out>` with the snapshot
+# `run.json`, and `<out>/pages` with the layout pages. Both forms are taken by
+# both sides below, and a missing path fails in one line naming what it wanted.
 
 
 def cmd_html(a):
@@ -151,13 +144,10 @@ def cmd_html(a):
     from booksmith.processing.assemble import html as html_mod
     d = book.run_dir(a.dir, "books html")
     out = a.out or book.home_for(d)
-    # FOREIGN WORK IS NOT OVERWRITTEN: the tell of ours is the snapshot the
-    # builder writes, and a non-empty directory without it means refusal out
-    # loud. THE TELL IS ASKED OF THE BUILDER, NOT TYPED HERE: the snapshot
-    # moved into `assets/`, and this check, looking for `run.json` in the ROOT,
-    # began refusing directories this same command had made a minute earlier —
-    # refusing with a LIE, "probably a book of the old pipeline", of which none
-    # remain, and refusing the advice the build itself prints along with them.
+    # Foreign work is not overwritten: the tell of ours is the snapshot the
+    # builder writes, and a non-empty directory without it is a refusal out
+    # loud. The tell is asked of the builder and not typed here, or a snapshot
+    # that moves inside the build directory turns our own work into foreign.
     if (not a.out and os.path.isdir(out) and os.listdir(out)
             and not html_mod.is_our_dir(out)):
         raise Refusal(
@@ -176,10 +166,9 @@ def cmd_apply(a):
     what generated it — `books read`, or a hand — is not its business.
     """
     from booksmith.processing.assemble import apply as ap
-    # NOT `_run_dir`: that one looks for the DETECTION `run.json` and on
-    # refusal points at a directory with `pages/`, while this command wants the
-    # BUILD directory, the one with `book.html`. The old check refused the
-    # right directory and advised the wrong one.
+    # Not the detection-run resolver: that one looks for the detection
+    # `run.json` and points at a directory with `pages/`, while this command
+    # wants the build directory, the one with `book.html`.
     d = os.path.abspath(a.dir)
     try:
         if a.from_read:
@@ -208,13 +197,10 @@ def cmd_apply(a):
                 ap.put(d, a.anchor, f.read(), kind=a.kind,
                        source=a.source or os.path.basename(a.file), log=log)
         else:
-            # NO KEYS — DO THE WORK, not a report: the book remembers which
+            # No keys means do the work, not a report: the book remembers which
             # read it was built from, and `books apply book` is what a person
-            # types first. Safe only with idempotence: a repeat places nothing
-            # and does not grow the undo stack. Before it, a second `--from` on
-            # the same book said "placed 412" with the content unchanged and
-            # doubled the journal (412 swaps -> 824). The report lives on under
-            # `--status`, and the work prints it too.
+            # types first. Safe only through idempotence -- a repeat places
+            # nothing and does not grow the undo stack.
             src = ap.source_of(d)
             if not src:
                 raise ap.SwapError(
@@ -233,15 +219,10 @@ def cmd_apply(a):
 
 
 def cmd_read_rented(a, policy_name, out):
-    """The same work on a RENTED card. A branch, not a command of its own:
-    same code, same count, only the place changes.
+    """The same work on a rented card: same code, same count, other place.
 
-    WHY IT EXISTS. `read/rented/paddleocr_vl.spec()` and `remote.run_job()`
-    were
-    called by NOT ONE command — grep over the whole tree found definitions and
-    prose only. "Read on a rented card" could be started by nothing, and that
-    surfaced from the direct question "with which command?", not from reading
-    the code.
+    A branch of `books read` and not a command of its own, so that reading on a
+    rented card has exactly one way in.
     """
     from booksmith.processing.read.rented import paddleocr_vl as vl
     from .remote import runner
@@ -251,10 +232,10 @@ def cmd_read_rented(a, policy_name, out):
     log(f"job {spec.name}: input {len(spec.inputs)} paths, ceiling "
         f"${spec.budget_usd:.2f} and {spec.timeout_minutes:.0f} min, card "
         f"{spec.host.gpu}, CUDA from {spec.host.cuda_min}")
-    # THE MONEY CEILING IS UNREACHABLE WHILE IT EXCEEDS THE HOURLY PRICE.
+    # The money ceiling is unreachable while it exceeds the hourly price:
     # `Budget` takes the smaller of the two, so at a price ceiling of
-    # $0.60/hour a $0.60 limit means exactly one hour: time always cuts, money
-    # never. Whoever pays is told, not whoever later reads the journal.
+    # $0.60/hour a $0.60 limit is exactly one hour and time always cuts.
+    # Whoever pays is told, not whoever later reads the journal.
     by_money_h = a.budget / max(spec.host.max_dph, 1e-9)
     if by_money_h * 60 >= a.timeout:
         log(f"  WARNING: at a price of up to ${spec.host.max_dph:.2f}/hour "
@@ -274,26 +255,21 @@ def cmd_read_rented(a, policy_name, out):
 
 
 def cmd_read(a):
-    """LEVEL TWO: read the content of the blocks with a model.
+    """Level two: read the content of the blocks with a model.
 
-    The only command spending money outside the rental, and therefore the only
-    one asking the endpoint its name BEFORE the first request, dropping the run
-    on a mismatch.
-
-    The product is detection's own `pages/*.json` with `content` and `kind`
-    filled in, so `books html`, `text`, `score`, `fitness` and `overlay` eat it
-    unchanged.
+    The only command spending money outside the rental, and so the only one
+    asking the endpoint its name before the first request, dropping the run on a
+    mismatch. The product is detection's own `pages/*.json` with `content` and
+    `kind` filled in, so every command downstream eats it unchanged.
     """
     from booksmith.processing.read.transports import openai_http as vhttp
     from booksmith.processing.read import driver as vread
 
     out = a.out or (os.path.abspath(a.dir).rstrip("/") + ".read")
-    # THE LABEL DICTIONARY COMES FROM THE DETECTION SNAPSHOT, not typed by
-    # hand: `run.json` already carries `policy.vocabulary`. A typed default
-    # diverged silently, caught only BY CHANCE on a label the other dictionary
-    # lacks. Measured: `DocLayNet` (11 labels) is a strict subset of
-    # `Docling-egret` (17), so that pair passes without a word while the
-    # snapshot files two incompatible claims side by side.
+    # The label dictionary comes from the detection snapshot, not typed by
+    # hand: `run.json` already carries `policy.vocabulary`, and a typed default
+    # diverges silently -- `DocLayNet` (11 labels) is a strict subset of
+    # `Docling-egret` (17), so that pair would pass without a word.
     known = json.load(open(os.path.join(a.dir, "run.json"), encoding="utf-8")
                       ).get("policy", {}).get("vocabulary")
     policy_name = a.policy or known
@@ -317,7 +293,7 @@ def cmd_read(a):
     reader = vread.build_reader(policy_name)
     transport = vhttp.build()
 
-    # WHAT THE ENDPOINT ANSWERS WITH — before the first crop and first cent.
+    # What the endpoint answers with — before the first crop and first cent.
     who = transport.check()
     log(f"endpoint {who['endpoint']}: answers {who['models_on_server']}, "
         f"we ask {who['asking_for']} — matched")
@@ -340,23 +316,17 @@ def cmd_read(a):
 
 
 def cmd_crop(a):
-    """What `books read` would send, cut by `books read`'s own path, and
-    nothing sent. Free.
+    """What `books read` would send, cut by its own path. Nothing sent, free.
 
     The driver runs in preview: the same crop rule, the same dpi, the same
-    prompts and generation parameters, written to `crops/` and
-    `would_ask.json`. The preview that stood here before (`books feed`) cut
-    with knobs of its own that the paid path never read, and showed pictures
-    the model never saw.
+    prompts and generation parameters, written to `crops/` and `would_ask.json`.
+    A preview cutting by knobs of its own shows pictures the model never sees.
     """
     from booksmith.processing.read import driver as vread
     d = book.run_dir(a.dir, "books crop")
     out = a.out or (os.path.abspath(d).rstrip("/") + ".crop")
-    # THE SAME TWO LINES AS `books read`, and for the same reason. This asked
-    # the snapshot alone and refused when it named no dictionary -- so
-    # `bench/annopage/detect`, a run `books read --policy PP-DocLayoutV2`
-    # reads perfectly well, could not be previewed at all. The free command
-    # must accept every input the paid one does, or it is a preview of
+    # The same two lines as `books read`, and for the same reason: the free
+    # command must accept every input the paid one does, or it is a preview of
     # something else.
     policy_name = vread.policy_for(d, a.policy)
     os.makedirs(out, exist_ok=True)
@@ -370,17 +340,15 @@ def cmd_crop(a):
                         log=log, preview=True)
     log(f"would ask {t.get('would_ask', 0)} of {t['block_count']} blocks; not "
         f"asked {t['not_asked']}, crop failed {t['crop_failed']}")
-    # THE THREE TROUBLES ARE PRINTED, not left in the file. A preview is
-    # looked at to decide whether to pay; "crop failed 2" with no anchor and
-    # no reason decides nothing.
+    # The troubles are printed, not left in the file: a preview is looked at to
+    # decide whether to pay, and "crop failed 2" with no anchor decides nothing.
     if t["crop_failed"]:
         log(f"  THE CROP FAILED on {t['crop_failed']} blocks -- they would go "
             f"UNREAD in the paid run: {'; '.join(t['crop_failures'][:3])}"
             f"{'...' if t['crop_failed'] > 3 else ''}")
     if not t.get("would_ask"):
-        # The same rule the paid run states: zero asked is not a success.
-        # Here it matters more, because this is the command that exists to
-        # find that out BEFORE the money.
+        # The same rule the paid run states: zero asked is not a success, and
+        # this is the command that exists to find that out before the money.
         log("NOT ONE BLOCK WOULD BE ASKED -- not a success, an empty run. "
             "Look at `not_asked` in would_ask.json for the reason of each.")
     log(f"{os.path.join(out, 'would_ask.json')}; crops in {os.path.join(out, 'crops')}")
@@ -399,22 +367,14 @@ def cmd_overlay(a):
     out = a.out or look_mod.look_at(a.pdf, a.detect)
     only = None
     if a.pages:
-        # THE VERY SAME PARSE as `books detect`, not a second copy. The copy
-        # that stood here diverged from `detect.parse_pages` THREE ways at once.
-        # (1) Counting. `detect` counts FROM ONE; this put the number straight
-        #     into the index, so `--pages 40` drew sheet 0040 where `detect`
-        #     gives 0039. You look at the wrong sheet and never learn it — and
-        #     that is exactly how eyes are used here.
-        # (2) Ranges. `--pages 40-42` works in `detect`; here it died on a bare
-        #     ValueError: invalid literal for int().
-        # (3) Bounds. A number past the end of the book `detect` declares out
-        #     loud; here an empty set gave a silent "differences on 0 pages" —
-        #     a zero from not understanding, in the final line.
+        # The very same parse as `books detect`, not a second copy: that one
+        # counts from one, takes ranges, and declares a number past the end of
+        # the book out loud instead of drawing the wrong sheet in silence.
         doc = raster.open_pdf(a.pdf)
         total = doc.page_count
         doc.close()
         only = detect.parse_pages(a.pages, total)
-    # The default now lands in `<book>/look/`, which need not exist yet --
+    # The default lands in `<book>/look/`, which need not exist yet --
     # `look.build` opens the file and does not make the directory.
     os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
     overlay.build(a.pdf, out, marks, only=only, log=log)
@@ -435,10 +395,10 @@ def cmd_score(a):
 
 
 def text_norm_default():
-    """The normalisation default comes FROM THE MODULE, not typed here twice.
+    """The normalisation default comes from the module, not typed here twice.
 
-    A second copy is what the knob registry's header warns of: a changed value
-    never reaches the consumer until somebody remembers this file.
+    A second copy of the value never reaches the consumer until somebody
+    remembers this file.
     """
     from booksmith.datasets.metrics import text
     return text.NORM
@@ -447,10 +407,9 @@ def text_norm_default():
 def cmd_text(a):
     """The reading metric: the truth of characters against what the model read.
 
-    Its own command, not a column in `books score`: that one measures GEOMETRY
-    and labels, this one CHARACTERS. One number for two questions is how an
-    instrument here already lied — "reading order agreed 73%" on a bench where
-    order is not annotated at all.
+    Its own command, not a column in `books score`: that one measures geometry
+    and labels, this one characters. One number for two questions is how an
+    instrument here has already lied.
     """
     from booksmith.datasets.metrics import text
     truth = book.pages_dir(a.truth, "truth")
@@ -515,17 +474,16 @@ def shlex_quote(s):
 def _open_book(path, kind, label):
     """The book at `path` and one of its runs, as `bench all` opens them.
 
-    A BENCH IS A BOOK WITH `truth/`, AND A PROCESSED BOOK IS THE OTHER HALF.
-    Asked here rather than by catching `Unmeasurable` from `open`: a caught
-    refusal cannot tell "there is no truth here, which is fine" from "this path
-    is wrong", and the second must still reach the user.
+    A bench is a book with `truth/`, a processed book the other half. Asked here
+    rather than by catching `Unmeasurable` from `open`: a caught refusal cannot
+    tell "no truth here, which is fine" from "this path is wrong".
     """
     from booksmith.datasets.bench import Bench
     root = path.rstrip("/")
     if not os.path.isdir(root):
-        # SAID BEFORE EITHER DOOR IS TRIED: both openers answer a path that is
-        # not there by describing what they wanted to find in it, which sends
-        # the reader looking for a file in a directory that does not exist.
+        # Said before either door is tried: both openers answer a missing path
+        # by describing what they wanted to find in it, which sends the reader
+        # looking for a file in a directory that does not exist.
         raise Refusal(f"{path} is not a directory. This takes a book: "
                       f"bench/<name> or processed/<name>.")
     has_truth = (os.path.isdir(os.path.join(root, "truth"))
@@ -539,17 +497,17 @@ def cmd_bench_selfcheck(a):
 
     A number is not to be trusted until it has been shown able to fall, so each
     probe spoils the input on purpose and says what must happen to the number.
-    Returns 1 if any probe went uncaught. A probe with nothing to grip on this
-    book answers "no data" and is counted apart: a battery reporting zero
-    uncaught over probes that measured nothing is what this guards against.
+    Returns 1 if any probe went uncaught; a probe with nothing to grip answers
+    "no data" and is counted apart, or zero uncaught over probes that measured
+    nothing would read as health.
     """
     from booksmith.datasets.metrics import BY_NAME, METRICS
     from booksmith.datasets.metrics import base
     b, run = _open_book(a.bench, a.kind, a.run)
-    # THE TRUTH IS PARSED ONLY IF THERE IS ANY, as `table.rows` does it: a book
-    # with no `truth/` is a legal thing to probe, since the ink and column-jump
-    # metrics need none, and asking for its truth pages raises before
-    # applicability is ever consulted.
+    # The truth is parsed only if there is any, as `table.rows` does it: a book
+    # with no `truth/` is a legal thing to probe, the ink and column-jump metrics
+    # needing none, and asking for its truth pages raises before applicability
+    # is ever consulted.
     pages = b.pages() if b.truth_dir else {}
     fit = base.applicable(METRICS, b, run, pages, run.pages())
     if a.only:
@@ -586,10 +544,8 @@ def cmd_bench_selfcheck(a):
 def cmd_bench_all(a):
     """Every applicable metric on one bench and one run: one table, one JSON.
 
-    The numbers used to land on stdout only, three commands with three
-    argument shapes, and every comparison between detectors was typed into
-    prose by hand -- four times, the prose records, wrongly. This is the
-    first command that writes them down.
+    The one command that writes the numbers down: a comparison between detectors
+    typed into prose by hand drifts from the runs it claims to describe.
     """
     from booksmith.datasets import table
     root = a.bench.rstrip("/")
@@ -605,9 +561,8 @@ def cmd_bench_all(a):
 def cmd_bench_report(a):
     """Every measured number as one generated document, at the repo root.
 
-    The measurements lived as prose in five documents, and a figure stated
-    twice is free to drift; rendered from the record that produced it, it
-    cannot.
+    A figure stated twice is free to drift; rendered from the record that
+    produced it, it cannot.
     """
     from booksmith.datasets import report
     report.write(a.out or report.OUT, log=log)
@@ -646,7 +601,7 @@ def cmd_reap(_a):
 
 
 def cmd_doctor(_a):
-    """Check everything that can wreck a run BEFORE the money starts."""
+    """Check everything that can wreck a run before the money starts."""
     import shutil
     ok = True
 
@@ -667,16 +622,10 @@ def cmd_doctor(_a):
     check("public half of the key", bool(key) and os.path.exists(key + ".pub"),
           "without it the key cannot be attached to an instance")
     # Not through `check`: without `.env` everything works except paid reading
-    # over a NETWORK endpoint, and the vast key lives apart in
-    # ~/.config/vastai. Failing acceptance over it is a false alarm, and a
-    # false alarm teaches people not to look at acceptance at all.
-    #
-    # It is NOT for the image build (GHCR), as stood here: those credentials
-    # are read by nobody, not even CI (it logs in with `secrets.GITHUB_TOKEN`),
-    # and `.env`'s only live tenant is `VLM_API_KEY`, asked for forty lines
-    # below. That key can be exported instead — `config.env` looks at the
-    # environment first — and a rented card's vLLM listens on the loopback and
-    # asks for none.
+    # over a network endpoint, and the vast key lives apart in ~/.config/vastai.
+    # Failing acceptance over it is a false alarm, and a false alarm teaches
+    # people not to look at acceptance at all. Its only live tenant is
+    # `VLM_API_KEY`, which can be exported instead.
     if not os.path.exists(config.ENV_FILE):
         log("  [ – ] .env in the root — none; it is needed only for "
             "VLM_API_KEY when reading over a network endpoint. Sample: "
@@ -694,13 +643,10 @@ def cmd_doctor(_a):
     except Exception as e:
         check("vast.ai key", False, f"vastai set api-key <KEY> ({e})")
 
-    # Separate blocks, and NOT through `check` either: detection and the vendor
+    # Separate blocks, and not through `check` either: detection and the vendor
     # pipeline install as optional sets, and whoever only rents needs neither.
-    # Silence is no better — `books detect` is the first working parse command,
-    # and its trouble must show here, not in the middle of a book. Both end AS
-    # A VALUE in the last line: a bare "all in order" stood here, and it stayed
-    # "in order" with the active adapter having no weights, which the command
-    # knew nothing about.
+    # Silence is no better, so both end as a value in the last line -- a bare
+    # "all in order" stays "in order" with the active adapter having no weights.
     read_line = _doctor_read()
     det_line = _doctor_detect()
     pipe_line = _doctor_docling()
@@ -715,10 +661,9 @@ def cmd_doctor(_a):
 def _doctor_read():
     """Level two: the model endpoint and the key. Returns a line for the summary.
 
-    The key lives OUTSIDE the knob registry on purpose: everything declared
+    The key lives outside the knob registry on purpose: everything declared
     there lands in `run.json` as a value, and the snapshot goes into git. The
-    price is a name no registry walk sees — the `VL_MODEL_DIR` disease
-    in miniature — so it must be spoken at least here.
+    price is a name no registry walk sees, so it is spoken at least here.
     """
     ep = knobs.knob("VLM_ENDPOINT")
     key = config.env("VLM_API_KEY")
@@ -735,22 +680,13 @@ def _doctor_read():
 
 
 def _doctor_detect():
-    """What can count contours today: packages and weights of ALL adapters.
+    """What can count contours today: packages and weights of every adapter.
 
-    A check of PP-DocLayoutV2's weights alone stood here, and acceptance
-    printed "all in order" knowing nothing of the other three.
-
-    The adapter list comes from `detect.py:ADAPTERS`: a second list drifts
-    silently, as the knob registry did against the job builder (13 names of 17)
-    and against `ADAPTERS` itself (`LAYOUT_ADAPTER` described two adapters of
-    four). The check RAISES the adapter rather than testing a weights path —
-    the four name their weights differently (`inference.onnx`, `model.onnx`,
-    `yolox_l0.05.onnx` by `YOLOX_WEIGHTS`), and a list of names here would be a
-    third one drifting. It costs seconds of CPU, printed as a value so the
-    price of acceptance is visible rather than implied.
-
-    Nothing found here fails acceptance: a missing optional set is no disaster.
-    It says as a value what is absent and what turns it on.
+    The adapter list comes from `detect.py:ADAPTERS`, since a second list
+    drifts, and each adapter is raised rather than tested by a weights path --
+    the four name their weights differently, and a list of names here would
+    drift too. Nothing found fails acceptance: it says as a value what is
+    absent and what turns it on, and what the check itself cost.
     """
     import time
     log("layout detection (books detect, optional set):")
@@ -765,7 +701,7 @@ def _doctor_detect():
     if missing:
         log(f"  [ – ] packages missing: {', '.join(missing)} — "
             f'install: pip install -e ".[detect]"')
-        # A zero from checking and a zero from not understanding are DIFFERENT
+        # A zero from checking and a zero from not understanding are different
         # lines: without these packages no adapter rises at all, so there is
         # nothing to call "no weights".
         log("  [ – ] adapter weights NOT CHECKED for a single one: there is "
@@ -788,14 +724,11 @@ def _doctor_detect():
             try:
                 det = detect._adapter()
             except (Exception, SystemExit) as e:
-                # `SystemExit` is caught ON PURPOSE: at
-                # `DOCLING_PIPELINE=full` with no vendor package the docling
-                # adapter leaves by exactly that, and acceptance catching only
-                # `Exception` died on the second adapter of four, saying
-                # nothing of it, the two remaining, or the pipeline (rc=1,
-                # measured). "No weights" and "weights present, adapter would
-                # not rise" are different troubles: a download cures the first,
-                # the second breaks the run with a full weights directory.
+                # `SystemExit` is caught on purpose: at `DOCLING_PIPELINE=full`
+                # with no vendor package the docling adapter leaves by exactly
+                # that, and one adapter of four must not end the check. "No
+                # weights" and "weights present, adapter would not rise" are
+                # different troubles: a download cures only the first.
                 kind = ("no weights" if type(e).__name__ == "WeightsMissing"
                         else f"DID NOT RISE ({type(e).__name__})")
                 log(f"  [ – ] {which:14s} {kind}: {e}")
@@ -832,11 +765,10 @@ def _doctor_detect():
 def _doctor_docling():
     """The vendor pipeline package: without it `DOCLING_PIPELINE` is a dead knob.
 
-    The PRESENCE of the modules is checked, not their import: `docling.utils.
-    layout_postprocessor` takes 8.3 s to rise, and acceptance would pay that
-    every time. `rtree` IS imported for real — it pulls the system
-    libspatialindex, and "the wheel is there" does not yet mean "it imports";
-    that costs 0.2 s.
+    The presence of the modules is checked, not their import: `docling.utils.
+    layout_postprocessor` takes 8.3 s to rise, and acceptance would pay it every
+    time. `rtree` is imported for real, at 0.2 s -- it pulls the system
+    libspatialindex, so a wheel in place does not yet mean it imports.
     """
     import importlib.metadata as md
     import importlib.util as iu
@@ -868,11 +800,10 @@ def _doctor_docling():
             f"at all")
         return (f"{len(gone)} of 2 packages missing"
                 + (f", and the knob is at {mode}" if mode != "off" else ""))
-    # The version comes from the DISTRIBUTION, not `docling.__version__`: one
+    # The version comes from the distribution, not `docling.__version__`: one
     # package, two deliveries (`docling-slim` and full), and pyproject pins the
-    # version to the point — a vendor rule change would move our boxes
-    # silently. With no distribution at all (sources on the path) it says so:
-    # "not declared" is not a version.
+    # version to the point, a vendor rule change moving our boxes otherwise.
+    # With no distribution at all, "not declared" is not a version.
     ver = (vers["docling-slim"] or vers["docling"]
            or "version not declared (no distribution, module from elsewhere)")
     kind = ("slim" if vers["docling-slim"] else
@@ -905,20 +836,17 @@ def cmd_ledger(_a):
 def _tool_errors():
     """The "instrument could not count" family: exit code 2.
 
-    Once a tuple of five classes named by module path -- three `WeightsMissing`
-    and two metric errors -- so that a traceback from a failed instrument and
-    one from our own bug stayed apart. The family is one base class now, and
-    the package move that renamed every module path would have emptied the
-    tuple in silence: `sys.modules.get(old_name)` finds nothing and the
-    mapping dies without an error. A base class cannot go stale that way.
+    One base class and not a tuple of classes looked up by module path: a
+    renamed module empties such a tuple in silence, and a traceback from a
+    failed instrument would then read as one from our own bug.
     """
     from booksmith.core.errors import Unmeasurable
     return (Unmeasurable,)
 
 
 class _Parser(argparse.ArgumentParser):
-    """argparse exits 2 on a usage error, and 2 is taken: it means "could not
-    count". A typo in a flag must not read as a broken instrument."""
+    """Usage errors leave with 64, because 2 is taken: it means "could not
+    count", and a typo in a flag must not read as a broken instrument."""
 
     def error(self, message):
         self.print_usage(sys.stderr)
@@ -1016,12 +944,6 @@ def build_parser():
     p.add_argument("--key", default="", help="path to the ssh key for vast.ai")
     p.set_defaults(fn=cmd_read)
 
-    # THE COMMAND IS `apply`, and `swap` stood here. `swap` names the MECHANICS
-    # ("exchange"), not the work, and hints not a word at the journal with undo
-    # the command exists for; with no keys it changes nothing and prints a
-    # report, so an order reads as an action and turns out to be a lookup.
-    # `apply` matches the module that does it, and `--undo` reads as "undo what
-    # was applied".
     p = sub.add_parser("apply",
                        help="level two: markup instead of a picture, and undo")
     p.add_argument("dir", help="build directory (books html --out)")
@@ -1131,9 +1053,8 @@ def build_parser():
     p.set_defaults(fn=cmd_ledger)
 
     p = sub.add_parser("replay", help="is the input snapshot complete")
-    # nargs="+", not "*": a check whose whole point is its exit code silently
-    # approved on an empty list — `books replay --check` with no directory
-    # returned 0 and printed not a line.
+    # nargs="+", not "*": a check whose whole point is its exit code would
+    # silently approve on an empty list.
     p.add_argument("outdir", nargs="+", help="parse directory")
     p.add_argument("--check", action="store_true",
                    help="print what is missing and return 1 if there is any")
@@ -1150,14 +1071,12 @@ def main(argv=None):
         return a.fn(a) or 0
     except _tool_errors() as e:
         # Code 2 is "could not count", against 1 — "counted, and the number
-        # failed". Merged, a silent instrument and a failed metric read alike;
-        # the actions on them differ.
+        # failed": merged, a silent instrument and a failed metric read alike.
         log(f"{type(e).__name__}: {e}")
         return 2
     except Refusal as e:
-        # ONE LINE, exit 1: the message names what to do. A refusal used to be
-        # a `SystemExit` raised deep in a library, which printed the same line
-        # and forced every caller in between to special-case a BaseException.
+        # One line, exit 1: the message names what to do, and a `Refusal` is an
+        # ordinary exception, so no caller in between special-cases it.
         log(str(e))
         return 1
 

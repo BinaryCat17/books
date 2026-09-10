@@ -1,26 +1,12 @@
 """A repeat inside the page: what is proved by comparison, what only nested.
 
-WHY THIS FILE. `inline_formula` is the second most frequent label of
-"Технология огнеупоров" (2012 blocks of 6156). The detector draws its own box
-around in-line maths over the paragraph, the second level reads it apart --
-and the same place arrives in the book twice: inside the paragraph and as a
-separate `<p>`. We pay 32.7 % of all requests to the card for it.
+One claim is proved here: "hide this block and not a character of the page is
+lost". Not "this is a duplicate", not "the owner contains it" -- only that, and
+only by comparison.
 
-WHAT IS PROVED HERE. One claim: "hide this block and not a character of the
-page is lost". Not "this is a duplicate", not "the owner contains it" -- only
-that, and only by comparison.
-
-THE ERROR HALF THESE CHECKS WERE WRITTEN FOR. The first version compared a
-block WITH ITSELF: it lay inside the prose it was looked for in, and the
-number came out 99.0 %. Beside it stood a "chance background" of 1.9-6.7 %,
-taken with a shift onto a foreign page where self-matching is impossible by
-construction -- so it was not two rules compared but a rule with itself, and
-the fifteenfold gap was invented whole. The right numbers: 21.4 % at a worst
-background of 2.2 %.
-
-THE SECOND TRAP -- MUTUAL HIDING. Two repeats of one place "have each other",
-and both can be hidden, leaving none in the book. So the comparison runs only
-against the blocks that REMAIN.
+Two traps the checks hold: a block compared with itself makes any block a
+repeat, and two repeats of one place that "have each other" could both be
+hidden, so the comparison runs only against the blocks that remain.
 """
 from booksmith.processing.assemble import html as H
 from booksmith.core.page import Block, Page
@@ -54,11 +40,9 @@ def test_a_nested_block_found_in_a_remaining_one_is_proven():
 
 
 def test_a_nested_block_whose_text_is_absent_is_not_hidden():
-    """Text not found -- the block stays in the book, marked `differs`.
-
-    Hiding the unproved would lose text silently. Two readings of one place
-    diverge in transcription, but may carry different things too.
-    """
+    """Text not found -- the block stays in the book, marked `differs`: hiding the
+    unproved would lose text silently, and two readings of one place may carry
+    different things, not only different transcriptions."""
     para = _b(0, (0, 0, 100, 20), "about something else entirely")
     formula = _b(1, (10, 5, 40, 12), r"\[1728^{\circ}\mathrm{C}\]",
                  label="inline_formula")
@@ -67,10 +51,8 @@ def test_a_nested_block_whose_text_is_absent_is_not_hidden():
 
 
 def test_a_block_is_never_compared_with_itself():
-    """A block is not looked for inside itself -- else ANY block repeats.
-
-    Exactly this error gave 99.0 % where 21.4 % is right.
-    """
+    """A block is not looked for inside itself, or any block repeats: that error
+    gave 99.0 % where 21.4 % is right."""
     para = _b(0, (0, 0, 100, 20), "empty")
     one = _b(1, (10, 5, 40, 12), "a unique text", label="inline_formula")
     r = H.repeats_on(_page(para, one), _covered)
@@ -80,11 +62,8 @@ def test_a_block_is_never_compared_with_itself():
 
 
 def test_two_equal_nested_blocks_are_not_hidden_together():
-    """Two equal nested blocks do not hide each other.
-
-    Each "exists at the neighbour", and a naive rule would hide both -- the
-    text would vanish from the book.
-    """
+    """Two equal nested blocks do not hide each other: each "exists at the
+    neighbour", and a naive rule would hide both, losing the text."""
     para = _b(0, (0, 0, 100, 20), "a box without those words")
     a = _b(1, (10, 5, 40, 12), "one and the same", label="inline_formula")
     b = _b(2, (50, 5, 80, 12), "one and the same", label="inline_formula")
@@ -94,15 +73,11 @@ def test_two_equal_nested_blocks_are_not_hidden_together():
 
 
 def test_a_block_nested_in_an_artefact_is_not_a_candidate():
-    """A block nested in an ARTEFACT is not judged here.
-
-    It has its own trouble and its own counter (`text_inside_artifact_boxes`):
-    the ink went into a picture too. Hiding it is forbidden -- the picture
-    becomes the only form of that text if no replacement comes.
-    """
-    # The content is chosen so the formula's text IS in it: else the mutation
-    # "judge an artefact like text" would pass unnoticed -- the texts would
-    # not match anyway, and the check would be green on nothing.
+    """A block nested in an artefact is not judged here: it has its own counter
+    (`text_inside_artifact_boxes`), and hiding it would leave the picture as the
+    only form of that text if no replacement comes."""
+    # The content is chosen so the formula's text is in it: otherwise the texts
+    # would not match anyway and the check would be green on nothing.
     table = Block(block_id=0, box=(0, 0, 100, 20), label="table", score=0.9,
                     content=r"<fcel>1728^{\circ}\mathrm{C}<nl>", kind="otsl")
     formula = _b(1, (10, 5, 40, 12), r"\[1728^{\circ}\mathrm{C}\]",
@@ -126,18 +101,14 @@ def test_an_empty_block_is_not_a_candidate():
 
 
 def test_the_latex_stage_is_declared_with_its_measurement():
-    """The comparison stage is in the normalisation registry, not hidden.
-
-    A number without a declared stage means anything a month later. Asked of
-    `core.textnorm`, which OWNS the names: through the reading metric's
-    re-import the battery's swap of `bare_math` never arrived, and this
-    check passed over a ruler that called `\\alpha` and `\\beta` equal.
-    """
+    """The comparison stage is in the normalisation registry, not hidden: a number
+    without a declared stage means anything a month later. Asked of
+    `core.textnorm`, which owns the names."""
     from booksmith.core import textnorm as T
     assert "latex" in T.NORM_STEPS, sorted(T.NORM_STEPS)
     note = T.norm_note("latex")
     assert note["steps"], note
-    # A MEANINGFUL command name SURVIVES, a decorative one is stripped.
+    # A meaningful command name survives, a decorative one is stripped.
     assert T.bare_math(r"\alpha") == "alpha"
     assert T.bare_math(r"\mathrm{C}").strip() == "C"
     # The wrapper comes off both ends.
@@ -157,13 +128,8 @@ def test_the_latex_stage_falls_on_deliberately_broken_input():
 
 
 def test_the_typeset_form_is_not_traded_for_the_raw_one():
-    """A typeset formula is not hidden for raw latex at the carrier.
-
-    Measured: 65 blocks of the book where the carrier shows `FeO-SiO_{2}`
-    where the block holds `\\[\\mathrm{FeO}-\\mathrm{SiO}_{2}\\]`. Hiding the
-    second would worsen the page and win nothing: the same characters, less
-    typesetting.
-    """
+    """A typeset formula is not hidden for raw latex at the carrier: the same
+    characters with less typesetting is a worse page and wins nothing."""
     carrier = _b(0, (0, 0, 100, 20), "Fig. V.5. Phase diagram of FeO-SiO_{2}")
     formula = _b(1, (10, 5, 40, 12), r"\[\mathrm{FeO}-\mathrm{SiO}_{2}\]",
                  label="inline_formula")
@@ -173,11 +139,8 @@ def test_the_typeset_form_is_not_traded_for_the_raw_one():
 
 
 def test_the_answer_names_the_carrier_not_the_enclosing_frame():
-    """The answer names the block where the proof LIES, not the outer box.
-
-    Measured: for 23 of 841 the named box did not hold that text at all -- a
-    reviewer followed the reference and found no text.
-    """
+    """The answer names the block where the proof lies, not the outer box: a
+    reference into a box that holds no such text sends a reviewer nowhere."""
     box = _b(0, (0, 0, 60, 20), "an empty enclosing box")
     carrier = _b(1, (0, 0, 100, 40), "here stands 1728\u00b0C and a full stop")
     formula = _b(2, (5, 5, 40, 12), r"\[1728^{\circ}\mathrm{C}\]",
@@ -189,11 +152,9 @@ def test_the_answer_names_the_carrier_not_the_enclosing_frame():
 
 
 def test_a_two_character_match_is_not_evidence():
-    """A match shorter than the threshold is not evidence.
-
-    "°c" or "50" in a paragraph proves nothing about a block holding the
-    same. The threshold is named `REPEAT_MIN`, its sweep is at `repeats_on`.
-    """
+    """A match shorter than the threshold is not evidence: "°c" or "50" in a
+    paragraph proves nothing about a block holding the same. The threshold is
+    `REPEAT_MIN`, and its sweep is at `repeats_on`."""
     assert H.REPEAT_MIN >= 3, H.REPEAT_MIN
     carrier = _b(0, (0, 0, 100, 20), "at 50\u00b0C and onward")
     tiny = _b(1, (10, 5, 40, 12), r"\[50\]", label="inline_formula")
@@ -203,12 +164,9 @@ def test_a_two_character_match_is_not_evidence():
 
 
 def test_a_match_across_the_seam_of_two_blocks_is_not_evidence():
-    """A match ACROSS THE SEAM of two remaining blocks is not evidence.
-
-    Glue the remaining ones without a space and the candidate is "found"
-    where no block holds it: the end of one plus the start of another. The
-    text is not in the book, and the block would be hidden anyway.
-    """
+    """A match across the seam of two remaining blocks is not evidence: glued
+    without a space, the candidate is "found" where no block holds it, and the
+    text is not in the book at all."""
     first = _b(0, (0, 0, 100, 20), "end of the line abc")
     second = _b(1, (0, 20, 100, 40), "defg beginning")
     # "abcdefg" exists only across the seam: no one block holds it whole.

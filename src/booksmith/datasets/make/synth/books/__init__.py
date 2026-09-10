@@ -1,18 +1,7 @@
 """Books of the synthetic bench: one kind of layout and one sheet size each.
 
-WHY A REGISTRY and not one flat dictionary of cases. The handbook tests one
-kind of layout, and its numbers have said everything they can say
-(`METRICS.md`). What is needed next are pages the handbook does not
-have at all: the narrow columns of a dictionary, the matrices of a textbook,
-a drawing field with its title block, a catalogue page without a line of
-prose, a magazine's boxed insert.
-
-THE SHEET SIZE IS THE BOOK'S OWN and is declared in the book's module. While
-the size came from `synth`, a drawing helper called for another book would
-silently draw on the handbook's format -- the same unit trap that once carried
-half a spread off the edge of the sheet.
-
-A book must declare:
+A registry and not one flat dictionary of cases; THE SHEET SIZE IS THE BOOK'S
+OWN, declared here. A book declares:
     SHEET   (width, height) of the raster at 144 dpi
     ABOUT   one line: what this book is and what it is good for measuring
     CASES   {case name: function(doc, rng) -> (page, truth)}
@@ -25,8 +14,7 @@ NAMES = ("spravochnik", "slovar", "matematika", "atlas", "katalog", "zhurnal")
 
 
 def load(name: str):
-    """A book's module, by name; `spravochnik` is one of them since the
-    generator became a package and the handbook's cases got a file."""
+    """A book's module, by name."""
     if name not in NAMES:
         raise KeyError(f"no book {name!r}: there are {NAMES}")
     return importlib.import_module(f".{name}", __package__)

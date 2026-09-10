@@ -1,16 +1,11 @@
 """An atlas of drawings: landscape sheet, large graphics, little text.
 
-WHY. In the handbook a figure always sits IN THE TEXT BLOCK among prose. Here
-the drawing IS the block, and a sheet may carry no text at all -- a different
-problem, because the detector has nothing to grip but the graphics.
-
-Two traps, named in advance. The TITLE BLOCK of a drawing: a grid of cells
-with text in the corner of the field, i.e. a table inside a figure -- two
-boxes or one? And the SPECIFICATION TABLE lying inside the drawing field:
-table and figure are not neighbours here, they are nested.
-
-The control page `atl_plate_only` carries neither. Without it, "found the
-figure" on a stamped page cannot be told from "boxed everything at once".
+Here the drawing IS the block and a sheet may carry no text at all, so the
+detector has nothing to grip but the graphics. Two traps: the TITLE BLOCK, a
+grid of celled text in the corner of the field -- a table inside a figure -- and
+the SPECIFICATION TABLE inside the field, where table and figure are nested
+rather than neighbours. The control page `atl_plate_only` carries neither, so
+"found the figure" on a stamped page can be told from "boxed everything".
 """
 from booksmith.datasets.make.synth.draw import (
     PROSE_EN,
@@ -68,11 +63,8 @@ def c_atl_spec_inside(doc, rng):
 
 
 def c_atl_two_views(doc, rng):
-    """Two views side by side: adjacent drawing fields -- merged or not.
-
-    On the handbook the model separated two figures side by side. Here they
-    are larger, closer, and identical in construction.
-    """
+    """Two views side by side: adjacent drawing fields, merged or not -- larger,
+    closer and identical in construction where the handbook's were not."""
     pg = _sheet(doc); t = []
     _plate(pg, t, MARGIN + 20, TOP + 10, PW - 2 * MARGIN - 40, 360, views=2)
     _caption(pg, t, MARGIN + 26, TOP + 386, "Fig. 14  Front view")
@@ -133,10 +125,8 @@ def c_atl_rotated_plate(doc, rng):
 
 
 def c_atl_sparse(doc, rng):
-    """An almost empty sheet: one small view in the corner and a caption.
-
-    Reading order on a page where there is almost nothing to read.
-    """
+    """An almost empty sheet, one small view and a caption: reading order where
+    there is almost nothing to read."""
     pg = _sheet(doc); t = []
     _plate(pg, t, MARGIN + 40, TOP + 40, 240, 180)
     _caption(pg, t, MARGIN + 46, TOP + 236, "Fig. 21  Detail of key")

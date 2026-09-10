@@ -1,17 +1,12 @@
 """Can the snapshot check fail, and does the knob registry match the tree.
 
-Two instruments that walk the SOURCE rather than a run's output, which is why
-they live with the checks and not in the library. `readers` and `audit` ask who
-really reads each knob; `knockout` and `selfcheck` cut each required key out of
-a snapshot in turn and demand `replay.missing` notice.
+Two instruments that walk the source rather than a run's output. `readers` and
+`audit` ask who really reads each knob; `knockout` and `selfcheck` cut each
+required key out of a snapshot in turn and demand `replay.missing` notice.
 
-Both exist because the obvious guard cannot see the thing. `VL_MODEL_DIR` --
-the knob that decided which weights vLLM raised -- was caught by neither the
-registry nor `KeyError`: the shell exports it, so it never passes through
-`knob()`. And the presence rule of the snapshot check is "the key is there",
-with everything required written unconditionally, so on the project's own
-output `replay.check` cannot return 1 for any input: its ability to fail had
-never been shown, though the project rule demands exactly that.
+Both exist because the obvious guard cannot see the thing: a knob the shell
+exports never passes through `knob()`, and a presence rule of "the key is there"
+cannot return 1 for any input the project itself writes.
 """
 import json
 import os
@@ -31,18 +26,9 @@ def composition(req):
 
 
 def readers(root=None):
-    """Who REALLY reads each knob: name -> tuple of files, by walking the tree.
-
-    In `.py` the two direct forms, `knob("NAME")` and `number("NAME")`; a read
-    through a variable is not found, the knob looks dead and `audit` raises a
-    false alarm. The bias is deliberate: a false alarm costs a minute, a silent
-    "all is well" cost the project `VL_MODEL_DIR`. In `.sh` it searches `$NAME`
-    and `${NAME}` -- exactly how the shell on the rented machine takes a knob,
-    past `knob()` and past any `KeyError`.
-
-    The registry's own file would consume every knob by construction, so the
-    walk starts at the package and that file is the only one skipped.
-    """
+    """Who really reads each knob, by walking the tree: `knob("NAME")` and
+    `number("NAME")` in `.py`, `$NAME` and `${NAME}` in `.sh`. A read through a
+    variable looks dead -- a false alarm is the cheaper bias. Registry skipped."""
     root = root or SRC
     me = os.path.abspath(knobs.__file__)
     found = {k.name: [] for k in knobs.KNOBS}
@@ -63,9 +49,7 @@ def readers(root=None):
             rel = os.path.relpath(path, root)
             py = fn.endswith(".py")
             for name in found:
-                # BOTH SPELLINGS: `number("NAME")` is the reader for numeric
-                # knobs, and a detector that knows only `knob(` declared nine
-                # live knobs dead the moment they moved onto it.
+                # Both spellings: `number("NAME")` reads a numeric knob.
                 hit = (any(f'{fn_}("{name}")' in text
                            or f"{fn_}('{name}')" in text
                            or f'{fn_}("{name}",' in text
@@ -78,13 +62,9 @@ def readers(root=None):
 
 
 def audit(root=None):
-    """Declared debt against what the tree holds. Empty means they agree.
-
-    Two troubles, both quiet: a knob started being read and `debt=True` was not
-    taken off it, so the registry lies that the setting is dead and people stop
-    passing it through; or the last consumer went with its code while the knob
-    stayed standing as alive.
-    """
+    """Declared debt against what the tree holds. Empty means they agree: either
+    `debt=True` stayed on a knob that is read again, or the last consumer went
+    with its code while the knob stayed standing as alive."""
     who = readers(root)
     out = []
     for k in knobs.KNOBS:
@@ -100,11 +80,8 @@ def audit(root=None):
 
 def knockout(snap, req, log=print):
     """Cut each required key in turn and see that `replay.missing` notices.
-
-    Returns (omissions not caught, keys absent from the start). The first is
-    the only number about the CHECK; the second is about the snapshot and is
-    reported beside it.
-    """
+    Returns (omissions not caught, keys absent from the start): the first is the
+    only number about the check, the second is about the snapshot."""
     absent = [p for p, _ in req if not replay._dig(snap, p)[0]]
     bad = 0
     for path, what in req:
@@ -122,22 +99,9 @@ def knockout(snap, req, log=print):
 
 
 def selfcheck(outdir, log=print) -> int:
-    """Can the check fail at all: the sum of six troubles, each printed apart.
-
-    An omission not caught (the check is asleep), a key absent from the start
-    (the writer does not lay it), registry drift against the tree, fingerprint
-    values with nothing to verify against (another adapter took the snapshot),
-    an unidentified writer (nothing to verify with at all), and a shape that
-    would not derive. They add up only at the exit, because they fall silent
-    alike; a returned zero means "asked and not found", never "not asked", so
-    an unreadable `run.json` returns the whole requirement count.
-
-    A SEVENTH NUMBER IS PRINTED AND NOT SUMMED, by decision: fingerprint values
-    whose keys are born during a run are cut unnoticed, but that is fixed at
-    the WRITER, and there are dozens of them on every healthy docling run.
-    Summed in, this would burn always -- and a check that always burns reports
-    nothing and gets switched off.
-    """
+    """Can the check fail at all: the sum of six troubles, each printed apart --
+    they fall silent alike, so they add up only at the exit, and a zero means
+    "asked and not found". A seventh prints unsummed: it is fixed at the writer."""
     snap = replay.facts(outdir)
     sh = replay.shape(snap)
     req = replay.required(snap, sh)
@@ -187,9 +151,8 @@ def test_audit_finds_no_disagreement():
 
 
 def test_readers_finds_consumers_and_counts_them():
-    """Counted, not remembered: the prose list in the registry's header named
-    11 live consumers when there were 16, and missed five knobs every `books
-    detect` takes. Live knobs must be exactly the total minus the debt."""
+    """Counted, not remembered: live knobs must be exactly the total minus the
+    knobs declared a debt."""
     who = readers()
     assert set(who) == set(knobs.names())
     live = sum(1 for v in who.values() if v)
@@ -210,15 +173,13 @@ def test_docling_pipeline_is_registered():
 
 
 # --------------------------------------------------------- the derived shape
-# `replay.shape` derives the required fingerprint shape by parsing the
-# adapter's source. Parsing is sometimes powerless -- a fingerprint built by a
-# comprehension, past a loop, handed over ready -- and that cost the instrument
-# its face: the fingerprint branch did not enter the requirements at all, so a
-# snapshot with no fingerprint passed `books replay --check` with code 0 and the
-# word VERIFIED beside it.
+# `replay.shape` derives the required fingerprint shape by parsing the adapter's
+# source. Parsing is sometimes powerless -- a fingerprint built by a
+# comprehension, past a loop, handed over ready -- and then the branch itself
+# must still be required, or a snapshot with no fingerprint passes with code 0.
 
 def _adapter_with_underivable_fingerprint(tmp):
-    """A snapshot writer whose shape tree-parsing will NOT derive: a declared
+    """A snapshot writer whose shape tree-parsing will not derive: a declared
     `name` and a declared `fingerprint()` whose keys are counted during a run."""
     path = os.path.join(tmp, "myocr.py")
     with open(path, "w", encoding="utf-8") as f:
@@ -239,12 +200,9 @@ def _tmp_out(tmp, snap):
 
 
 def test_shape_that_could_not_be_derived_is_loud_not_silent():
-    """Failure to derive the shape is a value, not silent agreement.
-
-    At least the fingerprint BRANCH is required, so a snapshot without it must
-    be incomplete; and the ignorance is named by a number, else "all checked"
-    and "as much as we could" are indistinguishable.
-    """
+    """Failure to derive the shape is a value, not silent agreement: at least the
+    fingerprint branch is required, and the ignorance is named by a number, or
+    "all checked" and "as much as we could" are indistinguishable."""
     import shutil as _sh
     import tempfile
 
@@ -284,11 +242,8 @@ def test_shape_that_could_not_be_derived_is_loud_not_silent():
 
 
 def test_derivable_shape_still_requires_every_value():
-    """The other side: where the shape WAS derived, every value is required.
-
-    Without this half the fix could be "done" by declaring any shape
-    underivable -- the branch required, and nothing inside it.
-    """
+    """The other side: where the shape was derived, every value is required, or
+    the requirement could be met by declaring any shape underivable."""
     tree = replay._parse(support.src_path("processing/layout/adapters/doclayout.py"))
     fn, cls = replay._fp_def(tree, "DocLayout")
     keys = replay._returned(fn, tree, cls)

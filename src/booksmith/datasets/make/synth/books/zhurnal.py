@@ -1,17 +1,12 @@
 """A collection of articles: the mixed layout level two exists for.
 
-WHY. The handbook is uniform -- prose, table, figure. Here one page carries an
-article title, an indented abstract, a boxed insert, a photograph with its
-caption to the SIDE, footnotes under a rule and a folio, and all of them are
-neighbours.
-
-Two traps. THE BOXED INSERT looks like a one-cell table; in the truth it is
-text. THE SIDE CAPTION is not under the figure as everywhere else on the
-bench: does it end up inside the figure's box?
-
-The control is `zh_two_col_plain`, an ordinary two-column page with no feature
-at all. Without it, "little was found" on a busy page cannot be told from the
-book failing as a whole.
+Where the handbook is uniform, one page here carries an article title, an
+indented abstract, a boxed insert, a photograph with its caption to the SIDE,
+footnotes under a rule and a folio, all of them neighbours. Two traps: the BOXED
+INSERT looks like a one-cell table and is text in the truth, and the SIDE
+CAPTION stands beside the figure rather than under it. The control
+`zh_two_col_plain` has no feature at all, so "little was found" on a busy page
+can be told from the book failing whole.
 """
 from booksmith.datasets.make.synth.draw import (
     PROSE_EN,
@@ -99,12 +94,9 @@ def c_zh_box_insert(doc, rng):
 def c_zh_side_caption(doc, rng):
     """The caption BESIDE the figure, not under it."""
     pg = _sheet(doc); t = []
-    # DRAWN IN READING ORDER, because the truth's `order` is the draw order
-    # and the truth says so (`order_marked`): the left column to its bottom,
-    # then the right column with the side caption where a reader meets it.
-    # The first edition drew the caption before the right column and the
-    # left column's tail last, and the metric scored the model against
-    # that -- 18 wrong pairs on one page, found by a review, not by a probe.
+    # Drawn IN READING ORDER, the truth's `order` being the draw order and
+    # `order_marked` saying so: the left column to its bottom, then the right
+    # column with the side caption where a reader meets it.
     _flow(pg, t, COL_X[0], TOP, 200, PROSE_EN, w=COLW)
     _figure(pg, t, COL_X[0], 216, COLW, 170, "Fig. 4  Jig")
     _flow(pg, t, COL_X[0], 410, BOT_Y, PROSE_EN, w=COLW)

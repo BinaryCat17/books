@@ -28,8 +28,8 @@ def _slovar():
             and os.path.isfile(os.path.join(SLOVAR, "slovar.pdf"))):
         pytest.skip("bench/slovar is not built here (books synth --book slovar)")
     b = Bench.open(SLOVAR)
-    # NAMED, not "the" run: the book holds one directory per model now, and
-    # `run()` refuses when there are several -- which is the point of it.
+    # Named, not "the" run: the book holds one directory per model, and `run()`
+    # refuses when there are several.
     return b, b.run("PP-DocLayoutV2")
 
 
@@ -68,8 +68,8 @@ def test_a_scalar_without_a_value_must_say_why():
 
 
 def test_records_agree_with_the_raw_dict_they_carry():
-    """The scalars are views of `detail`; a view that drifts from the dict
-    is the hand-typed copy the table was built to abolish."""
+    """The scalars are views of `detail`; a view that drifts from the dict is a
+    hand-typed copy of it."""
     b, r = _slovar()
     for m in registry.METRICS:
         rec = m.run(b, r)
@@ -160,9 +160,8 @@ def test_the_probe_loop_counts_what_it_printed():
 
 def test_the_truth_free_metrics_catch_every_probe_on_a_real_run():
     """The assembly and snapshot metrics need no truth and must still be able to
-    fail. Every metric's probes on the drawn bench are
-    `tests/bench/test_batteries.py`; these two are asked here of a REAL detect
-    run, which is the only input the snapshot probes have anything to cut."""
+    fail. Every metric on the drawn bench is `tests/bench/test_batteries.py`;
+    these two are asked of a real detect run, the only input with keys to cut."""
     b, r = _slovar()
     lines = []
     seen, _, bad = run_probes(registry.BY_NAME["assembly"].probes(b, r),
@@ -176,18 +175,9 @@ def test_the_truth_free_metrics_catch_every_probe_on_a_real_run():
 
 
 def test_a_reading_metric_is_not_applicable_to_a_run_that_read_nothing():
-    """CER 1 on a DETECTION run is not a measurement.
-
-    `content` says the TRUTH carries characters. It was the only prerequisite
-    the reading metric had, so on every synthetic bench -- whose truth carries
-    characters by construction -- the metric was "applicable" to a detection
-    run, which never writes one, and reported CER 1 and WER 1. That reads as
-    "this model read everything wrong" where the truth is "this run did no
-    reading". Harmless while a book held one run; six rows of noise wearing a
-    number the moment six detectors are laid side by side.
-
-    Both directions, because only one of them was ever wrong.
-    """
+    """CER 1 on a detection run is not a measurement: the reading metric needs a
+    run that read something, not only a truth that carries characters. Both
+    directions, because only one of them goes wrong quietly."""
     from booksmith.datasets import metrics as registry
     from booksmith.datasets.metrics import base
     b, run = _slovar()
@@ -213,17 +203,9 @@ def test_a_reading_metric_is_not_applicable_to_a_run_that_read_nothing():
 
 
 def test_a_truth_silent_about_a_trait_is_not_counted_as_marked():
-    """A missing flag answers "the file did not say", never "annotated".
-
-    This file's own header records the defect for `order_marked` -- truth that
-    never mentioned its reading order counted as annotated, and detectors were
-    ranked by it. `text_marked` was still read with `.get(..., True)` in two
-    places. Measured on `bench/hard36`: one page of 36 carries the flag at all
-    and the other 35 say `false`, so `text_furniture_found` was 8 of 11 blocks
-    taken from ONE page and published as the bench's text number. `bench/hard`
-    did the same over 6 pages of 130 -- the "counted over 6 pages" caption the
-    documents quote is that accident.
-    """
+    """A missing flag answers "the file did not say", never "annotated": a truth
+    that never mentioned a trait is measured over no pages, or one page's blocks
+    are published as the bench's number."""
     from booksmith.datasets.metrics import contour
     assert contour._truth_text_state({"meta": {"text_marked": True}}) == "yes"
     assert contour._truth_text_state({"meta": {"text_marked": False}}) == "no"
@@ -244,13 +226,9 @@ def test_a_truth_silent_about_a_trait_is_not_counted_as_marked():
 
 
 def test_an_error_count_carries_the_pairs_it_was_counted_over():
-    """A bare count ranks models WRONG, because the denominator moves.
-
-    Measured on slovar: plus-L 233 label errors of 239 matched pairs against
-    V3's 442 of 495. By the printed number plus-L looks nearly twice as good;
-    by the rate it is the worst of the three (0.975 against 0.893). Every
-    other scalar in this record already carried its count.
-    """
+    """A bare count ranks models wrong, because the denominator moves: by the
+    printed number a model with fewer pairs looks better, by the rate it is the
+    worst. Every other scalar in this record carries its count."""
     from booksmith.datasets.metrics import contour
     truth = {0: {"index": 0, "width": 100, "height": 100, "dpi": 144.0,
                  "meta": {"text_marked": True},
@@ -270,18 +248,9 @@ def test_an_error_count_carries_the_pairs_it_was_counted_over():
 
 
 def test_the_five_artefact_outcomes_account_for_every_object():
-    """Whole, merged, cropped, called text, not seen -- and nothing else.
-
-    `sense_whole` was the only one of the five that reached a scalar; the
-    other four lived in `detail`, where a TABLE cannot read them. Three
-    sections of `METRICS.md` are about MERGING and its headline is
-    "merging is 71% of ALL misses", so the generated document meant to replace
-    that prose could not have stated the project's central level-one finding.
-
-    They are checked as a PARTITION, which is what makes them readable as
-    shares: if they stopped summing to the objects, each one would still look
-    like a plausible fraction and the set would silently mean nothing.
-    """
+    """Whole, merged, cropped, called text, not seen -- and nothing else. They
+    are checked as a partition, which is what makes them readable as shares: if
+    they stopped summing to the objects, each would still look plausible."""
     from booksmith.datasets.metrics import contour
     b, run = _slovar()
     rec = contour.ContourMetric().run(b, run)
@@ -300,32 +269,9 @@ def test_the_five_artefact_outcomes_account_for_every_object():
 
 
 def test_every_scalar_that_reaches_the_document_declares_its_direction():
-    """No scalar is published with a direction nobody decided.
-
-    `report._arrow` used to answer "↑, better higher" for any name it did not
-    recognise, and that silent default was wrong for five of the twenty-nine
-    scalars in `results/`: the three detection failure modes
-    (`artefacts_cropped`, `artefacts_called_text`, `artefacts_not_seen`),
-    which were added to the metric long after the list was written, and
-    `missing`/`empty`, which were IN the list under the qualified names
-    `snapshot/missing` and `snapshot/empty` while `_arrow` is called with the
-    bare one. So METRICS.md published "missing more artefacts is better", and
-    by that legend yolox's 0.314 not-seen beat V2's 0.067.
-
-    Both failures are the same shape and neither could be seen in the
-    document: a wrong arrow reads exactly like a right one.
-
-    ASKED OF THE REGISTRY AS WELL AS THE RECORDS, and the records alone were
-    a vacuum. `results/` holds what has been MEASURED, and the reading metric
-    never has been -- level two costs money -- so all ELEVEN of its scalars
-    were undeclared and this check passed anyway, every run, for as long as
-    it has existed. `report._arrow` refuses a name it does not know, and it
-    refuses by raising: the first reading run ever measured would not have
-    produced a wrong arrow, it would have made `books bench report` decline
-    to write METRICS.md at all, after the money was spent. A check that
-    cannot see a metric until someone pays to run it is checking the wrong
-    set.
-    """
+    """No scalar is published with a direction nobody decided: a wrong arrow
+    reads exactly like a right one. Asked of the registry as well as the
+    records, where a scalar nobody has paid to measure declares nothing."""
     import glob
     from booksmith.datasets import report
     names = set()
@@ -360,29 +306,18 @@ def test_every_scalar_that_reaches_the_document_declares_its_direction():
 
 
 def test_the_arrows_that_were_wrong_once_are_pinned_by_name():
-    """Declared in exactly one list is not the same as declared CORRECTLY.
-
-    The direction check asks only that a name sits in one of the three
-    lists, never WHICH -- so `area_under_boxes` can be moved back under `↑`
-    and nothing reddens, undoing the commit named after it. Three arrows
-    have been wrong in this project and each cost a commit to find; they are
-    named here, with the measurement, because a wrong arrow reads exactly
-    like a right one and no other check can see the difference.
-    """
+    """Declared in exactly one list is not the same as declared correctly: the
+    direction check asks only that a name sits in one of the three lists, never
+    which. The three that have been wrong are named here with a measurement."""
     from booksmith.datasets import report
     for name, want, why in (
-        # One box over the whole sheet takes 100 % of the ink and 100 % of
-        # the objects whole -- so this is the GUARD on those numbers and its
-        # maximum is the degenerate case, not the best one.
+        # One box over the whole sheet takes all the ink and all the objects
+        # whole: the maximum here is the degenerate case, not the best one.
         ("area_under_boxes", "=", "a full-sheet box scores 1.000"),
-        # A composition, not a quality. The truth's own artefact-ink share
-        # is the ceiling and is printed nowhere: under `↑` the column put
-        # plus-L first on slovar at 0.286 against a truth share of 0.034,
-        # and V3 first on zhurnal at 0.180 against 0.069, over a model
-        # sitting on the truth share exactly with better object ink.
+        # A composition, not a quality: the truth's own artefact-ink share is
+        # the ceiling and is printed nowhere.
         ("ink_under_artefacts", "=", "8.5x the truth share topped the column"),
-        # Missing MORE artefacts is not better. Published as `↑` by a silent
-        # default, it made yolox's 0.314 not-seen beat V2's 0.067.
+        # Missing more artefacts is not better.
         ("artefacts_not_seen", "↓", "yolox 0.314 beat V2 0.067"),
     ):
         got = report._arrow(name)

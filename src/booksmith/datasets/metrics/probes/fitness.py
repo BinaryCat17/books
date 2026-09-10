@@ -228,14 +228,10 @@ def probes(bench, run) -> list:
          lambda: (lambda r: r["ink_under_boxes"] == r["ink_total"]
                   and r["boxes_area"] == r["sheet_area"])(R(full))),
         # ----------------------------------------- the junk mask, ours ---
-        # A THRESHOLD OF OURS DECIDES WHAT IS NOT INFORMATION, so it is probed
-        # from both ends like every other. What is asserted is MONOTONY in the
-        # gate: a wider band can only admit more. It does not RISE on every
-        # book -- where every dark column is already at the edge, opening the
-        # gate finds nothing new -- and a probe demanding a rise there would be
-        # demanding a property of the paper. `no data` where the book has no
-        # solid dark column at all: a drawn bench carries none, which is exactly
-        # why a drawn bench is the false-positive test.
+        # A threshold of ours decides what is not information, so it is probed
+        # from both ends. What is asserted is MONOTONY in the gate -- a wider
+        # band can only admit more -- since a rise is a property of the paper;
+        # `no data` on a book with no solid dark column at all.
         ("the binding band blown to the whole sheet",
          "the gate can only admit more, never less",
          lambda: None if not base["dark_columns"] else
@@ -261,25 +257,22 @@ def probes(bench, run) -> list:
         ("every pixel black",
          "a sheet that is all ink has no binding to find",
          lambda: _at("INK", 256, lambda: R2()["ink_junk"]) == 0),
-        # THE MASK MUST NOT SEE THE MODEL: that is the whole argument that
-        # discarding junk is a property of the ruler and not a repair of the
-        # model. No output can move it, so no model can win by it.
+        # The mask must not see the model: no output can move it, so discarding
+        # junk is a property of the ruler and not a repair.
         ("the model output emptied, and a box over the whole sheet",
          "the junk mask does not move: it reads the raster, never the boxes",
          lambda: (R(_edit(M0, lambda b: None))["ink_junk"] == base["ink_junk"]
                   and R(full)["ink_junk"] == base["ink_junk"])),
-        # AND THE DOCUMENTED ATTACK PAYS NOTHING: on the raw number a box laid
-        # on every junk run paid 85.661 -> 95.202 on a real book.
+        # The attack that pays on the raw number pays nothing on the clean one.
         ("a box on every junk run",
          "raw rises and CLEAN does not move -- the attack's gradient is zero",
          lambda: None if not base["ink_junk"] else
                  (lambda r: r["ink_under_boxes"] > base["ink_under_boxes"]
                   and r["clean_under_boxes"] == base["clean_under_boxes"])(
                      R(_on_junk(M0)))),
-        # A DETECTION RUN READS NOTHING, so the split sits at its floor and the
-        # only way to see it move is to put content in. Guarded on the ABSENCE
-        # of content: on a real level-two run every non-artefact block already
-        # carries some, and the probe would demand a rise that cannot happen.
+        # A detection run reads nothing, so the split sits at its floor and only
+        # content moves it. Guarded on the ABSENCE of content: with content
+        # everywhere already the probe would demand a rise that cannot happen.
         ("every block handed a character",
          "ink leaves as text where it left as a picture, and the artefacts "
          "do not move",
@@ -292,11 +285,9 @@ def probes(bench, run) -> list:
                # split, because the mutator cannot move `ink_under_artifact`.
                and r["ink_as_picture"] >= base["ink_under_artifact"])(
              R(_edit(M0, lambda b: {**b, "content": "x"})))),
-        # THE GUARD IS BEATEN FROM BOTH SIDES, which is why there are three of
-        # them: cut every box into a grid and the area and the ink are identical
-        # to the digit, the same pixels covered by rubble instead of by blocks,
-        # while the crops level two pays for multiply. The two degeneracies are
-        # geometric opposites and no one number separates both.
+        # The guard is beaten from both sides, hence three of them: rubble
+        # covers the same pixels at the same area while the crops level two pays
+        # for multiply, and the two degeneracies are geometric opposites.
         ("the boxes cut into a grid of tiny ones",
          "the area guard does not move ONE PIXEL, and the ink does not "
          "either -- the median box and the bill are what see it",
@@ -312,10 +303,9 @@ def probes(bench, run) -> list:
          lambda: None if not base["objects"] else
                  (lambda r: r["intact"] == r["objects"]
                   and r["in_one_box"] == r["objects"])(R(full))),
-        # ADMITTED BLINDNESS, AND ONE SEEING NUMBER: the older numbers must not
-        # fall under merging and "arrived with company" must GROW, else the
-        # instrument would go blind whole and silently. Nothing to merge where
-        # no page holds two objects at once, and that is an honest "no data".
+        # Admitted blindness with one seeing number: the older numbers must not
+        # fall under merging and "arrived with company" must grow. Nothing to
+        # merge where no page holds two objects, and that is an honest no data.
         ("all artefact boxes merged into one",
          "the older numbers do not fall, and 'arrived with company' grows",
          lambda: None if not base["objects"] else
@@ -356,10 +346,9 @@ def probes(bench, run) -> list:
                      ink.measure(pdf, detect_dir, truth_dir)))
                  and _at("WHOLE", 1.01,
                          lambda: ink.measure(pdf, detect_dir, truth_dir)["intact"] == 0)),
-        # THERE ARE SIX THRESHOLDS, NOT TWO. Kill ALMOST, BITTEN or EDGE alone
-        # and the numbers slide while the battery stays green. Each is brought
-        # TO ITS NEIGHBOUR rather than nudged: the class between two must move
-        # ENTIRELY, checkable on any bench where the class holds anyone.
+        # Every threshold gets its own probe, or one killed alone slides the
+        # numbers while the battery stays green. Each is brought TO ITS
+        # NEIGHBOUR: the class between two must move entirely.
         ("the 'almost intact' threshold brought to its neighbours",
          "the class between 'intact' and 'bitten' moves entirely",
          lambda: None if not base["almost_intact"] + base["bitten"] else
