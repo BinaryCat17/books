@@ -80,3 +80,11 @@ directory name rather than sanitising it.
 **The same book, by hash.** A measurement names the scan it was taken on.
 `src/booksmith/datasets/bench.py:same_book` compares the manifest's hash
 with the run's, and says aloud when it could not check.
+
+**Identity is what a model serves, never where it runs.** A served run of a
+model and an in-process run of it under one setting are one experiment; the
+address and the adapter that reached it are not in the hash.
+`src/booksmith/core/served.py:identity_of` hashes the describe's fingerprint
+with the knobs read on both sides, and
+`src/booksmith/core/stamp.py:KNOBS_NOT_IDENTITY` keeps the endpoints and the
+adapter's name out.

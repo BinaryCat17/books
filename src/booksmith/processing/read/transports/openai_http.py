@@ -6,40 +6,19 @@ a third transport, and nearly the whole paying path is checked at home against
 the stand-in server `tests/fake_vlm.py`. `urllib` from the standard library.
 
 A retry is allowed only before the answer: a broken connection, a timeout or a
-5xx is repeated, a 200 never, whatever lies in it. `VLM_API_KEY` comes from
-`.env` rather than the registry, so the secret cannot ride into `run.json`.
+5xx is repeated, a 200 never, whatever lies in it. `VLM_API_KEY` rides on the
+job's secrets rather than in the registry, so it cannot reach `run.json`; the
+command line puts the `.env` key there, the web the registry entry's.
 """
-import base64
 import json
-import os
 import time
 import urllib.error
 import urllib.request
 
 from booksmith.processing.read import Ask, Said, Transport
-from booksmith.core import config
-from booksmith.core import knobs
+from booksmith.core import job, knobs, served
 from booksmith.core.errors import Refusal
-
-# What counts as a picture. The `data:` type must be the right one: a server
-# handed `image/png` over a JPEG answers 400.
-MIME = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
-        ".webp": "image/webp"}
-
-
-def _data_uri(path: str) -> tuple[str, int]:
-    ext = os.path.splitext(path)[1].lower()
-    if ext not in MIME:
-        raise ValueError(
-            f"{path}: I do not know this image kind. I know {sorted(MIME)}; "
-            f"crops are written by `core/raster.py`, and those are .png")
-    raw = open(path, "rb").read()
-    if not raw:
-        raise ValueError(
-            f"{path}: the crop is empty (0 bytes). Sending it means getting "
-            f"an invented answer to an empty place -- on a blank white sheet "
-            f"the model produces tables, five different ones in five tries.")
-    return f"data:{MIME[ext]};base64," + base64.b64encode(raw).decode(), len(raw)
+from booksmith.core.served import data_uri as _data_uri
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -99,8 +78,8 @@ class Http(Transport):
         self.model = model or knobs.knob("MODEL_NAME")
         self.timeout = knobs.number("VLM_TIMEOUT_S")
         self.retries = knobs.number("VLM_RETRIES", kind=int)
-        # The key is from `.env`, not from the registry: see the header.
-        self.key = config.env("VLM_API_KEY")
+        # The key is the job's secret, not a knob: see the header.
+        self.key = str(job.current().secrets.get("VLM_API_KEY") or "")
         if not self.server:
             # A refusal, not a ValueError: the operator sees a line, not a stack.
             raise Refusal(
@@ -131,6 +110,32 @@ class Http(Transport):
         and only the reader's fingerprint, taken beside them, proves those.
         """
         want = model or self.model
+        # A shim describes itself first; a bare vLLM has no such route and
+        # answers /models as before. The describe names the model the chat
+        # route serves, and a name that is not the one asked for fells the run.
+        try:
+            spoken = served.fetch(
+                served.root_of(self.server) + served.DESCRIBE,
+                timeout=self.timeout, headers=_headers(self.key))
+        except served.Unreachable:
+            spoken = None
+        if spoken is not None:
+            d = served.Describe.from_json(spoken)
+            if d.kind == "layout":
+                raise Refusal(
+                    f"{self.server} is a layout model ({d.label}); level "
+                    f"two needs a reader or a hybrid.")
+            name = (d.openai or {}).get("model")
+            out = {"endpoint": self.server, "models_on_server": [name],
+                   "asking_for": want, "matched": want == name,
+                   "describe": d.to_json()}
+            if not out["matched"]:
+                raise Refusal(
+                    f"{self.server} describes itself as {d.label} serving "
+                    f"{name!r}, and we are about to ask for {want!r}. "
+                    f"Counting like this writes one model's name into the "
+                    f"snapshot over another model's answers.")
+            return out
         try:
             d = _read_json(urllib.request.Request(
                 self.server + "/models", headers=_headers(self.key)),

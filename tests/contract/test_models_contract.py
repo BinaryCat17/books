@@ -17,7 +17,8 @@ from booksmith.processing.layout import base
 ADAPTERS = (("doclayout.py", "DocLayout"),
             ("docling.py", "DoclingHeron"),
             ("docling.py", "DoclingEgret"),
-            ("yolox.py", "YoloXLayout"))
+            ("yolox.py", "YoloXLayout"),
+            ("served.py", "Served"))
 
 
 # Every file that drives an adapter. `detect.py` is the pipeline; `cli.py` asks
@@ -57,7 +58,15 @@ def test_every_adapter_we_ship_satisfies_the_contract():
 
 # ------------------------------------------------- the run label and identity
 
-def test_every_detector_declares_a_label_and_it_is_a_directory_name():
+def _env_for(name, served_endpoint):
+    """The served adapter has no weights to find: it is given the stand-in."""
+    env = {"LAYOUT_ADAPTER": name}
+    if name == "served":
+        env["LAYOUT_ENDPOINT"] = served_endpoint
+    return env
+
+
+def test_every_detector_declares_a_label_and_it_is_a_directory_name(served_endpoint):
     """A label with no default, for the reason `knobs_read` has none: the label
     is the model's name and becomes a directory, and a guessed directory is a
     measurement filed against the wrong model. Built here, not parsed."""
@@ -65,7 +74,7 @@ def test_every_detector_declares_a_label_and_it_is_a_directory_name():
     from booksmith.processing.layout import detect
     seen = {}
     for name in detect.ADAPTERS:
-        with support.env(LAYOUT_ADAPTER=name):
+        with support.env(**_env_for(name, served_endpoint)):
             try:
                 det = detect._adapter()
             except Exception as e:          # weights absent on this machine
@@ -112,9 +121,12 @@ def test_identity_ignores_what_moves_without_the_experiment():
     from booksmith.core import stamp
     fp = {"model": "X", "sha256_weights": "ab"}
     a = stamp.identity({**fp, "weights_dir": "/home/a"},
-                       {"T": "0.5", "VLM_ENDPOINT": "http://1.2.3.4:8118/v1"})
+                       {"T": "0.5", "VLM_ENDPOINT": "http://1.2.3.4:8118/v1",
+                        "LAYOUT_ADAPTER": "doclayout"})
     b = stamp.identity({**fp, "weights_dir": "/mnt/other"},
-                       {"T": "0.5", "VLM_ENDPOINT": "http://9.9.9.9:8000/v1"})
+                       {"T": "0.5", "VLM_ENDPOINT": "http://9.9.9.9:8000/v1",
+                        "LAYOUT_ADAPTER": "served",
+                        "LAYOUT_ENDPOINT": "http://9.9.9.9:8000"})
     assert a == b, ("the same experiment on another machine and another "
                     "rental got another identity")
     assert a != stamp.identity({**fp, "weights_dir": "/home/a"}, {"T": "0.6"})
@@ -156,7 +168,7 @@ def test_identity_does_not_depend_on_the_order_the_dict_was_built_in():
     assert stamp.identity({"a": [2, 3]}, {}) != stamp.identity({"a": [3, 2]}, {})
 
 
-def test_identity_is_taken_from_the_real_fingerprints_not_a_hand_written_one():
+def test_identity_is_taken_from_the_real_fingerprints_not_a_hand_written_one(served_endpoint):
     """Asked of the adapters themselves, not of a fingerprint written by hand:
     the real ones nest -- docling under `docling_pipeline`, which holds page
     counters -- and open with a path, both of which a top-level filter misses."""
@@ -178,7 +190,7 @@ def test_identity_is_taken_from_the_real_fingerprints_not_a_hand_written_one():
     for name in detect.ADAPTERS:
         # The pipeline is turned on for the docling pair: with it off the nest
         # is `null` and there is nothing for a top-level filter to miss.
-        env = {"LAYOUT_ADAPTER": name}
+        env = _env_for(name, served_endpoint)
         if name.startswith("docling"):
             env["DOCLING_PIPELINE"] = "post"
         with support.env(**env):

@@ -18,6 +18,15 @@ def test_a_bound_setting_wins_and_an_undeclared_one_is_refused():
         pass
 
 
+def test_a_secret_is_not_a_setting_and_reaches_no_snapshot():
+    j = job.Job(settings={"PAGE_DPI": "72"}, secrets={"VLM_API_KEY": "sk-x"})
+    with j.active():
+        assert job.current().secrets["VLM_API_KEY"] == "sk-x"
+        snap = knobs.snapshot()
+    assert "sk-x" not in str(snap) and "VLM_API_KEY" not in snap
+    assert job.Job().secrets == {}
+
+
 def test_a_stop_is_seen_by_check_and_a_field_reaches_the_sink_from_any_thread():
     events = []
     j = job.Job(sink=events.append)

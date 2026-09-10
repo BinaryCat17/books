@@ -113,6 +113,12 @@ class Run:
         return k if k in book_mod.KINDS else ""
 
     @property
+    def level(self) -> str:
+        """The results table's kind column: `detect`, `read`, or `hybrid` for
+        a read run whose boxes are its own (`run.json` says `layout: own`)."""
+        return "hybrid" if self.snapshot.get("layout") == "own" else self.kind
+
+    @property
     def vocabulary(self) -> str | None:
         return (self.snapshot.get("policy") or {}).get("vocabulary")
 

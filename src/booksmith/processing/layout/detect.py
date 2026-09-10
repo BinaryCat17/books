@@ -35,7 +35,7 @@ _sha256 = stamp.sha256
 
 # The adapter registry: adapters differ in vocabulary and preprocessing, so the
 # choice is a declared knob and travels into the snapshot.
-ADAPTERS = ("doclayout", "docling", "docling-egret", "yolox")
+ADAPTERS = ("doclayout", "docling", "docling-egret", "yolox", "served")
 
 
 def _check_labels(page, pol, known, adapter):
@@ -69,6 +69,9 @@ def _adapter():
     if which == "yolox":
         from booksmith.processing.layout.adapters.yolox import YoloXLayout
         return YoloXLayout()
+    if which == "served":
+        from booksmith.processing.layout.adapters.served import Served
+        return Served()
     raise Refusal(f"LAYOUT_ADAPTER={which!r}: I know only {ADAPTERS}")
 
 
@@ -110,6 +113,15 @@ def _knob_roles(det):
 
 # The knob snapshot's shape lives in the registry: detection and reading share it.
 _knobs_snapshot = knobs.snapshot_with_readers
+
+
+def _identity(det, roles):
+    """What makes this run this experiment: the fingerprint, the knobs this
+    process read and, for a served model, the knobs read on its side, out of
+    the same describe the snapshot records -- so the guard and the snapshot
+    cannot disagree, and a served run equals an in-process one."""
+    return stamp.identity(det.fingerprint(), stamp.knob_values(
+        {"knobs": _knobs_snapshot(roles), "served": det.served()}))
 
 
 _commit = stamp.commit
@@ -160,8 +172,14 @@ def parse_pages(spec, total):
     return [p - 1 for p in sorted(set(want))]
 
 
-def run(pdf, outdir, pages_spec=None):
-    """Run the detector over the PDF pages. Returns the directory path."""
+def run(pdf, outdir, pages_spec=None, det=None, hybrid=False):
+    """Run the detector over the PDF pages. Returns the directory path.
+
+    `det` is the adapter already built, or none and it is built here; a
+    caller that needs the label before the pages passes it, so one run loads
+    one session. `hybrid` files the pages as a read run with its own boxes:
+    the model must be a served hybrid, and its blocks carry content and kind.
+    """
 
     dpi_raw = knobs.knob("PAGE_DPI")
     dpi = float(dpi_raw)
@@ -181,13 +199,19 @@ def run(pdf, outdir, pages_spec=None):
     if os.path.isdir(pdf):
         raise Refusal(f"{pdf} is a directory, one book's PDF is expected")
 
-    det = _adapter()
+    det = det if det is not None else _adapter()
+    spoken = det.served()
+    if hybrid and not (spoken and spoken.get("kind") == "hybrid"):
+        raise Refusal(
+            f"a hybrid run needs a served hybrid model, and "
+            f"{det.where()} is "
+            + (f"a {spoken.get('kind')} model" if spoken else
+               f"the in-process adapter {det.name}")
+            + ". Boxes and text in one call come from a model that declared "
+              "both; `books detect` runs the rest.")
     # Would this overwrite another experiment: asked before the pages, not after an hour.
-    book.guard_identity(
-        outdir,
-        stamp.identity(det.fingerprint(), stamp.knob_values(
-            {"knobs": _knobs_snapshot(_knob_roles(det))})),
-        pages_spec or "", f"this {det.label()} run")
+    book.guard_identity(outdir, _identity(det, _knob_roles(det)),
+                        pages_spec or "", f"this {det.label()} run")
     # The policy must cover the weights vocabulary whole and name nothing extra.
     # The vocabulary picks the policy, not the weights' name: a name can be confused.
     pol = getattr(det, "policy_name", None) or policy.for_labels(det.labels)
@@ -214,7 +238,7 @@ def run(pdf, outdir, pages_spec=None):
             f"value set does NOT affect this run, and the snapshot marks it "
             f"for_this_run: false")
     log(f"detector {det.name}: "
-        f"{det.fingerprint().get('model')} from {det.dir}")
+        f"{det.fingerprint().get('model')} from {det.where()}")
     # The input comes from the fingerprint, which every adapter has, not from its fields.
     fp_in = (det.fingerprint().get("input") or {})
     log(f"model input {fp_in.get('width')}x{fp_in.get('height')} (WxH): "
@@ -405,12 +429,19 @@ def run(pdf, outdir, pages_spec=None):
         raise Refusal(
             f"not one box on {len(idxs)} pages -- a refusal, not an empty "
             f"book. Threshold LAYOUT_SCORE_THRESHOLD="
-            f"{knobs.knob('LAYOUT_SCORE_THRESHOLD')}, weights {det.dir}. "
+            f"{knobs.knob('LAYOUT_SCORE_THRESHOLD')}, weights {det.where()}. "
             f"Best rejected: {rej_best or 'nothing was rejected at all'}")
 
     fp = det.fingerprint()
     # The identity comes from the snapshot's own knobs block: a second walk is a second list.
     knob_block = _knobs_snapshot(roles)
+    gen_null = {"temperature": None, "max_tokens": None, "top_p": None,
+                "seed": None}
+    # A hybrid's pages are a read run with its own boxes: no detect run stands
+    # behind them, and its prompts and generation are the model's, out of the
+    # fingerprint it declared.
+    own = ({"layout": "own", "detection": None,
+            "kinds": list(spoken.get("kinds") or [])} if hybrid else {})
     snap = {
         # The date beside the number: a measurement must say what it was applied to.
         "when": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
@@ -432,7 +463,12 @@ def run(pdf, outdir, pages_spec=None):
         "commit": _commit(),
         # What makes this run this experiment: a resume told from a collision.
         "identity": stamp.identity(fp, stamp.knob_values(
-            {"knobs": knob_block})),
+            {"knobs": knob_block, "served": spoken})),
+        # The describe a served model answered with, whole: its knobs are in
+        # the identity above, its code and commit stand where the adapter's
+        # source would for `books replay --check`.
+        "served": spoken,
+        **own,
         "label": det.label(),
         "source": {"path": pdf, "sha256": _sha256(pdf)},
         # Both files that decide the result are hashed, the adapter's being the active one.
@@ -442,11 +478,12 @@ def run(pdf, outdir, pages_spec=None):
                     # This file, asked of itself: a literal path breaks when the module moves.
                     "sha256_command": _sha256(os.path.abspath(__file__))},
         "policy": policy.snapshot(getattr(det, "policy_name", None)),
-        "prompts": {},
-        "generation": {"temperature": None, "max_tokens": None,
-                       "top_p": None, "seed": None},
+        "prompts": (fp.get("prompts") or {}) if hybrid else {},
+        "generation": ({**gen_null, **(fp.get("generation") or {})}
+                       if hybrid else gen_null),
         "packages": _packages(),
-        "weights": {"vl": None, "layout": fp["sha256_weights"]},
+        "weights": {"vl": fp["sha256_weights"] if hybrid else None,
+                    "layout": fp["sha256_weights"]},
         "fingerprint": fp,
         "summary": {"page_count": len(idxs), "box_count": total,
                  "artifacts": artefacts, "rank_ties": ties,
@@ -486,7 +523,8 @@ def run(pdf, outdir, pages_spec=None):
                  }},
         # The line must be runnable: file names carry spaces, so every argument is quoted.
         "repeat_command": " ".join(shlex.quote(a) for a in
-                           ["books", "detect", pdf, "--out", outdir]
+                           ["books", "hybrid" if hybrid else "detect", pdf,
+                            "--out", outdir]
                            + (["--pages", str(pages_spec)] if pages_spec else [])),
     }
     write_json(os.path.join(outdir, "run.json"), snap, indent=1)

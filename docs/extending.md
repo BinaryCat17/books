@@ -4,6 +4,21 @@ One checklist per kind of thing. Each ends with the command that proves it.
 
 ## A layout detector
 
+Served, which is how a model reaches the web and, later, the fleet:
+
+1. An endpoint answering the three routes of `src/booksmith/core/served.py`:
+   describe, health, layout. The describe names the model, carries its
+   fingerprint with `sha256_weights`, the values of every knob its adapter
+   read, and its label vocabulary, whole, as one of the policies in
+   `src/booksmith/core/policy.py`. A hybrid fills content and kind too and
+   declares its kinds.
+2. An entry in the admin's `models.json`: kind, endpoint, knobs.
+3. Prove it: `books detect bench/slovar --model <entry>`, then
+   `books bench all bench/slovar --run <label>`; the stand-in
+   `tests/fake_layout.py` shows the shape of every answer.
+
+In process, for a model the tree holds itself:
+
 1. A module under `src/booksmith/processing/layout/adapters/` with a class
    that subclasses `Detector` from `src/booksmith/processing/layout/base.py`
    and implements its abstract members: `label` (the model's own name, a

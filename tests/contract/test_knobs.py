@@ -18,13 +18,15 @@ from booksmith.processing.layout.adapters.doclayout import DocLayout
 from booksmith.processing.layout.adapters.docling import (
     DoclingEgret,
     DoclingHeron)
+from booksmith.processing.layout.adapters.served import Served
 from booksmith.processing.layout.adapters.yolox import YoloXLayout
 from booksmith.core import knobs
 
 ADAPTERS = ((DocLayout, "processing/layout/adapters/doclayout.py"),
             (DoclingHeron, "processing/layout/adapters/docling.py"),
             (DoclingEgret, "processing/layout/adapters/docling.py"),
-            (YoloXLayout, "processing/layout/adapters/yolox.py"))
+            (YoloXLayout, "processing/layout/adapters/yolox.py"),
+            (Served, "processing/layout/adapters/served.py"))
 
 
 def test_unknown_knob_raises_not_returns_empty():

@@ -386,7 +386,7 @@
   "out": "/home/smirn/books/bench/hard/detect/PP-DocLayoutV3"
  },
  "commit": "f7407d40583d9d79cb9f8ecff4d56a8382ad8fe2+dirty tree",
- "identity": "53a16c240cd6b0901350f548108d9c78610f0b8efff4972689fe9e29f73ae496",
+ "identity": "d3cbdb387379c76184ef1a8ba4c34cc94101dfdb578dfa524d61be79fd315318",
  "label": "PP-DocLayoutV3",
  "source": {
   "path": "/home/smirn/books/bench/hard/hard.pdf",

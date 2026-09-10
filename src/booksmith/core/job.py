@@ -5,7 +5,8 @@ writes to its sink, and a loop asks `check` before the next page. The default
 job is the process itself: settings are the knobs set in the environment,
 seen live, and the sink prints. A job refuses to become current with a
 setting no knob is declared for, so a value that reaches nothing cannot ride
-in silently.
+in silently. Secrets are not settings: a key rides in `secrets`, is read by
+the transport alone, and reaches no snapshot and no identity.
 """
 import contextvars
 import os
@@ -49,6 +50,7 @@ class _Environ(Mapping):
 @dataclass
 class Job:
     settings: Mapping = field(default_factory=_Environ)
+    secrets: Mapping = field(default_factory=dict)
     stop: threading.Event = field(default_factory=threading.Event)
     sink: Callable[[dict], None] = _print
 

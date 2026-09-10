@@ -4,7 +4,7 @@
 
 ```
 usage: books [-h]
-             {offers,prepare,detect,html,crop,fitness,subset,annopage,score,read,apply,text,overlay,synth,bench,ls,down,reap,doctor,ledger,replay,docs} ...
+             {offers,prepare,detect,hybrid,html,crop,fitness,subset,annopage,score,read,apply,text,overlay,synth,bench,ls,down,reap,doctor,ledger,replay,docs} ...
 
 Single entry point: books <command>.
 
@@ -12,6 +12,8 @@ Single entry point: books <command>.
     books offers                 look at the market, renting nothing
     books prepare book.djvu      djvu -> PDF, spreads cut apart
     books detect book.pdf        LEVEL ONE: contours, local and free
+    books hybrid book-dir/       a served hybrid model: boxes and text in one
+                                 call, filed as a read run with its own boxes
     books read book.detect/      LEVEL TWO: read the blocks with a model (paid)
     books html book.detect/      build the HTML: text + artefacts as pictures
     books crop book.detect/      what `books read` would send, cut by its own
@@ -38,10 +40,12 @@ This list is `books --help`, and `tests/contract/test_docs.py` checks it
 against the parser both ways. Every command with its flags: `docs/commands.md`.
 
 positional arguments:
-  {offers,prepare,detect,html,crop,fitness,subset,annopage,score,read,apply,text,overlay,synth,bench,ls,down,reap,doctor,ledger,replay,docs}
+  {offers,prepare,detect,hybrid,html,crop,fitness,subset,annopage,score,read,apply,text,overlay,synth,bench,ls,down,reap,doctor,ledger,replay,docs}
     offers              look at the market, renting nothing
     prepare             unfold djvu into PDF
     detect              level-one contours, locally
+    hybrid              boxes and text in one call from a served hybrid model,
+                        filed as a read run
     html                build HTML from a books detect directory
     crop                what `books read` would send, by its own path; nothing
                         sent, nothing paid
@@ -101,7 +105,7 @@ options:
 ## books detect
 
 ```
-usage: books detect [-h] [--out OUT] [--pages PAGES] file
+usage: books detect [-h] [--out OUT] [--pages PAGES] [--model MODEL] file
 
 positional arguments:
   file           PDF (unfold djvu with books prepare)
@@ -110,6 +114,24 @@ options:
   -h, --help     show this help message and exit
   --out OUT      where to put pages/ and run.json
   --pages PAGES  which pages: 1,4,7-9; all by default
+  --model MODEL  an entry of the admin's models.json: its endpoint fills the
+                 knob the run reads, its key rides as a secret
+```
+
+## books hybrid
+
+```
+usage: books hybrid [-h] [--out OUT] [--pages PAGES] [--model MODEL] file
+
+positional arguments:
+  file           book directory or PDF
+
+options:
+  -h, --help     show this help message and exit
+  --out OUT      where to put pages/ and run.json
+  --pages PAGES  which pages: 1,4,7-9; all by default
+  --model MODEL  an entry of the admin's models.json: its endpoint fills the
+                 knob the run reads, its key rides as a secret
 ```
 
 ## books html
@@ -201,9 +223,9 @@ options:
 ## books read
 
 ```
-usage: books read [-h] [--out OUT] [--pages PAGES] [--policy POLICY] [--rent]
-                  [--budget BUDGET] [--timeout TIMEOUT] [--dry-run]
-                  [--key KEY]
+usage: books read [-h] [--out OUT] [--pages PAGES] [--policy POLICY]
+                  [--model MODEL] [--rent] [--budget BUDGET]
+                  [--timeout TIMEOUT] [--dry-run] [--key KEY]
                   dir
 
 positional arguments:
@@ -216,6 +238,8 @@ options:
   --policy POLICY    the detector label dictionary; empty = take it from the
                      detection snapshot, and a mismatch with it is a refusal
                      out loud
+  --model MODEL      an entry of the admin's models.json: its endpoint fills
+                     the knob the run reads, its key rides as a secret
   --rent             count on a RENTED card instead of VLM_ENDPOINT: take a
                      machine, raise vLLM, fetch the result
   --budget BUDGET    spending ceiling, $; reached — the machine dies

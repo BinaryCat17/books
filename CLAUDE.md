@@ -60,7 +60,8 @@ be able to fail. Log the quantity, not the word done. Zero from a check and
 zero from not understanding are different zeros. A knob is declared in the
 registry and read through the job. Numbers may be flagged, never restored. One
 run per label, and a different identity refuses. Imports go one way. The same
-book, by hash. Each with the symbol that enforces it: `docs/rules.md`.
+book, by hash. Identity is what a model serves, never where it runs. Each
+with the symbol that enforces it: `docs/rules.md`.
 
 ## Tests
 

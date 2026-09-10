@@ -22,13 +22,15 @@ class Detector(abc.ABC):
 
     name: str = ""
 
-    # Where the weights came from; no default, so a silent adapter raises.
+    # Where the weights came from, for an adapter that holds them; no default,
+    # so a silent adapter raises. A served model has none and answers `where`.
     dir: str
 
     # The model's own vocabulary in its own spelling; no default, as above.
     labels: tuple[str, ...]
 
-    # The weights file, whose size `books doctor` prints; no default, as above.
+    # The weights file, whose size `books doctor` prints; an in-process
+    # adapter's, and no default for one.
     onnx: str
 
     # Which policy describes the vocabulary; empty means `detect.py` derives it.
@@ -66,6 +68,17 @@ class Detector(abc.ABC):
     @abc.abstractmethod
     def read(self, image_path: str, index: int, dpi: float) -> Page:
         raise NotImplementedError
+
+    def where(self) -> str:
+        """Where the model is: the weights directory, or the address a served
+        model was reached at. For the log and the doctor, never the identity."""
+        return self.dir
+
+    def served(self) -> dict | None:
+        """The describe a served model answered with, as JSON, or None for a
+        model this process holds. `detect.py` writes it into the snapshot and
+        folds its knob values into the identity."""
+        return None
 
     def label_map(self) -> dict[str, str]:
         """Model labels into the common vocabulary; empty means they coincide.

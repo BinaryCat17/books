@@ -231,6 +231,28 @@ def shape(snap: dict) -> dict:
     if not snap:
         r["row"] = "fingerprint: there is no snapshot -- nothing to check"
         return r
+    spoken = snap.get("served")
+    if isinstance(spoken, dict):
+        # A served model: the describe IS the declaration of the shape, so
+        # every value it carried is required, and its code and commit stand
+        # where a parse of the adapter's source would. Nothing here can check
+        # them against code, and the row says so rather than "verified".
+        label = spoken.get("label")
+        paths = sorted(_fp_paths(snap))
+        r["name"] = f"served {label}"
+        r["how"] = "by the model's own describe"
+        r["derived"] = (
+            [((FP,), f"the whole fingerprint of the served model {label}")]
+            + [(p, f"a fingerprint value the served model {label} declared")
+               for p in paths])
+        sha, commit = spoken.get("adapter_sha256"), spoken.get("commit")
+        r["row"] = (
+            f"the fingerprint of the served model {label} is what its "
+            f"describe declared: {len(paths)} values, code "
+            f"{str(sha)[:8] if sha else 'not recorded'} at commit "
+            f"{commit or 'not recorded'}; every value it declared is "
+            f"required, and nothing on this machine checks it against code")
+        return r
     ad = snap.get("adapter")
     ad = ad if isinstance(ad, dict) else {}
     name = ad.get("name")

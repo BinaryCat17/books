@@ -27,6 +27,13 @@ def env(name: str, default: str | None = None) -> str | None:
                 if line.startswith(name + "="):
                     return line.split("=", 1)[1].strip()
     return default
+def secrets() -> dict[str, str]:
+    """What the command line hands its job: the one key `.env` may hold. The
+    web builds its jobs' secrets from the model registry instead."""
+    key = env("VLM_API_KEY")
+    return {"VLM_API_KEY": key} if key else {}
+
+
 def ssh_key(path: str | None = None) -> str | None:
     p = path or DEFAULT_SSH_KEY
     return p if os.path.exists(p) else None

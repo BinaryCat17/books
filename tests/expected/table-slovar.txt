@@ -41,9 +41,9 @@ bench slovar, run PP-DocLayoutV2
   assembly transitions                   150                                        
   assembly pages_with_columns          0.923             12/13                      
   assembly params: COLUMN_x_overlap_of_narrow_box=0.5, COLUMN_full_width_box_share=0.6, COLUMN_min_boxes_per_page=2, COLUMN_buckets_counted=['artifact', 'text'], order_rule=model_rank, order_rule_one_rule=ours_top_down_left_right (forced)
-  snapshot values_present              1.000             52/52                      
-  snapshot missing                     0.000              0/52                      
-  snapshot empty                       0.250             13/52                      
+  snapshot values_present              0.981             52/53                      
+  snapshot missing                     0.019              1/53                      
+  snapshot empty                       0.245             13/53                      
   snapshot fingerprint_verified            0                                        
   [1] fitness/ink_as_text: this run read nothing: every block would leave as a picture, which is not a measurement of one
   [2] fitness/ink_as_picture: this run read nothing: every block would leave as a picture, which is not a measurement of one

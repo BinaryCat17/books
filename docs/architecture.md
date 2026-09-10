@@ -21,6 +21,8 @@ raw/<book>.djvu
 <book>.pdf
   books detect       one Page per sheet, blocks with box, label, order
 detect/<model>/pages/NNNN.json + run.json
+  books hybrid       boxes and content in one call from a served hybrid
+                     model, filed as read/<model>/ with no detect run behind it
   books crop         what read would send, cut by the same path; nothing sent
   books read         the same pages with content and kind filled in
 detect/<model>.read/pages/NNNN.json + answers/pNNNN.json + run.json
@@ -57,6 +59,37 @@ rented card does not mean rewriting the renting. `service` is what the CLI
 and the web share: one function per command, each taking a store and the
 run's settings.
 
+## The model protocol
+
+A model is something that answers three routes, declared in
+`src/booksmith/core/served.py`. `GET /booksmith/describe` says what it is:
+its own name, its fingerprint, the values of the knobs its own adapter read,
+its vocabulary and, for a reader, the name its chat route answers to.
+`GET /booksmith/health` says whether it is ready and when it last worked.
+`POST /booksmith/layout` takes one page as a data URI and returns one page
+in the page format; a hybrid fills `content` and `kind` too. A reader keeps
+the OpenAI chat route at `/v1` beside them, and a bare vLLM with no describe
+is still accepted through `/models`.
+
+`LAYOUT_ADAPTER=served` reaches a layout or hybrid model at
+`LAYOUT_ENDPOINT` through
+`src/booksmith/processing/layout/adapters/served.py`, which asks describe
+once, posts each page, and refuses an answer that is not a page, a label the
+model did not declare, or text from a model that declared none. A layout
+answer is never asked twice. Identity is what a model serves, never where it
+runs: the run's identity hashes the describe's fingerprint with the knobs the
+server read and the knobs this process read, and the address and the adapter
+that reached it stay out, so a served run of a model and an in-process run
+of it under one setting are one experiment. The snapshot carries the
+describe whole under `served`, and `books replay --check` takes its code
+hash and commit for the adapter's source.
+
+A hybrid model returns boxes and text in one call. `books hybrid` files its
+pages as a read run with its own boxes, `read/<model>/` with `layout: own`
+in `run.json` and no detect run behind it; the metrics apply by what the
+pages carry, as they do to any run. `tests/fake_layout.py` answers the three
+routes from a truth directory, so all of this is checked with no weights.
+
 ## The book directory
 
 One directory per book, one directory per run. A bench is a book with
@@ -67,8 +100,11 @@ directory holding `bench/` and `processed/` in this shape, with its own
 is another such directory, and a book's owner is the store it lies in; a
 book under neither `bench/` nor `processed/` is the admin's. A store other
 than the admin's reaches only its own paths and runs only a preset from the
-admin's `models.json`, a named set of knob values over the adapters the tree
-has, or the registry's defaults.
+admin's `models.json`, or the registry's defaults. An entry of that registry
+names a model: its kind, layout, reader or hybrid; its knobs, the values a
+preset runs with; and either the endpoint it answers at or the image and
+provider that will bring one up. A key for the endpoint rides in the entry
+and reaches the job as a secret, never a snapshot.
 
 ```
 bench/<book>/ or processed/<book>/

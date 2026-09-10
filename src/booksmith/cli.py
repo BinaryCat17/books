@@ -4,6 +4,8 @@
     books offers                 look at the market, renting nothing
     books prepare book.djvu      djvu -> PDF, spreads cut apart
     books detect book.pdf        LEVEL ONE: contours, local and free
+    books hybrid book-dir/       a served hybrid model: boxes and text in one
+                                 call, filed as a read run with its own boxes
     books read book.detect/      LEVEL TWO: read the blocks with a model (paid)
     books html book.detect/      build the HTML: text + artefacts as pictures
     books crop book.detect/      what `books read` would send, cut by its own
@@ -110,10 +112,23 @@ def cmd_detect(a):
     over both.
     """
     import shlex
-    out = service.detect(config.ROOT, a.file, knobs.passthrough(), a.pages, a.out)
+    out = service.detect(config.ROOT, a.file, knobs.passthrough(), a.pages, a.out,
+                         a.model or "")
     # Quoted: five of the nine files in raw/ carry spaces and brackets, and a
     # hint you cannot paste into a shell is not a hint.
     log(f"snapshot completeness: books replay --check {shlex.quote(out)}")
+    return 0
+
+
+def cmd_hybrid(a):
+    """Boxes and text in one call from a served hybrid model. Filed as a read
+    run with its own boxes: `read/<label>/` under a book directory, else
+    beside the file."""
+    import shlex
+    out = service.hybrid(config.ROOT, a.file, knobs.passthrough(), a.pages, a.out,
+                         a.model or "")
+    log(f"snapshot completeness: books replay --check {shlex.quote(out)}")
+    log(f"next: books html {out}   |   books bench all <book> --kind read")
     return 0
 
 
@@ -259,7 +274,7 @@ def cmd_read(a):
         return cmd_read_rented(a, policy_name, out)
 
     service.read(config.ROOT, a.dir, knobs.passthrough(), out, a.pages or "",
-                 a.policy or "")
+                 a.policy or "", a.model or "")
     log(f"next: books html {out}   |   books text <truth> {out}/pages")
     return 0
 
@@ -643,6 +658,10 @@ def _doctor_detect():
     have, t0 = [], time.time()
     for which in detect.ADAPTERS:
         t = time.time()
+        if which == "served" and not knobs.knob("LAYOUT_ENDPOINT"):
+            log(f"  [ – ] {which:14s} LAYOUT_ENDPOINT not set: no model to "
+                f"describe, and nothing is raised for one")
+            continue
         try:
             with dataclasses.replace(job.current(),
                                      settings={**knobs.passthrough(),
@@ -663,7 +682,7 @@ def _doctor_detect():
         have.append(which)
         log(f"  [ok  ] {which:14s} {det.name}, labels "
             f"{len(det.labels)}, weights {mb:.0f} MB, rose in "
-            f"{time.time() - t:.1f} s — {det.dir}")
+            f"{time.time() - t:.1f} s — {det.where()}")
         det = None                        # not holding 4 graphs at once
     log(f"  adapters risen {len(have)} of {len(detect.ADAPTERS)}"
         f" ({', '.join(have) if have else 'none at all'}), the check took "
@@ -773,6 +792,13 @@ class _Parser(argparse.ArgumentParser):
         self.exit(64, f"{self.prog}: {message}\n")
 
 
+def _model_arg(p):
+    p.add_argument("--model", default="",
+                   help="an entry of the admin's models.json: its endpoint "
+                        "fills the knob the run reads, its key rides as a "
+                        "secret")
+
+
 def build_parser():
     ap = _Parser(
         prog="books", description=__doc__,
@@ -796,7 +822,17 @@ def build_parser():
     p.add_argument("file", help="PDF (unfold djvu with books prepare)")
     p.add_argument("--out", help="where to put pages/ and run.json")
     p.add_argument("--pages", help="which pages: 1,4,7-9; all by default")
+    _model_arg(p)
     p.set_defaults(fn=cmd_detect)
+
+    p = sub.add_parser("hybrid",
+                       help="boxes and text in one call from a served hybrid "
+                            "model, filed as a read run")
+    p.add_argument("file", help="book directory or PDF")
+    p.add_argument("--out", help="where to put pages/ and run.json")
+    p.add_argument("--pages", help="which pages: 1,4,7-9; all by default")
+    _model_arg(p)
+    p.set_defaults(fn=cmd_hybrid)
 
     p = sub.add_parser("html", help="build HTML from a books detect directory")
     p.add_argument("dir", help="the directory books detect wrote to")
@@ -850,6 +886,7 @@ def build_parser():
                    help="the detector label dictionary; empty = take it from "
                         "the detection snapshot, and a mismatch with it is a "
                         "refusal out loud")
+    _model_arg(p)
     p.add_argument("--rent", action="store_true",
                    help="count on a RENTED card instead of VLM_ENDPOINT: "
                         "take a machine, raise vLLM, fetch the result")
@@ -1001,7 +1038,10 @@ def main(argv=None):
         except ValueError:
             pass                           # not the main thread: no signals here
     try:
-        return a.fn(a) or 0
+        # Secrets ride on the job, never in its settings: the transport reads
+        # the key from here, and a job the web builds carries its own.
+        with dataclasses.replace(job.current(), secrets=config.secrets()).active():
+            return a.fn(a) or 0
     except Cancelled as e:
         log(f"stopped: {e}")
         return 130

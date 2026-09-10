@@ -9,7 +9,7 @@ experiments. What moves without the experiment moving is excluded from it, or a
 legitimate second run is refused; what the experiment moves with is included,
 or the second silently resumes the first.
 """
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 import hashlib
 import json
 import os
@@ -124,6 +124,11 @@ FINGERPRINT_NOT_IDENTITY = {
 # Knobs whose value moves without the experiment: an address, a local path, a journal.
 KNOBS_NOT_IDENTITY = {
     "VLM_ENDPOINT": "the rented machine's address, new on every rental",
+    "LAYOUT_ENDPOINT": "where a served layout model was reached; the model "
+                       "itself is in the fingerprint",
+    "LAYOUT_ADAPTER": "how the model was reached, in-process or served; what "
+                      "answered is the fingerprint's name and weights, so a "
+                      "served run of a model is the run of that model",
     "LAYOUT_MODEL_DIR": "a machine-local path to the weights",
     "VL_MODEL_DIR": "a machine-local path to the weights",
     "BOOKSMITH_LEDGER": "where the run journal is written",
@@ -159,8 +164,24 @@ def identity(fingerprint: dict, knob_values: dict) -> str:
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()
 
 
+def merge_knobs(server: Mapping, client: Mapping) -> dict:
+    """The knobs read on both sides of a served model, as one mapping. A name
+    read on both with two values is refused, not chosen: the run would then
+    be an experiment nobody can name."""
+    both = {k: (server[k], client[k]) for k in server
+            if k in client and str(server[k]) != str(client[k])}
+    if both:
+        from booksmith.core.errors import Refusal
+        raise Refusal(
+            f"knobs read on both sides of the model with two values: "
+            f"{ {k: list(v) for k, v in both.items()} }. One run cannot be "
+            f"two experiments; set the value on one side only.")
+    return {**(server or {}), **(client or {})}
+
+
 def knob_values(snapshot: dict) -> dict:
-    """The value of each knob this run actually read, out of `knobs/<NAME>/value`.
+    """The value of each knob this run actually read, out of `knobs/<NAME>/value`,
+    and, for a served model, the values its own side read, out of `served/knobs`.
 
     Only the `for_this_run` entries: over the complete block `HTML_MATH` would
     join a detection run's identity and refuse the next detect run.
@@ -171,4 +192,7 @@ def knob_values(snapshot: dict) -> dict:
             out[name] = entry
         elif entry.get("for_this_run"):
             out[name] = entry.get("value")
+    spoken = (snapshot or {}).get("served")
+    if isinstance(spoken, dict) and isinstance(spoken.get("knobs"), dict):
+        out = merge_knobs(spoken["knobs"], out)
     return out

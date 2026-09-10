@@ -385,7 +385,7 @@
   "out": "/home/smirn/books/bench/annopage/detect/yolox_l0.05"
  },
  "commit": "f7407d40583d9d79cb9f8ecff4d56a8382ad8fe2+dirty tree",
- "identity": "9292ce1a779978853a215bfb2369e10d930493d464fdd6f4b3aa1d27f873617a",
+ "identity": "56d8fe33deb8b10b80cc7ecfcce4f4f21ba251710cd2d17c99050092ecc10bf5",
  "label": "yolox_l0.05",
  "source": {
   "path": "/home/smirn/books/bench/annopage/annopage.pdf",

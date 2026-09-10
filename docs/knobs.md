@@ -28,6 +28,12 @@ default: `doclayout`
 
 which detection adapter to call, one of `detect.py:ADAPTERS`; each has its own label dictionary and policy, so two are comparable only blind to the label
 
+## LAYOUT_ENDPOINT
+
+default: ``
+
+address of a served layout or hybrid model, the root its /booksmith routes hang from; read by the served adapter alone, and no default
+
 ## YOLOX_WEIGHTS
 
 default: ``

@@ -51,6 +51,15 @@ def slovar():
 
 
 @pytest.fixture(scope="session")
+def served_endpoint(slovar):
+    """The drawn bench's truth served as a layout model: the served adapter
+    and the contract loops that raise every adapter ask it."""
+    from fake_layout import FakeLayout
+    with FakeLayout(slovar.truth_dir) as fake:
+        yield fake.url
+
+
+@pytest.fixture(scope="session")
 def slovar_run(slovar):
     """Truth as the stand-in model: a perfect score every probe must lower."""
     return Run.bare(slovar.truth_dir, "truth")
