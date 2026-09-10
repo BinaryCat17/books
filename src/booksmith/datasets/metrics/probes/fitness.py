@@ -3,7 +3,7 @@ import json
 import os
 import tempfile
 
-from booksmith.core import page, policy
+from booksmith.core import page
 from booksmith.datasets.metrics.base import Probe
 from booksmith.processing.assess import ink
 
@@ -34,13 +34,13 @@ def _offpage(b):
     return {**b, "box": [x0 - x1 - 20.0, y0 - y1 - 20.0, -20.0, -20.0]}
 
 
-def _merge(M):
+def _merge(M, pol):
     """Every artefact box of a page into ONE enclosing box: three tables
     arriving as one picture, the worst thing that happens to structure."""
     out = {}
     for i, p in M.items():
-        art = [b for b in p["blocks"] if policy.UNION.role(b["label"]) == "artifact"]
-        bl = [b for b in p["blocks"] if policy.UNION.role(b["label"]) != "artifact"]
+        art = [b for b in p["blocks"] if pol.role(b["label"]) == "artifact"]
+        bl = [b for b in p["blocks"] if pol.role(b["label"]) != "artifact"]
         if art:
             bl.append({**art[0], "box": [
                 min(b["box"][0] for b in art), min(b["box"][1] for b in art),
@@ -68,13 +68,15 @@ def _traced(M, step=8):
     return out
 
 
-def _double(M):
-    """Hand every artefact box out a SECOND time, now as a text one."""
+def _double(M, pol):
+    """Hand every artefact box out a SECOND time, now as a text one: the
+    label is the run's own for text, whichever spelling that is."""
+    text = pol.by_role("text")[0]
     out = {}
     for i, p in M.items():
-        add = [{**b, "label": "text", "block_id": 10 ** 6 + j}
+        add = [{**b, "label": text, "block_id": 10 ** 6 + j}
                for j, b in enumerate(p["blocks"])
-               if policy.UNION.role(b["label"]) == "artifact"]
+               if pol.role(b["label"]) == "artifact"]
         out[i] = {**p, "blocks": p["blocks"] + add}
     return out
 
@@ -90,14 +92,14 @@ def _at(name, value, fn):
         setattr(ink, name, old)
 
 
-def _halve(M):
+def _halve(M, pol):
     """Every artefact box into two halves, flush against each other: no ink is
     lost and the object no longer cuts as ONE picture."""
     out = {}
     for i, p in M.items():
         bl = []
         for b in p["blocks"]:
-            if policy.UNION.role(b["label"]) != "artifact":
+            if pol.role(b["label"]) != "artifact":
                 bl.append(b)
                 continue
             x0, y0, x1, y1 = b["box"]
@@ -112,7 +114,11 @@ def probes(bench, run) -> list:
     pdf = bench.pdf
     detect_dir = run.pages_dir
     truth_dir = bench.truth_dir if bench is not None and bench.truth_dir else ""
-    base = ink.measure(pdf, detect_dir, truth_dir)
+    # The run's own policy rides into every measurement here: a spoiled copy
+    # on disk has no snapshot beside it to say whose labels these are.
+    pol = run.policy
+    tp = bench.policy if truth_dir else None
+    base = ink.measure(pdf, detect_dir, truth_dir, pol, tp)
     M0 = page.load_pages(detect_dir)
     T0 = page.load_pages(truth_dir) if truth_dir else {}
     once = {}
@@ -128,18 +134,18 @@ def probes(bench, run) -> list:
         """Measure against SPOILED model output. The copy on disk goes with the
         measurement, whatever happens inside it."""
         with tempfile.TemporaryDirectory() as d:
-            return ink.measure(pdf, _dump(M, d), truth_dir)
+            return ink.measure(pdf, _dump(M, d), truth_dir, pol, tp)
 
     def RT(T):
         """Measure against spoiled TRUTH; the model output stays whole."""
         with tempfile.TemporaryDirectory() as d:
-            return ink.measure(pdf, detect_dir, _dump(T, d))
+            return ink.measure(pdf, detect_dir, _dump(T, d), pol, tp)
 
     def R2():
         """The book again, unspoiled -- for probes that move OUR threshold
         rather than the output. The ink masks are cached, so this is the junk
         mask recomputed and not the pages re-rendered."""
-        return ink.measure(pdf, detect_dir, truth_dir)
+        return ink.measure(pdf, detect_dir, truth_dir, pol, tp)
 
     def _on_junk(M):
         """A full-height box over every junk run: pure damage, finds nothing.
@@ -168,7 +174,7 @@ def probes(bench, run) -> list:
             doc.close()
 
     def art(b):
-        return policy.UNION.role(b["label"]) == "artifact"
+        return pol.role(b["label"]) == "artifact"
 
     # A full-sheet box, and DELIBERATELY an artefact: with a text label the
     # degenerate answer is tested at half strength, winning nothing on objects.
@@ -186,7 +192,7 @@ def probes(bench, run) -> list:
         return once[key]
 
     def halved():
-        return only("halved", lambda: R(_halve(M0)))
+        return only("halved", lambda: R(_halve(M0, pol)))
 
     def as_text():
         return only("as_text", lambda: R(_edit(M0, lambda b: {**b, "label": "text"})))
@@ -276,7 +282,7 @@ def probes(bench, run) -> list:
         ("every block handed a character",
          "ink leaves as text where it left as a picture, and the artefacts "
          "do not move",
-         lambda: None if not any(policy.UNION.role(b["label"]) != "artifact"
+         lambda: None if not any(pol.role(b["label"]) != "artifact"
                                  and not (b.get("content") or "").strip()
                                  for p in M0.values() for b in p["blocks"])
          else (lambda r: r["ink_as_text"] > base["ink_as_text"]
@@ -319,7 +325,7 @@ def probes(bench, run) -> list:
                              f"torn {base['torn']} -> {r['torn']}, "
                              f"with company "
                              f"{base['arrived_with_company']} -> "
-                             f"{r['arrived_with_company']}"))(R(_merge(M0)))),
+                             f"{r['arrived_with_company']}"))(R(_merge(M0, pol)))),
         # DOUBLING, as raw docling-heron does it. The union of boxes does not
         # change, so no object number has the right to move.
         ("every artefact box handed out as a text one too",
@@ -328,17 +334,17 @@ def probes(bench, run) -> list:
                  (lambda r: all(r[k] == base[k] for k in
                                 ("intact", "almost_intact", "bitten", "torn",
                                  "in_one_box", "left_as_text",
-                                 "object_ink_in_boxes")))(R(_double(M0)))),
+                                 "object_ink_in_boxes")))(R(_double(M0, pol)))),
         # --- the second side of the spoiling: OUR OWN thresholds -----------
         # Extremes, not "nudge it and see": a nudge could change nothing on a
         # bench where every object is whole anyway, and a dead threshold would
         # pass.
         ("the ink threshold zeroed and maxed",
          "ink is now zero, now the whole sheet",
-         lambda: _at("INK", 0, lambda: ink.measure(pdf, detect_dir)["ink_total"]) == 0
+         lambda: _at("INK", 0, lambda: ink.measure(pdf, detect_dir, pol=pol)["ink_total"]) == 0
                  and _at("INK", 256, lambda: (lambda r: r["ink_total"]
                                               == r["sheet_area"])(
-                     ink.measure(pdf, detect_dir)))),
+                     ink.measure(pdf, detect_dir, pol=pol)))),
         ("the 'intact' threshold zeroed and maxed",
          "intact is now all, now none",
          lambda: None if not base["objects"] else

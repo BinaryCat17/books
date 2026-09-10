@@ -16,6 +16,7 @@ import pytest
 import numpy as np
 import pymupdf
 
+from booksmith.core import policy as policy_mod
 from booksmith.core.config import ROOT
 
 from booksmith.datasets.bench import Run
@@ -385,6 +386,8 @@ def test_ink_threshold_is_part_of_the_memory_key():
 
 class _Bench:
     """A bench of two directories: what the probes ask for, and no more."""
+    # Truth's policy, as the real bench answers it.
+    policy = policy_mod.UNION
 
     def __init__(self, pdf, truth=""):
         self.pdf = pdf

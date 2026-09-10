@@ -351,10 +351,13 @@ def cmd_score(a):
     Whether the numbers can fall is `books bench selfcheck`, which runs every
     applicable metric's probes on a bench and a run.
     """
+    from booksmith.core import policy
     from booksmith.datasets.metrics import contour as metrics
     truth = book.pages_dir(a.truth, "truth")
     det = book.pages_dir(a.detect, "model boxes")
-    metrics.report(metrics.compare(truth, det))
+    # Each side under its own policy: the run's out of the snapshot beside
+    # its pages, truth's the union of the tree's vocabularies.
+    metrics.report(metrics.compare(truth, det, policy.UNION, book.policy_beside(det)))
     return 0
 
 

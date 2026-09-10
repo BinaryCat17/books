@@ -79,7 +79,7 @@ class Served(Detector):
         return book.safe_label(self.describe.label, "the served model")
 
     def fingerprint(self) -> dict:
-        return dict(self.describe.fingerprint)
+        return served.fingerprint_of(self.describe)
 
     def knobs_read(self) -> tuple[str, ...]:
         return ("LAYOUT_ENDPOINT",)

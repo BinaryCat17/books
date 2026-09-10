@@ -13,6 +13,7 @@ import os
 import pymupdf
 from booksmith.core import stamp
 from booksmith.core.errors import Refusal
+from booksmith.core import book
 from booksmith.core.log import log
 
 # Caption font: a PREFERENCE, not a requirement -- used when it is there, the
@@ -99,20 +100,6 @@ def _pages(d: str) -> dict:
     return out
 
 
-def _policy_of(d: str):
-    """The policy of a markup directory: the run's own out of the snapshot
-    beside its pages, else the union of the tree's vocabularies, as for truth."""
-    from booksmith.core import policy
-    for at in (d, os.path.dirname(os.path.abspath(d.rstrip("/")))):
-        p = os.path.join(at, "run.json")
-        if os.path.isfile(p):
-            with open(p, encoding="utf-8") as f:
-                snap = json.load(f)
-            if isinstance(snap, dict) and snap.get("policy"):
-                return policy.Policy.from_snapshot(snap["policy"])
-    return policy.UNION
-
-
 def _pair(truth, model, tp=None, mp=None):
     """Match one page's boxes: (pairs, truth left over, model left over) by the
     rule `books score` measures with, artefact against artefact, the side taken
@@ -171,7 +158,7 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None) -> dict:
     note = _same_book(pdf, marks)
     sets = [(_pages(d), tag) for d, tag in marks]
     # Each markup's own policy: truth's is the union, a run's is its snapshot's.
-    pols = [_policy_of(d) for d, _ in marks]
+    pols = [book.policy_beside(d) for d, _ in marks]
     doc = pymupdf.open(pdf)
     if only is not None:
         bad = [i for i in only if not 0 <= i < doc.page_count]

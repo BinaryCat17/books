@@ -8,7 +8,7 @@ import shutil
 import pytest
 
 import support
-from booksmith.core import config, job, served, stamp
+from booksmith.core import book, config, job, policy, served, stamp
 from booksmith.core.errors import Refusal
 from booksmith.datasets import table
 from booksmith.datasets.bench import Bench, Run
@@ -66,11 +66,15 @@ def _served(url, **more):
 
 def test_a_describe_round_trips_and_a_wrong_one_is_refused_by_field():
     d = served.Describe(kind="layout", label="M", fingerprint={"sha256_weights": "ab"},
-                        classes={"text": "text"}, vocabulary="PP-DocLayoutV2",
-                        reading_order="own", knobs={"A": "1"})
+                        classes={"text": "text"}, reading_order="own",
+                        knobs={"A": "1"})
     assert served.Describe.from_json(d.to_json()) == d
     assert d.labels == ("text",) and d.policy().role("text") == "text"
     good = d.to_json()
+    v2 = policy.VOCABULARIES["PP-DocLayoutV2"]
+    named = served.Describe.from_json({**good, "vocabulary": "PP-DocLayoutV2",
+                                       "classes": dict(v2)})
+    assert named.policy() == policy.POLICIES["PP-DocLayoutV2"]
     for field, value in (("protocol", 2), ("kind", "oracle"), ("label", ""),
                          ("fingerprint", {}), ("classes", {}),
                          ("classes", {"text": "hologram"}),
@@ -79,6 +83,12 @@ def test_a_describe_round_trips_and_a_wrong_one_is_refused_by_field():
         with pytest.raises(Refusal) as e:
             served.Describe.from_json(bad)
         assert field in str(e.value) or "protocol" in str(e.value), field
+    with pytest.raises(Refusal) as e:
+        served.Describe.from_json({**good, "vocabulary": "PP-DocLayoutV2",
+                                   "classes": {"text": "caption"}})
+    assert "maps it otherwise" in str(e.value), "a tree's name over another mapping"
+    own = served.Describe.from_json({**good, "classes": {"text": "caption"}})
+    assert own.vocabulary == "" and own.policy().cls("text") == "caption"
     with pytest.raises(Refusal):
         served.Describe.from_json({**good, "kind": "reader"})   # no openai.model
     with pytest.raises(Refusal):
@@ -91,7 +101,8 @@ def test_identity_is_the_fingerprint_with_the_knobs_of_both_sides():
     d = served.Describe(kind="layout", label="M", fingerprint={"sha256_weights": "ab"},
                         classes={"text": "text"}, knobs={"LAYOUT_SCORE_THRESHOLD": "0.5"})
     both = served.identity_of(d, {"PAGE_DPI": "144", "LAYOUT_ENDPOINT": "http://a"})
-    assert both == stamp.identity({"sha256_weights": "ab"},
+    # A mapping of the model's own, under no vocabulary name, is in the hash.
+    assert both == stamp.identity({"sha256_weights": "ab", "classes": {"text": "text"}},
                                   {"LAYOUT_SCORE_THRESHOLD": "0.5", "PAGE_DPI": "144"})
     assert both == served.identity_of(d, {"PAGE_DPI": "144", "LAYOUT_ENDPOINT": "http://b",
                                           "LAYOUT_ADAPTER": "served"}), (
@@ -99,6 +110,16 @@ def test_identity_is_the_fingerprint_with_the_knobs_of_both_sides():
     assert both != served.identity_of(d, {"PAGE_DPI": "72"})
     with pytest.raises(Refusal):
         served.identity_of(d, {"LAYOUT_SCORE_THRESHOLD": "0.6"})
+    # A mapping of the model's own is in the identity; the tree's, by name, is not.
+    own = served.Describe(kind="layout", label="M", fingerprint={"sha256_weights": "ab"},
+                          classes={"Grid": "table"})
+    other = served.Describe(kind="layout", label="M", fingerprint={"sha256_weights": "ab"},
+                            classes={"Grid": "text"})
+    assert served.identity_of(own, {}) != served.identity_of(other, {})
+    named = served.Describe(kind="layout", label="M", fingerprint={"sha256_weights": "ab"},
+                            classes=dict(policy.VOCABULARIES["DocLayNet"]),
+                            vocabulary="DocLayNet")
+    assert served.fingerprint_of(named) == {"sha256_weights": "ab"}
 
 
 # ------------------------------------------------------------ the adapter
@@ -295,6 +316,22 @@ def test_a_model_with_its_own_vocabulary_is_measured_built_and_read(slovar, tmp_
     assert vals[("contour", "label_errors")] is None, (
         "two vocabularies with no translation between them are not compared")
     assert vals[("fitness", "objects_intact")] == 1.0
+    # The same boxes under a mapping that calls the tables prose: the role
+    # errors rise, across two vocabularies with no label translation.
+    from booksmith.datasets.metrics import contour
+    wrong = policy.Policy.from_classes({**own, "Grid": "text"})
+    res = contour.compare_pages(b.pages(), run.pages(), b.policy, wrong)
+    assert res["role_confusion"] == {"table->Grid": 2}
+    assert contour.role_errors(res) == 2 and contour.label_errors(res) is None
+    # The probes measure under the run's own mapping too: every one runs,
+    # and none says NO of a run that is the truth itself.
+    from booksmith.datasets.metrics import base as mbase
+    from booksmith.datasets.metrics.probes import assembly as pa, contour as pc
+    for mod in (pa, pc):
+        with support.said() as lines:
+            seen, mute, bad = mbase.run_probes(mod.probes(b, run))
+        assert seen and bad == 0, [ln for ln in lines if "NO" in ln]
+    assert book.policy_beside(run.pages_dir) == run.policy
     with job.Job(settings={"HTML_MATH": "off", "HTML_IMAGES": "linked"}).active(), support.said():
         html.build(out, os.path.join(b.root, "built"))
     assert os.path.isfile(os.path.join(b.root, "built", "book.html"))
@@ -304,6 +341,16 @@ def test_a_model_with_its_own_vocabulary_is_measured_built_and_read(slovar, tmp_
     assert not reader.routes()["Fig"].asked()
     with pytest.raises(Refusal):
         driver.policy_for(out, "PP-DocLayoutV2")
+
+
+def test_a_snapshot_without_a_policy_is_refused_not_measured_under_the_union(tmp_path):
+    run = tmp_path / "run"
+    (run / "pages").mkdir(parents=True)
+    (run / "run.json").write_text(json.dumps({"source": {}}), encoding="utf-8")
+    with pytest.raises(policy.UnknownLabel):
+        book.policy_beside(str(run / "pages"))
+    (tmp_path / "truth").mkdir()
+    assert book.policy_beside(str(tmp_path / "truth")) is policy.UNION
 
 
 def test_a_served_run_of_a_tracked_model_has_the_tracked_identity(slovar):

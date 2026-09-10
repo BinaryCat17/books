@@ -122,11 +122,9 @@ class PaddleOcrVl(Reader):
         r = self.routes()
         return {"reader": self.name,
                 "model": knobs.knob("MODEL_NAME"),
+                # The mapping's whole effect on the reading is below, keyed
+                # by label: the prompts, the kinds, the labels never asked.
                 "label_vocabulary": self.policy_name,
-                # The mapping the routes follow, whole: two runs over one
-                # vocabulary name with different mappings are two experiments.
-                "classes": {lab: self.policy.classes[lab]
-                            for lab in self.policy.labels},
                 "weights": _weights(),
                 # The prompts ride into the snapshot whole: the prompt is the
                 # only thing steering the answer, and not to record it is not

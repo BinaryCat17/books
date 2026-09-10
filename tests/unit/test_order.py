@@ -40,9 +40,9 @@ def test_docling_needs_a_policy_and_any_policy_covers():
     covers as the tree's own do."""
     with pytest.raises(Refusal):
         order.cover(None, "docling")
-    assert order.cover(policy.POLICIES["PP-DocLayoutV2"], "docling") == "PP-DocLayoutV2"
+    assert order.cover(policy.POLICIES["PP-DocLayoutV2"], "docling") is None
     own = policy.Policy.from_classes({"Grid": "table", "Prose": "text"})
-    assert order.cover(own, "docling") == "the model's own classes"
+    assert order.cover(own, "docling") is None
 
 
 def test_docling_returns_a_permutation_and_touches_no_box():

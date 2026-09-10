@@ -599,7 +599,8 @@ def _fmt_point(shift: dict) -> str:
 
 
 def column_jumps_ranking(variants: dict, grid: dict = None,
-                         cross: bool = False, key: str = "per_page") -> dict:
+                         cross: bool = False, key: str = "per_page",
+                         pol=None) -> dict:
     """Does the order of the variants hold across the whole sweep; if it flips,
     choosing by this quantity is forbidden. A dict value may be a builder handed
     the point: a variant folded out of columns is rebuilt at every one."""
@@ -622,7 +623,7 @@ def column_jumps_ranking(variants: dict, grid: dict = None,
                 if (n, ckey) not in made:
                     made[(n, ckey)] = v(**p)
                 pages = made[(n, ckey)]
-            vals[n].append(column_jumps(pages, **p)[key])
+            vals[n].append(column_jumps(pages, pol=pol, **p)[key])
     flips, ties = [], []
     for a in range(len(names)):
         for b in range(a + 1, len(names)):
@@ -853,13 +854,14 @@ def _columns_of(p, wide=None, roles=None, pol=None):
     return part, rest
 
 
-def _mix_columns(M, overlap=None, wide=None, min_boxes=None, roles=None):
+def _mix_columns(M, overlap=None, wide=None, min_boxes=None, roles=None,
+                 pol=None):
     """Blocks dealt round robin over the columns: the worst assembly order at
     these boxes, the ceiling of the scale. The parameters are taken because the
     top must be the top at the parameters it is measured at."""
     out = {}
     for i, p in M.items():
-        part, rest = _columns_of(p, wide, roles)
+        part, rest = _columns_of(p, wide, roles, pol)
         buckets = {}
         for c, b in zip(_columns([b["box"] for b in part], overlap), part, strict=True):
             buckets.setdefault(c, []).append(b)
@@ -886,13 +888,13 @@ def _one_column(M):
     return out
 
 
-def _one_box(M):
+def _one_box(M, pol=None):
     """Leave one counted box on the page: the quantity must become a dash, not
     a zero, a jump happening only between boxes. Boxes outside the count stay,
     or the dash would come from an empty count rather than the single box."""
     out = {}
     for i, p in M.items():
-        part, rest = _columns_of(p)
+        part, rest = _columns_of(p, pol=pol)
         out[i] = {**p, "blocks": part[:1] + rest}
     return out
 
@@ -913,13 +915,14 @@ def _by_reading(M, overlap=None, wide=None, min_boxes=None, roles=None):
     return out
 
 
-def _by_columns(M, overlap=None, wide=None, min_boxes=None, roles=None):
+def _by_columns(M, overlap=None, wide=None, min_boxes=None, roles=None,
+                pol=None):
     """Column by column, top down inside a column: the floor of the scale, zero
     excess jumps by construction, which holds only at the parameters it was
     folded at, so it is refolded at every sweep point."""
     out = {}
     for i, p in M.items():
-        part, rest = _columns_of(p, wide, roles)
+        part, rest = _columns_of(p, wide, roles, pol)
         col = _columns([b["box"] for b in part], overlap)
         order = sorted(range(len(part)),
                        key=lambda k: (col[k], part[k]["box"][1],
@@ -928,14 +931,14 @@ def _by_columns(M, overlap=None, wide=None, min_boxes=None, roles=None):
     return out
 
 
-def _order_variants(M):
+def _order_variants(M, pol=None):
     """Four assembly orders over the same boxes, as builders and not ready
     pages: the floor and the ceiling are folded from the very columns the jumps
     are counted over, so they must be refolded at every sweep point."""
     return {"as_model_gave": lambda **par: M,
             "top_down_left_right": lambda **par: _by_reading(M, **par),
-            "column_by_column": lambda **par: _by_columns(M, **par),
-            "round_robin_columns": lambda **par: _mix_columns(M, **par)}
+            "column_by_column": lambda **par: _by_columns(M, pol=pol, **par),
+            "round_robin_columns": lambda **par: _mix_columns(M, pol=pol, **par)}
 
 
 # ------------------------------------------------- SENSE WHOLE

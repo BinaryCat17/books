@@ -256,9 +256,13 @@ def shape(snap: dict) -> dict:
             r["row"] = (f"fingerprint NOT VERIFIED: the served model {label} "
                         f"declared no fingerprint in its describe")
             return r
-        if ok_fp and written != declared:
-            # Two fingerprints in one snapshot that disagree: the run does not
-            # know what it was made by, which is worse than an old snapshot.
+        moved = [p for p in paths if ok_fp and isinstance(written, dict)
+                 and _dig(written, p[1:])[1] != _dig(declared, p[1:])[1]]
+        if ok_fp and moved:
+            # A declared value that stands otherwise in the snapshot: the run
+            # does not know what it was made by, which is worse than an old
+            # snapshot. Keys the snapshot adds beside the declared ones -- a
+            # model's own class mapping -- are not a disagreement.
             r["blind"] = 1
             r["row"] = (
                 f"fingerprint NOT VERIFIED: the snapshot's `{FP}` and the "

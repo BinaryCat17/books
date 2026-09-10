@@ -616,7 +616,13 @@ def policy_for(run_dir: str, wanted: str | None, what: str = "the preview") -> p
             f"classes and no vocabulary name: {what} asks by the model's "
             f"declaration. Drop --policy.")
     if known or own:
-        return policy.Policy.from_snapshot(recorded)
+        try:
+            return policy.Policy.from_snapshot(recorded)
+        except policy.UnknownLabel as e:
+            raise Refusal(
+                f"{run_dir}/run.json: {e}. Detect again with a tree that "
+                f"holds that vocabulary, or with a model that declares its "
+                f"classes.") from None
     if wanted not in policy.POLICIES:
         raise Refusal(f"--policy {wanted!r}: I know {sorted(policy.POLICIES)}")
     return policy.POLICIES[wanted]

@@ -18,6 +18,7 @@ import json
 
 from booksmith.core.log import log
 from booksmith.core import config
+from booksmith.core import policy as policy_mod
 from booksmith.core.errors import Refusal
 
 # Crops stay files even when inlined: edits, measurements and level two need them.
@@ -337,6 +338,30 @@ def run_dir(path: str, what: str) -> str:
         f"{what}: no run.json in {path}. Expected a `books detect` run "
         f"directory (pages/ and run.json in it), not a page directory and "
         f"not a book root.")
+
+
+def snapshot_beside(pages_dir: str) -> dict | None:
+    """The `run.json` of the run these pages belong to: in the directory
+    itself or the one above it, as `Run.open` looks; None where there is
+    none, which is truth or a bare copy."""
+    d = os.path.abspath(pages_dir.rstrip("/"))
+    for at in (d, os.path.dirname(d)):
+        p = os.path.join(at, "run.json")
+        if os.path.isfile(p):
+            with open(p, encoding="utf-8") as f:
+                snap = json.load(f)
+            return snap if isinstance(snap, dict) else {}
+    return None
+
+
+def policy_beside(pages_dir: str) -> policy_mod.Policy:
+    """The policy a page directory is measured under: the run's own, out of
+    the snapshot beside it, and a snapshot without one is refused; the union
+    of the tree's vocabularies only where there is no snapshot at all."""
+    snap = snapshot_beside(pages_dir)
+    if snap is None:
+        return policy_mod.UNION
+    return policy_mod.Policy.from_snapshot(snap.get("policy"))
 
 
 def pdf_of(detect_dir: str) -> str:

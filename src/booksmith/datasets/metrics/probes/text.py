@@ -7,7 +7,7 @@ two at once cannot tell a live figure from one stuck to its neighbour.
 import copy
 import re
 
-from booksmith.core import otsl, page, policy
+from booksmith.core import otsl, page
 from booksmith.datasets.metrics import contour as metrics
 from booksmith.datasets.metrics import text as m
 from booksmith.datasets.metrics.base import Probe
@@ -50,7 +50,7 @@ def _pick_table(P, T):
     return None, None
 
 
-def _pick_bait(P, T):
+def _pick_bait(P, T, tp):
     for i in m._pages(T):
         if i not in P:
             continue
@@ -62,7 +62,7 @@ def _pick_bait(P, T):
                 continue
             # No grid AND no characters: a formula has truth and is no bait.
             if (m._truth_grid(t, side) is None and m._truth_text(t, side) is None
-                    and policy.UNION.role(t["label"]) == "artifact"):
+                    and tp.role(t["label"]) == "artifact"):
                 return i, j
     return None, None
 
@@ -302,7 +302,7 @@ def probes(bench, run) -> list:
     ti, tj = _pick_text(P, T)
     di, dj = _pick_text(P, T, want=lambda c: any(x.isdigit() for x in c))
     bi, bj = _pick_table(P, T)
-    ai, aj = _pick_bait(P, T)
+    ai, aj = _pick_bait(P, T, bench.policy)
 
     def M(pp=None, tt=None):
         return m.measure_pages(tt or T, pp or P)

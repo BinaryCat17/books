@@ -62,11 +62,12 @@ def rule() -> str:
     return v
 
 
-def cover(pol: object, which: str | None = None) -> str | None:
-    """Whether the rule that reads labels can read this model's: every class
-    carries the name the docling rules look at, so a policy covers by
-    construction, and a label outside it is refused per block by
-    `Policy.order_name`. `None` under `ours`, which reads coordinates alone.
+def cover(pol: object, which: str | None = None) -> None:
+    """Refuse before page one what the rule that reads labels cannot read.
+    Every class carries the name the docling rules look at, so any policy
+    covers by construction and a label outside it is refused per block by
+    `Policy.order_name`; what can be missing is the policy itself. Under
+    `ours`, which reads coordinates alone, nothing is asked.
     """
     if (which or rule()) == "ours":
         return None
@@ -75,7 +76,7 @@ def cover(pol: object, which: str | None = None) -> str | None:
         raise Refusal(
             "ASSEMBLY_ORDER=docling needs the model's policy to translate "
             "its labels for the order rules, and none was given.")
-    return pol.name or "the model's own classes"
+    return None
 
 
 @functools.lru_cache(maxsize=1)

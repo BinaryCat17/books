@@ -93,7 +93,8 @@ def _multi(T, arte):
 def probes(bench, run) -> list:
     T = m._load(bench.truth_dir, "truth")
     M = m._load(run.pages_dir, "model boxes")
-    arte = set(run.policy.artefacts())
+    tp, mp = bench.policy, run.policy
+    arte = set(mp.artefacts())
     # The label for the "rename one class" probe comes from the DATA: a
     # hard-coded name is a different vocabulary's. Sorted before `max`, or a tie
     # goes by hash order and the probe names another label in every process.
@@ -109,7 +110,7 @@ def probes(bench, run) -> list:
     m_txt = [b["label"] for p in M.values() for b in p["blocks"]
              if b["label"] not in arte]
     plain = max(sorted(set(m_txt)), key=m_txt.count) if m_txt else None
-    base = m.compare_pages(T, M)
+    base = m.compare_pages(T, M, tp, mp)
     b_found = base["totals"]["share"]
     # `agreement` is lawfully None where order is not annotated.
     b_ord = base["model_order"]["agreement"]
@@ -128,7 +129,7 @@ def probes(bench, run) -> list:
     keep_c, keep_t, keep_p = m.COVER_MATCH, m.TOUCH, m.TOL_PX
 
     def R(mm=None, tt=None):
-        return m.compare_pages(tt or T, mm or M)
+        return m.compare_pages(tt or T, mm or M, tp, mp)
 
     def found(mm=None, tt=None):
         return R(mm, tt)["totals"]["share"]
@@ -140,7 +141,7 @@ def probes(bench, run) -> list:
             m.COVER_MATCH = keep_c if cover is None else cover
             m.TOUCH = keep_t if touch is None else touch
             m.TOL_PX = keep_p if tol is None else tol
-            return m.compare_pages(T, M)
+            return m.compare_pages(T, M, tp, mp)
         finally:
             m.COVER_MATCH, m.TOUCH, m.TOL_PX = keep_c, keep_t, keep_p
 
@@ -188,9 +189,9 @@ def probes(bench, run) -> list:
         """Does shuffling the columns change anything at all: on a page already
         dealt round robin the damage is empty. The guard looks at the BLOCK
         ORDER, not at the quantity, so it cannot cover a dead metric."""
-        mixed = m._mix_columns(M)
-        return any([b["box"] for b in m._columns_of(mixed[i])[0]]
-                   != [b["box"] for b in m._columns_of(p)[0]]
+        mixed = m._mix_columns(M, pol=mp)
+        return any([b["box"] for b in m._columns_of(mixed[i], pol=mp)[0]]
+                   != [b["box"] for b in m._columns_of(p, pol=mp)[0]]
                    for i, p in M.items())
 
     def halves_inside():
@@ -202,7 +203,7 @@ def probes(bench, run) -> list:
         """A dash is `None` in ALL THREE places at once: the quantity, the
         per-page share, the denominator. A quantity that forgot its denominator
         would print "0 on 600 pages"."""
-        j = R(m._one_box(M))["jumps"]
+        j = R(m._one_box(M, pol=mp))["jumps"]
         return (j["excess_jumps"] is None and j["per_page"] is None
                 and j["pages_counted"] == 0)
 
@@ -269,7 +270,7 @@ def probes(bench, run) -> list:
         """Spread alone does not forbid the quantity; variants swapping places
         does, the sign of a difference then resting on our grouping parameters.
         The variants are refolded at every point."""
-        rk = m.column_jumps_ranking(m._order_variants(M))
+        rk = m.column_jumps_ranking(m._order_variants(M, pol=mp), pol=mp)
         return (rk["stable"],
                 f"{rk['variants']} variants, {rk['pairs']} pairs over "
                 f"{rk['points']} points, distinguishes "
@@ -312,7 +313,7 @@ def probes(bench, run) -> list:
         # --- damage aimed at order WITHOUT TRUTH
         ("two columns interleaved", "more excess jumps",
          lambda: None if not (b_multi and _mixable())
-                 else R(m._mix_columns(M))["jumps"]["excess_jumps"] > b_jump),
+                 else R(m._mix_columns(M, pol=mp))["jumps"]["excess_jumps"] > b_jump),
         ("all boxes into one column", "excess jumps zero",
          lambda: None if not b_jump
                  else R(m._one_column(M))["jumps"]["excess_jumps"] == 0),

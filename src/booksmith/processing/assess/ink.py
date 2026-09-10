@@ -9,10 +9,10 @@ Merging is barely penalised here by construction, so "arrived with company", the
 one number that grows with it, is printed too. Truth is not required: without it
 the same is counted over the whole page's ink, which is what leaves the HTML.
 """
-import json
 import os
 import statistics
 
+from booksmith.core import book as book_mod
 from booksmith.core import policy
 from booksmith.core import raster
 from booksmith.core import page
@@ -222,19 +222,6 @@ def _carried_as_text(sub, arte, rest, tot):
     return int((sub & (arte | rest)).sum()) / tot >= WHOLE
 
 
-def _policy_beside(pages_dir: str):
-    """The run's policy out of the snapshot beside its pages, or the union of
-    the tree's own vocabularies for a page directory with no snapshot."""
-    for d in (pages_dir, os.path.dirname(os.path.abspath(pages_dir.rstrip("/")))):
-        p = os.path.join(d, "run.json")
-        if os.path.isfile(p):
-            with open(p, encoding="utf-8") as f:
-                snap = json.load(f)
-            if isinstance(snap, dict) and snap.get("policy"):
-                return policy.Policy.from_snapshot(snap["policy"])
-    return policy.UNION
-
-
 def measure(pdf: str, detect_dir: str, truth_dir: str = "",
             pol=None, tp=None) -> dict:
     """Fitness of the model output. Truth is not required. `pol` is the
@@ -244,7 +231,7 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "",
         raise Unmeasurable(f"no {pdf}")
     M = page.load_pages(detect_dir)
     T = page.load_pages(truth_dir) if truth_dir else {}
-    pol = pol or _policy_beside(detect_dir)
+    pol = pol or book_mod.policy_beside(detect_dir)
     tp = tp or policy.UNION
     doc = raster.open_pdf(pdf)
     areas = []            # box area / page area, one per on-sheet box

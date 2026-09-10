@@ -94,8 +94,11 @@ vocabularies of the tree's own adapters are five such mappings; the reader
 routes its prompts by class; a run's snapshot carries the mapping under
 `policy`, and every measurement, the built book and the reading take a
 block's role from the run's own mapping, never from a table this process
-happens to know. Truth carries no mapping of its own yet and is read under
-the union of the five.
+happens to know. A describe that names one of the tree's vocabularies must
+map as the tree does, and then a served run shares the in-process run's
+identity; a mapping of the model's own is in its identity, since the roles
+decide the book and the numbers. Truth carries no mapping of its own yet
+and is read under the union of the five.
 
 A hybrid model returns boxes and text in one call. `books hybrid` files its
 pages as a read run with its own boxes, `read/<model>/` with `layout: own`

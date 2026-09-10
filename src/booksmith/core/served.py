@@ -176,6 +176,16 @@ class Describe:
                 isinstance(x, str) for x in kinds):
             raise Refusal(f"describe: {label}: kinds must be a list of strings")
         openai = d.get("openai")
+        name = str(d.get("vocabulary") or "")
+        if name and name in policy.VOCABULARIES and classes != policy.VOCABULARIES[name]:
+            # A name of the tree's own is a guarantee of the mapping: under it
+            # a served run shares the in-process run's identity. A model that
+            # maps otherwise declares its own, under no name.
+            raise Refusal(
+                f"describe: {label}: names the vocabulary {name!r} and maps "
+                f"it otherwise than the tree does. A name of the tree's own "
+                f"promises the tree's mapping; leave the name empty to "
+                f"declare the model's own.")
         if kind in ("layout", "hybrid") and not classes:
             raise Refusal(f"describe: {label}: a {kind} model maps no "
                           f"labels onto classes; a label's role cannot be "
@@ -193,7 +203,7 @@ class Describe:
         sha = d.get("adapter_sha256")
         return Describe(
             kind=kind, label=label, fingerprint=fp, classes=classes,
-            vocabulary=str(d.get("vocabulary") or ""), reading_order=order,
+            vocabulary=name, reading_order=order,
             knobs=knobs, kinds=tuple(kinds),
             openai=openai if isinstance(openai, dict) else None,
             commit=commit if isinstance(commit, str) else None,
@@ -249,11 +259,23 @@ class LayoutRequest:
         return LayoutRequest(index=index, dpi=dpi, image=image)
 
 
+def fingerprint_of(describe: Describe) -> dict:
+    """What the identity stands on: the describe's fingerprint, and the
+    model's own mapping onto the classes where it declared one -- the roles
+    decide the book and the numbers, so two mappings are two experiments.
+    A mapping named after one of the tree's own is the tree's, promised by
+    `Describe.from_json`, and adds nothing."""
+    fp = dict(describe.fingerprint)
+    if not describe.vocabulary:
+        fp["classes"] = {lab: describe.classes[lab] for lab in describe.labels}
+    return fp
+
+
 def identity_of(describe: Describe, client_knobs: Mapping) -> str:
     """The identity of a run over a served model: the describe's fingerprint
     with the knobs the server read and the knobs the client read, together.
     A name read on both sides with two values is refused, not chosen."""
-    return stamp.identity(describe.fingerprint,
+    return stamp.identity(fingerprint_of(describe),
                           stamp.merge_knobs(describe.knobs, client_knobs))
 
 
