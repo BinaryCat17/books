@@ -44,6 +44,8 @@ src/booksmith/
                report.py, docsgen.py
   remote/      renting and running any job on a rented machine; knows nothing
                about books
+  service.py   what the CLI and the web share: stores, presets, one function
+               per command
   cli.py       books <command>
 tests/         pytest: unit/ behaviour, contract/ the declarations (layers,
                book shape, formats, knobs, docs, data), bench/ what needs the
@@ -52,8 +54,8 @@ tools/         sweep.py: every model over every bench
 ```
 
 The layer rule: `core` imports nothing; `remote` imports `core`; `processing`
-imports `core` and `remote`; `datasets` imports `core` and `processing`; nothing
-imports `cli`. Declared in `src/booksmith/core/layers.py` and enforced by
+imports `core` and `remote`; `datasets` imports `core` and `processing`;
+`service` imports all four; nothing imports `cli`. Declared in `src/booksmith/core/layers.py` and enforced by
 `tests/contract/test_layers.py`.
 
 ## The five commands that matter

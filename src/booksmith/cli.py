@@ -46,6 +46,7 @@ from booksmith.core import job
 from booksmith.core.errors import Cancelled, Refusal
 from booksmith.core import raster
 from booksmith.core import book
+from booksmith import service
 from booksmith.datasets import look as look_mod
 
 
@@ -109,26 +110,7 @@ def cmd_detect(a):
     over both.
     """
     import shlex
-    from booksmith.processing.layout import detect
-    out = a.out
-    if os.path.isfile(os.path.join(a.file, "manifest.json")):
-        # A book directory resolves to its scan whatever `--out` says: `--out`
-        # decides where a run lands, never what is read.
-        bk = book.Book.open(a.file, "books detect")
-        pdf = bk.pdf
-        if pdf is None:
-            raise Refusal(
-                f"{bk.name}: the manifest names "
-                f"{(bk.manifest.get('source') or {}).get('name')!r} and it is "
-                f"not beside the manifest. The book directory is where the "
-                f"scan lives; a run cannot be measured against a file that "
-                f"is not there.")
-        # The label before the pages: building the adapter costs a session load
-        # and no pages, so a run that cannot be filed refuses before the work.
-        out = out or bk.run_dir("detect", detect._adapter().label())
-        a = _with(a, file=pdf)
-    out = out or os.path.splitext(a.file)[0] + ".detect"
-    detect.run(a.file, out, a.pages)
+    out = service.detect(config.ROOT, a.file, knobs.passthrough(), a.pages, a.out)
     # Quoted: five of the nine files in raw/ carry spaces and brackets, and a
     # hint you cannot paste into a shell is not a hint.
     log(f"snapshot completeness: books replay --check {shlex.quote(out)}")
@@ -145,7 +127,7 @@ def cmd_html(a):
     """Level one's product: text as markup, artefacts as pictures."""
     from booksmith.processing.assemble import html as html_mod
     d = book.run_dir(a.dir, "books html")
-    out = a.out or book.home_for(d)
+    out = a.out or book.home_for(d, config.ROOT)
     # Foreign work is not overwritten: the tell of ours is the snapshot the
     # builder writes, and a non-empty directory without it is a refusal out
     # loud. The tell is asked of the builder and not typed here, or a snapshot
@@ -264,40 +246,24 @@ def cmd_read(a):
     mismatch. The product is detection's own `pages/*.json` with `content` and
     `kind` filled in, so every command downstream eats it unchanged.
     """
-    from booksmith.processing.read.transports import openai_http as vhttp
     from booksmith.processing.read import driver as vread
 
     out = a.out or (os.path.abspath(a.dir).rstrip("/") + ".read")
-    # The label dictionary comes from the detection snapshot, not typed by
-    # hand: `run.json` already carries `policy.vocabulary`, and a typed default
-    # diverges silently -- `DocLayNet` (11 labels) is a strict subset of
-    # `Docling-egret` (17), so that pair would pass without a word.
-    policy_name = vread.policy_for(a.dir, a.policy, what="the paid run")
-    os.makedirs(out, exist_ok=True)
     if a.rent:
+        # The label dictionary comes from the detection snapshot, not typed
+        # by hand: `run.json` already carries `policy.vocabulary`, and a typed
+        # default diverges silently -- `DocLayNet` (11 labels) is a strict
+        # subset of `Docling-egret` (17), so that pair would pass without a word.
+        policy_name = vread.policy_for(a.dir, a.policy, what="the paid run")
+        os.makedirs(out, exist_ok=True)
         return cmd_read_rented(a, policy_name, out)
-
-    reader = vread.build_reader(policy_name)
-    transport = vhttp.build()
-
-    # What the endpoint answers with — before the first crop and first cent.
-    who = transport.check()
-    log(f"endpoint {who['endpoint']}: answers {who['models_on_server']}, "
-        f"we ask {who['asking_for']} — matched")
 
     pages = None
     if a.pages:
         from booksmith.processing.layout.detect import parse_pages
         with raster.open_pdf(book.pdf_of(a.dir)) as d:
             pages = set(parse_pages(a.pages, d.page_count))
-
-    t = vread.read_book(a.dir, out, reader, transport,
-                        resume=knobs.knob("RESUME") == "1", pages_want=pages)
-    vread.report(t)
-    p = vread.snapshot(a.dir, out, reader, transport, t,
-                       {"detect": a.dir, "out": out, "pages": a.pages,
-                        "policy": policy_name})
-    log(f"snapshot: {p}")
+    service.read(config.ROOT, a.dir, knobs.passthrough(), out, pages, a.policy or "")
     log(f"next: books html {out}   |   books text <truth> {out}/pages")
     return 0
 
@@ -534,14 +500,8 @@ def cmd_bench_all(a):
     The one command that writes the numbers down: a comparison between detectors
     typed into prose by hand drifts from the runs it claims to describe.
     """
-    from booksmith.datasets import table
-    root = a.bench.rstrip("/")
-    b, run = _open_book(root, a.kind, a.run)
     which = [n.strip() for n in a.only.split(",") if n.strip()] if a.only else None
-    recs = table.rows(b, run, which)
-    table.render(recs)
-    path = a.json or table.results_path(b, run, which)
-    table.write_json(recs, path, kind=run.kind)
+    service.bench(config.ROOT, a.bench, knobs.passthrough(), a.run, a.kind, which, a.json)
     return 0
 
 
@@ -551,8 +511,7 @@ def cmd_bench_report(a):
     A figure stated twice is free to drift; rendered from the record that
     produced it, it cannot.
     """
-    from booksmith.datasets import report
-    report.write(a.out or report.OUT)
+    service.report(config.ROOT, a.out)
     return 0
 
 

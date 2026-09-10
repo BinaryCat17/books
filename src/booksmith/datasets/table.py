@@ -14,7 +14,6 @@ from booksmith.datasets import metrics as registry
 from booksmith.datasets.bench import Bench, Run, same_book
 from booksmith.core.log import log
 
-RESULTS = os.path.join(config.ROOT, "results")
 
 
 def rows(bench: Bench, run: Run, which=None) -> list:
@@ -64,14 +63,15 @@ def rows(bench: Bench, run: Run, which=None) -> list:
     return out
 
 
-def results_path(bench: Bench, run: Run, which=None) -> str:
-    """Where the table lands. A selection gets its own name, and so does a
-    level: a detector and a reader can share a label, and one file for both
-    would overwrite. `detect` keeps the bare name, renaming nothing on disk."""
+def results_path(bench: Bench, run: Run, which=None, store: str = config.ROOT) -> str:
+    """Where the table lands, under the store's `results/`. A selection gets
+    its own name, and so does a level: a detector and a reader can share a
+    label, and one file for both would overwrite. `detect` keeps the bare
+    name, renaming nothing on disk."""
     tail = "-only-" + "+".join(which) if which else ""
     kind = run.kind
     level = f"{kind}-" if kind and kind != "detect" else ""
-    return os.path.join(RESULTS, f"{bench.name}-{level}{run.label}{tail}.json")
+    return os.path.join(store, "results", f"{bench.name}-{level}{run.label}{tail}.json")
 
 
 def write_json(records, path: str, kind: str = "detect") -> str:

@@ -102,19 +102,14 @@ def test_the_report_leaves_out_a_run_of_another_level_and_counts_it():
     det = Record("fitness", "b", LABEL, {"ink_under_boxes": Scalar(0.5)})
     red = Record("fitness", "b", "SomeReader", {"ink_under_boxes": Scalar(0.9)})
     with tempfile.TemporaryDirectory() as d:
-        was = report.RESULTS, table.RESULTS
-        try:
-            report.RESULTS = table.RESULTS = d
-            table.write_json([red], os.path.join(d, "b-read-SomeReader.json"),
-                             kind="read")
-            table.write_json([det], os.path.join(d, "b-x.json"))
-            cells, _, _, other = report._cells()
-            assert ("b", "SomeReader") not in cells, cells
-            assert list(cells) == [("b", LABEL)], cells
-            assert [(k, n, b, r) for k, n, b, r, _ in other] \
-                == [("read", "b-read-SomeReader.json", "b", "SomeReader")], other
-        finally:
-            report.RESULTS, table.RESULTS = was
+        table.write_json([red], os.path.join(d, "b-read-SomeReader.json"),
+                         kind="read")
+        table.write_json([det], os.path.join(d, "b-x.json"))
+        cells, _, _, other = report._cells(d)
+        assert ("b", "SomeReader") not in cells, cells
+        assert list(cells) == [("b", LABEL)], cells
+        assert [(k, n, b, r) for k, n, b, r, _ in other] \
+            == [("read", "b-read-SomeReader.json", "b", "SomeReader")], other
 
 
 def test_records_come_back_from_disk_as_json_left_them():

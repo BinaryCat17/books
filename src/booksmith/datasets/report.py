@@ -62,15 +62,15 @@ def headline() -> list:
 
 
 
-def _cells():
+def _cells(results: str = RESULTS):
     """(bench, run) -> {metric: record dict}, the commits they came from, and the
     runs of ANOTHER LEVEL left out: their pages carry the boxes of whatever
     detector made them, so they are kept out of the model column and counted."""
     out, commits, when, other = {}, set(), set(), []
-    for name in sorted(os.listdir(RESULTS)) if os.path.isdir(RESULTS) else []:
+    for name in sorted(os.listdir(results)) if os.path.isdir(results) else []:
         if not name.endswith(".json") or "-only-" in name:
             continue
-        d = table.read_file(os.path.join(RESULTS, name))
+        d = table.read_file(os.path.join(results, name))
         # A file written before the field existed is `detect`, which every
         # one of them was.
         kind = d.get("kind") or "detect"
@@ -150,21 +150,21 @@ def _table(rows, header):
     return out
 
 
-def build() -> str:
-    cells, commits, when, other_levels = _cells()
+def build(results: str = RESULTS) -> str:
+    cells, commits, when, other_levels = _cells(results)
     if not cells:
         # Two different empties: results exist and every one is of a level this
         # document does not render, so "measure first" is the wrong answer.
         if other_levels:
             raise Refusal(
-                f"{RESULTS} holds {len(other_levels)} results and every one "
+                f"{results} holds {len(other_levels)} results and every one "
                 f"is of another level ("
                 + ", ".join(sorted({k for k, _ in other_levels})) +
                 "). This document is a cross-detector table; a level-two "
                 "run carries the boxes of whatever detector made its pages. "
                 "Measure a detect run to have anything to render.")
         raise Refusal(
-            f"no results in {RESULTS}. Measure first: `python3 "
+            f"no results in {results}. Measure first: `python3 "
             f"tools/sweep.py --apply` runs every model over every bench.")
     # An uncommitted tree and a stamp of None (a box with no git: the rented
     # card is one) are each their own refusal, before the "two different
@@ -392,8 +392,8 @@ def build() -> str:
     return "\n".join(L).rstrip("\n") + "\n"
 
 
-def write(path: str = OUT) -> str:
-    text = build()
+def write(path: str = OUT, results: str = RESULTS) -> str:
+    text = build(results)
     with open(path, "w", encoding="utf-8") as f:
         f.write(text)
     log(f"{path}: {len(text.splitlines())} lines")

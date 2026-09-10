@@ -50,6 +50,7 @@ import in the package against it.
 | `remote` | `core` |
 | `processing` | `core`, `remote` |
 | `datasets` | `core`, `processing` |
+| `service` | `core`, `remote`, `processing`, `datasets` |
 | `cli` | all of them; nothing imports `cli` |
 
 `core` is the kernel: the on-disk format, the book directory and its shape,
@@ -57,13 +58,20 @@ the knob registry, this layer table, the snapshot, rendering, the label policy,
 the assembly order, the table markup parser, errors. `processing` is one book, stage by stage.
 `datasets` is many books, truth and numbers. `remote` rents a machine and
 runs any job on it; it knows nothing about books, so the next task on a
-rented card does not mean rewriting the renting.
+rented card does not mean rewriting the renting. `service` is what the CLI
+and the web share: one function per command, each taking a store and the
+run's settings.
 
 ## The book directory
 
 One directory per book, one directory per run. A bench is a book with
 `truth/`. The shape is declared in `src/booksmith/core/book.py` and
-`tests/contract/test_book_shape.py` walks the tree against it.
+`tests/contract/test_book_shape.py` walks the tree against it. A store is a
+directory holding `bench/` and `processed/` in this shape, with its own
+`results/` and `raw/`; the repository root is the admin's store, a user's
+is another such directory, and a book's owner is the store it lies in. A
+store other than the admin's runs only a preset from the admin's
+`models.json`, a named set of knob values over the adapters the tree has.
 
 ```
 bench/<book>/ or processed/<book>/
@@ -169,10 +177,11 @@ as bytes; `Book.list` enumerates a collection; the path rules a command
 applies live in `core/book.py`; `core/job.py` carries a run's settings, its
 stop and its output sink, so one process runs jobs with different settings,
 a job can be stopped between pages, and a line's numbers reach a server as
-fields. Seams still to cut, each a refactor of what exists:
+fields; every scalar carries its value per page or per block, keyed by
+anchor; `service.py` is the one API behind the CLI, over stores. Seams
+still to cut, each a refactor of what exists:
 
-- Per-page results kept by the ink measurement and returned as data by the
-  overlay, instead of book totals and a drawn PDF.
+- The overlay's decisions returned as data, instead of a drawn PDF.
 - The HTML builder split into the data pass and the emission, so the data
   pass serves a page viewer and the emission becomes an export.
 - A run snapshot that stores each knob's name and value and points at the

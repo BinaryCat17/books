@@ -13,7 +13,6 @@ from dataclasses import dataclass, field
 
 from booksmith.core.errors import Unmeasurable
 from booksmith.core import book as book_mod
-from booksmith.core import config
 from booksmith.core import page
 from booksmith.core import stamp
 
@@ -52,7 +51,7 @@ def _scan_of(path: str, man: dict, sha: str) -> str:
             f"looked up beside the book and in raw/, by name; a manifest "
             f"that steers that lookup elsewhere is a defect, not a lookup.")
     for cand in (os.path.join(path, name),
-                 os.path.join(config.ROOT, "raw", name)):
+                 os.path.join(book_mod.store_of(path), "raw", name)):
         if not os.path.isfile(cand):
             continue
         got = stamp.sha256(cand)

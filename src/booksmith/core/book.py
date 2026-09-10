@@ -39,8 +39,17 @@ LABEL_OK = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$")
 # What a book directory holds; `tests/contract/test_book_shape.py` walks the
 # roots against it, so a stray directory has a name or is a failure.
 
-# Both roots are the same shape on purpose: a bench is a book with truth.
+# Both roots are the same shape on purpose: a bench is a book with truth. A
+# store is a directory holding them; a user's store and the repository root
+# are one shape, and a book's owner is the store it lies in.
 BOOK_ROOTS = ("bench", "processed")
+
+
+def store_of(book_dir: str) -> str:
+    """The store a book lies in: the directory above its `bench/` or
+    `processed/`; the repository root for a book that lies in neither."""
+    parent = os.path.dirname(os.path.abspath(book_dir.rstrip("/")))
+    return os.path.dirname(parent) if os.path.basename(parent) in BOOK_ROOTS else config.ROOT
 
 # A name is either exact or a pattern; `<model>` is what `safe_label` allows.
 ALLOWED = (
@@ -338,10 +347,10 @@ def pdf_of(detect_dir: str) -> str:
         return json.load(f)["source"]["path"]
 
 
-def home_for(detect_dir: str) -> str:
-    """Where the book lands BY DEFAULT: somewhere permanent, not beside the run."""
+def home_for(detect_dir: str, store: str) -> str:
+    """Where the book lands BY DEFAULT: the store's `processed/`, not beside the run."""
     with open(os.path.join(detect_dir, "run.json"), encoding="utf-8") as f:
         snap = json.load(f)
     stem = os.path.splitext(os.path.basename(snap["source"]["path"]))[0]
     safe = re.sub(r"[^\w.,()-]+", "-", stem, flags=re.UNICODE).strip("-")[:80]
-    return os.path.join(config.ROOT, "processed", safe or "book")
+    return os.path.join(store, "processed", safe or "book")

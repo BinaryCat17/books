@@ -78,9 +78,12 @@ markers = ["slow: needs model weights or a long run; select with -m slow"]
 # Types are required where the web layer will lean: the kernel and, later, the
 # service. The rest of the tree is checked as it is annotated.
 [tool.mypy]
-files = ["src/booksmith/core"]
+files = ["src/booksmith/core", "src/booksmith/service.py"]
 ignore_missing_imports = true
 disallow_untyped_defs = true
+# What the checked files import is analysed for their sake and not reported:
+# the rest of the tree is checked as it is annotated.
+follow_imports = "silent"
 
 [tool.ruff]
 line-length = 100

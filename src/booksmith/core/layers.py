@@ -10,6 +10,7 @@ MAY_IMPORT = {
     "remote": ("core",),
     "processing": ("core", "remote"),
     "datasets": ("core", "processing"),
-    "cli": ("core", "remote", "processing", "datasets"),
+    "service": ("core", "remote", "processing", "datasets"),
+    "cli": ("core", "remote", "processing", "datasets", "service"),
 }
 
