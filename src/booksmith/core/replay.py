@@ -486,7 +486,7 @@ def cmd_replay(a):
         else:
             v = line(d)
             if v:
-                log(v)
+                print(v)
             else:
                 log(f"{os.path.relpath(d)}: there is no repeat line -- "
                       f"the snapshot is incomplete, see books replay --check")

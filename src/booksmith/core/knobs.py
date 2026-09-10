@@ -262,7 +262,11 @@ KNOB = {k.name: k for k in KNOBS}
 
 
 def knob(name):
-    """A knob's value: from the job's settings, else the registry default."""
+    """A knob's value: from the job's settings, else the registry default.
+
+    Read at use, inside the job: an adapter, reader or transport built outside
+    `Job.active()` or kept across jobs carries another job's values.
+    """
     try:
         k = KNOB[name]
     except KeyError:

@@ -419,6 +419,7 @@ def _rent(vast: Vast, spec: JobSpec, ssh_key: str | None, state: dict,
     avoid: list[int] = list(ledger.bad_machines())
     undead = undead if undead is not None else []
     for attempt in range(1, MAX_ATTEMPTS + 1):
+        job.current().check()      # a stop must not rent the next machine
         # Do not rent a machine there is no time left for -- the flip side of
         # counting the budget from `t0`: a negative remainder gives a deadline in
         # the past, and the watchdog destroys the machine seconds after renting.

@@ -30,6 +30,7 @@ This list is `books --help`, and `tests/contract/test_docs.py` checks it
 against the parser both ways. Every command with its flags: `docs/commands.md`.
 """
 import argparse
+import dataclasses
 import os
 import signal
 import sys
@@ -705,8 +706,9 @@ def _doctor_detect():
     for which in detect.ADAPTERS:
         t = time.time()
         try:
-            with job.Job(settings={**knobs.passthrough(),
-                                   "LAYOUT_ADAPTER": which}).active():
+            with dataclasses.replace(job.current(),
+                                     settings={**knobs.passthrough(),
+                                               "LAYOUT_ADAPTER": which}).active():
                 det = detect._adapter()
         except (Exception, SystemExit) as e:
             # `SystemExit` is caught on purpose: at `DOCLING_PIPELINE=full`
@@ -1050,14 +1052,12 @@ def main(argv=None):
     stop = job.current().stop
     stop.clear()
 
-    def handler(signum, _frame):
-        # The first signal unfolds into an exception, so every `finally` runs
-        # and a rented machine is destroyed; a second one, the reflex once the
-        # first looks hung, only keeps `stop` set and lets the cleanup finish.
-        first = not stop.is_set()
+    def handler(_signum, _frame):
+        # A signal asks the job to stop and raises nothing: every wait in the
+        # library asks the job and unwinds at its next check, so a stop cannot
+        # land inside a renter's retry or a teardown, which run to their end
+        # however often the key is pressed.
         stop.set()
-        if first:
-            raise Cancelled(f"signal {signum}")
     was = {}
     for s in (signal.SIGINT, signal.SIGTERM):
         try:

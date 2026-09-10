@@ -56,14 +56,11 @@ class Job:
     sink: Callable[[dict], None] = _print
 
     def check(self) -> None:
-        """Raise `Cancelled` once `stop` is set: asked before each unit of work."""
         if self.stop.is_set():
             raise Cancelled("the job was stopped")
 
     @contextmanager
     def active(self):
-        """Make this job current for the block; refuses a setting that is
-        not a knob, so a misspelt name cannot ride in silently."""
         from booksmith.core import knobs
         bad = sorted(set(self.settings) - set(knobs.names()))
         if bad:
