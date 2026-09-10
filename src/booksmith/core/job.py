@@ -19,12 +19,9 @@ from booksmith.core.errors import Cancelled, Refusal
 
 
 def _print(event: dict) -> None:
-    """The default sink: the text with a timestamp, to stdout, flushed.
-
-    Stdout and not stderr: the acceptance snapshots are the concatenation of
-    both streams compared line by line, and a diagnostic on stderr would
-    reorder every report.
-    """
+    """The default sink. Stdout and not stderr: the acceptance snapshots are
+    the concatenation of both streams compared line by line, and a diagnostic
+    on stderr would reorder every report."""
     print(f"[{time.strftime('%H:%M:%S')}]", event["text"], flush=True)
 
 

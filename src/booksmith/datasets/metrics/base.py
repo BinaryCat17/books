@@ -24,7 +24,7 @@ class Scalar:
     over: tuple[int, int] | None = None     # (counted, of), coverage
     unit: str = ""                          # of `over`: pages, blocks, pairs
     why: str | None = None
-    per: dict[str, float] | None = None     # anchor -> value at that anchor
+    per: dict[str, float] | None = None
     side: str = ""                          # whose blocks `per` names: truth, run
 
     def __post_init__(self):

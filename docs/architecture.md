@@ -13,9 +13,6 @@ the book goes one block at a time, with a journal and an undo, so any block
 can be checked, rolled back and redone by another model without touching the
 rest.
 
-The order of work was the reverse of the usual one: benches and instruments
-first, models second.
-
 ## The data flow
 
 ```
@@ -27,18 +24,17 @@ detect/<model>/pages/NNNN.json + run.json
   books crop         what read would send, cut by the same path; nothing sent
   books read         the same pages with content and kind filled in
 detect/<model>.read/pages/NNNN.json + answers/pNNNN.json + run.json
-                     (written beside the detect run today; read/<model>/ is
-                     the mapped home and the two on disk were moved by hand)
+                     (beside the detect run unless --out names read/<model>/,
+                     the book directory's home for it)
   books html         book.html, crops, blocks.json, the swap journal
 book.html + assets/
   books apply        markup placed per anchor, journaled, undoable
 ```
 
-A bench is a book that also carries `truth/`, in the same page format.
 `books bench all` writes one JSON of records per bench and run into
 `results/`, and `books bench report` renders every record into `METRICS.md`.
 
-## The three layers
+## The layers
 
 Imports go one way. The table is the whole rule, declared in
 `src/booksmith/core/layers.py`; `tests/contract/test_layers.py` walks every
@@ -53,9 +49,8 @@ import in the package against it.
 | `service` | `core`, `remote`, `processing`, `datasets` |
 | `cli` | all of them; nothing imports `cli` |
 
-`core` is the kernel: the on-disk format, the book directory and its shape,
-the knob registry, this layer table, the snapshot, rendering, the label policy,
-the assembly order, the table markup parser, errors. `processing` is one book, stage by stage.
+`core` is the kernel: the formats, the registries and the rules the rest
+obey. `processing` is one book, stage by stage.
 `datasets` is many books, truth and numbers. `remote` rents a machine and
 runs any job on it; it knows nothing about books, so the next task on a
 rented card does not mean rewriting the renting. `service` is what the CLI
@@ -171,17 +166,8 @@ The next layer is a web application: a collection of uploaded books, both
 levels run as jobs with progress, metrics per page and per book that appear
 in the interface when a metric is added, truth uploaded or drawn in the
 browser, corrections journaled, page images with the boxes over them. The
-library is the engine of that application. Seams already cut: every
-metric declares its scalars with a direction and a gloss, and
-`docs/metrics.json` carries that declaration as data, so a new metric
-renders without a hand-kept table; `core/raster.py` returns a page or a crop
-as bytes; `Book.list` enumerates a collection; the path rules a command
-applies live in `core/book.py`; `core/job.py` carries a run's settings, its
-stop and its output sink, so one process runs jobs with different settings,
-a job can be stopped between pages, and a line's numbers reach a server as
-fields; every scalar carries its value per page or per block, keyed by
-anchor; `service.py` is the API behind detect, read, bench all and report,
-over stores. Seams still to cut, each a refactor of what exists:
+library is the engine of that application, `service.py` its door. Seams
+still to cut, each a refactor of what exists:
 
 - The overlay's decisions returned as data, instead of a drawn PDF.
 - The HTML builder split into the data pass and the emission, so the data

@@ -39,9 +39,7 @@ LABEL_OK = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$")
 # What a book directory holds; `tests/contract/test_book_shape.py` walks the
 # roots against it, so a stray directory has a name or is a failure.
 
-# Both roots are the same shape on purpose: a bench is a book with truth. A
-# store is a directory holding them; a user's store and the repository root
-# are one shape, and a book's owner is the store it lies in.
+# Both roots are the same shape on purpose: a bench is a book with truth.
 BOOK_ROOTS = ("bench", "processed")
 
 

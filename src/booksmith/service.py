@@ -23,7 +23,7 @@ ADMIN = config.ROOT
 
 
 def models() -> dict:
-    """The presets the admin declared: `models.json` in the admin's store, or none."""
+    """The presets the admin declared."""
     path = os.path.join(ADMIN, "models.json")
     if not os.path.isfile(path):
         return {}
@@ -36,7 +36,6 @@ def _admin(store: str) -> bool:
 
 
 def check(store: str, settings: Mapping, presets: Mapping | None = None) -> None:
-    """A store other than the admin's runs a preset whole, or the defaults."""
     if _admin(store) or not settings:
         return
     presets = models() if presets is None else presets
@@ -50,7 +49,6 @@ def check(store: str, settings: Mapping, presets: Mapping | None = None) -> None
 
 
 def _inside(store: str, path: str) -> str:
-    """The path, which a store other than the admin's may reach only inside itself."""
     if not _admin(store) and not os.path.abspath(path).startswith(
             os.path.abspath(store) + os.sep):
         raise Refusal(f"{path} lies outside the store {store}")

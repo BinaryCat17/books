@@ -21,7 +21,7 @@ def src_path(rel: str) -> str:
 
 @contextmanager
 def said():
-    """The lines the block logs, as a list: a job whose sink keeps the text."""
+    """The lines the block logs, as a list."""
     lines = []
     with job.Job(sink=lambda e: lines.append(e["text"])).active():
         yield lines

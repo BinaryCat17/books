@@ -44,8 +44,7 @@ property of the model and training fixes it. As level one it crops tighter
 than the truth and cuts content, is ten times slower, fragments far more
 often, and hits its answer-length ceiling on dense strips. Its reading
 order is the order of generation and does not compare with the rest. There
-is no launch button for it; its directory is kept for the traps that ate
-the failed rentals.
+is no launch button for it; its directory records what a rental of it needs.
 
 ## Reading models, level two
 
@@ -78,7 +77,6 @@ is forbidden by the first rule.
 - **olmOCR-2**: fast and cheap, and rejected on two counts visible without
   truth: no figures at all, and a grid that drifts by a column. Cell count
   is not a measure of quality.
-- **Mistral OCR** was the former reference. Every quality figure of the
-  deleted pipeline was measured against its output rather than against known
-  text, which is a second reading with errors of its own, so not one of
-  those figures survives.
+- **Mistral OCR**: as a reference its output is a second reading with errors
+  of its own, and a figure measured against it is not a figure against known
+  text.

@@ -5,14 +5,13 @@ CPU, then reading of each block by a vision-language model on a rented card.
 
 This file is the map. The architecture, the rules and the formats are in
 `docs/`; the measurements are in the generated `METRICS.md`; how the tree
-got this way is in the commit log and nowhere else. A number that has
-a record is in `METRICS.md`; a verdict without a record says so.
+got this way is in the commit log and nowhere else.
 
 ## Where each kind of text lives
 
 | you want | read |
 |---|---|
-| the two levels, the three layers, the book directory, the page format, where this is going | `docs/architecture.md` |
+| the two levels, the layers, the book directory, the page format, where this is going | `docs/architecture.md` |
 | the rules that are not negotiable, and the symbol that enforces each | `docs/rules.md` |
 | how to add a detector, a reader, a transport, a metric, a bench | `docs/extending.md` |
 | what a model is and the verdict on it | `docs/models.md` |
@@ -27,36 +26,20 @@ a record is in `METRICS.md`; a verdict without a record says so.
 
 ```
 src/booksmith/
-  core/        the kernel, imports nothing above itself: page.py (the on-disk
-               format), book.py (the book directory and its shape), knobs.py
-               (the registry), layers.py (the layer table), stamp.py (hash,
-               commit, packages), replay.py (is a snapshot complete), raster.py
-               (rendering and crops), policy.py (label to role), order.py
-               (assembly order), otsl.py (table markup), textnorm.py, config.py,
-               errors.py, job.py (a run's settings, stop and sink), log.py
-  processing/  one book, stage by stage: extract/ (djvu to PDF), layout/ (level
-               one: detect.py, base.py the Detector contract, adapters/,
-               rented/), read/ (level two: driver.py, readers/, transports/,
-               rented/), assemble/ (html.py, swap.py, apply.py), assess/ (ink.py)
-  datasets/    many books, truth, numbers: bench.py, metrics/ (one module per
-               metric and probes/ beside them, one module of probes each),
-               make/ (synth/, annopage.py, subset.py), look.py, table.py,
-               report.py, docsgen.py
+  core/        the kernel: the formats, the registries, the rules
+  processing/  one book, stage by stage: extract, layout, read, assemble, assess
+  datasets/    many books, truth and numbers: benches, metrics, the report
   remote/      renting and running any job on a rented machine; knows nothing
                about books
   service.py   what the CLI and the web share: stores, presets, one function
                per command
   cli.py       books <command>
-tests/         pytest: unit/ behaviour, contract/ the declarations (layers,
-               book shape, formats, knobs, docs, data), bench/ what needs the
-               drawn bench, e2e/ what runs a command end to end
+tests/         pytest: unit/ behaviour, contract/ the declarations, bench/ what
+               needs the drawn bench, e2e/ what runs a command end to end
 tools/         sweep.py: every model over every bench
 ```
 
-The layer rule: `core` imports nothing; `remote` imports `core`; `processing`
-imports `core` and `remote`; `datasets` imports `core` and `processing`;
-`service` imports all four; nothing imports `cli`. Declared in
-`src/booksmith/core/layers.py` and enforced by `tests/contract/test_layers.py`.
+Imports go one way, down that list; the table is `src/booksmith/core/layers.py`.
 
 ## The five commands that matter
 
@@ -69,12 +52,6 @@ books bench all <bench>      every applicable metric, one table, one JSON
 ```
 
 All of them, with their flags: `docs/commands.md`.
-
-## Knobs
-
-Every knob is declared in `src/booksmith/core/knobs.py`. Reading the
-environment past the registry makes a run silently unrepeatable. The list:
-`docs/knobs.md`.
 
 ## The rules, by name
 

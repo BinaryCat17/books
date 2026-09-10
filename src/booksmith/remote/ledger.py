@@ -19,8 +19,8 @@ from booksmith.core.config import ROOT as _ROOT
 
 
 def file() -> str:
-    """Where the journal is: the knob, else `runs/ledger.jsonl` at the root.
-    Asked at each use and not at import, so a job's own setting is honoured."""
+    """Where the journal is, asked at each use and not at import so a job's
+    own setting is honoured."""
     return knobs.knob("BOOKSMITH_LEDGER") or os.path.join(_ROOT, "runs", "ledger.jsonl")
 
 

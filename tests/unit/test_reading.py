@@ -67,7 +67,6 @@ def test_declared_markup_that_repeats_is_not_the_model_repeating_itself():
     assert reading.loop_share("<lcel>" * 60) == 0.0
     loop = "the same words over and over " * 20
     assert reading.loop_share(loop) > 0.9
-    # The finding lands at the block's anchor, at its share.
     res = reading.measure(_pages([("text", "plain words"), ("text", loop)]))
     assert res["per"]["looping"] == {"p0000-b1": reading.loop_share(loop)}
     assert res["per"]["answered"] == {"p0000": 1.0}
