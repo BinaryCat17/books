@@ -8,12 +8,13 @@ models, the truth and the labels.
 ## Systems
 
 One directory per system. Each is a package with its own `pyproject`, its
-own tests and, where it runs, its own image. `formats` is the only shared
-code. Nothing is nested deeper than one level.
+own tests and, where it runs, its own image. `formats` is the only thing
+shared, and it is schemas, not code. Nothing is nested deeper than one
+level.
 
 | directory  | what it is | runs as | depends on |
 |------------|------------|---------|------------|
-| `formats`  | the page format, anchors, the class table, the model protocol, identity | library | — |
+| `formats`  | the schemas: JSON Schema for every payload, OpenAPI for every API, the class table as data | schemas, language-neutral | — |
 | `models`   | one container per model, answering the model protocol | container per model | formats |
 | `fleet`    | the model manager: registry, providers, placements, leases, ledger | container | formats, providers |
 | `backend`  | books: users, libraries, jobs, the pipeline, the viewer, truth, the catalog | container | formats, fleet, models, metrics, storage |
@@ -24,7 +25,17 @@ code. Nothing is nested deeper than one level.
 
 ## Contracts
 
-**Model protocol** (`formats`). A model answers `GET /booksmith/describe`,
+**Schemas** (`formats`). Every contract below is written as a schema, not
+as a type in some language: JSON Schema for the page, the describe, the
+health, the layout request, the run snapshot and the record; OpenAPI for
+the model protocol, the fleet, the metrics and the backend; the class table
+as `classes.json`. Each system validates what it sends and receives against
+them in its own tests, the UI's client is generated from the backend's
+OpenAPI, and a model container in any language answers the protocol by
+the schema alone. JSON over HTTP throughout: nothing here needs binary
+framing or streaming, and the pages already live as JSON on disk.
+
+**Model protocol.** A model answers `GET /booksmith/describe`,
 `GET /booksmith/health` and, for layout and hybrid models,
 `POST /booksmith/layout`; a reader answers the OpenAI chat route. The
 describe carries kind, label, fingerprint, the mapping of the model's
@@ -109,7 +120,7 @@ history anywhere but git.
 
 ## Order of work
 
-1. The split: the flat tree, `formats` extracted, each system its package with its tests beside it, compose for the whole; the removals above. No behaviour changes.
+1. The split: the flat tree, the schemas extracted into `formats` from the dataclasses that hold them today, each system its package with its tests beside it, compose for the whole; the removals above. No behaviour changes.
 2. The catalog and the metrics service: measurements as a series in the backend's database, metrics behind their two endpoints.
 3. The fleet: the registry, the docker and vast providers, placements and leases, the backend renewing a lease while a job runs.
 4. The UI: library, viewer with boxes, metrics per page and per book, the admin panel.
