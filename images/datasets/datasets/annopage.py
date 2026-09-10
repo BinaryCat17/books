@@ -120,7 +120,7 @@ def _build(root, out_dir, split, limit, truth_only) -> dict:
     idir = os.path.join(root, "images", split)
     if not (os.path.isdir(ldir) and os.path.isdir(idir)):
         raise AnnoPageError(f"no {ldir} or {idir}")
-    stems = sorted((f[:-4] for f in os.listdir(ldir) if f.endswith(".txt")))
+    stems = sorted(f[:-4] for f in os.listdir(ldir) if f.endswith(".txt"))
     os.makedirs(out_dir, exist_ok=True)
     tdir = os.path.join(out_dir, "truth")
     work = tdir + ".new"

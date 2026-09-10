@@ -179,17 +179,17 @@ def _build(out_dir, cases, seed, aging, book) -> dict:
             blocks.append(blk)
         for b in blocks:
             counts[b["label"]] = counts.get(b["label"], 0) + 1
-        char_count = sum((len(b["content"]) for b in blocks if b["content"]))
-        word_count = sum((len(b["content"].split()) for b in blocks if b["content"]))
-        with_text = sum((1 for b in blocks if b["content"]))
+        char_count = sum(len(b["content"]) for b in blocks if b["content"])
+        word_count = sum(len(b["content"].split()) for b in blocks if b["content"])
+        with_text = sum(1 for b in blocks if b["content"])
         chars = {
             "chars": char_count,
             "words": word_count,
             "blocks_with_text": with_text,
             "text_blocks_without_chars": len(no_chars),
             "which_without_chars": no_chars[:6],
-            "tables_with_grid": sum((1 for v in art_truth.values() if "cells" in v)),
-            "cell_count": sum((v["rows"] * v["cols"] for v in art_truth.values() if "cells" in v)),
+            "tables_with_grid": sum(1 for v in art_truth.values() if "cells" in v),
+            "cell_count": sum(v["rows"] * v["cols"] for v in art_truth.values() if "cells" in v),
         }
         with open(os.path.join(work, f"{i:04d}.json"), "w", encoding="utf-8") as f:
             json.dump(
@@ -270,7 +270,7 @@ def _build(out_dir, cases, seed, aging, book) -> dict:
     out.close()
 
     def total_of(key, margin):
-        return sum((pp[key][margin] for pp in pages))
+        return sum(pp[key][margin] for pp in pages)
 
     total = {
         "chars": total_of("char_truth", "chars"),

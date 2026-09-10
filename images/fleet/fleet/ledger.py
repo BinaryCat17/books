@@ -6,12 +6,12 @@ import time
 from dataclasses import dataclass, asdict, field
 from fleet import knobs
 from fleet.log import log
-from fleet.page import write_json
-from fleet import settings as config
+from fleet.files import write_json
+from fleet import settings
 
 
 def file() -> str:
-    return knobs.knob("BOOKSMITH_LEDGER") or os.path.join(config.home(), "runs", "ledger.jsonl")
+    return knobs.knob("BOOKSMITH_LEDGER") or os.path.join(settings.home(), "runs", "ledger.jsonl")
 
 
 def bad_file() -> str:
@@ -231,8 +231,8 @@ def fit(path: str = "") -> dict:
 def totals(rows) -> dict:
     return {
         "runs": len(rows),
-        "ok": sum((1 for r in rows if r.get("ok"))),
-        "spent_usd": sum((r.get("cost_usd") or 0 for r in rows)),
+        "ok": sum(1 for r in rows if r.get("ok")),
+        "spent_usd": sum(r.get("cost_usd") or 0 for r in rows),
     }
 
 

@@ -1,64 +1,62 @@
 # booksmith
 
-Scans of technical books become HTML in two levels: a layout model draws the
-boxes, a vision-language model reads each box. Every run is measured against
-truth where truth exists. Users keep libraries of books; admins keep the
-models, the truth and the labels.
+Scans of technical books become a document: a layout model draws the boxes,
+a vision-language model reads each box, and one rule assembles the document
+every export renders. Every run is measured against truth where truth
+exists. Users keep libraries of books; admins keep the models, the truth
+and the labels.
 
 ## Systems
 
-One directory per system. Each is a package with its own `pyproject`, its
-own tests and, where it runs, its own image. `formats` is the only thing
-shared, and it is schemas, not code. Nothing is nested deeper than one
-level.
+One directory per image under `images/`, each self-contained: its own
+package, tests, `pyproject` and `Dockerfile`. Nothing is imported across
+them. `schema/` is the only thing shared, and it is data.
 
-| directory  | what it is | runs as | depends on |
-|------------|------------|---------|------------|
-| `formats`  | the schemas: JSON Schema for every payload, OpenAPI for every API, the class table as data | schemas, language-neutral | — |
-| `models`   | one container per model, answering the model protocol | container per model | formats |
-| `fleet`    | the model manager: registry, providers, placements, leases, ledger | container | formats, providers |
-| `backend`  | books: users, libraries, jobs, the pipeline, the viewer, truth, the catalog | container | formats, fleet, models, metrics, storage |
-| `metrics`  | every metric with its declaration and probes; a catalog and a measure endpoint | container | formats, storage |
-| `datasets` | bench builders: drawn benches, AnnoPage, subsets | tool container | formats, storage |
-| `ui`       | the browser application | static, behind the proxy | backend API |
-| `infra`    | compose, images, CI | — | — |
+| directory | what it is | runs as |
+|---|---|---|
+| `schema/` | the contracts: JSON Schema for every payload, OpenAPI for every API, the class table | data |
+| `images/backend` | users, libraries, jobs, the pipeline, the document, the viewer, the catalog | container |
+| `images/metrics` | every metric with its declaration and probes; catalog, measure, pairs, probe | container |
+| `images/fleet` | the model manager: registry, providers, placements, leases | container |
+| `images/layout` | a layout detector behind the model protocol, one tag per model | container per model |
+| `images/vlm` | a vLLM behind the model protocol | container |
+| `images/datasets` | the bench builders | tool container |
+| `images/ui` | the browser application, built into the proxy image | static |
+| `infra/` | compose, the proxy, CI | — |
 
 ## Contracts
 
-**Schemas** (`formats`). Every contract below is written as a schema, not
-as a type in some language: JSON Schema for the page, the describe, the
-health, the layout request, the run snapshot and the record; OpenAPI for
-the model protocol, the fleet, the metrics and the backend; the class table
-as `classes.json`. Each system validates what it sends and receives against
-them in its own tests, the UI's client is generated from the backend's
-OpenAPI, and a model container in any language answers the protocol by
-the schema alone. JSON over HTTP throughout: nothing here needs binary
-framing or streaming, and the pages already live as JSON on disk.
+**Schemas.** `page` (a model's boxes, or truth), `document` (the book as
+data), `describe`, `health`, `layout-request` (the model protocol),
+`snapshot` (`run.json`), `record` and `catalog` (what a metric says and
+publishes), `classes.json` (the class table and the vocabularies that map
+onto it). Each image validates what it reads and writes against them in its
+tests; the UI's client is generated from the backend's OpenAPI. JSON over
+HTTP throughout.
 
-**Model protocol.** A model answers `GET /booksmith/describe`,
-`GET /booksmith/health` and, for layout and hybrid models,
-`POST /booksmith/layout`; a reader answers the OpenAI chat route. The
-describe carries kind, label, fingerprint, the mapping of the model's
-labels onto the class table, the knob values its own side read, the kinds it
-returns, and the commit of the code serving. A run's identity is the hash of
-the fingerprint and both sides' knob values: what the model serves, never
-where it runs.
+**Model protocol.** `GET /booksmith/describe`, `GET /booksmith/health`,
+`POST /booksmith/layout` for layout and hybrid models; the OpenAI chat route
+for readers. The describe carries kind, label, fingerprint, the mapping of
+the model's labels onto the class table, the knob values its side read, and
+the commit serving. A run's identity is the hash of the fingerprint and both
+sides' knob values: what the model serves, never where it runs.
 
 **Fleet API.** `GET|PUT /models`: the registry, `{name: {kind, endpoint |
-image + provider, knobs, key, idle_s, budget}}`. `POST /leases {model, job}`
-answers an endpoint and a lease, bringing a placement up if none is ready.
-`POST /leases/{id}/renew`, `DELETE /leases/{id}`. `GET /placements`,
-`GET /ledger`. A placement with no live lease past `idle_s` is stopped; a
-placement the table does not know is destroyed; a placement past its budget
-is destroyed whatever is running.
+image + provider, knobs, key, idle_s, budget}}`. Next: `POST /leases`,
+`POST /leases/{id}/renew`, `DELETE /leases/{id}`, `GET /placements`. A
+placement with no live lease past `idle_s` is stopped; one the table does
+not know is destroyed; one past its budget is destroyed whatever is running.
 
-**Metrics API.** `GET /metrics`: the catalog, each metric with its needs and
-its scalars, each scalar with its direction, where its values sit (page or
-block, of which side) and the unit of its coverage. `POST /measure {book,
-kind, run, pages?, only?}` answers records: one per metric, each scalar with
-its value, its count, its coverage, its reason when null, and its values per
-anchor. `POST /probe` runs every metric's probes on a run and answers what
-fell and what did not. The service is stateless and reads the storage volume.
+**Metrics API.** `GET /metrics`: the catalog. `POST /measure {store, book,
+kind, run, pages?, only?}`: records. `POST /pairs {…, index}`: the contour
+metric's verdicts on one page. `POST /probe`: what falls and what does not.
+Stateless; reads the storage volume.
+
+**The document.** Assembled from a run's pages by one rule: blocks in reading
+order with their role by the run's policy, their content by kind, what nests
+and repeats, what the reading flagged. Written as `document.json` beside the
+run, regenerated when the rule's version or the run's identity changes.
+Exports render it and nothing else; the run's pages stay untouched.
 
 **Storage.** One volume, one layout, mounted by backend, metrics and datasets.
 A store per owner; the admin's is the root.
@@ -69,60 +67,43 @@ A store per owner; the admin's is the root.
   manifest.json              {book, source: {name, sha256}}
   <scan>.pdf
   truth/NNNN.json            pages in the page format, plus truth layers
-  detect/<label>/            a level-one run: run.json, pages/
-  read/<label>/              a level-two run: run.json, pages/, answers/, crops/
-  look/                      overlays
+  detect/<label>/            a level-one run: run.json, pages/, document.json
+  read/<label>/              a level-two run: run.json, pages/, answers/, crops/, document.json
 ```
 
 **Backend API.** Sessions and two roles. Books: upload, list, delete. Runs of
 a book. Jobs: detect, read, hybrid, html, bench, with progress as events and
 a cancel. Pages: the data, the image, a crop, the pairs against truth, the
-metrics of one page. Measurements: the series of a run. Truth: layers, and
-labeling for admins. Admin: the registry through the fleet, users.
+metrics of one page. The document. Measurements: the last and the series.
+Admin: the registry, the users.
 
-**Catalog** (the backend's database). `users`, `sessions`, `jobs` as today,
-and the links that make a book more than a directory:
-
-```
-books         store, path, sha256
-runs          book, kind, label, identity, source_sha256, when
-truths        sha256 -> bench path; a user's book with a bench's hash borrows its truth
-measurements  run, metric, identity, commit, when, pages, scalars   (append-only)
-labels        truth layer, author, when                              (later)
-corrections   run, derived run, trigger, when                        (later)
-```
+**Catalog** (the backend's database): `users`, `sessions`, `jobs`,
+`measurements` (run, metric, identity, commit, when, pages, scalars;
+append-only). Next: `truths` (a user's book with a bench's hash borrows its
+truth), `labels`, `corrections`.
 
 ## Rules
 
 Six, each guarding a number. Everything else is convention.
 
-1. Nobody repairs the model. What was recognised is untouchable; a correction is a derived run beside it, never a write into it.
+1. Nobody repairs the model. What was recognised is untouchable; a correction is a derived run beside it.
 2. A metric must be able to fail. Every metric ships probes that spoil its input, and the number must fall on each.
-3. A zero from a check and a zero from not understanding are different. A null carries its reason; nothing prints a zero it did not count.
+3. A zero from a check and a zero from not understanding are different. A null carries its reason.
 4. Identity is what a model serves, never where it runs. One run per label; a different identity refuses.
-5. A setting is declared, read through the job, and recorded in the run. A snapshot says what it read; the knob registry says what exists.
-6. A store reaches only itself. Every path a request names resolves inside the caller's store, outputs included.
-
-## Removed
-
-The command line, whole: a container has a command and a developer uses
-compose. `METRICS.md`, the report, the sweep, the results files: a
-measurement is a row in the catalog. The generated documents and the tests
-that guarded them. The rules document with its cited symbols. `service.py`
-and `cli.py`, dissolved into the backend.
+5. A setting is declared, read through the job, and recorded in the run.
+6. A store reaches only itself. Every path a request names resolves inside the caller's store.
 
 ## Documentation
 
-This file is the map. Each system has one `README.md`: what it is, how to
-run it, its API. A commit message is one line, with a paragraph when the why
-is not obvious. No generated documents, no measurements in prose, no
-history anywhere but git.
+This file is the map. Each image has one `README.md`: what it is, how to run
+it, its API. A commit message is one line, with a paragraph when the why is
+not obvious. No generated documents, no measurements in prose, no history
+anywhere but git.
 
 ## Order of work
 
-1. The split: the flat tree, the schemas extracted into `formats` from the dataclasses that hold them today, each system its package with its tests beside it, compose for the whole; the removals above. No behaviour changes.
-2. The catalog and the metrics service: measurements as a series in the backend's database, metrics behind their two endpoints.
-3. The fleet: the registry, the docker and vast providers, placements and leases, the backend renewing a lease while a job runs.
-4. The UI: library, viewer with boxes, metrics per page and per book, the admin panel.
-5. Truth by hash, truth layers, labeling in the browser.
-6. Export, and corrections as derived runs.
+1. The split into `schema/` and `images/`. Done.
+2. The fleet: the registry through the fleet, the docker and vast providers, placements and leases, the backend renewing a lease while a job runs.
+3. The UI: library, viewer with boxes, metrics per page and per book, the admin panel.
+4. Truth by hash, truth layers, labeling in the browser.
+5. Export beyond HTML, and corrections as derived runs.

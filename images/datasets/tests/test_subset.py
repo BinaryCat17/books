@@ -110,7 +110,7 @@ def test_the_build_leaves_no_working_directory_behind():
 
 
 def _aside(out):
-    return sorted((n for n in os.listdir(out) if n.endswith(".new") or n.endswith(".previous")))
+    return sorted(n for n in os.listdir(out) if n.endswith(".new") or n.endswith(".previous"))
 
 
 def test_no_refusal_leaves_a_half_built_bench_behind():
@@ -193,7 +193,7 @@ def test_the_traits_reach_the_manifest_and_the_log():
         assert sum(got[key].values()) == man["page_count"], (
             f"trait {key!r} is counted over {sum(got[key].values())} pages of {man['page_count']} -- some page was neither yes, no nor not_said, which is a fourth answer nobody declared"
         )
-        assert any((key in line for line in said)), (
+        assert any(key in line for line in said), (
             f"trait {key!r} is in the manifest and not in the log: the quantity was carried and never said"
         )
     on_disk = json.load(open(os.path.join(out, "manifest.json"), encoding="utf-8"))

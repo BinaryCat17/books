@@ -203,7 +203,7 @@ class Bench:
 
     def has_content(self, pages: dict | None = None) -> bool:
         pages = pages if pages is not None else self.pages()
-        return any((b.get("content") for p in pages.values() for b in p["blocks"]))
+        return any(b.get("content") for p in pages.values() for b in p["blocks"])
 
     def book(self) -> book_mod.Book:
         return book_mod.Book(self.root, self.manifest)

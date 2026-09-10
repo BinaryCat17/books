@@ -1,61 +1,23 @@
-# secrets
 .env
-*.env
-!.env.example
-
-# environments and caches
 .venv/
-venv/
-tools/venv/
 __pycache__/
 *.py[cod]
 .pytest_cache/
 .ruff_cache/
+.mypy_cache/
 *.egg-info/
-build/
-dist/
 *.log
 .DS_Store
-out.tgz
 
-# originals (re-downloadable), built books (paid reads), the rent journal
-raw/
-processed/
-runs/
-
-# the detector's own stdout beside a result
-results/logs/
-
-# benches: what the CPU rebuilds for free is not tracked; truth, manifests,
-# snapshots and paid output are
+# the data home when it is this directory: scans, runs, users, the database
 bench/*/*.pdf
-!bench/real-*/*.pdf
-bench/*/look/
-bench/*/detect/pages/
 bench/*/detect/*/pages/
-bench/*/read/*/pages/
-bench/*/read/*/answers/
-bench/*/read/*/crops/
-bench/*/*.crop/
-bench/*/detect/*.crop/
-bench/*/detect/*.read/
-bench/*/crops/
-
-# the six synthetic books rebuild byte for byte from their manifest
-bench/spravochnik/*
-bench/slovar/*
-bench/matematika/*
-bench/atlas/*
-bench/katalog/*
-bench/zhurnal/*
-!bench/*/manifest.json
-
-# a bench builder's write-aside
+bench/*/read/
 bench/*/truth.new/
 bench/*/truth.previous/
-bench/*/*.pdf.new
-bench/*/manifest.json.new
-.mypy_cache
-# The web's own files in a data home that is the repository
+processed/
+raw/
+runs/
 users/
-booksmith.sqlite*
+*.sqlite*
+images/ui/dist/

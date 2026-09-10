@@ -30,7 +30,7 @@ class _Environ(Mapping):
         return (n for n in self._names() if n in os.environ)
 
     def __len__(self) -> int:
-        return sum((1 for _ in self))
+        return sum(1 for _ in self)
 
 
 @dataclass

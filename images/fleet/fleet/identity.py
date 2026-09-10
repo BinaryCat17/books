@@ -19,15 +19,11 @@ def sha256(path: str) -> str:
     return h.hexdigest()
 
 
-OUTPUT_PATHS = ("results/", "METRICS.md")
-
-
 def commit(ignore: tuple[str, ...] = ()) -> str | None:
-    import fleet
     from fleet import knobs
 
     told = knobs.knob("BOOKSMITH_COMMIT")
-    root = os.path.dirname(os.path.dirname(os.path.abspath(fleet.__file__)))
+    root = os.path.dirname(os.path.abspath(__file__))
     try:
         h = subprocess.run(
             ["git", "-C", root, "rev-parse", "HEAD"], capture_output=True, text=True, timeout=10
@@ -43,29 +39,11 @@ def commit(ignore: tuple[str, ...] = ()) -> str | None:
             lines = [
                 ln
                 for ln in lines
-                if not any((ln[3:].strip().strip('"').startswith(p) for p in ignore))
+                if not any(ln[3:].strip().strip('"').startswith(p) for p in ignore)
             ]
         return head + ("+dirty tree" if lines else "")
     except (OSError, subprocess.SubprocessError):
         return told or None
-
-
-def reachable(sha: str) -> bool | None:
-    if not sha:
-        return None
-    import fleet
-
-    root = os.path.dirname(os.path.dirname(os.path.abspath(fleet.__file__)))
-    try:
-        r = subprocess.run(
-            ["git", "-C", root, "merge-base", "--is-ancestor", sha.split("+")[0], "HEAD"],
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-    except (OSError, subprocess.SubprocessError):
-        return None
-    return True if r.returncode == 0 else False if r.returncode == 1 else None
 
 
 def packages(names: Iterable[str] = DETECT_PACKAGES) -> dict:

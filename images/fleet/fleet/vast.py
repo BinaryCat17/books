@@ -150,7 +150,7 @@ class Vast:
             rows = self.v.show_instances()
         except Exception:
             return True
-        return any((str(i.get("id")) == str(iid) for i in rows))
+        return any(str(i.get("id")) == str(iid) for i in rows)
 
     RETRY_S = (4, 8, 16, 32, 60)
 
@@ -168,7 +168,7 @@ class Vast:
                 self.v.destroy_instance(id=int(iid))
             except Exception as e:
                 refusal = e
-                we_are_refused = any((k in str(e) for k in ("403", "429")))
+                we_are_refused = any(k in str(e) for k in ("403", "429"))
                 log(
                     f"  attempt {attempt + 1} to destroy failed: {e}"
                     + (

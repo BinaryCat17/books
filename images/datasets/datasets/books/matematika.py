@@ -113,7 +113,7 @@ def c_mat_system(doc, rng):
     _line(pg, x + 6, y - 8, x + 11, y - 11, 0.7)
     _line(pg, x + 6, y + 2 * 15 + 4, x + 11, y + 2 * 15 + 7, 0.7)
     _line(pg, x, y + 15, x + 6, y + 15, 0.7)
-    w = max((_text_w(l, 8.0, "M") for l in lines))
+    w = max(_text_w(l, 8.0, "M") for l in lines)
     t.append((x - 2, y - 12, x + 14 + w + 4, y + 2 * 15 + 9, "display_formula"))
     _say(t, " ; ".join(lines))
     _flow(pg, t, MARGIN, y + 60, BOT_Y, PROSE_EN, w=COLW)

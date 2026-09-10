@@ -123,7 +123,7 @@ def test_the_probe_asks_THE_MACHINE_and_asks_it_for_a_bounded_stream():
     _, _, cmd = _probe_timed(50.0, seconds=0.6)
     assert cmd is not None, "the probe started no process at all"
     argv = cmd if isinstance(cmd, list) else [cmd]
-    joined = " ".join((str(x) for x in argv))
+    joined = " ".join(str(x) for x in argv)
     assert argv[0] == "ssh" and _FakeSsh._addr in argv, (
         f"the probe did not go to the machine over ssh: {argv}. It measured something, and the something was not the link"
     )
@@ -282,7 +282,7 @@ def test_a_failed_blacklist_write_does_not_kill_the_rental():
         {"machine_id": 5}, "trial", ours=4.6, link=0.1, best_link=9.0, mark=refuses, say=said.append
     )
     assert got is False, "a failed write was reported as a successful ban"
-    assert any(("could NOT be written" in line for line in said)), (
+    assert any("could NOT be written" in line for line in said), (
         f"the failure to record the ban was swallowed: {said}"
     )
 

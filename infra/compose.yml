@@ -1,0 +1,33 @@
+services:
+  backend:
+    build: {context: .., dockerfile: images/backend/Dockerfile}
+    environment: {BOOKSMITH_METRICS: http://metrics:8000, BOOKSMITH_FLEET: http://fleet:8000}
+    volumes: [data:/data]
+    depends_on: [metrics]
+  metrics:
+    build: {context: .., dockerfile: images/metrics/Dockerfile}
+    volumes: [data:/data]
+  fleet:
+    build: {context: .., dockerfile: images/fleet/Dockerfile}
+    volumes: [data:/data, /var/run/docker.sock:/var/run/docker.sock]
+    environment: {VAST_API_KEY: "${VAST_API_KEY:-}"}
+  layout:
+    build:
+      context: ..
+      dockerfile: images/layout/Dockerfile
+      args: {MODEL_REPO: PaddlePaddle/PP-DocLayoutV2_onnx, MODEL_DIR: PP-DocLayoutV2_onnx, LAYOUT_ADAPTER: doclayout, LAYOUT_MODEL_NAME: PP-DocLayoutV2}
+  vlm:
+    build: {context: .., dockerfile: images/vlm/Dockerfile}
+    profiles: [gpu]
+    deploy: {resources: {reservations: {devices: [{driver: nvidia, count: all, capabilities: [gpu]}]}}}
+  datasets:
+    build: {context: .., dockerfile: images/datasets/Dockerfile}
+    profiles: [tools]
+    volumes: [data:/data]
+  proxy:
+    image: caddy:2
+    ports: ["8080:80"]
+    volumes: [./Caddyfile:/etc/caddy/Caddyfile:ro, ../images/ui/dist:/srv:ro]
+    depends_on: [backend]
+volumes:
+  data: {}

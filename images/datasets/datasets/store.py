@@ -6,7 +6,7 @@ import os
 import re
 import json
 from datasets.log import log
-from datasets import settings as config
+from datasets import settings
 from datasets import classes as policy_mod
 from datasets.errors import Refusal
 
@@ -25,7 +25,7 @@ BOOK_ROOTS = ("bench", "processed")
 
 def store_of(book_dir: str) -> str:
     parent = os.path.dirname(os.path.abspath(book_dir.rstrip("/")))
-    return os.path.dirname(parent) if os.path.basename(parent) in BOOK_ROOTS else config.home()
+    return os.path.dirname(parent) if os.path.basename(parent) in BOOK_ROOTS else settings.home()
 
 
 ALLOWED = (
@@ -131,12 +131,12 @@ class Book:
         if not os.path.isdir(base):
             return []
         return sorted(
-            (
+            
                 n
                 for n in os.listdir(base)
                 if os.path.isfile(os.path.join(base, n, "run.json"))
                 and os.path.isdir(os.path.join(base, n, "pages"))
-            )
+            
         )
 
     def one_run(self, kind: str, label: str = "") -> str:
@@ -201,7 +201,7 @@ def guard_identity(
 def page_files(d: str) -> tuple[int, str]:
     if not os.path.isdir(d):
         return (0, "not a directory")
-    names = sorted((f for f in os.listdir(d) if f.endswith(".json") and f != "run.json"))
+    names = sorted(f for f in os.listdir(d) if f.endswith(".json") and f != "run.json")
     if not names:
         return (0, "no json files at all")
     try:

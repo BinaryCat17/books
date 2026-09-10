@@ -147,7 +147,7 @@ def test_a_refused_build_leaves_the_golden_bench_untouched():
     assert open(os.path.join(out, "annopage.pdf"), "rb").read() == pdf_was, (
         "the pdf moved while the truth did not"
     )
-    left = sorted((n for n in os.listdir(out) if n.endswith(".new") or n.endswith(".previous")))
+    left = sorted(n for n in os.listdir(out) if n.endswith(".new") or n.endswith(".previous"))
     assert not left, (
         f"a refused build left {left} beside the golden bench -- a partial second copy of the truth, in a directory git tracks and does not ignore, with nothing to say which of the two is the bench"
     )
@@ -176,6 +176,6 @@ def test_a_refused_build_leaves_the_golden_bench_untouched():
     assert open(os.path.join(out, "manifest.json"), encoding="utf-8").read() == man_was, (
         "the passport moved alone"
     )
-    left = sorted((n for n in os.listdir(out) if n.endswith(".new") or n.endswith(".previous")))
+    left = sorted(n for n in os.listdir(out) if n.endswith(".new") or n.endswith(".previous"))
     assert not left, f"the crash left {left} behind"
     shutil.rmtree(tmp, ignore_errors=True)

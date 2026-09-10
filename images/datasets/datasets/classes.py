@@ -1,9 +1,17 @@
 """What level one does with a block: `text`, `artifact` or `furniture`, by class"""
 
 from __future__ import annotations
+
+import json
+import os
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
+from datasets import settings
 from datasets.errors import Unmeasurable
+
+
+with open(os.path.join(settings.schema_dir(), "classes.json"), encoding="utf-8") as _f:
+    _TABLE = json.load(_f)
 
 ROLES = ("text", "artifact", "furniture")
 ORDER_NAMES = (
@@ -16,23 +24,7 @@ ORDER_NAMES = (
     "table",
     "text",
 )
-CLASSES: dict[str, tuple[str, str]] = {
-    "text": ("text", "text"),
-    "caption": ("text", "caption"),
-    "algorithm": ("text", "code"),
-    "inline_formula": ("text", "text"),
-    "code": ("artifact", "code"),
-    "display_formula": ("artifact", "picture"),
-    "table": ("artifact", "table"),
-    "chart": ("artifact", "picture"),
-    "seal": ("artifact", "picture"),
-    "picture": ("artifact", "picture"),
-    "header_image": ("artifact", "page_header"),
-    "footer_image": ("artifact", "page_footer"),
-    "page_header": ("furniture", "page_header"),
-    "page_footer": ("furniture", "page_footer"),
-    "footnote": ("furniture", "footnote"),
-}
+CLASSES: dict[str, tuple[str, str]] = {n: (c["role"], c["order"]) for n, c in _TABLE["classes"].items()}
 
 
 class UnknownLabel(Unmeasurable):
@@ -50,7 +42,7 @@ class Policy:
             raise UnknownLabel(
                 f"policy {self.name or 'of the model'}: labels mapped onto classes the tree does not declare: {bad}. The classes are {sorted(CLASSES)}; there is no default on purpose."
             )
-        if not all((isinstance(lab, str) and lab for lab in self.classes)):
+        if not all(isinstance(lab, str) and lab for lab in self.classes):
             raise UnknownLabel(f"policy {self.name!r}: a label is not a non-empty string")
 
     @property
@@ -75,7 +67,7 @@ class Policy:
         return self.by_role("artifact")
 
     def by_role(self, role: str) -> tuple[str, ...]:
-        return tuple(sorted((lab for lab in self.classes if CLASSES[self.classes[lab]][0] == role)))
+        return tuple(sorted(lab for lab in self.classes if CLASSES[self.classes[lab]][0] == role))
 
     def covers(self, labels: Iterable[str]) -> bool:
         return set(labels) <= set(self.classes)
@@ -119,108 +111,7 @@ class Policy:
         )
 
 
-VOCABULARIES: dict[str, dict[str, str]] = {
-    "PP-DocLayoutV2": {
-        "table": "table",
-        "chart": "chart",
-        "image": "picture",
-        "display_formula": "display_formula",
-        "header_image": "header_image",
-        "footer_image": "footer_image",
-        "seal": "seal",
-        "abstract": "text",
-        "algorithm": "algorithm",
-        "aside_text": "text",
-        "content": "text",
-        "doc_title": "text",
-        "figure_title": "caption",
-        "paragraph_title": "text",
-        "reference": "text",
-        "reference_content": "text",
-        "text": "text",
-        "vertical_text": "text",
-        "inline_formula": "inline_formula",
-        "formula_number": "text",
-        "header": "page_header",
-        "footer": "page_footer",
-        "number": "page_footer",
-        "footnote": "footnote",
-        "vision_footnote": "footnote",
-    },
-    "PP-DocLayout_plus-L": {
-        "table": "table",
-        "chart": "chart",
-        "image": "picture",
-        "formula": "display_formula",
-        "seal": "seal",
-        "abstract": "text",
-        "algorithm": "algorithm",
-        "aside_text": "text",
-        "content": "text",
-        "doc_title": "text",
-        "figure_title": "caption",
-        "paragraph_title": "text",
-        "reference": "text",
-        "reference_content": "text",
-        "text": "text",
-        "formula_number": "text",
-        "header": "page_header",
-        "footer": "page_footer",
-        "number": "page_footer",
-        "footnote": "footnote",
-    },
-    "Docling": {
-        "table": "table",
-        "picture": "picture",
-        "formula": "display_formula",
-        "code": "code",
-        "caption": "caption",
-        "list_item": "text",
-        "section_header": "text",
-        "text": "text",
-        "title": "text",
-        "document_index": "text",
-        "form": "text",
-        "key_value_region": "text",
-        "checkbox_selected": "text",
-        "checkbox_unselected": "text",
-        "page_header": "page_header",
-        "page_footer": "page_footer",
-        "footnote": "footnote",
-    },
-    "Docling-egret": {
-        "Table": "table",
-        "Picture": "picture",
-        "Formula": "display_formula",
-        "Code": "code",
-        "Caption": "caption",
-        "List-item": "text",
-        "Section-header": "text",
-        "Text": "text",
-        "Title": "text",
-        "Document Index": "text",
-        "Form": "text",
-        "Key-Value Region": "text",
-        "Checkbox-Selected": "text",
-        "Checkbox-Unselected": "text",
-        "Page-header": "page_header",
-        "Page-footer": "page_footer",
-        "Footnote": "footnote",
-    },
-    "DocLayNet": {
-        "Table": "table",
-        "Picture": "picture",
-        "Formula": "display_formula",
-        "Caption": "caption",
-        "List-item": "text",
-        "Section-header": "text",
-        "Text": "text",
-        "Title": "text",
-        "Page-header": "page_header",
-        "Page-footer": "page_footer",
-        "Footnote": "footnote",
-    },
-}
+VOCABULARIES: dict[str, dict[str, str]] = {n: dict(m) for n, m in _TABLE["vocabularies"].items()}
 POLICIES: dict[str, Policy] = {n: Policy(n, m) for n, m in VOCABULARIES.items()}
 
 
@@ -253,4 +144,4 @@ def for_labels(labels: Iterable[str]) -> Policy:
 
 def fits(labels: Iterable[str]) -> list[str]:
     have = set(labels)
-    return sorted((p.name for p in POLICIES.values() if have <= set(p.classes)))
+    return sorted(p.name for p in POLICIES.values() if have <= set(p.classes))

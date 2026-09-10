@@ -144,7 +144,7 @@ def c_slov_index_numbers(doc, rng):
                 if y > BOT_Y - 8:
                     break
                 word = WORDS_EN[n % len(WORDS_EN)]
-                nums = ", ".join((str(100 + (n * 37 + k * 13) % 400) for k in range(4)))
+                nums = ", ".join(str(100 + (n * 37 + k * 13) % 400) for k in range(4))
                 ln = f"{word} {nums}"
                 while _text_w(ln, 5.4) > w:
                     ln = ln.rsplit(",", 1)[0]
