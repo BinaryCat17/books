@@ -39,7 +39,7 @@ def _sha256(text: str) -> str:
 def _same(now: str, promised: str) -> bool:
     """Does what lies in the block match what the swap put there?
 
-    A function rather than a line inside `undo` so the mutation battery can
+    A function rather than a line inside `undo` so a probe can
     break it: a check that cannot be broken is not proved.
     """
     return _sha256(now) == promised
@@ -60,9 +60,7 @@ def load_journal(out_dir: str) -> dict:
     must stop the work: `put` writes over a stub at once, and the undo stack of
     every earlier swap is then gone for good.
     """
-    # `book.journal_path` is the one rule: a book built before the journal moved
-    # into `assets/` keeps it in the root, and starting a second journal would
-    # leave the first, holding all the paid work, unreachable.
+    # `book.journal_path` is the one rule, so reading and writing cannot part.
     p = book.journal_path(out_dir)
     if not os.path.exists(p):
         return {"book": "book.html", "swaps": {}}
@@ -198,7 +196,7 @@ def block_role(out_dir: str, anchor: str) -> str:
 def _anchors_unchanged(before, after) -> bool:
     """Does the book hold the same anchor set after the swap?
 
-    A seam for the battery, like `_same`. It catches what the fragment check does
+    A seam for a probe, like `_same`. It catches what the fragment check does
     not: an unclosed mark (`<!--bs:xyz` with no `-->`) holds no complete marks,
     and `swap.anchors` finds a `-->` further down and bears a junk anchor.
     """
@@ -254,7 +252,7 @@ def _wrap_fragment(anchor: str, fragment: str, kind: str, source: str,
 
 def _count_in_book(tally: dict, misshapen: list, anchor: str,
                     body: str, kind: str) -> None:
-    """What went into the book — as a number. A separate function for the battery.
+    """What went into the book — as a number.
 
     Called after the guards and before the `continue` on "already there": among
     the newly placed it would miss what a repeat run leaves standing, and above
@@ -585,7 +583,7 @@ def from_read(out_dir: str, read_dir: str, only_role: str = "artifact",
                     html, anchor, body, b.get("kind") or "html", src, role,
                     # One rule, and it is called: an inline copy collapsed
                     # "not asked" into "finished" and, unsubstitutable, kept
-                    # the battery off the book path.
+                    # the probes off the book path.
                     torn=torn_of(obs.get(anchor)))
             except SwapError as e:
                 tally["refused"] += 1

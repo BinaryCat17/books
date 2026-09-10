@@ -970,6 +970,7 @@ def _order(part: dict) -> Scalar:
 
 
 class ContourMetric(Metric):
+    """Boxes, labels and order against truth: did a box land where the artefact is, was it called the right thing, is the order right."""
     name = "contour"
     needs = frozenset({"truth", "pages"})
     scalars = (

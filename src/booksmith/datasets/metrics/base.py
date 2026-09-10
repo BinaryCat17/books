@@ -1,4 +1,4 @@
-"""What a metric is, what it returns, and the one battery loop.
+"""What a metric is, what it returns, and the one probe loop.
 
 `Record` is one shape for what a metric returns: each scalar carries its value,
 what it was counted OVER (n of N), and WHY when it could not be counted -- a
@@ -167,7 +167,7 @@ def run_has_content(run, pages=None) -> bool:
     return any(b.get("content") for p in pages.values() for b in p["blocks"])
 
 
-# ------------------------------------------------------------- the battery
+# ------------------------------------------------------------- the probes
 
 @dataclass(frozen=True)
 class Probe:

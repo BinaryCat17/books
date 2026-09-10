@@ -115,7 +115,7 @@ def _box_trouble(w: float, h: float) -> str | None:
     """What is wrong with the box itself: `INVERTED` | `DEGENERATE` | None.
 
     Kept apart from "does not intersect the sheet", which both would otherwise
-    draw, and its own function so the mutation battery can break the guard.
+    draw, and its own function so a probe can break the guard.
     """
     if w < 0 or h < 0:
         return ("INVERTED: the right edge is left of the left one, or the "

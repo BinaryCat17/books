@@ -175,6 +175,8 @@ exists:
   pass serves a page viewer and the emission becomes an export.
 - A knob source that is not the process environment, so one server can run
   jobs with different settings.
+- A run snapshot that stores each knob's name and value and points at the
+  registry for its description, instead of carrying the description text.
 
 Two decisions are already made. A correction of what the model returned is
 never a write into the model's run; it is a derived run beside it, journaled

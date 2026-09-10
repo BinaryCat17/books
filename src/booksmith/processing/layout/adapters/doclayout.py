@@ -33,7 +33,7 @@ def weights_dir() -> str:
 
 
 # ---------------------------------------------------------- reading order
-# A module-level name the battery patches in memory; of the module, not the class,
+# A module-level name a probe may patch in memory; of the module, not the class,
 # since `setattr` puts a `staticmethod` back as a plain function.
 
 

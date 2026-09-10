@@ -261,9 +261,9 @@ def _answer_grid(s, kind=None):
 
 
 def _grid_html(g):
-    """Grid back into HTML, for the battery: the metric must get exactly what a
+    """Grid back into HTML, for the probes: the metric must get exactly what a
     model would send. The cell is escaped, or a cell holding `<` comes back
-    truncated and the battery measures a string it never reported."""
+    truncated and the probes measure a string it never reported."""
     if not g:
         return "<table></table>"
     rows = max(r for r, _ in g) + 1
@@ -447,7 +447,7 @@ def measure(truth_dir: str, pages_dir: str, norm: str = NORM) -> dict:
 
 
 def measure_pages(T: dict, P: dict, norm: str = NORM) -> dict:
-    """The same over pages already loaded: this is what the battery feeds."""
+    """The same over pages already loaded: this is what the probes feed."""
     txt = {"block_count": 0, "truth_chars": 0, "truth_words": 0,
            "char_distance": 0, "word_distance": 0,
            "char_distance_answered": 0,
@@ -676,7 +676,7 @@ def measure_pages(T: dict, P: dict, norm: str = NORM) -> dict:
     def table_ratios(tab):
         """Table shares, or None when there is nothing to judge by: zero
         answered blocks means "nothing to compare", not "zero per cent
-        matched", and a CER already floored at 1 cannot fall for the battery."""
+        matched", and a CER already floored at 1 cannot fall for the probes."""
         answered = tab["block_count"] - tab["no_answer"] - tab["unmatched"]
         if answered <= 0:
             return {"share_cells_matched": None, "cer_cells": None,
@@ -883,6 +883,7 @@ def _over_blocks(value, n, of, why):
 
 
 class TextMetric(Metric):
+    """Characters and table cells against truth: did the reader return the text and the cell addresses known to be there."""
     name = "text"
     # `read` as well as `content`: truth must carry characters and this run
     # must have produced some, or a detection run reads as CER 1.

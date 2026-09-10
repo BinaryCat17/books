@@ -9,6 +9,7 @@ from booksmith.datasets.metrics.base import Metric, Record, Scalar, Spec
 
 
 class SnapshotMetric(Metric):
+    """Is the run's snapshot complete enough to repeat the run."""
     name = "snapshot"
     needs = frozenset({"pages"})
     scalars = (

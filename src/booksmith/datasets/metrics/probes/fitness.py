@@ -347,7 +347,7 @@ def probes(bench, run) -> list:
                  and _at("WHOLE", 1.01,
                          lambda: ink.measure(pdf, detect_dir, truth_dir)["intact"] == 0)),
         # Every threshold gets its own probe, or one killed alone slides the
-        # numbers while the battery stays green. Each is brought TO ITS
+        # numbers while the probes stay green. Each is brought TO ITS
         # NEIGHBOUR: the class between two must move entirely.
         ("the 'almost intact' threshold brought to its neighbours",
          "the class between 'intact' and 'bitten' moves entirely",

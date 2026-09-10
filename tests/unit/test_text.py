@@ -1,7 +1,7 @@
 """The reading instrument: the last line of the report, and its zeros.
 
-`text.report` is the function a person reads, and the corruption battery cannot
-reach it: the battery looks at numbers, and this is about printing. Two rules
+`text.report` is the function a person reads, and the probes cannot
+reach it: the probes look at numbers, and this is about printing. Two rules
 hold the last line -- an artifact record carries no `WER`, so printing it there
 is fatal to the instrument, and its numerator and denominator must be counted
 over the same role, or a book with formulas reports "CER 0 on all 130 of 104".
@@ -151,7 +151,7 @@ def test_table_in_otsl_scores_like_the_same_table_in_html():
 def test_a_cell_with_angle_brackets_survives_the_round_trip():
     """A cell with `<` and `&` comes back from HTML the same, or the instrument
     lies: unescaped, the round trip grid -> HTML -> grid loses content, and the
-    battery would measure a different string than the one it reports on."""
+    probes would measure a different string than the one it reports on."""
     was = {(0, 0): "a<b & c", (0, 1): "plain",
            (1, 0): '"quoted"', (1, 1): "5 > 3"}
     now = text._html_grid(text._grid_html(was))

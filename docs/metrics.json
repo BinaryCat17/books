@@ -5,6 +5,7 @@
    "pages",
    "truth"
   ],
+  "description": "Boxes, labels and order against truth: did a box land where the artefact is, was it called the right thing, is the order right.",
   "scalars": [
    {
     "name": "artefacts_found",
@@ -80,6 +81,7 @@
    "pages",
    "pdf"
   ],
+  "description": "Shares from the ink measurement's counts: the six the report divides and the four it prints as counts, the latter expressed over the object count so that two runs compare.",
   "scalars": [
    {
     "name": "ink_under_boxes",
@@ -181,6 +183,7 @@
    "read",
    "truth"
   ],
+  "description": "Characters and table cells against truth: did the reader return the text and the cell addresses known to be there.",
   "scalars": [
    {
     "name": "paired",
@@ -255,6 +258,7 @@
   "needs": [
    "pages"
   ],
+  "description": "How often the assembled order jumps between columns beyond the unavoidable; needs no truth.",
   "scalars": [
    {
     "name": "excess_jumps_per_transition",
@@ -299,6 +303,7 @@
   "needs": [
    "pages"
   ],
+  "description": "Is the run's snapshot complete enough to repeat the run.",
   "scalars": [
    {
     "name": "values_present",
@@ -332,6 +337,7 @@
    "pages",
    "read"
   ],
+  "description": "The truth-free half of level two: labels and answers are both in the run's own pages, so it measures any book that has been read, with no truth and no scan; `read` says THIS RUN produced the characters.",
   "scalars": [
    {
     "name": "charts_as_data",

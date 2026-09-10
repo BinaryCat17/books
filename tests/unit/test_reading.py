@@ -75,8 +75,7 @@ def test_a_formula_whose_CONTENT_repeats_is_the_residual_false_positive():
 
 
 def test_the_battery_can_fail_on_pages_that_carry_answers():
-    """Every probe measures something, on an input built here: a battery whose
-    probes all say "no data" is not a battery."""
+    """Every probe measures something, on an input built here: a set of probes that all say "no data" measures nothing."""
     lines = []
     pages = _pages([("chart", CHART), ("text", "recognised words here"),
                     ("table", "a | b\n1 | 2")])

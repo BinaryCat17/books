@@ -47,10 +47,10 @@ MID = 0.20
 JUNK_WIDTH = 0.10
 
 
-# The page raster does not change between runs and the battery makes some thirty
+# The page raster does not change between runs and the probes make some thirty
 # passes over a book, so the ink mask and the junk mask are cached per page,
 # packed by the bit, under a cap in bytes. The threshold is part of the key: the
-# battery moves it to check it is alive, and a mask from a key that ignored it
+# probes move it to check it is alive, and a mask from a key that ignored it
 # would make a live threshold look dead.
 #
 # Eviction drops pages of other books and never our own: the walk within a book
@@ -77,7 +77,7 @@ def _ink_of(pdf, doc, i, dpi):
     """The page ink mask, cached. The key includes the threshold."""
     import numpy as np
     global _INK_CACHE_BYTES
-    # The threshold is in the key: the battery moves INK to check it is alive.
+    # The threshold is in the key: the probes move INK to check it is alive.
     key = (pdf, i, int(dpi), INK)
     hit = _INK_CACHE.get(key)
     if hit is None:
@@ -422,7 +422,7 @@ def report(res: dict, log=print) -> None:
     n, s = res["objects"], res["page_count"]
     ink = res["ink_total"]
     # The ruler is declared whole and on the first line, dpi included, and read
-    # from the answer rather than from the module: the battery moves these very
+    # from the answer rather than from the module: the probes move these very
     # globals, and a report reading them would lie about its own measurement.
     t = res["thresholds"]
     log(f"pages {s}, raster {'/'.join(map(str, res['dpi'])) or '?'} dpi; "

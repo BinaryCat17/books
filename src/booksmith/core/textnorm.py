@@ -54,7 +54,7 @@ _INDEX = re.compile(r"[_^]\{([^{}]*)\}")
 def bare_math(s: str) -> str:
     """Strip wrapper and typeface off a LaTeX fragment, keeping command names.
 
-    Its own function, not a line inside `normalize`, so the battery has a seam.
+    Its own function, not a line inside `normalize`.
     """
     if not s:
         return ""

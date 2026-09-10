@@ -55,8 +55,9 @@ run read into `run.json`.
 **Numbers may be flagged, never restored.** Words and structure may be
 repaired; a damaged cell is marked less often than an ordinary one, and a
 shifted row is invisible by construction.
-Stated in `src/booksmith/datasets/metrics/reading.py`; the first enforcement
-arrives with corrections as derived runs.
+`src/booksmith/datasets/metrics/reading.py:ReadingMetric` flags a chart
+answered as a table of numbers; the restoring half is enforced when corrections
+arrive as derived runs.
 
 **One run per label, and a different identity refuses.** Two experiments
 under one directory read as one run resumed.

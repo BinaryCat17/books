@@ -83,6 +83,7 @@ def test_cut_png_returns_the_same_cut_as_a_file():
             facts = raster.cut(d, 0, (40, 40, 160, 130), 72.0,
                                os.path.join(tmp, "c.png"), dpi=72, margin=0.0)
             png, facts2 = raster.cut_png(d, 0, (40, 40, 160, 130), 72.0, dpi=72, margin=0.0)
+            page_png = raster.render_png(d[0], 72)
         assert png[:8] == b"\x89PNG\r\n\x1a\n"
         assert facts2 == {k: v for k, v in facts.items() if k != "file"}
-        assert raster.render_png(d[0] if False else raster.open_pdf(pdf)[0], 72)[:4] == b"\x89PNG"
+        assert page_png[:4] == b"\x89PNG"

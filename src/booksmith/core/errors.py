@@ -5,7 +5,7 @@ names -- a missing file, an empty page set, a knob outside its range: exit
 code 1, one line, no traceback. `Unmeasurable` is the instrument that could
 not count: exit code 2, so that "the instrument did not run" and "the number
 failed" stay two different zeros. Both are `Exception`s, not
-`BaseException`s, so `except Exception` in the batteries and on the rented box
+`BaseException`s, so `except Exception` in the probes and on the rented box
 keeps catching them. Per-module classes (`MetricError`, `SynthError`, ...)
 subclass one of the two and stay in their modules.
 """

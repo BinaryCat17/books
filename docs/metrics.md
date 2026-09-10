@@ -8,7 +8,7 @@ Every registered metric, what it needs from a bench and a run, and every scalar 
 
 needs: pages, truth
 
-
+Boxes, labels and order against truth: did a box land where the artefact is, was it called the right thing, is the order right.
 
 | scalar | better | what it says |
 |---|---|---|
@@ -52,7 +52,7 @@ Shares from the ink measurement's counts: the six the report divides and the fou
 
 needs: content, pages, read, truth
 
-
+Characters and table cells against truth: did the reader return the text and the cell addresses known to be there.
 
 | scalar | better | what it says |
 |---|---|---|
@@ -72,7 +72,7 @@ needs: content, pages, read, truth
 
 needs: pages
 
-
+How often the assembled order jumps between columns beyond the unavoidable; needs no truth.
 
 | scalar | better | what it says |
 |---|---|---|
@@ -87,7 +87,7 @@ needs: pages
 
 needs: pages
 
-
+Is the run's snapshot complete enough to repeat the run.
 
 | scalar | better | what it says |
 |---|---|---|

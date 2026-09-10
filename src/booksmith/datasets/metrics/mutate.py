@@ -1,7 +1,7 @@
-"""The mutators the batteries share: ways to spoil a page set on purpose.
+"""The mutators the probes share: ways to spoil a page set on purpose.
 
 Each takes the pages dict a metric measures (`{index: page}`) and returns a
-spoiled copy; the original is never touched. Only the mutators the batteries
+spoiled copy; the original is never touched. Only the mutators the probes
 hold in common live here.
 """
 

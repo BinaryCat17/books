@@ -53,7 +53,7 @@ def test_every_path_a_document_cites_exists():
 
 
 def test_source_comments_cite_no_missing_document():
-    pat = re.compile(r"(?:docs/[\w./-]+\.md|bench/README\.md|CLAUDE\.md|README\.md|METRICS\.md"
+    pat = re.compile(r"(?:docs/[\w./-]+\.md|CLAUDE\.md|README\.md|METRICS\.md"
                      r"|(?:tests|tools)/[\w./-]+\.py)")
     gone = {}
     for top in ("src", "tests", "tools"):

@@ -45,6 +45,7 @@ def metrics_json() -> str:
     import json
     from booksmith.datasets import metrics as registry
     out = [{"metric": m.name, "needs": sorted(m.needs),
+            "description": " ".join((type(m).__doc__ or "").strip().split("\n\n")[0].split()),
             "scalars": [{"name": s.name, "better": s.better, "gloss": s.gloss,
                          "question": s.question} for s in m.scalars]}
            for m in registry.METRICS]

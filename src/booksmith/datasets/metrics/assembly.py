@@ -31,6 +31,7 @@ def _under_one_rule(pages: dict) -> dict:
 
 
 class AssemblyMetric(Metric):
+    """How often the assembled order jumps between columns beyond the unavoidable; needs no truth."""
     name = "assembly"
     needs = frozenset({"pages"})
     scalars = (

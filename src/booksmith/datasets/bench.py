@@ -4,7 +4,7 @@ One `Bench`, one `Run`, one `load_pages`, one `same_book`; a trait the file does
 not name is "not said", counted apart from "yes" and "no". A run is a directory
 of `pages/*.json` beside its `run.json`, and the snapshot is required by
 `Run.open`, or the same-book check has nothing to check with. `Run.bare` takes a
-page directory with no snapshot -- truth against itself, a battery's spoiled
+page directory with no snapshot -- truth against itself, a probe's spoiled
 copy -- and SAYS it is bare.
 """
 import json
@@ -157,7 +157,7 @@ class Bench:
     def bare(cls, truth_dir: str) -> "Bench":
         """A truth directory with no bench around it: a scratch copy, a
         `truth.previous` beside a rebuilt bench. The identity check says NOT
-        CHECKED, as it does for a bare run; the batteries take it."""
+        CHECKED, as it does for a bare run; the probes take it."""
         truth_dir = truth_dir.rstrip("/")
         return cls(os.path.dirname(truth_dir) or ".", os.path.basename(truth_dir), truth_dir, {})
 

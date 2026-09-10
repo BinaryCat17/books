@@ -337,7 +337,7 @@ def repeats_on(page, covered) -> dict:
 def _raw_latex_at(carrier: str, own: str) -> bool:
     r"""The carrier holds the same text as raw latex, and we hide the typeset.
 
-    A separate function for the mutation battery. The carrier shows
+    The carrier shows
     `FeO-SiO_{2}` where the hidden block holds
     `\[\mathrm{FeO}-\mathrm{SiO}_{2}\]`, and hiding the second wins nothing.
     """
@@ -354,7 +354,7 @@ def torn_of(o: dict | None) -> bool | None:
 
     `True` — hit the ceiling (`finish_reason == "length"`). `False` — finished by
     itself. `None` — nobody to ask: no `answers/` alongside, or the block was
-    never asked. A separate function so the mutation battery can break it.
+    never asked.
     """
     by_what = (o or {}).get("outcome")
     return None if by_what is None else (by_what == "length")
@@ -511,7 +511,7 @@ def _sheet_trouble(blocks, arts) -> str | None:
 
     Three failures, never merged: "no text" is "blocks exist, none of them text",
     and a sheet holding one folio is the third case, not that one. A separate
-    function so the mutation battery can break it; the returned word is also the
+    function; the returned word is also the
     attribute name, with no second copy of these names in this file.
     """
     if not blocks:

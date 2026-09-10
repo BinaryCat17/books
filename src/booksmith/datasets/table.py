@@ -28,7 +28,7 @@ def rows(bench: Bench, run: Run, which=None, log=print) -> list:
     # metric applies at all, and they are needed a few lines below anyway.
     model = run.pages()
     # `applicable` decides and `prerequisites` only explains: filtering inline
-    # on `have` would take `applicable` off this path, where the battery's
+    # on `have` would take `applicable` off this path, where the probes'
     # mutation of it must still reach the table.
     can = registry.base.applicable(registry.METRICS, bench, run, pages, model)
     have = registry.base.prerequisites(bench, run, pages, model)

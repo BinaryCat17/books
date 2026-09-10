@@ -41,7 +41,7 @@ if _TREE is not None:
 
 
 def test_every_metric_the_drawn_bench_reaches_is_probed():
-    """A metric absent from the run is a battery nobody notices missing."""
+    """A metric absent from the run is probes nobody notices missing."""
     assert set(BUILT) == set(LEAST) | {"snapshot"}, sorted(BUILT)
 
 

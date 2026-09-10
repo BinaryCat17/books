@@ -204,7 +204,7 @@ def test_model_rank_still_wins_over_our_rule():
 
 
 # --------------------------------------------------------------------------
-# The ruler that judges assembly order. `books score --selfcheck` prints whether
+# The ruler that judges assembly order. `books bench selfcheck` prints whether
 # the choice between assembly variants holds over the whole sweep of grouping
 # parameters, and the bottom of the scale, "column by column", must give zero
 # extra jumps at every point of it. A floor built at the defaults alone is one

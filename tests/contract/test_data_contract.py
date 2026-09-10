@@ -26,7 +26,7 @@ def test_the_things_that_must_never_be_committed_are_ignored():
     import subprocess
     root = os.path.dirname(os.path.dirname(support.SRC))
     # The last two are the crop directories of a bench that is not itself
-    # closed (annopage, annopage-lite, hard, hard36).
+    # closed (annopage, hard).
     must_hide = ("raw/", "processed/", "runs/", ".env",
                  "bench/annopage/detect.crop/", "bench/hard/detect.crop/")
     r = subprocess.run(["git", "check-ignore", "-v", *must_hide],

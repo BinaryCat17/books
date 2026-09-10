@@ -19,6 +19,7 @@ a record is in `METRICS.md`; a verdict without a record says so.
 | every command with its flags | `docs/commands.md` (generated) |
 | every knob with its default | `docs/knobs.md` (generated) |
 | every metric and what it needs | `docs/metrics.md` (generated) |
+| the same as data, for a client that renders metrics it was not told about | `docs/metrics.json` (generated) |
 | every measured number | `METRICS.md` (generated) |
 | why something is the way it is | `git log`, the commit that made it |
 
@@ -78,8 +79,9 @@ environment past the registry makes a run silently unrepeatable. The list:
 Nobody repairs the model. What was recognised is untouchable. A metric must
 be able to fail. Log the quantity, not the word done. Zero from a check and
 zero from not understanding are different zeros. A knob is declared in the
-registry. Numbers may be flagged, never restored. Each with the symbol that
-enforces it: `docs/rules.md`.
+registry. Numbers may be flagged, never restored. One run per label, and a
+different identity refuses. Imports go one way. The same book, by hash. Each
+with the symbol that enforces it: `docs/rules.md`.
 
 ## Tests
 

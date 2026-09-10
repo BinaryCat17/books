@@ -4,7 +4,7 @@
 number is a share of raster ink -- so a box off the sheet, a pixel counted
 twice, an empty raster or a binding shadow can each win it without any reading.
 
-The report is checked apart from the numbers, because the battery looks at
+The report is checked apart from the numbers, because the probes look at
 numbers and can say nothing about printing. Page shapes here are real: a memory
 check written on toy 64x64 pages is green on code that saves nothing.
 """

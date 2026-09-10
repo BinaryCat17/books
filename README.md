@@ -11,7 +11,7 @@ be undone.
 
 Benches and instruments came before models. A synthetic bench with exact
 truth, a golden bench of real pages marked up by librarians, and for every
-metric a battery of deliberately spoiled input that must make the number
+metric probes of deliberately spoiled input that must make the number
 fall. What each model found is in `METRICS.md`, rendered from the records
 that measured it.
 
