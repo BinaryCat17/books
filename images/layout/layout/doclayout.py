@@ -1,5 +1,3 @@
-"""PP-DocLayoutV2/V3 (ONNX) straight off the graph: boxes, labels, reading order"""
-
 import os
 from layout import store as book
 from layout import knobs
@@ -200,11 +198,7 @@ class DocLayout(Detector):
                 which,
             )
             kept = [kept[i] for i in perm]
-        ranks = (
-            [int(round(float(r[6]))) for r, _l, _s in kept]
-            if self.has_order
-            else list(range(len(kept)))
-        )
+        ranks = [int(round(float(r[6]))) for r, _l, _s in kept] if self.has_order else list(range(len(kept)))
         ties = len(ranks) - len(set(ranks))
         blocks = [
             Block(

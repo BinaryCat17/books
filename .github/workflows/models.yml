@@ -79,7 +79,7 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
-          file: infra/models/layout-cpu/Dockerfile
+          file: images/layout/Dockerfile
           load: true
           push: false
           tags: ${{ steps.img.outputs.ref }}
@@ -141,7 +141,7 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
-          file: infra/models/paddleocr-vl/Dockerfile
+          file: images/vlm/Dockerfile
           push: true
           tags: ${{ steps.img.outputs.ref }}
           build-args: |

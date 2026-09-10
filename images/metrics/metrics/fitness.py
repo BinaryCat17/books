@@ -1,5 +1,3 @@
-"""The ink metric as a `Metric`: will the meaning reach the second level"""
-
 from metrics import page
 from metrics.base import Metric, Record, Scalar, Spec
 from metrics import ink
@@ -10,6 +8,7 @@ def _ratio(n, d, why, per=None, side=""):
 
 
 class FitnessMetric(Metric):
+    description = "will the meaning reach the second level: ink under boxes, objects intact"
     name = "fitness"
     needs = frozenset({"pdf", "pages"})
     scalars = (
@@ -76,9 +75,7 @@ class FitnessMetric(Metric):
             per="block",
             side="truth",
         ),
-        Spec(
-            "objects_torn", "lower", "truth objects torn between boxes", per="block", side="truth"
-        ),
+        Spec("objects_torn", "lower", "truth objects torn between boxes", per="block", side="truth"),
         Spec(
             "objects_left_as_text",
             "lower",
@@ -146,9 +143,7 @@ class FitnessMetric(Metric):
                 "no page was measured",
                 {page.anchor(i): p["box_count"] for i, p in pages.items()},
             ),
-            "ink_as_text": _ratio(
-                res["ink_as_text"], tot, no_ink, by_page("ink_as_text", "ink_total")
-            )
+            "ink_as_text": _ratio(res["ink_as_text"], tot, no_ink, by_page("ink_as_text", "ink_total"))
             if res["blocks_with_content"]
             else Scalar(
                 None,
@@ -163,13 +158,9 @@ class FitnessMetric(Metric):
                 why="this run read nothing: every block would leave as a picture, which is not a measurement of one",
             ),
             "objects_intact": _ratio(res["intact"], obj, no_obj, which("fate", "intact"), "truth"),
-            "objects_in_one_box": _ratio(
-                res["in_one_box"], obj, no_obj, which("in_one_box"), "truth"
-            ),
+            "objects_in_one_box": _ratio(res["in_one_box"], obj, no_obj, which("in_one_box"), "truth"),
             "objects_torn": _ratio(res["torn"], obj, no_obj, which("fate", "torn"), "truth"),
-            "objects_left_as_text": _ratio(
-                res["left_as_text"], obj, no_obj, which("left_as_text"), "truth"
-            ),
+            "objects_left_as_text": _ratio(res["left_as_text"], obj, no_obj, which("left_as_text"), "truth"),
             "objects_with_company": _ratio(
                 res["arrived_with_company"], obj, no_obj, which("with_company"), "truth"
             ),

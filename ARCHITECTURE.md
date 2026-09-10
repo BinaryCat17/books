@@ -21,7 +21,7 @@ them. `schema/` is the only thing shared, and it is data.
 | `images/layout` | a layout detector behind the model protocol, one tag per model | container per model |
 | `images/vlm` | a vLLM behind the model protocol | container |
 | `images/datasets` | the bench builders | tool container |
-| `images/ui` | the browser application, built into the proxy image | static |
+| `images/ui` | the browser application; not started, the proxy serves the API alone | static |
 | `infra/` | compose, the proxy, CI | — |
 
 ## Contracts
@@ -30,8 +30,8 @@ them. `schema/` is the only thing shared, and it is data.
 data), `describe`, `health`, `layout-request` (the model protocol),
 `snapshot` (`run.json`), `record` and `catalog` (what a metric says and
 publishes), `classes.json` (the class table and the vocabularies that map
-onto it). Each image validates what it reads and writes against them in its
-tests; the UI's client is generated from the backend's OpenAPI. JSON over
+onto it). The backend, metrics, layout, vlm and datasets images validate what they
+read and write against them in their tests; the UI's client is generated from the backend's OpenAPI. JSON over
 HTTP throughout.
 
 **Model protocol.** `GET /booksmith/describe`, `GET /booksmith/health`,
@@ -41,11 +41,13 @@ the model's labels onto the class table, the knob values its side read, and
 the commit serving. A run's identity is the hash of the fingerprint and both
 sides' knob values: what the model serves, never where it runs.
 
-**Fleet API.** `GET|PUT /models`: the registry, `{name: {kind, endpoint |
-image + provider, knobs, key, idle_s, budget}}`. Next: `POST /leases`,
-`POST /leases/{id}/renew`, `DELETE /leases/{id}`, `GET /placements`. A
-placement with no live lease past `idle_s` is stopped; one the table does
-not know is destroyed; one past its budget is destroyed whatever is running.
+**Fleet API.** Next step. The registry, `{name: {kind, endpoint | image +
+provider, knobs, api_key, idle_s, budget}}`, moves here from the backend's
+`/api/models`, then `POST /leases`, `POST /leases/{id}/renew`,
+`DELETE /leases/{id}`, `GET /placements`. A placement with no live lease past
+`idle_s` is stopped; one the table does not know is destroyed; one past its
+budget is destroyed whatever is running. Today the fleet answers
+`GET /placements` with nothing and `GET /health`.
 
 **Metrics API.** `GET /metrics`: the catalog. `POST /measure {store, book,
 kind, run, pages?, only?}`: records. `POST /pairs {…, index}`: the contour

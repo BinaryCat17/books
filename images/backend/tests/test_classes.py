@@ -1,5 +1,3 @@
-"""Policy completeness: a label absent from the mapping must kill the run"""
-
 import pytest
 from backend import classes as policy
 
@@ -57,9 +55,7 @@ def test_union_agrees_with_every_dictionary():
     for name, p in policy.POLICIES.items():
         for lab in p.labels:
             assert policy.UNION.cls(lab) == p.cls(lab), f"{name}/{lab}"
-    assert set(policy.UNION.labels) == set().union(
-        *(set(p.labels) for p in policy.POLICIES.values())
-    )
+    assert set(policy.UNION.labels) == set().union(*(set(p.labels) for p in policy.POLICIES.values()))
 
 
 def test_for_labels_picks_by_dictionary_not_by_name():
@@ -92,5 +88,3 @@ def test_snapshot_carries_the_whole_mapping_and_comes_back():
     for bad in (None, {}, {"vocabulary": "PP-DocLayoutV9"}, {"by_label": {"x": "text"}}):
         with pytest.raises(policy.UnknownLabel):
             policy.Policy.from_snapshot(bad)
-
-

@@ -1,15 +1,6 @@
-"""The model protocol: what a served model answers, and what a run needs of it"""
-
 from __future__ import annotations
-import base64
-import json
-import os
-import urllib.error
-import urllib.request
 from dataclasses import dataclass, field
-from collections.abc import Mapping
 from layout import classes as policy
-from layout import identity as stamp
 from layout.errors import Refusal
 
 PROTOCOL = 1
@@ -18,50 +9,10 @@ ORDERS = ("own", "none")
 DESCRIBE = "/booksmith/describe"
 HEALTH = "/booksmith/health"
 LAYOUT = "/booksmith/layout"
-MIME = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp"}
-
-
-def data_uri(path: str) -> tuple[str, int]:
-    ext = os.path.splitext(path)[1].lower()
-    if ext not in MIME:
-        raise ValueError(
-            f"{path}: I do not know this image kind. I know {sorted(MIME)}; crops and page rasters are written by `core/raster.py`, and those are .png"
-        )
-    with open(path, "rb") as f:
-        raw = f.read()
-    if not raw:
-        raise ValueError(
-            f"{path}: the crop is empty (0 bytes). Sending it means getting an invented answer to an empty place -- on a blank white sheet a model produces tables, five different ones in five tries."
-        )
-    return (f"data:{MIME[ext]};base64," + base64.b64encode(raw).decode(), len(raw))
-
-
-PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
-
-
-def png_size(path: str) -> tuple[int, int] | None:
-    with open(path, "rb") as f:
-        head = f.read(24)
-    if len(head) < 24 or head[:8] != PNG_SIGNATURE:
-        return None
-    return (int.from_bytes(head[16:20], "big"), int.from_bytes(head[20:24], "big"))
-
-
-def bearer(key: str | None) -> dict[str, str]:
-    return {"Authorization": "Bearer " + key} if key else {}
-
-
-def root_of(endpoint: str) -> str:
-    root = endpoint.rstrip("/")
-    if root.endswith("/v1"):
-        root = root[:-3]
-    return root.rstrip("/")
 
 
 def _str_map(v: object, what: str) -> dict[str, str]:
-    if not isinstance(v, dict) or not all(
-        (isinstance(k, str) and isinstance(x, str) for k, x in v.items())
-    ):
+    if not isinstance(v, dict) or not all((isinstance(k, str) and isinstance(x, str) for k, x in v.items())):
         raise Refusal(f"describe: {what} must be a mapping of names to strings")
     return dict(v)
 
@@ -152,11 +103,7 @@ class Describe:
                 f"describe: {label}: a {kind} model says nothing of what kinds of content it returns"
             )
         if kind == "reader":
-            if not (
-                isinstance(openai, dict)
-                and isinstance(openai.get("model"), str)
-                and openai["model"]
-            ):
+            if not (isinstance(openai, dict) and isinstance(openai.get("model"), str) and openai["model"]):
                 raise Refusal(
                     f"describe: {label}: a reader names no `openai.model`, the name the chat route answers to"
                 )
@@ -228,58 +175,3 @@ class LayoutRequest:
         if not isinstance(image, str) or not image.startswith("data:"):
             raise Refusal("layout: `image` is not a data URI")
         return LayoutRequest(index=index, dpi=dpi, image=image)
-
-
-def fingerprint_of(describe: Describe) -> dict:
-    fp = dict(describe.fingerprint)
-    if not describe.vocabulary:
-        fp["classes"] = {lab: describe.classes[lab] for lab in describe.labels}
-    return fp
-
-
-def identity_of(describe: Describe, client_knobs: Mapping) -> str:
-    return stamp.identity(fingerprint_of(describe), stamp.merge_knobs(describe.knobs, client_knobs))
-
-
-class Unreachable(Exception):
-    def __init__(self, url: str, why: str, code: int | None = None):
-        super().__init__(f"{url}: {why}")
-        self.url, self.why, self.code = (url, why, code)
-
-
-class _NoRedirect(urllib.request.HTTPRedirectHandler):
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        raise urllib.error.HTTPError(
-            req.full_url, code, f"redirect to {newurl}: not following", headers, fp
-        )
-
-
-_OPENER = urllib.request.build_opener(_NoRedirect)
-
-
-def fetch(
-    url: str, body: object = None, timeout: float = 30.0, headers: Mapping[str, str] | None = None
-) -> object:
-    data = None if body is None else json.dumps(body).encode("utf-8")
-    h = dict(headers or {})
-    if data is not None:
-        h["Content-Type"] = "application/json"
-    req = urllib.request.Request(
-        url, data=data, headers=h, method="POST" if data is not None else "GET"
-    )
-    try:
-        with _OPENER.open(req, timeout=timeout) as r:
-            raw = r.read()
-    except urllib.error.HTTPError as e:
-        text = e.read().decode(errors="replace")[:300]
-        raise Unreachable(url, f"HTTP {e.code} {e.reason}: {text}".rstrip(": "), e.code) from None
-    except (urllib.error.URLError, OSError, TimeoutError) as e:
-        raise Unreachable(url, f"{type(e).__name__}: {e}") from None
-    try:
-        return json.loads(raw.decode("utf-8"))
-    except (ValueError, UnicodeDecodeError) as e:
-        raise Unreachable(
-            url,
-            f"the body did not parse as JSON ({type(e).__name__}); first bytes {raw[:80]!r}",
-            200,
-        ) from None

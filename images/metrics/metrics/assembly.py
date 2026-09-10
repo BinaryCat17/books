@@ -1,5 +1,3 @@
-"""Excess column jumps as a metric of its own: truth-free, so an unannotated"""
-
 from metrics import order
 from metrics import page
 from metrics import contour
@@ -28,6 +26,7 @@ def _under_one_rule(pages: dict) -> dict:
 
 
 class AssemblyMetric(Metric):
+    description = "the assembled order: excess jumps between columns"
     name = "assembly"
     needs = frozenset({"pages"})
     scalars = (

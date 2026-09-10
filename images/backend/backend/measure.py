@@ -1,5 +1,3 @@
-"""The metrics service, over HTTP"""
-
 import httpx
 
 from backend.errors import Refusal, Unmeasurable
@@ -16,14 +14,6 @@ def _post(base: str, path: str, body: dict, timeout: float = 600.0) -> dict:
         raise Unmeasurable(r.json().get("error", r.text))
     if r.status_code != 200:
         raise Unmeasurable(f"the metrics service answered {r.status_code}: {r.text[:200]}")
-    return r.json()
-
-
-def catalog(base: str) -> list:
-    try:
-        r = httpx.get(base + "/metrics", timeout=30.0)
-    except httpx.HTTPError as e:
-        raise Unmeasurable(f"the metrics service did not answer: {e}") from None
     return r.json()
 
 
@@ -52,9 +42,5 @@ def pairs(base: str, store: str, book: str, kind: str, run: str, index: int) -> 
     )
 
 
-def probe(
-    base: str, store: str, book: str, kind: str, run: str, only: list[str] | None = None
-) -> dict:
-    return _post(
-        base, "/probe", {"store": store, "book": book, "kind": kind, "run": run, "only": only}
-    )
+def probe(base: str, store: str, book: str, kind: str, run: str, only: list[str] | None = None) -> dict:
+    return _post(base, "/probe", {"store": store, "book": book, "kind": kind, "run": run, "only": only})

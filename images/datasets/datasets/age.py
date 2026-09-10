@@ -1,5 +1,3 @@
-"""Aging: the clean raster into a scan of its age, and the boxes with it"""
-
 from datasets.draw import SynthError
 
 AGING = {

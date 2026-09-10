@@ -1,5 +1,3 @@
-"""Rental deadlines: two ceilings, each of which binned good machines"""
-
 import inspect
 import time
 import pytest
@@ -102,9 +100,7 @@ def test_a_broken_machine_still_gives_a_number_below_any_floor():
     assert 47.0 <= healthy <= 53.0, (
         f"a 50 Mbit/s machine measured as {healthy:.1f} -- exact in, exact out, or the arithmetic is wrong"
     )
-    assert healthy > 10.0, (
-        f"a healthy machine measured as {healthy:.1f} Mbit/s -- the probe reads low"
-    )
+    assert healthy > 10.0, f"a healthy machine measured as {healthy:.1f} Mbit/s -- the probe reads low"
 
 
 def test_the_probe_stops_ON_TIME_and_not_on_a_byte_count():
@@ -184,9 +180,7 @@ def test_a_machine_is_blamed_only_with_a_witness():
     assert _blame_with(link=0.25, best=7.0, ours=4.6), (
         "machine NOT listed although another over the same ssh gave 7.0 against its 0.25 -- this is exactly the machine's fault"
     )
-    assert _blame_with(link=0.25, best=7.0, ours=0.0) == [], (
-        "listed while our own channel was not measured"
-    )
+    assert _blame_with(link=0.25, best=7.0, ours=0.0) == [], "listed while our own channel was not measured"
     assert _blame_with(link=2.0, best=3.0, ours=4.6) == [], (
         "machine listed FOREVER on 2.0 Mbit/s while the best seen was 3.0 -- a witness must be three times better, not merely better"
     )
@@ -331,9 +325,7 @@ def test_the_channel_that_decides_reaches_the_ledger():
     from dataclasses import asdict
 
     row = asdict(ledger.Run(job="t", image="i", gpu="g"))
-    assert "our_downlink_mbps" in row, (
-        f"the ledger row does not carry our own downlink: {sorted(row)}"
-    )
+    assert "our_downlink_mbps" in row, f"the ledger row does not carry our own downlink: {sorted(row)}"
     assert row["our_downlink_mbps"] is None, (
         "the default is not None -- NOT MEASURED would be written as 0.0, and 0.0 is what makes `blame_machine` refuse to act"
     )
@@ -411,12 +403,8 @@ def test_a_refusal_of_access_is_named_apart_from_a_stubborn_machine():
     finally:
         _t.sleep = was_sleep
     everything = "\n".join(stated)
-    assert "REFUSAL OF ACCESS" in everything, (
-        f"403 named as an ordinary destroy failure:\n{everything[:400]}"
-    )
-    assert "nobody to ask" in everything, (
-        '"alive" after a refusal of access is passed off as an observation'
-    )
+    assert "REFUSAL OF ACCESS" in everything, f"403 named as an ordinary destroy failure:\n{everything[:400]}"
+    assert "nobody to ask" in everything, '"alive" after a refusal of access is passed off as an observation'
 
 
 class _BoxThatFailsAfterPulse:

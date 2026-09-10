@@ -1,5 +1,3 @@
-"""The book builder and the reading-order contract"""
-
 from backend import classes as policy
 from backend import export_html as H
 from backend import document as D
@@ -81,9 +79,7 @@ def test_degenerate_and_inverted_boxes_are_named_by_their_own_trouble():
             try:
                 crop.cut(doc, 0, box, 144.0, dst)
             except ValueError as e:
-                assert word in str(e), (
-                    f"the box {box} was named by the wrong trouble: {str(e)[:90]!r}"
-                )
+                assert word in str(e), f"the box {box} was named by the wrong trouble: {str(e)[:90]!r}"
             else:
                 raise AssertionError(f"the box {box} was cut silently")
         try:
@@ -219,9 +215,7 @@ def test_nesting_survives_blocks_without_a_model_rank():
         Block(block_id=1, box=box, label="table", order=9),
         Block(block_id=2, box=box, label="image", order=1),
     ]
-    assert D._nesting(arts) == {1: 2}, (
-        "the outer one named is not the one earlier by the model's rank"
-    )
+    assert D._nesting(arts) == {1: 2}, "the outer one named is not the one earlier by the model's rank"
 
 
 def test_the_builder_recognises_its_own_directory():
@@ -235,5 +229,3 @@ def test_the_builder_recognises_its_own_directory():
         assert H.is_our_dir(tmp), (
             "a directory with the snapshot in the kitchen was not recognised as ours -- a rebuild in place would refuse, and the advice from the build log becomes impossible to follow"
         )
-
-

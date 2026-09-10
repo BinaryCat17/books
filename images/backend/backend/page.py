@@ -1,5 +1,3 @@
-"""The on-disk page: what level one returns and level two fills in"""
-
 import json
 import os
 import re
@@ -95,9 +93,7 @@ def load_pages(d: str, what: str = "pages") -> dict:
         with open(os.path.join(d, name), encoding="utf-8") as f:
             p = json.load(f)
         if not (isinstance(p, dict) and "blocks" in p and ("index" in p)):
-            raise Unmeasurable(
-                f"{what}: {name} in {d} does not look like a markup page (no blocks/index)"
-            )
+            raise Unmeasurable(f"{what}: {name} in {d} does not look like a markup page (no blocks/index)")
         out[int(p["index"])] = p
     if not out:
         raise Unmeasurable(f"{what}: no markup pages in {d}")

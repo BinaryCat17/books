@@ -1,5 +1,3 @@
-"""Probes of the contour metric: spoil the boxes, the labels, truth, thresholds"""
-
 from metrics import classes as policy
 from metrics import contour as m
 from metrics.base import Probe
@@ -88,9 +86,7 @@ def probes(bench, run) -> list:
     m_arte = [b["label"] for p in M.values() for b in p["blocks"] if b["label"] in arte]
     pick = max(sorted(set(m_arte)), key=m_arte.count) if m_arte else None
     same = next((p for p in policy.POLICIES.values() if pick in p.labels), None)
-    other = next(
-        (l for l in (same.labels if same else ()) if l != pick and same.role(l) == "artifact"), None
-    )
+    other = next((l for l in (same.labels if same else ()) if l != pick and same.role(l) == "artifact"), None)
     m_txt = [b["label"] for p in M.values() for b in p["blocks"] if b["label"] not in arte]
     plain = max(sorted(set(m_txt)), key=m_txt.count) if m_txt else None
     base = m.compare_pages(T, M, tp, mp)
@@ -132,12 +128,7 @@ def probes(bench, run) -> list:
                 max(b[2] for b in mb),
                 max(b[3] for b in mb),
             ]
-            if (
-                sum(
-                    1 for b in t["blocks"] if b["label"] in arte and m.cover(b["box"], box) >= 0.6
-                )
-                > 1
-            ):
+            if sum(1 for b in t["blocks"] if b["label"] in arte and m.cover(b["box"], box) >= 0.6) > 1:
                 return True
         return False
 
@@ -190,9 +181,7 @@ def probes(bench, run) -> list:
 
     def not_dead():
         hi, lo = (min(0.95, keep_c + 0.15), max(0.05, keep_c - 0.35))
-        moved = (
-            at(cover=hi)["totals"]["share"] < b_found or at(cover=lo)["totals"]["share"] > b_found
-        )
+        moved = at(cover=hi)["totals"]["share"] < b_found or at(cover=lo)["totals"]["share"] > b_found
         worst = 1.0
         for i, t in sorted(T.items()):
             mb = [b for b in M[i]["blocks"] if b["label"] in arte]
@@ -264,39 +253,27 @@ def probes(bench, run) -> list:
             (
                 f"artefacts called {plain}",
                 "zero",
-                lambda: (
-                    None
-                    if not plain
-                    else found(_relabel(M, lambda l: plain if l in arte else l)) == 0.0
-                ),
+                lambda: None if not plain else found(_relabel(M, lambda l: plain if l in arte else l)) == 0.0,
             ),
             ("boxes duplicated", "did not grow", lambda: found(_duplicate(M)) <= b_found),
             ("markup shifted by one page", "fell", lambda: found(_shuffle_pages(M)) < b_found),
             (
                 "model ranks reversed",
                 "model order fell",
-                lambda: (
-                    None
-                    if b_ord is None
-                    else R(_reverse_order(M))["model_order"]["agreement"] < b_ord
-                ),
+                lambda: None if b_ord is None else R(_reverse_order(M))["model_order"]["agreement"] < b_ord,
             ),
             (
                 "model ranks reversed",
                 "assembly order UNCHANGED",
                 lambda: (
-                    None
-                    if b_asm is None
-                    else R(_reverse_order(M))["assembly_order"]["agreement"] == b_asm
+                    None if b_asm is None else R(_reverse_order(M))["assembly_order"]["agreement"] == b_asm
                 ),
             ),
             (
                 "assembly order reversed (block list)",
                 "fell",
                 lambda: (
-                    None
-                    if b_asm is None
-                    else R(_reverse_blocks(M))["assembly_order"]["agreement"] < b_asm
+                    None if b_asm is None else R(_reverse_blocks(M))["assembly_order"]["agreement"] < b_asm
                 ),
             ),
             (
@@ -317,9 +294,7 @@ def probes(bench, run) -> list:
             (
                 "the page's artefacts merged into one",
                 "more merges",
-                lambda: (
-                    None if not mergeable() else _beds(R(_merge_all(M, arte)), "merge") > b_merge
-                ),
+                lambda: None if not mergeable() else _beds(R(_merge_all(M, arte)), "merge") > b_merge,
             ),
             (
                 "every artefact cut in half",
@@ -329,28 +304,20 @@ def probes(bench, run) -> list:
             (
                 "boxes duplicated",
                 "more nested duplicates",
-                lambda: (
-                    None
-                    if not nested_pair()
-                    else _beds(R(_duplicate(M)), "nested duplicate") > b_dup
-                ),
+                lambda: None if not nested_pair() else _beds(R(_duplicate(M)), "nested duplicate") > b_dup,
             ),
             (
                 "every artefact cut in half",
                 "more inside a miss",
                 lambda: (
-                    None
-                    if not halves_inside()
-                    else _beds(R(_split_all(M, arte)), "inside a miss") > b_in
+                    None if not halves_inside() else _beds(R(_split_all(M, arte)), "inside a miss") > b_in
                 ),
             ),
             (
                 f"label {pick} replaced by {other}",
                 "more label errors",
                 lambda: (
-                    _grew(
-                        m.label_errors(R(_relabel(M, lambda l: other if l == pick else l))), b_lab
-                    )
+                    _grew(m.label_errors(R(_relabel(M, lambda l: other if l == pick else l))), b_lab)
                     if pick and other
                     else None
                 ),
@@ -363,10 +330,8 @@ def probes(bench, run) -> list:
                     if not (
                         plain
                         and any(
-                            
-                                bench.policy.role(k.split("->", 1)[0]) == "artifact"
-                                for k in base["label_confusion"]
-                            
+                            bench.policy.role(k.split("->", 1)[0]) == "artifact"
+                            for k in base["label_confusion"]
                         )
                     )
                     else m.role_errors(R(_relabel(M, lambda l: plain if l in arte else l))) > b_role
@@ -418,10 +383,8 @@ def probes(bench, run) -> list:
                     None
                     if b_asm is None
                     else all(
-                        
-                            R(tt=_forget_order_mark(T))[k]["agreement"] is None
-                            for k in ("model_order", "assembly_order")
-                        
+                        R(tt=_forget_order_mark(T))[k]["agreement"] is None
+                        for k in ("model_order", "assembly_order")
                     )
                 ),
             ),
@@ -431,11 +394,7 @@ def probes(bench, run) -> list:
                 lambda: (
                     None
                     if not any(
-                        
-                            bench.policy.role(b["label"]) != "artifact"
-                            for p in T.values()
-                            for b in p["blocks"]
-                        
+                        bench.policy.role(b["label"]) != "artifact" for p in T.values() for b in p["blocks"]
                     )
                     else R(tt=_only(T, lambda b: b["label"] in arte))["text_and_furniture"]["share"]
                     in (0.0, None)
@@ -455,9 +414,7 @@ def probes(bench, run) -> list:
             (
                 "TOUCH raised past every overlap",
                 "more 'not seen' troubles",
-                lambda: (
-                    None if not base["troubles"] else _beds(at(touch=1.01), "not seen") > b_blind
-                ),
+                lambda: None if not base["troubles"] else _beds(at(touch=1.01), "not seen") > b_blind,
             ),
             (
                 "the column grouping parameters swept",

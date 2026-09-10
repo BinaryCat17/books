@@ -1,5 +1,3 @@
-"""Knob registry: everything affecting a run is declared here and only here"""
-
 from fleet import job
 from fleet.errors import Refusal
 
@@ -13,9 +11,17 @@ class Knob:
 
 
 KNOBS = (
-    Knob('MIN_LINK_MBPS', '2.0', "the link threshold in Mbps, measured to us, below which a machine is rejected, and blacklisted only when a faster witness makes the link the machine's own; it tells a broken machine from a working one, not a slow from a fast, and is not derived from the job's size"),
-    Knob('BOOKSMITH_LEDGER', '', 'where to write the run journal; empty = runs/ledger.jsonl. The machine blacklist lives beside the journal'),
-    Knob('BOOKSMITH_COMMIT', '', 'the commit for a machine without git; empty = ask git in place'),
+    Knob(
+        "MIN_LINK_MBPS",
+        "2.0",
+        "the link threshold in Mbps, measured to us, below which a machine is rejected, and blacklisted only when a faster witness makes the link the machine's own; it tells a broken machine from a working one, not a slow from a fast, and is not derived from the job's size",
+    ),
+    Knob(
+        "BOOKSMITH_LEDGER",
+        "",
+        "where to write the run journal; empty = runs/ledger.jsonl. The machine blacklist lives beside the journal",
+    ),
+    Knob("BOOKSMITH_COMMIT", "", "the commit for a machine without git; empty = ask git in place"),
 )
 KNOB = {k.name: k for k in KNOBS}
 
@@ -49,37 +55,5 @@ def number(name: str, *, kind: type = float, negative: bool = False) -> float:
     return v
 
 
-def snapshot() -> dict:
-    given = job.current().settings
-    return {
-        k.name: {
-            "value": knob(k.name),
-            "default": k.default,
-            "set_externally": k.name in given,
-            "what": k.what,
-            "debt": k.debt,
-        }
-        for k in KNOBS
-    }
-
-
-def snapshot_with_readers(roles: dict) -> dict:
-    snap = snapshot()
-    for name, rec in snap.items():
-        who = roles.get(name)
-        rec["read_by"] = who or "NOBODY IN THIS RUN"
-        rec["for_this_run"] = who is not None
-    return snap
-
-
-def debts() -> tuple[str, ...]:
-    return tuple(k.name for k in KNOBS if k.debt)
-
-
 def names() -> tuple[str, ...]:
     return tuple(k.name for k in KNOBS)
-
-
-def passthrough() -> dict:
-    given = job.current().settings
-    return {n: given[n] for n in names() if n in given}

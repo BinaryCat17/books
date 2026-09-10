@@ -1,5 +1,3 @@
-"""What a metric is, what it returns, and the one probe loop"""
-
 from dataclasses import dataclass, field
 from metrics.log import log
 
@@ -107,20 +105,6 @@ class Record:
 CURRENT, STALE, NOT_RECORDED, NOT_CHECKED = ("current", "stale", "not recorded", "not checked")
 
 
-def staleness(identity: str | None, snapshot: dict | None, source_sha256: str | None = None) -> str:
-    if identity is None:
-        return NOT_RECORDED
-    if snapshot is None or snapshot.get("identity") is None:
-        return NOT_CHECKED
-    if snapshot.get("identity") != identity:
-        return STALE
-    sworn = (snapshot.get("source") or {}).get("sha256")
-    if source_sha256 is not None and sworn is not None and (sworn != source_sha256):
-        return STALE
-    return CURRENT
-
-
-NEEDS = ("truth", "pages", "pdf", "content", "read")
 PER = ("page", "block", "none")
 
 
@@ -136,9 +120,7 @@ class Spec:
 
     def __post_init__(self):
         if self.better not in ("higher", "lower", "neither"):
-            raise ValueError(
-                f"{self.name}: better must be higher, lower or neither, not {self.better!r}"
-            )
+            raise ValueError(f"{self.name}: better must be higher, lower or neither, not {self.better!r}")
         if self.per not in PER:
             raise ValueError(f"{self.name}: per is one of {PER}, not {self.per!r}")
         if (self.per == "block") != (self.side in ("truth", "run")):
@@ -149,6 +131,7 @@ class Spec:
 
 class Metric:
     name: str = ""
+    description: str = ""
     needs: frozenset = frozenset()
     scalars: tuple = ()
 

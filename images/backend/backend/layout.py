@@ -1,7 +1,4 @@
-"""`books detect` -- first-level contours, locally and for free"""
-
 import os
-import shlex
 import sys
 import tempfile
 import time
@@ -40,19 +37,19 @@ def _knob_roles(det):
         mine = tuple(det.knobs_read())
     except NotImplementedError:
         raise Refusal(
-            f"adapter {det.name} did not declare which knobs it reads (layout/base.py, knobs_read). An empty tuple is a lawful answer, silence is not: a silent adapter would take the snapshot back to what this declaration exists against."
+            f"adapter {det.name} did not declare which knobs it reads (detector.py, knobs_read). An empty tuple is a lawful answer, silence is not: a silent adapter would take the snapshot back to what this declaration exists against."
         ) from None
     unknown = [n for n in mine if n not in knobs.KNOB]
     if unknown:
         raise Refusal(
-            f"adapter {det.name} declared knobs the registry does not hold: {unknown}. Either a typo, or the environment is read past core/knobs.py -- both troubles are silent."
+            f"adapter {det.name} declared knobs the registry does not hold: {unknown}. Either a typo, or the environment is read past knobs.py -- both troubles are silent."
         )
     roles = {}
     for n in knobs.names():
         if n in mine:
             roles[n] = f"adapter {det.name}"
         elif n in COMMAND_KNOBS:
-            roles[n] = "the books detect command"
+            roles[n] = "the a detect run command"
         else:
             roles[n] = None
     return roles
@@ -130,11 +127,9 @@ def run(pdf, outdir, pages_spec=None, det=None, hybrid=False):
         raise Refusal(
             f"a hybrid run needs a served hybrid model, and {det.where()} is "
             + (f"a {spoken.get('kind')} model" if spoken else f"the in-process adapter {det.name}")
-            + ". Boxes and text in one call come from a model that declared both; `books detect` runs the rest."
+            + ". Boxes and text in one call come from a model that declared both; a detect run runs the rest."
         )
-    book.guard_identity(
-        outdir, _identity(det, _knob_roles(det)), pages_spec or "", f"this {det.label()} run"
-    )
+    book.guard_identity(outdir, _identity(det, _knob_roles(det)), pages_spec or "", f"this {det.label()} run")
     pol = det.policy()
     pol.check(det.labels)
     arte = pol.artefacts()
@@ -171,6 +166,8 @@ def run(pdf, outdir, pages_spec=None, det=None, hybrid=False):
     had_snapshot = os.path.isfile(snap)
     if had_snapshot:
         os.unlink(snap)
+        if os.path.isfile(os.path.join(outdir, "document.json")):
+            os.unlink(os.path.join(outdir, "document.json"))
     stale = [f for f in os.listdir(pagedir) if f.endswith(".json")]
     if stale:
         for f in stale:
@@ -330,18 +327,12 @@ def run(pdf, outdir, pages_spec=None, det=None, hybrid=False):
     fp = det.fingerprint()
     knob_block = _knobs_snapshot(roles)
     gen_null = {"temperature": None, "max_tokens": None, "top_p": None, "seed": None}
-    own = (
-        {"layout": "own", "detection": None, "kinds": list(spoken.get("kinds") or [])}
-        if hybrid
-        else {}
-    )
+    own = {"layout": "own", "detection": None, "kinds": list(spoken.get("kinds") or [])} if hybrid else {}
     snap = {
         "when": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "knobs": knob_block,
         "run_knobs": {
-            "read_by_active_adapter": [
-                n for n in knobs.names() if roles[n] and n not in COMMAND_KNOBS
-            ],
+            "read_by_active_adapter": [n for n in knobs.names() if roles[n] and n not in COMMAND_KNOBS],
             "read_by_detect_command": [n for n in knobs.names() if roles[n] and n in COMMAND_KNOBS],
             "not_for_this_run": [n for n in knobs.names() if roles[n] is None],
             "set_externally": given,
@@ -397,11 +388,6 @@ def run(pdf, outdir, pages_spec=None, det=None, hybrid=False):
                 },
             },
         },
-        "repeat_command": " ".join(
-            shlex.quote(a)
-            for a in ["books", "hybrid" if hybrid else "detect", pdf, "--out", outdir]
-            + (["--pages", str(pages_spec)] if pages_spec else [])
-        ),
     }
     write_json(os.path.join(outdir, "run.json"), snap, indent=1)
     log(f"snapshot: {os.path.join(outdir, 'run.json')}")

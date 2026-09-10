@@ -37,5 +37,9 @@ def test_the_service_answers_the_catalog_a_measure_and_the_pairs(bench):
     assert p["compared"] and p["labelled"] == "not_said"
     assert [e["verdict"] for e in p["pairs"]] == ["matched"] * 3 and p["extras"] == []
     assert c.post("/pairs", json={**ask, "index": 7}).status_code == 409
-    probes = c.post("/probe", json={**ask, "only": ["contour"]}).json()
-    assert probes["contour"]["probes"] > 10 and probes["contour"]["uncaught"] == 0
+    probes = c.post("/probe", json=ask).json()
+    assert set(probes) >= {"contour", "fitness", "assembly"}
+    for name, got in probes.items():
+        assert "skipped" in got or got["uncaught"] == 0, (name, got)
+    assert probes["contour"]["probes"] > 10 and probes["fitness"]["probes"] > 10
+    assert all(m["description"] for m in cat)

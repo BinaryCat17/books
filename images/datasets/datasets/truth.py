@@ -1,5 +1,3 @@
-"""Measured truth: the boxes snapped to the ink they contain, and the check"""
-
 from datasets.draw import SynthError
 
 INK = 160

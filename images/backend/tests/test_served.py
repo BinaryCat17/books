@@ -1,5 +1,3 @@
-"""A model behind an endpoint: the describe is checked, a served run measures"""
-
 import json
 import os
 import pytest
@@ -58,9 +56,7 @@ def test_a_describe_round_trips_and_a_wrong_one_is_refused_by_field():
             served.Describe.from_json(bad)
         assert field in str(e.value) or "protocol" in str(e.value), field
     with pytest.raises(Refusal) as e:
-        served.Describe.from_json(
-            {**good, "vocabulary": "PP-DocLayoutV2", "classes": {"text": "caption"}}
-        )
+        served.Describe.from_json({**good, "vocabulary": "PP-DocLayoutV2", "classes": {"text": "caption"}})
     assert "maps it otherwise" in str(e.value), "a tree's name over another mapping"
     own = served.Describe.from_json({**good, "classes": {"text": "caption"}})
     assert own.vocabulary == "" and own.policy().cls("text") == "caption"
@@ -85,9 +81,9 @@ def test_identity_is_the_fingerprint_with_the_knobs_of_both_sides():
         {"sha256_weights": "ab", "classes": {"text": "text"}},
         {"LAYOUT_SCORE_THRESHOLD": "0.5", "PAGE_DPI": "144"},
     )
-    assert both == served.identity_of(
-        d, {"PAGE_DPI": "144", "LAYOUT_ENDPOINT": "http://b"}
-    ), "the address or the adapter moved the identity"
+    assert both == served.identity_of(d, {"PAGE_DPI": "144", "LAYOUT_ENDPOINT": "http://b"}), (
+        "the address or the adapter moved the identity"
+    )
     assert both != served.identity_of(d, {"PAGE_DPI": "72"})
     with pytest.raises(Refusal):
         served.identity_of(d, {"LAYOUT_SCORE_THRESHOLD": "0.6"})

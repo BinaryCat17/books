@@ -1,5 +1,3 @@
-"""The routes. Every one takes names, never paths: a book is `bench/<x>` or"""
-
 from __future__ import annotations
 import json
 import os
@@ -130,17 +128,13 @@ def pairs(root: str, name: str, kind: str, label: str, index: int, request: Requ
 @router.get("/books/{root}/{name}/runs/{kind}/{label}/results")
 def results(root: str, name: str, kind: str, label: str, request: Request) -> dict:
     user = auth.require(request)
-    return service.results(
-        request.app.state.db, _store(request, user), _book(root, name), kind, label
-    )
+    return service.results(request.app.state.db, _store(request, user), _book(root, name), kind, label)
 
 
 @router.get("/books/{root}/{name}/runs/{kind}/{label}/series")
 def series(root: str, name: str, kind: str, label: str, request: Request) -> list[dict]:
     user = auth.require(request)
-    return service.series(
-        request.app.state.db, _store(request, user), _book(root, name), kind, label
-    )
+    return service.series(request.app.state.db, _store(request, user), _book(root, name), kind, label)
 
 
 @router.get("/books/{root}/{name}/runs/{kind}/{label}/document")
@@ -150,9 +144,7 @@ def document(root: str, name: str, kind: str, label: str, request: Request) -> d
 
 
 @router.get("/books/{root}/{name}/runs/{kind}/{label}/pages/{index}/metrics")
-def page_metrics(
-    root: str, name: str, kind: str, label: str, index: int, request: Request
-) -> list[dict]:
+def page_metrics(root: str, name: str, kind: str, label: str, index: int, request: Request) -> list[dict]:
     user = auth.require(request)
     return service.measure_page(
         request.app.state.settings, _store(request, user), _book(root, name), kind, label, index
@@ -232,9 +224,7 @@ async def events(job_id: int, request: Request) -> StreamingResponse:
         async for ev in pool.events(job_id):
             yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n".encode()
 
-    return StreamingResponse(
-        stream(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"}
-    )
+    return StreamingResponse(stream(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"})
 
 
 @router.get("/models")
@@ -252,9 +242,7 @@ def put_models(body: dict, request: Request) -> dict:
 @router.get("/models/presets")
 def presets(request: Request) -> list[dict]:
     auth.require(request)
-    return [
-        {"name": n, "kind": e["kind"], "knobs": e["knobs"]} for n, e in service.models().items()
-    ]
+    return [{"name": n, "kind": e["kind"], "knobs": e["knobs"]} for n, e in service.models().items()]
 
 
 class NewUser(BaseModel):

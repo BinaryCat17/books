@@ -1,5 +1,3 @@
-"""What a job for a rented machine is"""
-
 from dataclasses import dataclass, field
 
 

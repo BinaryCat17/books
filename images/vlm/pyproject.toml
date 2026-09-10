@@ -14,4 +14,4 @@ packages = ["vlm"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["tests"]
-addopts = "-q"
+markers = ["slow: needs model weights"]

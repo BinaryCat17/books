@@ -1,5 +1,3 @@
-"""A dictionary: narrow columns in small type -- what the handbook lacks"""
-
 from datasets.draw import (
     ENTRY_EN,
     ENTRY_RU,

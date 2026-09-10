@@ -1,5 +1,3 @@
-"""Two guards that must fire as refusals, not as NameErrors"""
-
 import os
 from backend import raster
 from backend import textnorm
@@ -73,9 +71,7 @@ def test_cut_png_returns_the_same_cut_as_a_file():
         doc.save(pdf)
         doc.close()
         with raster.open_pdf(pdf) as d:
-            facts = raster.cut(
-                d, 0, (40, 40, 160, 130), 72.0, os.path.join(tmp, "c.png"), dpi=72, margin=0.0
-            )
+            facts = raster.cut(d, 0, (40, 40, 160, 130), 72.0, os.path.join(tmp, "c.png"), dpi=72, margin=0.0)
             png, facts2 = raster.cut_png(d, 0, (40, 40, 160, 130), 72.0, dpi=72, margin=0.0)
             page_png = raster.render_png(d[0], 72)
         assert png[:8] == b"\x89PNG\r\n\x1a\n"

@@ -1,11 +1,5 @@
-"""The mutators the probes share: ways to spoil a page set on purpose"""
-
-
 def map_boxes(M, fn):
-    return {
-        i: {**p, "blocks": [{**b, "box": list(fn(b["box"]))} for b in p["blocks"]]}
-        for i, p in M.items()
-    }
+    return {i: {**p, "blocks": [{**b, "box": list(fn(b["box"]))} for b in p["blocks"]]} for i, p in M.items()}
 
 
 def shift(M, dx, dy):
@@ -36,16 +30,11 @@ def only(M, keep):
 
 
 def relabel(M, fn):
-    return {
-        i: {**p, "blocks": [{**b, "label": fn(b["label"])} for b in p["blocks"]]}
-        for i, p in M.items()
-    }
+    return {i: {**p, "blocks": [{**b, "label": fn(b["label"])} for b in p["blocks"]]} for i, p in M.items()}
 
 
 def duplicate(M):
-    return {
-        i: {**p, "blocks": [c for b in p["blocks"] for c in (b, dict(b))]} for i, p in M.items()
-    }
+    return {i: {**p, "blocks": [c for b in p["blocks"] for c in (b, dict(b))]} for i, p in M.items()}
 
 
 def shuffle_pages(M):

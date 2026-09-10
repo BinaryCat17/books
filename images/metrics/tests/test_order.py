@@ -1,5 +1,3 @@
-"""The reading-order contract: the word "ours" in an adapter against the guard"""
-
 import pytest
 import support
 from metrics import contour as metrics

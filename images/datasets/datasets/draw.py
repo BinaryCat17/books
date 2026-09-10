@@ -1,5 +1,3 @@
-"""The drawers: what puts ink on a synthetic page, and the truth it says"""
-
 from datasets.errors import Refusal
 
 W, H = (1012, 1466)
@@ -101,9 +99,7 @@ def _table(pg, truth, x, y, cols, rows, size=6.4, label="table", ruled=False, co
     y1 = y + 10 + (rows - 1) * step + 4
     if ruled:
         for yy in (y - 8, y + 3, y1):
-            pg.draw_line(
-                _rect(x - 6, yy, x1, yy).tl, _rect(x - 6, yy, x1, yy).tr, color=(0, 0, 0), width=0.5
-            )
+            pg.draw_line(_rect(x - 6, yy, x1, yy).tl, _rect(x - 6, yy, x1, yy).tr, color=(0, 0, 0), width=0.5)
         for _c, cx in cols[1:]:
             pg.draw_line(
                 _rect(cx - 8, y - 8, cx - 8, y1).tl,
@@ -133,8 +129,7 @@ def _chart(pg, truth, x, y, w, h, caption="Fig. 9  Hardness vs carbon"):
     import pymupdf
 
     pts = [
-        pymupdf.Point(x + w * i / 24.0, y + h - h * (0.2 + 0.7 * math.sin(i / 7.0) ** 2))
-        for i in range(25)
+        pymupdf.Point(x + w * i / 24.0, y + h - h * (0.2 + 0.7 * math.sin(i / 7.0) ** 2)) for i in range(25)
     ]
     for a, b in zip(pts, pts[1:], strict=False):
         pg.draw_line(a, b, color=(0, 0, 0), width=0.6)
@@ -181,18 +176,12 @@ def _figure(pg, truth, x, y, w, h, caption="Fig. 26.67  General arrangement"):
         pg.draw_line(pymupdf.Point(*a), pymupdf.Point(*b), color=(0, 0, 0), width=0.6)
     for i in range(9):
         t0 = bx + i * (w * 0.3 / 9)
-        pg.draw_line(
-            pymupdf.Point(t0, cy + r), pymupdf.Point(t0 + r * 0.5, cy), color=(0, 0, 0), width=0.3
-        )
+        pg.draw_line(pymupdf.Point(t0, cy + r), pymupdf.Point(t0 + r * 0.5, cy), color=(0, 0, 0), width=0.3)
     yd = y + h - 8
     pg.draw_line(pymupdf.Point(cx - r, yd), pymupdf.Point(cx + r, yd), color=(0, 0, 0), width=0.4)
     for sx, d in ((cx - r, 1), (cx + r, -1)):
-        pg.draw_line(
-            pymupdf.Point(sx, yd), pymupdf.Point(sx + 4 * d, yd - 2), color=(0, 0, 0), width=0.4
-        )
-        pg.draw_line(
-            pymupdf.Point(sx, yd), pymupdf.Point(sx + 4 * d, yd + 2), color=(0, 0, 0), width=0.4
-        )
+        pg.draw_line(pymupdf.Point(sx, yd), pymupdf.Point(sx + 4 * d, yd - 2), color=(0, 0, 0), width=0.4)
+        pg.draw_line(pymupdf.Point(sx, yd), pymupdf.Point(sx + 4 * d, yd + 2), color=(0, 0, 0), width=0.4)
     pg.insert_text((cx - 8, yd - 3), "A-A", fontname="F", fontsize=5.0)
     truth.append((x, y, x + w, y + h, "image"))
     _caption(pg, truth, x + 10, y + h + 12, caption)
@@ -243,12 +232,8 @@ def _stamp(pg, truth, x, y, r=34.0):
         color=(0.25, 0.25, 0.25),
         width=0.6,
     )
-    pg.insert_text(
-        (x - r * 0.6, y + 2), "BIBLIOTEKA", fontname="F", fontsize=6.0, color=(0.25, 0.25, 0.25)
-    )
-    pg.insert_text(
-        (x - r * 0.42, y + 11), "No. 4187", fontname="F", fontsize=5.0, color=(0.25, 0.25, 0.25)
-    )
+    pg.insert_text((x - r * 0.6, y + 2), "BIBLIOTEKA", fontname="F", fontsize=6.0, color=(0.25, 0.25, 0.25))
+    pg.insert_text((x - r * 0.42, y + 11), "No. 4187", fontname="F", fontsize=5.0, color=(0.25, 0.25, 0.25))
     truth.append((R.x0, R.y0, R.x1, R.y1, "seal"))
     _say(truth, "BIBLIOTEKA No. 4187")
     return R.y1
@@ -330,8 +315,12 @@ def _put(pg, x, y, text, size=6.4, font="F", right=None, sheet_w=None):
     return w
 
 
-ENTRY_EN = "{h}, n. The part of the mechanism that carries the load. Used in lathes and presses. See also {s}."
-ENTRY_RU = "{h}, -а, м. Часть механизма, передающая усилие. Применяется в станках и прессах. См. также ст. {s}."
+ENTRY_EN = (
+    "{h}, n. The part of the mechanism that carries the load. Used in lathes and presses. See also {s}."
+)
+ENTRY_RU = (
+    "{h}, -а, м. Часть механизма, передающая усилие. Применяется в станках и прессах. См. также ст. {s}."
+)
 
 
 def _entries(
@@ -398,9 +387,7 @@ def _running_head(pg, truth, x0, x1, y, left, right, page_no, size=5.6, rule=Tru
     if rule:
         _line(pg, x0, y + 4, x1, y + 4, 0.6)
     w = _put(pg, (x0 + x1) / 2 - 6, y + 16, str(page_no), size, sheet_w=x1 + 40)
-    truth.append(
-        ((x0 + x1) / 2 - 8, y + 16 - size - 1, (x0 + x1) / 2 - 6 + w + 2, y + 18, "number")
-    )
+    truth.append(((x0 + x1) / 2 - 8, y + 16 - size - 1, (x0 + x1) / 2 - 6 + w + 2, y + 18, "number"))
     _say(truth, str(page_no))
 
 

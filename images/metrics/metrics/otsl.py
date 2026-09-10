@@ -1,13 +1,9 @@
-"""OTSL: parsing the table markup the reading models answer in"""
-
-import html as _html
 import re
 
 CONTENT = ("fcel", "ched", "rhed", "srow")
 EMPTY = ("ecel",)
 SPAN = ("lcel", "ucel", "xcel")
 BREAK = ("nl",)
-HEADER = ("ched", "rhed")
 TAGS = CONTENT + EMPTY + SPAN + BREAK
 _TOK = re.compile("<(" + "|".join(TAGS) + ")>")
 
@@ -148,27 +144,3 @@ def layout(s: str) -> tuple[list, dict]:
                 )
     out.sort(key=lambda d: (d["row"], d["col"]))
     return (out, tally)
-
-
-def to_html(s: str) -> str:
-    cs, t = layout(s)
-    if not cs:
-        return ""
-    by_rows: dict[int, list] = {}
-    for c in cs:
-        by_rows.setdefault(c["row"], []).append(c)
-    rows = t["rows"]
-    out = ["<table>"]
-    for r in range(rows):
-        out.append("<tr>")
-        for cell in by_rows.get(r, ()):
-            tag = "th" if cell["tag"] in HEADER else "td"
-            span = ""
-            if cell["cols"] > 1:
-                span += f''' colspan="{cell["cols"]}"'''
-            if cell["rows"] > 1:
-                span += f''' rowspan="{cell["rows"]}"'''
-            out.append(f"<{tag}{span}>" + _html.escape(cell["text"]) + f"</{tag}>")
-        out.append("</tr>")
-    out.append("</table>")
-    return "".join(out)

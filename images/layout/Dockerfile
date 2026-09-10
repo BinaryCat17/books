@@ -4,6 +4,7 @@ ARG MODEL_DIR
 ARG LAYOUT_ADAPTER=doclayout
 ARG LAYOUT_MODEL_NAME=""
 ARG COMMIT=""
+ARG EXTRAS=""
 RUN apt-get update -qq \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends libgl1 libglib2.0-0 libgomp1 ca-certificates \
  && rm -rf /var/lib/apt/lists/*
@@ -14,7 +15,7 @@ WORKDIR /app
 COPY schema /app/schema
 COPY images/layout/pyproject.toml /app/
 COPY images/layout/layout /app/layout
-RUN uv pip install --system --no-cache .
+RUN uv pip install --system --no-cache ".$EXTRAS"
 ENV LAYOUT_ADAPTER=$LAYOUT_ADAPTER LAYOUT_MODEL_NAME=$LAYOUT_MODEL_NAME BOOKSMITH_COMMIT=$COMMIT \
     BOOKSMITH_SCHEMA=/app/schema PYTHONUNBUFFERED=1
 EXPOSE 8000

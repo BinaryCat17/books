@@ -1,7 +1,7 @@
 services:
   backend:
     build: {context: .., dockerfile: images/backend/Dockerfile}
-    environment: {BOOKSMITH_METRICS: http://metrics:8000, BOOKSMITH_FLEET: http://fleet:8000}
+    environment: {BOOKSMITH_METRICS: http://metrics:8000}
     volumes: [data:/data]
     depends_on: [metrics]
   metrics:
@@ -10,7 +10,6 @@ services:
   fleet:
     build: {context: .., dockerfile: images/fleet/Dockerfile}
     volumes: [data:/data, /var/run/docker.sock:/var/run/docker.sock]
-    environment: {VAST_API_KEY: "${VAST_API_KEY:-}"}
   layout:
     build:
       context: ..
@@ -27,7 +26,7 @@ services:
   proxy:
     image: caddy:2
     ports: ["8080:80"]
-    volumes: [./Caddyfile:/etc/caddy/Caddyfile:ro, ../images/ui/dist:/srv:ro]
+    volumes: [./Caddyfile:/etc/caddy/Caddyfile:ro]
     depends_on: [backend]
 volumes:
   data: {}

@@ -1,5 +1,3 @@
-"""Knob registry: everything affecting a run is declared here and only here"""
-
 from datasets import job
 from datasets.errors import Refusal
 
@@ -13,12 +11,20 @@ class Knob:
 
 
 KNOBS = (
-    Knob('PAGE_DPI', '144', "the resolution a page is rendered to for detection; the detector squeezes the raster to its own input size, so the dpi decides little and the squeeze's filter more"),
-    Knob('CROP_DPI', '', "crop sharpness for `books html`: empty is the scan's own resolution, or detection's when that cannot be told; `books read` and `books crop` do not read it, the model's window deciding there"),
-    Knob('CROP_MARGIN', '0', 'margin around the box when cropping, in box fractions'),
-    Knob('SYNTH_SEED', '1', 'seed of the synthetic bench'),
-    Knob('SYNTH_AGING', 'old', 'bench ageing profile: clean|scan|old|decayed'),
-    Knob('BOOKSMITH_COMMIT', '', 'the commit for a machine without git; empty = ask git in place'),
+    Knob(
+        "PAGE_DPI",
+        "144",
+        "the resolution a page is rendered to for detection; the detector squeezes the raster to its own input size, so the dpi decides little and the squeeze's filter more",
+    ),
+    Knob(
+        "CROP_DPI",
+        "",
+        "crop sharpness for an export: empty is the scan's own resolution, or detection's when that cannot be told; a read and a crop do not read it, the model's window deciding there",
+    ),
+    Knob("CROP_MARGIN", "0", "margin around the box when cropping, in box fractions"),
+    Knob("SYNTH_SEED", "1", "seed of the synthetic bench"),
+    Knob("SYNTH_AGING", "old", "bench ageing profile: clean|scan|old|decayed"),
+    Knob("BOOKSMITH_COMMIT", "", "the commit for a machine without git; empty = ask git in place"),
 )
 KNOB = {k.name: k for k in KNOBS}
 
@@ -66,23 +72,5 @@ def snapshot() -> dict:
     }
 
 
-def snapshot_with_readers(roles: dict) -> dict:
-    snap = snapshot()
-    for name, rec in snap.items():
-        who = roles.get(name)
-        rec["read_by"] = who or "NOBODY IN THIS RUN"
-        rec["for_this_run"] = who is not None
-    return snap
-
-
-def debts() -> tuple[str, ...]:
-    return tuple(k.name for k in KNOBS if k.debt)
-
-
 def names() -> tuple[str, ...]:
     return tuple(k.name for k in KNOBS)
-
-
-def passthrough() -> dict:
-    given = job.current().settings
-    return {n: given[n] for n in names() if n in given}

@@ -1,5 +1,3 @@
-"""The book assembly order: one rule for the project, chosen by a knob"""
-
 import functools
 from collections.abc import Sequence
 from typing import Any
@@ -57,7 +55,7 @@ def _predictor() -> Any:
         from docling.models.postprocessing.reading_order_rb import ReadingOrderPredictor
     except ImportError as e:
         raise Refusal(
-            f'ASSEMBLY_ORDER=docling, but there is no docling package: {e}. Install: pip install -e ".[docling]"  (docling-slim and rtree, +54 MB, no torch). Or ASSEMBLY_ORDER=ours -- then the book is folded by our rule (y0, x0), which over the 600 golden pages gives 2471 extra jumps against 439; a worse choice, but free of the package.'
+            f"ASSEMBLY_ORDER=docling, but there is no docling package: {e}. Install: the docling extra  (docling-slim and rtree, +54 MB, no torch). Or ASSEMBLY_ORDER=ours -- then the book is folded by our rule (y0, x0), which over the 600 golden pages gives 2471 extra jumps against 439; a worse choice, but free of the package."
         ) from None
     return ReadingOrderPredictor()
 

@@ -1,5 +1,3 @@
-"""Knob registry: everything affecting a run is declared here and only here"""
-
 from backend import job
 from backend.errors import Refusal
 
@@ -24,14 +22,9 @@ KNOBS = (
         "address of a served layout or hybrid model, the root its /backend routes hang from; read by the served adapter, and by the doctor to know whether there is one to ask; no default",
     ),
     Knob(
-        "ASSEMBLY_ORDER",
-        "ours",
-        "what assembles the book when the model has no reading rank of its own: ours (top to bottom, left to right) or docling (the vendor's rules, needing the docling package); PP-DocLayoutV2 and V3 carry a rank and ignore it, and ours is the default so that a detect run on a fresh environment never falls over a sorting rule",
-    ),
-    Knob(
         "CROP_DPI",
         "",
-        "crop sharpness for `books html`: empty is the scan's own resolution, or detection's when that cannot be told; `books read` and `books crop` do not read it, the model's window deciding there",
+        "crop sharpness for an export: empty is the scan's own resolution, or detection's when that cannot be told; a read and a crop do not read it, the model's window deciding there",
     ),
     Knob("CROP_MARGIN", "0", "margin around the box when cropping, in box fractions"),
     Knob(
@@ -54,12 +47,12 @@ KNOBS = (
     Knob(
         "VLM_READER",
         "paddleocr-vl",
-        "which READING adapter to call; the list is processing/read/driver.py:READERS. It decides which prompt asks about which label, and in what shape the answer arrives",
+        "which READING adapter to call; the list is the read driver:READERS. It decides which prompt asks about which label, and in what shape the answer arrives",
     ),
     Knob(
         "VLM_TRANSPORT",
         "http",
-        "how the question is delivered; the list is processing/read/transports/openai_http.py:build. Rental is NOT a third transport: on a rented card the same http looks at 127.0.0.1, where run.sh raised vLLM",
+        "how the question is delivered; the list is the read driver:build. Rental is NOT a third transport: on a rented card the same http looks at 127.0.0.1, where run.sh raised vLLM",
     ),
     Knob("VLM_ENDPOINT", "", "address of an OpenAI-compatible service, /v1 included; no default"),
     Knob("VLM_MAX_TOKENS", "4096", "ceiling of an answer, in tokens"),
@@ -69,9 +62,7 @@ KNOBS = (
     Knob("VLM_TEMPERATURE", "0", "VLM temperature; >0 makes the parse unrepeatable on purpose"),
     Knob("VLM_TOP_P", "1.0", "probability cutoff; one cuts nothing"),
     Knob("VLM_SEED", "0", "generation seed; decides at temperature > 0"),
-    Knob(
-        "PASSES", "1", "how many reads; summing up is the runner's job, not the model's", debt=True
-    ),
+    Knob("PASSES", "1", "how many reads; summing up is the runner's job, not the model's", debt=True),
     Knob("LOGPROBS", "1", "record token probabilities beside the page", debt=True),
     Knob("RESUME", "1", "whether to continue an interrupted run"),
 )
@@ -128,10 +119,6 @@ def snapshot_with_readers(roles: dict) -> dict:
         rec["read_by"] = who or "NOBODY IN THIS RUN"
         rec["for_this_run"] = who is not None
     return snap
-
-
-def debts() -> tuple[str, ...]:
-    return tuple(k.name for k in KNOBS if k.debt)
 
 
 def names() -> tuple[str, ...]:

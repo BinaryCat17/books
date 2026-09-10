@@ -1,5 +1,3 @@
-"""Knob registry: everything affecting a run is declared here and only here"""
-
 from vlm import job
 from vlm.errors import Refusal
 
@@ -13,12 +11,12 @@ class Knob:
 
 
 KNOBS = (
-    Knob('MODEL_NAME', 'PaddleOCR-VL-1.6-0.9B', 'model name for vLLM and for the client'),
-    Knob('VL_MODEL_DIR', '', 'VLM weights dir; run.sh sets it, vLLM reads'),
-    Knob('PORT', '8118', 'port of the vLLM service on the machine'),
-    Knob('VLLM_USE_FLASHINFER_SAMPLER', '0', 'flashinfer sampler in vLLM'),
-    Knob('VLM_TIMEOUT_S', '120', 'how long to wait for one answer, s'),
-    Knob('BOOKSMITH_COMMIT', '', 'the commit for a machine without git; empty = ask git in place'),
+    Knob("MODEL_NAME", "PaddleOCR-VL-1.6-0.9B", "model name for vLLM and for the client"),
+    Knob("VL_MODEL_DIR", "", "VLM weights dir; run.sh sets it, vLLM reads"),
+    Knob("PORT", "8118", "port of the vLLM service on the machine"),
+    Knob("VLLM_USE_FLASHINFER_SAMPLER", "0", "flashinfer sampler in vLLM"),
+    Knob("VLM_TIMEOUT_S", "120", "how long to wait for one answer, s"),
+    Knob("BOOKSMITH_COMMIT", "", "the commit for a machine without git; empty = ask git in place"),
 )
 KNOB = {k.name: k for k in KNOBS}
 
@@ -52,37 +50,5 @@ def number(name: str, *, kind: type = float, negative: bool = False) -> float:
     return v
 
 
-def snapshot() -> dict:
-    given = job.current().settings
-    return {
-        k.name: {
-            "value": knob(k.name),
-            "default": k.default,
-            "set_externally": k.name in given,
-            "what": k.what,
-            "debt": k.debt,
-        }
-        for k in KNOBS
-    }
-
-
-def snapshot_with_readers(roles: dict) -> dict:
-    snap = snapshot()
-    for name, rec in snap.items():
-        who = roles.get(name)
-        rec["read_by"] = who or "NOBODY IN THIS RUN"
-        rec["for_this_run"] = who is not None
-    return snap
-
-
-def debts() -> tuple[str, ...]:
-    return tuple(k.name for k in KNOBS if k.debt)
-
-
 def names() -> tuple[str, ...]:
     return tuple(k.name for k in KNOBS)
-
-
-def passthrough() -> dict:
-    given = job.current().settings
-    return {n: given[n] for n in names() if n in given}

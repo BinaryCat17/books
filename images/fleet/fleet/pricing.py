@@ -1,5 +1,3 @@
-"""What a run really costs, and which offer to take"""
-
 from dataclasses import dataclass
 
 DOCKER_EFFICIENCY = 0.05

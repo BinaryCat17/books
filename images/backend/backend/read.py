@@ -1,5 +1,3 @@
-"""Level two: the contract for reading a block's content with a vision model"""
-
 from dataclasses import dataclass, field
 
 

@@ -1,5 +1,3 @@
-"""The viewer routes: by name, never by path; the truth side of the pairs is"""
-
 import os
 import shutil
 from fastapi.testclient import TestClient
@@ -22,9 +20,7 @@ def _detect(client, book):
     assert last["state"] == "done", last
 
 
-def test_the_viewer_answers_by_name_and_the_truth_side_is_the_admins(
-    app, home, bench, served_endpoint
-):
+def test_the_viewer_answers_by_name_and_the_truth_side_is_the_admins(app, home, bench, served_endpoint):
     _registry(home, {"fake": {"kind": "layout", "endpoint": served_endpoint, "knobs": {}}})
     _bench_into(home, bench)
     admin = as_user(app, "root", "pw", "admin")
@@ -61,9 +57,7 @@ def test_the_viewer_answers_by_name_and_the_truth_side_is_the_admins(
     assert TestClient(app).get(f"{base}/pages/1").status_code == 401
 
 
-def test_a_page_is_measured_on_request_and_the_results_say_their_state(
-    app, home, bench, served_endpoint
-):
+def test_a_page_is_measured_on_request_and_the_results_say_their_state(app, home, bench, served_endpoint):
     _registry(home, {"fake": {"kind": "layout", "endpoint": served_endpoint, "knobs": {}}})
     alice = as_user(app, "alice")
     mine = _upload(alice, bench.pdf, "mine")

@@ -1,5 +1,3 @@
-"""A parts catalogue: a page with nothing on it but the table"""
-
 from datasets.draw import (
     PROSE_EN,
     _flow,

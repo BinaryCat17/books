@@ -1,5 +1,3 @@
-"""One line of output, one place: an event on the current job"""
-
 from backend import job
 
 

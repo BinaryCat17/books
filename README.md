@@ -11,8 +11,8 @@ infra/     compose, the proxy, CI
 bench/     the tracked truth of the real benches
 ```
 
-Run everything: `docker compose -f infra/compose.yml up`. The UI is at
-`:8080`, the API under `/api`.
+Run everything: `docker compose -f infra/compose.yml up`. The API is at
+`:8080/api`; the UI is not built yet.
 
 Develop: `uv sync --all-packages --group dev`, then in any image directory
 `uv run pytest`; `uv run ruff check images`.

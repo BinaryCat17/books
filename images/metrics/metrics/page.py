@@ -1,8 +1,5 @@
-"""The on-disk page: what level one returns and level two fills in"""
-
 import json
 import os
-import re
 from dataclasses import dataclass, field, asdict
 from metrics.errors import Unmeasurable
 
@@ -62,13 +59,6 @@ def anchor(index: int, block_id: int | None = None) -> str:
     return p if block_id is None else f"{p}-b{block_id}"
 
 
-def parse_anchor(a: str) -> tuple[int, int | None]:
-    m = re.fullmatch("p(\\d{4,})(?:-b(\\d+))?", a or "")
-    if not m:
-        raise ValueError(f"{a!r} is not an anchor: p<index>-b<block_id>")
-    return (int(m.group(1)), int(m.group(2)) if m.group(2) is not None else None)
-
-
 def write_json(path: str, obj: object, indent: int | None = None) -> None:
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
@@ -95,9 +85,7 @@ def load_pages(d: str, what: str = "pages") -> dict:
         with open(os.path.join(d, name), encoding="utf-8") as f:
             p = json.load(f)
         if not (isinstance(p, dict) and "blocks" in p and ("index" in p)):
-            raise Unmeasurable(
-                f"{what}: {name} in {d} does not look like a markup page (no blocks/index)"
-            )
+            raise Unmeasurable(f"{what}: {name} in {d} does not look like a markup page (no blocks/index)")
         out[int(p["index"])] = p
     if not out:
         raise Unmeasurable(f"{what}: no markup pages in {d}")

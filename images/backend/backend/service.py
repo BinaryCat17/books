@@ -1,5 +1,3 @@
-"""The service: what the CLI and the web share, one function per command"""
-
 import dataclasses
 import functools
 import json
@@ -111,9 +109,7 @@ def _inside(store: str, path: str | None) -> str | None:
 
 def _with_endpoint(settings: Mapping, e: dict, model: str) -> dict:
     if not e.get("endpoint"):
-        raise Refusal(
-            f"model {model!r} names an image and no endpoint, and nothing here brings one up yet."
-        )
+        raise Refusal(f"model {model!r} names an image and no endpoint, and nothing here brings one up yet.")
     out = dict(settings)
     if e["kind"] == "reader":
         out["VLM_ENDPOINT"] = str(e["endpoint"])
@@ -358,7 +354,7 @@ def html(
     _inside(store, run_dir)
     _inside(store, out)
     with _job(store, settings, "", base).active():
-        d = book.run_dir(run_dir, "books html")
+        d = book.run_dir(run_dir, "an export")
         named = out is not None
         out = out or book.home_for(d, store)
         if (
@@ -369,7 +365,7 @@ def html(
             and (not os.path.isfile(os.path.join(out, "manifest.json")))
         ):
             raise Refusal(
-                f"{out} already holds something not ours: no manifest.json and no `{html_mod.ASSETS}/run.json`, so it is neither a book nor a build of `books html`. Overwriting it silently is not allowed: give --out or remove it by hand."
+                f"{out} already holds something not ours: no manifest.json and no `{html_mod.ASSETS}/run.json`, so it is neither a book nor a build of an export. Overwriting it silently is not allowed: give --out or remove it by hand."
             )
         html_mod.build(d, out)
         return out
@@ -421,9 +417,7 @@ def page_image(store: str, name: str, index: int, dpi: float = 110.0) -> bytes:
     return _render(os.path.realpath(b.pdf), b.sha256 or "", int(index), float(dpi))
 
 
-def crop_png(
-    store: str, name: str, kind: str, label: str, anchor: str, dpi: float | None = None
-) -> bytes:
+def crop_png(store: str, name: str, kind: str, label: str, anchor: str, dpi: float | None = None) -> bytes:
     from backend import raster
     from backend.page import parse_anchor
 
@@ -466,9 +460,7 @@ def run(store: str, name: str, kind: str, label: str) -> dict:
         "when": snap.get("when"),
         "dpi": (snap.get("raster") or {}).get("dpi"),
         "policy": book.policy_beside(pages).snapshot(),
-        "pages": sorted(
-            int(n[:4]) for n in os.listdir(pages) if n.endswith(".json") and n[:4].isdigit()
-        ),
+        "pages": sorted(int(n[:4]) for n in os.listdir(pages) if n.endswith(".json") and n[:4].isdigit()),
         "truth": b.truth_dir is not None,
         "observed": document.answers_present(rd),
     }

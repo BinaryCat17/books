@@ -1,5 +1,3 @@
-"""A detector behind the model protocol"""
-
 from __future__ import annotations
 
 import base64
@@ -50,7 +48,9 @@ def _adapter_sha(det: Detector) -> str | None:
 
 
 class Service:
-    def __init__(self, det: Detector, kind: str = "layout", kinds: tuple[str, ...] = (), key: str | None = None):
+    def __init__(
+        self, det: Detector, kind: str = "layout", kinds: tuple[str, ...] = (), key: str | None = None
+    ):
         if kind not in ("layout", "hybrid"):
             raise Refusal(f"a served detector is layout or hybrid, not {kind!r}")
         if kind == "hybrid" and not kinds:
@@ -76,8 +76,9 @@ class Service:
         )
 
     def health(self) -> served.Health:
-        return served.Health(ready=True, label=self.describe.label, last_request=self.last_request,
-                             requests=self.requests)
+        return served.Health(
+            ready=True, label=self.describe.label, last_request=self.last_request, requests=self.requests
+        )
 
     def layout(self, req: served.LayoutRequest) -> dict:
         head, _, payload = req.image.partition(",")

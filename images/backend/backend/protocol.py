@@ -1,5 +1,3 @@
-"""The model protocol: what a served model answers, and what a run needs of it"""
-
 from __future__ import annotations
 import base64
 import json
@@ -25,7 +23,7 @@ def data_uri(path: str) -> tuple[str, int]:
     ext = os.path.splitext(path)[1].lower()
     if ext not in MIME:
         raise ValueError(
-            f"{path}: I do not know this image kind. I know {sorted(MIME)}; crops and page rasters are written by `core/raster.py`, and those are .png"
+            f"{path}: I do not know this image kind. I know {sorted(MIME)}; crops and page rasters are written by `raster.py`, and those are .png"
         )
     with open(path, "rb") as f:
         raw = f.read()
@@ -59,9 +57,7 @@ def root_of(endpoint: str) -> str:
 
 
 def _str_map(v: object, what: str) -> dict[str, str]:
-    if not isinstance(v, dict) or not all(
-        (isinstance(k, str) and isinstance(x, str) for k, x in v.items())
-    ):
+    if not isinstance(v, dict) or not all((isinstance(k, str) and isinstance(x, str) for k, x in v.items())):
         raise Refusal(f"describe: {what} must be a mapping of names to strings")
     return dict(v)
 
@@ -152,11 +148,7 @@ class Describe:
                 f"describe: {label}: a {kind} model says nothing of what kinds of content it returns"
             )
         if kind == "reader":
-            if not (
-                isinstance(openai, dict)
-                and isinstance(openai.get("model"), str)
-                and openai["model"]
-            ):
+            if not (isinstance(openai, dict) and isinstance(openai.get("model"), str) and openai["model"]):
                 raise Refusal(
                     f"describe: {label}: a reader names no `openai.model`, the name the chat route answers to"
                 )
@@ -249,9 +241,7 @@ class Unreachable(Exception):
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
-        raise urllib.error.HTTPError(
-            req.full_url, code, f"redirect to {newurl}: not following", headers, fp
-        )
+        raise urllib.error.HTTPError(req.full_url, code, f"redirect to {newurl}: not following", headers, fp)
 
 
 _OPENER = urllib.request.build_opener(_NoRedirect)
@@ -264,9 +254,7 @@ def fetch(
     h = dict(headers or {})
     if data is not None:
         h["Content-Type"] = "application/json"
-    req = urllib.request.Request(
-        url, data=data, headers=h, method="POST" if data is not None else "GET"
-    )
+    req = urllib.request.Request(url, data=data, headers=h, method="POST" if data is not None else "GET")
     try:
         with _OPENER.open(req, timeout=timeout) as r:
             raw = r.read()

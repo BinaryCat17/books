@@ -1,5 +1,3 @@
-"""The job: what a run reads, whether it may go on, and where its lines go"""
-
 import contextvars
 import os
 import threading
@@ -64,10 +62,3 @@ _current: contextvars.ContextVar = contextvars.ContextVar("job")
 
 def current() -> Job:
     return _current.get(_DEFAULT)
-
-
-def spawn(fn: Callable, *args: object) -> threading.Thread:
-    ctx = contextvars.copy_context()
-    t = threading.Thread(target=ctx.run, args=(fn, *args), daemon=True)
-    t.start()
-    return t

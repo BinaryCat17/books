@@ -1,5 +1,3 @@
-"""What the backend is configured by: environment, never knobs"""
-
 import os
 from dataclasses import dataclass
 
@@ -57,8 +55,7 @@ class Settings:
             home=h,
             metrics_url=(os.environ.get("BOOKSMITH_METRICS") or "http://metrics:8000").rstrip("/"),
             workers=max(1, int(os.environ.get("BOOKSMITH_WORKERS") or 2)),
-            secure_cookies=(os.environ.get("BOOKSMITH_SECURE_COOKIES") or "").lower()
-            in ("1", "true", "yes"),
+            secure_cookies=(os.environ.get("BOOKSMITH_SECURE_COOKIES") or "").lower() in ("1", "true", "yes"),
         )
 
     @property

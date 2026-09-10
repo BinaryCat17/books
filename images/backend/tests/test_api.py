@@ -1,5 +1,3 @@
-"""The backend: who may see what, a job that runs and says where it is, a"""
-
 import json
 import os
 import time
@@ -60,18 +58,14 @@ def test_each_user_sees_only_their_own_books(app, bench):
         ("detect.pdf", b"%PDF-1.4 x"),
         ("note.pdf", b"not a pdf at all"),
     ):
-        r = alice.post(
-            "/api/books", files={"file": (fname, data, "application/pdf")}, params={"name": "x"}
-        )
+        r = alice.post("/api/books", files={"file": (fname, data, "application/pdf")}, params={"name": "x"})
         assert r.status_code == 409, fname
         assert not os.path.exists(os.path.join(store, "processed", "x")), fname
     assert os.path.isdir(os.path.join(store, "processed", "mine"))
     assert not os.path.exists(os.path.join(store, "processed", "theirs"))
 
 
-def test_a_detect_job_runs_reports_its_progress_and_files_its_run(
-    app, home, bench, served_endpoint
-):
+def test_a_detect_job_runs_reports_its_progress_and_files_its_run(app, home, bench, served_endpoint):
     _registry(home, {"fake": {"kind": "layout", "endpoint": served_endpoint, "knobs": {}}})
     alice = as_user(app, "alice")
     book = _upload(alice, bench.pdf, "book")
@@ -117,9 +111,7 @@ def test_a_cancel_stops_a_running_job_between_pages(app, home, bench):
         _registry(home, {"slow": {"kind": "layout", "endpoint": fake.url, "knobs": {}}})
         alice = as_user(app, "alice")
         book = _upload(alice, bench.pdf, "book")
-        job_id = alice.post(
-            "/api/jobs", json={"kind": "detect", "book": book, "model": "slow"}
-        ).json()["id"]
+        job_id = alice.post("/api/jobs", json={"kind": "detect", "book": book, "model": "slow"}).json()["id"]
         for _ in range(100):
             if alice.get(f"/api/jobs/{job_id}").json()["state"] == "running":
                 break
@@ -171,9 +163,7 @@ def test_a_cancel_that_lands_before_the_start_wins(home):
             {},
             {},
         )
-        job_id = db.add_job(
-            1, home, "detect", "processed/nowhere", "", "", {"book": "processed/nowhere"}
-        )
+        job_id = db.add_job(1, home, "detect", "processed/nowhere", "", "", {"book": "processed/nowhere"})
         assert pool.cancel(job_id)
         pool._run(job_id)
         assert db.job(job_id)["state"] == "cancelled"
@@ -198,9 +188,7 @@ def test_a_users_read_job_carries_the_entrys_key(app, home, bench, served_endpoi
         )
         alice = as_user(app, "alice")
         book = _upload(alice, bench.pdf, "book")
-        done = alice.post(
-            "/api/jobs", json={"kind": "detect", "book": book, "model": "lay"}
-        ).json()["id"]
+        done = alice.post("/api/jobs", json={"kind": "detect", "book": book, "model": "lay"}).json()["id"]
         assert wait_done(alice, done)[1]["state"] == "done"
         rd = alice.post(
             "/api/jobs",

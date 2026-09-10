@@ -1,5 +1,3 @@
-"""AnnoPage: THE GOLDEN BENCH -- real pages, truth from librarians"""
-
 import json
 import os
 import shutil
@@ -87,9 +85,7 @@ def _classes(root):
     return names
 
 
-def build(
-    root: str, out_dir: str, split: str = "test", limit: int = 0, truth_only: bool = False
-) -> dict:
+def build(root: str, out_dir: str, split: str = "test", limit: int = 0, truth_only: bool = False) -> dict:
     aside = (
         os.path.join(out_dir, "truth.new"),
         os.path.join(out_dir, "truth.previous"),
@@ -177,9 +173,7 @@ def _build(root, out_dir, split, limit, truth_only) -> dict:
                     kind = "doubtful" if cat in DOUBTFUL else "inexpressible"
                     counts[kind][cat] = counts[kind].get(cat, 0) + 1
                     drop[kind] += 1
-                    outside.append(
-                        {"box": [round(v, 1) for v in box], "category": cat, "bucket": kind}
-                    )
+                    outside.append({"box": [round(v, 1) for v in box], "category": cat, "bucket": kind})
         if not truth_only:
             page = doc.new_page(width=w * scale, height=h * scale)
             with open(img_path, "rb") as f:

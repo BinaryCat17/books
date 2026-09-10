@@ -1,5 +1,3 @@
-"""Cut an artifact out of a page along the model's box"""
-
 import os
 from collections.abc import Sequence
 from typing import Any
@@ -33,9 +31,7 @@ def native_dpi(page: Any) -> float | None:
     return best or None
 
 
-def params(
-    page_dpi: float | None = None, page_native: float | None = None, want_dpi: bool = True
-) -> dict:
+def params(page_dpi: float | None = None, page_native: float | None = None, want_dpi: bool = True) -> dict:
     margin = knobs.number("CROP_MARGIN", negative=True)
     if margin < 0:
         raise ValueError(
@@ -118,9 +114,7 @@ def _clip(
     return (page, clip, dpi, margin, clipped, margin_clipped)
 
 
-def _facts(
-    pix: Any, clip: Any, dpi: float, margin: float, clipped: bool, margin_clipped: bool
-) -> dict:
+def _facts(pix: Any, clip: Any, dpi: float, margin: float, clipped: bool, margin_clipped: bool) -> dict:
     return {
         "dpi": int(dpi),
         "margin": margin,
@@ -141,9 +135,7 @@ def cut(
     dpi: float | None = None,
     margin: float | None = None,
 ) -> dict:
-    page, clip, dpi, margin, clipped, margin_clipped = _clip(
-        doc, page_index, box, page_dpi, dpi, margin
-    )
+    page, clip, dpi, margin, clipped, margin_clipped = _clip(doc, page_index, box, page_dpi, dpi, margin)
     os.makedirs(os.path.dirname(os.path.abspath(dst)), exist_ok=True)
     pix = render(page, dpi, clip=clip)
     pix.save(dst)
@@ -161,9 +153,7 @@ def cut_png(
     dpi: float | None = None,
     margin: float | None = None,
 ) -> tuple[bytes, dict]:
-    page, clip, dpi, margin, clipped, margin_clipped = _clip(
-        doc, page_index, box, page_dpi, dpi, margin
-    )
+    page, clip, dpi, margin, clipped, margin_clipped = _clip(doc, page_index, box, page_dpi, dpi, margin)
     pix = render(page, dpi, clip=clip)
     return (pix.tobytes("png"), _facts(pix, clip, dpi, margin, clipped, margin_clipped))
 

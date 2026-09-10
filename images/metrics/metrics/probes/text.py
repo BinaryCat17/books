@@ -1,5 +1,3 @@
-"""Probes of the reading metric: spoil the answer, the truth and our pairing"""
-
 import copy
 import re
 from metrics import otsl
@@ -365,9 +363,7 @@ def probes(bench, run) -> list:
         if not was["by_anchor"]:
             return None
         mm = M(_anchor_all_paged(P, shift=1))["matching"]
-        return fell(mm["share"], was["share"]) and grew(
-            mm["anchor_wrong_page"], was["anchor_wrong_page"]
-        )
+        return fell(mm["share"], was["share"]) and grew(mm["anchor_wrong_page"], was["anchor_wrong_page"])
 
     def truth_chars():
         tt, ok = _corrupt_truth(T, _drop10)
@@ -401,9 +397,7 @@ def probes(bench, run) -> list:
                     old = pb.get("content")
                     if not old or fn(old) == old:
                         continue
-                    return M(_edit(P, i, k, lambda _, old=old: fn(old)))["artifacts_with_truth"][
-                        field
-                    ]
+                    return M(_edit(P, i, k, lambda _, old=old: fn(old)))["artifacts_with_truth"][field]
         return None
 
     return [
@@ -423,11 +417,9 @@ def probes(bench, run) -> list:
             (
                 "an empty answer on a non-empty block",
                 "more no-answer",
-                lambda: (
-                    lambda mm: (
-                        None if mm is None else grew(M(mm)["text"]["share_no_answer"], b_none)
-                    )
-                )(one(lambda s_: "")),
+                lambda: (lambda mm: None if mm is None else grew(M(mm)["text"]["share_no_answer"], b_none))(
+                    one(lambda s_: "")
+                ),
             ),
             (
                 "an empty answer on a non-empty block",
@@ -446,35 +438,29 @@ def probes(bench, run) -> list:
                 "A ROW SHIFT IN A TABLE (the same bag of cells)",
                 "fewer matched cells",
                 lambda: (
-                    lambda mm: (
-                        None if mm is None else fell(M(mm)["tables"]["share_cells_matched"], b_cell)
-                    )
+                    lambda mm: None if mm is None else fell(M(mm)["tables"]["share_cells_matched"], b_cell)
                 )(one_tab(_shift_rows)),
             ),
             (
                 "one cell emptied",
                 "fewer matched cells",
                 lambda: (
-                    lambda mm: (
-                        None if mm is None else fell(M(mm)["tables"]["share_cells_matched"], b_cell)
-                    )
+                    lambda mm: None if mm is None else fell(M(mm)["tables"]["share_cells_matched"], b_cell)
                 )(one_tab(_blank_cell)),
             ),
             (
                 "the table given as plain text",
                 "more given as text",
-                lambda: (
-                    lambda mm: (
-                        None if mm is None else grew(M(mm)["tables"]["given_as_text"], b_flat)
-                    )
-                )(one_tab(_detable)),
+                lambda: (lambda mm: None if mm is None else grew(M(mm)["tables"]["given_as_text"], b_flat))(
+                    one_tab(_detable)
+                ),
             ),
             (
                 "the table given as plain text",
                 "cell CER grew",
-                lambda: (
-                    lambda mm: None if mm is None else grew(M(mm)["tables"]["cer_cells"], b_cellcer)
-                )(one_tab(_detable)),
+                lambda: (lambda mm: None if mm is None else grew(M(mm)["tables"]["cer_cells"], b_cellcer))(
+                    one_tab(_detable)
+                ),
             ),
             ("text added to an artifact (bait)", "more baits", bait),
             (
@@ -510,9 +496,7 @@ def probes(bench, run) -> list:
                 "fewer matched cells",
                 lambda: (
                     lambda tt: (
-                        None
-                        if not tt[1]
-                        else fell(M(tt=tt[0])["tables"]["share_cells_matched"], b_cell)
+                        None if not tt[1] else fell(M(tt=tt[0])["tables"]["share_cells_matched"], b_cell)
                     )
                 )(_corrupt_truth_cell(T)),
             ),
@@ -542,16 +526,16 @@ def probes(bench, run) -> list:
             (
                 "an artifact with character truth corrupted",
                 "artifact CER grew",
-                lambda: (
-                    lambda v: None if v is None else grew(v, base["artifacts_with_truth"]["CER"])
-                )(_artefact_truth(lambda c: "#" + c[1:], "CER")),
+                lambda: (lambda v: None if v is None else grew(v, base["artifacts_with_truth"]["CER"]))(
+                    _artefact_truth(lambda c: "#" + c[1:], "CER")
+                ),
             ),
             (
                 "an artifact with truth not read",
                 "more no-answer",
-                lambda: (
-                    lambda v: None if v is None else v > base["artifacts_with_truth"]["no_answer"]
-                )(_artefact_truth(lambda c: "", "no_answer")),
+                lambda: (lambda v: None if v is None else v > base["artifacts_with_truth"]["no_answer"])(
+                    _artefact_truth(lambda c: "", "no_answer")
+                ),
             ),
         )
     ]

@@ -1,5 +1,3 @@
-"""The `--pages` parser: what it takes, what it refuses, and how it refuses"""
-
 from backend.errors import Refusal
 from backend.layout import parse_pages
 

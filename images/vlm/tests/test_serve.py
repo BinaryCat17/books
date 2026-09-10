@@ -26,9 +26,14 @@ def test_a_vllm_behind_the_shim_is_read_through_unchanged():
         h = {"Authorization": "Bearer k"}
         d = c.get("/booksmith/describe", headers=h).json()
         jsonschema.validate(d, _schema("describe.schema.json"))
-        assert d["openai"] == {"base": "/v1", "model": fake.model} and d["fingerprint"]["sha256_weights"] is None
+        assert (
+            d["openai"] == {"base": "/v1", "model": fake.model} and d["fingerprint"]["sha256_weights"] is None
+        )
         assert fake.model in [m["id"] for m in c.get("/v1/models", headers=h).json()["data"]]
-        body = {"model": fake.model, "messages": [{"role": "user", "content": [{"type": "text", "text": "OCR:"}]}]}
+        body = {
+            "model": fake.model,
+            "messages": [{"role": "user", "content": [{"type": "text", "text": "OCR:"}]}],
+        }
         r = c.post("/v1/chat/completions", json=body, headers=h)
         assert r.status_code == 200 and "the words" in r.text
         assert fake.seen[-1]["prompt"] == "OCR:"

@@ -1,5 +1,3 @@
-"""A repeat inside the page: what is proved by comparison, what only nested"""
-
 from backend import document as H
 from backend.page import Block, Page
 
@@ -101,9 +99,7 @@ def test_the_latex_stage_falls_on_deliberately_broken_input():
 
 def test_the_typeset_form_is_not_traded_for_the_raw_one():
     carrier = _b(0, (0, 0, 100, 20), "Fig. V.5. Phase diagram of FeO-SiO_{2}")
-    formula = _b(
-        1, (10, 5, 40, 12), "\\[\\mathrm{FeO}-\\mathrm{SiO}_{2}\\]", label="inline_formula"
-    )
+    formula = _b(1, (10, 5, 40, 12), "\\[\\mathrm{FeO}-\\mathrm{SiO}_{2}\\]", label="inline_formula")
     r = H.repeats_on(_page(carrier, formula), _covered)
     assert r[1][1] == "layout", f"the typeset formula is hidden and the raw latex is kept: {r}"
 

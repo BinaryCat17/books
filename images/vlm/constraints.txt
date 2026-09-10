@@ -4,11 +4,11 @@
 # any of two hundred dependencies drops the book halfway, on a card that bills.
 #
 # Build with THE SAME version of uv that is in the image
-# (infra/base/Dockerfile): 0.9.7 does not know about torchcodec in the pytorch
+# (images/vlm/Dockerfile): 0.9.7 does not know about torchcodec in the pytorch
 # index and will not install a list built by 0.12.5.
 #
 # To rebuild (no driver needed, cu130 is given explicitly):
-#   uv pip compile src/booksmith/models/paddleocr_vl/requirements.in \
+#   uv pip compile images/vlm/constraints.txt \
 #       --torch-backend=cu130 --python-version 3.12 \
 #       --python-platform x86_64-unknown-linux-gnu \
 #       -o src/booksmith/models/paddleocr_vl/constraints.txt
@@ -229,7 +229,7 @@ httpx2==2.12.0
     #   openai
 huggingface-hub==1.28.0
     # via
-    #   -r src/booksmith/models/paddleocr_vl/requirements.in
+    #   -r images/vlm/constraints.txt
     #   paddlex
     #   tokenizers
     #   transformers
@@ -445,7 +445,7 @@ nvidia-nvvm==13.3.73
 nvtx==0.2.15
     # via vllm
 onnxruntime-gpu==1.29.0
-    # via -r src/booksmith/models/paddleocr_vl/requirements.in
+    # via -r images/vlm/constraints.txt
 openai==3.3.0
     # via
     #   paddlex
@@ -510,9 +510,9 @@ packaging==26.3
     #   paddlex
     #   transformers
 paddleocr==3.7.0
-    # via -r src/booksmith/models/paddleocr_vl/requirements.in
+    # via -r images/vlm/constraints.txt
 paddlepaddle==3.3.1
-    # via -r src/booksmith/models/paddleocr_vl/requirements.in
+    # via -r images/vlm/constraints.txt
 paddlex==3.7.2
     # via paddleocr
 pandas==3.0.5
@@ -605,7 +605,7 @@ pygments==2.21.0
 pyjwt==2.13.0
     # via mcp
 pymupdf==1.28.2
-    # via -r src/booksmith/models/paddleocr_vl/requirements.in
+    # via -r images/vlm/constraints.txt
 pynvvideocodec==2.0.4
     # via vllm
 pypdfium2==5.13.0
@@ -757,7 +757,7 @@ tokenspeed-triton==3.8.10.post20260721
     # via tokenspeed-mla
 torch==2.13.0+cu130
     # via
-    #   -r src/booksmith/models/paddleocr_vl/requirements.in
+    #   -r images/vlm/constraints.txt
     #   compressed-tensors
     #   flashinfer-python
     #   humming-kernels
@@ -872,7 +872,7 @@ uvicorn==0.52.4
 uvloop==0.22.1
     # via uvicorn
 vllm==0.27.1
-    # via -r src/booksmith/models/paddleocr_vl/requirements.in
+    # via -r images/vlm/constraints.txt
 watchfiles==1.2.0
     # via
     #   uvicorn

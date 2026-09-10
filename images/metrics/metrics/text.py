@@ -1,5 +1,3 @@
-"""Reading metric: an answer compared against text that is KNOWN"""
-
 import html as _html
 import re
 from html.parser import HTMLParser
@@ -64,9 +62,7 @@ def _cells_from(obj):
     if not isinstance(obj, list) or not obj:
         return None
     if all(isinstance(r, list) for r in obj):
-        return {
-            (i, j): "" if c is None else str(c) for i, r in enumerate(obj) for j, c in enumerate(r)
-        }
+        return {(i, j): "" if c is None else str(c) for i, r in enumerate(obj) for j, c in enumerate(r)}
     if all(isinstance(c, dict) for c in obj):
         out = {}
         for c in obj:
@@ -675,16 +671,12 @@ def report(res: dict) -> None:
             )
     b = res["tables"]
     if not b["block_count"]:
-        log(
-            "tables: this book has no structural truth — nothing to compare (this is not zero by cells)"
-        )
+        log("tables: this book has no structural truth — nothing to compare (this is not zero by cells)")
     elif not b.get("answered_blocks"):
         log(
             f"tables: blocks {b['block_count']}, cells {b['cell_count']}, but THERE IS NO ANSWER TO A SINGLE ONE — nothing to compare, and this is NOT 'matched 0%'"
         )
-        log(
-            f"  no answer {b['no_answer']}, given as text {b['given_as_text']}, not paired {b['unmatched']}"
-        )
+        log(f"  no answer {b['no_answer']}, given as text {b['given_as_text']}, not paired {b['unmatched']}")
     else:
         dc, cc = (b["share_cells_matched"], b["cer_cells"])
         log(
@@ -758,15 +750,11 @@ def _grid_otsl(g):
     if not g:
         return "<nl>"
     rows, cols = _shape(g)
-    return "".join(
-        "".join("<fcel>" + g.get((r, c), "") for c in range(cols)) + "<nl>" for r in range(rows)
-    )
+    return "".join("".join("<fcel>" + g.get((r, c), "") for c in range(cols)) + "<nl>" for r in range(rows))
 
 
 def _share_count(value, n, of, why, per=None):
-    return Scalar(
-        value, count=(n, of), why=None if value is not None else why, per=per, side="truth"
-    )
+    return Scalar(value, count=(n, of), why=None if value is not None else why, per=per, side="truth")
 
 
 def _over_blocks(value, n, of, why, per=None):
@@ -824,6 +812,7 @@ def _per_anchor(per_block: list) -> dict:
 
 
 class TextMetric(Metric):
+    description = "the read text against truth: character and word error, tables, baits"
     name = "text"
     needs = frozenset({"truth", "pages", "content", "read"})
     scalars = (
@@ -839,9 +828,7 @@ class TextMetric(Metric):
             unit="blocks",
         ),
         Spec("no_answer", "lower", "blocks with no answer", per="block", side="truth"),
-        Spec(
-            "cells_matched", "higher", "table cells matched by address", per="block", side="truth"
-        ),
+        Spec("cells_matched", "higher", "table cells matched by address", per="block", side="truth"),
         Spec("CER_cells", "lower", "character error rate over matched cells", unit="cells"),
         Spec("tables_given_as_text", "lower", "tables answered as text"),
         Spec("baits_read", "lower", "baits read as content", per="block", side="truth"),

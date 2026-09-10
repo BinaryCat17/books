@@ -1,5 +1,3 @@
-"""The docling vendor pipeline: translation by name, and the price of `off`"""
-
 import json
 import os
 import pytest
@@ -81,7 +79,7 @@ def test_translation_covers_both_dictionaries():
 
 def test_unknown_label_dies_at_construction():
     if not have_docling():
-        pytest.skip('no docling package: pip install -e ".[docling]"')
+        pytest.skip("no docling package: the docling extra")
     good = list(dh.DEFAULT_LABELS)
     dh._DoclingPipeline("post", good, "docling")
     try:
@@ -97,7 +95,7 @@ def test_unknown_label_dies_at_construction():
 
 def test_egret_names_translate_whole():
     if not have_docling():
-        pytest.skip('no docling package: pip install -e ".[docling]"')
+        pytest.skip("no docling package: the docling extra")
     p = dh._DoclingPipeline("post", list(dh.EGRET_TO_DOCLING), "docling-egret")
     assert set(p.to_docling) == set(dh.EGRET_TO_DOCLING)
     assert set(p.back) == set(dh.EGRET_TO_DOCLING.values()), (

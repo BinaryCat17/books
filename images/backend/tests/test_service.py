@@ -1,5 +1,3 @@
-"""What a store other than the admin's may run, what the registry admits, and"""
-
 import json
 import pytest
 from backend import service
@@ -36,15 +34,11 @@ def test_the_registry_is_checked_entry_by_entry():
     for raw in bad:
         with pytest.raises(Refusal):
             service.registry(raw)
-    ok = service.registry(
-        {"m": {"kind": "reader", "endpoint": "http://h/v1", "knobs": {"PAGE_DPI": 72}}}
-    )
+    ok = service.registry({"m": {"kind": "reader", "endpoint": "http://h/v1", "knobs": {"PAGE_DPI": 72}}})
     assert ok["m"]["knobs"] == {"PAGE_DPI": "72"}, "knob values are strings"
 
 
-def test_a_named_entry_fills_the_endpoint_after_the_check_and_carries_its_key(
-    tmp_path, monkeypatch
-):
+def test_a_named_entry_fills_the_endpoint_after_the_check_and_carries_its_key(tmp_path, monkeypatch):
     presets = {
         "lay": {"kind": "layout", "endpoint": "http://127.0.0.1:9/", "knobs": {"PAGE_DPI": "72"}},
         "vlm": {

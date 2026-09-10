@@ -1,5 +1,3 @@
-"""Transport to the rented machine: ssh for commands, rsync for files"""
-
 import os
 import re
 import select
@@ -100,9 +98,7 @@ class Box:
             except subprocess.TimeoutExpired:
                 return (124, f"ssh missed the deadline: {cmd[:80]}")
             return (p.returncode, p.stdout + p.stderr)
-        p = subprocess.Popen(
-            full, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1
-        )
+        p = subprocess.Popen(full, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
         try:
             while True:
                 if job.current().stop.is_set():
@@ -161,10 +157,8 @@ class Box:
         streams = max(1, int(streams))
         chunk = self.PROBE_FILE_BYTES // streams
         parts = " ".join(
-            
-                f"curl -sSL -o /dev/null --max-time {int(timeout)} -w '%{{size_download}}\n' -r {i * chunk}-{(self.PROBE_FILE_BYTES - 1 if i == streams - 1 else (i + 1) * chunk - 1)} {url} &"
-                for i in range(streams)
-            
+            f"curl -sSL -o /dev/null --max-time {int(timeout)} -w '%{{size_download}}\n' -r {i * chunk}-{(self.PROBE_FILE_BYTES - 1 if i == streams - 1 else (i + 1) * chunk - 1)} {url} &"
+            for i in range(streams)
         )
         cmd = f"S=$(date +%s%N); {{ {parts} wait; }} > /tmp/.dl; E=$(date +%s%N); echo GOT $(awk '{{s+=$1}} END {{print s+0}}' /tmp/.dl) NS $(( E - S ))"
         rc, out = self.run(cmd, stream=False, deadline=time.time() + timeout + 20)
@@ -185,16 +179,10 @@ class Box:
 
     RSYNC_TIMEOUT_S = 1800
 
-    def _rsync(
-        self, src: str, dst: str, extra: list[str] | None = None, timeout: float | None = None
-    ) -> int:
+    def _rsync(self, src: str, dst: str, extra: list[str] | None = None, timeout: float | None = None) -> int:
         rsh = " ".join(
-            
-                shlex.quote(x)
-                for x in ["ssh", "-p", self.port]
-                + SSH_OPTS
-                + (["-i", self.key] if self.key else [])
-            
+            shlex.quote(x)
+            for x in ["ssh", "-p", self.port] + SSH_OPTS + (["-i", self.key] if self.key else [])
         )
         cmd = ["rsync", "-az", "--partial", "-e", rsh] + (extra or []) + [src, dst]
         try:
@@ -212,12 +200,8 @@ class Box:
     def _dry_stats(self, src: str, dst: str, exclude=()):
         extra = ["--dry-run", "--stats"] + [f"--exclude={x}" for x in exclude]
         rsh = " ".join(
-            
-                shlex.quote(x)
-                for x in ["ssh", "-p", self.port]
-                + SSH_OPTS
-                + (["-i", self.key] if self.key else [])
-            
+            shlex.quote(x)
+            for x in ["ssh", "-p", self.port] + SSH_OPTS + (["-i", self.key] if self.key else [])
         )
         cmd = ["rsync", "-az", "--partial", "-e", rsh] + extra + [src, dst]
         try:

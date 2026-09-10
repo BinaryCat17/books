@@ -1,13 +1,9 @@
-"""Probes of the reading metric: spoil the answers and the numbers must move"""
-
 from metrics import reading as m
 from metrics.base import Probe
 
 
 def _edit(pages, fn):
-    return {
-        i: {**p, "blocks": [fn(dict(b)) for b in p.get("blocks") or []]} for i, p in pages.items()
-    }
+    return {i: {**p, "blocks": [fn(dict(b)) for b in p.get("blocks") or []]} for i, p in pages.items()}
 
 
 def probes(bench, run) -> list:
@@ -48,8 +44,7 @@ def probes(bench, run) -> list:
                 lambda: (
                     None
                     if not answered
-                    else M(lambda b: {**b, "label": "chart"})["charts_as_data"]
-                    >= base["charts_as_data"]
+                    else M(lambda b: {**b, "label": "chart"})["charts_as_data"] >= base["charts_as_data"]
                 ),
             ),
             (
@@ -90,11 +85,9 @@ def probes(bench, run) -> list:
             (
                 "every answer emptied",
                 "nothing is answered and nothing is counted",
-                lambda: (
-                    lambda r: (
-                        r["answered"] == 0 and r["charts_as_data"] == 0 and (r["looping"] == 0)
-                    )
-                )(M(lambda b: {**b, "content": None})),
+                lambda: (lambda r: r["answered"] == 0 and r["charts_as_data"] == 0 and (r["looping"] == 0))(
+                    M(lambda b: {**b, "content": None})
+                ),
             ),
         )
     ]

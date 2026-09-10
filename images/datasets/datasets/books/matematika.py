@@ -1,5 +1,3 @@
-"""A mathematics course: half the page is display formulas"""
-
 from datasets.draw import (
     PROSE_EN,
     _fill,
@@ -50,9 +48,7 @@ def c_mat_display_numbered(doc, rng):
     t = []
     y = _flow(pg, t, MARGIN, TOP, 150, PROSE_EN, w=COLW)
     for k, f in enumerate(FORMULAS[:6]):
-        y = _formula(
-            pg, t, MARGIN + 90, y + 12, f, number=f"({3}.{k + 1})", right=PW - MARGIN, sheet_w=PW
-        )
+        y = _formula(pg, t, MARGIN + 90, y + 12, f, number=f"({3}.{k + 1})", right=PW - MARGIN, sheet_w=PW)
         y = _flow(pg, t, MARGIN, y + 4, y + 52, PROSE_EN, w=COLW)
     _flow(pg, t, MARGIN, y + 8, BOT_Y, PROSE_EN, w=COLW)
     return (pg, t)
@@ -144,7 +140,9 @@ def c_mat_numbered_list(doc, rng):
     y += 14
     for k in range(9):
         _put(pg, MARGIN + 16, y, f"{k + 1}.", 6.6, sheet_w=PW)
-        ln = "The lead screw must be lowered to obtain a correct alignment with the half nuts of the carriage."
+        ln = (
+            "The lead screw must be lowered to obtain a correct alignment with the half nuts of the carriage."
+        )
         while _text_w(ln, 6.6) > COLW - 60:
             ln = ln[:-2]
         _put(pg, MARGIN + 34, y, ln, 6.6, sheet_w=PW)

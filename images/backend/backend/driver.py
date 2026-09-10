@@ -1,10 +1,7 @@
-"""`books read` -- level two: walk the book and fill in block content"""
-
 import glob
 import json
 import os
 import re
-import shlex
 import shutil
 import sys
 import time
@@ -54,9 +51,7 @@ def _sniff(text: str) -> str:
     return "text"
 
 
-def crop_dpi_for(
-    box, page_dpi: float, native: float | None, window, sheet=None
-) -> tuple[float, str]:
+def crop_dpi_for(box, page_dpi: float, native: float | None, window, sheet=None) -> tuple[float, str]:
     base = float(native or page_dpi)
     if not window:
         return (base, "native_scan_dpi_no_model_bounds")
@@ -91,7 +86,7 @@ def _detect_facts(detect_dir: str) -> dict:
     p = os.path.join(detect_dir, "run.json")
     if not os.path.exists(p):
         raise Refusal(
-            f"no run.json in {detect_dir}: this is not a `books detect` directory. Reading without the detection snapshot knows neither the book nor the dpi the boxes were measured at, and would cut the crops at the wrong coordinates."
+            f"no run.json in {detect_dir}: this is not a a detect run directory. Reading without the detection snapshot knows neither the book nor the dpi the boxes were measured at, and would cut the crops at the wrong coordinates."
         )
     with open(p, encoding="utf-8") as f:
         return json.load(f)
@@ -118,7 +113,7 @@ def read_book(
 ) -> dict:
     if preview and resume:
         raise Refusal(
-            "a preview cannot resume: the answers a resuming `books read` would reuse live in ITS directory, and a preview may not write there. Pass resume=False and read `would_ask.json` as a fresh run -- on a book already half read, that is more questions than the next paid run would ask."
+            "a preview cannot resume: the answers a resuming a read would reuse live in ITS directory, and a preview may not write there. Pass resume=False and read `would_ask.json` as a fresh run -- on a book already half read, that is more questions than the next paid run would ask."
         )
     if not preview:
         ident, _ = read_identity(reader, transport)
@@ -140,13 +135,13 @@ def read_book(
     page_dpi = float(facts["raster"]["dpi"])
     files = sorted(glob.glob(os.path.join(detect_dir, "pages", "*.json")))
     if not files:
-        raise Refusal(f"no pages in {detect_dir}: run books detect first")
+        raise Refusal(f"no pages in {detect_dir}: run a detect run first")
     _pages_dir = os.path.join(out_dir, "pages")
     if preview:
         for tell in ("answers", "pages", "read_with.json", "run.json"):
             if os.path.exists(os.path.join(out_dir, tell)):
                 raise Refusal(
-                    f"{out_dir} holds `{tell}`: this is a `books read` directory, not a place for a preview. The crops there are what was PAID for -- `answers/` describes them by name, dpi and size -- and a preview would overwrite them with crops nothing was asked about. Give --out somewhere else."
+                    f"{out_dir} holds `{tell}`: this is a a read directory, not a place for a preview. The crops there are what was PAID for -- `answers/` describes them by name, dpi and size -- and a preview would overwrite them with crops nothing was asked about. Give --out somewhere else."
                 )
     else:
         os.makedirs(_pages_dir, exist_ok=True)
@@ -175,9 +170,7 @@ def read_book(
             "reader": reader.fingerprint(),
             "generation": params,
             "transport": {
-                k: v
-                for k, v in transport.fingerprint().items()
-                if k in ("transport", "model_asked")
+                k: v for k, v in transport.fingerprint().items() if k in ("transport", "model_asked")
             },
             "detection": {"identity": facts.get("identity"), "source": facts["source"]["sha256"]},
         }
@@ -292,9 +285,7 @@ def read_book(
                         "crop_dpi": info.get("dpi", cut_dpi[a.anchor][0]),
                         "crop_dpi_by_rule": round(cut_dpi[a.anchor][0], 2),
                         "crop_dpi_reason": cut_dpi[a.anchor][1],
-                        **{
-                            k: info[k] for k in ("width", "height", "clipped_by_sheet") if k in info
-                        },
+                        **{k: info[k] for k in ("width", "height", "clipped_by_sheet") if k in info},
                     }
                 )
             for anchor, why in sorted(silent.items()):
@@ -302,9 +293,7 @@ def read_book(
             for anchor, why in sorted(nocrop.items()):
                 failed.append({"anchor": anchor, "crop_failed": why})
             tally["would_ask"] = tally.get("would_ask", 0) + len(asks)
-            log(
-                f"page {pg.index}: would ask {len(asks)}, not asked {len(silent)}, crop failed {len(nocrop)}"
-            )
+            log(f"page {pg.index}: would ask {len(asks)}, not asked {len(silent)}, crop failed {len(nocrop)}")
             continue
         asked_now = {a.anchor for a in asks}
         said = {}
@@ -380,9 +369,7 @@ def read_book(
             "transport": transport.name,
             "asked": len(asks),
         }
-        page.write_json(
-            os.path.join(out_dir, "pages", os.path.basename(fp)), pg.to_json(), indent=1
-        )
+        page.write_json(os.path.join(out_dir, "pages", os.path.basename(fp)), pg.to_json(), indent=1)
         page.write_json(ans_path, {"page": pg.index, "answers": answers}, indent=1)
         got = sum(1 for a in answers if a.get("text"))
         log(
@@ -418,9 +405,7 @@ def read_book(
 
 
 def report(t: dict) -> None:
-    log(
-        f"pages {t['page_count']}, blocks {t['block_count']}: asked {t['asked']}, not asked {t['not_asked']}"
-    )
+    log(f"pages {t['page_count']}, blocks {t['block_count']}: asked {t['asked']}, not asked {t['not_asked']}")
     if t["reused_from_previous_run"]:
         log(
             f"  taken from a previous run {t['reused_from_previous_run']} -- the model did NOT read these blocks now"
@@ -450,15 +435,6 @@ def report(t: dict) -> None:
         log(
             f"compute {t['compute_seconds']:.1f} s, tokens {t['tokens']}, {t['compute_seconds'] / max(1, t['asked']):.2f} s per block"
         )
-
-
-def _repeat_line(detect_dir: str, out_dir: str, args: dict) -> str:
-    argv = ["books", "read", detect_dir, "--out", out_dir]
-    if args.get("pages"):
-        argv += ["--pages", str(args["pages"])]
-    if args.get("policy"):
-        argv += ["--policy", str(args["policy"])]
-    return " ".join(shlex.quote(a) for a in argv)
 
 
 def snapshot(
@@ -499,7 +475,6 @@ def snapshot(
         "fingerprint": reader.fingerprint(),
         "transport_fingerprint": transport.fingerprint(),
         "summary": tally,
-        "repeat_command": _repeat_line(detect_dir, out_dir, args),
     }
     p = os.path.join(out_dir, "run.json")
     page.write_json(p, snap, indent=1)
@@ -520,7 +495,7 @@ def _knobs_snapshot(read_by_adapter) -> dict:
     )
     roles = dict(read_by_adapter)
     for n in mine:
-        roles.setdefault(n, "the `books read` command itself")
+        roles.setdefault(n, "the a read command itself")
     return knobs.snapshot_with_readers(roles)
 
 

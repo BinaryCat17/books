@@ -1,5 +1,3 @@
-"""The web's database: users, sessions, jobs. One sqlite file in the data"""
-
 from __future__ import annotations
 import json
 import sqlite3
@@ -167,8 +165,7 @@ class Db:
 
     def measurements(self, store: str, book: str, kind: str, label: str) -> list[sqlite3.Row]:
         return self.all(
-            "SELECT * FROM measurements WHERE store = ? AND book = ? AND kind = ? "
-            "AND label = ? ORDER BY id",
+            "SELECT * FROM measurements WHERE store = ? AND book = ? AND kind = ? AND label = ? ORDER BY id",
             (store, book, kind, label),
         )
 

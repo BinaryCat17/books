@@ -12,4 +12,5 @@ reads and writes against these in its own tests; nothing else is shared.
 | `record.schema.json`, `catalog.schema.json` | a measurement, and the metrics a service publishes |
 | `classes.json` | the class table every label maps onto |
 | `openapi/model.yaml` | the model protocol |
-| `openapi/backend.yaml`, `openapi/fleet.yaml`, `openapi/metrics.yaml` | each service's API, exported from the service |
+
+The backend's own API is served as OpenAPI at `/api/openapi.json`; the metrics' and the fleet's are their `/docs`.

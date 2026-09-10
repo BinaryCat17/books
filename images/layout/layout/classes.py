@@ -1,5 +1,3 @@
-"""What level one does with a block: `text`, `artifact` or `furniture`, by class"""
-
 from __future__ import annotations
 
 import json
@@ -14,16 +12,6 @@ with open(os.path.join(settings.schema_dir(), "classes.json"), encoding="utf-8")
     _TABLE = json.load(_f)
 
 ROLES = ("text", "artifact", "furniture")
-ORDER_NAMES = (
-    "caption",
-    "code",
-    "footnote",
-    "page_footer",
-    "page_header",
-    "picture",
-    "table",
-    "text",
-)
 CLASSES: dict[str, tuple[str, str]] = {n: (c["role"], c["order"]) for n, c in _TABLE["classes"].items()}
 
 
@@ -115,21 +103,6 @@ VOCABULARIES: dict[str, dict[str, str]] = {n: dict(m) for n, m in _TABLE["vocabu
 POLICIES: dict[str, Policy] = {n: Policy(n, m) for n, m in VOCABULARIES.items()}
 
 
-def _union() -> Policy:
-    merged: dict[str, str] = {}
-    for name, table in VOCABULARIES.items():
-        for lab, c in table.items():
-            if merged.get(lab, c) != c:
-                raise RuntimeError(
-                    f"the label {lab!r} means different things in different vocabularies: {merged[lab]!r} and {c!r} in {name}. The union would silently pick one of the two, and a truth block's class would depend on the import order."
-                )
-            merged[lab] = c
-    return Policy("union", merged)
-
-
-UNION = _union()
-
-
 def for_labels(labels: Iterable[str]) -> Policy:
     have = set(labels)
     fit = [p for p in POLICIES.values() if set(p.classes) == have]
@@ -140,8 +113,3 @@ def for_labels(labels: Iterable[str]) -> Policy:
             f"no policy for a vocabulary of {len(have)} labels: {sorted(have)[:6]}... Describe it in policy.VOCABULARIES, or serve the model with its mapping -- there is no default here on purpose."
         )
     raise UnknownLabel(f"several policies fit this vocabulary: {[p.name for p in fit]}")
-
-
-def fits(labels: Iterable[str]) -> list[str]:
-    have = set(labels)
-    return sorted(p.name for p in POLICIES.values() if have <= set(p.classes))

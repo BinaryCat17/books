@@ -1,5 +1,3 @@
-"""YOLOX-layout (unstructured.io): the only non-DETR model on the bench"""
-
 import os
 from layout.page import Block, Page
 from layout.detector import Detector
@@ -41,9 +39,7 @@ class YoloXLayout(Detector):
         self.weights = weights or knobs.knob("YOLOX_WEIGHTS") or "yolox_l0.05.onnx"
         self.onnx = os.path.join(self.dir, self.weights)
         if not os.path.exists(self.onnx):
-            raise WeightsMissing(
-                f"no {self.onnx}. Download from huggingface.co/unstructuredio/yolo_x_layout"
-            )
+            raise WeightsMissing(f"no {self.onnx}. Download from huggingface.co/unstructuredio/yolo_x_layout")
         self.sess = ort.InferenceSession(self.onnx, providers=["CPUExecutionProvider"])
         self.ort_version = ort.__version__
         self.providers = list(self.sess.get_providers())
@@ -146,20 +142,14 @@ class YoloXLayout(Detector):
         keep_idx = _nms(
             boxes[keep_idx], best[keep_idx], cls[keep_idx], keep_idx, NMS_IOU, by_class=NMS_BY_CLASS
         )
-        kept = [
-            (self.labels[int(cls[i])], float(best[i]), [float(v) for v in boxes[i]])
-            for i in keep_idx
-        ]
+        kept = [(self.labels[int(cls[i])], float(best[i]), [float(v) for v in boxes[i]]) for i in keep_idx]
         which = order.rule()
         pol = self.policy() if which == "docling" else None
         order.cover(pol, which)
-        perm = order.permutation(
-            [t[0] for t in kept], [t[2] for t in kept], w, h, index, pol, which
-        )
+        perm = order.permutation([t[0] for t in kept], [t[2] for t in kept], w, h, index, pol, which)
         kept = [kept[i] for i in perm]
         blocks = [
-            Block(block_id=i, box=tuple(b), label=lab, score=s, order=i)
-            for i, (lab, s, b) in enumerate(kept)
+            Block(block_id=i, box=tuple(b), label=lab, score=s, order=i) for i, (lab, s, b) in enumerate(kept)
         ]
         return Page(
             index=index,
@@ -171,9 +161,7 @@ class YoloXLayout(Detector):
                 "output_rows": int(out.shape[0]),
                 "output_columns": int(out.shape[1]),
                 "feature_grid_cells": int(len(g)),
-                "grid_cells_per_level": {
-                    str(s): int(self.in_h // s * (self.in_w // s)) for s in STRIDES
-                },
+                "grid_cells_per_level": {str(s): int(self.in_h // s * (self.in_w // s)) for s in STRIDES},
                 "all_rows": [
                     [float(cls[i]), float(best[i]), *[float(v) for v in boxes[i]]]
                     for i in np.where(best >= raw_keep)[0]

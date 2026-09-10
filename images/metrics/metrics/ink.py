@@ -1,5 +1,3 @@
-"""Is the model output fit to push OCR through without losing meaning"""
-
 import os
 import statistics
 from metrics import store as book_mod
@@ -78,8 +76,7 @@ def _strips(columns) -> list:
 
     edge = np.diff(np.r_[0, columns.astype(np.int8), 0])
     return [
-        [int(a), int(b)]
-        for a, b in zip(np.flatnonzero(edge == 1), np.flatnonzero(edge == -1), strict=True)
+        [int(a), int(b)] for a, b in zip(np.flatnonzero(edge == 1), np.flatnonzero(edge == -1), strict=True)
     ]
 
 
@@ -214,9 +211,7 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "", pol=None, tp=None, w
     if want is not None:
         gone = sorted(set(want) - set(pages))
         if gone:
-            raise Unmeasurable(
-                f"no pages {gone[:5]} to measure: {('truth' if T else 'the run')} has none"
-            )
+            raise Unmeasurable(f"no pages {gone[:5]} to measure: {('truth' if T else 'the run')} has none")
         pages = [i for i in pages if i in want]
         res["truth_pages"] = sum(1 for i in pages if i in T)
     for i in pages:
@@ -256,9 +251,7 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "", pol=None, tp=None, w
         as_picture, as_text = (int((ink & pic).sum()), int((ink & txt).sum()))
         res["ink_as_picture"] += as_picture
         res["ink_as_text"] += as_text
-        res["blocks_with_content"] += sum(
-            1 for b in p["blocks"] if (b.get("content") or "").strip()
-        )
+        res["blocks_with_content"] += sum(1 for b in p["blocks"] if (b.get("content") or "").strip())
         riders: dict = {}
         dpis.add(int(p["dpi"]))
         res["page_count"] += 1
@@ -455,9 +448,7 @@ def report(res: dict) -> None:
             f"truth supplied ({res['truth_pages']} pages), but it holds not one artefact: nothing to say about objects. This is a DIFFERENT zero from 'truth NOT supplied', and neither is 'zero loss'"
         )
         return
-    log(
-        f"OBJECT INK PRESERVED: {res['object_ink_in_boxes'] / max(1, res['object_ink']) * 100:.1f}%"
-    )
+    log(f"OBJECT INK PRESERVED: {res['object_ink_in_boxes'] / max(1, res['object_ink']) * 100:.1f}%")
     log(
         f"objects {n}: intact {res['intact']} ({res['intact'] / n * 100:.0f}%), almost intact {res['almost_intact']}, bitten {res['bitten']}, torn {res['torn']}"
     )

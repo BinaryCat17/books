@@ -1,5 +1,3 @@
-"""What the reader got wrong that can be seen WITHOUT truth"""
-
 import re
 from metrics.base import Metric, Record, Scalar, Spec
 from metrics import page
@@ -95,9 +93,7 @@ def report(res: dict) -> None:
         )
         if res["chart_anchors"]:
             log(
-                "  "
-                + ", ".join(res["chart_anchors"][:8])
-                + (" ..." if len(res["chart_anchors"]) > 8 else "")
+                "  " + ", ".join(res["chart_anchors"][:8]) + (" ..." if len(res["chart_anchors"]) > 8 else "")
             )
     log(
         f"answers repeating themselves {res['looping']} (worst {res['loop_worst']:.3f} at {res['loop_worst_anchor']})"
@@ -105,6 +101,7 @@ def report(res: dict) -> None:
 
 
 class ReadingMetric(Metric):
+    description = "what the reading returned: answered, looping, charts as data"
     name = "reading"
     needs = frozenset({"pages", "read"})
     scalars = (

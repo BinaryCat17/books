@@ -1,5 +1,3 @@
-"""Synthetic bench: old-handbook pages with exact truth"""
-
 import hashlib
 import json
 import os
@@ -14,9 +12,7 @@ from datasets.log import log
 __all__ = ["build", "AGING", "INK", "SynthError"]
 
 
-def build(
-    out_dir: str, cases=None, seed: int = 1, aging: str = "old", book: str = "spravochnik"
-) -> dict:
+def build(out_dir: str, cases=None, seed: int = 1, aging: str = "old", book: str = "spravochnik") -> dict:
     aside = (
         os.path.join(out_dir, "truth.new"),
         os.path.join(out_dir, "truth.previous"),
@@ -73,9 +69,7 @@ def _build(out_dir, cases, seed, aging, book) -> dict:
         doc = pymupdf.open()
         page_seed = (
             seed
-            ^ int.from_bytes(
-                hashlib.blake2b(f"{book}/{name}".encode(), digest_size=4).digest(), "big"
-            )
+            ^ int.from_bytes(hashlib.blake2b(f"{book}/{name}".encode(), digest_size=4).digest(), "big")
             & 2147483647
         )
         _said_reset()
@@ -108,9 +102,7 @@ def _build(out_dir, cases, seed, aging, book) -> dict:
         for bx in boxes:
             left[max(0, int(bx[1])) : int(round(bx[3])), max(0, int(bx[0])) : int(round(bx[2]))] = 0
         n_spots, _lbl, stats, _ctr = cv2.connectedComponentsWithStats(left, 8)
-        spot = max(
-            (stats[j] for j in range(1, n_spots)), key=lambda r: r[cv2.CC_STAT_AREA], default=None
-        )
+        spot = max((stats[j] for j in range(1, n_spots)), key=lambda r: r[cv2.CC_STAT_AREA], default=None)
         undecl = {"pixels": int(left.sum()), "largest_blob": None}
         spot_box = None
         if spot is not None:
@@ -255,11 +247,7 @@ def _build(out_dir, cases, seed, aging, book) -> dict:
             )
             + f"; words outside truth {check['outside_truth']}"
             + (f" {check['outside_truth_samples']}" if check["outside_truth"] else "")
-            + (
-                f", NOT IN LAYER {check['missing_from_layer']}"
-                if check["missing_from_layer"]
-                else ""
-            )
+            + (f", NOT IN LAYER {check['missing_from_layer']}" if check["missing_from_layer"] else "")
             + (f", UNEXPLAINED {check['unexplained']}" if check["unexplained"] else "")
             + (f" {check['mismatch_examples']}" if check["mismatch_examples"] else "")
             + f", ghosts {check['ghosts']}"
@@ -288,8 +276,7 @@ def _build(out_dir, cases, seed, aging, book) -> dict:
     }
     here = os.path.dirname(os.path.abspath(__file__))
     package = {
-        f: stamp.sha256(os.path.join(here, f))
-        for f in ("__init__.py", "draw.py", "age.py", "truth.py")
+        f: stamp.sha256(os.path.join(here, f)) for f in ("__init__.py", "draw.py", "age.py", "truth.py")
     }
     man = {
         "book": book,
@@ -298,7 +285,7 @@ def _build(out_dir, cases, seed, aging, book) -> dict:
         "synth_seed": seed,
         "aging": aging,
         "generator": {
-            "file": "datasets/make/synth/__init__.py",
+            "file": "datasets/synth.py",
             "sha256": package["__init__.py"],
             "package": package,
             "commit": stamp.commit(),

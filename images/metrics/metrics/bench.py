@@ -1,5 +1,3 @@
-"""A bench and a run over it: THE loader, THE identity check"""
-
 import json
 import os
 from dataclasses import dataclass, field
@@ -86,9 +84,7 @@ class Run:
 
     @classmethod
     def bare(cls, pages_dir: str, label: str = "") -> "Run":
-        return cls(
-            pages_dir.rstrip("/"), None, {}, label or os.path.basename(pages_dir.rstrip("/"))
-        )
+        return cls(pages_dir.rstrip("/"), None, {}, label or os.path.basename(pages_dir.rstrip("/")))
 
     @property
     def sha256(self) -> str | None:

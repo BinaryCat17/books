@@ -1,6 +1,3 @@
-"""One family of errors, so the command line answers every trouble alike"""
-
-
 class BooksmithError(Exception):
     pass
 
@@ -18,8 +15,4 @@ class Cancelled(BooksmithError):
 
 
 class WeightsMissing(Unmeasurable):
-    pass
-
-
-class TextError(Unmeasurable):
     pass

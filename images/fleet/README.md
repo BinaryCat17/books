@@ -1,9 +1,9 @@
 # fleet
 
-The model manager. Today: the registry, `GET|PUT /models`, one entry per
-model: `{kind, endpoint | image + provider, knobs, key, idle_s, budget}`.
-Next: placements and leases over the docker and vast providers, whose code
-(`box`, `vast`, `runner`, `ledger`, `pricing`) is here from the old rental.
+The model manager. Today a placeholder: `GET /placements` answers an empty
+list and `GET /health` says it is up. The registry stays in the backend
+(`/api/models`) until this image owns placements and leases over the docker
+and vast providers, whose code (`box`, `vast`, `runner`, `ledger`) is here
+from the old rental.
 
-Run: `python -m fleet` with `BOOKSMITH_HOME`, the docker socket and the vast
-key mounted. Tests: `pytest`.
+Run: `python -m fleet` with `BOOKSMITH_HOME`. Tests: `pytest`.

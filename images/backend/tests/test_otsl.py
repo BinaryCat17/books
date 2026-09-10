@@ -1,5 +1,3 @@
-"""OTSL into HTML: the model's merges reach the book"""
-
 from backend import otsl
 
 

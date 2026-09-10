@@ -1,5 +1,3 @@
-"""A vLLM behind the model protocol: `books serve vlm`"""
-
 from __future__ import annotations
 import contextvars
 import hmac
@@ -171,10 +169,7 @@ class Service:
                 **weights,
                 "sha256_weights": weights["sha256_weights"],
             },
-            knobs={
-                n: knobs.knob(n)
-                for n in ("MODEL_NAME", "VL_MODEL_DIR", "VLLM_USE_FLASHINFER_SAMPLER")
-            },
+            knobs={n: knobs.knob(n) for n in ("MODEL_NAME", "VL_MODEL_DIR", "VLLM_USE_FLASHINFER_SAMPLER")},
             kinds=KINDS,
             openai={"base": "/v1", "model": model_name},
             commit=knobs.knob("BOOKSMITH_COMMIT") or None,
@@ -202,9 +197,7 @@ class Service:
             time.sleep(1.0)
         raise Refusal(f"vLLM did not answer as {self.model_name!r} within {timeout:.0f} s")
 
-    def proxy(
-        self, method: str, path: str, body: bytes | None, headers: dict
-    ) -> tuple[int, str, bytes]:
+    def proxy(self, method: str, path: str, body: bytes | None, headers: dict) -> tuple[int, str, bytes]:
         h = {k: v for k, v in headers.items() if k.lower() in ("content-type", "accept")}
         req = urllib.request.Request(self.upstream_url + path, data=body, headers=h, method=method)
         try:
@@ -216,12 +209,8 @@ class Service:
             return (
                 502,
                 "application/json",
-                json.dumps(
-                    {"error": f"the model did not answer: {type(e).__name__}: {e}"}
-                ).encode(),
+                json.dumps({"error": f"the model did not answer: {type(e).__name__}: {e}"}).encode(),
             )
-
-
 
 
 def create_app(svc: Service) -> FastAPI:

@@ -1,5 +1,3 @@
-"""Every applicable metric on one bench and one run: rows, one table, JSON"""
-
 import dataclasses
 from metrics import job
 from metrics.errors import Refusal
@@ -20,9 +18,7 @@ def rows(bench: Bench, run: Run, which=None, pages_want=None) -> list:
             if gone:
                 raise Refusal(f"{side} has no pages {gone[:5]}: nothing to measure there")
         if pages and labelled_said(labelled_of(pages)):
-            out = sorted(
-                i for i in want if trait_state(pages[i].get("meta") or {}, "labelled") != "yes"
-            )
+            out = sorted(i for i in want if trait_state(pages[i].get("meta") or {}, "labelled") != "yes")
             if out:
                 raise Refusal(
                     f"pages {out[:5]} are not labelled in this truth, which names its labelled pages: nothing to compare there"
@@ -34,9 +30,7 @@ def rows(bench: Bench, run: Run, which=None, pages_want=None) -> list:
     if which:
         unknown = [n for n in which if n not in registry.BY_NAME]
         if unknown:
-            raise Refusal(
-                f"no metric named {', '.join(unknown)}; there are {', '.join(registry.BY_NAME)}"
-            )
+            raise Refusal(f"no metric named {', '.join(unknown)}; there are {', '.join(registry.BY_NAME)}")
         off = [n for n in which if registry.BY_NAME[n] not in can]
         if off:
             raise Refusal(
@@ -49,9 +43,7 @@ def rows(bench: Bench, run: Run, which=None, pages_want=None) -> list:
     for m in registry.METRICS:
         if m in can:
             continue
-        log(
-            f"{m.name}: NOT MEASURED, this book and run give no {', '.join(sorted(m.needs - have))}"
-        )
+        log(f"{m.name}: NOT MEASURED, this book and run give no {', '.join(sorted(m.needs - have))}")
     note = same_book(bench, run)
     out = []
     for i, m in enumerate(todo, 1):

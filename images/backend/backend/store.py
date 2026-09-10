@@ -1,5 +1,3 @@
-"""The book directory: where its parts live, asked by everyone"""
-
 from __future__ import annotations
 import builtins
 import os
@@ -11,7 +9,6 @@ from backend.errors import Refusal
 from backend import settings
 
 ASSETS = "assets"
-JOURNAL = os.path.join(ASSETS, "swaps.json")
 LABEL_OK = re.compile("^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$")
 BOOK_ROOTS = ("bench", "processed")
 
@@ -30,23 +27,6 @@ ALLOWED = (
     "assets/",
     "book.html",
 )
-BESIDE_A_RUN = (".crop", ".read")
-INSIDE_A_RUN = {
-    "detect": ("pages", "run.json"),
-    "read": (
-        "pages",
-        "answers",
-        "crops",
-        "html",
-        "run.json",
-        "read_with.json",
-        "job.log",
-        "job",
-        "vllm.json",
-        "vllm.log",
-    ),
-}
-ROOT_FILES = ()
 
 
 def safe_label(name: str, what: str) -> str:
@@ -143,9 +123,9 @@ class Book:
             raise Refusal(
                 f"{self.name} has no {kind} run at all. Make one first: "
                 + (
-                    f"`books detect {self.root}`"
+                    f"`a detect run {self.root}`"
                     if kind == "detect"
-                    else "`books read <detect dir>` -- level two does not write into the book directory yet, see the header"
+                    else "`a read <detect dir>` -- level two does not write into the book directory yet, see the header"
                 )
             )
         raise Refusal(
@@ -157,9 +137,7 @@ class Book:
         return ", ".join(got) if got else f"no {kind} run in this book"
 
 
-def guard_identity(
-    run_dir: str, identity: str, pages_spec: str = "", what: str = "this run"
-) -> None:
+def guard_identity(run_dir: str, identity: str, pages_spec: str = "", what: str = "this run") -> None:
     import json
 
     snap = os.path.join(run_dir, "run.json")
@@ -209,7 +187,7 @@ def page_files(d: str) -> tuple[int, str]:
 def pages_dir(path: str, what: str) -> str:
     if not os.path.exists(path):
         raise Refusal(
-            f"{what}: no path {path}. Expected a `books detect` run directory (pages/ and run.json in it) or the directory of layout pages itself (*.json)."
+            f"{what}: no path {path}. Expected a a detect run run directory (pages/ and run.json in it) or the directory of layout pages itself (*.json)."
         )
     sub = os.path.join(path, "pages")
     (here, why_here), (there, why_sub) = (page_files(path), page_files(sub))
@@ -219,14 +197,14 @@ def pages_dir(path: str, what: str) -> str:
     if here:
         return path
     raise Refusal(
-        f"{what}: no layout pages found. In {path} — {why_here}; in {sub} — {why_sub}. Expected a `books detect` run directory (pages/ and run.json in it) or the page directory itself. There is nothing to count — and that is not a zero of losses."
+        f"{what}: no layout pages found. In {path} — {why_here}; in {sub} — {why_sub}. Expected a a detect run run directory (pages/ and run.json in it) or the page directory itself. There is nothing to count — and that is not a zero of losses."
     )
 
 
 def run_dir(path: str, what: str) -> str:
     if not os.path.exists(path):
         raise Refusal(
-            f"{what}: no path {path}. Expected a `books detect` run directory — the one holding run.json."
+            f"{what}: no path {path}. Expected a a detect run run directory — the one holding run.json."
         )
     if os.path.exists(os.path.join(path, "run.json")):
         return path
@@ -235,7 +213,7 @@ def run_dir(path: str, what: str) -> str:
         log(f"{what}: given a page directory, taking the snapshot from {up}")
         return up
     raise Refusal(
-        f"{what}: no run.json in {path}. Expected a `books detect` run directory (pages/ and run.json in it), not a page directory and not a book root."
+        f"{what}: no run.json in {path}. Expected a a detect run run directory (pages/ and run.json in it), not a page directory and not a book root."
     )
 
 

@@ -25,7 +25,9 @@ def main() -> None:
         if a.cmd == "synth":
             from datasets import synth
 
-            synth.build(a.out, None, knobs.number("SYNTH_SEED", kind=int), knobs.knob("SYNTH_AGING"), book=a.book)
+            synth.build(
+                a.out, None, knobs.number("SYNTH_SEED", kind=int), knobs.knob("SYNTH_AGING"), book=a.book
+            )
         elif a.cmd == "annopage":
             from datasets import annopage
 

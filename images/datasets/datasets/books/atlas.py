@@ -1,5 +1,3 @@
-"""An atlas of drawings: landscape sheet, large graphics, little text"""
-
 from datasets.draw import (
     PROSE_EN,
     _callouts,
@@ -99,9 +97,7 @@ def c_atl_caption_above(doc, rng):
 def c_atl_photo_plate(doc, rng):
     pg = _sheet(doc)
     t = []
-    _halftone(
-        pg, t, MARGIN + 60, TOP, PW - 2 * MARGIN - 120, 370, "Fig. 18  Milling head, photograph"
-    )
+    _halftone(pg, t, MARGIN + 60, TOP, PW - 2 * MARGIN - 120, 370, "Fig. 18  Milling head, photograph")
     return (pg, t)
 
 

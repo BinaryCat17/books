@@ -1,5 +1,3 @@
-"""A stand-in layout model: an endpoint of the model protocol that answers"""
-
 import hashlib
 import json
 import os

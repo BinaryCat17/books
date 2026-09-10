@@ -11,6 +11,9 @@ docker build -f images/layout/Dockerfile \
 docker run --rm -p 8000:8000 model-pp-doclayoutv2
 ```
 
-Adapters: `doclayout` (PP-DocLayoutV2, V3, plus-L), `docling`, `docling-egret`,
-`yolox`. Knobs from the environment; `BOOKSMITH_SERVE_KEY` sets the bearer key.
-Routes: `schema/openapi/model.yaml`. Tests: `pytest`.
+Adapters: `doclayout` (PP-DocLayoutV2, V3, plus-L), `yolox`; `docling` and
+`docling-egret` need the `docling` extra (`--build-arg EXTRAS=[docling]`).
+Knobs from the environment; `BOOKSMITH_SERVE_KEY` sets the bearer key,
+`BOOKSMITH_SERVE_KIND` (`layout` or `hybrid`) and `BOOKSMITH_SERVE_KINDS`
+declare a hybrid, `PORT` the shim's port. Routes: `schema/openapi/model.yaml`.
+Tests: `pytest`.

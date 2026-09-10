@@ -1,5 +1,3 @@
-"""The distillate: bench pages where the TRUTH holds two artifacts of one class"""
-
 import json
 import os
 import shutil

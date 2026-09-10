@@ -10,5 +10,7 @@ with job.Job(settings={k: v for k, v in os.environ.items() if k in knobs.names()
     kind = os.environ.get("BOOKSMITH_SERVE_KIND") or "layout"
     kinds = tuple(k for k in (os.environ.get("BOOKSMITH_SERVE_KINDS") or "").split(",") if k)
     svc = serve.Service(det, kind, kinds, os.environ.get("BOOKSMITH_SERVE_KEY") or None)
-    log(f"serving {svc.describe.kind} {svc.describe.label}: {len(svc.describe.classes)} labels, schema {settings.schema_dir()}")
+    log(
+        f"serving {svc.describe.kind} {svc.describe.label}: {len(svc.describe.classes)} labels, schema {settings.schema_dir()}"
+    )
     uvicorn.run(serve.create_app(svc), host="0.0.0.0", port=int(os.environ.get("PORT") or 8000))

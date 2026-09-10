@@ -1,5 +1,3 @@
-"""Contour metrics: how correctly the model outlined tables, figures, charts"""
-
 from metrics import page
 from metrics import classes as policy
 from metrics import bench as bench_mod
@@ -80,8 +78,7 @@ def _pad(b, d):
 
 def matches(t_box, m_box) -> bool:
     return (
-        cover(t_box, _pad(m_box, TOL_PX)) >= COVER_MATCH
-        and cover(m_box, _pad(t_box, TOL_PX)) >= COVER_MATCH
+        cover(t_box, _pad(m_box, TOL_PX)) >= COVER_MATCH and cover(m_box, _pad(t_box, TOL_PX)) >= COVER_MATCH
     )
 
 
@@ -97,9 +94,7 @@ def _pick(b, boxes, used):
 
 
 def _diagnose(t, mine, others_truth, arte, mp):
-    touching = [
-        m for m in mine if cover(t["box"], m["box"]) >= TOUCH or cover(m["box"], t["box"]) >= TOUCH
-    ]
+    touching = [m for m in mine if cover(t["box"], m["box"]) >= TOUCH or cover(m["box"], t["box"]) >= TOUCH]
     if not touching:
         return "not seen"
     best = max(touching, key=lambda m: iou(t["box"], m["box"]))
@@ -152,9 +147,7 @@ def page_pairs(t: dict, m: dict, tp=None, mp=None, said: bool = False) -> dict |
     return compare_pages({i: t}, {i: m}, tp, mp)["pairs"][i]
 
 
-def _entry(
-    truth: str, by: str, run: str | None, label_ok: bool | None, why: str | None = None
-) -> dict:
+def _entry(truth: str, by: str, run: str | None, label_ok: bool | None, why: str | None = None) -> dict:
     return {
         "truth": truth,
         "verdict": "matched" if run else "missed",
@@ -180,11 +173,7 @@ def compare_pages(T: dict, M: dict, tp=None, mp=None) -> dict:
     mp = mp or policy.UNION
     labelled = bench_mod.labelled_of(T)
     if bench_mod.labelled_said(labelled):
-        T = {
-            i: p
-            for i, p in T.items()
-            if bench_mod.trait_state(p.get("meta") or {}, "labelled") == "yes"
-        }
+        T = {i: p for i, p in T.items() if bench_mod.trait_state(p.get("meta") or {}, "labelled") == "yes"}
         if not T:
             raise MetricError(
                 "no page of the truth says it is labelled: nothing to compare, which is not a zero of losses"
@@ -201,11 +190,7 @@ def compare_pages(T: dict, M: dict, tp=None, mp=None) -> dict:
         states[st] = states.get(st, 0) + 1
     rules = sorted(
         {
-            str(
-                (M[i].get("meta") or {}).get(
-                    "reading_order", "not declared (taken as 'model rank')"
-                )
-            )
+            str((M[i].get("meta") or {}).get("reading_order", "not declared (taken as 'model rank')"))
             for i in T
             if i in M
         }
@@ -250,9 +235,7 @@ def compare_pages(T: dict, M: dict, tp=None, mp=None) -> dict:
             if x is not None:
                 per_label.setdefault(b["label"], [0, 0])[0] += 1
                 per["artefacts_found"][ta] = 1
-                entries[ta] = _entry(
-                    ta, "A", page.anchor(i, x["block_id"]), b["label"] == x["label"]
-                )
+                entries[ta] = _entry(ta, "A", page.anchor(i, x["block_id"]), b["label"] == x["label"])
                 continue
             why = _diagnose(b, mall, tb, arte_m, mp)
             bed(f"{why} ({b['label']})")
@@ -266,9 +249,7 @@ def compare_pages(T: dict, M: dict, tp=None, mp=None) -> dict:
                 continue
             kind = extra_kind(x["box"], paired, unpaired, outside, tb)
             bed(kind)
-            extras.append(
-                {"run": page.anchor(i, x["block_id"]), "verdict": kind, "taken_for": None}
-            )
+            extras.append({"run": page.anchor(i, x["block_id"]), "verdict": kind, "taken_for": None})
         page_ranks, taken = ([], set())
         b_took = {}
         for b in sorted(t["blocks"], key=lambda z: -_area(z["box"])):
@@ -324,11 +305,7 @@ def compare_pages(T: dict, M: dict, tp=None, mp=None) -> dict:
         why_order = (
             "truth carries no order: "
             + ", ".join(
-                
-                    f"{k} on {states[k]}"
-                    for k in (ORDER_MARKED, ORDER_UNMARKED, ORDER_SILENT)
-                    if states.get(k)
-                
+                f"{k} on {states[k]}" for k in (ORDER_MARKED, ORDER_UNMARKED, ORDER_SILENT) if states.get(k)
             )
             + f" of {len(T)} pages"
         )
@@ -345,14 +322,11 @@ def compare_pages(T: dict, M: dict, tp=None, mp=None) -> dict:
         "pairs": pairs_out,
         "by_case": per_case,
         "by_label": {
-            k: {"truth": v[1], "found": v[0], "bucket": tp.role(k)}
-            for k, v in sorted(per_label.items())
+            k: {"truth": v[1], "found": v[0], "bucket": tp.role(k)} for k, v in sorted(per_label.items())
         },
         "troubles": dict(sorted(beds.items())),
         "label_confusion": {f"{a}->{b}": n for (a, b), n in sorted(conf.items())},
-        "role_confusion": {
-            f"{a}->{b}": n for (a, b), n in sorted(conf.items()) if tp.role(a) != mp.role(b)
-        },
+        "role_confusion": {f"{a}->{b}": n for (a, b), n in sorted(conf.items()) if tp.role(a) != mp.role(b)},
         "order_truth": {"states": states, "page_count": len(T)},
         "order_rule": ", ".join(rules) or "nothing to declare",
         "model_order": _order_agree(
@@ -654,8 +628,7 @@ def column_jumps_ranking(
             for n in names
         },
         "by_point": [
-            {"point": _fmt_point(p), "values": {n: vals[n][k] for n in names}}
-            for k, p in enumerate(pts)
+            {"point": _fmt_point(p), "values": {n: vals[n][k] for n in names}} for k, p in enumerate(pts)
         ],
     }
 
@@ -676,9 +649,7 @@ def label_alphabet(res: dict) -> list:
 def label_errors(res: dict):
     if not label_alphabet(res):
         return None
-    return sum(
-        (n for k, n in res["label_confusion"].items() if k.split("->", 1)[0] != k.split("->", 1)[1])
-    )
+    return sum((n for k, n in res["label_confusion"].items() if k.split("->", 1)[0] != k.split("->", 1)[1]))
 
 
 def role_errors(res: dict) -> int:
@@ -703,9 +674,7 @@ def _report_order(res: dict) -> None:
         o = res[key]
         tail = "" if key == "model_order" else f"; our order is built so: {res['order_rule']}"
         if o["agreement"] is None:
-            log(
-                f"order {name}: NOT COMPARED — {o.get('why', 'no pairs')} (this is not zero agreement){tail}"
-            )
+            log(f"order {name}: NOT COMPARED — {o.get('why', 'no pairs')} (this is not zero agreement){tail}")
         else:
             log(
                 f"order {name}: agreed {o['agreement'] * 100:.0f}%, pairs measured {o['pairs']} of {o['pairs_possible']} possible by truth, over {o['page_count']} pages of {o['pages_total']}"
@@ -770,10 +739,7 @@ def report(res: dict) -> None:
         )
     miss = {k: v for k, v in res["by_label"].items() if v["found"] < v["truth"]}
     if miss:
-        log(
-            "  misses by label: "
-            + ", ".join((f"{k} {v['found']}/{v['truth']}" for k, v in miss.items()))
-        )
+        log("  misses by label: " + ", ".join((f"{k} {v['found']}/{v['truth']}" for k, v in miss.items())))
     _report_order(res)
     n_pairs = sum(res["label_confusion"].values())
     log(f"bucket confusion: {role_errors(res)} of {n_pairs} pairs")
@@ -785,18 +751,12 @@ def report(res: dict) -> None:
             f"label confusion: NOT COMPARED — truth and model answer in different vocabularies (truth fits {_fits(t_lab) or '—'}, model {_fits(m_lab) or '—'}; labels in common {len(set(t_lab) & set(m_lab))} of {len(set(t_lab) | set(m_lab))}). This is NOT 100% errors: `table` and `Table` are the same thing, and we have no translation between vocabularies, nor should we."
         )
     else:
-        bad = {
-            k: v
-            for k, v in res["label_confusion"].items()
-            if k.split("->", 1)[0] != k.split("->", 1)[1]
-        }
+        bad = {k: v for k, v in res["label_confusion"].items() if k.split("->", 1)[0] != k.split("->", 1)[1]}
         log(
             f"label confusion: {label_errors(res)} of {n_pairs} pairs (one vocabulary: {', '.join(voc)})"
             + (f" — {bad}" if bad else "")
         )
-    for case, c in sorted(
-        res["by_case"].items(), key=lambda kv: kv[1]["found"] - kv[1]["artifacts"]
-    ):
+    for case, c in sorted(res["by_case"].items(), key=lambda kv: kv[1]["found"] - kv[1]["artifacts"]):
         if c["found"] < c["artifacts"] or c["troubles"]:
             log(
                 f"  {case:24s} {c['found']}/{c['artifacts']}  "
@@ -878,9 +838,7 @@ def _by_columns(M, overlap=None, wide=None, min_boxes=None, roles=None, pol=None
     for i, p in M.items():
         part, rest = _columns_of(p, wide, roles, pol)
         col = _columns([b["box"] for b in part], overlap)
-        order = sorted(
-            range(len(part)), key=lambda k: (col[k], part[k]["box"][1], part[k]["box"][0])
-        )
+        order = sorted(range(len(part)), key=lambda k: (col[k], part[k]["box"][1], part[k]["box"][0]))
         out[i] = {**p, "blocks": [part[k] for k in order] + rest}
     return out
 
@@ -953,6 +911,7 @@ def _order(part: dict) -> Scalar:
 
 
 class ContourMetric(Metric):
+    description = "boxes against truth: found, lost, mislabelled, in order"
     name = "contour"
     needs = frozenset({"truth", "pages"})
     scalars = (
@@ -1034,9 +993,7 @@ class ContourMetric(Metric):
             per="block",
             side="run",
         ),
-        Spec(
-            "role_errors", "lower", "blocks whose role is not the truth's", per="block", side="run"
-        ),
+        Spec("role_errors", "lower", "blocks whose role is not the truth's", per="block", side="run"),
     )
 
     def run(self, bench, run) -> Record:
@@ -1083,9 +1040,7 @@ class ContourMetric(Metric):
                 count=(x["found"], x["block_count"]),
                 over=(x.get("pages_with_text_markup", 0), x.get("pages_total", 0)),
                 unit="pages",
-                why=None
-                if x["share"] is not None
-                else "text and furniture NOT MARKED in this truth",
+                why=None if x["share"] is not None else "text and furniture NOT MARKED in this truth",
                 per=per["text_furniture_found"],
                 side="truth",
             ),

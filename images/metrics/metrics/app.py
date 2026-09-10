@@ -1,5 +1,3 @@
-"""The metrics service: the catalog, a measure, the pairs on a page, the probes"""
-
 import os
 
 from fastapi import FastAPI, Request
@@ -33,8 +31,9 @@ class PairsAsk(BaseModel):
 
 
 def _open(a: Ask | PairsAsk) -> tuple[Bench, Run]:
-    root = os.path.realpath(os.path.join(settings.home(), a.store, a.book))
-    if not root.startswith(os.path.realpath(settings.home())) or not os.path.isdir(root):
+    home = os.path.realpath(settings.home())
+    root = os.path.realpath(os.path.join(home, a.store, a.book))
+    if not (root == home or root.startswith(home + os.sep)) or not os.path.isdir(root) or root == home:
         raise Refusal(f"no book {a.book}")
     has_truth = os.path.isdir(os.path.join(root, "truth"))
     b = Bench.open(root) if has_truth else Bench.no_truth(root)
@@ -79,12 +78,18 @@ def create_app() -> FastAPI:
         run = load_pages(r.pages_dir, "run")
         if a.index not in truth or a.index not in run:
             raise Refusal(f"no page {a.index} on both sides")
-        res = contour.page_pairs(truth[a.index], run[a.index], b.policy, r.policy,
-                                 said=labelled_said(labelled_of(truth)))
+        res = contour.page_pairs(
+            truth[a.index], run[a.index], b.policy, r.policy, said=labelled_said(labelled_of(truth))
+        )
         state = labelled_of({a.index: truth[a.index]})
         labelled = next(s for s, n in state.items() if n)
-        return {"index": a.index, "labelled": labelled, "compared": res is not None,
-                "pairs": list((res or {}).get("pairs", [])), "extras": list((res or {}).get("extras", []))}
+        return {
+            "index": a.index,
+            "labelled": labelled,
+            "compared": res is not None,
+            "pairs": list((res or {}).get("pairs", [])),
+            "extras": list((res or {}).get("extras", [])),
+        }
 
     @app.post("/probe")
     def probe(a: Ask) -> dict:

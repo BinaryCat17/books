@@ -1,5 +1,3 @@
-"""Text normalisation before comparison: the boundary level, the latex level,"""
-
 import re
 import unicodedata
 from metrics.errors import TextError
@@ -74,9 +72,7 @@ def bare_math(s: str) -> str:
 
 def normalize(s: str, level: str = NORM) -> str:
     if level not in NORM_STEPS:
-        raise TextError(
-            f"normalisation level {level!r} is not declared; there are {sorted(NORM_STEPS)}"
-        )
+        raise TextError(f"normalisation level {level!r} is not declared; there are {sorted(NORM_STEPS)}")
     if s is None:
         return ""
     if level == "none":

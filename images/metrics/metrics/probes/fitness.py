@@ -1,5 +1,3 @@
-"""Probes of the ink metric: spoil the output, the truth and our thresholds"""
-
 import json
 import os
 import tempfile
@@ -208,9 +206,7 @@ def probes(bench, run) -> list:
             (
                 "artefact boxes cut in half",
                 "fewer cut as one picture",
-                lambda: (
-                    None if not base["objects"] else halved()["in_one_box"] < base["in_one_box"]
-                ),
+                lambda: None if not base["objects"] else halved()["in_one_box"] < base["in_one_box"],
             ),
             (
                 "artefact boxes cut in half",
@@ -254,11 +250,7 @@ def probes(bench, run) -> list:
             (
                 "artefacts called text",
                 "objects left as text",
-                lambda: (
-                    None
-                    if not base["objects"]
-                    else as_text()["left_as_text"] > base["left_as_text"]
-                ),
+                lambda: None if not base["objects"] else as_text()["left_as_text"] > base["left_as_text"],
             ),
             (
                 "boxes dropped except the text ones",
@@ -273,10 +265,7 @@ def probes(bench, run) -> list:
                 "one box over the whole sheet",
                 "ink 100%, but area 100% too",
                 lambda: (
-                    lambda r: (
-                        r["ink_under_boxes"] == r["ink_total"]
-                        and r["boxes_area"] == r["sheet_area"]
-                    )
+                    lambda r: r["ink_under_boxes"] == r["ink_total"] and r["boxes_area"] == r["sheet_area"]
                 )(R(full)),
             ),
             (
@@ -303,28 +292,20 @@ def probes(bench, run) -> list:
                 lambda: (
                     None
                     if not base["dark_columns"]
-                    else _at(
-                        "MID", 0.0, lambda: _at("MIN_SPREAD_RATIO", 10**6, lambda: R2()["ink_junk"])
-                    )
+                    else _at("MID", 0.0, lambda: _at("MIN_SPREAD_RATIO", 10**6, lambda: R2()["ink_junk"]))
                     == 0
                 ),
             ),
             (
                 "the crossing veto shut",
                 "a rule crosses everything now, so nothing is junk",
-                lambda: (
-                    None
-                    if not base["ink_junk"]
-                    else _at("RULE_RUN", 0.0, lambda: R2()["ink_junk"]) == 0
-                ),
+                lambda: None if not base["ink_junk"] else _at("RULE_RUN", 0.0, lambda: R2()["ink_junk"]) == 0,
             ),
             (
                 "the width cap squeezed to nothing",
                 "every band is too wide to be a shadow: no junk",
                 lambda: (
-                    None
-                    if not base["ink_junk"]
-                    else _at("JUNK_WIDTH", 0.0, lambda: R2()["ink_junk"]) == 0
+                    None if not base["ink_junk"] else _at("JUNK_WIDTH", 0.0, lambda: R2()["ink_junk"]) == 0
                 ),
             ),
             (
@@ -360,12 +341,9 @@ def probes(bench, run) -> list:
                 lambda: (
                     None
                     if not any(
-                        
-                            pol.role(b["label"]) != "artifact"
-                            and (not (b.get("content") or "").strip())
-                            for p in M0.values()
-                            for b in p["blocks"]
-                        
+                        pol.role(b["label"]) != "artifact" and (not (b.get("content") or "").strip())
+                        for p in M0.values()
+                        for b in p["blocks"]
                     )
                     else (
                         lambda r: (
@@ -399,9 +377,7 @@ def probes(bench, run) -> list:
                 lambda: (
                     None
                     if not base["objects"]
-                    else (
-                        lambda r: r["intact"] == r["objects"] and r["in_one_box"] == r["objects"]
-                    )(R(full))
+                    else (lambda r: r["intact"] == r["objects"] and r["in_one_box"] == r["objects"])(R(full))
                 ),
             ),
             (
@@ -430,18 +406,16 @@ def probes(bench, run) -> list:
                     if not base["objects"]
                     else (
                         lambda r: all(
-                            
-                                r[k] == base[k]
-                                for k in (
-                                    "intact",
-                                    "almost_intact",
-                                    "bitten",
-                                    "torn",
-                                    "in_one_box",
-                                    "left_as_text",
-                                    "object_ink_in_boxes",
-                                )
-                            
+                            r[k] == base[k]
+                            for k in (
+                                "intact",
+                                "almost_intact",
+                                "bitten",
+                                "torn",
+                                "in_one_box",
+                                "left_as_text",
+                                "object_ink_in_boxes",
+                            )
                         )
                     )(R(_double(M0, pol)))
                 ),
@@ -504,9 +478,7 @@ def probes(bench, run) -> list:
                 lambda: (
                     None
                     if not base["bitten"] + base["torn"]
-                    else _at(
-                        "BITTEN", 0.0, lambda: ink.measure(pdf, detect_dir, truth_dir)["torn"] == 0
-                    )
+                    else _at("BITTEN", 0.0, lambda: ink.measure(pdf, detect_dir, truth_dir)["torn"] == 0)
                     and _at(
                         "BITTEN",
                         ink.ALMOST,
@@ -545,17 +517,13 @@ def probes(bench, run) -> list:
                             _at(
                                 "EDGE",
                                 1.0,
-                                lambda: ink.measure(pdf, detect_dir, truth_dir)[
-                                    "ink_outside_boxes_at_edge"
-                                ],
+                                lambda: ink.measure(pdf, detect_dir, truth_dir)["ink_outside_boxes_at_edge"],
                             )
                             == lost
                             and _at(
                                 "EDGE",
                                 0.0,
-                                lambda: ink.measure(pdf, detect_dir, truth_dir)[
-                                    "ink_outside_boxes_at_edge"
-                                ],
+                                lambda: ink.measure(pdf, detect_dir, truth_dir)["ink_outside_boxes_at_edge"],
                             )
                             < lost
                         )

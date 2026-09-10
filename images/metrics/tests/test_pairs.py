@@ -1,5 +1,3 @@
-"""The metric's pairs as data: one entry per truth block with the verdict the"""
-
 import copy
 import pytest
 import support
@@ -51,41 +49,28 @@ def test_a_lost_block_an_extra_box_and_a_renamed_one_are_said_as_the_count_says(
         (
             (i, a, x)
             for i, t in T.items()
-            for a in [
-                next((b for b in t["blocks"] if policy.UNION.role(b["label"]) == "artifact"), None)
-            ]
-            for x in [
-                next((b for b in t["blocks"] if policy.UNION.role(b["label"]) == "text"), None)
-            ]
+            for a in [next((b for b in t["blocks"] if policy.UNION.role(b["label"]) == "artifact"), None)]
+            for x in [next((b for b in t["blocks"] if policy.UNION.role(b["label"]) == "text"), None)]
             if a is not None and x is not None
         )
     )
     m = M[i]
     m["blocks"] = [b for b in m["blocks"] if b["block_id"] != art["block_id"]]
-    other = next(
-        lb for lb in policy.UNION.labels if policy.UNION.role(lb) == "text" and lb != txt["label"]
-    )
+    other = next(lb for lb in policy.UNION.labels if policy.UNION.role(lb) == "text" and lb != txt["label"])
     for b in m["blocks"]:
         if b["block_id"] == txt["block_id"]:
             b["label"] = other
     w, h = (T[i]["width"], T[i]["height"])
     taken = [b["box"] for b in T[i]["blocks"]]
     spot = next(
-        
-            c
-            for c in (
-                [w - 70, h - 70, w - 10, h - 10],
-                [10, h - 70, 70, h - 10],
-                [w - 70, 10, w - 10, 70],
-                [10, 10, 70, 70],
-            )
-            if not any(
-                
-                    c[0] < bx[2] and bx[0] < c[2] and (c[1] < bx[3]) and (bx[1] < c[3])
-                    for bx in taken
-                
-            )
-        
+        c
+        for c in (
+            [w - 70, h - 70, w - 10, h - 10],
+            [10, h - 70, 70, h - 10],
+            [w - 70, 10, w - 10, 70],
+            [10, 10, 70, 70],
+        )
+        if not any(c[0] < bx[2] and bx[0] < c[2] and (c[1] < bx[3]) and (bx[1] < c[3]) for bx in taken)
     )
     extra_id = max(b["block_id"] for b in m["blocks"]) + 1
     m["blocks"].append(
@@ -110,18 +95,11 @@ def test_a_lost_block_an_extra_box_and_a_renamed_one_are_said_as_the_count_says(
     assert renamed["verdict"] == "matched" and renamed["label_ok"] is False
     assert renamed["run"] in res["per"]["label_errors"]
     extra = [e for e in got["extras"] if e["run"] == page_mod.anchor(i, extra_id)]
-    assert extra == [
-        {"run": page_mod.anchor(i, extra_id), "verdict": "spurious_box", "taken_for": None}
-    ]
+    assert extra == [{"run": page_mod.anchor(i, extra_id), "verdict": "spurious_box", "taken_for": None}]
     assert res["troubles"]["spurious_box"] == 1, "the list and the count disagree"
     _each_model_box_once(got, m)
     assert res["totals"]["found"] == sum(
-        
-            1
-            for p in res["pairs"].values()
-            for e in p["pairs"]
-            if e["by"] == "A" and e["verdict"] == "matched"
-        
+        1 for p in res["pairs"].values() for e in p["pairs"] if e["by"] == "A" and e["verdict"] == "matched"
     )
 
 
@@ -132,13 +110,7 @@ def _each_model_box_once(got, m):
         for e in got["pairs"]
         if e["b_run"]
         and policy.UNION.role(
-            next(
-                
-                    x["label"]
-                    for x in m["blocks"]
-                    if page_mod.anchor(m["index"], x["block_id"]) == e["b_run"]
-                
-            )
+            next(x["label"] for x in m["blocks"] if page_mod.anchor(m["index"], x["block_id"]) == e["b_run"])
         )
         != "artifact"
     ]
@@ -184,9 +156,7 @@ def test_a_box_pass_b_took_for_an_artefact_pass_a_missed_is_in_the_list_once(ben
 def test_an_artefact_box_pass_a_left_and_pass_b_took_is_one_extra_that_says_so(bench):
     i, t, m = _one_page(bench)
     txt = next(b for b in t["blocks"] if policy.UNION.role(b["label"]) == "text")
-    arte_label = next(
-        b["label"] for b in t["blocks"] if policy.UNION.role(b["label"]) == "artifact"
-    )
+    arte_label = next(b["label"] for b in t["blocks"] if policy.UNION.role(b["label"]) == "artifact")
     for b in m["blocks"]:
         if b["block_id"] == txt["block_id"]:
             b["label"] = arte_label

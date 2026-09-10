@@ -1,5 +1,3 @@
-"""Books of the synthetic bench: one kind of layout and one sheet size each"""
-
 import importlib
 
 NAMES = ("spravochnik", "slovar", "matematika", "atlas", "katalog", "zhurnal")

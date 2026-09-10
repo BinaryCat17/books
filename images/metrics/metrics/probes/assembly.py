@@ -1,5 +1,3 @@
-"""Probes of the assembly metric: spoil the block order, count the jumps"""
-
 from metrics import contour
 from metrics.base import Probe
 
@@ -9,13 +7,11 @@ def probes(bench, run) -> list:
     pol = run.policy
     base = contour.column_jumps(M, pol=pol)
     many = any(
-        
-            v >= 2
-            for v in (
-                len(set(contour._columns([b["box"] for b in contour._columns_of(p, pol=pol)[0]])))
-                for p in M.values()
-            )
-        
+        v >= 2
+        for v in (
+            len(set(contour._columns([b["box"] for b in contour._columns_of(p, pol=pol)[0]])))
+            for p in M.values()
+        )
     )
 
     def jumps(mm):
@@ -25,9 +21,7 @@ def probes(bench, run) -> list:
         Probe(
             "two columns interleaved",
             "more excess jumps",
-            lambda: (
-                None if not many else jumps(contour._mix_columns(M, pol=pol)) > base["excess_jumps"]
-            ),
+            lambda: None if not many else jumps(contour._mix_columns(M, pol=pol)) > base["excess_jumps"],
         ),
         Probe(
             "all boxes into one column",

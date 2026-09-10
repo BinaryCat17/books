@@ -1,5 +1,3 @@
-"""OTSL: parsing the table markup the reading models answer in"""
-
 import html as _html
 import re
 

@@ -1,5 +1,3 @@
-"""What level one does with a block: `text`, `artifact` or `furniture`, by class"""
-
 from __future__ import annotations
 
 import json

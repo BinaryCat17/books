@@ -1,5 +1,3 @@
-"""Docling layout detectors: heron (RT-DETRv2 R50) and egret-medium (D-FINE)"""
-
 import json
 import os
 import sys
@@ -35,7 +33,7 @@ EGRET_TO_DOCLING = {
     "Title": "title",
 }
 PIPELINE_MODES = ("off", "post", "full")
-_PIP_INSTALL = 'pip install -e ".[docling]"  (docling-slim==2.123.1 and rtree; no torch, +54 MB)'
+_PIP_INSTALL = "the docling extra  (docling-slim==2.123.1 and rtree; no torch, +54 MB)"
 
 
 class _DoclingPipeline:
@@ -300,9 +298,7 @@ class DoclingHeron(Detector):
         which = order.rule()
         pol = self.policy() if which == "docling" else None
         order.cover(pol, which)
-        perm = order.permutation(
-            [t[0] for t in kept], [t[2] for t in kept], w, h, index, pol, which
-        )
+        perm = order.permutation([t[0] for t in kept], [t[2] for t in kept], w, h, index, pol, which)
         return [kept[i] for i in perm]
 
     def _run_pipeline(self, blocks, w, h, index):
@@ -346,11 +342,7 @@ class DoclingHeron(Detector):
         if self._pipe is not None and self._pipe.pages:
             it = self._pipe.fingerprint()["summary"]
             share = 100.0 * it["boxes_after"] / it["boxes_before"] if it["boxes_before"] else 0.0
-            rules = (
-                str(it["reordered_by_order_rules"])
-                if self._pipe.mode == "full"
-                else "-- (never called)"
-            )
+            rules = str(it["reordered_by_order_rules"]) if self._pipe.mode == "full" else "-- (never called)"
             order = (
                 "VENDOR RULES (reading_order_rb, not a model)"
                 if self._pipe.mode == "full"
@@ -543,8 +535,7 @@ class DoclingEgret(DoclingHeron):
             )
         kept = self._our_order(kept, w, h, index)
         blocks = [
-            Block(block_id=i, box=tuple(b), label=lab, score=s, order=i)
-            for i, (lab, s, b) in enumerate(kept)
+            Block(block_id=i, box=tuple(b), label=lab, score=s, order=i) for i, (lab, s, b) in enumerate(kept)
         ]
         geom = [tuple(b) for _, _, b in kept]
         blocks, pipe_meta = self._run_pipeline(blocks, w, h, index)

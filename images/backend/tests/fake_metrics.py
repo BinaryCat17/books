@@ -1,5 +1,3 @@
-"""A metrics service that answers from the files under the data home"""
-
 import json
 import os
 import threading
@@ -8,12 +6,38 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from backend.page import anchor, load_pages
 
 CATALOG = [
-    {"metric": "fitness", "needs": ["pages", "pdf"], "description": "fake",
-     "scalars": [{"name": "ink_under_boxes", "better": "higher", "gloss": "ink under boxes",
-                  "question": "", "per": "page", "side": "", "unit": ""}]},
-    {"metric": "contour", "needs": ["pages", "truth"], "description": "fake",
-     "scalars": [{"name": "artefacts_found", "better": "higher", "gloss": "found",
-                  "question": "", "per": "block", "side": "truth", "unit": ""}]},
+    {
+        "metric": "fitness",
+        "needs": ["pages", "pdf"],
+        "description": "fake",
+        "scalars": [
+            {
+                "name": "ink_under_boxes",
+                "better": "higher",
+                "gloss": "ink under boxes",
+                "question": "",
+                "per": "page",
+                "side": "",
+                "unit": "",
+            }
+        ],
+    },
+    {
+        "metric": "contour",
+        "needs": ["pages", "truth"],
+        "description": "fake",
+        "scalars": [
+            {
+                "name": "artefacts_found",
+                "better": "higher",
+                "gloss": "found",
+                "question": "",
+                "per": "block",
+                "side": "truth",
+                "unit": "",
+            }
+        ],
+    },
 ]
 
 
@@ -33,14 +57,31 @@ def measure(body):
     if want is not None and set(want) - set(pages):
         return 409, {"error": "no such pages"}
     idx = sorted(want) if want is not None else sorted(pages)
-    base = {"bench": os.path.basename(body["book"]), "run": body["run"], "book": body["book"],
-            "identity": snap.get("identity"), "source_sha256": snap["source"]["sha256"], "params": {}, "detail": {}}
-    recs = [{**base, "metric": "fitness",
-             "scalars": {"ink_under_boxes": {"value": 0.5, "per": {anchor(i): 0.5 for i in idx}}}}]
+    base = {
+        "bench": os.path.basename(body["book"]),
+        "run": body["run"],
+        "book": body["book"],
+        "identity": snap.get("identity"),
+        "source_sha256": snap["source"]["sha256"],
+        "params": {},
+        "detail": {},
+    }
+    recs = [
+        {
+            **base,
+            "metric": "fitness",
+            "scalars": {"ink_under_boxes": {"value": 0.5, "per": {anchor(i): 0.5 for i in idx}}},
+        }
+    ]
     book_dir = os.path.dirname(os.path.dirname(rd))
     if os.path.isdir(os.path.join(book_dir, "truth")):
-        recs.append({**base, "metric": "contour",
-                     "scalars": {"artefacts_found": {"value": 1.0, "count": {"n": 1, "of": 1}}}})
+        recs.append(
+            {
+                **base,
+                "metric": "contour",
+                "scalars": {"artefacts_found": {"value": 1.0, "count": {"n": 1, "of": 1}}},
+            }
+        )
     only = body.get("only")
     if only:
         recs = [r for r in recs if r["metric"] in only]
@@ -54,7 +95,7 @@ def pairs(body):
     truth = load_pages(os.path.join(book_dir, "truth"))
     run = load_pages(os.path.join(rd, "pages"))
     if i not in truth or i not in run:
-        return 422, {"error": f"no page {i}"}
+        return 409, {"error": f"no page {i}"}
     t, m = truth[i], run[i]
     by = {b["block_id"]: b for b in m["blocks"]}
     out, seen = [], set()
@@ -62,16 +103,40 @@ def pairs(body):
         x = by.get(b["block_id"])
         ta = anchor(i, b["block_id"])
         if x is None:
-            out.append({"truth": ta, "verdict": "missed", "by": "A", "run": None, "label_ok": None,
-                        "why": "not seen", "fate": "not_seen", "b_run": None, "b_label_ok": None})
+            out.append(
+                {
+                    "truth": ta,
+                    "verdict": "missed",
+                    "by": "A",
+                    "run": None,
+                    "label_ok": None,
+                    "why": "not seen",
+                    "fate": "not_seen",
+                    "b_run": None,
+                    "b_label_ok": None,
+                }
+            )
         else:
             seen.add(b["block_id"])
             ra = anchor(i, x["block_id"])
-            out.append({"truth": ta, "verdict": "matched", "by": "A", "run": ra,
-                        "label_ok": b["label"] == x["label"], "why": None, "fate": "intact",
-                        "b_run": ra, "b_label_ok": b["label"] == x["label"]})
-    extras = [{"run": anchor(i, x["block_id"]), "verdict": "spurious_box", "taken_for": None}
-              for x in m["blocks"] if x["block_id"] not in seen]
+            out.append(
+                {
+                    "truth": ta,
+                    "verdict": "matched",
+                    "by": "A",
+                    "run": ra,
+                    "label_ok": b["label"] == x["label"],
+                    "why": None,
+                    "fate": "intact",
+                    "b_run": ra,
+                    "b_label_ok": b["label"] == x["label"],
+                }
+            )
+    extras = [
+        {"run": anchor(i, x["block_id"]), "verdict": "spurious_box", "taken_for": None}
+        for x in m["blocks"]
+        if x["block_id"] not in seen
+    ]
     meta = t.get("meta") or {}
     state = "not_said" if "labelled" not in meta else ("yes" if meta["labelled"] else "no")
     return 200, {"index": i, "labelled": state, "compared": state != "no", "pairs": out, "extras": extras}

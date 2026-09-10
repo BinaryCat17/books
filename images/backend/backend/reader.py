@@ -1,5 +1,3 @@
-"""PaddleOCR-VL 1.6 as a reader: which prompt on which label, and what kind of"""
-
 from backend.read import Reader, Route
 from backend import store as book
 from backend import knobs

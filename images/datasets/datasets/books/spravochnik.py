@@ -1,5 +1,3 @@
-"""The handbook: a dense two-column English technical handbook of the"""
-
 from datasets.draw import (
     BOT,
     COLW,
@@ -370,9 +368,7 @@ def c_table_spanning_header(doc, rng):
     pg = _page(doc)
     t = []
     _flow(pg, t, MARGIN, TOP, 190, PROSE_EN, w=2 * COLW + GUT)
-    _span_header_table(
-        pg, t, MARGIN + 8, 226, [("CLEARANCE", 3), ("INTERFERENCE", 3), ("TRANSITION", 2)], 22
-    )
+    _span_header_table(pg, t, MARGIN + 8, 226, [("CLEARANCE", 3), ("INTERFERENCE", 3), ("TRANSITION", 2)], 22)
     _flow(pg, t, MARGIN, 480, BOT, PROSE_EN, w=2 * COLW + GUT)
     return (pg, t)
 

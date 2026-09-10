@@ -1,5 +1,3 @@
-"""A layout or hybrid model behind an endpoint, reached by the model protocol"""
-
 from __future__ import annotations
 from backend import store as book
 from backend import job
@@ -24,9 +22,7 @@ class Served(Detector):
             )
         self.headers = served.bearer(str(job.current().secrets.get("LAYOUT_API_KEY") or ""))
         try:
-            answer = served.fetch(
-                self.endpoint + served.DESCRIBE, timeout=TIMEOUT_S, headers=self.headers
-            )
+            answer = served.fetch(self.endpoint + served.DESCRIBE, timeout=TIMEOUT_S, headers=self.headers)
         except served.Unreachable as e:
             raise Refusal(
                 f"{self.endpoint} does not describe itself: {e.why}. A model that cannot say what it is cannot be filed under a label, so nothing is asked of it."
@@ -34,7 +30,7 @@ class Served(Detector):
         self.describe = served.Describe.from_json(answer)
         if self.describe.kind == "reader":
             raise Refusal(
-                f"{self.endpoint} is a reader ({self.describe.label}); a layout run needs a layout or hybrid model. Point VLM_ENDPOINT at it and run `books read` instead."
+                f"{self.endpoint} is a reader ({self.describe.label}); a layout run needs a layout or hybrid model. Point VLM_ENDPOINT at it and run a read instead."
             )
         missing = [k for k in self.FINGERPRINT_REQUIRED if k not in self.describe.fingerprint]
         if missing:
@@ -128,11 +124,7 @@ class Served(Detector):
                     f"page {index}: blocks carry kinds {bad}, and a block's kind is one of {KINDS} or none"
                 )
             foreign = sorted(
-                {
-                    b.kind
-                    for b in page.blocks
-                    if b.kind != "none" and b.kind not in self.describe.kinds
-                }
+                {b.kind for b in page.blocks if b.kind != "none" and b.kind not in self.describe.kinds}
             )
             if foreign:
                 raise Refusal(

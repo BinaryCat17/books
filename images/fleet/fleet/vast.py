@@ -1,5 +1,3 @@
-"""Renting on vast.ai over the SDK"""
-
 import os
 import re
 import time
@@ -51,18 +49,14 @@ class Vast:
         if avoid:
             ranked = [o for o in ranked if o.get("machine_id") not in avoid]
             if not ranked:
-                raise Refusal(
-                    "no usable offers left: every machine checked was rejected on channel"
-                )
+                raise Refusal("no usable offers left: every machine checked was rejected on channel")
         if prefer_machines:
             by_machine = {}
             for o in ranked:
                 by_machine.setdefault(o.get("machine_id"), o)
             for pos, mid in enumerate(prefer_machines, 1):
                 if mid in by_machine:
-                    log(
-                        f"machine {mid}: place {pos} in the preference list (by the ledger) -- taking it"
-                    )
+                    log(f"machine {mid}: place {pos} in the preference list (by the ledger) -- taking it")
                     return by_machine[mid]
         log("offers by the full cost of a run:")
         for o in ranked[:show]:
@@ -77,9 +71,7 @@ class Vast:
             label=spec.label(),
             env=spec.env or {},
             runtype="ssh_direc ssh_proxy",
-            onstart_cmd=ONSTART.format(
-                workdir=spec.workdir, grace=DEADMAN_GRACE_S, state=DEADMAN_STATE
-            ),
+            onstart_cmd=ONSTART.format(workdir=spec.workdir, grace=DEADMAN_GRACE_S, state=DEADMAN_STATE),
             cancel_unavail=True,
         )
         iid = res.get("new_contract")
@@ -109,9 +101,7 @@ class Vast:
 
     def instance(self, iid: int) -> dict | None:
         rows = self.v.show_instance(id=int(iid))
-        return (
-            rows[0] if isinstance(rows, list) and rows else rows if isinstance(rows, dict) else None
-        )
+        return rows[0] if isinstance(rows, list) and rows else rows if isinstance(rows, dict) else None
 
     def wait_running(self, iid: int, timeout: float = 2100) -> dict:
         t0, last = (time.time(), None)

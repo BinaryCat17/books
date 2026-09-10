@@ -1,5 +1,3 @@
-"""Who is asking: a password hashed with argon2, a session as a random token"""
-
 from __future__ import annotations
 import hashlib
 import secrets

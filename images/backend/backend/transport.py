@@ -1,5 +1,3 @@
-"""Delivering the question over HTTP: any OpenAI-compatible address"""
-
 import json
 import time
 import urllib.error
@@ -90,7 +88,7 @@ class Http(Transport):
                 raise Refusal(
                     f"{self.server} is a {d.kind} model ({d.label}) "
                     + ("with no chat route" if d.kind == "hybrid" else "")
-                    + "; level two asks over the chat route, which a reader serves and a hybrid may. A hybrid without one answers the layout route alone: run `books hybrid`."
+                    + "; level two asks over the chat route, which a reader serves and a hybrid may. A hybrid without one answers the layout route alone: run a hybrid run."
                 )
             out = {
                 "endpoint": self.server,

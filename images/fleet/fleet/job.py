@@ -1,5 +1,3 @@
-"""The job: what a run reads, whether it may go on, and where its lines go"""
-
 import contextvars
 import os
 import threading

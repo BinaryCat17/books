@@ -1,5 +1,3 @@
-"""The run ledger: one JSON line per run"""
-
 import json
 import os
 import time
@@ -195,49 +193,3 @@ def bad_machines(path: str = "") -> list[int]:
             f"WARNING: blacklist {path} holds {skipped} unreadable keys of {len(data)} -- those machines are not filtered out"
         )
     return out
-
-
-def fit(path: str = "") -> dict:
-    path = path or file()
-    eff, gbs, old_shape = ([], set(), 0)
-    for r in read(path):
-        adv, setup, gb = (r.get("inet_down_adv"), r.get("setup_s"), r.get("image_gb"))
-        if not (adv and setup and gb and (setup > 0)):
-            continue
-        if "reject_s" not in r:
-            old_shape += 1
-            continue
-        gbs.add(round(float(gb), 3))
-        eff.append(gb * 8 * 1024 / setup / adv)
-    skipped = {"skipped_old_setup_s": old_shape} if old_shape else {}
-    if len(gbs) < 2:
-        return {
-            "samples": len(eff),
-            **skipped,
-            "why_no_estimate": f"one image size in every record ({sorted(gbs) or '--'}): the numerator is constant, and the division would measure the denominator",
-        }
-    if len(eff) < 5:
-        return {"samples": len(eff), **skipped, "why_no_estimate": "fewer than five usable records"}
-    eff.sort()
-    return {
-        "samples": len(eff),
-        **skipped,
-        "distinct_image_sizes": len(gbs),
-        "link_efficiency_median": eff[len(eff) // 2],
-        "link_efficiency_p25": eff[len(eff) // 4],
-    }
-
-
-def totals(rows) -> dict:
-    return {
-        "runs": len(rows),
-        "ok": sum(1 for r in rows if r.get("ok")),
-        "spent_usd": sum(r.get("cost_usd") or 0 for r in rows),
-    }
-
-
-def observed_mbps(row) -> float | None:
-    setup, gb = (row.get("setup_s"), row.get("image_gb"))
-    if (setup or 0) > 0 and gb:
-        return gb * 8 * 1024 / setup
-    return None

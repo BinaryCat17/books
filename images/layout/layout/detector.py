@@ -1,5 +1,3 @@
-"""The Detector contract: what a layout model adapter must return"""
-
 import abc
 from layout import classes as policy_mod
 from layout.page import Page

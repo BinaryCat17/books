@@ -1,9 +1,3 @@
-"""Life cycle of a run: rent a machine, compute, fetch, destroy"""
-
-import json
-import os
-import re
-import shlex
 import threading
 import time
 from . import ledger
@@ -71,29 +65,11 @@ def _watchdog(vast: Vast, get_iid, budget: Budget, done: threading.Event):
             log(f"  watchdog: {type(e).__name__}: {e}")
 
 
-def _run_facts(outdir: str) -> dict:
-    facts = {}
-    for name in ("run.json", "vllm.json"):
-        path = os.path.join(outdir, name)
-        try:
-            with open(path) as f:
-                d = json.load(f)
-            if isinstance(d, dict):
-                facts.update(d)
-        except Exception:
-            pass
-    return facts
-
-
 def _warm(spec: JobSpec) -> list[int]:
     bad = set(ledger.bad_machines())
     fast = [m for m in ledger.fast_machines(spec.image, job=spec.name) if m not in bad]
     slow = set(ledger.slow_machines(spec.image, job=spec.name))
-    warm = [
-        m
-        for m in ledger.warm_machines(spec.image)
-        if m not in bad and m not in fast and (m not in slow)
-    ]
+    warm = [m for m in ledger.warm_machines(spec.image) if m not in bad and m not in fast and (m not in slow)]
     log(
         f"machine preference: {len(fast)} fast, {len(warm)} warm, {len(slow)} slow ones rejected"
         + ("" if slow else f" (no history for job '{spec.name}' -- nothing rejected by time)")
@@ -101,9 +77,7 @@ def _warm(spec: JobSpec) -> list[int]:
     return fast + warm
 
 
-def connect(
-    vast: Vast, iid: int, spec: JobSpec, ssh_key: str | None, attempt_limit: float = 480.0
-) -> Box:
+def connect(vast: Vast, iid: int, spec: JobSpec, ssh_key: str | None, attempt_limit: float = 480.0) -> Box:
     t_end = time.time() + attempt_limit
     vast.wait_running(iid, timeout=max(30.0, t_end - time.time()))
     if ssh_key:
@@ -124,48 +98,6 @@ def connect(
     return box
 
 
-def execute(box: Box, spec: JobSpec, outdir: str, deadline: float | None = None) -> int:
-    rc, out = box.run(f"mkdir -p {spec.workdir} && echo ok", stream=False)
-    if rc != 0:
-        raise RuntimeError(f"cannot create {spec.workdir}: {out}")
-    log("uploading the input files...")
-    for local, remote_rel in spec.inputs.items():
-        if not os.path.exists(local):
-            raise Refusal(f"no such file: {local}")
-        box.push(local, remote_rel)
-        log(f"  {os.path.basename(local)} -> {remote_rel}")
-    if not spec.resume:
-        rc, out = box.run(f"rm -rf {spec.workdir}/{spec.outputs}", stream=False, deadline=deadline)
-        if rc != 0:
-            raise RuntimeError(
-                f"could not clear {spec.workdir}/{spec.outputs} (rc={rc}): {out.strip()[:200]}"
-            )
-    rc, out = box.run(f"mkdir -p {spec.workdir}/{spec.outputs}", stream=False, deadline=deadline)
-    if rc != 0:
-        raise RuntimeError(f"cannot create the result directory (rc={rc}): {out.strip()[:200]}")
-    box.start_sync(spec.outputs, outdir, exclude=spec.pull_exclude)
-    try:
-        log("starting the job...")
-        bad = [k for k in spec.env if not re.fullmatch("[A-Za-z_][A-Za-z0-9_]*", k)]
-        if bad:
-            raise Refusal(f"knob names unfit for a shell: {bad}")
-        env = " ".join((f"{k}={shlex.quote(str(v))}" for k, v in spec.env.items()))
-        cmd = f"cd {shlex.quote(spec.workdir)} && {env} {spec.command}".strip()
-        rc, _ = box.run(cmd, deadline=deadline)
-    finally:
-        box.stop_sync()
-        if spec.pull_exclude:
-            try:
-                box.weigh_exclude(spec.outputs, spec.pull_exclude, outdir)
-            except Exception as e:
-                log(f"  exclusions not weighed ({e}) -- fetching as is")
-        log("fetching the whole result...")
-        if box.pull(spec.outputs, outdir, exclude=spec.pull_exclude) != 0 and rc == 0:
-            log("WARNING: the result did not arrive in full")
-            rc = 75
-    return rc
-
-
 WITNESS_MBPS = 0.5
 
 
@@ -176,7 +108,6 @@ def _min_link_mbps() -> float:
 MIN_DOWNLOAD_MBPS = 0.0
 MAX_ATTEMPTS = 5
 ATTEMPT_LIMIT_S = 480.0
-KEEP_GRACE_S = 4 * 3600
 
 
 def blame_machine(
@@ -193,9 +124,7 @@ def blame_machine(
     mark = mark or ledger.mark_bad
     say = say or log
     if not ours:
-        say(
-            "  our channel is not measured -- NOT blacklisting: the probe's zero may have been ours"
-        )
+        say("  our channel is not measured -- NOT blacklisting: the probe's zero may have been ours")
         return False
     if ours_now is not None and ours_now < 0.5 * ours:
         say(
@@ -327,9 +256,7 @@ def _rent(
         try:
             vast.create(int(offer["id"]), spec, on_created=_remember)
         except Exception as e:
-            log(
-                f"offer #{offer['id']} not taken ({type(e).__name__}: {str(e)[:90]}) -- taking the next"
-            )
+            log(f"offer #{offer['id']} not taken ({type(e).__name__}: {str(e)[:90]}) -- taking the next")
             _charge()
             mid = offer.get("machine_id")
             if mid is None:
@@ -349,9 +276,7 @@ def _rent(
             connect_failed = False
         except (RuntimeError, OSError) as e:
             connect_failed = True
-            log(
-                f"machine did not reach ssh in {ATTEMPT_LIMIT_S / 60:.0f} min ({e}) -- taking another"
-            )
+            log(f"machine did not reach ssh in {ATTEMPT_LIMIT_S / 60:.0f} min ({e}) -- taking another")
             link, down = (0.0, None)
         best_link[0] = max(best_link[0], link)
         rec.link_mbps = link
@@ -370,9 +295,7 @@ def _rent(
             )
             _blame(offer, f"zero bytes to us in the time allowed (floor {floor:.2f} Mbit/s)")
         elif link < floor:
-            log(
-                f"channel to us only {link:.2f} Mbit/s (need {floor:.2f} or more) -- taking another"
-            )
+            log(f"channel to us only {link:.2f} Mbit/s (need {floor:.2f} or more) -- taking another")
             _blame(offer, f"channel to us {link:.2f} Mbit/s")
         elif down is not None and down < MIN_DOWNLOAD_MBPS:
             log(
@@ -403,190 +326,5 @@ def _rent(
             avoid.append(int(mid))
     raise RuntimeError(
         f"in {MAX_ATTEMPTS} attempts no machine was found with a channel from {floor:.2f} Mbit/s"
-        + (
-            f"; our own channel was {ours:.1f} Mbit/s at the time -- it may be the cause"
-            if ours
-            else ""
-        )
+        + (f"; our own channel was {ours:.1f} Mbit/s at the time -- it may be the cause" if ours else "")
     )
-
-
-def run_job(
-    spec: JobSpec,
-    outdir: str,
-    ssh_key: str | None = None,
-    keep: bool = False,
-    reuse: int | None = None,
-    dry_run: bool = False,
-    report: dict | None = None,
-    keep_until: float | None = None,
-    keep_usd: float | None = None,
-) -> int:
-    vast = Vast()
-    outdir = os.path.abspath(outdir)
-    rec = ledger.Run(job=spec.name, image=spec.image, gpu=spec.host.gpu, image_gb=spec.image_gb)
-    t0 = time.time()
-    state = {"iid": reuse}
-    offer, done = (None, threading.Event())
-    if dry_run:
-        if reuse:
-            log(f"dry run: would compute on instance {reuse}")
-        else:
-            warm = _warm(spec)
-            offer = vast.pick(
-                spec.host,
-                spec.image_gb,
-                spec.minutes,
-                warm,
-                payload_gb=spec.payload_gb,
-                warmup_s=spec.warmup_s,
-            )
-            log(f"dry run -- would take #{offer['id']} at ${float(offer['dph_total']):.3f}/hour")
-        return 0
-    if not spec.resume and os.path.isdir(outdir) and os.listdir(outdir):
-        import shutil
-
-        shutil.rmtree(outdir)
-        log(f"local directory {outdir} cleared of the previous run")
-    os.makedirs(outdir, exist_ok=True)
-    for name in ("run.json", "vllm.json"):
-        try:
-            os.unlink(os.path.join(outdir, name))
-        except FileNotFoundError:
-            pass
-    guards: list[threading.Event] = []
-    undead: list[int] = []
-    box = None
-    try:
-        if reuse:
-            try:
-                gone = vast.instance(reuse) is None
-            except Exception as exc:
-                log(f"could not check instance {reuse} ({exc}) -- taking it to be alive")
-                gone = False
-            if gone:
-                log(f"instance {reuse} no longer exists -- taking a new one")
-                reuse = None
-                state["iid"] = None
-        if reuse:
-            log(f"reusing instance {reuse} -- no cold start")
-            inst = vast.instance(reuse) or {}
-            raw_dph = inst.get("dph_total")
-            if raw_dph is None:
-                raise Refusal(
-                    f"instance {reuse} reports no price (dph_total) -- nothing to count a budget from. Look: books ls"
-                )
-            dph = float(raw_dph)
-            rec.dph = dph
-            rec.instance_id, rec.machine_id = (reuse, inst.get("machine_id"))
-            budget = Budget(spec, dph, t0)
-            guards.append(done)
-            job.spawn(_watchdog, vast, lambda: state["iid"], budget, done)
-            log(budget.describe())
-            log("waiting for the image download and the container start...")
-            box = connect(vast, reuse, spec, ssh_key, attempt_limit=ATTEMPT_LIMIT_S)
-        else:
-            box, dph, budget = _rent(vast, spec, ssh_key, state, rec, guards, t0, undead)
-        rec.dph = dph
-        rec.extra["deadman"] = box.deadman
-        t_create = state.get("t_create") or t0
-        rec.setup_s = time.time() - t_create
-        rec.reject_s = t_create - t0
-        log(f"ready in {rec.setup_s / 60:.1f} min ({rec.reject_s / 60:.1f} min went on rejections)")
-        t1 = time.time()
-        rc = execute(box, spec, outdir, deadline=budget.deadline)
-        if rc != 0:
-            try:
-                vl = os.path.join(outdir, "vllm.log")
-                if os.path.exists(vl):
-                    tail = open(vl, encoding="utf-8", errors="replace").read()
-                    if "CUDA unknown error" in tail or "no CUDA-capable device" in tail:
-                        ledger.mark_bad(rec.machine_id, "the card does not initialise (CUDA)")
-                        log(f"machine {rec.machine_id} blacklisted: the card does not initialise")
-            except Exception as e:
-                log(
-                    f"WARNING: the CUDA check on machine {rec.machine_id} did not finish ({e}) -- if the card was dead, the machine was NOT blacklisted and will be offered again"
-                )
-        rec.run_s = time.time() - t1
-        rec.extra.update(_run_facts(outdir))
-        rec.ok = rc == 0
-        if rc != 0:
-            rec.note = f"the job returned {rc}"
-            log(f"the job ended with code {rc} -- result fetched in part")
-        return rc
-    except (Exception, SystemExit) as e:
-        rec.note = f"{type(e).__name__}: {e}"
-        raise
-    finally:
-        done.set()
-        for g in guards:
-            g.set()
-        for dead in undead:
-            rec.reject_usd += dead["dph"] * (time.time() - dead["since"]) / 3600
-            if vast.destroy(dead["iid"]):
-                log(f"abandoned instance {dead['iid']} finished off")
-            else:
-                log(
-                    f"WARNING: instance {dead['iid']} not destroyed and still billing -- kill it by hand: books down {dead['iid']}"
-                )
-        iid = state["iid"]
-        elapsed = time.time() - t0
-        rec.total_s = elapsed
-        alive_s = time.time() - (state.get("t_create") or t0)
-        rec.cost_usd = (
-            rec.dph * alive_s / 3600
-            + rec.reject_usd
-            + rec.per_tb * (spec.image_gb + spec.payload_gb) / 1024
-        )
-        try:
-            if box is not None:
-                box.stop_heartbeat()
-        except Exception as e:
-            log(f"pulse not stopped: {e}")
-        if iid and (not keep):
-            if not vast.destroy(iid):
-                log(
-                    f"WARNING: instance {iid} NOT DESTROYED and still billing -- kill it by hand: books down {iid}"
-                )
-                rec.note = (
-                    rec.note + "; " if rec.note else ""
-                ) + f"instance {iid} not destroyed, ${rec.dph:.3f}/hour"
-        elif iid:
-            if keep_until is None:
-                grace = KEEP_GRACE_S
-            else:
-                left_s = keep_until - time.time()
-                if keep_usd is not None:
-                    left_usd = keep_usd - rec.cost_usd
-                    left_s = min(left_s, left_usd / max(rec.dph, 1e-06) * 3600)
-                grace = max(300.0, left_s + 600)
-            try:
-                box.set_deadman(grace)
-                log(f"the machine's dead-man's watch reset to {grace / 60:.0f} min without a run")
-            except Exception as e:
-                log(
-                    f"could not reset the dead-man's watch ({e}) -- the instance will destroy itself in 15 minutes"
-                )
-            log(
-                f"--keep: instance {iid} LEFT ALIVE AND BILLING. Next run: --reuse {iid}; kill it: books down {iid}"
-            )
-        if report is not None:
-            report["instance_id"] = iid if keep and iid else None
-            report["dph"] = rec.dph
-            report["cost_usd"] = rec.cost_usd
-        try:
-            ledger.append(rec)
-        except Exception as e:
-            log(
-                f"WARNING: the run could NOT be written to the ledger ({e}) -- the money below is real and was not recorded. The run itself is finished; it is the record that failed"
-            )
-        log(
-            f"total {elapsed / 60:.1f} min ~ ${rec.cost_usd:.3f} (rent {alive_s / 60:.1f} min at ${rec.dph:.3f}/hour = ${rec.dph * alive_s / 3600:.3f}"
-            + (
-                f"; {rec.reject_n} machines rejected for ${rec.reject_usd:.3f}"
-                if rec.reject_n
-                else ""
-            )
-            + f"; traffic ${rec.per_tb * (spec.image_gb + spec.payload_gb) / 1024:.3f})"
-            + f"; ledger: {ledger.file()}"
-        )

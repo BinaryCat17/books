@@ -1,5 +1,3 @@
-"""The job: settings over the environment, a stop, and one sink"""
-
 import pytest
 import support
 from backend import job

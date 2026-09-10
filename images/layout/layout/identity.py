@@ -1,14 +1,7 @@
-"""Four quantities without which a run does not repeat: file hash, commit,"""
-
 from collections.abc import Iterable, Mapping
 import hashlib
 import json
 import os
-import subprocess
-import sys
-
-DETECT_PACKAGES = ("onnxruntime", "numpy", "cv2", "pymupdf", "yaml")
-READ_PACKAGES = ("pymupdf",)
 
 
 def sha256(path: str) -> str:
@@ -20,41 +13,7 @@ def sha256(path: str) -> str:
 
 
 def commit(ignore: tuple[str, ...] = ()) -> str | None:
-    from layout import knobs
-
-    told = knobs.knob("BOOKSMITH_COMMIT")
-    root = os.path.dirname(os.path.abspath(__file__))
-    try:
-        h = subprocess.run(
-            ["git", "-C", root, "rev-parse", "HEAD"], capture_output=True, text=True, timeout=10
-        )
-        if h.returncode != 0:
-            return told or None
-        head = h.stdout.strip()
-        d = subprocess.run(
-            ["git", "-C", root, "status", "--porcelain"], capture_output=True, text=True, timeout=10
-        )
-        lines = [ln for ln in d.stdout.splitlines() if ln.strip()]
-        if ignore:
-            lines = [
-                ln
-                for ln in lines
-                if not any(ln[3:].strip().strip('"').startswith(p) for p in ignore)
-            ]
-        return head + ("+dirty tree" if lines else "")
-    except (OSError, subprocess.SubprocessError):
-        return told or None
-
-
-def packages(names: Iterable[str] = DETECT_PACKAGES) -> dict:
-    out = {}
-    for name in names:
-        try:
-            out[name] = __import__(name).__version__
-        except Exception:
-            out[name] = None
-    out["python"] = sys.version.split()[0]
-    return out
+    return os.environ.get("BOOKSMITH_COMMIT") or None
 
 
 FINGERPRINT_NOT_IDENTITY = {

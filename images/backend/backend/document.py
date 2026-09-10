@@ -1,5 +1,3 @@
-"""The book as data: assembled from a run's pages by one rule"""
-
 import glob
 import json
 import os
@@ -78,9 +76,7 @@ def observed(detect_dir: str) -> dict:
 
 def repeats_on(page, covered, pol=None) -> dict:
     pol = pol or policy.UNION
-    from_text = [
-        b for b in page.blocks if pol.role(b.label) != "artifact" and (b.content or "").strip()
-    ]
+    from_text = [b for b in page.blocks if pol.role(b.label) != "artifact" and (b.content or "").strip()]
     nested = {
         b.block_id
         for b in from_text
@@ -93,9 +89,7 @@ def repeats_on(page, covered, pol=None) -> dict:
         if b.block_id not in nested:
             continue
         own = textnorm.normalize(b.content, "latex")
-        carrier = next(
-            (o for o in kept if len(own) >= REPEAT_MIN and own in norm[o.block_id]), None
-        )
+        carrier = next((o for o in kept if len(own) >= REPEAT_MIN and own in norm[o.block_id]), None)
         why = "differs"
         if carrier is not None:
             why = "layout" if _raw_latex_at(carrier.content, b.content) else "verbatim"
@@ -327,9 +321,7 @@ def _gather_page(page: Page, pol: policy.Policy, obs: dict, obs_present: bool) -
         outside = [
             o
             for o in page.blocks
-            if o.block_id != b.block_id
-            and pol.role(o.label) != "artifact"
-            and _covered(b.box, o.box)
+            if o.block_id != b.block_id and pol.role(o.label) != "artifact" and _covered(b.box, o.box)
         ]
         in_text = role != "artifact" and bool(outside)
         strict = in_text and role == "text" and any(pol.role(o.label) == "text" for o in outside)
@@ -362,8 +354,7 @@ def _gather_page(page: Page, pol: policy.Policy, obs: dict, obs_present: bool) -
                 table_shape=torn_grid(o.get("otsl_grid")),
                 inside_artifacts=[anchor(page.index, x.block_id) for x in inside] or None,
                 inside=outer_a,
-                contains=[anchor(page.index, k) for k, v in nested_in.items() if v == b.block_id]
-                or None,
+                contains=[anchor(page.index, k) for k, v in nested_in.items() if v == b.block_id] or None,
                 nested_in_text=in_text,
                 nested_in_text_strict=strict,
                 as_picture=as_picture,
@@ -411,7 +402,7 @@ def gather(detect_dir: str, verify: bool = True) -> BookData:
         now = stamp.sha256(pdf)
         if said and said != now:
             raise Refusal(
-                f"{pdf} changed after detection: the snapshot swore sha256 {said[:12]}, now it is {now[:12]}. The crops would come from one file and the boxes from another. Recompute books detect, or put back the PDF the boxes were counted on."
+                f"{pdf} changed after detection: the snapshot swore sha256 {said[:12]}, now it is {now[:12]}. The crops would come from one file and the boxes from another. Recompute a detect run, or put back the PDF the boxes were counted on."
             )
         log(
             f"source {os.path.basename(pdf)} sha256 {now[:12]}"
@@ -423,7 +414,7 @@ def gather(detect_dir: str, verify: bool = True) -> BookData:
         )
     files = sorted(glob.glob(os.path.join(detect_dir, "pages", "*.json")))
     if not files:
-        raise Refusal(f"no pages in {detect_dir} -- run books detect first")
+        raise Refusal(f"no pages in {detect_dir} -- run a detect run first")
     obs_present = answers_present(detect_dir)
     repeats_how = _repeats_how()
     pages = []
@@ -459,7 +450,6 @@ def _repeats_how() -> str:
     return how
 
 
-
 VERSION = 1
 
 
@@ -485,8 +475,11 @@ def write(run_dir: str) -> dict:
     if os.path.isfile(path):
         with open(path, encoding="utf-8") as f:
             d = json.load(f)
-        if d.get("version") == VERSION and d["run"]["identity"] == _snapshot(run_dir).get(
-            "identity"
+        snap = _snapshot(run_dir)
+        if (
+            d.get("version") == VERSION
+            and d["run"].get("identity") == snap.get("identity")
+            and d["run"].get("when") == snap.get("when")
         ):
             return d
     d = to_json(gather(run_dir, verify=False))

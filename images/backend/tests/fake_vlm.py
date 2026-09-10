@@ -1,5 +1,3 @@
-"""A stand-in VLM: an OpenAI-compatible endpoint that answers to order"""
-
 import base64
 import json
 import threading
@@ -25,9 +23,7 @@ class FakeVlm:
                 self.wfile.write(b)
 
             def do_GET(self):
-                srv.seen.append(
-                    {"path": self.path, "authorization": self.headers.get("Authorization")}
-                )
+                srv.seen.append({"path": self.path, "authorization": self.headers.get("Authorization")})
                 if self.path.endswith("/models"):
                     return self._json(200, {"data": [{"id": srv.model}]})
                 return self._json(404, {"error": "no such path"})
@@ -38,11 +34,7 @@ class FakeVlm:
                 content = (req.get("messages") or [{}])[0].get("content") or []
                 prompt = next((c.get("text") for c in content if c.get("type") == "text"), "")
                 uri = next(
-                    (
-                        c.get("image_url", {}).get("url")
-                        for c in content
-                        if c.get("type") == "image_url"
-                    ),
+                    (c.get("image_url", {}).get("url") for c in content if c.get("type") == "image_url"),
                     "",
                 )
                 img = b""
@@ -55,9 +47,7 @@ class FakeVlm:
                         "bytes": len(img),
                         "model": req.get("model"),
                         "authorization": self.headers.get("Authorization"),
-                        "generation": {
-                            k: v for k, v in req.items() if k in ("temperature", "max_tokens")
-                        },
+                        "generation": {k: v for k, v in req.items() if k in ("temperature", "max_tokens")},
                     }
                 )
                 a = srv._answer(prompt, img)

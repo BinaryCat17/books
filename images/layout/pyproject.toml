@@ -4,6 +4,9 @@ version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = ["fastapi>=0.115", "uvicorn>=0.30", "jsonschema>=4.23", "pymupdf>=1.24", "numpy>=1.26", "onnxruntime>=1.20", "opencv-python-headless>=4.9", "pyyaml>=6.0"]
 
+[project.optional-dependencies]
+docling = ["docling-slim==2.123.1", "rtree>=1.3"]
+
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
@@ -14,4 +17,4 @@ packages = ["layout"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["tests"]
-addopts = "-q"
+markers = ["slow: needs model weights"]

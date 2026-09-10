@@ -1,5 +1,3 @@
-"""The contracts, read from the schema directory"""
-
 import json
 import os
 from functools import cache

@@ -1,5 +1,3 @@
-"""What level one does with a block: `text`, `artifact` or `furniture`, by class"""
-
 from __future__ import annotations
 
 import json
@@ -14,16 +12,6 @@ with open(os.path.join(settings.schema_dir(), "classes.json"), encoding="utf-8")
     _TABLE = json.load(_f)
 
 ROLES = ("text", "artifact", "furniture")
-ORDER_NAMES = (
-    "caption",
-    "code",
-    "footnote",
-    "page_footer",
-    "page_header",
-    "picture",
-    "table",
-    "text",
-)
 CLASSES: dict[str, tuple[str, str]] = {n: (c["role"], c["order"]) for n, c in _TABLE["classes"].items()}
 
 
@@ -128,18 +116,6 @@ def _union() -> Policy:
 
 
 UNION = _union()
-
-
-def for_labels(labels: Iterable[str]) -> Policy:
-    have = set(labels)
-    fit = [p for p in POLICIES.values() if set(p.classes) == have]
-    if len(fit) == 1:
-        return fit[0]
-    if not fit:
-        raise UnknownLabel(
-            f"no policy for a vocabulary of {len(have)} labels: {sorted(have)[:6]}... Describe it in policy.VOCABULARIES, or serve the model with its mapping -- there is no default here on purpose."
-        )
-    raise UnknownLabel(f"several policies fit this vocabulary: {[p.name for p in fit]}")
 
 
 def fits(labels: Iterable[str]) -> list[str]:

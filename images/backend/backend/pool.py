@@ -1,5 +1,3 @@
-"""Jobs in the background: a queue, a few worker threads, one `Job` per job"""
-
 from __future__ import annotations
 import asyncio
 import json
@@ -31,13 +29,9 @@ def dispatch(kind: str, store: str, args: dict, base: job.Job, db: Db, cfg) -> s
     label = str(args.get("label") or "")
     pages = str(args.get("pages") or "") or None
     if kind == "detect":
-        return service.detect(
-            store, service.book_dir(store, book), {}, pages, None, model, base=base
-        )
+        return service.detect(store, service.book_dir(store, book), {}, pages, None, model, base=base)
     if kind == "hybrid":
-        return service.hybrid(
-            store, service.book_dir(store, book), {}, pages, None, model, base=base
-        )
+        return service.hybrid(store, service.book_dir(store, book), {}, pages, None, model, base=base)
     if kind == "read":
         return service.read(
             store,
@@ -159,9 +153,7 @@ class Pool:
             try:
                 self._run(job_id)
             except Exception as e:
-                self.db.set_state(
-                    job_id, "failed", finished=time.time(), error=f"{type(e).__name__}: {e}"
-                )
+                self.db.set_state(job_id, "failed", finished=time.time(), error=f"{type(e).__name__}: {e}")
                 self._publish(
                     job_id,
                     {"event": "state", "state": "failed", "error": f"{type(e).__name__}: {e}"},

@@ -1,10 +1,7 @@
-"""Level one's product: readable HTML from the contours"""
-
 import glob
 import html as _html
 import json
 import os
-import shlex
 import shutil
 import time
 from backend import classes as policy
@@ -25,7 +22,6 @@ from backend.document import (
 )
 
 
-
 OPEN = "<!--bs:{}-->"
 CLOSE = "<!--/bs:{}-->"
 
@@ -43,9 +39,10 @@ def _anchors(html: str) -> list[str]:
             return out
         j = html.find("-->", i)
         if j < 0:
-            raise Refusal(f"mark not closed: {html[i:i + 40]!r}")
-        out.append(html[i + len(head):j])
+            raise Refusal(f"mark not closed: {html[i : i + 40]!r}")
+        out.append(html[i + len(head) : j])
         i = j + 3
+
 
 CSS = '\nbody{max-width:52em;margin:2em auto;padding:0 1em;\n     font:16px/1.55 Georgia,\'DejaVu Serif\',serif}\nfigure{margin:1.2em 0;padding:0}\nfigure img{max-width:100%;height:auto;display:block;\n           border:1px solid #ddd}\nfigcaption{font:12px/1.4 monospace;color:#777;margin-top:.3em}\np{margin:.7em 0}\n[data-role="furniture"]{opacity:.55}\n[data-text="unread"] figcaption{color:#a60}\n/* A TEXT BLOCK THAT LEFT AS A PICTURE DOES NOT EAT THE SCREEN. Seven per\n   book, and all seven are strips of binding shadow: the model\'s box landed on\n   a scan defect and the model answered that noise with nothing. A 12x408 px\n   crop drawn full size eats a whole column of type -- the reader meets a\n   black thread instead of text. The box is NOT removed (a first-level defect,\n   and it is measured), the number is not hidden (it is in the log and the\n   snapshot); only the display shrinks, and the caption says WHY it is\n   empty. */\n[data-text="unread"] img{max-height:8em;width:auto;object-fit:contain}\nfigure[data-inside]{margin-left:2em;border-left:3px solid #e0c000;padding-left:.8em}\nfigure[data-inside] figcaption{color:#a60}\nhr.sheet[data-no-text]{border-top:2px solid #c00}\nhr.sheet[data-empty]{border-top:2px dotted #c00}\nhr.sheet[data-empty]::after{content:"the model found nothing on this sheet";\n    display:block;font:11px monospace;color:#c00;margin-top:.3em}\nhr.sheet[data-no-text]:not([data-empty])::after{\n    content:"the whole column went into pictures";\n    display:block;font:11px monospace;color:#c00;margin-top:.3em}\nhr.sheet[data-furniture-only]{border-top:2px dashed #c00}\nhr.sheet[data-furniture-only]::after{\n    content:"only furniture on this sheet: no text, no artifacts";\n    display:block;font:11px monospace;color:#c00;margin-top:.3em}\nhr.sheet{border:0;border-top:1px dashed #ccc;margin:2.5em 0}\n\n/* CEILING TRUNCATION -- VISIBLE TO THE EYE, NOT ONLY IN THE LOG. A truncated\n   answer looked no different from a whole one: 118 471 characters (12.95 % of\n   the book\'s text) stood as ordinary <p> and <table>. The mark goes on the\n   block\'s FRAME, not into the text -- `content` stays the model\'s bytes. */\n[data-truncated]{border-left:3px solid #c00;padding-left:.8em;margin-left:-1em}\n[data-truncated]::before{content:"the model\'s answer was cut off by the "\n    "length ceiling -- past this point the text breaks mid-word";\n    display:block;font:11px monospace;color:#c00;margin:.3em 0}\n[data-table-shape]::after{content:"impossible table shape: "\n    attr(data-table-shape);\n    display:block;font:11px monospace;color:#c00;margin-top:.3em}\n\n/* TABLES. There was NOT ONE rule here: 16 selectors in the whole book and\n   zero table ones, so 104 tables were drawn by the browser default --\n   `border-collapse:separate`, no borders, no padding, columns spread. That is\n   what "tables render horribly" meant: the markup was right, there was\n   nothing to show it with. */\ntable{border-collapse:collapse;margin:.2em 0 1.2em;font-size:.92em;\n      line-height:1.35}\nth,td{border:1px solid #bbb;padding:.28em .5em;vertical-align:top;\n      text-align:left}\nth{background:#f2f0ec;font-weight:600}\n/* Digits of one width: a column of numbers aligns itself, with no guess\n   about which column is numeric. Guessing would be dishonest -- in these\n   tables "1 615" stands next to "Other". */\ntd,th{font-variant-numeric:tabular-nums}\ntr:nth-child(even) td{background:#fbfaf9}\n/* A WIDE TABLE SCROLLS INSIDE ITSELF instead of breaking the column of type.\n   The book is 52em wide and the "Output growth" table has seven columns;\n   without this rule the whole page would get horizontal scrolling. */\ndiv[data-level="2"]{overflow-x:auto}\n/* A table caption arrives as a SEPARATE model block (label `figure_title`)\n   and stays a separate <p>: folding it into <caption> would move blocks and\n   break the book\'s order, which a guard of its own checks. So they are made\n   kin by look, not by markup. */\np[data-label="figure_title"]{font-size:.9em;color:#555;margin:1.2em 0 .2em}\n\n/* THE OWNER\'S REPEAT. The detector draws its OWN box around inline maths\n   over the paragraph, the second level reads it apart -- and the same place\n   arrives in the book twice: once inside the paragraph, once as its own <p>.\n   On "Refractory technology" there are 1935 such blocks, and only 414 have\n   their text found among the blocks that REMAIN in the book. Here stood "1916\n   of 1935, found VERBATIM at the owner" -- both words wrong: 1916 came of\n   comparing a block with itself, and at the OWNER the text is found for only\n   476, because the box enclosing a formula and the paragraph carrying its\n   text are different blocks.\n\n   THREE CASES KEPT APART, AND THAT IS THE POINT. Where the repeat is PROVED\n   by comparison the reader is not shown it: the same words are already\n   printed by a block that stays. Where the text DIVERGED we show it, having\n   nothing to prove a repeat with: two readings of one place differ in\n   transcription, but may also carry different things. Where the repeat is\n   proved but the carrier holds the same as RAW latex we show it too: hiding\n   the typeset for the raw makes the page worse.\n\n   WHERE THE HIDDEN STAYS: in `book.html` itself (the markup is in place, only\n   the display is off) and in `assets/source/pages/*.json`. Here stood "and in\n   blocks.json" -- wrong: `content` is not among its fields at all. */\n[data-repeat-text="verbatim"]{display:none}\n/* A proved repeat KEPT for the sake of layout: the carrier holds the same as\n   raw latex, and hiding the typeset would show the reader `FeO-SiO_{2}`\n   instead of a formula. */\n[data-repeat-text="layout"]{opacity:.85}\n/* The reader is told the sheet is shortened, and told it on the sheet. */\nhr.sheet[data-repeats-hidden]::after{\n    content:"repeats hidden on this sheet: " attr(data-repeats-hidden)\n            " (the same text is printed nearby; HTML_REPEATS=show shows all)";\n    display:block;font:11px monospace;color:#999;margin-top:.3em}\n[data-repeat-text="differs"]{opacity:.7;border-left:2px solid #ccc;\n    padding-left:.6em}\n[data-repeat-text="differs"]::after{content:"repeat of block "\n    attr(data-repeat) ", the text diverged";\n    display:block;font:11px monospace;color:#888;margin-top:.2em}\n'
 
@@ -65,7 +62,6 @@ def _figure(anchor, b, role, src, info, inside=None, mark="", why=None):
 
 def is_our_dir(out_dir: str) -> bool:
     return os.path.exists(os.path.join(out_dir, ASSETS, "run.json"))
-
 
 
 def _img_how() -> str:
@@ -230,9 +226,7 @@ def emit(data: BookData, out_dir: str) -> dict:
                     body.append(
                         _wrap(
                             a,
-                            _figure(
-                                a, b, b.role, src, info, inside=b.inside, mark=mark, why=b.why_empty
-                            ),
+                            _figure(a, b, b.role, src, info, inside=b.inside, mark=mark, why=b.why_empty),
                         )
                     )
                 else:
@@ -279,7 +273,7 @@ def emit(data: BookData, out_dir: str) -> dict:
         ) from None
     if after != now:
         raise Refusal(
-            f"{pdf} was swapped DURING the build: at the start sha256 {now[:12]}, now {after[:12]}. Some crops are cut from one file and some from another, and which is unknown. The book is not written; repeat books html whole."
+            f"{pdf} was swapped DURING the build: at the start sha256 {now[:12]}, now {after[:12]}. Some crops are cut from one file and some from another, and which is unknown. The book is not written; repeat an export whole."
         )
     os.makedirs(out_dir, exist_ok=True)
     math_head, math_note = _math(out_dir)
@@ -352,8 +346,7 @@ def emit(data: BookData, out_dir: str) -> dict:
             if obs
             else None,
             "impossible_table_shape": shape_n if obs else None,
-            "impossible_table_anchors": shape_a[:20]
-            + ([f"…and {shape_n - 20} more"] if shape_n > 20 else [])
+            "impossible_table_anchors": shape_a[:20] + ([f"…and {shape_n - 20} more"] if shape_n > 20 else [])
             if obs
             else None,
             "nested_artifacts": nested,
@@ -363,9 +356,6 @@ def emit(data: BookData, out_dir: str) -> dict:
             },
             "anchor_count": len(_anchors(page_html)),
         },
-        "repeat_command": " ".join(
-            shlex.quote(a) for a in ["books", "html", detect_dir, "--out", out_dir]
-        ),
     }
     with open(os.path.join(out_dir, ASSETS, "run.json"), "w", encoding="utf-8") as f:
         json.dump(snap_out, f, ensure_ascii=False, indent=1)
@@ -428,16 +418,8 @@ def emit(data: BookData, out_dir: str) -> dict:
         n_obs = sum(1 for pg in data.pages for b in pg.blocks if b.reading)
         log(
             f"reading observations: {n_obs} answers alongside; cut off by the ceiling {torn_n}, impossible table shape {shape_n}"
-            + (
-                f"; truncated: {', '.join(torn_a[:5])}{('…' if torn_n > 5 else '')}"
-                if torn_n
-                else ""
-            )
-            + (
-                f"; impossible: {', '.join(shape_a[:5])}{('…' if shape_n > 5 else '')}"
-                if shape_n
-                else ""
-            )
+            + (f"; truncated: {', '.join(torn_a[:5])}{('…' if torn_n > 5 else '')}" if torn_n else "")
+            + (f"; impossible: {', '.join(shape_a[:5])}{('…' if shape_n > 5 else '')}" if shape_n else "")
         )
         if torn_n or shape_n:
             log(
@@ -470,16 +452,11 @@ def emit(data: BookData, out_dir: str) -> dict:
         log(
             "block order DIFFERS across pages: "
             + ", ".join(
-                (
-                    f'"{v}" -- {n} pp.'
-                    for v, n in sorted(order_src_n.items(), key=lambda kv: (-kv[1], kv[0]))
-                )
+                (f'"{v}" -- {n} pp.' for v, n in sorted(order_src_n.items(), key=lambda kv: (-kv[1], kv[0])))
             )
             + f"; ours, not the model's, on {ours} of {files} pp."
         )
-    log(
-        f"anchors in the document {len(_anchors(page_html))}, observations alongside {len(side)}"
-    )
+    log(f"anchors in the document {len(_anchors(page_html))}, observations alongside {len(side)}")
     log(f"formulas: {math_note}")
     log(f"{out_html} ({os.path.getsize(out_html) / 1024:.0f} KB), crops in {blockdir}")
     return {

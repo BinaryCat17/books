@@ -29,10 +29,18 @@ class Stub(Detector):
         return ()
 
     def read(self, image_path, index, dpi):
-        return Page(index=index, width=400, height=600, dpi=dpi,
-                    blocks=[Block(0, (10, 10, 100, 100), "text", 0.9, 0)],
-                    meta={"threshold": knobs.knob("LAYOUT_SCORE_THRESHOLD"), "rank_ties": 0,
-                          "best_rejected_by_class": {}})
+        return Page(
+            index=index,
+            width=400,
+            height=600,
+            dpi=dpi,
+            blocks=[Block(0, (10, 10, 100, 100), "text", 0.9, 0)],
+            meta={
+                "threshold": knobs.knob("LAYOUT_SCORE_THRESHOLD"),
+                "rank_ties": 0,
+                "best_rejected_by_class": {},
+            },
+        )
 
 
 def _schema(name):
@@ -61,4 +69,11 @@ def test_the_shim_answers_the_protocol_under_the_job_it_was_built_in():
     assert page["index"] == 3 and page["meta"]["threshold"] == "0.7"
     jsonschema.validate(c.get("/booksmith/health", headers=h).json(), _schema("health.schema.json"))
     assert c.get("/booksmith/health", headers=h).json()["requests"] == 1
-    assert c.post("/booksmith/layout", json={"index": 0, "dpi": 72, "image": "data:image/jpeg;base64,AAAA"}, headers=h).status_code == 400
+    assert (
+        c.post(
+            "/booksmith/layout",
+            json={"index": 0, "dpi": 72, "image": "data:image/jpeg;base64,AAAA"},
+            headers=h,
+        ).status_code
+        == 400
+    )

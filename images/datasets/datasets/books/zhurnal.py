@@ -1,5 +1,3 @@
-"""A collection of articles: the mixed layout level two exists for"""
-
 from datasets.draw import (
     PROSE_EN,
     _box_insert,
@@ -136,9 +134,7 @@ def c_zh_footnotes(doc, rng):
         for k in range(3):
             ln = f"{k + 1} Trans. A.S.M.E., vol. {60 + k}, p. {110 + k * 9}, 1953."
             _put(pg, x, 618 + k * 10, ln, 5.4, sheet_w=PW)
-            t.append(
-                (x - 1, 618 + k * 10 - 5.4, x + _text_w(ln, 5.4) + 1, 620 + k * 10, "footnote")
-            )
+            t.append((x - 1, 618 + k * 10 - 5.4, x + _text_w(ln, 5.4) + 1, 620 + k * 10, "footnote"))
             _say(t, ln)
     _colon(pg, t, 67)
     return (pg, t)

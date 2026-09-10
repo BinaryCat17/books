@@ -1,5 +1,3 @@
-"""The golden bench builder: two places where it could lie silently"""
-
 import json
 import os
 import tempfile
@@ -141,9 +139,7 @@ def test_a_refused_build_leaves_the_golden_bench_untouched():
     assert now == was, (
         f"a refused build changed the truth: {len(was)} files -> {len(now)}. This is the accident that cost 595 of 600, arriving again"
     )
-    assert open(os.path.join(out, "manifest.json"), encoding="utf-8").read() == man_was, (
-        "the passport moved"
-    )
+    assert open(os.path.join(out, "manifest.json"), encoding="utf-8").read() == man_was, "the passport moved"
     assert open(os.path.join(out, "annopage.pdf"), "rb").read() == pdf_was, (
         "the pdf moved while the truth did not"
     )

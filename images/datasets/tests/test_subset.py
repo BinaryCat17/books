@@ -1,5 +1,3 @@
-"""The distillate: what it carries over, and what a refusal must not destroy"""
-
 import json
 import os
 import shutil
@@ -60,9 +58,7 @@ def test_the_carry_over_keeps_every_truth_field():
 
 def test_a_field_of_ours_may_not_overwrite_a_truth_field():
     try:
-        subset._carry_meta(
-            {"meta": {"from_book": "atlas"}}, {"from_book": "slovar"}, "atlas/0000.json"
-        )
+        subset._carry_meta({"meta": {"from_book": "atlas"}}, {"from_book": "slovar"}, "atlas/0000.json")
     except subset.SubsetError as e:
         assert "from_book" in str(e), e
     else:
@@ -197,7 +193,5 @@ def test_the_traits_reach_the_manifest_and_the_log():
             f"trait {key!r} is in the manifest and not in the log: the quantity was carried and never said"
         )
     on_disk = json.load(open(os.path.join(out, "manifest.json"), encoding="utf-8"))
-    assert on_disk["truth_traits"] == got, (
-        "the passport returned differs from the passport written down"
-    )
+    assert on_disk["truth_traits"] == got, "the passport returned differs from the passport written down"
     shutil.rmtree(tmp, ignore_errors=True)

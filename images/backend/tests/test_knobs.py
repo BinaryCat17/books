@@ -1,5 +1,3 @@
-"""The knob registry: what is not declared is not read, and the reverse"""
-
 import os
 import re
 import support
