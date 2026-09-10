@@ -873,14 +873,51 @@ def _grid_otsl(g):
 # The measurement above returns its dict; this turns it into a `Record` and
 # names the thresholds that rode in. Every scalar the report prints as NOT
 # COMPARED or NOT MARKED is a None carrying the report's own reason.
-def _share_count(value, n, of, why):
+def _share_count(value, n, of, why, per=None):
     """A share with the counts behind it, or the reason there is none."""
-    return Scalar(value, count=(n, of), why=None if value is not None else why)
+    return Scalar(value, count=(n, of), why=None if value is not None else why,
+                  per=per, side="truth")
 
 
-def _over_blocks(value, n, of, why):
+def _over_blocks(value, n, of, why, per=None):
     """A rate counted over n blocks of N, or the reason there is none."""
-    return Scalar(value, over=(n, of), unit="blocks", why=None if value is not None else why)
+    return Scalar(value, over=(n, of), unit="blocks", why=None if value is not None else why,
+                  per=per, side="truth")
+
+
+def _per_anchor(per_block: list) -> dict:
+    """Each scalar's value at the truth blocks that contributed to it, read
+    off the per-block records: an unanswered or unpaired block stands at full
+    distance, as the book's CER counts it, and `chars` marks an answered one."""
+    out = {k: {} for k in ("paired", "CER", "WER", "CER_answered", "no_answer",
+                           "cells_matched", "baits_read", "CER_artefacts",
+                           "CER_artefacts_answered")}
+    for r in per_block:
+        a = page.anchor(r["page"], r["block_id"])
+        paired = r["matched_by"] != "no pair"
+        if paired:
+            out["paired"][a] = 1
+        if r["bucket"] == "text":
+            if "chars" in r:
+                if r["CER"] is not None:
+                    out["CER"][a] = out["CER_answered"][a] = r["CER"]
+                if r["WER"] is not None:
+                    out["WER"][a] = r["WER"]
+            else:
+                out["CER"][a] = out["WER"][a] = 1.0
+                if paired:
+                    out["no_answer"][a] = 1
+        elif r["bucket"] == "artifact_with_truth":
+            if "chars" in r:
+                if r["CER"] is not None:
+                    out["CER_artefacts"][a] = out["CER_artefacts_answered"][a] = r["CER"]
+            else:
+                out["CER_artefacts"][a] = 1.0
+        elif r["bucket"] == "bait" and "chars_read" in r:
+            out["baits_read"][a] = 1
+        if r.get("cell_count"):
+            out["cells_matched"][a] = r["cells_matched"] / r["cell_count"]
+    return out
 
 
 class TextMetric(Metric):
@@ -927,6 +964,7 @@ class TextMetric(Metric):
     def record(self, res: dict, bench_name: str, run_label: str) -> Record:
         t, tb, m, bt, a = (res["text"], res["tables"], res["matching"],
                            res["baits"], res["artifacts_with_truth"])
+        per = _per_anchor(res["per_block"])
         answered = t["block_count"] - t["no_answer"] - t["unmatched"]
         art_answered = a["block_count"] - a["no_answer"] - a["unmatched"]
         no_cells = ("no table with a cell grid in the truth" if not tb["cell_count"]
@@ -934,30 +972,34 @@ class TextMetric(Metric):
                     else "no cell matched")
         scalars = {
             "paired": _share_count(m["share"], m["matched_total"], m["truth_blocks"],
-                             "no truth block to pair"),
+                             "no truth block to pair", per["paired"]),
             # CER and WER are over EVERY truth block, an unanswered one at
             # full distance; the answered-only figure is its own line.
-            "CER": Scalar(t["CER"], why=None if t["CER"] is not None else "no text block in the truth"),
-            "WER": Scalar(t["WER"], why=None if t["WER"] is not None else "no text block in the truth"),
+            "CER": Scalar(t["CER"], why=None if t["CER"] is not None else "no text block in the truth",
+                          per=per["CER"], side="truth"),
+            "WER": Scalar(t["WER"], why=None if t["WER"] is not None else "no text block in the truth",
+                          per=per["WER"], side="truth"),
             "CER_answered": _over_blocks(t["cer_answered"], answered, t["block_count"],
-                                    "no answered text block"),
+                                    "no answered text block", per["CER_answered"]),
             "no_answer": _share_count(t["share_no_answer"], t["no_answer"], t["block_count"],
-                                "no text block in the truth"),
+                                "no text block in the truth", per["no_answer"]),
             "cells_matched": _share_count(tb["share_cells_matched"], tb["cells_matched"],
-                                    tb["cell_count"], no_cells),
+                                    tb["cell_count"], no_cells, per["cells_matched"]),
             "CER_cells": Scalar(tb["cer_cells"], over=(tb["cells_matched"], tb["cell_count"]),
                                 unit="cells", why=None if tb["cer_cells"] is not None else no_cells),
             "tables_given_as_text": _share_count(
                 tb["given_as_text"] / tb["block_count"] if tb["block_count"] else None,
                 tb["given_as_text"], tb["block_count"], "no table in the truth"),
             "baits_read": _share_count(bt["share"], bt["read"], bt["artifacts"],
-                                 "no bait artefact in the truth"),
+                                 "no bait artefact in the truth", per["baits_read"]),
             # Over every artefact with character truth, like CER; the
             # answered-only figure is the dict's `cer_answered`.
             "CER_artefacts": Scalar(a["CER"], why=None if a["CER"] is not None
-                                    else "no artefact with character truth"),
+                                    else "no artefact with character truth",
+                                    per=per["CER_artefacts"], side="truth"),
             "CER_artefacts_answered": _over_blocks(a["cer_answered"], art_answered, a["block_count"],
-                                              "no answered artefact with character truth"),
+                                              "no answered artefact with character truth",
+                                              per["CER_artefacts_answered"]),
         }
         params = {"normalization": res["normalization"]["level"],
                   **{f"geometry_{k}": v for k, v in (res.get("geometry_gate") or {}).items()}}

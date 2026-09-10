@@ -41,9 +41,9 @@ class SnapshotMetric(Metric):
         verified = None if sh.get("blind") or sh.get("not_derived") else (
             0 if sh.get("not_verified") else 1)
         scalars = {
-            "values_present": Scalar(n_req - len(miss), count=(n_req - len(miss), n_req)),
-            "missing": Scalar(len(miss), count=(len(miss), n_req)),
-            "empty": Scalar(len(hol), count=(len(hol), n_req)),
+            "values_present": Scalar((n_req - len(miss)) / n_req, count=(n_req - len(miss), n_req)),
+            "missing": Scalar(len(miss) / n_req, count=(len(miss), n_req)),
+            "empty": Scalar(len(hol) / n_req, count=(len(hol), n_req)),
             "fingerprint_verified": Scalar(
                 verified, why=None if verified is not None else
                 ("the fingerprint was not verified at all" if sh.get("blind")

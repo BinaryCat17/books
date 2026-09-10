@@ -13,8 +13,8 @@ bench slovar, run PP-DocLayoutV2
   contour  artefacts_called_text       0.000               0/3                      
   contour  artefacts_not_seen          0.333               1/3                      
   contour  text_furniture_found        0.990           515/520           13/13 pages
-  contour  label_errors                  207           207/517                      
-  contour  role_errors                     1             1/517                      
+  contour  label_errors                0.400           207/517                      
+  contour  role_errors                 0.002             1/517                      
   contour  model_order                 0.886                             13/13 pages
   contour  assembly_order              0.886                             13/13 pages
   contour  params: COVER_MATCH=0.75, TOUCH=0.1, TOL_PX=6.0, SENSE_WHOLE=0.9, SENSE_NEIGHBOUR=0.5, COLUMN_x_overlap_of_narrow_box=0.5, COLUMN_full_width_box_share=0.6, COLUMN_min_boxes_per_page=2, COLUMN_buckets_counted=['artifact', 'text']
@@ -39,11 +39,11 @@ bench slovar, run PP-DocLayoutV2
   assembly excess_jumps_per_transition    0.867           130/150                      
   assembly excess_jumps_per_transition_one_rule    0.960           479/499                      
   assembly transitions                   150                                        
-  assembly pages_with_columns             12             12/13                      
+  assembly pages_with_columns          0.923             12/13                      
   assembly params: COLUMN_x_overlap_of_narrow_box=0.5, COLUMN_full_width_box_share=0.6, COLUMN_min_boxes_per_page=2, COLUMN_buckets_counted=['artifact', 'text'], order_rule=model_rank, order_rule_one_rule=ours_top_down_left_right (forced)
-  snapshot values_present                 52             52/52                      
-  snapshot missing                         0              0/52                      
-  snapshot empty                          13             13/52                      
+  snapshot values_present              1.000             52/52                      
+  snapshot missing                     0.000              0/52                      
+  snapshot empty                       0.250             13/52                      
   snapshot fingerprint_verified            0                                        
   [1] fitness/ink_as_text: this run read nothing: every block would leave as a picture, which is not a measurement of one
   [2] fitness/ink_as_picture: this run read nothing: every block would leave as a picture, which is not a measurement of one

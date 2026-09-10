@@ -234,7 +234,7 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 | `excess_jumps_per_page` ↓ | assembly | 0.000 <sub>over 2/10 pages</sub> |
 | `excess_jumps_per_transition` ↓ | assembly | 0.000 <sub>0/1</sub> |
 | `excess_jumps_per_transition_one_rule` ↓ | assembly | 0.000 <sub>0/1</sub> |
-| `pages_with_columns` = | assembly | 1 <sub>1/10</sub> |
+| `pages_with_columns` = | assembly | 0.100 <sub>1/10</sub> |
 | `transitions` = | assembly | 1 |
 | `area_under_boxes` = | fitness | 0.858 <sub>6124063/7138535</sub> |
 | `boxes_per_page` = | fitness | 5.800 <sub>58/10</sub> |
@@ -251,10 +251,10 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 | `objects_left_as_text` ↓ | fitness | — |
 | `objects_torn` ↓ | fitness | — |
 | `objects_with_company` ↓ | fitness | — |
-| `empty` ↓ | snapshot | 6 <sub>6/52</sub> |
+| `empty` ↓ | snapshot | 0.115 <sub>6/52</sub> |
 | `fingerprint_verified` = | snapshot | 0 |
-| `missing` ↓ | snapshot | 3 <sub>3/52</sub> |
-| `values_present` = | snapshot | 49 <sub>49/52</sub> |
+| `missing` ↓ | snapshot | 0.058 <sub>3/52</sub> |
+| `values_present` = | snapshot | 0.942 <sub>49/52</sub> |
 
 - a dash: no truth given: the object half needs it
 
@@ -266,7 +266,7 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 | `excess_jumps_per_page` ↓ | assembly | 0.833 <sub>over 12/20 pages</sub> |
 | `excess_jumps_per_transition` ↓ | assembly | 0.455 <sub>10/22</sub> |
 | `excess_jumps_per_transition_one_rule` ↓ | assembly | 0.538 <sub>14/26</sub> |
-| `pages_with_columns` = | assembly | 9 <sub>9/20</sub> |
+| `pages_with_columns` = | assembly | 0.450 <sub>9/20</sub> |
 | `transitions` = | assembly | 22 |
 | `area_under_boxes` = | fitness | 0.659 <sub>10255807/15567096</sub> |
 | `boxes_per_page` = | fitness | 13.150 <sub>263/20</sub> |
@@ -283,10 +283,10 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 | `objects_left_as_text` ↓ | fitness | — |
 | `objects_torn` ↓ | fitness | — |
 | `objects_with_company` ↓ | fitness | — |
-| `empty` ↓ | snapshot | 4 <sub>4/52</sub> |
+| `empty` ↓ | snapshot | 0.077 <sub>4/52</sub> |
 | `fingerprint_verified` = | snapshot | 0 |
-| `missing` ↓ | snapshot | 3 <sub>3/52</sub> |
-| `values_present` = | snapshot | 49 <sub>49/52</sub> |
+| `missing` ↓ | snapshot | 0.058 <sub>3/52</sub> |
+| `values_present` = | snapshot | 0.942 <sub>49/52</sub> |
 
 - a dash: no truth given: the object half needs it
 
@@ -298,7 +298,7 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 | `excess_jumps_per_page` ↓ | assembly | 2.668 <sub>over 286/378 pages</sub> |
 | `excess_jumps_per_transition` ↓ | assembly | 0.672 <sub>763/1136</sub> |
 | `excess_jumps_per_transition_one_rule` ↓ | assembly | 0.690 <sub>832/1205</sub> |
-| `pages_with_columns` = | assembly | 224 <sub>224/378</sub> |
+| `pages_with_columns` = | assembly | 0.593 <sub>224/378</sub> |
 | `transitions` = | assembly | 1136 |
 | `area_under_boxes` = | fitness | 0.638 <sub>187899322/294316190</sub> |
 | `boxes_per_page` = | fitness | 16.286 <sub>6156/378</sub> |
@@ -315,10 +315,10 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 | `objects_left_as_text` ↓ | fitness | — |
 | `objects_torn` ↓ | fitness | — |
 | `objects_with_company` ↓ | fitness | — |
-| `empty` ↓ | snapshot | 4 <sub>4/52</sub> |
+| `empty` ↓ | snapshot | 0.077 <sub>4/52</sub> |
 | `fingerprint_verified` = | snapshot | 0 |
-| `missing` ↓ | snapshot | 3 <sub>3/52</sub> |
-| `values_present` = | snapshot | 49 <sub>49/52</sub> |
+| `missing` ↓ | snapshot | 0.058 <sub>3/52</sub> |
+| `values_present` = | snapshot | 0.942 <sub>49/52</sub> |
 
 - a dash: no truth given: the object half needs it
 
@@ -334,7 +334,7 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 | `excess_jumps_per_page` ↓ | 1.080 <sub>over 464/600 pages</sub> | 1.107 <sub>over 450/600 pages</sub> | 4.941 <sub>over 438/600 pages</sub> | 5.093 <sub>over 508/600 pages</sub> | 5.281 <sub>over 519/600 pages</sub> | 3.360 <sub>over 339/600 pages</sub> |
 | `excess_jumps_per_transition` ↓ | 0.539 <sub>501/930</sub> | 0.533 <sub>498/934</sub> | 0.837 <sub>2164/2586</sub> | 0.868 <sub>2587/2981</sub> | 0.872 <sub>2741/3144</sub> | 0.792 <sub>1139/1438</sub> |
 | `excess_jumps_per_transition_one_rule` ↓ | 0.852 <sub>2471/2900</sub> | 0.837 <sub>2233/2669</sub> | 0.837 <sub>2164/2586</sub> | 0.868 <sub>2587/2981</sub> | 0.872 <sub>2741/3144</sub> | 0.792 <sub>1139/1438</sub> |
-| `pages_with_columns` = | 290 <sub>290/600</sub> | 294 <sub>294/600</sub> | 288 <sub>288/600</sub> | 275 <sub>275/600</sub> | 293 <sub>293/600</sub> | 227 <sub>227/600</sub> |
+| `pages_with_columns` = | 0.483 <sub>290/600</sub> | 0.490 <sub>294/600</sub> | 0.480 <sub>288/600</sub> | 0.458 <sub>275/600</sub> | 0.488 <sub>293/600</sub> | 0.378 <sub>227/600</sub> |
 | `transitions` = | 930 | 934 | 2586 | 2981 | 3144 | 1438 |
 
   params, the same for every model here: `COLUMN_buckets_counted=['artifact', 'text']`, `COLUMN_full_width_box_share=0.6`, `COLUMN_min_boxes_per_page=2`, `COLUMN_x_overlap_of_narrow_box=0.5`, `order_rule_one_rule=ours_top_down_left_right (forced)`
@@ -361,9 +361,9 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 | `artefacts_merged` = | 0.304 <sub>375/1232</sub> | 0.293 <sub>361/1232</sub> | 0.344 <sub>424/1232</sub> | 0.320 <sub>394/1232</sub> | 0.297 <sub>366/1232</sub> | 0.322 <sub>397/1232</sub> |
 | `artefacts_not_seen` ↓ | 0.067 <sub>82/1232</sub> | 0.121 <sub>149/1232</sub> | 0.060 <sub>74/1232</sub> | 0.057 <sub>70/1232</sub> | 0.056 <sub>69/1232</sub> | 0.314 <sub>387/1232</sub> |
 | `assembly_order` ↑ | — | — | — | — | — | — |
-| `label_errors` ↓ | 139 <sub>139/731</sub> | 113 <sub>113/705</sub> | — | — | — | — |
+| `label_errors` ↓ | 0.190 <sub>139/731</sub> | 0.160 <sub>113/705</sub> | — | — | — | — |
 | `model_order` ↑ | — | — | — | — | — | — |
-| `role_errors` ↓ | 33 <sub>33/731</sub> | 24 <sub>24/705</sub> | 40 <sub>40/669</sub> | 52 <sub>52/703</sub> | 54 <sub>54/731</sub> | 13 <sub>13/379</sub> |
+| `role_errors` ↓ | 0.045 <sub>33/731</sub> | 0.034 <sub>24/705</sub> | 0.060 <sub>40/669</sub> | 0.074 <sub>52/703</sub> | 0.074 <sub>54/731</sub> | 0.034 <sub>13/379</sub> |
 | `sense_whole` ↑ | 0.524 <sub>646/1232</sub> | 0.494 <sub>608/1232</sub> | 0.433 <sub>534/1232</sub> | 0.473 <sub>583/1232</sub> | 0.489 <sub>602/1232</sub> | 0.237 <sub>292/1232</sub> |
 | `text_furniture_found` ↑ | — | — | — | — | — | — |
 
@@ -401,10 +401,10 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 
 | scalar | PP-DocLayoutV2 | PP-DocLayoutV3 | PP-DocLayout_plus-L | docling-egret | docling-heron | yolox_l0.05 |
 |---|---|---|---|---|---|---|
-| `empty` ↓ | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 16 <sub>16/78</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 17 <sub>17/79</sub> |
+| `empty` ↓ | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.205 <sub>16/78</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.215 <sub>17/79</sub> |
 | `fingerprint_verified` = | 0 | 0 | 1 | 0 | 0 | 1 |
 | `missing` ↓ | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/78</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/79</sub> |
-| `values_present` = | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 78 <sub>78/78</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 79 <sub>79/79</sub> |
+| `values_present` = | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>78/78</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>79/79</sub> |
 
 ### atlas
 
@@ -416,7 +416,7 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 | `excess_jumps_per_page` ↓ | 0.000 <sub>over 2/11 pages</sub> | 0.000 <sub>over 6/11 pages</sub> | 0.667 <sub>over 3/11 pages</sub> | 1.000 <sub>over 2/11 pages</sub> | 0.400 <sub>over 5/11 pages</sub> | 0.000 <sub>over 1/11 pages</sub> |
 | `excess_jumps_per_transition` ↓ | 0.000 <sub>0/2</sub> | 0.000 <sub>0/5</sub> | 0.400 <sub>2/5</sub> | 0.667 <sub>2/3</sub> | 0.333 <sub>2/6</sub> | 0.000 <sub>0/1</sub> |
 | `excess_jumps_per_transition_one_rule` ↓ | 0.333 <sub>1/3</sub> | 0.000 <sub>0/5</sub> | 0.400 <sub>2/5</sub> | 0.667 <sub>2/3</sub> | 0.333 <sub>2/6</sub> | 0.000 <sub>0/1</sub> |
-| `pages_with_columns` = | 2 <sub>2/11</sub> | 5 <sub>5/11</sub> | 2 <sub>2/11</sub> | 1 <sub>1/11</sub> | 4 <sub>4/11</sub> | 1 <sub>1/11</sub> |
+| `pages_with_columns` = | 0.182 <sub>2/11</sub> | 0.455 <sub>5/11</sub> | 0.182 <sub>2/11</sub> | 0.091 <sub>1/11</sub> | 0.364 <sub>4/11</sub> | 0.091 <sub>1/11</sub> |
 | `transitions` = | 2 | 5 | 5 | 3 | 6 | 1 |
 
   params, the same for every model here: `COLUMN_buckets_counted=['artifact', 'text']`, `COLUMN_full_width_box_share=0.6`, `COLUMN_min_boxes_per_page=2`, `COLUMN_x_overlap_of_narrow_box=0.5`, `order_rule_one_rule=ours_top_down_left_right (forced)`
@@ -443,9 +443,9 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 | `artefacts_merged` = | 0.000 <sub>0/16</sub> | 0.125 <sub>2/16</sub> | 0.000 <sub>0/16</sub> | 0.250 <sub>4/16</sub> | 0.062 <sub>1/16</sub> | 0.125 <sub>2/16</sub> |
 | `artefacts_not_seen` ↓ | 0.188 <sub>3/16</sub> | 0.125 <sub>2/16</sub> | 0.125 <sub>2/16</sub> | 0.000 <sub>0/16</sub> | 0.062 <sub>1/16</sub> | 0.188 <sub>3/16</sub> |
 | `assembly_order` ↑ | 0.952 | 1.000 | 0.882 | 0.895 | 0.913 | 0.900 |
-| `label_errors` ↓ | 11 <sub>11/25</sub> | 2 <sub>2/23</sub> | 0 <sub>0/22</sub> | — | — | — |
+| `label_errors` ↓ | 0.440 <sub>11/25</sub> | 0.087 <sub>2/23</sub> | 0 <sub>0/22</sub> | — | — | — |
 | `model_order` ↑ | 0.952 | 1.000 | — | — | — | — |
-| `role_errors` ↓ | 9 <sub>9/25</sub> | 2 <sub>2/23</sub> | 0 <sub>0/22</sub> | 0 <sub>0/23</sub> | 5 <sub>5/26</sub> | 2 <sub>2/17</sub> |
+| `role_errors` ↓ | 0.360 <sub>9/25</sub> | 0.087 <sub>2/23</sub> | 0 <sub>0/22</sub> | 0 <sub>0/23</sub> | 0.192 <sub>5/26</sub> | 0.118 <sub>2/17</sub> |
 | `sense_whole` ↑ | 0.750 <sub>12/16</sub> | 0.688 <sub>11/16</sub> | 0.812 <sub>13/16</sub> | 0.750 <sub>12/16</sub> | 0.875 <sub>14/16</sub> | 0.688 <sub>11/16</sub> |
 | `text_furniture_found` ↑ | 1.000 <sub>12/12</sub> | 1.000 <sub>12/12</sub> | 0.667 <sub>8/12</sub> | 0.917 <sub>11/12</sub> | 1.000 <sub>12/12</sub> | 0.500 <sub>6/12</sub> |
 
@@ -483,10 +483,10 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 
 | scalar | PP-DocLayoutV2 | PP-DocLayoutV3 | PP-DocLayout_plus-L | docling-egret | docling-heron | yolox_l0.05 |
 |---|---|---|---|---|---|---|
-| `empty` ↓ | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 17 <sub>17/79</sub> |
+| `empty` ↓ | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.215 <sub>17/79</sub> |
 | `fingerprint_verified` = | 0 | 0 | 0 | 0 | 0 | 1 |
 | `missing` ↓ | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/79</sub> |
-| `values_present` = | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 79 <sub>79/79</sub> |
+| `values_present` = | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>79/79</sub> |
 
 ### hard
 
@@ -498,7 +498,7 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 | `excess_jumps_per_page` ↓ | 1.608 <sub>over 120/130 pages</sub> | 1.769 <sub>over 121/130 pages</sub> | 4.574 <sub>over 115/130 pages</sub> | 4.521 <sub>over 121/130 pages</sub> | 4.691 <sub>over 123/130 pages</sub> | 2.402 <sub>over 92/130 pages</sub> |
 | `excess_jumps_per_transition` ↓ | 0.583 <sub>193/331</sub> | 0.610 <sub>214/351</sub> | 0.802 <sub>526/656</sub> | 0.820 <sub>547/667</sub> | 0.825 <sub>577/699</sub> | 0.747 <sub>221/296</sub> |
 | `excess_jumps_per_transition_one_rule` ↓ | 0.829 <sub>669/807</sub> | 0.801 <sub>551/688</sub> | 0.802 <sub>526/656</sub> | 0.820 <sub>547/667</sub> | 0.825 <sub>577/699</sub> | 0.747 <sub>221/296</sub> |
-| `pages_with_columns` = | 94 <sub>94/130</sub> | 94 <sub>94/130</sub> | 87 <sub>87/130</sub> | 87 <sub>87/130</sub> | 92 <sub>92/130</sub> | 63 <sub>63/130</sub> |
+| `pages_with_columns` = | 0.723 <sub>94/130</sub> | 0.723 <sub>94/130</sub> | 0.669 <sub>87/130</sub> | 0.669 <sub>87/130</sub> | 0.708 <sub>92/130</sub> | 0.485 <sub>63/130</sub> |
 | `transitions` = | 331 | 351 | 656 | 667 | 699 | 296 |
 
   params, the same for every model here: `COLUMN_buckets_counted=['artifact', 'text']`, `COLUMN_full_width_box_share=0.6`, `COLUMN_min_boxes_per_page=2`, `COLUMN_x_overlap_of_narrow_box=0.5`, `order_rule_one_rule=ours_top_down_left_right (forced)`
@@ -525,9 +525,9 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 | `artefacts_merged` = | 0.497 <sub>366/736</sub> | 0.476 <sub>350/736</sub> | 0.541 <sub>398/736</sub> | 0.507 <sub>373/736</sub> | 0.471 <sub>347/736</sub> | 0.515 <sub>379/736</sub> |
 | `artefacts_not_seen` ↓ | 0.041 <sub>30/736</sub> | 0.120 <sub>88/736</sub> | 0.045 <sub>33/736</sub> | 0.038 <sub>28/736</sub> | 0.048 <sub>35/736</sub> | 0.288 <sub>212/736</sub> |
 | `assembly_order` ↑ | 0.957 <sub>over 6/130 pages</sub> | 0.958 <sub>over 6/130 pages</sub> | 0.913 <sub>over 6/130 pages</sub> | 0.908 <sub>over 6/130 pages</sub> | 0.917 <sub>over 6/130 pages</sub> | 0.904 <sub>over 6/130 pages</sub> |
-| `label_errors` ↓ | 75 <sub>75/375</sub> | 67 <sub>67/358</sub> | — | — | — | — |
+| `label_errors` ↓ | 0.200 <sub>75/375</sub> | 0.187 <sub>67/358</sub> | — | — | — | — |
 | `model_order` ↑ | 0.957 <sub>over 6/130 pages</sub> | 0.958 <sub>over 6/130 pages</sub> | — | — | — | — |
-| `role_errors` ↓ | 16 <sub>16/375</sub> | 17 <sub>17/358</sub> | 17 <sub>17/325</sub> | 19 <sub>19/354</sub> | 21 <sub>21/375</sub> | 5 <sub>5/165</sub> |
+| `role_errors` ↓ | 0.043 <sub>16/375</sub> | 0.047 <sub>17/358</sub> | 0.052 <sub>17/325</sub> | 0.054 <sub>19/354</sub> | 0.056 <sub>21/375</sub> | 0.030 <sub>5/165</sub> |
 | `sense_whole` ↑ | 0.372 <sub>274/736</sub> | 0.340 <sub>250/736</sub> | 0.269 <sub>198/736</sub> | 0.337 <sub>248/736</sub> | 0.355 <sub>261/736</sub> | 0.109 <sub>80/736</sub> |
 | `text_furniture_found` ↑ | 0.918 <sub>45/49</sub> <sub>over 6/130 pages</sub> | 0.939 <sub>46/49</sub> <sub>over 6/130 pages</sub> | 0.918 <sub>45/49</sub> <sub>over 6/130 pages</sub> | 0.857 <sub>42/49</sub> <sub>over 6/130 pages</sub> | 0.939 <sub>46/49</sub> <sub>over 6/130 pages</sub> | 0.796 <sub>39/49</sub> <sub>over 6/130 pages</sub> |
 
@@ -565,10 +565,10 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 
 | scalar | PP-DocLayoutV2 | PP-DocLayoutV3 | PP-DocLayout_plus-L | docling-egret | docling-heron | yolox_l0.05 |
 |---|---|---|---|---|---|---|
-| `empty` ↓ | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 17 <sub>17/79</sub> |
+| `empty` ↓ | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.215 <sub>17/79</sub> |
 | `fingerprint_verified` = | 0 | 0 | 0 | 0 | 0 | 1 |
 | `missing` ↓ | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/79</sub> |
-| `values_present` = | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 79 <sub>79/79</sub> |
+| `values_present` = | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>79/79</sub> |
 
 ### katalog
 
@@ -580,7 +580,7 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 | `excess_jumps_per_page` ↓ | 0.000 <sub>over 1/11 pages</sub> | 69.400 <sub>over 5/11 pages</sub> | 0.000 <sub>over 2/11 pages</sub> | 0.400 <sub>over 5/11 pages</sub> | 1.250 <sub>over 4/11 pages</sub> | — |
 | `excess_jumps_per_transition` ↓ | — | 0.967 <sub>347/359</sub> | 0.000 <sub>0/13</sub> | 0.077 <sub>2/26</sub> | 0.250 <sub>5/20</sub> | — |
 | `excess_jumps_per_transition_one_rule` ↓ | — | 0.967 <sub>348/360</sub> | 0.000 <sub>0/13</sub> | 0.077 <sub>2/26</sub> | 0.250 <sub>5/20</sub> | — |
-| `pages_with_columns` = | 0 <sub>0/11</sub> | 4 <sub>4/11</sub> | 1 <sub>1/11</sub> | 5 <sub>5/11</sub> | 4 <sub>4/11</sub> | 0 <sub>0/11</sub> |
+| `pages_with_columns` = | 0 <sub>0/11</sub> | 0.364 <sub>4/11</sub> | 0.091 <sub>1/11</sub> | 0.455 <sub>5/11</sub> | 0.364 <sub>4/11</sub> | 0 <sub>0/11</sub> |
 | `transitions` = | 0 | 359 | 13 | 26 | 20 | 0 |
 
 - a dash: no page gathered two counted boxes: nothing to jump between
@@ -610,9 +610,9 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 | `artefacts_merged` = | 0.154 <sub>2/13</sub> | 0.000 <sub>0/13</sub> | 0.154 <sub>2/13</sub> | 0.000 <sub>0/13</sub> | 0.000 <sub>0/13</sub> | 0.000 <sub>0/13</sub> |
 | `artefacts_not_seen` ↓ | 0.000 <sub>0/13</sub> | 0.154 <sub>2/13</sub> | 0.077 <sub>1/13</sub> | 0.385 <sub>5/13</sub> | 0.538 <sub>7/13</sub> | 0.154 <sub>2/13</sub> |
 | `assembly_order` ↑ | 0.989 | 0.939 | 0.953 | 0.944 | 0.961 | 0.936 |
-| `label_errors` ↓ | 3 <sub>3/60</sub> | 6 <sub>6/61</sub> | 3 <sub>3/53</sub> | — | — | — |
+| `label_errors` ↓ | 0.050 <sub>3/60</sub> | 0.098 <sub>6/61</sub> | 0.057 <sub>3/53</sub> | — | — | — |
 | `model_order` ↑ | 0.989 | 0.939 | — | — | — | — |
-| `role_errors` ↓ | 0 <sub>0/60</sub> | 2 <sub>2/61</sub> | 0 <sub>0/53</sub> | 2 <sub>2/57</sub> | 0 <sub>0/59</sub> | 1 <sub>1/37</sub> |
+| `role_errors` ↓ | 0 <sub>0/60</sub> | 0.033 <sub>2/61</sub> | 0 <sub>0/53</sub> | 0.035 <sub>2/57</sub> | 0 <sub>0/59</sub> | 0.027 <sub>1/37</sub> |
 | `sense_whole` ↑ | 0.846 <sub>11/13</sub> | 0.846 <sub>11/13</sub> | 0.769 <sub>10/13</sub> | 0.538 <sub>7/13</sub> | 0.462 <sub>6/13</sub> | 0.462 <sub>6/13</sub> |
 | `text_furniture_found` ↑ | 0.891 <sub>49/55</sub> | 0.909 <sub>50/55</sub> | 0.782 <sub>43/55</sub> | 0.891 <sub>49/55</sub> | 0.964 <sub>53/55</sub> | 0.600 <sub>33/55</sub> |
 
@@ -650,10 +650,10 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 
 | scalar | PP-DocLayoutV2 | PP-DocLayoutV3 | PP-DocLayout_plus-L | docling-egret | docling-heron | yolox_l0.05 |
 |---|---|---|---|---|---|---|
-| `empty` ↓ | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 17 <sub>17/79</sub> |
+| `empty` ↓ | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.215 <sub>17/79</sub> |
 | `fingerprint_verified` = | 0 | 0 | 0 | 0 | 0 | 1 |
 | `missing` ↓ | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/79</sub> |
-| `values_present` = | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 79 <sub>79/79</sub> |
+| `values_present` = | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>79/79</sub> |
 
 ### matematika
 
@@ -665,7 +665,7 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 | `excess_jumps_per_page` ↓ | 1.250 <sub>over 8/12 pages</sub> | 1.250 <sub>over 8/12 pages</sub> | 1.429 <sub>over 7/12 pages</sub> | 0.000 <sub>over 4/12 pages</sub> | 2.000 <sub>over 5/12 pages</sub> | 0.000 <sub>over 2/12 pages</sub> |
 | `excess_jumps_per_transition` ↓ | 0.909 <sub>10/11</sub> | 0.909 <sub>10/11</sub> | 0.909 <sub>10/11</sub> | — | 0.909 <sub>10/11</sub> | — |
 | `excess_jumps_per_transition_one_rule` ↓ | 0.909 <sub>10/11</sub> | 0.909 <sub>10/11</sub> | 0.909 <sub>10/11</sub> | — | 0.909 <sub>10/11</sub> | — |
-| `pages_with_columns` = | 1 <sub>1/12</sub> | 1 <sub>1/12</sub> | 1 <sub>1/12</sub> | 0 <sub>0/12</sub> | 1 <sub>1/12</sub> | 0 <sub>0/12</sub> |
+| `pages_with_columns` = | 0.083 <sub>1/12</sub> | 0.083 <sub>1/12</sub> | 0.083 <sub>1/12</sub> | 0 <sub>0/12</sub> | 0.083 <sub>1/12</sub> | 0 <sub>0/12</sub> |
 | `transitions` = | 11 | 11 | 11 | 0 | 11 | 0 |
 
 - a dash: no page gathered two counted boxes: nothing to jump between
@@ -694,9 +694,9 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 | `artefacts_merged` = | 0.074 <sub>2/27</sub> | 0.074 <sub>2/27</sub> | 0.370 <sub>10/27</sub> | 0.481 <sub>13/27</sub> | 0.667 <sub>18/27</sub> | 0.000 <sub>0/27</sub> |
 | `artefacts_not_seen` ↓ | 0.148 <sub>4/27</sub> | 0.185 <sub>5/27</sub> | 0.000 <sub>0/27</sub> | 0.148 <sub>4/27</sub> | 0.074 <sub>2/27</sub> | 1.000 <sub>27/27</sub> |
 | `assembly_order` ↑ | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
-| `label_errors` ↓ | 3 <sub>3/125</sub> | 3 <sub>3/124</sub> | — | — | — | — |
+| `label_errors` ↓ | 0.024 <sub>3/125</sub> | 0.024 <sub>3/124</sub> | — | — | — | — |
 | `model_order` ↑ | 1.000 | 1.000 | — | — | — | — |
-| `role_errors` ↓ | 2 <sub>2/125</sub> | 0 <sub>0/124</sub> | 1 <sub>1/126</sub> | 0 <sub>0/100</sub> | 13 <sub>13/119</sub> | 0 <sub>0/97</sub> |
+| `role_errors` ↓ | 0.016 <sub>2/125</sub> | 0 <sub>0/124</sub> | 0.008 <sub>1/126</sub> | 0 <sub>0/100</sub> | 0.109 <sub>13/119</sub> | 0 <sub>0/97</sub> |
 | `sense_whole` ↑ | 0.667 <sub>18/27</sub> | 0.741 <sub>20/27</sub> | 0.111 <sub>3/27</sub> | 0.296 <sub>8/27</sub> | 0.111 <sub>3/27</sub> | 0.000 <sub>0/27</sub> |
 | `text_furniture_found` ↑ | 1.000 <sub>104/104</sub> | 1.000 <sub>104/104</sub> | 1.000 <sub>104/104</sub> | 0.933 <sub>97/104</sub> | 0.990 <sub>103/104</sub> | 0.933 <sub>97/104</sub> |
 
@@ -734,10 +734,10 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 
 | scalar | PP-DocLayoutV2 | PP-DocLayoutV3 | PP-DocLayout_plus-L | docling-egret | docling-heron | yolox_l0.05 |
 |---|---|---|---|---|---|---|
-| `empty` ↓ | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 17 <sub>17/79</sub> |
+| `empty` ↓ | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.215 <sub>17/79</sub> |
 | `fingerprint_verified` = | 0 | 0 | 0 | 0 | 0 | 1 |
 | `missing` ↓ | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/79</sub> |
-| `values_present` = | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 79 <sub>79/79</sub> |
+| `values_present` = | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>79/79</sub> |
 
 ### slovar
 
@@ -749,7 +749,7 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 | `excess_jumps_per_page` ↓ | 10.833 <sub>over 12/13 pages</sub> | 2.091 <sub>over 11/13 pages</sub> | 26.750 <sub>over 8/13 pages</sub> | 53.333 <sub>over 12/13 pages</sub> | 36.538 | 35.917 <sub>over 12/13 pages</sub> |
 | `excess_jumps_per_transition` ↓ | 0.867 <sub>130/150</sub> | 0.548 <sub>23/42</sub> | 0.955 <sub>214/224</sub> | 0.967 <sub>640/662</sub> | 0.956 <sub>475/497</sub> | 0.958 <sub>431/450</sub> |
 | `excess_jumps_per_transition_one_rule` ↓ | 0.960 <sub>479/499</sub> | 0.961 <sub>466/485</sub> | 0.955 <sub>214/224</sub> | 0.967 <sub>640/662</sub> | 0.956 <sub>475/497</sub> | 0.958 <sub>431/450</sub> |
-| `pages_with_columns` = | 12 <sub>12/13</sub> | 11 <sub>11/13</sub> | 8 <sub>8/13</sub> | 12 <sub>12/13</sub> | 13 <sub>13/13</sub> | 12 <sub>12/13</sub> |
+| `pages_with_columns` = | 0.923 <sub>12/13</sub> | 0.846 <sub>11/13</sub> | 0.615 <sub>8/13</sub> | 0.923 <sub>12/13</sub> | 1.000 <sub>13/13</sub> | 0.923 <sub>12/13</sub> |
 | `transitions` = | 150 | 42 | 224 | 662 | 497 | 450 |
 
   params, the same for every model here: `COLUMN_buckets_counted=['artifact', 'text']`, `COLUMN_full_width_box_share=0.6`, `COLUMN_min_boxes_per_page=2`, `COLUMN_x_overlap_of_narrow_box=0.5`, `order_rule_one_rule=ours_top_down_left_right (forced)`
@@ -776,9 +776,9 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 | `artefacts_merged` = | 0.000 <sub>0/3</sub> | 0.000 <sub>0/3</sub> | 0.000 <sub>0/3</sub> | 0.000 <sub>0/3</sub> | 0.000 <sub>0/3</sub> | 0.000 <sub>0/3</sub> |
 | `artefacts_not_seen` ↓ | 0.333 <sub>1/3</sub> | 0.333 <sub>1/3</sub> | 0.000 <sub>0/3</sub> | 0.333 <sub>1/3</sub> | 0.333 <sub>1/3</sub> | 0.667 <sub>2/3</sub> |
 | `assembly_order` ↑ | 0.886 | 0.999 | 0.730 | 0.683 | 0.689 | 0.686 |
-| `label_errors` ↓ | 207 <sub>207/517</sub> | 442 <sub>442/495</sub> | 233 <sub>233/239</sub> | — | — | — |
+| `label_errors` ↓ | 0.400 <sub>207/517</sub> | 0.893 <sub>442/495</sub> | 0.975 <sub>233/239</sub> | — | — | — |
 | `model_order` ↑ | 0.886 | 0.999 | — | — | — | — |
-| `role_errors` ↓ | 1 <sub>1/517</sub> | 0 <sub>0/495</sub> | 0 <sub>0/239</sub> | 1 <sub>1/496</sub> | 3 <sub>3/519</sub> | 0 <sub>0/485</sub> |
+| `role_errors` ↓ | 0.002 <sub>1/517</sub> | 0 <sub>0/495</sub> | 0 <sub>0/239</sub> | 0.002 <sub>1/496</sub> | 0.006 <sub>3/519</sub> | 0 <sub>0/485</sub> |
 | `sense_whole` ↑ | 0.667 <sub>2/3</sub> | 0.667 <sub>2/3</sub> | 1.000 <sub>3/3</sub> | 0.667 <sub>2/3</sub> | 0.667 <sub>2/3</sub> | 0.333 <sub>1/3</sub> |
 | `text_furniture_found` ↑ | 0.990 <sub>515/520</sub> | 0.948 <sub>493/520</sub> | 0.454 <sub>236/520</sub> | 0.950 <sub>494/520</sub> | 0.994 <sub>517/520</sub> | 0.931 <sub>484/520</sub> |
 
@@ -816,10 +816,10 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 
 | scalar | PP-DocLayoutV2 | PP-DocLayoutV3 | PP-DocLayout_plus-L | docling-egret | docling-heron | yolox_l0.05 |
 |---|---|---|---|---|---|---|
-| `empty` ↓ | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 17 <sub>17/79</sub> |
+| `empty` ↓ | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.215 <sub>17/79</sub> |
 | `fingerprint_verified` = | 0 | 0 | 0 | 0 | 0 | 1 |
 | `missing` ↓ | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/79</sub> |
-| `values_present` = | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 79 <sub>79/79</sub> |
+| `values_present` = | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>79/79</sub> |
 
 ### spravochnik
 
@@ -831,7 +831,7 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 | `excess_jumps_per_page` ↓ | 0.111 <sub>over 18/36 pages</sub> | 1.455 <sub>over 11/36 pages</sub> | 7.278 <sub>over 18/36 pages</sub> | 10.737 <sub>over 19/36 pages</sub> | 6.600 <sub>over 20/36 pages</sub> | 11.455 <sub>over 11/36 pages</sub> |
 | `excess_jumps_per_transition` ↓ | 0.091 <sub>2/22</sub> | 0.640 <sub>16/25</sub> | 0.897 <sub>131/146</sub> | 0.891 <sub>204/229</sub> | 0.841 <sub>132/157</sub> | 0.920 <sub>126/137</sub> |
 | `excess_jumps_per_transition_one_rule` ↓ | 0.868 <sub>131/151</sub> | 0.893 <sub>75/84</sub> | 0.897 <sub>131/146</sub> | 0.891 <sub>204/229</sub> | 0.841 <sub>132/157</sub> | 0.920 <sub>126/137</sub> |
-| `pages_with_columns` = | 16 <sub>16/36</sub> | 9 <sub>9/36</sub> | 12 <sub>12/36</sub> | 16 <sub>16/36</sub> | 17 <sub>17/36</sub> | 9 <sub>9/36</sub> |
+| `pages_with_columns` = | 0.444 <sub>16/36</sub> | 0.250 <sub>9/36</sub> | 0.333 <sub>12/36</sub> | 0.444 <sub>16/36</sub> | 0.472 <sub>17/36</sub> | 0.250 <sub>9/36</sub> |
 | `transitions` = | 22 | 25 | 146 | 229 | 157 | 137 |
 
   params, the same for every model here: `COLUMN_buckets_counted=['artifact', 'text']`, `COLUMN_full_width_box_share=0.6`, `COLUMN_min_boxes_per_page=2`, `COLUMN_x_overlap_of_narrow_box=0.5`, `order_rule_one_rule=ours_top_down_left_right (forced)`
@@ -858,9 +858,9 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 | `artefacts_merged` = | 0.156 <sub>7/45</sub> | 0.244 <sub>11/45</sub> | 0.178 <sub>8/45</sub> | 0.156 <sub>7/45</sub> | 0.133 <sub>6/45</sub> | 0.244 <sub>11/45</sub> |
 | `artefacts_not_seen` ↓ | 0.044 <sub>2/45</sub> | 0.067 <sub>3/45</sub> | 0.044 <sub>2/45</sub> | 0.067 <sub>3/45</sub> | 0.022 <sub>1/45</sub> | 0.289 <sub>13/45</sub> |
 | `assembly_order` ↑ | 0.989 | 0.985 | 0.807 | 0.803 | 0.809 | 0.798 |
-| `label_errors` ↓ | 15 <sub>15/356</sub> | 8 <sub>8/287</sub> | — | — | — | — |
+| `label_errors` ↓ | 0.042 <sub>15/356</sub> | 0.028 <sub>8/287</sub> | — | — | — | — |
 | `model_order` ↑ | 0.989 | 0.985 | — | — | — | — |
-| `role_errors` ↓ | 3 <sub>3/356</sub> | 4 <sub>4/287</sub> | 3 <sub>3/362</sub> | 6 <sub>6/357</sub> | 2 <sub>2/372</sub> | 4 <sub>4/326</sub> |
+| `role_errors` ↓ | 0.008 <sub>3/356</sub> | 0.014 <sub>4/287</sub> | 0.008 <sub>3/362</sub> | 0.017 <sub>6/357</sub> | 0.005 <sub>2/372</sub> | 0.012 <sub>4/326</sub> |
 | `sense_whole` ↑ | 0.778 <sub>35/45</sub> | 0.689 <sub>31/45</sub> | 0.756 <sub>34/45</sub> | 0.711 <sub>32/45</sub> | 0.778 <sub>35/45</sub> | 0.422 <sub>19/45</sub> |
 | `text_furniture_found` ↑ | 0.955 <sub>322/337</sub> | 0.760 <sub>256/337</sub> | 0.976 <sub>329/337</sub> | 0.955 <sub>322/337</sub> | 0.991 <sub>334/337</sub> | 0.932 <sub>314/337</sub> |
 
@@ -898,10 +898,10 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 
 | scalar | PP-DocLayoutV2 | PP-DocLayoutV3 | PP-DocLayout_plus-L | docling-egret | docling-heron | yolox_l0.05 |
 |---|---|---|---|---|---|---|
-| `empty` ↓ | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 17 <sub>17/79</sub> |
+| `empty` ↓ | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.215 <sub>17/79</sub> |
 | `fingerprint_verified` = | 0 | 0 | 0 | 0 | 0 | 1 |
 | `missing` ↓ | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/79</sub> |
-| `values_present` = | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 79 <sub>79/79</sub> |
+| `values_present` = | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>79/79</sub> |
 
 ### zhurnal
 
@@ -913,7 +913,7 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 | `excess_jumps_per_page` ↓ | 0.000 | 2.500 <sub>over 8/10 pages</sub> | 12.400 | 12.900 | 14.000 | 13.556 <sub>over 9/10 pages</sub> |
 | `excess_jumps_per_transition` ↓ | 0.000 <sub>0/10</sub> | 0.714 <sub>20/28</sub> | 0.925 <sub>124/134</sub> | 0.928 <sub>129/139</sub> | 0.933 <sub>140/150</sub> | 0.931 <sub>122/131</sub> |
 | `excess_jumps_per_transition_one_rule` ↓ | 0.925 <sub>123/133</sub> | 0.930 <sub>106/114</sub> | 0.925 <sub>124/134</sub> | 0.928 <sub>129/139</sub> | 0.933 <sub>140/150</sub> | 0.931 <sub>122/131</sub> |
-| `pages_with_columns` = | 10 <sub>10/10</sub> | 8 <sub>8/10</sub> | 10 <sub>10/10</sub> | 10 <sub>10/10</sub> | 10 <sub>10/10</sub> | 9 <sub>9/10</sub> |
+| `pages_with_columns` = | 1.000 <sub>10/10</sub> | 0.800 <sub>8/10</sub> | 1.000 <sub>10/10</sub> | 1.000 <sub>10/10</sub> | 1.000 <sub>10/10</sub> | 0.900 <sub>9/10</sub> |
 | `transitions` = | 10 | 28 | 134 | 139 | 150 | 131 |
 
   params, the same for every model here: `COLUMN_buckets_counted=['artifact', 'text']`, `COLUMN_full_width_box_share=0.6`, `COLUMN_min_boxes_per_page=2`, `COLUMN_x_overlap_of_narrow_box=0.5`, `order_rule_one_rule=ours_top_down_left_right (forced)`
@@ -940,9 +940,9 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 | `artefacts_merged` = | 0.000 <sub>0/6</sub> | 0.000 <sub>0/6</sub> | 0.000 <sub>0/6</sub> | 0.000 <sub>0/6</sub> | 0.000 <sub>0/6</sub> | 0.000 <sub>0/6</sub> |
 | `artefacts_not_seen` ↓ | 0.167 <sub>1/6</sub> | 0.000 <sub>0/6</sub> | 0.000 <sub>0/6</sub> | 0.000 <sub>0/6</sub> | 0.000 <sub>0/6</sub> | 0.167 <sub>1/6</sub> |
 | `assembly_order` ↑ | 1.000 | 0.970 | 0.773 | 0.769 | 0.771 | 0.749 |
-| `label_errors` ↓ | 7 <sub>7/180</sub> | 2 <sub>2/166</sub> | 6 <sub>6/181</sub> | — | — | — |
+| `label_errors` ↓ | 0.039 <sub>7/180</sub> | 0.012 <sub>2/166</sub> | 0.033 <sub>6/181</sub> | — | — | — |
 | `model_order` ↑ | 1.000 | 0.970 | — | — | — | — |
-| `role_errors` ↓ | 1 <sub>1/180</sub> | 0 <sub>0/166</sub> | 0 <sub>0/181</sub> | 4 <sub>4/186</sub> | 1 <sub>1/187</sub> | 1 <sub>1/164</sub> |
+| `role_errors` ↓ | 0.006 <sub>1/180</sub> | 0 <sub>0/166</sub> | 0 <sub>0/181</sub> | 0.022 <sub>4/186</sub> | 0.005 <sub>1/187</sub> | 0.006 <sub>1/164</sub> |
 | `sense_whole` ↑ | 0.833 <sub>5/6</sub> | 1.000 <sub>6/6</sub> | 1.000 <sub>6/6</sub> | 1.000 <sub>6/6</sub> | 1.000 <sub>6/6</sub> | 0.833 <sub>5/6</sub> |
 | `text_furniture_found` ↑ | 0.956 <sub>175/183</sub> | 0.874 <sub>160/183</sub> | 0.956 <sub>175/183</sub> | 0.984 <sub>180/183</sub> | 0.989 <sub>181/183</sub> | 0.874 <sub>160/183</sub> |
 
@@ -980,7 +980,7 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 
 | scalar | PP-DocLayoutV2 | PP-DocLayoutV3 | PP-DocLayout_plus-L | docling-egret | docling-heron | yolox_l0.05 |
 |---|---|---|---|---|---|---|
-| `empty` ↓ | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 13 <sub>13/52</sub> | 17 <sub>17/79</sub> |
+| `empty` ↓ | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.215 <sub>17/79</sub> |
 | `fingerprint_verified` = | 0 | 0 | 0 | 0 | 0 | 1 |
 | `missing` ↓ | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/79</sub> |
-| `values_present` = | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 52 <sub>52/52</sub> | 79 <sub>79/79</sub> |
+| `values_present` = | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>79/79</sub> |

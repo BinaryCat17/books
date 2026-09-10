@@ -284,7 +284,7 @@
       "n": 7,
       "of": 180
      },
-     "value": 7
+     "value": 0.03888888888888889
     },
     "model_order": {
      "over": {
@@ -299,7 +299,7 @@
       "n": 1,
       "of": 180
      },
-     "value": 1
+     "value": 0.005555555555555556
     },
     "sense_whole": {
      "count": {
@@ -556,7 +556,7 @@
       "n": 10,
       "of": 10
      },
-     "value": 10
+     "value": 1.0
     },
     "transitions": {
      "value": 10
@@ -639,7 +639,7 @@
       "n": 13,
       "of": 52
      },
-     "value": 13
+     "value": 0.25
     },
     "fingerprint_verified": {
      "value": 0
@@ -656,7 +656,7 @@
       "n": 52,
       "of": 52
      },
-     "value": 52
+     "value": 1.0
     }
    }
   }

@@ -8,14 +8,17 @@ contract itself is checked on made-up input so that a fresh clone still
 checks something.
 """
 import json
+import re
 import os
 
 import pytest
 
 import support
+
+from booksmith.core import page
 from booksmith.datasets import metrics as registry
 from booksmith.datasets.bench import Bench
-from booksmith.datasets.metrics.base import (Metric, Probe, Scalar,
+from booksmith.datasets.metrics.base import (Metric, Probe, Record, Scalar,
                                              applicable, run_probes)
 
 ROOT = os.path.dirname(os.path.dirname(support.SRC))
@@ -67,10 +70,16 @@ def test_a_scalar_without_a_value_must_say_why():
         raise AssertionError("coverage without a unit was accepted")
 
 
+ANCHOR = re.compile(r"^p(\d{4})(?:-b(\d+))?$")
+
+
 def test_records_agree_with_the_raw_dict_they_carry():
     """The scalars are views of `detail`; a view that drifts from the dict is a
-    hand-typed copy of it."""
+    hand-typed copy of it. A scalar with a count carries the count's share,
+    and a per-anchor value names a page of the run and a block of the side it
+    says."""
     b, r = _slovar()
+    sides = {"truth": page.load_pages(b.truth_dir), "run": r.pages()}
     for m in registry.METRICS:
         rec = m.run(b, r)
         assert rec.metric == m.name and rec.bench == "slovar" and rec.run == "PP-DocLayoutV2"
@@ -79,9 +88,21 @@ def test_records_agree_with_the_raw_dict_they_carry():
             assert isinstance(s, Scalar), (m.name, k)
             if s.value is not None:
                 assert isinstance(s.value, (int, float)), (m.name, k, s)
+                if s.count is not None:
+                    n, of = s.count
+                    assert of and abs(s.value - n / of) < 1e-9, (m.name, k, s.value, s.count)
             else:
                 assert s.why, (m.name, k)
-        json.dumps(rec.to_json())          # serialisable, whole
+            for key, v in (s.per or {}).items():
+                at = ANCHOR.match(key)
+                assert at, (m.name, k, key)
+                i = int(at.group(1))
+                assert i in sides["run"], (m.name, k, key)
+                if at.group(2) is not None:
+                    ids = {bl["block_id"] for bl in sides[s.side][i]["blocks"]}
+                    assert int(at.group(2)) in ids, (m.name, k, key, s.side)
+                assert isinstance(v, (int, float)) and not isinstance(v, bool), (m.name, k, key, v)
+        assert Record.from_json(json.loads(json.dumps(rec.to_json()))).scalars == rec.scalars, m.name
     contour = registry.BY_NAME["contour"].run(b, r)
     d = contour.detail
     assert contour.scalars["artefacts_found"].value == d["totals"]["share"]

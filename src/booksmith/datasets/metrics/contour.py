@@ -208,6 +208,10 @@ def compare_pages(T: dict, M: dict) -> dict:
         for i in T if i in M})
     model_rank = all(_model_has_rank(M[i]) for i in T if i in M)
     per_case, conf, ranks = {}, {}, []
+    # By anchor: truth objects found and text blocks found, the model's boxes
+    # whose label or role is not the truth's.
+    per = {"artefacts_found": {}, "text_furniture_found": {},
+           "label_errors": {}, "role_errors": {}}
     ceiling = order_pages = 0
     tot = {"artifacts": 0, "found": 0}
     # Text completeness counts only pages where text is annotated.
@@ -246,6 +250,7 @@ def compare_pages(T: dict, M: dict) -> dict:
         for b, x in pairs:
             if x is not None:
                 per_label.setdefault(b["label"], [0, 0])[0] += 1
+                per["artefacts_found"][page.anchor(i, b["block_id"])] = 1
                 continue
             bed(f"{_diagnose(b, mall, tb, arte)} ({b['label']})")
         # Model artefact boxes with no partner in truth. Nesting is measured
@@ -273,12 +278,17 @@ def compare_pages(T: dict, M: dict) -> dict:
             taken.add(j)
             x = mall[j]
             conf[(b["label"], x["label"])] = conf.get((b["label"], x["label"]), 0) + 1
+            if b["label"] != x["label"]:
+                per["label_errors"][page.anchor(i, x["block_id"])] = 1
+            if policy.role(b["label"]) != policy.role(x["label"]):
+                per["role_errors"][page.anchor(i, x["block_id"])] = 1
             # Third member: the position in `mall`, the list
             # `assemble/html.py` walks and the book is assembled by.
             page_ranks.append((b.get("order"), x.get("order"), j))
             if (b["label"] not in arte
                     and _truth_text_state(t) == "yes"):
                 txt["found"] += 1
+                per["text_furniture_found"][page.anchor(i, b["block_id"])] = 1
                 # Artefact labels count in pass A only: pass B is blind to
                 # the label and a table caught by a text box would read found.
                 per_label.setdefault(b["label"], [0, 0])[0] += 1
@@ -292,7 +302,7 @@ def compare_pages(T: dict, M: dict) -> dict:
         # Reading order is scored within a page: a rank is a row number in
         # that page's output, and the next page starts its own numbering.
         if _truth_order_state(t) == ORDER_MARKED:
-            ranks.append(page_ranks)
+            ranks.append((i, page_ranks))
             ceiling += _pairs_ceiling(t)
             order_pages += 1
 
@@ -325,7 +335,8 @@ def compare_pages(T: dict, M: dict) -> dict:
                               f"({', '.join(rules)})")),
             "assembly_order": _order_agree(
                 ranks, 2, ceiling, order_pages, len(T), why_order),
-            "jumps": column_jumps(M)}
+            "jumps": column_jumps(M),
+            "per": per}
 
 
 # ------------------------------------------------------------- READING ORDER
@@ -394,22 +405,29 @@ def _order_agree(by_page, idx: int, ceiling: int, pages: int,
         return {"pairs": 0, "agreement": None, "pairs_possible": ceiling,
                 "page_count": pages, "pages_total": of_pages, "why": why}
     ok = bad = norank = 0
-    for pairs in by_page:
+    per = {}
+    for index, pairs in by_page:
         pp = [(z[0], z[idx]) for z in pairs
               if z[0] is not None and z[idx] is not None]
         norank += len(pairs) - len(pp)
+        ok_p = bad_p = 0
         for i in range(len(pp)):
             for j in range(i + 1, len(pp)):
                 a = pp[i][0] - pp[j][0]
                 b = pp[i][1] - pp[j][1]
                 if a == 0 or b == 0:
                     continue
-                ok += (a > 0) == (b > 0)
-                bad += (a > 0) != (b > 0)
+                ok_p += (a > 0) == (b > 0)
+                bad_p += (a > 0) != (b > 0)
+        ok += ok_p
+        bad += bad_p
+        if ok_p + bad_p:
+            per[page.anchor(index)] = ok_p / (ok_p + bad_p)
     n = ok + bad
     return {"pairs": n, "agreement": (ok / n) if n else None,
             "pairs_possible": ceiling, "page_count": pages,
-            "pages_total": of_pages, "blocks_without_rank": norank}
+            "pages_total": of_pages, "blocks_without_rank": norank,
+            "per": per}
 
 
 # ------------------------------------- EXCESS JUMPS BETWEEN COLUMNS
@@ -483,7 +501,7 @@ def column_jumps(M: dict, overlap=None, wide=None, min_boxes=None,
     keep = set(par["buckets_counted"])
     tot_excess = tot_trans = tot_cols = in_count = wide_n = other = 0
     pages = multi = counted = thin = 0
-    per_page = {}
+    per_page, columns_by_page = {}, {}
     for i, p in sorted(M.items()):
         w = float(p.get("width") or 0.0)
         part = []
@@ -511,6 +529,7 @@ def column_jumps(M: dict, overlap=None, wide=None, min_boxes=None,
         tot_cols += ncols
         tot_excess += excess
         multi += ncols >= 2
+        columns_by_page[i] = ncols
         if excess:
             per_page[i] = excess
     ok = counted > 0
@@ -531,6 +550,7 @@ def column_jumps(M: dict, overlap=None, wide=None, min_boxes=None,
             "boxes_counted": in_count, "full_width_boxes": wide_n,
             "boxes_other_buckets": other,
             "by_page": per_page,
+            "columns_by_page": columns_by_page,
             "why": why,
             "params": par}
 
@@ -924,7 +944,10 @@ def sense(T: dict, M_: dict) -> dict:
     arte = set(policy.artefacts())
     out = {"objects": 0, "intact": 0, "cropped": 0, "merged": 0,
            "called_text": 0, "not_seen": 0,
-           "threshold_fits": SENSE_WHOLE, "threshold_neighbour": SENSE_NEIGHBOUR}
+           "threshold_fits": SENSE_WHOLE, "threshold_neighbour": SENSE_NEIGHBOUR,
+           # Each truth object's fate, by its anchor.
+           "per": {k: {} for k in ("intact", "cropped", "merged",
+                                   "called_text", "not_seen")}}
     for i, t in sorted(T.items()):
         if i not in M_:
             continue
@@ -939,20 +962,19 @@ def sense(T: dict, M_: dict) -> dict:
                     if cover(b["box"], x) >= SENSE_WHOLE]
             if not fits:
                 if any(cover(b["box"], x) >= 0.5 for x in mb):
-                    out["cropped"] += 1
+                    fate = "cropped"
                 elif any(cover(b["box"], x) >= SENSE_WHOLE for x in ob):
-                    out["called_text"] += 1
+                    fate = "called_text"
                 else:
-                    out["not_seen"] += 1
-                continue
-            alone = [x for x in fits
-                     if not any(o is not b
-                                and cover(o["box"], x) >= SENSE_NEIGHBOUR
-                                for o in tb)]
-            if alone:
-                out["intact"] += 1
+                    fate = "not_seen"
             else:
-                out["merged"] += 1
+                alone = [x for x in fits
+                         if not any(o is not b
+                                    and cover(o["box"], x) >= SENSE_NEIGHBOUR
+                                    for o in tb)]
+                fate = "intact" if alone else "merged"
+            out[fate] += 1
+            out["per"][fate][page.anchor(i, b["block_id"])] = 1
     n = out["objects"]
     out["share"] = (out["intact"] / n) if n else None
     return out
@@ -967,7 +989,8 @@ def _order(part: dict) -> Scalar:
     value, and the report's own reason."""
     return Scalar(part.get("agreement"),
                   over=(part.get("page_count", 0), part.get("pages_total", 0)), unit="pages",
-                  why=None if part.get("agreement") is not None else part.get("why") or "not compared")
+                  why=None if part.get("agreement") is not None else part.get("why") or "not compared",
+                  per=part.get("per"))
 
 
 class ContourMetric(Metric):
@@ -1010,34 +1033,44 @@ class ContourMetric(Metric):
 
     def record(self, res: dict, bench_name: str, run_label: str) -> Record:
         t, x, s, j = res["totals"], res["text_and_furniture"], res["sense"], res["jumps"]
-        lab = label_errors(res)
+        lab, rol, per = label_errors(res), role_errors(res), res["per"]
         # One entry per matched (truth, model) block: the denominator both
-        # error counts are shares of.
+        # error shares are over.
         pairs = sum(res["label_confusion"].values())
+        no_pair = "no truth block was matched to a model block"
         scalars = {
-            "artefacts_found": Scalar(t["share"], count=(t["found"], t["artifacts"])),
+            "artefacts_found": Scalar(t["share"], count=(t["found"], t["artifacts"]),
+                                      per=per["artefacts_found"], side="truth"),
             "sense_whole": Scalar(
                 s["share"], count=(s["intact"], s["objects"]),
-                why=None if s["share"] is not None else "no artefact in the truth"),
+                why=None if s["share"] is not None else "no artefact in the truth",
+                per=s["per"]["intact"], side="truth"),
             # The four ways an object is lost, each over the same objects, so
             # with `sense_whole` the five account for every one of them.
             **{f"artefacts_{k}": Scalar(
                 (s[k] / s["objects"]) if s["objects"] else None,
                 count=(s[k], s["objects"]),
-                why=None if s["objects"] else "no artefact in the truth")
+                why=None if s["objects"] else "no artefact in the truth",
+                per=s["per"][k], side="truth")
                for k in ("merged", "cropped", "called_text", "not_seen")},
             "text_furniture_found": Scalar(
                 x["share"], count=(x["found"], x["block_count"]),
                 over=(x.get("pages_with_text_markup", 0), x.get("pages_total", 0)), unit="pages",
-                why=None if x["share"] is not None else "text and furniture NOT MARKED in this truth"),
-            # Both carry their denominator: the matched-pair count moves by
-            # more than half between models, so a bare count ranks them wrong.
+                why=None if x["share"] is not None else "text and furniture NOT MARKED in this truth",
+                per=per["text_furniture_found"], side="truth"),
+            # Shares of the matched pairs: the pair count moves by more than
+            # half between models, so a bare count ranks them wrong.
             "label_errors": Scalar(
-                lab, count=None if lab is None else (lab, pairs),
-                why=None if lab is not None else
-                "the two sides speak different label vocabularies; not compared"),
-            "role_errors": Scalar(role_errors(res), count=(role_errors(res),
-                                                           pairs)),
+                lab / pairs if lab is not None and pairs else None,
+                count=None if lab is None else (lab, pairs),
+                why=None if lab is not None and pairs else (
+                    "the two sides speak different label vocabularies; not compared"
+                    if lab is None else no_pair),
+                per=per["label_errors"] if lab is not None else None, side="run"),
+            "role_errors": Scalar(
+                rol / pairs if pairs else None, count=(rol, pairs),
+                why=None if pairs else no_pair,
+                per=per["role_errors"], side="run"),
             "model_order": _order(res["model_order"]),
             "assembly_order": _order(res["assembly_order"]),
             # Excess jumps per page belong to the `assembly` metric alone: that

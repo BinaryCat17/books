@@ -50,8 +50,9 @@ One checklist per kind of thing. Each ends with the command that proves it.
    subclasses `Metric` from `src/booksmith/datasets/metrics/base.py`: `name`,
    `needs` (a subset of `truth`, `pages`, `pdf`, `content`, `read`), `run` or
    `run_loaded`, returning a `Record` of `Scalar`s.
-2. A null scalar carries a reason; a share carries its count; a coverage
-   carries its unit.
+2. A null scalar carries a reason; a share carries its count and is the
+   count's quotient; a coverage carries its unit; a value per page or per
+   block is keyed by anchor, with the side whose blocks it names.
 3. A `probes/<name>.py` module beside it, exposing `probes(bench, run)`: the
    probes that spoil the input and demand the number fall, using the spoilers
    in `src/booksmith/datasets/metrics/mutate.py`. Each probe names what was

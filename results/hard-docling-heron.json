@@ -1338,7 +1338,7 @@
       "n": 21,
       "of": 375
      },
-     "value": 21
+     "value": 0.056
     },
     "sense_whole": {
      "count": {
@@ -1871,7 +1871,7 @@
       "n": 92,
       "of": 130
      },
-     "value": 92
+     "value": 0.7076923076923077
     },
     "transitions": {
      "value": 699
@@ -1954,7 +1954,7 @@
       "n": 13,
       "of": 52
      },
-     "value": 13
+     "value": 0.25
     },
     "fingerprint_verified": {
      "value": 0
@@ -1971,7 +1971,7 @@
       "n": 52,
       "of": 52
      },
-     "value": 52
+     "value": 1.0
     }
    }
   }

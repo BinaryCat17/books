@@ -124,6 +124,14 @@ def _clip(shape, box):
 _JUNK_CACHE: dict = {}
 
 
+def _strips(columns) -> list:
+    """Runs of marked columns as `[x0, x1)` pairs in page pixels."""
+    import numpy as np
+    edge = np.diff(np.r_[0, columns.astype(np.int8), 0])
+    return [[int(a), int(b)] for a, b in
+            zip(np.flatnonzero(edge == 1), np.flatnonzero(edge == -1), strict=True)]
+
+
 def _junk_of(pdf, i, dpi, ink):
     """`_junk_columns`, cached on the same page the ink mask is cached on.
 
@@ -248,7 +256,10 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
            "arrived_with_company": 0, "boxes_with_many_objects": 0,
            "empty_objects": 0, "thresholds": {"ink": INK, "intact": WHOLE,
                                             "almost": ALMOST, "bitten": BITTEN,
-                                            "edge_band": EDGE}}
+                                            "edge_band": EDGE},
+           # The same counts per page, with the junk strips and the edge band
+           # in page pixels, and each truth object's fate by its anchor.
+           "pages": {}, "per_object": {}}
     dpis = set()
     pages = sorted(T) if T else sorted(M)
     for i in pages:
@@ -280,32 +291,33 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
         txt = _mask(ink.shape, [b["box"] for b in p["blocks"]
                                 if policy.role(b["label"]) != "artifact"
                                 and (b.get("content") or "").strip()]) & ~pic
-        res["ink_as_picture"] += int((ink & pic).sum())
-        res["ink_as_text"] += int((ink & txt).sum())
+        as_picture, as_text = int((ink & pic).sum()), int((ink & txt).sum())
+        res["ink_as_picture"] += as_picture
+        res["ink_as_text"] += as_text
         res["blocks_with_content"] += sum(
             1 for b in p["blocks"] if (b.get("content") or "").strip())
-        # Who arrived in which box: the artefact box against the number of
-        # truth objects it carries whole. Hence "arrived with company".
-        riders = {}
+        # Who arrived in which box: the artefact box against the truth
+        # objects it carries whole. Hence "arrived with company".
+        riders: dict = {}
         dpis.add(int(p["dpi"]))
         res["page_count"] += 1
-        res["ink_total"] += int(ink.sum())
+        whole = int(ink.sum())
+        under = int((ink & both).sum())
+        res["ink_total"] += whole
         junk = _junk_of(pdf, i, p["dpi"], ink)
         # Counted over the junk columns alone, never by building a second
         # sheet: a copy of the page mask would be paid on every page of every
         # pass to answer a question about a strip a tenth of it wide.
-        whole = int(ink.sum())
         if junk.any():
             j = int(ink[:, junk].sum())
-            res["clean_under_boxes"] += (int((ink & both).sum())
-                                         - int((ink[:, junk]
-                                                & both[:, junk]).sum()))
+            clean_under = under - int((ink[:, junk] & both[:, junk]).sum())
         else:
             j = 0
-            res["clean_under_boxes"] += int((ink & both).sum())
+            clean_under = under
+        res["clean_under_boxes"] += clean_under
         res["ink_junk"] += j
         res["ink_clean"] += whole - j
-        res["ink_under_boxes"] += int((ink & both).sum())
+        res["ink_under_boxes"] += under
         res["ink_under_artifact"] += int((ink & ma).sum())
         # Half the golden bench's "lost" ink lies in the edge band -- the dark
         # rim of the scan, not content -- so it is counted apart: without that a
@@ -355,6 +367,13 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
         # Every box the model drew, the ones off the sheet included: this is the
         # level-two bill, one crop and one paid request each.
         res["box_count"] += len(arte) + len(rest)
+        res["pages"][i] = {
+            "ink_total": whole, "ink_under_boxes": under,
+            "ink_under_artifact": int((ink & ma).sum()), "ink_junk": j,
+            "ink_clean": whole - j, "clean_under_boxes": clean_under,
+            "ink_as_text": as_text, "ink_as_picture": as_picture,
+            "box_count": len(arte) + len(rest),
+            "junk_strips": _strips(junk), "edge": k}
         for b in T.get(i, {}).get("blocks", []):
             if policy.role(b["label"]) != "artifact":
                 continue
@@ -373,8 +392,13 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
             kept = int((sub & ma[win]).sum())
             res["object_ink_in_boxes"] += kept
             r = kept / tot
-            res["intact" if r >= WHOLE else "almost_intact" if r >= ALMOST
-                else "bitten" if r >= BITTEN else "torn"] += 1
+            fate = ("intact" if r >= WHOLE else "almost_intact" if r >= ALMOST
+                    else "bitten" if r >= BITTEN else "torn")
+            res[fate] += 1
+            anchor = page.anchor(i, b["block_id"])
+            obj = res["per_object"][anchor] = {
+                "fate": fate, "ink": tot, "kept": kept,
+                "in_one_box": False, "left_as_text": False, "with_company": False}
             # "One box" is counted by the same ink as "intact", the difference
             # being only how many boxes hold the object -- their union, or one --
             # so the numbers nest strictly, never fewer intact than cut as one
@@ -400,16 +424,20 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
                         break
             if best / tot >= WHOLE:
                 res["in_one_box"] += 1
+                obj["in_one_box"] = True
                 # The object rides in this box -- the one `books crop` will cut.
-                riders[best_j] = riders.get(best_j, 0) + 1
+                riders.setdefault(best_j, []).append(anchor)
             elif r >= WHOLE:
                 res["split_between_boxes"] += 1
             if r < WHOLE and _carried_as_text(sub, ma[win], mr[win], tot):
                 res["left_as_text"] += 1
-        for k in riders.values():
-            if k >= 2:
-                res["arrived_with_company"] += k
+                obj["left_as_text"] = True
+        for anchors in riders.values():
+            if len(anchors) >= 2:
+                res["arrived_with_company"] += len(anchors)
                 res["boxes_with_many_objects"] += 1
+                for a in anchors:
+                    res["per_object"][a]["with_company"] = True
     doc.close()
     res["dpi"] = sorted(dpis)
     # The median, not the list: thousands of box areas would ride into `detail`

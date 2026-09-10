@@ -248,7 +248,7 @@
       "n": 1,
       "of": 10
      },
-     "value": 1
+     "value": 0.1
     },
     "transitions": {
      "value": 1
@@ -319,7 +319,7 @@
       "n": 6,
       "of": 52
      },
-     "value": 6
+     "value": 0.11538461538461539
     },
     "fingerprint_verified": {
      "value": 0
@@ -329,14 +329,14 @@
       "n": 3,
       "of": 52
      },
-     "value": 3
+     "value": 0.057692307692307696
     },
     "values_present": {
      "count": {
       "n": 49,
       "of": 52
      },
-     "value": 49
+     "value": 0.9423076923076923
     }
    }
   }

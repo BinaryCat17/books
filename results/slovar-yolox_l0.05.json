@@ -561,7 +561,7 @@
       "n": 12,
       "of": 13
      },
-     "value": 12
+     "value": 0.9230769230769231
     },
     "transitions": {
      "value": 450
@@ -660,7 +660,7 @@
       "n": 17,
       "of": 79
      },
-     "value": 17
+     "value": 0.21518987341772153
     },
     "fingerprint_verified": {
      "value": 1
@@ -677,7 +677,7 @@
       "n": 79,
       "of": 79
      },
-     "value": 79
+     "value": 1.0
     }
    }
   }

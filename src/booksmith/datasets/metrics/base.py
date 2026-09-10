@@ -16,12 +16,16 @@ from booksmith.core.log import log
 class Scalar:
     """One number of a record. `count` is the fraction behind a share (2 of 3
     found), `over` is COVERAGE in `unit` (over 6 pages of 130) -- two different
-    things -- and `value` is None only with a non-empty `why`."""
+    things -- and `value` is None only with a non-empty `why`. `per` is the
+    same quantity at each anchor that contributed to it, a page's or a
+    block's, so a viewer can place a number where it was counted."""
     value: float | int | None
     count: tuple[int, int] | None = None    # (numerator, denominator) of a share
     over: tuple[int, int] | None = None     # (counted, of), coverage
     unit: str = ""                          # of `over`: pages, blocks, pairs
     why: str | None = None
+    per: dict | None = None                 # anchor -> value at that anchor
+    side: str = ""                          # whose blocks `per` names: truth, run
 
     def __post_init__(self):
         if self.value is None and not self.why:
@@ -30,6 +34,14 @@ class Scalar:
             raise ValueError("a scalar is a number, not a flag")
         if self.over is not None and not self.unit:
             raise ValueError("coverage without a unit says nothing")
+        if self.side not in ("", "truth", "run"):
+            raise ValueError(f"side is truth or run, not {self.side!r}")
+        if self.per and not self.side and any("-b" in k for k in self.per):
+            raise ValueError("block anchors without a side name nobody's blocks")
+        if not self.per:
+            # One form for "nothing at any anchor": what JSON gives back.
+            object.__setattr__(self, "per", None)
+            object.__setattr__(self, "side", "")
 
     def to_json(self) -> dict:
         d = {"value": self.value}
@@ -39,6 +51,10 @@ class Scalar:
             d["over"] = {"n": self.over[0], "of": self.over[1], "unit": self.unit}
         if self.why:
             d["why"] = self.why
+        if self.per:
+            d["per"] = self.per
+            if self.side:
+                d["side"] = self.side
         return d
 
     @classmethod
@@ -46,7 +62,7 @@ class Scalar:
         c, o = d.get("count"), d.get("over")
         return cls(d.get("value"), (c["n"], c["of"]) if c else None,
                    (o["n"], o["of"]) if o else None, o["unit"] if o else "",
-                   d.get("why"))
+                   d.get("why"), d.get("per"), d.get("side", ""))
 
 
 @dataclass

@@ -276,7 +276,7 @@
       "n": 233,
       "of": 239
      },
-     "value": 233
+     "value": 0.9748953974895398
     },
     "model_order": {
      "over": {
@@ -556,7 +556,7 @@
       "n": 8,
       "of": 13
      },
-     "value": 8
+     "value": 0.6153846153846154
     },
     "transitions": {
      "value": 224
@@ -639,7 +639,7 @@
       "n": 13,
       "of": 52
      },
-     "value": 13
+     "value": 0.25
     },
     "fingerprint_verified": {
      "value": 0
@@ -656,7 +656,7 @@
       "n": 52,
       "of": 52
      },
-     "value": 52
+     "value": 1.0
     }
    }
   }

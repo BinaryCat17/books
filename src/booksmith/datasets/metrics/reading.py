@@ -64,10 +64,15 @@ def measure(pages) -> dict:
     """Counts over the blocks the run actually answered."""
     res = {"blocks": 0, "answered": 0, "charts": 0, "charts_answered": 0,
            "charts_as_data": 0, "looping": 0, "loop_worst": 0.0,
-           "loop_worst_anchor": None, "chart_anchors": [], "loop_anchors": []}
+           "loop_worst_anchor": None, "chart_anchors": [], "loop_anchors": [],
+           # By anchor: the loop share of each looping answer, and the share
+           # of each page's blocks answered.
+           "per": {"looping": {}, "answered": {}}}
     for i, p in sorted(pages.items()):
+        on_page = answered_on_page = 0
         for b in p.get("blocks") or []:
             res["blocks"] += 1
+            on_page += 1
             lab = b.get("label") or ""
             chart = lab == "chart"
             res["charts"] += chart
@@ -75,6 +80,7 @@ def measure(pages) -> dict:
             if not text:
                 continue
             res["answered"] += 1
+            answered_on_page += 1
             res["charts_answered"] += chart
             anchor = page.anchor(i, b.get("block_id"))
             if chart and is_data_table(text):
@@ -86,6 +92,9 @@ def measure(pages) -> dict:
             if r >= LOOP_SHARE:
                 res["looping"] += 1
                 res["loop_anchors"].append(anchor)
+                res["per"]["looping"][anchor] = r
+        if on_page:
+            res["per"]["answered"][page.anchor(i)] = answered_on_page / on_page
     return res
 
 
@@ -135,15 +144,18 @@ class ReadingMetric(Metric):
                 (res["charts_as_data"] / res["charts_answered"])
                 if res["charts_answered"] else None,
                 count=(res["charts_as_data"], res["charts_answered"]),
-                why=None if res["charts_answered"] else no_chart),
+                why=None if res["charts_answered"] else no_chart,
+                per=dict.fromkeys(res["chart_anchors"], 1), side="run"),
             "looping": Scalar(
                 (res["looping"] / res["answered"]) if res["answered"] else None,
                 count=(res["looping"], res["answered"]),
-                why=None if res["answered"] else no_answer),
+                why=None if res["answered"] else no_answer,
+                per=res["per"]["looping"], side="run"),
             "answered": Scalar(
                 (res["answered"] / res["blocks"]) if res["blocks"] else None,
                 count=(res["answered"], res["blocks"]),
-                why=None if res["blocks"] else "no block in this run"),
+                why=None if res["blocks"] else "no block in this run",
+                per=res["per"]["answered"]),
         }
         params = {"SHINGLE": SHINGLE, "LOOP_SHARE": LOOP_SHARE,
                   "NUMERIC_SHARE": NUMERIC_SHARE, "MIN_ROWS": MIN_ROWS}

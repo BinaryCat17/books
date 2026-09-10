@@ -5,7 +5,7 @@ The quantity is `contour.column_jumps`. Here it stands alone with `needs` =
 pages only, and the parameters that decide the count ride in `params`: two
 counts at different parameters are not comparable.
 """
-from booksmith.core import order
+from booksmith.core import order, page
 from booksmith.datasets.metrics import contour
 from booksmith.datasets.metrics.base import Metric, Record, Scalar, Spec
 
@@ -62,7 +62,8 @@ class AssemblyMetric(Metric):
             "excess_jumps": Scalar(
                 j.get("excess_jumps"),
                 why=None if j.get("excess_jumps") is not None
-                else j.get("why") or "not counted"),
+                else j.get("why") or "not counted",
+                per={page.anchor(i): n for i, n in j["by_page"].items()}),
             # Per transition, not per page: per page rewards a model for
             # finding fewer boxes, while a transition grows with the boxes and
             # divides that confound out.
@@ -70,7 +71,6 @@ class AssemblyMetric(Metric):
                 (j["excess_jumps"] / j["transitions"])
                 if j.get("transitions") else None,
                 count=(j.get("excess_jumps"), j.get("transitions")),
-                unit="transitions",
                 why=None if j.get("transitions") else
                 "no page gathered two counted boxes: nothing to jump between"),
             # The same quantity with our rule forced on every model: a model
@@ -79,12 +79,16 @@ class AssemblyMetric(Metric):
                 (one["excess_jumps"] / one["transitions"])
                 if one.get("transitions") else None,
                 count=(one.get("excess_jumps"), one.get("transitions")),
-                unit="transitions",
                 why=None if one.get("transitions") else
                 "no page gathered two counted boxes: nothing to jump between"),
             "transitions": Scalar(j.get("transitions", 0)),
-            "pages_with_columns": Scalar(j.get("pages_with_2plus_columns", 0),
-                                         count=(j.get("pages_with_2plus_columns", 0), j.get("page_count", 0))),
+            "pages_with_columns": Scalar(
+                (j["pages_with_2plus_columns"] / j["page_count"])
+                if j.get("page_count") else None,
+                count=(j.get("pages_with_2plus_columns", 0), j.get("page_count", 0)),
+                why=None if j.get("page_count") else "no page was counted",
+                per={page.anchor(i): 1 for i, n in j["columns_by_page"].items()
+                     if n >= 2}),
         }
         params = {f"COLUMN_{k}": v for k, v in (j.get("params") or {}).items()}
         # Whose order was counted, beside the count: the block list is the
