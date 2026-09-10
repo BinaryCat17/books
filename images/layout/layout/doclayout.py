@@ -36,12 +36,12 @@ class DocLayout(Detector):
         missing = [p for p in (self.onnx, cfg_path) if not os.path.exists(p)]
         if missing:
             raise WeightsMissing(
-                f"no layout detection weights in {self.dir}: missing {', '.join((os.path.basename(m) for m in missing))}.\nName the directory with the knob LAYOUT_MODEL_DIR, or put the weights where paddlex looks ({PADDLEX_MODELS})."
+                f"no layout detection weights in {self.dir}: missing {', '.join(os.path.basename(m) for m in missing)}.\nName the directory with the knob LAYOUT_MODEL_DIR, or put the weights where paddlex looks ({PADDLEX_MODELS})."
             )
         with open(cfg_path, encoding="utf-8") as f:
             cfg = yaml.safe_load(f)
         self.labels: list[str] = list(cfg["label_list"])
-        rz = next((p for p in cfg["Preprocess"] if p.get("type") == "Resize"))
+        rz = next(p for p in cfg["Preprocess"] if p.get("type") == "Resize")
         self.target_h, self.target_w = (int(v) for v in rz["target_size"])
         self.keep_ratio = bool(rz.get("keep_ratio", False))
         if self.keep_ratio:

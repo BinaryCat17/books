@@ -1,23 +1,46 @@
-"""A detector behind the model protocol: `books serve layout`"""
+"""A detector behind the model protocol"""
 
 from __future__ import annotations
+
 import base64
 import contextvars
-import json
+import hmac
 import os
 import sys
 import tempfile
 import threading
 import time
-from http.server import BaseHTTPRequestHandler
-from layout import knobs
-from layout import order
-from layout import protocol as served
+
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi.responses import JSONResponse
+
 from layout import identity as stamp
-from layout.errors import BooksmithError, Refusal
-from layout.log import log
+from layout import knobs, order
+from layout import protocol as served
 from layout.detector import Detector
-from layout.serve import Server, key_ok, run_until_stopped
+from layout.errors import BooksmithError, Refusal
+
+ADAPTERS = ("doclayout", "docling", "docling-egret", "yolox")
+
+
+def adapter(which: str) -> Detector:
+    if which == "doclayout":
+        from layout.doclayout import DocLayout
+
+        return DocLayout()
+    if which == "docling":
+        from layout.docling import DoclingHeron
+
+        return DoclingHeron()
+    if which == "docling-egret":
+        from layout.docling import DoclingEgret
+
+        return DoclingEgret()
+    if which == "yolox":
+        from layout.yolox import YoloXLayout
+
+        return YoloXLayout()
+    raise Refusal(f"LAYOUT_ADAPTER={which!r}: one of {ADAPTERS}")
 
 
 def _adapter_sha(det: Detector) -> str | None:
@@ -27,18 +50,12 @@ def _adapter_sha(det: Detector) -> str | None:
 
 
 class Service:
-    def __init__(
-        self,
-        det: Detector,
-        kind: str = "layout",
-        kinds: tuple[str, ...] = (),
-        key: str | None = None,
-    ):
+    def __init__(self, det: Detector, kind: str = "layout", kinds: tuple[str, ...] = (), key: str | None = None):
         if kind not in ("layout", "hybrid"):
             raise Refusal(f"a served detector is layout or hybrid, not {kind!r}")
-        if kind == "hybrid" and (not kinds):
+        if kind == "hybrid" and not kinds:
             raise Refusal("a hybrid declares the kinds of content it returns")
-        self.det, self.kind, self.key = (det, kind, key)
+        self.det, self.kind, self.key = det, kind, key
         self.pol = det.policy()
         self.context = contextvars.copy_context()
         self.lock = threading.Lock()
@@ -59,19 +76,13 @@ class Service:
         )
 
     def health(self) -> served.Health:
-        return served.Health(
-            ready=True,
-            label=self.describe.label,
-            last_request=self.last_request,
-            requests=self.requests,
-        )
+        return served.Health(ready=True, label=self.describe.label, last_request=self.last_request,
+                             requests=self.requests)
 
     def layout(self, req: served.LayoutRequest) -> dict:
         head, _, payload = req.image.partition(",")
         if not head.startswith("data:image/png;base64") or not payload:
-            raise Refusal(
-                "layout: the image is not a base64 PNG data URI; the rasters the tree renders are PNG"
-            )
+            raise Refusal("layout: the image is not a base64 PNG data URI")
         try:
             raw = base64.b64decode(payload, validate=True)
         except (ValueError, TypeError) as e:
@@ -81,7 +92,7 @@ class Service:
             with os.fdopen(fd, "wb") as f:
                 f.write(raw)
             with self.lock:
-                page = self.det.read(tmp, req.index, req.dpi)
+                page = self.context.copy().run(self.det.read, tmp, req.index, req.dpi)
                 self.requests += 1
                 self.last_request = time.time()
         finally:
@@ -90,69 +101,31 @@ class Service:
         return page.to_json()
 
 
-def handler_for(svc: Service) -> type:
+def create_app(svc: Service) -> FastAPI:
+    app = FastAPI(title=f"model {svc.describe.label}")
 
-    class H(BaseHTTPRequestHandler):
-        def log_message(self, fmt, *a):
-            log(f"{self.address_string()} {fmt % a}")
+    def allowed(authorization: str | None = Header(default=None)) -> None:
+        if svc.key and not (authorization and hmac.compare_digest(authorization, "Bearer " + svc.key)):
+            raise HTTPException(401, "a key is required, and this is not it")
 
-        def _json(self, code: int, body: object) -> None:
-            b = json.dumps(body, ensure_ascii=False).encode("utf-8")
-            self.send_response(code)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(b)))
-            self.end_headers()
-            self.wfile.write(b)
+    @app.exception_handler(BooksmithError)
+    def _refusal(_r: Request, e: BooksmithError) -> JSONResponse:
+        return JSONResponse({"error": f"{type(e).__name__}: {e}"}, status_code=400)
 
-        def _allowed(self) -> bool:
-            if key_ok(self.headers.get("Authorization"), svc.key):
-                return True
-            self._json(401, {"error": "a key is required, and this is not it"})
-            return False
+    @app.get(served.DESCRIBE, dependencies=[Depends(allowed)])
+    def describe() -> dict:
+        return svc.describe.to_json()
 
-        def do_GET(self):
-            if not self._allowed():
-                return
-            if self.path == served.DESCRIBE:
-                return self._json(200, svc.describe.to_json())
-            if self.path == served.HEALTH:
-                return self._json(200, svc.health().to_json())
-            return self._json(404, {"error": f"no route {self.path}"})
+    @app.get(served.HEALTH, dependencies=[Depends(allowed)])
+    def health() -> dict:
+        return svc.health().to_json()
 
-        def do_POST(self):
-            if not self._allowed():
-                return
-            if self.path != served.LAYOUT:
-                return self._json(404, {"error": f"no route {self.path}"})
-            try:
-                n = int(self.headers.get("Content-Length") or 0)
-                req = served.LayoutRequest.from_json(json.loads(self.rfile.read(n) or b"{}"))
-                return self._json(200, svc.layout(req))
-            except (ValueError, BooksmithError) as e:
-                return self._json(400, {"error": f"{type(e).__name__}: {e}"})
-            except Exception as e:
-                return self._json(500, {"error": f"{type(e).__name__}: {e}"})
+    @app.post(served.LAYOUT, dependencies=[Depends(allowed)])
+    def layout(body: dict) -> dict:
+        try:
+            req = served.LayoutRequest.from_json(body)
+        except (ValueError, TypeError) as e:
+            raise Refusal(f"layout: {e}") from None
+        return svc.layout(req)
 
-    return H
-
-
-def serve(svc: Service, host: str = "127.0.0.1", port: int = 0) -> Server:
-    return Server((host, port), handler_for(svc), svc.context)
-
-
-def main(
-    host: str, port: int, kind: str = "layout", kinds: tuple[str, ...] = (), key: str | None = None
-) -> int:
-    from layout import detect as level_one
-
-    det = level_one._adapter()
-    svc = Service(det, kind, kinds, key)
-    d = svc.describe
-    log(
-        f"serving {d.kind} {d.label}: {len(d.classes)} labels of {d.vocabulary or 'the model'}, knobs {sorted(d.knobs)}, key {('required' if key else 'none')}"
-    )
-    srv = serve(svc, host, port)
-    log(f"listening on http://{srv.server_address[0]}:{srv.server_address[1]}{served.DESCRIBE}")
-    run_until_stopped(srv, f"{d.label}")
-    log(f"served {svc.requests} pages")
-    return 0
+    return app

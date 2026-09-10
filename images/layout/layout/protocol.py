@@ -15,9 +15,9 @@ from layout.errors import Refusal
 PROTOCOL = 1
 KINDS = ("layout", "reader", "hybrid")
 ORDERS = ("own", "none")
-DESCRIBE = "/layout/describe"
-HEALTH = "/layout/health"
-LAYOUT = "/layout/layout"
+DESCRIBE = "/booksmith/describe"
+HEALTH = "/booksmith/health"
+LAYOUT = "/booksmith/layout"
 MIME = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp"}
 
 
@@ -135,7 +135,7 @@ class Describe:
         if order not in ORDERS:
             raise Refusal(f"describe: {label}: reading_order {order!r} is not one of {ORDERS}")
         kinds = d.get("kinds", [])
-        if not isinstance(kinds, list) or not all((isinstance(x, str) for x in kinds)):
+        if not isinstance(kinds, list) or not all(isinstance(x, str) for x in kinds):
             raise Refusal(f"describe: {label}: kinds must be a list of strings")
         openai = d.get("openai")
         name = str(d.get("vocabulary") or "")

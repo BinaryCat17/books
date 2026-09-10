@@ -15,9 +15,9 @@ from backend.errors import Refusal
 PROTOCOL = 1
 KINDS = ("layout", "reader", "hybrid")
 ORDERS = ("own", "none")
-DESCRIBE = "/backend/describe"
-HEALTH = "/backend/health"
-LAYOUT = "/backend/layout"
+DESCRIBE = "/booksmith/describe"
+HEALTH = "/booksmith/health"
+LAYOUT = "/booksmith/layout"
 MIME = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp"}
 
 

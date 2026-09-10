@@ -179,7 +179,7 @@ class _DoclingPipeline:
                 if self.pol.role(lab) == "text":
                     art = [k for k in ch if self.pol.role(k["label"]) == "artifact"]
                     arte_in_text += len(art)
-                    arte_lost += sum((1 for k in art if k["id_before_pipeline"] not in top))
+                    arte_lost += sum(1 for k in art if k["id_before_pipeline"] not in top)
             out.append(
                 Block(
                     block_id=i,
@@ -192,7 +192,7 @@ class _DoclingPipeline:
         self.pages += 1
         self.before += len(blocks)
         self.after += len(out)
-        self.kids += sum((len(v) for v in kids.values()))
+        self.kids += sum(len(v) for v in kids.values())
         self.displaced += displaced
         self.resorted += resorted or 0
         self.reordered += moved or 0
@@ -202,7 +202,7 @@ class _DoclingPipeline:
             "mode": self.mode,
             "boxes_before": len(blocks),
             "boxes_after": len(out),
-            "moved_to_children": sum((len(v) for v in kids.values())),
+            "moved_to_children": sum(len(v) for v in kids.values()),
             "boxes_reordered": displaced,
             "reordered_by_postprocessor_sort": resorted,
             "reordered_by_order_rules": moved,

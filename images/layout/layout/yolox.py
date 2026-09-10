@@ -51,7 +51,7 @@ class YoloXLayout(Detector):
         self.in_h, self.in_w = (int(shape[2]), int(shape[3]))
         self.labels = list(LABELS)
         out = self.sess.get_outputs()[0].shape
-        want = sum((self.in_h // s * (self.in_w // s) for s in STRIDES))
+        want = sum(self.in_h // s * (self.in_w // s) for s in STRIDES)
         if int(out[1]) != want:
             raise WeightsMissing(
                 f"output {out}: {out[1]} cells, while the grid {STRIDES} over the input {self.in_h}x{self.in_w} gives {want}. Laying it out blind means inventing boxes."

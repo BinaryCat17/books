@@ -1,19 +1,14 @@
 """The reading-order contract: the word "ours" in an adapter against the guard"""
 
-import os
 import pytest
-import shutil
 import support
-from layout import contour as metrics
-from layout import order
-from layout import docling as docling_heron
+from metrics import contour as metrics
+from metrics import order
 
 EXPECTED = {"model_rank": "model"}
 for _w in order.WORDS.values():
     EXPECTED[_w] = "ours"
     EXPECTED[_w + ": the model gives no rank"] = "ours"
-for _mode, _rule in docling_heron._DoclingPipeline.ORDER_RULE.items():
-    EXPECTED[_rule] = "ours"
 
 
 def guard():
@@ -44,7 +39,7 @@ def test_guard_reads_every_value_as_intended():
 
 
 def test_guard_ignores_case():
-    from layout.page import ours_order
+    from metrics.page import ours_order
 
     for v in (
         "OURS_top_down_left_right",
@@ -74,32 +69,6 @@ def test_truth_side_has_three_answers_not_two():
     assert len({metrics.ORDER_MARKED, metrics.ORDER_UNMARKED, metrics.ORDER_SILENT}) == 3, (
         "three states stuck into two"
     )
-
-
-def _fake_page(rows, labels):
-    import numpy as np
-    import cv2
-    import tempfile
-    from layout.doclayout import DocLayout
-
-    r = object.__new__(DocLayout)
-    r.labels = list(labels)
-    r.target_h = r.target_w = 800
-    r.interp = 2
-    r.norm_scale = True
-    r.norm_type = "none"
-    r.norm_mean = [0.0] * 3
-    r.norm_std = [1.0] * 3
-    arr = np.array(rows, np.float32)
-    r.has_order = arr.shape[1] >= 7
-    r.sess = type("Graph", (), {"run": lambda _self, _names, _feed: [arr, np.array([len(rows)])]})()
-    tmp = tempfile.mkdtemp(prefix="layout-order-")
-    png = os.path.join(tmp, "page.png")
-    cv2.imwrite(png, np.zeros((1000, 800, 3), np.uint8))
-    try:
-        return r.read(png, 0, 144.0)
-    finally:
-        shutil.rmtree(tmp, ignore_errors=True)
 
 
 _ROWS_NO_RANK = [
@@ -204,25 +173,12 @@ def test_ranking_rebuilds_the_variants_it_measures():
     metrics.column_jumps_ranking({"sentinel": spy, "model": M})
     pts = metrics._sweep_points(metrics.COLUMN_SWEEP, False)
     assert seen, "the builder was never called -- the variant is not rebuilt"
-    assert any((p for p in seen)), (
+    assert any(p for p in seen), (
         f"the builder was called {len(seen)} times and never with a point's parameters: the rebuilding exists only in words"
     )
     assert len(seen) <= len(pts), (
         f"the builder was called {len(seen)} times over {len(pts)} points -- an extra count"
     )
-
-
-@pytest.mark.parametrize(
-    "source,rule,want",
-    [
-        ("model", "", order.MODEL_RANK),
-        ("none", "", None),
-        *[("ours", w, w) for w in order.WORDS.values()],
-        *[("ours", r, r) for r in docling_heron._DoclingPipeline.ORDER_RULE.values()],
-    ],
-)
-def test_declare_returns_the_vocabulary_unchanged(source, rule, want):
-    assert order.declare(source, rule) == want
 
 
 @pytest.mark.parametrize(
