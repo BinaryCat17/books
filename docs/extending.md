@@ -90,8 +90,9 @@ In process, for a model the tree holds itself:
 2. `truth/NNNN.json`, one per page, in the page format of
    `src/booksmith/core/page.py`, with `width` and `height` in the raster the
    runs will be compared to.
-3. Per page, `meta.text_marked` and `meta.order_marked` set honestly; a
-   missing flag reads as "not said". Table truth under
+3. Per page, `meta.text_marked`, `meta.order_marked` and, for a truth
+   drawn page by page, `meta.labelled` set honestly; a missing flag reads
+   as "not said". Table truth under
    `meta.artifact_truth[block_id]` as rows, cols and cells. Objects the
    vocabulary cannot express under `meta.out_of_scope`.
 4. A builder writes to `truth.new/` and renames, so an interrupted build

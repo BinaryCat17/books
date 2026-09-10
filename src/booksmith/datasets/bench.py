@@ -17,7 +17,11 @@ from booksmith.core import policy as policy_mod
 from booksmith.core import page
 from booksmith.core import stamp
 
-TRAITS = ("order_marked", "text_marked")
+# What a truth page says of itself, three-state each: whether its order and
+# its text are annotated, and whether the page is labelled at all -- a bench
+# whose truth grows page by page says so on every page, and the contour
+# metric counts only the pages that say yes once any page says anything.
+TRAITS = ("order_marked", "text_marked", "labelled")
 TRAIT_STATES = ("yes", "no", "not_said")
 
 

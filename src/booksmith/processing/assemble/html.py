@@ -22,6 +22,8 @@ from booksmith.core import policy
 from booksmith.core import stamp, textnorm
 from booksmith.core.errors import Refusal
 
+from dataclasses import dataclass
+
 from booksmith.core.page import Page, anchor
 from booksmith.core import knobs
 from booksmith.core import book, raster as crop
@@ -623,16 +625,248 @@ def _math(out_dir: str) -> tuple[str, str]:
             f"neighbouring files needed")
 
 
-def build(detect_dir: str, out_dir: str) -> dict:
-    """Build HTML from a `books detect` directory. Returns the build's numbers."""
+# ------------------------------------------------------------ the data pass
+# What the book is made of, before a byte of it is emitted: every block with
+# its role by the run's own policy, what reading said of it, how it nests and
+# repeats, and whether the book shows it as a crop or a paragraph. A viewer
+# takes a page of this; `emit` takes the whole and writes the book. Nothing
+# here opens the scan: the crop facts, which need it, are the emission's.
 
-    detect_dir = os.path.abspath(detect_dir)
-    out_dir = os.path.abspath(out_dir)
+@dataclass
+class BlockData:
+    anchor: str
+    page: int
+    block_id: int
+    label: str
+    cls: str
+    role: str
+    score: float | None
+    order: int | None
+    order_source: str
+    content: str | None
+    kind: str
+    box: list
+    reading: dict | None
+    hit_ceiling: bool | None
+    repeat_of: str | None
+    repeat_verdict: str | None
+    table_shape: str | None
+    inside_artifacts: list | None
+    inside: str | None
+    contains: list | None
+    # Nested in a box that is not an artifact: the same words twice as two
+    # paragraphs, and strictly so when both sides are text.
+    nested_in_text: bool
+    nested_in_text_strict: bool
+    # What the book shows: a crop, or a paragraph of the model's bytes.
+    as_picture: bool
+    why_empty: str | None
 
-    # Level two's swap journal, and this stands first: rebuilding into the same
-    # directory wipes the book while `swaps.json` survives and starts lying, and
-    # `books apply --undo` would then blame an edit past the journal. A refusal
-    # about destroying the output belongs above every complaint about the input.
+
+@dataclass
+class PageData:
+    index: int
+    width: int
+    height: int
+    dpi: float
+    order_source: str
+    trouble: str | None
+    image_share: float
+    largest_artifact_share: float
+    repeats_verbatim: int
+    nested_artifacts: int
+    blocks: list
+
+
+@dataclass
+class BookData:
+    run_dir: str
+    pdf: str
+    page_dpi: float
+    sha256: str | None
+    sha256_said: str | None
+    policy: policy.Policy
+    observed: bool
+    repeats_how: str
+    pages: list
+
+
+def observed_page(detect_dir: str, index: int) -> dict:
+    """What reading said of one page's blocks, keyed by anchor: the one
+    answers file, not the directory."""
+    path = os.path.join(detect_dir, "answers", f"{anchor(index)}.json")
+    out = {}
+    try:
+        with open(path, encoding="utf-8") as f:
+            recs = json.load(f).get("answers")
+    except (ValueError, OSError, AttributeError):
+        return out
+    if not isinstance(recs, list):
+        return out
+    for r in recs:
+        a = r.get("anchor")
+        if not a:
+            continue
+        side = r.get("observed") or {}
+        out[a] = {"outcome": r.get("outcome"),
+                  "error": r.get("error"),
+                  "prompt": side.get("prompt"),
+                  "kind_promised": side.get("kind_promised"),
+                  "kind_sniffed": side.get("kind_sniffed"),
+                  "otsl_grid": side.get("otsl_grid")}
+    return out
+
+
+def _answers_present(detect_dir: str) -> bool:
+    d = os.path.join(detect_dir, "answers")
+    return os.path.isdir(d) and any(n.endswith(".json") for n in os.listdir(d))
+
+
+def _snapshot(detect_dir: str) -> dict:
+    with open(os.path.join(detect_dir, "run.json"), encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _gather_page(page: Page, pol: policy.Policy, obs: dict, obs_present: bool) -> PageData:
+    """One page's data, the loop the builder walked, without the scan."""
+    order_src = _order_src(page)
+    arts = [b for b in page.blocks if pol.role(b.label) == "artifact"]
+    repeats_page = repeats_on(page, _covered, pol)
+    sheet = float(page.width) * float(page.height)
+    share = _union_share([b.box for b in arts], sheet)
+    trouble = _sheet_trouble(page.blocks, arts, pol)
+    biggest = 0.0
+    for b in arts:
+        one = ((b.box[2] - b.box[0]) * (b.box[3] - b.box[1])) / sheet if sheet else 0.0
+        biggest = max(biggest, one)
+    nested_in = _nesting(arts)
+    verbatim = sum(1 for v in repeats_page.values() if v[1] == "verbatim")
+    blocks = []
+    for b in page.blocks:
+        a = anchor(page.index, b.block_id)
+        role = pol.role(b.label)
+        inside = [o for o in arts
+                  if o.block_id != b.block_id and _covered(b.box, o.box)]
+        outside = [o for o in page.blocks
+                   if o.block_id != b.block_id
+                   and pol.role(o.label) != "artifact"
+                   and _covered(b.box, o.box)]
+        in_text = role != "artifact" and bool(outside)
+        strict = (in_text and role == "text"
+                  and any(pol.role(o.label) == "text" for o in outside))
+        repeat = repeat_text = None
+        if b.block_id in repeats_page:
+            owner_id, repeat_text = repeats_page[b.block_id]
+            repeat = (anchor(page.index, owner_id)
+                      if owner_id is not None else "page")
+        o = obs.get(a) or {}
+        outer = nested_in.get(b.block_id)
+        outer_a = anchor(page.index, outer) if outer is not None else None
+        # `.strip()`: `"   "` is truthy, so a whitespace answer would take
+        # the paragraph branch -- an empty `<p></p>`, no crop cut, the ink
+        # gone while every counter called it text. `from_text` asks the same.
+        as_picture = role == "artifact" or not (b.content or "").strip()
+        blocks.append(BlockData(
+            anchor=a, page=page.index, block_id=b.block_id, label=b.label,
+            cls=pol.cls(b.label), role=role, score=b.score, order=b.order,
+            order_source=order_src, content=b.content, kind=b.kind,
+            box=list(b.box),
+            # `None` across the board means "no `answers/` alongside", not
+            # "read without trouble".
+            reading=(o or None),
+            # Three values, not two: `torn or None` would make `null` mean
+            # both "read whole" and "never asked".
+            hit_ceiling=torn_of(o),
+            repeat_of=repeat, repeat_verdict=repeat_text,
+            table_shape=torn_grid(o.get("otsl_grid")),
+            inside_artifacts=[anchor(page.index, x.block_id) for x in inside] or None,
+            inside=outer_a,
+            contains=[anchor(page.index, k) for k, v in nested_in.items()
+                      if v == b.block_id] or None,
+            nested_in_text=in_text, nested_in_text_strict=strict,
+            as_picture=as_picture,
+            why_empty=(why_empty(o if obs_present else None)
+                       if not b.content else None)))
+    return PageData(index=page.index, width=page.width, height=page.height,
+                    dpi=float(page.dpi), order_source=order_src, trouble=trouble,
+                    image_share=share, largest_artifact_share=biggest,
+                    repeats_verbatim=verbatim, nested_artifacts=len(nested_in),
+                    blocks=blocks)
+
+
+def gather_page(detect_dir: str, index: int) -> PageData:
+    """One page of a run as the book would show it: the page file and its
+    answers file, and nothing else opened."""
+    snap = _snapshot(detect_dir)
+    pol = policy.Policy.from_snapshot(snap.get("policy"))
+    path = os.path.join(detect_dir, "pages", f"{index:04d}.json")
+    if not os.path.isfile(path):
+        raise Refusal(f"no page {index} in {detect_dir}")
+    with open(path, encoding="utf-8") as f:
+        page = Page.from_json(json.load(f))
+    return _gather_page(page, pol, observed_page(detect_dir, index),
+                        _answers_present(detect_dir))
+
+
+def gather(detect_dir: str, verify: bool = True) -> BookData:
+    """The whole run as data. `verify` hashes the scan against the snapshot,
+    which a build must and a viewer need not."""
+    snap = _snapshot(detect_dir)
+    pdf = snap["source"]["path"]
+    page_dpi = float(snap["raster"]["dpi"])
+    # The run's own policy, out of its snapshot: a block's role is the
+    # model's declaration, not whatever this process happens to know.
+    pol = policy.Policy.from_snapshot(snap.get("policy"))
+    if not os.path.exists(pdf):
+        raise Refusal(
+            f"the parse source is not in place: {pdf}\n"
+            f"HTML is built from the PDF, not from the detection raster -- a "
+            f"crop of a dense table at {page_dpi:.0f} dpi is unreadable.")
+    said = (snap.get("source") or {}).get("sha256")
+    now = None
+    if verify:
+        # The source check stands here, not at the end: after the work it
+        # would give a book made from a foreign file and no snapshot.
+        now = stamp.sha256(pdf)
+        if said and said != now:
+            raise Refusal(
+                f"{pdf} changed after detection: the snapshot swore sha256 "
+                f"{said[:12]}, now it is {now[:12]}. The crops would come from "
+                f"one file and the boxes from another. Recompute books detect, "
+                f"or put back the PDF the boxes were counted on.")
+        # A number, not "matched": a snapshot without the field is "nothing
+        # to check against", not "checked and equal", and it says so.
+        log(f"source {os.path.basename(pdf)} sha256 {now[:12]}"
+            + (" -- matched the detection snapshot" if said
+               else " -- the detection snapshot named no sha256, nothing to "
+                    "check against"))
+    files = sorted(glob.glob(os.path.join(detect_dir, "pages", "*.json")))
+    if not files:
+        raise Refusal(f"no pages in {detect_dir} -- run books detect first")
+    obs_present = _answers_present(detect_dir)
+    repeats_how = _repeats_how()
+    pages = []
+    for page_n, fp in enumerate(files, 1):
+        # A build is a job: it says where it is and can be stopped between pages.
+        job.current().check()
+        with open(fp, encoding="utf-8") as f:
+            page = Page.from_json(json.load(f))
+        pages.append(_gather_page(page, pol, observed_page(detect_dir, page.index),
+                                  obs_present))
+        if page_n % 10 == 0 or page_n == len(files):
+            log(f"  {page_n}/{len(files)} pages gathered", n=page_n, of=len(files))
+    return BookData(run_dir=detect_dir, pdf=pdf, page_dpi=page_dpi, sha256=now,
+                    sha256_said=said, policy=pol, observed=obs_present,
+                    repeats_how=repeats_how, pages=pages)
+
+
+# ------------------------------------------------------------ the emission
+def _refuse_live_journal(out_dir: str) -> None:
+    """Level two's swap journal, and this stands first: rebuilding into the
+    same directory wipes the book while `swaps.json` survives and starts
+    lying, and `books apply --undo` would then blame an edit past the
+    journal. A refusal about destroying the output belongs above every
+    complaint about the input."""
     _j = book.journal_path(out_dir)
     if os.path.exists(_j):
         try:
@@ -647,237 +881,136 @@ def build(detect_dir: str, out_dir: str) -> dict:
               "survives and starts lying. Build into another directory, or "
               "remove swaps.json if the swaps are no longer needed.")
 
-    with open(os.path.join(detect_dir, "run.json"), encoding="utf-8") as f:
-        snap = json.load(f)
-    pdf = snap["source"]["path"]
-    page_dpi = float(snap["raster"]["dpi"])
-    # The run's own policy, out of its snapshot: a block's role is the
-    # model's declaration, not whatever this process happens to know.
-    pol = policy.Policy.from_snapshot(snap.get("policy"))
-    if not os.path.exists(pdf):
-        raise Refusal(
-            f"the parse source is not in place: {pdf}\n"
-            f"HTML is built from the PDF, not from the detection raster -- a "
-            f"crop of a dense table at {page_dpi:.0f} dpi is unreadable.")
 
-    # The source check stands here, not at the end: after the work it would give
-    # a book made from a foreign file and no snapshot, `run.json` never reached.
-    said = (snap.get("source") or {}).get("sha256")
-    now = stamp.sha256(pdf)
-    if said and said != now:
-        raise Refusal(
-            f"{pdf} changed after detection: the snapshot swore sha256 "
-            f"{said[:12]}, now it is {now[:12]}. The crops would come from one "
-            f"file and the boxes from another. Recompute books detect, or put "
-            f"back the PDF the boxes were counted on.")
-    # A number, not "matched": a snapshot without the field is "nothing to check
-    # against", not "checked and equal", and it says so.
-    log(f"source {os.path.basename(pdf)} sha256 {now[:12]}"
-        + (" -- matched the detection snapshot" if said
-           else " -- the detection snapshot named no sha256, nothing to "
-                "check against"))
-
-
-    expected = []          # anchors in the order the book must carry them
-    files = sorted(glob.glob(os.path.join(detect_dir, "pages", "*.json")))
-    if not files:
-        raise Refusal(f"no pages in {detect_dir} -- run books detect "
-                         f"first")
+def emit(data: BookData, out_dir: str) -> dict:
+    """The book written out of the data: crops cut from the scan, the page as
+    markup, `blocks.json` with the crop facts beside each block, the build's
+    own snapshot, the source kept beside it. Returns the build's numbers."""
+    out_dir = os.path.abspath(out_dir)
+    detect_dir = data.run_dir
+    _refuse_live_journal(out_dir)
+    pdf, page_dpi, pol = data.pdf, data.page_dpi, data.policy
+    now = data.sha256 if data.sha256 is not None else stamp.sha256(pdf)
+    said = data.sha256_said
+    obs = data.observed
+    repeats_how = data.repeats_how
 
     doc = crop.open_pdf(pdf)
     # Read before the loop, not inside: an environment edit mid-run would give a
     # book with some pictures inlined and some not.
     img_how = _img_how()
-    repeats_how = _repeats_how()
     blockdir = os.path.join(out_dir, ASSETS, "blocks")
     os.makedirs(blockdir, exist_ok=True)
     for old in glob.glob(os.path.join(blockdir, "*.png")):
         os.unlink(old)
 
+    expected = []          # anchors in the order the book must carry them
     body, side = [], {}
     counts = {r: 0 for r in policy.ROLES}
     cut_n = clipped = 0
-    # Three troubles that silently spoil the book, each a number rather than a
-    # discovery made while reading the finished HTML: ink twice -- the sheet
-    # share under two crops or more, measured as area because boxes may overlap
-    # and we cut by every one; nested artifacts -- two artifact boxes one inside
-    # the other, where which of them gets the block is undeclared; and a page
-    # with no text block at all, which the first two are blind to.
     dup_text = nested = no_text = no_blocks = only_service = 0
-    obs = observed(detect_dir)
     torn_n = shape_n = 0
     torn_a, shape_a = [], []
-    # The other half of the same question: `dup_text` is text inside an artifact
-    # box, this is text inside a text box -- the same words as two <p>, no crops
-    # cut, so the first number is blind to it. The denominator is in the name,
-    # nesting into any non-artifact box; the strict reading stands beside it.
-    dup_in_text = 0
-    # Counted, never remembered: a constant here prints another book's number.
-    dup_in_text_strict = 0
-    # A repeat is not mere nesting: nesting is a fact about the model's boxes, a
-    # repeat a claim about text needing comparison. Both counted, both printed.
+    dup_in_text = dup_in_text_strict = 0
     repeat_count = differs = by_layout = 0
-    # Whose order was assembled: on three adapters of four `Block.order` is our
-    # own top-down left-to-right sort, not the model's rank, and the adapter says
-    # so in the page meta field `reading_order`. Counted per page, a hand-made
-    # directory being able to mix them.
     order_src_n = {}
     ink2 = sheet_pt_all = 0.0
     worst2 = (0.0, None)
     biggest = (0.0, None)
-    for page_n, fp in enumerate(files, 1):
-        # A build is a job: it says where it is and can be stopped between pages.
-        job.current().check()
-        with open(fp, encoding="utf-8") as f:
-            page = Page.from_json(json.load(f))
-        if page_n % 10 == 0 or page_n == len(files):
-            log(f"  {page_n}/{len(files)} pages built", n=page_n, of=len(files))
-        order_src = _order_src(page)
-        order_src_n[order_src] = order_src_n.get(order_src, 0) + 1
-        arts = [b for b in page.blocks if pol.role(b.label) == "artifact"]
-        repeats_page = repeats_on(page, _covered, pol)
-        sheet = float(page.width) * float(page.height)
-        share = _union_share([b.box for b in arts], sheet)
-        # One word, one rule (`_sheet_trouble`): "saw nothing", "saw one thing
-        # covering everything", "saw only furniture", never confused.
-        trouble = _sheet_trouble(page.blocks, arts, pol)
-        empty = trouble == "empty"
-        blank = trouble == "no-text"
-        no_text += blank
-        no_blocks += empty
-        only_service += trouble == "furniture-only"
-        for b in arts:
-            one = ((b.box[2] - b.box[0]) * (b.box[3] - b.box[1])) / sheet
-            if one > biggest[0]:
-                biggest = (one, page.index)
-        nested_in = _nesting(arts)
-        nested += len(nested_in)
-        # How much is hidden here is marked on the sheet: every other shortening
-        # is visible by itself, and this is the only one that removes text.
-        hidden_here = sum(1 for v in repeats_page.values() if v[1] == "verbatim")
-        body.append(
-            f'<hr class="sheet" data-sheet="{page.index}" '
-            f'data-image-share="{share:.2f}"'
-            + (f' data-repeats-hidden="{hidden_here}"'
-               if hidden_here and repeats_how == "hide" else "")
-            + (f' data-{trouble}="yes"' if trouble else '') + '>')
-        cuts = []
-        # Not inside the loop: an expectation built during the walk is
-        # tautological -- reverse the walk and it reverses with it.
-        expected.extend(anchor(page.index, b.block_id) for b in page.blocks)
-        for b in page.blocks:
-            a = anchor(page.index, b.block_id)
-            role = pol.role(b.label)
-            inside = [o for o in arts
-                      if o.block_id != b.block_id and _covered(b.box, o.box)]
-            if role != "artifact" and inside:
-                dup_text += 1
-            # The same nesting measure over text boxes: words that reached the
-            # book twice, as two <p>. A block does not cover itself.
-            outside = [o for o in page.blocks
-                       if o.block_id != b.block_id
-                       and pol.role(o.label) != "artifact"
-                       and _covered(b.box, o.box)]
-            if role != "artifact" and outside:
-                dup_in_text += 1
-                if role == "text" and any(pol.role(o.label) == "text"
-                                           for o in outside):
-                    dup_in_text_strict += 1
-            # Decided before the loop, for the whole page at once: it needs to
-            # know which blocks remain, unknown inside the walk.
-            repeat = repeat_text = None
-            if b.block_id in repeats_page:
-                owner_id, repeat_text = repeats_page[b.block_id]
-                repeat = (anchor(page.index, owner_id)
-                          if owner_id is not None else "page")
-                repeat_count += repeat_text == "verbatim"
-                differs += repeat_text == "differs"
-                by_layout += repeat_text == "layout"
-            counts[role] += 1
-            # What reading said: an attribute, not an edit — `content` stays the
-            # model's bytes and the observed travels alongside.
-            o = obs.get(a) or {}
-            torn = torn_of(o)
-            shape = torn_grid(o.get("otsl_grid"))
-            mark = ' data-truncated="yes"' if torn else ""
-            if repeat:
-                # Under `show` the mark stays and the hiding does not: only the
-                # consequence of the observation is switched off.
-                kind = (repeat_text if repeats_how == "hide"
-                       else ("shown by HTML_REPEATS=show"
-                             if repeat_text == "verbatim" else repeat_text))
-                mark += (f' data-repeat="{repeat}"'
-                         f' data-repeat-text="{kind}"')
-            if shape:
-                mark += f' data-table-shape="{_html.escape(shape, quote=True)}"'
-            if torn:
-                torn_n += 1
-                torn_a.append(a)
-            if shape:
-                shape_n += 1
-                shape_a.append(a)
-            outer = nested_in.get(b.block_id)
-            outer_a = anchor(page.index, outer) if outer is not None else None
-            # `.strip()`: `"   "` is truthy, so a whitespace answer would take
-            # the paragraph branch -- an empty `<p></p>`, no crop cut, the ink
-            # gone while every counter called it text. `from_text` asks the same.
-            if role == "artifact" or not (b.content or "").strip():
-                rel = f"{ASSETS}/blocks/{a}.png"
-                info = crop.cut(doc, page.index, b.box, page_dpi,
-                                os.path.join(out_dir, rel))
-                # A crop is always a file, reaching the book as a link or as its
-                # own bytes: files serve edits, measurements and level two, the
-                # book serves reading from any path.
-                src = _img_src(os.path.join(out_dir, rel), rel, img_how)
-                cut_n += 1
-                clipped += bool(info["clipped_by_sheet"])
-                cuts.append([float(v) for v in info["box_in_points"]])
-                body.append(swap.wrap(
-                    a, _figure(a, b, role, src, info, inside=outer_a,
-                               mark=mark,
-                               why=(why_empty(o if obs else None)
-                                    if not b.content else None))))
-            else:
-                info = {}
-                body.append(swap.wrap(
-                    a, f'<p id="{a}" data-role="{role}" '
-                       f'data-label="{b.label}"{mark}>'
-                       f'{_html.escape(b.content)}</p>'))
-            side[a] = {"page": page.index, "block_id": b.block_id,
-                       # `None` across the board means "no `answers/`
-                       # alongside", not "read without trouble".
-                       "reading": (o or None),
-                       # Three values, not two: `torn or None` would make `null`
-                       # mean both "read whole" and "never asked".
-                       "hit_ceiling": torn,
-                       "repeat_of": repeat,
-                       "repeat_verdict": repeat_text,
-                       "table_shape": shape,
-                       "label": b.label, "score": b.score,
-                       # A position in the list, not a model rank on three
-                       # adapters of four: `order_source` says which it is.
-                       "order": b.order, "order_source": order_src,
-                       "role": role,
-                       "box": list(b.box), "crop": info or None,
-                       "inside_artifacts": [anchor(page.index, o.block_id)
-                                             for o in inside] or None,
-                       "inside": outer_a,
-                       "contains": [anchor(page.index, k)
-                                    for k, v in nested_in.items()
-                                    if v == b.block_id] or None}
-        # Counted over the boxes actually cut, in sheet points rather than
-        # `b.box`: a crop has its own margin (`CROP_MARGIN`) and its own clip by
-        # the sheet edge, and it is the crop that reaches the book. It sees
-        # crops, not ink in general -- text over text falls to zero once such
-        # blocks travel as lines, while the words stay doubled as two <p>.
-        r = doc[page.index].rect
-        sheet_pt = float(r.width) * float(r.height)
-        twice = min(_twice_area(cuts), sheet_pt)
-        ink2 += twice
-        sheet_pt_all += sheet_pt
-        if sheet_pt > 0 and twice / sheet_pt > worst2[0]:
-            worst2 = (twice / sheet_pt, page.index)
-    doc.close()
+    try:
+        for page_n, pg in enumerate(data.pages, 1):
+            job.current().check()
+            if page_n % 10 == 0 or page_n == len(data.pages):
+                log(f"  {page_n}/{len(data.pages)} pages built", n=page_n, of=len(data.pages))
+            order_src_n[pg.order_source] = order_src_n.get(pg.order_source, 0) + 1
+            no_text += pg.trouble == "no-text"
+            no_blocks += pg.trouble == "empty"
+            only_service += pg.trouble == "furniture-only"
+            if pg.largest_artifact_share > biggest[0]:
+                biggest = (pg.largest_artifact_share, pg.index)
+            nested += pg.nested_artifacts
+            body.append(
+                f'<hr class="sheet" data-sheet="{pg.index}" '
+                f'data-image-share="{pg.image_share:.2f}"'
+                + (f' data-repeats-hidden="{pg.repeats_verbatim}"'
+                   if pg.repeats_verbatim and repeats_how == "hide" else "")
+                + (f' data-{pg.trouble}="yes"' if pg.trouble else '') + '>')
+            cuts = []
+            expected.extend(b.anchor for b in pg.blocks)
+            for b in pg.blocks:
+                a = b.anchor
+                if b.role != "artifact" and b.inside_artifacts:
+                    dup_text += 1
+                dup_in_text += b.nested_in_text
+                dup_in_text_strict += b.nested_in_text_strict
+                repeat_count += b.repeat_verdict == "verbatim"
+                differs += b.repeat_verdict == "differs"
+                by_layout += b.repeat_verdict == "layout"
+                counts[b.role] += 1
+                mark = ' data-truncated="yes"' if b.hit_ceiling else ""
+                if b.repeat_of:
+                    # Under `show` the mark stays and the hiding does not: only
+                    # the consequence of the observation is switched off.
+                    kind = (b.repeat_verdict if repeats_how == "hide"
+                            else ("shown by HTML_REPEATS=show"
+                                  if b.repeat_verdict == "verbatim" else b.repeat_verdict))
+                    mark += (f' data-repeat="{b.repeat_of}"'
+                             f' data-repeat-text="{kind}"')
+                if b.table_shape:
+                    mark += f' data-table-shape="{_html.escape(b.table_shape, quote=True)}"'
+                if b.hit_ceiling:
+                    torn_n += 1
+                    torn_a.append(a)
+                if b.table_shape:
+                    shape_n += 1
+                    shape_a.append(a)
+                if b.as_picture:
+                    rel = f"{ASSETS}/blocks/{a}.png"
+                    info = crop.cut(doc, pg.index, b.box, page_dpi,
+                                    os.path.join(out_dir, rel))
+                    # A crop is always a file, reaching the book as a link or as
+                    # its own bytes: files serve edits, measurements and level
+                    # two, the book serves reading from any path.
+                    src = _img_src(os.path.join(out_dir, rel), rel, img_how)
+                    cut_n += 1
+                    clipped += bool(info["clipped_by_sheet"])
+                    cuts.append([float(v) for v in info["box_in_points"]])
+                    body.append(swap.wrap(
+                        a, _figure(a, b, b.role, src, info, inside=b.inside,
+                                   mark=mark, why=b.why_empty)))
+                else:
+                    info = {}
+                    body.append(swap.wrap(
+                        a, f'<p id="{a}" data-role="{b.role}" '
+                           f'data-label="{b.label}"{mark}>'
+                           f'{_html.escape(b.content)}</p>'))
+                side[a] = {"page": b.page, "block_id": b.block_id,
+                           "reading": b.reading,
+                           "hit_ceiling": b.hit_ceiling,
+                           "repeat_of": b.repeat_of,
+                           "repeat_verdict": b.repeat_verdict,
+                           "table_shape": b.table_shape,
+                           "label": b.label, "score": b.score,
+                           # A position in the list, not a model rank on three
+                           # adapters of four: `order_source` says which it is.
+                           "order": b.order, "order_source": b.order_source,
+                           "role": b.role,
+                           "box": list(b.box), "crop": info or None,
+                           "inside_artifacts": b.inside_artifacts,
+                           "inside": b.inside,
+                           "contains": b.contains}
+            # Counted over the boxes actually cut, in sheet points rather than
+            # `b.box`: a crop has its own margin (`CROP_MARGIN`) and its own
+            # clip by the sheet edge, and it is the crop that reaches the book.
+            r = doc[pg.index].rect
+            sheet_pt = float(r.width) * float(r.height)
+            twice = min(_twice_area(cuts), sheet_pt)
+            ink2 += twice
+            sheet_pt_all += sheet_pt
+            if sheet_pt > 0 and twice / sheet_pt > worst2[0]:
+                worst2 = (twice / sheet_pt, pg.index)
+    finally:
+        doc.close()
 
     # The second check, after the work: the first asks "is this the file the
     # boxes were computed on", this one "was it swapped while we cut". Both look
@@ -886,8 +1019,6 @@ def build(detect_dir: str, out_dir: str) -> dict:
     try:
         after = stamp.sha256(pdf)
     except OSError as e:
-        # A second read, and the file may have vanished meanwhile: a refusal
-        # here as at the first check, or one trouble speaks in two voices.
         raise Refusal(
             f"{pdf} vanished during the build: {type(e).__name__}: {e}. "
             f"The book is not written.") from None
@@ -912,7 +1043,7 @@ def build(detect_dir: str, out_dir: str) -> dict:
     got = swap.anchors(page_html)
     if got != expected:
         where = next((i for i, (a, b) in enumerate(zip(got, expected, strict=False)) if a != b),
-                   min(len(got), len(expected)))
+                     min(len(got), len(expected)))
         raise Refusal(
             f"the book is assembled NOT in the order it was walked: "
             f"{len(expected)} anchors expected, {len(got)} came out; first "
@@ -932,6 +1063,8 @@ def build(detect_dir: str, out_dir: str) -> dict:
               encoding="utf-8") as f:
         json.dump(side, f, ensure_ascii=False, indent=1)
 
+    files = len(data.pages)
+    snap = _snapshot(detect_dir)
     # Its own snapshot, not "inherit detection": the build has its own knobs
     # (`CROP_DPI`, `CROP_MARGIN`) and policy, without which nothing says at what
     # sharpness these pictures were cut. `books replay --check` must return 0
@@ -947,10 +1080,10 @@ def build(detect_dir: str, out_dir: str) -> dict:
         # at the same path gives crops from the new file under a snapshot
         # swearing by the old, which `replay --check` would call repeatable.
         "source": {**snap["source"], "sha256": now,
-                     "sha256_per_detect_snapshot": said,
-                     # Both, not one: two numbers claim about the whole run,
-                     # one only about its start.
-                     "sha256_after_build": after},
+                   "sha256_per_detect_snapshot": said,
+                   # Both, not one: two numbers claim about the whole run,
+                   # one only about its start.
+                   "sha256_after_build": after},
         "adapter": {
             "name": "doc.html",
             # The module name is how `books replay --check` finds this
@@ -970,46 +1103,46 @@ def build(detect_dir: str, out_dir: str) -> dict:
                        "top_p": None, "seed": None},
         "packages": stamp.packages(),
         "weights": {"vl": None, "layout": snap["weights"]["layout"]},
-        "summary": {"page_count": len(files), "by_bucket": counts,
-                 "crop_count": cut_n, "clipped_by_sheet": clipped,
-                 "double_ink_sheet_share": (
-                     round(ink2 / sheet_pt_all, 4)
-                     if sheet_pt_all > 0 else None),
-                 "worst_sheet_double_ink": (
-                     {"page_no": worst2[1], "share": round(worst2[0], 4)}
-                     if worst2[1] is not None else None),
-                 "text_inside_artifact_boxes": dup_text,
-                 "text_inside_non_artifact_box": dup_in_text,
-                 "repeats_proven": repeat_count,
-                 "repeats_mode": repeats_how,
-                 "nested_but_text_differs": differs,
-                 "repeats_kept_for_layout": by_layout,
-                 "comparison_normalization": textnorm.norm_note("latex"),
-                 "text_inside_text_box_strict":
-                     dup_in_text_strict,
-                 # `null`, not 0: "no `answers/` alongside, nothing to say"
-                 # must differ from zero troubles in the snapshot too.
-                 "reading_observed": bool(obs) or None,
-                 "hit_ceiling": torn_n if obs else None,
-                 # The list says when it is cut short: twenty of twenty-one
-                 # would read as complete.
-                 "truncated_anchors": (
-                     (torn_a[:20] + ([f"…and {torn_n - 20} more"]
-                                     if torn_n > 20 else []))
-                     if obs else None),
-                 "impossible_table_shape": shape_n if obs else None,
-                 "impossible_table_anchors": (
-                     (shape_a[:20] + ([f"…and {shape_n - 20} more"]
-                                      if shape_n > 20 else []))
-                     if obs else None),
-                 "nested_artifacts": nested,
-                 "block_order": {
-                     "by_page_meta": dict(sorted(order_src_n.items())),
-                     "pages_with_our_order": sum(
-                         n for v, n in order_src_n.items() if _ours(v))},
-                 "anchor_count": len(swap.anchors(page_html))},
+        "summary": {"page_count": files, "by_bucket": counts,
+                    "crop_count": cut_n, "clipped_by_sheet": clipped,
+                    "double_ink_sheet_share": (
+                        round(ink2 / sheet_pt_all, 4)
+                        if sheet_pt_all > 0 else None),
+                    "worst_sheet_double_ink": (
+                        {"page_no": worst2[1], "share": round(worst2[0], 4)}
+                        if worst2[1] is not None else None),
+                    "text_inside_artifact_boxes": dup_text,
+                    "text_inside_non_artifact_box": dup_in_text,
+                    "repeats_proven": repeat_count,
+                    "repeats_mode": repeats_how,
+                    "nested_but_text_differs": differs,
+                    "repeats_kept_for_layout": by_layout,
+                    "comparison_normalization": textnorm.norm_note("latex"),
+                    "text_inside_text_box_strict":
+                        dup_in_text_strict,
+                    # `null`, not 0: "no `answers/` alongside, nothing to say"
+                    # must differ from zero troubles in the snapshot too.
+                    "reading_observed": bool(obs) or None,
+                    "hit_ceiling": torn_n if obs else None,
+                    # The list says when it is cut short: twenty of twenty-one
+                    # would read as complete.
+                    "truncated_anchors": (
+                        (torn_a[:20] + ([f"…and {torn_n - 20} more"]
+                                        if torn_n > 20 else []))
+                        if obs else None),
+                    "impossible_table_shape": shape_n if obs else None,
+                    "impossible_table_anchors": (
+                        (shape_a[:20] + ([f"…and {shape_n - 20} more"]
+                                         if shape_n > 20 else []))
+                        if obs else None),
+                    "nested_artifacts": nested,
+                    "block_order": {
+                        "by_page_meta": dict(sorted(order_src_n.items())),
+                        "pages_with_our_order": sum(
+                            n for v, n in order_src_n.items() if _ours(v))},
+                    "anchor_count": len(swap.anchors(page_html))},
         "repeat_command": " ".join(shlex.quote(a) for a in
-                           ["books", "html", detect_dir, "--out", out_dir]),
+                                   ["books", "html", detect_dir, "--out", out_dir]),
     }
     with open(os.path.join(out_dir, ASSETS, "run.json"), "w",
               encoding="utf-8") as f:
@@ -1028,7 +1161,7 @@ def build(detect_dir: str, out_dir: str) -> dict:
                                   "sha256": now}},
                       f, ensure_ascii=False, indent=1)
 
-    log(f"pages {len(files)}, blocks {sum(counts.values())} "
+    log(f"pages {files}, blocks {sum(counts.values())} "
         f"(text {counts['text']}, artifacts {counts['artifact']}, "
         f"furniture {counts['furniture']})")
     # The sharpness applied, not the default: `crop.params()` with no argument
@@ -1081,7 +1214,7 @@ def build(detect_dir: str, out_dir: str) -> dict:
             f"but with the blocks that REMAIN; the \"latex\" step -- see "
             f"core/textnorm.NORM_STEPS")
     if obs:
-        log(f"reading observations: {len(obs)} answers alongside; cut off by "
+        log(f"reading observations: answers alongside; cut off by "
             f"the ceiling {torn_n}, impossible table shape {shape_n}"
             + (f"; truncated: {', '.join(torn_a[:5])}"
                f"{'…' if torn_n > 5 else ''}" if torn_n else "")
@@ -1120,15 +1253,24 @@ def build(detect_dir: str, out_dir: str) -> dict:
             + ", ".join(f"\"{v}\" -- {n} pp."
                         for v, n in sorted(order_src_n.items(),
                                            key=lambda kv: (-kv[1], kv[0])))
-            + f"; ours, not the model's, on {ours} of {len(files)} pp.")
+            + f"; ours, not the model's, on {ours} of {files} pp.")
     log(f"anchors in the document {len(swap.anchors(page_html))}, "
         f"observations alongside {len(side)}")
     log(f"formulas: {math_note}")
     log(f"{out_html} ({os.path.getsize(out_html)/1024:.0f} KB), "
         f"crops in {blockdir}")
-    return {"page_count": len(files), "by_bucket": counts, "crop_count": cut_n,
+    return {"page_count": files, "by_bucket": counts, "crop_count": cut_n,
             "clipped_by_sheet": clipped, "html": out_html,
             "block_order": {
                 "by_page_meta": dict(sorted(order_src_n.items())),
                 "pages_with_our_order": ours},
             "crop": crop.params(page_dpi), "policy": pol.snapshot()}
+
+
+def build(detect_dir: str, out_dir: str) -> dict:
+    """Build HTML from a `books detect` directory: the data pass, then the
+    emission. Returns the build's numbers."""
+    detect_dir = os.path.abspath(detect_dir)
+    out_dir = os.path.abspath(out_dir)
+    _refuse_live_journal(out_dir)
+    return emit(gather(detect_dir), out_dir)

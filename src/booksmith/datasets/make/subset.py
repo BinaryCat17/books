@@ -42,7 +42,7 @@ def _side_pairs(blocks):
 
 # Truth traits without which the metric silently changes its answer. Explicit:
 # a new bench trait lands here deliberately or not at all.
-TRAITS = ("order_marked", "text_marked")
+TRAITS = ("order_marked", "text_marked", "labelled")
 
 
 def _carry_meta(t: dict, extra: dict, where: str) -> dict:

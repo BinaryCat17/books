@@ -100,6 +100,46 @@ def runs(root: str, name: str, request: Request) -> list[dict]:
     return service.runs(_store(request, user), _book(root, name))
 
 
+@router.get("/books/{root}/{name}/pages/{index}/image")
+def page_image(root: str, name: str, index: int, request: Request,
+               dpi: float = 110.0) -> Response:
+    user = auth.require(request)
+    png = service.page_image(_store(request, user), _book(root, name), index, dpi)
+    return Response(png, media_type="image/png",
+                    headers={"Cache-Control": "private, max-age=3600"})
+
+
+@router.get("/books/{root}/{name}/runs/{kind}/{label}")
+def run(root: str, name: str, kind: str, label: str, request: Request) -> dict:
+    user = auth.require(request)
+    return service.run(_store(request, user), _book(root, name), kind, label)
+
+
+@router.get("/books/{root}/{name}/runs/{kind}/{label}/pages/{index}")
+def page(root: str, name: str, kind: str, label: str, index: int,
+         request: Request) -> dict:
+    user = auth.require(request)
+    return service.page(_store(request, user), _book(root, name), kind, label, index)
+
+
+@router.get("/books/{root}/{name}/runs/{kind}/{label}/pages/{index}/pairs")
+def pairs(root: str, name: str, kind: str, label: str, index: int,
+          request: Request) -> dict:
+    """The metric's verdicts on the page; the truth side only for an admin."""
+    user = auth.require(request)
+    return service.pairs(_store(request, user), _book(root, name), kind, label,
+                         index, truth_side=user["role"] == "admin")
+
+
+@router.get("/books/{root}/{name}/runs/{kind}/{label}/crops/{anchor}")
+def crop(root: str, name: str, kind: str, label: str, anchor: str,
+         request: Request) -> Response:
+    user = auth.require(request)
+    png = service.crop_png(_store(request, user), _book(root, name), kind, label, anchor)
+    return Response(png, media_type="image/png",
+                    headers={"Cache-Control": "private, max-age=3600"})
+
+
 @router.delete("/books/{root}/{name}")
 def delete_book(root: str, name: str, request: Request) -> dict:
     user = auth.require(request)

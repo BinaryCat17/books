@@ -1272,6 +1272,11 @@
    "pages_total": 600,
    "share": null
   },
+  "labelled": {
+   "yes": 0,
+   "no": 0,
+   "not_said": 600
+  },
   "by_case": {
    "00f200d3": {
     "artifacts": 0,

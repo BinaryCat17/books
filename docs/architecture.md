@@ -182,6 +182,15 @@ process is failed at the next boot, never resumed blind. `books web user` makes 
 user and their store. What the web does goes through `service`, with the
 job handed in, so the command line and the web run one code.
 
+A viewer asks by name and gets one page at a time: a run as it is opened
+(identity, policy, raster dpi, its pages, whether the book has truth), a
+page as the builder's own data pass gives it, the scan's page as an image
+at a bounded dpi, one block's crop cut as the read path cuts it, and the
+contour metric's pairs on the page. The pairs are the metric's, one list
+for the sheet and the number: `books overlay` draws from
+`src/booksmith/datasets/metrics/contour.py:page_pairs` and so does the
+viewer, and the truth side of that list is served only to an admin.
+
 ## The page format
 
 One shape for truth, detection and reading, so one metric can compare any
@@ -204,9 +213,12 @@ two of them. Declared in `src/booksmith/core/page.py`.
 A block is addressed by its anchor, `p<index>-b<block_id>` with the index
 zero-padded to four digits, in the answers, the journal and the book.
 
-Truth carries what it knows and says what it does not: `meta.text_marked`
-and `meta.order_marked` are three-state, and a missing flag means "not
-said", never "yes". Table truth is `meta.artifact_truth[block_id]` as rows,
+Truth carries what it knows and says what it does not: `meta.text_marked`,
+`meta.order_marked` and `meta.labelled` are three-state, and a missing flag
+means "not said", never "yes". A truth drawn page by page says `labelled` on
+every page, and once any page says it the contour metric compares only the
+pages that say yes, and reports the three counts. Table truth is
+`meta.artifact_truth[block_id]` as rows,
 columns and cells; OTSL is what the model returns, not what truth stores.
 Objects the annotators saw but the vocabulary cannot express stay in
 `meta.out_of_scope`, so a box the model puts there is not counted against it.
@@ -256,11 +268,10 @@ browser, corrections journaled, page images with the boxes over them. The
 library is the engine of that application, `service.py` its door. Seams
 still to cut, each a refactor of what exists:
 
-- The overlay's decisions returned as data, instead of a drawn PDF.
-- The HTML builder split into the data pass and the emission, so the data
-  pass serves a page viewer and the emission becomes an export.
 - A run snapshot that stores each knob's name and value and points at the
   registry for its description, instead of carrying the description text.
+- A record that carries the run's identity and the scan's hash, so a
+  result knows when its run has been superseded.
 
 Two decisions are already made. A correction of what the model returned is
 never a write into the model's run; it is a derived run beside it, journaled

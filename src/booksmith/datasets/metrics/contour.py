@@ -178,6 +178,16 @@ def _same_raster(T: dict, M: dict) -> str:
     return note
 
 
+def page_pairs(t: dict, m: dict, tp=None, mp=None) -> dict | None:
+    """One page's pairs and extras, as `compare_pages` forms them: what the
+    overlay draws and a viewer places over the page. None where the page
+    says it is not labelled: the count leaves it out, and so does this."""
+    if bench_mod.trait_state(t.get("meta") or {}, "labelled") == "no":
+        return None
+    i = int(t["index"])
+    return compare_pages({i: t}, {i: m}, tp, mp)["pairs"][i]
+
+
 def compare(truth_dir: str, detect_dir: str, tp=None, mp=None) -> dict:
     """Score model output against truth. Numbers and named counters."""
     T, M = _load(truth_dir, "truth"), _load(detect_dir, "model boxes")
@@ -194,6 +204,18 @@ def compare_pages(T: dict, M: dict, tp=None, mp=None) -> dict:
     when none is given."""
     tp = tp or policy.UNION
     mp = mp or policy.UNION
+    # A page that says it is not labelled is not compared, once any page says
+    # anything: a truth drawn page by page is measured on the pages it has.
+    labelled = {s: 0 for s in bench_mod.TRAIT_STATES}
+    for p in T.values():
+        labelled[bench_mod.trait_state(p.get("meta") or {}, "labelled")] += 1
+    if labelled["yes"] or labelled["no"]:
+        T = {i: p for i, p in T.items()
+             if bench_mod.trait_state(p.get("meta") or {}, "labelled") == "yes"}
+        if not T:
+            raise MetricError(
+                "no page of the truth says it is labelled: nothing to compare, "
+                "which is not a zero of losses")
     missing = sorted(set(T) - set(M))
     if missing:
         raise MetricError(
@@ -217,6 +239,10 @@ def compare_pages(T: dict, M: dict, tp=None, mp=None) -> dict:
     per_case, conf, ranks = {}, {}, []
     per = {"artefacts_found": {}, "text_furniture_found": {},
            "label_errors": {}, "role_errors": {}}
+    # The pairs the passes form, kept: one entry per truth block, the verdict
+    # from pass A for an artefact and from pass B for the rest, and every
+    # model box neither pass took, with what the count calls it.
+    pairs_out = {}
     ceiling = order_pages = 0
     tot = {"artifacts": 0, "found": 0}
     # Text completeness counts only pages where text is annotated.
@@ -252,12 +278,20 @@ def compare_pages(T: dict, M: dict, tp=None, mp=None) -> dict:
             c["troubles"][name] = c["troubles"].get(name, 0) + n
             beds[name] = beds.get(name, 0) + n
 
+        entries = {}
         for b, x in pairs:
+            ta = page.anchor(i, b["block_id"])
             if x is not None:
                 per_label.setdefault(b["label"], [0, 0])[0] += 1
-                per["artefacts_found"][page.anchor(i, b["block_id"])] = 1
+                per["artefacts_found"][ta] = 1
+                entries[ta] = {"truth": ta, "run": page.anchor(i, x["block_id"]),
+                               "verdict": "matched", "by": "A",
+                               "label_ok": b["label"] == x["label"], "why": None}
                 continue
-            bed(f"{_diagnose(b, mall, tb, arte_m, mp)} ({b['label']})")
+            why = _diagnose(b, mall, tb, arte_m, mp)
+            bed(f"{why} ({b['label']})")
+            entries[ta] = {"truth": ta, "run": None, "verdict": "missed", "by": "A",
+                           "label_ok": None, "why": why}
         # Model artefact boxes with no partner in truth. Nesting is measured
         # against PAIRED truth boxes: a fragment of an artefact never found is
         # a miss, not a duplicate of a missing original.
@@ -267,21 +301,32 @@ def compare_pages(T: dict, M: dict, tp=None, mp=None) -> dict:
         # ours, not a fault of the model.
         outside = [o["box"] for o in
                    (t.get("meta", {}).get("out_of_scope") or [])]
+        extras = []
         for j, x in enumerate(mb):
             if j in used:
                 continue
             # The naming rule lives in `extra_kind`; here only the counting.
-            bed(extra_kind(x["box"], paired, unpaired, outside, tb))
+            kind = extra_kind(x["box"], paired, unpaired, outside, tb)
+            bed(kind)
+            extras.append({"run": page.anchor(i, x["block_id"]), "verdict": kind})
 
         # Pass B: all blocks matched, blind to the label -- artefacts alone
         # give too few pairs for a bench.
         page_ranks, taken = [], set()
         for b in sorted(t["blocks"], key=lambda z: -_area(z["box"])):
             j = _pick(b, mall, taken)
+            ta = page.anchor(i, b["block_id"])
             if j is None:
+                if ta not in entries:
+                    entries[ta] = {"truth": ta, "run": None, "verdict": "missed",
+                                   "by": "B", "label_ok": None, "why": None}
                 continue
             taken.add(j)
             x = mall[j]
+            if ta not in entries:
+                entries[ta] = {"truth": ta, "run": page.anchor(i, x["block_id"]),
+                               "verdict": "matched", "by": "B",
+                               "label_ok": b["label"] == x["label"], "why": None}
             conf[(b["label"], x["label"])] = conf.get((b["label"], x["label"]), 0) + 1
             if b["label"] != x["label"]:
                 per["label_errors"][page.anchor(i, x["block_id"])] = 1
@@ -299,6 +344,14 @@ def compare_pages(T: dict, M: dict, tp=None, mp=None) -> dict:
                 per_label.setdefault(b["label"], [0, 0])[0] += 1
         for b in t["blocks"]:
             per_label.setdefault(b["label"], [0, 0])[1] += 1
+        # Model boxes that are not artefacts and no pass took: the count does
+        # not count them, and the list says so rather than leaving them out.
+        extras += [{"run": page.anchor(i, x["block_id"]), "verdict": "not counted"}
+                   for j, x in enumerate(mall)
+                   if j not in taken and x["label"] not in arte_m]
+        pairs_out[i] = {"pairs": [entries[page.anchor(i, b["block_id"])]
+                                  for b in t["blocks"]],
+                        "extras": extras}
         txt["pages_total"] += 1
         if _truth_text_state(t) == "yes":
             txt["pages_with_text_markup"] += 1
@@ -322,8 +375,17 @@ def compare_pages(T: dict, M: dict, tp=None, mp=None) -> dict:
             f"{k} on {states[k]}" for k in
             (ORDER_MARKED, ORDER_UNMARKED, ORDER_SILENT) if states.get(k))
             + f" of {len(T)} pages")
-    return {"totals": tot, "sense": sense(T, M, tp, mp),
+    fates = sense(T, M, tp, mp)
+    # An artefact's fate from `sense`, beside its verdict: whole, cropped,
+    # merged, called text, not seen.
+    by_fate = {a: fate for fate, d in fates["per"].items() for a in d}
+    for i in pairs_out:
+        for e in pairs_out[i]["pairs"]:
+            e["fate"] = by_fate.get(e["truth"])
+    return {"totals": tot, "sense": fates,
             "text_and_furniture": txt,
+            "labelled": labelled,
+            "pairs": pairs_out,
             "by_case": per_case,
             "by_label": {k: {"truth": v[1], "found": v[0],
                                "bucket": tp.role(k)}
@@ -775,6 +837,11 @@ def report(res: dict) -> None:
     if res.get("book"):
         log(res["book"])
     t, x = res["totals"], res["text_and_furniture"]
+    lb = res.get("labelled") or {}
+    if lb.get("yes") or lb.get("no"):
+        log(f"truth says which pages are labelled: yes {lb['yes']}, no "
+            f"{lb['no']}, not said {lb['not_said']} -- only the pages that "
+            f"say yes were compared")
     log(f"artefacts {t['artifacts']}, found {t['found']} "
         f"({t['share']*100:.0f}%)")
     for why, n in res["troubles"].items():
@@ -790,7 +857,11 @@ def report(res: dict) -> None:
     else:
         log("text and furniture: NOT MARKED in this truth — nothing to "
             "compare (this is not zero completeness)")
-    if res.get("sense"):
+    if res.get("sense") and res["sense"]["share"] is None:
+        # No artefact on the compared pages: not a whole share of zero.
+        log("SENSE WHOLE: no artefact in the truth on the compared pages — "
+            "nothing to lose whole (this is not zero)")
+    elif res.get("sense"):
         c = res["sense"]
         log(f"SENSE WHOLE: {c['intact']}/{c['objects']} "
             f"({c['share']*100:.0f}%) — cropped {c['cropped']}, "
@@ -1094,7 +1165,10 @@ class ContourMetric(Metric):
         params = {"COVER_MATCH": COVER_MATCH, "TOUCH": TOUCH, "TOL_PX": TOL_PX,
                   "SENSE_WHOLE": SENSE_WHOLE, "SENSE_NEIGHBOUR": SENSE_NEIGHBOUR}
         params.update({f"COLUMN_{k}": v for k, v in (j.get("params") or {}).items()})
-        return Record(self.name, bench_name, run_label, scalars, params, res)
+        # The pairs stay out of the record: one entry per truth block is the
+        # viewer's to ask for page by page, and `per` already names each.
+        detail = {k: v for k, v in res.items() if k != "pairs"}
+        return Record(self.name, bench_name, run_label, scalars, params, detail)
 
     def report(self, rec: Record) -> None:
         report(rec.detail)

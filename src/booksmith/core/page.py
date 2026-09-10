@@ -11,6 +11,7 @@ which is what an unread block carries.
 """
 import json
 import os
+import re
 from dataclasses import dataclass, field, asdict
 
 from booksmith.core.errors import Unmeasurable
@@ -81,6 +82,15 @@ def anchor(index: int, block_id: int | None = None) -> str:
     every page, so the page is part of a block's."""
     p = f"p{index:04d}"
     return p if block_id is None else f"{p}-b{block_id}"
+
+
+def parse_anchor(a: str) -> tuple[int, int | None]:
+    """The page index and block id an anchor names, or a ValueError: the
+    one reader of the spelling `anchor` writes."""
+    m = re.fullmatch(r"p(\d{4,})(?:-b(\d+))?", a or "")
+    if not m:
+        raise ValueError(f"{a!r} is not an anchor: p<index>-b<block_id>")
+    return int(m.group(1)), (int(m.group(2)) if m.group(2) is not None else None)
 
 
 def write_json(path: str, obj: object, indent: int | None = None) -> None:

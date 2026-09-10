@@ -17,6 +17,7 @@ settings were checked, and the entry's key on its secrets, never in a
 snapshot. The fingerprint, label and identity stay the model's own.
 """
 import dataclasses
+import functools
 import json
 import os
 import re
@@ -459,6 +460,137 @@ def overlay(store: str, pdf: str, truth: str | None, detect_dir: str | None,
         os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
         look.build(pdf, out, marks, only=only)
         return out
+
+
+# -------------------------------------------------------------- the viewer
+# What a page viewer asks for, by name: a run as the viewer opens it, one of
+# its pages as data, the scan's page as an image, one block's crop, and the
+# metric's pairs on a page where the book has truth. None of it is a job:
+# each answer is one page read on demand. Page renders are kept in a small
+# cache keyed by the scan's hash, a viewer asking for one page many times.
+
+def _run_of(store: str, name: str, kind: str, label: str) -> tuple[book.Book, str]:
+    """A book and one of its runs, both by name inside the store."""
+    b = book.Book.open(book_dir(store, name))
+    return b, b.one_run(kind, label)
+
+
+def _page_json(pages_dir: str, index: int, whose: str) -> dict:
+    path = os.path.join(pages_dir, f"{index:04d}.json")
+    if not os.path.isfile(path):
+        raise Refusal(f"no page {index} in {whose}")
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def run(store: str, name: str, kind: str, label: str) -> dict:
+    """One run as the viewer opens it: identity, the policy its labels are
+    read by, the raster dpi its boxes are in, the pages it has, and whether
+    the book has truth to pair it against."""
+    from booksmith.processing.assemble import html as html_mod
+    b, rd = _run_of(store, name, kind, label)
+    pages = os.path.join(rd, "pages")
+    snap = book.snapshot_beside(pages) or {}
+    return {"kind": kind, "label": label,
+            "level": "hybrid" if snap.get("layout") == "own" else kind,
+            "identity": snap.get("identity"), "when": snap.get("when"),
+            "dpi": (snap.get("raster") or {}).get("dpi"),
+            "policy": book.policy_beside(pages).snapshot(),
+            "pages": sorted(int(n[:4]) for n in os.listdir(pages)
+                            if n.endswith(".json") and n[:4].isdigit()),
+            "truth": b.truth_dir is not None,
+            "observed": html_mod._answers_present(rd)}
+
+
+def page(store: str, name: str, kind: str, label: str, index: int) -> dict:
+    """One page of a run as the book would show it: every block with its
+    role by the run's own policy, what reading said of it, how it nests and
+    repeats. The builder's own data pass, one page of it."""
+    from booksmith.processing.assemble import html as html_mod
+    _, rd = _run_of(store, name, kind, label)
+    return dataclasses.asdict(html_mod.gather_page(rd, index))
+
+
+def pairs(store: str, name: str, kind: str, label: str, index: int,
+          truth_side: bool = False) -> dict:
+    """The contour metric's pairs on one page of a book that has truth: one
+    entry per truth block with the verdict the count gave it, and every run
+    block neither pass took with what the count calls it. With `truth_side`
+    the truth blocks ride along and each pair names its truth anchor; without,
+    only the verdicts do -- a user sees the number, never the labels."""
+    from booksmith.core.page import anchor
+    from booksmith.datasets import bench as bench_mod
+    from booksmith.datasets.metrics import contour
+    b, rd = _run_of(store, name, kind, label)
+    if not b.truth_dir:
+        raise Refusal(f"{name} has no truth: nothing to pair {kind}/{label} against")
+    tdir = book.pages_dir(b.truth_dir, "truth")
+    mdir = os.path.join(rd, "pages")
+    t, m = _page_json(tdir, index, "truth"), _page_json(mdir, index, f"{kind}/{label}")
+    res = contour.page_pairs(t, m, book.policy_beside(tdir), book.policy_beside(mdir))
+    pairs_ = list((res or {}).get("pairs", []))
+    if not truth_side:
+        pairs_ = [{k: v for k, v in e.items() if k != "truth"} for e in pairs_]
+    out: dict = {"index": index,
+                 "labelled": bench_mod.trait_state(t.get("meta") or {}, "labelled"),
+                 "compared": res is not None,
+                 "pairs": pairs_,
+                 "extras": list((res or {}).get("extras", []))}
+    if truth_side:
+        out["truth"] = [{"anchor": anchor(index, x["block_id"]), "block_id": x["block_id"],
+                         "label": x["label"], "box": x["box"], "order": x.get("order")}
+                        for x in t["blocks"]]
+        out["out_of_scope"] = (t.get("meta") or {}).get("out_of_scope") or []
+    return out
+
+
+DPI_LEAST, DPI_MOST = 24.0, 300.0
+
+
+@functools.lru_cache(maxsize=48)
+def _render(pdf: str, sha: str, index: int, dpi: float) -> bytes:
+    """One page of one scan at one dpi, kept: the hash is in the key so a
+    replaced file is another entry, never a stale one."""
+    from booksmith.core import raster
+    with raster.open_pdf(pdf) as doc:
+        if not 0 <= index < doc.page_count:
+            raise Refusal(f"no page {index}: the scan has {doc.page_count}")
+        return raster.render_png(doc[index], dpi)
+
+
+def page_image(store: str, name: str, index: int, dpi: float = 110.0) -> bytes:
+    """The scan's page as PNG at `dpi`, for the viewer to lay boxes over:
+    the boxes are in the run's raster, and the viewer scales by the page's
+    own width. Bounded, since a page at a thousand dpi is a memory ask."""
+    b = book.Book.open(book_dir(store, name))
+    if b.pdf is None:
+        raise Refusal(f"{name}: the scan is not beside the manifest")
+    if not DPI_LEAST <= dpi <= DPI_MOST:
+        raise Refusal(f"dpi {dpi:g} is outside {DPI_LEAST:g}..{DPI_MOST:g}")
+    return _render(os.path.realpath(b.pdf), b.sha256 or "", int(index), float(dpi))
+
+
+def crop_png(store: str, name: str, kind: str, label: str, anchor: str) -> bytes:
+    """One block cut from the scan, as PNG: the box out of the run's page, at
+    the resolution the read path cuts at, from the book's own scan."""
+    from booksmith.core import raster
+    from booksmith.core.page import parse_anchor
+    b, rd = _run_of(store, name, kind, label)
+    try:
+        index, block_id = parse_anchor(anchor)
+    except ValueError as e:
+        raise Refusal(str(e)) from None
+    if block_id is None:
+        raise Refusal(f"a crop is one block, p<index>-b<block_id>, not {anchor!r}")
+    pg = _page_json(os.path.join(rd, "pages"), index, f"{kind}/{label}")
+    blk = next((x for x in pg["blocks"] if x["block_id"] == block_id), None)
+    if blk is None:
+        raise Refusal(f"no block {anchor} in {kind}/{label}")
+    if b.pdf is None:
+        raise Refusal(f"{name}: the scan is not beside the manifest")
+    with job.Job().active(), raster.open_pdf(b.pdf) as doc:
+        png, _facts = raster.cut_png(doc, index, blk["box"], float(pg["dpi"]))
+    return png
 
 
 # --------------------------------------------------------------- measuring

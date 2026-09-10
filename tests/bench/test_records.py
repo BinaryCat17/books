@@ -110,6 +110,9 @@ def _record(name, result):
     assert os.path.isfile(path), f"no record {path}"
     with open(path, encoding="utf-8") as f:
         want = json.load(f)["result"]
+    # The pairs are data for the viewer, one entry per truth block over six
+    # hundred pages; the lock is the numbers, and the pairs stay out of it.
+    result = {k: v for k, v in result.items() if k != "pairs"}
     d = _walk_diff(want, _clean(result), "", [])
     assert not d, (f"the record diverged from {path} at {len(d)} paths:\n"
                    + "\n".join(d[:40]))

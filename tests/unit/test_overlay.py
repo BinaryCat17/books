@@ -229,3 +229,26 @@ def test_a_changed_label_is_not_painted_like_an_extra_box():
         "drowns in it")
     assert overlay.LABEL != overlay.MATCHED, (
         "the caption merged with the box it belongs to")
+
+
+def test_a_page_truth_says_is_not_labelled_is_drawn_as_one_markup():
+    """Where truth says `labelled: false`, the sheet compares nothing: the
+    model's boxes go down in the one-markup colour and the summary says how
+    many sheets were left out -- the same pages the number leaves out."""
+    with tempfile.TemporaryDirectory() as d:
+        pdf = _stand(d)
+        tp = os.path.join(d, "truth", "pages", "0001.json")
+        with open(tp, encoding="utf-8") as f:
+            t = json.load(f)
+        t["meta"] = {"labelled": False}
+        with open(tp, "w", encoding="utf-8") as f:
+            json.dump(t, f)
+        with support.said() as said:
+            counts = overlay.build(pdf, pdf + ".ov.pdf",
+                                   [(os.path.join(d, "truth", "pages"), "T"),
+                                    (os.path.join(d, "model", "pages"), "M")])
+        s = "\n".join(said)
+        assert counts["pages_not_labelled"] == 1 and counts["pages_compared"] == 2
+        assert counts["matched"] == 2, counts
+        assert "1 pages are NOT LABELLED" in s, s
+        assert "sheets drawn 3 of 3" in s, s
