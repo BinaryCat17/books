@@ -133,3 +133,44 @@ def test_the_page_image_is_bounded_cached_and_the_crop_is_one_block(store):
     with open(os.path.join(rd, "crops", blk["anchor"] + ".png"), "wb") as f:
         f.write(b"\x89PNG kept")
     assert service.crop_png(home, BOOK, "detect", "truth", blk["anchor"]) == b"\x89PNG kept"
+
+
+def test_one_page_is_measured_from_the_service_and_the_results_know_their_run(store):
+    """Each applicable metric's number for one page comes from the service,
+    taken now and written nowhere; the results file of the whole run says
+    for each record whether the run on disk is still the one measured."""
+    import json
+    home, rd = store
+    recs = service.measure_page(home, BOOK, "detect", "truth", 3)
+    by = {r["metric"]: r for r in recs}
+    assert {"contour", "fitness", "assembly", "snapshot"} <= set(by)
+    c = by["contour"]["scalars"]
+    assert c["text_furniture_found"]["over"] == {"n": 1, "of": 1, "unit": "pages"}
+    assert all(a.startswith("p0003") for a in c["artefacts_found"].get("per") or {})
+    assert by["fitness"]["detail"]["page_count"] == 1
+    assert by["contour"]["identity"] and len(by["contour"]["identity"]) == 64
+    assert not os.path.isdir(os.path.join(home, "results")), "a page measure wrote a file"
+    with pytest.raises(Refusal, match="not measured yet"):
+        service.results(home, BOOK, "detect", "truth")
+    with support.said():
+        path = service.bench(home, os.path.join(home, BOOK), {}, run="truth")
+    assert os.path.basename(path) == "slovar-truth.json"
+    got = service.results(home, BOOK, "detect", "truth")
+    assert got["pages"] is None and got["path"] == os.path.join("results", "slovar-truth.json")
+    assert {r["state"] for r in got["records"]} == {"current"}
+    # A page set gets a file of its own name, and the header says which pages.
+    with support.said():
+        part = service.bench(home, os.path.join(home, BOOK), {}, run="truth", pages="2-3")
+    assert os.path.basename(part) == "slovar-truth-pages-1-2.json"
+    with open(part, encoding="utf-8") as f:
+        assert json.load(f)["pages"] == [1, 2]
+    # The run re-stamped: the records are stale, and the report refuses them.
+    snap_path = os.path.join(rd, "run.json")
+    with open(snap_path, encoding="utf-8") as f:
+        snap = json.load(f)
+    snap["identity"] = "0" * 64
+    with open(snap_path, "w", encoding="utf-8") as f:
+        json.dump(snap, f)
+    assert {r["state"] for r in service.results(home, BOOK, "detect", "truth")["records"]} == {"stale"}
+    # The report's refusal of a stale record is checked in tests/unit/test_table.py,
+    # where the commit stamp does not stand before it.

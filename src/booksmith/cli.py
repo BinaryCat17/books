@@ -415,7 +415,8 @@ def cmd_bench_all(a):
     typed into prose by hand drifts from the runs it claims to describe.
     """
     which = [n.strip() for n in a.only.split(",") if n.strip()] if a.only else None
-    service.bench(service.admin(), a.bench, knobs.passthrough(), a.run, a.kind, which, a.json)
+    service.bench(service.admin(), a.bench, knobs.passthrough(), a.run, a.kind, which, a.json,
+                  pages=a.pages)
     return 0
 
 
@@ -942,13 +943,18 @@ def build_parser():
                         "(default), or read, the level-two reading")
     q.add_argument("--only", default="",
                    help="comma-separated metric names, instead of every applicable one")
+    q.add_argument("--pages", default="",
+                   help="measure these pages only, counted from 1 as "
+                        "`books detect` counts them; the records go to a "
+                        "file of their own name, never the book's")
     q.add_argument("--json", default="",
                    help="where to write the records (default: "
-                        "results/<bench>-<run>.json, and "
+                        "results/<bench>-<run>.json, "
                         "<bench>-<kind>-<run>.json for a level "
                         "that is not detect: a label is the "
                         "model's own name and two levels can "
-                        "share one)")
+                        "share one; and processed-<book>-... for a "
+                        "book under processed/)")
     q.set_defaults(fn=cmd_bench_all)
 
     q = bs.add_parser("selfcheck",

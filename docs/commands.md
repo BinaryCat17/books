@@ -345,7 +345,7 @@ options:
 
 ```
 usage: books bench all [-h] [--run RUN] [--kind {detect,read}] [--only ONLY]
-                       [--json JSON]
+                       [--pages PAGES] [--json JSON]
                        bench
 
 positional arguments:
@@ -363,11 +363,14 @@ options:
                         (default), or read, the level-two reading
   --only ONLY           comma-separated metric names, instead of every
                         applicable one
+  --pages PAGES         measure these pages only, counted from 1 as `books
+                        detect` counts them; the records go to a file of their
+                        own name, never the book's
   --json JSON           where to write the records (default:
-                        results/<bench>-<run>.json, and
-                        <bench>-<kind>-<run>.json for a level that is not
-                        detect: a label is the model's own name and two levels
-                        can share one)
+                        results/<bench>-<run>.json, <bench>-<kind>-<run>.json
+                        for a level that is not detect: a label is the model's
+                        own name and two levels can share one; and
+                        processed-<book>-... for a book under processed/)
 ```
 
 ## books bench selfcheck

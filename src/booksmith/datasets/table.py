@@ -16,10 +16,14 @@ from booksmith.core.log import log
 
 
 
-def rows(bench: Bench, run: Run, which=None) -> list:
+def rows(bench: Bench, run: Run, which=None, pages_want=None) -> list:
     """Records of every applicable metric, or of the named ones. Truth and the
     run's pages are parsed once here and the metrics take the dicts; `which` may
-    not name a metric this bench and run cannot support."""
+    not name a metric this bench and run cannot support. `pages_want` cuts
+    both sides to a set of page indices before any metric asks, so a number
+    can be had for one page; None is the whole book. Each record carries
+    the run's identity and the scan's hash out of the run's snapshot."""
+    import dataclasses
     # The truth is parsed only if there is any: a book with no `truth/` is a
     # legal thing to measure, and `applicable` withholds "truth" and "content"
     # from an empty dict by itself.
@@ -27,6 +31,13 @@ def rows(bench: Bench, run: Run, which=None) -> list:
     # BOTH SIDES BEFORE THE QUESTION. The run's pages decide whether a reading
     # metric applies at all, and they are needed a few lines below anyway.
     model = run.pages()
+    if pages_want is not None:
+        want = set(pages_want)
+        gone = sorted(want - set(model))
+        if gone:
+            raise Refusal(f"the run has no pages {gone[:5]}: nothing to measure there")
+        pages = {i: p for i, p in pages.items() if i in want}
+        model = {i: p for i, p in model.items() if i in want}
     # `applicable` decides and `prerequisites` only explains: filtering inline
     # on `have` would take `applicable` off this path, where the probes'
     # mutation of it must still reach the table.
@@ -61,32 +72,57 @@ def rows(bench: Bench, run: Run, which=None) -> list:
         # Asked before every metric: a measure is a job, and a job can be stopped.
         job.current().check()
         log(f"{m.name}: {note}", n=i, of=len(todo), metric=m.name)
-        out.append(m.run_loaded(bench, run, pages, model, note))
+        rec = m.run_loaded(bench, run, pages, model, note, pages_want)
+        out.append(dataclasses.replace(rec, identity=run.snapshot.get("identity"),
+                                       source_sha256=run.sha256))
     return out
 
 
-def results_path(bench: Bench, run: Run, which=None, store: str | None = None) -> str:
+def pages_tail(pages) -> str:
+    """A page set as a file-name part: runs of consecutive indices as ranges."""
+    out, seq = [], sorted(set(pages))
+    i = 0
+    while i < len(seq):
+        j = i
+        while j + 1 < len(seq) and seq[j + 1] == seq[j] + 1:
+            j += 1
+        out.append(str(seq[i]) if i == j else f"{seq[i]}-{seq[j]}")
+        i = j + 1
+    return "+".join(out)
+
+
+def results_path(bench: Bench, run: Run, which=None, store: str | None = None,
+                 pages=None) -> str:
     """Where the table lands, under the store's `results/`, the store being
     the one the bench lies in unless named. A selection gets its own name,
-    and so does a level: a detector and a reader can share a label, and one
-    file for both would overwrite. `detect` keeps the bare name, renaming
+    and so does a page set, and so does a level: a detector and a reader
+    can share a label, and one file for both would overwrite. A bench keeps
+    its bare name and a book under `processed/` is prefixed, since the two
+    roots can hold one name; `detect` keeps the bare level, renaming
     nothing on disk."""
     from booksmith.core import book as book_mod
     store = store or book_mod.store_of(bench.root)
+    root = os.path.basename(os.path.dirname(os.path.abspath(bench.root)))
+    prefix = "processed-" if root == "processed" else ""
     tail = "-only-" + "+".join(which) if which else ""
+    if pages is not None:
+        tail += "-pages-" + pages_tail(pages)
     kind = run.kind
     level = f"{kind}-" if kind and kind != "detect" else ""
-    return os.path.join(store, "results", f"{bench.name}-{level}{run.label}{tail}.json")
+    return os.path.join(store, "results", f"{prefix}{bench.name}-{level}{run.label}{tail}.json")
 
 
-def write_json(records, path: str, kind: str = "detect") -> str:
-    """The records under a header saying when, by which code and of which level.
-    The commit rides in the file so a cross-model table comes from one tree;
-    `kind` keeps a level-two run, whose boxes are a detector's, out of the model column."""
+def write_json(records, path: str, kind: str = "detect", pages=None) -> str:
+    """The records under a header saying when, by which code, of which level
+    and over which pages. The commit rides in the file so a cross-model
+    table comes from one tree; `kind` keeps a level-two run, whose boxes are
+    a detector's, out of the model column; `pages` is the set measured,
+    null for the whole book."""
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         json.dump({"when": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
                    "kind": kind or "detect",
+                   "pages": sorted(set(pages)) if pages is not None else None,
                    # Ignoring the results themselves: a pass that writes 54
                    # of these would otherwise dirty the tree with its own
                    # first file and stamp the other 53 unusable.

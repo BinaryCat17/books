@@ -123,17 +123,17 @@ class ReadingMetric(Metric):
     needs = frozenset({"pages", "read"})
     scalars = (
         Spec("charts_as_data", "lower",
-             "charts returned as a table of numbers: values read off a curve and placed in the book as text", 'What failed, and how'),
+             "charts returned as a table of numbers: values read off a curve and placed in the book as text", 'What failed, and how', per="block", side="run"),
         Spec("looping", "lower",
-             "answers that repeat themselves", 'What failed, and how'),
+             "answers that repeat themselves", 'What failed, and how', per="block", side="run"),
         Spec("answered", "higher",
-             "blocks answered"),
+             "blocks answered", per="page"),
     )
 
     def run(self, bench, run) -> Record:
         return self.record(measure(run.pages()), bench.name, run.label)
 
-    def run_loaded(self, bench, run, truth, pages, note) -> Record:
+    def run_loaded(self, bench, run, truth, pages, note, want=None) -> Record:
         return self.record(measure(pages), bench.name, run.label)
 
     def record(self, res, bench_name, run_label) -> Record:

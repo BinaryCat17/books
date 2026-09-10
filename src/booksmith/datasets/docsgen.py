@@ -47,7 +47,8 @@ def metrics_json() -> str:
     out = [{"metric": m.name, "needs": sorted(m.needs),
             "description": " ".join((type(m).__doc__ or "").strip().split("\n\n")[0].split()),
             "scalars": [{"name": s.name, "better": s.better, "gloss": s.gloss,
-                         "question": s.question} for s in m.scalars]}
+                         "question": s.question, "per": s.per, "side": s.side,
+                         "unit": s.unit} for s in m.scalars]}
            for m in registry.METRICS]
     return json.dumps(out, indent=1, ensure_ascii=False) + "\n"
 
@@ -63,10 +64,11 @@ def metrics_doc() -> str:
         doc = " ".join(line.strip() for line in doc.splitlines())
         needs = ", ".join(sorted(m.needs)) or "nothing"
         out.append(f"\n## {m.name}\n\nneeds: {needs}\n\n{doc}\n\n")
-        out.append("| scalar | better | what it says |\n|---|---|---|\n")
+        out.append("| scalar | better | per | what it says |\n|---|---|---|---|\n")
         for s in m.scalars:
             head = f" (headline: {s.question})" if s.question else ""
-            out.append(f"| `{s.name}` | {s.better} | {s.gloss}{head} |\n")
+            where = s.per + (f" of {s.side}" if s.side else "") + (f", over {s.unit}" if s.unit else "")
+            out.append(f"| `{s.name}` | {s.better} | {where} | {s.gloss}{head} |\n")
     return "".join(out)
 
 

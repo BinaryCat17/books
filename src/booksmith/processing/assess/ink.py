@@ -223,9 +223,11 @@ def _carried_as_text(sub, arte, rest, tot):
 
 
 def measure(pdf: str, detect_dir: str, truth_dir: str = "",
-            pol=None, tp=None) -> dict:
+            pol=None, tp=None, want=None) -> dict:
     """Fitness of the model output. Truth is not required. `pol` is the
-    run's policy, found beside its pages when not given; `tp` truth's."""
+    run's policy, found beside its pages when not given; `tp` truth's.
+    `want` is a set of page indices to measure, None for every page: the
+    scan is rendered page by page, and a viewer asks for one."""
     import numpy as np
     if not os.path.exists(pdf):
         raise Unmeasurable(f"no {pdf}")
@@ -267,6 +269,12 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "",
            "pages": {}, "per_object": {}}
     dpis = set()
     pages = sorted(T) if T else sorted(M)
+    if want is not None:
+        gone = sorted(set(want) - set(pages))
+        if gone:
+            raise Unmeasurable(f"no pages {gone[:5]} to measure: "
+                               f"{'truth' if T else 'the run'} has none")
+        pages = [i for i in pages if i in want]
     for i in pages:
         if i not in M:
             raise Unmeasurable(

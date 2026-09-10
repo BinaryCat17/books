@@ -61,3 +61,25 @@ def test_the_viewer_answers_by_name_and_the_truth_side_is_the_admins(app, home, 
     assert r.status_code == 409 and "anchor" in r.json()["error"]
     assert alice.get(f"{ub}/crops/p0000-b999").status_code == 409
     assert TestClient(app).get(f"{base}/pages/1").status_code == 401
+
+
+def test_a_page_is_measured_on_request_and_the_results_say_their_state(app, home, slovar, served_endpoint):
+    _registry(home, {"fake": {"kind": "layout", "endpoint": served_endpoint, "knobs": {}}})
+    alice = as_user(app, "alice")
+    mine = _upload(alice, slovar.pdf, "mine")
+    _detect(alice, mine)
+    ub = f"/api/books/{mine}/runs/detect/truth"
+    r = alice.get(f"{ub}/results")
+    assert r.status_code == 409 and "not measured yet" in r.json()["error"]
+    recs = alice.get(f"{ub}/pages/2/metrics").json()
+    assert {x["metric"] for x in recs} >= {"fitness", "snapshot"}
+    assert "contour" not in {x["metric"] for x in recs}, "a user's book has no truth"
+    assert recs[0]["identity"] and len(recs[0]["identity"]) == 64
+    r = alice.post("/api/jobs", json={"kind": "bench", "book": mine, "label": "truth"})
+    assert r.status_code == 200, r.text
+    _, last = wait_done(alice, r.json()["id"])
+    assert last["state"] == "done", last
+    got = alice.get(f"{ub}/results").json()
+    assert got["path"] == os.path.join("results", "processed-mine-truth.json")
+    assert got["records"] and {x["state"] for x in got["records"]} == {"current"}
+    assert alice.get(f"{ub}/pages/99/metrics").status_code == 409

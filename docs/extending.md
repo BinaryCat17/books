@@ -76,9 +76,12 @@ In process, for a model the tree holds itself:
    spoiled and what must happen to the number, returns True, False, or None
    where this book gives it nothing to grip.
 4. Every scalar declared in the class's `scalars` as a `Spec`: its name,
-   which way is better, one sentence of what it says, and the report
-   question it headlines if any. The report and `docs/metrics.md` derive
-   from that; an undeclared scalar is refused.
+   which way is better, one sentence of what it says, the report question
+   it headlines if any, and where its values sit -- `per` page or block,
+   the `side` whose blocks, the `unit` of its coverage. The report,
+   `docs/metrics.md` and `docs/metrics.json` derive from that; an
+   undeclared scalar is refused, and a record whose anchors disagree with
+   its declaration fails the contract.
 5. An instance in `METRICS` of `src/booksmith/datasets/metrics/__init__.py`.
 6. Prove it: `books bench all bench/slovar`, then `books bench selfcheck
    bench/slovar`, then `books bench report` and `books docs`, then `pytest`.

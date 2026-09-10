@@ -131,6 +131,21 @@ def pairs(root: str, name: str, kind: str, label: str, index: int,
                          index, truth_side=user["role"] == "admin")
 
 
+@router.get("/books/{root}/{name}/runs/{kind}/{label}/results")
+def results(root: str, name: str, kind: str, label: str, request: Request) -> dict:
+    user = auth.require(request)
+    return service.results(_store(request, user), _book(root, name), kind, label)
+
+
+@router.get("/books/{root}/{name}/runs/{kind}/{label}/pages/{index}/metrics")
+def page_metrics(root: str, name: str, kind: str, label: str, index: int,
+                 request: Request) -> list[dict]:
+    """Every applicable metric on this page, measured now: one page is
+    seconds, and a viewer asks for one at a time."""
+    user = auth.require(request)
+    return service.measure_page(_store(request, user), _book(root, name), kind, label, index)
+
+
 @router.get("/books/{root}/{name}/runs/{kind}/{label}/crops/{anchor}")
 def crop(root: str, name: str, kind: str, label: str, anchor: str,
          request: Request) -> Response:

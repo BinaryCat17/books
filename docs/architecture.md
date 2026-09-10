@@ -235,7 +235,21 @@ not otherwise. It returns a record of scalars. A scalar carries its value,
 the count behind a share, the coverage it was measured over with its unit,
 the same quantity at each page or block that made it, keyed by anchor, and,
 when the value is null, the reason. A null without a reason cannot be
-constructed.
+constructed. Each scalar's declaration says where its values sit, a page
+or a block of which side, and what its coverage counts, so a client places
+a number where it was counted without knowing the metric; the contract
+holds every record to its declaration.
+
+A record names the identity of the run it measured and the hash of the
+scan, out of the run's snapshot, so a results file can say later whether
+the run on disk is still the one measured: current, stale, or not recorded,
+and not checked where the run is not here to ask. The report refuses a
+stale record as it refuses a dirty commit, and says the counts of the
+rest. A results file is named for its bench and run, prefixed `processed-`
+for a book under `processed/`, since the two roots can hold one name, and
+a measure of a page set is a file of its own name with the pages in its
+header, never the book's file: `books bench all --pages`, and the web asks
+one page at a time.
 
 Every metric has probes of deliberately spoiled input, in a module of their own
 beside it, and the number must fall on each before the metric is believed:
@@ -273,8 +287,6 @@ still to cut, each a refactor of what exists:
 
 - A run snapshot that stores each knob's name and value and points at the
   registry for its description, instead of carrying the description text.
-- A record that carries the run's identity and the scan's hash, so a
-  result knows when its run has been superseded.
 
 Two decisions are already made. A correction of what the model returned is
 never a write into the model's run; it is a derived run beside it, journaled

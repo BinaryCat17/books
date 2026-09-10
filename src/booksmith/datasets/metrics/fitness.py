@@ -23,47 +23,48 @@ class FitnessMetric(Metric):
     needs = frozenset({"pdf", "pages"})
     scalars = (
         Spec("ink_under_boxes", "higher",
-             "ink that lands inside some box", 'How much of the book survived'),
+             "ink that lands inside some box", 'How much of the book survived', per="page"),
         Spec("ink_under_boxes_clean", "higher",
-             "the same over the ink that is ink: binding shadow and scan edge discarded from both sides", 'How much of the book survived'),
+             "the same over the ink that is ink: binding shadow and scan edge discarded from both sides", 'How much of the book survived', per="page"),
         Spec("ink_as_text", "higher",
-             "ink that leaves the book as text rather than as a picture of itself", 'How much of the book survived'),
+             "ink that leaves the book as text rather than as a picture of itself", 'How much of the book survived', per="page"),
         Spec("object_ink_preserved", "higher",
-             "ink of the truth objects that survives inside boxes", 'How much of the book survived'),
+             "ink of the truth objects that survives inside boxes", 'How much of the book survived', per="block", side="truth"),
         Spec("ink_under_artefacts", "neither",
-             "ink under boxes of artifact role: a composition, not a quality"),
+             "ink under boxes of artifact role: a composition, not a quality", per="page"),
         Spec("ink_as_picture", "neither",
-             "ink that leaves as a picture"),
+             "ink that leaves as a picture", per="page"),
         Spec("ink_junk", "neither",
-             "ink discarded as binding shadow or scan edge: a property of the scan"),
+             "ink discarded as binding shadow or scan edge: a property of the scan", per="page"),
         Spec("area_under_boxes", "neither",
              "share of the sheet under boxes: a full-sheet box scores the maximum"),
         Spec("median_box_area", "neither",
              "median box area as a share of the sheet"),
         Spec("boxes_per_page", "neither",
-             "boxes per page"),
+             "boxes per page", per="page"),
         Spec("objects_intact", "higher",
-             "truth objects whose ink is intact under one box"),
+             "truth objects whose ink is intact under one box", per="block", side="truth"),
         Spec("objects_in_one_box", "higher",
-             "truth objects covered by exactly one box"),
+             "truth objects covered by exactly one box", per="block", side="truth"),
         Spec("objects_torn", "lower",
-             "truth objects torn between boxes"),
+             "truth objects torn between boxes", per="block", side="truth"),
         Spec("objects_left_as_text", "lower",
-             "truth objects boxed as text"),
+             "truth objects boxed as text", per="block", side="truth"),
         Spec("objects_with_company", "lower",
-             "truth objects sharing a box"),
+             "truth objects sharing a box", per="block", side="truth"),
     )
 
-    def run(self, bench, run) -> Record:
+    def run(self, bench, run, want=None) -> Record:
         truth = bench.truth_dir if bench is not None and bench.truth_dir else ""
         res = ink.measure(bench.pdf, run.pages_dir, truth,
-                          run.policy, bench.policy if truth else None)
+                          run.policy, bench.policy if truth else None, want=want)
         return self.record(res, bench.name, run.label, bool(truth))
 
-    def run_loaded(self, bench, run, truth, pages, note) -> Record:
+    def run_loaded(self, bench, run, truth, pages, note, want=None) -> Record:
         # The ink measurement renders the PDF page by page and reads the
-        # pages itself; the parsed dicts are not what costs here.
-        return self.run(bench, run)
+        # pages itself; the parsed dicts are not what costs here, the page
+        # set asked for is.
+        return self.run(bench, run, want)
 
     def record(self, res: dict, bench_name: str, run_label: str, with_truth=True) -> Record:
         tot, obj = res["ink_total"], res["objects"]

@@ -928,34 +928,34 @@ class TextMetric(Metric):
     needs = frozenset({"truth", "pages", "content", "read"})
     scalars = (
         Spec("paired", "higher",
-             "blocks paired with a truth block"),
+             "blocks paired with a truth block", per="block", side="truth"),
         Spec("CER", "lower",
-             "character error rate over paired blocks"),
+             "character error rate over paired blocks", per="block", side="truth"),
         Spec("WER", "lower",
-             "word error rate over paired blocks"),
+             "word error rate over paired blocks", per="block", side="truth"),
         Spec("CER_answered", "lower",
-             "character error rate over the blocks the reader answered"),
+             "character error rate over the blocks the reader answered", per="block", side="truth", unit="blocks"),
         Spec("no_answer", "lower",
-             "blocks with no answer"),
+             "blocks with no answer", per="block", side="truth"),
         Spec("cells_matched", "higher",
-             "table cells matched by address"),
+             "table cells matched by address", per="block", side="truth"),
         Spec("CER_cells", "lower",
-             "character error rate over matched cells"),
+             "character error rate over matched cells", unit="cells"),
         Spec("tables_given_as_text", "lower",
              "tables answered as text"),
         Spec("baits_read", "lower",
-             "baits read as content"),
+             "baits read as content", per="block", side="truth"),
         Spec("CER_artefacts", "lower",
-             "character error rate over artifact blocks"),
+             "character error rate over artifact blocks", per="block", side="truth"),
         Spec("CER_artefacts_answered", "lower",
-             "character error rate over answered artifact blocks"),
+             "character error rate over answered artifact blocks", per="block", side="truth", unit="blocks"),
     )
 
     def run(self, bench, run) -> Record:
         res = measure(bench.truth_dir, run.pages_dir)
         return self.record(res, bench.name, run.label)
 
-    def run_loaded(self, bench, run, truth, pages, note) -> Record:
+    def run_loaded(self, bench, run, truth, pages, note, want=None) -> Record:
         from booksmith.datasets.metrics.contour import _same_raster
         res = measure_pages(truth, pages, tp=bench.policy)
         res["book"] = f"{note}; {_same_raster(truth, pages)}"

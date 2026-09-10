@@ -25,6 +25,14 @@ ROOT = os.path.dirname(os.path.dirname(support.SRC))
 SLOVAR = os.path.join(ROOT, "bench", "slovar")
 
 
+def _slovar_or_none():
+    """The tree's own slovar run, or None on a clone without it."""
+    try:
+        return _slovar()
+    except pytest.skip.Exception:
+        return None
+
+
 def _slovar():
     if not (os.path.isdir(os.path.join(SLOVAR, "truth"))
             and os.path.isdir(os.path.join(SLOVAR, "detect", "PP-DocLayoutV2", "pages"))
@@ -341,3 +349,42 @@ def test_the_arrows_that_were_wrong_once_are_pinned_by_name():
     ):
         got = report._arrow(name)
         assert got == want, f"`{name}` is `{got}`, want `{want}` -- {why}"
+
+
+def test_every_scalar_is_placed_where_its_spec_says(slovar, slovar_run):
+    """A Spec says per page, per block of which side, and over which unit,
+    so a client places a number without knowing the metric; the record must
+    agree with the declaration, and a declaration of none must carry no
+    anchors. Asked of the tree's run and of truth as a run, so every metric
+    answers on at least one."""
+    runs = [(slovar, slovar_run)]
+    tree = _slovar_or_none()
+    if tree:
+        runs.append(tree)
+    from booksmith.core.errors import Unmeasurable
+    seen = set()
+    for b, r in runs:
+        for m in registry.METRICS:
+            # Asked of every metric, applicable or not: the shape of what a
+            # metric places is its own, and truth as a run answers the
+            # reading metrics too, where no read run with character truth
+            # is in the tree.
+            specs = {sp.name: sp for sp in m.scalars}
+            try:
+                with support.said():
+                    rec = m.run(b, r)
+            except Unmeasurable:
+                continue
+            for k, s in rec.scalars.items():
+                sp = specs[k]
+                if s.per:
+                    seen.add(k)
+                    shape = "block" if any("-b" in a for a in s.per) else "page"
+                    assert shape == sp.per, (m.name, k, shape, sp.per)
+                    if shape == "block":
+                        assert s.side == sp.side, (m.name, k, s.side, sp.side)
+                if s.over is not None:
+                    assert s.unit == sp.unit, (m.name, k, s.unit, sp.unit)
+                if sp.per == "none":
+                    assert not s.per, (m.name, k, "declared none, carries anchors")
+    assert len(seen) >= 29, f"only {len(seen)} placed scalars seen: {sorted(seen)}"

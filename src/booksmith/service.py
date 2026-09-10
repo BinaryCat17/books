@@ -622,20 +622,67 @@ def crop_png(store: str, name: str, kind: str, label: str, anchor: str,
 
 
 # --------------------------------------------------------------- measuring
+def _pages_of(pdf: str | None, spec: str) -> list | None:
+    """A page spec as `books detect` reads it, over the book's scan, or None
+    for the whole book."""
+    from booksmith.core import raster
+    from booksmith.processing.layout.detect import parse_pages
+    if not spec:
+        return None
+    if not pdf:
+        raise Refusal("no scan to count pages against")
+    with raster.open_pdf(pdf) as doc:
+        return parse_pages(spec, doc.page_count)
+
+
 def bench(store: str, path: str, settings: Mapping, run: str = "",
           kind: str = "detect", only: list | None = None,
-          json_path: str | None = None, base: job.Job | None = None) -> str:
+          json_path: str | None = None, base: job.Job | None = None,
+          pages: str = "") -> str:
     """Every applicable metric on one run of a book: one table printed, one
-    JSON written under the store's `results/`. Returns the JSON path."""
+    JSON written under the store's `results/`. `pages` is a page spec as
+    `books detect` takes it; a page set gets a results file of its own name,
+    never the book's. Returns the JSON path."""
     from booksmith.datasets import table
     _inside(store, path)
     _inside(store, json_path)
     with _job(store, settings, "", base).active():
         b, r = open_book(path, kind, run)
-        recs = table.rows(b, r, only)
+        want = _pages_of(b.pdf, pages)
+        recs = table.rows(b, r, only, want)
         table.render(recs)
-        json_path = json_path or table.results_path(b, r, only, store)
-        return table.write_json(recs, json_path, kind=r.level)
+        json_path = json_path or table.results_path(b, r, only, store, want)
+        return table.write_json(recs, json_path, kind=r.level, pages=want)
+
+
+def measure_page(store: str, name: str, kind: str, label: str, index: int,
+                 only: list | None = None) -> list[dict]:
+    """Every applicable metric's record for one page of a run, taken now
+    and written nowhere: what a viewer shows beside the page."""
+    from booksmith.datasets import table
+    b, rd = _run_of(store, name, kind, label)
+    bb, r = open_book(b.root, kind, label)
+    with job.Job().active():
+        return [rec.to_json() for rec in table.rows(bb, r, only, [int(index)])]
+
+
+def results(store: str, name: str, kind: str, label: str) -> dict:
+    """The records last written for a run, with each one's state against the
+    run on disk: current, stale, not recorded. Refuses where nothing was
+    measured, which is not a run with no numbers."""
+    from booksmith.datasets import table
+    from booksmith.datasets.metrics import base as metrics_base
+    b, rd = _run_of(store, name, kind, label)
+    bb, r = open_book(b.root, kind, label)
+    path = table.results_path(bb, r, None, store)
+    if not os.path.isfile(path):
+        raise Refusal(f"{name} {kind}/{label} was not measured yet: no "
+                      f"{os.path.relpath(path, store)}. Run a bench job first.")
+    d = table.read_file(path)
+    for rec in d["records"]:
+        rec["state"] = metrics_base.staleness(rec.get("identity"), r.snapshot)
+    d["path"] = os.path.relpath(path, store)
+    return d
 
 
 def selfcheck(store: str, path: str, run: str = "", kind: str = "detect",
@@ -684,7 +731,8 @@ def selfcheck(store: str, path: str, run: str = "", kind: str = "detect",
 
 
 def report(store: str, out: str | None = None) -> str:
-    """Every record under the store's `results/` as one document."""
+    """Every record under the store's `results/` as one document, each
+    checked against the run it describes under the store."""
     from booksmith.datasets import report as rendered
     return rendered.write(out or os.path.join(store, "METRICS.md"),
-                          os.path.join(store, "results"))
+                          os.path.join(store, "results"), store)

@@ -10,19 +10,19 @@ needs: pages, truth
 
 Boxes, labels and order against truth: did a box land where the artefact is, was it called the right thing, is the order right.
 
-| scalar | better | what it says |
-|---|---|---|
-| `artefacts_found` | higher | tables and pictures found (headline: How much of the book survived) |
-| `text_furniture_found` | higher | text and furniture found (headline: How much of the book survived) |
-| `sense_whole` | higher | objects whose meaning arrived whole |
-| `assembly_order` | higher | reading order of the assembled book agrees with truth (headline: Is the order right) |
-| `model_order` | higher | the model's own rank agrees with truth |
-| `artefacts_not_seen` | lower | artefacts the model never boxed (headline: What failed, and how) |
-| `artefacts_cropped` | lower | artefacts boxed, but cut short (headline: What failed, and how) |
-| `artefacts_called_text` | lower | artefacts boxed as text: they leave as a line and the structure leaves with them (headline: What failed, and how) |
-| `artefacts_merged` | neither | artefacts sharing a box with a neighbour; no direction, since a wider picture is split at level two (headline: What failed, and how) |
-| `label_errors` | lower | blocks whose label is not the truth's |
-| `role_errors` | lower | blocks whose role is not the truth's |
+| scalar | better | per | what it says |
+|---|---|---|---|
+| `artefacts_found` | higher | block of truth | tables and pictures found (headline: How much of the book survived) |
+| `text_furniture_found` | higher | block of truth, over pages | text and furniture found (headline: How much of the book survived) |
+| `sense_whole` | higher | block of truth | objects whose meaning arrived whole |
+| `assembly_order` | higher | page, over pages | reading order of the assembled book agrees with truth (headline: Is the order right) |
+| `model_order` | higher | page, over pages | the model's own rank agrees with truth |
+| `artefacts_not_seen` | lower | block of truth | artefacts the model never boxed (headline: What failed, and how) |
+| `artefacts_cropped` | lower | block of truth | artefacts boxed, but cut short (headline: What failed, and how) |
+| `artefacts_called_text` | lower | block of truth | artefacts boxed as text: they leave as a line and the structure leaves with them (headline: What failed, and how) |
+| `artefacts_merged` | neither | block of truth | artefacts sharing a box with a neighbour; no direction, since a wider picture is split at level two (headline: What failed, and how) |
+| `label_errors` | lower | block of run | blocks whose label is not the truth's |
+| `role_errors` | lower | block of run | blocks whose role is not the truth's |
 
 ## fitness
 
@@ -30,23 +30,23 @@ needs: pages, pdf
 
 Shares from the ink measurement's counts: the six the report divides and the four it prints as counts, the latter expressed over the object count so that two runs compare.
 
-| scalar | better | what it says |
-|---|---|---|
-| `ink_under_boxes` | higher | ink that lands inside some box (headline: How much of the book survived) |
-| `ink_under_boxes_clean` | higher | the same over the ink that is ink: binding shadow and scan edge discarded from both sides (headline: How much of the book survived) |
-| `ink_as_text` | higher | ink that leaves the book as text rather than as a picture of itself (headline: How much of the book survived) |
-| `object_ink_preserved` | higher | ink of the truth objects that survives inside boxes (headline: How much of the book survived) |
-| `ink_under_artefacts` | neither | ink under boxes of artifact role: a composition, not a quality |
-| `ink_as_picture` | neither | ink that leaves as a picture |
-| `ink_junk` | neither | ink discarded as binding shadow or scan edge: a property of the scan |
-| `area_under_boxes` | neither | share of the sheet under boxes: a full-sheet box scores the maximum |
-| `median_box_area` | neither | median box area as a share of the sheet |
-| `boxes_per_page` | neither | boxes per page |
-| `objects_intact` | higher | truth objects whose ink is intact under one box |
-| `objects_in_one_box` | higher | truth objects covered by exactly one box |
-| `objects_torn` | lower | truth objects torn between boxes |
-| `objects_left_as_text` | lower | truth objects boxed as text |
-| `objects_with_company` | lower | truth objects sharing a box |
+| scalar | better | per | what it says |
+|---|---|---|---|
+| `ink_under_boxes` | higher | page | ink that lands inside some box (headline: How much of the book survived) |
+| `ink_under_boxes_clean` | higher | page | the same over the ink that is ink: binding shadow and scan edge discarded from both sides (headline: How much of the book survived) |
+| `ink_as_text` | higher | page | ink that leaves the book as text rather than as a picture of itself (headline: How much of the book survived) |
+| `object_ink_preserved` | higher | block of truth | ink of the truth objects that survives inside boxes (headline: How much of the book survived) |
+| `ink_under_artefacts` | neither | page | ink under boxes of artifact role: a composition, not a quality |
+| `ink_as_picture` | neither | page | ink that leaves as a picture |
+| `ink_junk` | neither | page | ink discarded as binding shadow or scan edge: a property of the scan |
+| `area_under_boxes` | neither | none | share of the sheet under boxes: a full-sheet box scores the maximum |
+| `median_box_area` | neither | none | median box area as a share of the sheet |
+| `boxes_per_page` | neither | page | boxes per page |
+| `objects_intact` | higher | block of truth | truth objects whose ink is intact under one box |
+| `objects_in_one_box` | higher | block of truth | truth objects covered by exactly one box |
+| `objects_torn` | lower | block of truth | truth objects torn between boxes |
+| `objects_left_as_text` | lower | block of truth | truth objects boxed as text |
+| `objects_with_company` | lower | block of truth | truth objects sharing a box |
 
 ## text
 
@@ -54,19 +54,19 @@ needs: content, pages, read, truth
 
 Characters and table cells against truth: did the reader return the text and the cell addresses known to be there.
 
-| scalar | better | what it says |
-|---|---|---|
-| `paired` | higher | blocks paired with a truth block |
-| `CER` | lower | character error rate over paired blocks |
-| `WER` | lower | word error rate over paired blocks |
-| `CER_answered` | lower | character error rate over the blocks the reader answered |
-| `no_answer` | lower | blocks with no answer |
-| `cells_matched` | higher | table cells matched by address |
-| `CER_cells` | lower | character error rate over matched cells |
-| `tables_given_as_text` | lower | tables answered as text |
-| `baits_read` | lower | baits read as content |
-| `CER_artefacts` | lower | character error rate over artifact blocks |
-| `CER_artefacts_answered` | lower | character error rate over answered artifact blocks |
+| scalar | better | per | what it says |
+|---|---|---|---|
+| `paired` | higher | block of truth | blocks paired with a truth block |
+| `CER` | lower | block of truth | character error rate over paired blocks |
+| `WER` | lower | block of truth | word error rate over paired blocks |
+| `CER_answered` | lower | block of truth, over blocks | character error rate over the blocks the reader answered |
+| `no_answer` | lower | block of truth | blocks with no answer |
+| `cells_matched` | higher | block of truth | table cells matched by address |
+| `CER_cells` | lower | none, over cells | character error rate over matched cells |
+| `tables_given_as_text` | lower | none | tables answered as text |
+| `baits_read` | lower | block of truth | baits read as content |
+| `CER_artefacts` | lower | block of truth | character error rate over artifact blocks |
+| `CER_artefacts_answered` | lower | block of truth, over blocks | character error rate over answered artifact blocks |
 
 ## assembly
 
@@ -74,14 +74,14 @@ needs: pages
 
 How often the assembled order jumps between columns beyond the unavoidable; needs no truth.
 
-| scalar | better | what it says |
-|---|---|---|
-| `excess_jumps_per_transition` | lower | excess column jumps per move between boxes (headline: Is the order right) |
-| `excess_jumps_per_transition_one_rule` | lower | the same with one ordering rule forced on every model, so the column compares boxes alone (headline: Is the order right) |
-| `excess_jumps` | lower | column jumps beyond the unavoidable |
-| `excess_jumps_per_page` | lower | excess column jumps per page |
-| `transitions` | neither | moves between boxes |
-| `pages_with_columns` | neither | pages with more than one column |
+| scalar | better | per | what it says |
+|---|---|---|---|
+| `excess_jumps_per_transition` | lower | none | excess column jumps per move between boxes (headline: Is the order right) |
+| `excess_jumps_per_transition_one_rule` | lower | none | the same with one ordering rule forced on every model, so the column compares boxes alone (headline: Is the order right) |
+| `excess_jumps` | lower | page | column jumps beyond the unavoidable |
+| `excess_jumps_per_page` | lower | none, over pages | excess column jumps per page |
+| `transitions` | neither | none | moves between boxes |
+| `pages_with_columns` | neither | page | pages with more than one column |
 
 ## snapshot
 
@@ -89,12 +89,12 @@ needs: pages
 
 Is the run's snapshot complete enough to repeat the run.
 
-| scalar | better | what it says |
-|---|---|---|
-| `values_present` | neither | keys present in the snapshot |
-| `missing` | lower | keys the snapshot lacks |
-| `empty` | lower | knob values empty in the snapshot |
-| `fingerprint_verified` | neither | 1 if the fingerprint was verified against the tree, 0 if not |
+| scalar | better | per | what it says |
+|---|---|---|---|
+| `values_present` | neither | none | keys present in the snapshot |
+| `missing` | lower | none | keys the snapshot lacks |
+| `empty` | lower | none | knob values empty in the snapshot |
+| `fingerprint_verified` | neither | none | 1 if the fingerprint was verified against the tree, 0 if not |
 
 ## reading
 
@@ -102,8 +102,8 @@ needs: pages, read
 
 The truth-free half of level two: labels and answers are both in the run's own pages, so it measures any book that has been read, with no truth and no scan; `read` says THIS RUN produced the characters.
 
-| scalar | better | what it says |
-|---|---|---|
-| `charts_as_data` | lower | charts returned as a table of numbers: values read off a curve and placed in the book as text (headline: What failed, and how) |
-| `looping` | lower | answers that repeat themselves (headline: What failed, and how) |
-| `answered` | higher | blocks answered |
+| scalar | better | per | what it says |
+|---|---|---|---|
+| `charts_as_data` | lower | block of run | charts returned as a table of numbers: values read off a curve and placed in the book as text (headline: What failed, and how) |
+| `looping` | lower | block of run | answers that repeat themselves (headline: What failed, and how) |
+| `answered` | higher | page | blocks answered |

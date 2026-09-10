@@ -9,6 +9,8 @@ books bench report                  # render this file
 
 All cells were computed at commit `42a6d749e8f87765e4ff3016662791e112cb7e4b`, between 2026-09-09T14:38:48+0300 and 2026-09-09T15:01:57+0300.
 
+Every record names the identity of the run it measured, and each was checked against the run on disk before this was rendered: 201 not recorded. A stale record is refused, not rendered.
+
 Each cell is the value with the count behind it. Where a metric was counted over only PART of a bench, the cell says so; where it says nothing, it was counted over all of it.
 
 A scalar's name carries an arrow: **↑** better higher, **↓** better lower, **=** neither end is better. An `=` scalar either describes the bench or the run, so ranking models by it means nothing, or it is a GUARD -- read across models, but beside a ranked number rather than as one. `area_under_boxes` is a guard: a model that boxes the whole sheet takes 100 % of the ink with it, so a high share of ink is only worth what the area beside it says. Two cells that cannot be compared are never put in one column without saying so.

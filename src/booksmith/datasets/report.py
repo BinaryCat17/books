@@ -14,6 +14,8 @@ import os
 from booksmith.core import config, stamp
 from booksmith.core.errors import Refusal
 from booksmith.datasets import table
+from booksmith.datasets.bench import _read_json
+from booksmith.datasets.metrics import base
 from booksmith.core.log import log
 
 RESULTS = os.path.join(config.ROOT, "results")
@@ -68,7 +70,8 @@ def _cells(results: str = RESULTS):
     detector made them, so they are kept out of the model column and counted."""
     out, commits, when, other = {}, set(), set(), []
     for name in sorted(os.listdir(results)) if os.path.isdir(results) else []:
-        if not name.endswith(".json") or "-only-" in name:
+        # A selection and a page set are their own files, never a cell.
+        if not name.endswith(".json") or "-only-" in name or "-pages-" in name:
             continue
         d = table.read_file(os.path.join(results, name))
         # A file written before the field existed is `detect`, which every
@@ -89,7 +92,13 @@ def _cells(results: str = RESULTS):
             continue
         for rec in d["records"]:
             out.setdefault((rec["bench"], rec["run"]), {})[rec["metric"]] = rec
+            _NAMES[(rec["bench"], rec["run"])] = name
     return out, commits, when, other
+
+
+# The results file each cell came from, for the check against the run on
+# disk; filled by `_cells`, read by `build`.
+_NAMES: dict = {}
 
 
 def _arrow(scalar: str) -> str:
@@ -150,7 +159,45 @@ def _table(rows, header):
     return out
 
 
-def build(results: str = RESULTS) -> str:
+def _snapshot_of(store: str, name: str, kind: str, bench: str, run: str) -> dict | None:
+    """The run's snapshot on disk, where the results file says the run is:
+    a file prefixed `processed-` names a book under `processed/`, the rest
+    a bench. None where the run is not here to ask."""
+    root = "processed" if name.startswith("processed-") else "bench"
+    return _read_json(os.path.join(store, root, bench, kind, run, "run.json"))
+
+
+def check_runs(cells: dict, other_levels: list, names: dict, store: str) -> dict:
+    """Every record against the run it describes: the count of each state,
+    and a refusal where any record is stale. A number that describes a run
+    that is gone cannot be published beside numbers that describe the runs
+    on disk, as a number from an uncommitted tree cannot."""
+    states = {s: 0 for s in (base.CURRENT, base.STALE, base.NOT_RECORDED, base.NOT_CHECKED)}
+    stale = []
+    todo = [(names[(b, r)], "detect", b, r, by) for (b, r), by in cells.items()]
+    todo += [(name, kind, b, r, by) for kind, name, b, r, by in other_levels]
+    for name, kind, b, r, by in todo:
+        snap = _snapshot_of(store, name, kind, b, r)
+        for metric, rec in by.items():
+            st = base.staleness(rec.get("identity"), snap)
+            states[st] += 1
+            if st == base.STALE:
+                stale.append(f"{name}: {metric} ({str(rec.get('identity'))[:12]} "
+                             f"is not the run's {str(snap.get('identity'))[:12]})")
+    if stale:
+        raise Refusal(
+            f"{len(stale)} records describe a run that is no longer the one "
+            f"on disk: {'; '.join(stale[:3])}{' …' if len(stale) > 3 else ''}. "
+            f"The number was taken from other boxes than the ones there now, "
+            f"so it cannot be published beside numbers that were not. "
+            f"Re-measure: `python3 tools/sweep.py --apply --metrics-only`.")
+    return states
+
+
+def build(results: str = RESULTS, store: str | None = None) -> str:
+    """The document out of `results/`, checked against the runs under
+    `store`, the data root the results directory lies in unless named."""
+    store = store or os.path.dirname(os.path.abspath(results))
     cells, commits, when, other_levels = _cells(results)
     if not cells:
         # Two different empties: results exist and every one is of a level this
@@ -200,6 +247,7 @@ def build(results: str = RESULTS) -> str:
             f"({', '.join(sorted(commits))}). A table whose cells were "
             f"computed by different code is not a comparison. Re-run the "
             f"sweep: `python3 tools/sweep.py --apply --again`.")
+    states = check_runs(cells, other_levels, _NAMES, store)
     benches = sorted({b for b, _ in cells})
     runs = sorted({r for _, r in cells})
     commit = next(iter(commits))
@@ -217,6 +265,14 @@ def build(results: str = RESULTS) -> str:
          "",
          f"All cells were computed at commit `{commit}`, "
          f"{'at ' + sorted(when)[0] if len(when) == 1 else 'between ' + sorted(when)[0] + ' and ' + sorted(when)[-1]}.",
+         "",
+         # Three states and a fourth, never one word: a record that names no
+         # identity and a run that is not here to ask are two different
+         # things not checked, and neither is "current".
+         "Every record names the identity of the run it measured, and each "
+         "was checked against the run on disk before this was rendered: "
+         + ", ".join(f"{n} {s}" for s, n in states.items() if n)
+         + ". A stale record is refused, not rendered.",
          "",
          "Each cell is the value with the count behind it. Where a metric "
          "was counted over only PART of a bench, the cell says so; where it "
@@ -392,8 +448,8 @@ def build(results: str = RESULTS) -> str:
     return "\n".join(L).rstrip("\n") + "\n"
 
 
-def write(path: str = OUT, results: str = RESULTS) -> str:
-    text = build(results)
+def write(path: str = OUT, results: str = RESULTS, store: str | None = None) -> str:
+    text = build(results, store)
     with open(path, "w", encoding="utf-8") as f:
         f.write(text)
     log(f"{path}: {len(text.splitlines())} lines")

@@ -1132,34 +1132,34 @@ class ContourMetric(Metric):
     needs = frozenset({"truth", "pages"})
     scalars = (
         Spec("artefacts_found", "higher",
-             "tables and pictures found", 'How much of the book survived'),
+             "tables and pictures found", 'How much of the book survived', per="block", side="truth"),
         Spec("text_furniture_found", "higher",
-             "text and furniture found", 'How much of the book survived'),
+             "text and furniture found", 'How much of the book survived', per="block", side="truth", unit="pages"),
         Spec("sense_whole", "higher",
-             "objects whose meaning arrived whole"),
+             "objects whose meaning arrived whole", per="block", side="truth"),
         Spec("assembly_order", "higher",
-             "reading order of the assembled book agrees with truth", 'Is the order right'),
+             "reading order of the assembled book agrees with truth", 'Is the order right', per="page", unit="pages"),
         Spec("model_order", "higher",
-             "the model's own rank agrees with truth"),
+             "the model's own rank agrees with truth", per="page", unit="pages"),
         Spec("artefacts_not_seen", "lower",
-             "artefacts the model never boxed", 'What failed, and how'),
+             "artefacts the model never boxed", 'What failed, and how', per="block", side="truth"),
         Spec("artefacts_cropped", "lower",
-             "artefacts boxed, but cut short", 'What failed, and how'),
+             "artefacts boxed, but cut short", 'What failed, and how', per="block", side="truth"),
         Spec("artefacts_called_text", "lower",
-             "artefacts boxed as text: they leave as a line and the structure leaves with them", 'What failed, and how'),
+             "artefacts boxed as text: they leave as a line and the structure leaves with them", 'What failed, and how', per="block", side="truth"),
         Spec("artefacts_merged", "neither",
-             "artefacts sharing a box with a neighbour; no direction, since a wider picture is split at level two", 'What failed, and how'),
+             "artefacts sharing a box with a neighbour; no direction, since a wider picture is split at level two", 'What failed, and how', per="block", side="truth"),
         Spec("label_errors", "lower",
-             "blocks whose label is not the truth's"),
+             "blocks whose label is not the truth's", per="block", side="run"),
         Spec("role_errors", "lower",
-             "blocks whose role is not the truth's"),
+             "blocks whose role is not the truth's", per="block", side="run"),
     )
 
     def run(self, bench, run) -> Record:
         res = compare(bench.truth_dir, run.pages_dir, bench.policy, run.policy)
         return self.record(res, bench.name, run.label)
 
-    def run_loaded(self, bench, run, truth, pages, note) -> Record:
+    def run_loaded(self, bench, run, truth, pages, note, want=None) -> Record:
         res = compare_pages(truth, pages, bench.policy, run.policy)
         res["book"] = f"{note}; {_same_raster(truth, pages)}"
         return self.record(res, bench.name, run.label)

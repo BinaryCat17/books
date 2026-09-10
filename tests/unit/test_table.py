@@ -12,6 +12,7 @@ from booksmith.datasets import table
 from booksmith.datasets.bench import Bench
 from booksmith.datasets.metrics.base import Record, Scalar
 from test_bench import LABEL, _bench
+import pytest
 import support
 
 
@@ -176,3 +177,79 @@ def test_an_undefined_jump_count_says_why_instead_of_printing_zero():
         assert sc.why and "UNDEFINED" in sc.why, (
             f"{name} is absent and does not say why: {sc.why!r}. A zero here "
             f"would read as 'no excess jumps', which is another thing")
+
+
+def test_a_book_under_processed_and_a_page_set_get_their_own_file_names():
+    """`bench/x` and `processed/x` are two books that share a name; a page
+    set is not the book's measurement. Neither may land on the book's file."""
+    with tempfile.TemporaryDirectory() as d:
+        b = Bench.open(_bench(os.path.join(d, "bench", "b")))
+        p = Bench.open(_bench(os.path.join(d, "processed", "b")))
+        run, prun = b.run(), p.run()
+    assert os.path.basename(table.results_path(b, run)) == f"b-{LABEL}.json"
+    assert os.path.basename(table.results_path(p, prun)) == f"processed-b-{LABEL}.json"
+    assert os.path.basename(table.results_path(b, run, pages=[3])) == f"b-{LABEL}-pages-3.json"
+    assert table.pages_tail([0, 1, 2, 5, 7, 8]) == "0-2+5+7-8"
+    assert table.results_path(b, run, ["contour"], pages=[1, 2]).endswith(
+        f"b-{LABEL}-only-contour-pages-1-2.json")
+
+
+def test_records_carry_the_runs_identity_and_the_header_the_page_set(slovar):
+    """A record knows which run it measured, out of the run's snapshot, and
+    a file knows which pages: a run measured on one page is not the book."""
+    from booksmith.datasets.bench import Run
+    from booksmith.datasets.metrics import base
+    bare = Run.bare(slovar.truth_dir, "truth")
+    with support.said():
+        recs = table.rows(slovar, bare, ["contour"], [2, 3])
+    assert len(recs) == 1
+    rec = recs[0]
+    assert rec.identity is None and rec.source_sha256 is None, "a bare run swears nothing"
+    assert rec.scalars["text_furniture_found"].over == (2, 2)
+    assert rec.detail["order_truth"]["page_count"] == 2 and "pairs" not in rec.detail
+    with support.said(), tempfile.TemporaryDirectory() as d:
+        path = table.write_json(recs, os.path.join(d, "x.json"), pages=[3, 2])
+        d2 = table.read_file(path)
+        back = table.read_json(path)
+    assert d2["pages"] == [2, 3]
+    assert back[0].identity is None and "identity" in d2["records"][0]
+    stamped = Record("m", "b", "r", identity="abc", source_sha256="def")
+    assert Record.from_json(json.loads(json.dumps(stamped.to_json()))) == stamped
+    # The three states, and the fourth: a record that cannot be checked is
+    # not a current one.
+    assert base.staleness("abc", {"identity": "abc"}) == base.CURRENT
+    assert base.staleness("abc", {"identity": "xyz"}) == base.STALE
+    assert base.staleness(None, {"identity": "abc"}) == base.NOT_RECORDED
+    assert base.staleness("abc", None) == base.NOT_CHECKED
+    with support.said(), pytest.raises(Refusal, match="no pages"):
+        table.rows(slovar, bare, ["contour"], [99])
+
+
+def test_the_report_refuses_a_record_of_a_run_that_is_gone_and_counts_the_rest():
+    """A results file whose record names another identity than the run on
+    disk is refused as a dirty commit is; one naming none, or of a run not
+    here, is counted and said, never called current."""
+    from booksmith.datasets import report
+    rec = Record("fitness", "b", LABEL, {"ink_under_boxes": Scalar(0.5)}, identity="one")
+    with tempfile.TemporaryDirectory() as d:
+        run_dir = os.path.join(d, "bench", "b", "detect", LABEL)
+        os.makedirs(run_dir)
+        with open(os.path.join(run_dir, "run.json"), "w", encoding="utf-8") as f:
+            json.dump({"identity": "one"}, f)
+        results = os.path.join(d, "results")
+        with support.said():
+            table.write_json([rec], os.path.join(results, f"b-{LABEL}.json"))
+        cells, _, _, other = report._cells(results)
+        assert report.check_runs(cells, other, report._NAMES, d)["current"] == 1
+        with open(os.path.join(run_dir, "run.json"), "w", encoding="utf-8") as f:
+            json.dump({"identity": "two"}, f)
+        with pytest.raises(Refusal, match="no longer the one on disk"):
+            report.check_runs(cells, other, report._NAMES, d)
+        os.unlink(os.path.join(run_dir, "run.json"))
+        states = report.check_runs(cells, other, report._NAMES, d)
+        assert states["not checked"] == 1 and states["current"] == 0
+        with support.said():
+            table.write_json([Record("fitness", "b", LABEL, {"ink_under_boxes": Scalar(0.5)})],
+                             os.path.join(results, f"b-{LABEL}.json"))
+        cells, _, _, other = report._cells(results)
+        assert report.check_runs(cells, other, report._NAMES, d)["not recorded"] == 1

@@ -56,7 +56,7 @@ class SnapshotMetric(Metric):
     def run(self, bench, run) -> Record:
         return self._record(bench.name if bench is not None else "", run)
 
-    def run_loaded(self, bench, run, truth, pages, note) -> Record:
+    def run_loaded(self, bench, run, truth, pages, note, want=None) -> Record:
         return self._record(bench.name if bench is not None else "", run)
 
     def report(self, rec: Record) -> None:

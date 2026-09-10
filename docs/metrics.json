@@ -11,67 +11,100 @@
     "name": "artefacts_found",
     "better": "higher",
     "gloss": "tables and pictures found",
-    "question": "How much of the book survived"
+    "question": "How much of the book survived",
+    "per": "block",
+    "side": "truth",
+    "unit": ""
    },
    {
     "name": "text_furniture_found",
     "better": "higher",
     "gloss": "text and furniture found",
-    "question": "How much of the book survived"
+    "question": "How much of the book survived",
+    "per": "block",
+    "side": "truth",
+    "unit": "pages"
    },
    {
     "name": "sense_whole",
     "better": "higher",
     "gloss": "objects whose meaning arrived whole",
-    "question": ""
+    "question": "",
+    "per": "block",
+    "side": "truth",
+    "unit": ""
    },
    {
     "name": "assembly_order",
     "better": "higher",
     "gloss": "reading order of the assembled book agrees with truth",
-    "question": "Is the order right"
+    "question": "Is the order right",
+    "per": "page",
+    "side": "",
+    "unit": "pages"
    },
    {
     "name": "model_order",
     "better": "higher",
     "gloss": "the model's own rank agrees with truth",
-    "question": ""
+    "question": "",
+    "per": "page",
+    "side": "",
+    "unit": "pages"
    },
    {
     "name": "artefacts_not_seen",
     "better": "lower",
     "gloss": "artefacts the model never boxed",
-    "question": "What failed, and how"
+    "question": "What failed, and how",
+    "per": "block",
+    "side": "truth",
+    "unit": ""
    },
    {
     "name": "artefacts_cropped",
     "better": "lower",
     "gloss": "artefacts boxed, but cut short",
-    "question": "What failed, and how"
+    "question": "What failed, and how",
+    "per": "block",
+    "side": "truth",
+    "unit": ""
    },
    {
     "name": "artefacts_called_text",
     "better": "lower",
     "gloss": "artefacts boxed as text: they leave as a line and the structure leaves with them",
-    "question": "What failed, and how"
+    "question": "What failed, and how",
+    "per": "block",
+    "side": "truth",
+    "unit": ""
    },
    {
     "name": "artefacts_merged",
     "better": "neither",
     "gloss": "artefacts sharing a box with a neighbour; no direction, since a wider picture is split at level two",
-    "question": "What failed, and how"
+    "question": "What failed, and how",
+    "per": "block",
+    "side": "truth",
+    "unit": ""
    },
    {
     "name": "label_errors",
     "better": "lower",
     "gloss": "blocks whose label is not the truth's",
-    "question": ""
+    "question": "",
+    "per": "block",
+    "side": "run",
+    "unit": ""
    },
    {
     "name": "role_errors",
     "better": "lower",
     "gloss": "blocks whose role is not the truth's",
-    "question": ""
+    "question": "",
+    "per": "block",
+    "side": "run",
+    "unit": ""
    }
   ]
  },
@@ -87,91 +120,136 @@
     "name": "ink_under_boxes",
     "better": "higher",
     "gloss": "ink that lands inside some box",
-    "question": "How much of the book survived"
+    "question": "How much of the book survived",
+    "per": "page",
+    "side": "",
+    "unit": ""
    },
    {
     "name": "ink_under_boxes_clean",
     "better": "higher",
     "gloss": "the same over the ink that is ink: binding shadow and scan edge discarded from both sides",
-    "question": "How much of the book survived"
+    "question": "How much of the book survived",
+    "per": "page",
+    "side": "",
+    "unit": ""
    },
    {
     "name": "ink_as_text",
     "better": "higher",
     "gloss": "ink that leaves the book as text rather than as a picture of itself",
-    "question": "How much of the book survived"
+    "question": "How much of the book survived",
+    "per": "page",
+    "side": "",
+    "unit": ""
    },
    {
     "name": "object_ink_preserved",
     "better": "higher",
     "gloss": "ink of the truth objects that survives inside boxes",
-    "question": "How much of the book survived"
+    "question": "How much of the book survived",
+    "per": "block",
+    "side": "truth",
+    "unit": ""
    },
    {
     "name": "ink_under_artefacts",
     "better": "neither",
     "gloss": "ink under boxes of artifact role: a composition, not a quality",
-    "question": ""
+    "question": "",
+    "per": "page",
+    "side": "",
+    "unit": ""
    },
    {
     "name": "ink_as_picture",
     "better": "neither",
     "gloss": "ink that leaves as a picture",
-    "question": ""
+    "question": "",
+    "per": "page",
+    "side": "",
+    "unit": ""
    },
    {
     "name": "ink_junk",
     "better": "neither",
     "gloss": "ink discarded as binding shadow or scan edge: a property of the scan",
-    "question": ""
+    "question": "",
+    "per": "page",
+    "side": "",
+    "unit": ""
    },
    {
     "name": "area_under_boxes",
     "better": "neither",
     "gloss": "share of the sheet under boxes: a full-sheet box scores the maximum",
-    "question": ""
+    "question": "",
+    "per": "none",
+    "side": "",
+    "unit": ""
    },
    {
     "name": "median_box_area",
     "better": "neither",
     "gloss": "median box area as a share of the sheet",
-    "question": ""
+    "question": "",
+    "per": "none",
+    "side": "",
+    "unit": ""
    },
    {
     "name": "boxes_per_page",
     "better": "neither",
     "gloss": "boxes per page",
-    "question": ""
+    "question": "",
+    "per": "page",
+    "side": "",
+    "unit": ""
    },
    {
     "name": "objects_intact",
     "better": "higher",
     "gloss": "truth objects whose ink is intact under one box",
-    "question": ""
+    "question": "",
+    "per": "block",
+    "side": "truth",
+    "unit": ""
    },
    {
     "name": "objects_in_one_box",
     "better": "higher",
     "gloss": "truth objects covered by exactly one box",
-    "question": ""
+    "question": "",
+    "per": "block",
+    "side": "truth",
+    "unit": ""
    },
    {
     "name": "objects_torn",
     "better": "lower",
     "gloss": "truth objects torn between boxes",
-    "question": ""
+    "question": "",
+    "per": "block",
+    "side": "truth",
+    "unit": ""
    },
    {
     "name": "objects_left_as_text",
     "better": "lower",
     "gloss": "truth objects boxed as text",
-    "question": ""
+    "question": "",
+    "per": "block",
+    "side": "truth",
+    "unit": ""
    },
    {
     "name": "objects_with_company",
     "better": "lower",
     "gloss": "truth objects sharing a box",
-    "question": ""
+    "question": "",
+    "per": "block",
+    "side": "truth",
+    "unit": ""
    }
   ]
  },
@@ -189,67 +267,100 @@
     "name": "paired",
     "better": "higher",
     "gloss": "blocks paired with a truth block",
-    "question": ""
+    "question": "",
+    "per": "block",
+    "side": "truth",
+    "unit": ""
    },
    {
     "name": "CER",
     "better": "lower",
     "gloss": "character error rate over paired blocks",
-    "question": ""
+    "question": "",
+    "per": "block",
+    "side": "truth",
+    "unit": ""
    },
    {
     "name": "WER",
     "better": "lower",
     "gloss": "word error rate over paired blocks",
-    "question": ""
+    "question": "",
+    "per": "block",
+    "side": "truth",
+    "unit": ""
    },
    {
     "name": "CER_answered",
     "better": "lower",
     "gloss": "character error rate over the blocks the reader answered",
-    "question": ""
+    "question": "",
+    "per": "block",
+    "side": "truth",
+    "unit": "blocks"
    },
    {
     "name": "no_answer",
     "better": "lower",
     "gloss": "blocks with no answer",
-    "question": ""
+    "question": "",
+    "per": "block",
+    "side": "truth",
+    "unit": ""
    },
    {
     "name": "cells_matched",
     "better": "higher",
     "gloss": "table cells matched by address",
-    "question": ""
+    "question": "",
+    "per": "block",
+    "side": "truth",
+    "unit": ""
    },
    {
     "name": "CER_cells",
     "better": "lower",
     "gloss": "character error rate over matched cells",
-    "question": ""
+    "question": "",
+    "per": "none",
+    "side": "",
+    "unit": "cells"
    },
    {
     "name": "tables_given_as_text",
     "better": "lower",
     "gloss": "tables answered as text",
-    "question": ""
+    "question": "",
+    "per": "none",
+    "side": "",
+    "unit": ""
    },
    {
     "name": "baits_read",
     "better": "lower",
     "gloss": "baits read as content",
-    "question": ""
+    "question": "",
+    "per": "block",
+    "side": "truth",
+    "unit": ""
    },
    {
     "name": "CER_artefacts",
     "better": "lower",
     "gloss": "character error rate over artifact blocks",
-    "question": ""
+    "question": "",
+    "per": "block",
+    "side": "truth",
+    "unit": ""
    },
    {
     "name": "CER_artefacts_answered",
     "better": "lower",
     "gloss": "character error rate over answered artifact blocks",
-    "question": ""
+    "question": "",
+    "per": "block",
+    "side": "truth",
+    "unit": "blocks"
    }
   ]
  },
@@ -264,37 +375,55 @@
     "name": "excess_jumps_per_transition",
     "better": "lower",
     "gloss": "excess column jumps per move between boxes",
-    "question": "Is the order right"
+    "question": "Is the order right",
+    "per": "none",
+    "side": "",
+    "unit": ""
    },
    {
     "name": "excess_jumps_per_transition_one_rule",
     "better": "lower",
     "gloss": "the same with one ordering rule forced on every model, so the column compares boxes alone",
-    "question": "Is the order right"
+    "question": "Is the order right",
+    "per": "none",
+    "side": "",
+    "unit": ""
    },
    {
     "name": "excess_jumps",
     "better": "lower",
     "gloss": "column jumps beyond the unavoidable",
-    "question": ""
+    "question": "",
+    "per": "page",
+    "side": "",
+    "unit": ""
    },
    {
     "name": "excess_jumps_per_page",
     "better": "lower",
     "gloss": "excess column jumps per page",
-    "question": ""
+    "question": "",
+    "per": "none",
+    "side": "",
+    "unit": "pages"
    },
    {
     "name": "transitions",
     "better": "neither",
     "gloss": "moves between boxes",
-    "question": ""
+    "question": "",
+    "per": "none",
+    "side": "",
+    "unit": ""
    },
    {
     "name": "pages_with_columns",
     "better": "neither",
     "gloss": "pages with more than one column",
-    "question": ""
+    "question": "",
+    "per": "page",
+    "side": "",
+    "unit": ""
    }
   ]
  },
@@ -309,25 +438,37 @@
     "name": "values_present",
     "better": "neither",
     "gloss": "keys present in the snapshot",
-    "question": ""
+    "question": "",
+    "per": "none",
+    "side": "",
+    "unit": ""
    },
    {
     "name": "missing",
     "better": "lower",
     "gloss": "keys the snapshot lacks",
-    "question": ""
+    "question": "",
+    "per": "none",
+    "side": "",
+    "unit": ""
    },
    {
     "name": "empty",
     "better": "lower",
     "gloss": "knob values empty in the snapshot",
-    "question": ""
+    "question": "",
+    "per": "none",
+    "side": "",
+    "unit": ""
    },
    {
     "name": "fingerprint_verified",
     "better": "neither",
     "gloss": "1 if the fingerprint was verified against the tree, 0 if not",
-    "question": ""
+    "question": "",
+    "per": "none",
+    "side": "",
+    "unit": ""
    }
   ]
  },
@@ -343,19 +484,28 @@
     "name": "charts_as_data",
     "better": "lower",
     "gloss": "charts returned as a table of numbers: values read off a curve and placed in the book as text",
-    "question": "What failed, and how"
+    "question": "What failed, and how",
+    "per": "block",
+    "side": "run",
+    "unit": ""
    },
    {
     "name": "looping",
     "better": "lower",
     "gloss": "answers that repeat themselves",
-    "question": "What failed, and how"
+    "question": "What failed, and how",
+    "per": "block",
+    "side": "run",
+    "unit": ""
    },
    {
     "name": "answered",
     "better": "higher",
     "gloss": "blocks answered",
-    "question": ""
+    "question": "",
+    "per": "page",
+    "side": "",
+    "unit": ""
    }
   ]
  }

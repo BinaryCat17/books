@@ -40,13 +40,13 @@ class AssemblyMetric(Metric):
         Spec("excess_jumps_per_transition_one_rule", "lower",
              "the same with one ordering rule forced on every model, so the column compares boxes alone", 'Is the order right'),
         Spec("excess_jumps", "lower",
-             "column jumps beyond the unavoidable"),
+             "column jumps beyond the unavoidable", per="page"),
         Spec("excess_jumps_per_page", "lower",
-             "excess column jumps per page"),
+             "excess column jumps per page", unit="pages"),
         Spec("transitions", "neither",
              "moves between boxes"),
         Spec("pages_with_columns", "neither",
-             "pages with more than one column"),
+             "pages with more than one column", per="page"),
     )
 
     def _record(self, bench_name, run, pages) -> Record:
@@ -101,7 +101,7 @@ class AssemblyMetric(Metric):
     def run(self, bench, run) -> Record:
         return self._record(bench.name if bench is not None else "", run, run.pages())
 
-    def run_loaded(self, bench, run, truth, pages, note) -> Record:
+    def run_loaded(self, bench, run, truth, pages, note, want=None) -> Record:
         return self._record(bench.name if bench is not None else "", run, pages)
 
     def report(self, rec: Record) -> None:

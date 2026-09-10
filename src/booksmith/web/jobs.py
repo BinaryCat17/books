@@ -52,7 +52,8 @@ def dispatch(kind: str, store: str, args: dict, base: job.Job) -> str:
                             None, pages or "", "", model, base=base)
     if kind == "bench":
         return service.bench(store, service.book_dir(store, book), {}, run=label,
-                             kind=str(args.get("run_kind") or "detect"), base=base)
+                             kind=str(args.get("run_kind") or "detect"), base=base,
+                             pages=pages or "")
     if kind == "html":
         return service.html(store, run_dir_of(store, book, str(args.get("run_kind") or "detect"),
                                               label), {}, None, base=base)
