@@ -23,7 +23,7 @@ class Scalar:
             raise ValueError("coverage without a unit says nothing")
         if self.side not in ("", "truth", "run"):
             raise ValueError(f"side is truth or run, not {self.side!r}")
-        blocks = bool(self.per) and any(("-b" in k for k in self.per))
+        blocks = bool(self.per) and any("-b" in k for k in self.per)
         if blocks and (not self.side):
             raise ValueError("block anchors without a side name nobody's blocks")
         if not self.per:
@@ -188,7 +188,7 @@ def applicable(metrics, bench, run, pages=None, run_pages=None) -> list:
 
 def run_has_content(run, pages=None) -> bool:
     pages = pages if pages is not None else run.pages()
-    return any((b.get("content") for p in pages.values() for b in p["blocks"]))
+    return any(b.get("content") for p in pages.values() for b in p["blocks"])
 
 
 @dataclass(frozen=True)

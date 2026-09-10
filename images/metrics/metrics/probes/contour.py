@@ -42,10 +42,10 @@ def _merge_all(M, arte):
         rest = [b for b in p["blocks"] if b["label"] not in arte]
         if len(a) >= 2:
             box = [
-                min((b["box"][0] for b in a)),
-                min((b["box"][1] for b in a)),
-                max((b["box"][2] for b in a)),
-                max((b["box"][3] for b in a)),
+                min(b["box"][0] for b in a),
+                min(b["box"][1] for b in a),
+                max(b["box"][2] for b in a),
+                max(b["box"][3] for b in a),
             ]
             a = [{**a[0], "box": box}]
         out[i] = {**p, "blocks": rest + a}
@@ -77,7 +77,7 @@ def _beds(res, prefix):
 
 
 def _multi(T, arte):
-    return any((sum((1 for b in p["blocks"] if b["label"] in arte)) > 1 for p in T.values()))
+    return any(sum(1 for b in p["blocks"] if b["label"] in arte) > 1 for p in T.values())
 
 
 def probes(bench, run) -> list:
@@ -127,14 +127,14 @@ def probes(bench, run) -> list:
             if len(mb) < 2:
                 continue
             box = [
-                min((b[0] for b in mb)),
-                min((b[1] for b in mb)),
-                max((b[2] for b in mb)),
-                max((b[3] for b in mb)),
+                min(b[0] for b in mb),
+                min(b[1] for b in mb),
+                max(b[2] for b in mb),
+                max(b[3] for b in mb),
             ]
             if (
                 sum(
-                    (1 for b in t["blocks"] if b["label"] in arte and m.cover(b["box"], box) >= 0.6)
+                    1 for b in t["blocks"] if b["label"] in arte and m.cover(b["box"], box) >= 0.6
                 )
                 > 1
             ):
@@ -158,7 +158,7 @@ def probes(bench, run) -> list:
         for i, t in T.items():
             tb = [b["box"] for b in t["blocks"] if b["label"] in arte]
             for x in mm[i]["blocks"]:
-                if x["label"] in arte and any((m.cover(x["box"], b) >= 0.9 for b in tb)):
+                if x["label"] in arte and any(m.cover(x["box"], b) >= 0.9 for b in tb):
                     return True
         return False
 
@@ -363,10 +363,10 @@ def probes(bench, run) -> list:
                     if not (
                         plain
                         and any(
-                            (
+                            
                                 bench.policy.role(k.split("->", 1)[0]) == "artifact"
                                 for k in base["label_confusion"]
-                            )
+                            
                         )
                     )
                     else m.role_errors(R(_relabel(M, lambda l: plain if l in arte else l))) > b_role
@@ -418,10 +418,10 @@ def probes(bench, run) -> list:
                     None
                     if b_asm is None
                     else all(
-                        (
+                        
                             R(tt=_forget_order_mark(T))[k]["agreement"] is None
                             for k in ("model_order", "assembly_order")
-                        )
+                        
                     )
                 ),
             ),
@@ -431,11 +431,11 @@ def probes(bench, run) -> list:
                 lambda: (
                     None
                     if not any(
-                        (
+                        
                             bench.policy.role(b["label"]) != "artifact"
                             for p in T.values()
                             for b in p["blocks"]
-                        )
+                        
                     )
                     else R(tt=_only(T, lambda b: b["label"] in arte))["text_and_furniture"]["share"]
                     in (0.0, None)

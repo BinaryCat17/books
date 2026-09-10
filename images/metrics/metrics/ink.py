@@ -7,13 +7,15 @@ from metrics import classes as policy
 from metrics import raster
 from metrics import page
 from metrics.errors import Unmeasurable
-from metrics.processing.extract.djvu import GUTTER_BAND, MIN_SPREAD_RATIO, RULE_RUN
 from metrics.log import log
 
 INK = 160
 WHOLE, ALMOST, BITTEN = (0.99, 0.95, 0.8)
 EDGE = 0.04
 GUTTER = 0.5
+MIN_SPREAD_RATIO = 1.15
+GUTTER_BAND = 0.2
+RULE_RUN = 0.25
 MID = 0.2
 JUNK_WIDTH = 0.1
 _INK_CACHE = {}
@@ -216,7 +218,7 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "", pol=None, tp=None, w
                 f"no pages {gone[:5]} to measure: {('truth' if T else 'the run')} has none"
             )
         pages = [i for i in pages if i in want]
-        res["truth_pages"] = sum((1 for i in pages if i in T))
+        res["truth_pages"] = sum(1 for i in pages if i in T)
     for i in pages:
         if i not in M:
             raise Unmeasurable(
@@ -255,7 +257,7 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "", pol=None, tp=None, w
         res["ink_as_picture"] += as_picture
         res["ink_as_text"] += as_text
         res["blocks_with_content"] += sum(
-            (1 for b in p["blocks"] if (b.get("content") or "").strip())
+            1 for b in p["blocks"] if (b.get("content") or "").strip()
         )
         riders: dict = {}
         dpis.add(int(p["dpi"]))
@@ -430,7 +432,7 @@ def report(res: dict) -> None:
     )
     cols = res["dark_columns"]
     pos = res["dark_columns_positions"]
-    middle = sum((1 for x in pos if 0.2 <= x <= 0.8))
+    middle = sum(1 for x in pos if 0.2 <= x <= 0.8)
     where = (
         "likely table rules, not a scan defect"
         if middle

@@ -124,7 +124,7 @@ def _detable(html):
     if not g:
         return None
     rows, cols = m._shape(g)
-    return " ".join((g.get((r, c), "") for r in range(rows) for c in range(cols)))
+    return " ".join(g.get((r, c), "") for r in range(rows) for c in range(cols))
 
 
 def _blank_cell(html):
@@ -275,7 +275,7 @@ def probes(bench, run) -> list:
     b_dead = base["matching"]["anchor_to_nowhere"]
     b_flat = base["tables"]["given_as_text"]
     ti, tj = _pick_text(P, T)
-    di, dj = _pick_text(P, T, want=lambda c: any((x.isdigit() for x in c)))
+    di, dj = _pick_text(P, T, want=lambda c: any(x.isdigit() for x in c))
     bi, bj = _pick_table(P, T)
     ai, aj = _pick_bait(P, T, bench.policy)
 

@@ -86,7 +86,7 @@ def normalize(s: str, level: str = NORM) -> str:
     s = unicodedata.normalize("NFKC", s)
     s = _WS.sub(" ", s).strip()
     s = s.casefold()
-    s = "".join(("-" if c in _DASHES else c for c in s))
+    s = "".join("-" if c in _DASHES else c for c in s)
     s = _DEC.sub(".", s)
     return s.rstrip(_TAIL)
 

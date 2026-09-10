@@ -68,7 +68,7 @@ def params(
 
 def box_to_points(box: Sequence[float], page_dpi: float) -> tuple[float, ...]:
     k = 72.0 / page_dpi
-    return tuple((v * k for v in box))
+    return tuple(v * k for v in box)
 
 
 def _clipped(rect: Any, clip: Any) -> bool:
@@ -102,7 +102,7 @@ def _clip(
     trouble = _box_trouble(w, h)
     if trouble:
         raise ValueError(
-            f"box {tuple((round(v, 1) for v in box))} on p. {page_index} {trouble} ({w:.1f} x {h:.1f} points). This is a defect of the BOX ITSELF, not of where it lies on the sheet"
+            f"box {tuple(round(v, 1) for v in box)} on p. {page_index} {trouble} ({w:.1f} x {h:.1f} points). This is a defect of the BOX ITSELF, not of where it lies on the sheet"
         )
     if margin:
         x0, y0, x1, y1 = (x0 - w * margin, y0 - h * margin, x1 + w * margin, y1 + h * margin)
@@ -113,7 +113,7 @@ def _clip(
     margin_clipped = _clipped(want, clip)
     if clip.is_empty:
         raise ValueError(
-            f"box {tuple((round(v, 1) for v in box))} on p. {page_index} does not intersect the sheet {tuple((round(v, 1) for v in page.rect))}"
+            f"box {tuple(round(v, 1) for v in box)} on p. {page_index} does not intersect the sheet {tuple(round(v, 1) for v in page.rect)}"
         )
     return (page, clip, dpi, margin, clipped, margin_clipped)
 

@@ -1,13 +1,9 @@
 """Every applicable metric on one bench and one run: rows, one table, JSON"""
 
 import dataclasses
-import json
-import os
-import time
 from metrics import job
-from metrics import identity as stamp
 from metrics.errors import Refusal
-from metrics import metrics as registry
+import metrics as registry
 from metrics.bench import Bench, Run, book_of, labelled_of, labelled_said, same_book, trait_state
 from metrics.log import log
 
@@ -25,7 +21,7 @@ def rows(bench: Bench, run: Run, which=None, pages_want=None) -> list:
                 raise Refusal(f"{side} has no pages {gone[:5]}: nothing to measure there")
         if pages and labelled_said(labelled_of(pages)):
             out = sorted(
-                (i for i in want if trait_state(pages[i].get("meta") or {}, "labelled") != "yes")
+                i for i in want if trait_state(pages[i].get("meta") or {}, "labelled") != "yes"
             )
             if out:
                 raise Refusal(
@@ -45,7 +41,7 @@ def rows(bench: Bench, run: Run, which=None, pages_want=None) -> list:
         if off:
             raise Refusal(
                 f"{', '.join(off)} cannot be measured on {bench.name} with run {run.label}: needs "
-                + "; ".join((f"{n}: {', '.join(sorted(registry.BY_NAME[n].needs))}" for n in off))
+                + "; ".join(f"{n}: {', '.join(sorted(registry.BY_NAME[n].needs))}" for n in off)
             )
         todo = [registry.BY_NAME[n] for n in which]
     else:
@@ -71,74 +67,6 @@ def rows(bench: Bench, run: Run, which=None, pages_want=None) -> list:
             )
         )
     return out
-
-
-def pages_tail(pages) -> str:
-    out, seq = ([], sorted(set(pages)))
-    i = 0
-    while i < len(seq):
-        j = i
-        while j + 1 < len(seq) and seq[j + 1] == seq[j] + 1:
-            j += 1
-        out.append(str(seq[i]) if i == j else f"{seq[i]}-{seq[j]}")
-        i = j + 1
-    return "+".join(out)
-
-
-def results_path(bench: Bench, run: Run, which=None, store: str | None = None, pages=None) -> str:
-    from metrics import store as book_mod
-
-    store = store or book_mod.store_of(bench.root)
-    prefix = "processed-" if book_of(bench).startswith("processed/") else ""
-    tail = "-only-" + "+".join(which) if which else ""
-    if pages is not None:
-        tail += "-pages-" + pages_tail(pages)
-    kind = run.kind
-    level = f"{kind}-" if kind and kind != "detect" else ""
-    return os.path.join(store, "results", f"{prefix}{bench.name}-{level}{run.label}{tail}.json")
-
-
-def write_json(records, path: str, kind: str = "detect", pages=None, only=None) -> str:
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(
-            {
-                "when": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
-                "kind": kind or "detect",
-                "pages": sorted(set(pages)) if pages is not None else None,
-                "only": list(only) if only else None,
-                "commit": stamp.commit(ignore=stamp.OUTPUT_PATHS),
-                "records": [r.to_json() for r in records],
-            },
-            f,
-            indent=1,
-            ensure_ascii=False,
-            sort_keys=True,
-        )
-        f.write("\n")
-    log(f"{len(records)} records written to {path}")
-    return path
-
-
-def read_json(path: str) -> list:
-    from metrics.base import Record
-
-    return [Record.from_json(d) for d in read_file(path)["records"]]
-
-
-def read_file(path: str) -> dict:
-    try:
-        with open(path, encoding="utf-8") as f:
-            d = json.load(f)
-    except ValueError as e:
-        raise Refusal(
-            f"{path} is not readable JSON ({e}). A results file is written whole at the end of `books bench all`; a broken one is a run that was interrupted. Measure it again."
-        ) from None
-    if not isinstance(d, dict) or "records" not in d:
-        raise Refusal(
-            f"{path} has no header: it was written before results carried the commit that computed them, and a table built from it would mix numbers from two trees. Re-run `books bench all` for it."
-        )
-    return d
 
 
 def _fmt(s) -> str:

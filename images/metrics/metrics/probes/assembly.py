@@ -9,13 +9,13 @@ def probes(bench, run) -> list:
     pol = run.policy
     base = contour.column_jumps(M, pol=pol)
     many = any(
-        (
+        
             v >= 2
             for v in (
                 len(set(contour._columns([b["box"] for b in contour._columns_of(p, pol=pol)[0]])))
                 for p in M.values()
             )
-        )
+        
     )
 
     def jumps(mm):

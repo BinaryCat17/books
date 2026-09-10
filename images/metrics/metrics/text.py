@@ -63,11 +63,11 @@ def _cells_from(obj):
         return None
     if not isinstance(obj, list) or not obj:
         return None
-    if all((isinstance(r, list) for r in obj)):
+    if all(isinstance(r, list) for r in obj):
         return {
             (i, j): "" if c is None else str(c) for i, r in enumerate(obj) for j, c in enumerate(r)
         }
-    if all((isinstance(c, dict) for c in obj)):
+    if all(isinstance(c, dict) for c in obj):
         out = {}
         for c in obj:
             r = c.get("row")
@@ -102,7 +102,7 @@ def _truth_grid(b, side=None):
         for k in ("table", "structure"):
             if isinstance(d.get(k), (dict, list)):
                 return d[k]
-        return d if any((k in d for k in _CELLS_KEYS)) else None
+        return d if any(k in d for k in _CELLS_KEYS) else None
 
     src, from_side = (_pick(m), _pick(aside))
     if src is not None and from_side is not None and (src != from_side):
@@ -273,7 +273,7 @@ def _box(b):
     v = b.get("box")
     if not v or len(v) != 4:
         return None
-    return tuple((float(x) for x in v))
+    return tuple(float(x) for x in v)
 
 
 def _match(tb, pb, page_index=None):
@@ -438,7 +438,7 @@ def measure_pages(T: dict, P: dict, norm: str = NORM, tp=None) -> dict:
         mt["anchor_wrong_page"] += dead[1]
         mt["anchor_box_mismatch"] += dead[2]
         mt["extra_in_answer"] += len(lost_p)
-        mt["answer_without_box"] += sum((1 for b in pb if _box(b) is None))
+        mt["answer_without_box"] += sum(1 for b in pb if _box(b) is None)
         for _, _, how in pairs:
             mt["by_" + how] += 1
         got = {i_: (j_, how) for i_, j_, how in pairs}
@@ -459,7 +459,7 @@ def measure_pages(T: dict, P: dict, norm: str = NORM, tp=None) -> dict:
                 tab["block_count"] += 1
                 rec["bucket"] = "table"
                 cells = {k: normalize(v, norm) for k, v in grid.items()}
-                chars = sum((len(v) for v in cells.values()))
+                chars = sum(len(v) for v in cells.values())
                 tab["cell_count"] += len(cells)
                 tab["cell_chars"] += chars
                 mg = None
@@ -759,7 +759,7 @@ def _grid_otsl(g):
         return "<nl>"
     rows, cols = _shape(g)
     return "".join(
-        ("".join(("<fcel>" + g.get((r, c), "") for c in range(cols))) + "<nl>" for r in range(rows))
+        "".join("<fcel>" + g.get((r, c), "") for c in range(cols)) + "<nl>" for r in range(rows)
     )
 
 

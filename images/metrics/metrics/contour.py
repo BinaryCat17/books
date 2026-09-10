@@ -62,13 +62,13 @@ def cover(a, b):
 
 
 def extra_kind(box, paired, unpaired, outside, tb) -> str:
-    if any((cover(box, b) >= 0.9 for b in paired)):
+    if any(cover(box, b) >= 0.9 for b in paired):
         return "nested duplicate"
-    if any((cover(box, b) >= 0.9 for b in unpaired)):
+    if any(cover(box, b) >= 0.9 for b in unpaired):
         return "inside a miss"
     if (
-        any((cover(box, b) >= 0.5 or cover(b, box) >= 0.5 for b in outside))
-        and sum((1 for b in tb if cover(b["box"], box) >= 0.6)) < 2
+        any(cover(box, b) >= 0.5 or cover(b, box) >= 0.5 for b in outside)
+        and sum(1 for b in tb if cover(b["box"], box) >= 0.6) < 2
     ):
         return "on an object outside scoring"
     return "spurious_box"
@@ -121,7 +121,7 @@ def _diagnose(t, mine, others_truth, arte, mp):
 
 def _same_raster(T: dict, M: dict) -> str:
     common = sorted(set(T) & set(M))
-    if any((k not in p for i in common for p in (T[i], M[i]) for k in ("width", "height"))):
+    if any(k not in p for i in common for p in (T[i], M[i]) for k in ("width", "height")):
         return "raster NOT CHECKED: pages have no width/height fields"
     dt = sorted({T[i].get("dpi") for i in common}, key=str)
     dm = sorted({M[i].get("dpi") for i in common}, key=str)
@@ -210,7 +210,7 @@ def compare_pages(T: dict, M: dict, tp=None, mp=None) -> dict:
             if i in M
         }
     )
-    model_rank = all((_model_has_rank(M[i]) for i in T if i in M))
+    model_rank = all(_model_has_rank(M[i]) for i in T if i in M)
     per_case, conf, ranks = ({}, {}, [])
     per = {"artefacts_found": {}, "text_furniture_found": {}, "label_errors": {}, "role_errors": {}}
     pairs_out = {}
@@ -324,11 +324,11 @@ def compare_pages(T: dict, M: dict, tp=None, mp=None) -> dict:
         why_order = (
             "truth carries no order: "
             + ", ".join(
-                (
+                
                     f"{k} on {states[k]}"
                     for k in (ORDER_MARKED, ORDER_UNMARKED, ORDER_SILENT)
                     if states.get(k)
-                )
+                
             )
             + f" of {len(T)} pages"
         )
@@ -404,7 +404,7 @@ def _model_has_rank(page) -> bool:
 
 def _pairs_ceiling(t) -> int:
     o = [b.get("order") for b in t["blocks"] if isinstance(b.get("order"), (int, float))]
-    return sum((1 for i in range(len(o)) for j in range(i + 1, len(o)) if o[i] != o[j]))
+    return sum(1 for i in range(len(o)) for j in range(i + 1, len(o)) if o[i] != o[j])
 
 
 def _order_agree(by_page, idx: int, ceiling: int, pages: int, of_pages: int, why: str = "") -> dict:
@@ -483,7 +483,7 @@ def _columns(boxes, overlap=None) -> list:
     groups = {}
     for i in range(n):
         groups.setdefault(find(i), []).append(i)
-    left = sorted(groups, key=lambda r: min((boxes[i][0] for i in groups[r])))
+    left = sorted(groups, key=lambda r: min(boxes[i][0] for i in groups[r]))
     num = {r: k for k, r in enumerate(left)}
     return [num[find(i)] for i in range(n)]
 
@@ -517,7 +517,7 @@ def column_jumps(M: dict, overlap=None, wide=None, min_boxes=None, roles=None, p
         counted += 1
         seq = _columns(part, ov)
         ncols = len(set(seq))
-        trans = sum((1 for k in range(1, len(seq)) if seq[k] != seq[k - 1]))
+        trans = sum(1 for k in range(1, len(seq)) if seq[k] != seq[k - 1])
         excess = trans - (ncols - 1)
         tot_trans += trans
         tot_cols += ncols
@@ -922,9 +922,9 @@ def sense(T: dict, M_: dict, tp=None, mp=None) -> dict:
             out["objects"] += 1
             fits = [x for x in mb if cover(b["box"], x) >= SENSE_WHOLE]
             if not fits:
-                if any((cover(b["box"], x) >= 0.5 for x in mb)):
+                if any(cover(b["box"], x) >= 0.5 for x in mb):
                     fate = "cropped"
-                elif any((cover(b["box"], x) >= SENSE_WHOLE for x in ob)):
+                elif any(cover(b["box"], x) >= SENSE_WHOLE for x in ob):
                     fate = "called_text"
                 else:
                     fate = "not_seen"
@@ -932,7 +932,7 @@ def sense(T: dict, M_: dict, tp=None, mp=None) -> dict:
                 alone = [
                     x
                     for x in fits
-                    if not any((o is not b and cover(o["box"], x) >= SENSE_NEIGHBOUR for o in tb))
+                    if not any(o is not b and cover(o["box"], x) >= SENSE_NEIGHBOUR for o in tb)
                 ]
                 fate = "intact" if alone else "merged"
             out[fate] += 1

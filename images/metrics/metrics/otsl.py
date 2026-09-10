@@ -97,7 +97,7 @@ def _walk(s: str) -> tuple[dict | None, dict, dict]:
     tally["grid_cells"] = len(cells)
     tally["rows"] = len(widths)
     if widths:
-        tally["rows_of_unequal_length"] = sum((1 for w in widths if w != max(widths)))
+        tally["rows_of_unequal_length"] = sum(1 for w in widths if w != max(widths))
     return (cells or None, {"owner": owner, "tag": tag_of}, tally)
 
 

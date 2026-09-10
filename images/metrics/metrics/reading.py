@@ -28,7 +28,7 @@ def is_data_table(text):
     filled = [c for r in rows for c in r if c]
     if not filled:
         return False
-    return sum((1 for c in filled if NUMBER.match(c))) / len(filled) >= NUMERIC_SHARE
+    return sum(1 for c in filled if NUMBER.match(c)) / len(filled) >= NUMERIC_SHARE
 
 
 def loop_share(text):

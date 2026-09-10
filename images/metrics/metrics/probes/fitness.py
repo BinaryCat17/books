@@ -40,10 +40,10 @@ def _merge(M, pol):
                 {
                     **art[0],
                     "box": [
-                        min((b["box"][0] for b in art)),
-                        min((b["box"][1] for b in art)),
-                        max((b["box"][2] for b in art)),
-                        max((b["box"][3] for b in art)),
+                        min(b["box"][0] for b in art),
+                        min(b["box"][1] for b in art),
+                        max(b["box"][2] for b in art),
+                        max(b["box"][3] for b in art),
                     ],
                 }
             )
@@ -360,12 +360,12 @@ def probes(bench, run) -> list:
                 lambda: (
                     None
                     if not any(
-                        (
+                        
                             pol.role(b["label"]) != "artifact"
                             and (not (b.get("content") or "").strip())
                             for p in M0.values()
                             for b in p["blocks"]
-                        )
+                        
                     )
                     else (
                         lambda r: (
@@ -430,7 +430,7 @@ def probes(bench, run) -> list:
                     if not base["objects"]
                     else (
                         lambda r: all(
-                            (
+                            
                                 r[k] == base[k]
                                 for k in (
                                     "intact",
@@ -441,7 +441,7 @@ def probes(bench, run) -> list:
                                     "left_as_text",
                                     "object_ink_in_boxes",
                                 )
-                            )
+                            
                         )
                     )(R(_double(M0, pol)))
                 ),
