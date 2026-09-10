@@ -23,6 +23,8 @@
     books bench all <book>       every applicable metric on one run: one table
     books bench selfcheck <book> every metric's probes: can the numbers fall
     books bench report           every measured number, as METRICS.md
+    books serve layout           a detector of the tree's own behind the protocol
+    books serve vlm              a vLLM behind describe and health, chat passed through
     books ls | books down 12345 | books reap
     books ledger                 run journal and the estimate from it
     books replay --check out/    is the input snapshot complete
@@ -536,6 +538,22 @@ def cmd_down(a):
     return 0 if Vast().destroy(a.id) else 1
 
 
+def cmd_serve_layout(a):
+    """A detector of the tree's own behind the model protocol, until stopped.
+    A key, when the environment sets `BOOKSMITH_SERVE_KEY`, is demanded on
+    every route; it is a secret, not a knob, and reaches no snapshot."""
+    from booksmith.serving import layout as serving
+    return serving.main(a.host, a.port, key=config.env("BOOKSMITH_SERVE_KEY"))
+
+
+def cmd_serve_vlm(a):
+    """A vLLM behind describe and health, raised here over `VL_MODEL_DIR`
+    unless `--upstream` names one already up; the chat route passes through."""
+    from booksmith.serving import vlm as serving
+    return serving.main(a.host, a.port, a.upstream or "",
+                        key=config.env("BOOKSMITH_SERVE_KEY"), log_dir=a.log_dir)
+
+
 def cmd_reap(_a):
     from .remote.vast import Vast
     Vast().reap()
@@ -614,6 +632,21 @@ def _doctor_read():
     if ep:
         log(f"  [ok  ] VLM_ENDPOINT={ep}, key VLM_API_KEY "
             f"{f'present, {len(key)} chars' if key else 'not set'}")
+        # Asked, not assumed: a shim describes itself, a bare vLLM does not,
+        # and both are lawful; what is said is which, as a value.
+        from booksmith.core import served
+        try:
+            d = served.Describe.from_json(served.fetch(
+                served.root_of(ep) + served.DESCRIBE, timeout=10,
+                headers=served.bearer(key)))
+            log(f"  [ok  ] describes itself: {d.kind} {d.label}, chat route "
+                f"as {(d.openai or {}).get('model')!r}")
+            return f"endpoint set, describes itself as {d.label}"
+        except served.Unreachable as e:
+            log(f"  [ – ] no describe at {served.root_of(ep)}: {e.why[:60]} -- "
+                f"a bare vLLM, taken by /models at run time")
+        except Refusal as e:
+            log(f"  [no  ] describes itself wrongly: {e}")
         return f"endpoint set, key {'present' if key else 'none'}"
     log("  [—   ] VLM_ENDPOINT not set: `books read` will refuse out loud "
         "rather than knock at nothing. There is no default on purpose. On a "
@@ -1002,6 +1035,23 @@ def build_parser():
 
     p = sub.add_parser("reap", help="destroy everything our runs left behind")
     p.set_defaults(fn=cmd_reap)
+
+    p = sub.add_parser("serve", help="a model of the tree's own behind the model protocol")
+    ss = p.add_subparsers(dest="what", required=True)
+    q = ss.add_parser("layout", help="the detector LAYOUT_ADAPTER names, behind "
+                                     "describe, health and layout")
+    q.add_argument("--host", default="127.0.0.1")
+    q.add_argument("--port", type=int, default=8000)
+    q.set_defaults(fn=cmd_serve_layout)
+    q = ss.add_parser("vlm", help="a vLLM behind describe and health, the chat "
+                                  "route passed through")
+    q.add_argument("--host", default="127.0.0.1")
+    q.add_argument("--port", type=int, default=8000)
+    q.add_argument("--upstream", default="",
+                   help="a vLLM already up, its root without /v1; empty raises one "
+                        "here over VL_MODEL_DIR")
+    q.add_argument("--log-dir", default=".", help="where vllm.log goes")
+    q.set_defaults(fn=cmd_serve_vlm)
 
     p = sub.add_parser("doctor",
                        help="check the environment before spending money")

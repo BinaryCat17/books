@@ -15,7 +15,8 @@ Served, which is how a model reaches the web and, later, the fleet:
 2. An entry in the admin's `models.json`: kind, endpoint, knobs.
 3. Prove it: `books detect bench/slovar --model <entry>`, then
    `books bench all bench/slovar --run <label>`; the stand-in
-   `tests/fake_layout.py` shows the shape of every answer.
+   `tests/fake_layout.py` shows the shape of every answer, and
+   `books serve layout` puts any detector of the tree's own behind it.
 
 In process, for a model the tree holds itself:
 
@@ -44,9 +45,10 @@ In process, for a model the tree holds itself:
    `pixels`, `cover`.
 2. Its name in `READERS` and `build_reader` of
    `src/booksmith/processing/read/driver.py`.
-3. If it runs on a rented card: a job under
-   `src/booksmith/processing/read/rented/<name>/` with `spec`, `run.sh`,
-   `provision.sh` and a pinned `constraints.txt`.
+3. An image under `infra/models/<name>/` that raises it behind
+   `books serve vlm`, or a shim of its own answering describe and health
+   beside its chat route, with a pinned dependency tree as
+   `infra/models/paddleocr-vl/Dockerfile` has.
 4. Prove it: `books crop` on a detect run, then `books read` against
    `tests/fake_vlm.py` through the test suite before any money moves.
 

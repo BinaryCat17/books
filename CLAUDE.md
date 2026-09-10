@@ -31,6 +31,7 @@ src/booksmith/
   datasets/    many books, truth and numbers: benches, metrics, the report
   remote/      renting and running any job on a rented machine; knows nothing
                about books
+  serving/     the model side of the protocol: a detector or a vLLM behind HTTP
   service.py   what the CLI and the web share: stores, presets, one function
                per command
   cli.py       books <command>

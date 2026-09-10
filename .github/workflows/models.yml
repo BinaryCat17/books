@@ -1,0 +1,133 @@
+name: build model images
+
+# One image per model of the tree's own, weights baked in, behind the model
+# protocol. Built by hand, as the hallway image is: a model image changes
+# when the weights or the shim do, not with every commit.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "image tag; defaults to the short commit SHA"
+        default: ""
+      which:
+        description: "layout, vlm or all"
+        default: "all"
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  layout:
+    if: ${{ inputs.which == 'all' || inputs.which == 'layout' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: pp-doclayoutv2
+            repo: PaddlePaddle/PP-DocLayoutV2_onnx
+            dir: PP-DocLayoutV2_onnx
+            adapter: doclayout
+            model: PP-DocLayoutV2
+          - name: pp-doclayoutv3
+            repo: PaddlePaddle/PP-DocLayoutV3_onnx
+            dir: PP-DocLayoutV3_onnx
+            adapter: doclayout
+            model: PP-DocLayoutV3
+          - name: pp-doclayout-plus-l
+            repo: PaddlePaddle/PP-DocLayout_plus-L_onnx
+            dir: PP-DocLayout_plus-L_onnx
+            adapter: doclayout
+            model: PP-DocLayout_plus-L
+          - name: docling-heron
+            repo: docling-project/docling-layout-heron-onnx
+            dir: docling-heron_onnx
+            adapter: docling
+            model: ""
+          - name: docling-egret
+            repo: docling-project/docling-layout-egret-onnx
+            dir: docling-egret_onnx
+            adapter: docling-egret
+            model: ""
+          - name: yolox-doclaynet
+            repo: unstructuredio/yolo_x_layout
+            dir: yolox_layout
+            adapter: yolox
+            model: ""
+    steps:
+      - uses: actions/checkout@v4
+      - name: image name
+        id: img
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr 'A-Z' 'a-z')
+          TAG="${{ inputs.tag }}"
+          [ -n "$TAG" ] || TAG=$(git rev-parse --short HEAD)
+          echo "ref=ghcr.io/$OWNER/model-${{ matrix.name }}:$TAG" >> $GITHUB_OUTPUT
+          echo "commit=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/models/layout-cpu/Dockerfile
+          push: true
+          tags: ${{ steps.img.outputs.ref }}
+          build-args: |
+            MODEL_REPO=${{ matrix.repo }}
+            MODEL_DIR=${{ matrix.dir }}
+            LAYOUT_ADAPTER=${{ matrix.adapter }}
+            LAYOUT_MODEL_NAME=${{ matrix.model }}
+            COMMIT=${{ steps.img.outputs.commit }}
+          provenance: false
+      # The image must answer as itself before it is trusted: describe, and
+      # a page through the layout route.
+      - name: describe
+        run: |
+          docker run -d --rm -p 8000:8000 --name m ${{ steps.img.outputs.ref }}
+          for i in $(seq 1 60); do
+            curl -sf http://127.0.0.1:8000/booksmith/describe && break
+            sleep 2
+          done
+          curl -sf http://127.0.0.1:8000/booksmith/describe | python3 -c \
+            'import json,sys; d=json.load(sys.stdin); print(d["label"], len(d["classes"]), "labels", d["fingerprint"]["sha256_weights"][:12])'
+          docker stop m
+
+  vlm:
+    if: ${{ inputs.which == 'all' || inputs.which == 'vlm' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: image name
+        id: img
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr 'A-Z' 'a-z')
+          TAG="${{ inputs.tag }}"
+          [ -n "$TAG" ] || TAG=$(git rev-parse --short HEAD)
+          echo "ref=ghcr.io/$OWNER/model-paddleocr-vl:$TAG" >> $GITHUB_OUTPUT
+          echo "commit=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/models/paddleocr-vl/Dockerfile
+          push: true
+          tags: ${{ steps.img.outputs.ref }}
+          build-args: |
+            COMMIT=${{ steps.img.outputs.commit }}
+          provenance: false

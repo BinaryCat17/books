@@ -48,11 +48,13 @@ import in the package against it.
 | `remote` | `core` |
 | `processing` | `core`, `remote` |
 | `datasets` | `core`, `processing` |
+| `serving` | `core`, `processing` |
 | `service` | `core`, `remote`, `processing`, `datasets` |
 | `cli` | all of them; nothing imports `cli` |
 
 `core` is the kernel: the formats, the registries and the rules the rest
-obey. `processing` is one book, stage by stage.
+obey. `processing` is one book, stage by stage. `serving` is the model side
+of the protocol: a detector or a vLLM of the tree's own behind HTTP.
 `datasets` is many books, truth and numbers. `remote` rents a machine and
 runs any job on it; it knows nothing about books, so the next task on a
 rented card does not mean rewriting the renting. `service` is what the CLI
@@ -99,6 +101,17 @@ map as the tree does, and then a served run shares the in-process run's
 identity; a mapping of the model's own is in its identity, since the roles
 decide the book and the numbers. Truth carries no mapping of its own yet
 and is read under the union of the five.
+
+The tree serves its own models. `books serve layout` puts the detector
+`LAYOUT_ADAPTER` names behind the three routes, `books serve vlm` raises a
+vLLM and puts describe and health beside its chat route, which passes
+through byte for byte; both are in `src/booksmith/serving/`. `infra/models/`
+holds one image per model with its weights baked in, one Dockerfile for the
+six detectors and one for PaddleOCR-VL, built and pushed by
+`.github/workflows/models.yml`; a start is a pull, not a provisioning. A
+served run of a model of the tree's own carries the identity of the
+in-process run under the same settings, which `tests/unit/test_serving.py`
+holds it to.
 
 A hybrid model returns boxes and text in one call. `books hybrid` files its
 pages as a read run with its own boxes, `read/<model>/` with `layout: own`

@@ -10,6 +10,9 @@ All six are ONNX on the CPU. Which one runs is decided by `LAYOUT_ADAPTER`;
 inside the paddle family by `LAYOUT_MODEL_NAME`; the YOLOX weights by
 `YOLOX_WEIGHTS`. Two of the six return a reading rank of their own; for the
 rest the book is assembled by our rule in `src/booksmith/core/order.py`.
+Each is served as an image of its own, `model-<name>` out of
+`infra/models/layout-cpu/Dockerfile`, answering the model protocol; a run
+through the image is the run of the same weights in process.
 
 **PP-DocLayoutV2** is the base of level one. Chosen for being first by
 objects found and by meaning kept whole on the golden bench, not for being
@@ -44,11 +47,14 @@ property of the model and training fixes it. As level one it crops tighter
 than the truth and cuts content, is ten times slower, fragments far more
 often, and hits its answer-length ceiling on dense strips. Its reading
 order is the order of generation and does not compare with the rest. There
-is no launch button for it; its directory records what a rental of it needs.
+is no launch button for it, and nothing of it is in the tree; if a hybrid
+proof is wanted it returns as an image behind the protocol.
 
 ## Reading models, level two
 
-**PaddleOCR-VL** is in use and the only model paid for. It read a real book
+**PaddleOCR-VL** is served as `model-paddleocr-vl` out of
+`infra/models/paddleocr-vl/Dockerfile`: vLLM behind describe and health,
+the chat route passed through. It is in use and the only model paid for. It read a real book
 end to end on a rented card, and `books apply` placed its answers into the
 book. That run proves the pipe works and measures no quality: the run is not
 reproducible from the repository, and quality cannot be measured yet for the
