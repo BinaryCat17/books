@@ -43,12 +43,9 @@ class env:
 
 
 def have_docling():
-    try:
-        import docling
+    import importlib.util
 
-        return True
-    except ImportError:
-        return False
+    return importlib.util.find_spec("docling") is not None
 
 
 def test_pipeline_default_is_off():
