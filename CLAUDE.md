@@ -55,8 +55,8 @@ tools/         sweep.py: every model over every bench
 
 The layer rule: `core` imports nothing; `remote` imports `core`; `processing`
 imports `core` and `remote`; `datasets` imports `core` and `processing`;
-`service` imports all four; nothing imports `cli`. Declared in `src/booksmith/core/layers.py` and enforced by
-`tests/contract/test_layers.py`.
+`service` imports all four; nothing imports `cli`. Declared in
+`src/booksmith/core/layers.py` and enforced by `tests/contract/test_layers.py`.
 
 ## The five commands that matter
 

@@ -258,12 +258,8 @@ def cmd_read(a):
         os.makedirs(out, exist_ok=True)
         return cmd_read_rented(a, policy_name, out)
 
-    pages = None
-    if a.pages:
-        from booksmith.processing.layout.detect import parse_pages
-        with raster.open_pdf(book.pdf_of(a.dir)) as d:
-            pages = set(parse_pages(a.pages, d.page_count))
-    service.read(config.ROOT, a.dir, knobs.passthrough(), out, pages, a.policy or "")
+    service.read(config.ROOT, a.dir, knobs.passthrough(), out, a.pages or "",
+                 a.policy or "")
     log(f"next: books html {out}   |   books text <truth> {out}/pages")
     return 0
 
@@ -424,27 +420,6 @@ def shlex_quote(s):
     return shlex.quote(s)
 
 
-def _open_book(path, kind, label):
-    """The book at `path` and one of its runs, as `bench all` opens them.
-
-    A bench is a book with `truth/`, a processed book the other half. Asked here
-    rather than by catching `Unmeasurable` from `open`: a caught refusal cannot
-    tell "no truth here, which is fine" from "this path is wrong".
-    """
-    from booksmith.datasets.bench import Bench
-    root = path.rstrip("/")
-    if not os.path.isdir(root):
-        # Said before either door is tried: both openers answer a missing path
-        # by describing what they wanted to find in it, which sends the reader
-        # looking for a file in a directory that does not exist.
-        raise Refusal(f"{path} is not a directory. This takes a book: "
-                      f"bench/<name> or processed/<name>.")
-    has_truth = (os.path.isdir(os.path.join(root, "truth"))
-                 or os.path.basename(root) == "truth")
-    b = Bench.open(root) if has_truth else Bench.no_truth(root)
-    return b, b.run(label, kind)
-
-
 def cmd_bench_selfcheck(a):
     """Every applicable metric's probes on one bench and run: can they fall.
 
@@ -456,7 +431,7 @@ def cmd_bench_selfcheck(a):
     """
     from booksmith.datasets.metrics import BY_NAME, METRICS
     from booksmith.datasets.metrics import base
-    b, run = _open_book(a.bench, a.kind, a.run)
+    b, run = service.open_book(a.bench, a.kind, a.run)
     # The truth is parsed only if there is any, as `table.rows` does it: a book
     # with no `truth/` is a legal thing to probe, the ink and column-jump metrics
     # needing none, and asking for its truth pages raises before applicability

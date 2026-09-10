@@ -69,9 +69,11 @@ One directory per book, one directory per run. A bench is a book with
 `tests/contract/test_book_shape.py` walks the tree against it. A store is a
 directory holding `bench/` and `processed/` in this shape, with its own
 `results/` and `raw/`; the repository root is the admin's store, a user's
-is another such directory, and a book's owner is the store it lies in. A
-store other than the admin's runs only a preset from the admin's
-`models.json`, a named set of knob values over the adapters the tree has.
+is another such directory, and a book's owner is the store it lies in; a
+book under neither `bench/` nor `processed/` is the admin's. A store other
+than the admin's reaches only its own paths and runs only a preset from the
+admin's `models.json`, a named set of knob values over the adapters the tree
+has, or the registry's defaults.
 
 ```
 bench/<book>/ or processed/<book>/
@@ -178,8 +180,8 @@ applies live in `core/book.py`; `core/job.py` carries a run's settings, its
 stop and its output sink, so one process runs jobs with different settings,
 a job can be stopped between pages, and a line's numbers reach a server as
 fields; every scalar carries its value per page or per block, keyed by
-anchor; `service.py` is the one API behind the CLI, over stores. Seams
-still to cut, each a refactor of what exists:
+anchor; `service.py` is the API behind detect, read, bench all and report,
+over stores. Seams still to cut, each a refactor of what exists:
 
 - The overlay's decisions returned as data, instead of a drawn PDF.
 - The HTML builder split into the data pass and the emission, so the data
