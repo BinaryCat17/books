@@ -10,12 +10,13 @@ next boot as failed, with the reason.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import queue
 import threading
 import time
-from collections.abc import Iterator
+from collections.abc import AsyncIterator
 
 from booksmith import service
 from booksmith.core import job
@@ -66,7 +67,10 @@ class Pool:
         self.db = db
         self.queue: queue.Queue[int] = queue.Queue()
         self.stops: dict[int, threading.Event] = {}
-        self.listeners: dict[int, list[queue.Queue[dict]]] = {}
+        # A listener is an asyncio queue and the loop it lives on: events are
+        # published from worker threads, and a loop's queue is fed only from
+        # its own thread, through the loop.
+        self.listeners: dict[int, list[tuple[asyncio.AbstractEventLoop, asyncio.Queue[dict]]]] = {}
         self.lock = threading.Lock()
         self.threads: list[threading.Thread] = []
         self.orphaned = db.orphans()
@@ -87,25 +91,29 @@ class Pool:
 
     def cancel(self, job_id: int) -> bool:
         """A queued job is cancelled here; a running one is asked to stop and
-        closes itself at its next check."""
+        closes itself at its next check. Under the lock a worker takes to
+        claim a job, so a cancel lands before the start or after it, never
+        between the two."""
         with self.lock:
             stop = self.stops.get(job_id)
-        if stop is not None:
-            stop.set()
-            return True
-        row = self.db.job(job_id)
-        if row is not None and row["state"] == "queued":
-            self.db.set_state(job_id, "cancelled", finished=time.time())
-            self._publish(job_id, {"event": "state", "state": "cancelled"})
-            return True
+            if stop is not None:
+                stop.set()
+                return True
+            row = self.db.job(job_id)
+            if row is not None and row["state"] == "queued":
+                self.db.set_state(job_id, "cancelled", finished=time.time())
+                self._publish_locked(job_id, {"event": "state", "state": "cancelled"})
+                return True
         return False
 
-    def events(self, job_id: int) -> Iterator[dict]:
+    async def events(self, job_id: int) -> AsyncIterator[dict]:
         """The row as it stands, then every line and state change until the
-        job ends; a keepalive where nothing happened for a while."""
-        q: queue.Queue[dict] = queue.Queue()
+        job ends; a keepalive where nothing happened for a while. Async, so a
+        thousand open streams hold no thread each."""
+        loop = asyncio.get_running_loop()
+        q: asyncio.Queue[dict] = asyncio.Queue()
         with self.lock:
-            self.listeners.setdefault(job_id, []).append(q)
+            self.listeners.setdefault(job_id, []).append((loop, q))
         try:
             row = as_dict(self.db.job(job_id))
             if row is None:
@@ -115,8 +123,8 @@ class Pool:
                 return
             while True:
                 try:
-                    ev = q.get(timeout=KEEPALIVE_S)
-                except queue.Empty:
+                    ev = await asyncio.wait_for(q.get(), timeout=KEEPALIVE_S)
+                except asyncio.TimeoutError:
                     yield {"event": "keepalive"}
                     continue
                 yield ev
@@ -124,14 +132,20 @@ class Pool:
                     return
         finally:
             with self.lock:
-                if q in self.listeners.get(job_id, []):
-                    self.listeners[job_id].remove(q)
+                self.listeners[job_id] = [
+                    (lp, qq) for lp, qq in self.listeners.get(job_id, []) if qq is not q]
 
     # ------------------------------------------------------- the workers
+    def _publish_locked(self, job_id: int, ev: dict) -> None:
+        for loop, q in self.listeners.get(job_id, []):
+            try:
+                loop.call_soon_threadsafe(q.put_nowait, ev)
+            except RuntimeError:
+                pass                     # the loop is closed: nobody listens
+
     def _publish(self, job_id: int, ev: dict) -> None:
         with self.lock:
-            for q in self.listeners.get(job_id, []):
-                q.put(ev)
+            self._publish_locked(job_id, ev)
 
     def _work(self) -> None:
         while True:
@@ -146,11 +160,16 @@ class Pool:
 
     def _run(self, job_id: int) -> None:
         row = self.db.job(job_id)
-        if row is None or row["state"] != "queued":
+        if row is None:
             return
         stop = threading.Event()
+        # Claimed under the lock a cancel takes: queued to running in one
+        # step, and a row a cancel closed first is not run at all.
         with self.lock:
+            if not self.db.claim(job_id):
+                return
             self.stops[job_id] = stop
+            self._publish_locked(job_id, {"event": "state", "state": "running"})
 
         def sink(ev: dict) -> None:
             if isinstance(ev.get("n"), int) and isinstance(ev.get("of"), int):
@@ -158,12 +177,12 @@ class Pool:
             self._publish(job_id, {"event": "line", **ev})
 
         base = job.Job(settings={}, secrets={}, stop=stop, sink=sink)
-        self.db.set_state(job_id, "running", started=time.time())
-        self._publish(job_id, {"event": "state", "state": "running"})
         args = json.loads(row["args"])
         try:
             with base.active():
-                result = dispatch(row["kind"], row["store"], args, base)
+                result = os.path.relpath(dispatch(row["kind"], row["store"], args, base),
+                                         row["store"])
+                log(f"job {job_id} {row['kind']} done: {result}", job=job_id)
         except Cancelled:
             self.db.set_state(job_id, "cancelled", finished=time.time())
             self._publish(job_id, {"event": "state", "state": "cancelled"})
@@ -177,7 +196,6 @@ class Pool:
         else:
             self.db.set_state(job_id, "done", finished=time.time(), result=result)
             self._publish(job_id, {"event": "state", "state": "done", "result": result})
-            log(f"job {job_id} {row['kind']} done: {result}", job=job_id)
         finally:
             with self.lock:
                 self.stops.pop(job_id, None)

@@ -37,6 +37,8 @@ class FakeVlm:
                 self.wfile.write(b)
 
             def do_GET(self):
+                srv.seen.append({"path": self.path,
+                                 "authorization": self.headers.get("Authorization")})
                 if self.path.endswith("/models"):
                     return self._json(200, {"data": [{"id": srv.model}]})
                 return self._json(404, {"error": "no such path"})
@@ -54,7 +56,7 @@ class FakeVlm:
                 img = b""
                 if "," in uri:
                     img = base64.b64decode(uri.split(",", 1)[1])
-                srv.seen.append({"prompt": prompt, "bytes": len(img),
+                srv.seen.append({"path": self.path, "prompt": prompt, "bytes": len(img),
                                  "model": req.get("model"),
                                  "authorization": self.headers.get("Authorization"),
                                  "generation": {k: v for k, v in req.items()

@@ -53,11 +53,14 @@ class Db:
             return self.conn.execute(sql, tuple(params))
 
     def one(self, sql: str, params: Iterable[object] = ()) -> sqlite3.Row | None:
-        row = self._run(sql, params).fetchone()
+        # Stepped under the lock too: the cursor walks the shared connection.
+        with self.lock:
+            row = self.conn.execute(sql, tuple(params)).fetchone()
         return row
 
     def all(self, sql: str, params: Iterable[object] = ()) -> list[sqlite3.Row]:
-        return list(self._run(sql, params).fetchall())
+        with self.lock:
+            return list(self.conn.execute(sql, tuple(params)).fetchall())
 
     # ------------------------------------------------------------- users
     def add_user(self, name: str, hash_: str, role: str) -> int:
@@ -122,12 +125,24 @@ class Db:
     def progress(self, job_id: int, n: int, of: int) -> None:
         self._run('UPDATE jobs SET n = ?, "of" = ? WHERE id = ?', (n, of, job_id))
 
+    def claim(self, job_id: int) -> bool:
+        """Queued to running in one step: false where the row is no longer
+        queued, which is a cancel that came first."""
+        cur = self._run("UPDATE jobs SET state = 'running', started = ? "
+                        "WHERE id = ? AND state = 'queued'", (time.time(), job_id))
+        return cur.rowcount == 1
+
     def orphans(self) -> int:
-        """Rows left running by a process that is gone: failed, and said so.
-        Called once at boot, before any worker starts."""
-        cur = self._run("UPDATE jobs SET state = 'failed', error = 'process died', "
-                        "finished = ? WHERE state = 'running'", (time.time(),))
-        return int(cur.rowcount)
+        """Rows a process that is gone left running or queued: failed, and
+        said so. The queue lives in memory, so a queued row of a dead process
+        would never run. Called once at boot, before any worker starts."""
+        now = time.time()
+        a = self._run("UPDATE jobs SET state = 'failed', error = 'process died', "
+                      "finished = ? WHERE state = 'running'", (now,))
+        b = self._run("UPDATE jobs SET state = 'failed', "
+                      "error = 'process died before the start', finished = ? "
+                      "WHERE state = 'queued'", (now,))
+        return int(a.rowcount) + int(b.rowcount)
 
 
 def as_dict(row: sqlite3.Row | None) -> dict | None:

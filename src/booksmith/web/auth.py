@@ -18,6 +18,9 @@ from booksmith.web.db import Db
 COOKIE = "booksmith_session"
 ROLES = ("admin", "user")
 _hasher = PasswordHasher()
+# Verified against when the name is unknown, so both failures cost the same
+# time and a login cannot tell a name that exists from one that does not.
+_NOBODY = _hasher.hash(secrets.token_hex(16))
 
 
 def _token_hash(token: str) -> str:
@@ -37,11 +40,11 @@ def add_user(db: Db, name: str, password: str, role: str) -> int:
 def login(db: Db, name: str, password: str, days: int) -> str | None:
     """A session token, or None: the two failures answer alike."""
     row = db.user(name)
-    if row is None:
-        return None
     try:
-        _hasher.verify(row["hash"], password)
+        _hasher.verify(row["hash"] if row is not None else _NOBODY, password)
     except VerifyMismatchError:
+        return None
+    if row is None:
         return None
     token = secrets.token_urlsafe(32)
     db.open_session(_token_hash(token), int(row["id"]), time.time() + days * 86400)

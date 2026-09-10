@@ -9,7 +9,7 @@ import json
 import os
 import shutil
 import tempfile
-from collections.abc import Iterator
+from collections.abc import AsyncIterator
 
 from fastapi import APIRouter, Request, Response, UploadFile
 from fastapi.responses import StreamingResponse
@@ -48,8 +48,9 @@ def login(body: Login, request: Request, response: Response) -> dict:
     if token is None:
         response.status_code = 401
         return {"error": "no such user and password"}
+    s = request.app.state.settings
     response.set_cookie(auth.COOKIE, token, httponly=True, samesite="lax",
-                        max_age=request.app.state.settings.session_days * 86400)
+                        secure=s.secure_cookies, max_age=s.session_days * 86400)
     return auth.who(db, token) or {}
 
 
@@ -79,21 +80,18 @@ def upload(request: Request, file: UploadFile, name: str = "") -> dict:
     store = _store(request, user)
     raw = os.path.join(store, "raw")
     os.makedirs(raw, exist_ok=True)
-    # The scan lands in the store's raw/ under its own name, then becomes a
-    # book from there: the copy beside the manifest is the book's.
-    fname = os.path.basename(file.filename or "scan.pdf")
+    # The scan lands in a temporary file under the store's raw/ and becomes
+    # a book from there, checked before anything is placed; the copy beside
+    # the manifest is the book's, and nothing else of it is kept.
     fd, tmp = tempfile.mkstemp(prefix=".upload.", dir=raw)
-    with os.fdopen(fd, "wb") as f:
-        shutil.copyfileobj(file.file, f)
-    kept = os.path.join(raw, fname)
     try:
-        os.replace(tmp, kept)
-        dest = service.upload(store, kept, name)
+        with os.fdopen(fd, "wb") as f:
+            shutil.copyfileobj(file.file, f)
+        dest = service.upload(store, tmp, name, filename=file.filename or "")
     finally:
         if os.path.exists(tmp):
             os.unlink(tmp)
-    rel = os.path.relpath(dest, store)
-    return {"book": rel, "runs": []}
+    return {"book": os.path.relpath(dest, store), "runs": []}
 
 
 @router.get("/books/{root}/{name}/runs")
@@ -161,12 +159,12 @@ def cancel(job_id: int, request: Request) -> dict:
 
 
 @router.get("/jobs/{job_id}/events")
-def events(job_id: int, request: Request) -> StreamingResponse:
+async def events(job_id: int, request: Request) -> StreamingResponse:
     _own(request, job_id)
     pool = request.app.state.pool
 
-    def stream() -> Iterator[bytes]:
-        for ev in pool.events(job_id):
+    async def stream() -> AsyncIterator[bytes]:
+        async for ev in pool.events(job_id):
             yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n".encode()
 
     return StreamingResponse(stream(), media_type="text/event-stream",

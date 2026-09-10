@@ -129,7 +129,9 @@ def _inside(store: str, path: str | None) -> str | None:
     real = os.path.realpath(path)
     root = os.path.realpath(store)
     if real != root and not real.startswith(root + os.sep):
-        raise Refusal(f"{path} lies outside the store {store}")
+        # Named without the root: the server's paths are the server's.
+        raise Refusal(f"{os.path.basename(path.rstrip('/')) or path} lies "
+                      f"outside your store")
     return path
 
 
@@ -210,16 +212,33 @@ def book_dir(store: str, name: str) -> str:
 _SAFE = re.compile(r"[^\w.,()-]+", re.UNICODE)
 
 
-def upload(store: str, scan: str, name: str = "") -> str:
+def upload(store: str, scan: str, name: str = "", filename: str = "") -> str:
     """A scan into the store as a book: `processed/<name>/` with the scan
-    beside its manifest, the hash taken once here and trusted after. A name
-    already taken, or a scan the store already holds under another name, is
-    refused: two books of one scan measure as one and read as two."""
+    beside its manifest under `filename`, the hash taken once here and
+    trusted after. Everything is checked before anything is placed: the file
+    must open as a PDF, the file name must be a plain one that is not one of
+    the book directory's own, and a name already taken, or a scan the store
+    already holds under another name, is refused, since two books of one
+    scan measure as one and read as two."""
+    from booksmith.core import raster
     if not os.path.isfile(scan):
         raise Refusal(f"no file {scan}")
-    stem = name or os.path.splitext(os.path.basename(scan))[0]
+    fname = os.path.basename(filename or scan)
+    if (fname != (filename or os.path.basename(scan)) or fname.startswith(".")
+            or not fname.lower().endswith(".pdf")):
+        raise Refusal(f"{filename or fname!r} is not a plain PDF file name")
+    if fname in book.ALLOWED or fname.split(".")[0] in ("detect", "read", "look", "truth"):
+        raise Refusal(f"{fname!r} is a name the book directory keeps for itself")
+    try:
+        with raster.open_pdf(scan) as d:
+            n = d.page_count
+    except Exception as e:
+        raise Refusal(f"{fname}: does not open as a PDF ({type(e).__name__}: {e})") from None
+    if not n:
+        raise Refusal(f"{fname}: a PDF of zero pages")
+    stem = name or os.path.splitext(fname)[0]
     safe = _SAFE.sub("-", stem).strip("-")[:80]
-    if not safe:
+    if not safe or set(safe) <= {"."}:
         raise Refusal(f"{stem!r} leaves no name for a book directory")
     dest = os.path.join(store, "processed", safe)
     if os.path.exists(dest):
@@ -231,7 +250,6 @@ def upload(store: str, scan: str, name: str = "") -> str:
         if had == sha:
             raise Refusal(f"this scan is already the book {rel}: same sha256")
     from booksmith.core.page import write_json
-    fname = os.path.basename(scan)
     os.makedirs(dest)
     shutil.copy2(scan, os.path.join(dest, fname))
     write_json(os.path.join(dest, "manifest.json"),
@@ -394,9 +412,10 @@ def crop(store: str, detect_dir: str, settings: Mapping, out: str | None = None,
 def html(store: str, run_dir: str, settings: Mapping, out: str | None = None,
          base: job.Job | None = None) -> str:
     """The book as HTML out of a detect or read run: into the book directory
-    the run lies in, else the store's `processed/`, unless named. Foreign
-    work is not overwritten: a non-empty directory the builder did not make
-    is a refusal out loud. Returns the build directory."""
+    the run lies in, else the store's `processed/` under the scan's name,
+    unless named. That second default is guarded: a non-empty directory
+    there that is neither a book nor a build of ours is a refusal out loud.
+    A named `out` is the caller's to overwrite. Returns the build directory."""
     from booksmith.processing.assemble import html as html_mod
     _inside(store, run_dir)
     _inside(store, out)
@@ -408,10 +427,10 @@ def html(store: str, run_dir: str, settings: Mapping, out: str | None = None,
                 and not html_mod.is_our_dir(out)
                 and not os.path.isfile(os.path.join(out, "manifest.json"))):
             raise Refusal(
-                f"{out} already holds something not ours: neither "
-                f"`{html_mod.ASSETS}/run.json` nor `run.json` in the root — so "
-                f"the directory was not built by `books html`. Overwriting it "
-                f"silently is not allowed: give --out or remove it by hand.")
+                f"{out} already holds something not ours: no manifest.json "
+                f"and no `{html_mod.ASSETS}/run.json`, so it is neither a book "
+                f"nor a build of `books html`. Overwriting it silently is not "
+                f"allowed: give --out or remove it by hand.")
         html_mod.build(d, out)
         return out
 

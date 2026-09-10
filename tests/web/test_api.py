@@ -3,12 +3,10 @@ cancel that stops it, a dead process that leaves a failed row, and a key
 that is the entry's and not the operator's."""
 import json
 import os
-import shutil
 import time
 
-import pytest
+from fastapi.testclient import TestClient
 
-from booksmith.core import job
 from booksmith.web.db import Db
 from conftest import as_user, wait_done
 from fake_layout import FakeLayout
@@ -29,7 +27,7 @@ def _upload(client, pdf, name):
 
 
 def test_who_may_see_what(app):
-    anon = as_user.__globals__["TestClient"](app)
+    anon = TestClient(app)
     assert anon.get("/api/me").status_code == 401
     admin = as_user(app, "root", "pw", "admin")
     assert admin.get("/api/me").json()["role"] == "admin"
@@ -57,8 +55,17 @@ def test_each_user_sees_only_their_own_books(app, slovar):
     with open(slovar.pdf, "rb") as f:
         r = alice.post("/api/books", files={"file": ("again.pdf", f, "application/pdf")})
     assert r.status_code == 409 and "same sha256" in r.json()["error"]
-    # The stores lie apart under the home, each in the shape of a store.
+    # Nothing of a refused upload stays, and a file that is not a scan, or
+    # carries a name the book directory keeps, is refused before it is placed.
     store = app.state.settings.store_of(app.state.db.user("alice")["id"], "user")
+    assert os.listdir(os.path.join(store, "raw")) == []
+    for fname, data in (("manifest.json", b"%PDF-1.4 x"), ("detect.pdf", b"%PDF-1.4 x"),
+                        ("note.pdf", b"not a pdf at all")):
+        r = alice.post("/api/books", files={"file": (fname, data, "application/pdf")},
+                       params={"name": "x"})
+        assert r.status_code == 409, fname
+        assert not os.path.exists(os.path.join(store, "processed", "x")), fname
+    # The stores lie apart under the home, each in the shape of a store.
     assert os.path.isdir(os.path.join(store, "processed", "mine"))
     assert not os.path.exists(os.path.join(store, "processed", "theirs"))
 
@@ -76,7 +83,8 @@ def test_a_detect_job_runs_reports_its_progress_and_files_its_run(app, home, slo
     assert progress and progress[-1] == (13, 13), progress
     row = alice.get(f"/api/jobs/{job_id}").json()
     assert row["state"] == "done" and (row["n"], row["of"]) == (13, 13)
-    assert row["result"].endswith(os.path.join("detect", "truth"))
+    assert row["result"] == os.path.join("processed", "slovar", "detect", "truth"), (
+        "the result is the run's place in the store, never a path of the server's")
     runs = alice.get(f"/api/books/{book}/runs").json()
     assert runs == [{"kind": "detect", "label": "truth", "identity": runs[0]["identity"],
                      "pages": 13, "complete": True, "level": "detect", "when": runs[0]["when"]}]
@@ -113,25 +121,49 @@ def test_a_cancel_stops_a_running_job_between_pages(app, home, slovar):
     assert not os.path.exists(os.path.join(run, "run.json")), "a stopped run has no snapshot"
 
 
-def test_a_dead_process_leaves_a_failed_row_not_a_running_one(home):
+def test_a_dead_process_leaves_failed_rows_not_running_or_queued_ones(home):
     from booksmith.web.app import create_app
     from booksmith.web.settings import Settings
     s = Settings.from_env()
     db = Db(s.db_path)
     db.add_user("x", "h", "user")
-    job_id = db.add_job(1, home, "detect", "processed/b", "", "", {})
-    db.set_state(job_id, "running", started=time.time())
+    running = db.add_job(1, home, "detect", "processed/b", "", "", {})
+    db.set_state(running, "running", started=time.time())
+    queued = db.add_job(1, home, "detect", "processed/c", "", "", {})
     db.close()
     app = create_app(s)
     try:
-        row = app.state.db.job(job_id)
-        assert row["state"] == "failed" and row["error"] == "process died"
-        assert app.state.pool.orphaned == 1
+        assert app.state.db.job(running)["error"] == "process died"
+        assert app.state.db.job(queued)["state"] == "failed"
+        assert "before the start" in app.state.db.job(queued)["error"]
+        assert app.state.pool.orphaned == 2
     finally:
         app.state.db.close()
 
 
-def test_a_users_read_job_carries_the_entrys_key_not_the_operators(app, home, slovar, served_endpoint):
+def test_a_cancel_that_lands_before_the_start_wins(home):
+    """The claim and the cancel take one lock: a job cancelled while queued
+    is never run, however the two threads interleave."""
+    from booksmith.web.app import create_app
+    from booksmith.web.jobs import Pool
+    from booksmith.web.settings import Settings
+    s = Settings.from_env()
+    app = create_app(s)
+    try:
+        db = app.state.db
+        db.add_user("x", "h", "user")
+        pool = Pool.__new__(Pool)
+        pool.db, pool.lock, pool.stops, pool.listeners = db, __import__("threading").Lock(), {}, {}
+        job_id = db.add_job(1, home, "detect", "processed/nowhere", "", "", {"book": "processed/nowhere"})
+        assert pool.cancel(job_id)
+        pool._run(job_id)                 # the worker arriving late
+        assert db.job(job_id)["state"] == "cancelled"
+        assert pool.cancel(job_id) is False
+    finally:
+        app.state.db.close()
+
+
+def test_a_users_read_job_carries_the_entrys_key(app, home, slovar, served_endpoint):
     with FakeVlm({"text": "read", "finish": "stop"}) as vlm:
         _registry(home, {
             "lay": {"kind": "layout", "endpoint": served_endpoint, "knobs": {}},
@@ -139,16 +171,16 @@ def test_a_users_read_job_carries_the_entrys_key_not_the_operators(app, home, sl
                    "knobs": {"MODEL_NAME": vlm.model, "VLM_CONCURRENCY": "2"}}})
         alice = as_user(app, "alice")
         book = _upload(alice, slovar.pdf, "slovar")
-        # The operator's own key is on this process's job; a tenant's job must not carry it.
-        with job.Job(secrets={"VLM_API_KEY": "sk-operator"}).active():
-            done = alice.post("/api/jobs", json={"kind": "detect", "book": book,
-                                                 "model": "lay"}).json()["id"]
-            assert wait_done(alice, done)[1]["state"] == "done"
-            rd = alice.post("/api/jobs", json={"kind": "read", "book": book, "model": "vl",
-                                               "label": "truth", "pages": "1"}).json()["id"]
-            lines, last = wait_done(alice, rd)
+        done = alice.post("/api/jobs", json={"kind": "detect", "book": book,
+                                             "model": "lay"}).json()["id"]
+        assert wait_done(alice, done)[1]["state"] == "done"
+        rd = alice.post("/api/jobs", json={"kind": "read", "book": book, "model": "vl",
+                                           "label": "truth", "pages": "1"}).json()["id"]
+        lines, last = wait_done(alice, rd)
         assert last["state"] == "done", (last, [ln["text"] for ln in lines][-5:])
+        # Every request the model saw, the model list included, carried the entry's key.
         assert vlm.seen and all(s["authorization"] == "Bearer sk-entry" for s in vlm.seen)
+        assert any(s.get("path", "").endswith("/models") for s in vlm.seen)
         runs = alice.get(f"/api/books/{book}/runs").json()
         assert [r["kind"] for r in runs] == ["detect", "read"]
         assert runs[1]["label"] == vlm.model and runs[1]["complete"]
@@ -173,12 +205,20 @@ def test_the_registry_is_written_checked_and_users_are_the_admins(app, home):
     listed = admin.get("/api/users").json()
     assert [u["name"] for u in listed] == ["root", "alice", "eve"]
     assert all("hash" not in u for u in listed)
-    shutil.rmtree(os.path.join(home, "users"))
 
 
-@pytest.mark.parametrize("kind", ["oracle"])
-def test_an_unknown_kind_of_job_is_refused(app, slovar, kind):
+def test_an_unknown_kind_of_job_is_refused_and_a_login_costs_the_same_either_way(app, slovar):
     alice = as_user(app, "alice")
     book = _upload(alice, slovar.pdf, "slovar")
-    r = alice.post("/api/jobs", json={"kind": kind, "book": book})
+    r = alice.post("/api/jobs", json={"kind": "oracle", "book": book})
     assert r.status_code == 409 and "a job is one of" in r.json()["error"]
+    # A name that does not exist is verified against a hash all the same, so
+    # the two failures take the same time and a login names no user.
+    anon = TestClient(app)
+    t0 = time.time()
+    anon.post("/api/login", json={"name": "nobody", "password": "x"})
+    unknown = time.time() - t0
+    t0 = time.time()
+    anon.post("/api/login", json={"name": "alice", "password": "x"})
+    known = time.time() - t0
+    assert unknown > known / 4, (unknown, known)

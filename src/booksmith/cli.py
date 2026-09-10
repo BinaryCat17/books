@@ -966,9 +966,11 @@ def build_parser():
     q.set_defaults(fn=cmd_bench_selfcheck)
 
     q = bs.add_parser("report",
-                      help="every measured number as one generated document")
+                      help="every measured number as one generated document, "
+                           "out of the data home's results/; with BOOKSMITH_HOME "
+                           "set that is not the repository's METRICS.md")
     q.add_argument("--out", default="",
-                   help="where to write it (default: METRICS.md at the root)")
+                   help="where to write it (default: METRICS.md in the data home)")
     q.set_defaults(fn=cmd_bench_report)
 
     p = sub.add_parser("ls", help="what is rented right now")

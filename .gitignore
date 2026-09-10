@@ -55,3 +55,7 @@ bench/*/truth.new/
 bench/*/truth.previous/
 bench/*/*.pdf.new
 bench/*/manifest.json.new
+.mypy_cache
+# The web's own files in a data home that is the repository
+users/
+booksmith.sqlite*

@@ -176,9 +176,9 @@ job is a row and a thread over one job context of its own, whose settings
 are the registry entry's, whose secrets are the entry's key, whose stop is
 the row's cancel and whose sink turns the log's counts into progress on the
 row and into events a client listens to. Every long loop says where it is
-and asks for the stop between pages, metrics or probes. The run directory
-stays the record of the result; a row left running by a dead process is
-failed at the next boot, never resumed blind. `books web user` makes a
+and asks for the stop between pages and between metrics. The run directory
+stays the record of the result; a row left running or queued by a dead
+process is failed at the next boot, never resumed blind. `books web user` makes a
 user and their store. What the web does goes through `service`, with the
 job handed in, so the command line and the web run one code.
 

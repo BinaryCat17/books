@@ -333,7 +333,9 @@ positional arguments:
                         table and one JSON
     selfcheck           every metric's probes on one bench and run: can the
                         numbers fall (1 if any is uncaught)
-    report              every measured number as one generated document
+    report              every measured number as one generated document, out
+                        of the data home's results/; with BOOKSMITH_HOME set
+                        that is not the repository's METRICS.md
 
 options:
   -h, --help            show this help message and exit
@@ -394,7 +396,7 @@ usage: books bench report [-h] [--out OUT]
 
 options:
   -h, --help  show this help message and exit
-  --out OUT   where to write it (default: METRICS.md at the root)
+  --out OUT   where to write it (default: METRICS.md in the data home)
 ```
 
 ## books ls
