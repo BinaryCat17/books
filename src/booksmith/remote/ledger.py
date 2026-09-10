@@ -310,4 +310,4 @@ def observed_mbps(row) -> float | None:
     setup, gb = row.get("setup_s"), row.get("image_gb")
     if (setup or 0) > 0 and gb:
         return gb * 8 * 1024 / setup
-    return None
+    return None  # not 0: a run with no setup time is unmeasured, not infinitely fast

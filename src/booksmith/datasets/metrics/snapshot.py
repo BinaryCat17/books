@@ -19,7 +19,7 @@ class SnapshotMetric(Metric):
         Spec("empty", "lower",
              "knob values empty in the snapshot"),
         Spec("fingerprint_verified", "neither",
-             "fingerprint values checked against the tree"),
+             "1 if the fingerprint was verified against the tree, 0 if not"),
     )
 
     def _record(self, bench_name, run) -> Record:

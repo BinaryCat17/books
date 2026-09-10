@@ -690,7 +690,7 @@ def _report_order(res: dict, log) -> None:
         log(f"  'not said' IS NOT 'not marked': {c[ORDER_SILENT]} truth "
             f"pages have NO `order_marked` field AT ALL, and a number over "
             f"them would be taken out of nothing (that is how 'agreed 73%' "
-            f"printed on hard36). Cured by whoever built this bench.")
+            f"printed as a number). Cured by whoever built this bench.")
     for name, key in (("of MODEL reading against truth", "model_order"),
                       ("of book ASSEMBLY against truth", "assembly_order")):
         o = res[key]

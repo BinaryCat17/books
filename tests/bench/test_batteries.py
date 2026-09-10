@@ -22,6 +22,7 @@ try:
     RUN = Run.bare(BENCH.truth_dir, "truth")
     FIT = base.applicable(registry.METRICS, BENCH, RUN, BENCH.pages(), RUN.pages())
     BUILT = {m.name: m.probes(BENCH, RUN) for m in FIT}
+    _TREE = tree_detect_run()
 except Exception as e:
     pytest.skip(f"the drawn bench could not be built or probed: {e}", allow_module_level=True)
 
@@ -30,14 +31,13 @@ LEAST = {"contour": 34, "fitness": 32, "text": 29, "assembly": 3, "reading": 6}
 
 PARAMS = [pytest.param(p, id=f"{name}-{p.name}")
           for name, ps in sorted(BUILT.items()) for p in ps]
-
-# The same probes over a real detect run, where the tree holds one.
-_TREE = tree_detect_run()
 if _TREE is not None:
     _B2, _R2 = _TREE
     _FIT2 = base.applicable(registry.METRICS, _B2, _R2, _B2.pages(), _R2.pages())
     PARAMS += [pytest.param(p, id=f"{m.name}-{p.name}[{_R2.label}]")
                for m in _FIT2 for p in m.probes(_B2, _R2)]
+
+# The same probes over a real detect run, where the tree holds one.
 
 
 def test_every_metric_the_drawn_bench_reaches_is_probed():

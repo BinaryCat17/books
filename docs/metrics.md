@@ -94,7 +94,7 @@ needs: pages
 | `values_present` | neither | keys present in the snapshot |
 | `missing` | lower | keys the snapshot lacks |
 | `empty` | lower | knob values empty in the snapshot |
-| `fingerprint_verified` | neither | fingerprint values checked against the tree |
+| `fingerprint_verified` | neither | 1 if the fingerprint was verified against the tree, 0 if not |
 
 ## reading
 

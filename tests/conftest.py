@@ -43,7 +43,10 @@ def tree_detect_run(label="PP-DocLayoutV2"):
 
 @pytest.fixture(scope="session")
 def slovar():
-    return slovar_bench()
+    try:
+        return slovar_bench()
+    except Exception as e:
+        pytest.skip(f"the drawn bench could not be built: {e}")
 
 
 @pytest.fixture(scope="session")

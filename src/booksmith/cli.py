@@ -30,7 +30,6 @@ This list is `books --help`, and `tests/contract/test_docs.py` checks it
 against the parser both ways. Every command with its flags: `docs/commands.md`.
 """
 import argparse
-import json
 import os
 import sys
 
@@ -270,22 +269,7 @@ def cmd_read(a):
     # hand: `run.json` already carries `policy.vocabulary`, and a typed default
     # diverges silently -- `DocLayNet` (11 labels) is a strict subset of
     # `Docling-egret` (17), so that pair would pass without a word.
-    known = json.load(open(os.path.join(a.dir, "run.json"), encoding="utf-8")
-                      ).get("policy", {}).get("vocabulary")
-    policy_name = a.policy or known
-    if not policy_name:
-        raise Refusal(
-            f"the snapshot {a.dir}/run.json names no label dictionary and "
-            f"--policy is not given. Asking by a guessed dictionary means "
-            f"leading a table with the text prompt and filing prose as "
-            f"reading.")
-    if a.policy and known and a.policy != known:
-        raise Refusal(
-            f"--policy {a.policy!r} against the detection dictionary "
-            f"{known!r}. Matching labels would pass without a word, and the "
-            f"snapshot would file two incompatible claims side by side. Drop "
-            f"--policy, or recompute detection with the detector whose "
-            f"dictionary you mean to read by.")
+    policy_name = vread.policy_for(a.dir, a.policy, what="the paid run")
     os.makedirs(out, exist_ok=True)
     if a.rent:
         return cmd_read_rented(a, policy_name, out)
@@ -328,7 +312,7 @@ def cmd_crop(a):
     # The same two lines as `books read`, and for the same reason: the free
     # command must accept every input the paid one does, or it is a preview of
     # something else.
-    policy_name = vread.policy_for(d, a.policy)
+    policy_name = vread.policy_for(d, a.policy, what="the preview")
     os.makedirs(out, exist_ok=True)
     reader = vread.build_reader(policy_name)
     pages = None

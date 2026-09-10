@@ -66,3 +66,23 @@ def test_a_bad_crop_dpi_does_not_break_a_path_that_names_the_resolution():
     else:
         raise AssertionError("CROP_DPI=0 passed on the path that reads it")
     doc.close()
+
+
+def test_cut_png_returns_the_same_cut_as_a_file():
+    import tempfile
+
+    import pymupdf
+    with tempfile.TemporaryDirectory() as tmp:
+        pdf = os.path.join(tmp, "p.pdf")
+        doc = pymupdf.open()
+        page = doc.new_page(width=300, height=400)
+        page.draw_rect(pymupdf.Rect(50, 50, 150, 120), fill=(0, 0, 0))
+        doc.save(pdf)
+        doc.close()
+        with raster.open_pdf(pdf) as d:
+            facts = raster.cut(d, 0, (40, 40, 160, 130), 72.0,
+                               os.path.join(tmp, "c.png"), dpi=72, margin=0.0)
+            png, facts2 = raster.cut_png(d, 0, (40, 40, 160, 130), 72.0, dpi=72, margin=0.0)
+        assert png[:8] == b"\x89PNG\r\n\x1a\n"
+        assert facts2 == {k: v for k, v in facts.items() if k != "file"}
+        assert raster.render_png(d[0] if False else raster.open_pdf(pdf)[0], 72)[:4] == b"\x89PNG"

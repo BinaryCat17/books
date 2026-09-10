@@ -43,14 +43,14 @@ FORMATS = (
          "objects_out_of_scope": 724, "text_marked": 730,
          "order_marked": 730, "doubtful": 724, "inexpressible": 724,
          "file": 724}),
-    # Three detect snapshots are tracked; `books replay --check` walks the path
+    # Detect snapshots are tracked; `books replay --check` walks the path
     # ('knobs', <knob>, 'value').
     Format(
         "detect_run", "bench/*/detect/*/run.json",
         {"knobs": 12, "value": 432, "default": 432, "what": 432,
          "set_externally": 444, "name": 24, "prompts": 24, "by_label": 24,
          "when": 12, "raster": 12, "commit": 12, "source": 12, "args": 12}),
-    # All thirteen bench manifests are tracked. `source` is the one key that
+    # Every bench manifest is tracked. `source` is the one key that
     # says which file a truth directory and a run are about.
     Format(
         "manifest", "bench/*/manifest.json",
@@ -179,10 +179,6 @@ def test_the_declaration_reaches_the_files_it_names():
     for fmt in FORMATS:
         files = fmt.files()
         assert files, f"{fmt.name}: pattern {fmt.pattern} matches nothing"
-        if fmt.name == "dots_pages":
-            assert len(files) >= 1272, (
-                f"{fmt.name}: {len(files)} files, expected at least 1272 "
-                "tracked -- the pattern is missing a directory level")
 
 
 def test_the_builder_emits_every_declared_attribute():

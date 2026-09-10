@@ -9,15 +9,15 @@ through the guard and must be read as intended. The intent is written by hand
 in the table below -- one derived from the code would agree with any corruption.
 """
 import os
+
+import pytest
 import shutil
 
 import support
 from booksmith.datasets.metrics import contour as metrics
 from booksmith.core import order
 from booksmith.processing.layout.adapters import (
-    doclayout,
-    docling as docling_heron,
-    yolox as yolox_layout)
+    docling as docling_heron)
 
 # Whose order each line means. "model" -- comparable with truth; "ours" -- not,
 # it would be comparing our own numbering.
@@ -29,7 +29,7 @@ EXPECTED = {
     # must be declared as a rule, not as a place in a list.
 }
 # The assembly rules come from `order.WORDS` and are not typed here again, so a
-# drift from an adapter falls in `test_no_unknown_order_values`. The tail ": the
+# drift from an adapter is refused by `order.declare`. The tail ": the
 # model gives no rank" is appended by `doclayout`, where the rule is voiced by a
 # live model that gave no rank; both forms must read to the guard as our order.
 for _w in order.WORDS.values():
@@ -41,9 +41,6 @@ for _w in order.WORDS.values():
 for _mode, _rule in docling_heron._DoclingPipeline.ORDER_RULE.items():
     EXPECTED[_rule] = "ours"
 
-ADAPTERS = (("processing/layout/adapters/doclayout.py", doclayout),
-            ("processing/layout/adapters/docling.py", docling_heron),
-            ("processing/layout/adapters/yolox.py", yolox_layout))
 
 
 def guard():
@@ -282,3 +279,20 @@ def test_ranking_rebuilds_the_variants_it_measures():
     assert len(seen) <= len(pts), (
         f"the builder was called {len(seen)} times over {len(pts)} points -- "
         f"an extra count")
+
+
+@pytest.mark.parametrize("source,rule,want", [
+    ("model", "", order.MODEL_RANK), ("none", "", None),
+    *[("ours", w, w) for w in order.WORDS.values()],
+    *[("ours", r, r) for r in docling_heron._DoclingPipeline.ORDER_RULE.values()],
+])
+def test_declare_returns_the_vocabulary_unchanged(source, rule, want):
+    assert order.declare(source, rule) == want
+
+
+@pytest.mark.parametrize("source,rule", [
+    ("ours", "docling_rules"), ("ours", ""), ("ours", None), ("theirs", ""),
+])
+def test_declare_refuses_a_word_outside_the_vocabulary(source, rule):
+    with pytest.raises(ValueError):
+        order.declare(source, rule)

@@ -579,22 +579,21 @@ def _knobs_snapshot(read_by_adapter) -> dict:
     return knobs.snapshot_with_readers(roles)
 
 
-def policy_for(run_dir: str, wanted: str | None) -> str:
-    """The label dictionary a preview or a read must use for this detect run.
-
-    The snapshot's own vocabulary wins; a `--policy` that disagrees with it
-    would cut by one dictionary what the paid run asks by another.
-    """
+def policy_for(run_dir: str, wanted: str | None, what: str = "the preview") -> str:
+    """The label dictionary `what` (the preview or the paid run) must use for
+    this detect run: the snapshot's own vocabulary, and a `--policy` that
+    disagrees with it is refused rather than asked by."""
     with open(os.path.join(run_dir, "run.json"), encoding="utf-8") as f:
         known = json.load(f).get("policy", {}).get("vocabulary")
     if not wanted and not known:
         raise Refusal(
             f"the snapshot {run_dir}/run.json names no label dictionary and "
-            f"--policy is not given; the crops depend on which labels are "
-            f"asked about.")
+            f"--policy is not given; {what} depends on which labels are asked "
+            f"about, and a guessed dictionary files prose as reading.")
     if wanted and known and wanted != known:
         raise Refusal(
-            f"--policy {wanted!r} against the detection dictionary "
-            f"{known!r}: the preview would cut by one dictionary what "
-            f"`books read` asks by another.")
+            f"--policy {wanted!r} against the detection dictionary {known!r}: "
+            f"{what} would ask by one dictionary what detection boxed by "
+            f"another. Drop --policy, or detect again with the detector whose "
+            f"dictionary you mean.")
     return wanted or known
