@@ -8,7 +8,6 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
 from collections.abc import Mapping
-from vlm import classes as policy
 from vlm import identity as stamp
 from vlm.errors import Refusal
 
@@ -85,8 +84,6 @@ class Describe:
     def labels(self) -> tuple[str, ...]:
         return tuple(sorted(self.classes))
 
-    def policy(self) -> policy.Policy:
-        return policy.Policy.from_classes(self.classes, self.vocabulary)
 
     def to_json(self) -> dict:
         return {
@@ -126,23 +123,14 @@ class Describe:
             raise Refusal(f"describe: {label}: the fingerprint is not a non-empty mapping")
         knobs = _str_map(d.get("knobs", {}), "knobs")
         classes = _str_map(d.get("classes", {}), "classes")
-        foreign = sorted({c for c in classes.values() if c not in policy.CLASSES})
-        if foreign:
-            raise Refusal(
-                f"describe: {label}: labels mapped onto classes this tree does not declare: {foreign}; the classes are {sorted(policy.CLASSES)}"
-            )
         order = d.get("reading_order", "none")
         if order not in ORDERS:
             raise Refusal(f"describe: {label}: reading_order {order!r} is not one of {ORDERS}")
         kinds = d.get("kinds", [])
-        if not isinstance(kinds, list) or not all((isinstance(x, str) for x in kinds)):
+        if not isinstance(kinds, list) or not all(isinstance(x, str) for x in kinds):
             raise Refusal(f"describe: {label}: kinds must be a list of strings")
         openai = d.get("openai")
         name = str(d.get("vocabulary") or "")
-        if name and name in policy.VOCABULARIES and (classes != policy.VOCABULARIES[name]):
-            raise Refusal(
-                f"describe: {label}: names the vocabulary {name!r} and maps it otherwise than the tree does. A name of the tree's own promises the tree's mapping; leave the name empty to declare the model's own."
-            )
         if kind in ("layout", "hybrid") and (not classes):
             raise Refusal(
                 f"describe: {label}: a {kind} model maps no labels onto classes; a label's role cannot be guessed"

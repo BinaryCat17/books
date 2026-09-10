@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 import contextvars
+import hmac
 import hashlib
 import importlib.metadata
 import json
@@ -11,13 +12,14 @@ import subprocess
 import time
 import urllib.error
 import urllib.request
-from http.server import BaseHTTPRequestHandler
+
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi.responses import Response
 from vlm import job
 from vlm import knobs
 from vlm import protocol as served
 from vlm.errors import Refusal
 from vlm.log import log
-from vlm.serve import Server, key_ok, run_until_stopped
 
 KINDS = ("text", "otsl", "latex")
 WEIGHT_FILES = (".safetensors", "config.json", "tokenizer_config.json")
@@ -27,7 +29,7 @@ READY_S = 600
 
 def weights_sha256(weights_dir: str) -> str:
     cache = os.path.join(weights_dir, CACHE)
-    names = sorted((n for n in os.listdir(weights_dir) if n.endswith(WEIGHT_FILES)))
+    names = sorted(n for n in os.listdir(weights_dir) if n.endswith(WEIGHT_FILES))
     if not names:
         raise Refusal(f"{weights_dir}: no weight files ({WEIGHT_FILES}) to hash")
     key = json.dumps(
@@ -220,94 +222,52 @@ class Service:
             )
 
 
-def handler_for(svc: Service) -> type:
-
-    class H(BaseHTTPRequestHandler):
-        def log_message(self, fmt, *a):
-            log(f"{self.address_string()} {fmt % a}")
-
-        def _json(self, code: int, body: object) -> None:
-            self._raw(code, "application/json", json.dumps(body, ensure_ascii=False).encode())
-
-        def _raw(self, code: int, ctype: str, b: bytes) -> None:
-            self.send_response(code)
-            self.send_header("Content-Type", ctype)
-            self.send_header("Content-Length", str(len(b)))
-            self.end_headers()
-            self.wfile.write(b)
-
-        def _allowed(self) -> bool:
-            if key_ok(self.headers.get("Authorization"), svc.key):
-                return True
-            self._json(401, {"error": "a key is required, and this is not it"})
-            return False
-
-        def _through(self, method: str) -> None:
-            try:
-                n = int(self.headers.get("Content-Length") or 0)
-            except ValueError:
-                return self._json(400, {"error": "Content-Length is not a number"})
-            body = self.rfile.read(n) if n else None
-            code, ctype, out = svc.proxy(method, self.path, body, dict(self.headers))
-            if method == "POST" and self.path.endswith("/chat/completions"):
-                svc.requests += 1
-                svc.last_request = time.time()
-            self._raw(code, ctype, out)
-
-        def do_GET(self):
-            if not self._allowed():
-                return
-            if self.path == served.DESCRIBE:
-                return self._json(200, svc.describe.to_json())
-            if self.path == served.HEALTH:
-                return self._json(200, svc.health().to_json())
-            if self.path.startswith("/v1/"):
-                return self._through("GET")
-            return self._json(404, {"error": f"no route {self.path}"})
-
-        def do_POST(self):
-            if not self._allowed():
-                return
-            if self.path.startswith("/v1/"):
-                return self._through("POST")
-            return self._json(404, {"error": f"no route {self.path}"})
-
-    return H
 
 
-def serve(svc: Service, host: str = "127.0.0.1", port: int = 0) -> Server:
-    return Server((host, port), handler_for(svc), svc.context)
+def create_app(svc: Service) -> FastAPI:
+    app = FastAPI(title=f"model {svc.model_name}")
+
+    def allowed(authorization: str | None = Header(default=None)) -> None:
+        if svc.key and not (authorization and hmac.compare_digest(authorization, "Bearer " + svc.key)):
+            raise HTTPException(401, "a key is required, and this is not it")
+
+    @app.get(served.DESCRIBE, dependencies=[Depends(allowed)])
+    def describe() -> dict:
+        return svc.describe.to_json()
+
+    @app.get(served.HEALTH, dependencies=[Depends(allowed)])
+    def health() -> dict:
+        return svc.health().to_json()
+
+    @app.api_route("/v1/{path:path}", methods=["GET", "POST"], dependencies=[Depends(allowed)])
+    async def through(path: str, request: Request) -> Response:
+        body = await request.body()
+        code, ctype, out = svc.proxy(request.method, "/v1/" + path, body or None, dict(request.headers))
+        if request.method == "POST" and path.endswith("chat/completions"):
+            svc.requests += 1
+            svc.last_request = time.time()
+        return Response(out, status_code=code, media_type=ctype)
+
+    return app
 
 
-def main(
-    host: str, port: int, upstream_url: str = "", key: str | None = None, log_dir: str = "."
-) -> int:
+def main(port: int, upstream_url: str = "", key: str | None = None, log_dir: str = ".") -> None:
+    import uvicorn
+
     model = knobs.knob("MODEL_NAME")
     weights = knobs.knob("VL_MODEL_DIR") or None
     up = None
     if not upstream_url:
         if not weights:
-            raise Refusal(
-                "VL_MODEL_DIR is empty and no upstream was named: there is nothing to raise vLLM over"
-            )
-        up = Upstream(
-            weights, model, knobs.number("PORT", kind=int), os.path.join(log_dir, "vllm.log")
-        )
+            raise Refusal("VL_MODEL_DIR is empty and no upstream was named")
+        up = Upstream(weights, model, knobs.number("PORT", kind=int), os.path.join(log_dir, "vllm.log"))
         up.start()
         upstream_url = up.url
     svc = Service(upstream_url, model, weights if up is not None else None, key, up)
     try:
         took = svc.wait_ready()
-        log(
-            f"vLLM answers as {model} after {took:.0f} s; weights {str(svc.describe.fingerprint.get('sha256_weights'))[:12]}"
-        )
-        srv = serve(svc, host, port)
-        log(
-            f"listening on http://{srv.server_address[0]}:{srv.server_address[1]}{served.DESCRIBE}, chat route passed through"
-        )
-        run_until_stopped(srv, model)
-        log(f"served {svc.requests} requests")
+        log(f"vLLM answers as {model} after {took:.0f} s")
+        uvicorn.run(create_app(svc), host="0.0.0.0", port=port)
     finally:
         if up is not None:
             up.stop()
-    return 0
