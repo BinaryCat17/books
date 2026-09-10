@@ -62,8 +62,8 @@ class FitnessMetric(Metric):
 
     def run_loaded(self, bench, run, truth, pages, note, want=None) -> Record:
         # The ink measurement renders the PDF page by page and reads the
-        # pages itself; the parsed dicts are not what costs here, the page
-        # set asked for is.
+        # pages itself, so the parsed dicts are not used; the page set is,
+        # since the rendering is what costs.
         return self.run(bench, run, want)
 
     def record(self, res: dict, bench_name: str, run_label: str, with_truth=True) -> Record:

@@ -365,7 +365,9 @@ options:
                         applicable one
   --pages PAGES         measure these pages only, counted from 1 as `books
                         detect` counts them; the records go to a file of their
-                        own name, never the book's
+                        own name, never the book's, and its name and header
+                        carry the page indices, counted from 0 as the anchors
+                        are
   --json JSON           where to write the records (default:
                         results/<bench>-<run>.json, <bench>-<kind>-<run>.json
                         for a level that is not detect: a label is the model's

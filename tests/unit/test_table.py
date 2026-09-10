@@ -108,11 +108,11 @@ def test_the_report_leaves_out_a_run_of_another_level_and_counts_it():
         table.write_json([red], os.path.join(d, "b-read-SomeReader.json"),
                          kind="read")
         table.write_json([det], os.path.join(d, "b-x.json"))
-        cells, _, _, other = report._cells(d)
-        assert ("b", "SomeReader") not in cells, cells
-        assert list(cells) == [("b", LABEL)], cells
+        cells, names, _, _, other = report._cells(d)
+        assert ("bench/b", "SomeReader") not in cells, cells
+        assert list(cells) == [("bench/b", LABEL)] and names == {("bench/b", LABEL): "b-x.json"}
         assert [(k, n, b, r) for k, n, b, r, _ in other] \
-            == [("read", "b-read-SomeReader.json", "b", "SomeReader")], other
+            == [("read", "b-read-SomeReader.json", "bench/b", "SomeReader")], other
 
 
 def test_records_come_back_from_disk_as_json_left_them():
@@ -211,18 +211,69 @@ def test_records_carry_the_runs_identity_and_the_header_the_page_set(slovar):
         path = table.write_json(recs, os.path.join(d, "x.json"), pages=[3, 2])
         d2 = table.read_file(path)
         back = table.read_json(path)
-    assert d2["pages"] == [2, 3]
+    assert d2["pages"] == [2, 3] and d2["only"] is None
     assert back[0].identity is None and "identity" in d2["records"][0]
-    stamped = Record("m", "b", "r", identity="abc", source_sha256="def")
+    assert back[0].book == slovar.name, "a bench outside a store keeps its bare name"
+    stamped = Record("m", "b", "r", identity="abc", source_sha256="def", book="processed/b")
     assert Record.from_json(json.loads(json.dumps(stamped.to_json()))) == stamped
     # The three states, and the fourth: a record that cannot be checked is
-    # not a current one.
+    # not a current one, and a snapshot that swears no identity cannot say
+    # it differs.
     assert base.staleness("abc", {"identity": "abc"}) == base.CURRENT
     assert base.staleness("abc", {"identity": "xyz"}) == base.STALE
     assert base.staleness(None, {"identity": "abc"}) == base.NOT_RECORDED
     assert base.staleness("abc", None) == base.NOT_CHECKED
+    assert base.staleness("abc", {"when": "now"}) == base.NOT_CHECKED
+    # The scan's hash is checked too: one identity over another scan is stale.
+    same = {"identity": "abc", "source": {"sha256": "s1"}}
+    assert base.staleness("abc", same, "s1") == base.CURRENT
+    assert base.staleness("abc", same, "s2") == base.STALE
+    assert base.staleness("abc", same, None) == base.CURRENT
     with support.said(), pytest.raises(Refusal, match="no pages"):
         table.rows(slovar, bare, ["contour"], [99])
+    with support.said(), pytest.raises(Refusal, match="empty page set"):
+        table.rows(slovar, bare, ["contour"], [])
+
+
+def test_a_page_asked_alone_is_measured_as_the_book_measures_it(slovar):
+    """A truth that names its labelled pages leaves a silent page out of
+    the whole; asked for that page alone, the table refuses rather than
+    compare what the book's own measure does not. And a page with no
+    artefact has no share of them, not a zero."""
+    from booksmith.datasets.bench import Run
+    from booksmith.core.page import write_json
+    import shutil
+    with tempfile.TemporaryDirectory() as d:
+        truth = os.path.join(d, "truth")
+        shutil.copytree(slovar.truth_dir, truth)
+        for n, flag in ((2, True), (3, None)):
+            tp = os.path.join(truth, f"{n:04d}.json")
+            with open(tp, encoding="utf-8") as f:
+                t = json.load(f)
+            if flag is not None:
+                t["meta"]["labelled"] = flag
+            write_json(tp, t)
+        b = Bench.bare(truth)
+        run = Run.bare(slovar.truth_dir, "truth")
+        with support.said():
+            whole = table.rows(b, run, ["contour"])[0]
+            one = table.rows(b, run, ["contour"], [2])[0]
+        assert whole.detail["labelled"] == {"yes": 1, "no": 0, "not_said": 12}
+        assert one.detail["order_truth"]["page_count"] == 1
+        with support.said(), pytest.raises(Refusal, match="not labelled in this truth"):
+            table.rows(b, run, ["contour"], [3])
+    pages = json.load(open(os.path.join(slovar.truth_dir, "0001.json"), encoding="utf-8"))
+    from booksmith.core import policy
+    if not any(policy.UNION.role(x["label"]) == "artifact" for x in pages["blocks"]):
+        with support.said():
+            rec = table.rows(slovar, Run.bare(slovar.truth_dir, "truth"), ["contour"], [1])[0]
+        s = rec.scalars["artefacts_found"]
+        assert s.value is None and s.why == "no artefact in the truth" and s.count == (0, 0)
+
+
+def _check(report, results, store):
+    cells, names, _, _, other = report._cells(results)
+    return report.check_runs(cells, other, names, store)
 
 
 def test_the_report_refuses_a_record_of_a_run_that_is_gone_and_counts_the_rest():
@@ -230,7 +281,8 @@ def test_the_report_refuses_a_record_of_a_run_that_is_gone_and_counts_the_rest()
     disk is refused as a dirty commit is; one naming none, or of a run not
     here, is counted and said, never called current."""
     from booksmith.datasets import report
-    rec = Record("fitness", "b", LABEL, {"ink_under_boxes": Scalar(0.5)}, identity="one")
+    rec = Record("fitness", "b", LABEL, {"ink_under_boxes": Scalar(0.5)},
+                 identity="one", book="bench/b")
     with tempfile.TemporaryDirectory() as d:
         run_dir = os.path.join(d, "bench", "b", "detect", LABEL)
         os.makedirs(run_dir)
@@ -239,17 +291,46 @@ def test_the_report_refuses_a_record_of_a_run_that_is_gone_and_counts_the_rest()
         results = os.path.join(d, "results")
         with support.said():
             table.write_json([rec], os.path.join(results, f"b-{LABEL}.json"))
-        cells, _, _, other = report._cells(results)
-        assert report.check_runs(cells, other, report._NAMES, d)["current"] == 1
+        assert _check(report, results, d)["current"] == 1
         with open(os.path.join(run_dir, "run.json"), "w", encoding="utf-8") as f:
             json.dump({"identity": "two"}, f)
         with pytest.raises(Refusal, match="no longer the one on disk"):
-            report.check_runs(cells, other, report._NAMES, d)
+            _check(report, results, d)
         os.unlink(os.path.join(run_dir, "run.json"))
-        states = report.check_runs(cells, other, report._NAMES, d)
+        states = _check(report, results, d)
         assert states["not checked"] == 1 and states["current"] == 0
         with support.said():
             table.write_json([Record("fitness", "b", LABEL, {"ink_under_boxes": Scalar(0.5)})],
                              os.path.join(results, f"b-{LABEL}.json"))
-        cells, _, _, other = report._cells(results)
-        assert report.check_runs(cells, other, report._NAMES, d)["not recorded"] == 1
+        assert _check(report, results, d)["not recorded"] == 1
+        # A selection and a page set are not cells, by their headers.
+        with support.said():
+            table.write_json([rec], os.path.join(results, "b-x.json"), pages=[1])
+            table.write_json([rec], os.path.join(results, "b-y.json"), only=["fitness"])
+        cells, *_ = report._cells(results)
+        assert list(cells) == [("bench/b", LABEL)]
+
+
+def test_a_bench_and_a_processed_book_of_one_name_are_two_cells_each_checked_against_its_own_run():
+    """`bench/x` and `processed/x` measured under one commit: two cells,
+    two runs, and the state of each is its own -- keyed on the name alone
+    the second record was checked against the first's run and called stale."""
+    from booksmith.datasets import report
+    with tempfile.TemporaryDirectory() as d:
+        for root, ident in (("bench", "one"), ("processed", "two")):
+            run_dir = os.path.join(d, root, "x", "read", "R")
+            os.makedirs(run_dir)
+            with open(os.path.join(run_dir, "run.json"), "w", encoding="utf-8") as f:
+                # The processed one is a hybrid: a read run with its own boxes.
+                json.dump({"identity": ident, **({"layout": "own"} if root == "processed" else {})}, f)
+            rec = Record("fitness", "x", "R", {"ink_under_boxes": Scalar(0.5)},
+                         identity=ident, book=f"{root}/x")
+            name = ("processed-" if root == "processed" else "") + "x-read-R.json"
+            with support.said():
+                table.write_json([rec], os.path.join(d, "results", name),
+                                 kind="hybrid" if root == "processed" else "read")
+        cells, names, _, _, other = report._cells(os.path.join(d, "results"))
+        assert cells == {} and sorted(b for _, _, b, _, _ in other) == ["bench/x", "processed/x"]
+        states = report.check_runs(cells, other, names, d)
+        assert states["current"] == 2, states
+        assert report._column("bench/x") == "x" and report._column("processed/x") == "processed/x"

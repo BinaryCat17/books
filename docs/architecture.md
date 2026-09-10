@@ -240,16 +240,18 @@ or a block of which side, and what its coverage counts, so a client places
 a number where it was counted without knowing the metric; the contract
 holds every record to its declaration.
 
-A record names the identity of the run it measured and the hash of the
-scan, out of the run's snapshot, so a results file can say later whether
-the run on disk is still the one measured: current, stale, or not recorded,
-and not checked where the run is not here to ask. The report refuses a
-stale record as it refuses a dirty commit, and says the counts of the
-rest. A results file is named for its bench and run, prefixed `processed-`
-for a book under `processed/`, since the two roots can hold one name, and
-a measure of a page set is a file of its own name with the pages in its
-header, never the book's file: `books bench all --pages`, and the web asks
-one page at a time.
+A record names its book as a path in the store, the identity of the run
+it measured and the hash of the scan, out of the run's snapshot, so a
+results file can say later whether the run on disk is still the one
+measured: current where the identity and the hash agree, stale where either
+differs, not recorded where the record names no identity, and not checked
+where the run is not here to ask or swears none. The report refuses a stale
+record as it refuses a dirty commit, and says the counts of the rest. A
+results file is named for its bench and run, prefixed `processed-` for a
+book under `processed/`, since the two roots can hold one name, and a
+measure of a page set or of a selection of metrics is a file of its own
+name with the pages and the metrics in its header, never the book's file:
+`books bench all --pages`, and the web asks one page at a time.
 
 Every metric has probes of deliberately spoiled input, in a module of their own
 beside it, and the number must fall on each before the metric is believed:

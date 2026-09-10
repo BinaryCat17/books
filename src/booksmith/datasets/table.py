@@ -4,6 +4,7 @@ The one place the numbers are laid side by side and written down. A null value
 prints its reason as a footnote, never a blank: "the truth carries no order"
 and "zero agreement" must not read alike.
 """
+import dataclasses
 import json
 import os
 import time
@@ -11,7 +12,8 @@ import time
 from booksmith.core import job, stamp
 from booksmith.core.errors import Refusal
 from booksmith.datasets import metrics as registry
-from booksmith.datasets.bench import Bench, Run, same_book
+from booksmith.datasets.bench import (Bench, Run, book_of, labelled_of, labelled_said,
+                                      same_book, trait_state)
 from booksmith.core.log import log
 
 
@@ -23,7 +25,6 @@ def rows(bench: Bench, run: Run, which=None, pages_want=None) -> list:
     both sides to a set of page indices before any metric asks, so a number
     can be had for one page; None is the whole book. Each record carries
     the run's identity and the scan's hash out of the run's snapshot."""
-    import dataclasses
     # The truth is parsed only if there is any: a book with no `truth/` is a
     # legal thing to measure, and `applicable` withholds "truth" and "content"
     # from an empty dict by itself.
@@ -33,9 +34,23 @@ def rows(bench: Bench, run: Run, which=None, pages_want=None) -> list:
     model = run.pages()
     if pages_want is not None:
         want = set(pages_want)
-        gone = sorted(want - set(model))
-        if gone:
-            raise Refusal(f"the run has no pages {gone[:5]}: nothing to measure there")
+        if not want:
+            raise Refusal("an empty page set: nothing to measure, which is not a zero")
+        for side, have in (("the run", model), ("the truth", pages)):
+            gone = sorted(want - set(have)) if have or side == "the run" else []
+            if gone:
+                raise Refusal(f"{side} has no pages {gone[:5]}: nothing to measure there")
+        # A truth that names its labelled pages is a fact of the whole truth,
+        # decided here where the whole is in hand: a page cut out alone would
+        # tell the metric nothing of it, and be compared where the book's
+        # own measure leaves it out.
+        if pages and labelled_said(labelled_of(pages)):
+            out = sorted(i for i in want
+                         if trait_state(pages[i].get("meta") or {}, "labelled") != "yes")
+            if out:
+                raise Refusal(f"pages {out[:5]} are not labelled in this truth, "
+                              f"which names its labelled pages: nothing to "
+                              f"compare there")
         pages = {i: p for i, p in pages.items() if i in want}
         model = {i: p for i, p in model.items() if i in want}
     # `applicable` decides and `prerequisites` only explains: filtering inline
@@ -73,7 +88,8 @@ def rows(bench: Bench, run: Run, which=None, pages_want=None) -> list:
         job.current().check()
         log(f"{m.name}: {note}", n=i, of=len(todo), metric=m.name)
         rec = m.run_loaded(bench, run, pages, model, note, pages_want)
-        out.append(dataclasses.replace(rec, identity=run.snapshot.get("identity"),
+        out.append(dataclasses.replace(rec, book=book_of(bench),
+                                       identity=run.snapshot.get("identity"),
                                        source_sha256=run.sha256))
     return out
 
@@ -102,8 +118,7 @@ def results_path(bench: Bench, run: Run, which=None, store: str | None = None,
     nothing on disk."""
     from booksmith.core import book as book_mod
     store = store or book_mod.store_of(bench.root)
-    root = os.path.basename(os.path.dirname(os.path.abspath(bench.root)))
-    prefix = "processed-" if root == "processed" else ""
+    prefix = "processed-" if book_of(bench).startswith("processed/") else ""
     tail = "-only-" + "+".join(which) if which else ""
     if pages is not None:
         tail += "-pages-" + pages_tail(pages)
@@ -112,17 +127,21 @@ def results_path(bench: Bench, run: Run, which=None, store: str | None = None,
     return os.path.join(store, "results", f"{prefix}{bench.name}-{level}{run.label}{tail}.json")
 
 
-def write_json(records, path: str, kind: str = "detect", pages=None) -> str:
-    """The records under a header saying when, by which code, of which level
-    and over which pages. The commit rides in the file so a cross-model
-    table comes from one tree; `kind` keeps a level-two run, whose boxes are
-    a detector's, out of the model column; `pages` is the set measured,
-    null for the whole book."""
+def write_json(records, path: str, kind: str = "detect", pages=None,
+               only=None) -> str:
+    """The records under a header saying when, by which code, of which
+    level, over which pages and of which metrics. The commit rides in the
+    file so a cross-model table comes from one tree; `kind` keeps a
+    level-two run, whose boxes are a detector's, out of the model column;
+    `pages` is the set measured, null for the whole book, and `only` the
+    metrics asked for, null for every applicable one: the report renders
+    only a whole measure, and reads that off the header."""
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         json.dump({"when": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
                    "kind": kind or "detect",
                    "pages": sorted(set(pages)) if pages is not None else None,
+                   "only": list(only) if only else None,
                    # Ignoring the results themselves: a pass that writes 54
                    # of these would otherwise dirty the tree with its own
                    # first file and stamp the other 53 unusable.

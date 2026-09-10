@@ -33,7 +33,34 @@ def trait_state(meta: dict, key: str) -> str:
     return "yes" if meta[key] else "no"
 
 
-def _read_json(path):
+def labelled_of(pages: dict) -> dict:
+    """How many pages of a truth say `labelled` yes, no, or nothing."""
+    out = {s: 0 for s in TRAIT_STATES}
+    for p in pages.values():
+        out[trait_state(p.get("meta") or {}, "labelled")] += 1
+    return out
+
+
+def labelled_said(labelled: dict) -> bool:
+    """Whether any page of the truth said: then only the pages that say yes
+    are compared, and a page that says nothing is one left out. A fact of
+    the whole truth, which one page cannot know."""
+    return bool(labelled["yes"] or labelled["no"])
+
+
+def book_of(bench: "Bench") -> str:
+    """The bench as a path in its store, `bench/<name>` or
+    `processed/<name>`, by the root it lies under; the bare name outside
+    either. Two roots can hold one name, so a record and a results file
+    carry this and not the name alone."""
+    root = os.path.basename(os.path.dirname(os.path.abspath(bench.root)))
+    return f"{root}/{bench.name}" if root in book_mod.BOOK_ROOTS else bench.name
+
+
+def read_json(path):
+    """A JSON object off disk, or None: a file that is not there or not a
+    dict is one thing here, since every caller asks "is this a run" or "is
+    this a book" and answers no to both."""
     try:
         with open(path, encoding="utf-8") as f:
             d = json.load(f)
@@ -87,7 +114,7 @@ class Run:
             raise Unmeasurable(f"{what}: no path {path}")
         for run_dir, pages in ((path, os.path.join(path, "pages")),
                                (os.path.dirname(path), path)):
-            snap = _read_json(os.path.join(run_dir, "run.json"))
+            snap = read_json(os.path.join(run_dir, "run.json"))
             if snap is not None and os.path.isdir(pages):
                 return cls(pages, run_dir, snap, os.path.basename(run_dir))
         raise Unmeasurable(
@@ -169,7 +196,7 @@ class Bench:
             raise Unmeasurable(
                 f"{path} is not a bench: expected a directory holding "
                 f"truth/ (and manifest.json), or the truth/ directory itself")
-        man = _read_json(os.path.join(root, "manifest.json")) or {}
+        man = read_json(os.path.join(root, "manifest.json")) or {}
         return cls(root, os.path.basename(os.path.abspath(root)), truth, man)
 
     @classmethod
@@ -186,7 +213,7 @@ class Bench:
         truth-free metrics reach it. `truth_dir` stays empty, so `applicable`
         withholds every metric that needs truth; `open` still refuses this."""
         path = path.rstrip("/")
-        man = _read_json(os.path.join(path, "manifest.json"))
+        man = read_json(os.path.join(path, "manifest.json"))
         if not man:
             raise Unmeasurable(
                 f"{path} is not a book: expected manifest.json naming the "

@@ -275,6 +275,9 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "",
             raise Unmeasurable(f"no pages {gone[:5]} to measure: "
                                f"{'truth' if T else 'the run'} has none")
         pages = [i for i in pages if i in want]
+        # The truth counted is the truth measured: a one-page measure does
+        # not report the whole book's truth as supplied.
+        res["truth_pages"] = sum(1 for i in pages if i in T)
     for i in pages:
         if i not in M:
             raise Unmeasurable(

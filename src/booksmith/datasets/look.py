@@ -17,8 +17,8 @@ from booksmith.core import book
 from booksmith.core import page as page_mod
 from booksmith.core import job
 from booksmith.core.log import log
-from booksmith.datasets.bench import trait_state
-from booksmith.datasets.metrics.contour import labelled_of, labelled_said, page_pairs
+from booksmith.datasets.bench import labelled_of, labelled_said, trait_state
+from booksmith.datasets.metrics.contour import page_pairs
 
 # Caption font: a PREFERENCE, not a requirement -- used when it is there, the
 # built-in `helv` when it is not, which renders all three captions this module

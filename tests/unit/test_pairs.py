@@ -219,8 +219,9 @@ def test_a_page_that_says_it_is_not_labelled_is_left_out_and_said(slovar):
     assert res["jumps"]["page_count"] == 1, "the jumps describe pages the rest left out"
     assert res["sense"]["objects"] == sum(
         1 for b in T[1]["blocks"] if policy.UNION.role(b["label"]) == "artifact")
-    said = contour.labelled_said(contour.labelled_of(T))
-    assert said and not contour.labelled_said(contour.labelled_of(_model_of(T)))
+    from booksmith.datasets import bench as bench_mod
+    said = bench_mod.labelled_said(bench_mod.labelled_of(T))
+    assert said and not bench_mod.labelled_said(bench_mod.labelled_of(_model_of(T)))
     assert contour.page_pairs(T[0], M[0], said=said) is None
     assert contour.page_pairs(T[1], M[1], said=said) == res["pairs"][1]
     # A page that says nothing, where others speak, is one the count left

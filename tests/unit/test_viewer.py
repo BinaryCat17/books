@@ -150,7 +150,7 @@ def test_one_page_is_measured_from_the_service_and_the_results_know_their_run(st
     assert by["fitness"]["detail"]["page_count"] == 1
     assert by["contour"]["identity"] and len(by["contour"]["identity"]) == 64
     assert not os.path.isdir(os.path.join(home, "results")), "a page measure wrote a file"
-    with pytest.raises(Refusal, match="not measured yet"):
+    with pytest.raises(Refusal, match="not measured whole yet"):
         service.results(home, BOOK, "detect", "truth")
     with support.said():
         path = service.bench(home, os.path.join(home, BOOK), {}, run="truth")
@@ -158,6 +158,7 @@ def test_one_page_is_measured_from_the_service_and_the_results_know_their_run(st
     got = service.results(home, BOOK, "detect", "truth")
     assert got["pages"] is None and got["path"] == os.path.join("results", "slovar-truth.json")
     assert {r["state"] for r in got["records"]} == {"current"}
+    assert all("detail" not in r and r["book"] == BOOK for r in got["records"])
     # A page set gets a file of its own name, and the header says which pages.
     with support.said():
         part = service.bench(home, os.path.join(home, BOOK), {}, run="truth", pages="2-3")

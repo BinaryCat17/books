@@ -14,7 +14,7 @@ import os
 from booksmith.core import config, stamp
 from booksmith.core.errors import Refusal
 from booksmith.datasets import table
-from booksmith.datasets.bench import _read_json
+from booksmith.datasets.bench import read_json
 from booksmith.datasets.metrics import base
 from booksmith.core.log import log
 
@@ -64,41 +64,56 @@ def headline() -> list:
 
 
 
+def _book(rec: dict) -> str:
+    """The record's book as a path in the store; a record written before the
+    field existed is a bench's, which every one of them was."""
+    return rec.get("book") or f"bench/{rec['bench']}"
+
+
 def _cells(results: str = RESULTS):
-    """(bench, run) -> {metric: record dict}, the commits they came from, and the
-    runs of ANOTHER LEVEL left out: their pages carry the boxes of whatever
-    detector made them, so they are kept out of the model column and counted."""
-    out, commits, when, other = {}, set(), set(), []
+    """(book, run) -> {metric: record dict}, the results file each came
+    from, the commits they came from, and the runs of ANOTHER LEVEL left
+    out: their pages carry the boxes of whatever detector made them, so
+    they are kept out of the model column and counted. A book is its path
+    in the store, `bench/<name>` or `processed/<name>`: two roots can hold
+    one name, and one cell for both would be two books."""
+    out, names, commits, when, other = {}, {}, set(), set(), []
     for name in sorted(os.listdir(results)) if os.path.isdir(results) else []:
-        # A selection and a page set are their own files, never a cell.
-        if not name.endswith(".json") or "-only-" in name or "-pages-" in name:
+        if not name.endswith(".json"):
             continue
         d = table.read_file(os.path.join(results, name))
+        # A selection and a page set are their own files, never a cell: the
+        # header says so, and a file written before it did says so by name.
+        if (d.get("pages") is not None or d.get("only")
+                or "-only-" in name or "-pages-" in name):
+            continue
         # A file written before the field existed is `detect`, which every
         # one of them was.
         kind = d.get("kind") or "detect"
         commits.add(d["commit"])
         when.add(d["when"])
+        recs = d["records"]
         if kind != "detect":
             # Held out of the model column, not out of the document: it is the
             # only run that has READ anything, so it gets a section of its own
             # under the same commit rule.
             by = {}
-            for rec in d["records"]:
+            for rec in recs:
                 by[rec["metric"]] = rec
-            other.append((kind, name, d["records"][0]["bench"] if d["records"]
-                          else name, d["records"][0]["run"] if d["records"]
-                          else "", by))
+            other.append((kind, name, _book(recs[0]) if recs else name,
+                          recs[0]["run"] if recs else "", by))
             continue
-        for rec in d["records"]:
-            out.setdefault((rec["bench"], rec["run"]), {})[rec["metric"]] = rec
-            _NAMES[(rec["bench"], rec["run"])] = name
-    return out, commits, when, other
+        for rec in recs:
+            key = (_book(rec), rec["run"])
+            out.setdefault(key, {})[rec["metric"]] = rec
+            names[key] = name
+    return out, names, commits, when, other
 
 
-# The results file each cell came from, for the check against the run on
-# disk; filled by `_cells`, read by `build`.
-_NAMES: dict = {}
+def _column(book: str) -> str:
+    """A bench by its bare name, as the tables always read; a book under
+    another root by its path, so it cannot be taken for a bench."""
+    return book[len("bench/"):] if book.startswith("bench/") else book
 
 
 def _arrow(scalar: str) -> str:
@@ -159,12 +174,13 @@ def _table(rows, header):
     return out
 
 
-def _snapshot_of(store: str, name: str, kind: str, bench: str, run: str) -> dict | None:
-    """The run's snapshot on disk, where the results file says the run is:
-    a file prefixed `processed-` names a book under `processed/`, the rest
-    a bench. None where the run is not here to ask."""
-    root = "processed" if name.startswith("processed-") else "bench"
-    return _read_json(os.path.join(store, root, bench, kind, run, "run.json"))
+def _snapshot_of(store: str, book: str, kind: str, run: str) -> dict | None:
+    """The run's snapshot on disk, under the book the record names. The
+    header's kind is the level, and a hybrid is a read run whose boxes are
+    its own: its directory is `read/`. None where the run is not here to
+    ask."""
+    kind = "read" if kind == "hybrid" else kind
+    return read_json(os.path.join(store, book, kind, run, "run.json"))
 
 
 def check_runs(cells: dict, other_levels: list, names: dict, store: str) -> dict:
@@ -177,9 +193,9 @@ def check_runs(cells: dict, other_levels: list, names: dict, store: str) -> dict
     todo = [(names[(b, r)], "detect", b, r, by) for (b, r), by in cells.items()]
     todo += [(name, kind, b, r, by) for kind, name, b, r, by in other_levels]
     for name, kind, b, r, by in todo:
-        snap = _snapshot_of(store, name, kind, b, r)
+        snap = _snapshot_of(store, b, kind, r)
         for metric, rec in by.items():
-            st = base.staleness(rec.get("identity"), snap)
+            st = base.staleness(rec.get("identity"), snap, rec.get("source_sha256"))
             states[st] += 1
             if st == base.STALE:
                 stale.append(f"{name}: {metric} ({str(rec.get('identity'))[:12]} "
@@ -198,7 +214,7 @@ def build(results: str = RESULTS, store: str | None = None) -> str:
     """The document out of `results/`, checked against the runs under
     `store`, the data root the results directory lies in unless named."""
     store = store or os.path.dirname(os.path.abspath(results))
-    cells, commits, when, other_levels = _cells(results)
+    cells, names, commits, when, other_levels = _cells(results)
     if not cells:
         # Two different empties: results exist and every one is of a level this
         # document does not render, so "measure first" is the wrong answer.
@@ -247,10 +263,11 @@ def build(results: str = RESULTS, store: str | None = None) -> str:
             f"({', '.join(sorted(commits))}). A table whose cells were "
             f"computed by different code is not a comparison. Re-run the "
             f"sweep: `python3 tools/sweep.py --apply --again`.")
-    states = check_runs(cells, other_levels, _NAMES, store)
+    states = check_runs(cells, other_levels, names, store)
     benches = sorted({b for b, _ in cells})
     runs = sorted({r for _, r in cells})
     commit = next(iter(commits))
+    total = sum(states.values())
 
     L = ["# What this project measures, and what it measured",
          "",
@@ -269,8 +286,9 @@ def build(results: str = RESULTS, store: str | None = None) -> str:
          # Three states and a fourth, never one word: a record that names no
          # identity and a run that is not here to ask are two different
          # things not checked, and neither is "current".
-         "Every record names the identity of the run it measured, and each "
-         "was checked against the run on disk before this was rendered: "
+         f"{total - states[base.NOT_RECORDED]} of {total} records name the "
+         f"identity of the run they measured, and each was checked against "
+         f"the run on disk before this was rendered: "
          + ", ".join(f"{n} {s}" for s, n in states.items() if n)
          + ". A stale record is refused, not rendered.",
          "",
@@ -318,7 +336,7 @@ def build(results: str = RESULTS, store: str | None = None) -> str:
              + " kept out of the tables above and given a section of "
              + ("its" if len(other_levels) == 1 else "their")
              + " own at the end: "
-             + ", ".join(f"`{b}` / `{r}` ({k})"
+             + ", ".join(f"`{_column(b)}` / `{r}` ({k})"
                          for k, _, b, r, _ in sorted(other_levels)) + "."
              if other_levels else
              "None has been measured yet; `books bench all <book> --kind "
@@ -353,7 +371,7 @@ def build(results: str = RESULTS, store: str | None = None) -> str:
                 row.append(_cell(cells.get((b, r), {}).get(metric), scalar,
                                  measured=(b, r) in cells))
             rows.append(row)
-        L += _table(rows, ["model"] + benches)
+        L += _table(rows, ["model"] + [_column(b) for b in benches])
         notes = sorted({_why(cells.get((b, r), {}).get(metric), scalar)
                         for b in benches for r in runs} - {None})
         if notes:
@@ -388,7 +406,7 @@ def build(results: str = RESULTS, store: str | None = None) -> str:
               "a picture of itself, and how much of the sheet was never "
               "information at all.", ""]
         for kind, _name, b, r, by in sorted(other_levels):
-            L += [f"### {b} — {r} ({kind})", ""]
+            L += [f"### {_column(b)} — {r} ({kind})", ""]
             rows = []
             for metric in sorted(by):
                 for s, _sc in sorted((by[metric].get("scalars") or {}).items()):
@@ -403,7 +421,7 @@ def build(results: str = RESULTS, store: str | None = None) -> str:
     # ---- per bench, everything -------------------------------------------
     L += ["## Every scalar, bench by bench", ""]
     for b in benches:
-        L += [f"### {b}", ""]
+        L += [f"### {_column(b)}", ""]
         here = {r: cells.get((b, r), {}) for r in runs}
         present = [r for r in runs if (b, r) in cells]
         if not present:

@@ -178,20 +178,6 @@ def _same_raster(T: dict, M: dict) -> str:
     return note
 
 
-def labelled_of(T: dict) -> dict:
-    """How many pages of a truth say `labelled` yes, no, or nothing."""
-    out = {s: 0 for s in bench_mod.TRAIT_STATES}
-    for p in T.values():
-        out[bench_mod.trait_state(p.get("meta") or {}, "labelled")] += 1
-    return out
-
-
-def labelled_said(labelled: dict) -> bool:
-    """Whether any page of the truth said: then only the pages that say yes
-    are compared, and a page that says nothing is one left out."""
-    return bool(labelled["yes"] or labelled["no"])
-
-
 def page_pairs(t: dict, m: dict, tp=None, mp=None, said: bool = False) -> dict | None:
     """One page's pairs and extras, as `compare_pages` forms them: what the
     overlay draws and a viewer places over the page. `said` is whether any
@@ -251,8 +237,8 @@ def compare_pages(T: dict, M: dict, tp=None, mp=None) -> dict:
     mp = mp or policy.UNION
     # A page that says it is not labelled is not compared, once any page says
     # anything: a truth drawn page by page is measured on the pages it has.
-    labelled = labelled_of(T)
-    if labelled_said(labelled):
+    labelled = bench_mod.labelled_of(T)
+    if bench_mod.labelled_said(labelled):
         T = {i: p for i, p in T.items()
              if bench_mod.trait_state(p.get("meta") or {}, "labelled") == "yes"}
         if not T:
@@ -1172,7 +1158,12 @@ class ContourMetric(Metric):
         pairs = sum(res["label_confusion"].values())
         no_pair = "no truth block was matched to a model block"
         scalars = {
-            "artefacts_found": Scalar(t["share"], count=(t["found"], t["artifacts"]),
+            # None where the truth holds no artefact, as `sense_whole` beside
+            # it: a share of nothing is not a zero of finds, and on one page
+            # that is the common case.
+            "artefacts_found": Scalar(t["share"] if t["artifacts"] else None,
+                                      count=(t["found"], t["artifacts"]),
+                                      why=None if t["artifacts"] else "no artefact in the truth",
                                       per=per["artefacts_found"], side="truth"),
             "sense_whole": Scalar(
                 s["share"], count=(s["intact"], s["objects"]),

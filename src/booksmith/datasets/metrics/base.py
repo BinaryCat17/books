@@ -70,7 +70,9 @@ class Scalar:
 
 @dataclass
 class Record:
-    """What one metric said of one run of one bench. `identity` and
+    """What one metric said of one run of one bench. `book` is the bench as
+    a path in its store, `bench/<name>` or `processed/<name>`: two roots can
+    hold one name, and `bench` alone is that name. `identity` and
     `source_sha256` are the run's, as its snapshot swore them when the
     record was taken, so a record can say later whether the run it
     describes is still the run on disk; None where the run had no snapshot
@@ -83,6 +85,7 @@ class Record:
     detail: dict = field(default_factory=dict)
     identity: str | None = None
     source_sha256: str | None = None
+    book: str | None = None
 
     def row(self) -> dict:
         """One flat line of the table: identities, then the values."""
@@ -92,6 +95,7 @@ class Record:
 
     def to_json(self) -> dict:
         return {"metric": self.metric, "bench": self.bench, "run": self.run,
+                "book": self.book,
                 "identity": self.identity, "source_sha256": self.source_sha256,
                 "scalars": {k: s.to_json() for k, s in self.scalars.items()},
                 "params": self.params, "detail": self.detail}
@@ -104,24 +108,34 @@ class Record:
         return cls(d["metric"], d["bench"], d["run"],
                    {k: Scalar.from_json(v) for k, v in d["scalars"].items()},
                    d.get("params", {}), d.get("detail", {}),
-                   d.get("identity"), d.get("source_sha256"))
+                   d.get("identity"), d.get("source_sha256"), d.get("book"))
 
 
 # The three answers to "is this record about the run on disk", and a fourth
-# for a run that is not on disk to ask. A record that differs is refused by
-# the report as a dirty commit is: the number describes a run that is gone.
+# for a run that cannot be asked. A record that differs is refused by the
+# report as a dirty commit is: the number describes a run that is gone.
 CURRENT, STALE, NOT_RECORDED, NOT_CHECKED = "current", "stale", "not recorded", "not checked"
 
 
-def staleness(identity: str | None, snapshot: dict | None) -> str:
-    """The record's identity against the run's snapshot: `current` where they
-    agree, `stale` where they differ, `not recorded` where the record has
-    none, `not checked` where there is no snapshot to ask."""
+def staleness(identity: str | None, snapshot: dict | None,
+              source_sha256: str | None = None) -> str:
+    """The record against the run's snapshot: `current` where the identity
+    agrees and the scan's hash, when both sides recorded one, agrees too;
+    `stale` where either differs -- a run re-taken under one label over
+    another scan keeps its identity, which hashes the model and its knobs,
+    not the scan; `not recorded` where the record names no identity; `not
+    checked` where there is no snapshot, or one that swears no identity,
+    since a snapshot that cannot say cannot say it differs."""
     if identity is None:
         return NOT_RECORDED
-    if snapshot is None:
+    if snapshot is None or snapshot.get("identity") is None:
         return NOT_CHECKED
-    return CURRENT if snapshot.get("identity") == identity else STALE
+    if snapshot.get("identity") != identity:
+        return STALE
+    sworn = (snapshot.get("source") or {}).get("sha256")
+    if source_sha256 is not None and sworn is not None and sworn != source_sha256:
+        return STALE
+    return CURRENT
 
 
 # `content` says the TRUTH carries characters, `read` that THIS RUN does: one

@@ -534,7 +534,7 @@ def pairs(store: str, name: str, kind: str, label: str, index: int,
     mdir = os.path.join(rd, "pages")
     t, m = _page_json(tdir, index, "truth"), _page_json(mdir, index, f"{kind}/{label}")
     # Whether the truth names its labelled pages is asked of the whole truth.
-    said = contour.labelled_said(contour.labelled_of(load_pages(tdir, "truth")))
+    said = bench_mod.labelled_said(bench_mod.labelled_of(load_pages(tdir, "truth")))
     res = contour.page_pairs(t, m, book.policy_beside(tdir), book.policy_beside(mdir),
                              said=said)
     pairs_ = list((res or {}).get("pairs", []))
@@ -652,35 +652,47 @@ def bench(store: str, path: str, settings: Mapping, run: str = "",
         recs = table.rows(b, r, only, want)
         table.render(recs)
         json_path = json_path or table.results_path(b, r, only, store, want)
-        return table.write_json(recs, json_path, kind=r.level, pages=want)
+        return table.write_json(recs, json_path, kind=r.level, pages=want, only=only)
 
 
 def measure_page(store: str, name: str, kind: str, label: str, index: int,
-                 only: list | None = None) -> list[dict]:
+                 only: list | None = None, base: job.Job | None = None) -> list[dict]:
     """Every applicable metric's record for one page of a run, taken now
-    and written nowhere: what a viewer shows beside the page."""
+    under the caller's job and written nowhere: what a viewer shows beside
+    the page."""
     from booksmith.datasets import table
-    b, rd = _run_of(store, name, kind, label)
+    b, _ = _run_of(store, name, kind, label)
     bb, r = open_book(b.root, kind, label)
-    with job.Job().active():
+    with _job(store, {}, "", base).active():
         return [rec.to_json() for rec in table.rows(bb, r, only, [int(index)])]
 
 
 def results(store: str, name: str, kind: str, label: str) -> dict:
-    """The records last written for a run, with each one's state against the
-    run on disk: current, stale, not recorded. Refuses where nothing was
-    measured, which is not a run with no numbers."""
+    """The records last written for the whole run, each with its state
+    against the run on disk (current, stale, not recorded, not checked) and
+    without its detail, which the page routes serve. Refuses where the
+    whole run was not measured, naming any partial measure that was, since
+    a run with no numbers and a run measured on three pages are two
+    different things."""
     from booksmith.datasets import table
     from booksmith.datasets.metrics import base as metrics_base
-    b, rd = _run_of(store, name, kind, label)
+    b, _ = _run_of(store, name, kind, label)
     bb, r = open_book(b.root, kind, label)
     path = table.results_path(bb, r, None, store)
     if not os.path.isfile(path):
-        raise Refusal(f"{name} {kind}/{label} was not measured yet: no "
-                      f"{os.path.relpath(path, store)}. Run a bench job first.")
+        stem = os.path.basename(path)[:-len(".json")]
+        partial = sorted(n for n in os.listdir(os.path.dirname(path))
+                         if n.startswith(stem + "-")) if os.path.isdir(os.path.dirname(path)) else []
+        raise Refusal(f"{name} {kind}/{label} was not measured whole yet: no "
+                      f"{os.path.relpath(path, store)}"
+                      + (f"; there are partial measures {', '.join(partial[:5])}"
+                         if partial else "")
+                      + ". Run a bench job first.")
     d = table.read_file(path)
     for rec in d["records"]:
-        rec["state"] = metrics_base.staleness(rec.get("identity"), r.snapshot)
+        rec["state"] = metrics_base.staleness(rec.get("identity"), r.snapshot,
+                                              rec.get("source_sha256"))
+        rec.pop("detail", None)
     d["path"] = os.path.relpath(path, store)
     return d
 

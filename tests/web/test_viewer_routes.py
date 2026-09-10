@@ -70,7 +70,7 @@ def test_a_page_is_measured_on_request_and_the_results_say_their_state(app, home
     _detect(alice, mine)
     ub = f"/api/books/{mine}/runs/detect/truth"
     r = alice.get(f"{ub}/results")
-    assert r.status_code == 409 and "not measured yet" in r.json()["error"]
+    assert r.status_code == 409 and "not measured whole yet" in r.json()["error"]
     recs = alice.get(f"{ub}/pages/2/metrics").json()
     assert {x["metric"] for x in recs} >= {"fitness", "snapshot"}
     assert "contour" not in {x["metric"] for x in recs}, "a user's book has no truth"

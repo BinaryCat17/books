@@ -387,4 +387,13 @@ def test_every_scalar_is_placed_where_its_spec_says(slovar, slovar_run):
                     assert s.unit == sp.unit, (m.name, k, s.unit, sp.unit)
                 if sp.per == "none":
                     assert not s.per, (m.name, k, "declared none, carries anchors")
-    assert len(seen) >= 29, f"only {len(seen)} placed scalars seen: {sorted(seen)}"
+    declared = {sp.name for m in registry.METRICS for sp in m.scalars if sp.per != "none"}
+    # What neither run places: the drawn bench holds no characters, so the
+    # text metric's table and artefact scalars never fill, and truth against
+    # itself loses, crops, merges and mislabels nothing. Named, so that a
+    # scalar added without a run that places it is caught here.
+    unplaced = {"CER_artefacts", "CER_artefacts_answered", "baits_read", "cells_matched",
+                "artefacts_called_text", "artefacts_cropped", "artefacts_merged",
+                "charts_as_data", "objects_with_company"}
+    assert declared - seen == unplaced, (sorted(declared - seen - unplaced),
+                                         sorted(unplaced - (declared - seen)))
