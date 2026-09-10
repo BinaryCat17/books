@@ -70,7 +70,7 @@ def test_a_scalar_without_a_value_must_say_why():
         raise AssertionError("coverage without a unit was accepted")
 
 
-ANCHOR = re.compile(r"^p(\d{4})(?:-b(\d+))?$")
+ANCHOR = re.compile(r"^p(\d{4,})(?:-b(\d+))?$")
 
 
 def test_records_agree_with_the_raw_dict_they_carry():

@@ -208,8 +208,6 @@ def compare_pages(T: dict, M: dict) -> dict:
         for i in T if i in M})
     model_rank = all(_model_has_rank(M[i]) for i in T if i in M)
     per_case, conf, ranks = {}, {}, []
-    # By anchor: truth objects found and text blocks found, the model's boxes
-    # whose label or role is not the truth's.
     per = {"artefacts_found": {}, "text_furniture_found": {},
            "label_errors": {}, "role_errors": {}}
     ceiling = order_pages = 0
@@ -945,7 +943,6 @@ def sense(T: dict, M_: dict) -> dict:
     out = {"objects": 0, "intact": 0, "cropped": 0, "merged": 0,
            "called_text": 0, "not_seen": 0,
            "threshold_fits": SENSE_WHOLE, "threshold_neighbour": SENSE_NEIGHBOUR,
-           # Each truth object's fate, by its anchor.
            "per": {k: {} for k in ("intact", "cropped", "merged",
                                    "called_text", "not_seen")}}
     for i, t in sorted(T.items()):

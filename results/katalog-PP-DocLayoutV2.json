@@ -261,7 +261,7 @@
       "n": 0,
       "of": 60
      },
-     "value": 0
+     "value": 0.0
     },
     "sense_whole": {
      "count": {
@@ -522,7 +522,7 @@
       "n": 0,
       "of": 11
      },
-     "value": 0
+     "value": 0.0
     },
     "transitions": {
      "value": 0
@@ -615,7 +615,7 @@
       "n": 0,
       "of": 52
      },
-     "value": 0
+     "value": 0.0
     },
     "values_present": {
      "count": {

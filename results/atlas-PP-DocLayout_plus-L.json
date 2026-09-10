@@ -247,7 +247,7 @@
       "n": 0,
       "of": 22
      },
-     "value": 0
+     "value": 0.0
     },
     "model_order": {
      "over": {
@@ -263,7 +263,7 @@
       "n": 0,
       "of": 22
      },
-     "value": 0
+     "value": 0.0
     },
     "sense_whole": {
      "count": {
@@ -622,7 +622,7 @@
       "n": 0,
       "of": 52
      },
-     "value": 0
+     "value": 0.0
     },
     "values_present": {
      "count": {

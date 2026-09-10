@@ -24,7 +24,7 @@ class Scalar:
     over: tuple[int, int] | None = None     # (counted, of), coverage
     unit: str = ""                          # of `over`: pages, blocks, pairs
     why: str | None = None
-    per: dict | None = None                 # anchor -> value at that anchor
+    per: dict[str, float] | None = None     # anchor -> value at that anchor
     side: str = ""                          # whose blocks `per` names: truth, run
 
     def __post_init__(self):
@@ -36,11 +36,14 @@ class Scalar:
             raise ValueError("coverage without a unit says nothing")
         if self.side not in ("", "truth", "run"):
             raise ValueError(f"side is truth or run, not {self.side!r}")
-        if self.per and not self.side and any("-b" in k for k in self.per):
+        blocks = bool(self.per) and any("-b" in k for k in self.per)
+        if blocks and not self.side:
             raise ValueError("block anchors without a side name nobody's blocks")
+        # One form each for "nothing at any anchor" and "pages only": what
+        # JSON gives back.
         if not self.per:
-            # One form for "nothing at any anchor": what JSON gives back.
             object.__setattr__(self, "per", None)
+        if not blocks:
             object.__setattr__(self, "side", "")
 
     def to_json(self) -> dict:

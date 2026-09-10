@@ -65,7 +65,12 @@ def test_declared_markup_that_repeats_is_not_the_model_repeating_itself():
     stripped before the share is asked, or merge cells, dot leaders and chemistry
     read as a model repeating itself."""
     assert reading.loop_share("<lcel>" * 60) == 0.0
-    assert reading.loop_share("the same words over and over " * 20) > 0.9
+    loop = "the same words over and over " * 20
+    assert reading.loop_share(loop) > 0.9
+    # The finding lands at the block's anchor, at its share.
+    res = reading.measure(_pages([("text", "plain words"), ("text", loop)]))
+    assert res["per"]["looping"] == {"p0000-b1": reading.loop_share(loop)}
+    assert res["per"]["answered"] == {"p0000": 1.0}
 
 
 def test_a_formula_whose_CONTENT_repeats_is_the_residual_false_positive():

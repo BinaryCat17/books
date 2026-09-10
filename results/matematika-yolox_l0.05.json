@@ -273,7 +273,7 @@
       "n": 0,
       "of": 97
      },
-     "value": 0
+     "value": 0.0
     },
     "sense_whole": {
      "count": {
@@ -532,7 +532,7 @@
       "n": 0,
       "of": 12
      },
-     "value": 0
+     "value": 0.0
     },
     "transitions": {
      "value": 0
@@ -641,7 +641,7 @@
       "n": 0,
       "of": 79
      },
-     "value": 0
+     "value": 0.0
     },
     "values_present": {
      "count": {

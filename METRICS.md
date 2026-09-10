@@ -403,7 +403,7 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 |---|---|---|---|---|---|---|
 | `empty` ↓ | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.205 <sub>16/78</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.215 <sub>17/79</sub> |
 | `fingerprint_verified` = | 0 | 0 | 1 | 0 | 0 | 1 |
-| `missing` ↓ | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/78</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/79</sub> |
+| `missing` ↓ | 0.000 <sub>0/52</sub> | 0.000 <sub>0/52</sub> | 0.000 <sub>0/78</sub> | 0.000 <sub>0/52</sub> | 0.000 <sub>0/52</sub> | 0.000 <sub>0/79</sub> |
 | `values_present` = | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>78/78</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>79/79</sub> |
 
 ### atlas
@@ -443,9 +443,9 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 | `artefacts_merged` = | 0.000 <sub>0/16</sub> | 0.125 <sub>2/16</sub> | 0.000 <sub>0/16</sub> | 0.250 <sub>4/16</sub> | 0.062 <sub>1/16</sub> | 0.125 <sub>2/16</sub> |
 | `artefacts_not_seen` ↓ | 0.188 <sub>3/16</sub> | 0.125 <sub>2/16</sub> | 0.125 <sub>2/16</sub> | 0.000 <sub>0/16</sub> | 0.062 <sub>1/16</sub> | 0.188 <sub>3/16</sub> |
 | `assembly_order` ↑ | 0.952 | 1.000 | 0.882 | 0.895 | 0.913 | 0.900 |
-| `label_errors` ↓ | 0.440 <sub>11/25</sub> | 0.087 <sub>2/23</sub> | 0 <sub>0/22</sub> | — | — | — |
+| `label_errors` ↓ | 0.440 <sub>11/25</sub> | 0.087 <sub>2/23</sub> | 0.000 <sub>0/22</sub> | — | — | — |
 | `model_order` ↑ | 0.952 | 1.000 | — | — | — | — |
-| `role_errors` ↓ | 0.360 <sub>9/25</sub> | 0.087 <sub>2/23</sub> | 0 <sub>0/22</sub> | 0 <sub>0/23</sub> | 0.192 <sub>5/26</sub> | 0.118 <sub>2/17</sub> |
+| `role_errors` ↓ | 0.360 <sub>9/25</sub> | 0.087 <sub>2/23</sub> | 0.000 <sub>0/22</sub> | 0.000 <sub>0/23</sub> | 0.192 <sub>5/26</sub> | 0.118 <sub>2/17</sub> |
 | `sense_whole` ↑ | 0.750 <sub>12/16</sub> | 0.688 <sub>11/16</sub> | 0.812 <sub>13/16</sub> | 0.750 <sub>12/16</sub> | 0.875 <sub>14/16</sub> | 0.688 <sub>11/16</sub> |
 | `text_furniture_found` ↑ | 1.000 <sub>12/12</sub> | 1.000 <sub>12/12</sub> | 0.667 <sub>8/12</sub> | 0.917 <sub>11/12</sub> | 1.000 <sub>12/12</sub> | 0.500 <sub>6/12</sub> |
 
@@ -485,7 +485,7 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 |---|---|---|---|---|---|---|
 | `empty` ↓ | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.215 <sub>17/79</sub> |
 | `fingerprint_verified` = | 0 | 0 | 0 | 0 | 0 | 1 |
-| `missing` ↓ | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/79</sub> |
+| `missing` ↓ | 0.000 <sub>0/52</sub> | 0.000 <sub>0/52</sub> | 0.000 <sub>0/52</sub> | 0.000 <sub>0/52</sub> | 0.000 <sub>0/52</sub> | 0.000 <sub>0/79</sub> |
 | `values_present` = | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>79/79</sub> |
 
 ### hard
@@ -567,7 +567,7 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 |---|---|---|---|---|---|---|
 | `empty` ↓ | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.215 <sub>17/79</sub> |
 | `fingerprint_verified` = | 0 | 0 | 0 | 0 | 0 | 1 |
-| `missing` ↓ | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/79</sub> |
+| `missing` ↓ | 0.000 <sub>0/52</sub> | 0.000 <sub>0/52</sub> | 0.000 <sub>0/52</sub> | 0.000 <sub>0/52</sub> | 0.000 <sub>0/52</sub> | 0.000 <sub>0/79</sub> |
 | `values_present` = | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>79/79</sub> |
 
 ### katalog
@@ -580,7 +580,7 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 | `excess_jumps_per_page` ↓ | 0.000 <sub>over 1/11 pages</sub> | 69.400 <sub>over 5/11 pages</sub> | 0.000 <sub>over 2/11 pages</sub> | 0.400 <sub>over 5/11 pages</sub> | 1.250 <sub>over 4/11 pages</sub> | — |
 | `excess_jumps_per_transition` ↓ | — | 0.967 <sub>347/359</sub> | 0.000 <sub>0/13</sub> | 0.077 <sub>2/26</sub> | 0.250 <sub>5/20</sub> | — |
 | `excess_jumps_per_transition_one_rule` ↓ | — | 0.967 <sub>348/360</sub> | 0.000 <sub>0/13</sub> | 0.077 <sub>2/26</sub> | 0.250 <sub>5/20</sub> | — |
-| `pages_with_columns` = | 0 <sub>0/11</sub> | 0.364 <sub>4/11</sub> | 0.091 <sub>1/11</sub> | 0.455 <sub>5/11</sub> | 0.364 <sub>4/11</sub> | 0 <sub>0/11</sub> |
+| `pages_with_columns` = | 0.000 <sub>0/11</sub> | 0.364 <sub>4/11</sub> | 0.091 <sub>1/11</sub> | 0.455 <sub>5/11</sub> | 0.364 <sub>4/11</sub> | 0.000 <sub>0/11</sub> |
 | `transitions` = | 0 | 359 | 13 | 26 | 20 | 0 |
 
 - a dash: no page gathered two counted boxes: nothing to jump between
@@ -612,7 +612,7 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 | `assembly_order` ↑ | 0.989 | 0.939 | 0.953 | 0.944 | 0.961 | 0.936 |
 | `label_errors` ↓ | 0.050 <sub>3/60</sub> | 0.098 <sub>6/61</sub> | 0.057 <sub>3/53</sub> | — | — | — |
 | `model_order` ↑ | 0.989 | 0.939 | — | — | — | — |
-| `role_errors` ↓ | 0 <sub>0/60</sub> | 0.033 <sub>2/61</sub> | 0 <sub>0/53</sub> | 0.035 <sub>2/57</sub> | 0 <sub>0/59</sub> | 0.027 <sub>1/37</sub> |
+| `role_errors` ↓ | 0.000 <sub>0/60</sub> | 0.033 <sub>2/61</sub> | 0.000 <sub>0/53</sub> | 0.035 <sub>2/57</sub> | 0.000 <sub>0/59</sub> | 0.027 <sub>1/37</sub> |
 | `sense_whole` ↑ | 0.846 <sub>11/13</sub> | 0.846 <sub>11/13</sub> | 0.769 <sub>10/13</sub> | 0.538 <sub>7/13</sub> | 0.462 <sub>6/13</sub> | 0.462 <sub>6/13</sub> |
 | `text_furniture_found` ↑ | 0.891 <sub>49/55</sub> | 0.909 <sub>50/55</sub> | 0.782 <sub>43/55</sub> | 0.891 <sub>49/55</sub> | 0.964 <sub>53/55</sub> | 0.600 <sub>33/55</sub> |
 
@@ -652,7 +652,7 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 |---|---|---|---|---|---|---|
 | `empty` ↓ | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.215 <sub>17/79</sub> |
 | `fingerprint_verified` = | 0 | 0 | 0 | 0 | 0 | 1 |
-| `missing` ↓ | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/79</sub> |
+| `missing` ↓ | 0.000 <sub>0/52</sub> | 0.000 <sub>0/52</sub> | 0.000 <sub>0/52</sub> | 0.000 <sub>0/52</sub> | 0.000 <sub>0/52</sub> | 0.000 <sub>0/79</sub> |
 | `values_present` = | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>79/79</sub> |
 
 ### matematika
@@ -665,7 +665,7 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 | `excess_jumps_per_page` ↓ | 1.250 <sub>over 8/12 pages</sub> | 1.250 <sub>over 8/12 pages</sub> | 1.429 <sub>over 7/12 pages</sub> | 0.000 <sub>over 4/12 pages</sub> | 2.000 <sub>over 5/12 pages</sub> | 0.000 <sub>over 2/12 pages</sub> |
 | `excess_jumps_per_transition` ↓ | 0.909 <sub>10/11</sub> | 0.909 <sub>10/11</sub> | 0.909 <sub>10/11</sub> | — | 0.909 <sub>10/11</sub> | — |
 | `excess_jumps_per_transition_one_rule` ↓ | 0.909 <sub>10/11</sub> | 0.909 <sub>10/11</sub> | 0.909 <sub>10/11</sub> | — | 0.909 <sub>10/11</sub> | — |
-| `pages_with_columns` = | 0.083 <sub>1/12</sub> | 0.083 <sub>1/12</sub> | 0.083 <sub>1/12</sub> | 0 <sub>0/12</sub> | 0.083 <sub>1/12</sub> | 0 <sub>0/12</sub> |
+| `pages_with_columns` = | 0.083 <sub>1/12</sub> | 0.083 <sub>1/12</sub> | 0.083 <sub>1/12</sub> | 0.000 <sub>0/12</sub> | 0.083 <sub>1/12</sub> | 0.000 <sub>0/12</sub> |
 | `transitions` = | 11 | 11 | 11 | 0 | 11 | 0 |
 
 - a dash: no page gathered two counted boxes: nothing to jump between
@@ -696,7 +696,7 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 | `assembly_order` ↑ | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
 | `label_errors` ↓ | 0.024 <sub>3/125</sub> | 0.024 <sub>3/124</sub> | — | — | — | — |
 | `model_order` ↑ | 1.000 | 1.000 | — | — | — | — |
-| `role_errors` ↓ | 0.016 <sub>2/125</sub> | 0 <sub>0/124</sub> | 0.008 <sub>1/126</sub> | 0 <sub>0/100</sub> | 0.109 <sub>13/119</sub> | 0 <sub>0/97</sub> |
+| `role_errors` ↓ | 0.016 <sub>2/125</sub> | 0.000 <sub>0/124</sub> | 0.008 <sub>1/126</sub> | 0.000 <sub>0/100</sub> | 0.109 <sub>13/119</sub> | 0.000 <sub>0/97</sub> |
 | `sense_whole` ↑ | 0.667 <sub>18/27</sub> | 0.741 <sub>20/27</sub> | 0.111 <sub>3/27</sub> | 0.296 <sub>8/27</sub> | 0.111 <sub>3/27</sub> | 0.000 <sub>0/27</sub> |
 | `text_furniture_found` ↑ | 1.000 <sub>104/104</sub> | 1.000 <sub>104/104</sub> | 1.000 <sub>104/104</sub> | 0.933 <sub>97/104</sub> | 0.990 <sub>103/104</sub> | 0.933 <sub>97/104</sub> |
 
@@ -736,7 +736,7 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 |---|---|---|---|---|---|---|
 | `empty` ↓ | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.215 <sub>17/79</sub> |
 | `fingerprint_verified` = | 0 | 0 | 0 | 0 | 0 | 1 |
-| `missing` ↓ | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/79</sub> |
+| `missing` ↓ | 0.000 <sub>0/52</sub> | 0.000 <sub>0/52</sub> | 0.000 <sub>0/52</sub> | 0.000 <sub>0/52</sub> | 0.000 <sub>0/52</sub> | 0.000 <sub>0/79</sub> |
 | `values_present` = | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>79/79</sub> |
 
 ### slovar
@@ -778,7 +778,7 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 | `assembly_order` ↑ | 0.886 | 0.999 | 0.730 | 0.683 | 0.689 | 0.686 |
 | `label_errors` ↓ | 0.400 <sub>207/517</sub> | 0.893 <sub>442/495</sub> | 0.975 <sub>233/239</sub> | — | — | — |
 | `model_order` ↑ | 0.886 | 0.999 | — | — | — | — |
-| `role_errors` ↓ | 0.002 <sub>1/517</sub> | 0 <sub>0/495</sub> | 0 <sub>0/239</sub> | 0.002 <sub>1/496</sub> | 0.006 <sub>3/519</sub> | 0 <sub>0/485</sub> |
+| `role_errors` ↓ | 0.002 <sub>1/517</sub> | 0.000 <sub>0/495</sub> | 0.000 <sub>0/239</sub> | 0.002 <sub>1/496</sub> | 0.006 <sub>3/519</sub> | 0.000 <sub>0/485</sub> |
 | `sense_whole` ↑ | 0.667 <sub>2/3</sub> | 0.667 <sub>2/3</sub> | 1.000 <sub>3/3</sub> | 0.667 <sub>2/3</sub> | 0.667 <sub>2/3</sub> | 0.333 <sub>1/3</sub> |
 | `text_furniture_found` ↑ | 0.990 <sub>515/520</sub> | 0.948 <sub>493/520</sub> | 0.454 <sub>236/520</sub> | 0.950 <sub>494/520</sub> | 0.994 <sub>517/520</sub> | 0.931 <sub>484/520</sub> |
 
@@ -818,7 +818,7 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 |---|---|---|---|---|---|---|
 | `empty` ↓ | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.215 <sub>17/79</sub> |
 | `fingerprint_verified` = | 0 | 0 | 0 | 0 | 0 | 1 |
-| `missing` ↓ | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/79</sub> |
+| `missing` ↓ | 0.000 <sub>0/52</sub> | 0.000 <sub>0/52</sub> | 0.000 <sub>0/52</sub> | 0.000 <sub>0/52</sub> | 0.000 <sub>0/52</sub> | 0.000 <sub>0/79</sub> |
 | `values_present` = | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>79/79</sub> |
 
 ### spravochnik
@@ -900,7 +900,7 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 |---|---|---|---|---|---|---|
 | `empty` ↓ | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.215 <sub>17/79</sub> |
 | `fingerprint_verified` = | 0 | 0 | 0 | 0 | 0 | 1 |
-| `missing` ↓ | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/79</sub> |
+| `missing` ↓ | 0.000 <sub>0/52</sub> | 0.000 <sub>0/52</sub> | 0.000 <sub>0/52</sub> | 0.000 <sub>0/52</sub> | 0.000 <sub>0/52</sub> | 0.000 <sub>0/79</sub> |
 | `values_present` = | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>79/79</sub> |
 
 ### zhurnal
@@ -942,7 +942,7 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 | `assembly_order` ↑ | 1.000 | 0.970 | 0.773 | 0.769 | 0.771 | 0.749 |
 | `label_errors` ↓ | 0.039 <sub>7/180</sub> | 0.012 <sub>2/166</sub> | 0.033 <sub>6/181</sub> | — | — | — |
 | `model_order` ↑ | 1.000 | 0.970 | — | — | — | — |
-| `role_errors` ↓ | 0.006 <sub>1/180</sub> | 0 <sub>0/166</sub> | 0 <sub>0/181</sub> | 0.022 <sub>4/186</sub> | 0.005 <sub>1/187</sub> | 0.006 <sub>1/164</sub> |
+| `role_errors` ↓ | 0.006 <sub>1/180</sub> | 0.000 <sub>0/166</sub> | 0.000 <sub>0/181</sub> | 0.022 <sub>4/186</sub> | 0.005 <sub>1/187</sub> | 0.006 <sub>1/164</sub> |
 | `sense_whole` ↑ | 0.833 <sub>5/6</sub> | 1.000 <sub>6/6</sub> | 1.000 <sub>6/6</sub> | 1.000 <sub>6/6</sub> | 1.000 <sub>6/6</sub> | 0.833 <sub>5/6</sub> |
 | `text_furniture_found` ↑ | 0.956 <sub>175/183</sub> | 0.874 <sub>160/183</sub> | 0.956 <sub>175/183</sub> | 0.984 <sub>180/183</sub> | 0.989 <sub>181/183</sub> | 0.874 <sub>160/183</sub> |
 
@@ -982,5 +982,5 @@ A level-two run carries the boxes of whatever DETECTOR made its pages, so none o
 |---|---|---|---|---|---|---|
 | `empty` ↓ | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.250 <sub>13/52</sub> | 0.215 <sub>17/79</sub> |
 | `fingerprint_verified` = | 0 | 0 | 0 | 0 | 0 | 1 |
-| `missing` ↓ | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/52</sub> | 0 <sub>0/79</sub> |
+| `missing` ↓ | 0.000 <sub>0/52</sub> | 0.000 <sub>0/52</sub> | 0.000 <sub>0/52</sub> | 0.000 <sub>0/52</sub> | 0.000 <sub>0/52</sub> | 0.000 <sub>0/79</sub> |
 | `values_present` = | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>52/52</sub> | 1.000 <sub>79/79</sub> |

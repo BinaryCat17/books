@@ -126,7 +126,8 @@ A metric declares what it `needs` from the pair of bench and run: `truth`,
 does). It runs only where its needs are met, and the table says why it did
 not otherwise. It returns a record of scalars. A scalar carries its value,
 the count behind a share, the coverage it was measured over with its unit,
-and, when the value is null, the reason. A null without a reason cannot be
+the same quantity at each page or block that made it, keyed by anchor, and,
+when the value is null, the reason. A null without a reason cannot be
 constructed.
 
 Every metric has probes of deliberately spoiled input, in a module of their own

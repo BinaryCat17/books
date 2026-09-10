@@ -317,8 +317,9 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
         res["clean_under_boxes"] += clean_under
         res["ink_junk"] += j
         res["ink_clean"] += whole - j
+        under_art = int((ink & ma).sum())
         res["ink_under_boxes"] += under
-        res["ink_under_artifact"] += int((ink & ma).sum())
+        res["ink_under_artifact"] += under_art
         # Half the golden bench's "lost" ink lies in the edge band -- the dark
         # rim of the scan, not content -- so it is counted apart: without that a
         # black border reads as "the model lost a quarter of the book".
@@ -369,7 +370,7 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
         res["box_count"] += len(arte) + len(rest)
         res["pages"][i] = {
             "ink_total": whole, "ink_under_boxes": under,
-            "ink_under_artifact": int((ink & ma).sum()), "ink_junk": j,
+            "ink_under_artifact": under_art, "ink_junk": j,
             "ink_clean": whole - j, "clean_under_boxes": clean_under,
             "ink_as_text": as_text, "ink_as_picture": as_picture,
             "box_count": len(arte) + len(rest),
