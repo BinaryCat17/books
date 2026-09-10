@@ -688,6 +688,7 @@ class BookData:
     policy: policy.Policy
     observed: bool
     repeats_how: str
+    snapshot: dict
     pages: list
 
 
@@ -717,7 +718,9 @@ def observed_page(detect_dir: str, index: int) -> dict:
     return out
 
 
-def _answers_present(detect_dir: str) -> bool:
+def answers_present(detect_dir: str) -> bool:
+    """Whether the run carries answers at all: `None` reading facts mean
+    "no answers/ alongside" only when this is false."""
     d = os.path.join(detect_dir, "answers")
     return os.path.isdir(d) and any(n.endswith(".json") for n in os.listdir(d))
 
@@ -805,7 +808,7 @@ def gather_page(detect_dir: str, index: int) -> PageData:
     with open(path, encoding="utf-8") as f:
         page = Page.from_json(json.load(f))
     return _gather_page(page, pol, observed_page(detect_dir, index),
-                        _answers_present(detect_dir))
+                        answers_present(detect_dir))
 
 
 def gather(detect_dir: str, verify: bool = True) -> BookData:
@@ -843,7 +846,7 @@ def gather(detect_dir: str, verify: bool = True) -> BookData:
     files = sorted(glob.glob(os.path.join(detect_dir, "pages", "*.json")))
     if not files:
         raise Refusal(f"no pages in {detect_dir} -- run books detect first")
-    obs_present = _answers_present(detect_dir)
+    obs_present = answers_present(detect_dir)
     repeats_how = _repeats_how()
     pages = []
     for page_n, fp in enumerate(files, 1):
@@ -857,7 +860,7 @@ def gather(detect_dir: str, verify: bool = True) -> BookData:
             log(f"  {page_n}/{len(files)} pages gathered", n=page_n, of=len(files))
     return BookData(run_dir=detect_dir, pdf=pdf, page_dpi=page_dpi, sha256=now,
                     sha256_said=said, policy=pol, observed=obs_present,
-                    repeats_how=repeats_how, pages=pages)
+                    repeats_how=repeats_how, snapshot=snap, pages=pages)
 
 
 # ------------------------------------------------------------ the emission
@@ -892,6 +895,13 @@ def emit(data: BookData, out_dir: str) -> dict:
     pdf, page_dpi, pol = data.pdf, data.page_dpi, data.policy
     now = data.sha256 if data.sha256 is not None else stamp.sha256(pdf)
     said = data.sha256_said
+    # Data gathered without verifying is verified here: a book is never
+    # built from a scan other than the one the boxes were counted on.
+    if said and now != said:
+        raise Refusal(
+            f"{pdf} changed after detection: the snapshot swore sha256 "
+            f"{said[:12]}, now it is {now[:12]}. The crops would come from "
+            f"one file and the boxes from another.")
     obs = data.observed
     repeats_how = data.repeats_how
 
@@ -1064,7 +1074,7 @@ def emit(data: BookData, out_dir: str) -> dict:
         json.dump(side, f, ensure_ascii=False, indent=1)
 
     files = len(data.pages)
-    snap = _snapshot(detect_dir)
+    snap = data.snapshot
     # Its own snapshot, not "inherit detection": the build has its own knobs
     # (`CROP_DPI`, `CROP_MARGIN`) and policy, without which nothing says at what
     # sharpness these pictures were cut. `books replay --check` must return 0
@@ -1214,7 +1224,8 @@ def emit(data: BookData, out_dir: str) -> dict:
             f"but with the blocks that REMAIN; the \"latex\" step -- see "
             f"core/textnorm.NORM_STEPS")
     if obs:
-        log(f"reading observations: answers alongside; cut off by "
+        n_obs = sum(1 for pg in data.pages for b in pg.blocks if b.reading)
+        log(f"reading observations: {n_obs} answers alongside; cut off by "
             f"the ceiling {torn_n}, impossible table shape {shape_n}"
             + (f"; truncated: {', '.join(torn_a[:5])}"
                f"{'…' if torn_n > 5 else ''}" if torn_n else "")
@@ -1272,5 +1283,8 @@ def build(detect_dir: str, out_dir: str) -> dict:
     emission. Returns the build's numbers."""
     detect_dir = os.path.abspath(detect_dir)
     out_dir = os.path.abspath(out_dir)
+    # `emit` refuses this too; here it stands before `gather` opens the
+    # input, since a refusal about destroying the output belongs above every
+    # complaint about the input.
     _refuse_live_journal(out_dir)
     return emit(gather(detect_dir), out_dir)

@@ -470,9 +470,15 @@ def overlay(store: str, pdf: str, truth: str | None, detect_dir: str | None,
 # cache keyed by the scan's hash, a viewer asking for one page many times.
 
 def _run_of(store: str, name: str, kind: str, label: str) -> tuple[book.Book, str]:
-    """A book and one of its runs, both by name inside the store."""
+    """A book and one of its runs, both by name inside the store. A run is a
+    directory with its snapshot and its pages, as the listing counts them:
+    a half-made one is refused here as it is hidden there."""
     b = book.Book.open(book_dir(store, name))
-    return b, b.one_run(kind, label)
+    have = b.runs(kind)
+    if label not in have:
+        raise Refusal(f"{name}: no {kind} run labelled {label!r}; there "
+                      f"{'are ' + ', '.join(have) if have else 'is none'}")
+    return b, b.run_dir(kind, label)
 
 
 def _page_json(pages_dir: str, index: int, whose: str) -> dict:
@@ -487,19 +493,18 @@ def run(store: str, name: str, kind: str, label: str) -> dict:
     """One run as the viewer opens it: identity, the policy its labels are
     read by, the raster dpi its boxes are in, the pages it has, and whether
     the book has truth to pair it against."""
+    from booksmith.datasets.bench import Run
     from booksmith.processing.assemble import html as html_mod
     b, rd = _run_of(store, name, kind, label)
-    pages = os.path.join(rd, "pages")
-    snap = book.snapshot_beside(pages) or {}
-    return {"kind": kind, "label": label,
-            "level": "hybrid" if snap.get("layout") == "own" else kind,
-            "identity": snap.get("identity"), "when": snap.get("when"),
-            "dpi": (snap.get("raster") or {}).get("dpi"),
-            "policy": book.policy_beside(pages).snapshot(),
-            "pages": sorted(int(n[:4]) for n in os.listdir(pages)
+    r = Run.open(rd)
+    return {"kind": kind, "label": label, "level": r.level,
+            "identity": r.snapshot.get("identity"), "when": r.snapshot.get("when"),
+            "dpi": (r.snapshot.get("raster") or {}).get("dpi"),
+            "policy": r.policy.snapshot(),
+            "pages": sorted(int(n[:4]) for n in os.listdir(r.pages_dir)
                             if n.endswith(".json") and n[:4].isdigit()),
             "truth": b.truth_dir is not None,
-            "observed": html_mod._answers_present(rd)}
+            "observed": html_mod.answers_present(rd)}
 
 
 def page(store: str, name: str, kind: str, label: str, index: int) -> dict:
@@ -513,12 +518,13 @@ def page(store: str, name: str, kind: str, label: str, index: int) -> dict:
 
 def pairs(store: str, name: str, kind: str, label: str, index: int,
           truth_side: bool = False) -> dict:
-    """The contour metric's pairs on one page of a book that has truth: one
-    entry per truth block with the verdict the count gave it, and every run
-    block neither pass took with what the count calls it. With `truth_side`
-    the truth blocks ride along and each pair names its truth anchor; without,
-    only the verdicts do -- a user sees the number, never the labels."""
-    from booksmith.core.page import anchor
+    """The contour metric's pairs on one page of a book that has truth, the
+    list `compare_pages` describes. With `truth_side` the truth blocks ride
+    along and each entry names its truth anchor and pass A's diagnosis;
+    without, an entry keeps the run anchor, the verdict, the label
+    agreement and the fate, and an extra its verdict -- the number's own
+    words on the run's boxes, and nothing of where or what the truth is."""
+    from booksmith.core.page import anchor, load_pages
     from booksmith.datasets import bench as bench_mod
     from booksmith.datasets.metrics import contour
     b, rd = _run_of(store, name, kind, label)
@@ -527,15 +533,21 @@ def pairs(store: str, name: str, kind: str, label: str, index: int,
     tdir = book.pages_dir(b.truth_dir, "truth")
     mdir = os.path.join(rd, "pages")
     t, m = _page_json(tdir, index, "truth"), _page_json(mdir, index, f"{kind}/{label}")
-    res = contour.page_pairs(t, m, book.policy_beside(tdir), book.policy_beside(mdir))
+    # Whether the truth names its labelled pages is asked of the whole truth.
+    said = contour.labelled_said(contour.labelled_of(load_pages(tdir, "truth")))
+    res = contour.page_pairs(t, m, book.policy_beside(tdir), book.policy_beside(mdir),
+                             said=said)
     pairs_ = list((res or {}).get("pairs", []))
+    extras = list((res or {}).get("extras", []))
     if not truth_side:
-        pairs_ = [{k: v for k, v in e.items() if k != "truth"} for e in pairs_]
+        keep = ("run", "verdict", "label_ok", "fate")
+        pairs_ = [{k: e[k] for k in keep} for e in pairs_]
+        extras = [{"run": e["run"], "verdict": e["verdict"]} for e in extras]
     out: dict = {"index": index,
                  "labelled": bench_mod.trait_state(t.get("meta") or {}, "labelled"),
                  "compared": res is not None,
                  "pairs": pairs_,
-                 "extras": list((res or {}).get("extras", []))}
+                 "extras": extras}
     if truth_side:
         out["truth"] = [{"anchor": anchor(index, x["block_id"]), "block_id": x["block_id"],
                          "label": x["label"], "box": x["box"], "order": x.get("order")}
@@ -549,8 +561,10 @@ DPI_LEAST, DPI_MOST = 24.0, 300.0
 
 @functools.lru_cache(maxsize=48)
 def _render(pdf: str, sha: str, index: int, dpi: float) -> bytes:
-    """One page of one scan at one dpi, kept: the hash is in the key so a
-    replaced file is another entry, never a stale one."""
+    """One page of one scan at one dpi, kept. The key carries the manifest's
+    hash, fixed once at upload and trusted after, as every reader of the
+    book trusts it: a scan swapped under its manifest is not this cache's
+    to notice."""
     from booksmith.core import raster
     with raster.open_pdf(pdf) as doc:
         if not 0 <= index < doc.page_count:
@@ -570,9 +584,14 @@ def page_image(store: str, name: str, index: int, dpi: float = 110.0) -> bytes:
     return _render(os.path.realpath(b.pdf), b.sha256 or "", int(index), float(dpi))
 
 
-def crop_png(store: str, name: str, kind: str, label: str, anchor: str) -> bytes:
-    """One block cut from the scan, as PNG: the box out of the run's page, at
-    the resolution the read path cuts at, from the book's own scan."""
+def crop_png(store: str, name: str, kind: str, label: str, anchor: str,
+             dpi: float | None = None) -> bytes:
+    """One block as PNG. A read run keeps the crops it sent under `crops/`,
+    and that file is the answer where it exists: what the model saw, not a
+    second cut. Otherwise the box is cut from the book's own scan at `dpi`,
+    else at the `CROP_DPI` the run's snapshot recorded, else at what the
+    current job's knob says -- a viewer's cut, which the answer's caller
+    should not mistake for the read's."""
     from booksmith.core import raster
     from booksmith.core.page import parse_anchor
     b, rd = _run_of(store, name, kind, label)
@@ -582,14 +601,23 @@ def crop_png(store: str, name: str, kind: str, label: str, anchor: str) -> bytes
         raise Refusal(str(e)) from None
     if block_id is None:
         raise Refusal(f"a crop is one block, p<index>-b<block_id>, not {anchor!r}")
+    kept = os.path.join(rd, "crops", f"{anchor}.png")
+    if os.path.isfile(kept):
+        with open(kept, "rb") as f:
+            return f.read()
     pg = _page_json(os.path.join(rd, "pages"), index, f"{kind}/{label}")
     blk = next((x for x in pg["blocks"] if x["block_id"] == block_id), None)
     if blk is None:
         raise Refusal(f"no block {anchor} in {kind}/{label}")
     if b.pdf is None:
         raise Refusal(f"{name}: the scan is not beside the manifest")
-    with job.Job().active(), raster.open_pdf(b.pdf) as doc:
-        png, _facts = raster.cut_png(doc, index, blk["box"], float(pg["dpi"]))
+    if dpi is not None and not DPI_LEAST <= dpi <= DPI_MOST:
+        raise Refusal(f"dpi {dpi:g} is outside {DPI_LEAST:g}..{DPI_MOST:g}")
+    if dpi is None:
+        said = stamp.knob_values(book.snapshot_beside(os.path.join(rd, "pages")) or {})
+        dpi = float(said["CROP_DPI"]) if said.get("CROP_DPI") else None
+    with raster.open_pdf(b.pdf) as doc:
+        png, _facts = raster.cut_png(doc, index, blk["box"], float(pg["dpi"]), dpi=dpi)
     return png
 
 

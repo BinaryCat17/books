@@ -237,18 +237,25 @@ def test_a_page_truth_says_is_not_labelled_is_drawn_as_one_markup():
     many sheets were left out -- the same pages the number leaves out."""
     with tempfile.TemporaryDirectory() as d:
         pdf = _stand(d)
-        tp = os.path.join(d, "truth", "pages", "0001.json")
-        with open(tp, encoding="utf-8") as f:
-            t = json.load(f)
-        t["meta"] = {"labelled": False}
-        with open(tp, "w", encoding="utf-8") as f:
-            json.dump(t, f)
+        for n, flag in ((0, True), (1, False)):
+            tp = os.path.join(d, "truth", "pages", f"{n:04d}.json")
+            with open(tp, encoding="utf-8") as f:
+                t = json.load(f)
+            t["meta"] = {"labelled": flag}
+            with open(tp, "w", encoding="utf-8") as f:
+                json.dump(t, f)
+        marks = [(os.path.join(d, "truth", "pages"), "T"),
+                 (os.path.join(d, "model", "pages"), "M")]
         with support.said() as said:
-            counts = overlay.build(pdf, pdf + ".ov.pdf",
-                                   [(os.path.join(d, "truth", "pages"), "T"),
-                                    (os.path.join(d, "model", "pages"), "M")])
+            counts = overlay.build(pdf, pdf + ".ov.pdf", marks)
         s = "\n".join(said)
-        assert counts["pages_not_labelled"] == 1 and counts["pages_compared"] == 2
-        assert counts["matched"] == 2, counts
-        assert "1 pages are NOT LABELLED" in s, s
+        # Page 1 says no; page 2 says nothing where page 0 spoke: both are
+        # left out, as the number leaves them out.
+        assert counts["pages_not_labelled"] == 2 and counts["pages_compared"] == 1
+        assert counts["matched"] == 1, counts
+        assert "2 pages are NOT LABELLED" in s, s
         assert "sheets drawn 3 of 3" in s, s
+        # Truth that says nothing of text markup is a hole named apart from
+        # a bench that says no.
+        assert counts["pages_text_not_said"] == 1 and counts["pages_without_text_markup"] == 0
+        assert "does not SAY whether it marks text" in s, s

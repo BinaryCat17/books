@@ -18,7 +18,7 @@ from booksmith.core import page as page_mod
 from booksmith.core import job
 from booksmith.core.log import log
 from booksmith.datasets.bench import trait_state
-from booksmith.datasets.metrics.contour import page_pairs
+from booksmith.datasets.metrics.contour import labelled_of, labelled_said, page_pairs
 
 # Caption font: a PREFERENCE, not a requirement -- used when it is there, the
 # built-in `helv` when it is not, which renders all three captions this module
@@ -146,8 +146,8 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None) -> dict:
                 f"({doc.page_count} pages): they would vanish uncounted.")
 
     counts = {"matched": 0, "missed": 0, "spurious": 0, "outside_markup": 0,
-              "pages_without_text_markup": 0, "pages_compared": 0,
-              "pages_not_labelled": 0,
+              "pages_without_text_markup": 0, "pages_text_not_said": 0,
+              "pages_compared": 0, "pages_not_labelled": 0,
               # Misses are counted BY NAME: a page absent from one markup and
               # skipped in silence leaves a sheet that looks complete, and a
               # model that loses part of its answer looks improved.
@@ -158,6 +158,9 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None) -> dict:
     # `doc.page_count`, which is a third.
     drawn = 0
     sheets = 0
+    # Whether truth names its labelled pages is a fact of the whole truth,
+    # asked once: one page cannot know it, and the count decides by it.
+    said = len(sets) > 1 and labelled_said(labelled_of(sets[0][0]))
     for i, page in enumerate(doc):
         if only is not None and i not in only:
             continue
@@ -207,10 +210,11 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None) -> dict:
         sheets += 1
         # The pairs are the metric's own, one list for sheet and number: what
         # `compare_pages` matched, missed and called extra on this page.
-        res = page_pairs(p0, p1, pols[0], pols[1])
+        res = page_pairs(p0, p1, pols[0], pols[1], said=said)
         if res is None:
-            # Truth says the page is not labelled: nothing was compared, and
-            # the model's boxes go down as one markup, not as agreement.
+            # Truth says the page is not labelled, or says nothing where other
+            # pages do: nothing was compared, and the model's boxes go down as
+            # one markup, not as agreement.
             counts["pages_not_labelled"] += 1
             for x in p1["blocks"]:
                 _rect(page, x["box"], k, ONE, 1.1)
@@ -220,37 +224,57 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None) -> dict:
         tb_by = {page_mod.anchor(i, b["block_id"]): b for b in p0["blocks"]}
         mb_by = {page_mod.anchor(i, b["block_id"]): b for b in p1["blocks"]}
         # The sign comes from TRUTH and is PER PAGE, three-state as the metric
-        # reads it: a page that does not say is not a page that marks text.
-        marked = trait_state(p0.get("meta") or {}, "text_marked") == "yes"
+        # reads it, and the two zeros are counted apart: a page that says no
+        # and a page that does not say are both pages that do not mark text.
+        state = trait_state(p0.get("meta") or {}, "text_marked")
+        marked = state == "yes"
         counts["pages_compared"] += 1
-        counts["pages_without_text_markup"] += 0 if marked else 1
+        counts["pages_without_text_markup"] += state == "no"
+        counts["pages_text_not_said"] += state == "not_said"
+        # One verdict per model box, the count's, and each box drawn once: an
+        # artefact box is pass A's find or its extra; a text box is pass B's
+        # find or not counted. A box B took that A left is drawn as the
+        # extra the count calls it, not as the pair B formed. The truth side
+        # adds only what was missed.
+        verdict: dict = {}
+        for e in res["extras"]:
+            verdict[e["run"]] = ("extra", e["verdict"])
+        for e in res["pairs"]:
+            for run, ok in ((e["run"], e["label_ok"]), (e["b_run"], e["b_label_ok"])):
+                if run is not None and run not in verdict:
+                    verdict[run] = ("matched", ok, tb_by[e["truth"]]["label"])
+        if set(verdict) != set(mb_by):
+            die(f"page {i}: the metric's list names {len(verdict)} of "
+                f"{len(mb_by)} model boxes -- the sheet would be drawn from "
+                f"a list with holes")
+        lost = [e for e in res["pairs"] if e["verdict"] == "missed"]
         # We shout only at what the number also calls spurious: blaming the
         # model for a find beyond the scored boundary punishes it for a line WE
         # drew. An artefact extra's kind is the metric's; a text extra the
         # count never counts is loud only where truth marks text.
-        pairs = [e for e in res["pairs"] if e["verdict"] == "matched"]
-        lost = [e for e in res["pairs"] if e["verdict"] == "missed"]
         loud, quiet = [], []
-        for e in res["extras"]:
-            x = mb_by[e["run"]]
-            if e["verdict"] == "not counted":
-                (loud if marked else quiet).append(x)
+        for a, v in verdict.items():
+            if v[0] != "extra":
+                continue
+            if v[1] == "not counted":
+                (loud if marked else quiet).append(mb_by[a])
             else:
-                (loud if e["verdict"] == "spurious_box" else quiet).append(x)
-        counts["matched"] += len(pairs)
+                (loud if v[1] == "spurious_box" else quiet).append(mb_by[a])
+        counts["matched"] += sum(1 for e in res["pairs"] if e["verdict"] == "matched")
         counts["missed"] += len(lost)
         counts["spurious"] += len(loud)
         counts["outside_markup"] += len(quiet)
         if lost or loud:
             counts["pages"].append(i)
-        for e in pairs:
-            b, x = tb_by[e["truth"]], mb_by[e["run"]]
+        for a, v in verdict.items():
+            if v[0] != "matched":
+                continue
+            x = mb_by[a]
             # A matched pair is ONE thin box with no caption; the label, where
             # it diverged, is the only thing worth saying here.
             _rect(page, x["box"], k, MATCHED, 0.7)
-            if not e["label_ok"]:
-                _label(page, x["box"], k, LABEL,
-                       f"label: {b['label']} -> {x['label']}")
+            if not v[1]:
+                _label(page, x["box"], k, LABEL, f"label: {v[2]} -> {x['label']}")
             drawn += 1
         for e in lost:
             b = tb_by[e["truth"]]
@@ -312,8 +336,15 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None) -> dict:
                 f"above -- sheet and number cannot be compared here")
     if counts["pages_not_labelled"]:
         log(f"  truth says {counts['pages_not_labelled']} pages are NOT "
-            f"LABELLED: their model boxes are drawn as one markup and did "
-            f"not enter the numbers above -- nothing was compared there")
+            f"LABELLED, or says nothing of them where it names other pages: "
+            f"their model boxes are drawn as one markup and did not enter "
+            f"the numbers above -- nothing was compared there")
+    if counts["pages_text_not_said"]:
+        log(f"  truth does not SAY whether it marks text up on "
+            f"{counts['pages_text_not_said']} pages of "
+            f"{counts['pages_compared']} (no meta text_marked): a hole in the "
+            f"bench, not a bench without text -- those pages' text boxes are "
+            f"drawn as a hairline and NOT counted as extra")
     # A quantity rather than silence: without this line "EXTRA 508" reads as
     # "the whole sheet was checked".
     if counts["pages_without_text_markup"]:

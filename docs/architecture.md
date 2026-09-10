@@ -185,11 +185,14 @@ job handed in, so the command line and the web run one code.
 A viewer asks by name and gets one page at a time: a run as it is opened
 (identity, policy, raster dpi, its pages, whether the book has truth), a
 page as the builder's own data pass gives it, the scan's page as an image
-at a bounded dpi, one block's crop cut as the read path cuts it, and the
-contour metric's pairs on the page. The pairs are the metric's, one list
-for the sheet and the number: `books overlay` draws from
-`src/booksmith/datasets/metrics/contour.py:page_pairs` and so does the
-viewer, and the truth side of that list is served only to an admin.
+at a bounded dpi, one block's crop (the read run's own where it kept one,
+else cut from the scan), and the contour metric's pairs on the page. The
+pairs are the metric's, one list for the sheet and the number, with each
+pass's partner recorded and one verdict per model box: `books overlay`
+draws from `src/booksmith/datasets/metrics/contour.py:page_pairs` and so
+does the viewer. The truth side of that list -- the truth blocks, their
+anchors, the diagnosis of a miss -- is served only to an admin; a user gets
+the number's words on the run's own boxes.
 
 ## The page format
 

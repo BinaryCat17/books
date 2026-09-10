@@ -178,14 +178,43 @@ def _same_raster(T: dict, M: dict) -> str:
     return note
 
 
-def page_pairs(t: dict, m: dict, tp=None, mp=None) -> dict | None:
+def labelled_of(T: dict) -> dict:
+    """How many pages of a truth say `labelled` yes, no, or nothing."""
+    out = {s: 0 for s in bench_mod.TRAIT_STATES}
+    for p in T.values():
+        out[bench_mod.trait_state(p.get("meta") or {}, "labelled")] += 1
+    return out
+
+
+def labelled_said(labelled: dict) -> bool:
+    """Whether any page of the truth said: then only the pages that say yes
+    are compared, and a page that says nothing is one left out."""
+    return bool(labelled["yes"] or labelled["no"])
+
+
+def page_pairs(t: dict, m: dict, tp=None, mp=None, said: bool = False) -> dict | None:
     """One page's pairs and extras, as `compare_pages` forms them: what the
-    overlay draws and a viewer places over the page. None where the page
-    says it is not labelled: the count leaves it out, and so does this."""
-    if bench_mod.trait_state(t.get("meta") or {}, "labelled") == "no":
+    overlay draws and a viewer places over the page. `said` is whether any
+    page of this truth says `labelled`, which the caller knows and one page
+    cannot: then a page that does not say yes is None, as the count leaves
+    it out; a page that says no is None either way. Two rasters refuse
+    here, as `compare` refuses them."""
+    state = bench_mod.trait_state(t.get("meta") or {}, "labelled")
+    if state == "no" or (said and state != "yes"):
         return None
     i = int(t["index"])
+    _same_raster({i: t}, {i: m})
     return compare_pages({i: t}, {i: m}, tp, mp)["pairs"][i]
+
+
+def _entry(truth: str, by: str, run: str | None, label_ok: bool | None,
+           why: str | None = None) -> dict:
+    """One truth block's line of the pairs list; the fields are described
+    at `compare_pages`. Pass B's own partner rides beside, filled when B runs."""
+    return {"truth": truth, "verdict": "matched" if run else "missed", "by": by,
+            "run": run, "label_ok": label_ok, "why": why,
+            "b_run": run if by == "B" else None,
+            "b_label_ok": label_ok if by == "B" else None}
 
 
 def compare(truth_dir: str, detect_dir: str, tp=None, mp=None) -> dict:
@@ -201,15 +230,29 @@ def compare_pages(T: dict, M: dict, tp=None, mp=None) -> dict:
     """Truth against the model's pages. `tp` and `mp` are the two sides'
     policies, truth's and the run's: a role is asked of the side the block
     is on, and the union of the tree's vocabularies stands in for either
-    when none is given."""
+    when none is given.
+
+    Beside the numbers, `pairs` keeps what the two passes decided, per page,
+    for the sheet and the viewer. One entry per truth block: `verdict` is
+    the count's, matched or missed, `by` the pass that gave it -- A for an
+    artefact, B for the rest -- and `run` that pass's partner; `label_ok`
+    is that pair's; `why` is pass A's diagnosis of a miss; `fate` is
+    `sense`'s. Pass B, the label metric's pairing, is blind to A and may
+    pair a truth block with another box or with none: its partner is
+    `b_run` with `b_label_ok`, the same as `run` where B gave the verdict.
+    `extras` names every model box the count did not take as a find: an
+    artefact box pass A left, with `extra_kind`'s word for it, and a text
+    box pass B left, "not counted". An artefact box A left and B took
+    is an extra that names in `taken_for` the truth block B took it for:
+    the count calls it spurious and a pair both. So every model box is one
+    of three, disjoint: pass A's find (`run` of an artefact entry), pass B's
+    find of a text box (`b_run` of an entry), or an extra."""
     tp = tp or policy.UNION
     mp = mp or policy.UNION
     # A page that says it is not labelled is not compared, once any page says
     # anything: a truth drawn page by page is measured on the pages it has.
-    labelled = {s: 0 for s in bench_mod.TRAIT_STATES}
-    for p in T.values():
-        labelled[bench_mod.trait_state(p.get("meta") or {}, "labelled")] += 1
-    if labelled["yes"] or labelled["no"]:
+    labelled = labelled_of(T)
+    if labelled_said(labelled):
         T = {i: p for i, p in T.items()
              if bench_mod.trait_state(p.get("meta") or {}, "labelled") == "yes"}
         if not T:
@@ -239,9 +282,7 @@ def compare_pages(T: dict, M: dict, tp=None, mp=None) -> dict:
     per_case, conf, ranks = {}, {}, []
     per = {"artefacts_found": {}, "text_furniture_found": {},
            "label_errors": {}, "role_errors": {}}
-    # The pairs the passes form, kept: one entry per truth block, the verdict
-    # from pass A for an artefact and from pass B for the rest, and every
-    # model box neither pass took, with what the count calls it.
+    # The pairs the passes form, kept per page; the shape is in the docstring.
     pairs_out = {}
     ceiling = order_pages = 0
     tot = {"artifacts": 0, "found": 0}
@@ -284,14 +325,12 @@ def compare_pages(T: dict, M: dict, tp=None, mp=None) -> dict:
             if x is not None:
                 per_label.setdefault(b["label"], [0, 0])[0] += 1
                 per["artefacts_found"][ta] = 1
-                entries[ta] = {"truth": ta, "run": page.anchor(i, x["block_id"]),
-                               "verdict": "matched", "by": "A",
-                               "label_ok": b["label"] == x["label"], "why": None}
+                entries[ta] = _entry(ta, "A", page.anchor(i, x["block_id"]),
+                                     b["label"] == x["label"])
                 continue
             why = _diagnose(b, mall, tb, arte_m, mp)
             bed(f"{why} ({b['label']})")
-            entries[ta] = {"truth": ta, "run": None, "verdict": "missed", "by": "A",
-                           "label_ok": None, "why": why}
+            entries[ta] = _entry(ta, "A", None, None, why)
         # Model artefact boxes with no partner in truth. Nesting is measured
         # against PAIRED truth boxes: a fragment of an artefact never found is
         # a miss, not a duplicate of a missing original.
@@ -308,25 +347,28 @@ def compare_pages(T: dict, M: dict, tp=None, mp=None) -> dict:
             # The naming rule lives in `extra_kind`; here only the counting.
             kind = extra_kind(x["box"], paired, unpaired, outside, tb)
             bed(kind)
-            extras.append({"run": page.anchor(i, x["block_id"]), "verdict": kind})
+            extras.append({"run": page.anchor(i, x["block_id"]), "verdict": kind,
+                           "taken_for": None})
 
         # Pass B: all blocks matched, blind to the label -- artefacts alone
         # give too few pairs for a bench.
         page_ranks, taken = [], set()
+        b_took = {}                      # model anchor -> the truth anchor B paired it with
         for b in sorted(t["blocks"], key=lambda z: -_area(z["box"])):
             j = _pick(b, mall, taken)
             ta = page.anchor(i, b["block_id"])
             if j is None:
-                if ta not in entries:
-                    entries[ta] = {"truth": ta, "run": None, "verdict": "missed",
-                                   "by": "B", "label_ok": None, "why": None}
+                entries.setdefault(ta, _entry(ta, "B", None, None))
                 continue
             taken.add(j)
             x = mall[j]
-            if ta not in entries:
-                entries[ta] = {"truth": ta, "run": page.anchor(i, x["block_id"]),
-                               "verdict": "matched", "by": "B",
-                               "label_ok": b["label"] == x["label"], "why": None}
+            ra = page.anchor(i, x["block_id"])
+            ok = b["label"] == x["label"]
+            b_took[ra] = ta
+            if ta in entries:
+                entries[ta]["b_run"], entries[ta]["b_label_ok"] = ra, ok
+            else:
+                entries[ta] = _entry(ta, "B", ra, ok)
             conf[(b["label"], x["label"])] = conf.get((b["label"], x["label"]), 0) + 1
             if b["label"] != x["label"]:
                 per["label_errors"][page.anchor(i, x["block_id"])] = 1
@@ -344,9 +386,13 @@ def compare_pages(T: dict, M: dict, tp=None, mp=None) -> dict:
                 per_label.setdefault(b["label"], [0, 0])[0] += 1
         for b in t["blocks"]:
             per_label.setdefault(b["label"], [0, 0])[1] += 1
-        # Model boxes that are not artefacts and no pass took: the count does
-        # not count them, and the list says so rather than leaving them out.
-        extras += [{"run": page.anchor(i, x["block_id"]), "verdict": "not counted"}
+        # An artefact extra that pass B took says for which truth block; a
+        # text box no pass took is not counted, and the list says so rather
+        # than leaving it out.
+        for ex in extras:
+            ex["taken_for"] = b_took.get(ex["run"])
+        extras += [{"run": page.anchor(i, x["block_id"]), "verdict": "not counted",
+                    "taken_for": None}
                    for j, x in enumerate(mall)
                    if j not in taken and x["label"] not in arte_m]
         pairs_out[i] = {"pairs": [entries[page.anchor(i, b["block_id"])]
@@ -407,7 +453,9 @@ def compare_pages(T: dict, M: dict, tp=None, mp=None) -> dict:
                               f"({', '.join(rules)})")),
             "assembly_order": _order_agree(
                 ranks, 2, ceiling, order_pages, len(T), why_order),
-            "jumps": column_jumps(M, pol=mp),
+            # Over the pages compared, so a truth that names its pages does
+            # not leave the jumps describing pages the rest of this left out.
+            "jumps": column_jumps({i: M[i] for i in T}, pol=mp),
             "per": per}
 
 

@@ -57,6 +57,7 @@ def test_the_viewer_answers_by_name_and_the_truth_side_is_the_admins(app, home, 
     assert r.status_code == 409 and "outside" in r.json()["error"]
     assert alice.get(base).status_code == 409
     assert alice.get(f"{base}/pages/1/pairs").status_code == 409
-    assert alice.get(f"{ub}/pages/0/crops/nope").status_code in (404, 409)
+    r = alice.get(f"{ub}/crops/nope")
+    assert r.status_code == 409 and "anchor" in r.json()["error"]
     assert alice.get(f"{ub}/crops/p0000-b999").status_code == 409
     assert TestClient(app).get(f"{base}/pages/1").status_code == 401

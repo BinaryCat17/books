@@ -60,6 +60,13 @@ def test_a_run_and_its_page_are_the_builders_own_data(store):
         service.page(home, BOOK, "detect", "truth", 99)
     with pytest.raises(Refusal, match="no detect run"):
         service.page(home, BOOK, "detect", "other", 0)
+    # A directory without its snapshot is not a run: refused, not a crash.
+    half = os.path.join(home, "bench", "slovar", "detect", "half")
+    os.makedirs(os.path.join(half, "pages"))
+    with pytest.raises(Refusal, match="no detect run labelled 'half'"):
+        service.run(home, BOOK, "detect", "half")
+    with pytest.raises(Refusal, match="not a kind of run"):
+        service.run(home, BOOK, "look", "truth")
 
 
 def test_the_pairs_carry_the_truth_only_for_the_truth_side(store):
@@ -119,3 +126,10 @@ def test_the_page_image_is_bounded_cached_and_the_crop_is_one_block(store):
     for bad in ("p0000", "zzz", "p0000-b999", "p0099-b0"):
         with pytest.raises(Refusal):
             service.crop_png(home, BOOK, "detect", "truth", bad)
+    with pytest.raises(Refusal, match="outside"):
+        service.crop_png(home, BOOK, "detect", "truth", blk["anchor"], dpi=1)
+    # A crop the run kept is the answer, byte for byte: what the model saw.
+    os.makedirs(os.path.join(rd, "crops"))
+    with open(os.path.join(rd, "crops", blk["anchor"] + ".png"), "wb") as f:
+        f.write(b"\x89PNG kept")
+    assert service.crop_png(home, BOOK, "detect", "truth", blk["anchor"]) == b"\x89PNG kept"
