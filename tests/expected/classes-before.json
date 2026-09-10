@@ -1,0 +1,552 @@
+{
+ "DocLayNet": {
+  "Caption": {
+   "kind": "text",
+   "order_name": "caption",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "Footnote": {
+   "kind": "text",
+   "order_name": "footnote",
+   "prompt": "OCR:",
+   "role": "furniture"
+  },
+  "Formula": {
+   "kind": "latex",
+   "order_name": "picture",
+   "prompt": "Formula Recognition:",
+   "role": "artifact"
+  },
+  "List-item": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "Page-footer": {
+   "kind": "text",
+   "order_name": "page_footer",
+   "prompt": "OCR:",
+   "role": "furniture"
+  },
+  "Page-header": {
+   "kind": "text",
+   "order_name": "page_header",
+   "prompt": "OCR:",
+   "role": "furniture"
+  },
+  "Picture": {
+   "kind": "",
+   "order_name": "picture",
+   "prompt": "",
+   "role": "artifact"
+  },
+  "Section-header": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "Table": {
+   "kind": "otsl",
+   "order_name": "table",
+   "prompt": "Table Recognition:",
+   "role": "artifact"
+  },
+  "Text": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "Title": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  }
+ },
+ "Docling": {
+  "caption": {
+   "kind": "text",
+   "order_name": "caption",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "checkbox_selected": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "checkbox_unselected": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "code": {
+   "kind": "text",
+   "order_name": "code",
+   "prompt": "OCR:",
+   "role": "artifact"
+  },
+  "document_index": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "footnote": {
+   "kind": "text",
+   "order_name": "footnote",
+   "prompt": "OCR:",
+   "role": "furniture"
+  },
+  "form": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "formula": {
+   "kind": "latex",
+   "order_name": "picture",
+   "prompt": "Formula Recognition:",
+   "role": "artifact"
+  },
+  "key_value_region": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "list_item": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "page_footer": {
+   "kind": "text",
+   "order_name": "page_footer",
+   "prompt": "OCR:",
+   "role": "furniture"
+  },
+  "page_header": {
+   "kind": "text",
+   "order_name": "page_header",
+   "prompt": "OCR:",
+   "role": "furniture"
+  },
+  "picture": {
+   "kind": "",
+   "order_name": "picture",
+   "prompt": "",
+   "role": "artifact"
+  },
+  "section_header": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "table": {
+   "kind": "otsl",
+   "order_name": "table",
+   "prompt": "Table Recognition:",
+   "role": "artifact"
+  },
+  "text": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "title": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  }
+ },
+ "Docling-egret": {
+  "Caption": {
+   "kind": "text",
+   "order_name": "caption",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "Checkbox-Selected": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "Checkbox-Unselected": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "Code": {
+   "kind": "text",
+   "order_name": "code",
+   "prompt": "OCR:",
+   "role": "artifact"
+  },
+  "Document Index": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "Footnote": {
+   "kind": "text",
+   "order_name": "footnote",
+   "prompt": "OCR:",
+   "role": "furniture"
+  },
+  "Form": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "Formula": {
+   "kind": "latex",
+   "order_name": "picture",
+   "prompt": "Formula Recognition:",
+   "role": "artifact"
+  },
+  "Key-Value Region": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "List-item": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "Page-footer": {
+   "kind": "text",
+   "order_name": "page_footer",
+   "prompt": "OCR:",
+   "role": "furniture"
+  },
+  "Page-header": {
+   "kind": "text",
+   "order_name": "page_header",
+   "prompt": "OCR:",
+   "role": "furniture"
+  },
+  "Picture": {
+   "kind": "",
+   "order_name": "picture",
+   "prompt": "",
+   "role": "artifact"
+  },
+  "Section-header": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "Table": {
+   "kind": "otsl",
+   "order_name": "table",
+   "prompt": "Table Recognition:",
+   "role": "artifact"
+  },
+  "Text": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "Title": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  }
+ },
+ "PP-DocLayoutV2": {
+  "abstract": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "algorithm": {
+   "kind": "text",
+   "order_name": "code",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "aside_text": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "chart": {
+   "kind": "text",
+   "order_name": "picture",
+   "prompt": "Chart Recognition:",
+   "role": "artifact"
+  },
+  "content": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "display_formula": {
+   "kind": "latex",
+   "order_name": "picture",
+   "prompt": "Formula Recognition:",
+   "role": "artifact"
+  },
+  "doc_title": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "figure_title": {
+   "kind": "text",
+   "order_name": "caption",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "footer": {
+   "kind": "text",
+   "order_name": "page_footer",
+   "prompt": "OCR:",
+   "role": "furniture"
+  },
+  "footer_image": {
+   "kind": "",
+   "order_name": "page_footer",
+   "prompt": "",
+   "role": "artifact"
+  },
+  "footnote": {
+   "kind": "text",
+   "order_name": "footnote",
+   "prompt": "OCR:",
+   "role": "furniture"
+  },
+  "formula_number": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "header": {
+   "kind": "text",
+   "order_name": "page_header",
+   "prompt": "OCR:",
+   "role": "furniture"
+  },
+  "header_image": {
+   "kind": "",
+   "order_name": "page_header",
+   "prompt": "",
+   "role": "artifact"
+  },
+  "image": {
+   "kind": "",
+   "order_name": "picture",
+   "prompt": "",
+   "role": "artifact"
+  },
+  "inline_formula": {
+   "kind": "latex",
+   "order_name": "text",
+   "prompt": "Formula Recognition:",
+   "role": "text"
+  },
+  "number": {
+   "kind": "text",
+   "order_name": "page_footer",
+   "prompt": "OCR:",
+   "role": "furniture"
+  },
+  "paragraph_title": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "reference": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "reference_content": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "seal": {
+   "kind": "text",
+   "order_name": "picture",
+   "prompt": "Seal Recognition:",
+   "role": "artifact"
+  },
+  "table": {
+   "kind": "otsl",
+   "order_name": "table",
+   "prompt": "Table Recognition:",
+   "role": "artifact"
+  },
+  "text": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "vertical_text": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "vision_footnote": {
+   "kind": "text",
+   "order_name": "footnote",
+   "prompt": "OCR:",
+   "role": "furniture"
+  }
+ },
+ "PP-DocLayout_plus-L": {
+  "abstract": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "algorithm": {
+   "kind": "text",
+   "order_name": "code",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "aside_text": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "chart": {
+   "kind": "text",
+   "order_name": "picture",
+   "prompt": "Chart Recognition:",
+   "role": "artifact"
+  },
+  "content": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "doc_title": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "figure_title": {
+   "kind": "text",
+   "order_name": "caption",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "footer": {
+   "kind": "text",
+   "order_name": "page_footer",
+   "prompt": "OCR:",
+   "role": "furniture"
+  },
+  "footnote": {
+   "kind": "text",
+   "order_name": "footnote",
+   "prompt": "OCR:",
+   "role": "furniture"
+  },
+  "formula": {
+   "kind": "latex",
+   "order_name": "picture",
+   "prompt": "Formula Recognition:",
+   "role": "artifact"
+  },
+  "formula_number": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "header": {
+   "kind": "text",
+   "order_name": "page_header",
+   "prompt": "OCR:",
+   "role": "furniture"
+  },
+  "image": {
+   "kind": "",
+   "order_name": "picture",
+   "prompt": "",
+   "role": "artifact"
+  },
+  "number": {
+   "kind": "text",
+   "order_name": "page_footer",
+   "prompt": "OCR:",
+   "role": "furniture"
+  },
+  "paragraph_title": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "reference": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "reference_content": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  },
+  "seal": {
+   "kind": "text",
+   "order_name": "picture",
+   "prompt": "Seal Recognition:",
+   "role": "artifact"
+  },
+  "table": {
+   "kind": "otsl",
+   "order_name": "table",
+   "prompt": "Table Recognition:",
+   "role": "artifact"
+  },
+  "text": {
+   "kind": "text",
+   "order_name": "text",
+   "prompt": "OCR:",
+   "role": "text"
+  }
+ }
+}

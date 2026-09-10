@@ -447,7 +447,7 @@ def measure(truth_dir: str, pages_dir: str, norm: str = NORM) -> dict:
     return res
 
 
-def measure_pages(T: dict, P: dict, norm: str = NORM) -> dict:
+def measure_pages(T: dict, P: dict, norm: str = NORM, tp=None) -> dict:
     """The same over pages already loaded: this is what the probes feed."""
     txt = {"block_count": 0, "truth_chars": 0, "truth_words": 0,
            "char_distance": 0, "word_distance": 0,
@@ -515,7 +515,7 @@ def measure_pages(T: dict, P: dict, norm: str = NORM) -> dict:
             _truth_both(b, side)          # both truths at once: refuse aloud
             grid = _truth_grid(b, side)
             content = b.get("content")
-            role = policy.role(b["label"])
+            role = (tp or policy.UNION).role(b["label"])
 
             if grid is not None:                       # ------------ table
                 tab["block_count"] += 1
@@ -957,7 +957,7 @@ class TextMetric(Metric):
 
     def run_loaded(self, bench, run, truth, pages, note) -> Record:
         from booksmith.datasets.metrics.contour import _same_raster
-        res = measure_pages(truth, pages)
+        res = measure_pages(truth, pages, tp=bench.policy)
         res["book"] = f"{note}; {_same_raster(truth, pages)}"
         return self.record(res, bench.name, run.label)
 

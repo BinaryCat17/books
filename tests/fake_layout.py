@@ -43,17 +43,23 @@ class FakeLayout:
     def __init__(self, truth_dir, kind="layout", label="truth",
                  vocabulary="PP-DocLayoutV2", fingerprint=None, knobs=None,
                  keep_content=False, kinds=("text",), openai=None,
-                 answer=None):
+                 answer=None, classes=None):
         self.pages = truth_pages(truth_dir)
         self.kind, self.label, self.keep_content = kind, label, keep_content
-        labels = list(policy.POLICIES[vocabulary])
+        # A vocabulary of the tree's own, or the model's own mapping onto the
+        # classes, which names no vocabulary.
+        if classes is None:
+            classes = policy.VOCABULARIES[vocabulary]
+        else:
+            vocabulary = ""
+        labels = sorted(classes)
         fp = fingerprint if fingerprint is not None else {
             "name": "fake-layout", "model": label,
             "sha256_weights": _weights_hash(self.pages),
             "label_vocabulary": labels, "label_map": {}, "prompts": {},
             "reading_order": "model_rank", "threshold_drift": []}
         self.describe = served.Describe(
-            kind=kind, label=label, fingerprint=fp, labels=tuple(labels),
+            kind=kind, label=label, fingerprint=fp, classes=dict(classes),
             vocabulary=vocabulary, reading_order="own",
             knobs=dict(knobs or {}),
             kinds=tuple(kinds) if kind == "hybrid" else (),

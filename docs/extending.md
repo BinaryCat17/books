@@ -9,7 +9,7 @@ Served, which is how a model reaches the web and, later, the fleet:
 1. An endpoint answering the three routes of `src/booksmith/core/served.py`:
    describe, health, layout. The describe names the model, carries its
    fingerprint with `sha256_weights`, the values of every knob its adapter
-   read, and its label vocabulary, whole, as one of the policies in
+   read, and every label it can name mapped onto one of the classes in
    `src/booksmith/core/policy.py`. A hybrid fills content and kind too and
    declares its kinds.
 2. An entry in the admin's `models.json`: kind, endpoint, knobs.
@@ -23,8 +23,8 @@ In process, for a model the tree holds itself:
    that subclasses `Detector` from `src/booksmith/processing/layout/base.py`
    and implements its abstract members: `label` (the model's own name, a
    directory name), `fingerprint`, `knobs_read`, `read`, `threshold_drift`.
-2. Its label vocabulary, whole, as a policy in `src/booksmith/core/policy.py`:
-   every label to one of `text`, `artifact`, `furniture`. `policy.check`
+2. Its label vocabulary, whole, as a mapping onto the classes in
+   `src/booksmith/core/policy.py`, under `VOCABULARIES`; `Policy.check`
    refuses a vocabulary that is not covered exactly.
 3. Its name in `ADAPTERS` and in `_adapter` of
    `src/booksmith/processing/layout/detect.py`.
@@ -40,7 +40,7 @@ In process, for a model the tree holds itself:
 
 1. A module under `src/booksmith/processing/read/readers/` implementing
    `Reader` from `src/booksmith/processing/read/__init__.py`: `label`,
-   `fingerprint`, `knobs_read`, `routes` (label to prompt and kind),
+   `fingerprint`, `knobs_read`, `routes` (class to prompt and kind),
    `pixels`, `cover`.
 2. Its name in `READERS` and `build_reader` of
    `src/booksmith/processing/read/driver.py`.

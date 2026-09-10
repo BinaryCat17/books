@@ -122,8 +122,9 @@ def _pick(b, boxes, used):
     return max(cand)[1]
 
 
-def _diagnose(t, mine, others_truth, arte):
-    """Name the trouble. Branches run from the specific to the general."""
+def _diagnose(t, mine, others_truth, arte, mp):
+    """Name the trouble. Branches run from the specific to the general. `arte`
+    and `mp` are the model side's: the boxes named here are the model's."""
     touching = [m for m in mine if cover(t["box"], m["box"]) >= TOUCH
                 or cover(m["box"], t["box"]) >= TOUCH]
     if not touching:
@@ -140,7 +141,7 @@ def _diagnose(t, mine, others_truth, arte):
               and cover(m["box"], t["box"]) >= 0.7]
     if len(inside) >= 2:
         return "fragmentation"
-    if policy.role(best["label"]) == "text" and ct >= 0.6:
+    if mp.role(best["label"]) == "text" and ct >= 0.6:
         return "eaten by text"
     if ct < 0.85 and cm >= 0.85:
         return "crop"
@@ -177,16 +178,22 @@ def _same_raster(T: dict, M: dict) -> str:
     return note
 
 
-def compare(truth_dir: str, detect_dir: str) -> dict:
+def compare(truth_dir: str, detect_dir: str, tp=None, mp=None) -> dict:
     """Score model output against truth. Numbers and named counters."""
     T, M = _load(truth_dir, "truth"), _load(detect_dir, "model boxes")
     note = f"{_same_book(truth_dir, detect_dir)}; {_same_raster(T, M)}"
-    res = compare_pages(T, M)
+    res = compare_pages(T, M, tp, mp)
     res["book"] = note
     return res
 
 
-def compare_pages(T: dict, M: dict) -> dict:
+def compare_pages(T: dict, M: dict, tp=None, mp=None) -> dict:
+    """Truth against the model's pages. `tp` and `mp` are the two sides'
+    policies, truth's and the run's: a role is asked of the side the block
+    is on, and the union of the tree's vocabularies stands in for either
+    when none is given."""
+    tp = tp or policy.UNION
+    mp = mp or policy.UNION
     missing = sorted(set(T) - set(M))
     if missing:
         raise MetricError(
@@ -194,7 +201,7 @@ def compare_pages(T: dict, M: dict) -> dict:
             f"compare. An empty report here would read as 'matched zero', "
             f"which is another thing.")
 
-    arte = set(policy.artefacts())
+    arte_t, arte_m = set(tp.artefacts()), set(mp.artefacts())
     # Order is scored only where truth declares it annotated; a missing flag
     # is not permission.
     states = {}
@@ -222,8 +229,8 @@ def compare_pages(T: dict, M: dict) -> dict:
     for i, t in sorted(T.items()):
         m = M[i]
         case = t.get("meta", {}).get("case", str(i))
-        tb = [b for b in t["blocks"] if b["label"] in arte]
-        mb = [b for b in m["blocks"] if b["label"] in arte]
+        tb = [b for b in t["blocks"] if b["label"] in arte_t]
+        mb = [b for b in m["blocks"] if b["label"] in arte_m]
         mall = m["blocks"]
         used, pairs = set(), []
         for b in tb:
@@ -250,7 +257,7 @@ def compare_pages(T: dict, M: dict) -> dict:
                 per_label.setdefault(b["label"], [0, 0])[0] += 1
                 per["artefacts_found"][page.anchor(i, b["block_id"])] = 1
                 continue
-            bed(f"{_diagnose(b, mall, tb, arte)} ({b['label']})")
+            bed(f"{_diagnose(b, mall, tb, arte_m, mp)} ({b['label']})")
         # Model artefact boxes with no partner in truth. Nesting is measured
         # against PAIRED truth boxes: a fragment of an artefact never found is
         # a miss, not a duplicate of a missing original.
@@ -278,12 +285,12 @@ def compare_pages(T: dict, M: dict) -> dict:
             conf[(b["label"], x["label"])] = conf.get((b["label"], x["label"]), 0) + 1
             if b["label"] != x["label"]:
                 per["label_errors"][page.anchor(i, x["block_id"])] = 1
-            if policy.role(b["label"]) != policy.role(x["label"]):
+            if tp.role(b["label"]) != mp.role(x["label"]):
                 per["role_errors"][page.anchor(i, x["block_id"])] = 1
             # Third member: the position in `mall`, the list
             # `assemble/html.py` walks and the book is assembled by.
             page_ranks.append((b.get("order"), x.get("order"), j))
-            if (b["label"] not in arte
+            if (b["label"] not in arte_t
                     and _truth_text_state(t) == "yes"):
                 txt["found"] += 1
                 per["text_furniture_found"][page.anchor(i, b["block_id"])] = 1
@@ -296,7 +303,7 @@ def compare_pages(T: dict, M: dict) -> dict:
         if _truth_text_state(t) == "yes":
             txt["pages_with_text_markup"] += 1
             txt["block_count"] += len([b for b in t["blocks"]
-                                  if b["label"] not in arte])
+                                  if b["label"] not in arte_t])
         # Reading order is scored within a page: a rank is a row number in
         # that page's output, and the next page starts its own numbering.
         if _truth_order_state(t) == ORDER_MARKED:
@@ -315,13 +322,18 @@ def compare_pages(T: dict, M: dict) -> dict:
             f"{k} on {states[k]}" for k in
             (ORDER_MARKED, ORDER_UNMARKED, ORDER_SILENT) if states.get(k))
             + f" of {len(T)} pages")
-    return {"totals": tot, "sense": sense(T, M), "text_and_furniture": txt,
+    return {"totals": tot, "sense": sense(T, M, tp, mp),
+            "text_and_furniture": txt,
             "by_case": per_case,
             "by_label": {k: {"truth": v[1], "found": v[0],
-                               "bucket": policy.role(k)}
+                               "bucket": tp.role(k)}
                            for k, v in sorted(per_label.items())},
             "troubles": dict(sorted(beds.items())),
             "label_confusion": {f"{a}->{b}": n for (a, b), n in sorted(conf.items())},
+            # The pairs whose roles disagree, decided here where both sides'
+            # policies are in hand; the report and the record sum them.
+            "role_confusion": {f"{a}->{b}": n for (a, b), n in sorted(conf.items())
+                               if tp.role(a) != mp.role(b)},
             "order_truth": {"states": states, "page_count": len(T)},
             "order_rule": ", ".join(rules) or "nothing to declare",
             # Two questions: the model rank needs a real rank on both sides,
@@ -333,7 +345,7 @@ def compare_pages(T: dict, M: dict) -> dict:
                               f"({', '.join(rules)})")),
             "assembly_order": _order_agree(
                 ranks, 2, ceiling, order_pages, len(T), why_order),
-            "jumps": column_jumps(M),
+            "jumps": column_jumps(M, pol=mp),
             "per": per}
 
 
@@ -488,10 +500,12 @@ def _columns(boxes, overlap=None) -> list:
 
 
 def column_jumps(M: dict, overlap=None, wide=None, min_boxes=None,
-                 roles=None) -> dict:
+                 roles=None, pol=None) -> dict:
     """Excess column jumps of the assembly order; no truth needed. The order is
     the block position in the page list, which `assemble/html.py` walks without
-    sorting. Too few counted boxes yield no value, and never a zero."""
+    sorting. Too few counted boxes yield no value, and never a zero. `pol` is
+    the run's policy, the union of the tree's own when none is given."""
+    pol = pol or policy.UNION
     par = column_params(overlap, wide, min_boxes, roles)
     ov = par["x_overlap_of_narrow_box"]
     wd = par["full_width_box_share"]
@@ -504,7 +518,7 @@ def column_jumps(M: dict, overlap=None, wide=None, min_boxes=None,
         w = float(p.get("width") or 0.0)
         part = []
         for b in p["blocks"]:
-            if policy.role(b["label"]) not in keep:
+            if pol.role(b["label"]) not in keep:
                 other += 1
                 continue
             if w > 0 and (b["box"][2] - b["box"][0]) >= wd * w:
@@ -657,9 +671,8 @@ def column_jumps_ranking(variants: dict, grid: dict = None,
 
 
 def _fits(labels) -> list:
-    """Which declared vocabularies hold ALL of these labels at once."""
-    have = set(labels)
-    return sorted(n for n, t in policy.POLICIES.items() if have <= set(t))
+    """Which of the tree's own vocabularies hold ALL of these labels at once."""
+    return policy.fits(labels)
 
 
 def label_alphabet(res: dict) -> list:
@@ -686,11 +699,10 @@ def label_errors(res: dict):
 
 def role_errors(res: dict) -> int:
     """Bucket confusion: did the model call an artefact an artefact. Always
-    scored, since policy declares a bucket for every vocabulary; coarser than
-    the label on purpose, so `table` -> `chart` inside one bucket never lands here."""
-    return sum(n for k, n in res["label_confusion"].items()
-               if policy.role(k.split("->", 1)[0])
-               != policy.role(k.split("->", 1)[1]))
+    scored, since every policy gives its labels a bucket; coarser than the
+    label on purpose, so `table` -> `chart` inside one bucket never lands
+    here. Decided in `compare_pages`, where both sides' policies are."""
+    return sum(res["role_confusion"].values())
 
 
 def _report_order(res: dict) -> None:
@@ -823,16 +835,17 @@ def report(res: dict) -> None:
 # The column split the jump count is built on, and the four assembly orders
 # `column_jumps_ranking` compares; `probes/contour.py` reaches for the same.
 
-def _columns_of(p, wide=None, roles=None):
+def _columns_of(p, wide=None, roles=None, pol=None):
     """Split a page's blocks into those counted for columns and the rest. The
     parameters are taken, not silently defaulted: a variant folded under one set
     and measured under another stops being what it is called."""
+    pol = pol or policy.UNION
     w = float(p.get("width") or 0.0)
     wd = COLUMN_WIDE if wide is None else wide
     keep = set(COLUMN_ROLES if roles is None else roles)
     part, rest = [], []
     for b in p["blocks"]:
-        if (policy.role(b["label"]) in keep
+        if (pol.role(b["label"]) in keep
                 and (w <= 0 or (b["box"][2] - b["box"][0]) < wd * w)):
             part.append(b)
         else:
@@ -937,9 +950,10 @@ SENSE_WHOLE = 0.90     # what share of the object must lie inside the box
 SENSE_NEIGHBOUR = 0.5  # from what share of a neighbour a box counts as merged
 
 
-def sense(T: dict, M_: dict) -> dict:
+def sense(T: dict, M_: dict, tp=None, mp=None) -> dict:
     """Is the object's sense whole: not cropped, not merged, not called text."""
-    arte = set(policy.artefacts())
+    arte_t = set((tp or policy.UNION).artefacts())
+    arte_m = set((mp or policy.UNION).artefacts())
     out = {"objects": 0, "intact": 0, "cropped": 0, "merged": 0,
            "called_text": 0, "not_seen": 0,
            "threshold_fits": SENSE_WHOLE, "threshold_neighbour": SENSE_NEIGHBOUR,
@@ -948,11 +962,11 @@ def sense(T: dict, M_: dict) -> dict:
     for i, t in sorted(T.items()):
         if i not in M_:
             continue
-        mb = [b["box"] for b in M_[i]["blocks"] if b["label"] in arte]
+        mb = [b["box"] for b in M_[i]["blocks"] if b["label"] in arte_m]
         # Outlined but called text is a different loss from never seen: a
         # label cures the first, only the model the second.
-        ob = [b["box"] for b in M_[i]["blocks"] if b["label"] not in arte]
-        tb = [b for b in t["blocks"] if b["label"] in arte]
+        ob = [b["box"] for b in M_[i]["blocks"] if b["label"] not in arte_m]
+        tb = [b for b in t["blocks"] if b["label"] in arte_t]
         for b in tb:
             out["objects"] += 1
             fits = [x for x in mb
@@ -1020,11 +1034,11 @@ class ContourMetric(Metric):
     )
 
     def run(self, bench, run) -> Record:
-        res = compare(bench.truth_dir, run.pages_dir)
+        res = compare(bench.truth_dir, run.pages_dir, bench.policy, run.policy)
         return self.record(res, bench.name, run.label)
 
     def run_loaded(self, bench, run, truth, pages, note) -> Record:
-        res = compare_pages(truth, pages)
+        res = compare_pages(truth, pages, bench.policy, run.policy)
         res["book"] = f"{note}; {_same_raster(truth, pages)}"
         return self.record(res, bench.name, run.label)
 

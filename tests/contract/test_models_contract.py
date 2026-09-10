@@ -10,6 +10,7 @@ import json
 import pytest
 
 import support
+from booksmith.core import policy
 from booksmith.processing.layout import base
 
 # Adapters we ship. Named explicitly: a new one lands here deliberately or not
@@ -93,7 +94,7 @@ def test_every_detector_declares_a_label_and_it_is_a_directory_name(served_endpo
 def test_the_reader_labels_by_the_model_not_by_itself():
     from booksmith.core import book
     from booksmith.processing.read.readers.paddleocr_vl import PaddleOcrVl
-    r = PaddleOcrVl("PP-DocLayoutV2")
+    r = PaddleOcrVl(policy.POLICIES["PP-DocLayoutV2"])
     assert r.label() != r.name, (
         "the reader labelled a run after itself; `paddleocr-vl` is the reader "
         "and the model is what answered")
@@ -200,7 +201,7 @@ def test_identity_is_taken_from_the_real_fingerprints_not_a_hand_written_one(ser
             except Exception as e:
                 pytest.skip(f"{name}: {type(e).__name__}")
             seen.append((name, fp))
-    seen.append(("reader", PaddleOcrVl("PP-DocLayoutV2").fingerprint()))
+    seen.append(("reader", PaddleOcrVl(policy.POLICIES["PP-DocLayoutV2"]).fingerprint()))
     nested = [n for n, fp in seen
               if any(isinstance(v, dict) and v for v in fp.values())]
     assert nested, (

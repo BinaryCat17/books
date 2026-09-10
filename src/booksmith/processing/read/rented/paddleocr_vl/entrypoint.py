@@ -32,7 +32,9 @@ def main(argv=None):
     ap.add_argument("--server", required=True, help="the vLLM address, including /v1")
     ap.add_argument("--model", default="")
     ap.add_argument("--pages", default="")
-    ap.add_argument("--policy", default="PP-DocLayoutV2")
+    ap.add_argument("--policy", default="-",
+                    help="a vocabulary name to insist on; `-` takes the "
+                         "detection snapshot's own")
     # `run.sh` passes this when `RESUME=0`, `RESUME` being a registry knob
     # forwarded by `knobs.passthrough()`; the flag and `read_book(resume=...)`
     # are the two halves of that one knob.
@@ -65,7 +67,9 @@ def main(argv=None):
     if a.model:
         os.environ["MODEL_NAME"] = a.model
 
-    reader = vread.build_reader(a.policy)
+    pol = vread.policy_for(a.detect, "" if a.policy in ("", "-") else a.policy,
+                           what="the paid run")
+    reader = vread.build_reader(pol)
     transport = vhttp.build()
     who = transport.check()
     log(f"endpoint {who['endpoint']}: answers {who['models_on_server']}, "

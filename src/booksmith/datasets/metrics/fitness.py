@@ -56,7 +56,8 @@ class FitnessMetric(Metric):
 
     def run(self, bench, run) -> Record:
         truth = bench.truth_dir if bench is not None and bench.truth_dir else ""
-        res = ink.measure(bench.pdf, run.pages_dir, truth)
+        res = ink.measure(bench.pdf, run.pages_dir, truth,
+                          run.policy, bench.policy if truth else None)
         return self.record(res, bench.name, run.label, bool(truth))
 
     def run_loaded(self, bench, run, truth, pages, note) -> Record:

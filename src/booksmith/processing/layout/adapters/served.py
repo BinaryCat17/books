@@ -13,6 +13,7 @@ identity, so a served run of a model equals an in-process run of it.
 from __future__ import annotations
 
 from booksmith.core import book, job, knobs, served
+from booksmith.core import policy as policy_mod
 from booksmith.core.errors import Refusal
 from booksmith.core.page import KINDS, Page
 from booksmith.processing.layout.base import Detector
@@ -59,13 +60,17 @@ class Served(Detector):
                 f"which the snapshot indexes and the identity stands on.")
         self.labels: tuple[str, ...] = tuple(self.describe.labels)
         self._known = set(self.labels)
-        # The policy is the model's declaration, as an in-process adapter's
-        # class attribute is; `detect.py` checks it covers the labels whole.
+        # The policy is the model's own declaration: its labels onto the
+        # tree's classes. `detect.py` checks it covers the labels whole.
+        self._policy = self.describe.policy()
         self.policy_name = self.describe.vocabulary
 
     # -------------------------------------------------------- the contract --
     def where(self) -> str:
         return self.endpoint
+
+    def policy(self) -> policy_mod.Policy:
+        return self._policy
 
     def served(self) -> dict | None:
         return self.describe.to_json()

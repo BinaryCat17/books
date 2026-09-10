@@ -50,8 +50,8 @@ class AssemblyMetric(Metric):
     )
 
     def _record(self, bench_name, run, pages) -> Record:
-        j = contour.column_jumps(pages)
-        one = contour.column_jumps(_under_one_rule(pages))
+        j = contour.column_jumps(pages, pol=run.policy)
+        one = contour.column_jumps(_under_one_rule(pages), pol=run.policy)
         scalars = {
             "excess_jumps_per_page": Scalar(
                 j.get("per_page"), over=(j.get("pages_counted", 0), j.get("page_count", 0)),

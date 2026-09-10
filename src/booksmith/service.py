@@ -229,9 +229,9 @@ def read(store: str, detect_dir: str, settings: Mapping, out: str | None = None,
         if pages:
             with raster.open_pdf(book.pdf_of(detect_dir)) as d:
                 want = set(parse_pages(pages, d.page_count))
-        policy_name = driver.policy_for(detect_dir, policy, what="the paid run")
+        pol = driver.policy_for(detect_dir, policy, what="the paid run")
         os.makedirs(out, exist_ok=True)
-        reader = driver.build_reader(policy_name)
+        reader = driver.build_reader(pol)
         transport = openai_http.build()
         who = transport.check()
         log(f"endpoint {who['endpoint']}: answers {who['models_on_server']}, "
@@ -241,7 +241,7 @@ def read(store: str, detect_dir: str, settings: Mapping, out: str | None = None,
         driver.report(t)
         p = driver.snapshot(detect_dir, out, reader, transport, t,
                             {"detect": detect_dir, "out": out, "pages": pages,
-                             "policy": policy_name})
+                             "policy": pol.name})
         log(f"snapshot: {p}")
         return out
 

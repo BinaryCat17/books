@@ -93,7 +93,7 @@ def _multi(T, arte):
 def probes(bench, run) -> list:
     T = m._load(bench.truth_dir, "truth")
     M = m._load(run.pages_dir, "model boxes")
-    arte = set(policy.artefacts())
+    arte = set(run.policy.artefacts())
     # The label for the "rename one class" probe comes from the DATA: a
     # hard-coded name is a different vocabulary's. Sorted before `max`, or a tie
     # goes by hash order and the probe names another label in every process.
@@ -102,9 +102,9 @@ def probes(bench, run) -> list:
     pick = max(sorted(set(m_arte)), key=m_arte.count) if m_arte else None
     # The second label comes FROM THE SAME VOCABULARY as the first: a label this
     # model does not have checks the wrong thing.
-    same = next((t for t in policy.POLICIES.values() if pick in t), {})
-    other = next((l for l in sorted(same)
-                  if l != pick and same[l] == "artifact"), None)
+    same = next((p for p in policy.POLICIES.values() if pick in p.labels), None)
+    other = next((l for l in (same.labels if same else ())
+                  if l != pick and same.role(l) == "artifact"), None)
     # A text label of the same vocabulary, for "artefacts called text".
     m_txt = [b["label"] for p in M.values() for b in p["blocks"]
              if b["label"] not in arte]
@@ -346,7 +346,7 @@ def probes(bench, run) -> list:
         # to fail like the rest. The damage is across a bucket, not within one.
         (f"artefacts called {plain}", "more bucket errors",
          lambda: None if not (plain and any(
-                     policy.role(k.split("->", 1)[0]) == "artifact"
+                     bench.policy.role(k.split("->", 1)[0]) == "artifact"
                      for k in base["label_confusion"]))
                  else m.role_errors(R(_relabel(
                      M, lambda l: plain if l in arte else l))) > b_role),
@@ -380,7 +380,7 @@ def probes(bench, run) -> list:
                  else all(R(tt=_forget_order_mark(T))[k]["agreement"] is None
                           for k in ("model_order", "assembly_order"))),
         ("text and furniture dropped from truth", "text zero",
-         lambda: None if not any(policy.role(b["label"]) != "artifact"
+         lambda: None if not any(bench.policy.role(b["label"]) != "artifact"
                                  for p in T.values() for b in p["blocks"])
                  else R(tt=_only(T, lambda b: b["label"] in arte))
                       ["text_and_furniture"]["share"] in (0.0, None)),

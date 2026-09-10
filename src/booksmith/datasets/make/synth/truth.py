@@ -89,7 +89,7 @@ def _text_check(words, boxes, said, case: str):
     miss = ghost = unknown = leaders = 0
     samples = []
     for j, b in enumerate(boxes):
-        if policy.role(b[4]) == "artifact":
+        if policy.POLICIES["PP-DocLayoutV2"].role(b[4]) == "artifact":
             continue
         have = Counter(inside[j])
         want = Counter((said.get(j, {}).get("text") or "").split())

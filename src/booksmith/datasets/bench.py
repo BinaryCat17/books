@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 
 from booksmith.core.errors import Unmeasurable
 from booksmith.core import book as book_mod
+from booksmith.core import policy as policy_mod
 from booksmith.core import page
 from booksmith.core import stamp
 
@@ -113,6 +114,15 @@ class Run:
         return k if k in book_mod.KINDS else ""
 
     @property
+    def policy(self) -> policy_mod.Policy:
+        """The model's labels onto the classes, as the snapshot recorded them;
+        a bare run has no snapshot and is measured under the union of the
+        tree's own vocabularies, as truth is."""
+        if not self.snapshot:
+            return policy_mod.UNION
+        return policy_mod.Policy.from_snapshot(self.snapshot.get("policy"))
+
+    @property
     def level(self) -> str:
         """The results table's kind column: `detect`, `read`, or `hybrid` for
         a read run whose boxes are its own (`run.json` says `layout: own`)."""
@@ -195,6 +205,13 @@ class Bench:
                 f"{' and '.join(aside)}/ if the truth is gone for good.")
         return cls(path, os.path.basename(os.path.abspath(path)), "", man,
                    _scan_of(path, man, sha))
+
+    @property
+    def policy(self) -> policy_mod.Policy:
+        """Truth's labels onto the classes. Truth declares no vocabulary of
+        its own yet, and every bench is annotated in the tree's own, so the
+        union of those stands for it."""
+        return policy_mod.UNION
 
     @property
     def pdf(self) -> str | None:

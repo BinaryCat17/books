@@ -11,6 +11,7 @@ in the model's vocabulary, translated by a map the adapter declares.
 """
 import abc
 
+from booksmith.core import policy as policy_mod
 from booksmith.core.page import Page
 
 
@@ -33,7 +34,8 @@ class Detector(abc.ABC):
     # adapter's, and no default for one.
     onnx: str
 
-    # Which policy describes the vocabulary; empty means `detect.py` derives it.
+    # Which of the tree's own policies describes the vocabulary; empty means
+    # it is derived from the labels, and a served model brings its own.
     policy_name: str = ""
 
     # Keys the pipeline indexes without a default; the soft ones it reads with
@@ -73,6 +75,17 @@ class Detector(abc.ABC):
         """Where the model is: the weights directory, or the address a served
         model was reached at. For the log and the doctor, never the identity."""
         return self.dir
+
+    def policy(self) -> policy_mod.Policy:
+        """The mapping of this model's labels onto the classes: the tree's own
+        policy named by `policy_name`, else the one whose labels are exactly
+        these. A served model overrides this with what its describe said."""
+        got = getattr(self, "_policy", None)
+        if got is None:
+            got = (policy_mod.POLICIES[self.policy_name] if self.policy_name
+                   else policy_mod.for_labels(self.labels))
+            self._policy = got
+        return got
 
     def served(self) -> dict | None:
         """The describe a served model answered with, as JSON, or None for a

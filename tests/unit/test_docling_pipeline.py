@@ -20,6 +20,9 @@ from booksmith.processing.layout.adapters import docling as dh
 from booksmith.core.page import Block
 from booksmith.core import knobs
 
+EGRET = policy.VOCABULARIES["Docling-egret"]
+DOCLING = policy.VOCABULARIES["Docling"]
+
 OFF_META_KEYS = ["reading_order"]
 # The composition and order of the page's meta keys without the pipeline; at
 # `off` the pipeline unfolds into that same key and the page comes out as before.
@@ -85,13 +88,13 @@ def test_translation_covers_both_dictionaries():
     """The translation is checked against both policy vocabularies, not one: the
     keys of `EGRET_TO_DOCLING` are egret's display names, the values heron's
     snake_case, and a drift hands the vendor an invented name."""
-    assert set(dh.EGRET_TO_DOCLING) == set(policy.DOCLING_EGRET), (
+    assert set(dh.EGRET_TO_DOCLING) == set(EGRET), (
         "the translation table and the egret policy diverged: "
-        f"{sorted(set(dh.EGRET_TO_DOCLING) ^ set(policy.DOCLING_EGRET))}")
-    assert set(dh.EGRET_TO_DOCLING.values()) == set(policy.DOCLING), (
+        f"{sorted(set(dh.EGRET_TO_DOCLING) ^ set(EGRET))}")
+    assert set(dh.EGRET_TO_DOCLING.values()) == set(DOCLING), (
         "the translation does not lead into heron's vocabulary: "
-        f"{sorted(set(dh.EGRET_TO_DOCLING.values()) ^ set(policy.DOCLING))}")
-    assert set(dh.DEFAULT_LABELS) == set(policy.DOCLING), (
+        f"{sorted(set(dh.EGRET_TO_DOCLING.values()) ^ set(DOCLING))}")
+    assert set(dh.DEFAULT_LABELS) == set(DOCLING), (
         "heron's fallback label vocabulary diverged from the Docling policy")
 
 

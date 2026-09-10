@@ -39,8 +39,8 @@ def _merge(M):
     arriving as one picture, the worst thing that happens to structure."""
     out = {}
     for i, p in M.items():
-        art = [b for b in p["blocks"] if policy.role(b["label"]) == "artifact"]
-        bl = [b for b in p["blocks"] if policy.role(b["label"]) != "artifact"]
+        art = [b for b in p["blocks"] if policy.UNION.role(b["label"]) == "artifact"]
+        bl = [b for b in p["blocks"] if policy.UNION.role(b["label"]) != "artifact"]
         if art:
             bl.append({**art[0], "box": [
                 min(b["box"][0] for b in art), min(b["box"][1] for b in art),
@@ -74,7 +74,7 @@ def _double(M):
     for i, p in M.items():
         add = [{**b, "label": "text", "block_id": 10 ** 6 + j}
                for j, b in enumerate(p["blocks"])
-               if policy.role(b["label"]) == "artifact"]
+               if policy.UNION.role(b["label"]) == "artifact"]
         out[i] = {**p, "blocks": p["blocks"] + add}
     return out
 
@@ -97,7 +97,7 @@ def _halve(M):
     for i, p in M.items():
         bl = []
         for b in p["blocks"]:
-            if policy.role(b["label"]) != "artifact":
+            if policy.UNION.role(b["label"]) != "artifact":
                 bl.append(b)
                 continue
             x0, y0, x1, y1 = b["box"]
@@ -168,7 +168,7 @@ def probes(bench, run) -> list:
             doc.close()
 
     def art(b):
-        return policy.role(b["label"]) == "artifact"
+        return policy.UNION.role(b["label"]) == "artifact"
 
     # A full-sheet box, and DELIBERATELY an artefact: with a text label the
     # degenerate answer is tested at half strength, winning nothing on objects.
@@ -276,7 +276,7 @@ def probes(bench, run) -> list:
         ("every block handed a character",
          "ink leaves as text where it left as a picture, and the artefacts "
          "do not move",
-         lambda: None if not any(policy.role(b["label"]) != "artifact"
+         lambda: None if not any(policy.UNION.role(b["label"]) != "artifact"
                                  and not (b.get("content") or "").strip()
                                  for p in M0.values() for b in p["blocks"])
          else (lambda r: r["ink_as_text"] > base["ink_as_text"]

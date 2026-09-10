@@ -154,10 +154,12 @@ def test_an_undefined_jump_count_says_why_instead_of_printing_zero():
     """`.get(key, 0)` defaults on a missing key, not on a null one: `column_jumps`
     returns `excess_jumps: None` when no page gathered enough boxes to jump
     between, and a default of 0 never applies to it."""
+    from booksmith.core import policy as policy_mod
     from booksmith.datasets.metrics import assembly
 
     class OnePerPage:
         label = "m"
+        policy = policy_mod.UNION
 
         def pages(self):
             return {i: {"index": i, "width": 100, "height": 100, "dpi": 144.0,

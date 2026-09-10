@@ -203,7 +203,7 @@ def _build(out_dir, cases, seed, aging, book) -> dict:
         no_chars = []
         for j, b in enumerate(boxes):
             rec = said.get(j, {})
-            role = policy.role(b[4])
+            role = policy.POLICIES["PP-DocLayoutV2"].role(b[4])
             blk = {"block_id": j, "box": [round(v, 1) for v in b[:4]],
                    "label": b[4], "score": None, "order": j,
                    "content": None, "kind": "none"}

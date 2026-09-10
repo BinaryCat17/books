@@ -10,7 +10,7 @@ and cost `docling-slim` and `rtree`, +54 MB.
 No box coordinate is touched here -- only the order of the list, which is ours.
 """
 import functools
-from collections.abc import Iterable, Sequence
+from collections.abc import Sequence
 from typing import Any
 from booksmith.core.errors import Refusal
 
@@ -62,66 +62,20 @@ def rule() -> str:
     return v
 
 
-# Translated by name, not by role: the rules need page header against page footer.
-# They read eight names; anything unlisted rides as `text`, a value, not a default.
-_LABELS = {
-    "PP-DocLayoutV2": {
-        "header": "page_header", "header_image": "page_header",
-        "footer": "page_footer", "footer_image": "page_footer",
-        "number": "page_footer",
-        "footnote": "footnote", "vision_footnote": "footnote",
-        "figure_title": "caption",
-        "table": "table",
-        "image": "picture", "chart": "picture", "seal": "picture",
-        "display_formula": "picture",
-        "algorithm": "code",
-    },
-    "PP-DocLayout_plus-L": {
-        "header": "page_header", "footer": "page_footer",
-        "number": "page_footer",
-        "footnote": "footnote", "figure_title": "caption",
-        "table": "table",
-        "image": "picture", "chart": "picture", "seal": "picture",
-        "formula": "picture",
-        "algorithm": "code",
-    },
-    "Docling": {
-        "page_header": "page_header", "page_footer": "page_footer",
-        "footnote": "footnote", "caption": "caption",
-        "table": "table", "picture": "picture", "formula": "picture",
-        "code": "code",
-    },
-    "Docling-egret": {
-        "Page-header": "page_header", "Page-footer": "page_footer",
-        "Footnote": "footnote", "Caption": "caption",
-        "Table": "table", "Picture": "picture", "Formula": "picture",
-        "Code": "code",
-    },
-    "DocLayNet": {
-        "Page-header": "page_header", "Page-footer": "page_footer",
-        "Footnote": "footnote", "Caption": "caption",
-        "Table": "table", "Picture": "picture", "Formula": "picture",
-    },
-}
-
-
-def cover(vocab: Iterable[str], which: str | None = None) -> str | None:
-    """Is there a translation for this vocabulary. Fails before page one.
-
-    Asked only for the `docling` rule, the one that reads labels, and by the
-    model's full vocabulary -- a foreign one sails a running head into the body.
+def cover(pol: object, which: str | None = None) -> str | None:
+    """Whether the rule that reads labels can read this model's: every class
+    carries the name the docling rules look at, so a policy covers by
+    construction, and a label outside it is refused per block by
+    `Policy.order_name`. `None` under `ours`, which reads coordinates alone.
     """
     if (which or rule()) == "ours":
         return None
-    from booksmith.core import policy
-    name = policy.for_labels(vocab)
-    if name not in _LABELS:
+    from booksmith.core.policy import Policy
+    if not isinstance(pol, Policy):
         raise Refusal(
-            f"ASSEMBLY_ORDER=docling, but there is no label translation for "
-            f"the vocabulary {name!r}: I know {sorted(_LABELS)}. The order "
-            f"rules look at eight names, and under a foreign vocabulary a "
-            f"running head would sail into the body of the page.")
-    return name
+            "ASSEMBLY_ORDER=docling needs the model's policy to translate "
+            "its labels for the order rules, and none was given.")
+    return pol.name or "the model's own classes"
 
 
 @functools.lru_cache(maxsize=1)
@@ -146,7 +100,7 @@ def _predictor() -> Any:
 
 
 def permutation(labels: Sequence[str], boxes: Sequence, width: float, height: float,
-                index: int, vocab: Iterable[str], which: str | None = None) -> list[int]:
+                index: int, pol: object, which: str | None = None) -> list[int]:
     """Permutation of the block list, as indices, since three adapters carry
     three list shapes and the shared rule knows none of them. `boxes` are page
     pixels, origin top left; the docling rules count from the bottom.
@@ -165,16 +119,16 @@ def permutation(labels: Sequence[str], boxes: Sequence, width: float, height: fl
         PageElement as RoElement)
     from docling_core.types.doc import CoordOrigin, DocItemLabel, Size
 
-    name = cover(vocab, which)
-    assert name is not None            # `ours` returned above
-    tr = _LABELS[name]
+    cover(pol, which)
+    from booksmith.core.policy import Policy
+    assert isinstance(pol, Policy)     # `cover` refused anything else
     h = float(height)
     size = Size(width=float(width), height=h)
     els = []
     for i, (lab, b) in enumerate(zip(labels, boxes, strict=True)):
         els.append(RoElement(
             cid=i, text="", page_no=int(index), page_size=size,
-            label=DocItemLabel(tr.get(lab, "text")),
+            label=DocItemLabel(pol.order_name(lab)),
             l=float(b[0]), r=float(b[2]),
             b=h - float(b[3]), t=h - float(b[1]),
             coord_origin=CoordOrigin.BOTTOMLEFT))

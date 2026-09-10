@@ -12,45 +12,37 @@ from booksmith.core.errors import Refusal
 from booksmith.core import order, policy
 
 
-def test_every_dictionary_has_a_translation():
-    """Every policy has a label translation, and no translation is spare: a sixth
-    policy would make `ASSEMBLY_ORDER=docling` fall at the first paid run rather
-    than here in a millisecond."""
-    have, want = set(order._LABELS), set(policy.POLICIES)
-    assert have == want, (
-        f"the label translation and the policies have diverged: no "
-        f"translation for {sorted(want - have)}, a translation with no policy "
-        f"for {sorted(have - want)}")
-
-
-def test_translations_name_only_labels_the_rules_look_at():
-    """The translation aims at the eight names the rules look at at all: a ninth
-    would not fire, silently, and a running head would drift into the body."""
+def test_every_class_aims_at_a_name_the_rules_look_at():
+    """A class's order name is one of the eight the rules look at at all: a
+    ninth would not fire, silently, and a running head would drift into the
+    body. So every policy, a served model's included, is covered."""
     eight = {"caption", "code", "footnote", "page_footer", "page_header",
              "picture", "table", "text"}
-    for name, tr in order._LABELS.items():
-        bad = set(tr.values()) - eight
-        assert not bad, (f"{name}: the translation aims at {sorted(bad)}, "
-                         f"and the rules look only at {sorted(eight)}")
-
-
-def test_translations_use_labels_that_exist():
-    """What is translated is what the model really returns, not a made-up name: a
-    typo in a key is a silent zero -- the object travels as text."""
-    for name, tr in order._LABELS.items():
-        bad = set(tr) - set(policy.POLICIES[name])
-        assert not bad, (
-            f"{name}: the translation knows labels {sorted(bad)} the model "
-            f"does not have -- such a key will NEVER fire, and silently")
+    assert set(policy.ORDER_NAMES) == eight
+    for c, (_, name) in policy.CLASSES.items():
+        assert name in eight, f"{c}: aims at {name!r}"
+    for p in policy.POLICIES.values():
+        for lab in p.labels:
+            assert p.order_name(lab) in eight, f"{p.name}/{lab}"
 
 
 def test_ours_needs_neither_labels_nor_docling():
-    """`ours` looks at coordinates alone -- no labels, no package. Able to fail:
-    a fake dictionary of one label breaks a rule that asks the policy."""
-    assert order.cover(["no such policy exists at all"], "ours") is None
+    """`ours` looks at coordinates alone -- no labels, no package, no policy."""
+    assert order.cover(None, "ours") is None
     boxes = [(10, 300, 90, 380), (10, 10, 90, 90), (200, 10, 280, 90)]
-    perm = order.permutation(["x"] * 3, boxes, 400, 600, 0, ["x"], "ours")
+    perm = order.permutation(["x"] * 3, boxes, 400, 600, 0, None, "ours")
     assert perm == [1, 2, 0], f"top to bottom, left to right gave {perm}"
+
+
+def test_docling_needs_a_policy_and_any_policy_covers():
+    """The docling rule reads labels through the policy's order names: no
+    policy is a refusal before page one, and a served model's own mapping
+    covers as the tree's own do."""
+    with pytest.raises(Refusal):
+        order.cover(None, "docling")
+    assert order.cover(policy.POLICIES["PP-DocLayoutV2"], "docling") == "PP-DocLayoutV2"
+    own = policy.Policy.from_classes({"Grid": "table", "Prose": "text"})
+    assert order.cover(own, "docling") == "the model's own classes"
 
 
 def test_docling_returns_a_permutation_and_touches_no_box():
@@ -64,8 +56,8 @@ def test_docling_returns_a_permutation_and_touches_no_box():
     labels = ["text", "table", "header", "text", "image"]
     boxes = [(50, 400, 300, 500), (50, 200, 300, 380), (50, 20, 300, 60),
              (330, 400, 580, 500), (330, 100, 580, 380)]
-    vocab = list(policy.POLICIES["PP-DocLayoutV2"])
-    perm = order.permutation(labels, boxes, 600, 800, 0, vocab, "docling")
+    perm = order.permutation(labels, boxes, 600, 800, 0,
+                             policy.POLICIES["PP-DocLayoutV2"], "docling")
     assert sorted(perm) == list(range(len(boxes))), (
         f"not a permutation: {perm} over {len(boxes)} boxes")
 

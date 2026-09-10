@@ -295,7 +295,7 @@ def observed(detect_dir: str) -> dict:
     return out
 
 
-def repeats_on(page, covered) -> dict:
+def repeats_on(page, covered, pol=None) -> dict:
     """Which blocks of the page repeat what is already printed. By `block_id`.
 
     One claim: hide this block and no character of the page is lost. So a block
@@ -305,8 +305,9 @@ def repeats_on(page, covered) -> dict:
     a quarter of the cases. Where the carrier holds the same text as raw latex
     the block stays visible: hiding the typeset for the raw makes the page worse.
     """
+    pol = pol or policy.UNION
     from_text = [b for b in page.blocks
-                 if policy.role(b.label) != "artifact" and (b.content or "").strip()]
+                 if pol.role(b.label) != "artifact" and (b.content or "").strip()]
     nested = {b.block_id for b in from_text
               if any(o.block_id != b.block_id and covered(b.box, o.box)
                      for o in from_text)}
@@ -502,7 +503,7 @@ def _twice_area(boxes):
     return total
 
 
-def _sheet_trouble(blocks, arts) -> str | None:
+def _sheet_trouble(blocks, arts, pol=None) -> str | None:
     """What is wrong with the sheet: `empty` | `no-text` | `furniture-only` | None.
 
     Three failures, never merged: "no text" is "blocks exist, none of them text",
@@ -512,7 +513,7 @@ def _sheet_trouble(blocks, arts) -> str | None:
     """
     if not blocks:
         return "empty"
-    if any(policy.role(b.label) == "text" for b in blocks):
+    if any((pol or policy.UNION).role(b.label) == "text" for b in blocks):
         return None
     return "no-text" if arts else "furniture-only"
 
@@ -649,6 +650,9 @@ def build(detect_dir: str, out_dir: str) -> dict:
         snap = json.load(f)
     pdf = snap["source"]["path"]
     page_dpi = float(snap["raster"]["dpi"])
+    # The run's own policy, out of its snapshot: a block's role is the
+    # model's declaration, not whatever this process happens to know.
+    pol = policy.Policy.from_snapshot(snap.get("policy"))
     if not os.path.exists(pdf):
         raise Refusal(
             f"the parse source is not in place: {pdf}\n"
@@ -725,13 +729,13 @@ def build(detect_dir: str, out_dir: str) -> dict:
             page = Page.from_json(json.load(f))
         order_src = _order_src(page)
         order_src_n[order_src] = order_src_n.get(order_src, 0) + 1
-        arts = [b for b in page.blocks if policy.role(b.label) == "artifact"]
-        repeats_page = repeats_on(page, _covered)
+        arts = [b for b in page.blocks if pol.role(b.label) == "artifact"]
+        repeats_page = repeats_on(page, _covered, pol)
         sheet = float(page.width) * float(page.height)
         share = _union_share([b.box for b in arts], sheet)
         # One word, one rule (`_sheet_trouble`): "saw nothing", "saw one thing
         # covering everything", "saw only furniture", never confused.
-        trouble = _sheet_trouble(page.blocks, arts)
+        trouble = _sheet_trouble(page.blocks, arts, pol)
         empty = trouble == "empty"
         blank = trouble == "no-text"
         no_text += blank
@@ -758,7 +762,7 @@ def build(detect_dir: str, out_dir: str) -> dict:
         expected.extend(anchor(page.index, b.block_id) for b in page.blocks)
         for b in page.blocks:
             a = anchor(page.index, b.block_id)
-            role = policy.role(b.label)
+            role = pol.role(b.label)
             inside = [o for o in arts
                       if o.block_id != b.block_id and _covered(b.box, o.box)]
             if role != "artifact" and inside:
@@ -767,11 +771,11 @@ def build(detect_dir: str, out_dir: str) -> dict:
             # book twice, as two <p>. A block does not cover itself.
             outside = [o for o in page.blocks
                        if o.block_id != b.block_id
-                       and policy.role(o.label) != "artifact"
+                       and pol.role(o.label) != "artifact"
                        and _covered(b.box, o.box)]
             if role != "artifact" and outside:
                 dup_in_text += 1
-                if role == "text" and any(policy.role(o.label) == "text"
+                if role == "text" and any(pol.role(o.label) == "text"
                                            for o in outside):
                     dup_in_text_strict += 1
             # Decided before the loop, for the whole page at once: it needs to
@@ -953,7 +957,7 @@ def build(detect_dir: str, out_dir: str) -> dict:
             "sha256_swap_code": stamp.sha256(os.path.join(here, "swap.py")),
             "sha256_detect_snapshot": stamp.sha256(
                 os.path.join(detect_dir, "run.json"))},
-        "policy": policy.snapshot(),
+        "policy": pol.snapshot(),
         "crop": crop.params(page_dpi),
         # The build has no prompts, no generation, no weights — these are values.
         "prompts": {},
@@ -1122,4 +1126,4 @@ def build(detect_dir: str, out_dir: str) -> dict:
             "block_order": {
                 "by_page_meta": dict(sorted(order_src_n.items())),
                 "pages_with_our_order": ours},
-            "crop": crop.params(page_dpi), "policy": policy.snapshot()}
+            "crop": crop.params(page_dpi), "policy": pol.snapshot()}

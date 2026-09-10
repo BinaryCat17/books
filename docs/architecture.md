@@ -64,7 +64,8 @@ run's settings.
 A model is something that answers three routes, declared in
 `src/booksmith/core/served.py`. `GET /booksmith/describe` says what it is:
 its own name, its fingerprint, the values of the knobs its own adapter read,
-its vocabulary and, for a reader, the name its chat route answers to.
+its labels mapped onto the tree's classes and, for a reader, the name its
+chat route answers to.
 `GET /booksmith/health` says whether it is ready and when it last worked.
 `POST /booksmith/layout` takes one page as a data URI and returns one page
 in the page format; a hybrid fills `content` and `kind` too. A reader keeps
@@ -85,6 +86,16 @@ that reached it stay out, so a served run of a model and an in-process run
 of it under one setting are one experiment. The snapshot carries the
 describe whole under `served`, and `books replay --check` takes its code
 hash and commit for the adapter's source.
+
+The tree declares its classes in `src/booksmith/core/policy.py`, each with
+its role, text, artifact or furniture, and the name the order rules read. A
+model maps every label it can name onto one of them, whole; the five
+vocabularies of the tree's own adapters are five such mappings; the reader
+routes its prompts by class; a run's snapshot carries the mapping under
+`policy`, and every measurement, the built book and the reading take a
+block's role from the run's own mapping, never from a table this process
+happens to know. Truth carries no mapping of its own yet and is read under
+the union of the five.
 
 A hybrid model returns boxes and text in one call. `books hybrid` files its
 pages as a read run with its own boxes, `read/<model>/` with `layout: own`
@@ -233,7 +244,7 @@ time, never an edit in place.
 | identity | the hash in `run.json` over the fingerprint and the knobs the run read |
 | label | the model's own name for a block, or the model's own name for a run |
 | level one, level two | detection, reading |
-| policy | the table from a model's labels to the three roles: text, artifact, furniture |
+| policy | a model's labels mapped onto the classes, each of which carries one of the three roles |
 | role | text stays in the flow, an artifact becomes a picture, furniture is marked |
 | run | one model over one book, under one label, with its snapshot |
 | trait | a fact truth declares about itself per page: text marked, order marked; three-state |

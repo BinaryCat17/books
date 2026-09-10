@@ -23,6 +23,9 @@ from booksmith.processing.read import Ask, Route
 from booksmith.processing.read.transports import openai_http as vhttp
 from booksmith.processing.read import driver as vrun
 from booksmith.processing.read.readers.paddleocr_vl import PaddleOcrVl
+from booksmith.core import policy
+
+_V2 = policy.POLICIES["PP-DocLayoutV2"]
 
 
 # -------------------------------------------------------------- routes ---
@@ -32,12 +35,12 @@ def test_every_label_of_every_dictionary_has_a_route():
     "whatever I don't know, ask OCR:": each detector has its own dictionary, and
     an unknown class would otherwise leave under the wrong prompt."""
     from booksmith.core import policy
-    for name, d in policy.POLICIES.items():
-        PaddleOcrVl(name).cover(d.keys())          # throws on a hole
+    for d in policy.POLICIES.values():
+        PaddleOcrVl(d).cover(d.labels)             # throws on a hole
 
 
 def test_unknown_label_is_loud():
-    r = PaddleOcrVl("PP-DocLayoutV2")
+    r = PaddleOcrVl(_V2)
     try:
         r.cover(["table", "no_such_thing"])
     except ValueError as e:
@@ -48,7 +51,7 @@ def test_unknown_label_is_loud():
 
 def test_kind_comes_from_the_prompt_not_from_the_answer():
     """The PROMPT declares the kind: ask for a table, get kind `otsl`."""
-    r = PaddleOcrVl("PP-DocLayoutV2").routes()
+    r = PaddleOcrVl(_V2).routes()
     assert r["table"].kind == "otsl" and r["table"].prompt == "Table Recognition:"
     assert r["display_formula"].kind == "latex"
     assert r["text"].kind == "text" and r["text"].prompt == "OCR:"
@@ -56,7 +59,7 @@ def test_kind_comes_from_the_prompt_not_from_the_answer():
 
 def test_silence_carries_a_reason():
     """"Not asked" is a reason, not a forgotten label."""
-    r = PaddleOcrVl("PP-DocLayoutV2").routes()
+    r = PaddleOcrVl(_V2).routes()
     for lab in ("image", "header_image", "footer_image"):
         assert not r[lab].asked()
         assert r[lab].why, f"{lab} is silent with no reason given"
@@ -75,7 +78,7 @@ def test_declared_kinds_agree_with_the_book():
     """The reader's kinds are names `books apply` accepts."""
     from booksmith.core.page import KINDS
     for name in ("PP-DocLayoutV2", "Docling", "DocLayNet"):
-        for rt in PaddleOcrVl(name).routes().values():
+        for rt in PaddleOcrVl(policy.POLICIES[name]).routes().values():
             if rt.asked():
                 assert rt.kind in KINDS, f"the book does not know the kind {rt.kind}"
 
@@ -263,7 +266,7 @@ def _run(tmp, plan, out_dir=None, snapshot=False, **kw):
     with FakeVlm(plan) as s:
         os.environ["VLM_ENDPOINT"] = s.url
         os.environ["MODEL_NAME"] = s.model
-        r = PaddleOcrVl("PP-DocLayoutV2")
+        r = PaddleOcrVl(_V2)
         t = vrun.read_book(os.path.join(tmp, "detect"), out, r, vhttp.Http(),
                            **kw)
         if snapshot:
@@ -375,7 +378,7 @@ def test_resume_does_not_ask_twice():
     with FakeVlm(plan) as s:
         os.environ["VLM_ENDPOINT"] = s.url
         t2 = vrun.read_book(os.path.join(tmp, "detect"), out,
-                            PaddleOcrVl("PP-DocLayoutV2"), vhttp.Http(),
+                            PaddleOcrVl(_V2), vhttp.Http(),
                             resume=True)
         assert len(s.seen) == 0, f"{len(s.seen)} blocks were asked again"
     assert t2["reused_from_previous_run"] == 2
@@ -406,7 +409,7 @@ def test_snapshot_carries_prompts_and_our_parser():
     with FakeVlm({"text": "x"}) as s:
         os.environ["VLM_ENDPOINT"] = s.url
         p = vrun.snapshot(os.path.join(tmp, "detect"), out,
-                          PaddleOcrVl("PP-DocLayoutV2"), vhttp.Http(), t,
+                          PaddleOcrVl(_V2), vhttp.Http(), t,
                           {"detect": "detect", "out": out})
     with open(p, encoding="utf-8") as f:
         snap = json.load(f)
@@ -425,7 +428,7 @@ def test_snapshot_carries_prompts_and_our_parser():
 
 def _preview(tmp):
     out = os.path.join(tmp, "crop")
-    r = PaddleOcrVl("PP-DocLayoutV2")
+    r = PaddleOcrVl(_V2)
     t = vrun.read_book(os.path.join(tmp, "detect"), out, r, None,
                        resume=False, preview=True)
     return out, t
@@ -547,7 +550,7 @@ def test_a_preview_refuses_to_land_on_a_paid_read_directory():
                          "Table Recognition:": {"text": "<fcel>a<nl>"}})
     was = {f: open(os.path.join(paid, "crops", f), "rb").read()
            for f in os.listdir(os.path.join(paid, "crops"))}
-    r = PaddleOcrVl("PP-DocLayoutV2")
+    r = PaddleOcrVl(_V2)
     try:
         vrun.read_book(os.path.join(tmp, "detect"), paid, r, None,
                        resume=False, preview=True)
@@ -581,7 +584,7 @@ def test_a_preview_may_not_resume():
     import tempfile
     tmp = tempfile.mkdtemp()
     _book(tmp)
-    r = PaddleOcrVl("PP-DocLayoutV2")
+    r = PaddleOcrVl(_V2)
     try:
         vrun.read_book(os.path.join(tmp, "detect"),
                        os.path.join(tmp, "crop2"), r, None,

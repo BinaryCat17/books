@@ -14,7 +14,6 @@ import shlex
 import sys
 import time
 
-from booksmith.core import policy
 from booksmith.processing.layout.adapters.doclayout import DocLayout
 from booksmith.core import book
 from booksmith.core import knobs, stamp
@@ -39,21 +38,21 @@ ADAPTERS = ("doclayout", "docling", "docling-egret", "yolox", "served")
 
 
 def _check_labels(page, pol, known, adapter):
-    """Every block's label spelling against the named vocabulary, out loud, on
-    every page: `policy.check(det.labels)` verifies what the weights can name,
-    and a translation stands between that and what a block says.
+    """Every block's label spelling against the model's vocabulary, out loud,
+    on every page: `Policy.check(det.labels)` verifies what the weights can
+    name, and a translation stands between that and what a block says.
     """
     bad = sorted({b.label for b in page.blocks if b.label not in known})
     if not bad:
         return
     raise Refusal(
         f"page {page.index}: block labels {bad} are not from the policy "
-        f"vocabulary {pol} (adapter {adapter}; the vocabulary knows "
+        f"{pol} (adapter {adapter}; the vocabulary knows "
         f"{len(known)} spellings: {sorted(known)}). Counting cannot go on: "
         f"artefact labels come from that same vocabulary, and a block with a "
         f"foreign spelling would give 'artefacts 0' -- a zero from not "
         f"understanding, dressed as a measurement. Fix the label translation "
-        f"in the adapter, or policy.POLICIES itself, but not this check.")
+        f"in the adapter, or the mapping itself, but not this check.")
 
 
 def _adapter():
@@ -213,14 +212,13 @@ def run(pdf, outdir, pages_spec=None, det=None, hybrid=False):
     book.guard_identity(outdir, _identity(det, _knob_roles(det)),
                         pages_spec or "", f"this {det.label()} run")
     # The policy must cover the weights vocabulary whole and name nothing extra.
-    # The vocabulary picks the policy, not the weights' name: a name can be confused.
-    pol = getattr(det, "policy_name", None) or policy.for_labels(det.labels)
-    det.policy_name = pol
-    policy.check(det.labels, policy=pol)
-    arte = tuple(sorted(l for l, r in policy.POLICIES[pol].items()
-                        if r == "artifact"))
-    # The same single vocabulary for block spellings; the union `policy.ROLE` passes all.
-    known = set(policy.POLICIES[pol])
+    # The vocabulary picks the policy, not the weights' name: a name can be
+    # confused; a served model brings its own mapping onto the classes.
+    pol = det.policy()
+    pol.check(det.labels)
+    arte = pol.artefacts()
+    # The same single vocabulary for block spellings, never a union.
+    known = set(pol.labels)
     for line in det.threshold_drift():
         # Loudly: a silent divergence means the run went on our number, not the model's.
         log(f"WARNING: the threshold set is not the native one -- {line}")
@@ -244,8 +242,8 @@ def run(pdf, outdir, pages_spec=None, det=None, hybrid=False):
     log(f"model input {fp_in.get('width')}x{fp_in.get('height')} (WxH): "
         + ", ".join(f"{k}={v}" for k, v in fp_in.items()
                     if k not in ("width", "height")))
-    log(f"vocabulary {pol}, "
-        f"classes {len(det.labels)}, "
+    log(f"vocabulary {pol.name or 'the model declared'}, "
+        f"labels {len(det.labels)}, "
         f"native threshold {det.fingerprint().get('native_threshold')}")
 
     # The exception classes are foreign and deliberately not named: pymupdf's list changes.
@@ -296,7 +294,7 @@ def run(pdf, outdir, pages_spec=None, det=None, hybrid=False):
             raster.render(doc[i], dpi_used).save(tmp)
             page = det.read(tmp, i, float(dpi_used))
             # Before the write: an unknown label spelling must not reach the directory.
-            _check_labels(page, pol, known, det.name)
+            _check_labels(page, pol.name or "the model declared", known, det.name)
             spellings.update(b.label for b in page.blocks)
             mk = page.meta.get("boxes_accepted")
             if mk is None:
@@ -392,7 +390,8 @@ def run(pdf, outdir, pages_spec=None, det=None, hybrid=False):
                 f"unnamed is correcting the boxes")
 
     # A quantity, not "verified"; foreign is always 0 because `_check_labels` drops it.
-    log(f"label spellings checked against vocabulary {pol}: "
+    log(f"label spellings checked against vocabulary "
+        f"{pol.name or 'the model declared'}: "
         f"{len(spellings)} of {len(known)} known, foreign 0 -- else the run "
         f"would have fallen")
 
@@ -477,7 +476,7 @@ def run(pdf, outdir, pages_spec=None, det=None, hybrid=False):
                     "sha256": _sha256(sys.modules[type(det).__module__].__file__),
                     # This file, asked of itself: a literal path breaks when the module moves.
                     "sha256_command": _sha256(os.path.abspath(__file__))},
-        "policy": policy.snapshot(getattr(det, "policy_name", None)),
+        "policy": pol.snapshot(),
         "prompts": (fp.get("prompts") or {}) if hybrid else {},
         "generation": ({**gen_null, **(fp.get("generation") or {})}
                        if hybrid else gen_null),

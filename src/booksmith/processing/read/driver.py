@@ -33,11 +33,12 @@ READERS = ("paddleocr-vl",)
 
 
 
-def build_reader(policy_name: str) -> Reader:
+def build_reader(pol: policy.Policy) -> Reader:
+    """The reader over the detector's policy: the routes follow its classes."""
     name = knobs.knob("VLM_READER")
     if name == "paddleocr-vl":
         from booksmith.processing.read.readers.paddleocr_vl import PaddleOcrVl
-        return PaddleOcrVl(policy_name)
+        return PaddleOcrVl(pol)
     raise Refusal(
         f"VLM_READER={name!r}: I know only {READERS}. A silent fallback to "
         f"whichever comes first would make a typo in the reader's name count "
@@ -553,7 +554,7 @@ def snapshot(detect_dir: str, out_dir: str, reader: Reader,
                     # Our OTSL parser decides the numbers too: without its hash
                     # two runs with different parsers look identical.
                     "sha256_otsl_parser": stamp.sha256(otsl.__file__)},
-        "policy": policy.snapshot(getattr(reader, "policy_name", None)),
+        "policy": reader.policy.snapshot(),
         "prompts": reader.fingerprint().get("prompts", {}),
         "generation": _gen_params(),
         "packages": stamp.packages(stamp.READ_PACKAGES),
@@ -590,13 +591,15 @@ def _knobs_snapshot(read_by_adapter) -> dict:
     return knobs.snapshot_with_readers(roles)
 
 
-def policy_for(run_dir: str, wanted: str | None, what: str = "the preview") -> str:
-    """The label dictionary `what` (the preview or the paid run) must use for
-    this detect run: the snapshot's own vocabulary, and a `--policy` that
-    disagrees with it is refused rather than asked by."""
+def policy_for(run_dir: str, wanted: str | None, what: str = "the preview") -> policy.Policy:
+    """The policy `what` (the preview or the paid run) must ask by for this
+    detect run: the snapshot's own, its classes or the vocabulary it names,
+    and a `--policy` that disagrees with it is refused rather than asked by."""
     with open(os.path.join(run_dir, "run.json"), encoding="utf-8") as f:
-        known = json.load(f).get("policy", {}).get("vocabulary")
-    if not wanted and not known:
+        recorded = json.load(f).get("policy") or {}
+    known = recorded.get("vocabulary")
+    own = bool(recorded.get("classes"))
+    if not wanted and not known and not own:
         raise Refusal(
             f"the snapshot {run_dir}/run.json names no label dictionary and "
             f"--policy is not given; {what} depends on which labels are asked "
@@ -607,4 +610,13 @@ def policy_for(run_dir: str, wanted: str | None, what: str = "the preview") -> s
             f"{what} would ask by one dictionary what detection boxed by "
             f"another. Drop --policy, or detect again with the detector whose "
             f"dictionary you mean.")
-    return wanted or known
+    if wanted and own and not known:
+        raise Refusal(
+            f"--policy {wanted!r}, and the detection declared its own "
+            f"classes and no vocabulary name: {what} asks by the model's "
+            f"declaration. Drop --policy.")
+    if known or own:
+        return policy.Policy.from_snapshot(recorded)
+    if wanted not in policy.POLICIES:
+        raise Refusal(f"--policy {wanted!r}: I know {sorted(policy.POLICIES)}")
+    return policy.POLICIES[wanted]

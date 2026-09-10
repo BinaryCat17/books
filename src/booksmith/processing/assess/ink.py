@@ -9,6 +9,7 @@ Merging is barely penalised here by construction, so "arrived with company", the
 one number that grows with it, is printed too. Truth is not required: without it
 the same is counted over the whole page's ink, which is what leaves the HTML.
 """
+import json
 import os
 import statistics
 
@@ -221,13 +222,30 @@ def _carried_as_text(sub, arte, rest, tot):
     return int((sub & (arte | rest)).sum()) / tot >= WHOLE
 
 
-def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
-    """Fitness of the model output. Truth is not required."""
+def _policy_beside(pages_dir: str):
+    """The run's policy out of the snapshot beside its pages, or the union of
+    the tree's own vocabularies for a page directory with no snapshot."""
+    for d in (pages_dir, os.path.dirname(os.path.abspath(pages_dir.rstrip("/")))):
+        p = os.path.join(d, "run.json")
+        if os.path.isfile(p):
+            with open(p, encoding="utf-8") as f:
+                snap = json.load(f)
+            if isinstance(snap, dict) and snap.get("policy"):
+                return policy.Policy.from_snapshot(snap["policy"])
+    return policy.UNION
+
+
+def measure(pdf: str, detect_dir: str, truth_dir: str = "",
+            pol=None, tp=None) -> dict:
+    """Fitness of the model output. Truth is not required. `pol` is the
+    run's policy, found beside its pages when not given; `tp` truth's."""
     import numpy as np
     if not os.path.exists(pdf):
         raise Unmeasurable(f"no {pdf}")
     M = page.load_pages(detect_dir)
     T = page.load_pages(truth_dir) if truth_dir else {}
+    pol = pol or _policy_beside(detect_dir)
+    tp = tp or policy.UNION
     doc = raster.open_pdf(pdf)
     areas = []            # box area / page area, one per on-sheet box
     res = {"page_count": 0, "truth_pages": len(T), "dpi": [],
@@ -275,9 +293,9 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
                 f"markup {p['width']}x{p['height']} — the boxes will fall "
                 f"wide")
         arte = [b["box"] for b in p["blocks"]
-                if policy.role(b["label"]) == "artifact"]
+                if pol.role(b["label"]) == "artifact"]
         rest = [b["box"] for b in p["blocks"]
-                if policy.role(b["label"]) != "artifact"]
+                if pol.role(b["label"]) != "artifact"]
         ma, mr = _mask(ink.shape, arte), _mask(ink.shape, rest)
         both = ma | mr
         # Where the ink ends up, by the builder's own rule and not a copy of
@@ -286,10 +304,10 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
         # picture wins the tie, a crop shipping whole whatever lies over it, so
         # the split is exhaustive against `ink_total` and never sums past it.
         pic = _mask(ink.shape, [b["box"] for b in p["blocks"]
-                                if policy.role(b["label"]) == "artifact"
+                                if pol.role(b["label"]) == "artifact"
                                 or not (b.get("content") or "").strip()])
         txt = _mask(ink.shape, [b["box"] for b in p["blocks"]
-                                if policy.role(b["label"]) != "artifact"
+                                if pol.role(b["label"]) != "artifact"
                                 and (b.get("content") or "").strip()]) & ~pic
         as_picture, as_text = int((ink & pic).sum()), int((ink & txt).sum())
         res["ink_as_picture"] += as_picture
@@ -376,7 +394,7 @@ def measure(pdf: str, detect_dir: str, truth_dir: str = "") -> dict:
             "box_count": len(arte) + len(rest),
             "junk_strips": _strips(junk), "edge": k}
         for b in T.get(i, {}).get("blocks", []):
-            if policy.role(b["label"]) != "artifact":
+            if tp.role(b["label"]) != "artifact":
                 continue
             win = _clip(ink.shape, b["box"])
             sub = ink[win] if win else np.zeros((0, 0), bool)

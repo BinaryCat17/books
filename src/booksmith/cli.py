@@ -269,7 +269,7 @@ def cmd_read(a):
         # by hand: `run.json` already carries `policy.vocabulary`, and a typed
         # default diverges silently -- `DocLayNet` (11 labels) is a strict
         # subset of `Docling-egret` (17), so that pair would pass without a word.
-        policy_name = vread.policy_for(a.dir, a.policy, what="the paid run")
+        policy_name = vread.policy_for(a.dir, a.policy, what="the paid run").name
         os.makedirs(out, exist_ok=True)
         return cmd_read_rented(a, policy_name, out)
 
@@ -292,9 +292,9 @@ def cmd_crop(a):
     # The same two lines as `books read`, and for the same reason: the free
     # command must accept every input the paid one does, or it is a preview of
     # something else.
-    policy_name = vread.policy_for(d, a.policy, what="the preview")
+    pol = vread.policy_for(d, a.policy, what="the preview")
     os.makedirs(out, exist_ok=True)
-    reader = vread.build_reader(policy_name)
+    reader = vread.build_reader(pol)
     pages = None
     if a.pages:
         from booksmith.processing.layout.detect import parse_pages

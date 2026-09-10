@@ -253,11 +253,12 @@ class DocLayout(Detector):
             # No model rank, so the order is ours and declared: the rule lives in
             # `order.py`, one for the project, chosen by `ASSEMBLY_ORDER`.
             names = [_l for _r, _l, _s in kept]
-            order.cover(self.labels, which)
+            pol = self.policy() if which == "docling" else None
+            order.cover(pol, which)
             perm = order.permutation(
                 names, [(float(r[2]), float(r[3]), float(r[4]), float(r[5]))
                         for r, _l, _s in kept],
-                w, h, index, self.labels, which)
+                w, h, index, pol, which)
             kept = [kept[i] for i in perm]
         # With no model rank `order` is our sort position, and the fingerprint says so.
         ranks = ([int(round(float(r[6]))) for r, _l, _s in kept]

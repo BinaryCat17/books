@@ -72,7 +72,7 @@ def spec(pdf: str, detect_dir: str, pages: str = "",
         name="vl-read",
         image=BASE_IMAGE,
         command=(f"bash run.sh input.pdf detect outputs {port} "
-                 f"{shlex_quote(pages or '-')} {shlex_quote(policy)}"),
+                 f"{shlex_quote(pages or '-')} {shlex_quote(policy or '-')}"),
         inputs={
             pdf: "input.pdf",
             detect_dir: "detect",

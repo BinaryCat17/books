@@ -1760,6 +1760,12 @@
    "table->text": 5,
    "text->text": 35
   },
+  "role_confusion": {
+   "display_formula->inline_formula": 3,
+   "figure_title->vision_footnote": 2,
+   "table->content": 6,
+   "table->text": 5
+  },
   "order_truth": {
    "states": {
     "marked": 6,

@@ -4,9 +4,12 @@ The `reading order` field has two readers -- the metric's guard and the book
 builder -- and a second copy of the rule in the builder drifts silently: a
 percentage out of nothing is born of two copies of one contract.
 """
+from booksmith.core import policy
 from booksmith.processing.assemble import html as H
 from booksmith.core import page as B
 from booksmith.core import book
+
+_V2 = policy.POLICIES["PP-DocLayoutV2"]
 
 
 def test_book_builder_reads_the_order_rule_through_the_one_contract():
@@ -301,6 +304,7 @@ def test_three_kinds_of_bad_sheet_get_three_different_marks():
             json.dump({"source": {"path": pdf,
                                     "sha256": _detect._sha256(pdf)},
                        "raster": {"dpi": 144},
+                       "policy": _V2.snapshot(),
                        "weights": {"layout": None}}, f, ensure_ascii=False)
 
         out = os.path.join(tmp, "html")
@@ -362,6 +366,7 @@ def test_the_book_is_alone_at_the_root_and_carries_itself():
             json.dump({"source": {"path": pdf,
                                     "sha256": _detect._sha256(pdf)},
                        "raster": {"dpi": 144},
+                       "policy": _V2.snapshot(),
                        "weights": {"layout": None}}, f, ensure_ascii=False)
 
         out = os.path.join(tmp, "html")
@@ -460,6 +465,7 @@ def test_the_book_carries_blocks_in_the_order_it_walked_them():
             json.dump({"source": {"path": pdf,
                                     "sha256": _detect._sha256(pdf)},
                        "raster": {"dpi": 144},
+                       "policy": _V2.snapshot(),
                        "weights": {"layout": None}}, f, ensure_ascii=False)
 
         out = os.path.join(tmp, "html")

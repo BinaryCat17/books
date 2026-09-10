@@ -62,7 +62,7 @@ def _pick_bait(P, T):
                 continue
             # No grid AND no characters: a formula has truth and is no bait.
             if (m._truth_grid(t, side) is None and m._truth_text(t, side) is None
-                    and policy.role(t["label"]) == "artifact"):
+                    and policy.UNION.role(t["label"]) == "artifact"):
                 return i, j
     return None, None
 

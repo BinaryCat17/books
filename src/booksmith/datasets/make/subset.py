@@ -101,7 +101,7 @@ def _swept(fn, books, out_dir, root):
 
 
 def _build(books, out_dir: str, root: str) -> dict:
-    arte = set(policy.artefacts())
+    arte = set(policy.UNION.artefacts())
     os.makedirs(out_dir, exist_ok=True)
     tdir = os.path.join(out_dir, "truth")
     # Truth is written aside and swapped in only after the guards, the same dance

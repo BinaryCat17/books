@@ -99,17 +99,33 @@ def _pages(d: str) -> dict:
     return out
 
 
-def _pair(truth, model):
+def _policy_of(d: str):
+    """The policy of a markup directory: the run's own out of the snapshot
+    beside its pages, else the union of the tree's vocabularies, as for truth."""
+    from booksmith.core import policy
+    for at in (d, os.path.dirname(os.path.abspath(d.rstrip("/")))):
+        p = os.path.join(at, "run.json")
+        if os.path.isfile(p):
+            with open(p, encoding="utf-8") as f:
+                snap = json.load(f)
+            if isinstance(snap, dict) and snap.get("policy"):
+                return policy.Policy.from_snapshot(snap["policy"])
+    return policy.UNION
+
+
+def _pair(truth, model, tp=None, mp=None):
     """Match one page's boxes: (pairs, truth left over, model left over) by the
     rule `books score` measures with, artefact against artefact, the side taken
-    from `label in arte`, so sheet and number cannot say different things."""
+    from `label in arte` of each side's own policy, so sheet and number cannot
+    say different things."""
     from booksmith.datasets.metrics.contour import _pick, _area
     from booksmith.core import policy
-    arte = set(policy.artefacts())
+    arte_t = set((tp or policy.UNION).artefacts())
+    arte_m = set((mp or policy.UNION).artefacts())
     pairs, lost, extra = [], [], []
     for side in (True, False):
-        t = [b for b in truth if (b["label"] in arte) == side]
-        m = [x for x in model if (x["label"] in arte) == side]
+        t = [b for b in truth if (b["label"] in arte_t) == side]
+        m = [x for x in model if (x["label"] in arte_m) == side]
         # The greed order is `books score`'s: artefacts in markup order as in
         # pass A, the rest largest first as in pass B.
         if not side:
@@ -144,14 +160,6 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None) -> dict:
     """Lay markup over the PDF pages, showing the divergences. `marks` is a list
     of (directory, tag); a single one is drawn whole. What truth does not mark
     up (`text_marked`) is a hairline counted apart, never spurious."""
-    from booksmith.core import policy
-
-    def role(label: str) -> str:
-        # A label unknown to the policy is not hidden: let it stay loud.
-        try:
-            return policy.role(label)
-        except policy.UnknownLabel:
-            return "artifact"
 
     def die(msg: str):
         """Close the document and fail with our message. The message is built at
@@ -162,6 +170,8 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None) -> dict:
 
     note = _same_book(pdf, marks)
     sets = [(_pages(d), tag) for d, tag in marks]
+    # Each markup's own policy: truth's is the union, a run's is its snapshot's.
+    pols = [_policy_of(d) for d, _ in marks]
     doc = pymupdf.open(pdf)
     if only is not None:
         bad = [i for i in only if not 0 <= i < doc.page_count]
@@ -229,7 +239,7 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None) -> dict:
                 f"model raster {p1['width']}x{p1['height']} -- the boxes "
                 f"would lie in different coordinate systems.")
         sheets += 1
-        pairs, lost, extra = _pair(p0["blocks"], p1["blocks"])
+        pairs, lost, extra = _pair(p0["blocks"], p1["blocks"], pols[0], pols[1])
         # The sign comes from TRUTH and is PER PAGE; no field means it marks up.
         # One sign for a mixed bench would lie about both halves at once.
         marked = bool((p0.get("meta") or {}).get("text_marked", True))
@@ -240,16 +250,15 @@ def build(pdf: str, out: str, marks: list[tuple[str, str]], only=None) -> dict:
         # drew. The rule is `metrics.extra_kind`, one for sheet and number, and
         # `out_of_scope` lies right beside the boxes.
         from booksmith.datasets.metrics.contour import extra_kind
-        from booksmith.core import policy as _pol
-        _arte = set(_pol.artefacts())
-        tb = [b for b in p0["blocks"] if b["label"] in _arte]
-        paired = [b["box"] for b, _ in pairs if b["label"] in _arte]
-        unpaired = [b["box"] for b in lost if b["label"] in _arte]
+        _arte_t, _arte_m = set(pols[0].artefacts()), set(pols[1].artefacts())
+        tb = [b for b in p0["blocks"] if b["label"] in _arte_t]
+        paired = [b["box"] for b, _ in pairs if b["label"] in _arte_t]
+        unpaired = [b["box"] for b in lost if b["label"] in _arte_t]
         outside = [o["box"] for o in
                    ((p0.get("meta") or {}).get("out_of_scope") or [])]
         loud, quiet = [], []
         for x in extra:
-            if x["label"] in _arte:
+            if x["label"] in _arte_m:
                 # `marked` plays no part here: it is about TEXT markup, and an
                 # artefact is always marked.
                 kind = extra_kind(x["box"], paired, unpaired, outside, tb)

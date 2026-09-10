@@ -25,7 +25,7 @@ import urllib.request
 from dataclasses import dataclass, field
 from collections.abc import Mapping
 
-from booksmith.core import stamp
+from booksmith.core import policy, stamp
 from booksmith.core.errors import Refusal
 
 PROTOCOL = 1
@@ -104,13 +104,15 @@ class Describe:
     whole, and must carry `sha256_weights`; `knobs` are the values the server's
     adapter read under its job, name to string, as the snapshot writes them,
     and they enter the identity as read, declared here or not, since they
-    decided the answer; `labels` and `vocabulary` say what a layout or hybrid
-    model can name; `openai` says where and as what a reader answers the chat
-    route, and a hybrid that carries it can be read through as well."""
+    decided the answer; `classes` maps every label a layout or hybrid model
+    can name onto one of the tree's classes, and `vocabulary` names the
+    mapping where it is one of the tree's own; `openai` says where and as
+    what a reader answers the chat route, and a hybrid that carries it can
+    be read through as well."""
     kind: str
     label: str
     fingerprint: dict
-    labels: tuple[str, ...] = ()
+    classes: dict[str, str] = field(default_factory=dict)
     vocabulary: str = ""
     reading_order: str = "none"
     knobs: dict[str, str] = field(default_factory=dict)
@@ -120,10 +122,17 @@ class Describe:
     adapter_sha256: str | None = None
     protocol: int = PROTOCOL
 
+    @property
+    def labels(self) -> tuple[str, ...]:
+        return tuple(sorted(self.classes))
+
+    def policy(self) -> policy.Policy:
+        return policy.Policy.from_classes(self.classes, self.vocabulary)
+
     def to_json(self) -> dict:
         return {"protocol": self.protocol, "kind": self.kind,
                 "label": self.label, "fingerprint": self.fingerprint,
-                "knobs": dict(self.knobs), "labels": list(self.labels),
+                "knobs": dict(self.knobs), "classes": dict(self.classes),
                 "vocabulary": self.vocabulary,
                 "reading_order": self.reading_order,
                 "kinds": list(self.kinds), "openai": self.openai,
@@ -152,10 +161,12 @@ class Describe:
             raise Refusal(f"describe: {label}: the fingerprint is not a "
                           f"non-empty mapping")
         knobs = _str_map(d.get("knobs", {}), "knobs")
-        labels = d.get("labels", [])
-        if not isinstance(labels, list) or not all(
-                isinstance(x, str) for x in labels):
-            raise Refusal(f"describe: {label}: labels must be a list of strings")
+        classes = _str_map(d.get("classes", {}), "classes")
+        foreign = sorted({c for c in classes.values() if c not in policy.CLASSES})
+        if foreign:
+            raise Refusal(f"describe: {label}: labels mapped onto classes "
+                          f"this tree does not declare: {foreign}; the "
+                          f"classes are {sorted(policy.CLASSES)}")
         order = d.get("reading_order", "none")
         if order not in ORDERS:
             raise Refusal(f"describe: {label}: reading_order {order!r} is "
@@ -165,10 +176,10 @@ class Describe:
                 isinstance(x, str) for x in kinds):
             raise Refusal(f"describe: {label}: kinds must be a list of strings")
         openai = d.get("openai")
-        if kind in ("layout", "hybrid") and not labels:
-            raise Refusal(f"describe: {label}: a {kind} model names no "
-                          f"labels; the vocabulary decides the policy and "
-                          f"cannot be guessed")
+        if kind in ("layout", "hybrid") and not classes:
+            raise Refusal(f"describe: {label}: a {kind} model maps no "
+                          f"labels onto classes; a label's role cannot be "
+                          f"guessed")
         if kind in ("reader", "hybrid") and not kinds:
             raise Refusal(f"describe: {label}: a {kind} model says nothing "
                           f"of what kinds of content it returns")
@@ -181,7 +192,7 @@ class Describe:
         commit = d.get("commit")
         sha = d.get("adapter_sha256")
         return Describe(
-            kind=kind, label=label, fingerprint=fp, labels=tuple(labels),
+            kind=kind, label=label, fingerprint=fp, classes=classes,
             vocabulary=str(d.get("vocabulary") or ""), reading_order=order,
             knobs=knobs, kinds=tuple(kinds),
             openai=openai if isinstance(openai, dict) else None,

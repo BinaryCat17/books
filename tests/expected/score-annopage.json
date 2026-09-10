@@ -5121,6 +5121,13 @@
    "table->table": 43,
    "table->text": 11
   },
+  "role_confusion": {
+   "display_formula->inline_formula": 11,
+   "seal->text": 3,
+   "table->content": 7,
+   "table->reference": 1,
+   "table->text": 11
+  },
   "order_truth": {
    "states": {
     "not marked": 600

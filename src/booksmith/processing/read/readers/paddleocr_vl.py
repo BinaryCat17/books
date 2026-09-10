@@ -20,7 +20,7 @@ import os
 from booksmith.processing.read import Reader, Route
 from booksmith.core import book
 from booksmith.core import knobs
-from booksmith.core.errors import Refusal
+from booksmith.core import policy as policy_mod
 
 # Byte for byte from the model card. The colon and the space are significant.
 OCR = "OCR:"
@@ -34,62 +34,29 @@ NO_PICTURE = ("reading inside figures was tried and rejected: callouts "
               "unread, an invented pangram on two pages, a runaway loop on a "
               "third, +2100 words of garbage over twenty pages")
 
-# Routes by the detector's vocabulary; the top-level key is the policy name,
-# exactly as in `policy.POLICIES`, or the two dictionaries drift apart.
-_TEXT_V2 = ("abstract", "algorithm", "aside_text", "content", "doc_title",
-            "figure_title", "footer", "footnote", "formula_number", "header",
-            "number", "paragraph_title", "reference", "reference_content",
-            "text", "vertical_text", "vision_footnote")
-_TEXT_PLUS = ("abstract", "algorithm", "aside_text", "content", "doc_title",
-              "figure_title", "footer", "footnote", "formula_number",
-              "header", "number", "paragraph_title", "reference",
-              "reference_content", "text")
-_TEXT_DOCLING = ("caption", "checkbox_selected", "checkbox_unselected",
-                 "document_index", "footnote", "form", "key_value_region",
-                 "list_item", "page_footer", "page_header", "section_header",
-                 "text", "title")
-_TEXT_EGRET = ("Caption", "Checkbox-Selected", "Checkbox-Unselected",
-               "Document Index", "Footnote", "Form", "Key-Value Region",
-               "List-item", "Page-footer", "Page-header", "Section-header",
-               "Text", "Title")
-_TEXT_DOCLAYNET = ("Caption", "Footnote", "List-item", "Page-footer",
-                   "Page-header", "Section-header", "Text", "Title")
-
-
-def _routes(text_labels, table, formula, picture, extra=()):
-    r = {lab: Route(OCR, "text") for lab in text_labels}
-    for lab in table:
-        r[lab] = Route(TABLE, "otsl")
-    for lab in formula:
-        r[lab] = Route(FORMULA, "latex")
-    for lab in picture:
-        r[lab] = Route("", why=NO_PICTURE)
-    r.update(extra)
-    return r
-
-
-# `chart` and `seal` are asked with the vendor's prompts and declared `text`,
-# the cautious kind: `books text` compares by characters, so a wrong declaration
-# underrates the model rather than putting an invented table in the book.
+# Routes by CLASS, the tree's declaration in `core/policy.py`: a model maps
+# its labels onto the classes, and the reader knows what to ask of each
+# class. `chart` and `seal` are asked with the vendor's prompts and declared
+# `text`, the cautious kind: `books text` compares by characters, so a wrong
+# declaration underrates the model rather than putting an invented table in
+# the book. `code` and `algorithm` are program listings, and the model has no
+# "Code Recognition:" prompt; a listing is characters, so `text` is exact.
 ROUTES = {
-    "PP-DocLayoutV2": _routes(
-        _TEXT_V2, ("table",), ("display_formula", "inline_formula"),
-        ("image", "header_image", "footer_image"),
-        extra={"chart": Route(CHART, "text"), "seal": Route(SEAL, "text")}),
-    "PP-DocLayout_plus-L": _routes(
-        _TEXT_PLUS, ("table",), ("formula",),
-        ("image",),
-        extra={"chart": Route(CHART, "text"), "seal": Route(SEAL, "text")}),
-    "Docling": _routes(
-        _TEXT_DOCLING, ("table",), ("formula",), ("picture",),
-        # `code` in docling is a program listing, and the model has no "Code
-        # Recognition:" prompt; a listing is characters, so `text` is exact.
-        extra={"code": Route(OCR, "text")}),
-    "Docling-egret": _routes(
-        _TEXT_EGRET, ("Table",), ("Formula",), ("Picture",),
-        extra={"Code": Route(OCR, "text")}),
-    "DocLayNet": _routes(
-        _TEXT_DOCLAYNET, ("Table",), ("Formula",), ("Picture",)),
+    "text": Route(OCR, "text"),
+    "caption": Route(OCR, "text"),
+    "algorithm": Route(OCR, "text"),
+    "code": Route(OCR, "text"),
+    "page_header": Route(OCR, "text"),
+    "page_footer": Route(OCR, "text"),
+    "footnote": Route(OCR, "text"),
+    "inline_formula": Route(FORMULA, "latex"),
+    "display_formula": Route(FORMULA, "latex"),
+    "table": Route(TABLE, "otsl"),
+    "chart": Route(CHART, "text"),
+    "seal": Route(SEAL, "text"),
+    "picture": Route("", why=NO_PICTURE),
+    "header_image": Route("", why=NO_PICTURE),
+    "footer_image": Route("", why=NO_PICTURE),
 }
 
 
@@ -140,14 +107,12 @@ class PaddleOcrVl(Reader):
 
     name = "paddleocr-vl"
 
-    def __init__(self, policy_name: str = "PP-DocLayoutV2"):
-        if policy_name not in ROUTES:
-            raise Refusal(
-                f"no routes for the label vocabulary {policy_name!r}: I know "
-                f"{sorted(ROUTES)}. Asking by a foreign vocabulary means "
-                f"driving a table with the text prompt and recording prose as "
-                f"the reading.")
-        self.policy_name = policy_name
+    def __init__(self, policy: policy_mod.Policy):
+        """`policy` is the detector's: its labels onto the classes, and the
+        routes follow the classes. A label with no class has no route, and
+        `cover` says so before the first cent."""
+        self.policy = policy
+        self.policy_name = policy.name
 
     def label(self) -> str:
         """`MODEL_NAME`: the model asked for. See `Reader.label`."""
@@ -158,6 +123,10 @@ class PaddleOcrVl(Reader):
         return {"reader": self.name,
                 "model": knobs.knob("MODEL_NAME"),
                 "label_vocabulary": self.policy_name,
+                # The mapping the routes follow, whole: two runs over one
+                # vocabulary name with different mappings are two experiments.
+                "classes": {lab: self.policy.classes[lab]
+                            for lab in self.policy.labels},
                 "weights": _weights(),
                 # The prompts ride into the snapshot whole: the prompt is the
                 # only thing steering the answer, and not to record it is not
@@ -173,7 +142,7 @@ class PaddleOcrVl(Reader):
         return ("MODEL_NAME", "VL_MODEL_DIR")
 
     def routes(self) -> dict[str, Route]:
-        return dict(ROUTES[self.policy_name])
+        return {lab: ROUTES[self.policy.cls(lab)] for lab in self.policy.labels}
 
     def pixels(self) -> tuple[int, int]:
         """The crop window declared by the model itself. Not our numbers.

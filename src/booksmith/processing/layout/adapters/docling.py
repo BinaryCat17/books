@@ -17,8 +17,8 @@ from booksmith.processing.layout.base import Detector
 # Label roles are our policy and live in one place; a list here would be a second one.
 from booksmith.core import book
 from booksmith.core import order
+from booksmith.core import policy as policy_mod
 from booksmith.core.order import declare as declare_order
-from booksmith.core import policy
 from booksmith.core import knobs
 from booksmith.core.log import log
 from booksmith.core import stamp
@@ -66,7 +66,12 @@ class _DoclingPipeline:
     `skip_cell_assignment=True` since we have no cells. Labels come back ours.
     """
 
-    def __init__(self, mode: str, labels, adapter: str):
+    def __init__(self, mode: str, labels, adapter: str, pol=None):
+        # The policy the pipeline's own counts ask roles of: the adapter's,
+        # or, asked only when a page is run, the one these labels are
+        # exactly the vocabulary of -- after the vendor's own label check
+        # below, which must speak first about a label it cannot digest.
+        self._pol, self._labels = pol, tuple(labels)
         if mode not in PIPELINE_MODES:
             raise Refusal(f"DOCLING_PIPELINE={mode!r}: I know only "
                              f"{PIPELINE_MODES}")
@@ -157,6 +162,13 @@ class _DoclingPipeline:
                 "740 lines of rules without a single weight, not a model",
     }
 
+
+    @property
+    def pol(self):
+        if self._pol is None:
+            self._pol = policy_mod.for_labels(self._labels)
+        return self._pol
+
     def _label(self, raw):
         """Adapter label -> docling label. An unknown one aloud, not KeyError:
         the fix is one line in `EGRET_TO_DOCLING`, and a bare KeyError would not
@@ -236,9 +248,9 @@ class _DoclingPipeline:
                 kids[i] = ch
                 # Two numbers for lost structure: an artefact in a text wrapper's
                 # children, and one gone from the top list, where nobody can cut it out.
-                if policy.role(lab) == "text":
+                if self.pol.role(lab) == "text":
                     art = [k for k in ch
-                           if policy.role(k["label"]) == "artifact"]
+                           if self.pol.role(k["label"]) == "artifact"]
                     arte_in_text += len(art)
                     arte_lost += sum(1 for k in art
                                      if k["id_before_pipeline"] not in top)
@@ -332,7 +344,7 @@ class DoclingHeron(Detector):
         self.pipeline = knobs.knob("DOCLING_PIPELINE")
         self._pipe = (None if self.pipeline == "off"
                       else _DoclingPipeline(self.pipeline, self.labels,
-                                            self.name))
+                                            self.name, self.policy()))
         with open(pre_path, encoding="utf-8") as f:
             pre = json.load(f)
         size = pre.get("size") or {}
@@ -375,9 +387,10 @@ class DoclingHeron(Detector):
             return kept
         # The rule is asked once and passed on, or the guard and the sort could part.
         which = order.rule()
-        order.cover(self.labels, which)
+        pol = self.policy() if which == "docling" else None
+        order.cover(pol, which)
         perm = order.permutation([t[0] for t in kept], [t[2] for t in kept],
-                                 w, h, index, self.labels, which)
+                                 w, h, index, pol, which)
         return [kept[i] for i in perm]
 
     def _run_pipeline(self, blocks, w, h, index):

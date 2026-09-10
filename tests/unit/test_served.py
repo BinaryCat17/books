@@ -66,12 +66,14 @@ def _served(url, **more):
 
 def test_a_describe_round_trips_and_a_wrong_one_is_refused_by_field():
     d = served.Describe(kind="layout", label="M", fingerprint={"sha256_weights": "ab"},
-                        labels=("text",), vocabulary="PP-DocLayoutV2",
+                        classes={"text": "text"}, vocabulary="PP-DocLayoutV2",
                         reading_order="own", knobs={"A": "1"})
     assert served.Describe.from_json(d.to_json()) == d
+    assert d.labels == ("text",) and d.policy().role("text") == "text"
     good = d.to_json()
     for field, value in (("protocol", 2), ("kind", "oracle"), ("label", ""),
-                         ("fingerprint", {}), ("labels", []),
+                         ("fingerprint", {}), ("classes", {}),
+                         ("classes", {"text": "hologram"}),
                          ("reading_order", "maybe"), ("knobs", {"A": 1})):
         bad = {**good, field: value}
         with pytest.raises(Refusal) as e:
@@ -87,7 +89,7 @@ def test_a_describe_round_trips_and_a_wrong_one_is_refused_by_field():
 
 def test_identity_is_the_fingerprint_with_the_knobs_of_both_sides():
     d = served.Describe(kind="layout", label="M", fingerprint={"sha256_weights": "ab"},
-                        labels=("text",), knobs={"LAYOUT_SCORE_THRESHOLD": "0.5"})
+                        classes={"text": "text"}, knobs={"LAYOUT_SCORE_THRESHOLD": "0.5"})
     both = served.identity_of(d, {"PAGE_DPI": "144", "LAYOUT_ENDPOINT": "http://a"})
     assert both == stamp.identity({"sha256_weights": "ab"},
                                   {"LAYOUT_SCORE_THRESHOLD": "0.5", "PAGE_DPI": "144"})
@@ -259,6 +261,49 @@ def test_a_hybrid_files_as_a_read_run_with_its_own_boxes(slovar, tmp_path):
         with _served(fake.url).active(), pytest.raises(Refusal) as e:
             detect.run(b.pdf, out + "2", det=detect._adapter(), hybrid=True)
         assert "hybrid" in str(e.value)
+
+
+def test_a_model_with_its_own_vocabulary_is_measured_built_and_read(slovar, tmp_path):
+    """The point of the classes: a model the tree never heard of declares its
+    labels onto them, and the metrics, the book and the reader follow its
+    declaration rather than a vocabulary of the tree's own."""
+    from booksmith.processing.assemble import html
+    from booksmith.processing.read import driver
+    b = _copy(slovar, tmp_path)
+    own = {"Prose": "text", "Grid": "table", "Fig": "picture",
+           "Head": "page_header", "Folio": "page_footer", "Title": "text",
+           "Cap": "caption"}
+    rename = {"text": "Prose", "table": "Grid", "image": "Fig", "header": "Head",
+              "number": "Folio", "paragraph_title": "Title", "doc_title": "Title",
+              "figure_title": "Cap"}
+
+    def relabel(d):
+        return {**d, "blocks": [{**bl, "label": rename[bl["label"]]}
+                                for bl in d["blocks"]]}
+
+    out = os.path.join(b.root, "detect", "own")
+    with FakeLayout(b.truth_dir, label="own", classes=own, answer=relabel) as fake:
+        with support.said(), _served(fake.url).active():
+            detect.run(b.pdf, out, det=detect._adapter())
+    run = Run.open(out)
+    assert run.policy.name == "" and run.policy.cls("Grid") == "table"
+    assert run.snapshot["policy"]["classes"] == own
+    with support.said():
+        vals = _values(table.rows(b, run))
+    assert vals[("contour", "artefacts_found")] == 1.0
+    assert vals[("contour", "role_errors")] == 0.0
+    assert vals[("contour", "label_errors")] is None, (
+        "two vocabularies with no translation between them are not compared")
+    assert vals[("fitness", "objects_intact")] == 1.0
+    with job.Job(settings={"HTML_MATH": "off", "HTML_IMAGES": "linked"}).active(), support.said():
+        html.build(out, os.path.join(b.root, "built"))
+    assert os.path.isfile(os.path.join(b.root, "built", "book.html"))
+    reader = driver.build_reader(driver.policy_for(out, ""))
+    reader.cover(run.policy.labels)
+    assert reader.routes()["Grid"].kind == "otsl"
+    assert not reader.routes()["Fig"].asked()
+    with pytest.raises(Refusal):
+        driver.policy_for(out, "PP-DocLayoutV2")
 
 
 def test_a_served_run_of_a_tracked_model_has_the_tracked_identity(slovar):

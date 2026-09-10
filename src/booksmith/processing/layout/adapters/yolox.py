@@ -170,9 +170,10 @@ class YoloXLayout(Detector):
                  [float(v) for v in boxes[i]]) for i in keep_idx]
         # This model has no rank, so the order is ours: the rule lives in `order.py`.
         which = order.rule()
-        order.cover(self.labels, which)
+        pol = self.policy() if which == "docling" else None
+        order.cover(pol, which)
         perm = order.permutation([t[0] for t in kept], [t[2] for t in kept],
-                                 w, h, index, self.labels, which)
+                                 w, h, index, pol, which)
         kept = [kept[i] for i in perm]
         blocks = [Block(block_id=i, box=tuple(b), label=lab, score=s, order=i)
                   for i, (lab, s, b) in enumerate(kept)]
