@@ -9,7 +9,6 @@ value (`null`), not a gap, and the knobs are split by who reads them -- adapter,
 command, nobody. An empty page set, empty output, foreign pages from an earlier
 run and a label outside the policy vocabulary all refuse out loud.
 """
-import json
 import os
 import shlex
 import sys
@@ -22,6 +21,7 @@ from booksmith.core import knobs, stamp
 from booksmith.core.errors import Refusal
 from booksmith.core import raster
 from booksmith.core.log import log
+from booksmith.core.page import write_json
 from booksmith.core import job
 
 # The "text / artefact / service" policy lives only in `policy.py`; two lists drift.
@@ -292,9 +292,7 @@ def run(pdf, outdir, pages_spec=None):
                         pipe["missing_numbers"].add(key)
                     else:
                         pipe[margin] += int(v)
-            with open(os.path.join(pagedir, f"{i:04d}.json"), "w",
-                      encoding="utf-8") as f:
-                json.dump(page.to_json(), f, ensure_ascii=False)
+            write_json(os.path.join(pagedir, f"{i:04d}.json"), page.to_json())
             ties += page.meta["rank_ties"]
             for lab, s in page.meta["best_rejected_by_class"].items():
                 if s > rej_best.get(lab, 0.0):
@@ -491,7 +489,6 @@ def run(pdf, outdir, pages_spec=None):
                            ["books", "detect", pdf, "--out", outdir]
                            + (["--pages", str(pages_spec)] if pages_spec else [])),
     }
-    with open(os.path.join(outdir, "run.json"), "w", encoding="utf-8") as f:
-        json.dump(snap, f, ensure_ascii=False, indent=1)
+    write_json(os.path.join(outdir, "run.json"), snap, indent=1)
     log(f"snapshot: {os.path.join(outdir, 'run.json')}")
     return outdir

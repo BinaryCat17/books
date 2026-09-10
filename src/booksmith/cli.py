@@ -292,7 +292,7 @@ def cmd_read(a):
             pages = set(parse_pages(a.pages, d.page_count))
 
     t = vread.read_book(a.dir, out, reader, transport,
-                        resume=not a.no_resume, pages_want=pages)
+                        resume=knobs.knob("RESUME") == "1", pages_want=pages)
     vread.report(t)
     p = vread.snapshot(a.dir, out, reader, transport, t,
                        {"detect": a.dir, "out": out, "pages": a.pages,
@@ -912,8 +912,6 @@ def build_parser():
                    help="the detector label dictionary; empty = take it from "
                         "the detection snapshot, and a mismatch with it is a "
                         "refusal out loud")
-    p.add_argument("--no-resume", action="store_true",
-                   help="ask again even for what has already been read")
     p.add_argument("--rent", action="store_true",
                    help="count on a RENTED card instead of VLM_ENDPOINT: "
                         "take a machine, raise vLLM, fetch the result")

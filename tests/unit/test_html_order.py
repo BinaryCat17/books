@@ -7,6 +7,7 @@ percentage out of nothing is born of two copies of one contract.
 from booksmith.processing.assemble import html as H
 from booksmith.core import page as B
 from booksmith.core import book
+from booksmith.core import page
 
 
 def test_book_builder_reads_the_order_rule_through_the_one_contract():
@@ -30,9 +31,9 @@ def test_book_builder_reads_the_order_rule_through_the_one_contract():
 def test_anchor_is_page_scoped():
     """The anchor is per page: `block_id` restarts on every page, and a book-wide
     `b17` would give five hundred identical anchors for a swap to land in."""
-    assert H.anchor_of(42, 17) == "p0042-b17"
-    assert H.anchor_of(0, 0) == "p0000-b0"
-    assert H.anchor_of(1, 17) != H.anchor_of(2, 17)
+    assert page.anchor(42, 17) == "p0042-b17"
+    assert page.anchor(0, 0) == "p0000-b0"
+    assert page.anchor(1, 17) != page.anchor(2, 17)
 
 
 # --- crops: the builder's contract with the model's box ---------------------
@@ -403,14 +404,6 @@ def test_the_book_is_alone_at_the_root_and_carries_itself():
             "read them")
 
 
-def test_the_anchor_rule_has_exactly_one_home():
-    """The block anchor is built by one rule for the project: a private copy in
-    the swap layer would drift silently, and nothing would be left to tie a swap
-    to a block."""
-    from booksmith.processing.assemble import apply as ap
-    assert ap.anchor_of is H.anchor_of, "the swap layer made its own anchor"
-
-
 def test_the_builder_recognises_its_own_directory():
     """The "this directory is ours" mark belongs to the builder, not to callers:
     the snapshot lives in `assets/`, and a guard looking for `run.json` at the
@@ -475,7 +468,7 @@ def test_the_book_carries_blocks_in_the_order_it_walked_them():
         with open(os.path.join(out, "book.html"), encoding="utf-8") as f:
             book = f.read()
 
-        wanted = [H.anchor_of(0, i) for i in range(3)]
+        wanted = [page.anchor(0, i) for i in range(3)]
         assert swap.anchors(book) == wanted, (
             f"the book is not assembled in block order: {swap.anchors(book)} "
             f"against {wanted}. The book's order IS the reading order")

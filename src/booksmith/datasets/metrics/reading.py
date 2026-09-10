@@ -11,6 +11,7 @@ were invented from a picture.
 import re
 
 from booksmith.datasets.metrics.base import Metric, Record, Scalar, Spec
+from booksmith.core import page
 from booksmith.core.log import log
 
 # A cell that is a bare number: what a fabricated chart table is made of.
@@ -75,7 +76,7 @@ def measure(pages) -> dict:
                 continue
             res["answered"] += 1
             res["charts_answered"] += chart
-            anchor = f"p{i:04d}-b{b.get('block_id')}"
+            anchor = page.anchor(i, b.get("block_id"))
             if chart and is_data_table(text):
                 res["charts_as_data"] += 1
                 res["chart_anchors"].append(anchor)

@@ -94,6 +94,8 @@ def spec(pdf: str, detect_dir: str, pages: str = "",
         payload_gb=PAYLOAD_GB,
         warmup_s=WARMUP_S,
         minutes=25.0,
+        # The one switch for both sides: the box reads the same knob.
+        resume=knobs.knob("RESUME") == "1",
         budget_usd=budget_usd,
         timeout_minutes=timeout_minutes,
         # What the operator set rides to the machine whole, taken from the

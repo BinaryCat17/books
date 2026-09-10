@@ -11,6 +11,7 @@ from dataclasses import dataclass, asdict, field
 
 from booksmith.core import knobs
 from booksmith.core.log import log
+from booksmith.core.page import write_json
 
 # A relative path would lose the whole history when run from another directory,
 # and the pick of warmed machines with it.
@@ -240,10 +241,7 @@ def mark_bad(machine_id: int | None, reason: str, path: str = "") -> None:
             f"to rentals until it is repaired by hand")
     data[key] = {"reason": reason, "ts": time.time()}
     _ensure_dir(path)
-    tmp = path + ".tmp"
-    with open(tmp, "w") as f:
-        json.dump(data, f, ensure_ascii=False, indent=1)
-    os.replace(tmp, path)
+    write_json(path, data, indent=1)
     log(f"machine {key} blacklisted forever ({reason}); "
         f"{len(data)} in the list")
 

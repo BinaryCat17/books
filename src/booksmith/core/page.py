@@ -75,6 +75,24 @@ class Page:
 KINDS = ("html", "otsl", "latex", "text")
 
 
+def anchor(index: int, block_id: int) -> str:
+    """The address of a block, `p<index>-b<block_id>` with the index four digits
+    wide; block ids restart on every page, so the page is part of it."""
+    return f"p{index:04d}-b{block_id}"
+
+
+def write_json(path: str, obj, indent: int | None = None) -> None:
+    """Write `obj` as JSON through a temp file beside `path` and `os.replace`,
+    so a reader never sees a truncated file and a death mid-write leaves the
+    old one in place."""
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(obj, f, ensure_ascii=False, indent=indent)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, path)
+
+
 # --------------------------------------------------------------- order ---
 # The one rule for page `meta["reading_order"]`, for its writers and its readers.
 OUR_ORDER = "ours"

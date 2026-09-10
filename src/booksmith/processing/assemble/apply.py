@@ -14,13 +14,10 @@ import os
 import time
 
 from booksmith.processing.assemble import swap
-# The block anchor is built by one rule for the whole project (`html.anchor_of`);
-# a copy drifting from it would answer "no such anchor" for every block.
 from booksmith.core import book
 from booksmith.core.book import ASSETS, SOURCE
 from booksmith.core import page
 from booksmith.processing.assemble.html import (
-    anchor_of,
     observed,
     torn_grid,
     torn_of)
@@ -85,25 +82,14 @@ def load_journal(out_dir: str) -> dict:
 
 
 def save_journal(out_dir: str, j: dict) -> str:
-    """Write the journal atomically: temp file alongside, then `os.replace`.
-
-    `open(p, "w")` truncates the old file first, so a write that fails halfway
-    would leave a stub where the undo stack of the whole book was. `os.replace`
-    is atomic within one filesystem, so the temp file goes beside the journal.
-    """
+    """Write the journal atomically: a failed plain write would leave a stub
+    where the undo stack of the whole book was."""
     # Write where we read, by the same rule `load_journal` asks.
     p = book.journal_path(out_dir)
     # The kitchen may not exist yet: a swap can work over a book it did not
     # build, and refusing here would report a failed swap over a missing folder.
     os.makedirs(os.path.dirname(p) or ".", exist_ok=True)
-    tmp = p + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(j, f, ensure_ascii=False, indent=1)
-        f.flush()
-        # Bytes to disk before the rename: otherwise it can land ahead of the
-        # content, and a power cut leaves a zero-length file under the right name.
-        os.fsync(f.fileno())
-    os.replace(tmp, p)
+    page.write_json(p, j, indent=1)
     return p
 
 
@@ -566,10 +552,10 @@ def from_read(out_dir: str, read_dir: str, only_role: str = "artifact") -> dict:
 
     for fp in pages:
         with open(fp, encoding="utf-8") as f:
-            page = json.load(f)
-        for b in page.get("blocks", []):
+            pg = json.load(f)
+        for b in pg.get("blocks", []):
             tally["block_count"] += 1
-            anchor = anchor_of(page["index"], b["block_id"])
+            anchor = page.anchor(pg["index"], b["block_id"])
             role = (roles.get(anchor) or {}).get("role") or "unknown"
             if only_role and role != only_role:
                 tally["wrong_bucket"] += 1

@@ -22,7 +22,7 @@ from booksmith.processing.read import Ask, Reader, Transport
 from booksmith.core import otsl, policy
 from booksmith.core import raster as crop
 from booksmith.core.page import Page
-from booksmith.core import book, job, knobs, stamp
+from booksmith.core import book, job, knobs, page, stamp
 from booksmith.core.log import log
 from booksmith.core.errors import Refusal
 
@@ -227,7 +227,10 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
                  "transport": {k: v for k, v in transport.fingerprint().items()
                                # the address does not decide the answer, the
                                # model name does
-                               if k in ("transport", "model_asked")}}
+                               if k in ("transport", "model_asked")},
+                 # The boxes the answers are about: a resume over another
+                 # detection's answers would reuse them by anchor alone.
+                 "detection": facts.get("identity")}
         setup_path = os.path.join(out_dir, "read_with.json")
         if resume and os.path.exists(setup_path):
             with open(setup_path, encoding="utf-8") as f:
@@ -239,8 +242,7 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
                     f"not allowed, asking everything again. Otherwise the "
                     f"snapshot would declare new values in force over old "
                     f"answers.")
-        with open(setup_path, "w", encoding="utf-8") as f:
-            json.dump(setup, f, ensure_ascii=False, indent=1)
+        page.write_json(setup_path, setup, indent=1)
     doc = crop.open_pdf(pdf)
     # Own resolution per page, memoised: sheet sizes differ inside one book.
     native_of = {}
@@ -278,7 +280,7 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
         asks, silent, nocrop, cut_info = [], {}, {}, {}
         for b in pg.blocks:
             tally["block_count"] += 1
-            anchor = f"{tag}-b{b.block_id}"
+            anchor = page.anchor(pg.index, b.block_id)
             rt = routes[b.label]
             if not rt.asked():
                 tally["not_asked"] += 1
@@ -354,7 +356,7 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
         # shuffled, and filing by arrival would reorder the book.
         answers = []
         for b in pg.blocks:
-            anchor = f"{tag}-b{b.block_id}"
+            anchor = page.anchor(pg.index, b.block_id)
             rt = routes[b.label]
             if anchor in silent:
                 b.content, b.kind = None, "none"
@@ -427,12 +429,9 @@ def read_book(detect_dir: str, out_dir: str, reader: Reader,
         pg.meta = dict(pg.meta or {})
         pg.meta["reading"] = {"reader": reader.name, "transport": transport.name,
                              "asked": len(asks)}
-        with open(os.path.join(out_dir, "pages", os.path.basename(fp)),
-                  "w", encoding="utf-8") as f:
-            json.dump(pg.to_json(), f, ensure_ascii=False, indent=1)
-        with open(ans_path, "w", encoding="utf-8") as f:
-            json.dump({"page": pg.index, "answers": answers}, f,
-                      ensure_ascii=False, indent=1)
+        page.write_json(os.path.join(out_dir, "pages", os.path.basename(fp)),
+                        pg.to_json(), indent=1)
+        page.write_json(ans_path, {"page": pg.index, "answers": answers}, indent=1)
         got = sum(1 for a in answers if a.get('text'))
         log(f"p. {pg.index}: asked {len(asks)}, read {got}, "
             f"silences {sum(1 for a in answers if a.get('text') == '')}, "
@@ -557,8 +556,7 @@ def snapshot(detect_dir: str, out_dir: str, reader: Reader,
         "repeat_command": _repeat_line(detect_dir, out_dir, args),
     }
     p = os.path.join(out_dir, "run.json")
-    with open(p, "w", encoding="utf-8") as f:
-        json.dump(snap, f, ensure_ascii=False, indent=1)
+    page.write_json(p, snap, indent=1)
     return p
 
 

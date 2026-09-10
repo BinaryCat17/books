@@ -201,9 +201,9 @@ options:
 ## books read
 
 ```
-usage: books read [-h] [--out OUT] [--pages PAGES] [--policy POLICY]
-                  [--no-resume] [--rent] [--budget BUDGET] [--timeout TIMEOUT]
-                  [--dry-run] [--key KEY]
+usage: books read [-h] [--out OUT] [--pages PAGES] [--policy POLICY] [--rent]
+                  [--budget BUDGET] [--timeout TIMEOUT] [--dry-run]
+                  [--key KEY]
                   dir
 
 positional arguments:
@@ -216,7 +216,6 @@ options:
   --policy POLICY    the detector label dictionary; empty = take it from the
                      detection snapshot, and a mismatch with it is a refusal
                      out loud
-  --no-resume        ask again even for what has already been read
   --rent             count on a RENTED card instead of VLM_ENDPOINT: take a
                      machine, raise vLLM, fetch the result
   --budget BUDGET    spending ceiling, $; reached — the machine dies

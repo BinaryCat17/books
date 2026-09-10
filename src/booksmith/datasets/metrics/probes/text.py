@@ -7,7 +7,7 @@ two at once cannot tell a live figure from one stuck to its neighbour.
 import copy
 import re
 
-from booksmith.core import otsl, policy
+from booksmith.core import otsl, page, policy
 from booksmith.datasets.metrics import contour as metrics
 from booksmith.datasets.metrics import text as m
 from booksmith.datasets.metrics.base import Probe
@@ -187,7 +187,7 @@ def _anchor_all_paged(P, shift=0):
     neighbouring page with the block number right."""
     Q = copy.deepcopy(P)
     for i, _, b in m._blocks(Q):
-        b.setdefault("meta", {})["anchor"] = f"p{i + shift:04d}-b{b.get('block_id')}"
+        b.setdefault("meta", {})["anchor"] = page.anchor(i + shift, b.get("block_id"))
     return Q
 
 

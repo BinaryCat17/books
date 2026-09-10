@@ -22,7 +22,7 @@ from booksmith.core import policy
 from booksmith.core import stamp, textnorm
 from booksmith.core.errors import Refusal
 
-from booksmith.core.page import Page
+from booksmith.core.page import Page, anchor
 from booksmith.core import knobs
 from booksmith.core import book, raster as crop
 from booksmith.core.book import ASSETS, SOURCE
@@ -165,11 +165,6 @@ def _union_area(holes):
                 end = y1
         total += cov * (b - a)
     return total
-
-
-def anchor_of(page_index: int, block_id: int) -> str:
-    """Block anchor. Per page: `block_id` restarts on every page."""
-    return f"p{page_index:04d}-b{block_id}"
 
 
 def why_empty(o: dict | None) -> str:
@@ -760,9 +755,9 @@ def build(detect_dir: str, out_dir: str) -> dict:
         cuts = []
         # Not inside the loop: an expectation built during the walk is
         # tautological -- reverse the walk and it reverses with it.
-        expected.extend(anchor_of(page.index, b.block_id) for b in page.blocks)
+        expected.extend(anchor(page.index, b.block_id) for b in page.blocks)
         for b in page.blocks:
-            a = anchor_of(page.index, b.block_id)
+            a = anchor(page.index, b.block_id)
             role = policy.role(b.label)
             inside = [o for o in arts
                       if o.block_id != b.block_id and _covered(b.box, o.box)]
@@ -784,7 +779,7 @@ def build(detect_dir: str, out_dir: str) -> dict:
             repeat = repeat_text = None
             if b.block_id in repeats_page:
                 owner_id, repeat_text = repeats_page[b.block_id]
-                repeat = (anchor_of(page.index, owner_id)
+                repeat = (anchor(page.index, owner_id)
                           if owner_id is not None else "page")
                 repeat_count += repeat_text == "verbatim"
                 differs += repeat_text == "differs"
@@ -813,7 +808,7 @@ def build(detect_dir: str, out_dir: str) -> dict:
                 shape_n += 1
                 shape_a.append(a)
             outer = nested_in.get(b.block_id)
-            outer_a = anchor_of(page.index, outer) if outer is not None else None
+            outer_a = anchor(page.index, outer) if outer is not None else None
             # `.strip()`: `"   "` is truthy, so a whitespace answer would take
             # the paragraph branch -- an empty `<p></p>`, no crop cut, the ink
             # gone while every counter called it text. `from_text` asks the same.
@@ -855,10 +850,10 @@ def build(detect_dir: str, out_dir: str) -> dict:
                        "order": b.order, "order_source": order_src,
                        "role": role,
                        "box": list(b.box), "crop": info or None,
-                       "inside_artifacts": [anchor_of(page.index, o.block_id)
+                       "inside_artifacts": [anchor(page.index, o.block_id)
                                              for o in inside] or None,
                        "inside": outer_a,
-                       "contains": [anchor_of(page.index, k)
+                       "contains": [anchor(page.index, k)
                                     for k, v in nested_in.items()
                                     if v == b.block_id] or None}
         # Counted over the boxes actually cut, in sheet points rather than
