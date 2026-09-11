@@ -2,7 +2,7 @@ name: booksmith
 services:
   backend:
     build: {context: .., dockerfile: images/backend/Dockerfile}
-    environment: {BOOKSMITH_METRICS: http://metrics:8000, BOOKSMITH_FLEET: http://fleet:8000}
+    environment: {BOOKSMITH_METRICS: http://metrics:8000, BOOKSMITH_FLEET: http://fleet:8000, BOOKSMITH_ADMIN: "${BOOKSMITH_ADMIN:-}"}
     volumes: [data:/data]
     depends_on: [metrics, fleet]
   metrics:

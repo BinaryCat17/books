@@ -1,7 +1,10 @@
 from __future__ import annotations
+
+import os
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from backend.errors import BooksmithError, Cancelled, Refusal, Unmeasurable
+from backend import auth
 from backend.db import Db
 from backend.pool import Pool
 from backend.routes import router
@@ -15,6 +18,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.db = Db(settings.db_path)
     app.state.pool = Pool(app.state.db, settings)
     app.include_router(router)
+    first = os.environ.get("BOOKSMITH_ADMIN") or ""
+    if first and not app.state.db.users():
+        name, _, password = first.partition(":")
+        auth.add_user(app.state.db, name, password, "admin")
+        app.state.settings.store_of(1, "admin")
 
     @app.exception_handler(Refusal)
     def _refusal(_r: Request, e: Refusal) -> JSONResponse:

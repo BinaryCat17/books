@@ -8,7 +8,8 @@ catalog of runs and measurements.
 Run: `python -m backend`. Environment: `BOOKSMITH_HOME` (the data volume),
 `BOOKSMITH_SCHEMA` (the schema directory), `BOOKSMITH_METRICS` (the metrics
 service), `BOOKSMITH_FLEET` (the model manager), `BOOKSMITH_WORKERS`, `BOOKSMITH_SECURE_COOKIES`, `BOOKSMITH_COMMIT`,
-`PORT`. Model keys come from the registry entry's `api_key`. Tests: `pytest`.
+`PORT`, `BOOKSMITH_ADMIN=name:password` (the first admin, made when there
+are no users). Model keys come from the registry entry's `api_key`. Tests: `pytest`.
 
 The API is under `/api`; its OpenAPI document is served at `/api/openapi.json`.
 Book routes take `{root}/{name}`, `bench/<name>` or `processed/<name>`.

@@ -265,3 +265,22 @@ def test_a_model_with_an_image_is_leased_from_the_fleet_for_the_job_and_released
     r = alice.post("/api/jobs", json={"kind": "detect", "book": book, "model": "gone"})
     _, last = wait_done(alice, r.json()["id"])
     assert last["state"] == "failed" and "no offer" in last["error"]
+
+
+def test_the_first_admin_comes_from_the_environment(home, monkeypatch):
+    from backend.app import create_app
+    from backend.settings import Settings
+
+    monkeypatch.setenv("BOOKSMITH_ADMIN", "root:secret")
+    app = create_app(Settings.from_env())
+    try:
+        c = TestClient(app)
+        assert c.post("/api/login", json={"name": "root", "password": "secret"}).status_code == 200
+        assert c.get("/api/me").json()["role"] == "admin"
+    finally:
+        app.state.db.close()
+    again = create_app(Settings.from_env())
+    try:
+        assert [u["name"] for u in again.state.db.users()] == ["root"]
+    finally:
+        again.state.db.close()
