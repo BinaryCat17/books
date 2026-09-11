@@ -27,7 +27,7 @@ console.log("boxes on page", boxes);
 const tops = await page.locator(".sheet svg rect").evaluateAll((rs) => rs.map((r) => r.getBoundingClientRect().top));
 const img = await page.locator(".sheet img").boundingBox();
 console.log("topmost box within image:", ((Math.min(...tops) - img.y) / img.height).toFixed(3), "of the image height");
-await page.click(".sheet svg rect >> nth=0");
+await page.click(".sheet svg rect.text >> nth=0");
 await page.waitForSelector(".detail img");
 await page.click("button:has-text('measure this page')");
 await page.waitForSelector("text=Metrics on page", { timeout: 60000 });
