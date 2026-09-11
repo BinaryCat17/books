@@ -13,4 +13,4 @@ reads and writes against these in its own tests; nothing else is shared.
 | `classes.json` | the class table every label maps onto |
 | `openapi/model.yaml` | the model protocol |
 
-The backend's own API is served as OpenAPI at `/api/openapi.json`; the metrics' and the fleet's are their `/docs`.
+`openapi/backend.json` is the backend's API, written by `python -m backend --openapi` and held to the code by its tests; the metrics' and the fleet's are their `/docs`.

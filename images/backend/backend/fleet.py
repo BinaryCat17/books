@@ -36,3 +36,15 @@ def renew(job: str) -> int:
 
 def release(job: str) -> int:
     return int(_call("POST", "/leases/release", {"job": job})["released"])
+
+
+def placements() -> list:
+    return _call("GET", "/placements")
+
+
+def ledger() -> list:
+    return _call("GET", "/ledger")
+
+
+def stop_placement(pid: str) -> dict:
+    return _call("DELETE", f"/placements/{pid}")

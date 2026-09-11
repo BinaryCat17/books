@@ -3,6 +3,8 @@
         reverse_proxy backend:8000
     }
     handle {
-        respond "booksmith: the API is under /api; the UI is not built yet" 200
+        root * /srv
+        try_files {path} /index.html
+        file_server
     }
 }

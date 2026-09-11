@@ -27,6 +27,16 @@ class FakeFleet:
             def do_GET(self):
                 if self.path == "/models":
                     return self._json(200, fake.models)
+                if self.path == "/placements":
+                    return self._json(200, [{"id": "p1", "model": m["model"], "state": "ready"} for m in fake.leases])
+                if self.path == "/ledger":
+                    return self._json(200, [{"model": "old", "cost_usd": 0.5, "why": "idle"}])
+                self._json(404, {"error": "no route"})
+
+            def do_DELETE(self):
+                fake.calls.append((self.path, {}))
+                if self.path.startswith("/placements/"):
+                    return self._json(200, {"stopped": self.path.rsplit("/", 1)[-1]})
                 self._json(404, {"error": "no route"})
 
             def do_PUT(self):

@@ -29,9 +29,8 @@ services:
     profiles: [tools]
     volumes: [data:/data]
   proxy:
-    image: caddy:2
+    build: {context: .., dockerfile: images/ui/Dockerfile}
     ports: ["8080:80"]
-    volumes: [./Caddyfile:/etc/caddy/Caddyfile:ro]
     depends_on: [backend]
 volumes:
   data: {}

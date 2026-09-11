@@ -7,7 +7,7 @@ from collections.abc import AsyncIterator
 from fastapi import APIRouter, Request, Response, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from backend import service
+from backend import fleet, service
 from backend.errors import Refusal
 from backend import auth
 from backend.db import as_dict
@@ -243,6 +243,24 @@ def put_models(body: dict, request: Request) -> dict:
 def presets(request: Request) -> list[dict]:
     auth.require(request)
     return [{"name": n, "kind": e["kind"], "knobs": e["knobs"]} for n, e in service.models().items()]
+
+
+@router.get("/fleet/placements")
+def fleet_placements(request: Request) -> list:
+    auth.require(request, "admin")
+    return fleet.placements()
+
+
+@router.get("/fleet/ledger")
+def fleet_ledger(request: Request) -> list:
+    auth.require(request, "admin")
+    return fleet.ledger()
+
+
+@router.delete("/fleet/placements/{pid}")
+def fleet_stop(pid: str, request: Request) -> dict:
+    auth.require(request, "admin")
+    return fleet.stop_placement(pid)
 
 
 class NewUser(BaseModel):

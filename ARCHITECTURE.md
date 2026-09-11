@@ -21,7 +21,7 @@ them. `schema/` is the only thing shared, and it is data.
 | `images/layout` | a layout detector behind the model protocol, one tag per model | container per model |
 | `images/vlm` | a vLLM behind the model protocol | container |
 | `images/datasets` | the bench builders | tool container |
-| `images/ui` | the browser application; not started, the proxy serves the API alone | static |
+| `images/ui` | the browser application: library, viewer, admin; built into the proxy image | static |
 | `infra/` | compose, the proxy, CI | — |
 
 ## Contracts
@@ -31,8 +31,9 @@ data), `describe`, `health`, `layout-request` (the model protocol),
 `snapshot` (`run.json`), `record` and `catalog` (what a metric says and
 publishes), `classes.json` (the class table and the vocabularies that map
 onto it). The backend, metrics, layout, vlm and datasets images validate what they
-read and write against them in their tests; the UI's client is generated from the backend's OpenAPI. JSON over
-HTTP throughout.
+read and write against them in their tests; the backend's API is
+`openapi/backend.json`, held to the code by a test, and the UI's client is
+its hand-typed reading. JSON over HTTP throughout.
 
 **Model protocol.** `GET /booksmith/describe`, `GET /booksmith/health`,
 `POST /booksmith/layout` for layout and hybrid models; the OpenAI chat route
@@ -116,6 +117,6 @@ anywhere but git.
 
 1. The split into `schema/` and `images/`. Done.
 2. The fleet: the registry, the docker and vast providers, placements and leases, the backend holding a lease while a job runs. Done; a real rental is proven on demand, since it costs money.
-3. The UI: library, viewer with boxes, metrics per page and per book, the admin panel.
+3. The UI: library, viewer with boxes, metrics per page and per book, the admin panel. Done.
 4. Truth by hash, truth layers, labeling in the browser.
 5. Export beyond HTML, and corrections as derived runs.

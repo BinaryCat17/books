@@ -1,3 +1,4 @@
+import json
 import os
 import time
 from fastapi.testclient import TestClient
@@ -286,3 +287,18 @@ def test_the_first_admin_comes_from_the_environment(home, monkeypatch):
         assert [u["name"] for u in again.state.db.users()] == ["root"]
     finally:
         again.state.db.close()
+
+
+def test_the_fleet_is_the_admins_to_see_and_the_openapi_is_the_committed_contract(app, home, fleet):
+    admin = as_user(app, "root", "pw", "admin")
+    user = as_user(app, "alice")
+    assert user.get("/api/fleet/placements").status_code == 403
+    assert admin.get("/api/fleet/placements").json() == []
+    assert admin.get("/api/fleet/ledger").json()[0]["why"] == "idle"
+    assert admin.delete("/api/fleet/placements/p9").json() == {"stopped": "p9"}
+    assert ("/placements/p9", {}) in fleet.calls
+    here = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    with open(os.path.join(here, "schema", "openapi", "backend.json"), encoding="utf-8") as f:
+        committed = json.load(f)
+    assert committed == json.loads(json.dumps(app.openapi(), sort_keys=True)), (
+        "schema/openapi/backend.json is not the backend's API: python -m backend --openapi > schema/openapi/backend.json")

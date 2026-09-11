@@ -11,3 +11,10 @@ jobs:
       - run: uv sync --all-packages --group dev --frozen
       - run: uv run ruff check images/${{ matrix.image }}
       - run: cd images/${{ matrix.image }} && uv run pytest -q
+  ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 22}
+      - run: cd images/ui && npm ci && npm run build
