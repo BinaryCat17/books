@@ -1,23 +1,28 @@
+name: booksmith
 services:
   backend:
     build: {context: .., dockerfile: images/backend/Dockerfile}
-    environment: {BOOKSMITH_METRICS: http://metrics:8000}
+    environment: {BOOKSMITH_METRICS: http://metrics:8000, BOOKSMITH_FLEET: http://fleet:8000}
     volumes: [data:/data]
-    depends_on: [metrics]
+    depends_on: [metrics, fleet]
   metrics:
     build: {context: .., dockerfile: images/metrics/Dockerfile}
     volumes: [data:/data]
   fleet:
     build: {context: .., dockerfile: images/fleet/Dockerfile}
-    volumes: [data:/data, /var/run/docker.sock:/var/run/docker.sock]
+    environment: {FLEET_DOCKER_NETWORK: booksmith_default}
+    volumes: [data:/data, /var/run/docker.sock:/var/run/docker.sock, ~/.config/vastai:/root/.config/vastai:ro]
   layout:
+    image: booksmith/layout-pp-doclayoutv2
     build:
       context: ..
       dockerfile: images/layout/Dockerfile
       args: {MODEL_REPO: PaddlePaddle/PP-DocLayoutV2_onnx, MODEL_DIR: PP-DocLayoutV2_onnx, LAYOUT_ADAPTER: doclayout, LAYOUT_MODEL_NAME: PP-DocLayoutV2}
+    profiles: [models]
   vlm:
+    image: booksmith/vlm-paddleocr-vl
     build: {context: .., dockerfile: images/vlm/Dockerfile}
-    profiles: [gpu]
+    profiles: [models]
     deploy: {resources: {reservations: {devices: [{driver: nvidia, count: all, capabilities: [gpu]}]}}}
   datasets:
     build: {context: .., dockerfile: images/datasets/Dockerfile}

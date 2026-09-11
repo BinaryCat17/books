@@ -14,4 +14,5 @@ packages = ["fleet"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["tests"]
-markers = ["slow: needs model weights"]
+addopts = "-m 'not vast'"
+markers = ["docker: needs a docker daemon", "vast: needs a vast account and asks it"]

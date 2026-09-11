@@ -6,7 +6,7 @@ import queue
 import threading
 import time
 from collections.abc import AsyncIterator
-from backend import service
+from backend import fleet, service
 from backend import job
 from backend.errors import BooksmithError, Cancelled
 from backend.log import log
@@ -14,6 +14,7 @@ from backend.db import TERMINAL, Db, as_dict
 
 KINDS = ("detect", "hybrid", "read", "bench", "html")
 KEEPALIVE_S = 15.0
+LEASE_RENEW_S = 30.0
 
 
 def run_dir_of(store: str, book: str, kind: str, label: str) -> str:
@@ -175,27 +176,47 @@ class Pool:
                 self.db.progress(job_id, ev["n"], ev["of"])
             self._publish(job_id, {"event": "line", **ev})
 
-        base = job.Job(settings={}, secrets={}, stop=stop, sink=sink)
+        name = f"job-{job_id}"
+        base = job.Job(settings={}, secrets={}, stop=stop, sink=sink, name=name)
         args = json.loads(row["args"])
+        done = threading.Event()
+
+        def renew() -> None:
+            while not done.wait(LEASE_RENEW_S):
+                try:
+                    fleet.renew(self.cfg.fleet_url, name)
+                except BooksmithError as e:
+                    log(f"job {job_id}: lease not renewed: {e}", job=job_id)
+
+        threading.Thread(target=renew, daemon=True).start()
+        outcome: tuple[str, object] = ("failed", "not run")
         try:
             with base.active():
-                result = os.path.relpath(
-                    dispatch(row["kind"], row["store"], args, base, self.db, self.cfg), row["store"]
-                )
+                result = os.path.relpath(dispatch(row["kind"], row["store"], args, base, self.db, self.cfg), row["store"])
                 log(f"job {job_id} {row['kind']} done: {result}", job=job_id)
+            outcome = ("done", result)
         except Cancelled:
-            self.db.set_state(job_id, "cancelled", finished=time.time())
-            self._publish(job_id, {"event": "state", "state": "cancelled"})
+            outcome = ("cancelled", None)
         except BooksmithError as e:
-            self.db.set_state(job_id, "failed", finished=time.time(), error=str(e))
-            self._publish(job_id, {"event": "state", "state": "failed", "error": str(e)})
+            outcome = ("failed", str(e))
         except Exception as e:
-            why = f"{type(e).__name__}: {e}"
-            self.db.set_state(job_id, "failed", finished=time.time(), error=why)
-            self._publish(job_id, {"event": "state", "state": "failed", "error": why})
-        else:
-            self.db.set_state(job_id, "done", finished=time.time(), result=result)
-            self._publish(job_id, {"event": "state", "state": "done", "result": result})
+            outcome = ("failed", f"{type(e).__name__}: {e}")
         finally:
+            done.set()
+            if args.get("model"):
+                try:
+                    fleet.release(self.cfg.fleet_url, name)
+                except BooksmithError as e:
+                    log(f"job {job_id}: lease not released: {e}", job=job_id)
             with self.lock:
                 self.stops.pop(job_id, None)
+        state, payload = outcome
+        if state == "done":
+            self.db.set_state(job_id, "done", finished=time.time(), result=payload)
+            self._publish(job_id, {"event": "state", "state": "done", "result": payload})
+        elif state == "cancelled":
+            self.db.set_state(job_id, "cancelled", finished=time.time())
+            self._publish(job_id, {"event": "state", "state": "cancelled"})
+        else:
+            self.db.set_state(job_id, "failed", finished=time.time(), error=payload)
+            self._publish(job_id, {"event": "state", "state": "failed", "error": payload})

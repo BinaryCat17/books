@@ -1,4 +1,3 @@
-import json
 import os
 import time
 from fastapi.testclient import TestClient
@@ -9,8 +8,10 @@ from fake_vlm import FakeVlm
 
 
 def _registry(home, entries):
-    with open(os.path.join(home, "models.json"), "w", encoding="utf-8") as f:
-        json.dump(entries, f)
+    import httpx
+
+    r = httpx.put(os.environ["BOOKSMITH_FLEET"] + "/models", json=entries)
+    assert r.status_code == 200, r.text
 
 
 def _upload(client, pdf, name):
@@ -207,7 +208,8 @@ def test_the_registry_is_written_checked_and_users_are_the_admins(app, home):
     admin = as_user(app, "root", "pw", "admin")
     bad = {"x": {"kind": "layout", "knobs": {}}}
     assert admin.put("/api/models", json=bad).status_code == 409
-    assert not os.path.exists(os.path.join(home, "models.json"))
+    assert admin.put("/api/models", json={"x": {"kind": "layout", "endpoint": "e", "knobs": {"NOPE": 1}}}).status_code == 409
+    assert admin.get("/api/models").json() == {}
     good = {
         "m": {
             "kind": "reader",
@@ -244,3 +246,22 @@ def test_an_unknown_kind_of_job_is_refused_and_a_login_costs_the_same_either_way
     anon.post("/api/login", json={"name": "alice", "password": "x"})
     known = time.time() - t0
     assert unknown > known / 4, (unknown, known)
+
+
+def test_a_model_with_an_image_is_leased_from_the_fleet_for_the_job_and_released_after(app, home, bench, fleet):
+    _registry(home, {"boxed": {"kind": "layout", "image": "model-layout:1", "provider": "docker", "knobs": {}}})
+    alice = as_user(app, "alice")
+    book = _upload(alice, bench.pdf, "book")
+    r = alice.post("/api/jobs", json={"kind": "detect", "book": book, "model": "boxed"})
+    job_id = r.json()["id"]
+    _, last = wait_done(alice, job_id)
+    assert last["state"] == "done", last
+    leases = [b for p, b in fleet.calls if p == "/leases"]
+    assert leases == [{"model": "boxed", "job": f"job-{job_id}"}]
+    assert ("/leases/release", {"job": f"job-{job_id}"}) in fleet.calls and fleet.leases == []
+    run = alice.get(f"/api/books/{book}/runs/detect/truth").json()
+    assert run["pages"] == list(range(3))
+    _registry(home, {"gone": {"kind": "layout", "image": "nowhere:1", "provider": "docker", "knobs": {}}})
+    r = alice.post("/api/jobs", json={"kind": "detect", "book": book, "model": "gone"})
+    _, last = wait_done(alice, r.json()["id"])
+    assert last["state"] == "failed" and "no offer" in last["error"]

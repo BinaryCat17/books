@@ -1,5 +1,5 @@
-from fleet import job
+import time
 
 
-def log(*a: object, **fields: object) -> None:
-    job.current().sink({"text": " ".join(str(x) for x in a), **fields})
+def log(text: str, **fields: object) -> None:
+    print(f"[{time.strftime('%H:%M:%S')}] {text}", flush=True)

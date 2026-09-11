@@ -37,6 +37,7 @@ class Job:
     secrets: Mapping = field(default_factory=dict)
     stop: threading.Event = field(default_factory=threading.Event)
     sink: Callable[[dict], None] = _print
+    name: str = ""
 
     def check(self) -> None:
         if self.stop.is_set():

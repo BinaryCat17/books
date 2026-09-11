@@ -43,6 +43,7 @@ def secrets() -> dict[str, str]:
 class Settings:
     home: str
     metrics_url: str = "http://metrics:8000"
+    fleet_url: str = "http://fleet:8000"
     workers: int = 2
     session_days: int = 30
     secure_cookies: bool = False
@@ -54,6 +55,7 @@ class Settings:
         return Settings(
             home=h,
             metrics_url=(os.environ.get("BOOKSMITH_METRICS") or "http://metrics:8000").rstrip("/"),
+            fleet_url=(os.environ.get("BOOKSMITH_FLEET") or "http://fleet:8000").rstrip("/"),
             workers=max(1, int(os.environ.get("BOOKSMITH_WORKERS") or 2)),
             secure_cookies=(os.environ.get("BOOKSMITH_SECURE_COOKIES") or "").lower() in ("1", "true", "yes"),
         )

@@ -31,11 +31,10 @@ def test_the_registry_is_checked_entry_by_entry():
         {"x": []},
         [],
     ]
-    for raw in bad:
+    for raw in bad[2:4] + bad[5:]:
         with pytest.raises(Refusal):
-            service.registry(raw)
-    ok = service.registry({"m": {"kind": "reader", "endpoint": "http://h/v1", "knobs": {"PAGE_DPI": 72}}})
-    assert ok["m"]["knobs"] == {"PAGE_DPI": "72"}, "knob values are strings"
+            service.check_entries(raw)
+    assert service.check_entries({"m": {"kind": "reader", "endpoint": "http://h/v1", "knobs": {"PAGE_DPI": 72}}})
 
 
 def test_a_named_entry_fills_the_endpoint_after_the_check_and_carries_its_key(tmp_path, monkeypatch):
@@ -59,7 +58,8 @@ def test_a_named_entry_fills_the_endpoint_after_the_check_and_carries_its_key(tm
         service._job(user, {"PAGE_DPI": "73"}, "lay")
     with pytest.raises(Refusal):
         service._job(user, {}, "nope")
-    with pytest.raises(Refusal):
+    with pytest.raises(Refusal, match="fleet"):
+        monkeypatch.setenv("BOOKSMITH_FLEET", "http://127.0.0.1:1")
         service._job(user, {}, "img")
     j = service._job(service.admin(), {}, "vlm")
     assert j.settings["VLM_ENDPOINT"] == "http://127.0.0.1:9/v1"

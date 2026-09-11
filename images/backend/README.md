@@ -7,7 +7,7 @@ catalog of runs and measurements.
 
 Run: `python -m backend`. Environment: `BOOKSMITH_HOME` (the data volume),
 `BOOKSMITH_SCHEMA` (the schema directory), `BOOKSMITH_METRICS` (the metrics
-service), `BOOKSMITH_WORKERS`, `BOOKSMITH_SECURE_COOKIES`, `BOOKSMITH_COMMIT`,
+service), `BOOKSMITH_FLEET` (the model manager), `BOOKSMITH_WORKERS`, `BOOKSMITH_SECURE_COOKIES`, `BOOKSMITH_COMMIT`,
 `PORT`. Model keys come from the registry entry's `api_key`. Tests: `pytest`.
 
 The API is under `/api`; its OpenAPI document is served at `/api/openapi.json`.
@@ -28,4 +28,4 @@ Book routes take `{root}/{name}`, `bench/<name>` or `processed/<name>`.
 | `GET /books/{root}/{name}/runs/{kind}/{label}/results` | the last measurement of the run |
 | `GET /books/{root}/{name}/runs/{kind}/{label}/series` | every measurement of the run |
 | `POST /jobs`, `GET /jobs`, `GET /jobs/{id}`, `POST /jobs/{id}/cancel`, `GET /jobs/{id}/events` | detect, hybrid, read, html, bench; progress as events |
-| `GET /models`, `PUT /models`, `GET /models/presets`, `GET /users`, `POST /users` | the registry and the users (admin) |
+| `GET /models`, `PUT /models`, `GET /models/presets`, `GET /users`, `POST /users` | the registry (kept by the fleet) and the users (admin) |

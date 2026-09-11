@@ -9,62 +9,44 @@ from backend import raster
 from backend import store as book
 from backend import job
 from backend import knobs
-from backend import protocol as served
 from backend import identity as stamp
 from backend.errors import Refusal
 from backend.log import log
-from backend import document, measure, settings
+from backend import document, fleet, measure, settings
+from backend import protocol as served
 
 
 def admin() -> str:
     return settings.home()
 
 
-def registry(raw: object, where: str = "models.json") -> dict:
+def check_entries(raw: object) -> dict:
     if not isinstance(raw, dict):
-        raise Refusal(f"{where}: not a mapping of names to entries")
-    out = {}
+        raise Refusal("the registry is a mapping of names to entries")
     for name, e in raw.items():
         if not isinstance(e, dict):
-            raise Refusal(f"{where}: {name}: an entry is a mapping")
-        kind = e.get("kind")
-        if kind not in served.KINDS:
-            raise Refusal(f"{where}: {name}: kind {kind!r} is not one of {served.KINDS}")
-        kn = e.get("knobs", {})
-        if not isinstance(kn, dict):
-            raise Refusal(f"{where}: {name}: knobs must be a mapping")
-        unknown = sorted(set(kn) - set(knobs.names()))
+            raise Refusal(f"{name}: an entry is a mapping")
+        if e.get("kind") not in served.KINDS:
+            raise Refusal(f"{name}: kind {e.get('kind')!r} is not one of {served.KINDS}")
+        unknown = sorted(set(e.get("knobs") or {}) - set(knobs.names()))
         if unknown:
-            raise Refusal(f"{where}: {name}: knobs nothing declares: {unknown}")
-        has_endpoint, has_image = (bool(e.get("endpoint")), bool(e.get("image")))
-        if has_endpoint == has_image:
-            raise Refusal(
-                f"{where}: {name}: exactly one of `endpoint` and `image`: either the model answers somewhere, or an image and a provider will bring one up."
-            )
-        if has_image and (not e.get("provider")):
-            raise Refusal(f"{where}: {name}: an image needs a `provider`")
-        out[name] = {**e, "knobs": {k: str(v) for k, v in kn.items()}}
-    return out
-
-
-def models_path() -> str:
-    return os.path.join(admin(), "models.json")
+            raise Refusal(f"{name}: knobs nothing declares: {unknown}")
+    return raw
 
 
 def models() -> dict:
-    path = models_path()
-    if not os.path.isfile(path):
-        return {}
-    with open(path, encoding="utf-8") as f:
-        return registry(json.load(f), path)
+    return fleet.models(settings.Settings.from_env().fleet_url)
 
 
 def write_models(raw: object) -> dict:
-    checked = registry(raw)
-    from backend.page import write_json
+    return fleet.write_models(settings.Settings.from_env().fleet_url, check_entries(raw))
 
-    write_json(models_path(), raw, indent=1)
-    return checked
+
+def _endpoint(e: dict, model: str, base: job.Job) -> tuple[str, str]:
+    if e.get("endpoint"):
+        return str(e["endpoint"]), str(e.get("api_key") or "")
+    got = fleet.lease(settings.Settings.from_env().fleet_url, model, base.name or "adhoc")
+    return str(got["endpoint"]), str(got.get("key") or "")
 
 
 def _admin(store: str) -> bool:
@@ -77,13 +59,13 @@ def _entry(model: str, presets: Mapping) -> dict:
     return dict(presets[model])
 
 
-def check(store: str, settings: Mapping, presets: Mapping | None = None, model: str = "") -> None:
-    if _admin(store) or not settings:
+def check(store: str, settings_: Mapping, presets: Mapping | None = None, model: str = "") -> None:
+    if _admin(store) or not settings_:
         return
     presets = models() if presets is None else presets
     if model:
         presets = {model: _entry(model, presets)}
-    given = {k: str(v) for k, v in settings.items()}
+    given = {k: str(v) for k, v in settings_.items()}
     allowed = [{k: str(v) for k, v in (p.get("knobs") or {}).items()} for p in presets.values()]
     if given not in allowed:
         raise Refusal(
@@ -107,32 +89,21 @@ def _inside(store: str, path: str | None) -> str | None:
     return path
 
 
-def _with_endpoint(settings: Mapping, e: dict, model: str) -> dict:
-    if not e.get("endpoint"):
-        raise Refusal(f"model {model!r} names an image and no endpoint, and nothing here brings one up yet.")
-    out = dict(settings)
-    if e["kind"] == "reader":
-        out["VLM_ENDPOINT"] = str(e["endpoint"])
-    else:
-        out["LAYOUT_ENDPOINT"] = str(e["endpoint"])
-    return out
-
-
-def _job(store: str, settings: Mapping, model: str = "", base: job.Job | None = None) -> job.Job:
-    presets = models()
-    settings = dict(settings)
-    if model and (not settings):
-        settings = dict(_entry(model, presets)["knobs"])
-    check(store, settings, presets, model)
+def _job(store: str, settings_: Mapping, model: str = "", base: job.Job | None = None) -> job.Job:
+    presets = models() if model or not _admin(store) else {}
+    settings_ = dict(settings_)
+    if model and not settings_:
+        settings_ = dict(_entry(model, presets)["knobs"])
+    check(store, settings_, presets, model)
     base = base if base is not None else job.current()
     secrets = dict(base.secrets) if _admin(store) else {}
     if model:
         e = _entry(model, presets)
-        settings = _with_endpoint(settings, e, model)
-        if e.get("api_key"):
-            name = "VLM_API_KEY" if e["kind"] == "reader" else "LAYOUT_API_KEY"
-            secrets[name] = str(e["api_key"])
-    return dataclasses.replace(base, settings=settings, secrets=secrets)
+        endpoint, key = _endpoint(e, model, base)
+        settings_["VLM_ENDPOINT" if e["kind"] == "reader" else "LAYOUT_ENDPOINT"] = endpoint
+        if key:
+            secrets["VLM_API_KEY" if e["kind"] == "reader" else "LAYOUT_API_KEY"] = key
+    return dataclasses.replace(base, settings=settings_, secrets=secrets)
 
 
 def books(store: str) -> list[str]:

@@ -41,13 +41,18 @@ the model's labels onto the class table, the knob values its side read, and
 the commit serving. A run's identity is the hash of the fingerprint and both
 sides' knob values: what the model serves, never where it runs.
 
-**Fleet API.** Next step. The registry, `{name: {kind, endpoint | image +
-provider, knobs, api_key, idle_s, budget}}`, moves here from the backend's
-`/api/models`, then `POST /leases`, `POST /leases/{id}/renew`,
-`DELETE /leases/{id}`, `GET /placements`. A placement with no live lease past
-`idle_s` is stopped; one the table does not know is destroyed; one past its
-budget is destroyed whatever is running. Today the fleet answers
-`GET /placements` with nothing and `GET /health`.
+**Fleet API.** `GET|PUT /models`: the registry, `{name: {kind, endpoint |
+image + provider, knobs, api_key, env, gpu, port, idle_s, budget_usd}}`.
+`POST /leases {model, job}` answers an endpoint, a key and a lease, starting
+a placement if none is ready; `POST /leases/renew {job}` and
+`POST /leases/release {job}` are a job's hold on it. `GET /placements`,
+`DELETE /placements/{id}`, `POST /reconcile`, `POST /sweep`, `GET /ledger`.
+Providers: `docker` on the fleet's daemon, `vast` on a rented card with the
+port published and the placement's key. A placement with no live lease past
+`idle_s` is stopped; one past its budget is destroyed whatever is running;
+one the table does not know is destroyed at reconcile. The backend never
+knows where a model runs: it names the model, holds the lease while its job
+runs, and releases it after.
 
 **Metrics API.** `GET /metrics`: the catalog. `POST /measure {store, book,
 kind, run, pages?, only?}`: records. `POST /pairs {…, index}`: the contour
@@ -77,7 +82,7 @@ A store per owner; the admin's is the root.
 a book. Jobs: detect, read, hybrid, html, bench, with progress as events and
 a cancel. Pages: the data, the image, a crop, the pairs against truth, the
 metrics of one page. The document. Measurements: the last and the series.
-Admin: the registry, the users.
+Admin: the registry through the fleet, the users.
 
 **Catalog** (the backend's database): `users`, `sessions`, `jobs`,
 `measurements` (run, metric, identity, commit, when, pages, scalars;
@@ -105,7 +110,7 @@ anywhere but git.
 ## Order of work
 
 1. The split into `schema/` and `images/`. Done.
-2. The fleet: the registry through the fleet, the docker and vast providers, placements and leases, the backend renewing a lease while a job runs.
+2. The fleet: the registry, the docker and vast providers, placements and leases, the backend holding a lease while a job runs. Done; a real rental is proven on demand, since it costs money.
 3. The UI: library, viewer with boxes, metrics per page and per book, the admin panel.
 4. Truth by hash, truth layers, labeling in the browser.
 5. Export beyond HTML, and corrections as derived runs.

@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from backend import auth
 from backend import knobs
 from backend.identity import sha256
+from fake_fleet import FakeFleet
 from fake_layout import FakeLayout
 from fake_metrics import FakeMetrics
 
@@ -105,12 +106,19 @@ def metrics():
 
 
 @pytest.fixture
-def home(tmp_path, monkeypatch, metrics):
+def fleet(served_endpoint):
+    with FakeFleet(images={"model-layout:1": served_endpoint}) as fake:
+        yield fake
+
+
+@pytest.fixture
+def home(tmp_path, monkeypatch, metrics, fleet):
     h = tmp_path / "home"
     h.mkdir()
     monkeypatch.setenv("BOOKSMITH_HOME", str(h))
     monkeypatch.setenv("BOOKSMITH_WORKERS", "1")
     monkeypatch.setenv("BOOKSMITH_METRICS", metrics.url)
+    monkeypatch.setenv("BOOKSMITH_FLEET", fleet.url)
     return str(h)
 
 
