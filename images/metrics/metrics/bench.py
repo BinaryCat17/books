@@ -142,6 +142,11 @@ class Bench:
         return cls(root, os.path.basename(os.path.abspath(root)), truth, man)
 
     @classmethod
+    def borrowing(cls, root: str, truth_dir: str) -> "Bench":
+        man = read_json(os.path.join(root, "manifest.json")) or {}
+        return cls(root, os.path.basename(os.path.abspath(root)), truth_dir, man)
+
+    @classmethod
     def bare(cls, truth_dir: str) -> "Bench":
         truth_dir = truth_dir.rstrip("/")
         return cls(os.path.dirname(truth_dir) or ".", os.path.basename(truth_dir), truth_dir, {})
@@ -187,7 +192,7 @@ class Bench:
         return (self.manifest.get("source") or {}).get("sha256")
 
     def pages(self) -> dict:
-        return page.load_pages(self.truth_dir, f"truth of {self.name}")
+        return truth_pages(self.truth_dir, f"truth of {self.name}")
 
     def traits(self, pages: dict | None = None) -> dict:
         pages = pages if pages is not None else self.pages()
@@ -223,3 +228,17 @@ def same_book(bench: Bench, run: Run) -> str:
             f"truth and model output are about DIFFERENT books: sha256 {a[:12]} against {b[:12]}. A number here would look sensible and mean nothing."
         )
     return f"sha256 checked: {a[:12]}"
+
+LAYERS = "truth.layers"
+
+
+def truth_pages(truth_dir: str, what: str = "truth") -> dict:
+    pages = page.load_pages(truth_dir, what)
+    layers = os.path.join(os.path.dirname(truth_dir.rstrip("/")), LAYERS)
+    if os.path.isdir(layers):
+        for name in sorted(os.listdir(layers)):
+            if name.endswith(".json"):
+                with open(os.path.join(layers, name), encoding="utf-8") as f:
+                    p = json.load(f)
+                pages[int(p["index"])] = p
+    return pages

@@ -21,6 +21,7 @@ def measure(
     base: str,
     store: str,
     book: str,
+    truth: str | None,
     kind: str,
     run: str,
     pages: list[int] | None = None,
@@ -29,15 +30,15 @@ def measure(
     return _post(
         base,
         "/measure",
-        {"store": store, "book": book, "kind": kind, "run": run, "pages": pages, "only": only},
+        {"store": store, "book": book, "kind": kind, "run": run, "truth": truth, "pages": pages, "only": only},
     )["records"]
 
 
-def pairs(base: str, store: str, book: str, kind: str, run: str, index: int) -> dict:
+def pairs(base: str, store: str, book: str, kind: str, run: str, index: int, truth: str | None) -> dict:
     return _post(
         base,
         "/pairs",
-        {"store": store, "book": book, "kind": kind, "run": run, "index": index},
+        {"store": store, "book": book, "kind": kind, "run": run, "truth": truth, "index": index},
         timeout=120.0,
     )
 

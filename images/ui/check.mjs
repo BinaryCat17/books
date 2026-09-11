@@ -34,6 +34,25 @@ await page.waitForSelector("text=Metrics on page", { timeout: 60000 });
 await page.screenshot({ path: `${shots}/ui-viewer.png` });
 console.log("metrics tables", await page.locator(".panel table").count());
 
+const startTruth = page.locator("button:has-text('start truth')");
+if (await startTruth.count()) await startTruth.click(); else await page.click("button:has-text('label')");
+await page.waitForSelector(".sheet.label svg");
+await page.click("button:has-text(\"take the run's boxes\")");
+const taken = await page.locator(".side table tbody tr").count();
+console.log("truth rows after taking the run:", taken, taken === boxes ? "(same as the run)" : "(differs from the run!)");
+const sheet = await page.locator(".sheet.label svg").boundingBox();
+await page.mouse.move(sheet.x + sheet.width * 0.2, sheet.y + sheet.height * 0.05);
+await page.mouse.down();
+await page.mouse.move(sheet.x + sheet.width * 0.6, sheet.y + sheet.height * 0.12, { steps: 5 });
+await page.mouse.up();
+console.log("truth rows after a drawn box:", await page.locator(".side table tbody tr").count());
+await page.click("button:has-text('save layer')");
+await page.waitForFunction(() => !document.querySelector("h2")?.textContent?.includes("unsaved"));
+const truth = await page.evaluate(async () => (await fetch("/api/books/processed/e2e/truth/pages/0")).json());
+console.log("truth page 0 now holds", truth.blocks.length, "blocks, layer by", truth.meta.author);
+await page.screenshot({ path: `${shots}/ui-label.png` });
+await page.click("button:has-text('done')");
+
 await page.click("a:has-text('admin')");
 await page.waitForFunction(() => (document.querySelector("#models-json").value || "").length > 2);
 const models = await page.inputValue("#models-json");

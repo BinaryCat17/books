@@ -10,6 +10,7 @@ from backend.errors import Unmeasurable
 
 with open(os.path.join(settings.schema_dir(), "classes.json"), encoding="utf-8") as _f:
     _TABLE = json.load(_f)
+TABLE = {k: v for k, v in _TABLE.items() if not k.startswith("$")}
 
 ROLES = ("text", "artifact", "furniture")
 ORDER_NAMES = (

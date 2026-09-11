@@ -124,6 +124,30 @@ def pairs(root: str, name: str, kind: str, label: str, index: int, request: Requ
     )
 
 
+@router.get("/books/{root}/{name}/truth/pages/{index}")
+def truth_page(root: str, name: str, index: int, request: Request) -> dict:
+    user = auth.require(request, "admin")
+    return service.truth_page(_store(request, user), _book(root, name), index)
+
+
+@router.put("/books/{root}/{name}/truth/pages/{index}", response_model=shapes.Layer)
+def put_truth_page(root: str, name: str, index: int, body: dict, request: Request) -> dict:
+    user = auth.require(request, "admin")
+    return service.label_page(_store(request, user), _book(root, name), index, body, user["name"])
+
+
+@router.post("/books/{root}/{name}/truth", response_model=shapes.TruthStart)
+def start_truth(root: str, name: str, request: Request) -> dict:
+    user = auth.require(request, "admin")
+    return service.start_truth(_store(request, user), _book(root, name))
+
+
+@router.get("/classes")
+def classes(request: Request) -> dict:
+    auth.require(request)
+    return service.class_table()
+
+
 @router.get("/books/{root}/{name}/runs/{kind}/{label}/results", response_model=shapes.Results)
 def results(root: str, name: str, kind: str, label: str, request: Request) -> dict:
     user = auth.require(request)

@@ -43,3 +43,31 @@ def test_the_service_answers_the_catalog_a_measure_and_the_pairs(bench):
         assert "skipped" in got or got["uncaught"] == 0, (name, got)
     assert probes["contour"]["probes"] > 10 and probes["fitness"]["probes"] > 10
     assert all(m["description"] for m in cat)
+
+
+def test_a_layer_is_the_newest_word_on_a_page_and_truth_can_be_borrowed(bench, home):
+    import shutil
+
+    from metrics.page import write_json
+
+    layers = os.path.join(bench.root, "truth.layers")
+    os.makedirs(layers, exist_ok=True)
+    with open(os.path.join(bench.truth_dir, "0001.json"), encoding="utf-8") as f:
+        t = json.load(f)
+    t["blocks"] = t["blocks"][:1]
+    t["meta"] = {**t["meta"], "author": "root", "when": "2026-09-11T00:00:00+0000"}
+    write_json(os.path.join(layers, "0001-20260911T000000-root.json"), t)
+    c = TestClient(create_app())
+    ask = {"store": "", "book": "bench/tiny", "kind": "detect", "run": "truth"}
+    p = c.post("/pairs", json={**ask, "index": 1}).json()
+    assert len(p["pairs"]) == 1 and len(p["extras"]) == 2, "the layer replaced the base page"
+    recs = c.post("/measure", json={**ask, "pages": [1], "only": ["contour"]}).json()["records"]
+    assert recs[0]["scalars"]["artefacts_found"]["why"] == "no artefact in the truth"
+    other = os.path.join(home, "processed", "twin")
+    shutil.copytree(bench.root, other, ignore=lambda d, names: [n for n in names if d == bench.root and n.startswith("truth")])
+    ask2 = {"store": "", "book": "processed/twin", "kind": "detect", "run": "truth", "truth": "bench/tiny/truth"}
+    got = c.post("/measure", json={**ask2, "only": ["contour"]}).json()["records"]
+    assert got[0]["book"] == "processed/twin" and got[0]["scalars"]["artefacts_found"]["count"] == {"n": 2, "of": 2}
+    assert c.post("/pairs", json={**ask2, "index": 0}).json()["compared"]
+    assert c.post("/measure", json={**ask2, "truth": "../etc"}).status_code == 409
+    shutil.rmtree(layers)

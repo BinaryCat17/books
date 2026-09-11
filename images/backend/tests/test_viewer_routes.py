@@ -42,10 +42,10 @@ def test_the_viewer_answers_by_name_and_the_truth_side_is_the_admins(app, home, 
     mine = _upload(alice, bench.pdf, "mine")
     _detect(alice, mine)
     ub = f"/api/books/{mine}/runs/detect/truth"
-    assert alice.get(ub).json()["truth"] is False
+    assert alice.get(ub).json()["truth"] == "borrowed"
     assert alice.get(f"{ub}/pages/0").json()["blocks"]
     r = alice.get(f"{ub}/pages/0/pairs")
-    assert r.status_code == 409 and "no truth" in r.json()["error"]
+    assert r.status_code == 200 and r.json()["compared"] and "truth" not in r.json()
     assert alice.get(f"/api/books/{mine}/pages/0/image", params={"dpi": 48}).status_code == 200
     r = alice.get(f"/api/books/{mine}/pages/0/image", params={"dpi": 5000})
     assert r.status_code == 409 and "outside" in r.json()["error"]

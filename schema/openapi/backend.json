@@ -194,6 +194,25 @@
     "title": "Job",
     "type": "object"
    },
+   "Layer": {
+    "properties": {
+     "layer": {
+      "title": "Layer",
+      "type": "string"
+     },
+     "page": {
+      "additionalProperties": true,
+      "title": "Page",
+      "type": "object"
+     }
+    },
+    "required": [
+     "layer",
+     "page"
+    ],
+    "title": "Layer",
+    "type": "object"
+   },
    "LedgerRow": {
     "properties": {
      "cost_usd": {
@@ -494,8 +513,15 @@
       "type": "object"
      },
      "truth": {
-      "title": "Truth",
-      "type": "boolean"
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Truth"
      },
      "when": {
       "anyOf": [
@@ -728,6 +754,24 @@
      "book"
     ],
     "title": "Start",
+    "type": "object"
+   },
+   "TruthStart": {
+    "properties": {
+     "pages": {
+      "title": "Pages",
+      "type": "integer"
+     },
+     "truth": {
+      "title": "Truth",
+      "type": "string"
+     }
+    },
+    "required": [
+     "truth",
+     "pages"
+    ],
+    "title": "TruthStart",
     "type": "object"
    },
    "User": {
@@ -1626,6 +1670,200 @@
      }
     },
     "summary": "Series"
+   }
+  },
+  "/api/books/{root}/{name}/truth": {
+   "post": {
+    "operationId": "start_truth_api_books__root___name__truth_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "root",
+      "required": true,
+      "schema": {
+       "title": "Root",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "name",
+      "required": true,
+      "schema": {
+       "title": "Name",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TruthStart"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Start Truth"
+   }
+  },
+  "/api/books/{root}/{name}/truth/pages/{index}": {
+   "get": {
+    "operationId": "truth_page_api_books__root___name__truth_pages__index__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "root",
+      "required": true,
+      "schema": {
+       "title": "Root",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "name",
+      "required": true,
+      "schema": {
+       "title": "Name",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "index",
+      "required": true,
+      "schema": {
+       "title": "Index",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Truth Page Api Books  Root   Name  Truth Pages  Index  Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Truth Page"
+   },
+   "put": {
+    "operationId": "put_truth_page_api_books__root___name__truth_pages__index__put",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "root",
+      "required": true,
+      "schema": {
+       "title": "Root",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "name",
+      "required": true,
+      "schema": {
+       "title": "Name",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "index",
+      "required": true,
+      "schema": {
+       "title": "Index",
+       "type": "integer"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "additionalProperties": true,
+        "title": "Body",
+        "type": "object"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Layer"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Put Truth Page"
+   }
+  },
+  "/api/classes": {
+   "get": {
+    "operationId": "classes_api_classes_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Classes Api Classes Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Classes"
    }
   },
   "/api/fleet/ledger": {

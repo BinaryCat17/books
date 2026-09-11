@@ -4,6 +4,7 @@ import { Link, useParams } from "react-router-dom";
 import { api, errorText } from "../api";
 import type { Block, PageData, Pairs, Record_, RunInfo, Scalar, SeriesRow, User } from "../types";
 import { drawOrder, missedOf, summaryOf, verdictsOf } from "../verdicts";
+import { Labeler } from "./labeler";
 
 export function Viewer({ user }: { user: User }) {
   const { root = "", name = "", kind = "", label = "" } = useParams();
@@ -18,7 +19,9 @@ export function Viewer({ user }: { user: User }) {
   const [series, setSeries] = useState<SeriesRow[] | null>(null);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
+  const [labelling, setLabelling] = useState(false);
   const fail = (e: unknown) => setError(errorText(e));
+  const canLabel = user.role === "admin" && run?.truth === "own";
 
   useEffect(() => {
     api.run(book, kind, label).then((r) => { setRun(r); setIndex(r.pages[0] ?? 0); }, fail);
@@ -34,6 +37,20 @@ export function Viewer({ user }: { user: User }) {
     if (!showPairs) { setPairs(null); return; }
     api.pairs(book, kind, label, index).then(setPairs, fail);
   }, [run, showPairs, book, kind, label, index]);
+
+  const startTruth = useCallback(async () => {
+    setBusy("starting…");
+    try {
+      await api.startTruth(book);
+      setRun(await api.run(book, kind, label));
+      setLabelling(true);
+      setError("");
+    } catch (e) {
+      fail(e);
+    } finally {
+      setBusy("");
+    }
+  }, [book, kind, label]);
 
   const measure = useCallback(async () => {
     setBusy("measuring…");
@@ -77,6 +94,9 @@ export function Viewer({ user }: { user: User }) {
           <label><input type="checkbox" checked={showPairs} onChange={(e) => setShowPairs(e.target.checked)} /> against truth</label>
         )}
         <button onClick={measure} disabled={!!busy}>{busy || "measure this page"}</button>
+        {run.truth === "borrowed" && <span className="muted">truth borrowed from a bench with this scan</span>}
+        {user.role === "admin" && run.truth === null && <button onClick={startTruth} disabled={!!busy}>start truth</button>}
+        {canLabel && <button onClick={() => setLabelling(!labelling)}>{labelling ? "viewing" : "label"}</button>}
         <span className="legend">
           <span><i style={{ borderColor: "var(--text)" }} />text</span>
           <span><i style={{ borderColor: "var(--artifact)" }} />artifact</span>
@@ -84,6 +104,7 @@ export function Viewer({ user }: { user: User }) {
           {showPairs && <><span><i style={{ borderColor: "var(--truth)", borderStyle: "dashed" }} />truth</span><span><i style={{ borderColor: "var(--missed)" }} />missed</span><span><i style={{ borderColor: "var(--extra)", borderStyle: "dashed" }} />spurious</span><span><i style={{ borderColor: "var(--label)" }} />label differs</span></>}
         </span>
       </div>
+      {labelling && canLabel ? <Labeler book={book} run={run} index={index} page={page} onDone={() => setLabelling(false)} /> : (
       <div className="viewer">
         <div className="sheet">
           <img src={api.imageUrl(book, index)} alt={`page ${index}`} />
@@ -134,6 +155,7 @@ export function Viewer({ user }: { user: User }) {
           )}
         </div>
       </div>
+      )}
     </>
   );
 }

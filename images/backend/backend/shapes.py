@@ -32,8 +32,18 @@ class RunInfo(BaseModel):
     dpi: float | None
     policy: dict
     pages: list[int]
-    truth: bool
+    truth: str | None
     observed: bool
+
+
+class Layer(BaseModel):
+    layer: str
+    page: dict
+
+
+class TruthStart(BaseModel):
+    truth: str
+    pages: int
 
 
 class Job(BaseModel):

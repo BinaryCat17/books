@@ -14,6 +14,11 @@ are no users). Model keys come from the registry entry's `api_key`. Tests: `pyte
 The API is under `/api`; its OpenAPI document is served at `/api/openapi.json`.
 Book routes take `{root}/{name}`, `bench/<name>` or `processed/<name>`.
 
+Truth: a book's own `truth/`, or borrowed from the bench in the admin's
+store whose scan has the same sha256. A run says which (`own`, `borrowed`,
+none). A layer is `truth.layers/NNNN-<when>-<author>.json`, a whole page;
+the newest layer of a page is its truth, the base files are never rewritten.
+
 | route | what |
 |---|---|
 | `POST /login`, `POST /logout`, `GET /me` | sessions, two roles |
@@ -23,6 +28,9 @@ Book routes take `{root}/{name}`, `bench/<name>` or `processed/<name>`.
 | `GET /books/{root}/{name}/pages/{index}/image` | the scan's page as PNG |
 | `GET /books/{root}/{name}/runs/{kind}/{label}/pages/{index}` | one page of the document |
 | `GET /books/{root}/{name}/runs/{kind}/{label}/pages/{index}/pairs` | the contour metric's verdicts; the truth side for admins |
+| `POST /books/{root}/{name}/truth` | a blank truth for a book, one page per page of the scan (admin) |
+| `GET\|PUT /books/{root}/{name}/truth/pages/{index}` | the effective truth page; a PUT writes a layer (admin) |
+| `GET /classes` | the class table |
 | `GET /books/{root}/{name}/runs/{kind}/{label}/pages/{index}/metrics` | every metric on one page, measured now |
 | `GET /books/{root}/{name}/runs/{kind}/{label}/crops/{anchor}` | one block as PNG |
 | `GET /books/{root}/{name}/runs/{kind}/{label}/document` | the book as data |

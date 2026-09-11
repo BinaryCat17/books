@@ -1,4 +1,4 @@
-import type { BookRow, Job, JobEvent, LedgerRow, ModelEntry, PageData, Pairs, Placement, Preset, Record_, RunInfo, SeriesRow, User } from "./types";
+import type { BookRow, ClassTable, Job, JobEvent, Layer, LedgerRow, ModelEntry, PageData, Pairs, Placement, Preset, Record_, RunInfo, SeriesRow, TruthPage, User } from "./types";
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -63,6 +63,10 @@ export const api = {
   imageUrl: (book: string, i: number, dpi = 110) => `/api/books/${book}/pages/${i}/image?dpi=${dpi}`,
   cropUrl: (book: string, kind: string, label: string, anchor: string) => `/api${run(book, kind, label)}/crops/${anchor}`,
   documentUrl: (book: string, kind: string, label: string) => `/api${run(book, kind, label)}/document`,
+  truthPage: (book: string, i: number) => call<TruthPage>("GET", `/books/${book}/truth/pages/${i}`),
+  putTruthPage: (book: string, i: number, page: TruthPage) => call<Layer>("PUT", `/books/${book}/truth/pages/${i}`, page),
+  startTruth: (book: string) => call<{ truth: string; pages: number }>("POST", `/books/${book}/truth`),
+  classes: () => call<ClassTable>("GET", "/classes"),
   jobs: () => call<Job[]>("GET", "/jobs"),
   job: (id: number) => call<Job>("GET", `/jobs/${id}`),
   startJob: (body: { kind: string; book: string; model?: string; label?: string; run_kind?: string; pages?: string }) => call<{ id: number }>("POST", "/jobs", body),

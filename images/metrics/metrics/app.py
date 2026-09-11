@@ -18,6 +18,7 @@ class Ask(BaseModel):
     book: str
     kind: str = "detect"
     run: str
+    truth: str | None = None
     pages: list[int] | None = None
     only: list[str] | None = None
 
@@ -27,6 +28,7 @@ class PairsAsk(BaseModel):
     book: str
     kind: str = "detect"
     run: str
+    truth: str | None = None
     index: int
 
 
@@ -35,8 +37,15 @@ def _open(a: Ask | PairsAsk) -> tuple[Bench, Run]:
     root = os.path.realpath(os.path.join(home, a.store, a.book))
     if not (root == home or root.startswith(home + os.sep)) or not os.path.isdir(root) or root == home:
         raise Refusal(f"no book {a.book}")
-    has_truth = os.path.isdir(os.path.join(root, "truth"))
-    b = Bench.open(root) if has_truth else Bench.no_truth(root)
+    if a.truth:
+        truth = os.path.realpath(os.path.join(home, a.truth))
+        if not truth.startswith(home + os.sep) or not os.path.isdir(truth):
+            raise Refusal(f"no truth {a.truth}")
+        b = Bench.borrowing(root, truth)
+    elif os.path.isdir(os.path.join(root, "truth")):
+        b = Bench.open(root)
+    else:
+        b = Bench.no_truth(root)
     if a.kind not in book_mod.KINDS:
         raise Refusal(f"{a.kind!r} is not a kind of run")
     run_dir = os.path.join(root, a.kind, book_mod.safe_label(a.run, a.kind))
@@ -74,7 +83,7 @@ def create_app() -> FastAPI:
         b, r = _open(a)
         if not b.truth_dir:
             raise Refusal(f"{a.book} has no truth")
-        truth = load_pages(b.truth_dir, "truth")
+        truth = b.pages()
         run = load_pages(r.pages_dir, "run")
         if a.index not in truth or a.index not in run:
             raise Refusal(f"no page {a.index} on both sides")

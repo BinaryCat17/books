@@ -61,8 +61,9 @@ instance. The backend never knows where a model runs: it names the model,
 holds the lease while its job runs, and releases it after.
 
 **Metrics API.** `GET /metrics`: the catalog. `POST /measure {store, book,
-kind, run, pages?, only?}`: records. `POST /pairs {…, index}`: the contour
-metric's verdicts on one page. `POST /probe`: what falls and what does not.
+kind, run, truth?, pages?, only?}`: records. `POST /pairs {…, index}`: the
+contour metric's verdicts on one page. `POST /probe`: what falls and what
+does not. `truth` names another book's truth for a book with none.
 Stateless; reads the storage volume.
 
 **The document.** Assembled from a run's pages by one rule: blocks in reading
@@ -79,7 +80,8 @@ A store per owner; the admin's is the root.
 <store>/processed/<name>/    a book without
   manifest.json              {book, source: {name, sha256}}
   <scan>.pdf
-  truth/NNNN.json            pages in the page format, plus truth layers
+  truth/NNNN.json            pages in the page format; never rewritten
+  truth.layers/NNNN-<when>-<author>.json   a whole page; the newest is the page's truth
   detect/<label>/            a level-one run: run.json, pages/, document.json
   read/<label>/              a level-two run: run.json, pages/, answers/, crops/, document.json
 ```
@@ -88,13 +90,14 @@ A store per owner; the admin's is the root.
 a book. Jobs: detect, read, hybrid, html, bench, with progress as events and
 a cancel. Pages: the data, the image, a crop, the pairs against truth, the
 metrics of one page. The document. Measurements: the last and the series.
-Admin: the registry through the fleet, the users, the fleet's placements
-and ledger.
+Truth: a book's own, or borrowed from the bench whose scan has the same
+hash; admins start one and write layers from the browser. Admin: the
+registry through the fleet, the users, the fleet's placements and ledger.
 
 **Catalog** (the backend's database): `users`, `sessions`, `jobs`,
 `measurements` (run, metric, identity, commit, when, pages, scalars;
-append-only). Next: `truths` (a user's book with a bench's hash borrows its
-truth), `labels`, `corrections`.
+append-only). Truth and its layers live in the store, not the catalog. Next:
+`corrections`.
 
 ## Rules
 
@@ -119,5 +122,5 @@ anywhere but git.
 1. The split into `schema/` and `images/`. Done.
 2. The fleet: the registry, the docker and vast providers, placements and leases, the backend holding a lease while a job runs. Done; a real rental is proven on demand, since it costs money.
 3. The UI: library, viewer with boxes, metrics per page and per book, the admin panel. Done.
-4. Truth by hash, truth layers, labeling in the browser.
+4. Truth by hash, truth layers, labeling in the browser. Done.
 5. Export beyond HTML, and corrections as derived runs.

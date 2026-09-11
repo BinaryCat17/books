@@ -4,6 +4,7 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from backend.page import anchor, load_pages
+from backend.truth import pages as truth_pages
 
 CATALOG = [
     {
@@ -46,6 +47,12 @@ def _run_dir(body):
     return os.path.join(home, body["store"], body["book"], body["kind"], body["run"])
 
 
+def _truth_dir(body):
+    if body.get("truth"):
+        return os.path.join(os.environ["BOOKSMITH_HOME"], body["truth"])
+    return os.path.join(os.path.dirname(os.path.dirname(_run_dir(body))), "truth")
+
+
 def measure(body):
     rd = _run_dir(body)
     if not os.path.isfile(os.path.join(rd, "run.json")):
@@ -73,8 +80,7 @@ def measure(body):
             "scalars": {"ink_under_boxes": {"value": 0.5, "per": {anchor(i): 0.5 for i in idx}}},
         }
     ]
-    book_dir = os.path.dirname(os.path.dirname(rd))
-    if os.path.isdir(os.path.join(book_dir, "truth")):
+    if os.path.isdir(_truth_dir(body)):
         recs.append(
             {
                 **base,
@@ -90,9 +96,8 @@ def measure(body):
 
 def pairs(body):
     rd = _run_dir(body)
-    book_dir = os.path.dirname(os.path.dirname(rd))
     i = int(body["index"])
-    truth = load_pages(os.path.join(book_dir, "truth"))
+    truth = truth_pages(_truth_dir(body))
     run = load_pages(os.path.join(rd, "pages"))
     if i not in truth or i not in run:
         return 409, {"error": f"no page {i}"}

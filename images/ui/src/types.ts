@@ -5,8 +5,12 @@ export type BookRow = { name: string; runs: RunRow[] };
 export type RunInfo = {
   kind: string; label: string; level: string; identity: string | null; when: string | null; dpi: number | null;
   policy: { vocabulary?: string; classes?: Record<string, string>; by_label?: Record<string, string>; buckets?: Record<string, string> };
-  pages: number[]; truth: boolean; observed: boolean;
+  pages: number[]; truth: "own" | "borrowed" | null; observed: boolean;
 };
+export type TruthBlockRaw = { block_id: number; box: [number, number, number, number]; label: string; score?: number | null; order?: number | null; content?: string | null; kind?: string; source_category?: string };
+export type TruthPage = { index: number; width: number; height: number; dpi: number; blocks: TruthBlockRaw[]; raw?: Record<string, unknown> | null; meta?: Record<string, unknown> };
+export type ClassTable = { classes: Record<string, { role: string; order: string }>; roles: Record<string, unknown>; vocabularies: Record<string, Record<string, string>> };
+export type Layer = { layer: string; page: TruthPage };
 export type Block = {
   anchor: string; page: number; block_id: number; label: string; cls: string; role: string; score: number | null;
   order: number | null; order_source: string; content: string | null; kind: string; box: [number, number, number, number];

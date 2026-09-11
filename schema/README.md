@@ -5,7 +5,7 @@ reads and writes against these in its own tests; nothing else is shared.
 
 | file | what it describes |
 |---|---|
-| `page.schema.json` | a page: the model's boxes, or truth |
+| `page.schema.json` | a page: the model's boxes, or truth; a truth layer is one of these |
 | `document.schema.json` | the book as data, assembled from a run; every export renders it |
 | `describe.schema.json`, `health.schema.json`, `layout-request.schema.json` | the model protocol's payloads |
 | `snapshot.schema.json` | `run.json` beside a run |
