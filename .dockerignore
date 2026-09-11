@@ -1,0 +1,11 @@
+.git
+.venv
+raw
+bench
+processed
+runs
+users
+**/node_modules
+**/dist
+**/__pycache__
+**/*.sqlite*

@@ -1,10 +1,10 @@
 :root {
   --bg: #f6f7f8; --panel: #ffffff; --ink: #1a1d21; --ink-2: #4c545c; --ink-3: #7d858e; --rule: #d9dde2;
   --accent: #2b5b8c; --accent-soft: #e2eaf4; --text: #2b5b8c; --artifact: #c0631f; --furniture: #7d858e;
-  --truth: #2b8c5a; --missed: #c0392b; --extra: #d98a00; --ok: #2b8c5a; --bad: #c0392b; --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --truth: #2b8c5a; --missed: #c0392b; --extra: #d98a00; --label: #7d4fa8; --ok: #2b8c5a; --bad: #c0392b; --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 @media (prefers-color-scheme: dark) {
-  :root { --bg: #121417; --panel: #1a1d21; --ink: #e4e7ea; --ink-2: #b3bac2; --ink-3: #7f878f; --rule: #2c3138; --accent: #8bb4e0; --accent-soft: #1d2b3b; --text: #8bb4e0; --artifact: #e8a25a; --furniture: #8b939b; --truth: #5fc08c; --missed: #e46b5e; --extra: #f0b445; --ok: #5fc08c; --bad: #e46b5e; }
+  :root { --bg: #121417; --panel: #1a1d21; --ink: #e4e7ea; --ink-2: #b3bac2; --ink-3: #7f878f; --rule: #2c3138; --accent: #8bb4e0; --accent-soft: #1d2b3b; --text: #8bb4e0; --artifact: #e8a25a; --furniture: #8b939b; --truth: #5fc08c; --missed: #e46b5e; --extra: #f0b445; --label: #b895e0; --ok: #5fc08c; --bad: #e46b5e; }
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
@@ -40,11 +40,13 @@ tr.sel td { background: var(--accent-soft); }
 .sheet { position: relative; background: var(--panel); border: 1px solid var(--rule); }
 .sheet img { display: block; width: 100%; height: auto; }
 .sheet svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-.sheet rect { fill: transparent; stroke-width: 2; cursor: pointer; }
+.sheet rect { fill: transparent; stroke-width: 2; cursor: pointer; vector-effect: non-scaling-stroke; }
 .sheet rect.text { stroke: var(--text); } .sheet rect.artifact { stroke: var(--artifact); } .sheet rect.furniture { stroke: var(--furniture); }
 .sheet rect.sel { fill: rgba(43, 91, 140, 0.18); stroke-width: 3; }
 .sheet rect.truth { stroke: var(--truth); stroke-dasharray: 6 4; pointer-events: none; }
-.sheet rect.missed { stroke: var(--missed); stroke-width: 3; } .sheet rect.spurious_box { stroke: var(--extra); stroke-dasharray: 4 3; }
+.sheet rect.missed { stroke: var(--missed); stroke-width: 3; pointer-events: none; }
+.sheet rect.spurious { stroke: var(--extra); stroke-dasharray: 4 3; } .sheet rect.extra { stroke: var(--extra); stroke-dasharray: 1 3; }
+.sheet rect.label { stroke: var(--label); stroke-width: 3; }
 .side { display: grid; gap: 12px; align-content: start; }
 .side .block-list { max-height: 40vh; overflow: auto; }
 .side .detail dt { font-size: 12px; color: var(--ink-3); margin-top: 6px; } .side .detail dd { margin: 0; word-break: break-word; }

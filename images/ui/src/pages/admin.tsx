@@ -1,6 +1,6 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
-import { api, ApiError } from "../api";
+import { api, errorText } from "../api";
 import type { LedgerRow, ModelEntry, Placement, User } from "../types";
 
 export function Admin() {
@@ -10,33 +10,35 @@ export function Admin() {
   const [ledger, setLedger] = useState<LedgerRow[]>([]);
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
-  const fail = (e: unknown) => setError(e instanceof ApiError ? e.message : String(e));
+  const fail = (e: unknown) => { setError(errorText(e)); setNote(""); };
+  const ok = (text: string) => { setNote(text); setError(""); };
 
-  const refresh = useCallback(() => {
-    api.models().then((m) => setText(JSON.stringify(m, null, 1)), fail);
-    api.users().then(setUsers, fail);
+  const loadModels = useCallback(() => api.models().then((m) => setText(JSON.stringify(m, null, 1)), fail), []);
+  const loadUsers = useCallback(() => api.users().then(setUsers, fail), []);
+  const loadFleet = useCallback(() => {
     api.placements().then(setPlacements, () => setPlacements([]));
     api.ledger().then(setLedger, () => setLedger([]));
   }, []);
   useEffect(() => {
-    refresh();
-    const t = setInterval(() => api.placements().then(setPlacements, () => undefined), 10000);
+    loadModels();
+    loadUsers();
+    loadFleet();
+    const t = setInterval(loadFleet, 10000);
     return () => clearInterval(t);
-  }, [refresh]);
+  }, [loadModels, loadUsers, loadFleet]);
 
   const save = async () => {
     let body: Record<string, ModelEntry>;
     try {
       body = JSON.parse(text);
     } catch (e) {
-      setError(`not JSON: ${String(e)}`);
+      fail(new Error(`not JSON: ${errorText(e)}`));
       return;
     }
     try {
       const got = await api.putModels(body);
       setText(JSON.stringify(got, null, 1));
-      setError("");
-      setNote(`saved ${Object.keys(got).length} models`);
+      ok(`saved ${Object.keys(got).length} models`);
     } catch (e) {
       fail(e);
     }
@@ -51,13 +53,13 @@ export function Admin() {
         <div className="panel">
           <h2 style={{ marginTop: 0 }}>Models</h2>
           <div className="muted">One entry per model: kind, an endpoint or an image with its provider, knobs, api_key, idle_s, budget_usd.</div>
-          <textarea id="models-json" className="json" value={text} onChange={(e) => setText(e.target.value)} spellCheck={false} />
-          <div className="row"><button className="primary" onClick={save}>save</button><button onClick={refresh}>reload</button></div>
+          <textarea id="models-json" aria-label="models" className="json" value={text} onChange={(e) => setText(e.target.value)} spellCheck={false} />
+          <div className="row"><button className="primary" onClick={save}>save</button><button onClick={loadModels}>reload</button></div>
         </div>
         <div className="panel">
           <h2 style={{ marginTop: 0 }}>Users</h2>
           <table><tbody>{users.map((u) => <tr key={u.id}><td>{u.id}</td><td>{u.name}</td><td className="muted">{u.role}</td></tr>)}</tbody></table>
-          <AddUser onDone={refresh} onError={fail} />
+          <AddUser onDone={(name) => { loadUsers(); ok(`added ${name}`); }} onError={fail} />
         </div>
       </div>
       <h2>Placements</h2>
@@ -69,7 +71,7 @@ export function Admin() {
             <tr key={p.id}>
               <td>{p.model}</td><td>{p.provider}</td><td><span className={`pill ${p.state === "ready" ? "done" : "running"}`}>{p.state}</span></td>
               <td className="mono">{p.endpoint}</td><td>{p.rate_usd_h.toFixed(2)}</td><td>{new Date(p.started * 1000).toLocaleTimeString()}</td>
-              <td><button onClick={() => api.stopPlacement(p.id).then(refresh, fail)}>stop</button></td>
+              <td><button onClick={() => api.stopPlacement(p.id).then(loadFleet, fail)}>stop</button></td>
             </tr>
           ))}
         </tbody>
@@ -87,7 +89,7 @@ export function Admin() {
   );
 }
 
-function AddUser({ onDone, onError }: { onDone: () => void; onError: (e: unknown) => void }) {
+function AddUser({ onDone, onError }: { onDone: (name: string) => void; onError: (e: unknown) => void }) {
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("user");
@@ -97,16 +99,16 @@ function AddUser({ onDone, onError }: { onDone: () => void; onError: (e: unknown
       await api.addUser(name, password, role);
       setName("");
       setPassword("");
-      onDone();
+      onDone(name);
     } catch (err) {
       onError(err);
     }
   };
   return (
     <form className="row" onSubmit={submit}>
-      <input id="user-name" placeholder="name" value={name} onChange={(e) => setName(e.target.value)} />
-      <input id="user-password" type="password" placeholder="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-      <select id="user-role" value={role} onChange={(e) => setRole(e.target.value)}><option>user</option><option>admin</option></select>
+      <input id="user-name" aria-label="user name" placeholder="name" value={name} onChange={(e) => setName(e.target.value)} />
+      <input id="user-password" aria-label="password" type="password" placeholder="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+      <select id="user-role" aria-label="role" value={role} onChange={(e) => setRole(e.target.value)}><option>user</option><option>admin</option></select>
       <button type="submit">add</button>
     </form>
   );

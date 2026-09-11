@@ -5,6 +5,8 @@
     handle {
         root * /srv
         try_files {path} /index.html
+        @shell path /index.html /
+        header @shell Cache-Control "no-cache"
         file_server
     }
 }

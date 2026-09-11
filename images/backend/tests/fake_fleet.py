@@ -28,9 +28,9 @@ class FakeFleet:
                 if self.path == "/models":
                     return self._json(200, fake.models)
                 if self.path == "/placements":
-                    return self._json(200, [{"id": "p1", "model": m["model"], "state": "ready"} for m in fake.leases])
+                    return self._json(200, [{"id": "p1", "model": m["model"], "provider": "docker", "handle": "abc", "endpoint": "http://x", "state": "ready", "started": 1.0, "ready_at": 2.0, "last_used": 2.0, "rate_usd_h": 0.0, "budget_usd": 0.0, "idle_s": 600.0, "port": 8000, "deadline": None, "why": None} for m in fake.leases])
                 if self.path == "/ledger":
-                    return self._json(200, [{"model": "old", "cost_usd": 0.5, "why": "idle"}])
+                    return self._json(200, [{"model": "old", "provider": "docker", "handle": "abc", "started": 1.0, "stopped": 2.0, "rate_usd_h": 0.0, "cost_usd": 0.5, "why": "idle"}])
                 self._json(404, {"error": "no route"})
 
             def do_DELETE(self):

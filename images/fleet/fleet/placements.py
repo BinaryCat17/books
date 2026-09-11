@@ -148,6 +148,8 @@ class Fleet:
                     self._save()
                     log(f"{q['model']}: placement {pid} ready at {q['endpoint']}")
                     return True
+                if q["state"] == "stopping":
+                    raise Refusal(f"{p['model']}: stopped while starting")
                 why = ("died while starting" if died or not alive
                        else "boot deadline" if self.clock() - q["started"] > self.boot_s else None)
                 self._save()

@@ -1,10 +1,10 @@
 export type Role = "admin" | "user";
-export type User = { id: number; name: string; role: Role };
+export type User = { id: number; name: string; role: Role; created?: number };
 export type RunRow = { kind: "detect" | "read"; label: string; identity: string | null; pages: number; complete: boolean; level: string; when: string | null };
 export type BookRow = { name: string; runs: RunRow[] };
 export type RunInfo = {
   kind: string; label: string; level: string; identity: string | null; when: string | null; dpi: number | null;
-  policy: { vocabulary?: string; classes?: Record<string, string>; by_label?: Record<string, string> };
+  policy: { vocabulary?: string; classes?: Record<string, string>; by_label?: Record<string, string>; buckets?: Record<string, string> };
   pages: number[]; truth: boolean; observed: boolean;
 };
 export type Block = {
@@ -19,16 +19,17 @@ export type PageData = {
   image_share: number; largest_artifact_share: number; repeats_verbatim: number; nested_artifacts: number; blocks: Block[];
 };
 export type Pair = { truth?: string; verdict: "matched" | "missed"; by?: string; run: string | null; label_ok: boolean | null; why?: string | null; fate: string | null; b_run?: string | null; b_label_ok?: boolean | null };
-export type Extra = { run: string; verdict: string; taken_for?: string | null };
+export type ExtraVerdict = "spurious_box" | "nested duplicate" | "inside a miss" | "on an object outside scoring" | "not counted";
+export type Extra = { run: string; verdict: ExtraVerdict; taken_for?: string | null };
 export type TruthBlock = { anchor: string; block_id: number; label: string; box: [number, number, number, number]; order: number | null };
 export type Pairs = { index: number; labelled: string; compared: boolean; pairs: Pair[]; extras: Extra[]; truth?: TruthBlock[]; out_of_scope?: { box: number[] }[] };
-export type Scalar = { value: number | null; count?: { n: number; of: number }; over?: { n: number; of: number; unit: string }; why?: string; per?: Record<string, number>; side?: string };
-export type Record_ = { metric: string; bench: string; run: string; book: string | null; identity: string | null; source_sha256: string | null; scalars: Record<string, Scalar>; params: Record<string, unknown>; detail?: Record<string, unknown> };
-export type SeriesRow = { id: number; metric: string; identity: string | null; commit: string | null; when: number; pages: number[] | null; scalars: Record<string, Scalar>; params: Record<string, unknown>; state: string };
+export type Scalar = { value: number | null; count?: { n: number; of: number }; over?: { n: number; of: number; unit: string }; why?: string; per?: Record<string, number>; side?: "truth" | "run" };
+export type Record_ = { metric: string; bench: string; run: string; book?: string | null; identity: string | null; source_sha256: string | null; scalars: Record<string, Scalar>; params: Record<string, unknown>; detail: Record<string, unknown> };
+export type SeriesRow = { id: number; store: string; book: string; kind: string; label: string; metric: string; identity: string | null; source_sha256: string | null; commit: string | null; when: number; pages: number[] | null; scalars: Record<string, Scalar>; params: Record<string, unknown>; state: string };
 export type JobState = "queued" | "running" | "done" | "failed" | "cancelled";
-export type Job = { id: number; user: number; kind: string; book: string; label: string; model: string; state: JobState; n: number | null; of: number | null; created: number; started: number | null; finished: number | null; error: string | null; result: string | null };
+export type Job = { id: number; user: number; store: string; kind: string; book: string; label: string; model: string; args: Record<string, unknown>; state: JobState; n: number | null; of: number | null; created: number; started: number | null; finished: number | null; error: string | null; result: string | null };
 export type JobEvent = { event: "state"; state: JobState; n?: number | null; of?: number | null; error?: string | null; result?: string | null } | { event: "line"; text: string; n?: number; of?: number } | { event: "keepalive" };
 export type ModelEntry = { kind: "layout" | "reader" | "hybrid"; endpoint?: string; image?: string; provider?: string; knobs: Record<string, string>; api_key?: string; [k: string]: unknown };
 export type Preset = { name: string; kind: string; knobs: Record<string, string> };
-export type Placement = { id: string; model: string; provider: string; handle: string | null; endpoint: string; state: string; started: number; ready_at: number | null; last_used: number; rate_usd_h: number; budget_usd: number; idle_s: number; deadline: number | null };
+export type Placement = { id: string; model: string; provider: string; handle: string | null; endpoint: string; state: string; started: number; ready_at: number | null; last_used: number; rate_usd_h: number; budget_usd: number; idle_s: number; port: number; deadline: number | null; why: string | null };
 export type LedgerRow = { model: string; provider: string; handle: string; started: number; stopped: number; rate_usd_h: number; cost_usd: number; why: string };

@@ -15,6 +15,27 @@
     "title": "Body_upload_api_books_post",
     "type": "object"
    },
+   "BookRow": {
+    "properties": {
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "runs": {
+      "items": {
+       "$ref": "#/components/schemas/RunRow"
+      },
+      "title": "Runs",
+      "type": "array"
+     }
+    },
+    "required": [
+     "name",
+     "runs"
+    ],
+    "title": "BookRow",
+    "type": "object"
+   },
    "HTTPValidationError": {
     "properties": {
      "detail": {
@@ -26,6 +47,199 @@
      }
     },
     "title": "HTTPValidationError",
+    "type": "object"
+   },
+   "Job": {
+    "properties": {
+     "args": {
+      "additionalProperties": true,
+      "title": "Args",
+      "type": "object"
+     },
+     "book": {
+      "title": "Book",
+      "type": "string"
+     },
+     "created": {
+      "title": "Created",
+      "type": "number"
+     },
+     "error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error"
+     },
+     "finished": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Finished"
+     },
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "kind": {
+      "title": "Kind",
+      "type": "string"
+     },
+     "label": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Label"
+     },
+     "model": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Model"
+     },
+     "n": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "N"
+     },
+     "of": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Of"
+     },
+     "result": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Result"
+     },
+     "started": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Started"
+     },
+     "state": {
+      "title": "State",
+      "type": "string"
+     },
+     "store": {
+      "title": "Store",
+      "type": "string"
+     },
+     "user": {
+      "title": "User",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "id",
+     "user",
+     "store",
+     "kind",
+     "book",
+     "label",
+     "model",
+     "args",
+     "state",
+     "n",
+     "of",
+     "created",
+     "started",
+     "finished",
+     "error",
+     "result"
+    ],
+    "title": "Job",
+    "type": "object"
+   },
+   "LedgerRow": {
+    "properties": {
+     "cost_usd": {
+      "title": "Cost Usd",
+      "type": "number"
+     },
+     "handle": {
+      "title": "Handle",
+      "type": "string"
+     },
+     "model": {
+      "title": "Model",
+      "type": "string"
+     },
+     "provider": {
+      "title": "Provider",
+      "type": "string"
+     },
+     "rate_usd_h": {
+      "title": "Rate Usd H",
+      "type": "number"
+     },
+     "started": {
+      "title": "Started",
+      "type": "number"
+     },
+     "stopped": {
+      "title": "Stopped",
+      "type": "number"
+     },
+     "why": {
+      "title": "Why",
+      "type": "string"
+     }
+    },
+    "required": [
+     "model",
+     "provider",
+     "handle",
+     "started",
+     "stopped",
+     "rate_usd_h",
+     "cost_usd",
+     "why"
+    ],
+    "title": "LedgerRow",
     "type": "object"
    },
    "Login": {
@@ -69,6 +283,415 @@
     "title": "NewUser",
     "type": "object"
    },
+   "Placement": {
+    "properties": {
+     "budget_usd": {
+      "title": "Budget Usd",
+      "type": "number"
+     },
+     "deadline": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Deadline"
+     },
+     "endpoint": {
+      "title": "Endpoint",
+      "type": "string"
+     },
+     "handle": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Handle"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "idle_s": {
+      "title": "Idle S",
+      "type": "number"
+     },
+     "last_used": {
+      "title": "Last Used",
+      "type": "number"
+     },
+     "model": {
+      "title": "Model",
+      "type": "string"
+     },
+     "port": {
+      "title": "Port",
+      "type": "integer"
+     },
+     "provider": {
+      "title": "Provider",
+      "type": "string"
+     },
+     "rate_usd_h": {
+      "title": "Rate Usd H",
+      "type": "number"
+     },
+     "ready_at": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ready At"
+     },
+     "started": {
+      "title": "Started",
+      "type": "number"
+     },
+     "state": {
+      "title": "State",
+      "type": "string"
+     },
+     "why": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Why"
+     }
+    },
+    "required": [
+     "id",
+     "model",
+     "provider",
+     "handle",
+     "endpoint",
+     "state",
+     "started",
+     "ready_at",
+     "last_used",
+     "rate_usd_h",
+     "budget_usd",
+     "idle_s",
+     "port",
+     "deadline",
+     "why"
+    ],
+    "title": "Placement",
+    "type": "object"
+   },
+   "Preset": {
+    "properties": {
+     "kind": {
+      "title": "Kind",
+      "type": "string"
+     },
+     "knobs": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "title": "Knobs",
+      "type": "object"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "name",
+     "kind",
+     "knobs"
+    ],
+    "title": "Preset",
+    "type": "object"
+   },
+   "Results": {
+    "properties": {
+     "records": {
+      "items": {
+       "$ref": "#/components/schemas/SeriesRow"
+      },
+      "title": "Records",
+      "type": "array"
+     },
+     "when": {
+      "title": "When",
+      "type": "number"
+     }
+    },
+    "required": [
+     "when",
+     "records"
+    ],
+    "title": "Results",
+    "type": "object"
+   },
+   "RunInfo": {
+    "properties": {
+     "dpi": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Dpi"
+     },
+     "identity": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Identity"
+     },
+     "kind": {
+      "title": "Kind",
+      "type": "string"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "level": {
+      "title": "Level",
+      "type": "string"
+     },
+     "observed": {
+      "title": "Observed",
+      "type": "boolean"
+     },
+     "pages": {
+      "items": {
+       "type": "integer"
+      },
+      "title": "Pages",
+      "type": "array"
+     },
+     "policy": {
+      "additionalProperties": true,
+      "title": "Policy",
+      "type": "object"
+     },
+     "truth": {
+      "title": "Truth",
+      "type": "boolean"
+     },
+     "when": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "When"
+     }
+    },
+    "required": [
+     "kind",
+     "label",
+     "level",
+     "identity",
+     "when",
+     "dpi",
+     "policy",
+     "pages",
+     "truth",
+     "observed"
+    ],
+    "title": "RunInfo",
+    "type": "object"
+   },
+   "RunRow": {
+    "properties": {
+     "complete": {
+      "title": "Complete",
+      "type": "boolean"
+     },
+     "identity": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Identity"
+     },
+     "kind": {
+      "title": "Kind",
+      "type": "string"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "level": {
+      "title": "Level",
+      "type": "string"
+     },
+     "pages": {
+      "title": "Pages",
+      "type": "integer"
+     },
+     "when": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "When"
+     }
+    },
+    "required": [
+     "kind",
+     "label",
+     "identity",
+     "pages",
+     "complete",
+     "level",
+     "when"
+    ],
+    "title": "RunRow",
+    "type": "object"
+   },
+   "SeriesRow": {
+    "properties": {
+     "book": {
+      "title": "Book",
+      "type": "string"
+     },
+     "commit": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Commit"
+     },
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "identity": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Identity"
+     },
+     "kind": {
+      "title": "Kind",
+      "type": "string"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "metric": {
+      "title": "Metric",
+      "type": "string"
+     },
+     "pages": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "integer"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Pages"
+     },
+     "params": {
+      "additionalProperties": true,
+      "title": "Params",
+      "type": "object"
+     },
+     "scalars": {
+      "additionalProperties": true,
+      "title": "Scalars",
+      "type": "object"
+     },
+     "source_sha256": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source Sha256"
+     },
+     "state": {
+      "title": "State",
+      "type": "string"
+     },
+     "store": {
+      "title": "Store",
+      "type": "string"
+     },
+     "when": {
+      "title": "When",
+      "type": "number"
+     }
+    },
+    "required": [
+     "id",
+     "store",
+     "book",
+     "kind",
+     "label",
+     "metric",
+     "identity",
+     "source_sha256",
+     "commit",
+     "when",
+     "pages",
+     "scalars",
+     "params",
+     "state"
+    ],
+    "title": "SeriesRow",
+    "type": "object"
+   },
    "Start": {
     "properties": {
      "book": {
@@ -105,6 +728,40 @@
      "book"
     ],
     "title": "Start",
+    "type": "object"
+   },
+   "User": {
+    "properties": {
+     "created": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Created"
+     },
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "role": {
+      "title": "Role",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "name",
+     "role"
+    ],
+    "title": "User",
     "type": "object"
    },
    "ValidationError": {
@@ -164,8 +821,7 @@
        "application/json": {
         "schema": {
          "items": {
-          "additionalProperties": true,
-          "type": "object"
+          "$ref": "#/components/schemas/BookRow"
          },
          "title": "Response Books Api Books Get",
          "type": "array"
@@ -372,8 +1028,7 @@
        "application/json": {
         "schema": {
          "items": {
-          "additionalProperties": true,
-          "type": "object"
+          "$ref": "#/components/schemas/RunRow"
          },
          "title": "Response Runs Api Books  Root   Name  Runs Get",
          "type": "array"
@@ -442,9 +1097,7 @@
       "content": {
        "application/json": {
         "schema": {
-         "additionalProperties": true,
-         "title": "Response Run Api Books  Root   Name  Runs  Kind   Label  Get",
-         "type": "object"
+         "$ref": "#/components/schemas/RunInfo"
         }
        }
       },
@@ -885,9 +1538,7 @@
       "content": {
        "application/json": {
         "schema": {
-         "additionalProperties": true,
-         "title": "Response Results Api Books  Root   Name  Runs  Kind   Label  Results Get",
-         "type": "object"
+         "$ref": "#/components/schemas/Results"
         }
        }
       },
@@ -954,8 +1605,7 @@
        "application/json": {
         "schema": {
          "items": {
-          "additionalProperties": true,
-          "type": "object"
+          "$ref": "#/components/schemas/SeriesRow"
          },
          "title": "Response Series Api Books  Root   Name  Runs  Kind   Label  Series Get",
          "type": "array"
@@ -986,7 +1636,9 @@
       "content": {
        "application/json": {
         "schema": {
-         "items": {},
+         "items": {
+          "$ref": "#/components/schemas/LedgerRow"
+         },
          "title": "Response Fleet Ledger Api Fleet Ledger Get",
          "type": "array"
         }
@@ -1006,7 +1658,9 @@
       "content": {
        "application/json": {
         "schema": {
-         "items": {},
+         "items": {
+          "$ref": "#/components/schemas/Placement"
+         },
          "title": "Response Fleet Placements Api Fleet Placements Get",
          "type": "array"
         }
@@ -1068,8 +1722,7 @@
        "application/json": {
         "schema": {
          "items": {
-          "additionalProperties": true,
-          "type": "object"
+          "$ref": "#/components/schemas/Job"
          },
          "title": "Response Jobs Api Jobs Get",
          "type": "array"
@@ -1139,9 +1792,7 @@
       "content": {
        "application/json": {
         "schema": {
-         "additionalProperties": true,
-         "title": "Response One Job Api Jobs  Job Id  Get",
-         "type": "object"
+         "$ref": "#/components/schemas/Job"
         }
        }
       },
@@ -1257,9 +1908,7 @@
       "content": {
        "application/json": {
         "schema": {
-         "additionalProperties": true,
-         "title": "Response Login Api Login Post",
-         "type": "object"
+         "$ref": "#/components/schemas/User"
         }
        }
       },
@@ -1307,9 +1956,7 @@
       "content": {
        "application/json": {
         "schema": {
-         "additionalProperties": true,
-         "title": "Response Me Api Me Get",
-         "type": "object"
+         "$ref": "#/components/schemas/User"
         }
        }
       },
@@ -1388,8 +2035,7 @@
        "application/json": {
         "schema": {
          "items": {
-          "additionalProperties": true,
-          "type": "object"
+          "$ref": "#/components/schemas/Preset"
          },
          "title": "Response Presets Api Models Presets Get",
          "type": "array"
@@ -1411,8 +2057,7 @@
        "application/json": {
         "schema": {
          "items": {
-          "additionalProperties": true,
-          "type": "object"
+          "$ref": "#/components/schemas/User"
          },
          "title": "Response Users Api Users Get",
          "type": "array"
@@ -1441,9 +2086,7 @@
       "content": {
        "application/json": {
         "schema": {
-         "additionalProperties": true,
-         "title": "Response Add User Api Users Post",
-         "type": "object"
+         "$ref": "#/components/schemas/User"
         }
        }
       },

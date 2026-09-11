@@ -10,12 +10,16 @@ import type { User } from "./types";
 
 export function App() {
   const [user, setUser] = useState<User | null | undefined>(undefined);
+  const [trouble, setTrouble] = useState("");
   const nav = useNavigate();
   useEffect(() => {
-    api.me().then(setUser, (e: ApiError) => setUser(e.status === 401 ? null : null));
+    api.me().then(setUser, (e: ApiError) => {
+      setUser(null);
+      setTrouble(e.status === 401 ? "" : e.message);
+    });
   }, []);
   if (user === undefined) return <main className="muted">…</main>;
-  if (user === null) return <Login onLogin={setUser} />;
+  if (user === null) return <Login onLogin={setUser} trouble={trouble} />;
   const logout = async () => {
     await api.logout();
     setUser(null);

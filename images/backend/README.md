@@ -30,3 +30,4 @@ Book routes take `{root}/{name}`, `bench/<name>` or `processed/<name>`.
 | `GET /books/{root}/{name}/runs/{kind}/{label}/series` | every measurement of the run |
 | `POST /jobs`, `GET /jobs`, `GET /jobs/{id}`, `POST /jobs/{id}/cancel`, `GET /jobs/{id}/events` | detect, hybrid, read, html, bench; progress as events |
 | `GET /models`, `PUT /models`, `GET /models/presets`, `GET /users`, `POST /users` | the registry (kept by the fleet) and the users (admin) |
+| `GET /fleet/placements`, `DELETE /fleet/placements/{id}`, `GET /fleet/ledger` | what the fleet runs and what it cost (admin) |

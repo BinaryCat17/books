@@ -4,10 +4,10 @@ import os
 import shutil
 import tempfile
 from collections.abc import AsyncIterator
-from fastapi import APIRouter, Request, Response, UploadFile
+from fastapi import APIRouter, HTTPException, Request, Response, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from backend import fleet, service
+from backend import fleet, service, shapes
 from backend.errors import Refusal
 from backend import auth
 from backend.db import as_dict
@@ -31,13 +31,12 @@ class Login(BaseModel):
     password: str
 
 
-@router.post("/login")
+@router.post("/login", response_model=shapes.User)
 def login(body: Login, request: Request, response: Response) -> dict:
     db = request.app.state.db
     token = auth.login(db, body.name, body.password, request.app.state.settings.session_days)
     if token is None:
-        response.status_code = 401
-        return {"error": "no such user and password"}
+        raise HTTPException(401, "no such user and password")
     s = request.app.state.settings
     response.set_cookie(
         auth.COOKIE,
@@ -57,12 +56,12 @@ def logout(request: Request, response: Response) -> dict:
     return {"ok": True}
 
 
-@router.get("/me")
+@router.get("/me", response_model=shapes.User)
 def me(request: Request) -> dict:
     return auth.require(request)
 
 
-@router.get("/books")
+@router.get("/books", response_model=list[shapes.BookRow])
 def books(request: Request) -> list[dict]:
     user = auth.require(request)
     store = _store(request, user)
@@ -86,7 +85,7 @@ def upload(request: Request, file: UploadFile, name: str = "") -> dict:
     return {"book": os.path.relpath(dest, store), "runs": []}
 
 
-@router.get("/books/{root}/{name}/runs")
+@router.get("/books/{root}/{name}/runs", response_model=list[shapes.RunRow])
 def runs(root: str, name: str, request: Request) -> list[dict]:
     user = auth.require(request)
     return service.runs(_store(request, user), _book(root, name))
@@ -99,7 +98,7 @@ def page_image(root: str, name: str, index: int, request: Request, dpi: float = 
     return Response(png, media_type="image/png", headers={"Cache-Control": "private, max-age=3600"})
 
 
-@router.get("/books/{root}/{name}/runs/{kind}/{label}")
+@router.get("/books/{root}/{name}/runs/{kind}/{label}", response_model=shapes.RunInfo)
 def run(root: str, name: str, kind: str, label: str, request: Request) -> dict:
     user = auth.require(request)
     return service.run(_store(request, user), _book(root, name), kind, label)
@@ -125,13 +124,13 @@ def pairs(root: str, name: str, kind: str, label: str, index: int, request: Requ
     )
 
 
-@router.get("/books/{root}/{name}/runs/{kind}/{label}/results")
+@router.get("/books/{root}/{name}/runs/{kind}/{label}/results", response_model=shapes.Results)
 def results(root: str, name: str, kind: str, label: str, request: Request) -> dict:
     user = auth.require(request)
     return service.results(request.app.state.db, _store(request, user), _book(root, name), kind, label)
 
 
-@router.get("/books/{root}/{name}/runs/{kind}/{label}/series")
+@router.get("/books/{root}/{name}/runs/{kind}/{label}/series", response_model=list[shapes.SeriesRow])
 def series(root: str, name: str, kind: str, label: str, request: Request) -> list[dict]:
     user = auth.require(request)
     return service.series(request.app.state.db, _store(request, user), _book(root, name), kind, label)
@@ -197,14 +196,14 @@ def _own(request: Request, job_id: int) -> dict:
     return row
 
 
-@router.get("/jobs")
+@router.get("/jobs", response_model=list[shapes.Job])
 def jobs(request: Request) -> list[dict]:
     user = auth.require(request)
     rows = request.app.state.db.jobs(None if user["role"] == "admin" else user["id"])
     return [d for d in (as_dict(r) for r in rows) if d is not None]
 
 
-@router.get("/jobs/{job_id}")
+@router.get("/jobs/{job_id}", response_model=shapes.Job)
 def one_job(job_id: int, request: Request) -> dict:
     return _own(request, job_id)
 
@@ -239,19 +238,19 @@ def put_models(body: dict, request: Request) -> dict:
     return service.write_models(body)
 
 
-@router.get("/models/presets")
+@router.get("/models/presets", response_model=list[shapes.Preset])
 def presets(request: Request) -> list[dict]:
     auth.require(request)
     return [{"name": n, "kind": e["kind"], "knobs": e["knobs"]} for n, e in service.models().items()]
 
 
-@router.get("/fleet/placements")
+@router.get("/fleet/placements", response_model=list[shapes.Placement])
 def fleet_placements(request: Request) -> list:
     auth.require(request, "admin")
     return fleet.placements()
 
 
-@router.get("/fleet/ledger")
+@router.get("/fleet/ledger", response_model=list[shapes.LedgerRow])
 def fleet_ledger(request: Request) -> list:
     auth.require(request, "admin")
     return fleet.ledger()
@@ -269,13 +268,13 @@ class NewUser(BaseModel):
     role: str = "user"
 
 
-@router.get("/users")
+@router.get("/users", response_model=list[shapes.User])
 def users(request: Request) -> list[dict]:
     auth.require(request, "admin")
     return [d for d in (as_dict(r) for r in request.app.state.db.users()) if d is not None]
 
 
-@router.post("/users")
+@router.post("/users", response_model=shapes.User)
 def add_user(body: NewUser, request: Request) -> dict:
     auth.require(request, "admin")
     user_id = auth.add_user(request.app.state.db, body.name, body.password, body.role)

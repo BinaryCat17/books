@@ -194,7 +194,9 @@ class Pool:
         outcome: tuple[str, object] = ("failed", "not run")
         try:
             with base.active():
-                result = os.path.relpath(dispatch(row["kind"], row["store"], args, base, self.db, self.cfg), row["store"])
+                result = dispatch(row["kind"], row["store"], args, base, self.db, self.cfg)
+                if os.path.isabs(result):
+                    result = os.path.relpath(result, row["store"])
                 log(f"job {job_id} {row['kind']} done: {result}", job=job_id)
             outcome = ("done", result)
         except Cancelled:

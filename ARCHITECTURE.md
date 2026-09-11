@@ -88,7 +88,8 @@ A store per owner; the admin's is the root.
 a book. Jobs: detect, read, hybrid, html, bench, with progress as events and
 a cancel. Pages: the data, the image, a crop, the pairs against truth, the
 metrics of one page. The document. Measurements: the last and the series.
-Admin: the registry through the fleet, the users.
+Admin: the registry through the fleet, the users, the fleet's placements
+and ledger.
 
 **Catalog** (the backend's database): `users`, `sessions`, `jobs`,
 `measurements` (run, metric, identity, commit, when, pages, scalars;

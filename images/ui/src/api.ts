@@ -1,4 +1,4 @@
-import type { BookRow, Job, JobEvent, LedgerRow, ModelEntry, PageData, Pairs, Placement, Preset, Record_, RunInfo, RunRow, SeriesRow, User } from "./types";
+import type { BookRow, Job, JobEvent, LedgerRow, ModelEntry, PageData, Pairs, Placement, Preset, Record_, RunInfo, SeriesRow, User } from "./types";
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -6,13 +6,31 @@ export class ApiError extends Error {
   }
 }
 
+export function messageOf(data: unknown, fallback: string): string {
+  const d = data as { error?: unknown; detail?: unknown } | null;
+  if (d && typeof d.error === "string") return d.error;
+  if (d && d.detail !== undefined) return typeof d.detail === "string" ? d.detail : JSON.stringify(d.detail);
+  return fallback;
+}
+
+export function errorText(e: unknown): string {
+  if (e instanceof ApiError) return e.message;
+  if (e instanceof Error) return e.message;
+  return String(e);
+}
+
 async function call<T>(method: string, path: string, body?: unknown, form?: FormData): Promise<T> {
-  const r = await fetch("/api" + path, {
-    method,
-    credentials: "same-origin",
-    headers: body !== undefined ? { "Content-Type": "application/json" } : undefined,
-    body: form ?? (body !== undefined ? JSON.stringify(body) : undefined),
-  });
+  let r: Response;
+  try {
+    r = await fetch("/api" + path, {
+      method,
+      credentials: "same-origin",
+      headers: body !== undefined ? { "Content-Type": "application/json" } : undefined,
+      body: form ?? (body !== undefined ? JSON.stringify(body) : undefined),
+    });
+  } catch (e) {
+    throw new ApiError(0, `the server did not answer: ${errorText(e)}`);
+  }
   const text = await r.text();
   let data: unknown = null;
   try {
@@ -20,10 +38,7 @@ async function call<T>(method: string, path: string, body?: unknown, form?: Form
   } catch {
     data = text;
   }
-  if (!r.ok) {
-    const d = data as { error?: string; detail?: unknown } | null;
-    throw new ApiError(r.status, d?.error ?? (d?.detail ? JSON.stringify(d.detail) : r.statusText));
-  }
+  if (!r.ok) throw new ApiError(r.status, messageOf(data, r.statusText || `status ${r.status}`));
   return data as T;
 }
 
@@ -40,12 +55,10 @@ export const api = {
     return call<{ book: string }>("POST", `/books?name=${encodeURIComponent(name)}`, undefined, f);
   },
   deleteBook: (book: string) => call<{ deleted: string }>("DELETE", `/books/${book}`),
-  runs: (book: string) => call<RunRow[]>("GET", `/books/${book}/runs`),
   run: (book: string, kind: string, label: string) => call<RunInfo>("GET", run(book, kind, label)),
   page: (book: string, kind: string, label: string, i: number) => call<PageData>("GET", `${run(book, kind, label)}/pages/${i}`),
   pairs: (book: string, kind: string, label: string, i: number) => call<Pairs>("GET", `${run(book, kind, label)}/pages/${i}/pairs`),
   pageMetrics: (book: string, kind: string, label: string, i: number) => call<Record_[]>("GET", `${run(book, kind, label)}/pages/${i}/metrics`),
-  results: (book: string, kind: string, label: string) => call<{ when: number; records: SeriesRow[] }>("GET", `${run(book, kind, label)}/results`),
   series: (book: string, kind: string, label: string) => call<SeriesRow[]>("GET", `${run(book, kind, label)}/series`),
   imageUrl: (book: string, i: number, dpi = 110) => `/api/books/${book}/pages/${i}/image?dpi=${dpi}`,
   cropUrl: (book: string, kind: string, label: string, anchor: string) => `/api${run(book, kind, label)}/crops/${anchor}`,
@@ -54,14 +67,16 @@ export const api = {
   job: (id: number) => call<Job>("GET", `/jobs/${id}`),
   startJob: (body: { kind: string; book: string; model?: string; label?: string; run_kind?: string; pages?: string }) => call<{ id: number }>("POST", "/jobs", body),
   cancelJob: (id: number) => call<{ cancelled: boolean }>("POST", `/jobs/${id}/cancel`),
-  events: (id: number, onEvent: (e: JobEvent) => void): (() => void) => {
+  events: (id: number, onEvent: (e: JobEvent) => void, onError: () => void): (() => void) => {
     const es = new EventSource(`/api/jobs/${id}/events`, { withCredentials: true });
     es.onmessage = (m) => {
       const ev = JSON.parse(m.data) as JobEvent;
       onEvent(ev);
       if (ev.event === "state" && ["done", "failed", "cancelled"].includes(ev.state)) es.close();
     };
-    es.onerror = () => es.close();
+    es.onerror = () => {
+      if (es.readyState === EventSource.CLOSED) onError();
+    };
     return () => es.close();
   },
   models: () => call<Record<string, ModelEntry>>("GET", "/models"),
