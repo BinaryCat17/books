@@ -8,7 +8,6 @@ from backend import classes as policy_mod
 from backend.errors import Refusal
 from backend import settings
 
-ASSETS = "assets"
 LABEL_OK = re.compile("^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$")
 BOOK_ROOTS = ("bench", "processed")
 
@@ -238,14 +237,3 @@ def policy_beside(pages_dir: str) -> policy_mod.Policy:
 def pdf_of(detect_dir: str) -> str:
     with open(os.path.join(detect_dir, "run.json"), encoding="utf-8") as f:
         return json.load(f)["source"]["path"]
-
-
-def home_for(run_dir: str, store: str) -> str:
-    up = os.path.dirname(os.path.dirname(os.path.abspath(run_dir.rstrip("/"))))
-    if os.path.isfile(os.path.join(up, "manifest.json")):
-        return up
-    with open(os.path.join(run_dir, "run.json"), encoding="utf-8") as f:
-        snap = json.load(f)
-    stem = os.path.splitext(os.path.basename(snap["source"]["path"]))[0]
-    safe = re.sub("[^\\w.,()-]+", "-", stem, flags=re.UNICODE).strip("-")[:80]
-    return os.path.join(store, "processed", safe or "book")

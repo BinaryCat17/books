@@ -2,8 +2,8 @@
 
 The books service: users and sessions, a store per user, jobs in the
 background, the pipeline (layout through a served model, reading through a
-served VLM, the document, the HTML export), the viewer's data, and the
-catalog of runs and measurements.
+served VLM, the document and its exports, corrections as derived runs),
+the viewer's data, and the catalog of runs and measurements.
 
 Run: `python -m backend`. Environment: `BOOKSMITH_HOME` (the data volume),
 `BOOKSMITH_SCHEMA` (the schema directory), `BOOKSMITH_METRICS` (the metrics
@@ -38,8 +38,16 @@ once a layer lands.
 | `GET /books/{root}/{name}/runs/{kind}/{label}/pages/{index}/metrics` | every metric on one page, measured now |
 | `GET /books/{root}/{name}/runs/{kind}/{label}/crops/{anchor}` | one block as PNG |
 | `GET /books/{root}/{name}/runs/{kind}/{label}/document` | the book as data |
+| `GET /books/{root}/{name}/runs/{kind}/{label}/export/{html\|markdown\|text}?math=cdn\|off` | the document rendered, one file, crops inside |
+| `GET\|POST /books/{root}/{name}/runs/{kind}/{label}/corrections`, `DELETE …/corrections/{n}` | the corrections of a run, kept in `<label>.corrected` beside it |
 | `GET /books/{root}/{name}/runs/{kind}/{label}/results` | the last measurement of the run |
 | `GET /books/{root}/{name}/runs/{kind}/{label}/series` | every measurement of the run |
-| `POST /jobs`, `GET /jobs`, `GET /jobs/{id}`, `POST /jobs/{id}/cancel`, `GET /jobs/{id}/events` | detect, hybrid, read, html, bench; progress as events |
+| `POST /jobs`, `GET /jobs`, `GET /jobs/{id}`, `POST /jobs/{id}/cancel`, `GET /jobs/{id}/events` | detect, hybrid, read, bench; progress as events |
 | `GET /models`, `PUT /models`, `GET /models/presets`, `GET /users`, `POST /users` | the registry (kept by the fleet) and the users (admin) |
 | `GET /fleet/placements`, `DELETE /fleet/placements/{id}`, `GET /fleet/ledger` | what the fleet runs and what it cost (admin) |
+
+Corrections: `{anchor, content | label | drop}` on a run or on its derived
+run; each one rewrites `<kind>/<label>.corrected/` from the base run (pages
+with the corrections applied, the base's answers minus the corrected
+blocks, its crops linked), with `derived_from` and `corrections` in
+`run.json` and an identity of its own. The base run is never written.

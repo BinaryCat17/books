@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { api, errorText } from "../api";
 import type { BookRow, Job, JobEvent, Preset, User } from "../types";
 
-const KINDS = ["detect", "hybrid", "read", "bench", "html"] as const;
+const KINDS = ["detect", "hybrid", "read", "bench"] as const;
 type Kind = (typeof KINDS)[number];
 const LIVE = (j: Job) => j.state === "queued" || j.state === "running";
 
@@ -168,7 +168,7 @@ function Launcher({ book, presets, onStart }: { book: BookRow; presets: Preset[]
   const fit = presets.filter((p) => wantKind.includes(p.kind));
   const runs = book.runs.filter((r) => r.complete && (kind === "read" ? r.kind === "detect" : true));
   const needsModel = kind === "detect" || kind === "read" || kind === "hybrid";
-  const needsRun = kind === "read" || kind === "bench" || kind === "html";
+  const needsRun = kind === "read" || kind === "bench";
   const chosen = runs.find((r) => `${r.kind}/${r.label}` === run);
   return (
     <div className="row">

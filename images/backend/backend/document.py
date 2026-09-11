@@ -259,7 +259,6 @@ class BookData:
     sha256_said: str | None
     policy: policy.Policy
     observed: bool
-    repeats_how: str
     snapshot: dict
     pages: list
 
@@ -394,7 +393,7 @@ def gather(detect_dir: str, verify: bool = True) -> BookData:
     pol = policy.Policy.from_snapshot(snap.get("policy"))
     if not os.path.exists(pdf):
         raise Refusal(
-            f"the parse source is not in place: {pdf}\nHTML is built from the PDF, not from the detection raster -- a crop of a dense table at {page_dpi:.0f} dpi is unreadable."
+            f"the scan is not in place: {pdf}; the document's crops are cut from it, not from the detection raster"
         )
     said = (snap.get("source") or {}).get("sha256")
     now = None
@@ -416,7 +415,6 @@ def gather(detect_dir: str, verify: bool = True) -> BookData:
     if not files:
         raise Refusal(f"no pages in {detect_dir} -- run a detect run first")
     obs_present = answers_present(detect_dir)
-    repeats_how = _repeats_how()
     pages = []
     for page_n, fp in enumerate(files, 1):
         job.current().check()
@@ -433,21 +431,9 @@ def gather(detect_dir: str, verify: bool = True) -> BookData:
         sha256_said=said,
         policy=pol,
         observed=obs_present,
-        repeats_how=repeats_how,
         snapshot=snap,
         pages=pages,
     )
-
-
-def _repeats_how() -> str:
-    from backend import knobs
-
-    how = (knobs.knob("HTML_REPEATS") or "hide").strip()
-    if how not in ("hide", "show"):
-        raise Refusal(
-            f"HTML_REPEATS={how!r}: I know only hide | show. There is no silent default here: this is the one build operation that removes text from the reader's sight."
-        )
-    return how
 
 
 VERSION = 1

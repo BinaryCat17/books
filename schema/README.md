@@ -9,6 +9,7 @@ reads and writes against these in its own tests; nothing else is shared.
 | `document.schema.json` | the book as data, assembled from a run; every export renders it |
 | `describe.schema.json`, `health.schema.json`, `layout-request.schema.json` | the model protocol's payloads |
 | `snapshot.schema.json` | `run.json` beside a run |
+| `correction.schema.json` | one correction to one block, kept in a derived run's snapshot |
 | `record.schema.json`, `catalog.schema.json` | a measurement, and the metrics a service publishes |
 | `classes.json` | the class table every label maps onto |
 | `openapi/model.yaml` | the model protocol |

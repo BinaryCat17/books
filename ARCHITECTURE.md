@@ -70,7 +70,15 @@ Stateless; reads the storage volume.
 order with their role by the run's policy, their content by kind, what nests
 and repeats, what the reading flagged. Written as `document.json` beside the
 run, regenerated when the rule's version or the run's identity changes.
-Exports render it and nothing else; the run's pages stay untouched.
+Exports (`html`, `markdown`, `text`) render it and nothing else, on
+request, as one file; the run's pages stay untouched.
+
+**Corrections.** A correction is one block's text, label, or absence,
+named by anchor (`correction.schema.json`). Corrections never touch the run
+they fix: they live in the snapshot of a derived run beside it,
+`<label>.corrected`, whose pages are the base's with the corrections
+applied, whose identity is the base's identity and the corrections, and
+which is measured, documented and exported like any run.
 
 **Storage.** One volume, one layout, mounted by backend, metrics and datasets.
 A store per owner; the admin's is the root.
@@ -84,20 +92,22 @@ A store per owner; the admin's is the root.
   truth.layers/NNNN-<when>-<author>.json   a whole page, written once; the newest is the page's truth
   detect/<label>/            a level-one run: run.json, pages/, document.json
   read/<label>/              a level-two run: run.json, pages/, answers/, crops/, document.json
+  <kind>/<label>.corrected/  a derived run: the base's pages under its corrections, run.json naming them
 ```
 
 **Backend API.** Sessions and two roles. Books: upload, list, delete. Runs of
-a book. Jobs: detect, read, hybrid, html, bench, with progress as events and
-a cancel. Pages: the data, the image, a crop, the pairs against truth, the
-metrics of one page. The document. Measurements: the last and the series.
+a book. Jobs: detect, read, hybrid, bench, with progress as events and a cancel.
+Pages: the data, the image, a crop, the pairs against truth, the metrics of
+one page. The document and its exports. Corrections: list, add, undo.
+Measurements: the last and the series.
 Truth: a book's own, or borrowed from the bench whose scan has the same
 hash; admins start one and write layers from the browser. Admin: the
 registry through the fleet, the users, the fleet's placements and ledger.
 
 **Catalog** (the backend's database): `users`, `sessions`, `jobs`,
 `measurements` (run, metric, identity, truth fingerprint, commit, when,
-pages, scalars; append-only). Truth and its layers live in the store, not the catalog. Next:
-`corrections`.
+pages, scalars; append-only). Truth, its layers and corrections live in the store, not the
+catalog.
 
 ## Rules
 
@@ -123,4 +133,4 @@ anywhere but git.
 2. The fleet: the registry, the docker and vast providers, placements and leases, the backend holding a lease while a job runs. Done; a real rental is proven on demand, since it costs money.
 3. The UI: library, viewer with boxes, metrics per page and per book, the admin panel. Done.
 4. Truth by hash, truth layers, labeling in the browser. Done.
-5. Export beyond HTML, and corrections as derived runs.
+5. Export beyond HTML, and corrections as derived runs. Done.

@@ -36,6 +36,8 @@ class RunInfo(BaseModel):
     pages: list[int]
     truth: str | None
     observed: bool
+    derived_from: dict | None
+    corrections: list[dict]
 
 
 class TruthBlock(BaseModel):
@@ -59,6 +61,20 @@ class TruthPage(BaseModel):
     blocks: list[TruthBlock]
     raw: None = None
     meta: dict = Field(default_factory=dict)
+
+
+class Correction(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    anchor: str = Field(pattern=r"^p[0-9]{4}-b[0-9]+$")
+    content: str | None = None
+    label: str | None = None
+    drop: bool | None = None
+
+
+class Corrections(BaseModel):
+    base: str
+    run: str | None
+    corrections: list[dict]
 
 
 class Layer(BaseModel):

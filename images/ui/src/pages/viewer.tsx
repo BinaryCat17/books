@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { api, errorText } from "../api";
-import type { Block, PageData, Pairs, Record_, RunInfo, Scalar, SeriesRow, User } from "../types";
+import { correctionOf, draftOf, saysOf, type Draft } from "../corrections";
+import { FORMATS, type Block, type Correction, type PageData, type Pairs, type Record_, type RunInfo, type Scalar, type SeriesRow, type User } from "../types";
 import { drawOrder, missedOf, summaryOf, verdictsOf } from "../verdicts";
 import { Labeler } from "./labeler";
 
 export function Viewer({ user }: { user: User }) {
   const { root = "", name = "", kind = "", label = "" } = useParams();
   const book = `${root}/${name}`;
+  const navigate = useNavigate();
   const [run, setRun] = useState<RunInfo | null>(null);
   const [index, setIndex] = useState(0);
   const [page, setPage] = useState<PageData | null>(null);
@@ -52,6 +54,37 @@ export function Viewer({ user }: { user: User }) {
     }
   }, [book, kind, label]);
 
+  const reload = useCallback(async () => {
+    setRun(await api.run(book, kind, label));
+    setPage(await api.page(book, kind, label, index));
+  }, [book, kind, label, index]);
+  const correct = useCallback(async (c: Correction) => {
+    setBusy("correcting…");
+    try {
+      const got = await api.correct(book, kind, label, c);
+      setError("");
+      if (got.run && got.run !== label) navigate(`/books/${book}/runs/${kind}/${encodeURIComponent(got.run)}`);
+      else await reload();
+    } catch (e) {
+      fail(e);
+    } finally {
+      setBusy("");
+    }
+  }, [book, kind, label, navigate, reload]);
+  const uncorrect = useCallback(async (n: number) => {
+    setBusy("undoing…");
+    try {
+      const got = await api.uncorrect(book, kind, label, n);
+      setError("");
+      if (!got.run) navigate(`/books/${book}/runs/${kind}/${encodeURIComponent(got.base)}`);
+      else await reload();
+    } catch (e) {
+      fail(e);
+    } finally {
+      setBusy("");
+    }
+  }, [book, kind, label, navigate, reload]);
+
   const measure = useCallback(async () => {
     setBusy("measuring…");
     try {
@@ -68,6 +101,8 @@ export function Viewer({ user }: { user: User }) {
   const missed = useMemo(() => missedOf(pairs), [pairs]);
   const drawn = useMemo(() => (page ? drawOrder(page.blocks) : []), [page]);
   const sel = page?.blocks.find((b) => b.anchor === selected) ?? null;
+  const corrected = useMemo(() => new Set((run?.corrections ?? []).map((c) => c.anchor)), [run]);
+  const labels = useMemo(() => Object.keys(run?.policy.classes ?? {}).sort(), [run]);
   const pageNo = run ? run.pages.indexOf(index) : -1;
   const jump = (v: string) => {
     const n = Number(v);
@@ -84,7 +119,9 @@ export function Viewer({ user }: { user: User }) {
         <span className="muted mono">{run.identity?.slice(0, 12)}</span>
         <span style={{ flex: 1 }} />
         <a href={api.documentUrl(book, kind, label)} target="_blank" rel="noreferrer">document.json</a>
+        {FORMATS.map((f) => <a key={f} href={api.exportUrl(book, kind, label, f)}>{f}</a>)}
       </div>
+      {run.derived_from && <div className="muted" style={{ marginBottom: 8 }}>derived from <Link to={`/books/${book}/runs/${run.derived_from.kind}/${encodeURIComponent(run.derived_from.label)}`}>{run.derived_from.kind} · {run.derived_from.label}</Link> with {run.corrections.length} corrections</div>}
       {error && <div className="err">{error}</div>}
       <div className="row" style={{ marginBottom: 8 }}>
         <button aria-label="previous page" disabled={pageNo <= 0} onClick={() => setIndex(run.pages[pageNo - 1])}>‹</button>
@@ -136,7 +173,7 @@ export function Viewer({ user }: { user: User }) {
                   <tbody>
                     {page.blocks.map((b) => (
                       <tr key={b.anchor} className={selected === b.anchor ? "sel" : ""} onClick={() => setSelected(b.anchor)} style={{ cursor: "pointer" }}>
-                        <td className="mono">{b.anchor}</td><td>{b.label}</td><td className="muted">{b.role}</td><td>{verdict[b.anchor] ?? ""}</td>
+                        <td className="mono">{b.anchor}{corrected.has(b.anchor) ? " ✎" : ""}</td><td>{b.label}</td><td className="muted">{b.role}</td><td>{verdict[b.anchor] ?? ""}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -145,6 +182,19 @@ export function Viewer({ user }: { user: User }) {
             </div>
           )}
           {sel && <BlockDetail block={sel} crop={api.cropUrl(book, kind, label, sel.anchor)} />}
+          {sel && <Correct key={sel.anchor} block={sel} labels={labels} busy={!!busy} onSave={correct} />}
+          {run.corrections.length > 0 && (
+            <div className="panel">
+              <h2 style={{ marginTop: 0 }}>Corrections</h2>
+              <table>
+                <tbody>
+                  {run.corrections.map((c, n) => (
+                    <tr key={n}><td className="mono">{c.anchor}</td><td>{saysOf(c)}</td><td className="muted">{c.author}</td><td><button aria-label={`undo correction ${n}`} disabled={!!busy} onClick={() => uncorrect(n)}>undo</button></td></tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
           {metrics && <MetricsPanel title={`Metrics on page ${index}`} records={metrics} />}
           {series && series.length > 0 && <SeriesPanel rows={series} />}
           {user.role === "admin" && pairs?.pairs.some((p) => p.why) && (
@@ -178,6 +228,25 @@ function BlockDetail({ block, crop }: { block: Block; crop: string }) {
       </dl>
       <img src={crop} alt={block.anchor} style={{ maxWidth: "100%", border: "1px solid var(--rule)" }} />
       {block.content && <div className="content">{block.content}</div>}
+    </div>
+  );
+}
+
+function Correct({ block, labels, busy, onSave }: { block: Block; labels: string[]; busy: boolean; onSave: (c: Correction) => void }) {
+  const [draft, setDraft] = useState<Draft>(() => draftOf(block));
+  const c = correctionOf(block, draft);
+  return (
+    <div className="panel">
+      <h2 style={{ marginTop: 0 }}>Correct {block.anchor}</h2>
+      <textarea aria-label="corrected text" className="json" style={{ minHeight: 90 }} value={draft.content} onChange={(e) => setDraft({ ...draft, content: e.target.value })} />
+      <div className="row">
+        <select aria-label="corrected label" value={draft.label} onChange={(e) => setDraft({ ...draft, label: e.target.value })}>
+          {[...new Set([block.label, ...labels])].map((l) => <option key={l} value={l}>{l}</option>)}
+        </select>
+        <label><input type="checkbox" checked={draft.drop} onChange={(e) => setDraft({ ...draft, drop: e.target.checked })} /> drop this block</label>
+        <span style={{ flex: 1 }} />
+        <button className="primary" disabled={!c || busy} onClick={() => c && onSave(c)}>correct</button>
+      </div>
     </div>
   );
 }

@@ -29,7 +29,7 @@ export function Labeler({ book, run, index, page, onDone }: { book: string; run:
     api.truthPage(book, index).then((t) => { if (live) { setTruth(t); setSaved(t); } }, (e) => { if (live) setError(errorText(e)); });
     return () => { live = false; };
   }, [book, index]);
-  useEffect(() => { if (!drawAs && choices.length) setDrawAs((choices.find((c) => c.cls === "text") ?? choices[0]).label); }, [choices, drawAs]);
+  useEffect(() => { if (!drawAs && choices.length) setDrawAs((choices.find((c) => c.label === "text") ?? choices.find((c) => c.cls === "text") ?? choices[0]).label); }, [choices, drawAs]);
 
   const at = (e: React.PointerEvent): [number, number] | null => {
     if (!truth || !svg.current) return null;

@@ -1,0 +1,52 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "booksmith/correction",
+ "title": "Correction",
+ "type": "object",
+ "properties": {
+  "anchor": {
+   "type": "string",
+   "pattern": "^p[0-9]{4}-b[0-9]+$"
+  },
+  "content": {
+   "type": [
+    "string",
+    "null"
+   ]
+  },
+  "label": {
+   "type": "string"
+  },
+  "drop": {
+   "type": "boolean"
+  },
+  "author": {
+   "type": "string"
+  },
+  "when": {
+   "type": "string"
+  }
+ },
+ "required": [
+  "anchor"
+ ],
+ "anyOf": [
+  {
+   "required": [
+    "content"
+   ]
+  },
+  {
+   "required": [
+    "label"
+   ]
+  },
+  {
+   "required": [
+    "drop"
+   ]
+  }
+ ],
+ "additionalProperties": false,
+ "description": "One correction to one block of a run: its text, its label, or that it should not be there. Kept in the derived run's snapshot beside the base run, which is never touched."
+}

@@ -12,7 +12,7 @@ from backend.errors import BooksmithError, Cancelled
 from backend.log import log
 from backend.db import TERMINAL, Db, as_dict
 
-KINDS = ("detect", "hybrid", "read", "bench", "html")
+KINDS = ("detect", "hybrid", "read", "bench")
 KEEPALIVE_S = 15.0
 LEASE_RENEW_S = 30.0
 
@@ -54,14 +54,6 @@ def dispatch(kind: str, store: str, args: dict, base: job.Job, db: Db, cfg) -> s
             kind=str(args.get("run_kind") or "detect"),
             base=base,
             pages=pages or "",
-        )
-    if kind == "html":
-        return service.html(
-            store,
-            run_dir_of(store, book, str(args.get("run_kind") or "detect"), label),
-            {},
-            None,
-            base=base,
         )
     raise BooksmithError(f"no such kind of job: {kind!r}; there are {KINDS}")
 

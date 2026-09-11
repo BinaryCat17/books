@@ -1,7 +1,7 @@
 import json
 import os
 
-from backend import document, export_html, schema, service, settings
+from backend import document, schema, service, settings
 from conftest import make_bench
 from fake_layout import FakeLayout
 from fake_vlm import FakeVlm
@@ -28,11 +28,6 @@ def test_the_run_the_document_and_the_export_keep_the_contracts(tmp_path, monkey
     assert {blk["role"] for blk in d["pages"][0]["blocks"]} == {"text", "artifact"}
     assert os.path.isfile(os.path.join(rd, "document.json"))
     assert document.write(rd) == d
-    out = str(tmp_path / "html")
-    with said():
-        export_html.build(rd, out)
-    html = open(os.path.join(out, "book.html"), encoding="utf-8").read()
-    assert "<!--bs:p0000-b0-->" in html and "p0002-b1" in html
     assert settings.Settings.from_env().relative(str(home)) == ""
     with FakeVlm({"text": "read", "finish": "stop"}) as vlm, said():
         read_dir = service.read(str(home), rd, {"VLM_ENDPOINT": vlm.url, "MODEL_NAME": vlm.model}, pages="1")

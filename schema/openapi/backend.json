@@ -36,6 +36,88 @@
     "title": "BookRow",
     "type": "object"
    },
+   "Correction": {
+    "additionalProperties": false,
+    "properties": {
+     "anchor": {
+      "pattern": "^p[0-9]{4}-b[0-9]+$",
+      "title": "Anchor",
+      "type": "string"
+     },
+     "content": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Content"
+     },
+     "drop": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Drop"
+     },
+     "label": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Label"
+     }
+    },
+    "required": [
+     "anchor"
+    ],
+    "title": "Correction",
+    "type": "object"
+   },
+   "Corrections": {
+    "properties": {
+     "base": {
+      "title": "Base",
+      "type": "string"
+     },
+     "corrections": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Corrections",
+      "type": "array"
+     },
+     "run": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Run"
+     }
+    },
+    "required": [
+     "base",
+     "run",
+     "corrections"
+    ],
+    "title": "Corrections",
+    "type": "object"
+   },
    "HTTPValidationError": {
     "properties": {
      "detail": {
@@ -462,6 +544,26 @@
    },
    "RunInfo": {
     "properties": {
+     "corrections": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Corrections",
+      "type": "array"
+     },
+     "derived_from": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Derived From"
+     },
      "dpi": {
       "anyOf": [
        {
@@ -545,7 +647,9 @@
      "policy",
      "pages",
      "truth",
-     "observed"
+     "observed",
+     "derived_from",
+     "corrections"
     ],
     "title": "RunInfo",
     "type": "object"
@@ -1326,6 +1430,221 @@
     "summary": "Run"
    }
   },
+  "/api/books/{root}/{name}/runs/{kind}/{label}/corrections": {
+   "get": {
+    "operationId": "corrections_api_books__root___name__runs__kind___label__corrections_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "root",
+      "required": true,
+      "schema": {
+       "title": "Root",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "name",
+      "required": true,
+      "schema": {
+       "title": "Name",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "kind",
+      "required": true,
+      "schema": {
+       "title": "Kind",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "label",
+      "required": true,
+      "schema": {
+       "title": "Label",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Corrections"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Corrections"
+   },
+   "post": {
+    "operationId": "correct_api_books__root___name__runs__kind___label__corrections_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "root",
+      "required": true,
+      "schema": {
+       "title": "Root",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "name",
+      "required": true,
+      "schema": {
+       "title": "Name",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "kind",
+      "required": true,
+      "schema": {
+       "title": "Kind",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "label",
+      "required": true,
+      "schema": {
+       "title": "Label",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/Correction"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Corrections"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Correct"
+   }
+  },
+  "/api/books/{root}/{name}/runs/{kind}/{label}/corrections/{n}": {
+   "delete": {
+    "operationId": "uncorrect_api_books__root___name__runs__kind___label__corrections__n__delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "root",
+      "required": true,
+      "schema": {
+       "title": "Root",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "name",
+      "required": true,
+      "schema": {
+       "title": "Name",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "kind",
+      "required": true,
+      "schema": {
+       "title": "Kind",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "label",
+      "required": true,
+      "schema": {
+       "title": "Label",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "n",
+      "required": true,
+      "schema": {
+       "title": "N",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Corrections"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Uncorrect"
+   }
+  },
   "/api/books/{root}/{name}/runs/{kind}/{label}/crops/{anchor}": {
    "get": {
     "operationId": "crop_api_books__root___name__runs__kind___label__crops__anchor__get",
@@ -1465,6 +1784,89 @@
      }
     },
     "summary": "Document"
+   }
+  },
+  "/api/books/{root}/{name}/runs/{kind}/{label}/export/{fmt}": {
+   "get": {
+    "operationId": "export_api_books__root___name__runs__kind___label__export__fmt__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "root",
+      "required": true,
+      "schema": {
+       "title": "Root",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "name",
+      "required": true,
+      "schema": {
+       "title": "Name",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "kind",
+      "required": true,
+      "schema": {
+       "title": "Kind",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "label",
+      "required": true,
+      "schema": {
+       "title": "Label",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "fmt",
+      "required": true,
+      "schema": {
+       "title": "Fmt",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "math",
+      "required": false,
+      "schema": {
+       "default": "cdn",
+       "title": "Math",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Export"
    }
   },
   "/api/books/{root}/{name}/runs/{kind}/{label}/pages/{index}": {

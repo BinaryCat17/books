@@ -1,4 +1,4 @@
-import type { BookRow, ClassTable, Job, JobEvent, Layer, LedgerRow, ModelEntry, PageData, Pairs, Placement, Preset, Record_, RunInfo, SeriesRow, TruthPage, User } from "./types";
+import type { BookRow, ClassTable, Correction, Corrections, Format, Job, JobEvent, Layer, LedgerRow, ModelEntry, PageData, Pairs, Placement, Preset, Record_, RunInfo, SeriesRow, TruthPage, User } from "./types";
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -63,6 +63,10 @@ export const api = {
   imageUrl: (book: string, i: number, dpi = 110) => `/api/books/${book}/pages/${i}/image?dpi=${dpi}`,
   cropUrl: (book: string, kind: string, label: string, anchor: string) => `/api${run(book, kind, label)}/crops/${anchor}`,
   documentUrl: (book: string, kind: string, label: string) => `/api${run(book, kind, label)}/document`,
+  exportUrl: (book: string, kind: string, label: string, fmt: Format) => `/api${run(book, kind, label)}/export/${fmt}`,
+  corrections: (book: string, kind: string, label: string) => call<Corrections>("GET", `${run(book, kind, label)}/corrections`),
+  correct: (book: string, kind: string, label: string, body: Correction) => call<Corrections>("POST", `${run(book, kind, label)}/corrections`, body),
+  uncorrect: (book: string, kind: string, label: string, n: number) => call<Corrections>("DELETE", `${run(book, kind, label)}/corrections/${n}`),
   truthPage: (book: string, i: number) => call<TruthPage>("GET", `/books/${book}/truth/pages/${i}`),
   putTruthPage: (book: string, i: number, page: TruthPage) => call<Layer>("PUT", `/books/${book}/truth/pages/${i}`, page),
   startTruth: (book: string, kind: string, label: string) => call<{ truth: string; pages: number; dpi: number }>("POST", `/books/${book}/truth`, { kind, label }),

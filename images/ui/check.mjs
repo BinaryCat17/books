@@ -34,6 +34,25 @@ await page.waitForSelector("text=Metrics on page", { timeout: 60000 });
 await page.screenshot({ path: `${shots}/ui-viewer.png` });
 console.log("metrics tables", await page.locator(".panel table").count());
 
+const exported = await page.evaluate(async () => {
+  const r = await fetch("/api/books/processed/e2e/runs/detect/PP-DocLayoutV2/export/html");
+  const body = await r.text();
+  return { status: r.status, type: r.headers.get("content-type"), anchors: (body.match(/ id="p\d{4}-b\d+"/g) || []).length, crops: (body.match(/data:image\/png;base64,/g) || []).length };
+});
+console.log("html export:", JSON.stringify(exported));
+await page.fill("textarea[aria-label='corrected text']", "corrected by the check");
+await page.click("button:has-text('correct')");
+await page.waitForSelector("h1:has-text('.corrected')");
+await page.waitForSelector("text=derived from");
+console.log("corrections listed:", await page.locator("h2:has-text('Corrections')").count(), "· corrected mark:", await page.locator("td:has-text('✎')").count());
+const fixed = await page.evaluate(async () => (await (await fetch("/api/books/processed/e2e/runs/detect/PP-DocLayoutV2.corrected/export/text")).text()).trim());
+console.log("text export of the derived run:", JSON.stringify(fixed));
+await page.click("button[aria-label='undo correction 0']");
+await page.waitForSelector("h1:has-text('PP-DocLayoutV2')");
+await page.waitForTimeout(500);
+console.log("back on the base run:", !(await page.locator("h1").textContent()).includes(".corrected"));
+await page.waitForSelector(".sheet svg rect");
+
 const startTruth = page.locator("button:has-text('start truth')");
 if (await startTruth.count()) await startTruth.click(); else await page.click("button:has-text('label')");
 await page.waitForSelector(".sheet.label svg");

@@ -4,7 +4,7 @@ import json
 import os
 import re
 import shutil
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from backend import classes, raster
 from backend import store as book
 from backend import job
@@ -12,7 +12,8 @@ from backend import knobs
 from backend import identity as stamp
 from backend.errors import Refusal
 from backend.log import log
-from backend import document, fleet, measure, settings, truth
+from backend import corrections as corr
+from backend import document, export as export_mod, fleet, measure, settings, truth
 from backend import protocol as served
 
 
@@ -170,6 +171,12 @@ def upload(store: str, scan: str, name: str = "", filename: str = "") -> str:
     return dest
 
 
+def _level(snap: dict, kind: str) -> str:
+    if snap.get("derived_from"):
+        return "corrected"
+    return "hybrid" if snap.get("layout") == "own" else kind
+
+
 def runs(store: str, name: str) -> list[dict]:
     from backend.page import load_pages
 
@@ -200,7 +207,7 @@ def runs(store: str, name: str) -> list[dict]:
                     "identity": snap.get("identity"),
                     "pages": n,
                     "complete": bool(snap),
-                    "level": "hybrid" if snap.get("layout") == "own" else kind,
+                    "level": _level(snap, kind),
                     "when": snap.get("when"),
                 }
             )
@@ -321,31 +328,6 @@ def read(
         return out
 
 
-def html(
-    store: str, run_dir: str, settings: Mapping, out: str | None = None, base: job.Job | None = None
-) -> str:
-    from backend import export_html as html_mod
-
-    _inside(store, run_dir)
-    _inside(store, out)
-    with _job(store, settings, "", base).active():
-        d = book.run_dir(run_dir, "an export")
-        named = out is not None
-        out = out or book.home_for(d, store)
-        if (
-            not named
-            and os.path.isdir(out)
-            and os.listdir(out)
-            and (not html_mod.is_our_dir(out))
-            and (not os.path.isfile(os.path.join(out, "manifest.json")))
-        ):
-            raise Refusal(
-                f"{out} already holds something not ours: no manifest.json and no `{html_mod.ASSETS}/run.json`, so it is neither a book nor a build of an export. Overwriting it silently is not allowed: give --out or remove it by hand."
-            )
-        html_mod.build(d, out)
-        return out
-
-
 def _run_of(store: str, name: str, kind: str, label: str) -> tuple[book.Book, str]:
     b = book.Book.open(book_dir(store, name))
     have = b.runs(kind)
@@ -430,7 +412,7 @@ def run(store: str, name: str, kind: str, label: str) -> dict:
     return {
         "kind": kind,
         "label": label,
-        "level": "hybrid" if snap.get("layout") == "own" else kind,
+        "level": _level(snap, kind),
         "identity": snap.get("identity"),
         "when": snap.get("when"),
         "dpi": (snap.get("raster") or {}).get("dpi"),
@@ -438,6 +420,8 @@ def run(store: str, name: str, kind: str, label: str) -> dict:
         "pages": sorted(int(n[:4]) for n in os.listdir(pages) if n.endswith(".json") and n[:4].isdigit()),
         "truth": _truth_of(b),
         "observed": document.answers_present(rd),
+        "derived_from": snap.get("derived_from"),
+        "corrections": snap.get("corrections") or [],
     }
 
 
@@ -602,3 +586,59 @@ def start_truth(store: str, name: str, kind: str, label: str) -> dict:
 
 def class_table() -> dict:
     return classes.TABLE
+
+
+def export(store: str, name: str, kind: str, label: str, fmt: str, math: str = "cdn") -> tuple[Iterator[str], str, str]:
+    b, rd = _run_of(store, name, kind, label)
+    if fmt not in export_mod.FORMATS:
+        raise Refusal(f"no export named {fmt!r}; there are {', '.join(export_mod.FORMATS)}")
+    if math not in export_mod.MATH:
+        raise Refusal(f"math is one of {', '.join(export_mod.MATH)}, not {math!r}")
+    if b.pdf is None:
+        raise Refusal(f"{name}: the scan is not beside the manifest")
+    doc = document.write(rd)
+    media, ext = export_mod.FORMATS[fmt]
+    stem = re.sub(r"[^A-Za-z0-9._-]+", "-", os.path.splitext(doc["source"]["name"])[0]).strip("-") or "book"
+    return (_export_body(rd, b.pdf, doc, fmt, math), media, f"{stem}.{label}.{ext}")
+
+
+def _export_body(rd: str, pdf: str, doc: dict, fmt: str, math: str) -> Iterator[str]:
+    kept = os.path.join(rd, "crops")
+    said = stamp.knob_values(book.snapshot_beside(os.path.join(rd, "pages")) or {})
+    dpi = float(said["CROP_DPI"]) if said.get("CROP_DPI") else None
+    with raster.open_pdf(pdf) as scan:
+
+        def crop(blk: dict) -> bytes:
+            path = os.path.join(kept, f"{blk['anchor']}.png")
+            if os.path.isfile(path):
+                with open(path, "rb") as f:
+                    return f.read()
+            return raster.cut_png(scan, blk["page"], blk["box"], float(doc["page_dpi"]), dpi=dpi)[0]
+
+        yield from export_mod.render(fmt, doc, crop, math)
+
+
+def corrections(store: str, name: str, kind: str, label: str) -> dict:
+    _, rd = _run_of(store, name, kind, label)
+    base = corr.base_of(rd)
+    if not os.path.isdir(base):
+        raise Refusal(f"{kind}/{label} derives from a run that is gone")
+    derived = corr.derived_of(base)
+    return {
+        "base": os.path.basename(base),
+        "run": os.path.basename(derived) if os.path.isdir(derived) else None,
+        "corrections": corr.listed(base),
+    }
+
+
+def correct(store: str, name: str, kind: str, label: str, c: dict, author: str) -> dict:
+    _, rd = _run_of(store, name, kind, label)
+    corr.add(corr.base_of(rd), c, author)
+    return corrections(store, name, kind, label)
+
+
+def uncorrect(store: str, name: str, kind: str, label: str, n: int) -> dict:
+    _, rd = _run_of(store, name, kind, label)
+    base = corr.base_of(rd)
+    corr.remove(base, n)
+    return corrections(store, name, kind, os.path.basename(base))

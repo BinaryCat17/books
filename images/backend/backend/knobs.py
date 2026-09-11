@@ -27,21 +27,6 @@ KNOBS = (
         "crop sharpness for an export: empty is the scan's own resolution, or detection's when that cannot be told; a read and a crop do not read it, the model's window deciding there",
     ),
     Knob("CROP_MARGIN", "0", "margin around the box when cropping, in box fractions"),
-    Knob(
-        "HTML_MATH",
-        "inline",
-        "how formulas are drawn in the book: inline (MathJax inside the file), local (a neighbouring script, which a browser silently refuses to load over a network path), cdn (fetched on every open) or off (raw LaTeX)",
-    ),
-    Knob(
-        "HTML_IMAGES",
-        "inline",
-        "how the book carries the cut-out artefacts: inline (data links inside the html, so the file opens by any path) or linked (assets/blocks/*.png, which a browser silently refuses over a network path); the PNGs are written in both cases",
-    ),
-    Knob(
-        "HTML_REPEATS",
-        "hide",
-        "what to do with a proven repeat inside a page: hide (kept in the markup, not displayed) or show; the one build operation that takes text off the reader's eyes, so it has a switch",
-    ),
     Knob("BOOKSMITH_COMMIT", "", "the commit for a machine without git; empty = ask git in place"),
     Knob("MODEL_NAME", "PaddleOCR-VL-1.6-0.9B", "model name for vLLM and for the client"),
     Knob(
