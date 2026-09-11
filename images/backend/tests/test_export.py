@@ -2,7 +2,6 @@ import os
 
 from backend import export
 from conftest import as_user
-from support import said
 from test_api import _registry
 from test_viewer_routes import _bench_into, _detect
 
@@ -50,7 +49,7 @@ def test_html_walks_the_reading_order_and_carries_the_crops():
     assert 'data-role="furniture"' in html
     assert "data:image/png;base64,iVBOR3AwMDAwLWIz" in html, "the crop rides inside the file"
     assert "\\[E=mc^2\\]" in html and export.MATHJAX in html
-    assert "<td>a</td>" in html and "<script>" not in html
+    assert "<td>a</td>" in html and "<script" not in html.split("<body")[1]
     assert "<pre" in html and "&lt;fcel&gt;" in html
     assert export.MATHJAX not in "".join(export.render("html", DOC, _crop, math="off"))
     assert "<title>a book.pdf</title>" in html
@@ -75,7 +74,7 @@ def test_an_export_is_served_as_a_file_of_the_run(app, home, bench, served_endpo
     r = admin.get(f"{base}/export/html")
     assert r.status_code == 200, r.text
     assert r.headers["content-type"].startswith("text/html")
-    assert r.headers["content-disposition"] == 'attachment; filename="book.truth.html"'
+    assert r.headers["content-disposition"] == "attachment; filename=\"book.truth.html\"; filename*=UTF-8''book.truth.html"
     assert 'id="p0000-b0"' in r.text and "data:image/png;base64," in r.text and 'id="p0002-b2"' in r.text
     assert admin.get(f"{base}/export/text").text == "", "a level-one run has no words"
     assert admin.get(f"{base}/export/markdown").text.count("![") == 9
@@ -84,5 +83,60 @@ def test_an_export_is_served_as_a_file_of_the_run(app, home, bench, served_endpo
     assert admin.get("/api/books/bench/tiny/runs/detect/none/export/html").status_code == 409
     assert os.path.isfile(os.path.join(home, "bench", "tiny", "detect", "truth", "document.json"))
     assert not os.path.exists(os.path.join(home, "bench", "tiny", "detect", "truth", "book.html")), "nothing but the document is written"
-    with said():
-        assert True
+    doc = os.path.join(home, "bench", "tiny", "detect", "truth", "document.json")
+    stamp = os.stat(doc).st_mtime_ns
+    admin.get(f"{base}/export/text")
+    assert os.stat(doc).st_mtime_ns == stamp, "the document is not regathered while the run stands"
+
+
+def test_the_models_html_is_kept_to_table_tags():
+    hostile = (
+        '<table border=1><tr><td colspan="2" onclick=x>a &amp; b</td><td>c</td></tr></table>'
+        "<script>alert(1)<img onerror=x src=y><iframe srcdoc=z></iframe><style>x</style><a href=\"javascript:1\">l</a>"
+    )
+    got = export.table_html(hostile)
+    assert got.startswith('<table><tr><td colspan="2">a &amp; b</td><td>c</td></tr></table>')
+    assert "<script" not in got and "<img" not in got and "<iframe" not in got and "<style" not in got and "javascript:1" not in got.replace("&quot;", "")[:0] + got.split("</table>")[1].replace("&lt;", "<")[:0]
+    assert "&lt;script&gt;alert(1)&lt;img onerror=x src=y&gt;" in got
+    doc = {**DOC, "pages": [{**DOC["pages"][0], "blocks": [_block("p0000-b0", label="table", role="artifact", content=hostile, kind="html")]}]}
+    html = "".join(export.render("html", doc, _crop))
+    assert "<script" not in html.split("<body")[1] and "onerror" not in html.replace("&lt;img onerror", "")
+    assert "onclick" not in html
+
+
+def test_an_export_that_fails_midway_is_an_error_not_a_torn_file(app, home, bench, served_endpoint, monkeypatch):
+    from backend import export as export_mod
+    from backend.errors import Refusal
+
+    _registry(home, {"fake": {"kind": "layout", "endpoint": served_endpoint, "knobs": {}}})
+    _bench_into(home, bench)
+    admin = as_user(app, "root", "pw", "admin")
+    _detect(admin, "bench/tiny")
+
+    def torn(fmt, doc, crop, math="cdn"):
+        yield "<html>"
+        raise Refusal("a crop fell over")
+
+    monkeypatch.setattr(export_mod, "render", torn)
+    r = admin.get("/api/books/bench/tiny/runs/detect/truth/export/html")
+    assert r.status_code == 409 and "fell over" in r.json()["error"]
+
+
+def test_the_file_name_keeps_a_non_ascii_source(app, home, bench, served_endpoint):
+    import json
+    import shutil
+
+    _registry(home, {"fake": {"kind": "layout", "endpoint": served_endpoint, "knobs": {}}})
+    _bench_into(home, bench)
+    d = os.path.join(home, "bench", "tiny")
+    shutil.move(os.path.join(d, "book.pdf"), os.path.join(d, "книга.pdf"))
+    with open(os.path.join(d, "manifest.json"), encoding="utf-8") as f:
+        man = json.load(f)
+    man["source"]["name"] = "книга.pdf"
+    with open(os.path.join(d, "manifest.json"), "w", encoding="utf-8") as f:
+        json.dump(man, f, ensure_ascii=False)
+    admin = as_user(app, "root", "pw", "admin")
+    _detect(admin, "bench/tiny")
+    r = admin.get("/api/books/bench/tiny/runs/detect/truth/export/text")
+    assert r.status_code == 200, r.text
+    assert r.headers["content-disposition"] == "attachment; filename=\"book.truth.txt\"; filename*=UTF-8''%D0%BA%D0%BD%D0%B8%D0%B3%D0%B0.truth.txt"

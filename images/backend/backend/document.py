@@ -38,6 +38,8 @@ def _union_area(holes):
 def why_empty(o: dict | None) -> str:
     if o is None:
         return "whether it was read: nothing to say -- no answers/ alongside"
+    if o.get("corrected"):
+        return "erased by a correction"
     if o.get("error"):
         return f"there was no answer: {o['error']}"
     by_what = o.get("outcome")
@@ -62,15 +64,7 @@ def observed(detect_dir: str) -> dict:
             a = r.get("anchor")
             if not a:
                 continue
-            side = r.get("observed") or {}
-            out[a] = {
-                "outcome": r.get("outcome"),
-                "error": r.get("error"),
-                "prompt": side.get("prompt"),
-                "kind_promised": side.get("kind_promised"),
-                "kind_sniffed": side.get("kind_sniffed"),
-                "otsl_grid": side.get("otsl_grid"),
-            }
+            out[a] = _observation(r)
     return out
 
 
@@ -108,7 +102,7 @@ def _raw_latex_at(carrier: str, own: str) -> bool:
 
 def torn_of(o: dict | None) -> bool | None:
     by_what = (o or {}).get("outcome")
-    return None if by_what is None else by_what == "length"
+    return None if by_what in (None, "corrected") else by_what == "length"
 
 
 def torn_grid(grid: dict | None) -> str | None:
@@ -277,16 +271,22 @@ def observed_page(detect_dir: str, index: int) -> dict:
         a = r.get("anchor")
         if not a:
             continue
-        side = r.get("observed") or {}
-        out[a] = {
-            "outcome": r.get("outcome"),
-            "error": r.get("error"),
-            "prompt": side.get("prompt"),
-            "kind_promised": side.get("kind_promised"),
-            "kind_sniffed": side.get("kind_sniffed"),
-            "otsl_grid": side.get("otsl_grid"),
-        }
+        out[a] = _observation(r)
     return out
+
+
+def _observation(r: dict) -> dict:
+    if r.get("corrected"):
+        return {"outcome": "corrected", "corrected": r["corrected"]}
+    side = r.get("observed") or {}
+    return {
+        "outcome": r.get("outcome"),
+        "error": r.get("error"),
+        "prompt": side.get("prompt"),
+        "kind_promised": side.get("kind_promised"),
+        "kind_sniffed": side.get("kind_sniffed"),
+        "otsl_grid": side.get("otsl_grid"),
+    }
 
 
 def answers_present(detect_dir: str) -> bool:
@@ -447,6 +447,7 @@ def to_json(data: BookData) -> dict:
             "kind": kind if kind in KINDS else "detect",
             "label": os.path.basename(data.run_dir),
             "identity": data.snapshot.get("identity"),
+            "when": data.snapshot.get("when"),
         },
         "source": {"name": os.path.basename(data.pdf), "sha256": data.sha256_said or data.sha256},
         "policy": data.policy.snapshot(),

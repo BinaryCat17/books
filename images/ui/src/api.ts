@@ -67,6 +67,7 @@ export const api = {
   corrections: (book: string, kind: string, label: string) => call<Corrections>("GET", `${run(book, kind, label)}/corrections`),
   correct: (book: string, kind: string, label: string, body: Correction) => call<Corrections>("POST", `${run(book, kind, label)}/corrections`, body),
   uncorrect: (book: string, kind: string, label: string, n: number) => call<Corrections>("DELETE", `${run(book, kind, label)}/corrections/${n}`),
+  rederive: (book: string, kind: string, label: string) => call<Corrections>("POST", `${run(book, kind, label)}/corrections/again`),
   truthPage: (book: string, i: number) => call<TruthPage>("GET", `/books/${book}/truth/pages/${i}`),
   putTruthPage: (book: string, i: number, page: TruthPage) => call<Layer>("PUT", `/books/${book}/truth/pages/${i}`, page),
   startTruth: (book: string, kind: string, label: string) => call<{ truth: string; pages: number; dpi: number }>("POST", `/books/${book}/truth`, { kind, label }),

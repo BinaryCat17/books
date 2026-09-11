@@ -189,7 +189,7 @@ def runs(store: str, name: str) -> list[dict]:
         for label in sorted(os.listdir(base)):
             rd = os.path.join(base, label)
             pages = os.path.join(rd, "pages")
-            if not os.path.isdir(pages):
+            if not os.path.isdir(pages) or label.endswith(book.ASIDE):
                 continue
             snap_path = os.path.join(rd, "run.json")
             snap = {}
@@ -422,6 +422,7 @@ def run(store: str, name: str, kind: str, label: str) -> dict:
         "observed": document.answers_present(rd),
         "derived_from": snap.get("derived_from"),
         "corrections": snap.get("corrections") or [],
+        "stale": corr.stale(rd) if snap.get("derived_from") else False,
     }
 
 
@@ -588,34 +589,36 @@ def class_table() -> dict:
     return classes.TABLE
 
 
-def export(store: str, name: str, kind: str, label: str, fmt: str, math: str = "cdn") -> tuple[Iterator[str], str, str]:
+def export(store: str, name: str, kind: str, label: str, fmt: str, math: str = "cdn") -> tuple[Iterator[bytes], str, str]:
+    import tempfile
+    from urllib.parse import quote
+
     b, rd = _run_of(store, name, kind, label)
-    if fmt not in export_mod.FORMATS:
-        raise Refusal(f"no export named {fmt!r}; there are {', '.join(export_mod.FORMATS)}")
-    if math not in export_mod.MATH:
-        raise Refusal(f"math is one of {', '.join(export_mod.MATH)}, not {math!r}")
     if b.pdf is None:
         raise Refusal(f"{name}: the scan is not beside the manifest")
     doc = document.write(rd)
-    media, ext = export_mod.FORMATS[fmt]
-    stem = re.sub(r"[^A-Za-z0-9._-]+", "-", os.path.splitext(doc["source"]["name"])[0]).strip("-") or "book"
-    return (_export_body(rd, b.pdf, doc, fmt, math), media, f"{stem}.{label}.{ext}")
-
-
-def _export_body(rd: str, pdf: str, doc: dict, fmt: str, math: str) -> Iterator[str]:
     kept = os.path.join(rd, "crops")
     said = stamp.knob_values(book.snapshot_beside(os.path.join(rd, "pages")) or {})
     dpi = float(said["CROP_DPI"]) if said.get("CROP_DPI") else None
-    with raster.open_pdf(pdf) as scan:
+    page_dpi = {p["index"]: float(p["dpi"]) for p in doc["pages"]}
+    spool = tempfile.SpooledTemporaryFile(max_size=32 << 20)
+    with raster.open_pdf(b.pdf) as scan:
 
         def crop(blk: dict) -> bytes:
             path = os.path.join(kept, f"{blk['anchor']}.png")
             if os.path.isfile(path):
                 with open(path, "rb") as f:
                     return f.read()
-            return raster.cut_png(scan, blk["page"], blk["box"], float(doc["page_dpi"]), dpi=dpi)[0]
+            return raster.cut_png(scan, blk["page"], blk["box"], page_dpi[blk["page"]], dpi=dpi)[0]
 
-        yield from export_mod.render(fmt, doc, crop, math)
+        for chunk in export_mod.render(fmt, doc, crop, math):
+            spool.write(chunk.encode("utf-8"))
+    spool.seek(0)
+    media, ext = export_mod.FORMATS[fmt]
+    stem = os.path.splitext(doc["source"]["name"])[0] or "book"
+    plain = re.sub(r"[^A-Za-z0-9._-]+", "-", stem).strip("-") or "book"
+    disposition = f'attachment; filename="{plain}.{label}.{ext}"; filename*=UTF-8\'\'{quote(f"{stem}.{label}.{ext}")}'
+    return (iter(lambda: spool.read(1 << 20), b""), media, disposition)
 
 
 def corrections(store: str, name: str, kind: str, label: str) -> dict:
@@ -624,16 +627,24 @@ def corrections(store: str, name: str, kind: str, label: str) -> dict:
     if not os.path.isdir(base):
         raise Refusal(f"{kind}/{label} derives from a run that is gone")
     derived = corr.derived_of(base)
+    have = os.path.isdir(derived)
     return {
         "base": os.path.basename(base),
-        "run": os.path.basename(derived) if os.path.isdir(derived) else None,
+        "run": os.path.basename(derived) if have else None,
         "corrections": corr.listed(base),
+        "stale": corr.stale(derived) if have else False,
     }
 
 
 def correct(store: str, name: str, kind: str, label: str, c: dict, author: str) -> dict:
     _, rd = _run_of(store, name, kind, label)
     corr.add(corr.base_of(rd), c, author)
+    return corrections(store, name, kind, label)
+
+
+def rederive(store: str, name: str, kind: str, label: str) -> dict:
+    _, rd = _run_of(store, name, kind, label)
+    corr.again(corr.base_of(rd))
     return corrections(store, name, kind, label)
 
 

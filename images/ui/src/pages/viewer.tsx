@@ -22,12 +22,14 @@ export function Viewer({ user }: { user: User }) {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [labelling, setLabelling] = useState(false);
+  const [derived, setDerived] = useState<string | null>(null);
   const fail = (e: unknown) => setError(errorText(e));
   const canLabel = user.role === "admin" && run?.truth === "own";
 
   useEffect(() => {
-    api.run(book, kind, label).then((r) => { setRun(r); setIndex(r.pages[0] ?? 0); }, fail);
+    api.run(book, kind, label).then((r) => { setRun(r); setIndex((i) => (r.pages.includes(i) ? i : r.pages[0] ?? 0)); }, fail);
     api.series(book, kind, label).then(setSeries, () => setSeries([]));
+    api.corrections(book, kind, label).then((c) => setDerived(c.run && c.run !== label ? c.run : null), () => setDerived(null));
   }, [book, kind, label]);
   useEffect(() => {
     if (!run) return;
@@ -71,6 +73,18 @@ export function Viewer({ user }: { user: User }) {
       setBusy("");
     }
   }, [book, kind, label, navigate, reload]);
+  const rederive = useCallback(async () => {
+    setBusy("deriving…");
+    try {
+      await api.rederive(book, kind, label);
+      setError("");
+      await reload();
+    } catch (e) {
+      fail(e);
+    } finally {
+      setBusy("");
+    }
+  }, [book, kind, label, reload]);
   const uncorrect = useCallback(async (n: number) => {
     setBusy("undoing…");
     try {
@@ -121,7 +135,13 @@ export function Viewer({ user }: { user: User }) {
         <a href={api.documentUrl(book, kind, label)} target="_blank" rel="noreferrer">document.json</a>
         {FORMATS.map((f) => <a key={f} href={api.exportUrl(book, kind, label, f)}>{f}</a>)}
       </div>
-      {run.derived_from && <div className="muted" style={{ marginBottom: 8 }}>derived from <Link to={`/books/${book}/runs/${run.derived_from.kind}/${encodeURIComponent(run.derived_from.label)}`}>{run.derived_from.kind} · {run.derived_from.label}</Link> with {run.corrections.length} corrections</div>}
+      {run.derived_from && (
+        <div className="muted" style={{ marginBottom: 8 }}>
+          derived from <Link to={`/books/${book}/runs/${run.derived_from.kind}/${encodeURIComponent(run.derived_from.label)}`}>{run.derived_from.kind} · {run.derived_from.label}</Link> with {run.corrections.length} corrections
+          {run.stale && <> · <span className="err">the base ran again since</span> <button disabled={!!busy} onClick={rederive}>derive again</button></>}
+        </div>
+      )}
+      {derived && <div className="muted" style={{ marginBottom: 8 }}>corrected in <Link to={`/books/${book}/runs/${kind}/${encodeURIComponent(derived)}`}>{derived}</Link></div>}
       {error && <div className="err">{error}</div>}
       <div className="row" style={{ marginBottom: 8 }}>
         <button aria-label="previous page" disabled={pageNo <= 0} onClick={() => setIndex(run.pages[pageNo - 1])}>‹</button>

@@ -152,8 +152,8 @@ def classes(request: Request) -> dict:
 @router.get("/books/{root}/{name}/runs/{kind}/{label}/export/{fmt}")
 def export(root: str, name: str, kind: str, label: str, fmt: str, request: Request, math: str = "cdn") -> StreamingResponse:
     user = auth.require(request)
-    body, media, filename = service.export(_store(request, user), _book(root, name), kind, label, fmt, math)
-    return StreamingResponse(body, media_type=media, headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+    body, media, disposition = service.export(_store(request, user), _book(root, name), kind, label, fmt, math)
+    return StreamingResponse(body, media_type=media, headers={"Content-Disposition": disposition})
 
 
 @router.get("/books/{root}/{name}/runs/{kind}/{label}/corrections", response_model=shapes.Corrections)
@@ -167,6 +167,12 @@ def correct(root: str, name: str, kind: str, label: str, body: shapes.Correction
     user = auth.require(request)
     c = body.model_dump(exclude_unset=True)
     return service.correct(_store(request, user), _book(root, name), kind, label, c, user["name"])
+
+
+@router.post("/books/{root}/{name}/runs/{kind}/{label}/corrections/again", response_model=shapes.Corrections)
+def rederive(root: str, name: str, kind: str, label: str, request: Request) -> dict:
+    user = auth.require(request)
+    return service.rederive(_store(request, user), _book(root, name), kind, label)
 
 
 @router.delete("/books/{root}/{name}/runs/{kind}/{label}/corrections/{n}", response_model=shapes.Corrections)

@@ -22,8 +22,11 @@ CSS = (
     "pre{white-space:pre-wrap}"
 )
 CUT = "cut off by the length ceiling"
-_SCRIPT = re.compile(r"<script\b.*?</script>", re.S | re.I)
-_TAG = re.compile(r"<[^>]+>")
+MATH_CFG = 'window.MathJax={tex:{inlineMath:[],displayMath:[["\\\\[","\\\\]"]]},options:{processHtmlClass:"formula",ignoreHtmlClass:"book"}};'
+_TAG = re.compile(r"<(/?)([A-Za-z][A-Za-z0-9]*)\b([^<>]*?)/?>|<[^<>]*>?")
+_ELEMENT = re.compile(r"<(script|style)\b.*?</\1\s*>", re.S | re.I)
+_SPAN = re.compile(r"\b(colspan|rowspan)=[\"']?([0-9]+)")
+TABLE_TAGS = {"table", "thead", "tbody", "tfoot", "tr", "td", "th", "caption", "colgroup", "col", "br", "b", "i", "em", "strong", "sup", "sub"}
 Crop = Callable[[dict], bytes]
 
 
@@ -48,6 +51,21 @@ def _esc(s: str) -> str:
     return _html.escape(s, quote=True)
 
 
+def table_html(c: str) -> str:
+    out, at = [], 0
+    for m in _TAG.finditer(c):
+        out.append(_esc(_html.unescape(c[at : m.start()])))
+        at = m.end()
+        closing, name, attrs = (m.group(1), (m.group(2) or "").lower(), m.group(3) or "")
+        if name in TABLE_TAGS:
+            spans = "".join(f' {k}="{v}"' for k, v in _SPAN.findall(attrs)) if not closing else ""
+            out.append(f"<{closing}{name}{spans}>")
+        else:
+            out.append(_esc(m.group(0)))
+    out.append(_esc(_html.unescape(c[at:])))
+    return "".join(out)
+
+
 def _block_html(b: dict, crop: Crop) -> str:
     attrs = f' id="{b["anchor"]}" data-role="{b["role"]}" data-label="{_esc(b["label"])}"'
     if b["hit_ceiling"]:
@@ -57,9 +75,9 @@ def _block_html(b: dict, crop: Crop) -> str:
         return f'<figure{attrs}><img src="{_uri(crop, b)}" alt="{_esc(b["label"])}"><figcaption>{_esc(cap)}</figcaption></figure>'
     c, k = (b["content"], b["kind"])
     if k == "html":
-        return f"<div{attrs}>{_SCRIPT.sub('', c)}</div>"
+        return f"<div{attrs}>{table_html(c)}</div>"
     if k == "latex":
-        return f"<p{attrs}>\\[{_esc(c)}\\]</p>"
+        return f'<p class="formula"{attrs}>\\[{_esc(c)}\\]</p>'
     if k == "otsl":
         return f"<pre{attrs}>{_esc(c)}</pre>"
     return f"<p{attrs}>{_esc(c)}</p>"
@@ -69,8 +87,8 @@ def _html_doc(doc: dict, crop: Crop, math: str) -> Iterator[str]:
     formulas = any(b["kind"] == "latex" and not b["as_picture"] for p in doc["pages"] for b in p["blocks"])
     head = f'<!doctype html>\n<html><head><meta charset="utf-8"><title>{_esc(doc["source"]["name"])}</title><style>{CSS}</style>'
     if math == "cdn" and formulas:
-        head += f'<script src="{MATHJAX}" async></script>'
-    yield head + "</head>\n<body>\n"
+        head += f'<script>{MATH_CFG}</script><script src="{MATHJAX}" async></script>'
+    yield head + '</head>\n<body class="book">\n'
     for p in doc["pages"]:
         yield f'<hr data-page="{p["index"]}"' + (f' data-trouble="{p["trouble"]}"' if p["trouble"] else "") + ">\n"
         for b in blocks_of(p):
@@ -84,7 +102,7 @@ def _block_md(b: dict, crop: Crop) -> str | None:
     if b["as_picture"]:
         return f"![{b['label']}]({_uri(crop, b)})"
     c, k = (b["content"], b["kind"])
-    out = f"$$\n{c}\n$$" if k == "latex" else _SCRIPT.sub("", c) if k == "html" else f"```otsl\n{c}\n```" if k == "otsl" else c
+    out = f"$$\n{c}\n$$" if k == "latex" else table_html(c) if k == "html" else f"```otsl\n{c}\n```" if k == "otsl" else c
     return out + (f"\n\n*({CUT})*" if b["hit_ceiling"] else "")
 
 
@@ -103,7 +121,7 @@ def _plain(c: str) -> str:
         tag = m.group(0).lower()
         return "\n" if tag.startswith("</tr") else "\t" if tag.startswith(("</td", "</th")) else ""
 
-    text = _html.unescape(_TAG.sub(cell, _SCRIPT.sub("", c)))
+    text = _html.unescape(_TAG.sub(cell, _ELEMENT.sub("", c)))
     return "\n".join(line.rstrip("\t") for line in text.split("\n")).strip()
 
 

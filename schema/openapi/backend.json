@@ -58,6 +58,7 @@
      "drop": {
       "anyOf": [
        {
+        "const": true,
         "type": "boolean"
        },
        {
@@ -84,6 +85,65 @@
     "title": "Correction",
     "type": "object"
    },
+   "CorrectionRow": {
+    "additionalProperties": false,
+    "properties": {
+     "anchor": {
+      "pattern": "^p[0-9]{4}-b[0-9]+$",
+      "title": "Anchor",
+      "type": "string"
+     },
+     "author": {
+      "title": "Author",
+      "type": "string"
+     },
+     "content": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Content"
+     },
+     "drop": {
+      "anyOf": [
+       {
+        "const": true,
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Drop"
+     },
+     "label": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Label"
+     },
+     "when": {
+      "title": "When",
+      "type": "string"
+     }
+    },
+    "required": [
+     "anchor",
+     "author",
+     "when"
+    ],
+    "title": "CorrectionRow",
+    "type": "object"
+   },
    "Corrections": {
     "properties": {
      "base": {
@@ -92,8 +152,7 @@
      },
      "corrections": {
       "items": {
-       "additionalProperties": true,
-       "type": "object"
+       "$ref": "#/components/schemas/CorrectionRow"
       },
       "title": "Corrections",
       "type": "array"
@@ -108,12 +167,17 @@
        }
       ],
       "title": "Run"
+     },
+     "stale": {
+      "title": "Stale",
+      "type": "boolean"
      }
     },
     "required": [
      "base",
      "run",
-     "corrections"
+     "corrections",
+     "stale"
     ],
     "title": "Corrections",
     "type": "object"
@@ -546,8 +610,7 @@
     "properties": {
      "corrections": {
       "items": {
-       "additionalProperties": true,
-       "type": "object"
+       "$ref": "#/components/schemas/CorrectionRow"
       },
       "title": "Corrections",
       "type": "array"
@@ -614,6 +677,10 @@
       "title": "Policy",
       "type": "object"
      },
+     "stale": {
+      "title": "Stale",
+      "type": "boolean"
+     },
      "truth": {
       "anyOf": [
        {
@@ -649,7 +716,8 @@
      "truth",
      "observed",
      "derived_from",
-     "corrections"
+     "corrections",
+     "stale"
     ],
     "title": "RunInfo",
     "type": "object"
@@ -1568,6 +1636,72 @@
      }
     },
     "summary": "Correct"
+   }
+  },
+  "/api/books/{root}/{name}/runs/{kind}/{label}/corrections/again": {
+   "post": {
+    "operationId": "rederive_api_books__root___name__runs__kind___label__corrections_again_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "root",
+      "required": true,
+      "schema": {
+       "title": "Root",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "name",
+      "required": true,
+      "schema": {
+       "title": "Name",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "kind",
+      "required": true,
+      "schema": {
+       "title": "Kind",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "label",
+      "required": true,
+      "schema": {
+       "title": "Label",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Corrections"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Rederive"
    }
   },
   "/api/books/{root}/{name}/runs/{kind}/{label}/corrections/{n}": {

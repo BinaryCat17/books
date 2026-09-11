@@ -6,10 +6,10 @@ export type RunInfo = {
   kind: string; label: string; level: string; identity: string | null; when: string | null; dpi: number | null;
   policy: { vocabulary?: string; classes?: Record<string, string>; by_label?: Record<string, string>; buckets?: Record<string, string> };
   pages: number[]; truth: "own" | "borrowed" | null; observed: boolean;
-  derived_from: { kind: string; label: string; identity: string | null } | null; corrections: Correction[];
+  derived_from: { kind: string; label: string; identity: string | null; when: string | null } | null; corrections: Correction[]; stale: boolean;
 };
-export type Correction = { anchor: string; content?: string | null; label?: string; drop?: boolean; author?: string; when?: string };
-export type Corrections = { base: string; run: string | null; corrections: Correction[] };
+export type Correction = { anchor: string; content?: string | null; label?: string; drop?: true; author?: string; when?: string };
+export type Corrections = { base: string; run: string | null; corrections: Correction[]; stale: boolean };
 export type Format = "html" | "markdown" | "text";
 export const FORMATS: Format[] = ["html", "markdown", "text"];
 export type TruthBlockRaw = { block_id: number; box: [number, number, number, number]; label: string; score?: number | null; order?: number | null; content?: string | null; kind?: string; source_category?: string };

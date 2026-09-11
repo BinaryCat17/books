@@ -2,6 +2,7 @@ import hashlib
 import json
 import os
 import shutil
+import threading
 import time
 
 import jsonschema
@@ -9,9 +10,10 @@ import jsonschema
 from backend import classes as policy
 from backend import schema
 from backend.errors import Refusal
-from backend.page import anchor, parse_anchor, write_json
+from backend.page import parse_anchor, write_json
 
 SUFFIX = ".corrected"
+_LOCK = threading.Lock()
 
 
 def base_of(run_dir: str) -> str:
@@ -52,6 +54,18 @@ def check(c: dict, base_dir: str, pol: policy.Policy) -> None:
         raise Refusal(f"{c['label']!r} is not in the run's vocabulary: {', '.join(sorted(pol.classes))}")
 
 
+def _own(out: str, base_dir: str) -> None:
+    snap = os.path.join(out, "run.json")
+    if not os.path.exists(snap):
+        return
+    try:
+        who = (_snapshot(out).get("derived_from") or {}).get("label")
+    except (OSError, ValueError):
+        who = None
+    if who != os.path.basename(base_dir):
+        raise Refusal(f"{os.path.basename(out)} is a run of its own, not derived from {os.path.basename(base_dir)}; it is not rewritten")
+
+
 def identity_of(base_identity: str | None, corrections: list[dict]) -> str:
     said = [{k: v for k, v in c.items() if k in ("anchor", "content", "label", "drop")} for c in corrections]
     blob = json.dumps({"base": base_identity, "corrections": said}, sort_keys=True, ensure_ascii=False)
@@ -68,7 +82,7 @@ def _apply(page: dict, fixes: list[dict]) -> dict:
             if "label" in c:
                 b = {**b, "label": c["label"]}
             if "content" in c:
-                b = {**b, "content": c["content"], "kind": "text" if c["content"] and b.get("kind", "none") == "none" else b.get("kind", "none")}
+                b = {**b, "content": c["content"], "kind": "text" if c["content"] else "none"}
         blocks.append(b)
     return {**page, "blocks": blocks}
 
@@ -76,17 +90,23 @@ def _apply(page: dict, fixes: list[dict]) -> dict:
 def derive(base_dir: str, corrections: list[dict]) -> str:
     base_dir = base_dir.rstrip("/")
     out = derived_of(base_dir)
+    _own(out, base_dir)
     snap = _snapshot(base_dir)
     pol = policy.Policy.from_snapshot(snap.get("policy"))
+    dropped = set()
     for c in corrections:
         check(c, base_dir, pol)
+        if c["anchor"] in dropped:
+            raise Refusal(f"{c['anchor']} was dropped by an earlier correction; undo that first")
+        if c.get("drop"):
+            dropped.add(c["anchor"])
     by_page: dict[int, list[dict]] = {}
-    touched = set()
+    touched: dict[str, dict] = {}
     for c in corrections:
         index, block_id = parse_anchor(c["anchor"])
         by_page.setdefault(index, []).append({**c, "block_id": block_id})
         if "content" in c or c.get("drop"):
-            touched.add(c["anchor"])
+            touched[c["anchor"]] = {"author": c.get("author"), "when": c.get("when")}
     tmp = out + ".new"
     shutil.rmtree(tmp, ignore_errors=True)
     os.makedirs(os.path.join(tmp, "pages"))
@@ -105,7 +125,9 @@ def derive(base_dir: str, corrections: list[dict]) -> str:
                 continue
             with open(os.path.join(answers, name), encoding="utf-8") as f:
                 d = json.load(f)
-            d["answers"] = [a for a in (d.get("answers") or []) if a.get("anchor") not in touched]
+            d["answers"] = [
+                {**a, "corrected": touched[a["anchor"]]} if a.get("anchor") in touched else a for a in (d.get("answers") or [])
+            ]
             write_json(os.path.join(tmp, "answers", name), d, indent=1)
     if os.path.isdir(os.path.join(base_dir, "crops")):
         os.symlink(os.path.join("..", os.path.basename(base_dir), "crops"), os.path.join(tmp, "crops"))
@@ -116,7 +138,12 @@ def derive(base_dir: str, corrections: list[dict]) -> str:
             "label": os.path.basename(out),
             "identity": identity_of(snap.get("identity"), corrections),
             "when": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
-            "derived_from": {"kind": os.path.basename(os.path.dirname(base_dir)), "label": os.path.basename(base_dir), "identity": snap.get("identity")},
+            "derived_from": {
+                "kind": os.path.basename(os.path.dirname(base_dir)),
+                "label": os.path.basename(base_dir),
+                "identity": snap.get("identity"),
+                "when": snap.get("when"),
+            },
             "corrections": corrections,
         },
         indent=1,
@@ -132,19 +159,36 @@ def derive(base_dir: str, corrections: list[dict]) -> str:
 
 def add(base_dir: str, c: dict, author: str) -> str:
     when = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    return derive(base_dir, listed(base_dir) + [{**c, "author": author, "when": when}])
+    with _LOCK:
+        return derive(base_dir, listed(base_dir) + [{**c, "author": author, "when": when}])
 
 
 def remove(base_dir: str, n: int) -> str | None:
-    have = listed(base_dir)
-    if not 0 <= n < len(have):
-        raise Refusal(f"no correction {n}; there are {len(have)}")
-    kept = have[:n] + have[n + 1 :]
-    if kept:
-        return derive(base_dir, kept)
-    shutil.rmtree(derived_of(base_dir), ignore_errors=True)
-    return None
+    with _LOCK:
+        have = listed(base_dir)
+        if not 0 <= n < len(have):
+            raise Refusal(f"no correction {n}; there are {len(have)}")
+        kept = have[:n] + have[n + 1 :]
+        if kept:
+            return derive(base_dir, kept)
+        _own(derived_of(base_dir), base_dir)
+        shutil.rmtree(derived_of(base_dir), ignore_errors=True)
+        return None
 
 
-def block_anchor(index: int, block_id: int) -> str:
-    return anchor(index, block_id)
+def again(base_dir: str) -> str:
+    with _LOCK:
+        have = listed(base_dir)
+        if not have:
+            raise Refusal(f"{os.path.basename(base_dir)} has no corrections to derive from")
+        return derive(base_dir, have)
+
+
+def stale(derived_dir: str) -> bool:
+    snap = _snapshot(derived_dir)
+    who = snap.get("derived_from") or {}
+    base = os.path.join(os.path.dirname(derived_dir), who.get("label") or "")
+    if not who or not os.path.isfile(os.path.join(base, "run.json")):
+        return True
+    now = _snapshot(base)
+    return (now.get("identity"), now.get("when")) != (who.get("identity"), who.get("when"))

@@ -46,8 +46,15 @@ once a layer lands.
 | `GET /models`, `PUT /models`, `GET /models/presets`, `GET /users`, `POST /users` | the registry (kept by the fleet) and the users (admin) |
 | `GET /fleet/placements`, `DELETE /fleet/placements/{id}`, `GET /fleet/ledger` | what the fleet runs and what it cost (admin) |
 
+Exports are rendered from `document.json` on each request, crops cut from
+the scan and carried inside the file; a verbatim repeat of a block on the
+same page, and in markdown and text the furniture, are left out. Formulas
+are drawn by MathJax from the network (`math=cdn`) or left as LaTeX (`off`).
+
 Corrections: `{anchor, content | label | drop}` on a run or on its derived
 run; each one rewrites `<kind>/<label>.corrected/` from the base run (pages
-with the corrections applied, the base's answers minus the corrected
-blocks, its crops linked), with `derived_from` and `corrections` in
-`run.json` and an identity of its own. The base run is never written.
+with the corrections applied, the base's answers with the corrected blocks
+stamped, its crops linked), with `derived_from` and `corrections` in
+`run.json` and an identity of its own. The base run is never written; when
+it runs again the derived run reads `stale` until `POST …/corrections/again`.
+A directory named `.new` or `.old` is never a run.
