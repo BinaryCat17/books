@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { api, errorText } from "../api";
-import { choicesOf, fromRun, moved, normalBox, relabelled, roleOf, toRaster, trait, withBox, withTrait, without, type Box, type Choice } from "../label";
+import { choicesOf, fromRun, moved, normalBox, relabelled, roleOf, scaleOf, toRaster, trait, withBox, withTrait, without, type Box, type Choice } from "../label";
 import type { ClassTable, PageData, RunInfo, TruthPage } from "../types";
 
 const TRAITS = ["labelled", "text_marked", "order_marked"] as const;
@@ -24,8 +24,10 @@ export function Labeler({ book, run, index, page, onDone }: { book: string; run:
 
   useEffect(() => { api.classes().then(setTable, (e) => setError(errorText(e))); }, []);
   useEffect(() => {
+    let live = true;
     setTruth(null); setSaved(null); setSelected(null); setDraft(null);
-    api.truthPage(book, index).then((t) => { setTruth(t); setSaved(t); }, (e) => setError(errorText(e)));
+    api.truthPage(book, index).then((t) => { if (live) { setTruth(t); setSaved(t); } }, (e) => { if (live) setError(errorText(e)); });
+    return () => { live = false; };
   }, [book, index]);
   useEffect(() => { if (!drawAs && choices.length) setDrawAs((choices.find((c) => c.cls === "text") ?? choices[0]).label); }, [choices, drawAs]);
 
@@ -45,11 +47,11 @@ export function Labeler({ book, run, index, page, onDone }: { book: string; run:
     if (!p || !start.current || !truth) return;
     setDraft(normalBox(start.current[0], start.current[1], p[0], p[1], truth.width, truth.height));
   };
+  const cancel = () => { start.current = null; setDraft(null); };
   const up = (e: React.PointerEvent<SVGSVGElement>) => {
     const p = at(e);
     const s = start.current;
-    start.current = null;
-    setDraft(null);
+    cancel();
     if (!p || !s || !truth) return;
     const box = normalBox(s[0], s[1], p[0], p[1], truth.width, truth.height);
     if (box[2] - box[0] < LEAST || box[3] - box[1] < LEAST) return;
@@ -75,7 +77,7 @@ export function Labeler({ book, run, index, page, onDone }: { book: string; run:
       <div className="row" style={{ marginBottom: 8 }}>
         <span>draw as <select aria-label="draw as" value={drawAs} onChange={(e) => setDrawAs(e.target.value)}>{choices.map((c) => <option key={c.label} value={c.label}>{c.label}{c.cls !== c.label ? ` (${c.cls})` : ""}</option>)}</select></span>
         <label><input type="checkbox" checked={showRun} onChange={(e) => setShowRun(e.target.checked)} /> show the run</label>
-        {page && truth && <button onClick={() => { setTruth(fromRun(truth, page.blocks)); setSelected(null); }}>take the run's boxes</button>}
+        {page && truth && <button onClick={() => { setTruth(fromRun(truth, page.blocks, page)); setSelected(null); }}>take the run's boxes</button>}
         <span style={{ flex: 1 }} />
         <button className="primary" disabled={!dirty || busy} onClick={save}>{busy ? "saving…" : "save layer"}</button>
         <button disabled={!dirty || busy} onClick={() => { setTruth(saved); setSelected(null); }}>discard</button>
@@ -86,14 +88,18 @@ export function Labeler({ book, run, index, page, onDone }: { book: string; run:
         <div className="sheet label">
           <img src={api.imageUrl(book, index)} alt={`page ${index}`} draggable={false} />
           {truth && (
-            <svg ref={svg} viewBox={`0 0 ${truth.width} ${truth.height}`} preserveAspectRatio="none" onPointerDown={down} onPointerMove={move} onPointerUp={up}>
-              {showRun && page?.blocks.map((b) => <rect key={"r" + b.anchor} className={`ghost ${b.role}`} x={b.box[0]} y={b.box[1]} width={b.box[2] - b.box[0]} height={b.box[3] - b.box[1]} />)}
+            <svg ref={svg} viewBox={`0 0 ${truth.width} ${truth.height}`} preserveAspectRatio="none" onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={cancel}>
+              {showRun && page && (
+                <g transform={`scale(${scaleOf(truth, page).join(" ")})`}>
+                  {page.blocks.map((b) => <rect key={"r" + b.anchor} className={`ghost ${b.role}`} x={b.box[0]} y={b.box[1]} width={b.box[2] - b.box[0]} height={b.box[3] - b.box[1]} />)}
+                </g>
+              )}
               {truth.blocks.map((b) => (
                 <rect
                   key={b.block_id}
                   className={`edit ${roleOf(b.label, choices, table)} ${selected === b.block_id ? "sel" : ""}`}
                   x={b.box[0]} y={b.box[1]} width={b.box[2] - b.box[0]} height={b.box[3] - b.box[1]}
-                  onPointerDown={(e) => { e.stopPropagation(); setSelected(b.block_id); }}
+                  onPointerDown={() => setSelected(b.block_id)}
                 >
                   <title>{b.order} {b.label}</title>
                 </rect>

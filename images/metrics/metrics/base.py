@@ -68,6 +68,7 @@ class Record:
     identity: str | None = None
     source_sha256: str | None = None
     book: str | None = None
+    truth_sha256: str | None = None
 
     def row(self) -> dict:
         out = {"metric": self.metric, "bench": self.bench, "run": self.run}
@@ -82,6 +83,7 @@ class Record:
             "book": self.book,
             "identity": self.identity,
             "source_sha256": self.source_sha256,
+            "truth_sha256": self.truth_sha256,
             "scalars": {k: s.to_json() for k, s in self.scalars.items()},
             "params": self.params,
             "detail": self.detail,
@@ -99,6 +101,7 @@ class Record:
             d.get("identity"),
             d.get("source_sha256"),
             d.get("book"),
+            d.get("truth_sha256"),
         )
 
 

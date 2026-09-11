@@ -1,4 +1,5 @@
 import os
+import re
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -8,9 +9,11 @@ import metrics as registry
 from metrics import contour, job, settings, table
 from metrics import store as book_mod
 from metrics.base import run_probes
-from metrics.bench import Bench, Run, labelled_of, labelled_said
+from metrics.bench import Bench, Run, labelled_of, labelled_said, read_json
 from metrics.errors import BooksmithError, Refusal, Unmeasurable
 from metrics.page import load_pages
+
+_BORROW = re.compile(r"bench/[A-Za-z0-9][A-Za-z0-9._+-]*/truth")
 
 
 class Ask(BaseModel):
@@ -38,10 +41,19 @@ def _open(a: Ask | PairsAsk) -> tuple[Bench, Run]:
     if not (root == home or root.startswith(home + os.sep)) or not os.path.isdir(root) or root == home:
         raise Refusal(f"no book {a.book}")
     if a.truth:
+        if os.path.isdir(os.path.join(root, "truth")):
+            raise Refusal(f"{a.book} has truth of its own; `truth` is for a book with none")
+        if not _BORROW.fullmatch(a.truth):
+            raise Refusal(f"`truth` names a bench's truth at the root, bench/<name>/truth, not {a.truth!r}")
         truth = os.path.realpath(os.path.join(home, a.truth))
         if not truth.startswith(home + os.sep) or not os.path.isdir(truth):
             raise Refusal(f"no truth {a.truth}")
         b = Bench.borrowing(root, truth)
+        theirs = (read_json(os.path.join(os.path.dirname(truth), "manifest.json")) or {}).get("source") or {}
+        if not b.sha256 or theirs.get("sha256") != b.sha256:
+            raise Unmeasurable(
+                f"{a.truth} is about a different scan than {a.book}: sha256 {str(theirs.get('sha256'))[:12]} against {str(b.sha256)[:12]}"
+            )
     elif os.path.isdir(os.path.join(root, "truth")):
         b = Bench.open(root)
     else:

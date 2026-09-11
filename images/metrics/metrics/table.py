@@ -2,13 +2,16 @@ import dataclasses
 from metrics import job
 from metrics.errors import Refusal
 import metrics as registry
+from metrics import bench as bench_mod
 from metrics.bench import Bench, Run, book_of, labelled_of, labelled_said, same_book, trait_state
 from metrics.log import log
 
 
 def rows(bench: Bench, run: Run, which=None, pages_want=None) -> list:
     pages = bench.pages() if bench.truth_dir else {}
+    truth_sha = bench_mod.fingerprint(pages) if bench.truth_dir else None
     model = run.pages()
+    unlabelled: list = []
     if pages_want is not None:
         want = set(pages_want)
         if not want:
@@ -18,14 +21,19 @@ def rows(bench: Bench, run: Run, which=None, pages_want=None) -> list:
             if gone:
                 raise Refusal(f"{side} has no pages {gone[:5]}: nothing to measure there")
         if pages and labelled_said(labelled_of(pages)):
-            out = sorted(i for i in want if trait_state(pages[i].get("meta") or {}, "labelled") != "yes")
-            if out:
-                raise Refusal(
-                    f"pages {out[:5]} are not labelled in this truth, which names its labelled pages: nothing to compare there"
-                )
+            unlabelled = sorted(i for i in want if trait_state(pages[i].get("meta") or {}, "labelled") != "yes")
         pages = {i: p for i, p in pages.items() if i in want}
         model = {i: p for i, p in model.items() if i in want}
     can = registry.base.applicable(registry.METRICS, bench, run, pages, model)
+    if unlabelled:
+        held = [m for m in can if "truth" in m.needs]
+        if which and any(m.name in which for m in held):
+            raise Refusal(
+                f"pages {unlabelled[:5]} are not labelled in this truth, which names its labelled pages: nothing to compare there"
+            )
+        for m in held:
+            log(f"{m.name}: NOT MEASURED, pages {unlabelled[:5]} are not labelled in this truth")
+        can = [m for m in can if m not in held]
     have = registry.base.prerequisites(bench, run, pages, model)
     if which:
         unknown = [n for n in which if n not in registry.BY_NAME]
@@ -56,6 +64,7 @@ def rows(bench: Bench, run: Run, which=None, pages_want=None) -> list:
                 book=book_of(bench),
                 identity=run.snapshot.get("identity"),
                 source_sha256=run.sha256,
+                truth_sha256=truth_sha,
             )
         )
     return out

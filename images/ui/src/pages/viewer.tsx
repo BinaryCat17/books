@@ -41,7 +41,7 @@ export function Viewer({ user }: { user: User }) {
   const startTruth = useCallback(async () => {
     setBusy("starting…");
     try {
-      await api.startTruth(book);
+      await api.startTruth(book, kind, label);
       setRun(await api.run(book, kind, label));
       setLabelling(true);
       setError("");

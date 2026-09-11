@@ -95,7 +95,13 @@ def knob_values(snapshot: dict) -> dict:
 CURRENT, STALE, NOT_RECORDED, NOT_CHECKED = "current", "stale", "not recorded", "not checked"
 
 
-def staleness(identity: str | None, snapshot: dict | None, source_sha256: str | None = None) -> str:
+def staleness(
+    identity: str | None,
+    snapshot: dict | None,
+    source_sha256: str | None = None,
+    truth_sha256: str | None = None,
+    truth_now: str | None = None,
+) -> str:
     if identity is None:
         return NOT_RECORDED
     if snapshot is None or snapshot.get("identity") is None:
@@ -104,5 +110,7 @@ def staleness(identity: str | None, snapshot: dict | None, source_sha256: str | 
         return STALE
     sworn = (snapshot.get("source") or {}).get("sha256")
     if source_sha256 is not None and sworn is not None and sworn != source_sha256:
+        return STALE
+    if truth_sha256 is not None and truth_now is not None and truth_sha256 != truth_now:
         return STALE
     return CURRENT

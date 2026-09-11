@@ -4,7 +4,7 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from backend.page import anchor, load_pages
-from backend.truth import pages as truth_pages
+from backend.truth import fingerprint, pages as truth_pages
 
 CATALOG = [
     {
@@ -81,11 +81,16 @@ def measure(body):
         }
     ]
     if os.path.isdir(_truth_dir(body)):
+        base["truth_sha256"] = fingerprint(_truth_dir(body))
+        recs = [{**r, "truth_sha256": base["truth_sha256"]} for r in recs]
         recs.append(
             {
                 **base,
                 "metric": "contour",
-                "scalars": {"artefacts_found": {"value": 1.0, "count": {"n": 1, "of": 1}}},
+                "scalars": {
+                    "artefacts_found": {"value": 1.0, "count": {"n": 1, "of": 1}, "per": {anchor(i, 1): 1.0 for i in idx}, "side": "truth"}
+                },
+                "detail": {"by_label": {"table": {"found": 1}}},
             }
         )
     only = body.get("only")

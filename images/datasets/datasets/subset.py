@@ -149,6 +149,10 @@ def _pages(books, root, arte, doc, work, wpdf, wman, tdir, out_dir):
         shutil.rmtree(keep)
     if os.path.isdir(tdir):
         os.rename(tdir, keep)
+        layers = os.path.join(out_dir, "truth.layers")
+        if os.path.isdir(layers):
+            os.rename(layers, os.path.join(keep, "layers"))
+            log(f"the layers on the previous truth go with it: {keep}/layers")
     os.rename(work, tdir)
     os.replace(wpdf, pdf)
     os.replace(wman, os.path.join(out_dir, "manifest.json"))

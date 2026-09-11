@@ -170,6 +170,12 @@ def test_truth_pdf_and_manifest_are_swapped_together():
         "the manifest moved on its own: its sha256 and page_count no longer describe the bench beside it"
     )
     assert not _aside(out), f"aside files left behind: {_aside(out)}"
+    layers = os.path.join(out, "truth.layers")
+    os.makedirs(layers)
+    with open(os.path.join(layers, "0000-20260911T000000.000000Z-root.json"), "w", encoding="utf-8") as f:
+        f.write("{}")
+    subset.build(["small", "more"], out, root=root)
+    assert not os.path.isdir(layers), "layers on a truth that is gone would shadow the new pages"
     shutil.rmtree(tmp, ignore_errors=True)
 
 

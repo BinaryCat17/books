@@ -131,15 +131,16 @@ def truth_page(root: str, name: str, index: int, request: Request) -> dict:
 
 
 @router.put("/books/{root}/{name}/truth/pages/{index}", response_model=shapes.Layer)
-def put_truth_page(root: str, name: str, index: int, body: dict, request: Request) -> dict:
+def put_truth_page(root: str, name: str, index: int, body: shapes.TruthPage, request: Request) -> dict:
     user = auth.require(request, "admin")
-    return service.label_page(_store(request, user), _book(root, name), index, body, user["name"])
+    page = body.model_dump(exclude_unset=True)
+    return service.label_page(_store(request, user), _book(root, name), index, page, user["name"])
 
 
 @router.post("/books/{root}/{name}/truth", response_model=shapes.TruthStart)
-def start_truth(root: str, name: str, request: Request) -> dict:
+def start_truth(root: str, name: str, body: shapes.RunRef, request: Request) -> dict:
     user = auth.require(request, "admin")
-    return service.start_truth(_store(request, user), _book(root, name))
+    return service.start_truth(_store(request, user), _book(root, name), body.kind, body.label)
 
 
 @router.get("/classes")
@@ -170,7 +171,8 @@ def document(root: str, name: str, kind: str, label: str, request: Request) -> d
 def page_metrics(root: str, name: str, kind: str, label: str, index: int, request: Request) -> list[dict]:
     user = auth.require(request)
     return service.measure_page(
-        request.app.state.settings, _store(request, user), _book(root, name), kind, label, index
+        request.app.state.settings, _store(request, user), _book(root, name), kind, label, index,
+        truth_side=user["role"] == "admin",
     )
 
 

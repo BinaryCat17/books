@@ -1,4 +1,6 @@
-from pydantic import BaseModel
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class User(BaseModel):
@@ -36,14 +38,43 @@ class RunInfo(BaseModel):
     observed: bool
 
 
+class TruthBlock(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    block_id: int
+    box: list[float] = Field(min_length=4, max_length=4)
+    label: str
+    score: float | None = None
+    order: int | None = None
+    content: str | None = None
+    kind: Literal["html", "otsl", "latex", "text", "none"] = "none"
+    source_category: str | None = None
+
+
+class TruthPage(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    index: int
+    width: int
+    height: int
+    dpi: float
+    blocks: list[TruthBlock]
+    raw: None = None
+    meta: dict = Field(default_factory=dict)
+
+
 class Layer(BaseModel):
     layer: str
     page: dict
 
 
+class RunRef(BaseModel):
+    kind: str
+    label: str
+
+
 class TruthStart(BaseModel):
     truth: str
     pages: int
+    dpi: float
 
 
 class Job(BaseModel):
@@ -74,6 +105,7 @@ class SeriesRow(BaseModel):
     metric: str
     identity: str | None
     source_sha256: str | None
+    truth_sha256: str | None = None
     commit: str | None
     when: float
     pages: list[int] | None

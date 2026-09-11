@@ -18,6 +18,18 @@ def truth_pages(truth_dir):
     return out
 
 
+def _fitted(page, png, dpi):
+    import base64
+    import struct
+
+    if isinstance(png, str):
+        png = base64.b64decode(png.split(",", 1)[1])
+    w, h = struct.unpack(">II", png[16:24])
+    kx, ky = (w / page["width"], h / page["height"])
+    blocks = [{**b, "box": [b["box"][0] * kx, b["box"][1] * ky, b["box"][2] * kx, b["box"][3] * ky]} for b in page["blocks"]]
+    return {**page, "width": w, "height": h, "dpi": float(dpi), "blocks": blocks}
+
+
 def _weights_hash(pages):
     h = hashlib.sha256()
     for i in sorted(pages):
@@ -39,8 +51,10 @@ class FakeLayout:
         openai=None,
         answer=None,
         classes=None,
+        fit=False,
     ):
         self.pages = truth_pages(truth_dir)
+        self.fit = fit
         self.kind, self.label, self.keep_content = (kind, label, keep_content)
         if classes is None:
             classes = policy.VOCABULARIES[vocabulary]
@@ -121,6 +135,8 @@ class FakeLayout:
                 if page is None:
                     return self._json(404, {"error": f"no page {req.index}"})
                 out = srv._answer(page)
+                if srv.fit:
+                    out = _fitted(out, req.image, req.dpi)
                 return self._json(200, srv.answer(out) if srv.answer else out)
 
         self.httpd = HTTPServer(("127.0.0.1", 0), H)

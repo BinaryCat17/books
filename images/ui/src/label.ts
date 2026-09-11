@@ -52,11 +52,17 @@ export function moved(page: TruthPage, blockId: number, delta: -1 | 1): TruthPag
   return renumbered({ ...page, blocks });
 }
 
-export function fromRun(page: TruthPage, blocks: Block[]): TruthPage {
+export function scaleOf(truth: { width: number; height: number }, run: { width: number; height: number }): [number, number] {
+  return [truth.width / run.width, truth.height / run.height];
+}
+
+export function fromRun(page: TruthPage, blocks: Block[], run: { width: number; height: number }): TruthPage {
+  const [kx, ky] = scaleOf(page, run);
+  const scaled = (b: Box): Box => [b[0] * kx, b[1] * ky, b[2] * kx, b[3] * ky].map((v) => Math.round(v * 10) / 10) as Box;
   const taken = [...blocks].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   return renumbered({
     ...page,
-    blocks: taken.map((b, i) => ({ block_id: i, box: b.box, label: b.label, score: null, order: i, content: b.content, kind: b.kind === "none" ? "none" : b.kind })),
+    blocks: taken.map((b, i) => ({ block_id: i, box: scaled(b.box), label: b.label, score: null, order: i, content: b.content, kind: b.kind })),
   });
 }
 

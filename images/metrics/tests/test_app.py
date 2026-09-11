@@ -68,6 +68,44 @@ def test_a_layer_is_the_newest_word_on_a_page_and_truth_can_be_borrowed(bench, h
     ask2 = {"store": "", "book": "processed/twin", "kind": "detect", "run": "truth", "truth": "bench/tiny/truth"}
     got = c.post("/measure", json={**ask2, "only": ["contour"]}).json()["records"]
     assert got[0]["book"] == "processed/twin" and got[0]["scalars"]["artefacts_found"]["count"] == {"n": 2, "of": 2}
+    assert got[0]["truth_sha256"] == recs[0]["truth_sha256"], "the record names the truth it was measured against"
     assert c.post("/pairs", json={**ask2, "index": 0}).json()["compared"]
-    assert c.post("/measure", json={**ask2, "truth": "../etc"}).status_code == 409
+    for bad in ("../etc", "processed/twin/truth", "bench/tiny", "/bench/tiny/truth", "bench/../bench/tiny/truth"):
+        assert c.post("/measure", json={**ask2, "truth": bad}).status_code == 409, bad
+    assert c.post("/measure", json={**ask, "truth": "bench/tiny/truth"}).status_code == 409, "a book with truth of its own"
+    write_json(os.path.join(layers, "0001-20260911T000001.000000Z-root.json"), {**t, "blocks": []})
+    write_json(os.path.join(layers, "0007-20260911T000001.000000Z-root.json"), {**t, "index": 7})
+    p = c.post("/pairs", json={**ask, "index": 1}).json()
+    assert p["pairs"] == [] and len(p["extras"]) == 3, "the newest layer wins; a layer for no base page is nothing"
+    newer = c.post("/measure", json={**ask, "pages": [1], "only": ["contour"]}).json()["records"]
+    assert newer[0]["truth_sha256"] != recs[0]["truth_sha256"], "a layer changes the truth's fingerprint"
+    with open(os.path.join(other, "manifest.json"), encoding="utf-8") as f:
+        man = json.load(f)
+    man["source"]["sha256"] = "0" * 64
+    write_json(os.path.join(other, "manifest.json"), man)
+    r = c.post("/measure", json=ask2)
+    assert r.status_code == 422 and "different scan" in r.json()["error"]
     shutil.rmtree(layers)
+    shutil.rmtree(other)
+
+
+def test_a_truth_that_names_its_labelled_pages_holds_back_only_the_metrics_that_need_it(bench, home):
+    import shutil
+
+    from metrics.page import write_json
+
+    other = os.path.join(home, "processed", "blank")
+    shutil.copytree(bench.root, other, ignore=lambda d, names: [n for n in names if d == bench.root and n.startswith("truth")])
+    os.makedirs(os.path.join(other, "truth"))
+    for i in range(3):
+        with open(os.path.join(bench.truth_dir, f"{i:04d}.json"), encoding="utf-8") as f:
+            t = json.load(f)
+        write_json(os.path.join(other, "truth", f"{i:04d}.json"), {**t, "blocks": [], "meta": {"labelled": False}})
+    c = TestClient(create_app())
+    ask = {"store": "", "book": "processed/blank", "kind": "detect", "run": "truth", "pages": [1]}
+    recs = c.post("/measure", json=ask).json()["records"]
+    assert [r["metric"] for r in recs] and all(r["metric"] != "contour" for r in recs)
+    assert any(r["metric"] == "fitness" for r in recs)
+    r = c.post("/measure", json={**ask, "only": ["contour"]})
+    assert r.status_code == 409 and "not labelled" in r.json()["error"]
+    shutil.rmtree(other)

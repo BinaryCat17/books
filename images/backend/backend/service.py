@@ -441,16 +441,14 @@ def run(store: str, name: str, kind: str, label: str) -> dict:
     }
 
 
+def _truth(b: book.Book) -> tuple[str | None, str | None]:
+    t = truth.of(b)
+    return (t, None if t is None or t == b.truth_dir else truth.relative(t))
+
+
 def _truth_of(b: book.Book) -> str | None:
     t = truth.of(b)
     return None if t is None else ("own" if t == b.truth_dir else "borrowed")
-
-
-def _truth_arg(b: book.Book) -> str | None:
-    t = truth.of(b)
-    if t is None:
-        raise Refusal(f"{b.name} has no truth and no bench shares its scan")
-    return None if t == b.truth_dir else truth.relative(t)
 
 
 def pairs(
@@ -465,9 +463,12 @@ def pairs(
     from backend.page import anchor
 
     b, _ = _run_of(store, name, kind, label)
-    res = measure.pairs(cfg.metrics_url, cfg.relative(store), name, kind, label, index, _truth_arg(b))
+    t, arg = _truth(b)
+    if t is None:
+        raise Refusal(f"{name} has no truth and no bench shares its scan: nothing to pair {kind}/{label} against")
+    res = measure.pairs(cfg.metrics_url, cfg.relative(store), name, kind, label, index, arg)
     if truth_side:
-        t = truth.page(truth.of(b), index)
+        t = truth.page(t, index)
         res["truth"] = [
             {
                 "anchor": anchor(index, x["block_id"]),
@@ -513,32 +514,43 @@ def bench(
     b = book.Book.open(path)
     label = run or os.path.basename(b.one_run(kind))
     want = _pages_of(b.pdf, pages)
-    t = None if truth.of(b) is None else _truth_arg(b)
+    _, arg = _truth(b)
     with _job(store, {}, "", base).active():
-        recs = measure.measure(cfg.metrics_url, cfg.relative(store), name, t, kind, label, want, only)
+        recs = measure.measure(cfg.metrics_url, cfg.relative(store), name, arg, kind, label, want, only)
         log(f"{name} {kind}/{label}: {len(recs)} records", n=len(recs), of=len(recs))
     db.add_measurements(store, name, kind, label, recs, want, stamp.commit())
     return f"{name} {kind}/{label}: {len(recs)} records"
 
 
 def measure_page(
-    cfg: settings.Settings, store: str, name: str, kind: str, label: str, index: int
+    cfg: settings.Settings, store: str, name: str, kind: str, label: str, index: int, truth_side: bool = False
 ) -> list[dict]:
     b, _ = _run_of(store, name, kind, label)
-    t = None if truth.of(b) is None else _truth_arg(b)
-    return measure.measure(cfg.metrics_url, cfg.relative(store), name, t, kind, label, [int(index)])
+    _, arg = _truth(b)
+    recs = measure.measure(cfg.metrics_url, cfg.relative(store), name, arg, kind, label, [int(index)])
+    return recs if truth_side else [_run_side(r) for r in recs]
+
+
+def _run_side(rec: dict) -> dict:
+    scalars = {
+        k: ({kk: v for kk, v in s.items() if kk != "per"} if s.get("side") == "truth" else s)
+        for k, s in rec["scalars"].items()
+    }
+    return {**rec, "scalars": scalars, "detail": {}}
 
 
 def series(db, store: str, name: str, kind: str, label: str) -> list[dict]:
     from backend.db import as_dict
     from backend.identity import staleness
 
-    _, rd = _run_of(store, name, kind, label)
+    b, rd = _run_of(store, name, kind, label)
     snap = book.snapshot_beside(os.path.join(rd, "pages"))
+    t, _ = _truth(b)
+    now = truth.fingerprint(t) if t else None
     out = []
     for row in db.measurements(store, name, kind, label):
         d = as_dict(row) or {}
-        d["state"] = staleness(d.get("identity"), snap, d.get("source_sha256"))
+        d["state"] = staleness(d.get("identity"), snap, d.get("source_sha256"), d.get("truth_sha256"), now)
         out.append(d)
     return out
 
@@ -568,20 +580,24 @@ def label_page(store: str, name: str, index: int, page: dict, author: str) -> di
     b = book.Book.open(book_dir(store, name))
     if not b.truth_dir:
         raise Refusal(f"{name} has no truth of its own; start one first")
-    if int(page.get("index", -1)) != int(index):
-        raise Refusal(f"the page says index {page.get('index')!r}, the route says {index}")
+    if page["index"] != index:
+        raise Refusal(f"the page says index {page['index']}, the route says {index}")
     base = truth.page(b.truth_dir, index)
-    if (page["width"], page["height"]) != (base["width"], base["height"]):
-        raise Refusal("a layer keeps the page's width and height")
+    same = ("width", "height", "dpi")
+    if any(page[k] != base[k] for k in same):
+        raise Refusal(f"a layer keeps the page's {', '.join(same)}: {[base[k] for k in same]}")
     return {"layer": truth.relative(truth.write_layer(b.truth_dir, page, author)), "page": truth.page(b.truth_dir, index)}
 
 
-def start_truth(store: str, name: str) -> dict:
-    b = book.Book.open(book_dir(store, name))
+def start_truth(store: str, name: str, kind: str, label: str) -> dict:
+    b, rd = _run_of(store, name, kind, label)
     if not b.pdf:
         raise Refusal(f"{name} has no scan")
-    dpi = knobs.number("PAGE_DPI")
-    return {"truth": truth.relative(truth.blank(b.root, b.pdf, dpi)), "pages": len(truth.pages(b.truth_dir))}
+    dpi = ((book.snapshot_beside(os.path.join(rd, "pages")) or {}).get("raster") or {}).get("dpi")
+    if not dpi:
+        raise Refusal(f"{kind}/{label} does not record the dpi it was drawn at")
+    t = truth.blank(b.root, b.pdf, float(dpi))
+    return {"truth": truth.relative(t), "pages": len(truth.pages(t)), "dpi": float(dpi)}
 
 
 def class_table() -> dict:

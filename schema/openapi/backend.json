@@ -550,6 +550,24 @@
     "title": "RunInfo",
     "type": "object"
    },
+   "RunRef": {
+    "properties": {
+     "kind": {
+      "title": "Kind",
+      "type": "string"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     }
+    },
+    "required": [
+     "kind",
+     "label"
+    ],
+    "title": "RunRef",
+    "type": "object"
+   },
    "RunRow": {
     "properties": {
      "complete": {
@@ -694,6 +712,17 @@
       "title": "Store",
       "type": "string"
      },
+     "truth_sha256": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Truth Sha256"
+     },
      "when": {
       "title": "When",
       "type": "number"
@@ -756,8 +785,143 @@
     "title": "Start",
     "type": "object"
    },
+   "TruthBlock": {
+    "additionalProperties": false,
+    "properties": {
+     "block_id": {
+      "title": "Block Id",
+      "type": "integer"
+     },
+     "box": {
+      "items": {
+       "type": "number"
+      },
+      "maxItems": 4,
+      "minItems": 4,
+      "title": "Box",
+      "type": "array"
+     },
+     "content": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Content"
+     },
+     "kind": {
+      "default": "none",
+      "enum": [
+       "html",
+       "otsl",
+       "latex",
+       "text",
+       "none"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "order": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Order"
+     },
+     "score": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Score"
+     },
+     "source_category": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source Category"
+     }
+    },
+    "required": [
+     "block_id",
+     "box",
+     "label"
+    ],
+    "title": "TruthBlock",
+    "type": "object"
+   },
+   "TruthPage": {
+    "additionalProperties": false,
+    "properties": {
+     "blocks": {
+      "items": {
+       "$ref": "#/components/schemas/TruthBlock"
+      },
+      "title": "Blocks",
+      "type": "array"
+     },
+     "dpi": {
+      "title": "Dpi",
+      "type": "number"
+     },
+     "height": {
+      "title": "Height",
+      "type": "integer"
+     },
+     "index": {
+      "title": "Index",
+      "type": "integer"
+     },
+     "meta": {
+      "additionalProperties": true,
+      "title": "Meta",
+      "type": "object"
+     },
+     "raw": {
+      "title": "Raw",
+      "type": "null"
+     },
+     "width": {
+      "title": "Width",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "index",
+     "width",
+     "height",
+     "dpi",
+     "blocks"
+    ],
+    "title": "TruthPage",
+    "type": "object"
+   },
    "TruthStart": {
     "properties": {
+     "dpi": {
+      "title": "Dpi",
+      "type": "number"
+     },
      "pages": {
       "title": "Pages",
       "type": "integer"
@@ -769,7 +933,8 @@
     },
     "required": [
      "truth",
-     "pages"
+     "pages",
+     "dpi"
     ],
     "title": "TruthStart",
     "type": "object"
@@ -1695,6 +1860,16 @@
       }
      }
     ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RunRef"
+       }
+      }
+     },
+     "required": true
+    },
     "responses": {
      "200": {
       "content": {
@@ -1813,9 +1988,7 @@
      "content": {
       "application/json": {
        "schema": {
-        "additionalProperties": true,
-        "title": "Body",
-        "type": "object"
+        "$ref": "#/components/schemas/TruthPage"
        }
       }
      },

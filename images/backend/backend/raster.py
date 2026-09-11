@@ -170,3 +170,11 @@ def render_png(page: Any, dpi: float, clip: Any = None) -> bytes:
 
 def render(page: Any, dpi: float, clip: Any = None) -> Any:
     return page.get_pixmap(dpi=int(dpi), clip=clip)
+
+
+def size(page: Any, dpi: float) -> tuple[int, int]:
+    import pymupdf
+
+    s = int(dpi) / 72.0
+    r = (page.rect * pymupdf.Matrix(s, s)).round()
+    return (r.width, r.height)

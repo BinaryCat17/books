@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 from dataclasses import dataclass, field
@@ -237,8 +238,12 @@ def truth_pages(truth_dir: str, what: str = "truth") -> dict:
     layers = os.path.join(os.path.dirname(truth_dir.rstrip("/")), LAYERS)
     if os.path.isdir(layers):
         for name in sorted(os.listdir(layers)):
-            if name.endswith(".json"):
+            if name.endswith(".json") and name[:4].isdigit() and int(name[:4]) in pages:
                 with open(os.path.join(layers, name), encoding="utf-8") as f:
-                    p = json.load(f)
-                pages[int(p["index"])] = p
+                    pages[int(name[:4])] = json.load(f)
     return pages
+
+
+def fingerprint(pages: dict) -> str:
+    blob = json.dumps(pages, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()

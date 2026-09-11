@@ -63,7 +63,7 @@ holds the lease while its job runs, and releases it after.
 **Metrics API.** `GET /metrics`: the catalog. `POST /measure {store, book,
 kind, run, truth?, pages?, only?}`: records. `POST /pairs {…, index}`: the
 contour metric's verdicts on one page. `POST /probe`: what falls and what
-does not. `truth` names another book's truth for a book with none.
+does not. `truth` names a bench's truth of the same scan for a book with none.
 Stateless; reads the storage volume.
 
 **The document.** Assembled from a run's pages by one rule: blocks in reading
@@ -81,7 +81,7 @@ A store per owner; the admin's is the root.
   manifest.json              {book, source: {name, sha256}}
   <scan>.pdf
   truth/NNNN.json            pages in the page format; never rewritten
-  truth.layers/NNNN-<when>-<author>.json   a whole page; the newest is the page's truth
+  truth.layers/NNNN-<when>-<author>.json   a whole page, written once; the newest is the page's truth
   detect/<label>/            a level-one run: run.json, pages/, document.json
   read/<label>/              a level-two run: run.json, pages/, answers/, crops/, document.json
 ```
@@ -95,8 +95,8 @@ hash; admins start one and write layers from the browser. Admin: the
 registry through the fleet, the users, the fleet's placements and ledger.
 
 **Catalog** (the backend's database): `users`, `sessions`, `jobs`,
-`measurements` (run, metric, identity, commit, when, pages, scalars;
-append-only). Truth and its layers live in the store, not the catalog. Next:
+`measurements` (run, metric, identity, truth fingerprint, commit, when,
+pages, scalars; append-only). Truth and its layers live in the store, not the catalog. Next:
 `corrections`.
 
 ## Rules

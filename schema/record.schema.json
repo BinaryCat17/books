@@ -45,6 +45,17 @@
     }
    ]
   },
+  "truth_sha256": {
+   "anyOf": [
+    {
+     "type": "string"
+    },
+    {
+     "type": "null"
+    }
+   ],
+   "description": "the effective truth (base pages under their layers) this record was measured against"
+  },
   "scalars": {
    "type": "object",
    "additionalProperties": {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { choicesOf, fromRun, moved, normalBox, relabelled, roleOf, toRaster, withBox, withTrait, without } from "./label";
+import { choicesOf, fromRun, moved, normalBox, relabelled, roleOf, scaleOf, toRaster, withBox, withTrait, without } from "./label";
 import type { Block, ClassTable, TruthPage } from "./types";
 
 const table: ClassTable = {
@@ -26,6 +26,7 @@ describe("a box drawn on the page", () => {
     expect(normalBox(500, 700, 100, 50, 800, 1200)).toEqual([100, 50, 500, 700]);
     expect(normalBox(-10, 20, 900, 1300, 800, 1200)).toEqual([0, 20, 800, 1200]);
     expect(toRaster(150, 140, { left: 100, top: 100, width: 400, height: 600 }, page)).toEqual([100, 80]);
+    expect(scaleOf(page, { width: 400, height: 300 })).toEqual([2, 4]);
   });
   it("joins the page with the next id and the last order; removal renumbers", () => {
     let p = withBox(page, [1, 2, 3, 4], "text");
@@ -44,7 +45,9 @@ describe("a box drawn on the page", () => {
       { anchor: "p0002-b3", block_id: 3, label: "table", box: [1, 1, 2, 2], order: 1, content: null, kind: "none" },
       { anchor: "p0002-b1", block_id: 1, label: "paragraph", box: [0, 0, 1, 1], order: 0, content: "hi", kind: "text" },
     ] as unknown as Block[];
-    const p = fromRun(page, run);
+    const p = fromRun(page, run, page);
     expect(p.blocks.map((b) => [b.block_id, b.order, b.label, b.content])).toEqual([[0, 0, "paragraph", "hi"], [1, 1, "table", null]]);
+    const other = fromRun(page, run, { width: 400, height: 300 });
+    expect(other.blocks.map((b) => b.box)).toEqual([[0, 0, 2, 4], [2, 4, 4, 8]]);
   });
 });
