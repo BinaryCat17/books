@@ -18,5 +18,6 @@ COPY images/layout/layout /app/layout
 RUN uv pip install --system --no-cache ".$EXTRAS"
 ENV LAYOUT_ADAPTER=$LAYOUT_ADAPTER LAYOUT_MODEL_NAME=$LAYOUT_MODEL_NAME BOOKSMITH_COMMIT=$COMMIT \
     BOOKSMITH_SCHEMA=/app/schema PYTHONUNBUFFERED=1
+ENV BOOKSMITH_PORT=8000
 EXPOSE 8000
 CMD ["python", "-m", "layout"]

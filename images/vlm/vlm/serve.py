@@ -14,7 +14,7 @@ import urllib.request
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import Response
 from vlm import job
-from vlm import knobs
+from vlm import deadman, knobs
 from vlm import protocol as served
 from vlm.errors import Refusal
 from vlm.log import log
@@ -256,6 +256,7 @@ def main(port: int, upstream_url: str = "", key: str | None = None, log_dir: str
     try:
         took = svc.wait_ready()
         log(f"vLLM answers as {model} after {took:.0f} s")
+        deadman.watch(lambda: svc.last_request, float(os.environ.get("BOOKSMITH_IDLE_S") or 0))
         uvicorn.run(create_app(svc), host="0.0.0.0", port=port)
     finally:
         if up is not None:

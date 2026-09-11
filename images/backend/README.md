@@ -7,7 +7,7 @@ catalog of runs and measurements.
 
 Run: `python -m backend`. Environment: `BOOKSMITH_HOME` (the data volume),
 `BOOKSMITH_SCHEMA` (the schema directory), `BOOKSMITH_METRICS` (the metrics
-service), `BOOKSMITH_FLEET` (the model manager), `BOOKSMITH_WORKERS`, `BOOKSMITH_SECURE_COOKIES`, `BOOKSMITH_COMMIT`,
+service), `BOOKSMITH_FLEET` (the model manager) and `FLEET_KEY` (its key), `BOOKSMITH_WORKERS`, `BOOKSMITH_SECURE_COOKIES`, `BOOKSMITH_COMMIT`,
 `PORT`, `BOOKSMITH_ADMIN=name:password` (the first admin, made when there
 are no users). Model keys come from the registry entry's `api_key`. Tests: `pytest`.
 

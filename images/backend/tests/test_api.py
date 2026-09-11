@@ -252,12 +252,14 @@ def test_a_model_with_an_image_is_leased_from_the_fleet_for_the_job_and_released
     _registry(home, {"boxed": {"kind": "layout", "image": "model-layout:1", "provider": "docker", "knobs": {}}})
     alice = as_user(app, "alice")
     book = _upload(alice, bench.pdf, "book")
+    fleet.starting = 2
     r = alice.post("/api/jobs", json={"kind": "detect", "book": book, "model": "boxed"})
     job_id = r.json()["id"]
-    _, last = wait_done(alice, job_id)
+    lines, last = wait_done(alice, job_id)
     assert last["state"] == "done", last
+    assert sum("waiting for the model boxed" in ln["text"] for ln in lines) == 2
     leases = [b for p, b in fleet.calls if p == "/leases"]
-    assert leases == [{"model": "boxed", "job": f"job-{job_id}"}]
+    assert leases == [{"model": "boxed", "job": f"job-{job_id}", "wait_s": 60.0}] * 3
     assert ("/leases/release", {"job": f"job-{job_id}"}) in fleet.calls and fleet.leases == []
     run = alice.get(f"/api/books/{book}/runs/detect/truth").json()
     assert run["pages"] == list(range(3))

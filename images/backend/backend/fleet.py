@@ -1,35 +1,38 @@
 import httpx
 
+from backend import settings
 from backend.errors import Refusal
 
 
-def _call(method: str, url: str, body: dict | None = None, timeout: float = 30.0) -> dict | list:
+def _call(method: str, path: str, body: dict | None = None, timeout: float = 30.0) -> dict | list:
+    cfg = settings.Settings.from_env()
+    headers = {"Authorization": f"Bearer {cfg.fleet_key}"} if cfg.fleet_key else {}
     try:
-        r = httpx.request(method, url, json=body, timeout=timeout)
+        r = httpx.request(method, cfg.fleet_url + path, json=body, headers=headers, timeout=timeout)
     except httpx.HTTPError as e:
         raise Refusal(f"the fleet did not answer: {e}") from None
     if r.status_code == 409:
         raise Refusal(r.json().get("error", r.text))
-    if r.status_code != 200:
+    if r.status_code not in (200, 202):
         raise Refusal(f"the fleet answered {r.status_code}: {r.text[:200]}")
     return r.json()
 
 
-def models(base: str) -> dict:
-    return _call("GET", base + "/models")
+def models() -> dict:
+    return _call("GET", "/models")
 
 
-def write_models(base: str, raw: dict) -> dict:
-    return _call("PUT", base + "/models", raw)
+def write_models(raw: dict) -> dict:
+    return _call("PUT", "/models", raw)
 
 
-def lease(base: str, model: str, job: str) -> dict:
-    return _call("POST", base + "/leases", {"model": model, "job": job}, timeout=1200.0)
+def lease(model: str, job: str, wait_s: float = 60.0) -> dict:
+    return _call("POST", "/leases", {"model": model, "job": job, "wait_s": wait_s}, timeout=wait_s + 30.0)
 
 
-def renew(base: str, job: str) -> int:
-    return int(_call("POST", base + "/leases/renew", {"job": job})["renewed"])
+def renew(job: str) -> int:
+    return int(_call("POST", "/leases/renew", {"job": job})["renewed"])
 
 
-def release(base: str, job: str) -> int:
-    return int(_call("POST", base + "/leases/release", {"job": job})["released"])
+def release(job: str) -> int:
+    return int(_call("POST", "/leases/release", {"job": job})["released"])

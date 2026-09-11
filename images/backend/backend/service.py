@@ -35,18 +35,22 @@ def check_entries(raw: object) -> dict:
 
 
 def models() -> dict:
-    return fleet.models(settings.Settings.from_env().fleet_url)
+    return fleet.models()
 
 
 def write_models(raw: object) -> dict:
-    return fleet.write_models(settings.Settings.from_env().fleet_url, check_entries(raw))
+    return fleet.write_models(check_entries(raw))
 
 
 def _endpoint(e: dict, model: str, base: job.Job) -> tuple[str, str]:
     if e.get("endpoint"):
         return str(e["endpoint"]), str(e.get("api_key") or "")
-    got = fleet.lease(settings.Settings.from_env().fleet_url, model, base.name or "adhoc")
-    return str(got["endpoint"]), str(got.get("key") or "")
+    while True:
+        got = fleet.lease(model, base.name or "adhoc")
+        if got["state"] == "ready":
+            return str(got["endpoint"]), str(got.get("key") or "")
+        base.check()
+        base.sink({"text": f"waiting for the model {model} to start (placement {got.get('placement')})"})
 
 
 def _admin(store: str) -> bool:
@@ -90,7 +94,7 @@ def _inside(store: str, path: str | None) -> str | None:
 
 
 def _job(store: str, settings_: Mapping, model: str = "", base: job.Job | None = None) -> job.Job:
-    presets = models() if model or not _admin(store) else {}
+    presets = models() if model or (settings_ and not _admin(store)) else {}
     settings_ = dict(settings_)
     if model and not settings_:
         settings_ = dict(_entry(model, presets)["knobs"])

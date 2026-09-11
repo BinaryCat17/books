@@ -1,5 +1,4 @@
 import json
-import shlex
 import subprocess
 
 from fleet.errors import Refusal
@@ -31,7 +30,8 @@ class Docker:
         port = entry["port"]
         cname = f"bs-svc-{model}-{key[:8]}"
         args = ["run", "-d", "--name", cname, "--label", LABEL, "--label", f"bs.model={model}",
-                "-e", f"BOOKSMITH_SERVE_KEY={key}", "-e", f"PORT={port}"]
+                "-e", f"BOOKSMITH_SERVE_KEY={key}", "-e", f"BOOKSMITH_PORT={port}",
+                "-e", f"BOOKSMITH_IDLE_S={int(entry['idle_s'] * 2 + 600)}"]
         for k, v in entry["env"].items():
             args += ["-e", f"{k}={v}"]
         if entry.get("gpu"):
@@ -69,9 +69,4 @@ class Docker:
             found.append({"id": r["ID"][:12], "model": labels.get("bs.model", ""), "state": r.get("State", "")})
         return found
 
-    def rate(self, entry: dict) -> float:
-        return 0.0
 
-    @staticmethod
-    def command(model: str, entry: dict) -> str:
-        return shlex.join(["docker", "run", "-d", "--label", LABEL, "--label", f"bs.model={model}", entry["image"]])

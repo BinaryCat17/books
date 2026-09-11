@@ -14,7 +14,7 @@ SHIM = ("import json,os,sys;from http.server import BaseHTTPRequestHandler,HTTPS
         "  ok=s.headers.get('Authorization')=='Bearer '+os.environ['BOOKSMITH_SERVE_KEY']\n"
         "  b=json.dumps({'ready':True,'label':'shim','requests':0}).encode() if ok else b'{}'\n"
         "  s.send_response(200 if ok else 401);s.send_header('Content-Length',str(len(b)));s.end_headers();s.wfile.write(b)\n"
-        "HTTPServer(('0.0.0.0',int(os.environ['PORT'])),H).serve_forever()")
+        "HTTPServer(('0.0.0.0',int(os.environ['BOOKSMITH_PORT'])),H).serve_forever()")
 
 pytestmark = pytest.mark.docker
 
@@ -47,6 +47,10 @@ def test_a_container_is_placed_leased_and_stopped(home, tmp_path):
         time.sleep(1.2)
         assert f.sweep() == [p["id"]]
         assert not d.alive(p["handle"]) and f.ledger()[-1]["why"] == "idle"
+        stray = subprocess.run(["docker", "run", "-d", "--label", "bs.owner=fleet", "--label", "bs.model=stray",
+                                "-e", "BOOKSMITH_PORT=8000", "-e", "BOOKSMITH_SERVE_KEY=x", "bs-test-shim"],
+                               check=True, capture_output=True, text=True).stdout.strip()[:12]
+        assert f.reconcile()["destroyed"] == 1 and not d.alive(stray)
     finally:
         for p in f.placements():
             d.stop(p["handle"])

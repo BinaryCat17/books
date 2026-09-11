@@ -10,6 +10,7 @@ class FakeFleet:
         self.images = images or {}
         self.leases: list = []
         self.calls: list = []
+        self.starting = 0
 
         class H(BaseHTTPRequestHandler):
             def log_message(self, *a):
@@ -48,12 +49,15 @@ class FakeFleet:
                     if e is None:
                         return self._json(409, {"error": f"no model {body['model']!r}"})
                     if e.get("endpoint"):
-                        return self._json(200, {"endpoint": e["endpoint"], "key": e.get("api_key") or "", "lease": None, "placement": None})
+                        return self._json(200, {"state": "ready", "endpoint": e["endpoint"], "key": e.get("api_key") or "", "lease": None, "placement": None})
                     if e["image"] not in fake.images:
                         return self._json(409, {"error": f"no offer for {e['image']}"})
+                    if fake.starting > 0:
+                        fake.starting -= 1
+                        return self._json(202, {"state": "starting", "endpoint": "", "key": "", "lease": None, "placement": "p1"})
                     lid = f"lease-{len(fake.leases) + 1}"
                     fake.leases.append({"id": lid, "job": body["job"], "model": body["model"]})
-                    return self._json(200, {"endpoint": fake.images[e["image"]], "key": "k-" + lid, "lease": lid, "placement": "p1"})
+                    return self._json(200, {"state": "ready", "endpoint": fake.images[e["image"]], "key": "k-" + lid, "lease": lid, "placement": "p1"})
                 if self.path == "/leases/renew":
                     return self._json(200, {"renewed": sum(1 for x in fake.leases if x["job"] == body["job"])})
                 if self.path == "/leases/release":

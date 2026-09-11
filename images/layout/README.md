@@ -15,5 +15,6 @@ Adapters: `doclayout` (PP-DocLayoutV2, V3, plus-L), `yolox`; `docling` and
 `docling-egret` need the `docling` extra (`--build-arg EXTRAS=[docling]`).
 Knobs from the environment; `BOOKSMITH_SERVE_KEY` sets the bearer key,
 `BOOKSMITH_SERVE_KIND` (`layout` or `hybrid`) and `BOOKSMITH_SERVE_KINDS`
-declare a hybrid, `PORT` the shim's port. Routes: `schema/openapi/model.yaml`.
+declare a hybrid, `BOOKSMITH_PORT` the port, `BOOKSMITH_IDLE_S` a dead-man:
+with no request that long the container exits, and on vast destroys its instance. Routes: `schema/openapi/model.yaml`.
 Tests: `pytest`.

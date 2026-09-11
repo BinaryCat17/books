@@ -38,21 +38,26 @@ HTTP throughout.
 `POST /booksmith/layout` for layout and hybrid models; the OpenAI chat route
 for readers. The describe carries kind, label, fingerprint, the mapping of
 the model's labels onto the class table, the knob values its side read, and
-the commit serving. A run's identity is the hash of the fingerprint and both
-sides' knob values: what the model serves, never where it runs.
+the commit serving. A model container reads `BOOKSMITH_PORT`,
+`BOOKSMITH_SERVE_KEY` and `BOOKSMITH_IDLE_S` from its environment. A run's
+identity is the hash of the fingerprint and both sides' knob values: what the
+model serves, never where it runs.
 
 **Fleet API.** `GET|PUT /models`: the registry, `{name: {kind, endpoint |
 image + provider, knobs, api_key, env, gpu, port, idle_s, budget_usd}}`.
-`POST /leases {model, job}` answers an endpoint, a key and a lease, starting
-a placement if none is ready; `POST /leases/renew {job}` and
-`POST /leases/release {job}` are a job's hold on it. `GET /placements`,
-`DELETE /placements/{id}`, `POST /reconcile`, `POST /sweep`, `GET /ledger`.
-Providers: `docker` on the fleet's daemon, `vast` on a rented card with the
-port published and the placement's key. A placement with no live lease past
-`idle_s` is stopped; one past its budget is destroyed whatever is running;
-one the table does not know is destroyed at reconcile. The backend never
-knows where a model runs: it names the model, holds the lease while its job
-runs, and releases it after.
+`POST /leases {model, job, wait_s}` answers an endpoint, a key and a lease,
+or `starting` when the placement is not ready in time; `POST /leases/renew
+{job}` and `POST /leases/release {job}` are a job's hold on it.
+`GET /placements`, `DELETE /placements/{id}`, `POST /reconcile`,
+`POST /sweep`, `GET /ledger`; all behind `FLEET_KEY`. Providers: `docker` on
+the fleet's daemon, `vast` on a rented card with the port published, plain
+HTTP over the internet with the placement's key. A placement with no live
+lease past `idle_s` is stopped; one past its budget, a bound per placement,
+is destroyed whatever is running; one that died is dropped; one the table
+does not know is destroyed at reconcile. A model container exits on its own
+after `BOOKSMITH_IDLE_S` without a request, and on vast destroys its
+instance. The backend never knows where a model runs: it names the model,
+holds the lease while its job runs, and releases it after.
 
 **Metrics API.** `GET /metrics`: the catalog. `POST /measure {store, book,
 kind, run, pages?, only?}`: records. `POST /pairs {…, index}`: the contour

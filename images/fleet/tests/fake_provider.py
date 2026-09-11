@@ -33,14 +33,17 @@ class Shim:
 class FakeProvider:
     name = "fake"
 
-    def __init__(self, rate: float = 0.0, ready_after: int = 0):
-        self.rate_usd_h, self.ready_after = rate, ready_after
+    def __init__(self, rate: float = 0.0, ready_after: int = 0, start_delay: float = 0.0, stop_fails: bool = False):
+        self.rate_usd_h, self.ready_after, self.start_delay, self.stop_fails = rate, ready_after, start_delay, stop_fails
         self.running: dict[str, Shim] = {}
         self.stopped: list[str] = []
         self.n = 0
         self.foreign: list[str] = []
 
     def start(self, model, entry, key):
+        import time
+
+        time.sleep(self.start_delay)
         self.n += 1
         shim = Shim(key)
         shim.ready = self.ready_after == 0
@@ -53,6 +56,8 @@ class FakeProvider:
         return handle in self.running
 
     def stop(self, handle):
+        if self.stop_fails:
+            raise RuntimeError("the provider refused to stop")
         shim = self.running.pop(handle, None)
         if shim:
             shim.close()
@@ -62,6 +67,3 @@ class FakeProvider:
 
     def list(self):
         return [{"id": h, "model": "?", "state": "running"} for h in list(self.running) + list(self.foreign)]
-
-    def rate(self, entry):
-        return self.rate_usd_h

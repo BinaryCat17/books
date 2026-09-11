@@ -2,7 +2,7 @@ name: booksmith
 services:
   backend:
     build: {context: .., dockerfile: images/backend/Dockerfile}
-    environment: {BOOKSMITH_METRICS: http://metrics:8000, BOOKSMITH_FLEET: http://fleet:8000, BOOKSMITH_ADMIN: "${BOOKSMITH_ADMIN:-}"}
+    environment: {BOOKSMITH_METRICS: http://metrics:8000, BOOKSMITH_FLEET: http://fleet:8000, BOOKSMITH_ADMIN: "${BOOKSMITH_ADMIN:-}", FLEET_KEY: "${FLEET_KEY:-}"}
     volumes: [data:/data]
     depends_on: [metrics, fleet]
   metrics:
@@ -10,8 +10,8 @@ services:
     volumes: [data:/data]
   fleet:
     build: {context: .., dockerfile: images/fleet/Dockerfile}
-    environment: {FLEET_DOCKER_NETWORK: booksmith_default}
-    volumes: [data:/data, /var/run/docker.sock:/var/run/docker.sock, ~/.config/vastai:/root/.config/vastai:ro]
+    environment: {FLEET_DOCKER_NETWORK: booksmith_default, FLEET_KEY: "${FLEET_KEY:-}", VAST_API_KEY: "${VAST_API_KEY:-}"}
+    volumes: [data:/data, /var/run/docker.sock:/var/run/docker.sock]
   layout:
     image: booksmith/layout-pp-doclayoutv2
     build:

@@ -43,7 +43,7 @@ def test_a_lease_reuses_a_ready_placement_and_idle_stops_it(home):
     _registry({"lay": {"kind": "layout", "image": "img", "provider": "fake", "idle_s": 100},
                "fixed": {"kind": "reader", "endpoint": "http://h/v1", "api_key": "sk"}})
     f = Fleet({"fake": prov}, clock=clock)
-    assert f.ensure("fixed", "j0") == {"endpoint": "http://h/v1", "key": "sk", "lease": None, "placement": None}
+    assert f.ensure("fixed", "j0") == {"state": "ready", "endpoint": "http://h/v1", "key": "sk", "lease": None, "placement": None}
     a = f.ensure("lay", "j1")
     b = f.ensure("lay", "j2")
     assert a["placement"] == b["placement"] and prov.n == 1
@@ -70,7 +70,7 @@ def test_an_expired_lease_frees_the_placement_and_a_budget_ends_it(home):
     clock = Clock()
     prov = FakeProvider(rate=2.0)
     _registry({"vl": {"kind": "reader", "image": "img", "provider": "fake", "idle_s": 15, "budget_usd": 1.0}})
-    f = Fleet({"fake": prov}, clock=clock)
+    f = Fleet({"fake": prov}, clock=clock, poll_s=0.05)
     a = f.ensure("vl", "j1")
     p = f.placements()[0]
     assert p["deadline"] == clock.t + 1800.0 and p["state"] == "ready"
@@ -89,7 +89,7 @@ def test_an_expired_lease_frees_the_placement_and_a_budget_ends_it(home):
 def test_reconcile_destroys_what_the_table_does_not_know_and_forgets_what_is_gone(home):
     prov = FakeProvider()
     _registry({"lay": {"kind": "layout", "image": "img", "provider": "fake"}})
-    f = Fleet({"fake": prov})
+    f = Fleet({"fake": prov}, poll_s=0.05)
     a = f.ensure("lay", "j1")
     prov.foreign.append("stray")
     assert f.reconcile() == {"adopted": 1, "destroyed": 1, "gone": 0}
@@ -102,8 +102,8 @@ def test_reconcile_destroys_what_the_table_does_not_know_and_forgets_what_is_gon
 def test_a_placement_that_never_answers_is_stopped_at_the_boot_deadline(home):
     prov = FakeProvider(ready_after=1)
     _registry({"lay": {"kind": "layout", "image": "img", "provider": "fake"}})
-    f = Fleet({"fake": prov}, boot_s=0.5)
-    with pytest.raises(Refusal, match="not ready"):
+    f = Fleet({"fake": prov}, boot_s=0.5, poll_s=0.05)
+    with pytest.raises(Refusal, match="boot deadline"):
         f.ensure("lay", "j1")
     assert prov.stopped == ["c1"] and f.placements() == []
     with pytest.raises(Refusal, match="not available"):
@@ -112,8 +112,8 @@ def test_a_placement_that_never_answers_is_stopped_at_the_boot_deadline(home):
 
 def test_the_routes(home):
     prov = FakeProvider()
-    f = Fleet({"fake": prov})
-    with TestClient(create_app(f, sweep_s=3600)) as c:
+    f = Fleet({"fake": prov}, poll_s=0.05)
+    with TestClient(create_app(f, sweep_s=3600, key="")) as c:
         assert c.put("/models", json={"lay": {"kind": "layout", "image": "img", "provider": "fake"}}).status_code == 200
         assert c.put("/models", json={"x": {"kind": "layout"}}).status_code == 409
         got = c.post("/leases", json={"model": "lay", "job": "job-1"}).json()
@@ -129,3 +129,68 @@ def test_the_routes(home):
         assert c.post("/reconcile").json() == {"adopted": 0, "destroyed": 0, "gone": 0}
         assert c.get("/health").json()["providers"] == ["fake"]
         assert c.post("/leases", json={"model": "nope", "job": "j"}).status_code == 409
+
+
+def test_a_stop_that_fails_keeps_the_placement_and_the_sweep_goes_on(home):
+    clock = Clock()
+    prov = FakeProvider(stop_fails=True)
+    _registry({"a": {"kind": "layout", "image": "img", "provider": "fake", "idle_s": 10},
+               "b": {"kind": "layout", "image": "img", "provider": "fake", "idle_s": 10}})
+    f = Fleet({"fake": prov}, clock=clock, poll_s=0.05)
+    pa, pb = f.ensure("a", "j1")["placement"], f.ensure("b", "j2")["placement"]
+    f.release("j1")
+    f.release("j2")
+    clock.t += 20
+    assert f.sweep() == [], "nothing was stopped, and nothing was forgotten"
+    assert {p["state"] for p in f.placements()} == {"stopping"} and f.ledger() == []
+    prov.stop_fails = False
+    assert sorted(f.sweep()) == sorted([pa, pb]) and f.placements() == []
+    assert [r["why"] for r in f.ledger()] == ["idle", "idle"]
+    _registry({"a": {"kind": "layout", "image": "img", "provider": "fake", "idle_s": 10}})
+    h = Fleet({"fake": FakeProvider()}, clock=clock, poll_s=0.05)
+    pid = h.ensure("a", "j3")["placement"]
+    h.release("j3")
+    clock.t += 20
+    g = Fleet({}, clock=clock)
+    assert g.sweep() == [] and g.placements()[0]["state"] == "stopping", "no provider, no forgetting"
+    assert g.placements()[0]["id"] == pid and len(g.ledger()) == 2
+
+
+def test_the_lock_is_not_held_across_a_slow_start(home):
+    import threading
+    import time
+
+    prov = FakeProvider(start_delay=1.0)
+    _registry({"lay": {"kind": "layout", "image": "img", "provider": "fake"},
+               "fixed": {"kind": "reader", "endpoint": "http://h/v1"}})
+    f = Fleet({"fake": prov}, poll_s=0.05)
+    t = threading.Thread(target=f.ensure, args=("lay", "j1"))
+    t.start()
+    time.sleep(0.2)
+    t0 = time.time()
+    assert f.placements()[0]["state"] == "creating" and f.renew("j1") == 0
+    assert time.time() - t0 < 0.3, "a request waited on the start"
+    t.join()
+    assert f.placements()[0]["state"] == "ready"
+    got = f.ensure("lay", "j2", wait_s=0)
+    assert got["state"] == "ready" and got["lease"]
+
+
+def test_a_lease_can_answer_starting_and_a_dead_start_is_stopped_at_once(home):
+    prov = FakeProvider(ready_after=1)
+    _registry({"lay": {"kind": "layout", "image": "img", "provider": "fake"}})
+    f = Fleet({"fake": prov}, boot_s=60, poll_s=0.05)
+    got = f.ensure("lay", "j1", wait_s=0.2)
+    assert got == {"state": "starting", "endpoint": "", "key": "", "lease": None, "placement": got["placement"]}
+    prov.running["c1"].ready = True
+    got = f.ensure("lay", "j1", wait_s=5)
+    assert got["state"] == "ready" and got["lease"]
+    f.stop(got["placement"])
+    prov2 = FakeProvider(ready_after=5)
+    g = Fleet({"fake": prov2}, boot_s=60, poll_s=0.05)
+    import threading
+
+    threading.Timer(0.3, lambda: prov2.running.pop("c1").close()).start()
+    with pytest.raises(Refusal, match="died"):
+        g.ensure("lay", "j9")
+    assert g.placements() == []

@@ -184,11 +184,13 @@ class Pool:
         def renew() -> None:
             while not done.wait(LEASE_RENEW_S):
                 try:
-                    fleet.renew(self.cfg.fleet_url, name)
+                    if fleet.renew(name) == 0:
+                        fleet.lease(str(args.get("model")), name, wait_s=0)
                 except BooksmithError as e:
                     log(f"job {job_id}: lease not renewed: {e}", job=job_id)
 
-        threading.Thread(target=renew, daemon=True).start()
+        if args.get("model"):
+            threading.Thread(target=renew, daemon=True).start()
         outcome: tuple[str, object] = ("failed", "not run")
         try:
             with base.active():
@@ -205,7 +207,7 @@ class Pool:
             done.set()
             if args.get("model"):
                 try:
-                    fleet.release(self.cfg.fleet_url, name)
+                    fleet.release(name)
                 except BooksmithError as e:
                     log(f"job {job_id}: lease not released: {e}", job=job_id)
             with self.lock:
