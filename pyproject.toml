@@ -10,7 +10,7 @@ package = false
 members = ["images/backend", "images/metrics", "images/layout", "images/vlm", "images/datasets", "images/fleet"]
 
 [dependency-groups]
-dev = ["pytest>=9", "ruff>=0.16", "httpx>=0.27"]
+dev = ["pytest>=9", "ruff>=0.16", "httpx>=0.27", "jsonschema>=4.23", "pymupdf>=1.24"]
 
 [tool.ruff]
 cache-dir = ".venv/ruff"

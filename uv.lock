@@ -271,6 +271,7 @@ dependencies = [
     { name = "fastapi" },
     { name = "httpx" },
     { name = "jsonschema" },
+    { name = "pydantic" },
     { name = "pymupdf" },
     { name = "python-multipart" },
     { name = "uvicorn" },
@@ -282,6 +283,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.115" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "jsonschema", specifier = ">=4.23" },
+    { name = "pydantic", specifier = ">=2.7" },
     { name = "pymupdf", specifier = ">=1.24" },
     { name = "python-multipart", specifier = ">=0.0.9" },
     { name = "uvicorn", specifier = ">=0.30" },
@@ -295,6 +297,8 @@ source = { virtual = "." }
 [package.dev-dependencies]
 dev = [
     { name = "httpx" },
+    { name = "jsonschema" },
+    { name = "pymupdf" },
     { name = "pytest" },
     { name = "ruff" },
 ]
@@ -304,6 +308,8 @@ dev = [
 [package.metadata.requires-dev]
 dev = [
     { name = "httpx", specifier = ">=0.27" },
+    { name = "jsonschema", specifier = ">=4.23" },
+    { name = "pymupdf", specifier = ">=1.24" },
     { name = "pytest", specifier = ">=9" },
     { name = "ruff", specifier = ">=0.16" },
 ]
@@ -637,7 +643,6 @@ name = "datasets"
 version = "0.1.0"
 source = { editable = "images/datasets" }
 dependencies = [
-    { name = "jsonschema" },
     { name = "numpy" },
     { name = "opencv-python-headless" },
     { name = "pymupdf" },
@@ -645,7 +650,6 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "jsonschema", specifier = ">=4.23" },
     { name = "numpy", specifier = ">=1.26" },
     { name = "opencv-python-headless", specifier = ">=4.9" },
     { name = "pymupdf", specifier = ">=1.24" },
@@ -756,6 +760,7 @@ source = { editable = "images/fleet" }
 dependencies = [
     { name = "fastapi" },
     { name = "httpx" },
+    { name = "pydantic" },
     { name = "uvicorn" },
     { name = "vastai" },
 ]
@@ -764,6 +769,7 @@ dependencies = [
 requires-dist = [
     { name = "fastapi", specifier = ">=0.115" },
     { name = "httpx", specifier = ">=0.27" },
+    { name = "pydantic", specifier = ">=2.7" },
     { name = "uvicorn", specifier = ">=0.30" },
     { name = "vastai", specifier = ">=1.5.5" },
 ]
@@ -1020,30 +1026,28 @@ version = "0.1.0"
 source = { editable = "images/layout" }
 dependencies = [
     { name = "fastapi" },
-    { name = "jsonschema" },
     { name = "numpy" },
     { name = "onnxruntime" },
     { name = "opencv-python-headless" },
-    { name = "pymupdf" },
     { name = "pyyaml" },
     { name = "uvicorn" },
 ]
 
 [package.optional-dependencies]
 docling = [
+    { name = "docling-core" },
     { name = "docling-slim" },
     { name = "rtree" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "docling-core", marker = "extra == 'docling'", specifier = ">=2.0" },
     { name = "docling-slim", marker = "extra == 'docling'", specifier = "==2.123.1" },
     { name = "fastapi", specifier = ">=0.115" },
-    { name = "jsonschema", specifier = ">=4.23" },
     { name = "numpy", specifier = ">=1.26" },
     { name = "onnxruntime", specifier = ">=1.20" },
     { name = "opencv-python-headless", specifier = ">=4.9" },
-    { name = "pymupdf", specifier = ">=1.24" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "rtree", marker = "extra == 'docling'", specifier = ">=1.3" },
     { name = "uvicorn", specifier = ">=0.30" },
@@ -1187,8 +1191,8 @@ version = "0.1.0"
 source = { editable = "images/metrics" }
 dependencies = [
     { name = "fastapi" },
-    { name = "jsonschema" },
     { name = "numpy" },
+    { name = "pydantic" },
     { name = "pymupdf" },
     { name = "uvicorn" },
 ]
@@ -1196,8 +1200,8 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = ">=0.115" },
-    { name = "jsonschema", specifier = ">=4.23" },
     { name = "numpy", specifier = ">=1.26" },
+    { name = "pydantic", specifier = ">=2.7" },
     { name = "pymupdf", specifier = ">=1.24" },
     { name = "uvicorn", specifier = ">=0.30" },
 ]
@@ -2436,14 +2440,12 @@ version = "0.1.0"
 source = { editable = "images/vlm" }
 dependencies = [
     { name = "fastapi" },
-    { name = "jsonschema" },
     { name = "uvicorn" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = ">=0.115" },
-    { name = "jsonschema", specifier = ">=4.23" },
     { name = "uvicorn", specifier = ">=0.30" },
 ]
 

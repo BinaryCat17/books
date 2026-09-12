@@ -10,6 +10,7 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - run: uv sync --all-packages --group dev --frozen
       - run: uv run ruff check images/${{ matrix.image }}
+      - run: uv run python invariants.py
       - run: cd images/${{ matrix.image }} && uv run pytest -q
   ui:
     runs-on: ubuntu-latest
