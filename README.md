@@ -11,7 +11,8 @@ infra/     the compose file
 bench/     the tracked truth of the real benches
 ```
 
-Run everything: `BOOKSMITH_ADMIN=name:password docker compose -f infra/compose.yml up`.
+Run everything: `COMMIT=$(git rev-parse HEAD) BOOKSMITH_ADMIN=name:password docker compose -f infra/compose.yml up --build`.
+`COMMIT` is stamped into the images and recorded by every run they produce; without it a run says it does not know.
 The UI is at `:8080`, the API under `:8080/api`. Model images:
 `--profile models build`.
 
