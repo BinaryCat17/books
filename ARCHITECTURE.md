@@ -22,7 +22,7 @@ them. `schema/` is the only thing shared, and it is data.
 | `images/vlm` | a vLLM behind the model protocol | container |
 | `images/datasets` | the bench builders | tool container |
 | `images/ui` | the browser application: library, viewer, admin; built into the proxy image | static |
-| `infra/` | compose, the proxy, CI | — |
+| `infra/` | the compose file | — |
 
 ## Contracts
 
@@ -45,7 +45,8 @@ identity is the hash of the fingerprint and both sides' knob values: what the
 model serves, never where it runs.
 
 **Fleet API.** `GET|PUT /models`: the registry, `{name: {kind, endpoint |
-image + provider, knobs, api_key, env, gpu, port, idle_s, budget_usd}}`.
+image + provider, knobs, api_key, env, gpu, gpu_name, port, idle_s,
+budget_usd, max_dph, disk_gb, min_reliability, min_down_mbps, cuda_min}}`.
 `POST /leases {model, job, wait_s}` answers an endpoint, a key and a lease,
 or `starting` when the placement is not ready in time; `POST /leases/renew
 {job}` and `POST /leases/release {job}` are a job's hold on it.
@@ -80,10 +81,15 @@ they fix: they live in the snapshot of a derived run beside it,
 applied, whose identity is the base's identity and the corrections, and
 which is measured, documented and exported like any run.
 
-**Storage.** One volume, one layout, mounted by backend, metrics and datasets.
-A store per owner; the admin's is the root.
+**Storage.** One volume, one layout, mounted by backend, metrics, fleet and
+datasets. A store per owner; the admin's is the root.
 
 ```
+<store>/booksmith.sqlite     the catalog
+<store>/models.json          the fleet's registry
+<store>/fleet/               placements.json, ledger.jsonl
+<store>/users/<id>/          a user's own store, laid out as below
+<store>/raw/                 scans as uploaded, before they are a book
 <store>/bench/<name>/        a book with truth
 <store>/processed/<name>/    a book without
   manifest.json              {book, source: {name, sha256}}
@@ -98,8 +104,8 @@ A store per owner; the admin's is the root.
 **Backend API.** Sessions and two roles. Books: upload, list, delete. Runs of
 a book. Jobs: detect, read, hybrid, bench, with progress as events and a cancel.
 Pages: the data, the image, a crop, the pairs against truth, the metrics of
-one page. The document and its exports. Corrections: list, add, undo.
-Measurements: the last and the series.
+one page. The document and its exports. Corrections: list, add, undo,
+and re-derive after the base has re-run. Measurements: the last and the series.
 Truth: a book's own, or borrowed from the bench whose scan has the same
 hash; admins start one and write layers from the browser. Admin: the
 registry through the fleet, the users, the fleet's placements and ledger.

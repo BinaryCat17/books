@@ -7,7 +7,7 @@ where truth exists. `ARCHITECTURE.md` is the map.
 ```
 schema/    the contracts, as data
 images/    one directory per image: backend, metrics, fleet, layout, vlm, datasets, ui
-infra/     compose, the proxy, CI
+infra/     the compose file
 bench/     the tracked truth of the real benches
 ```
 
