@@ -62,6 +62,7 @@ def test_the_shim_answers_the_protocol_under_the_job_it_was_built_in():
     doc.new_page(width=400, height=600)
     png = doc[0].get_pixmap(dpi=72).tobytes("png")
     body = {"index": 3, "dpi": 72.0, "image": "data:image/png;base64," + base64.b64encode(png).decode()}
+    jsonschema.validate(body, _schema("layout-request.schema.json"))
     r = c.post("/booksmith/layout", json=body, headers=h)
     assert r.status_code == 200, r.text
     page = r.json()

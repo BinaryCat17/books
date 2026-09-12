@@ -2,7 +2,7 @@ import os
 
 import uvicorn
 
-from layout import job, knobs, serve, settings
+from layout import deadman, job, knobs, serve, settings
 from layout.log import log
 
 with job.Job(settings={k: v for k, v in os.environ.items() if k in knobs.names()}).active():
@@ -13,4 +13,5 @@ with job.Job(settings={k: v for k, v in os.environ.items() if k in knobs.names()
     log(
         f"serving {svc.describe.kind} {svc.describe.label}: {len(svc.describe.classes)} labels, schema {settings.schema_dir()}"
     )
-    uvicorn.run(serve.create_app(svc), host="0.0.0.0", port=int(os.environ.get("PORT") or 8000))
+    deadman.watch(lambda: svc.last_request, float(os.environ.get("BOOKSMITH_IDLE_S") or 0))
+    uvicorn.run(serve.create_app(svc), host="0.0.0.0", port=int(os.environ.get("BOOKSMITH_PORT") or 8000))
