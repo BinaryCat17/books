@@ -41,17 +41,6 @@ KNOBS = (
         "ours",
         "what assembles the book when the model has no reading rank of its own: ours (top to bottom, left to right) or docling (the vendor's rules, needing the docling package); PP-DocLayoutV2 and V3 carry a rank and ignore it, and ours is the default so that a detect run on a fresh environment never falls over a sorting rule",
     ),
-    Knob(
-        "PAGE_DPI",
-        "144",
-        "the resolution a page is rendered to for detection; the detector squeezes the raster to its own input size, so the dpi decides little and the squeeze's filter more",
-    ),
-    Knob(
-        "CROP_DPI",
-        "",
-        "crop sharpness for an export: empty is the scan's own resolution, or detection's when that cannot be told; a read and a crop do not read it, the model's window deciding there",
-    ),
-    Knob("CROP_MARGIN", "0", "margin around the box when cropping, in box fractions"),
     Knob("BOOKSMITH_COMMIT", "", "the commit for a machine without git; empty = ask git in place"),
 )
 KNOB = {k.name: k for k in KNOBS}

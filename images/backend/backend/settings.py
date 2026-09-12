@@ -17,28 +17,6 @@ def schema_dir() -> str:
     raise RuntimeError("no schema directory: set BOOKSMITH_SCHEMA")
 
 
-def env(name: str, default: str | None = None) -> str | None:
-    if os.environ.get(name):
-        return os.environ[name]
-    path = os.path.join(home(), ".env")
-    if os.path.exists(path):
-        with open(path, encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if line.startswith(name + "="):
-                    return line.split("=", 1)[1].strip()
-    return default
-
-
-def secrets() -> dict[str, str]:
-    out = {}
-    for name in ("VLM_API_KEY", "LAYOUT_API_KEY"):
-        v = env(name)
-        if v:
-            out[name] = v
-    return out
-
-
 @dataclass(frozen=True)
 class Settings:
     home: str

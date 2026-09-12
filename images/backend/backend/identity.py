@@ -16,7 +16,7 @@ def sha256(path: str) -> str:
     return h.hexdigest()
 
 
-def commit(ignore: tuple[str, ...] = ()) -> str | None:
+def commit() -> str | None:
     return os.environ.get("BOOKSMITH_COMMIT") or None
 
 

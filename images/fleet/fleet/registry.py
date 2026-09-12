@@ -7,7 +7,6 @@ from fleet.errors import Refusal
 from fleet.files import write_json
 
 KINDS = ("layout", "reader", "hybrid")
-PROVIDERS = ("docker", "vast")
 DEFAULTS = {"idle_s": 600, "budget_usd": 0.0, "port": 8000, "knobs": {}, "env": {}, "gpu": False,
             "gpu_name": "RTX_4090", "max_dph": 0.6, "disk_gb": 40, "min_reliability": 0.98, "min_down_mbps": 500,
             "cuda_min": ""}
