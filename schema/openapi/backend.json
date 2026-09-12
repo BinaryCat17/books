@@ -803,17 +803,6 @@
       "title": "Book",
       "type": "string"
      },
-     "commit": {
-      "anyOf": [
-       {
-        "type": "string"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Commit"
-     },
      "id": {
       "title": "Id",
       "type": "integer"
@@ -895,6 +884,10 @@
       ],
       "title": "Truth Sha256"
      },
+     "version": {
+      "title": "Version",
+      "type": "integer"
+     },
      "when": {
       "title": "When",
       "type": "number"
@@ -907,9 +900,9 @@
      "kind",
      "label",
      "metric",
+     "version",
      "identity",
      "source_sha256",
-     "commit",
      "when",
      "pages",
      "scalars",

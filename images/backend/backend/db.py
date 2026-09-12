@@ -11,8 +11,9 @@ SCHEMA = (
     "CREATE TABLE IF NOT EXISTS jobs(\n        id INTEGER PRIMARY KEY, user INTEGER NOT NULL REFERENCES users(id),\n        store TEXT NOT NULL, kind TEXT NOT NULL, book TEXT NOT NULL,\n        label TEXT, model TEXT, args TEXT NOT NULL,\n        state TEXT NOT NULL CHECK(state IN ('queued', 'running', 'done', 'failed', 'cancelled')),\n        n INTEGER, \"of\" INTEGER, created REAL NOT NULL, started REAL, finished REAL,\n        error TEXT, result TEXT)",
     """CREATE TABLE IF NOT EXISTS measurements(
         id INTEGER PRIMARY KEY, store TEXT NOT NULL, book TEXT NOT NULL, kind TEXT NOT NULL,
-        label TEXT NOT NULL, metric TEXT NOT NULL, identity TEXT, source_sha256 TEXT, truth_sha256 TEXT,
-        "commit" TEXT, "when" REAL NOT NULL, pages TEXT, scalars TEXT NOT NULL, params TEXT NOT NULL)""",
+        label TEXT NOT NULL, metric TEXT NOT NULL, version INTEGER NOT NULL, identity TEXT,
+        source_sha256 TEXT, truth_sha256 TEXT, "when" REAL NOT NULL, pages TEXT,
+        scalars TEXT NOT NULL, params TEXT NOT NULL)""",
 )
 TERMINAL = ("done", "failed", "cancelled")
 
@@ -30,6 +31,8 @@ class Db:
             have = {r[1] for r in self.conn.execute("PRAGMA table_info(measurements)")}
             if "truth_sha256" not in have:
                 self.conn.execute("ALTER TABLE measurements ADD COLUMN truth_sha256 TEXT")
+            if "version" not in have:
+                self.conn.execute("ALTER TABLE measurements ADD COLUMN version INTEGER NOT NULL DEFAULT 0")
 
     def close(self) -> None:
         with self.lock:
@@ -138,24 +141,24 @@ class Db:
         label: str,
         records: list[dict],
         pages: list[int] | None,
-        commit: str | None,
     ) -> float:
         now = time.time()
         with self.lock:
             for r in records:
                 self.conn.execute(
-                    "INSERT INTO measurements(store, book, kind, label, metric, identity, source_sha256, truth_sha256, "
-                    '"commit", "when", pages, scalars, params) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                    "INSERT INTO measurements(store, book, kind, label, metric, version, identity, "
+                    'source_sha256, truth_sha256, "when", pages, scalars, params) '
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (
                         store,
                         book,
                         kind,
                         label,
                         r["metric"],
+                        int(r["version"]),
                         r.get("identity"),
                         r.get("source_sha256"),
                         r.get("truth_sha256"),
-                        commit,
                         now,
                         json.dumps(pages) if pages is not None else None,
                         json.dumps(r["scalars"]),

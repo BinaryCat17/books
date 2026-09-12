@@ -69,6 +69,7 @@ class Record:
     source_sha256: str | None = None
     book: str | None = None
     truth_sha256: str | None = None
+    version: int = 0
 
     def row(self) -> dict:
         out = {"metric": self.metric, "bench": self.bench, "run": self.run}
@@ -78,6 +79,7 @@ class Record:
     def to_json(self) -> dict:
         return {
             "metric": self.metric,
+            "version": self.version,
             "bench": self.bench,
             "run": self.run,
             "book": self.book,
@@ -102,6 +104,7 @@ class Record:
             d.get("source_sha256"),
             d.get("book"),
             d.get("truth_sha256"),
+            int(d.get("version") or 0),
         )
 
 
@@ -134,6 +137,7 @@ class Spec:
 
 class Metric:
     name: str = ""
+    version: int = 1
     description: str = ""
     needs: frozenset = frozenset()
     scalars: tuple = ()

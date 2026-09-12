@@ -8,6 +8,7 @@ reads and writes against these in its own tests; nothing else is shared.
 | `page.schema.json` | a page: the model's boxes, or truth; a truth layer is one of these |
 | `document.schema.json` | the book as data, assembled from a run; every export renders it |
 | `describe.schema.json`, `health.schema.json`, `layout-request.schema.json` | the model protocol's payloads |
+| `metrics.json` | the metric catalog as it stands: name, version, scalars. The metrics' contract, as `openapi/backend.json` is the backend's |
 | `snapshot.schema.json` | `run.json` beside a run |
 | `correction.schema.json` | one correction to one block, kept in a derived run's snapshot |
 | `record.schema.json`, `catalog.schema.json` | a measurement, and the metrics a service publishes |

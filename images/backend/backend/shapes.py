@@ -126,10 +126,10 @@ class SeriesRow(BaseModel):
     kind: str
     label: str
     metric: str
+    version: int
     identity: str | None
     source_sha256: str | None
     truth_sha256: str | None = None
-    commit: str | None
     when: float
     pages: list[int] | None
     scalars: dict

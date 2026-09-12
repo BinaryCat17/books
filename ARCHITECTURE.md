@@ -117,7 +117,7 @@ The registry's presets -- a name, a kind and its knobs -- any signed-in user rea
 to say which model a job should ask for.
 
 **Catalog** (the backend's database): `users`, `sessions`, `jobs`,
-`measurements` (run, metric, identity, truth fingerprint, commit, when,
+`measurements` (run, metric and its version, identity, truth fingerprint, when,
 pages, scalars; append-only). Truth, its layers and corrections live in the store, not the
 catalog.
 

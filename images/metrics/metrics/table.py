@@ -65,6 +65,7 @@ def rows(bench: Bench, run: Run, which=None, pages_want=None) -> list:
                 identity=run.snapshot.get("identity"),
                 source_sha256=run.sha256,
                 truth_sha256=truth_sha,
+                version=m.version,
             )
         )
     return out

@@ -503,7 +503,7 @@ def bench(
     with _job(store, {}, "", base).active():
         recs = measure.measure(cfg.metrics_url, cfg.relative(store), name, arg, kind, label, want, only)
         log(f"{name} {kind}/{label}: {len(recs)} records", n=len(recs), of=len(recs))
-    db.add_measurements(store, name, kind, label, recs, want, stamp.commit())
+    db.add_measurements(store, name, kind, label, recs, want)
     return f"{name} {kind}/{label}: {len(recs)} records"
 
 

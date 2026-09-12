@@ -67,6 +67,10 @@
   },
   "detail": {
    "type": "object"
+  },
+  "version": {
+   "type": "integer",
+   "description": "the version of the metric that produced this record"
   }
  },
  "required": [
@@ -75,7 +79,8 @@
   "run",
   "scalars",
   "params",
-  "detail"
+  "detail",
+  "version"
  ],
  "additionalProperties": false,
  "$defs": {

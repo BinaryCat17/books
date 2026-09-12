@@ -103,6 +103,7 @@ def report(res: dict) -> None:
 class ReadingMetric(Metric):
     description = "what the reading returned: answered, looping, charts as data"
     name = "reading"
+    version = 1
     needs = frozenset({"pages", "read"})
     scalars = (
         Spec(

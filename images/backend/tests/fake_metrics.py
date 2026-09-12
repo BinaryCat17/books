@@ -9,6 +9,7 @@ from backend.truth import fingerprint, pages as truth_pages
 CATALOG = [
     {
         "metric": "fitness",
+        "version": 1,
         "needs": ["pages", "pdf"],
         "description": "fake",
         "scalars": [
@@ -25,6 +26,7 @@ CATALOG = [
     },
     {
         "metric": "contour",
+        "version": 1,
         "needs": ["pages", "truth"],
         "description": "fake",
         "scalars": [
@@ -77,6 +79,7 @@ def measure(body):
         {
             **base,
             "metric": "fitness",
+            "version": 1,
             "scalars": {"ink_under_boxes": {"value": 0.5, "per": {anchor(i): 0.5 for i in idx}}},
         }
     ]
@@ -87,6 +90,7 @@ def measure(body):
             {
                 **base,
                 "metric": "contour",
+                "version": 1,
                 "scalars": {
                     "artefacts_found": {"value": 1.0, "count": {"n": 1, "of": 1}, "per": {anchor(i, 1): 1.0 for i in idx}, "side": "truth"}
                 },

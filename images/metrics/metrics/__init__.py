@@ -12,6 +12,7 @@ def catalog() -> list[dict]:
     return [
         {
             "metric": m.name,
+            "version": m.version,
             "needs": sorted(m.needs),
             "description": m.description,
             "scalars": [

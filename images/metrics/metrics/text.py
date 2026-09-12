@@ -814,6 +814,7 @@ def _per_anchor(per_block: list) -> dict:
 class TextMetric(Metric):
     description = "the read text against truth: character and word error, tables, baits"
     name = "text"
+    version = 1
     needs = frozenset({"truth", "pages", "content", "read"})
     scalars = (
         Spec("paired", "higher", "blocks paired with a truth block", per="block", side="truth"),

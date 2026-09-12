@@ -10,6 +10,7 @@ def _ratio(n, d, why, per=None, side=""):
 class FitnessMetric(Metric):
     description = "will the meaning reach the second level: ink under boxes, objects intact"
     name = "fitness"
+    version = 1
     needs = frozenset({"pdf", "pages"})
     scalars = (
         Spec(

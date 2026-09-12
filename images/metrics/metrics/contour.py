@@ -913,6 +913,7 @@ def _order(part: dict) -> Scalar:
 class ContourMetric(Metric):
     description = "boxes against truth: found, lost, mislabelled, in order"
     name = "contour"
+    version = 1
     needs = frozenset({"truth", "pages"})
     scalars = (
         Spec(

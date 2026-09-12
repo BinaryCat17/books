@@ -18,6 +18,12 @@ def test_the_service_answers_the_catalog_a_measure_and_the_pairs(bench):
     cat = c.get("/metrics").json()
     jsonschema.validate(cat, _schema("catalog.schema.json"))
     assert {m["metric"] for m in cat} == {"contour", "fitness", "text", "assembly", "reading"}
+    with open(os.path.join(settings.schema_dir(), "metrics.json"), encoding="utf-8") as f:
+        committed = json.load(f)
+    assert committed == json.loads(json.dumps(cat, sort_keys=True)), (
+        "the catalog is the metrics' contract, as openapi/backend.json is the backend's. "
+        "A scalar, a gloss or a version changed: commit schema/metrics.json with it."
+    )
     ask = {"store": "", "book": "bench/tiny", "kind": "detect", "run": "truth"}
     r = c.post("/measure", json=ask)
     assert r.status_code == 200, r.text

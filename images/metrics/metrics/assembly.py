@@ -28,6 +28,7 @@ def _under_one_rule(pages: dict) -> dict:
 class AssemblyMetric(Metric):
     description = "the assembled order: excess jumps between columns"
     name = "assembly"
+    version = 1
     needs = frozenset({"pages"})
     scalars = (
         Spec(

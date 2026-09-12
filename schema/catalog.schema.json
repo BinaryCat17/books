@@ -9,6 +9,7 @@
   "additionalProperties": false,
   "required": [
    "metric",
+   "version",
    "needs",
    "description",
    "scalars"
@@ -85,6 +86,11 @@
       }
      }
     }
+   },
+   "version": {
+    "type": "integer",
+    "minimum": 1,
+    "description": "bumped when the number's meaning changes, so an older measurement is known to be incomparable"
    }
   }
  }

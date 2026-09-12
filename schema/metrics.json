@@ -1,0 +1,472 @@
+[
+ {
+  "description": "boxes against truth: found, lost, mislabelled, in order",
+  "metric": "contour",
+  "needs": [
+   "pages",
+   "truth"
+  ],
+  "scalars": [
+   {
+    "better": "higher",
+    "gloss": "tables and pictures found",
+    "name": "artefacts_found",
+    "per": "block",
+    "question": "How much of the book survived",
+    "side": "truth",
+    "unit": ""
+   },
+   {
+    "better": "higher",
+    "gloss": "text and furniture found",
+    "name": "text_furniture_found",
+    "per": "block",
+    "question": "How much of the book survived",
+    "side": "truth",
+    "unit": "pages"
+   },
+   {
+    "better": "higher",
+    "gloss": "objects whose meaning arrived whole",
+    "name": "sense_whole",
+    "per": "block",
+    "question": "",
+    "side": "truth",
+    "unit": ""
+   },
+   {
+    "better": "higher",
+    "gloss": "reading order of the assembled book agrees with truth",
+    "name": "assembly_order",
+    "per": "page",
+    "question": "Is the order right",
+    "side": "",
+    "unit": "pages"
+   },
+   {
+    "better": "higher",
+    "gloss": "the model's own rank agrees with truth",
+    "name": "model_order",
+    "per": "page",
+    "question": "",
+    "side": "",
+    "unit": "pages"
+   },
+   {
+    "better": "lower",
+    "gloss": "artefacts the model never boxed",
+    "name": "artefacts_not_seen",
+    "per": "block",
+    "question": "What failed, and how",
+    "side": "truth",
+    "unit": ""
+   },
+   {
+    "better": "lower",
+    "gloss": "artefacts boxed, but cut short",
+    "name": "artefacts_cropped",
+    "per": "block",
+    "question": "What failed, and how",
+    "side": "truth",
+    "unit": ""
+   },
+   {
+    "better": "lower",
+    "gloss": "artefacts boxed as text: they leave as a line and the structure leaves with them",
+    "name": "artefacts_called_text",
+    "per": "block",
+    "question": "What failed, and how",
+    "side": "truth",
+    "unit": ""
+   },
+   {
+    "better": "neither",
+    "gloss": "artefacts sharing a box with a neighbour; no direction, since a wider picture is split at level two",
+    "name": "artefacts_merged",
+    "per": "block",
+    "question": "What failed, and how",
+    "side": "truth",
+    "unit": ""
+   },
+   {
+    "better": "lower",
+    "gloss": "blocks whose label is not the truth's",
+    "name": "label_errors",
+    "per": "block",
+    "question": "",
+    "side": "run",
+    "unit": ""
+   },
+   {
+    "better": "lower",
+    "gloss": "blocks whose role is not the truth's",
+    "name": "role_errors",
+    "per": "block",
+    "question": "",
+    "side": "run",
+    "unit": ""
+   }
+  ],
+  "version": 1
+ },
+ {
+  "description": "will the meaning reach the second level: ink under boxes, objects intact",
+  "metric": "fitness",
+  "needs": [
+   "pages",
+   "pdf"
+  ],
+  "scalars": [
+   {
+    "better": "higher",
+    "gloss": "ink that lands inside some box",
+    "name": "ink_under_boxes",
+    "per": "page",
+    "question": "How much of the book survived",
+    "side": "",
+    "unit": ""
+   },
+   {
+    "better": "higher",
+    "gloss": "the same over the ink that is ink: binding shadow and scan edge discarded from both sides",
+    "name": "ink_under_boxes_clean",
+    "per": "page",
+    "question": "How much of the book survived",
+    "side": "",
+    "unit": ""
+   },
+   {
+    "better": "higher",
+    "gloss": "ink that leaves the book as text rather than as a picture of itself",
+    "name": "ink_as_text",
+    "per": "page",
+    "question": "How much of the book survived",
+    "side": "",
+    "unit": ""
+   },
+   {
+    "better": "higher",
+    "gloss": "ink of the truth objects that survives inside boxes",
+    "name": "object_ink_preserved",
+    "per": "block",
+    "question": "How much of the book survived",
+    "side": "truth",
+    "unit": ""
+   },
+   {
+    "better": "neither",
+    "gloss": "ink under boxes of artifact role: a composition, not a quality",
+    "name": "ink_under_artefacts",
+    "per": "page",
+    "question": "",
+    "side": "",
+    "unit": ""
+   },
+   {
+    "better": "neither",
+    "gloss": "ink that leaves as a picture",
+    "name": "ink_as_picture",
+    "per": "page",
+    "question": "",
+    "side": "",
+    "unit": ""
+   },
+   {
+    "better": "neither",
+    "gloss": "ink discarded as binding shadow or scan edge: a property of the scan",
+    "name": "ink_junk",
+    "per": "page",
+    "question": "",
+    "side": "",
+    "unit": ""
+   },
+   {
+    "better": "neither",
+    "gloss": "share of the sheet under boxes: a full-sheet box scores the maximum",
+    "name": "area_under_boxes",
+    "per": "none",
+    "question": "",
+    "side": "",
+    "unit": ""
+   },
+   {
+    "better": "neither",
+    "gloss": "median box area as a share of the sheet",
+    "name": "median_box_area",
+    "per": "none",
+    "question": "",
+    "side": "",
+    "unit": ""
+   },
+   {
+    "better": "neither",
+    "gloss": "boxes per page",
+    "name": "boxes_per_page",
+    "per": "page",
+    "question": "",
+    "side": "",
+    "unit": ""
+   },
+   {
+    "better": "higher",
+    "gloss": "truth objects whose ink is intact under one box",
+    "name": "objects_intact",
+    "per": "block",
+    "question": "",
+    "side": "truth",
+    "unit": ""
+   },
+   {
+    "better": "higher",
+    "gloss": "truth objects covered by exactly one box",
+    "name": "objects_in_one_box",
+    "per": "block",
+    "question": "",
+    "side": "truth",
+    "unit": ""
+   },
+   {
+    "better": "lower",
+    "gloss": "truth objects torn between boxes",
+    "name": "objects_torn",
+    "per": "block",
+    "question": "",
+    "side": "truth",
+    "unit": ""
+   },
+   {
+    "better": "lower",
+    "gloss": "truth objects boxed as text",
+    "name": "objects_left_as_text",
+    "per": "block",
+    "question": "",
+    "side": "truth",
+    "unit": ""
+   },
+   {
+    "better": "lower",
+    "gloss": "truth objects sharing a box",
+    "name": "objects_with_company",
+    "per": "block",
+    "question": "",
+    "side": "truth",
+    "unit": ""
+   }
+  ],
+  "version": 1
+ },
+ {
+  "description": "the read text against truth: character and word error, tables, baits",
+  "metric": "text",
+  "needs": [
+   "content",
+   "pages",
+   "read",
+   "truth"
+  ],
+  "scalars": [
+   {
+    "better": "higher",
+    "gloss": "blocks paired with a truth block",
+    "name": "paired",
+    "per": "block",
+    "question": "",
+    "side": "truth",
+    "unit": ""
+   },
+   {
+    "better": "lower",
+    "gloss": "character error rate over paired blocks",
+    "name": "CER",
+    "per": "block",
+    "question": "",
+    "side": "truth",
+    "unit": ""
+   },
+   {
+    "better": "lower",
+    "gloss": "word error rate over paired blocks",
+    "name": "WER",
+    "per": "block",
+    "question": "",
+    "side": "truth",
+    "unit": ""
+   },
+   {
+    "better": "lower",
+    "gloss": "character error rate over the blocks the reader answered",
+    "name": "CER_answered",
+    "per": "block",
+    "question": "",
+    "side": "truth",
+    "unit": "blocks"
+   },
+   {
+    "better": "lower",
+    "gloss": "blocks with no answer",
+    "name": "no_answer",
+    "per": "block",
+    "question": "",
+    "side": "truth",
+    "unit": ""
+   },
+   {
+    "better": "higher",
+    "gloss": "table cells matched by address",
+    "name": "cells_matched",
+    "per": "block",
+    "question": "",
+    "side": "truth",
+    "unit": ""
+   },
+   {
+    "better": "lower",
+    "gloss": "character error rate over matched cells",
+    "name": "CER_cells",
+    "per": "none",
+    "question": "",
+    "side": "",
+    "unit": "cells"
+   },
+   {
+    "better": "lower",
+    "gloss": "tables answered as text",
+    "name": "tables_given_as_text",
+    "per": "none",
+    "question": "",
+    "side": "",
+    "unit": ""
+   },
+   {
+    "better": "lower",
+    "gloss": "baits read as content",
+    "name": "baits_read",
+    "per": "block",
+    "question": "",
+    "side": "truth",
+    "unit": ""
+   },
+   {
+    "better": "lower",
+    "gloss": "character error rate over artifact blocks",
+    "name": "CER_artefacts",
+    "per": "block",
+    "question": "",
+    "side": "truth",
+    "unit": ""
+   },
+   {
+    "better": "lower",
+    "gloss": "character error rate over answered artifact blocks",
+    "name": "CER_artefacts_answered",
+    "per": "block",
+    "question": "",
+    "side": "truth",
+    "unit": "blocks"
+   }
+  ],
+  "version": 1
+ },
+ {
+  "description": "the assembled order: excess jumps between columns",
+  "metric": "assembly",
+  "needs": [
+   "pages"
+  ],
+  "scalars": [
+   {
+    "better": "lower",
+    "gloss": "excess column jumps per move between boxes",
+    "name": "excess_jumps_per_transition",
+    "per": "none",
+    "question": "Is the order right",
+    "side": "",
+    "unit": ""
+   },
+   {
+    "better": "lower",
+    "gloss": "the same with one ordering rule forced on every model, so the column compares boxes alone",
+    "name": "excess_jumps_per_transition_one_rule",
+    "per": "none",
+    "question": "Is the order right",
+    "side": "",
+    "unit": ""
+   },
+   {
+    "better": "lower",
+    "gloss": "column jumps beyond the unavoidable",
+    "name": "excess_jumps",
+    "per": "page",
+    "question": "",
+    "side": "",
+    "unit": ""
+   },
+   {
+    "better": "lower",
+    "gloss": "excess column jumps per page",
+    "name": "excess_jumps_per_page",
+    "per": "none",
+    "question": "",
+    "side": "",
+    "unit": "pages"
+   },
+   {
+    "better": "neither",
+    "gloss": "moves between boxes",
+    "name": "transitions",
+    "per": "none",
+    "question": "",
+    "side": "",
+    "unit": ""
+   },
+   {
+    "better": "neither",
+    "gloss": "pages with more than one column",
+    "name": "pages_with_columns",
+    "per": "page",
+    "question": "",
+    "side": "",
+    "unit": ""
+   }
+  ],
+  "version": 1
+ },
+ {
+  "description": "what the reading returned: answered, looping, charts as data",
+  "metric": "reading",
+  "needs": [
+   "pages",
+   "read"
+  ],
+  "scalars": [
+   {
+    "better": "lower",
+    "gloss": "charts returned as a table of numbers: values read off a curve and placed in the book as text",
+    "name": "charts_as_data",
+    "per": "block",
+    "question": "What failed, and how",
+    "side": "run",
+    "unit": ""
+   },
+   {
+    "better": "lower",
+    "gloss": "answers that repeat themselves",
+    "name": "looping",
+    "per": "block",
+    "question": "What failed, and how",
+    "side": "run",
+    "unit": ""
+   },
+   {
+    "better": "higher",
+    "gloss": "blocks answered",
+    "name": "answered",
+    "per": "page",
+    "question": "",
+    "side": "",
+    "unit": ""
+   }
+  ],
+  "version": 1
+ }
+]
