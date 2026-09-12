@@ -7,13 +7,14 @@ import pymupdf
 import pytest
 
 from metrics import knobs
-from metrics.identity import identity, sha256
+from metrics.identity import sha256
 from metrics.page import write_json
 
 PAGES = 3
 DPI = float(knobs.KNOB["PAGE_DPI"].default)
 K = DPI / 72.0
 POLICY = {"vocabulary": "PP-DocLayoutV2"}
+IDENTITY = "1f" * 32  # the backend computes these; metrics only carries one through
 
 
 @dataclass
@@ -102,7 +103,7 @@ def run_of_truth(bench: Bench, label: str = "truth", kind: str = "detect") -> st
         {
             "when": "2026-09-10T00:00:00+0000",
             "label": label,
-            "identity": identity(fp, {"PAGE_DPI": str(DPI)}),
+            "identity": IDENTITY,
             "commit": None,
             "source": {"path": bench.pdf, "sha256": sha256(bench.pdf)},
             "raster": {"dpi": DPI, "scale": K},
