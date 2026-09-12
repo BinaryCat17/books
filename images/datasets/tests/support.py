@@ -1,3 +1,4 @@
+import json
 import os
 from contextlib import contextmanager
 
@@ -27,3 +28,20 @@ def env(**kw):
                 os.environ.pop(k, None)
             else:
                 os.environ[k] = v
+
+
+def load_pages(d: str, what: str = "pages") -> dict:
+    if not os.path.isdir(d):
+        raise AssertionError(f"{what}: no directory {d}")
+    out = {}
+    for name in sorted(os.listdir(d)):
+        if not name.endswith(".json") or name in ("run.json", "manifest.json"):
+            continue
+        with open(os.path.join(d, name), encoding="utf-8") as f:
+            p = json.load(f)
+        if not (isinstance(p, dict) and "blocks" in p and ("index" in p)):
+            raise AssertionError(f"{what}: {name} in {d} does not look like a markup page (no blocks/index)")
+        out[int(p["index"])] = p
+    if not out:
+        raise AssertionError(f"{what}: no markup pages in {d}")
+    return out

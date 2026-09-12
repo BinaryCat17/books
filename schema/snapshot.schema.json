@@ -50,6 +50,13 @@
     },
     "scale": {
      "type": "number"
+    },
+    "page_dpi_as_given": {
+     "type": [
+      "string",
+      "null"
+     ],
+     "description": "PAGE_DPI as the knob gave it, a string, before the scan's own resolution settled the number in `dpi`"
     }
    }
   },

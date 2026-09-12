@@ -4,7 +4,7 @@ import os
 import jsonschema
 
 from datasets import settings, synth
-from datasets.page import load_pages
+from support import load_pages
 from support import said
 
 
