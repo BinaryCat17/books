@@ -2,7 +2,7 @@ import json
 import os
 import shutil
 
-from conftest import as_user, wait_done
+from conftest import as_user
 from fake_vlm import FakeVlm
 from support import said
 from test_api import _registry
