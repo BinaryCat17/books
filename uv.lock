@@ -639,6 +639,7 @@ source = { editable = "images/datasets" }
 dependencies = [
     { name = "jsonschema" },
     { name = "numpy" },
+    { name = "opencv-python-headless" },
     { name = "pymupdf" },
 ]
 
@@ -646,6 +647,7 @@ dependencies = [
 requires-dist = [
     { name = "jsonschema", specifier = ">=4.23" },
     { name = "numpy", specifier = ">=1.26" },
+    { name = "opencv-python-headless", specifier = ">=4.9" },
     { name = "pymupdf", specifier = ">=1.24" },
 ]
 
