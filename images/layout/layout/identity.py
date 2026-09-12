@@ -25,11 +25,9 @@ FINGERPRINT_NOT_IDENTITY = {
 KNOBS_NOT_IDENTITY = {
     "VLM_ENDPOINT": "the rented machine's address, new on every rental",
     "LAYOUT_ENDPOINT": "where a served layout model was reached; the model itself is in the fingerprint",
-    "LAYOUT_ADAPTER": "how the model was reached, in-process or served; what answered is the fingerprint's name and weights, so a served run of a model is the run of that model",
     "LAYOUT_MODEL_DIR": "a machine-local path to the weights",
     "VL_MODEL_DIR": "a machine-local path to the weights",
-    "BOOKSMITH_LEDGER": "where the run journal is written",
-    "BOOKSMITH_COMMIT": "how the commit is discovered on a box without git",
+    "BOOKSMITH_COMMIT": "the commit the image was built at, not a choice the run makes",
 }
 
 

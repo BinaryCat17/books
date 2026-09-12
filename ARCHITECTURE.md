@@ -50,8 +50,9 @@ budget_usd, max_dph, disk_gb, min_reliability, min_down_mbps, cuda_min}}`.
 `POST /leases {model, job, wait_s}` answers an endpoint, a key and a lease,
 or `starting` when the placement is not ready in time; `POST /leases/renew
 {job}` and `POST /leases/release {job}` are a job's hold on it.
-`GET /placements`, `DELETE /placements/{id}`, `POST /reconcile`,
-`POST /sweep`, `GET /ledger`; all behind `FLEET_KEY`. Providers: `docker` on
+`GET /leases`, `GET /placements`, `DELETE /placements/{id}`,
+`POST /reconcile`, `POST /sweep`, `GET /ledger`; all behind `FLEET_KEY`
+but `GET /health`, which answers anyone. Providers: `docker` on
 the fleet's daemon, `vast` on a rented card with the port published, plain
 HTTP over the internet with the placement's key. A placement with no live
 lease past `idle_s` is stopped; one past its budget, a bound per placement,
@@ -109,6 +110,8 @@ and re-derive after the base has re-run. Measurements: the last and the series.
 Truth: a book's own, or borrowed from the bench whose scan has the same
 hash; admins start one and write layers from the browser. Admin: the
 registry through the fleet, the users, the fleet's placements and ledger.
+The registry's presets -- a name, a kind and its knobs -- any signed-in user reads,
+to say which model a job should ask for.
 
 **Catalog** (the backend's database): `users`, `sessions`, `jobs`,
 `measurements` (run, metric, identity, truth fingerprint, commit, when,
@@ -124,7 +127,7 @@ Six, each guarding a number. Everything else is convention.
 3. A zero from a check and a zero from not understanding are different. A null carries its reason.
 4. Identity is what a model serves, never where it runs. One run per label; a different identity refuses.
 5. A setting is declared, read through the job, and recorded in the run.
-6. A store reaches only itself. Every path a request names resolves inside the caller's store.
+6. A store reaches only itself. Every path a request names resolves inside the caller's store. Truth is the one crossing: a book borrows the truth of the admin's bench whose scan has the same hash.
 
 ## Documentation
 

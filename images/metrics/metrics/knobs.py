@@ -16,7 +16,7 @@ KNOBS = (
         "144",
         "the resolution a page is rendered to for detection; the detector squeezes the raster to its own input size, so the dpi decides little and the squeeze's filter more",
     ),
-    Knob("BOOKSMITH_COMMIT", "", "the commit for a machine without git; empty = ask git in place"),
+    Knob("BOOKSMITH_COMMIT", "", "the commit the image was built at; empty when nothing stamped it"),
 )
 KNOB = {k.name: k for k in KNOBS}
 

@@ -9,6 +9,7 @@ __pycache__/
 
 # the data home when it is this directory: scans, runs, users, the database
 bench/*/*.pdf
+!bench/real-*/*.pdf
 bench/*/detect/
 # derived benches: `datasets synth` redraws these from their seed,
 # `datasets subset` rebuilds hard from the others. Only truth that

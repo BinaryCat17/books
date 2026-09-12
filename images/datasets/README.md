@@ -5,7 +5,7 @@ of the tree's own (`synth`), a bench out of the AnnoPage corpus
 (`annopage`), the hard pages of several benches as one (`subset`).
 
 ```
-docker compose run --rm datasets synth --book slovar --out /data/bench/slovar
+docker compose -f infra/compose.yml run --rm datasets synth --book slovar --out /data/bench/slovar
 python -m datasets annopage --root <corpus> --out <bench dir> [--split test] [--limit 600]
 python -m datasets subset --books slovar,katalog --out <bench dir>
 ```
