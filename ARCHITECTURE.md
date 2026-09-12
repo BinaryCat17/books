@@ -24,6 +24,9 @@ them. `schema/` is the only thing shared, and it is data.
 | `images/ui` | the browser application: library, viewer, admin; built into the proxy image | static |
 | `infra/` | the compose file | — |
 
+Every image installs against its own `constraints.txt`, exported from `uv.lock`:
+what CI resolved is what the image ships. `invariants.py` holds the two together.
+
 ## Contracts
 
 **Schemas.** `page` (a model's boxes, or truth), `document` (the book as

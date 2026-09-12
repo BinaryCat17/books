@@ -13,9 +13,9 @@ RUN uv pip install --system --no-cache "huggingface_hub[cli]"
 RUN hf download "$MODEL_REPO" --local-dir "/root/.paddlex/official_models/$MODEL_DIR"
 WORKDIR /app
 COPY schema /app/schema
-COPY images/layout/pyproject.toml /app/
+COPY images/layout/pyproject.toml images/layout/constraints.txt /app/
 COPY images/layout/layout /app/layout
-RUN uv pip install --system --no-cache ".$EXTRAS"
+RUN uv pip install --system --no-cache -c constraints.txt ".$EXTRAS"
 ENV LAYOUT_ADAPTER=$LAYOUT_ADAPTER LAYOUT_MODEL_NAME=$LAYOUT_MODEL_NAME BOOKSMITH_COMMIT=$COMMIT \
     BOOKSMITH_SCHEMA=/app/schema PYTHONUNBUFFERED=1
 ENV BOOKSMITH_PORT=8000

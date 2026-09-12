@@ -4,8 +4,8 @@ RUN apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq 
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY schema /app/schema
-COPY images/datasets/pyproject.toml /app/
+COPY images/datasets/pyproject.toml images/datasets/constraints.txt /app/
 COPY images/datasets/datasets /app/datasets
-RUN uv pip install --system --no-cache .
+RUN uv pip install --system --no-cache -c constraints.txt .
 ENV BOOKSMITH_HOME=/data BOOKSMITH_SCHEMA=/app/schema PYTHONUNBUFFERED=1
 ENTRYPOINT ["python", "-m", "datasets"]

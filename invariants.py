@@ -130,11 +130,36 @@ def the_describe_and_the_code_agree(fail):
             fail(f"{i}: reads {n} and the describe never carries it, so it never reaches an identity")
 
 
+def the_lock_and_the_images_agree(fail):
+    """What CI resolved is what the image installs: a stale constraints file ships untested versions."""
+    import subprocess
+
+    for i in IMAGES:
+        c = os.path.join(ROOT, "images", i, "constraints.txt")
+        if not os.path.exists(c):
+            fail(f"{i}: no constraints.txt, so the image resolves fresh and ships what no test saw")
+            continue
+        if i == "vlm":
+            continue  # pinned by hand against a CUDA wheel index, not derivable from the lock
+        cmd = ["uv", "export", "--package", i, "--no-dev", "--no-emit-project", "--frozen",
+               "--no-hashes", "-o", f"images/{i}/constraints.txt"]
+        if i == "layout":
+            cmd.insert(4, "--all-extras")
+        got = subprocess.run(cmd[:-2] + ["--quiet"], cwd=ROOT, capture_output=True, text=True)
+        if got.returncode:
+            fail(f"{i}: uv export failed: {got.stderr.strip()[:120]}")
+            continue
+        want = [l for l in got.stdout.split("\n") if l and not l.startswith("#")]
+        have = [l for l in read(c).split("\n") if l and not l.startswith("#")]
+        if want != have:
+            fail(f"{i}: constraints.txt is not what uv.lock resolves; regenerate it ({' '.join(cmd)})")
+
+
 def main():
     bad = []
     checks = (no_image_reaches_another, the_registry_and_the_code_agree,
               the_dependencies_and_the_imports_agree, the_readme_and_the_tree_agree,
-              the_describe_and_the_code_agree)
+              the_describe_and_the_code_agree, the_lock_and_the_images_agree)
     for check in checks:
         check(bad.append)
     for line in bad:
