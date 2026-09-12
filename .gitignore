@@ -4,21 +4,27 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .ruff_cache/
-.mypy_cache/
-*.egg-info/
 *.log
 .DS_Store
 
 # the data home when it is this directory: scans, runs, users, the database
 bench/*/*.pdf
-bench/*/detect/*/pages/
+bench/*/detect/
+# derived benches: `datasets synth` redraws these from their seed,
+# `datasets subset` rebuilds hard from the others. Only truth that
+# nothing in the tree can regenerate is tracked.
+bench/atlas/
+bench/katalog/
+bench/matematika/
+bench/slovar/
+bench/spravochnik/
+bench/zhurnal/
+bench/hard/
 bench/*/read/
 bench/*/truth.new/
 bench/*/truth.previous/
 processed/
 raw/
-runs/
 users/
 *.sqlite*
 images/ui/dist/
-bench/*/detect/
