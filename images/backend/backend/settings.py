@@ -37,6 +37,7 @@ class Settings:
             fleet_url=(os.environ.get("BOOKSMITH_FLEET") or "http://fleet:8000").rstrip("/"),
             fleet_key=os.environ.get("FLEET_KEY") or "",
             workers=max(1, int(os.environ.get("BOOKSMITH_WORKERS") or 2)),
+            session_days=max(1, int(os.environ.get("BOOKSMITH_SESSION_DAYS") or 30)),
             secure_cookies=(os.environ.get("BOOKSMITH_SECURE_COOKIES") or "").lower() in ("1", "true", "yes"),
         )
 
