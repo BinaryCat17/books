@@ -58,9 +58,6 @@ class Db:
     def user(self, name: str) -> sqlite3.Row | None:
         return self.one("SELECT * FROM users WHERE name = ?", (name,))
 
-    def user_by_id(self, user_id: int) -> sqlite3.Row | None:
-        return self.one("SELECT * FROM users WHERE id = ?", (user_id,))
-
     def users(self) -> list[sqlite3.Row]:
         return self.all("SELECT id, name, role, created FROM users ORDER BY id")
 

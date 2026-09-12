@@ -41,7 +41,3 @@ def pairs(base: str, store: str, book: str, kind: str, run: str, index: int, tru
         {"store": store, "book": book, "kind": kind, "run": run, "truth": truth, "index": index},
         timeout=120.0,
     )
-
-
-def probe(base: str, store: str, book: str, kind: str, run: str, only: list[str] | None = None) -> dict:
-    return _post(base, "/probe", {"store": store, "book": book, "kind": kind, "run": run, "only": only})

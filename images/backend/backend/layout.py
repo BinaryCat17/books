@@ -13,7 +13,6 @@ from backend.page import write_json
 from backend import job
 
 _sha256 = stamp.sha256
-ADAPTERS = ("served",)
 
 
 def _check_labels(page, pol, known, adapter):

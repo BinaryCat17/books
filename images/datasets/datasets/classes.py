@@ -57,9 +57,6 @@ class Policy:
     def by_role(self, role: str) -> tuple[str, ...]:
         return tuple(sorted(lab for lab in self.classes if CLASSES[self.classes[lab]][0] == role))
 
-    def covers(self, labels: Iterable[str]) -> bool:
-        return set(labels) <= set(self.classes)
-
     def check(self, labels: Iterable[str]) -> None:
         have, mine = (set(labels), set(self.classes))
         who = self.name or "the model's own declaration"

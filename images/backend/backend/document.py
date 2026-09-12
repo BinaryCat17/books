@@ -153,30 +153,6 @@ def _covered(inner, outer, part=0.9):
     return a > 0 and i / a >= part
 
 
-def _twice_area(boxes):
-    if len(boxes) < 2:
-        return 0.0
-    xs = sorted({v for b in boxes for v in (b[0], b[2])})
-    total = 0.0
-    for a, c in zip(xs, xs[1:], strict=False):
-        if c <= a:
-            continue
-        ev = []
-        for b in boxes:
-            if b[0] <= a and b[2] >= c and (b[3] > b[1]):
-                ev.append((b[1], 1))
-                ev.append((b[3], -1))
-        ev.sort()
-        cov, depth, prev = (0.0, 0, None)
-        for y, d in ev:
-            if depth >= 2:
-                cov += y - prev
-            depth += d
-            prev = y
-        total += cov * (c - a)
-    return total
-
-
 def _sheet_trouble(blocks, arts, pol=None) -> str | None:
     if not blocks:
         return "empty"
@@ -193,12 +169,6 @@ def _order_src(page) -> str:
     if v is None:
         return "the field is there, the value is null"
     return v if isinstance(v, str) else f"not a string: {v!r}"
-
-
-def _ours(v) -> bool:
-    from backend.page import ours_order
-
-    return ours_order(v)
 
 
 @dataclass

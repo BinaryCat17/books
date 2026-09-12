@@ -41,10 +41,3 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return JSONResponse({"error": str(e)}, status_code=409)
 
     return app
-
-
-def serve(host: str, port: int) -> int:
-    import uvicorn
-
-    uvicorn.run(create_app(), host=host, port=port, log_level="info")
-    return 0

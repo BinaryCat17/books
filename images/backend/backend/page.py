@@ -79,10 +79,6 @@ def write_json(path: str, obj: object, indent: int | None = None) -> None:
 OUR_ORDER = "ours"
 
 
-def ours_order(value: object) -> bool:
-    return isinstance(value, str) and value.strip().lower().startswith(OUR_ORDER)
-
-
 def load_pages(d: str, what: str = "pages") -> dict:
     if not os.path.isdir(d):
         raise Unmeasurable(f"{what}: no directory {d}")

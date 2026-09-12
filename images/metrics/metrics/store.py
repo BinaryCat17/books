@@ -3,7 +3,6 @@ import builtins
 import os
 import re
 import json
-from metrics.log import log
 from metrics import settings as config
 from metrics import classes as policy_mod
 from metrics.errors import Refusal
@@ -126,58 +125,6 @@ class Book:
     def _listing(self, kind: str) -> str:
         got = self.runs(kind)
         return ", ".join(got) if got else f"no {kind} run in this book"
-
-
-def page_files(d: str) -> tuple[int, str]:
-    if not os.path.isdir(d):
-        return (0, "not a directory")
-    names = sorted(f for f in os.listdir(d) if f.endswith(".json") and f != "run.json")
-    if not names:
-        return (0, "no json files at all")
-    try:
-        with open(os.path.join(d, names[0]), encoding="utf-8") as f:
-            first = json.load(f)
-    except (OSError, ValueError) as e:
-        return (0, f"{names[0]} does not read as json ({type(e).__name__})")
-    if not (isinstance(first, dict) and "blocks" in first and ("index" in first)):
-        return (
-            0,
-            f"json files {len(names)}, but {names[0]} is not a layout page: no blocks/index fields",
-        )
-    return (len(names), "")
-
-
-def pages_dir(path: str, what: str) -> str:
-    if not os.path.exists(path):
-        raise Refusal(
-            f"{what}: no path {path}. Expected a detect run directory (pages/ and run.json in it) or the directory of layout pages itself (*.json)."
-        )
-    sub = os.path.join(path, "pages")
-    (here, why_here), (there, why_sub) = (page_files(path), page_files(sub))
-    if there and (not here):
-        log(f"{what}: given a run directory, taking the pages from {sub} — there are {there}")
-        return sub
-    if here:
-        return path
-    raise Refusal(
-        f"{what}: no layout pages found. In {path} — {why_here}; in {sub} — {why_sub}. Expected a detect run directory (pages/ and run.json in it) or the page directory itself. There is nothing to count — and that is not a zero of losses."
-    )
-
-
-def run_dir(path: str, what: str) -> str:
-    if not os.path.exists(path):
-        raise Refusal(
-            f"{what}: no path {path}. Expected a detect run directory — the one holding run.json."
-        )
-    if os.path.exists(os.path.join(path, "run.json")):
-        return path
-    up = os.path.dirname(os.path.abspath(path.rstrip("/")))
-    if page_files(path)[0] and os.path.exists(os.path.join(up, "run.json")):
-        log(f"{what}: given a page directory, taking the snapshot from {up}")
-        return up
-    raise Refusal(
-        f"{what}: no run.json in {path}. Expected a detect run directory (pages/ and run.json in it), not a page directory and not a book root."
-    )
 
 
 def snapshot_beside(pages_dir: str) -> dict | None:
