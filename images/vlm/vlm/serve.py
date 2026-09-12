@@ -82,6 +82,12 @@ def command(weights_dir: str, model_name: str, port: int) -> list[str]:
     ]
 
 
+# Every knob this image reads reaches the describe, and so the run's identity.
+# PORT is the exception: where vLLM listens on this machine decides nothing it answers.
+DESCRIBED = ("MODEL_NAME", "VL_MODEL_DIR", "VLLM_USE_FLASHINFER_SAMPLER", "VLM_TIMEOUT_S")
+NOT_DESCRIBED = ("PORT",)
+
+
 class Upstream:
     def __init__(self, weights_dir: str, model_name: str, port: int, log_path: str):
         self.weights_dir, self.model_name, self.port = (weights_dir, model_name, port)
@@ -169,10 +175,10 @@ class Service:
                 **weights,
                 "sha256_weights": weights["sha256_weights"],
             },
-            knobs={n: knobs.knob(n) for n in ("MODEL_NAME", "VL_MODEL_DIR", "VLLM_USE_FLASHINFER_SAMPLER")},
+            knobs={n: knobs.knob(n) for n in DESCRIBED},
             kinds=KINDS,
             openai={"base": "/v1", "model": model_name},
-            commit=knobs.knob("BOOKSMITH_COMMIT") or None,
+            commit=os.environ.get("BOOKSMITH_COMMIT") or None,
         )
 
     def ready(self) -> bool:

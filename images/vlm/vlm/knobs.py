@@ -16,7 +16,6 @@ KNOBS = (
     Knob("PORT", "8118", "port of the vLLM service on the machine"),
     Knob("VLLM_USE_FLASHINFER_SAMPLER", "0", "flashinfer sampler in vLLM"),
     Knob("VLM_TIMEOUT_S", "120", "how long to wait for one answer, s"),
-    Knob("BOOKSMITH_COMMIT", "", "the commit the image was built at; empty when nothing stamped it"),
 )
 KNOB = {k.name: k for k in KNOBS}
 

@@ -42,7 +42,6 @@ KNOBS_NOT_IDENTITY = {
     "LAYOUT_ENDPOINT": "where a served layout model was reached; the model itself is in the fingerprint",
     "LAYOUT_MODEL_DIR": "a machine-local path to the weights",
     "VL_MODEL_DIR": "a machine-local path to the weights",
-    "BOOKSMITH_COMMIT": "the commit the image was built at, not a choice the run makes",
 }
 
 

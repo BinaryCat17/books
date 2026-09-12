@@ -6,12 +6,11 @@ from dataclasses import dataclass
 import pymupdf
 import pytest
 
-from metrics import knobs
 from metrics.identity import sha256
 from metrics.page import write_json
 
 PAGES = 3
-DPI = float(knobs.KNOB["PAGE_DPI"].default)
+DPI = 144.0  # what the benches were rastered at
 K = DPI / 72.0
 POLICY = {"vocabulary": "PP-DocLayoutV2"}
 IDENTITY = "1f" * 32  # the backend computes these; metrics only carries one through

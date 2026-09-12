@@ -18,7 +18,6 @@ KNOBS = (
     ),
     Knob("SYNTH_SEED", "1", "seed of the synthetic bench"),
     Knob("SYNTH_AGING", "old", "bench ageing profile: clean|scan|old|decayed"),
-    Knob("BOOKSMITH_COMMIT", "", "the commit the image was built at; empty when nothing stamped it"),
 )
 KNOB = {k.name: k for k in KNOBS}
 

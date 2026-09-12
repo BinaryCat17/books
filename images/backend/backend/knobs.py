@@ -27,7 +27,6 @@ KNOBS = (
         "crop sharpness for an export: empty is the scan's own resolution, or detection's when that cannot be told; a read and a crop do not read it, the model's window deciding there",
     ),
     Knob("CROP_MARGIN", "0", "margin around the box when cropping, in box fractions"),
-    Knob("BOOKSMITH_COMMIT", "", "the commit the image was built at; empty when nothing stamped it"),
     Knob("MODEL_NAME", "PaddleOCR-VL-1.6-0.9B", "model name for vLLM and for the client"),
     Knob(
         "VLM_READER",

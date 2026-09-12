@@ -41,7 +41,6 @@ KNOBS = (
         "ours",
         "what assembles the book when the model has no reading rank of its own: ours (top to bottom, left to right) or docling (the vendor's rules, needing the docling package); PP-DocLayoutV2 and V3 carry a rank and ignore it, and ours is the default so that a detect run on a fresh environment never falls over a sorting rule",
     ),
-    Knob("BOOKSMITH_COMMIT", "", "the commit the image was built at; empty when nothing stamped it"),
 )
 KNOB = {k.name: k for k in KNOBS}
 
