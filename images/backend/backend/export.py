@@ -3,6 +3,7 @@ import html as _html
 import re
 from collections.abc import Callable, Iterator
 
+from backend import otsl
 from backend.errors import Refusal
 
 FORMATS = {
@@ -79,7 +80,8 @@ def _block_html(b: dict, crop: Crop) -> str:
     if k == "latex":
         return f'<p class="formula"{attrs}>\\[{_esc(c)}\\]</p>'
     if k == "otsl":
-        return f"<pre{attrs}>{_esc(c)}</pre>"
+        table = otsl.to_html(c)
+        return f"<div{attrs}>{table}</div>" if table else f"<pre{attrs}>{_esc(c)}</pre>"
     return f"<p{attrs}>{_esc(c)}</p>"
 
 
@@ -102,7 +104,12 @@ def _block_md(b: dict, crop: Crop) -> str | None:
     if b["as_picture"]:
         return f"![{b['label']}]({_uri(crop, b)})"
     c, k = (b["content"], b["kind"])
-    out = f"$$\n{c}\n$$" if k == "latex" else table_html(c) if k == "html" else f"```otsl\n{c}\n```" if k == "otsl" else c
+    out = (
+        f"$$\n{c}\n$$" if k == "latex"
+        else table_html(c) if k == "html"
+        else (otsl.to_html(c) or f"```otsl\n{c}\n```") if k == "otsl"
+        else c
+    )
     return out + (f"\n\n*({CUT})*" if b["hit_ceiling"] else "")
 
 

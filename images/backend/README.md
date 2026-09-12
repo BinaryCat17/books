@@ -50,6 +50,8 @@ Exports are rendered from `document.json` on each request, crops cut from
 the scan and carried inside the file; a verbatim repeat of a block on the
 same page, and in markdown and text the furniture, are left out. Formulas
 are drawn by MathJax from the network (`math=cdn`) or left as LaTeX (`off`).
+A table is asked of the reader as OTSL and exported as a table; OTSL that will
+not parse keeps its markup rather than vanish.
 
 Corrections: `{anchor, content | label | drop}` on a run or on its derived
 run; each one rewrites `<kind>/<label>.corrected/` from the base run (pages

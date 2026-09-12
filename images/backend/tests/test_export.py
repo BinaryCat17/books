@@ -32,6 +32,7 @@ DOC = {
             _block("p0000-b5", order=5, label="table", role="artifact", content="<table><tr><td>a</td><td>b</td></tr></table><script>alert(1)</script>", kind="html"),
             _block("p0000-b6", order=6, content="again", repeat_of="p0000-b0", repeat_verdict="verbatim"),
             _block("p0000-b7", order=7, label="table", role="artifact", content="<fcel>x<nl>", kind="otsl"),
+            _block("p0000-b8", order=8, label="table", role="artifact", content="not a grid at all", kind="otsl"),
         ],
     }],
 }
@@ -44,13 +45,14 @@ def _crop(b):
 def test_html_walks_the_reading_order_and_carries_the_crops():
     html = "".join(export.render("html", DOC, _crop))
     ids = [html[i + 5 : html.index('"', i + 5)] for i in range(len(html)) if html.startswith(' id="', i)]
-    assert ids == ["p0000-b0", "p0000-b1", "p0000-b2", "p0000-b3", "p0000-b4", "p0000-b5", "p0000-b7"], "sorted by order, the verbatim repeat left out"
+    assert ids == ["p0000-b0", "p0000-b1", "p0000-b2", "p0000-b3", "p0000-b4", "p0000-b5", "p0000-b7", "p0000-b8"], "sorted by order, the verbatim repeat left out"
     assert "second &lt;b&gt;" in html and 'data-truncated="yes"' in html
     assert 'data-role="furniture"' in html
     assert "data:image/png;base64,iVBOR3AwMDAwLWIz" in html, "the crop rides inside the file"
     assert "\\[E=mc^2\\]" in html and export.MATHJAX in html
     assert "<td>a</td>" in html and "<script" not in html.split("<body")[1]
-    assert "<pre" in html and "&lt;fcel&gt;" in html
+    assert "<table><tr><td>x</td></tr></table>" in html, "the reader is asked for otsl; a table reads as a table"
+    assert "<pre" in html and "not a grid at all" in html, "otsl that will not parse keeps its markup"
     assert export.MATHJAX not in "".join(export.render("html", DOC, _crop, math="off"))
     assert "<title>a book.pdf</title>" in html
 
@@ -59,10 +61,11 @@ def test_markdown_and_text_keep_the_words_and_leave_the_furniture():
     md = "".join(export.render("markdown", DOC, _crop))
     assert md.startswith("# a book.pdf\n") and "<!-- page 0 -->" in md
     assert md.index("first") < md.index("second <b>") and "running head" not in md and "again" not in md
-    assert "![picture](data:image/png;base64," in md and "$$\nE=mc^2\n$$" in md and "```otsl" in md
+    assert "![picture](data:image/png;base64," in md and "$$\nE=mc^2\n$$" in md
+    assert "<table><tr><td>x</td></tr></table>" in md and "```otsl" in md, "the table, and the fence for what will not parse"
     assert "<td>a</td>" in md and "<script>" not in md and f"*({export.CUT})*" in md
     txt = "".join(export.render("text", DOC, _crop))
-    assert txt == f"first\n\nsecond <b>\n[{export.CUT}]\n\nE=mc^2\n\na\tb\n\n<fcel>x<nl>\n\n"
+    assert txt == f"first\n\nsecond <b>\n[{export.CUT}]\n\nE=mc^2\n\na\tb\n\n<fcel>x<nl>\n\nnot a grid at all\n\n"
 
 
 def test_an_export_is_served_as_a_file_of_the_run(app, home, bench, served_endpoint):
