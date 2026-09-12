@@ -186,7 +186,7 @@ def page_files(d: str) -> tuple[int, str]:
 def pages_dir(path: str, what: str) -> str:
     if not os.path.exists(path):
         raise Refusal(
-            f"{what}: no path {path}. Expected a a detect run run directory (pages/ and run.json in it) or the directory of layout pages itself (*.json)."
+            f"{what}: no path {path}. Expected a detect run directory (pages/ and run.json in it) or the directory of layout pages itself (*.json)."
         )
     sub = os.path.join(path, "pages")
     (here, why_here), (there, why_sub) = (page_files(path), page_files(sub))
@@ -196,14 +196,14 @@ def pages_dir(path: str, what: str) -> str:
     if here:
         return path
     raise Refusal(
-        f"{what}: no layout pages found. In {path} — {why_here}; in {sub} — {why_sub}. Expected a a detect run run directory (pages/ and run.json in it) or the page directory itself. There is nothing to count — and that is not a zero of losses."
+        f"{what}: no layout pages found. In {path} — {why_here}; in {sub} — {why_sub}. Expected a detect run directory (pages/ and run.json in it) or the page directory itself. There is nothing to count — and that is not a zero of losses."
     )
 
 
 def run_dir(path: str, what: str) -> str:
     if not os.path.exists(path):
         raise Refusal(
-            f"{what}: no path {path}. Expected a a detect run run directory — the one holding run.json."
+            f"{what}: no path {path}. Expected a detect run directory — the one holding run.json."
         )
     if os.path.exists(os.path.join(path, "run.json")):
         return path
@@ -212,7 +212,7 @@ def run_dir(path: str, what: str) -> str:
         log(f"{what}: given a page directory, taking the snapshot from {up}")
         return up
     raise Refusal(
-        f"{what}: no run.json in {path}. Expected a a detect run run directory (pages/ and run.json in it), not a page directory and not a book root."
+        f"{what}: no run.json in {path}. Expected a detect run directory (pages/ and run.json in it), not a page directory and not a book root."
     )
 
 

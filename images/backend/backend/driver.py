@@ -86,7 +86,7 @@ def _detect_facts(detect_dir: str) -> dict:
     p = os.path.join(detect_dir, "run.json")
     if not os.path.exists(p):
         raise Refusal(
-            f"no run.json in {detect_dir}: this is not a a detect run directory. Reading without the detection snapshot knows neither the book nor the dpi the boxes were measured at, and would cut the crops at the wrong coordinates."
+            f"no run.json in {detect_dir}: this is not a detect run directory. Reading without the detection snapshot knows neither the book nor the dpi the boxes were measured at, and would cut the crops at the wrong coordinates."
         )
     with open(p, encoding="utf-8") as f:
         return json.load(f)
