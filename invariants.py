@@ -109,10 +109,32 @@ def the_dependencies_and_the_imports_agree(fail):
                 fail(f"{i}: imports {m} and declares it nowhere -- the built image will not have it")
 
 
+def the_readme_and_the_tree_agree(fail):
+    for i in IMAGES:
+        image = os.path.join(ROOT, "images", i)
+        cited = re.findall(r"`([^`\s]+/[^`\s]+)`", read(os.path.join(image, "README.md")))
+        for c in cited:
+            if "<" in c or "{" in c or c.startswith(("/", "http", "~")):
+                continue
+            if not os.path.exists(os.path.join(image, c)) and not os.path.exists(os.path.join(ROOT, c)):
+                fail(f"{i}/README.md cites {c}, which is not there")
+
+
+def the_describe_and_the_code_agree(fail):
+    """A model image records the knobs it read; what it leaves out never reaches an identity."""
+    for i in ("vlm",):
+        src = read(os.path.join(pkg(i), "serve.py"))
+        described = set(re.findall(r'DESCRIBED = \(([^)]*)\)', src)[0].replace('"', "").split(", "))
+        described |= set(re.findall(r'NOT_DESCRIBED = \(([^)]*)\)', src)[0].replace('"', "").replace(",", " ").split())
+        for n in sorted(knobs_read(i) - {x.strip() for x in described if x.strip()}):
+            fail(f"{i}: reads {n} and the describe never carries it, so it never reaches an identity")
+
+
 def main():
     bad = []
     checks = (no_image_reaches_another, the_registry_and_the_code_agree,
-              the_dependencies_and_the_imports_agree)
+              the_dependencies_and_the_imports_agree, the_readme_and_the_tree_agree,
+              the_describe_and_the_code_agree)
     for check in checks:
         check(bad.append)
     for line in bad:
