@@ -70,7 +70,8 @@
   },
   "version": {
    "type": "integer",
-   "description": "the version of the metric that produced this record"
+   "description": "the version of the metric that produced this record",
+   "minimum": 1
   }
  },
  "required": [

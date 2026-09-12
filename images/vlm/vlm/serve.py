@@ -12,6 +12,7 @@ import urllib.error
 import urllib.request
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response
 from vlm import job
 from vlm import deadman, knobs
@@ -237,7 +238,9 @@ def create_app(svc: Service) -> FastAPI:
     @app.api_route("/v1/{path:path}", methods=["GET", "POST"], dependencies=[Depends(allowed)])
     async def through(path: str, request: Request) -> Response:
         body = await request.body()
-        code, ctype, out = svc.proxy(request.method, "/v1/" + path, body or None, dict(request.headers))
+        code, ctype, out = await run_in_threadpool(
+            svc.proxy, request.method, "/v1/" + path, body or None, dict(request.headers)
+        )
         if request.method == "POST" and path.endswith("chat/completions"):
             svc.requests += 1
             svc.last_request = time.time()

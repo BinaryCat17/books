@@ -17,6 +17,14 @@ def looks_like(s: object) -> bool:
     return "nl" in toks or len(toks) >= 2
 
 
+def around(s: str) -> tuple[str, str]:
+    if not looks_like(s):
+        return ("", "")
+    toks = list(_TOK.finditer(s))
+    tail = s[toks[-1].end() :] if toks[-1].group(1) in BREAK else ""
+    return (s[: toks[0].start()].strip(), tail.strip())
+
+
 def grid(s: str) -> dict | None:
     return parse(s)[0] if looks_like(s) else None
 
@@ -166,7 +174,7 @@ def to_html(s: str) -> str:
                 span += f''' colspan="{cell["cols"]}"'''
             if cell["rows"] > 1:
                 span += f''' rowspan="{cell["rows"]}"'''
-            out.append(f"<{tag}{span}>" + _html.escape(cell["text"]) + f"</{tag}>")
+            out.append(f"<{tag}{span}>" + _html.escape(_html.unescape(cell["text"])) + f"</{tag}>")
         out.append("</tr>")
     out.append("</table>")
     return "".join(out)

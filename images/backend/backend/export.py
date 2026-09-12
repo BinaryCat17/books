@@ -67,6 +67,11 @@ def table_html(c: str) -> str:
     return "".join(out)
 
 
+def _otsl_parts(c: str) -> tuple[str, str, str]:
+    table = otsl.to_html(c)
+    return (*otsl.around(c), table) if table else ("", "", "")
+
+
 def _block_html(b: dict, crop: Crop) -> str:
     attrs = f' id="{b["anchor"]}" data-role="{b["role"]}" data-label="{_esc(b["label"])}"'
     if b["hit_ceiling"]:
@@ -80,8 +85,11 @@ def _block_html(b: dict, crop: Crop) -> str:
     if k == "latex":
         return f'<p class="formula"{attrs}>\\[{_esc(c)}\\]</p>'
     if k == "otsl":
-        table = otsl.to_html(c)
-        return f"<div{attrs}>{table}</div>" if table else f"<pre{attrs}>{_esc(c)}</pre>"
+        head, tail, table = _otsl_parts(c)
+        if not table:
+            return f"<pre{attrs}>{_esc(c)}</pre>"
+        around = (f"<p>{_esc(head)}</p>" if head else "", f"<p>{_esc(tail)}</p>" if tail else "")
+        return f"<div{attrs}>{around[0]}{table}{around[1]}</div>"
     return f"<p{attrs}>{_esc(c)}</p>"
 
 
@@ -98,6 +106,13 @@ def _html_doc(doc: dict, crop: Crop, math: str) -> Iterator[str]:
     yield "</body></html>\n"
 
 
+def _otsl_md(c: str) -> str:
+    head, tail, table = _otsl_parts(c)
+    if not table:
+        return f"```otsl\n{c}\n```"
+    return "\n\n".join(x for x in (head, table, tail) if x)
+
+
 def _block_md(b: dict, crop: Crop) -> str | None:
     if b["role"] == "furniture":
         return None
@@ -107,7 +122,7 @@ def _block_md(b: dict, crop: Crop) -> str | None:
     out = (
         f"$$\n{c}\n$$" if k == "latex"
         else table_html(c) if k == "html"
-        else (otsl.to_html(c) or f"```otsl\n{c}\n```") if k == "otsl"
+        else _otsl_md(c) if k == "otsl"
         else c
     )
     return out + (f"\n\n*({CUT})*" if b["hit_ceiling"] else "")
@@ -135,7 +150,12 @@ def _plain(c: str) -> str:
 def _block_txt(b: dict) -> str | None:
     if b["role"] == "furniture" or b["as_picture"]:
         return None
-    c = _plain(b["content"]) if b["kind"] == "html" else b["content"]
+    c = b["content"]
+    if b["kind"] == "html":
+        c = _plain(c)
+    elif b["kind"] == "otsl":
+        head, tail, table = _otsl_parts(c)
+        c = "\n\n".join(x for x in (head, _plain(table), tail) if x) if table else c
     return c + (f"\n[{CUT}]" if b["hit_ceiling"] else "")
 
 

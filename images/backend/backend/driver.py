@@ -298,9 +298,9 @@ def read_book(
         asked_now = {a.anchor for a in asks}
         said = {}
         if asks:
-            n = max(1, knobs.number("VLM_CONCURRENCY", kind=int))
+            at_once = max(1, knobs.number("VLM_CONCURRENCY", kind=int))
             want = {a.anchor for a in asks}
-            with ThreadPoolExecutor(max_workers=n) as pool:
+            with ThreadPoolExecutor(max_workers=at_once) as pool:
                 for s in pool.map(transport.send, asks):
                     if s.anchor not in want:
                         tally["answer_wrong_anchor"] += 1

@@ -71,11 +71,6 @@ class Record:
     truth_sha256: str | None = None
     version: int = 0
 
-    def row(self) -> dict:
-        out = {"metric": self.metric, "bench": self.bench, "run": self.run}
-        out.update({k: s.value for k, s in self.scalars.items()})
-        return out
-
     def to_json(self) -> dict:
         return {
             "metric": self.metric,
@@ -90,23 +85,6 @@ class Record:
             "params": self.params,
             "detail": self.detail,
         }
-
-    @classmethod
-    def from_json(cls, d: dict) -> "Record":
-        return cls(
-            d["metric"],
-            d["bench"],
-            d["run"],
-            {k: Scalar.from_json(v) for k, v in d["scalars"].items()},
-            d.get("params", {}),
-            d.get("detail", {}),
-            d.get("identity"),
-            d.get("source_sha256"),
-            d.get("book"),
-            d.get("truth_sha256"),
-            int(d.get("version") or 0),
-        )
-
 
 CURRENT, STALE, NOT_RECORDED, NOT_CHECKED = ("current", "stale", "not recorded", "not checked")
 

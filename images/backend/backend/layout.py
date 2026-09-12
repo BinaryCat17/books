@@ -321,7 +321,9 @@ def run(pdf, outdir, pages_spec=None, det=None, hybrid=False):
         )
     if total == 0:
         raise Refusal(
-            f"not one box on {len(idxs)} pages -- a refusal, not an empty book. Threshold LAYOUT_SCORE_THRESHOLD={knobs.knob('LAYOUT_SCORE_THRESHOLD')}, weights {det.where()}. Best rejected: {rej_best or 'nothing was rejected at all'}"
+            f"not one box on {len(idxs)} pages -- a refusal, not an empty book. The model served "
+            f"{det.describe.knobs.get('LAYOUT_SCORE_THRESHOLD') or 'no threshold it would name'}, "
+            f"weights {det.where()}. Best rejected: {rej_best or 'nothing was rejected at all'}"
         )
     fp = det.fingerprint()
     knob_block = _knobs_snapshot(roles)

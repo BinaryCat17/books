@@ -13,15 +13,14 @@ import tomllib
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 IMAGES = ("backend", "metrics", "layout", "vlm", "datasets", "fleet")
-ALIAS = {"opencv-python-headless": "cv2", "pyyaml": "yaml", "pymupdf": "pymupdf",
-         "python-multipart": "multipart", "argon2-cffi": "argon2", "pillow": "PIL",
-         "docling-slim": "docling", "huggingface-hub": "huggingface_hub", "onnxruntime": "onnxruntime"}
-# A dependency no import names, because something other than our code needs it.
+ALIAS = {"opencv-python-headless": "cv2", "pyyaml": "yaml", "argon2-cffi": "argon2",
+         "docling-slim": "docling", "docling-core": "docling_core"}
 # Knobs read by something other than our Python, with the reader named.
 READ_ELSEWHERE = {"vlm": {"VLLM_USE_FLASHINFER_SAMPLER"}}  # vLLM, from the environment we hand the child
-RUNTIME_ONLY = {"backend": {"python-multipart", "uvicorn"}, "metrics": {"uvicorn"},
-                "layout": {"uvicorn", "docling-slim", "rtree"}, "vlm": {"uvicorn"},
-                "fleet": {"uvicorn"}, "datasets": set()}
+# A dependency no import of ours names, because something else reaches for it:
+# fastapi wants the form parser, docling wants the spatial index.
+RUNTIME_ONLY = {"backend": {"python-multipart"}, "metrics": set(),
+                "layout": {"rtree"}, "vlm": set(), "fleet": set(), "datasets": set()}
 
 
 def pkg(image):
@@ -58,7 +57,7 @@ def imports(image, tests=False):
 def knobs_read(image):
     got = set()
     for p in sources(image):
-        got |= set(re.findall(r'knobs\.(?:knob|number)\("([A-Z_0-9]+)"', read(p)))
+        got |= set(re.findall(r"""knobs\.(?:knob|number)\(['"]([A-Z_0-9]+)['"]""", read(p)))
     return got
 
 
@@ -124,8 +123,14 @@ def the_describe_and_the_code_agree(fail):
     """A model image records the knobs it read; what it leaves out never reaches an identity."""
     for i in ("vlm",):
         src = read(os.path.join(pkg(i), "serve.py"))
-        described = set(re.findall(r'DESCRIBED = \(([^)]*)\)', src)[0].replace('"', "").split(", "))
-        described |= set(re.findall(r'NOT_DESCRIBED = \(([^)]*)\)', src)[0].replace('"', "").replace(",", " ").split())
+        named = set()
+        for key in ("DESCRIBED", "NOT_DESCRIBED"):
+            hit = re.search(rf'^{key} = \(([^)]*)\)', src, re.M)
+            if not hit:
+                fail(f"{i}: serve.py declares no {key}")
+                continue
+            named |= {x for x in re.split(r'[,\s"]+', hit.group(1)) if x}
+        described = named
         for n in sorted(knobs_read(i) - {x.strip() for x in described if x.strip()}):
             fail(f"{i}: reads {n} and the describe never carries it, so it never reaches an identity")
 
@@ -141,7 +146,7 @@ def the_lock_and_the_images_agree(fail):
             continue
         if i == "vlm":
             continue  # pinned by hand against a CUDA wheel index, not derivable from the lock
-        cmd = ["uv", "export", "--package", i, "--no-dev", "--no-emit-project", "--frozen",
+        cmd = ["uv", "export", "--package", i, "--no-dev", "--no-emit-project", "--locked",
                "--no-hashes", "-o", f"images/{i}/constraints.txt"]
         if i == "layout":
             cmd.insert(4, "--all-extras")
@@ -149,6 +154,10 @@ def the_lock_and_the_images_agree(fail):
         if got.returncode:
             fail(f"{i}: uv export failed: {got.stderr.strip()[:120]}")
             continue
+        dockerfile = read(os.path.join(ROOT, "images", i, "Dockerfile"))
+        installs = [l for l in dockerfile.split("\n") if "uv pip install" in l and "huggingface" not in l]
+        if not any("-c constraints.txt" in l or "-c /tmp/constraints.txt" in l for l in installs):
+            fail(f"{i}: the Dockerfile installs without -c constraints.txt, so the lock does not reach the image")
         want = [l for l in got.stdout.split("\n") if l and not l.startswith("#")]
         have = [l for l in read(c).split("\n") if l and not l.startswith("#")]
         if want != have:
